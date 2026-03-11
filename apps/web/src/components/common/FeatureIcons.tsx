@@ -540,8 +540,8 @@ const FeatureIcons = ({
                 variant="ghost"
                 size="icon"
                 className={cn(
-                  'size-9 sm:size-10 text-grey-600 dark:text-grey-400 hover:bg-secondary-50 dark:hover:bg-secondary-900',
-                  useWebSearch && 'bg-secondary-100 dark:bg-secondary-800 text-primary-500'
+                  'size-9 sm:size-10 text-grey-600 dark:text-grey-400 hover:bg-secondary-50 dark:hover:bg-secondary-700 transition-colors duration-150',
+                  useWebSearch && 'bg-secondary-100 dark:bg-secondary-700 text-primary-500'
                 )}
                 onClick={toggleWebSearch}
                 aria-label="Websuche aktivieren"
@@ -569,9 +569,9 @@ const FeatureIcons = ({
                     variant="ghost"
                     size="icon"
                     className={cn(
-                      'size-9 sm:size-10 text-grey-600 dark:text-grey-400 hover:bg-secondary-50 dark:hover:bg-secondary-900',
+                      'size-9 sm:size-10 text-grey-600 dark:text-grey-400 hover:bg-secondary-50 dark:hover:bg-secondary-700 transition-colors duration-150',
                       (usePrivacyMode || useProMode) &&
-                        'bg-secondary-100 dark:bg-secondary-800 text-primary-500'
+                        'bg-secondary-100 dark:bg-secondary-700 text-primary-500'
                     )}
                     aria-label={usePrivacyMode ? 'Gruenerator-GPT' : useProMode ? 'Pro' : 'Kreativ'}
                     tabIndex={tabIndex.balancedMode}
@@ -610,8 +610,8 @@ const FeatureIcons = ({
                   variant="ghost"
                   size="icon"
                   className={cn(
-                    'size-9 sm:size-10 text-grey-600 dark:text-grey-400 hover:bg-secondary-50 dark:hover:bg-secondary-900',
-                    useAgentMode && 'bg-secondary-100 dark:bg-secondary-800 text-primary-500'
+                    'size-9 sm:size-10 text-grey-600 dark:text-grey-400 hover:bg-secondary-50 dark:hover:bg-secondary-700 transition-colors duration-150',
+                    useAgentMode && 'bg-secondary-100 dark:bg-secondary-700 text-primary-500'
                   )}
                   onClick={toggleAgentMode}
                   aria-label="Agent-Modus"
@@ -643,9 +643,9 @@ const FeatureIcons = ({
                     variant="ghost"
                     size="icon"
                     className={cn(
-                      'size-9 sm:size-10 text-grey-600 dark:text-grey-400 hover:bg-secondary-50 dark:hover:bg-secondary-900',
+                      'size-9 sm:size-10 text-grey-600 dark:text-grey-400 hover:bg-secondary-50 dark:hover:bg-secondary-700 transition-colors duration-150',
                       (totalContentCount > 0 || useAutomaticSearch) &&
-                        'bg-secondary-100 dark:bg-secondary-800 text-primary-500'
+                        'bg-secondary-100 dark:bg-secondary-700 text-primary-500'
                     )}
                     aria-label="Inhalt"
                     tabIndex={tabIndex.attachment}
@@ -700,9 +700,9 @@ const FeatureIcons = ({
                   variant="ghost"
                   size="icon"
                   className={cn(
-                    'size-9 sm:size-10 text-grey-600 dark:text-grey-400 hover:bg-secondary-50 dark:hover:bg-secondary-900',
+                    'size-9 sm:size-10 text-grey-600 dark:text-grey-400 hover:bg-secondary-50 dark:hover:bg-secondary-700 transition-colors duration-150',
                     interactiveModeActive &&
-                      'bg-secondary-100 dark:bg-secondary-800 text-primary-500'
+                      'bg-secondary-100 dark:bg-secondary-700 text-primary-500'
                   )}
                   onClick={onInteractiveModeClick}
                   aria-label="Interaktiver Modus"
