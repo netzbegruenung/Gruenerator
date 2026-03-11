@@ -93,7 +93,7 @@ export const FloatingToolbar = memo(
         {!shouldHideOtherControls && onDelete && (
           <>
             <button
-              className="size-8 max-canvas-mobile:size-7 rounded-full border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 dark:hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="size-8 max-canvas-mobile:size-11 rounded-full max-canvas-mobile:rounded-[10px] border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 dark:hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed"
               onClick={() => {
                 if (window.confirm('Seite wirklich löschen?')) {
                   onDelete();
@@ -115,7 +115,7 @@ export const FloatingToolbar = memo(
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
               </svg>
             </button>
-            <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-4 max-canvas-mobile:mx-0" />
+            <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-6 max-canvas-mobile:mx-1" />
           </>
         )}
 
@@ -130,7 +130,7 @@ export const FloatingToolbar = memo(
 
         {!shouldHideOtherControls && selectedElement && (
           <>
-            <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-4 max-canvas-mobile:mx-0" />
+            <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-6 max-canvas-mobile:mx-1" />
             <FloatingLayerControls
               onMoveUp={() => handlers.handleMoveLayer('up')}
               onMoveDown={() => handlers.handleMoveLayer('down')}
@@ -139,10 +139,10 @@ export const FloatingToolbar = memo(
             />
             {handlers.handleAlign && activeFloatingModule?.type === 'text' && (
               <>
-                <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-4 max-canvas-mobile:mx-0" />
+                <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-6 max-canvas-mobile:mx-1" />
                 <div className="flex items-center gap-0.5">
                   <button
-                    className="size-7 max-canvas-mobile:size-6 rounded-full border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:bg-hover-alt hover:text-primary-600"
+                    className="size-7 max-canvas-mobile:size-10 rounded-full max-canvas-mobile:rounded-[10px] border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:bg-hover-alt hover:text-primary-600"
                     onClick={() => handlers.handleAlign!('left')}
                     title="Links ausrichten"
                   >
@@ -161,7 +161,7 @@ export const FloatingToolbar = memo(
                     </svg>
                   </button>
                   <button
-                    className="size-7 max-canvas-mobile:size-6 rounded-full border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:bg-hover-alt hover:text-primary-600"
+                    className="size-7 max-canvas-mobile:size-10 rounded-full max-canvas-mobile:rounded-[10px] border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:bg-hover-alt hover:text-primary-600"
                     onClick={() => handlers.handleAlign!('center-h')}
                     title="Horizontal zentrieren"
                   >
@@ -180,7 +180,7 @@ export const FloatingToolbar = memo(
                     </svg>
                   </button>
                   <button
-                    className="size-7 max-canvas-mobile:size-6 rounded-full border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:bg-hover-alt hover:text-primary-600"
+                    className="size-7 max-canvas-mobile:size-10 rounded-full max-canvas-mobile:rounded-[10px] border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:bg-hover-alt hover:text-primary-600"
                     onClick={() => handlers.handleAlign!('center-v')}
                     title="Vertikal zentrieren"
                   >
@@ -207,7 +207,7 @@ export const FloatingToolbar = memo(
         {activeFloatingModule && (
           <>
             {!shouldHideOtherControls && (
-              <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-4 max-canvas-mobile:mx-0" />
+              <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-6 max-canvas-mobile:mx-1" />
             )}
 
             {activeFloatingModule.type === 'text' && (
@@ -221,14 +221,14 @@ export const FloatingToolbar = memo(
                 />
                 {!shouldHideOtherControls && (
                   <>
-                    <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-4 max-canvas-mobile:mx-0" />
+                    <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-6 max-canvas-mobile:mx-1" />
                     <FloatingFontSizeControl
                       fontSize={activeFloatingModule.data.fontSize ?? 16}
                       onFontSizeChange={(size) =>
                         handlers.handleFontSizeChange(activeFloatingModule.data.id, size)
                       }
                     />
-                    <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-4 max-canvas-mobile:mx-0" />
+                    <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-6 max-canvas-mobile:mx-1" />
                     <FloatingOpacityControl
                       opacity={activeFloatingModule.data.opacity ?? 1}
                       onOpacityChange={(val) =>
@@ -251,7 +251,7 @@ export const FloatingToolbar = memo(
                       onExpandChange={setIsColorPickerExpanded}
                     />
                     {!shouldHideOtherControls && (
-                      <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-4 max-canvas-mobile:mx-0" />
+                      <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-6 max-canvas-mobile:mx-1" />
                     )}
                   </>
                 )}
@@ -283,7 +283,7 @@ export const FloatingToolbar = memo(
                 />
                 {!shouldHideOtherControls && (
                   <>
-                    <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-4 max-canvas-mobile:mx-0" />
+                    <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-6 max-canvas-mobile:mx-1" />
                     <FloatingOpacityControl
                       opacity={activeFloatingModule.data.opacity ?? 1}
                       onOpacityChange={(val) =>
@@ -310,7 +310,7 @@ export const FloatingToolbar = memo(
                       onExpandChange={setIsColorPickerExpanded}
                     />
                     {!shouldHideOtherControls && (
-                      <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-4 max-canvas-mobile:mx-0" />
+                      <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-6 max-canvas-mobile:mx-1" />
                     )}
                   </>
                 )}

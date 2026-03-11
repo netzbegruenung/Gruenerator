@@ -13,7 +13,7 @@ interface FloatingColorPickerProps {
 }
 
 const colorBtn =
-  'size-8 max-canvas-mobile:size-5 rounded-full border border-black/10 cursor-pointer p-0 relative transition-transform duration-150 shrink-0 hover:-translate-y-0.5 active:scale-90';
+  'size-8 max-canvas-mobile:size-[26px] rounded-full border border-black/10 cursor-pointer p-0 relative transition-transform duration-150 shrink-0 hover:-translate-y-0.5 active:scale-90';
 
 export function FloatingColorPicker({
   currentColor,
