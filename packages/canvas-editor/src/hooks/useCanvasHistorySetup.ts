@@ -54,6 +54,7 @@ export function useCanvasHistorySetup<T extends Record<string, unknown>>(
       }, 0);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, []);
 
   return {

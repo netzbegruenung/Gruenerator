@@ -15,6 +15,7 @@ import {
 } from 'react-kawaii';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
+import { useCanvasEditorServices } from '../CanvasEditorProvider';
 import { getIllustrationPath, findIllustrationById } from '../utils/illustrations/registry';
 import { getCachedSVG, getSVG } from '../utils/illustrations/svgCache';
 
@@ -66,6 +67,7 @@ function IllustrationPrimitiveInner({
   onTransformEnd,
   draggable = true,
 }: IllustrationPrimitiveProps) {
+  const { assetBaseUrl = '' } = useCanvasEditorServices();
   const groupRef = useRef<Konva.Group>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
@@ -107,14 +109,14 @@ function IllustrationPrimitiveInner({
 
         // Fallback: fetch and cache (async)
         try {
-          const dataUrl = await getSVG(svgDef.id, svgDef, illustration.color);
+          const dataUrl = await getSVG(svgDef.id, svgDef, illustration.color, assetBaseUrl);
           const img = new window.Image();
           img.src = dataUrl;
           img.onload = () => setImage(img);
         } catch (err) {
           console.error('Failed to load SVG:', err);
           // Final fallback: direct load without color manipulation
-          const path = getIllustrationPath(svgDef);
+          const path = getIllustrationPath(svgDef, assetBaseUrl);
           const img = new window.Image();
           img.src = path;
           img.onload = () => setImage(img);
@@ -127,6 +129,7 @@ function IllustrationPrimitiveInner({
     illustration.source,
     illustration.illustrationId,
     illustration.color, // Depend on color
+    assetBaseUrl,
     // Only Kawaii specific props trigger re-render of SVG
     illustration.source === 'kawaii' ? (illustration as KawaiiInstance).mood : null,
     illustration.source === 'kawaii' ? (illustration as KawaiiInstance).color : null,

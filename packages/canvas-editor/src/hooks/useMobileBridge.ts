@@ -61,11 +61,14 @@ export interface MobileBridgeCallbacks {
   onHistoryChange: (state: HistoryState) => void;
   onTabsChange: (tabs: TabInfo[]) => void;
   onActiveTabChange: (tabId: SidebarTabId | null) => void;
+  onSubsectionsChange: (subs: Array<{ id: string; label: string }>) => void;
+  onActiveSubsectionChange: (id: string | null) => void;
 }
 
 export interface MobileBridgeProps {
   callbacks: MobileBridgeCallbacks;
   activeTab: SidebarTabId | null;
+  activeSubsection: string | null;
   toolbarAction: ToolbarAction | null;
   toolbarActionId: number;
 }

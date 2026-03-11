@@ -50,6 +50,11 @@ export interface HistoryState {
   canRedo: boolean;
 }
 
+export interface SubsectionInfo {
+  id: string;
+  label: string;
+}
+
 export type ToolbarAction =
   | { type: 'undo' }
   | { type: 'redo' }

@@ -3,7 +3,7 @@
  * Entry point for Image Studio - select KI type or style variant
  */
 
-import { kiTypeRequiresImage } from '@gruenerator/shared/image-studio';
+import { kiTypeRequiresImage, typeHasTextGeneration } from '@gruenerator/shared/image-studio';
 import { router } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -45,7 +45,11 @@ export default function TypeSelectionScreen() {
   const handleTemplateSelect = (templateType: ImageStudioTemplateType) => {
     reset();
     setType(templateType);
-    router.push(route('/(focused)/image-studio-create/template-input'));
+    if (!typeHasTextGeneration(templateType)) {
+      router.push(route('/(focused)/image-studio-create/image'));
+    } else {
+      router.push(route('/(focused)/image-studio-create/template-input'));
+    }
   };
 
   return (

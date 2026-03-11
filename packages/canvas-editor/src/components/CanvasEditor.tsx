@@ -29,6 +29,7 @@ import Spinner from '../common/Spinner';
 import { usePageManager, useMultiPageExport } from '../hooks';
 import { useMobileBridge } from '../hooks/useMobileBridge';
 import { CanvasEditorLayout } from '../layouts';
+import { MobileSubsectionBridgeContext } from '../sidebar/MobileSubsectionBridgeContext';
 
 import { GenericCanvas } from './GenericCanvas';
 import { AddPageButton } from './TemplatePickerFlyout';
@@ -37,6 +38,7 @@ import { ZoomableViewport } from './ZoomableViewport';
 import type { GenericCanvasRef } from './GenericCanvas';
 import type { CanvasConfigId, FullCanvasConfig } from '../configs/types';
 import type { MobileBridgeProps } from '../hooks/useMobileBridge';
+import type { MobileSubsectionBridgeValue } from '../sidebar/MobileSubsectionBridgeContext';
 import type { InitialPageDef } from '../hooks/usePageManager';
 import type { SidebarTabId } from '../sidebar/types';
 
@@ -467,6 +469,27 @@ export function CanvasEditor({
     mobileBridge.callbacks.onActiveTabChange(activeTab);
   }, [mobileBridge, activeTab]);
 
+  // Clear stale subsections when active tab changes (new section will report its own)
+  const prevActiveTabRef = useRef(activeTab);
+  useEffect(() => {
+    if (!mobileBridge) return;
+    if (prevActiveTabRef.current !== activeTab) {
+      prevActiveTabRef.current = activeTab;
+      mobileBridge.callbacks.onSubsectionsChange([]);
+    }
+  }, [mobileBridge, activeTab]);
+
+  // Build subsection bridge context value for MobileSubsectionBridgeContext
+  const subsectionBridgeValue = useMemo<MobileSubsectionBridgeValue>(
+    () => ({
+      active: isMobileBridge,
+      activeSubsection: mobileBridge?.activeSubsection ?? null,
+      onSubsectionsChange: mobileBridge?.callbacks.onSubsectionsChange ?? (() => {}),
+      onActiveSubsectionChange: mobileBridge?.callbacks.onActiveSubsectionChange ?? (() => {}),
+    }),
+    [isMobileBridge, mobileBridge?.activeSubsection, mobileBridge?.callbacks]
+  );
+
   // Share all pages via native share (Web Share API with multiple files)
   const shareAllPages = useCallback(async () => {
     const dataUrls = await exportAllPages();
@@ -571,11 +594,13 @@ export function CanvasEditor({
   );
 
   const panel = (
-    <Suspense fallback={sidebarLoadingFallback}>
-      <LazySidebarPanel isOpen={activeTab !== null} onClose={handlePanelClose}>
-        {renderActiveSection()}
-      </LazySidebarPanel>
-    </Suspense>
+    <MobileSubsectionBridgeContext.Provider value={subsectionBridgeValue}>
+      <Suspense fallback={sidebarLoadingFallback}>
+        <LazySidebarPanel isOpen={activeTab !== null} onClose={handlePanelClose}>
+          {renderActiveSection()}
+        </LazySidebarPanel>
+      </Suspense>
+    </MobileSubsectionBridgeContext.Provider>
   );
 
   return (

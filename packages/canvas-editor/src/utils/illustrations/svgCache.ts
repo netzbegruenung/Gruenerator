@@ -2,15 +2,14 @@
  * SVG Cache with Intelligent Prefetching
  *
  * Eliminates 100-500ms SVG fetch delays by:
- * 1. In-memory LRU cache with 50MB limit
- * 2. Pre-computed color variants (8 colors per SVG)
+ * 1. In-memory LRU cache with 30MB limit
+ * 2. Lazy on-demand color variants (computed per-color, not all 9 upfront)
  * 3. Three-tier priority prefetching (visible → high → background)
  * 4. RequestIdleCallback for non-blocking background loads
  */
 
 import { recordCacheHit, recordCacheMiss, recordNetworkRequest } from './prefetchAnalytics';
 import { getIllustrationPath } from './registry';
-import { ILLUSTRATION_COLORS } from './types';
 
 import type { SvgDef } from './types';
 
@@ -20,7 +19,7 @@ import type { SvgDef } from './types';
 
 interface CachedSVG {
   rawSvg: string; // Original SVG text
-  colorVariants: Map<string, string>; // color → base64 data URL
+  colorVariants: Map<string, string>; // color → base64 data URL (computed on demand)
   dataUrl: string | null; // Default (no color manipulation)
   timestamp: number; // For LRU eviction
   size: number; // Estimated memory in bytes
@@ -38,7 +37,7 @@ interface PrefetchTask {
 
 const cache = new Map<string, CachedSVG>();
 let totalMemory = 0;
-const MAX_MEMORY = 50 * 1024 * 1024; // 50MB
+const MAX_MEMORY = 30 * 1024 * 1024; // 30MB — more aggressive LRU with larger catalog
 
 // Priority queues
 const prefetchQueue: PrefetchTask[] = [];
@@ -100,30 +99,22 @@ function svgToDataUrl(svgText: string): string {
 }
 
 /**
- * Estimate memory size of cached SVG entry
+ * Compute a single color variant on demand (lazy — not all 9 upfront)
  */
-function estimateSize(rawSvg: string, colorVariants: Map<string, string>): number {
-  let size = rawSvg.length * 2; // UTF-16
-  colorVariants.forEach((dataUrl) => {
-    size += dataUrl.length * 2;
-  });
-  return size;
-}
+function getOrComputeColorVariant(cached: CachedSVG, color: string): string {
+  const existing = cached.colorVariants.get(color);
+  if (existing) return existing;
 
-/**
- * Pre-compute all color variants for an SVG
- */
-function precomputeColorVariants(rawSvg: string): Map<string, string> {
-  const variants = new Map<string, string>();
+  const coloredSvg = replaceColors(cached.rawSvg, color);
+  const dataUrl = svgToDataUrl(coloredSvg);
+  cached.colorVariants.set(color, dataUrl);
 
-  // Generate variant for each predefined color
-  ILLUSTRATION_COLORS.forEach(({ color }) => {
-    const coloredSvg = replaceColors(rawSvg, color);
-    const dataUrl = svgToDataUrl(coloredSvg);
-    variants.set(color, dataUrl);
-  });
+  // Update size estimate
+  const addedSize = dataUrl.length * 2;
+  cached.size += addedSize;
+  totalMemory += addedSize;
 
-  return variants;
+  return dataUrl;
 }
 
 // =============================================================================
@@ -167,9 +158,9 @@ export function getCachedSVG(id: string, color?: string): string | null {
   // Track cache hit
   recordCacheHit(id);
 
-  // Return color variant if requested
-  if (color && cached.colorVariants.has(color)) {
-    return cached.colorVariants.get(color)!;
+  // Compute color variant on demand (lazy)
+  if (color) {
+    return getOrComputeColorVariant(cached, color);
   }
 
   // Return default if no color specified
@@ -180,26 +171,31 @@ export function getCachedSVG(id: string, color?: string): string | null {
  * Fetch and cache SVG with all color variants
  * Returns base64 data URL for specified color (or default)
  */
-async function fetchAndCacheSVG(id: string, def: SvgDef, color?: string): Promise<string> {
+async function fetchAndCacheSVG(
+  id: string,
+  def: SvgDef,
+  color?: string,
+  baseUrl = ''
+): Promise<string> {
   try {
     // Track cache miss and network request
     recordCacheMiss(id);
     recordNetworkRequest();
 
-    const path = getIllustrationPath(def);
+    const path = getIllustrationPath(def, baseUrl);
     const rawSvg = await fetchSvgText(path);
 
     // Ensure xmlns
     const finalSvg = ensureXmlns(rawSvg);
 
-    // Pre-compute all color variants
-    const colorVariants = precomputeColorVariants(finalSvg);
-
     // Create default data URL (no color manipulation)
     const dataUrl = svgToDataUrl(finalSvg);
 
-    // Calculate size and create cache entry
-    const size = estimateSize(finalSvg, colorVariants);
+    // Start with empty color variants map — computed lazily on demand
+    const colorVariants = new Map<string, string>();
+
+    // Calculate size (just raw SVG + default data URL, no precomputed variants)
+    const size = finalSvg.length * 2 + dataUrl.length * 2;
     const cached: CachedSVG = {
       rawSvg: finalSvg,
       colorVariants,
@@ -215,9 +211,9 @@ async function fetchAndCacheSVG(id: string, def: SvgDef, color?: string): Promis
     // Evict if over limit
     evictLRU();
 
-    // Return requested color variant or default
-    if (color && colorVariants.has(color)) {
-      return colorVariants.get(color)!;
+    // Compute requested color variant on demand
+    if (color) {
+      return getOrComputeColorVariant(cached, color);
     }
     return dataUrl;
   } catch (err) {
@@ -229,11 +225,16 @@ async function fetchAndCacheSVG(id: string, def: SvgDef, color?: string): Promis
 /**
  * Get SVG (async) - fetches if not cached
  */
-export async function getSVG(id: string, def: SvgDef, color?: string): Promise<string> {
+export async function getSVG(
+  id: string,
+  def: SvgDef,
+  color?: string,
+  baseUrl = ''
+): Promise<string> {
   const cached = getCachedSVG(id, color);
   if (cached) return cached;
 
-  return fetchAndCacheSVG(id, def, color);
+  return fetchAndCacheSVG(id, def, color, baseUrl);
 }
 
 // =============================================================================

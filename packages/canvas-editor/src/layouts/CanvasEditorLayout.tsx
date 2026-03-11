@@ -27,6 +27,7 @@ export function CanvasEditorLayout({
   hideMobileChrome,
 }: CanvasEditorLayoutProps) {
   const hasSidebar = Boolean(tabBar);
+  const hasPanel = Boolean(sidebar);
 
   return (
     <div
@@ -57,6 +58,7 @@ export function CanvasEditorLayout({
           {sidebar}
         </div>
       )}
+      {!hasSidebar && hasPanel && sidebar}
 
       <div className="canvas-editor-layout__main flex flex-col justify-start items-center flex-1 min-h-0 overflow-hidden max-canvas-mobile:flex-1 max-canvas-mobile:p-0">
         {templateCreator && (

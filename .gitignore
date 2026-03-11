@@ -85,8 +85,8 @@ CLAUDE.md
 .cursorignore
 AGENTS.md
 
-# Scripts directory
-scripts/
+# Scripts directory (root only)
+/scripts/
 
 # Documentation (local development)
 docs/

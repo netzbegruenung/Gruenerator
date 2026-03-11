@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 
-import { ALL_ICONS, type IconDef } from '../utils/canvasIcons';
+import { loadAllIcons, getIconsSync, type IconDef } from '../utils/canvasIcons';
 
 const PAGE_SIZE = 32;
 
@@ -10,10 +10,27 @@ interface UsePaginatedIconsReturn {
   loadMore: () => void;
   totalCount: number;
   loadedCount: number;
+  isLoading: boolean;
 }
 
 export function usePaginatedIcons(isExpanded: boolean): UsePaginatedIconsReturn {
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE);
+  const [allIcons, setAllIcons] = useState<IconDef[]>(() => getIconsSync() ?? []);
+  const [isLoading, setIsLoading] = useState(!getIconsSync());
+
+  useEffect(() => {
+    if (getIconsSync()) return;
+    let cancelled = false;
+    loadAllIcons().then((icons) => {
+      if (!cancelled) {
+        setAllIcons(icons);
+        setIsLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!isExpanded) {
@@ -23,22 +40,23 @@ export function usePaginatedIcons(isExpanded: boolean): UsePaginatedIconsReturn 
 
   const visibleIcons = useMemo(() => {
     if (!isExpanded) return [];
-    return ALL_ICONS.slice(0, loadedCount);
-  }, [isExpanded, loadedCount]);
+    return allIcons.slice(0, loadedCount);
+  }, [isExpanded, loadedCount, allIcons]);
 
-  const hasMore = loadedCount < ALL_ICONS.length;
+  const hasMore = loadedCount < allIcons.length;
 
   const loadMore = useCallback(() => {
     if (hasMore) {
-      setLoadedCount((prev) => Math.min(prev + PAGE_SIZE, ALL_ICONS.length));
+      setLoadedCount((prev) => Math.min(prev + PAGE_SIZE, allIcons.length));
     }
-  }, [hasMore]);
+  }, [hasMore, allIcons.length]);
 
   return {
     visibleIcons,
     hasMore,
     loadMore,
-    totalCount: ALL_ICONS.length,
+    totalCount: allIcons.length,
     loadedCount,
+    isLoading,
   };
 }

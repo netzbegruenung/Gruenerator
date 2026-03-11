@@ -2,8 +2,10 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useRef, useState } from 'react';
 import { View, StyleSheet, useColorScheme, ActivityIndicator, Animated, Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { NativeFloatingToolbar } from '../../components/canvas-editor/NativeFloatingToolbar';
+import { NativeSubsectionBar } from '../../components/canvas-editor/NativeSubsectionBar';
 import { NativeTabBar } from '../../components/canvas-editor/NativeTabBar';
 import CanvasEditorDOM from '../../components/dom/CanvasEditorDOM';
 import { useCanvasEditorBridgeStore } from '../../stores/canvasEditorBridgeStore';
@@ -14,12 +16,14 @@ import type {
   HistoryState,
   SelectedElementInfo,
   SidebarTabId,
+  SubsectionInfo,
   TabInfo,
 } from '../../components/canvas-editor/types';
 
 export default function WebViewEditorScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const insets = useSafeAreaInsets();
 
   const { type, formData, modifications, uploadedImageBase64, setGeneratedImage } =
     useImageStudioStore();
@@ -30,6 +34,7 @@ export default function WebViewEditorScreen() {
   // Bridge store
   const store = useCanvasEditorBridgeStore;
   const activeTab = store((s) => s.activeTab);
+  const activeSubsection = store((s) => s.activeSubsection);
   const pendingAction = store((s) => s.pendingAction);
   const actionCounter = store((s) => s.actionCounter);
 
@@ -76,6 +81,17 @@ export default function WebViewEditorScreen() {
     store.getState().setActiveTab(tabId as SidebarTabId | null);
   }, []);
 
+  const handleSubsectionsChange = useCallback(
+    async (subs: Array<{ id: string; label: string }>) => {
+      store.getState().setSubsections(subs as SubsectionInfo[]);
+    },
+    []
+  );
+
+  const handleActiveSubsectionChange = useCallback(async (id: string | null) => {
+    store.getState().setActiveSubsection(id);
+  }, []);
+
   const initialState = {
     ...formData,
     ...modifications,
@@ -87,7 +103,7 @@ export default function WebViewEditorScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <StatusBar hidden />
 
       {/* Native floating toolbar (absolute positioned top) */}
@@ -103,15 +119,21 @@ export default function WebViewEditorScreen() {
           onCancel={handleCancel}
           onReady={handleReady}
           activeTab={activeTab}
+          activeSubsection={activeSubsection}
           toolbarAction={pendingAction}
           toolbarActionId={actionCounter}
           onSelectedElementChange={handleSelectedElementChange}
           onHistoryChange={handleHistoryChange}
           onTabsChange={handleTabsChange}
           onActiveTabChange={handleActiveTabChange}
+          onSubsectionsChange={handleSubsectionsChange}
+          onActiveSubsectionChange={handleActiveSubsectionChange}
           dom={{ matchContents: true }}
         />
       </View>
+
+      {/* Native subsection bar (above tab bar) */}
+      <NativeSubsectionBar />
 
       {/* Native tab bar (bottom) */}
       <NativeTabBar />

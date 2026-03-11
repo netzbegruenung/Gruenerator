@@ -1,15 +1,12 @@
 /**
  * Utility to convert React Icons to image data URLs for use in Konva canvas
+ *
+ * Icons are lazy-loaded to avoid pulling ~15,000 icons into the initial bundle.
+ * Call `loadAllIcons()` to trigger loading; use `getIconsSync()` / `getIconMapSync()`
+ * for render-time access after icons have been loaded.
  */
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import * as BI from 'react-icons/bi'; // Bootstrap Icons
-import * as FI from 'react-icons/fi'; // Feather
-import * as GO from 'react-icons/go'; // Github Octicons
-import * as HI from 'react-icons/hi2'; // HeroIcons 2
-import * as IO5 from 'react-icons/io5'; // Ionicons 5
-import * as LU from 'react-icons/lu'; // Lucide
-import * as PI from 'react-icons/pi'; // Phosphor
 
 import type { IconType } from 'react-icons';
 export type { IconType };
@@ -31,7 +28,6 @@ export interface IconDef {
   library: string;
 }
 
-// Map of library prefix to full name
 const LIBRARY_NAMES: Record<string, string> = {
   pi: 'Phosphor',
   hi: 'HeroIcons',
@@ -42,23 +38,22 @@ const LIBRARY_NAMES: Record<string, string> = {
   fi: 'Feather',
 };
 
-// Dynamically build the list of all available icons
-const ALL_ICONS_MAP: Record<string, IconDef> = {};
-const ALL_ICONS_LIST: IconDef[] = [];
+let iconsMap: Record<string, IconDef> | null = null;
+let iconsList: IconDef[] | null = null;
+let loadPromise: Promise<IconDef[]> | null = null;
 
-// Helper to format PascalCase into words
 const formatName = (str: string) => str.replace(/([A-Z])/g, ' $1').trim();
 
-// Process each library
-const procesLibrary = (namespace: Record<string, IconType>, prefix: string) => {
+function processLibrary(
+  namespace: Record<string, IconType>,
+  prefix: string,
+  map: Record<string, IconDef>,
+  list: IconDef[]
+) {
   Object.entries(namespace).forEach(([key, component]) => {
-    // Basic filter for valid icons (function check)
     if (typeof component !== 'function') return;
-
-    // Skip specific known non-icon exports if any (react-icons usually clean)
     if (key === 'IconContext' || key === 'default') return;
 
-    // Strip library naming conventions
     let namePart = key;
     const capPrefix = prefix.charAt(0).toUpperCase() + prefix.slice(1);
 
@@ -69,8 +64,6 @@ const procesLibrary = (namespace: Record<string, IconType>, prefix: string) => {
     }
 
     const id = `${prefix}-${namePart.toLowerCase()}`;
-
-    // Format name from the stripped part
     const name = formatName(namePart);
 
     const def: IconDef = {
@@ -80,38 +73,84 @@ const procesLibrary = (namespace: Record<string, IconType>, prefix: string) => {
       library: LIBRARY_NAMES[prefix],
     };
 
-    ALL_ICONS_MAP[id] = def;
-    ALL_ICONS_LIST.push(def);
+    map[id] = def;
+    list.push(def);
   });
-};
+}
 
-// Execute processing
-procesLibrary(PI, 'pi');
-procesLibrary(HI, 'hi');
-procesLibrary(BI, 'bi');
-procesLibrary(LU, 'lu');
-procesLibrary(IO5, 'io5');
-procesLibrary(GO, 'go');
-procesLibrary(FI, 'fi');
+/**
+ * Lazily load all icon libraries. Returns the same promise if called multiple times.
+ * After resolution, `getIconsSync()` and `getIconMapSync()` return data synchronously.
+ */
+export function loadAllIcons(): Promise<IconDef[]> {
+  if (iconsList) return Promise.resolve(iconsList);
+  if (loadPromise) return loadPromise;
 
-// Sort alphabetically by name
-ALL_ICONS_LIST.sort((a, b) => a.name.localeCompare(b.name));
+  loadPromise = Promise.all([
+    import('react-icons/pi'),
+    import('react-icons/hi2'),
+    import('react-icons/bi'),
+    import('react-icons/lu'),
+    import('react-icons/io5'),
+    import('react-icons/go'),
+    import('react-icons/fi'),
+  ]).then(([PI, HI, BI, LU, IO5, GO, FI]) => {
+    const map: Record<string, IconDef> = {};
+    const list: IconDef[] = [];
 
-export const ALL_ICONS = ALL_ICONS_LIST;
+    processLibrary(PI as unknown as Record<string, IconType>, 'pi', map, list);
+    processLibrary(HI as unknown as Record<string, IconType>, 'hi', map, list);
+    processLibrary(BI as unknown as Record<string, IconType>, 'bi', map, list);
+    processLibrary(LU as unknown as Record<string, IconType>, 'lu', map, list);
+    processLibrary(IO5 as unknown as Record<string, IconType>, 'io5', map, list);
+    processLibrary(GO as unknown as Record<string, IconType>, 'go', map, list);
+    processLibrary(FI as unknown as Record<string, IconType>, 'fi', map, list);
 
-// Default positions for placed icons
+    list.sort((a, b) => a.name.localeCompare(b.name));
+
+    iconsMap = map;
+    iconsList = list;
+    return list;
+  });
+
+  return loadPromise;
+}
+
+/**
+ * Synchronous access to icons list. Returns null if not yet loaded.
+ */
+export function getIconsSync(): IconDef[] | null {
+  return iconsList;
+}
+
+/**
+ * Synchronous access to icons map. Returns null if not yet loaded.
+ */
+export function getIconMapSync(): Record<string, IconDef> | null {
+  return iconsMap;
+}
+
+/**
+ * @deprecated Use `loadAllIcons()` + `getIconsSync()` instead.
+ * Kept for backward compatibility — returns empty array before icons are loaded.
+ */
+export const ALL_ICONS: IconDef[] = new Proxy([] as IconDef[], {
+  get(target, prop) {
+    if (iconsList && prop !== 'constructor') {
+      return Reflect.get(iconsList, prop);
+    }
+    return Reflect.get(target, prop);
+  },
+});
+
 const DEFAULT_POSITIONS = [
   { x: 100, y: 100 },
   { x: 200, y: 100 },
   { x: 300, y: 100 },
 ];
 
-// Cache for generated data URLs
 const dataUrlCache = new Map<string, string>();
 
-/**
- * Generate a data URL for a React Icon
- */
 export function generateIconDataUrl(
   iconId: string,
   size: number = 64,
@@ -122,24 +161,15 @@ export function generateIconDataUrl(
     return dataUrlCache.get(cacheKey)!;
   }
 
-  const iconDef = ALL_ICONS_MAP[iconId];
+  const iconDef = iconsMap?.[iconId];
   if (!iconDef) {
     console.warn(`Icon not found: ${iconId}`);
     return null;
   }
 
   try {
-    // Render icon to SVG string using react-icons/lib context potentially,
-    // but standard renderToStaticMarkup works for simple SVG icons
     const svgString = renderToStaticMarkup(createElement(iconDef.component, { size, color }));
-
-    // Some icons might not output SVG directly if they are font-based,
-    // but react-icons are SVG-based.
-
-    // Ensure we claim the namespace for SVG
     const svgWithNs = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
-
-    // Convert to data URL
     const dataUrl = `data:image/svg+xml;base64,${btoa(svgWithNs)}`;
     dataUrlCache.set(cacheKey, dataUrl);
     return dataUrl;
@@ -149,9 +179,6 @@ export function generateIconDataUrl(
   }
 }
 
-/**
- * Build list of canvas icons from selected icon IDs
- */
 export function buildCanvasIcons(
   selectedIconIds: string[],
   existingIcons: CanvasIcon[] = [],
@@ -163,16 +190,13 @@ export function buildCanvasIcons(
   const result: CanvasIcon[] = [];
 
   selectedIconIds.forEach((iconId, index) => {
-    // Check if this icon already exists (preserve position/size)
     const existing = existingIcons.find((i) => i.iconId === iconId);
 
     if (existing) {
       result.push(existing);
     } else {
-      // Create new icon with default position
       const dataUrl = generateIconDataUrl(iconId, defaultSize * 2, defaultColor);
       if (dataUrl) {
-        // Calculate position - spread icons across the canvas
         const defaultPos = DEFAULT_POSITIONS[index] || {
           x: stageWidth / 2 - defaultSize / 2,
           y: stageHeight / 2 - defaultSize / 2,
@@ -194,9 +218,6 @@ export function buildCanvasIcons(
   return result;
 }
 
-/**
- * Get icon component by ID
- */
 export function getIconComponent(iconId: string): IconType | null {
-  return ALL_ICONS_MAP[iconId]?.component || null;
+  return iconsMap?.[iconId]?.component || null;
 }

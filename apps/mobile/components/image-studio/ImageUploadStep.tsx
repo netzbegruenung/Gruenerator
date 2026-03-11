@@ -1,22 +1,7 @@
-/**
- * ImageUploadStep Component
- * Image upload with camera/gallery options
- */
-
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  Pressable,
-  useColorScheme,
-  ActionSheetIOS,
-  Platform,
-  Alert,
-  ScrollView,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable, useColorScheme, Alert, ScrollView } from 'react-native';
 
 import {
   pickImageFromGallery,
@@ -26,7 +11,13 @@ import {
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
 import { Button } from '../common';
 
+import { ImageSourceTabs } from './ImageSourceTabs';
 import { MediathekSelector } from './MediathekSelector';
+import { StockImagesGrid } from './StockImagesGrid';
+import { UnsplashAttribution } from './UnsplashAttribution';
+import { UnsplashSearchTab } from './UnsplashSearchTab';
+
+import type { ImageSourceTab, StockImageAttribution } from '@gruenerator/shared/image-studio';
 
 interface ImageUploadStepProps {
   uploadedImageUri: string | null;
@@ -49,11 +40,14 @@ export function ImageUploadStep({
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const isDark = colorScheme === 'dark';
 
+  const [activeTab, setActiveTab] = useState<ImageSourceTab>('device');
   const [loading, setLoading] = useState(false);
   const [showMediathek, setShowMediathek] = useState(false);
+  const [imageAttribution, setImageAttribution] = useState<StockImageAttribution | null>(null);
 
   const handleImageResult = (result: ImagePickerResult | null) => {
     if (result) {
+      setImageAttribution(null);
       onImageSelected(result.uri, result.base64);
     }
     setLoading(false);
@@ -71,116 +65,128 @@ export function ImageUploadStep({
     handleImageResult(result);
   };
 
-  const handleOpenMediathek = () => {
-    setShowMediathek(true);
+  const handleStockOrUnsplashSelect = (uri: string, base64: string) => {
+    onImageSelected(uri, base64);
   };
 
   const handleMediathekSelect = (uri: string, base64: string) => {
+    setImageAttribution(null);
     onImageSelected(uri, base64);
     setShowMediathek(false);
   };
 
-  const showImageOptions = () => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Abbrechen', 'Foto aufnehmen', 'Aus Galerie wählen', 'Aus Mediathek wählen'],
-          cancelButtonIndex: 0,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) {
-            handleTakePhoto();
-          } else if (buttonIndex === 2) {
-            handlePickImage();
-          } else if (buttonIndex === 3) {
-            handleOpenMediathek();
-          }
-        }
-      );
+  const handleTabChange = (tab: ImageSourceTab) => {
+    if (tab === 'mediathek') {
+      setShowMediathek(true);
     } else {
-      Alert.alert('Bild auswählen', 'Wie möchtest du ein Bild hinzufügen?', [
-        { text: 'Abbrechen', style: 'cancel' },
-        { text: 'Foto aufnehmen', onPress: handleTakePhoto },
-        { text: 'Aus Galerie', onPress: handlePickImage },
-        { text: 'Mediathek', onPress: handleOpenMediathek },
-      ]);
+      setActiveTab(tab);
     }
+  };
+
+  const handleClearImage = () => {
+    setImageAttribution(null);
+    onClearImage();
   };
 
   const handleNext = () => {
     if (!uploadedImageUri) {
-      Alert.alert('Bild erforderlich', 'Bitte wähle zuerst ein Bild aus.');
+      Alert.alert('Bild erforderlich', 'Bitte w\u00e4hle zuerst ein Bild aus.');
       return;
     }
     onNext();
   };
 
+  const renderPreview = () => (
+    <View style={styles.previewContainer}>
+      <Image source={{ uri: uploadedImageUri! }} style={styles.preview} contentFit="cover" />
+      <Pressable
+        onPress={handleClearImage}
+        style={[styles.removeButton, { backgroundColor: isDark ? colors.grey[800] : colors.white }]}
+      >
+        <Ionicons name="close" size={20} color={theme.text} />
+      </Pressable>
+      {imageAttribution && <UnsplashAttribution attribution={imageAttribution} />}
+    </View>
+  );
+
+  const renderDeviceTab = () => (
+    <View style={styles.deviceTabContent}>
+      <Pressable
+        onPress={handleTakePhoto}
+        disabled={loading}
+        style={[
+          styles.deviceOption,
+          {
+            backgroundColor: isDark ? colors.grey[900] : colors.grey[50],
+            borderColor: isDark ? colors.grey[700] : colors.grey[300],
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.deviceOptionIcon,
+            { backgroundColor: isDark ? colors.primary[900] : colors.primary[50] },
+          ]}
+        >
+          <Ionicons name="camera-outline" size={28} color={colors.primary[600]} />
+        </View>
+        <Text style={[styles.deviceOptionText, { color: theme.text }]}>Foto aufnehmen</Text>
+      </Pressable>
+
+      <Pressable
+        onPress={handlePickImage}
+        disabled={loading}
+        style={[
+          styles.deviceOption,
+          {
+            backgroundColor: isDark ? colors.grey[900] : colors.grey[50],
+            borderColor: isDark ? colors.grey[700] : colors.grey[300],
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.deviceOptionIcon,
+            { backgroundColor: isDark ? colors.primary[900] : colors.primary[50] },
+          ]}
+        >
+          <Ionicons name="image-outline" size={28} color={colors.primary[600]} />
+        </View>
+        <Text style={[styles.deviceOptionText, { color: theme.text }]}>
+          Aus Galerie w\u00e4hlen
+        </Text>
+      </Pressable>
+    </View>
+  );
+
+  const renderTabContent = () => {
+    if (uploadedImageUri) {
+      return renderPreview();
+    }
+
+    switch (activeTab) {
+      case 'device':
+        return renderDeviceTab();
+      case 'stock':
+        return <StockImagesGrid onImageSelected={handleStockOrUnsplashSelect} />;
+      case 'unsplash':
+        return <UnsplashSearchTab onImageSelected={handleStockOrUnsplashSelect} />;
+      default:
+        return renderDeviceTab();
+    }
+  };
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <View style={styles.headerSection}>
         <Text style={[styles.title, { color: theme.text }]}>Hintergrundbild</Text>
         <Text style={[styles.description, { color: theme.textSecondary }]}>
-          Wähle ein Bild für dein Sharepic
+          W\u00e4hle ein Bild f\u00fcr dein Sharepic
         </Text>
+        <ImageSourceTabs activeTab={activeTab} onTabChange={handleTabChange} />
       </View>
 
-      <View style={styles.content}>
-        {uploadedImageUri ? (
-          <View style={styles.previewContainer}>
-            <Image source={{ uri: uploadedImageUri }} style={styles.preview} resizeMode="cover" />
-            <Pressable
-              onPress={onClearImage}
-              style={[
-                styles.removeButton,
-                { backgroundColor: isDark ? colors.grey[800] : colors.white },
-              ]}
-            >
-              <Ionicons name="close" size={20} color={theme.text} />
-            </Pressable>
-            <Pressable
-              onPress={showImageOptions}
-              style={[
-                styles.changeButton,
-                { backgroundColor: isDark ? colors.grey[800] : colors.white },
-              ]}
-            >
-              <Ionicons name="camera-outline" size={20} color={theme.text} />
-              <Text style={[styles.changeButtonText, { color: theme.text }]}>Ändern</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <Pressable
-            onPress={showImageOptions}
-            disabled={loading}
-            style={[
-              styles.uploadArea,
-              {
-                backgroundColor: isDark ? colors.grey[900] : colors.grey[50],
-                borderColor: isDark ? colors.grey[700] : colors.grey[300],
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.iconContainer,
-                { backgroundColor: isDark ? colors.primary[900] : colors.primary[50] },
-              ]}
-            >
-              <Ionicons
-                name={loading ? 'hourglass-outline' : 'image-outline'}
-                size={32}
-                color={colors.primary[600]}
-              />
-            </View>
-            <Text style={[styles.uploadText, { color: theme.text }]}>
-              {loading ? 'Wird geladen...' : 'Tippen, um Bild auszuwählen'}
-            </Text>
-            <Text style={[styles.uploadHint, { color: theme.textSecondary }]}>
-              Kamera oder Galerie
-            </Text>
-          </Pressable>
-        )}
-      </View>
+      <View style={styles.content}>{renderTabContent()}</View>
 
       <View style={styles.buttonContainer}>
         <Button onPress={handleNext} variant="primary" disabled={!uploadedImageUri || disabled}>
@@ -193,20 +199,17 @@ export function ImageUploadStep({
         onClose={() => setShowMediathek(false)}
         onImageSelect={handleMediathekSelect}
       />
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
     padding: spacing.medium,
   },
-  header: {
-    marginBottom: spacing.medium,
+  headerSection: {
+    marginBottom: spacing.xsmall,
   },
   title: {
     ...typography.h3,
@@ -217,33 +220,9 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
   },
   buttonContainer: {
-    marginTop: spacing.large,
-  },
-  uploadArea: {
-    aspectRatio: 1,
-    borderRadius: borderRadius.large,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.medium,
-  },
-  uploadText: {
-    ...typography.label,
-    marginBottom: spacing.xsmall,
-  },
-  uploadHint: {
-    ...typography.caption,
+    marginTop: spacing.medium,
   },
   previewContainer: {
     aspectRatio: 1,
@@ -270,24 +249,28 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-  changeButton: {
-    position: 'absolute',
-    bottom: spacing.small,
-    right: spacing.small,
+  deviceTabContent: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: spacing.medium,
+  },
+  deviceOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xsmall,
-    paddingVertical: spacing.xsmall,
-    paddingHorizontal: spacing.small,
-    borderRadius: borderRadius.full,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    gap: spacing.medium,
+    padding: spacing.medium,
+    borderRadius: borderRadius.large,
+    borderWidth: 1,
   },
-  changeButtonText: {
-    ...typography.caption,
+  deviceOptionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deviceOptionText: {
+    ...typography.label,
     fontWeight: '600',
   },
 });

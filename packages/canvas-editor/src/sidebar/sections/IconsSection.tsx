@@ -1,9 +1,9 @@
-import { useCallback, useMemo, useRef, useEffect } from 'react';
+import { useCallback, useMemo, useRef, useEffect, useState } from 'react';
 import { FaCheck } from 'react-icons/fa';
 
 import Spinner from '../../common/Spinner';
 import { usePaginatedIcons } from '../../hooks/usePaginatedIcons';
-import { ALL_ICONS } from '../../utils/canvasIcons';
+import { loadAllIcons, getIconsSync, type IconDef } from '../../utils/canvasIcons';
 import { filterIcons } from '../../utils/filterUtils';
 import {
   CARD_GRID,
@@ -34,21 +34,35 @@ export function IconsSection({
   searchQuery = '',
 }: IconsSectionProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const [allIcons, setAllIcons] = useState<IconDef[]>(() => getIconsSync() ?? []);
+  const [iconsLoading, setIconsLoading] = useState(!getIconsSync());
+
+  useEffect(() => {
+    if (getIconsSync()) return;
+    let cancelled = false;
+    loadAllIcons().then((icons) => {
+      if (!cancelled) {
+        setAllIcons(icons);
+        setIconsLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const recommendedIcons = useMemo(
-    () =>
-      RECOMMENDED_ICON_IDS.map((id) => ALL_ICONS.find((icon) => icon.id === id)).filter(Boolean),
-    []
+    () => RECOMMENDED_ICON_IDS.map((id) => allIcons.find((icon) => icon.id === id)).filter(Boolean),
+    [allIcons]
   );
 
-  const { visibleIcons, hasMore, loadMore, totalCount, loadedCount } =
-    usePaginatedIcons(isExpanded);
+  const { visibleIcons, hasMore, loadMore } = usePaginatedIcons(isExpanded);
 
   const hasSearch = searchQuery.trim().length > 0;
 
   const searchResults = useMemo(
-    () => (hasSearch ? filterIcons(ALL_ICONS, searchQuery) : []),
-    [hasSearch, searchQuery]
+    () => (hasSearch ? filterIcons(allIcons, searchQuery) : []),
+    [hasSearch, searchQuery, allIcons]
   );
 
   const icons = hasSearch ? searchResults : isExpanded ? visibleIcons : recommendedIcons;
@@ -56,13 +70,17 @@ export function IconsSection({
   useEffect(() => {
     if (!isExpanded || !hasMore) return;
 
+    const scrollRoot = sentinelRef.current?.closest(
+      '.sidebar-panel__content'
+    ) as HTMLElement | null;
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
           loadMore();
         }
       },
-      { rootMargin: '300px', threshold: 0 }
+      { root: scrollRoot ?? null, rootMargin: '300px', threshold: 0 }
     );
 
     if (sentinelRef.current) {
@@ -83,6 +101,19 @@ export function IconsSection({
     },
     [selectedIcons, onIconToggle, maxSelections]
   );
+
+  if (iconsLoading) {
+    return (
+      <div
+        className={cn(
+          SIDEBAR_SECTION,
+          'w-full max-canvas-mobile:!p-0 max-canvas-mobile:!m-0 flex items-center justify-center min-h-[100px]'
+        )}
+      >
+        <Spinner size="small" />
+      </div>
+    );
+  }
 
   return (
     <div className={cn(SIDEBAR_SECTION, 'w-full max-canvas-mobile:!p-0 max-canvas-mobile:!m-0')}>

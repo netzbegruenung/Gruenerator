@@ -24,6 +24,7 @@ import type {
   ZitatModificationParams,
   VeranstaltungModificationParams,
   ModificationParams,
+  StockImageAttribution,
 } from '@gruenerator/shared/image-studio';
 
 // Re-export shared types for convenience
@@ -87,6 +88,10 @@ interface ImageStudioState {
   autoSavedShareToken: string | null;
   /** Last auto-saved image src (to prevent duplicate saves) */
   lastAutoSavedImageSrc: string | null;
+
+  // Image source attribution
+  /** Attribution info for stock/Unsplash images */
+  stockImageAttribution: StockImageAttribution | null;
 
   // Background removal state (for profilbild)
   /** Background removal progress (0-1) */
@@ -168,6 +173,10 @@ interface ImageStudioActions {
   /** Reset auto-save state */
   resetAutoSave: () => void;
 
+  // Image source attribution actions
+  /** Set stock image attribution */
+  setStockImageAttribution: (attr: StockImageAttribution | null) => void;
+
   // Background removal actions
   /** Set background removal progress */
   setBgRemovalProgress: (progress: number, message: string | null) => void;
@@ -207,6 +216,8 @@ const initialState: ImageStudioState = {
   autoSaveStatus: 'idle',
   autoSavedShareToken: null,
   lastAutoSavedImageSrc: null,
+  // Image source attribution
+  stockImageAttribution: null,
   // Background removal state
   bgRemovalProgress: 0,
   bgRemovalMessage: null,
@@ -243,6 +254,7 @@ export const useImageStudioStore = create<ImageStudioStore>()((set, get) => ({
     set({
       uploadedImageUri: null,
       uploadedImageBase64: null,
+      stockImageAttribution: null,
     });
   },
 
@@ -401,6 +413,11 @@ export const useImageStudioStore = create<ImageStudioStore>()((set, get) => ({
       autoSavedShareToken: null,
       lastAutoSavedImageSrc: null,
     });
+  },
+
+  // Image source attribution actions
+  setStockImageAttribution: (attr: StockImageAttribution | null) => {
+    set({ stockImageAttribution: attr });
   },
 
   // Background removal actions
