@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useState } from 'react';
 import { View, Pressable, StyleSheet, Text } from 'react-native';
 import Animated, { FadeIn, FadeOut, SlideInUp, SlideOutUp } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useCanvasEditorBridgeStore } from '../../stores/canvasEditorBridgeStore';
 
@@ -41,6 +42,7 @@ function Divider() {
 }
 
 export function NativeFloatingToolbar() {
+  const insets = useSafeAreaInsets();
   const selectedElement = useCanvasEditorBridgeStore((s) => s.selectedElement);
   const history = useCanvasEditorBridgeStore((s) => s.history);
   const dispatchAction = useCanvasEditorBridgeStore((s) => s.dispatchAction);
@@ -78,7 +80,7 @@ export function NativeFloatingToolbar() {
   return (
     <>
       <Animated.View
-        style={styles.container}
+        style={[styles.container, { top: insets.top + 8 }]}
         entering={SlideInUp.duration(200).springify()}
         exiting={SlideOutUp.duration(150)}
       >
@@ -165,7 +167,6 @@ export function NativeFloatingToolbar() {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 8,
     left: 8,
     right: 8,
     zIndex: 50,

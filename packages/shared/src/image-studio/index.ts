@@ -101,6 +101,29 @@ export type {
 } from './hooks/useImageStudioCanvas.js';
 
 // ============================================================================
+// IMAGE SOURCE (stock images, Unsplash)
+// ============================================================================
+
+export type {
+  StockImageAttribution,
+  StockImage,
+  FetchStockImagesResponse,
+  UnsplashSearchResult,
+  ImageSourceTab,
+} from './image-source-types.js';
+
+export {
+  STOCK_CATEGORY_LABELS,
+  fetchStockImages,
+  searchUnsplashImages,
+  trackUnsplashDownload,
+  trackUnsplashDownloadLive,
+} from './image-source-service.js';
+
+export { useUnsplashSearch } from './hooks/useUnsplashSearch.js';
+export type { UnsplashSearchFn, UseUnsplashSearchReturn } from './hooks/useUnsplashSearch.js';
+
+// ============================================================================
 // MODIFICATION TYPES
 // ============================================================================
 

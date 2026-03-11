@@ -2,7 +2,7 @@ import { useState, useMemo, useDeferredValue } from 'react';
 
 import useDebounce from '../../../hooks/useDebounce';
 import { ALL_ASSETS, type UniversalAsset } from '../../../utils/canvasAssets';
-import { ALL_ICONS, type IconDef } from '../../../utils/canvasIcons';
+import { getIconsSync, type IconDef } from '../../../utils/canvasIcons';
 import { filterIcons, filterIllustrations, matchesQuery } from '../../../utils/filterUtils';
 import { FRAME_PRESETS } from '../../../utils/frameUtils';
 import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/registry';
@@ -73,14 +73,15 @@ export function useAssetSearch(features: FeatureFlags): AssetSearchState {
     }
 
     if (hasIconsFeature) {
-      const matchingIcons = filterIcons(ALL_ICONS, query);
+      const matchingIcons = filterIcons(getIconsSync() ?? [], query);
       for (const icon of matchingIcons.slice(0, 20)) {
         results.push({ type: 'icon', id: icon.id, name: icon.name, iconDef: icon });
       }
     }
 
     if (ALL_ILLUSTRATIONS.length > 0) {
-      for (const ill of filterIllustrations(ALL_ILLUSTRATIONS, query)) {
+      const matchingIllustrations = filterIllustrations(ALL_ILLUSTRATIONS, query);
+      for (const ill of matchingIllustrations.slice(0, 30)) {
         results.push({ type: 'illustration', id: ill.id, name: ill.name, illustrationDef: ill });
       }
     }

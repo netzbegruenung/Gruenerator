@@ -19,9 +19,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useImageAutoSave } from '../../hooks/useImageAutoSave';
-import { saveImageToGallery, shareImage, getImageDataUri } from '../../services/imageStudio';
+import { saveImageToGallery, getImageDataUri } from '../../services/imageStudio';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
 import { Button, PulseLoader } from '../common';
+import { ImageShareModal } from '../share/ImageShareModal';
 
 interface ResultDisplayProps {
   generatedImage: string | null;
@@ -47,7 +48,7 @@ export function ResultDisplay({
 
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [sharing, setSharing] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Auto-save to gallery database
   const { status: autoSaveStatus, shareToken } = useImageAutoSave();
@@ -64,12 +65,9 @@ export function ResultDisplay({
     }
   };
 
-  const handleShare = async () => {
+  const handleShare = () => {
     if (!generatedImage) return;
-
-    setSharing(true);
-    await shareImage(generatedImage);
-    setSharing(false);
+    setShowShareModal(true);
   };
 
   if (loading) {
@@ -169,17 +167,12 @@ export function ResultDisplay({
 
         <Pressable
           onPress={handleShare}
-          disabled={sharing}
           style={({ pressed }) => [
             styles.iconButton,
             { backgroundColor: theme.surface, opacity: pressed ? 0.7 : 1 },
           ]}
         >
-          {sharing ? (
-            <ActivityIndicator size="small" color={colors.primary[600]} />
-          ) : (
-            <Ionicons name="share-social-outline" size={22} color={colors.primary[600]} />
-          )}
+          <Ionicons name="share-social-outline" size={22} color={colors.primary[600]} />
         </Pressable>
 
         <Pressable
@@ -214,6 +207,13 @@ export function ResultDisplay({
           <Ionicons name="add" size={22} color={colors.primary[600]} />
         </Pressable>
       </View>
+
+      <ImageShareModal
+        visible={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        imageBase64={generatedImage}
+        shareToken={shareToken}
+      />
     </ScrollView>
   );
 }

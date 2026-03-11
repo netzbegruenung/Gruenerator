@@ -1,8 +1,12 @@
 import { FaCheck } from 'react-icons/fa';
 import { PiMagnifyingGlass } from 'react-icons/pi';
 
+import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { FRAME_ICON_MAP } from '../../../utils/frameUtils';
-import { getIllustrationPath } from '../../../utils/illustrations/registry';
+import {
+  getIllustrationPath,
+  getIllustrationThumbPath,
+} from '../../../utils/illustrations/registry';
 import { CARD_GRID, SELECTABLE_CARD } from '../../primitives';
 
 import { PREVIEW_COMPONENTS } from './constants';
@@ -65,6 +69,7 @@ export function SearchResultsGrid({
   onIconToggle,
   maxIconSelections = 3,
 }: SearchResultsGridProps) {
+  const { assetBaseUrl = '' } = useCanvasEditorServices();
   return (
     <div className={CARD_GRID}>
       {results.map((result) => {
@@ -173,7 +178,18 @@ export function SearchResultsGrid({
                 title={ill.name}
               >
                 <div className="flex items-center justify-center w-full h-full aspect-square [&>img]:max-w-full [&>img]:max-h-full [&>img]:object-contain">
-                  <img src={getIllustrationPath(ill as SvgDef)} alt={ill.name} loading="lazy" />
+                  <img
+                    src={getIllustrationThumbPath(ill as SvgDef, assetBaseUrl)}
+                    alt={ill.name}
+                    loading="lazy"
+                    onError={(e) => {
+                      const img = e.currentTarget;
+                      if (!img.dataset.fallback) {
+                        img.dataset.fallback = '1';
+                        img.src = getIllustrationPath(ill as SvgDef, assetBaseUrl);
+                      }
+                    }}
+                  />
                 </div>
               </button>
             );

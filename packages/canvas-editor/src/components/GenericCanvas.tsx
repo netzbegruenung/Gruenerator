@@ -261,7 +261,7 @@ function GenericCanvasWithRef<
   useCanvasAutoSave(exportedImage, {
     canvasType: config.id,
     canvasState: state,
-    enabled: true,
+    enabled: !mobileBridge,
   });
 
   // History-synced auto-save: capture canvas whenever undo/redo history changes: capture canvas whenever undo/redo history changes
