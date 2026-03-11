@@ -13,10 +13,10 @@ export function FloatingOpacityControl({ opacity, onOpacityChange }: FloatingOpa
   };
 
   return (
-    <div className="flex items-center gap-2 h-full text-foreground pl-1 pr-1 max-canvas-mobile:gap-1 max-canvas-mobile:pl-0.5 max-canvas-mobile:pr-0.5">
-      <PiDrop size={14} className="text-foreground-muted" />
+    <div className="flex items-center gap-2 h-full text-foreground pl-1 pr-1 max-canvas-mobile:gap-1.5 max-canvas-mobile:pl-1 max-canvas-mobile:pr-1">
+      <PiDrop size={14} className="text-foreground-muted max-canvas-mobile:size-[18px]" />
       <Slider.Root
-        className="relative flex items-center select-none touch-none w-20 h-5 max-canvas-mobile:w-[30px]"
+        className="relative flex items-center select-none touch-none w-20 h-5 max-canvas-mobile:w-16 max-canvas-mobile:h-11"
         value={[opacity]}
         onValueChange={handleValueChange}
         min={0}
@@ -27,7 +27,7 @@ export function FloatingOpacityControl({ opacity, onOpacityChange }: FloatingOpa
           <Slider.Range className="absolute rounded-full h-full bg-primary-600" />
         </Slider.Track>
         <Slider.Thumb
-          className="block size-3 bg-white rounded-[10px] shadow-[0_1px_3px_rgba(0,0,0,0.3),0_0_0_1px_rgba(0,0,0,0.05)] cursor-grab focus:outline-none focus:shadow-[0_0_0_2px_rgba(108,205,135,0.5)]"
+          className="block size-3 max-canvas-mobile:size-4 bg-white rounded-[10px] shadow-[0_1px_3px_rgba(0,0,0,0.3),0_0_0_1px_rgba(0,0,0,0.05)] cursor-grab focus:outline-none focus:shadow-[0_0_0_2px_rgba(108,205,135,0.5)]"
           aria-label="Opacity"
         />
       </Slider.Root>
