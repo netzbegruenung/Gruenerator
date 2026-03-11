@@ -7,6 +7,7 @@ import fs from 'fs/promises';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
+import fontkit from '@pdf-lib/fontkit';
 import express, { type Request, type Response } from 'express';
 
 import { createLogger } from '../../utils/logger.js';
@@ -46,6 +47,7 @@ router.post(
       const { PDFDocument, rgb } = await import('pdf-lib');
 
       const pdfDoc = await PDFDocument.create();
+      pdfDoc.registerFontkit(fontkit);
       let page = pdfDoc.addPage([595.28, 841.89]); // A4
       const { width, height } = page.getSize();
       const margin = 40;
