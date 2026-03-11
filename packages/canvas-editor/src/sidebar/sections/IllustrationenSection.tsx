@@ -16,12 +16,11 @@ import {
   type KawaiiProps,
 } from 'react-kawaii';
 
-import { getIllustrationPath } from '../../utils/illustrations/registry';
-import {
-  prefetchVisible,
-  onThumbnailHover,
-  onThumbnailLeave,
-} from '../../utils/illustrations/svgCache';
+import Spinner from '../../common/Spinner';
+import { useCanvasEditorServices } from '../../CanvasEditorProvider';
+import { usePaginatedIllustrations } from '../../hooks/usePaginatedIllustrations';
+import { getIllustrationPath, getIllustrationThumbPath } from '../../utils/illustrations/registry';
+import { onThumbnailHover, onThumbnailLeave } from '../../utils/illustrations/svgCache';
 import { ILLUSTRATION_COLORS } from '../../utils/illustrations/types';
 import {
   ACTION_BTN,
@@ -66,51 +65,6 @@ const MOOD_OPTIONS: { id: KawaiiMood; label: string }[] = [
   { id: 'sad', label: '😢' },
 ];
 
-/**
- * Hook to prefetch SVG illustrations when thumbnails become visible
- * Uses Intersection Observer with 500px margin for early prefetching
- */
-function useIllustrationPrefetch(illustrations: IllustrationDef[]) {
-  const thumbnailRefs = useRef<Map<string, HTMLElement>>(new Map());
-
-  useEffect(() => {
-    // Only observe SVG illustrations
-    const svgIllustrations = illustrations.filter((ill) => ill.source !== 'kawaii') as SvgDef[];
-    if (svgIllustrations.length === 0) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visibleIllustrations = entries
-          .filter((e) => e.isIntersecting)
-          .map((e) => {
-            const id = e.target.getAttribute('data-ill-id');
-            return svgIllustrations.find((ill) => ill.id === id);
-          })
-          .filter((def): def is SvgDef => def !== undefined);
-
-        if (visibleIllustrations.length > 0) {
-          // Batch prefetch visible illustrations
-          prefetchVisible(visibleIllustrations.map((def) => ({ id: def.id, def })));
-        }
-      },
-      {
-        root: null, // viewport
-        rootMargin: '500px', // Prefetch 500px before visible
-        threshold: 0.1, // 10% visible triggers callback
-      }
-    );
-
-    // Observe all thumbnail elements
-    thumbnailRefs.current.forEach((element) => {
-      if (element) observer.observe(element);
-    });
-
-    return () => observer.disconnect();
-  }, [illustrations]);
-
-  return thumbnailRefs;
-}
-
 export interface IllustrationenSectionProps {
   onAddIllustration: (id: string) => void;
   selectedIllustration: IllustrationInstance | null;
@@ -130,13 +84,34 @@ export function IllustrationenSection({
   isExpanded = false,
   illustrations = [],
 }: IllustrationenSectionProps) {
+  const { assetBaseUrl = '' } = useCanvasEditorServices();
   const isKawaiiSelected = selectedIllustration?.source === 'kawaii';
   const kawaiiInstance = isKawaiiSelected ? (selectedIllustration as KawaiiInstance) : null;
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const visibleIllustrations = isExpanded ? illustrations : illustrations.slice(0, 4);
+  const { visibleIllustrations, hasMore, loadMore } = usePaginatedIllustrations(
+    illustrations,
+    isExpanded
+  );
 
-  // Set up Intersection Observer for prefetching
-  const thumbnailRefs = useIllustrationPrefetch(visibleIllustrations);
+  // Infinite scroll sentinel observer
+  useEffect(() => {
+    if (!isExpanded || !hasMore) return;
+
+    const scrollRoot = sentinelRef.current?.closest(
+      '.sidebar-panel__content'
+    ) as HTMLElement | null;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMore();
+      },
+      { root: scrollRoot ?? null, rootMargin: '300px', threshold: 0 }
+    );
+
+    if (sentinelRef.current) observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [isExpanded, hasMore, loadMore]);
 
   return (
     <div
@@ -171,19 +146,10 @@ export function IllustrationenSection({
             );
           }
 
-          // SVG
           const svgDef = illDef as SvgDef;
           return (
             <button
               key={illDef.id}
-              ref={(el) => {
-                if (el) {
-                  thumbnailRefs.current.set(illDef.id, el);
-                } else {
-                  thumbnailRefs.current.delete(illDef.id);
-                }
-              }}
-              data-ill-id={illDef.id}
               className={SELECTABLE_CARD}
               onClick={() => onAddIllustration(illDef.id)}
               onMouseEnter={() => onThumbnailHover(svgDef.id, svgDef)}
@@ -192,16 +158,15 @@ export function IllustrationenSection({
             >
               <div className="flex items-center justify-center w-full h-full aspect-square [&>img]:max-w-full [&>img]:max-h-full [&>img]:object-contain">
                 <img
-                  src={getIllustrationPath(svgDef)}
+                  src={getIllustrationThumbPath(svgDef, assetBaseUrl)}
                   alt={illDef.name}
                   loading="lazy"
-                  style={{
-                    filter:
-                      illDef.source === 'undraw'
-                        ? 'hue-rotate(-83deg) brightness(0.5) saturate(1.2)'
-                        : illDef.source === 'opendoodles'
-                          ? 'hue-rotate(172deg) brightness(0.5) saturate(1.2)'
-                          : 'none',
+                  onError={(e) => {
+                    const img = e.currentTarget;
+                    if (!img.dataset.fallback) {
+                      img.dataset.fallback = '1';
+                      img.src = getIllustrationPath(svgDef, assetBaseUrl);
+                    }
                   }}
                 />
               </div>
@@ -209,6 +174,13 @@ export function IllustrationenSection({
           );
         })}
       </div>
+
+      {isExpanded && (
+        <>
+          <div ref={sentinelRef} className="h-px w-full" />
+          {hasMore && <Spinner size="small" />}
+        </>
+      )}
 
       {/* Settings Panel */}
       {selectedIllustration && (

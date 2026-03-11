@@ -9,7 +9,7 @@ import { IconPrimitive } from '../primitives/IconPrimitive';
 import { IllustrationPrimitive } from '../primitives/IllustrationPrimitive';
 import { PillBadge } from '../primitives/PillBadge';
 import { ShapePrimitive } from '../primitives/ShapePrimitive';
-import { ALL_ICONS } from '../utils/canvasIcons';
+import { getIconMapSync } from '../utils/canvasIcons';
 
 import { GenericCanvasElement } from './GenericCanvasElement';
 
@@ -252,7 +252,7 @@ function CanvasRenderLayerInner<
         // Render Icon
         if (item.type === 'icon') {
           const iconId = item.id;
-          const iconDef = ALL_ICONS.find((i) => i.id === iconId);
+          const iconDef = getIconMapSync()?.[iconId];
 
           // Type-safe access to optional iconStates property
           const stateWithOptional = state as TState & Partial<OptionalCanvasStateProperties>;

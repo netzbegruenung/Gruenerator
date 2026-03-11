@@ -95,6 +95,8 @@
     "dev:documentation": "turbo run dev --filter=@gruenerator/documentation",
     "build:documentation": "turbo run build --filter=@gruenerator/documentation",
     "dev:gruenomat": "turbo run dev --filter=@gruenerator/gruen-o-mat",
-    "build:gruenomat": "turbo run build --filter=@gruenerator/gruen-o-mat"
+    "build:gruenomat": "turbo run build --filter=@gruenerator/gruen-o-mat",
+    "generate:thumbs": "tsx packages/canvas-editor/scripts/generateThumbnails.ts",
+    "generate:undraw-registry": "tsx packages/canvas-editor/scripts/generateUndrawRegistry.ts"
   }
 }

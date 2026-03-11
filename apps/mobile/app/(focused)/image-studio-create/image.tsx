@@ -12,19 +12,24 @@ export default function ImageScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
-  const { kiType, uploadedImageUri, setUploadedImage, clearUploadedImage } = useImageStudioStore();
+  const { kiType, type, uploadedImageUri, setUploadedImage, clearUploadedImage } =
+    useImageStudioStore();
 
   const handleNext = () => {
-    router.push(route('/(focused)/image-studio-create/ki-input'));
+    if (type) {
+      router.push(route('/(fullscreen)/webview-editor'));
+    } else {
+      router.push(route('/(focused)/image-studio-create/ki-input'));
+    }
   };
 
   useEffect(() => {
-    if (!kiType) {
+    if (!kiType && !type) {
       router.replace(route('/(tabs)/(media)/image-studio'));
     }
-  }, [kiType]);
+  }, [kiType, type]);
 
-  if (!kiType) {
+  if (!kiType && !type) {
     return null;
   }
 

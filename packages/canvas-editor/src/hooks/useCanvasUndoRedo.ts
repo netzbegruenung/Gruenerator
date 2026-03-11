@@ -50,6 +50,7 @@ export function useCanvasUndoRedo(
         getStore().setStateRestorationCallback(null);
       };
     }
+    return undefined;
   }, []);
 
   // Stable undo function - uses getState() which is stable

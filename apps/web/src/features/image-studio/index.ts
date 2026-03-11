@@ -29,8 +29,8 @@ export {
 // Forms
 export { EditInstructionForm, GreenEditForm, UniversalEditForm } from './forms';
 
-// Canvas components
-export * from './canvas-editor';
+// Canvas components (from shared package)
+export * from '@gruenerator/canvas-editor';
 
 // Gallery
 export { default as ImageGallery } from './gallery/ImageGallery';

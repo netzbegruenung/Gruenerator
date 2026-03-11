@@ -1,3 +1,9 @@
+import {
+  ControllableCanvasWrapper,
+  type CanvasConfigId,
+  type DreizeilenAlternative,
+  type InitialPageDef,
+} from '@gruenerator/canvas-editor';
 import { useShareStore } from '@gruenerator/shared/share';
 import { motion } from 'motion/react';
 import React, { useState, useCallback, useMemo, useEffect, useRef, type ChangeEvent } from 'react';
@@ -7,7 +13,6 @@ import { useNavigate } from 'react-router-dom';
 import { Markdown } from '../../../components/common/Markdown';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import useImageStudioStore from '../../../stores/imageStudioStore';
-import { ControllableCanvasWrapper } from '../canvas-editor/CanvasEditorRouter';
 import { AiHistoryTimeline } from '../components/AiHistoryTimeline';
 import { EditPanel } from '../components/EditPanel';
 import { Lightbox } from '../components/Lightbox';
@@ -28,9 +33,6 @@ import {
   FORM_STEPS,
 } from '../utils/typeConfig';
 
-import type { DreizeilenAlternative } from '../canvas-editor/configs/dreizeilen.types';
-import type { CanvasConfigId } from '../canvas-editor/configs/types';
-import type { InitialPageDef } from '../canvas-editor/hooks/usePageManager';
 import type {
   TemplateResultStepProps,
   SloganAlternativeWithIndex,

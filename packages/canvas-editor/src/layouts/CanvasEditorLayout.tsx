@@ -14,6 +14,8 @@ export interface CanvasEditorLayoutProps {
   sidebar?: ReactNode;
   tabBar?: ReactNode;
   templateCreator?: string | null;
+  /** When true, removes mobile bottom padding and sidebar chrome (native handles these) */
+  hideMobileChrome?: boolean;
 }
 
 export function CanvasEditorLayout({
@@ -22,15 +24,18 @@ export function CanvasEditorLayout({
   sidebar,
   tabBar,
   templateCreator,
+  hideMobileChrome,
 }: CanvasEditorLayoutProps) {
   const hasSidebar = Boolean(tabBar);
+  const hasPanel = Boolean(sidebar);
 
   return (
     <div
       className={cn(
         'canvas-editor-layout flex flex-col h-screen min-h-[500px]',
         hasSidebar &&
-          'ml-[var(--image-studio-tab-bar-width)] max-canvas-mobile:ml-0 max-canvas-mobile:pb-14'
+          'ml-[var(--image-studio-tab-bar-width)] max-canvas-mobile:ml-0 max-canvas-mobile:pb-14',
+        hideMobileChrome && 'ml-0 pb-0 max-canvas-mobile:pb-0'
       )}
     >
       {hasSidebar && (
@@ -53,6 +58,7 @@ export function CanvasEditorLayout({
           {sidebar}
         </div>
       )}
+      {!hasSidebar && hasPanel && sidebar}
 
       <div className="canvas-editor-layout__main flex flex-col justify-start items-center flex-1 min-h-0 overflow-hidden max-canvas-mobile:flex-1 max-canvas-mobile:p-0">
         {templateCreator && (

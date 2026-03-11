@@ -49,6 +49,9 @@ export interface CanvasEditorServices {
 
   /** API base URL for multi-page export */
   apiBaseUrl?: string;
+
+  /** Base URL for static assets (illustrations, etc.). Defaults to '' (same origin). */
+  assetBaseUrl?: string;
 }
 
 const CanvasEditorContext = createContext<CanvasEditorServices>({});

@@ -16,6 +16,7 @@ import type {
 import { KAWAII_ILLUSTRATIONS } from './kawaii';
 import { OPENDOODLES } from './opendoodles';
 import { UNDRAW_FEATURED } from './undraw';
+import { UNDRAW_ALL } from './undrawAll';
 
 // Re-export types and constants for convenience
 export type {
@@ -38,10 +39,10 @@ export { ILLUSTRATION_COLORS, KAWAII_MOODS } from './types';
 export const ALL_ILLUSTRATIONS: IllustrationDef[] = [
   ...KAWAII_ILLUSTRATIONS,
   ...OPENDOODLES,
-  ...UNDRAW_FEATURED,
+  ...UNDRAW_ALL,
 ];
 
-export const ALL_SVG_ILLUSTRATIONS: SvgDef[] = [...OPENDOODLES, ...UNDRAW_FEATURED];
+export const ALL_SVG_ILLUSTRATIONS: SvgDef[] = [...OPENDOODLES, ...UNDRAW_ALL];
 
 // =============================================================================
 // LEGACY ASYNC LOADERS (kept for backward compatibility)
@@ -71,8 +72,13 @@ export async function getAllSvgIllustrations(): Promise<SvgDef[]> {
 // HELPER FUNCTIONS
 // =============================================================================
 
-export function getIllustrationPath(illustration: SvgDef): string {
-  return `/illustrations/${illustration.source}/${illustration.filename}`;
+export function getIllustrationPath(illustration: SvgDef, baseUrl = ''): string {
+  return `${baseUrl}/illustrations/${illustration.source}/${illustration.filename}`;
+}
+
+export function getIllustrationThumbPath(illustration: SvgDef, baseUrl = ''): string {
+  const pngFilename = illustration.filename.replace(/\.svg$/, '.png');
+  return `${baseUrl}/illustrations/thumbs/${illustration.source}/${pngFilename}`;
 }
 
 export async function createIllustration(
@@ -161,4 +167,4 @@ export const getSvgIllustrationsByCategory = getIllustrationsByCategory;
 export const searchSvgIllustrations = searchIllustrations;
 
 // Re-export source arrays for direct access if needed
-export { KAWAII_ILLUSTRATIONS, OPENDOODLES, UNDRAW_FEATURED };
+export { KAWAII_ILLUSTRATIONS, OPENDOODLES, UNDRAW_FEATURED, UNDRAW_ALL };

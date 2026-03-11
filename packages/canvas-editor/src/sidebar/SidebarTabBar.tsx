@@ -102,6 +102,7 @@ export const SidebarTabBar = memo(function SidebarTabBar({
       const timer = setTimeout(() => setShowSaved(false), 2000);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [autoSaveStatus]);
 
   const isHorizontal = horizontal || isMobile;
