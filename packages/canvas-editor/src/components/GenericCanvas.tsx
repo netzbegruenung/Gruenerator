@@ -37,6 +37,7 @@ import { calculateAttributionOverlay } from '../utils/attributionOverlay';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
 import { getOptimalContainerWidth } from '../utils/viewport';
 
+import { useMobileBridge } from '../hooks/useMobileBridge';
 import { CanvasRenderLayer } from './CanvasRenderLayer';
 import { FloatingToolbar } from './FloatingToolbar';
 
@@ -44,6 +45,7 @@ import type { AlignmentDirection } from './FloatingToolbar';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { FullCanvasConfig, LayoutResult } from '../configs/types';
 import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
+import type { MobileBridgeProps } from '../hooks/useMobileBridge';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 
 export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActions> {
@@ -65,6 +67,8 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
     isExporting: boolean;
     exportProgress: { current: number; total: number };
   };
+  /** Mobile bridge — when provided, hides FloatingToolbar and reports state to native */
+  mobileBridge?: MobileBridgeProps;
 }
 
 export interface GenericCanvasRef {
@@ -83,7 +87,15 @@ function GenericCanvasWithRef<
   TState extends Record<string, unknown>,
   TActions extends OptionalCanvasActions,
 >(props: GenericCanvasProps<TState, TActions> & { forwardedRef?: React.Ref<GenericCanvasRef> }) {
-  const { config, initialProps, onSave, callbacks = {}, onDelete, forwardedRef } = props;
+  const {
+    config,
+    initialProps,
+    onSave,
+    callbacks = {},
+    onDelete,
+    forwardedRef,
+    mobileBridge,
+  } = props;
 
   const stageRef = useRef<CanvasStageRef>(null);
 
@@ -249,7 +261,7 @@ function GenericCanvasWithRef<
   useCanvasAutoSave(exportedImage, {
     canvasType: config.id,
     canvasState: state,
-    enabled: true,
+    enabled: !mobileBridge,
   });
 
   // History-synced auto-save: capture canvas whenever undo/redo history changes: capture canvas whenever undo/redo history changes
@@ -332,6 +344,24 @@ function GenericCanvasWithRef<
     debouncedSaveToHistory,
   });
 
+  // Mobile bridge: report element/history state and execute native toolbar actions
+  useMobileBridge(mobileBridge, {
+    selectedElement,
+    activeFloatingModule,
+    canUndo,
+    canRedo,
+    canMoveUp: layerControls.canMoveUp,
+    canMoveDown: layerControls.canMoveDown,
+    handlers: {
+      undo,
+      redo,
+      handleMoveLayer: layerControls.handleMoveLayer,
+      handleColorSelect: floatingHandlers.handleColorSelect,
+      handleOpacityChange: floatingHandlers.handleOpacityChange,
+      handleFontSizeChange: elementHandlers.handleFontSizeChange,
+    },
+  });
+
   // Calculate attribution overlay data for export (only when exporting)
   const attributionOverlayData = useMemo(() => {
     if (!isExporting) return null;
@@ -380,7 +410,8 @@ function GenericCanvasWithRef<
     [selectedElement, config.canvas.width, config.canvas.height, elementHandlers]
   );
 
-  const toolbarElement = (
+  // In mobile bridge mode, native handles the toolbar — skip rendering the web one
+  const toolbarElement = mobileBridge ? null : (
     <FloatingToolbar
       selectedElement={selectedElement}
       activeFloatingModule={activeFloatingModule}

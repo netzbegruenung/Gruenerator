@@ -6,6 +6,7 @@ import { loadCanvasConfig, isValidCanvasType } from './configs/configLoader';
 import { ProfilbildCanvas } from './ProfilbildCanvas';
 
 import type { FullCanvasConfig, CanvasConfigId } from './configs/types';
+import type { MobileBridgeProps } from './hooks/useMobileBridge';
 import type { InitialPageDef } from './hooks/usePageManager';
 
 type CanvasState = Record<string, unknown>;
@@ -47,6 +48,10 @@ export interface ControllableCanvasWrapperProps {
   onStateChange?: (newState: CanvasState) => void;
   /** Pre-populated pages for heterogeneous multi-page mode (e.g. slider slides) */
   initialPages?: InitialPageDef[];
+  /** Called when the editor is ready (config loaded, canvas mounted) */
+  onReady?: () => void;
+  /** Mobile bridge — when provided, hides web chrome and delegates to native controls */
+  mobileBridge?: MobileBridgeProps;
 }
 
 export function ControllableCanvasWrapper({
@@ -57,6 +62,8 @@ export function ControllableCanvasWrapper({
   onCancel,
   onStateChange,
   initialPages,
+  onReady,
+  mobileBridge,
 }: ControllableCanvasWrapperProps) {
   const [internalState, setInternalState] = useState<CanvasState>(initialState);
   const [componentKey, setComponentKey] = useState(Date.now());
@@ -65,6 +72,7 @@ export function ControllableCanvasWrapper({
 
   // Track previous initialState to detect actual content changes
   const prevInitialStateRef = useRef<CanvasState>(initialState);
+  const readyFiredRef = useRef(false);
 
   // Load config dynamically when type changes (for config-driven canvases)
   // Now includes 'zitat' and 'dreizeilen' for unified multi-page support
@@ -94,6 +102,16 @@ export function ControllableCanvasWrapper({
       setConfigLoading(false);
     }
   }, [type]);
+
+  // Fire onReady when config is loaded (or immediately for profilbild)
+  useEffect(() => {
+    if (readyFiredRef.current) return;
+    const isProfilbild = type === 'profilbild';
+    if (isProfilbild || (!configLoading && config)) {
+      readyFiredRef.current = true;
+      onReady?.();
+    }
+  }, [configLoading, config, type, onReady]);
 
   // Only update state and key when initialState CONTENT actually changes
   // This prevents remounting when parent re-renders with same values but new object reference
@@ -254,6 +272,7 @@ export function ControllableCanvasWrapper({
             callbacks={buildCallbacks()}
             maxPages={config.multiPage?.maxPages ?? 10}
             initialPages={initialPages}
+            mobileBridge={mobileBridge}
           />
         );
 

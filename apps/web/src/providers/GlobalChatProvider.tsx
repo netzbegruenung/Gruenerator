@@ -108,7 +108,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
     >
       <TooltipProvider>
         {children}
-        <ChatThreadPortal />
+        {user?.id && <ChatThreadPortal />}
       </TooltipProvider>
     </GrueneratorChatProvider>
   );

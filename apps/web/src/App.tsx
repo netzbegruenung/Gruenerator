@@ -42,7 +42,7 @@ const queryClient = new QueryClient({
       retry: (failureCount, error: unknown) => {
         // Smart retry logic
         const status = (error as { status?: number })?.status;
-        if (status === 404 || status === 401) return false;
+        if (status === 404 || status === 401 || status === 403) return false;
         return failureCount < 2; // Max 2 retries
       },
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff

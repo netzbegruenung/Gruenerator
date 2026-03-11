@@ -4,8 +4,8 @@ import { HiSparkles } from 'react-icons/hi2';
 import { PiFrameCornersFill, PiSmileyWink, PiTagFill, PiTextT } from 'react-icons/pi';
 
 import { ALL_ASSETS, type AssetInstance } from '../../../utils/canvasAssets';
-import { ALL_ICONS } from '../../../utils/canvasIcons';
-import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/registry';
+import { getIconsSync, loadAllIcons } from '../../../utils/canvasIcons';
+import { ALL_ILLUSTRATIONS, UNDRAW_FEATURED } from '../../../utils/illustrations/registry';
 import { prefetchBackground } from '../../../utils/illustrations/svgCache';
 import { ALL_SHAPES, type ShapeInstance, type ShapeType } from '../../../utils/shapes';
 import {
@@ -15,6 +15,7 @@ import {
   SIDEBAR_SECTION,
   SECTION_LABEL,
 } from '../../primitives';
+import { useMobileSubsectionBridge } from '../../MobileSubsectionBridgeContext';
 import { SubsectionTabBar, type Subsection } from '../../SubsectionTabBar';
 import { BadgeSection } from '../BadgeSection';
 import { FormenSection } from '../FormenSection';
@@ -28,9 +29,12 @@ import { useAssetSearch } from './useAssetSearch';
 
 import type { BalkenInstance, BalkenMode } from '../../../primitives';
 import type { FrameClipType, FrameInstance } from '../../../utils/frameUtils';
-import type { IllustrationInstance, SvgDef } from '../../../utils/illustrations/types';
+import type { IllustrationInstance } from '../../../utils/illustrations/types';
 
 import { cn } from '../../../utils/cn';
+
+// Preload icons as soon as this module is imported (idempotent, cached)
+loadAllIcons();
 
 export interface ExtendedAssetsSectionProps {
   onAddHeader?: () => void;
@@ -118,17 +122,15 @@ export function AssetsSection(props: ExtendedAssetsSectionProps) {
     hasFramesFeature,
   });
 
-  // Background prefetch SVG illustrations during idle time
+  // Background prefetch only featured/curated SVGs (not all 1,600+)
   useEffect(() => {
     if (!hasIllustrationsFeature) return;
-    const svgIllustrations = ALL_ILLUSTRATIONS.filter((ill) => ill.source !== 'kawaii').map(
-      (ill) => ({ id: ill.id, def: ill as SvgDef })
-    );
-    if (svgIllustrations.length === 0) return;
+    const featured = UNDRAW_FEATURED.map((ill) => ({ id: ill.id, def: ill }));
+    if (featured.length === 0) return;
     if ('requestIdleCallback' in window) {
-      requestIdleCallback(() => prefetchBackground(svgIllustrations), { timeout: 5000 });
+      requestIdleCallback(() => prefetchBackground(featured), { timeout: 5000 });
     } else {
-      setTimeout(() => prefetchBackground(svgIllustrations), 1000);
+      setTimeout(() => prefetchBackground(featured), 1000);
     }
   }, [hasIllustrationsFeature]);
 
@@ -207,6 +209,11 @@ function MobileView({
   const [formenExpanded, setFormenExpanded] = useState(false);
   const [iconsExpanded, setIconsExpanded] = useState(false);
   const [illustrationenExpanded, setIllustrationenExpanded] = useState(false);
+
+  const bridge = useMobileSubsectionBridge();
+  const effectiveFormenExpanded = bridge.active || formenExpanded;
+  const effectiveIconsExpanded = bridge.active || iconsExpanded;
+  const effectiveIllustrationsExpanded = bridge.active || illustrationenExpanded;
 
   const sortedAssets = useMemo(() => {
     const recommended = ALL_ASSETS.filter((a) => recommendedAssetIds.includes(a.id));
@@ -397,7 +404,7 @@ function MobileView({
               </button>
             )}
           </h4>
-          <FormenSection onAddShape={onAddShape!} isExpanded={formenExpanded} />
+          <FormenSection onAddShape={onAddShape!} isExpanded={effectiveFormenExpanded} />
         </>
       ),
     });
@@ -464,7 +471,7 @@ function MobileView({
             onUpdateIllustration={onUpdateIllustration ?? (() => {})}
             onRemoveIllustration={onRemoveIllustration ?? (() => {})}
             onDuplicateIllustration={onDuplicateIllustration}
-            isExpanded={illustrationenExpanded}
+            isExpanded={effectiveIllustrationsExpanded}
             illustrations={ALL_ILLUSTRATIONS}
           />
         </>
@@ -473,7 +480,7 @@ function MobileView({
   }
 
   if (hasIconsFeature) {
-    const hasMoreIcons = ALL_ICONS.length > 4;
+    const hasMoreIcons = (getIconsSync()?.length ?? 0) > 4;
     subsections.push({
       id: 'icons',
       icon: HiSparkles,
@@ -498,7 +505,7 @@ function MobileView({
             selectedIcons={selectedIcons ?? []}
             onIconToggle={onIconToggle ?? (() => {})}
             maxSelections={maxIconSelections}
-            isExpanded={iconsExpanded}
+            isExpanded={effectiveIconsExpanded}
           />
         </>
       ),

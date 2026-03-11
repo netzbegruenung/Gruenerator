@@ -19,7 +19,9 @@ export { UnifiedTextSection } from './UnifiedTextSection';
 export type { UnifiedTextSectionProps } from './UnifiedTextSection';
 export { AlternativesSection } from './AlternativesSection';
 export type { AlternativesSectionProps } from './AlternativesSection';
-export { IconsSection } from './IconsSection';
+export const IconsSection = lazy(() =>
+  import('./IconsSection').then((m) => ({ default: m.IconsSection }))
+);
 export { BadgeSection } from './BadgeSection';
 export type { BadgeSectionProps } from './BadgeSection';
 export { BalkenSection } from './BalkenSection';

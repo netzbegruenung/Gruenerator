@@ -3,7 +3,11 @@
  * Collects user input, triggers AI text generation, then navigates to canvas editor
  */
 
-import { useImageStudio, type TextGenerationRequest } from '@gruenerator/shared/image-studio';
+import {
+  useImageStudio,
+  typeRequiresImage,
+  type TextGenerationRequest,
+} from '@gruenerator/shared/image-studio';
 import { router } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -39,7 +43,11 @@ export default function TemplateInputScreen() {
     try {
       const result = await generateText(type, formData as unknown as TextGenerationRequest);
       setGeneratedText(result);
-      router.push(route('/(fullscreen)/webview-editor'));
+      if (typeRequiresImage(type)) {
+        router.push(route('/(focused)/image-studio-create/image'));
+      } else {
+        router.push(route('/(fullscreen)/webview-editor'));
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Textgenerierung fehlgeschlagen';
       setError(message);
