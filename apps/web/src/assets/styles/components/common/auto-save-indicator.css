@@ -7,23 +7,6 @@
   display: none;
 }
 
-/* Spinner animation */
-.auto-save-indicator__spinner {
-  width: 16px;
-  height: 16px;
-  color: var(--primary-600);
-  animation: auto-save-spin 1s linear infinite;
-}
-
-@keyframes auto-save-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 /* Icons */
 .auto-save-indicator__icon {
   width: 18px;
@@ -31,21 +14,8 @@
   flex-shrink: 0;
 }
 
-.auto-save-indicator__icon--success {
-  color: var(--primary-600);
-}
-
 .auto-save-indicator__icon--error {
   color: var(--error-red);
-}
-
-/* State-specific styles */
-.auto-save-indicator--saving {
-  color: var(--grey-700);
-}
-
-.auto-save-indicator--saved {
-  color: var(--grey-600);
 }
 
 .auto-save-indicator--error {
@@ -97,10 +67,5 @@
   .auto-save-indicator__icon {
     width: 16px;
     height: 16px;
-  }
-
-  .auto-save-indicator__spinner {
-    width: 14px;
-    height: 14px;
   }
 }
