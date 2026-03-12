@@ -29,7 +29,7 @@ function ExampleSuggestions() {
   );
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="ml-2.5 flex flex-wrap items-center gap-2.5">
       {EXAMPLE_PROMPTS.map((prompt) => (
         <button
           type="button"
