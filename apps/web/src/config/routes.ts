@@ -279,6 +279,7 @@ const ScannerPage = lazy(() =>
   }))
 );
 const ToolsPage = lazy(() => import('../features/tools/ToolsPage'));
+const GruenOMatDemoPage = lazy(() => import('../features/gruen-o-mat/GruenOMatDemoPage'));
 const ResearchPage = lazy(() => import('../features/research/ResearchPage'));
 const DocsListPage = lazy(() =>
   Promise.all([
@@ -370,6 +371,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/leichte-sprache', component: LeichteSpracheRedirect },
   { path: '/gruene-jugend', component: GrueneratorenBundle.GrueneJugend, withForm: true },
   { path: '/tools', component: ToolsPage },
+  { path: '/gruen-o-mat', component: GruenOMatDemoPage },
   { path: '/research', component: ResearchPage },
   { path: '/datenbank', component: GrueneratorenBundle.DatabaseIndex },
   { path: '/datenbank/antraege', component: GrueneratorenBundle.AntraegeListe },
