@@ -68,11 +68,9 @@ function StopDictationButton() {
 }
 
 function ComposerButtons({ isRunning }: { isRunning?: boolean }) {
-  const { isDictating, hasDictation, isEmpty } = useAuiState((s) => ({
-    isDictating: s.composer.dictation != null,
-    hasDictation: s.thread.capabilities.dictation,
-    isEmpty: s.composer.isEmpty,
-  }));
+  const isDictating = useAuiState((s) => s.composer.dictation != null);
+  const hasDictation = useAuiState((s) => s.thread.capabilities.dictation);
+  const isEmpty = useAuiState((s) => s.composer.isEmpty);
 
   if (isRunning) return <CancelButton />;
   if (isDictating) return <StopDictationButton />;
