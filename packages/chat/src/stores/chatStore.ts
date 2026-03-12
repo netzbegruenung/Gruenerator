@@ -97,7 +97,7 @@ interface AgentState {
   messageCount: number;
   needsCompaction: boolean;
   pendingMessage: string | null;
-  pendingNewThread: boolean;
+  chatViewMode: 'overview' | 'thread';
   setSelectedAgent: (agentId: string | null) => void;
   setSelectedProvider: (provider: Provider) => void;
   setSelectedModel: (model: ModelId) => void;
@@ -107,7 +107,7 @@ interface AgentState {
   toggleDeepAgent: () => void;
   setSelectedNotebook: (notebookId: string) => void;
   setPendingMessage: (message: string | null) => void;
-  setPendingNewThread: (v: boolean) => void;
+  setChatViewMode: (mode: 'overview' | 'thread') => void;
   setCompactionState: (state: CompactionState) => void;
   loadCompactionState: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   triggerCompaction: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
@@ -142,7 +142,7 @@ export const useAgentStore = create<AgentState>()(
       messageCount: 0,
       needsCompaction: false,
       pendingMessage: null,
-      pendingNewThread: false,
+      chatViewMode: 'overview' as const,
 
       setSelectedAgent: (agentId) => set({ selectedAgentId: agentId }),
 
@@ -187,7 +187,7 @@ export const useAgentStore = create<AgentState>()(
 
       setPendingMessage: (message) => set({ pendingMessage: message }),
 
-      setPendingNewThread: (v) => set({ pendingNewThread: v }),
+      setChatViewMode: (mode) => set({ chatViewMode: mode }),
 
       setCompactionState: (state) => set({ compactionState: state }),
 
