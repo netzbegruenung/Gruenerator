@@ -119,6 +119,16 @@ export function useResearchFilters() {
     });
   }, []);
 
+  const setKeywordFilter = useCallback((field: string, values: string[]) => {
+    setActiveFilters((prev) => {
+      if (values.length === 0) {
+        const { [field]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [field]: values };
+    });
+  }, []);
+
   const clearAllFilters = useCallback(() => {
     setActiveFilters({});
   }, []);
@@ -167,6 +177,7 @@ export function useResearchFilters() {
     activeFilters,
     activeFilterCount,
     toggleFilter,
+    setKeywordFilter,
     setDateFilter,
     clearFilter,
     clearAllFilters,
