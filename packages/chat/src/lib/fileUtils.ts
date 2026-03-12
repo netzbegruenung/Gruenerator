@@ -12,7 +12,8 @@ export type AllowedMimeType =
   | 'image/webp'
   | 'text/plain'
   | 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  | 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+  | 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+  | 'application/vnd.oasis.opendocument.text';
 
 export interface ProcessedFile {
   name: string;
@@ -44,6 +45,7 @@ const ALLOWED_FILE_TYPES: Record<AllowedMimeType, string> = {
   'text/plain': 'Text File',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word Document',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PowerPoint',
+  'application/vnd.oasis.opendocument.text': 'OpenDocument',
 };
 
 const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
