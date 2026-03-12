@@ -1,3 +1,5 @@
+import { cn } from '@/utils/cn';
+
 const groupLabels: Record<string, string> = {
   manual: 'Dokumente',
   wolke: 'Wolke Dokumente',
@@ -33,7 +35,7 @@ const DocumentGroupedContent = ({
   renderDefaultCard,
 }: DocumentGroupedContentProps) => {
   return (
-    <div className="document-overview-grouped">
+    <div className="flex flex-col gap-lg">
       {Object.entries(groupedItems).map(([groupKey, items]) => {
         if (!items || items.length === 0) return null;
         const isExpanded = expandedGroups.has(groupKey);
@@ -43,16 +45,24 @@ const DocumentGroupedContent = ({
         return (
           <div
             key={groupKey}
-            className={`document-group document-group-${groupKey} ${isExpanded ? 'expanded' : 'collapsed'}`}
+            className={cn(
+              'border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden',
+              isExpanded && 'border-primary-400'
+            )}
           >
-            <div className="document-group-header" onClick={() => onToggleGroup(groupKey)}>
-              <span className="document-group-icon" aria-hidden>
-                {groupIcon}
+            <div
+              className="flex items-center gap-sm px-md py-sm cursor-pointer bg-grey-50 dark:bg-grey-800 hover:bg-grey-100 dark:hover:bg-grey-750 transition-colors duration-200 select-none"
+              onClick={() => onToggleGroup(groupKey)}
+            >
+              <span aria-hidden>{groupIcon}</span>
+              <h3 className="m-0 text-foreground-heading text-base font-semibold flex-1">
+                {groupLabel}
+              </h3>
+              <span className="bg-grey-200 dark:bg-grey-700 text-grey-600 dark:text-grey-300 text-xs font-semibold px-2 py-0.5 rounded-full">
+                {items.length}
               </span>
-              <h3>{groupLabel}</h3>
-              <span className="document-group-count">{items.length}</span>
               <button
-                className="document-group-chevron"
+                className="bg-transparent border-none cursor-pointer text-grey-500 dark:text-grey-400 text-sm p-xs rounded transition-transform duration-200"
                 aria-expanded={isExpanded}
                 aria-controls={`group-${groupKey}`}
               >
@@ -61,8 +71,8 @@ const DocumentGroupedContent = ({
             </div>
 
             {isExpanded && (
-              <div id={`group-${groupKey}`} className="document-group-content">
-                <div className="document-overview-grid">
+              <div id={`group-${groupKey}`} className="p-md">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-lg xl:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] 2xl:grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
                   {items.map((item) =>
                     cardRenderer ? cardRenderer(item) : renderDefaultCard(item)
                   )}

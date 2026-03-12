@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { FaFileWord, FaFilePdf } from 'react-icons/fa6';
 import {
   HiOutlineTrash,
   HiOutlineSearch,
@@ -10,12 +11,24 @@ import {
   HiExclamationCircle,
   HiShare,
   HiClipboard,
-  HiChevronRight,
 } from 'react-icons/hi';
+import { IoDownloadOutline } from 'react-icons/io5';
 
 import { NotebookIcon } from '../../config/icons';
 import { useFilteredAndGroupedItems } from '../../hooks/useFilteredAndGroupedItems';
 import { useSearchState } from '../../hooks/useSearchState';
+import { useExportStore } from '../../stores/core/exportStore';
+import { cn } from '../../utils/cn';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
 import apiClient from '../utils/apiClient';
 import {
   truncateForPreview,
@@ -29,12 +42,9 @@ import BulkDeleteConfirmModal from './BulkDeleteConfirmModal';
 import DocumentPreviewModal from './DocumentPreviewModal';
 import EnhancedSelect from './EnhancedSelect/EnhancedSelect';
 import { getActionItems } from './ItemActionBuilder';
-import MenuDropdown from './MenuDropdown';
 import SelectAllCheckbox from './SelectAllCheckbox';
 import Spinner from './Spinner';
 
-// Document Overview Feature CSS - Loaded only when this feature is accessed
-import '../../assets/styles/components/document-overview.css';
 // Import ProfileActionButton CSS for consistent button styling
 import '../../assets/styles/components/profile/profile-action-buttons.css';
 
@@ -407,8 +417,8 @@ const DocumentOverview = ({
       setShowBulkDeleteModal(false);
 
       onSuccessMessage?.(
-          `${idsArray.length} ${idsArray.length === 1 ? 'Element' : 'Elemente'} erfolgreich gelöscht.`
-        );
+        `${idsArray.length} ${idsArray.length === 1 ? 'Element' : 'Elemente'} erfolgreich gelöscht.`
+      );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
       onErrorMessage?.('Fehler beim Bulk-Löschen: ' + errorMessage);
@@ -504,9 +514,45 @@ const DocumentOverview = ({
     }
   };
 
-  // formatDate moved to utils
+  // Export functionality
+  const { generateDOCX, generatePDF, isGenerating: isExporting } = useExportStore();
 
-  // Build action items via builder, falling back to custom actionItems if provided
+  const getDocumentContent = async (item: DocumentItem): Promise<string> => {
+    const existing = item.markdown_content || item.full_content || item.ocr_text;
+    if (existing) return existing;
+
+    const response = await apiClient.get(`/documents/${item.id}/content`);
+    const data = response.data;
+    return data.data.markdown_content || data.data.ocr_text || '';
+  };
+
+  const handleExportDOCX = async (item: DocumentItem) => {
+    try {
+      const content = await getDocumentContent(item);
+      if (!content) {
+        onErrorMessage?.('Kein Inhalt zum Exportieren verfügbar.');
+        return;
+      }
+      await generateDOCX(content, item.title || 'Dokument');
+    } catch (error) {
+      console.error('[DocumentOverview] DOCX export error:', error);
+      onErrorMessage?.('Fehler beim Erstellen der Word-Datei.');
+    }
+  };
+
+  const handleExportPDF = async (item: DocumentItem) => {
+    try {
+      const content = await getDocumentContent(item);
+      if (!content) {
+        onErrorMessage?.('Kein Inhalt zum Exportieren verfügbar.');
+        return;
+      }
+      await generatePDF(content, item.title || 'Dokument');
+    } catch (error) {
+      console.error('[DocumentOverview] PDF export error:', error);
+      onErrorMessage?.('Fehler beim Erstellen der PDF-Datei.');
+    }
+  };
 
   // Helper to get file extension from filename
   const getFileExtension = (filename?: string) => {
@@ -522,37 +568,27 @@ const DocumentOverview = ({
     const fileExt = isDocument ? getFileExtension(item.title || '') : null;
 
     return (
-      <div key={item.id} className="document-card">
-        {/* Source Type Badge */}
-        {isDocument && item.source_type && (
-          <span className={`document-source-badge document-source-badge--${item.source_type}`}>
-            {item.source_type === 'wolke'
-              ? '☁️ Wolke'
-              : item.source_type === 'url'
-                ? '🔗 URL'
-                : '📁 Upload'}
+      <div
+        key={item.id}
+        className="group relative bg-background border-2 border-grey-200 dark:border-grey-700 rounded-lg p-lg transition-[transform,box-shadow,border-color] duration-200 flex flex-col min-h-[220px] shadow-sm hover:-translate-y-0.5 hover:border-primary-400 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:transform-none max-md:min-h-[180px] max-md:p-md max-sm:p-sm"
+      >
+        {/* File Type Badge */}
+        {fileExt && (
+          <span className="absolute top-sm right-sm px-1.5 py-0.5 bg-secondary-600/15 text-secondary-700 dark:text-secondary-300 text-[0.6rem] font-bold tracking-wide rounded uppercase">
+            {fileExt}
           </span>
         )}
 
-        {/* File Type Badge */}
-        {fileExt && <span className="document-file-badge">{fileExt}</span>}
-
-        {/* Document Icon */}
-        {isDocument && !item.preview_image_url && !item.thumbnail_url && (
-          <div className="document-card-icon">
-            <HiOutlineDocumentText />
-          </div>
-        )}
-
         {/* Header with title and dropdown menu */}
-        <div className="document-card-header">
+        <div className="flex justify-between items-start mb-sm gap-sm max-sm:flex-col max-sm:items-stretch max-sm:gap-xs">
           {/* Bulk selection checkbox */}
           {enableBulkSelect &&
             onBulkDelete &&
             !(itemType === 'document' && item.source_type === 'wolke') && (
-              <div className="document-card-checkbox">
+              <div className="mr-xs">
                 <input
                   type="checkbox"
+                  className="w-[18px] h-[18px] cursor-pointer accent-primary-600"
                   checked={selectedItemIds.has(item.id)}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                     e.stopPropagation();
@@ -564,10 +600,10 @@ const DocumentOverview = ({
             )}
 
           {editingTitle === item.id ? (
-            <div className="document-title-edit">
+            <div className="flex flex-col gap-xs flex-1">
               <input
                 type="text"
-                className="form-input"
+                className="form-input text-base font-semibold p-xs"
                 value={newTitle}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTitle(e.target.value)}
                 onKeyDown={(e: React.KeyboardEvent) => {
@@ -577,7 +613,7 @@ const DocumentOverview = ({
                 onClick={(e: React.MouseEvent) => e.stopPropagation()}
                 autoFocus
               />
-              <div className="document-title-edit-actions">
+              <div className="flex gap-xs">
                 <button
                   className="pabtn pabtn--primary pabtn--s"
                   onClick={(e: React.MouseEvent) => {
@@ -599,9 +635,13 @@ const DocumentOverview = ({
               </div>
             </div>
           ) : (
-            <div className="document-title-header">
+            <div className="flex-1 min-w-0">
               <h4
-                className={`document-card-title ${onUpdateTitle ? 'editable-title' : ''} clickable-title`}
+                className={cn(
+                  'm-0 text-foreground-heading text-base font-semibold leading-tight cursor-pointer transition-colors duration-200 overflow-hidden text-ellipsis whitespace-nowrap max-w-full hover:text-primary-600',
+                  onUpdateTitle && 'hover:text-primary-600',
+                  'select-none hover:underline'
+                )}
                 onClick={(e: React.MouseEvent) => {
                   e.stopPropagation();
                   if (onUpdateTitle && e.detail === 2) {
@@ -624,27 +664,23 @@ const DocumentOverview = ({
           )}
 
           {/* Three-dot menu */}
-          <MenuDropdown
-            className="document-card-menu-container"
-            trigger={
-              <button className="document-card-menu-button" title="Aktionen">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="bg-transparent border-none cursor-pointer p-xs rounded-lg text-grey-500 dark:text-grey-400 text-[1.2rem] leading-none transition-all duration-200 flex items-center justify-center min-w-[32px] h-8 hover:bg-hover-alt hover:text-foreground max-sm:self-end">
                 <HiDotsVertical />
               </button>
-            }
-            alignRight={true}
-          >
-            {/* Pass onClose from MenuDropdown's cloneElement */}
-            {({ onClose }) => renderDropdownContent(item, onClose)}
-          </MenuDropdown>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">{renderDropdownContent(item)}</DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Preview Image for Templates */}
         {(item.preview_image_url || item.thumbnail_url) && (
-          <div className="document-card-preview">
+          <div className="my-sm rounded-md overflow-hidden bg-grey-50 dark:bg-grey-800">
             <img
               src={item.preview_image_url || item.thumbnail_url}
               alt={`Vorschau von ${itemTitle}`}
-              className="document-preview-image"
+              className="w-full h-auto max-h-[180px] object-cover object-center block transition-transform duration-200 hover:scale-[1.02] max-sm:max-h-[150px]"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
               }}
@@ -654,19 +690,25 @@ const DocumentOverview = ({
         )}
 
         {/* Content */}
-        <div className="document-card-content">
+        <div className="flex-1 mb-sm">
           {itemType === 'notebook' ? (
             <>
-              {item.description && <p className="qa-description">{item.description}</p>}
+              {item.description && (
+                <p className="text-foreground italic mb-sm">{item.description}</p>
+              )}
               {item.custom_prompt && (
-                <div className="qa-custom-prompt-preview">
-                  <strong>Anweisungen:</strong>
-                  <p>{item.custom_prompt}</p>
+                <div className="mt-sm p-sm bg-grey-50 dark:bg-grey-800 rounded-lg border-l-[3px] border-l-primary-600 dark:border-l-primary-400">
+                  <strong className="block text-primary-600 text-[0.75rem] uppercase tracking-wide mb-xs">
+                    Anweisungen:
+                  </strong>
+                  <p className="m-0 text-foreground text-sm leading-normal italic">
+                    {item.custom_prompt}
+                  </p>
                 </div>
               )}
             </>
           ) : (
-            <p className="content-preview">
+            <p className="m-0 text-grey-500 dark:text-grey-400 text-[0.85rem] leading-normal line-clamp-3">
               {(() => {
                 const raw =
                   item.markdown_content ||
@@ -681,7 +723,7 @@ const DocumentOverview = ({
         </div>
 
         {/* Footer with metadata */}
-        <div className="document-card-footer">
+        <div className="flex justify-between items-center gap-sm text-[0.8rem] text-grey-500 dark:text-grey-400 border-t border-grey-200 dark:border-grey-700 pt-sm flex-wrap mt-auto max-md:flex-col max-md:items-start max-md:gap-xs">
           {metaRenderer ? metaRenderer(item) : renderDefaultMeta(item)}
         </div>
       </div>
@@ -694,14 +736,20 @@ const DocumentOverview = ({
       return (
         <>
           {item.document_count !== undefined && (
-            <span className="document-type qa-document-count">
+            <span className="bg-secondary-600/10 dark:bg-secondary-600/20 text-secondary-700 dark:text-secondary-300 font-medium px-xs py-0.5 rounded-md whitespace-nowrap before:content-['📄'] before:mr-0.5">
               {item.document_count} Dokument{item.document_count !== 1 ? 'e' : ''}
             </span>
           )}
-          {item.is_public && <span className="document-type qa-public-badge">Öffentlich</span>}
-          {item.created_at && <span className="document-date">{formatDate(item.created_at)}</span>}
+          {item.is_public && (
+            <span className="bg-primary-600/10 dark:bg-primary-600/20 text-primary-700 dark:text-primary-300 font-medium px-xs py-0.5 rounded-md whitespace-nowrap before:content-['🌍'] before:mr-0.5">
+              Öffentlich
+            </span>
+          )}
+          {item.created_at && (
+            <span className="whitespace-nowrap">{formatDate(item.created_at)}</span>
+          )}
           {item.view_count && item.view_count > 0 && (
-            <span className="document-stats">{item.view_count} Aufrufe</span>
+            <span className="whitespace-nowrap">{item.view_count} Aufrufe</span>
           )}
         </>
       );
@@ -716,17 +764,19 @@ const DocumentOverview = ({
           </span>
         )}
         {item.similarity_score != null && (
-          <span className="document-stats">
+          <span className="whitespace-nowrap">
             Relevanz: {Math.round(item.similarity_score * 100)}%
           </span>
         )}
-        {item.updated_at && <span className="document-date">{formatDate(item.updated_at)}</span>}
+        {item.updated_at && (
+          <span className="whitespace-nowrap">{formatDate(item.updated_at)}</span>
+        )}
       </>
     );
   };
 
   // Render dropdown menu content
-  const renderDropdownContent = (item: DocumentItem, onClose?: () => void) => {
+  const renderDropdownContent = (item: DocumentItem) => {
     const actions: ActionItem[] = (
       actionItems
         ? actionItems(item)
@@ -747,10 +797,10 @@ const DocumentOverview = ({
     ).filter((action) => action.separator || action.show !== false);
 
     return (
-      <div>
+      <>
         {actions.map((action, index) => {
           if (action.separator) {
-            return <div key={index} className="menu-dropdown-separator" />;
+            return <DropdownMenuSeparator key={index} />;
           }
 
           // Handle submenu items (like Copy Links)
@@ -758,34 +808,24 @@ const DocumentOverview = ({
             const IconComponent = action.icon;
 
             return (
-              <div key={index} className="menu-dropdown-submenu-container">
-                <div className="menu-dropdown-submenu-trigger">
-                  <button className="menu-dropdown-item submenu-trigger">
-                    <IconComponent />
-                    {action.label}
-                    <HiChevronRight className="submenu-arrow" />
-                  </button>
-                  <div className="menu-dropdown-submenu-content">
-                    {action.submenuItems.map((subItem, subIndex) => (
-                      <button
-                        key={subIndex}
-                        className="menu-dropdown-item submenu-item"
-                        onClick={(e: React.MouseEvent) => {
-                          e.stopPropagation();
-                          // Call the copy function if it exists on the subItem
-                          if (subItem.onClick) {
-                            subItem.onClick(onClose);
-                          }
-                        }}
-                        title={subItem.description}
-                      >
-                        <HiClipboard />
-                        {subItem.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <DropdownMenuSub key={index}>
+                <DropdownMenuSubTrigger>
+                  <IconComponent />
+                  {action.label}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {action.submenuItems.map((subItem, subIndex) => (
+                    <DropdownMenuItem
+                      key={subIndex}
+                      onClick={() => subItem.onClick?.()}
+                      title={subItem.description}
+                    >
+                      <HiClipboard />
+                      {subItem.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
             );
           }
 
@@ -798,14 +838,10 @@ const DocumentOverview = ({
           const handleClick = action.onClick;
 
           return (
-            <button
+            <DropdownMenuItem
               key={index}
-              className={`menu-dropdown-item ${action.danger ? 'danger' : ''}`}
-              onClick={(e: React.MouseEvent) => {
-                e.stopPropagation();
-                handleClick();
-                onClose?.();
-              }}
+              variant={action.danger ? 'destructive' : 'default'}
+              onClick={handleClick}
               disabled={action.loading}
             >
               {action.loading ? (
@@ -819,10 +855,33 @@ const DocumentOverview = ({
                   {action.label}
                 </>
               )}
-            </button>
+            </DropdownMenuItem>
           );
         })}
-      </div>
+
+        {/* Export submenu for documents/texts with content (hide for processing/pending) */}
+        {itemType === 'document' && item.status !== 'processing' && item.status !== 'pending' && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <IoDownloadOutline />
+                Exportieren
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem onClick={() => handleExportDOCX(item)} disabled={isExporting}>
+                  <FaFileWord />
+                  Word (.docx)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExportPDF(item)} disabled={isExporting}>
+                  <FaFilePdf />
+                  PDF (.pdf)
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          </>
+        )}
+      </>
     );
   };
 
@@ -834,10 +893,14 @@ const DocumentOverview = ({
       itemType === 'notebook' ? 'Keine Notebooks vorhanden.' : 'Keine Dokumente vorhanden.';
 
     return (
-      <div className="document-overview-empty-state">
-        <DefaultIcon size={48} className="empty-state-icon" />
-        <p>{emptyStateConfig.noDocuments || defaultMessage}</p>
-        {emptyStateConfig.createMessage && <p>{emptyStateConfig.createMessage}</p>}
+      <div className="text-center py-2xl px-md text-grey-500 dark:text-grey-400">
+        <DefaultIcon size={48} className="text-primary-400 mb-md opacity-80" />
+        <p className="my-sm text-base leading-normal font-medium text-foreground">
+          {emptyStateConfig.noDocuments || defaultMessage}
+        </p>
+        {emptyStateConfig.createMessage && (
+          <p className="my-sm text-base leading-normal">{emptyStateConfig.createMessage}</p>
+        )}
       </div>
     );
   };
@@ -857,17 +920,17 @@ const DocumentOverview = ({
 
   if (loading && allItems.length === 0) {
     return (
-      <div className="document-overview-loading">
+      <div className="flex justify-center items-center py-xl">
         <Spinner />
       </div>
     );
   }
 
   return (
-    <div className="document-overview-container">
-      <div className="document-overview-header">
-        <div className="document-overview-header-left">
-          <h3>
+    <div className="w-full">
+      <div className="flex justify-between items-center py-md border-b border-grey-200 dark:border-grey-700 mb-md max-sm:flex-col max-sm:items-start max-sm:gap-sm">
+        <div className="flex items-center gap-sm">
+          <h3 className="m-0 text-foreground-heading text-[1.1rem] font-semibold flex items-center gap-sm">
             {title} (
             {(() => {
               const usingRemote = remoteSearchEnabled && searchState.hasQuery;
@@ -880,32 +943,30 @@ const DocumentOverview = ({
           </h3>
         </div>
 
-        <div className="document-overview-header-actions">
-          {headerActions && <div className="document-overview-custom-actions">{headerActions}</div>}
-          {/* Removed built-in refresh to avoid duplicate sync/refresh controls */}
+        <div className="flex items-center gap-sm max-sm:self-end">
+          {headerActions && <div className="flex items-center gap-sm">{headerActions}</div>}
         </div>
       </div>
 
-      <div className="document-overview-content">
+      <div>
         {/* Search and Sort Controls */}
-        <div className="document-overview-controls">
+        <div className="flex flex-wrap gap-md mb-md items-center max-md:flex-col max-md:items-stretch max-md:gap-sm">
           {enableLocalSearch && (
-            <div className="search-container" style={{ maxWidth: '250px', flexShrink: 0 }}>
-              <HiOutlineSearch className="search-icon" />
+            <div className="relative max-w-[250px] shrink-0 max-md:max-w-none max-md:min-w-0">
+              <HiOutlineSearch className="absolute left-sm top-1/2 -translate-y-1/2 text-grey-500 dark:text-grey-400 text-[1.1rem] pointer-events-none" />
               <input
                 type="text"
-                className="form-input search-input"
+                className="form-input pl-[calc(var(--spacing-sm)*2+1.1rem)] w-full rounded-[20px] border border-grey-200 dark:border-grey-700 bg-background transition-[border-color,box-shadow] duration-200 focus:outline-none focus:border-primary-600 focus:ring-[3px] focus:ring-primary-600/10 text-sm"
                 placeholder={searchPlaceholder}
                 value={searchState.searchQuery}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   searchState.setSearchQuery(e.target.value)
                 }
-                style={{ fontSize: '14px' }}
               />
             </div>
           )}
           {remoteSearchEnabled && (
-            <div className="search-mode-controls" style={{ marginLeft: '8px' }}>
+            <div className="ml-2">
               <select
                 className="form-select"
                 value={searchState.searchMode}
@@ -921,7 +982,7 @@ const DocumentOverview = ({
           )}
 
           {/* Category Filter */}
-          <div className="category-filter-container">
+          <div className="min-w-[180px] max-md:min-w-0 max-md:w-full">
             <EnhancedSelect
               options={categoryOptions}
               value={categoryOptions.find((opt) => opt.value === selectedCategory)}
@@ -937,9 +998,9 @@ const DocumentOverview = ({
             />
           </div>
 
-          <div className="sort-controls">
+          <div className="flex gap-xs items-center max-md:justify-between max-md:w-full">
             <select
-              className="form-select"
+              className="form-select min-w-[140px] rounded-lg"
               value={sortBy}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSortBy(e.target.value)}
             >
@@ -955,7 +1016,7 @@ const DocumentOverview = ({
               ))}
             </select>
             <button
-              className="sort-order-button"
+              className="bg-background border border-grey-200 dark:border-grey-700 rounded-lg p-xs cursor-pointer text-foreground text-[1.2rem] leading-none min-w-[36px] h-9 flex items-center justify-center transition-all duration-200 hover:bg-hover-alt hover:border-primary-400 focus:outline-none focus:border-primary-600 focus:ring-[3px] focus:ring-primary-600/10"
               onClick={() => setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
               title={sortOrder === 'asc' ? 'Aufsteigend sortiert' : 'Absteigend sortiert'}
             >
@@ -991,7 +1052,7 @@ const DocumentOverview = ({
             const status = searchState.getSearchStatus(isRemoteSearchingValue);
             if (status) {
               return (
-                <div className="document-overview-empty-state">
+                <div className="text-center py-2xl px-md text-grey-500 dark:text-grey-400">
                   <p>{status}</p>
                 </div>
               );
@@ -999,7 +1060,7 @@ const DocumentOverview = ({
 
             if (searchState.shouldShowNoResults(0, isRemoteSearchingValue)) {
               return (
-                <div className="document-overview-empty-state">
+                <div className="text-center py-2xl px-md text-grey-500 dark:text-grey-400">
                   <p>Keine Ergebnisse gefunden für "{searchState.searchQuery}"</p>
                 </div>
               );
@@ -1016,7 +1077,7 @@ const DocumentOverview = ({
           });
 
           return (
-            <div className="document-overview-grid">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-lg max-md:grid-cols-1 max-md:gap-md xl:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] 2xl:grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
               {sorted.map((item) => (cardRenderer ? cardRenderer(item) : renderDefaultCard(item)))}
             </div>
           );
@@ -1025,16 +1086,7 @@ const DocumentOverview = ({
 
       {/* Bulk delete section at the end for better UX */}
       {enableBulkSelect && onBulkDelete && selectedItemIds.size > 0 && (
-        <div
-          className="document-overview-bulk-actions"
-          style={{
-            padding: 'var(--spacing-medium)',
-            borderTop: '1px solid var(--border-color)',
-            display: 'flex',
-            justifyContent: 'center',
-            backgroundColor: 'var(--background-secondary)',
-          }}
-        >
+        <div className="p-md border-t border-grey-200 dark:border-grey-700 flex justify-center bg-grey-50 dark:bg-grey-800">
           <button
             type="button"
             className="pabtn pabtn--delete pabtn--s"
