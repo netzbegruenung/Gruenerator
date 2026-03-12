@@ -55,11 +55,10 @@ const EigeneTab: React.FC<EigeneTabProps> = memo(() => {
   const { query: generatorsQuery } = useCustomGeneratorsData({
     isActive: true,
     enabled: isAuthenticated,
-  } as any);
+  });
   const { query: savedQuery } = useSavedGenerators({
     isActive: true,
-    enabled: isAuthenticated,
-  } as any);
+  });
 
   const generators = useMemo(
     () => (generatorsQuery.data || []) as GeneratorListItem[],
@@ -78,7 +77,11 @@ const EigeneTab: React.FC<EigeneTabProps> = memo(() => {
   }, []);
 
   const handleCreateCompleted = useCallback(() => {
-    generatorsQuery.refetch();
+    void generatorsQuery.refetch();
+  }, [generatorsQuery]);
+
+  const handleGeneratorChanged = useCallback(() => {
+    void generatorsQuery.refetch();
   }, [generatorsQuery]);
 
   const handleLogin = useCallback(() => {
@@ -103,6 +106,8 @@ const EigeneTab: React.FC<EigeneTabProps> = memo(() => {
           generators={generators}
           savedGenerators={savedGenerators}
           onSelectGenerator={handleSelectGenerator}
+          onDeleteGenerator={handleGeneratorChanged}
+          onGeneratorUpdated={handleGeneratorChanged}
         />
       </Suspense>
     </div>
