@@ -12,6 +12,7 @@ type TimestampGranularity = 'segment';
  * - voxtral-small-latest: Small (24B) — highest quality understanding + translation
  */
 const VOXTRAL_TRANSCRIBE_MODEL = 'voxtral-mini-transcribe-latest';
+const VOXTRAL_STREAM_MODEL = 'voxtral-mini-latest';
 const VOXTRAL_CHAT_MODEL = 'voxtral-small-latest';
 
 interface TranscriptionOptions {
@@ -218,6 +219,44 @@ class MistralVoiceService {
 
   isFormatSupported(mimetype: string): boolean {
     return this.getSupportedFormats().includes(mimetype);
+  }
+
+  async *transcribeFromBufferStream(
+    audioBuffer: Buffer,
+    filename: string,
+    options: { language?: string } = {}
+  ): AsyncGenerator<{ type: string; text: string }> {
+    try {
+      log.debug('[Mistral Voice] Starting streaming transcription for:', filename);
+
+      const stream = await mistralClient.audio.transcriptions.stream({
+        model: VOXTRAL_STREAM_MODEL,
+        file: {
+          fileName: filename,
+          content: audioBuffer,
+        },
+        language: options.language || undefined,
+      });
+
+      const chunks: string[] = [];
+
+      for await (const event of stream) {
+        const eventData = event as Record<string, unknown>;
+        const eventType = eventData.type as string | undefined;
+
+        if (eventType === 'transcription.text.delta') {
+          const delta = eventData.text as string;
+          chunks.push(delta);
+          yield { type: 'text.delta', text: delta };
+        } else if (eventType === 'transcription.done') {
+          yield { type: 'done', text: chunks.join('') };
+        }
+      }
+    } catch (error) {
+      const err = error as Error;
+      log.error('[Mistral Voice] Streaming transcription error:', err);
+      throw new Error(`Streaming transcription failed: ${err.message}`);
+    }
   }
 }
 

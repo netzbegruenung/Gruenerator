@@ -86,6 +86,7 @@ export {
 
 // Layout & UI Components
 export { ChatLayout } from './components/ChatLayout';
+export { ChatOverview, type NotebookLink } from './components/ChatOverview';
 export { ChatSidebar } from './components/ChatSidebar';
 export { ChatThreadList } from './components/ChatThreadList';
 export { ModelSelector } from './components/ModelSelector';
@@ -226,6 +227,14 @@ export {
   type ProcessedFile,
   type FileSummary,
 } from './lib/fileUtils';
+
+// Grün-O-Mat embeddable components
+export { GruenOMatModal, type GruenOMatModalProps } from './components/gruen-o-mat/GruenOMatModal';
+export {
+  GruenOMatDialog,
+  type GruenOMatDialogProps,
+} from './components/gruen-o-mat/GruenOMatDialog';
+export { ModalThread, type ModalThreadProps } from './components/gruen-o-mat/ModalThread';
 
 // Icons
 export { ChatIcon } from './components/icons/ChatIcon';

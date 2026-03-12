@@ -596,6 +596,15 @@ async function startWorker(): Promise<void> {
   // Create HTTP server
   const server = http.createServer(config.httpOptions, app);
 
+  // Attach realtime voice WebSocket handler
+  try {
+    const { attachRealtimeWebSocket } = await import('./routes/voice/realtimeHandler.js');
+    attachRealtimeWebSocket(server);
+    log.debug('Realtime voice WebSocket handler attached');
+  } catch (error) {
+    log.warn(`Realtime voice WebSocket init failed: ${(error as Error).message}`);
+  }
+
   // Socket keep-alive configuration
   server.on('connection', (socket) => {
     socket.setKeepAlive(true, config.socketKeepAliveInterval);
