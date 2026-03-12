@@ -145,6 +145,9 @@ importers:
       '@types/archiver':
         specifier: ^7.0.0
         version: 7.0.0
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
       ai:
         specifier: ^6.0.116
         version: 6.0.116(zod@3.25.76)
@@ -277,6 +280,9 @@ importers:
       winston:
         specifier: ^3.19.0
         version: 3.19.0
+      ws:
+        specifier: ^8.19.0
+        version: 8.19.0
       yjs:
         specifier: ^13.6.29
         version: 13.6.29
@@ -1360,6 +1366,9 @@ importers:
       '@assistant-ui/react':
         specifier: '>=0.12.0'
         version: 0.12.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
+      '@gruenerator/voice':
+        specifier: workspace:*
+        version: link:../voice
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -1574,6 +1583,9 @@ importers:
 
   packages/voice:
     dependencies:
+      '@assistant-ui/react':
+        specifier: '>=0.12.0'
+        version: 0.12.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
       react:
         specifier: 19.2.4
         version: 19.2.4
