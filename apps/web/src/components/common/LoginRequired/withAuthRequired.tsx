@@ -7,6 +7,7 @@ import LoginRequired from './LoginRequired';
 interface AuthRequiredOptions {
   title?: string;
   message?: string;
+  fallback?: React.ReactNode;
 }
 
 /**
@@ -22,6 +23,7 @@ const withAuthRequired = <P extends Record<string, unknown>>(
   const {
     title, // Optional: will auto-generate from route if not provided
     message, // Optional: will use standard message if not provided
+    fallback,
   } = options;
 
   return function AuthRequiredComponent(props: P) {
@@ -32,7 +34,7 @@ const withAuthRequired = <P extends Record<string, unknown>>(
       return (
         <>
           <div className="protected-content-blur">
-            <Component {...props} user={null} />
+            {fallback ?? <Component {...props} user={null} />}
           </div>
           <LoginRequired title={title} message={message} variant="fullpage" />
         </>
