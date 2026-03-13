@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaChevronDown, FaChevronUp, FaFolder, FaUsers } from 'react-icons/fa';
+import { FaChevronDown, FaChevronUp, FaCloud, FaFolder, FaUsers } from 'react-icons/fa';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
@@ -44,6 +44,7 @@ const PROFILE_MENU_ITEMS: MenuItem[] = [
     hasSubmenu: true,
   },
   { key: 'inhalte', label: 'Dateien', path: '/profile/inhalte', icon: FaFolder },
+  { key: 'wolke', label: 'Wolke', path: '/profile/wolke', icon: FaCloud },
 ];
 
 const ProfileMenu = ({

@@ -1,35 +1,22 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { HiOutlineCloud, HiOutlineDocument, HiSearch, HiX, HiCheck } from 'react-icons/hi';
 
-import { useWolkeStore } from '../../../stores/wolkeStore';
+import { useShareLinks, useWolkeFiles } from '../../../features/wolke/hooks/useWolke';
 import Spinner from '../Spinner';
 
-import type { ShareLink, WolkeFileItem } from '../../../stores/wolkeStore';
+import type { ShareLink, WolkeFileItem } from '../../../features/wolke/lib/wolkeApi';
 
-import './WolkeFilePicker.css';
-
-interface EnrichedWolkeFile extends WolkeFileItem {
-  fileExtension: string;
-  isSupported: boolean;
-  sizeFormatted: string;
-  lastModifiedFormatted?: string;
-}
-
-interface SelectedFile extends EnrichedWolkeFile {
+interface SelectedFile extends WolkeFileItem {
   shareLinkId: string;
 }
 
 interface WolkeFilePickerProps {
   onFilesSelected: (files: SelectedFile[]) => void;
   onCancel: () => void;
-  selectedFiles?: EnrichedWolkeFile[];
+  selectedFiles?: WolkeFileItem[];
   inline?: boolean;
 }
 
-/**
- * WolkeFilePicker - Component for selecting files from Wolke folders
- * Used in DocumentUpload when users want to import documents from their Wolke shares
- */
 const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
   onFilesSelected,
   onCancel,
@@ -37,69 +24,39 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
   inline = false,
 }) => {
   const {
-    shareLinks,
-    fetchShareLinks,
+    data: shareLinks = [],
     isLoading: shareLinksLoading,
     error: shareLinksError,
-    getCachedFiles,
-    areFilesCached,
-    preloadFiles,
-  } = useWolkeStore();
+    refetch: refetchShareLinks,
+  } = useShareLinks();
 
   const [selectedShareLink, setSelectedShareLink] = useState<ShareLink | null>(null);
-  const [files, setFiles] = useState<EnrichedWolkeFile[]>([]);
-  const [filesLoading, setFilesLoading] = useState(false);
-  const [filesError, setFilesError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
 
-  // Derive the active share link - auto-select if only one exists
   const activeShareLink =
     selectedShareLink || (shareLinks.length === 1 && !shareLinksLoading ? shareLinks[0] : null);
 
-  // Determine what to show
+  const {
+    data: files = [],
+    isLoading: filesLoading,
+    error: filesError,
+    refetch: refetchFiles,
+  } = useWolkeFiles(activeShareLink?.id ?? null);
+
   const showFolderSelection = !activeShareLink && shareLinks.length > 1 && !shareLinksLoading;
 
-  // Back button logic for modal mode only
   const backButtonLabel = shareLinks.length === 1 ? '← Schließen' : '← Zurück';
   const backButtonHandler = () => {
     if (shareLinks.length === 1) {
       onCancel();
     } else {
       setSelectedShareLink(null);
-      setFiles([]);
       setSelectedFileIds(new Set());
       setSearchTerm('');
     }
   };
 
-  // Load share links on component mount
-  useEffect(() => {
-    if (shareLinks.length === 0 && !shareLinksLoading) {
-      void fetchShareLinks();
-    }
-  }, [shareLinks.length, shareLinksLoading, fetchShareLinks]);
-
-  // Immediately show cached files if available
-  useEffect(() => {
-    if (activeShareLink) {
-      const cachedData = getCachedFiles(activeShareLink.id);
-      if (cachedData.isCached && cachedData.files.length > 0) {
-        console.log(`[WolkeFilePicker] Immediately showing cached files for ${activeShareLink.id}`);
-        setFiles(cachedData.files as EnrichedWolkeFile[]);
-        setFilesLoading(cachedData.loading);
-      }
-    }
-  }, [activeShareLink, getCachedFiles]);
-
-  // Load files when there's an active share link
-  useEffect(() => {
-    if (activeShareLink) {
-      void loadFiles(activeShareLink.id);
-    }
-  }, [activeShareLink]);
-
-  // Initialize selected files from props
   useEffect(() => {
     if (selectedFiles.length > 0) {
       const fileIds = new Set(selectedFiles.map((f) => f.path));
@@ -107,63 +64,20 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
     }
   }, [selectedFiles]);
 
-  const loadFiles = async (shareLinkId: string): Promise<void> => {
-    try {
-      setFilesError(null);
-
-      // First, check if we have fresh cached data
-      const cachedData = getCachedFiles(shareLinkId);
-      if (cachedData.isCached && cachedData.files.length > 0) {
-        console.log(
-          `[WolkeFilePicker] Using cached files for ${shareLinkId}:`,
-          cachedData.files.length
-        );
-        setFiles(cachedData.files as EnrichedWolkeFile[]);
-        setFilesLoading(cachedData.loading);
-
-        // If cache is fresh (less than 3 minutes), use it without refetching
-        const FRESH_CACHE_DURATION = 3 * 60 * 1000; // 3 minutes
-        if (areFilesCached(shareLinkId, FRESH_CACHE_DURATION)) {
-          console.log(`[WolkeFilePicker] Cache is fresh for ${shareLinkId}, not refetching`);
-          return;
-        }
-      }
-
-      // If no cache or cache is stale, set loading state
-      if (!cachedData.isCached || cachedData.files.length === 0) {
-        setFilesLoading(true);
-        setFiles([]);
-      }
-
-      // Use preloadFiles method which handles caching and deduplication
-      const loadedFiles = await preloadFiles(shareLinkId);
-      setFiles(loadedFiles as EnrichedWolkeFile[]);
-    } catch (error) {
-      console.error('[WolkeFilePicker] Error loading files:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load files';
-      setFilesError(errorMessage);
-    } finally {
-      setFilesLoading(false);
-    }
-  };
-
-  // Filter files based on search term
   const filteredFiles = useMemo(() => {
     if (!searchTerm.trim()) return files;
-
     const term = searchTerm.toLowerCase();
     return files.filter(
       (file) =>
-        file.name.toLowerCase().includes(term) || file.fileExtension.toLowerCase().includes(term)
+        file.name.toLowerCase().includes(term) || file.fileExtension?.toLowerCase().includes(term)
     );
   }, [files, searchTerm]);
 
-  // Only show supported files
   const supportedFiles = useMemo(() => {
     return filteredFiles.filter((file) => file.isSupported);
   }, [filteredFiles]);
 
-  const handleFileToggle = (file: EnrichedWolkeFile): void => {
+  const handleFileToggle = (file: WolkeFileItem): void => {
     const newSelected = new Set(selectedFileIds);
 
     if (newSelected.has(file.path)) {
@@ -174,9 +88,8 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
 
     setSelectedFileIds(newSelected);
 
-    // Immediately propagate selection changes to parent
     const selectedFileObjects: SelectedFile[] = files
-      .filter((f) => (f.path !== file.path ? newSelected.has(f.path) : newSelected.has(file.path)))
+      .filter((f) => newSelected.has(f.path))
       .map((f) => ({
         ...f,
         shareLinkId: activeShareLink!.id,
@@ -189,11 +102,9 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
     let selectedFileObjects: SelectedFile[];
 
     if (selectedFileIds.size === supportedFiles.length) {
-      // Deselect all
       newSelected = new Set();
       selectedFileObjects = [];
     } else {
-      // Select all supported files
       newSelected = new Set(supportedFiles.map((f) => f.path));
       selectedFileObjects = supportedFiles.map((f) => ({
         ...f,
@@ -202,13 +113,11 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
     }
 
     setSelectedFileIds(newSelected);
-
-    // Immediately propagate selection changes to parent
     onFilesSelected(selectedFileObjects);
   };
 
-  const getFileIcon = (file: EnrichedWolkeFile): string => {
-    const ext = file.fileExtension.toLowerCase();
+  const getFileIcon = (file: WolkeFileItem): string => {
+    const ext = file.fileExtension?.toLowerCase() ?? '';
     if (['.pdf'].includes(ext)) return '📄';
     if (['.docx', '.doc'].includes(ext)) return '📝';
     if (['.pptx', '.ppt'].includes(ext)) return '📊';
@@ -220,8 +129,7 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
   const formatLastModified = (dateString: string): string => {
     if (!dateString || dateString === 'Unknown') return 'Unbekannt';
     try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('de-DE');
+      return new Date(dateString).toLocaleDateString('de-DE');
     } catch {
       return 'Unbekannt';
     }
@@ -230,21 +138,28 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
   if (shareLinksLoading) {
     return (
       <div
-        className="wolke-file-picker-overlay"
+        className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000]"
         onClick={(e: React.MouseEvent) => {
           if (e.target === e.currentTarget) onCancel();
         }}
       >
-        <div className="wolke-file-picker" onClick={(e) => e.stopPropagation()}>
-          <div className="picker-header">
-            <h3>Aus Wolke wählen</h3>
-            <button onClick={onCancel} className="close-button">
-              <HiX />
+        <div
+          className="bg-background rounded-lg shadow-xl max-w-[600px] w-full mx-md p-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-md">
+            <h3 className="text-lg font-semibold m-0">Aus Wolke wählen</h3>
+            <button
+              onClick={onCancel}
+              className="text-grey-400 hover:text-foreground"
+              aria-label="Schließen"
+            >
+              <HiX size={20} />
             </button>
           </div>
-          <div className="picker-loading">
+          <div className="flex flex-col items-center gap-sm py-xl">
             <Spinner size="medium" />
-            <p>Lade Wolke-Verbindungen...</p>
+            <p className="text-sm text-grey-400">Lade Wolke-Verbindungen...</p>
           </div>
         </div>
       </div>
@@ -254,21 +169,31 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
   if (shareLinksError) {
     return (
       <div
-        className="wolke-file-picker-overlay"
+        className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000]"
         onClick={(e: React.MouseEvent) => {
           if (e.target === e.currentTarget) onCancel();
         }}
       >
-        <div className="wolke-file-picker" onClick={(e) => e.stopPropagation()}>
-          <div className="picker-header">
-            <h3>Aus Wolke wählen</h3>
-            <button onClick={onCancel} className="close-button">
-              <HiX />
+        <div
+          className="bg-background rounded-lg shadow-xl max-w-[600px] w-full mx-md p-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-md">
+            <h3 className="text-lg font-semibold m-0">Aus Wolke wählen</h3>
+            <button
+              onClick={onCancel}
+              className="text-grey-400 hover:text-foreground"
+              aria-label="Schließen"
+            >
+              <HiX size={20} />
             </button>
           </div>
-          <div className="picker-error">
-            <p>Fehler beim Laden der Wolke-Verbindungen: {shareLinksError}</p>
-            <button className="btn-primary size-s" onClick={() => fetchShareLinks()}>
+          <div className="flex flex-col items-center gap-sm py-md">
+            <p className="text-sm text-red-500">Fehler beim Laden der Wolke-Verbindungen</p>
+            <button
+              className="text-sm text-primary-600 hover:underline"
+              onClick={() => void refetchShareLinks()}
+            >
               Erneut versuchen
             </button>
           </div>
@@ -280,57 +205,68 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
   if (shareLinks.length === 0) {
     return (
       <div
-        className="wolke-file-picker-overlay"
+        className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000]"
         onClick={(e: React.MouseEvent) => {
           if (e.target === e.currentTarget) onCancel();
         }}
       >
-        <div className="wolke-file-picker" onClick={(e) => e.stopPropagation()}>
-          <div className="picker-header">
-            <h3>Aus Wolke wählen</h3>
-            <button onClick={onCancel} className="close-button">
-              <HiX />
+        <div
+          className="bg-background rounded-lg shadow-xl max-w-[600px] w-full mx-md p-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-md">
+            <h3 className="text-lg font-semibold m-0">Aus Wolke wählen</h3>
+            <button
+              onClick={onCancel}
+              className="text-grey-400 hover:text-foreground"
+              aria-label="Schließen"
+            >
+              <HiX size={20} />
             </button>
           </div>
-          <div className="picker-empty">
+          <div className="flex flex-col items-center gap-md py-lg text-grey-400">
             <HiOutlineCloud size={48} />
-            <h4>Keine Wolke-Verbindungen gefunden</h4>
-            <p>Richten Sie zuerst Ihre Wolke-Verbindungen in den Profileinstellungen ein.</p>
+            <h4 className="text-base font-medium m-0">Keine Wolke-Verbindungen gefunden</h4>
+            <p className="text-sm text-center">
+              Richten Sie zuerst Ihre Wolke-Verbindungen in den Profileinstellungen ein.
+            </p>
           </div>
         </div>
       </div>
     );
   }
 
-  // Render inline or modal based on prop
   const renderContent = () => (
     <>
       {!inline && (
-        <div className="picker-header">
-          <h3>Aus Wolke wählen</h3>
-          <button onClick={onCancel} className="close-button">
-            <HiX />
+        <div className="flex items-center justify-between mb-md">
+          <h3 className="text-lg font-semibold m-0">Aus Wolke wählen</h3>
+          <button
+            onClick={onCancel}
+            className="text-grey-400 hover:text-foreground"
+            aria-label="Schließen"
+          >
+            <HiX size={20} />
           </button>
         </div>
       )}
 
-      {/* Share Link Selection */}
       {showFolderSelection && (
-        <div className="share-link-selection">
-          <h4>Wolke-Ordner auswählen</h4>
-          <div className="share-links-grid">
+        <div className="mb-md">
+          <h4 className="text-sm font-medium mb-sm">Wolke-Ordner auswählen</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-xs">
             {shareLinks.map((shareLink) => (
               <button
                 key={shareLink.id}
-                className="share-link-card"
+                className="flex items-center gap-sm p-sm rounded-md border border-grey-200 dark:border-grey-700 hover:border-primary-500 hover:bg-grey-50 dark:hover:bg-grey-800 transition-colors text-left"
                 onClick={() => setSelectedShareLink(shareLink)}
               >
-                <HiOutlineCloud size={24} />
-                <div className="share-link-info">
-                  <span className="share-link-label">
+                <HiOutlineCloud size={24} className="text-primary-500 shrink-0" />
+                <div className="min-w-0">
+                  <span className="block text-sm font-medium truncate">
                     {shareLink.label || 'Unbenannter Ordner'}
                   </span>
-                  <span className="share-link-url">
+                  <span className="block text-xs text-grey-400 truncate">
                     {shareLink.base_url ||
                       (shareLink.share_link ? new URL(shareLink.share_link).hostname : 'Wolke')}
                   </span>
@@ -341,42 +277,43 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
         </div>
       )}
 
-      {/* File Browser */}
       {activeShareLink && (
-        <div className="file-browser">
-          {/* Compact Toolbar */}
-          <div className="compact-toolbar">
+        <div>
+          <div className="flex items-center gap-xs flex-wrap mb-sm">
             {!inline && (
               <button
-                className="btn-primary size-s"
+                className="text-xs text-primary-600 hover:underline shrink-0"
                 onClick={backButtonHandler}
-                title={shareLinks.length === 1 ? 'Picker schließen' : 'Zur Ordnerauswahl'}
               >
                 {backButtonLabel}
               </button>
             )}
 
             {shareLinks.length > 1 && !inline && (
-              <div className="toolbar-folder">
-                <HiOutlineCloud size={16} />
+              <div className="flex items-center gap-xxs text-xs text-grey-400">
+                <HiOutlineCloud size={14} />
                 <span>{activeShareLink.label || 'Ordner'}</span>
               </div>
             )}
 
-            <div className="toolbar-search">
-              <HiSearch size={16} />
+            <div className="flex-1 min-w-[150px] relative">
+              <HiSearch
+                size={14}
+                className="absolute left-xs top-1/2 -translate-y-1/2 text-grey-400"
+              />
               <input
                 type="text"
                 placeholder="Dateien durchsuchen..."
                 value={searchTerm}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                className="w-full pl-lg pr-sm py-xxs text-sm rounded-md border border-grey-200 dark:border-grey-700 bg-background focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
             </div>
 
             {supportedFiles.length > 0 && (
-              <div className="toolbar-selection">
+              <div className="flex items-center gap-xxs">
                 <button
-                  className="select-all-compact"
+                  className="p-xxs rounded hover:bg-grey-100 dark:hover:bg-grey-800"
                   onClick={handleSelectAll}
                   title={
                     selectedFileIds.size === supportedFiles.length
@@ -386,7 +323,7 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
                 >
                   <HiCheck size={14} />
                 </button>
-                <span className="selection-count-compact">
+                <span className="text-xs text-grey-400">
                   {selectedFileIds.size}/{supportedFiles.length}
                 </span>
               </div>
@@ -394,16 +331,19 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
           </div>
 
           {filesLoading && (
-            <div className="files-loading">
+            <div className="flex flex-col items-center gap-sm py-lg">
               <Spinner size="medium" />
-              <p>Lade Dateien...</p>
+              <p className="text-sm text-grey-400">Lade Dateien...</p>
             </div>
           )}
 
           {filesError && (
-            <div className="files-error">
-              <p>Fehler beim Laden der Dateien: {filesError}</p>
-              <button className="btn-primary size-s" onClick={() => loadFiles(activeShareLink.id)}>
+            <div className="flex flex-col items-center gap-sm py-md">
+              <p className="text-sm text-red-500">Fehler beim Laden der Dateien</p>
+              <button
+                className="text-sm text-primary-600 hover:underline"
+                onClick={() => void refetchFiles()}
+              >
                 Erneut versuchen
               </button>
             </div>
@@ -411,43 +351,41 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
 
           {!filesLoading && !filesError && files.length > 0 && (
             <>
-              {/* Files Grid */}
               {supportedFiles.length > 0 ? (
-                <div className="files-grid">
+                <div className="flex flex-col gap-xxs max-h-[400px] overflow-y-auto">
                   {supportedFiles.map((file) => (
                     <div
                       key={file.path}
-                      className={`wolke-file-card ${selectedFileIds.has(file.path) ? 'selected' : ''}`}
+                      className={`flex items-center gap-sm p-xs rounded-md cursor-pointer transition-colors ${
+                        selectedFileIds.has(file.path)
+                          ? 'bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800'
+                          : 'hover:bg-grey-50 dark:hover:bg-grey-800 border border-transparent'
+                      }`}
                       onClick={() => handleFileToggle(file)}
                     >
-                      <div className="wolke-file-card-checkbox">
-                        <input
-                          type="checkbox"
-                          checked={selectedFileIds.has(file.path)}
-                          onChange={() => handleFileToggle(file)}
-                        />
-                      </div>
-
-                      <div className="wolke-file-card-icon">{getFileIcon(file)}</div>
-
-                      <div className="wolke-file-card-content">
-                        <div className="wolke-file-card-name">{file.name}</div>
-                        <div className="wolke-file-card-meta">
-                          <span className="wolke-file-card-size">{file.sizeFormatted}</span>
-                          <span className="wolke-file-card-modified">
-                            {formatLastModified(file.lastModified ?? '')}
-                          </span>
+                      <input
+                        type="checkbox"
+                        checked={selectedFileIds.has(file.path)}
+                        onChange={() => handleFileToggle(file)}
+                        className="shrink-0"
+                      />
+                      <span className="text-base shrink-0">{getFileIcon(file)}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm truncate">{file.name}</div>
+                        <div className="text-xs text-grey-400 flex gap-xs">
+                          <span>{file.sizeFormatted}</span>
+                          <span>{formatLastModified(file.lastModified ?? '')}</span>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="no-supported-files">
+                <div className="flex flex-col items-center gap-sm py-lg text-grey-400">
                   <HiOutlineDocument size={48} />
-                  <p>Keine unterstützten Dateien gefunden</p>
+                  <p className="text-sm">Keine unterstützten Dateien gefunden</p>
                   {filteredFiles.length !== files.length && (
-                    <p>Versuchen Sie einen anderen Suchbegriff</p>
+                    <p className="text-xs">Versuchen Sie einen anderen Suchbegriff</p>
                   )}
                 </div>
               )}
@@ -455,9 +393,9 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
           )}
 
           {!filesLoading && !filesError && files.length === 0 && (
-            <div className="no-files">
+            <div className="flex flex-col items-center gap-sm py-lg text-grey-400">
               <HiOutlineDocument size={48} />
-              <p>Keine Dateien in diesem Ordner gefunden</p>
+              <p className="text-sm">Keine Dateien in diesem Ordner gefunden</p>
             </div>
           )}
         </div>
@@ -466,17 +404,20 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
   );
 
   if (inline) {
-    return <div className="wolke-file-picker-inline">{renderContent()}</div>;
+    return <div>{renderContent()}</div>;
   }
 
   return (
     <div
-      className="wolke-file-picker-overlay"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000]"
       onClick={(e: React.MouseEvent) => {
         if (e.target === e.currentTarget) onCancel();
       }}
     >
-      <div className="wolke-file-picker" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="bg-background rounded-lg shadow-xl max-w-[600px] w-full mx-md p-lg max-h-[80vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         {renderContent()}
       </div>
     </div>

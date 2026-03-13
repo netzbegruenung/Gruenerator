@@ -13,9 +13,9 @@ import {
   HiOutlineCloudDownload,
 } from 'react-icons/hi';
 
+import { useShareLinks } from '../../features/wolke/hooks/useWolke';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useDocumentsStore } from '../../stores/documentsStore';
-import { useWolkeStore } from '../../stores/wolkeStore';
 import { validateUrl, normalizeUrl, generateTitleFromUrl } from '../../utils/urlValidation';
 import apiClient from '../utils/apiClient';
 
@@ -23,6 +23,8 @@ import FeatureToggle from './FeatureToggle';
 import { Markdown } from './Markdown';
 import Spinner from './Spinner';
 import WolkeFilePicker from './WolkeFilePicker/WolkeFilePicker';
+
+import type { WolkeFileItem } from '../../features/wolke/lib/wolkeApi';
 
 // Import button styles for modal
 import '../../assets/styles/components/ui/button.css';
@@ -72,17 +74,7 @@ export interface DocumentUploadRef {
   hideUploadForm: () => void;
 }
 
-interface WolkeSelectedFile {
-  path: string;
-  name: string;
-  size?: number;
-  mimeType?: string;
-  lastModified?: string;
-  isDirectory?: boolean;
-  fileExtension: string;
-  isSupported: boolean;
-  sizeFormatted: string;
-  lastModifiedFormatted?: string;
+interface WolkeSelectedFile extends WolkeFileItem {
   shareLinkId: string;
 }
 
@@ -189,17 +181,6 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
     },
     ref
   ) => {
-    console.log('[DocumentUpload] Component mounted/re-rendered with props:', {
-      groupId,
-      showTitle,
-      showDocumentsList,
-      forceShowUploadForm,
-      showAsModal,
-      className,
-      hasOnUploadComplete: !!onUploadComplete,
-      hasOnDeleteComplete: !!onDeleteComplete,
-    });
-
     const [dragActive, setDragActive] = useState(false);
     const [uploadTitle, setUploadTitle] = useState('');
     const [showUploadForm, setShowUploadForm] = useState(false);
@@ -207,7 +188,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
     const [ocrMethod, setOcrMethod] = useState('tesseract');
 
     // Upload mode state
-    const [uploadMode, setUploadMode] = useState('file'); // 'file', 'url', or 'wolke'
+    const [uploadMode, setUploadMode] = useState<'file' | 'url' | 'wolke'>('file');
     const [urlInput, setUrlInput] = useState('');
     const [isValidatingUrl, setIsValidatingUrl] = useState(false);
 
@@ -236,8 +217,8 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
       importWolkeFiles,
     } = useDocumentsStore();
 
-    // Wolke store for preloading
-    const { progressivePreload, preloadFiles } = useWolkeStore();
+    // Prefetch Wolke share links via TanStack Query (replaces manual preload)
+    useShareLinks();
 
     // Expose methods to parent component
     useImperativeHandle(ref, () => ({
@@ -259,12 +240,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
       }
     }, [showDocumentsList, error, clearError]);
 
-    // Preload Wolke data progressively on mount (skip when embedded without document list)
-    React.useEffect(() => {
-      if (user && showDocumentsList) {
-        progressivePreload();
-      }
-    }, [user, showDocumentsList, progressivePreload]);
+    // TanStack Query handles Wolke data preloading automatically via useShareLinks()
 
     // Auto-upload: trigger upload immediately when file is selected
     React.useEffect(() => {
@@ -274,18 +250,6 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
       // Only react to file selection changes, not every render
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [autoUpload, selectedFile]);
-
-    // Handle forceShowUploadForm prop - now using computed isFormVisible instead of useEffect
-
-    // Debug log for showUploadForm state changes
-    React.useEffect(() => {
-      console.log(
-        '[DocumentUpload] showUploadForm state changed to:',
-        showUploadForm,
-        'isFormVisible:',
-        isFormVisible
-      );
-    }, [showUploadForm, isFormVisible]);
 
     // Validate file
     const validateFile = useCallback((file: File): string | null => {
@@ -400,11 +364,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
         }
 
         try {
-          console.log('[DocumentUpload] Starting file upload process...');
           const result = await uploadDocument(selectedFile, uploadTitle.trim(), groupId);
-          console.log(
-            '[DocumentUpload] File upload successful, hiding form and calling onUploadComplete'
-          );
           resetForm();
 
           if (onUploadComplete) {
@@ -429,11 +389,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
         }
 
         try {
-          console.log('[DocumentUpload] Starting URL crawl process...');
           const result = await crawlUrl(normalizedUrl, uploadTitle.trim(), groupId);
-          console.log(
-            '[DocumentUpload] URL crawl successful, hiding form and calling onUploadComplete'
-          );
           resetForm();
 
           if (onUploadComplete) {
@@ -450,7 +406,6 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
         }
 
         try {
-          console.log('[DocumentUpload] Starting Wolke import process...');
           const wolkeFilesForImport = selectedWolkeFiles.map((file) => ({
             href: file.path,
             name: file.name,
@@ -464,9 +419,6 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
             selectedWolkeFiles[0].shareLinkId,
             wolkeFilesForImport,
             setWolkeImportProgress
-          );
-          console.log(
-            '[DocumentUpload] Wolke import successful, hiding form and calling onUploadComplete'
           );
           resetForm();
 
@@ -492,13 +444,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
       setWolkeImportProgress(0);
     };
 
-    // Handle hover over Wolke tab to accelerate preloading
-    const handleWolkeModeHover = useCallback(() => {
-      if (user) {
-        // Immediately start/accelerate Wolke preloading on hover
-        progressivePreload();
-      }
-    }, [user, progressivePreload]);
+    const handleWolkeModeHover = undefined;
 
     // Handle delete
     const handleDelete = async (documentId: string, documentTitle: string) => {
@@ -592,12 +538,6 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
         {/* Upload Form */}
         {isFormVisible && (
           <>
-            {console.log(
-              '[DocumentUpload] Rendering upload form because isFormVisible is true. forceShowUploadForm:',
-              forceShowUploadForm,
-              'showUploadForm:',
-              showUploadForm
-            )}
             {showAsModal ? (
               /* Modal Upload Form */
               <div
