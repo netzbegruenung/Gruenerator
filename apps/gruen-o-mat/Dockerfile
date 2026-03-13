@@ -19,6 +19,7 @@ COPY tsconfig.base.json tsconfig.strict-migration.json ./
 
 # Copy package.json files for workspace resolution
 COPY packages/chat/package.json ./packages/chat/
+COPY packages/voice/package.json ./packages/voice/
 COPY apps/gruen-o-mat/package.json ./apps/gruen-o-mat/
 
 # Install only gruen-o-mat + transitive workspace deps
@@ -27,6 +28,7 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 
 # Copy source (changes here don't bust the install cache)
 COPY packages/chat ./packages/chat
+COPY packages/voice ./packages/voice
 COPY apps/gruen-o-mat ./apps/gruen-o-mat
 
 # Build the frontend
