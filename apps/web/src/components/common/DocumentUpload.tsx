@@ -444,8 +444,6 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
       setWolkeImportProgress(0);
     };
 
-    const handleWolkeModeHover = undefined;
-
     // Handle delete
     const handleDelete = async (documentId: string, documentTitle: string) => {
       if (!window.confirm(`Möchten Sie das Dokument "${documentTitle}" wirklich löschen?`)) {
@@ -610,7 +608,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                         type="button"
                         className={`mode-tab ${uploadMode === 'wolke' ? 'active' : ''}`}
                         onClick={() => setUploadMode('wolke')}
-                        onMouseEnter={handleWolkeModeHover}
+
                         disabled={isUploading}
                       >
                         <HiOutlineCloudDownload className="icon" />
