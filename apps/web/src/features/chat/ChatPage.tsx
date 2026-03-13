@@ -59,4 +59,7 @@ function ChatPage() {
   );
 }
 
-export default withAuthRequired(ChatPage, { title: 'Chat' });
+export default withAuthRequired(ChatPage, {
+  title: 'Chat',
+  fallback: <div className="flex min-h-0 flex-1 bg-background" />,
+});

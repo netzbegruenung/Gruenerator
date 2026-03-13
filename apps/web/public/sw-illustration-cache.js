@@ -75,17 +75,19 @@ self.addEventListener('install', (event) => {
 
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Precaching top 50 illustrations...');
-      // Use addAll with { mode: 'no-cors' } to handle potential CORS issues
-      return cache
-        .addAll(TOP_ILLUSTRATIONS.map((url) => new Request(url, { mode: 'no-cors' })))
-        .then(() => {
-          console.log('[SW] Precaching complete!');
-        })
-        .catch((err) => {
-          console.warn('[SW] Some illustrations failed to precache:', err);
-          // Continue anyway - missing illustrations will be fetched on demand
-        });
+      console.log('[SW] Precaching top illustrations...');
+      return Promise.allSettled(
+        TOP_ILLUSTRATIONS.map((url) =>
+          fetch(url)
+            .then((response) => {
+              if (response.ok) return cache.put(url, response);
+            })
+            .catch(() => {})
+        )
+      ).then((results) => {
+        const cached = results.filter((r) => r.status === 'fulfilled').length;
+        console.log(`[SW] Precached ${cached}/${TOP_ILLUSTRATIONS.length} illustrations`);
+      });
     })
   );
 
