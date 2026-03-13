@@ -3,8 +3,8 @@ import { ArrowUp, Leaf, Square } from 'lucide-react';
 import { memo, useMemo } from 'react';
 
 import { CitationProvider } from '../../context/CitationContext';
-import { type Citation as ChatCitation } from '../../hooks/useChatGraphStream';
 import { cn } from '../../lib/utils';
+import { resolveCitations } from '../../lib/citationUtils';
 import { MarkdownContent } from '../MarkdownContent';
 import { ProgressIndicator } from '../message-parts/ProgressIndicator';
 import { SearchResultsSection, type AdditionalSource } from '../message-parts/SearchResultsSection';
@@ -58,24 +58,6 @@ function ModalWelcome({ suggestions = DEFAULT_SUGGESTIONS }: ModalWelcomeProps) 
   );
 }
 
-function mapRawCitationsToChat(raw: unknown[]): ChatCitation[] {
-  return raw
-    .filter((c): c is Record<string, unknown> => c != null && typeof c === 'object' && 'index' in c)
-    .map((c) => ({
-      id: parseInt(String(c.index), 10),
-      title: (c.document_title as string) ?? '',
-      url: (c.source_url as string) ?? '',
-      snippet: (c.cited_text as string) ?? '',
-      citedText: c.cited_text as string | undefined,
-      source: (c.collection_name as string) ?? '',
-      collectionName: c.collection_name as string | undefined,
-      documentId: c.document_id as string | undefined,
-      chunkIndex: c.chunk_index as number | undefined,
-      similarityScore: c.similarity_score as number | undefined,
-      collectionId: c.collection_id as string | undefined,
-    }));
-}
-
 const ModalUserMessage = memo(function ModalUserMessage() {
   const message = useMessage();
   const text = message.content
@@ -105,12 +87,10 @@ const ModalAssistantMessage = memo(function ModalAssistantMessage() {
   const progress = meta?.progress;
   const hasCitations = !isRunning && meta && (meta.citations?.length ?? 0) > 0;
 
-  const mappedCitations = useMemo(() => {
-    if (!hasCitations || !meta) return [];
-    if (meta.chatCitations && meta.chatCitations.length > 0) return meta.chatCitations;
-    if (meta.citations && meta.citations.length > 0) return mapRawCitationsToChat(meta.citations);
-    return [];
-  }, [hasCitations, meta]);
+  const mappedCitations = useMemo(
+    () => (hasCitations ? resolveCitations(meta as Record<string, unknown>) : []),
+    [hasCitations, meta]
+  );
 
   return (
     <div className="flex w-full items-start gap-2 py-2">

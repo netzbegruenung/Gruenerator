@@ -1,12 +1,17 @@
 import { ThreadPrimitive } from '@assistant-ui/react';
 import {
+  AssistantMessage,
+  ExtraActionsProvider,
   NotebookChatProvider,
   NotebookComposer,
   UserMessage,
   WelcomeScreen,
+  type ChatMessageMetadata,
+  type ExtraAction,
   type NotebookMessageMetadata,
 } from '@gruenerator/chat';
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { FaFileWord } from 'react-icons/fa';
 import { useLocation, useParams } from 'react-router-dom';
 
 import { CitationModal } from '../../../components/common/Citation';
@@ -14,11 +19,10 @@ import withAuthRequired from '../../../components/common/LoginRequired/withAuthR
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useAuthStore } from '../../../stores/authStore';
+import { useExportStore } from '../../../stores/core/exportStore';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
 import useNotebookStore from '../stores/notebookStore';
-
-import { NotebookAssistantMessage } from './NotebookAssistantMessage';
 
 interface NotebookCollection {
   id: string;
@@ -70,9 +74,40 @@ interface NotebookPageProps {
   configId: string;
 }
 
+function useNotebookExtraActionsFactory(): (message: {
+  text: string;
+  metadata?: ChatMessageMetadata;
+}) => ExtraAction[] {
+  const generateNotebookDOCX = useExportStore((state) => state.generateNotebookDOCX);
+
+  return useCallback(
+    ({ text, metadata }) => {
+      if (!metadata?.rawCitations?.length && !metadata?.citations?.length) return [];
+
+      return [
+        {
+          id: 'notebook-docx',
+          label: 'Word mit Quellen',
+          icon: <FaFileWord className="h-4 w-4" />,
+          onClick: () => {
+            void generateNotebookDOCX(
+              text,
+              metadata.question || 'Notebook-Antwort',
+              (metadata.rawCitations || []) as any,
+              (metadata.sources || []) as any
+            );
+          },
+        },
+      ];
+    },
+    [generateNotebookDOCX]
+  );
+}
+
 const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactElement => {
   const isMulti = config.collectionType === 'multi';
   const locale = useAuthStore((state) => state.locale);
+  const extraActionsFactory = useNotebookExtraActionsFactory();
   const { getFiltersForCollection } = useNotebookStore();
   const [mode, setMode] = useState<'fast' | 'deep'>('fast');
   const location = useLocation();
@@ -179,35 +214,37 @@ const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactE
         onComplete={onComplete as (metadata: NotebookMessageMetadata) => void}
         mode={mode}
       >
-        <div className="notebook-page-root flex min-h-0 flex-col">
-          <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
-            <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
-              <ThreadPrimitive.Empty>
-                <WelcomeScreen
-                  title={config.startPageTitle}
-                  description={config.infoPanelDescription}
-                  questions={config.exampleQuestions?.map((q) => ({ text: q.text ?? '' }))}
-                />
-              </ThreadPrimitive.Empty>
-              <div className="mx-auto w-full max-w-3xl flex flex-col gap-4 py-4">
-                <ThreadPrimitive.Messages
-                  components={{
-                    UserMessage,
-                    AssistantMessage: NotebookAssistantMessage,
-                  }}
-                />
-              </div>
-              <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto bg-background">
-                <NotebookComposer
-                  placeholder={config.placeholder}
-                  sourceFilters={sourceFilters}
-                  mode={mode}
-                  onModeChange={setMode}
-                />
-              </ThreadPrimitive.ViewportFooter>
-            </ThreadPrimitive.Viewport>
-          </ThreadPrimitive.Root>
-        </div>
+        <ExtraActionsProvider factory={extraActionsFactory}>
+          <div className="notebook-page-root flex min-h-0 flex-col">
+            <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
+              <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
+                <ThreadPrimitive.Empty>
+                  <WelcomeScreen
+                    title={config.startPageTitle}
+                    description={config.infoPanelDescription}
+                    questions={config.exampleQuestions?.map((q) => ({ text: q.text ?? '' }))}
+                  />
+                </ThreadPrimitive.Empty>
+                <div className="mx-auto w-full max-w-3xl flex flex-col gap-4 py-4">
+                  <ThreadPrimitive.Messages
+                    components={{
+                      UserMessage,
+                      AssistantMessage,
+                    }}
+                  />
+                </div>
+                <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto bg-background">
+                  <NotebookComposer
+                    placeholder={config.placeholder}
+                    sourceFilters={sourceFilters}
+                    mode={mode}
+                    onModeChange={setMode}
+                  />
+                </ThreadPrimitive.ViewportFooter>
+              </ThreadPrimitive.Viewport>
+            </ThreadPrimitive.Root>
+          </div>
+        </ExtraActionsProvider>
       </NotebookChatProvider>
     </ErrorBoundary>
   );

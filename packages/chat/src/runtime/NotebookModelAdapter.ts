@@ -68,8 +68,8 @@ export interface LinkConfig {
 }
 
 export interface NotebookMessageMetadata {
-  citations: Citation[];
-  chatCitations: ChatCitation[];
+  citations: ChatCitation[];
+  rawCitations: Citation[];
   sources: Source[];
   additionalSources: unknown[];
   linkConfig: LinkConfig;
@@ -78,6 +78,8 @@ export interface NotebookMessageMetadata {
   answerText: string;
   sourcesByCollection?: Record<string, unknown>;
   progress?: ChatProgress;
+  /** @deprecated Use `citations` (ChatCitation[]) instead */
+  chatCitations?: ChatCitation[];
   [key: string]: unknown;
 }
 
@@ -340,13 +342,14 @@ export function createNotebookModelAdapter(
 
         const chatCitations = mapToChatCitations(citations);
         console.debug(
-          '[Notebook] Completion: %d citations, %d chatCitations, answer length: %d',
+          '[Notebook] Completion: %d rawCitations, %d citations, answer length: %d',
           citations.length,
           chatCitations.length,
           completionData.answer.length
         );
         const metadata: NotebookMessageMetadata = {
-          citations,
+          citations: chatCitations,
+          rawCitations: citations,
           chatCitations,
           sources,
           additionalSources,

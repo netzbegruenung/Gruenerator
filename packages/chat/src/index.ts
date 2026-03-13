@@ -1,3 +1,14 @@
+// Unified Message Metadata
+export { type ChatMessageMetadata } from './types/messageMetadata';
+
+// Extra Actions Context
+export {
+  ExtraActionsProvider,
+  useExtraActions,
+  type ExtraAction,
+  type ExtraActionFactory,
+} from './context/ExtraActionsContext';
+
 // Context & API Client
 export {
   chatFetch,
@@ -162,6 +173,9 @@ export { computeMentionInsertion, type MentionInsertionResult } from './lib/ment
 
 // File mention data hook
 export { useFileMentionData } from './hooks/useFileMentionData';
+
+// Citation Utils
+export { mapRawCitationsToChat, resolveCitations } from './lib/citationUtils';
 
 // Lib
 export { cn } from './lib/utils';

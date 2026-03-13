@@ -11,9 +11,10 @@ import { ProgressTracker } from '../tool-ui/progress-tracker/ProgressTracker';
 import { TypingIndicator } from '../message-parts/TypingIndicator';
 import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
 import { MessageActions } from '../message-parts/MessageActions';
-import { SearchResultsSection } from '../message-parts/SearchResultsSection';
+import { SearchResultsSection, type AdditionalSource } from '../message-parts/SearchResultsSection';
 import { CitationProvider, useFetchFullText } from '../../context/CitationContext';
-import type { GrueneratorMessageMetadata } from '../../runtime/GrueneratorModelAdapter';
+import { resolveCitations } from '../../lib/citationUtils';
+import type { ChatMessageMetadata } from '../../types/messageMetadata';
 
 function AssistantMessageTextPart({
   text,
@@ -40,7 +41,7 @@ export function AssistantMessage() {
     () => agentsList.find((a) => a.identifier === selectedAgentId),
     [selectedAgentId]
   );
-  const custom = message.metadata?.custom as GrueneratorMessageMetadata | undefined;
+  const custom = message.metadata?.custom as ChatMessageMetadata | undefined;
   const fetchFullText = useFetchFullText();
 
   const textContent = message.content
@@ -51,7 +52,11 @@ export function AssistantMessage() {
   const isStreaming = message.status?.type === 'running';
   const hasToolCall = message.content.some((p) => p.type === 'tool-call');
 
-  const citations = custom?.citations || [];
+  const citations = useMemo(
+    () => resolveCitations(custom as Record<string, unknown> | undefined),
+    [custom]
+  );
+  const additionalSources = custom?.additionalSources as AdditionalSource[] | undefined;
 
   const actionsMetadata = useMemo(() => {
     if (!custom) return undefined;
@@ -63,6 +68,8 @@ export function AssistantMessage() {
       generatedImage: custom.generatedImage,
     };
   }, [custom]);
+
+  const showSearchResults = !isStreaming && citations.length > 0;
 
   return (
     <MessagePrimitive.Root className="group mx-auto flex w-full max-w-3xl items-start gap-4">
@@ -126,8 +133,11 @@ export function AssistantMessage() {
 
         <CitationProvider citations={citations} fetchFullText={fetchFullText}>
           <MessagePrimitive.Parts components={partComponents} />
-          {!isStreaming && citations.length > 0 && <SearchResultsSection citations={citations} />}
         </CitationProvider>
+
+        {showSearchResults && (
+          <SearchResultsSection citations={citations} additionalSources={additionalSources} />
+        )}
 
         {!isStreaming && textContent && (
           <MessageActions content={textContent} metadata={actionsMetadata} />
