@@ -13,6 +13,7 @@ import '../../../assets/styles/components/auth/avatar-selection.css';
 const ProfileInfoTab = lazy(() => import('../components/profile/ProfileInfoTab'));
 const GroupsManagementTab = lazy(() => import('../components/profile/tabs/GroupsManagement'));
 const ContentManagementTab = lazy(() => import('../components/profile/tabs/ContentManagement'));
+const WolkeManagementTab = lazy(() => import('../components/profile/tabs/WolkeManagement'));
 
 type TabMapping = Record<string, string>;
 
@@ -154,6 +155,14 @@ const ProfilePage = () => {
               onSuccessMessage={handleSuccessMessage}
               onErrorMessage={handleErrorMessage}
               isActive={activeTab === 'gruppen'}
+            />
+          )}
+
+          {activeTab === 'wolke' && (
+            <WolkeManagementTab
+              onSuccessMessage={handleSuccessMessage}
+              onErrorMessage={handleErrorMessage}
+              isActive={activeTab === 'wolke'}
             />
           )}
         </Suspense>

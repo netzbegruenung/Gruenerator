@@ -1,21 +1,14 @@
-import { type JSX, useState, useEffect, useMemo, ComponentType } from 'react';
+import { type JSX, useMemo } from 'react';
 import { HiOutlineCloud, HiOutlineFolder } from 'react-icons/hi';
 
-import { useWolkeStore } from '../../../stores/wolkeStore';
+import { useShareLinks, useSyncStatuses } from '../../../features/wolke/hooks/useWolke';
 import EnhancedSelect from '../EnhancedSelect';
+import Spinner from '../Spinner';
 
+import type { WolkeScope } from '../../../features/wolke/lib/wolkeApi';
 import type { EnhancedSelectOption } from '../EnhancedSelect/EnhancedSelect';
 import type { MultiValue, SingleValue, ActionMeta } from 'react-select';
 
-// Wolke Selector Feature CSS - Loaded only when this feature is accessed
-import '../../../assets/styles/components/common/wolke-selector.css';
-// Import ProfileActionButton CSS for consistent button styling
-import '../../../assets/styles/components/profile/profile-action-buttons.css';
-
-/**
- * WolkeSelector - Component for selecting Wolke share links for Q&A collections
- * Uses EnhancedSelect with wolkeStore integration
- */
 interface WolkeShareLink {
   id?: string;
   label?: string;
@@ -33,7 +26,7 @@ interface WolkeSelectorProps {
   className?: string;
   error?: string;
   required?: boolean;
-  scope?: 'personal' | 'group';
+  scope?: WolkeScope;
   scopeId?: string;
 }
 
@@ -52,49 +45,18 @@ const WolkeSelector = ({
   className = '',
   error,
   required = false,
-  scope = 'personal', // 'personal' or 'group'
-  scopeId = '', // group ID if scope is 'group'
+  scope = 'personal',
+  scopeId = '',
   ...selectProps
 }: WolkeSelectorProps): JSX.Element => {
   const {
-    shareLinks,
-    syncStatuses,
-    isLoading,
-    error: storeError,
-    initialized,
-    fetchShareLinks,
-    fetchSyncStatuses,
-    setScope,
-  } = useWolkeStore();
+    data: shareLinks = [],
+    isLoading: shareLinksLoading,
+    error: queryError,
+  } = useShareLinks(scope, scopeId || undefined);
 
-  const [isInitializing, setIsInitializing] = useState(true);
+  const { data: syncStatuses = [] } = useSyncStatuses(scope, scopeId || undefined);
 
-  // Initialize the store with the correct scope
-  useEffect(() => {
-    const initializeStore = async () => {
-      setIsInitializing(true);
-      try {
-        // Set the scope if it's different from current
-        setScope(scope, scopeId);
-
-        // Fetch data if not initialized
-        if (!initialized || shareLinks.length === 0) {
-          await fetchShareLinks();
-        }
-
-        // Fetch sync statuses to get document counts
-        await fetchSyncStatuses();
-      } catch (error) {
-        console.error('[WolkeSelector] Error initializing:', error);
-      } finally {
-        setIsInitializing(false);
-      }
-    };
-
-    void initializeStore();
-  }, [scope, scopeId, initialized, fetchShareLinks, fetchSyncStatuses, setScope]);
-
-  // Transform share links to EnhancedSelect options
   const wolkeOptions = useMemo((): WolkeOption[] => {
     return shareLinks
       .filter((shareLink) => shareLink.id)
@@ -171,41 +133,41 @@ const WolkeSelector = ({
       });
   }, [value, wolkeOptions]);
 
-  const isLoadingData = isLoading || isInitializing;
-  const currentError = error || storeError;
+  const isLoadingData = shareLinksLoading;
+  const currentError = error || (queryError ? String(queryError) : undefined);
 
-  // Show loading state
   if (isLoadingData && wolkeOptions.length === 0) {
     return (
-      <div className={`wolke-selector loading ${className}`.trim()}>
-        <label className="form-label">
+      <div className={`flex flex-col gap-xs ${className}`.trim()}>
+        <label className="text-sm font-medium text-foreground">
           {label}
-          {required && <span className="required-indicator"> *</span>}
+          {required && <span className="text-red-500"> *</span>}
         </label>
-        <div className="wolke-selector-loading">
-          <div className="loading-spinner" />
+        <div className="flex items-center gap-xs text-sm text-grey-400 py-sm">
+          <Spinner size="small" />
           <span>Wolke-Ordner werden geladen...</span>
         </div>
-        {helpText && <div className="help-text">{helpText}</div>}
+        {helpText && <div className="text-xs text-grey-400">{helpText}</div>}
       </div>
     );
   }
 
-  // Show empty state
   if (!isLoadingData && wolkeOptions.length === 0) {
     return (
-      <div className={`wolke-selector empty ${className}`.trim()}>
-        <label className="form-label">
+      <div className={`flex flex-col gap-xs ${className}`.trim()}>
+        <label className="text-sm font-medium text-foreground">
           {label}
-          {required && <span className="required-indicator"> *</span>}
+          {required && <span className="text-red-500"> *</span>}
         </label>
-        <div className="wolke-selector-empty">
+        <div className="flex flex-col items-center gap-xs py-md text-grey-400">
           <HiOutlineCloud size={48} />
-          <p>Keine Wolke-Ordner verfügbar</p>
-          <p>Fügen Sie erst Wolke-Links hinzu, um sie hier auswählen zu können.</p>
+          <p className="text-sm">Keine Wolke-Ordner verfügbar</p>
+          <p className="text-xs">
+            Fügen Sie erst Wolke-Links hinzu, um sie hier auswählen zu können.
+          </p>
         </div>
-        {helpText && <div className="help-text">{helpText}</div>}
-        {currentError && <div className="error-message">{currentError}</div>}
+        {helpText && <div className="text-xs text-grey-400">{helpText}</div>}
+        {currentError && <div className="text-xs text-red-500">{currentError}</div>}
       </div>
     );
   }
@@ -213,12 +175,12 @@ const WolkeSelector = ({
   const displayValue = isMulti ? selectValue : selectValue[0] || null;
 
   return (
-    <div className={`wolke-selector ${className}`.trim()}>
+    <div className={className}>
       <EnhancedSelect
         label={label}
         helpText={helpText}
         required={required}
-        error={currentError || undefined}
+        error={currentError}
         enableIcons={true}
         enableSubtitles={true}
         enableTags={true}

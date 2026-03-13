@@ -1,9 +1,8 @@
 import { useAgentStore } from '@gruenerator/chat';
-import { type JSX, useState, useCallback, useEffect, type ReactNode } from 'react';
+import { type JSX, useState, useEffect, type ReactNode } from 'react';
 import { CiMemoPad } from 'react-icons/ci';
-import { FaCloud } from 'react-icons/fa';
 import { FaFileWord, FaFilePdf } from 'react-icons/fa6';
-import { HiRefresh, HiSave, HiOutlineDocumentText } from 'react-icons/hi';
+import { HiRefresh, HiOutlineDocumentText } from 'react-icons/hi';
 import {
   IoDownloadOutline,
   IoShareSocialSharp,
@@ -27,12 +26,13 @@ import {
   DropdownMenuSubContent,
 } from '../../components/ui/dropdown-menu';
 import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
+import { useShareLinks, useUploadToWolke } from '../../features/wolke/hooks/useWolke';
+import { parseShareLink, type ShareLink } from '../../features/wolke/lib/wolkeApi';
 import { useLazyAuth } from '../../hooks/useAuth';
 import { useBetaFeatures } from '../../hooks/useBetaFeatures';
 import { awaitDeferredTitle } from '../../hooks/useDeferredTitle';
 import { useExportStore } from '../../stores/core/exportStore';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
-import { NextcloudShareManager, type ShareLink } from '../../utils/nextcloudShareManager';
 import { canShare, shareContent } from '../../utils/shareUtils';
 import useApiSubmit from '../hooks/useApiSubmit';
 import apiClient from '../utils/apiClient';
@@ -89,9 +89,6 @@ const ExportDropdown = ({
   onEditInDocsInline,
   editInDocsInlineLoading = false,
 }: ExportDropdownProps): JSX.Element | null => {
-  const [shareLinks, setShareLinks] = useState<ShareLink[]>([]);
-  const [selectedShareLinkId, setSelectedShareLinkId] = useState<string>('');
-  const [loadingShareLinks, setLoadingShareLinks] = useState<boolean>(false);
   const [uploadingToWolke, setUploadingToWolke] = useState<boolean>(false);
   const [saveIcon, setSaveIcon] = useState<string>('save');
   const [exportIcon, setExportIcon] = useState<string>('share');
@@ -104,6 +101,14 @@ const ExportDropdown = ({
   const [urlCopied, setUrlCopied] = useState<boolean>(false);
 
   const { isAuthenticated } = useLazyAuth();
+  // Wolke export is currently disabled — don't fetch share links until re-enabled
+  const { data: shareLinks = [], isLoading: loadingShareLinks } = useShareLinks(
+    undefined,
+    undefined,
+    { enabled: false }
+  );
+  const uploadToWolkeMutation = useUploadToWolke();
+  const activeShareLinks = shareLinks.filter((link) => link.is_active);
   const location = useLocation();
   const navigate = useNavigate();
   const { getBetaFeatureState } = useBetaFeatures();
@@ -115,26 +120,6 @@ const ExportDropdown = ({
   const { isGenerating, generateDOCX, generatePDF } = useExportStore();
 
   const isMobileView = window.innerWidth <= 768;
-
-  // Load share links when dropdown opens
-  const loadShareLinks = useCallback(async () => {
-    if (!isAuthenticated) return;
-
-    setLoadingShareLinks(true);
-    try {
-      const links = await NextcloudShareManager.getShareLinks();
-      const activeLinks = links.filter((link) => link.is_active);
-      setShareLinks(activeLinks);
-      if (activeLinks.length > 0 && !selectedShareLinkId) {
-        setSelectedShareLinkId(activeLinks[0].id);
-      }
-    } catch (error) {
-      console.error('Failed to load share links:', error);
-      setShareLinks([]);
-    } finally {
-      setLoadingShareLinks(false);
-    }
-  }, [isAuthenticated, selectedShareLinkId]);
 
   // Check native share capability on mount
   useEffect(() => {
@@ -295,7 +280,7 @@ const ExportDropdown = ({
     }
   };
 
-  const handleDOCXDownload = useCallback(async () => {
+  const handleDOCXDownload = async () => {
     try {
       const freshTitle = await getFreshTitle();
       const formattedContent = await extractFormattedText(content);
@@ -305,9 +290,9 @@ const ExportDropdown = ({
       const errorMessage = error instanceof Error ? error.message : String(error);
       alert('DOCX Download fehlgeschlagen: ' + errorMessage);
     }
-  }, [generateDOCX, content, title]);
+  };
 
-  const handlePDFDownload = useCallback(async () => {
+  const handlePDFDownload = async () => {
     try {
       const freshTitle = await getFreshTitle();
       const formattedContent = await extractFormattedText(content);
@@ -317,23 +302,16 @@ const ExportDropdown = ({
       const errorMessage = error instanceof Error ? error.message : String(error);
       alert('PDF Download fehlgeschlagen: ' + errorMessage);
     }
-  }, [generatePDF, content, title]);
+  };
 
   const handleWolkeClick = async () => {
     if (!isAuthenticated) return;
 
-    // Load sharelinks if not already loaded
-    if (shareLinks.length === 0 && !loadingShareLinks) {
-      await loadShareLinks();
-    }
-
-    // If only one sharelink, upload directly
-    if (shareLinks.length === 1 && shareLinks[0]) {
-      await handleWolkeUpload(shareLinks[0].id);
-    } else if (shareLinks.length > 1) {
+    if (activeShareLinks.length === 1 && activeShareLinks[0]) {
+      await handleWolkeUpload(activeShareLinks[0].id);
+    } else if (activeShareLinks.length > 1) {
       // TODO: Show sub-menu for multiple sharelinks when Wolke is re-enabled
     } else {
-      // Show setup modal for configuring first Wolke connection
       setShowWolkeSetupModal(true);
     }
   };
@@ -364,7 +342,11 @@ const ExportDropdown = ({
       reader.onloadend = async () => {
         const base64Content = (reader.result as string).split(',')[1];
 
-        const result = await NextcloudShareManager.upload(shareLinkId, base64Content, filename);
+        const result = await uploadToWolkeMutation.mutateAsync({
+          shareLinkId,
+          content: base64Content,
+          filename,
+        });
 
         if (result.success) {
           setExportIcon('checkmark');
@@ -420,19 +402,14 @@ const ExportDropdown = ({
     }
   };
 
-  const handleWolkeSetup = async (shareLink: string, label: string) => {
-    const parsed = NextcloudShareManager.parseShareLink(shareLink);
+  const handleWolkeSetup = async (shareLinkUrl: string, label: string) => {
+    const parsed = parseShareLink(shareLinkUrl);
     if (!parsed) throw new Error('Ungültiger Wolke-Share-Link');
-    await NextcloudShareManager.saveShareLink(shareLink, label, parsed.baseUrl, parsed.shareToken);
-    // Reload share links after successful setup
-    await loadShareLinks();
-    // Close modal and proceed with upload if we now have links
-    setShowWolkeSetupModal(false);
 
-    // Small delay to ensure state updates, then retry the upload
-    setTimeout(() => {
-      handleWolkeClick();
-    }, 100);
+    const { addShareLink } = await import('../../features/wolke/lib/wolkeApi');
+    await addShareLink(shareLinkUrl, label);
+
+    setShowWolkeSetupModal(false);
   };
 
   if (!content) {
@@ -467,11 +444,7 @@ const ExportDropdown = ({
 
       {/* More options menu (3-dot) */}
       {showMoreMenu && (
-        <DropdownMenu
-          onOpenChange={(open) => {
-            if (open && isAuthenticated) loadShareLinks();
-          }}
-        >
+        <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               className={className}

@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { FaCloud } from 'react-icons/fa';
 import { HiX, HiCheck, HiExclamationCircle } from 'react-icons/hi';
 
-import { NextcloudShareManager } from '../../../utils/nextcloudShareManager';
+import { validateShareLink } from '../lib/wolkeApi';
 
-// Wolke Feature CSS - Loaded only when this feature is accessed
 import '../../../assets/styles/features/wolke/wolke.css';
 
 /**
@@ -25,7 +24,7 @@ const WolkeSetupModal = ({ onClose, onSubmit }: WolkeSetupModalProps) => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    const validation = NextcloudShareManager.validateShareLink(shareLink);
+    const validation = validateShareLink(shareLink);
     if (!validation.isValid) {
       setValidationError(validation.error || '');
       return;
