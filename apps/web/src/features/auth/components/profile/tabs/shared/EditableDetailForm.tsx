@@ -5,9 +5,6 @@ import {
   ProfileIconButton,
 } from '../../../../../../components/profile/actions/ProfileActionButton';
 
-import type { JSX } from 'react';
-
-
 /**
  * Form field type for form schema
  */
@@ -123,7 +120,7 @@ const EditableDetailForm = ({
 
       {/* Form fields editor */}
       <FormFieldWrapper label="Formularfelder" htmlFor="form-fields-editor">
-        <div id="form-fields-editor" className="form-fields-editor generator-form-fields">
+        <div id="form-fields-editor" className="grid gap-md">
           <FormBuilderSection
             formSchema={getFormSchema?.()}
             updateFormSchema={updateFormSchema || (() => {})}
@@ -189,10 +186,10 @@ const EditableDetailForm = ({
   const requiredFieldValue = isGenerator ? getDisplayValue('title') : getDisplayValue('name');
 
   return (
-    <div className="editable-detail-form">
+    <div className="grid gap-md">
       {isGenerator ? renderGeneratorFields() : renderNotebookFields()}
 
-      <div className="edit-actions" style={{ marginTop: 'var(--spacing-large)' }}>
+      <div className="flex gap-sm mt-lg">
         <ProfileActionButton
           action="edit"
           label="Speichern"
@@ -323,8 +320,11 @@ const FormBuilderSection = ({
   return (
     <>
       {fields.map((field, index) => (
-        <div key={index} className="field-editor-item field-item">
-          <div className="field-editor-row">
+        <div
+          key={index}
+          className="bg-background-pure border border-grey-200 dark:border-grey-700 rounded-lg p-lg shadow-sm"
+        >
+          <div className="grid grid-cols-[2fr_1fr_auto_auto] gap-sm items-center max-md:grid-cols-1 max-md:gap-xs">
             <input
               type="text"
               className="form-input"
@@ -365,7 +365,7 @@ const FormBuilderSection = ({
           </div>
           <input
             type="text"
-            className="form-input field-placeholder-input"
+            className="form-input mt-sm"
             value={field.placeholder || ''}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               updateFormField(index, { placeholder: e.target.value })
@@ -374,13 +374,18 @@ const FormBuilderSection = ({
             disabled={disabled}
           />
           {field.type === 'select' && (
-            <div className="select-options-container">
-              <label className="form-field-label">Auswahlmöglichkeiten</label>
+            <div className="mt-sm p-md bg-background-alt rounded-sm border border-grey-200 dark:border-grey-700">
+              <label className="block mb-sm font-semibold text-foreground text-sm">
+                Auswahlmöglichkeiten
+              </label>
               {(field.options || []).map((option, optIndex) => (
-                <div key={optIndex} className="option-input-group">
+                <div
+                  key={optIndex}
+                  className="grid grid-cols-[1.5fr_1fr_auto] gap-sm items-center mb-sm max-md:grid-cols-1 max-md:gap-xs"
+                >
                   <input
                     type="text"
-                    className="form-input option-label-input"
+                    className="form-input min-w-0"
                     placeholder="Anzeigetext"
                     value={option.label || ''}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
@@ -409,7 +414,7 @@ const FormBuilderSection = ({
                   />
                   <input
                     type="text"
-                    className="form-input option-value-input"
+                    className="form-input min-w-0"
                     placeholder="Technischer Wert"
                     value={option.value || ''}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>

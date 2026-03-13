@@ -20,7 +20,7 @@ export interface SubsectionTabBarProps {
 export function SubsectionTabBar({ subsections, defaultSubsection }: SubsectionTabBarProps) {
   const bridge = useMobileSubsectionBridge();
 
-  // Report subsection metadata to native when in bridge mode
+  // Report subsection metadata to bridge when active (native or mobile web)
   const prevSerializedRef = useRef('');
   useEffect(() => {
     if (!bridge.active) return;
@@ -31,6 +31,32 @@ export function SubsectionTabBar({ subsections, defaultSubsection }: SubsectionT
       bridge.onSubsectionsChange(meta);
     }
   }, [bridge, subsections]);
+
+  // Auto-select first subsection when bridge becomes active and none is selected
+  const hasAutoSelectedRef = useRef(false);
+  useEffect(() => {
+    if (!bridge.active || hasAutoSelectedRef.current) return;
+    if (!bridge.activeSubsection && subsections.length > 0) {
+      hasAutoSelectedRef.current = true;
+      bridge.onActiveSubsectionChange(defaultSubsection || subsections[0].id);
+    }
+  }, [bridge, subsections, defaultSubsection]);
+
+  // Reset auto-select flag when bridge deactivates
+  useEffect(() => {
+    if (!bridge.active) {
+      hasAutoSelectedRef.current = false;
+    }
+  }, [bridge.active]);
+
+  // Reset auto-select when subsections change (new tab was selected)
+  const prevSubsectionsRef = useRef(subsections);
+  useEffect(() => {
+    if (prevSubsectionsRef.current !== subsections) {
+      prevSubsectionsRef.current = subsections;
+      hasAutoSelectedRef.current = false;
+    }
+  }, [subsections]);
 
   // Standard web state (always called to satisfy hooks rules)
   const [isMobile, setIsMobile] = useState(
@@ -50,14 +76,14 @@ export function SubsectionTabBar({ subsections, defaultSubsection }: SubsectionT
     return () => window.removeEventListener('resize', handleResize);
   }, [bridge.active]);
 
-  // In bridge mode: render only the active subsection's content (no pills)
+  // In bridge mode (native or mobile web): render only the active subsection's content
   if (bridge.active) {
     const activeContent = subsections.find((s) => s.id === bridge.activeSubsection)?.content;
     if (!activeContent) return null;
     return <div className="pb-6 pt-md px-md [&>*]:animate-subsection-fade-in">{activeContent}</div>;
   }
 
-  // --- Standard web rendering below ---
+  // --- Standard desktop web rendering below ---
 
   const activeContent = subsections.find((s) => s.id === localActiveSubsection)?.content;
 
@@ -71,6 +97,7 @@ export function SubsectionTabBar({ subsections, defaultSubsection }: SubsectionT
     );
   }
 
+  // Fallback mobile rendering (shouldn't normally be reached when bridge is active)
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-1.5 px-3 py-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch] border-b border-b-grey-200 dark:border-b-grey-700">

@@ -8,6 +8,7 @@ import multer, { type FileFilterCallback } from 'multer';
 
 import mistralVoiceService from '../../services/voice/mistralVoiceService.js';
 import { createLogger } from '../../utils/logger.js';
+import { createSSEStream } from '../chat/services/sseHelpers.js';
 
 const log = createLogger('voice');
 
@@ -184,6 +185,48 @@ router.post(
         error: 'Fehler bei der Transkription: ' + (error as Error).message,
       });
     }
+  }
+);
+
+/**
+ * POST /api/voice/transcribe/stream
+ * Streaming transcription — returns SSE events as text is transcribed
+ */
+router.post(
+  '/transcribe/stream',
+  upload.single('audio'),
+  async (req: TranscribeRequest, res: Response) => {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'Keine Audio-Datei erhalten',
+      });
+    }
+
+    const audioBuffer = req.file.buffer;
+    const filename = req.file.originalname;
+    const language = req.query.language || req.body.language || 'de';
+
+    const sse = createSSEStream(res);
+
+    try {
+      log.debug('[Voice] Starting streaming transcription for:', filename);
+
+      for await (const event of mistralVoiceService.transcribeFromBufferStream(
+        audioBuffer,
+        filename,
+        {
+          language,
+        }
+      )) {
+        sse.sendRaw(event.type, event);
+      }
+    } catch (error) {
+      log.error('[Voice] Streaming transcription error:', error);
+      sse.sendRaw('error', { type: 'error', text: (error as Error).message });
+    }
+
+    sse.end();
   }
 );
 

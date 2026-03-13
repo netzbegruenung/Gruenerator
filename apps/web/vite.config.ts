@@ -179,6 +179,7 @@ export default defineConfig(({ command }) => ({
       '/api': {
         target: 'http://localhost:3001',
         changeOrigin: true,
+        ws: true,
         ...(process.env.VITE_E2E_AUTH_BYPASS === 'true' && {
           configure: (proxy) => {
             proxy.on('proxyReq', (proxyReq) => {

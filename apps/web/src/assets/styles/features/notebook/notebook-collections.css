@@ -113,7 +113,7 @@
     border-color: var(--secondary-600);
 }
 
-/* Dark theme support moved to document-overview.css for .notebook-document-count and .notebook-public-badge */
+/* Dark theme for .notebook-document-count and .notebook-public-badge is now handled via Tailwind in DocumentOverview.tsx */
 
 [data-theme="dark"] .notebook-error-state {
     background: rgba(211, 47, 47, 0.1);

@@ -127,6 +127,9 @@ importers:
       '@napi-rs/canvas':
         specifier: ^0.1.96
         version: 0.1.96
+      '@pdf-lib/fontkit':
+        specifier: ^1.1.1
+        version: 1.1.1
       '@qdrant/js-client-rest':
         specifier: ^1.17.0
         version: 1.17.0(typescript@5.9.3)
@@ -142,6 +145,9 @@ importers:
       '@types/archiver':
         specifier: ^7.0.0
         version: 7.0.0
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
       ai:
         specifier: ^6.0.116
         version: 6.0.116(zod@3.25.76)
@@ -274,6 +280,9 @@ importers:
       winston:
         specifier: ^3.19.0
         version: 3.19.0
+      ws:
+        specifier: ^8.19.0
+        version: 8.19.0
       yjs:
         specifier: ^13.6.29
         version: 13.6.29
@@ -1357,6 +1366,9 @@ importers:
       '@assistant-ui/react':
         specifier: '>=0.12.0'
         version: 0.12.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
+      '@gruenerator/voice':
+        specifier: workspace:*
+        version: link:../voice
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -1571,6 +1583,9 @@ importers:
 
   packages/voice:
     dependencies:
+      '@assistant-ui/react':
+        specifier: '>=0.12.0'
+        version: 0.12.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
       react:
         specifier: 19.2.4
         version: 19.2.4
@@ -6124,6 +6139,9 @@ packages:
 
   '@paulirish/trace_engine@0.0.59':
     resolution: {integrity: sha512-439NUzQGmH+9Y017/xCchBP9571J4bzhpcNhrxorf7r37wcyJZkgUfrUsRL3xl+JDcZ6ORhoFCzCw98c6S3YHw==}
+
+  '@pdf-lib/fontkit@1.1.1':
+    resolution: {integrity: sha512-KjMd7grNapIWS/Dm0gvfHEilSyAmeLvrEGVcqLGi0VYebuqqzTbgF29efCx7tvx+IEbG3zQciRSWl3GkUSvjZg==}
 
   '@pdf-lib/standard-fonts@1.0.0':
     resolution: {integrity: sha512-hU30BK9IUN/su0Mn9VdlVKsWBS6GyhVfqjwl1FjZN4TxP6cCw0jP2w7V3Hf5uX7M0AZJ16vey9yE0ny7Sa59ZA==}
@@ -27577,6 +27595,10 @@ snapshots:
     dependencies:
       legacy-javascript: 0.0.1
       third-party-web: 0.29.0
+
+  '@pdf-lib/fontkit@1.1.1':
+    dependencies:
+      pako: 1.0.11
 
   '@pdf-lib/standard-fonts@1.0.0':
     dependencies:

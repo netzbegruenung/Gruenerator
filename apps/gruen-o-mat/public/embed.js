@@ -8,7 +8,27 @@
   var position = script.getAttribute('data-position') || 'bottom-right';
   var color = script.getAttribute('data-color') || '#316049';
   var title = script.getAttribute('data-title') || 'Grün-O-Mat';
+  var mode = script.getAttribute('data-mode') || 'widget';
+  var container = script.getAttribute('data-container');
   var baseUrl = script.src.replace(/\/embed\.js(\?.*)?$/, '');
+
+  var iframeSrc = baseUrl + '/embed/' + encodeURIComponent(collection);
+
+  // Inline mode: render iframe directly into a container element
+  if (mode === 'inline') {
+    var target = container ? document.querySelector(container) : null;
+    if (!target) {
+      console.warn('[Grün-O-Mat] data-mode="inline" requires a valid data-container selector.');
+      return;
+    }
+    var inlineIframe = document.createElement('iframe');
+    inlineIframe.src = iframeSrc;
+    inlineIframe.style.cssText = 'width:100%;height:100%;border:none;';
+    inlineIframe.setAttribute('allow', 'clipboard-write');
+    inlineIframe.setAttribute('title', title);
+    target.appendChild(inlineIframe);
+    return;
+  }
 
   var isOpen = false;
   var iframeLoaded = false;
@@ -80,6 +100,24 @@
     '  opacity: 1;',
     '  pointer-events: auto;',
     '}',
+    // Modal mode: centered dialog variant
+    '.gom-modal.centered {',
+    '  position: fixed;',
+    '  top: 50%;',
+    '  left: 50%;',
+    '  right: auto;',
+    '  bottom: auto;',
+    '  transform: translate(-50%, -50%) scale(0.96);',
+    '  opacity: 0;',
+    '  width: 480px;',
+    '  height: 680px;',
+    '  max-height: calc(100dvh - 64px);',
+    '  max-width: calc(100vw - 32px);',
+    '}',
+    '.gom-modal.centered.open {',
+    '  transform: translate(-50%, -50%) scale(1);',
+    '  opacity: 1;',
+    '}',
     '.gom-header {',
     '  display: flex;',
     '  align-items: center;',
@@ -108,40 +146,41 @@
     '.gom-close svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }',
     '.gom-iframe { flex: 1; border: none; width: 100%; height: 100%; }',
     '@media (max-width: 480px) {',
-    '  .gom-modal {',
+    '  .gom-modal, .gom-modal.centered {',
     '    inset: 0;',
     '    width: 100%;',
     '    height: 100%;',
     '    max-height: 100%;',
+    '    max-width: 100%;',
     '    border-radius: 0;',
     '    bottom: 0;',
+    '    top: 0;',
+    '    left: 0;',
+    '    transform: translateY(16px);',
+    '  }',
+    '  .gom-modal.open, .gom-modal.centered.open {',
+    '    transform: translateY(0);',
     '  }',
     '}',
   ].join('\n');
 
   shadow.appendChild(styles);
 
-  // Chat bubble icon (message bubble SVG)
   var chatIcon =
     '<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
   var closeIcon =
     '<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
 
-  // Bubble button
-  var bubble = document.createElement('button');
-  bubble.className = 'gom-bubble';
-  bubble.innerHTML = chatIcon;
-  bubble.setAttribute('aria-label', title + ' öffnen');
-  shadow.appendChild(bubble);
+  var isCentered = mode === 'modal';
 
   // Overlay
   var overlay = document.createElement('div');
   overlay.className = 'gom-overlay';
   shadow.appendChild(overlay);
 
-  // Modal
+  // Modal panel
   var modal = document.createElement('div');
-  modal.className = 'gom-modal';
+  modal.className = isCentered ? 'gom-modal centered' : 'gom-modal';
   modal.setAttribute('role', 'dialog');
   modal.setAttribute('aria-label', title);
 
@@ -166,6 +205,7 @@
   iframe.className = 'gom-iframe';
   iframe.setAttribute('allow', 'clipboard-write');
   iframe.setAttribute('loading', 'lazy');
+  iframe.setAttribute('title', title);
   modal.appendChild(iframe);
 
   shadow.appendChild(modal);
@@ -175,13 +215,15 @@
     if (isOpen) return;
     isOpen = true;
     if (!iframeLoaded) {
-      iframe.src = baseUrl + '/embed/' + encodeURIComponent(collection);
+      iframe.src = iframeSrc;
       iframeLoaded = true;
     }
     overlay.classList.add('open');
     modal.classList.add('open');
-    bubble.innerHTML = closeIcon;
-    bubble.setAttribute('aria-label', title + ' schließen');
+    if (bubble) {
+      bubble.innerHTML = closeIcon;
+      bubble.setAttribute('aria-label', title + ' schließen');
+    }
   }
 
   function close() {
@@ -189,8 +231,10 @@
     isOpen = false;
     overlay.classList.remove('open');
     modal.classList.remove('open');
-    bubble.innerHTML = chatIcon;
-    bubble.setAttribute('aria-label', title + ' öffnen');
+    if (bubble) {
+      bubble.innerHTML = chatIcon;
+      bubble.setAttribute('aria-label', title + ' öffnen');
+    }
   }
 
   function toggle() {
@@ -198,11 +242,28 @@
     else open();
   }
 
-  bubble.addEventListener('click', toggle);
+  // Bubble button (only in widget mode)
+  var bubble = null;
+  if (mode === 'widget') {
+    bubble = document.createElement('button');
+    bubble.className = 'gom-bubble';
+    bubble.innerHTML = chatIcon;
+    bubble.setAttribute('aria-label', title + ' öffnen');
+    shadow.appendChild(bubble);
+    bubble.addEventListener('click', toggle);
+  }
+
   closeBtn.addEventListener('click', close);
   overlay.addEventListener('click', close);
 
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && isOpen) close();
   });
+
+  // Public API for modal mode (and widget mode)
+  window.GruenOMat = {
+    open: open,
+    close: close,
+    toggle: toggle,
+  };
 })();

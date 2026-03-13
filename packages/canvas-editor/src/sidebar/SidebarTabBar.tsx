@@ -33,10 +33,10 @@ const TabButton = memo(function TabButton({
     return (
       <button
         className={cn(
-          'shrink-0 h-8 px-3 py-0.5 border-none rounded-full cursor-pointer text-xs font-semibold whitespace-nowrap transition-all duration-200',
+          'flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 mx-0.5 rounded-lg border-none cursor-pointer min-h-[48px] transition-[background-color,color] duration-200 bg-transparent [&>svg]:size-[22px] [&>svg]:shrink-0',
           isActive
-            ? 'bg-primary-100 text-primary-600 dark:bg-primary-900 dark:text-primary-200'
-            : 'bg-transparent text-grey-500 dark:text-grey-400 hover:enabled:bg-grey-100 dark:hover:enabled:bg-grey-800',
+            ? 'bg-[#E8F5EE] text-[#005538] dark:bg-primary-900/40 dark:text-primary-200'
+            : 'text-grey-500 dark:text-grey-400',
           isDisabled && 'opacity-40 cursor-not-allowed',
           isAlternativesLoading && 'animate-canvas-pulse'
         )}
@@ -46,7 +46,10 @@ const TabButton = memo(function TabButton({
         aria-pressed={isActive}
         type="button"
       >
-        {tab.label}
+        <Icon size={22} />
+        <span className="text-[10px] font-semibold whitespace-nowrap overflow-hidden text-ellipsis max-w-full">
+          {tab.label}
+        </span>
       </button>
     );
   }
@@ -109,7 +112,7 @@ export const SidebarTabBar = memo(function SidebarTabBar({
 
   if (isMobile) {
     return (
-      <div className="fixed bottom-0 left-0 right-0 w-full h-[var(--mobile-tab-bar-height,44px)] flex items-center overflow-x-auto overflow-y-hidden [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden bg-background border-t border-t-grey-200 dark:border-t-grey-700 shadow-[0_-2px_8px_rgba(0,0,0,0.08)] py-1.5 px-2 pb-[calc(6px+env(safe-area-inset-bottom))] gap-1.5 z-[100]">
+      <div className="fixed bottom-0 left-0 right-0 w-full flex items-center justify-evenly bg-background border-t border-t-grey-200 dark:border-t-grey-700 shadow-[0_-2px_8px_rgba(0,0,0,0.08)] pt-2 pb-[calc(6px+env(safe-area-inset-bottom))] z-[100] min-h-[var(--mobile-tab-bar-height,60px)]">
         {tabs.map((tab) => (
           <TabButton
             key={tab.id}

@@ -50,6 +50,11 @@
 /* ── Full Tailwind (preflight + base + utilities) ── */
 @import "tailwindcss";
 
+/* Override Tailwind's dark: variant to use the site's data-theme attribute
+   instead of prefers-color-scheme (OS-level). This ensures dark: utilities
+   only activate when the site theme is explicitly set to dark. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* ── Chat package component styles (merges into Tailwind's components layer) ── */
 @import "../../../../../packages/chat/src/styles/chat-embedded.css" layer(components);
 

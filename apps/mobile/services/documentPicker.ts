@@ -34,6 +34,7 @@ const DOCUMENT_TYPES = [
   'text/plain',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.oasis.opendocument.text',
 ];
 
 const SCANNER_TYPES = [
@@ -161,9 +162,7 @@ export async function pickedDocumentToAttachment(doc: PickedDocument): Promise<C
  * POSTs multipart/form-data to /scanner/extract.
  * @returns Extracted text, file info, and page count
  */
-export async function uploadDocumentToScanner(
-  doc: PickedDocument
-): Promise<{
+export async function uploadDocumentToScanner(doc: PickedDocument): Promise<{
   text: string;
   pageCount: number;
   fileInfo: { name: string; size: number; mimeType: string };

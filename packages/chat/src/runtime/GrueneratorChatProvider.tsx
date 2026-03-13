@@ -26,6 +26,7 @@ import { useAgentStore } from '../stores/chatStore';
 import { useChatConfigStore, type ChatConfig } from '../stores/chatConfigStore';
 import { getDefaultAgent } from '../lib/agents';
 import { setCustomAgents, type CustomAgentMentionable } from '../lib/mentionables';
+import { VoxtralDictationAdapter } from '@gruenerator/voice';
 import {
   createGrueneratorModelAdapter,
   type GrueneratorAdapterConfig,
@@ -298,7 +299,12 @@ function useGrueneratorThreadRuntime() {
     return createGrueneratorModelAdapter(getConfig, { onThreadCreated, onComplete });
   }, [getConfig, onThreadCreated, onComplete]);
 
-  return useLocalRuntime(modelAdapter, { unstable_humanToolNames: ['ask_human'] });
+  const dictationAdapter = useMemo(() => new VoxtralDictationAdapter(), []);
+
+  return useLocalRuntime(modelAdapter, {
+    unstable_humanToolNames: ['ask_human'],
+    adapters: { dictation: dictationAdapter },
+  });
 }
 
 /**

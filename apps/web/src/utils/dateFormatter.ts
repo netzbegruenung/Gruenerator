@@ -83,37 +83,3 @@ export function formatShortRelativeDate(dateString: string | Date): string {
 
   return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
 }
-
-/**
- * Format timestamp for auto-save indicator
- * @param timestamp - Unix timestamp in milliseconds
- * @returns Human-readable time string
- */
-export function formatAutoSaveTime(timestamp: number): string {
-  const diffMs = Date.now() - timestamp;
-  const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  const diffHours = Math.floor(diffMinutes / 60);
-
-  if (diffSeconds < 10) {
-    return 'gerade eben';
-  }
-
-  if (diffSeconds < 60) {
-    return 'vor wenigen Sekunden';
-  }
-
-  if (diffMinutes < 2) {
-    return 'vor einer Minute';
-  }
-
-  if (diffMinutes < 60) {
-    return `vor ${diffMinutes} Minuten`;
-  }
-
-  if (diffHours < 2) {
-    return 'vor einer Stunde';
-  }
-
-  return `vor ${diffHours} Stunden`;
-}

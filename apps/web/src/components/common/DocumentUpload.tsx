@@ -127,13 +127,18 @@ const DocumentPreview = ({ document }: DocumentPreviewProps) => {
       </button>
 
       {showPreview && (
-        <div className="document-preview-overlay" onClick={() => setShowPreview(false)}>
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-md backdrop-blur-[4px]"
+          onClick={() => setShowPreview(false)}
+        >
           <div
-            className="document-preview-modal"
+            className="bg-background rounded-2xl shadow-xl max-w-[800px] max-h-[90vh] w-full flex flex-col overflow-hidden"
             onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
-            <div className="document-preview-header">
-              <h4>Text-Vorschau: {document.title}</h4>
+            <div className="flex justify-between items-center px-lg py-md border-b border-grey-200 dark:border-grey-700 bg-grey-50 dark:bg-grey-800">
+              <h4 className="m-0 text-foreground-heading text-[1.1rem] font-medium flex-1 min-w-0 break-words">
+                Text-Vorschau: {document.title}
+              </h4>
               <button
                 onClick={() => setShowPreview(false)}
                 className="icon-button"
@@ -143,21 +148,21 @@ const DocumentPreview = ({ document }: DocumentPreviewProps) => {
               </button>
             </div>
 
-            <div className="document-preview-content">
+            <div className="p-lg overflow-y-auto flex-1">
               {error ? (
-                <div className="preview-error">
+                <div className="flex items-center gap-xs text-red-600 text-[0.9rem]">
                   <HiExclamationCircle />
                   {error}
                 </div>
               ) : (
-                <div className="preview-text">
+                <div className="leading-relaxed text-foreground text-[0.9rem]">
                   <Markdown>{previewText}</Markdown>
                 </div>
               )}
             </div>
 
-            <div className="document-preview-footer">
-              <span className="preview-stats">
+            <div className="px-lg py-md border-t border-grey-200 dark:border-grey-700 bg-grey-50 dark:bg-grey-800">
+              <span className="text-sm text-grey-500 dark:text-grey-400">
                 {document.page_count} Seiten • {previewText.length} Zeichen
               </span>
             </div>
@@ -633,34 +638,34 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                   <div className="document-preview-content">
                     {/* Mode Selector - hide when only one mode allowed */}
                     {(!allowedUploadModes || allowedUploadModes.length > 1) && (
-                    <div
-                      className="upload-mode-selector"
-                      style={{ marginBottom: 'var(--spacing-medium)' }}
-                    >
-                      <div className="mode-tabs">
-                        {(!allowedUploadModes || allowedUploadModes.includes('file')) && (
-                        <button
-                          type="button"
-                          className={`mode-tab ${uploadMode === 'file' ? 'active' : ''}`}
-                          onClick={() => setUploadMode('file')}
-                          disabled={isUploading}
-                        >
-                          <HiOutlineDocumentAdd className="icon" />
-                          Datei
-                        </button>
-                        )}
-                        {(!allowedUploadModes || allowedUploadModes.includes('url')) && (
-                        <button
-                          type="button"
-                          className={`mode-tab ${uploadMode === 'url' ? 'active' : ''}`}
-                          onClick={() => setUploadMode('url')}
-                          disabled={isUploading}
-                        >
-                          <HiOutlineLink className="icon" />
-                          URL
-                        </button>
-                        )}
-                        {/* Wolke tab temporarily hidden
+                      <div
+                        className="upload-mode-selector"
+                        style={{ marginBottom: 'var(--spacing-medium)' }}
+                      >
+                        <div className="mode-tabs">
+                          {(!allowedUploadModes || allowedUploadModes.includes('file')) && (
+                            <button
+                              type="button"
+                              className={`mode-tab ${uploadMode === 'file' ? 'active' : ''}`}
+                              onClick={() => setUploadMode('file')}
+                              disabled={isUploading}
+                            >
+                              <HiOutlineDocumentAdd className="icon" />
+                              Datei
+                            </button>
+                          )}
+                          {(!allowedUploadModes || allowedUploadModes.includes('url')) && (
+                            <button
+                              type="button"
+                              className={`mode-tab ${uploadMode === 'url' ? 'active' : ''}`}
+                              onClick={() => setUploadMode('url')}
+                              disabled={isUploading}
+                            >
+                              <HiOutlineLink className="icon" />
+                              URL
+                            </button>
+                          )}
+                          {/* Wolke tab temporarily hidden
                       <button
                         type="button"
                         className={`mode-tab ${uploadMode === 'wolke' ? 'active' : ''}`}
@@ -672,8 +677,8 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                         Wolke
                       </button>
                       */}
+                        </div>
                       </div>
-                    </div>
                     )}
 
                     {uploadMode === 'file' ? (
@@ -693,7 +698,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                             </div>
                           ) : (
                             <div
-                              className={`file-dropzone ${dragActive ? 'active' : ''}`}
+                              className={`border-2 border-dashed rounded-lg p-lg text-center cursor-pointer transition-all duration-200 ${dragActive ? 'border-primary-600 bg-background' : 'border-grey-300 dark:border-grey-600 bg-background-alt hover:border-primary-600 hover:bg-background'}`}
                               onDragEnter={handleDrag}
                               onDragLeave={handleDrag}
                               onDragOver={handleDrag}
@@ -701,12 +706,14 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                               onClick={() => fileInputRef.current?.click()}
                             >
                               <div className="file-placeholder">
-                                <HiOutlineDocumentAdd className="upload-icon" />
+                                <HiOutlineDocumentAdd className="text-5xl text-grey-400 mb-sm" />
                                 <p>
                                   PDF, Word (DOCX), PowerPoint (PPTX), Bilder oder Textdateien hier
                                   ablegen oder klicken zum Auswählen
                                 </p>
-                                <p className="file-requirements">Max. 1.000 Seiten, 50MB</p>
+                                <p className="text-sm text-grey-400 mt-xs">
+                                  Max. 1.000 Seiten, 50MB
+                                </p>
                               </div>
                             </div>
                           )}
@@ -783,7 +790,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                   )}
                   */}
                   </div>
-                  <div className="document-preview-actions">
+                  <div className="px-lg py-md border-t border-grey-200 dark:border-grey-700 bg-grey-50 dark:bg-grey-800 flex justify-end gap-sm">
                     <button
                       onClick={handleUpload}
                       className="btn-primary size-s"
@@ -847,34 +854,34 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
               >
                 {/* Mode Selector - hide when only one mode allowed */}
                 {(!allowedUploadModes || allowedUploadModes.length > 1) && (
-                <div
-                  className="upload-mode-selector"
-                  style={{ marginBottom: 'var(--spacing-medium)' }}
-                >
-                  <div className="mode-tabs">
-                    {(!allowedUploadModes || allowedUploadModes.includes('file')) && (
-                    <button
-                      type="button"
-                      className={`mode-tab ${uploadMode === 'file' ? 'active' : ''}`}
-                      onClick={() => setUploadMode('file')}
-                      disabled={isUploading}
-                    >
-                      <HiOutlineDocumentAdd className="icon" />
-                      Datei
-                    </button>
-                    )}
-                    {(!allowedUploadModes || allowedUploadModes.includes('url')) && (
-                    <button
-                      type="button"
-                      className={`mode-tab ${uploadMode === 'url' ? 'active' : ''}`}
-                      onClick={() => setUploadMode('url')}
-                      disabled={isUploading}
-                    >
-                      <HiOutlineLink className="icon" />
-                      URL
-                    </button>
-                    )}
-                    {/* Wolke tab temporarily hidden
+                  <div
+                    className="upload-mode-selector"
+                    style={{ marginBottom: 'var(--spacing-medium)' }}
+                  >
+                    <div className="mode-tabs">
+                      {(!allowedUploadModes || allowedUploadModes.includes('file')) && (
+                        <button
+                          type="button"
+                          className={`mode-tab ${uploadMode === 'file' ? 'active' : ''}`}
+                          onClick={() => setUploadMode('file')}
+                          disabled={isUploading}
+                        >
+                          <HiOutlineDocumentAdd className="icon" />
+                          Datei
+                        </button>
+                      )}
+                      {(!allowedUploadModes || allowedUploadModes.includes('url')) && (
+                        <button
+                          type="button"
+                          className={`mode-tab ${uploadMode === 'url' ? 'active' : ''}`}
+                          onClick={() => setUploadMode('url')}
+                          disabled={isUploading}
+                        >
+                          <HiOutlineLink className="icon" />
+                          URL
+                        </button>
+                      )}
+                      {/* Wolke tab temporarily hidden
                   <button
                     type="button"
                     className={`mode-tab ${uploadMode === 'wolke' ? 'active' : ''}`}
@@ -886,8 +893,8 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                     Wolke
                   </button>
                   */}
+                    </div>
                   </div>
-                </div>
                 )}
 
                 {uploadMode === 'file' ? (
@@ -905,7 +912,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
 
                       {selectedFile ? (
                         autoUpload ? (
-                          <div className="file-dropzone auto-upload-progress">
+                          <div className="border-2 border-dashed border-grey-300 dark:border-grey-600 rounded-lg p-lg text-center bg-background-alt">
                             <Spinner size="small" />
                             <span className="auto-upload-filename">{selectedFile.name}</span>
                             <span className="auto-upload-status">Wird hochgeladen…</span>
@@ -917,7 +924,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                         )
                       ) : (
                         <div
-                          className={`file-dropzone ${dragActive ? 'active' : ''}`}
+                          className={`border-2 border-dashed rounded-lg p-lg text-center cursor-pointer transition-all duration-200 ${dragActive ? 'border-primary-600 bg-background' : 'border-grey-300 dark:border-grey-600 bg-background-alt hover:border-primary-600 hover:bg-background'}`}
                           onDragEnter={handleDrag}
                           onDragLeave={handleDrag}
                           onDragOver={handleDrag}
@@ -925,12 +932,12 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                           onClick={() => fileInputRef.current?.click()}
                         >
                           <div className="file-placeholder">
-                            <HiOutlineDocumentAdd className="upload-icon" />
+                            <HiOutlineDocumentAdd className="text-5xl text-grey-400 mb-sm" />
                             <p>
                               PDF, Word (DOCX), PowerPoint (PPTX), Bilder oder Textdateien hier
                               ablegen oder klicken zum Auswählen
                             </p>
-                            <p className="file-requirements">Max. 1.000 Seiten, 50MB</p>
+                            <p className="text-sm text-grey-400 mt-xs">Max. 1.000 Seiten, 50MB</p>
                           </div>
                         </div>
                       )}
@@ -1009,63 +1016,63 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
 
                 {/* Action Buttons — hidden in autoUpload mode */}
                 {!autoUpload && (
-                <div
-                  className="profile-actions"
-                  style={{ justifyContent: 'flex-start', gap: '10px' }}
-                >
-                  <button
-                    onClick={handleUpload}
-                    className="btn-primary size-s"
-                    disabled={
-                      isUploading ||
-                      (uploadMode === 'file' && (!selectedFile || !uploadTitle.trim())) ||
-                      (uploadMode === 'url' && (!urlInput.trim() || !uploadTitle.trim())) ||
-                      (uploadMode === 'wolke' &&
-                        (selectedWolkeFiles.length === 0 || !uploadTitle.trim()))
-                    }
+                  <div
+                    className="profile-actions"
+                    style={{ justifyContent: 'flex-start', gap: '10px' }}
                   >
-                    {isUploading ? (
-                      <>
-                        <Spinner size="small" />
-                        {uploadMode === 'file'
-                          ? 'Wird hochgeladen...'
-                          : uploadMode === 'url'
-                            ? 'Website wird verarbeitet...'
-                            : 'Wolke-Dateien werden importiert...'}
-                      </>
-                    ) : uploadMode === 'file' ? (
-                      'Hochladen'
-                    ) : uploadMode === 'url' ? (
-                      'Website crawlen'
-                    ) : (
-                      'Wolke-Dateien importieren'
-                    )}
-                  </button>
-                  {uploadMode === 'file' && selectedFile && (
                     <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={handleUpload}
                       className="btn-primary size-s"
+                      disabled={
+                        isUploading ||
+                        (uploadMode === 'file' && (!selectedFile || !uploadTitle.trim())) ||
+                        (uploadMode === 'url' && (!urlInput.trim() || !uploadTitle.trim())) ||
+                        (uploadMode === 'wolke' &&
+                          (selectedWolkeFiles.length === 0 || !uploadTitle.trim()))
+                      }
+                    >
+                      {isUploading ? (
+                        <>
+                          <Spinner size="small" />
+                          {uploadMode === 'file'
+                            ? 'Wird hochgeladen...'
+                            : uploadMode === 'url'
+                              ? 'Website wird verarbeitet...'
+                              : 'Wolke-Dateien werden importiert...'}
+                        </>
+                      ) : uploadMode === 'file' ? (
+                        'Hochladen'
+                      ) : uploadMode === 'url' ? (
+                        'Website crawlen'
+                      ) : (
+                        'Wolke-Dateien importieren'
+                      )}
+                    </button>
+                    {uploadMode === 'file' && selectedFile && (
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="btn-primary size-s"
+                        disabled={isUploading}
+                      >
+                        Datei ändern
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        if (forceShowUploadForm) {
+                          // When controlled by parent, notify parent to close
+                          onUploadComplete?.(null);
+                        } else {
+                          resetForm();
+                        }
+                      }}
+                      className="btn-secondary"
                       disabled={isUploading}
                     >
-                      Datei ändern
+                      Abbrechen
                     </button>
-                  )}
-                  <button
-                    onClick={() => {
-                      if (forceShowUploadForm) {
-                        // When controlled by parent, notify parent to close
-                        onUploadComplete?.(null);
-                      } else {
-                        resetForm();
-                      }
-                    }}
-                    className="btn-secondary"
-                    disabled={isUploading}
-                  >
-                    Abbrechen
-                  </button>
-                </div>
+                  </div>
                 )}
               </div>
             )}
@@ -1085,16 +1092,16 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                 </p>
               </div>
             ) : (
-              <div className="documents-list">
+              <div className="flex flex-col gap-md">
                 {documents.map((document) => (
                   <div key={document.id} className="knowledge-entry knowledge-entry-bordered">
-                    <div className="document-header">
-                      <div className="document-info">
-                        <div className="document-title">
+                    <div className="flex justify-between items-center gap-md min-h-[60px]">
+                      <div className="flex-1 flex flex-col justify-center min-w-0">
+                        <div className="flex items-center gap-xs font-medium mb-xs text-foreground text-[0.95rem] leading-snug overflow-hidden text-ellipsis whitespace-nowrap">
                           {getStatusIcon(document.status)}
                           <span>{document.title}</span>
                         </div>
-                        <div className="document-meta">
+                        <div className="flex gap-md text-sm text-grey-400 flex-wrap leading-tight m-0">
                           <span className="document-status">{getStatusText(document.status)}</span>
                           {(document.page_count ?? 0) > 0 && (
                             <span className="document-pages">{document.page_count} Seiten</span>
@@ -1105,7 +1112,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                           </span>
                         </div>
                       </div>
-                      <div className="document-actions">
+                      <div className="flex gap-xs items-center">
                         {document.status === 'completed' && document.ocr_text && (
                           <DocumentPreview document={document} />
                         )}
@@ -1129,7 +1136,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                     </div>
 
                     {document.status === 'failed' && (
-                      <div className="document-error">
+                      <div className="flex items-center gap-xs text-red-600 text-sm mt-sm p-sm bg-background-alt rounded">
                         <HiExclamationCircle />
                         <span>Die Verarbeitung ist fehlgeschlagen. Versuchen Sie es erneut.</span>
                       </div>

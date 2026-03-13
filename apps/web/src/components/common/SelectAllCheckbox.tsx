@@ -43,7 +43,7 @@ const SelectAllCheckbox = ({
   if (selectableItems.length === 0) return null;
 
   return (
-    <div className="document-overview-select-all">
+    <div className="flex items-center">
       <input
         ref={checkboxRef}
         type="checkbox"

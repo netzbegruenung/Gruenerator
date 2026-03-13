@@ -126,7 +126,7 @@
 
   /* Canvas Editor Layout */
   --image-studio-tab-bar-width: 64px;
-  --mobile-tab-bar-height: 44px;
+  --mobile-tab-bar-height: 60px;
 
   /* Custom Breakpoints */
   --breakpoint-canvas-mobile: 900px;

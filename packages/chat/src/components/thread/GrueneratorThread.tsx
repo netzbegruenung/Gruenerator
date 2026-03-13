@@ -1,29 +1,14 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
-import { ThreadPrimitive, SelectionToolbarPrimitive, useThread, useAui } from '@assistant-ui/react';
+import { useMemo } from 'react';
+import { ThreadPrimitive, SelectionToolbarPrimitive, useThread } from '@assistant-ui/react';
 import { QuoteIcon } from 'lucide-react';
-import { useAgentStore } from '../../stores/chatStore';
 import { ModelSelector } from '../ModelSelector';
 import { WelcomeScreen } from './WelcomeScreen';
 import { UserMessage } from './UserMessage';
 import { AssistantMessage } from './AssistantMessage';
 import { GrueneratorComposer } from './GrueneratorComposer';
 import { AutoMessageSender } from './AutoMessageSender';
-
-function NewThreadWatcher() {
-  const aui = useAui();
-  const pendingNewThread = useAgentStore((s) => s.pendingNewThread);
-
-  useEffect(() => {
-    if (pendingNewThread) {
-      useAgentStore.getState().setPendingNewThread(false);
-      aui.threads().switchToNewThread();
-    }
-  }, [pendingNewThread, aui]);
-
-  return null;
-}
 
 export function GrueneratorThread() {
   const thread = useThread();
@@ -32,7 +17,6 @@ export function GrueneratorThread() {
   return (
     <ThreadPrimitive.Root className="relative flex h-full min-h-0 flex-col bg-background">
       <AutoMessageSender />
-      <NewThreadWatcher />
       <div className="floating-controls-wrapper hidden md:flex">
         <div className="floating-controls-left">
           <ModelSelector />
