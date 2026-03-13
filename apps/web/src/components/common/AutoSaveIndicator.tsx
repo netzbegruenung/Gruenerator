@@ -1,10 +1,8 @@
 import React, { useCallback } from 'react';
-import { HiCheckCircle, HiExclamationCircle } from 'react-icons/hi';
-import { ImSpinner2 } from 'react-icons/im';
+import { HiExclamationCircle } from 'react-icons/hi';
 
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { buildLoginUrl } from '../../utils/authRedirect';
-import { formatAutoSaveTime } from '../../utils/dateFormatter';
 import '../../assets/styles/components/common/auto-save-indicator.css';
 
 export interface AutoSaveIndicatorProps {
@@ -15,7 +13,7 @@ export interface AutoSaveIndicatorProps {
 
 /**
  * Visual indicator for auto-save status
- * Shows current save state: idle, saving, saved, or error
+ * Only shows errors — success states are silent
  */
 const AutoSaveIndicator: React.FC<AutoSaveIndicatorProps> = ({
   componentName,
@@ -23,41 +21,18 @@ const AutoSaveIndicator: React.FC<AutoSaveIndicatorProps> = ({
   onRetry,
 }) => {
   const status = useGeneratedTextStore((state) => state.getAutoSaveStatus(componentName));
-  const lastSaved = useGeneratedTextStore((state) => state.getLastAutoSaveTime(componentName));
 
   const handleLogin = useCallback(() => {
     const currentPath = window.location.pathname + window.location.search;
     window.location.href = buildLoginUrl(currentPath);
   }, []);
 
-  // Don't render anything in idle state
-  if (status === 'idle') {
+  if (status !== 'error' && status !== 'session_expired') {
     return null;
   }
 
   const renderContent = () => {
     switch (status) {
-      case 'saving':
-        return (
-          <>
-            <ImSpinner2 className="auto-save-indicator__spinner" aria-hidden="true" />
-            <span className="auto-save-indicator__text">Wird gespeichert...</span>
-          </>
-        );
-
-      case 'saved':
-        return (
-          <>
-            <HiCheckCircle
-              className="auto-save-indicator__icon auto-save-indicator__icon--success"
-              aria-hidden="true"
-            />
-            <span className="auto-save-indicator__text">
-              Gespeichert {lastSaved ? formatAutoSaveTime(lastSaved) : ''}
-            </span>
-          </>
-        );
-
       case 'error':
         return (
           <>

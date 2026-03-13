@@ -52,6 +52,10 @@ export interface ControllableCanvasWrapperProps {
   onReady?: () => void;
   /** Mobile bridge — when provided, hides web chrome and delegates to native controls */
   mobileBridge?: MobileBridgeProps;
+  /** When true, tab bar is handled externally (e.g. web app sidebar) via canvasSidebarStore */
+  externalSidebar?: boolean;
+  /** When true + externalSidebar, syncs mobile subsection state to canvasSidebarStore for external mobile UI */
+  externalMobileMode?: boolean;
 }
 
 export function ControllableCanvasWrapper({
@@ -64,6 +68,8 @@ export function ControllableCanvasWrapper({
   initialPages,
   onReady,
   mobileBridge,
+  externalSidebar,
+  externalMobileMode,
 }: ControllableCanvasWrapperProps) {
   const [internalState, setInternalState] = useState<CanvasState>(initialState);
   const [componentKey, setComponentKey] = useState(Date.now());
@@ -273,6 +279,8 @@ export function ControllableCanvasWrapper({
             maxPages={config.multiPage?.maxPages ?? 10}
             initialPages={initialPages}
             mobileBridge={mobileBridge}
+            externalSidebar={externalSidebar}
+            externalMobileMode={externalMobileMode}
           />
         );
 

@@ -69,3 +69,5 @@ export type { InitialPageDef, UsePageManagerOptions, UsePageManagerReturn } from
 
 export { useMobileBridge } from './useMobileBridge';
 export type { MobileBridgeCallbacks, MobileBridgeProps } from './useMobileBridge';
+
+export { useMobileSheet } from './useMobileSheet';

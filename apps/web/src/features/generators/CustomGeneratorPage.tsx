@@ -4,7 +4,6 @@ import { useParams } from 'react-router-dom';
 import BaseForm from '../../components/common/BaseForm';
 import useBaseForm from '../../components/common/Form/hooks/useBaseForm';
 import ErrorBoundary from '../../components/ErrorBoundary';
-import '../../assets/styles/components/custom-generator/custom-generator-page.css';
 import '../../assets/styles/components/ui/button.css';
 import apiClient from '../../components/utils/apiClient';
 import { useOptimizedAuth } from '../../hooks/useAuth';
@@ -253,7 +252,7 @@ const CustomGeneratorPage: React.FC = memo(() => {
 
   return (
     <ErrorBoundary>
-      <div className="custom-generator-page-container container with-header">
+      <div className="flex flex-col items-center justify-start container with-header">
         <BaseForm {...baseFormProps}>
           <DynamicFormFieldRenderer
             fields={generatorConfig.form_schema.fields}

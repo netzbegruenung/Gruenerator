@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { HiArrowsUpDown, HiBarsArrowDown, HiCog6Tooth, HiRectangleStack } from 'react-icons/hi2';
 import { IoSearch } from 'react-icons/io5';
 
 import IndexCard from '../../components/common/IndexCard';
@@ -8,14 +9,32 @@ import SearchBar from '../search/components/SearchBar';
 import '../../assets/styles/components/gallery-layout.css';
 
 import ActiveFilterChips from './components/ActiveFilterChips';
-import ResearchSettingsPanel from './components/ResearchSettingsPanel';
+import ResearchFilterPanel from './components/ResearchFilterPanel';
 import { useResearch, type ResearchResult } from './useResearch';
-import { useResearchFilters, type SortOption } from './useResearchFilters';
+import { useResearchFilters, type SearchMode, type SortOption } from './useResearchFilters';
 
-const EXAMPLE_QUESTIONS = [
-  { icon: '🌍', text: 'Klimaschutz Maßnahmen' },
-  { icon: '🚲', text: 'Verkehrswende in Kommunen' },
-  { icon: '📚', text: 'Bildungspolitik Positionen' },
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/utils/cn';
+
+const MODE_OPTIONS: { value: SearchMode; label: string }[] = [
+  { value: 'hybrid', label: 'Hybrid' },
+  { value: 'vector', label: 'Semantisch' },
+  { value: 'text', label: 'Volltext' },
+];
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'relevance', label: 'Relevanz' },
+  { value: 'date_desc', label: 'Neueste' },
+  { value: 'date_asc', label: 'Älteste' },
 ];
 
 const SORT_LABELS: Record<SortOption, string> = {
@@ -90,7 +109,7 @@ function ResearchPage() {
     setFiltersEnabled,
     activeFilters,
     activeFilterCount,
-    toggleFilter,
+    setKeywordFilter,
     setDateFilter,
     clearFilter,
     clearAllFilters,
@@ -101,6 +120,30 @@ function ResearchPage() {
     setSortBy,
     buildApiFilters,
   } = useResearchFilters();
+
+  useEffect(() => {
+    setFiltersEnabled(true);
+  }, [setFiltersEnabled]);
+
+  const contentTypeConfig = filterFields['content_type'];
+  const activeContentTypes = useMemo(() => {
+    const active = activeFilters['content_type'];
+    return Array.isArray(active) ? active : [];
+  }, [activeFilters]);
+
+  const dateFilterCount = useMemo(() => {
+    let count = 0;
+    for (const [, value] of Object.entries(activeFilters)) {
+      if (!Array.isArray(value) && (value.date_from || value.date_to)) count += 1;
+    }
+    return count;
+  }, [activeFilters]);
+
+  const clearDateFilters = useCallback(() => {
+    for (const [field, config] of Object.entries(filterFields)) {
+      if (config.type === 'date_range') clearFilter(field);
+    }
+  }, [filterFields, clearFilter]);
 
   const executeSearch = useCallback(
     (searchQuery: string) => {
@@ -125,7 +168,6 @@ function ResearchPage() {
     [executeSearch, query]
   );
 
-  // Auto-search on filter/mode/sort changes after initial search
   useEffect(() => {
     if (!hasSearched || !lastQueryRef.current) return;
 
@@ -139,6 +181,8 @@ function ResearchPage() {
 
   const sortIndicator = sortBy !== 'relevance' ? ` · sortiert nach ${SORT_LABELS[sortBy]}` : '';
 
+  const modeLabel = MODE_OPTIONS.find((o) => o.value === searchMode)?.label ?? 'Hybrid';
+
   return (
     <ErrorBoundary>
       <div className="gallery-layout">
@@ -147,42 +191,157 @@ function ResearchPage() {
           <p>(Fast) alle grünen Dokumente und Programme an einem Ort durchsuchbar.</p>
         </div>
 
-        <div className="relative">
+        <div className="mb-xl">
           <SearchBar
             onSearch={handleSearch}
             loading={isLoading}
             value={query}
             onChange={setQuery}
             placeholder="Suchbegriff eingeben (z.B. Klimaschutz, Mobilität, Bildung)..."
-            exampleQuestions={EXAMPLE_QUESTIONS}
-            hideExamples={hasSearched}
             hideDisclaimer
-            settingsContent={
-              <ResearchSettingsPanel
-                collections={collections}
-                collectionsLoading={collectionsLoading}
-                selectedCollectionIds={selectedCollectionIds}
-                onSelectedCollectionIdsChange={setSelectedCollectionIds}
-                searchMode={searchMode}
-                onSearchModeChange={setSearchMode}
-                sortBy={sortBy}
-                onSortByChange={setSortBy}
-                filterFields={filterFields}
-                activeFilters={activeFilters}
-                activeFilterCount={activeFilterCount}
-                filtersLoading={filtersLoading}
-                onToggleFilter={toggleFilter}
-                onSetDateFilter={setDateFilter}
-                onClearAll={clearAllFilters}
-                onFiltersOpen={() => setFiltersEnabled(true)}
-                disabled={isLoading}
-              />
+            submitPlacement="hidden"
+            bottomContent={
+              <div className="flex flex-wrap items-center gap-xs">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <HiRectangleStack className="size-4" />
+                      {collectionsLoading
+                        ? 'Laden...'
+                        : selectedCollectionIds.length > 0
+                          ? `${selectedCollectionIds.length} Kollektion${selectedCollectionIds.length > 1 ? 'en' : ''}`
+                          : 'Kollektionen'}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    {collections.map((c) => (
+                      <DropdownMenuCheckboxItem
+                        key={c.id}
+                        checked={selectedCollectionIds.includes(c.id)}
+                        onCheckedChange={(checked) => {
+                          setSelectedCollectionIds(
+                            checked
+                              ? [...selectedCollectionIds, c.id]
+                              : selectedCollectionIds.filter((id) => id !== c.id)
+                          );
+                        }}
+                        onSelect={(e) => e.preventDefault()}
+                      >
+                        {c.name}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {contentTypeConfig && (contentTypeConfig.values ?? []).length > 0 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <HiBarsArrowDown className="size-4" />
+                        {filtersLoading
+                          ? 'Laden...'
+                          : activeContentTypes.length > 0
+                            ? `${activeContentTypes.length} Typ${activeContentTypes.length > 1 ? 'en' : ''}`
+                            : 'Typ'}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      {(contentTypeConfig.values ?? []).map((v) => (
+                        <DropdownMenuCheckboxItem
+                          key={v.value}
+                          checked={activeContentTypes.includes(v.value)}
+                          onCheckedChange={(checked) => {
+                            setKeywordFilter(
+                              'content_type',
+                              checked
+                                ? [...activeContentTypes, v.value]
+                                : activeContentTypes.filter((t) => t !== v.value)
+                            );
+                          }}
+                          onSelect={(e) => e.preventDefault()}
+                        >
+                          {v.value} ({v.count})
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <HiArrowsUpDown className="size-4" />
+                      {SORT_LABELS[sortBy] ?? 'Relevanz'}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuRadioGroup
+                      value={sortBy}
+                      onValueChange={(v) => setSortBy(v as SortOption)}
+                    >
+                      {SORT_OPTIONS.map((opt) => (
+                        <DropdownMenuRadioItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <ResearchFilterPanel
+                  filterFields={filterFields}
+                  activeFilters={activeFilters}
+                  dateFilterCount={dateFilterCount}
+                  filtersLoading={filtersLoading}
+                  onSetDateFilter={setDateFilter}
+                  onClearDates={clearDateFilters}
+                  onFiltersOpen={() => setFiltersEnabled(true)}
+                />
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={searchMode !== 'hybrid' ? 'default' : 'outline'}
+                      size="sm"
+                      aria-label="Suchmodus"
+                      title={`Suchmodus: ${modeLabel}`}
+                    >
+                      <HiCog6Tooth className="size-4" />
+                      {modeLabel}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" sideOffset={8} className="w-auto p-2">
+                    <div className="space-y-1.5">
+                      <span className="block px-1 text-xs font-medium text-grey-500 dark:text-grey-400">
+                        Suchmodus
+                      </span>
+                      <div className="flex flex-col gap-0.5">
+                        {MODE_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setSearchMode(opt.value)}
+                            className={cn(
+                              'rounded-md px-3 py-1.5 text-left text-sm transition-colors',
+                              searchMode === opt.value
+                                ? 'bg-primary-500 text-white'
+                                : 'text-foreground hover:bg-background-alt'
+                            )}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
             }
           />
         </div>
 
         {activeFilterCount > 0 && (
-          <div className="mb-md">
+          <div className="mt-sm mb-md">
             <ActiveFilterChips
               filterFields={filterFields}
               activeFilters={activeFilters}

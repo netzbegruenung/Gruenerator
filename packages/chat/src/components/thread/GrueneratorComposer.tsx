@@ -2,7 +2,8 @@
 
 import { useRef, useState, useCallback } from 'react';
 import { ComposerPrimitive, useComposerRuntime } from '@assistant-ui/react';
-import { ArrowUp, Square, X } from 'lucide-react';
+import { useAuiState } from '@assistant-ui/store';
+import { ArrowUp, Mic, Square, X } from 'lucide-react';
 import { ToolToggles } from '../ToolToggles';
 import { ComposerAttachments } from '../assistant-ui/attachment';
 import { MentionPopover } from './MentionPopover';
@@ -19,6 +20,7 @@ import type { DocumentMention } from '../../lib/documentMentionables';
 
 interface GrueneratorComposerProps {
   isRunning?: boolean;
+  toolbarExtra?: React.ReactNode;
 }
 
 function SendButton() {
@@ -43,6 +45,39 @@ function CancelButton() {
   );
 }
 
+function DictateButton() {
+  return (
+    <ComposerPrimitive.Dictate
+      className="m-2 flex h-8 w-8 items-center justify-center rounded-full text-foreground-muted transition-colors hover:bg-grey-100 hover:text-foreground dark:hover:bg-grey-800"
+      aria-label="Diktat starten"
+    >
+      <Mic className="h-5 w-5" />
+    </ComposerPrimitive.Dictate>
+  );
+}
+
+function StopDictationButton() {
+  return (
+    <ComposerPrimitive.StopDictation
+      className="m-2 flex h-8 w-8 items-center justify-center rounded-full bg-error text-white transition-opacity animate-pulse"
+      aria-label="Diktat beenden"
+    >
+      <Square className="h-4 w-4" />
+    </ComposerPrimitive.StopDictation>
+  );
+}
+
+function ComposerButtons({ isRunning }: { isRunning?: boolean }) {
+  const isDictating = useAuiState((s) => s.composer.dictation != null);
+  const hasDictation = useAuiState((s) => s.thread.capabilities.dictation);
+  const isEmpty = useAuiState((s) => s.composer.isEmpty);
+
+  if (isRunning) return <CancelButton />;
+  if (isDictating) return <StopDictationButton />;
+  if (hasDictation && isEmpty) return <DictateButton />;
+  return <SendButton />;
+}
+
 interface MentionState {
   visible: boolean;
   mode: 'functions' | 'skills' | 'datei';
@@ -61,7 +96,7 @@ const INITIAL_MENTION_STATE: MentionState = {
   mentionStart: -1,
 };
 
-export function GrueneratorComposer({ isRunning }: GrueneratorComposerProps) {
+export function GrueneratorComposer({ isRunning, toolbarExtra }: GrueneratorComposerProps) {
   const composerRuntime = useComposerRuntime();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadRef = useRef<HTMLButtonElement>(null);
@@ -267,6 +302,7 @@ export function GrueneratorComposer({ isRunning }: GrueneratorComposerProps) {
             />
             <ToolToggles />
           </div>
+          {toolbarExtra}
           <ComposerPrimitive.Input
             ref={textareaRef}
             autoFocus
@@ -275,7 +311,7 @@ export function GrueneratorComposer({ isRunning }: GrueneratorComposerProps) {
             onChange={handleChange}
             onKeyDown={handleKeyDown}
           />
-          {isRunning ? <CancelButton /> : <SendButton />}
+          <ComposerButtons isRunning={isRunning} />
         </div>
       </ComposerPrimitive.Root>
       <p className="mt-2 text-center text-xs text-foreground-muted">

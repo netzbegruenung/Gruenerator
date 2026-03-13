@@ -8,7 +8,6 @@ import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { PROFILE_MENU_ITEMS } from '../components/profile/ProfileMenu';
 
 import '../../../assets/styles/features/auth/auth.css';
-import '../../../assets/styles/features/auth/documents-tab.css';
 import '../../../assets/styles/components/auth/avatar-selection.css';
 
 const ProfileInfoTab = lazy(() => import('../components/profile/ProfileInfoTab'));

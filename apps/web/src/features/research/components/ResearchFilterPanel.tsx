@@ -11,11 +11,11 @@ import { cn } from '@/utils/cn';
 interface ResearchFilterPanelProps {
   filterFields: Record<string, FilterFieldConfig>;
   activeFilters: ActiveFilters;
-  activeFilterCount: number;
+  dateFilterCount: number;
   filtersLoading: boolean;
-  onToggleFilter: (field: string, value: string) => void;
   onSetDateFilter: (field: string, dateFrom?: string, dateTo?: string) => void;
-  onClearAll: () => void;
+  onClearDates: () => void;
+  onFiltersOpen?: () => void;
   disabled?: boolean;
 }
 
@@ -178,92 +178,72 @@ export function KeywordField({
 export default function ResearchFilterPanel({
   filterFields,
   activeFilters,
-  activeFilterCount,
+  dateFilterCount,
   filtersLoading,
-  onToggleFilter,
   onSetDateFilter,
-  onClearAll,
+  onClearDates,
+  onFiltersOpen,
   disabled,
 }: ResearchFilterPanelProps) {
-  const fieldEntries = Object.entries(filterFields);
+  const dateFields = Object.entries(filterFields).filter(([, c]) => c.type === 'date_range');
 
   return (
-    <Popover>
+    <Popover
+      onOpenChange={(open) => {
+        if (open) onFiltersOpen?.();
+      }}
+    >
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" disabled={disabled}>
           <HiAdjustmentsHorizontal className="size-4" />
-          Filter
-          {activeFilterCount > 0 && (
+          Zeitraum
+          {dateFilterCount > 0 && (
             <Badge className="ml-1 h-5 min-w-5 justify-center rounded-full px-1.5 text-[10px]">
-              {activeFilterCount}
+              {dateFilterCount}
             </Badge>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        className="w-[22rem] sm:w-[30rem] max-h-[var(--radix-popover-content-available-height,28rem)] overflow-y-auto p-3"
-      >
+      <PopoverContent align="end" className="w-[20rem] p-3">
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">
-              Filter{activeFilterCount > 0 && ` (${activeFilterCount} aktiv)`}
-            </span>
-            {activeFilterCount > 0 && (
+            <span className="text-sm font-medium">Zeitraum</span>
+            {dateFilterCount > 0 && (
               <button
                 type="button"
                 className="text-xs text-primary-500 hover:underline"
-                onClick={onClearAll}
+                onClick={onClearDates}
               >
-                Alle zurücksetzen
+                Zurücksetzen
               </button>
             )}
           </div>
 
           {filtersLoading && (
-            <div className="space-y-2 py-1">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <div className="h-3 w-20 animate-pulse rounded bg-grey-200 dark:bg-grey-700" />
-                  <div className="h-3 w-3 animate-pulse rounded bg-grey-200 dark:bg-grey-700" />
-                </div>
-              ))}
+            <div className="flex items-center justify-between py-1">
+              <div className="h-3 w-20 animate-pulse rounded bg-grey-200 dark:bg-grey-700" />
+              <div className="h-3 w-3 animate-pulse rounded bg-grey-200 dark:bg-grey-700" />
             </div>
           )}
 
-          {!filtersLoading && fieldEntries.length === 0 && (
-            <p className="py-2 text-center text-xs text-grey-400">
-              Keine Filter verfügbar für die ausgewählten Kollektionen.
-            </p>
-          )}
-
-          {fieldEntries.map(([field, config]) => {
-            if (config.type === 'date_range') {
-              const dateValue = activeFilters[field];
-              const parsed = dateValue && !Array.isArray(dateValue) ? dateValue : undefined;
-              return (
-                <DateRangeField
-                  key={field}
-                  field={field}
-                  config={config}
-                  value={parsed}
-                  onSetDateFilter={onSetDateFilter}
-                />
-              );
-            }
-
-            const keywordValue = activeFilters[field];
-            const selected = Array.isArray(keywordValue) ? keywordValue : [];
+          {dateFields.map(([field, config]) => {
+            const dateValue = activeFilters[field];
+            const parsed = dateValue && !Array.isArray(dateValue) ? dateValue : undefined;
             return (
-              <KeywordField
+              <DateRangeField
                 key={field}
                 field={field}
                 config={config}
-                selectedValues={selected}
-                onToggleFilter={onToggleFilter}
+                value={parsed}
+                onSetDateFilter={onSetDateFilter}
+                collapsible={false}
               />
             );
           })}
+
+          {!filtersLoading && dateFields.length === 0 && (
+            <p className="py-2 text-center text-xs text-grey-400">Kein Zeitfilter verfügbar.</p>
+          )}
         </div>
       </PopoverContent>
     </Popover>

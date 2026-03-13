@@ -9,6 +9,7 @@ import {
 } from '@assistant-ui/react';
 import { MessageSquare, MoreVertical, Pencil, Archive, Trash2, BookOpen } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useAgentStore } from '../../stores/chatStore';
 import { useExternalThread } from '../../context/ExternalThreadContext';
 
 function useSafeThreadAction(action: 'delete' | 'switchTo' | 'archive' | 'unarchive') {
@@ -42,6 +43,7 @@ function ExternalThreadItem() {
       <button
         onClick={(e) => {
           e.stopPropagation();
+          useAgentStore.getState().setChatViewMode('thread');
           if (externalId) ctx?.onClick(externalId);
         }}
         className="flex min-w-0 flex-1 items-center gap-2 text-left"
@@ -57,9 +59,16 @@ function ExternalThreadItem() {
 
 export function GrueneratorThreadListItem() {
   const { externalId } = useThreadListItem();
-  const handleSwitch = useSafeThreadAction('switchTo');
+  const baseSwitchTo = useSafeThreadAction('switchTo');
   const handleArchive = useSafeThreadAction('archive');
   const handleDelete = useSafeThreadAction('delete');
+  const handleSwitch = useCallback(
+    (e: MouseEvent) => {
+      useAgentStore.getState().setChatViewMode('thread');
+      baseSwitchTo(e);
+    },
+    [baseSwitchTo]
+  );
 
   if (externalId) {
     return <ExternalThreadItem />;
@@ -119,9 +128,16 @@ export function GrueneratorThreadListItem() {
 }
 
 export function GrueneratorArchivedThreadListItem() {
-  const handleSwitch = useSafeThreadAction('switchTo');
+  const baseSwitchTo = useSafeThreadAction('switchTo');
   const handleUnarchive = useSafeThreadAction('unarchive');
   const handleDelete = useSafeThreadAction('delete');
+  const handleSwitch = useCallback(
+    (e: MouseEvent) => {
+      useAgentStore.getState().setChatViewMode('thread');
+      baseSwitchTo(e);
+    },
+    [baseSwitchTo]
+  );
 
   return (
     <ThreadListItemPrimitive.Root

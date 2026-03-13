@@ -113,7 +113,7 @@
     border-color: var(--secondary-600);
 }
 
-/* Dark theme support moved to document-overview.css for .qa-document-count and .qa-public-badge */
+/* Dark theme for .qa-document-count and .qa-public-badge is now handled via Tailwind in DocumentOverview.tsx */
 
 [data-theme="dark"] .qa-error-state {
     background: rgba(211, 47, 47, 0.1);

@@ -6,9 +6,11 @@ import {
   type InitialPageDef,
 } from '@gruenerator/canvas-editor';
 import { motion } from 'motion/react';
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
-import useSidebarStore from '../../../stores/sidebarStore';
+import { CanvasMobilePanel } from '../components/CanvasMobilePanel';
+import { CanvasMobileSubsectionBar } from '../components/CanvasMobileSubsectionBar';
+import { CanvasMobileTabBar } from '../components/CanvasMobileTabBar';
 import { slideVariants } from '../components/StepFlow';
 import { IMAGE_STUDIO_TYPES } from '../utils/typeConfig';
 
@@ -59,13 +61,15 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
   onHeadlineChange,
   onSubtextChange,
 }) => {
-  const requestHideSidebar = useSidebarStore((state) => state.requestHideSidebar);
-  const releaseHideSidebar = useSidebarStore((state) => state.releaseHideSidebar);
+  const [isDesktopViewport, setIsDesktopViewport] = useState(
+    typeof window !== 'undefined' && window.innerWidth >= 900
+  );
 
   useEffect(() => {
-    requestHideSidebar('canvas-edit-step');
-    return () => releaseHideSidebar('canvas-edit-step');
-  }, [requestHideSidebar, releaseHideSidebar]);
+    const handleResize = () => setIsDesktopViewport(window.innerWidth >= 900);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   return (
     <>
@@ -100,6 +104,8 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
           className="typeform-field typeform-field--canvas-edit"
         >
           <ControllableCanvasWrapper
+            externalSidebar={true}
+            externalMobileMode={!isDesktopViewport}
             type="zitat-pure"
             initialState={{
               quote: getFieldValue('quote') || '',
@@ -124,6 +130,8 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
           className="typeform-field typeform-field--canvas-edit"
         >
           <ControllableCanvasWrapper
+            externalSidebar={true}
+            externalMobileMode={!isDesktopViewport}
             type="zitat"
             initialState={{
               quote: getFieldValue('quote') || '',
@@ -149,6 +157,8 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
           className="typeform-field typeform-field--canvas-edit"
         >
           <ControllableCanvasWrapper
+            externalSidebar={true}
+            externalMobileMode={!isDesktopViewport}
             type="info"
             initialState={{
               header: getFieldValue('header') || '',
@@ -173,6 +183,8 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
           className="typeform-field typeform-field--canvas-edit"
         >
           <ControllableCanvasWrapper
+            externalSidebar={true}
+            externalMobileMode={!isDesktopViewport}
             type="veranstaltung"
             initialState={{
               eventTitle: getFieldValue('eventTitle') || '',
@@ -203,6 +215,8 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
           className="typeform-field typeform-field--canvas-edit"
         >
           <ControllableCanvasWrapper
+            externalSidebar={true}
+            externalMobileMode={!isDesktopViewport}
             type="dreizeilen"
             initialState={{
               line1: getFieldValue('line1') || '',
@@ -232,6 +246,8 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
           className="typeform-field typeform-field--canvas-edit"
         >
           <ControllableCanvasWrapper
+            externalSidebar={true}
+            externalMobileMode={!isDesktopViewport}
             type="simple"
             initialState={{
               headline: getFieldValue('headline') || '',
@@ -261,6 +277,8 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
           className="typeform-field typeform-field--canvas-edit"
         >
           <ControllableCanvasWrapper
+            externalSidebar={true}
+            externalMobileMode={!isDesktopViewport}
             type="freeform"
             initialState={{}}
             onExport={handleCanvasExport}
@@ -281,6 +299,8 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
           className="typeform-field typeform-field--canvas-edit"
         >
           <ControllableCanvasWrapper
+            externalSidebar={true}
+            externalMobileMode={!isDesktopViewport}
             type="slider"
             initialState={{
               label: getFieldValue('label') || '',
@@ -318,6 +338,14 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
             }
           />
         </motion.div>
+      )}
+
+      {!isDesktopViewport && (
+        <>
+          <CanvasMobilePanel />
+          <CanvasMobileSubsectionBar />
+          <CanvasMobileTabBar />
+        </>
       )}
     </>
   );

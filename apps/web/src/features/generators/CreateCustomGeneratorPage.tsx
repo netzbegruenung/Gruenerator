@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useForm } from 'react-hook-form';
 
 import FormSection from '../../components/common/Form/BaseForm/FormSection';
@@ -14,16 +14,10 @@ import FieldEditorAssistant from './components/FieldEditorAssistant';
 import GeneratorCreationSuccessScreen from './components/GeneratorCreationSuccessScreen';
 import GeneratorStartScreen from './components/GeneratorStartScreen';
 import { getCustomGeneratorHelpContent } from './constants/customGeneratorHelpContent';
+import { MODE_SELECTION, INITIAL_GENERATOR_FORM_DATA } from './constants/generatorConstants';
 import { STEPS } from './constants/steps';
-
-import '../../assets/styles/components/custom-generator/create-custom-generator.css';
-import '../../assets/styles/components/custom-generator/field-editor-assistant.css';
-import '../../assets/styles/components/custom-generator/document-selector.css';
-import './styles/custom-generators-tab.css';
-
 import { useSlugAvailability } from './hooks/useSlugAvailability';
 import { type GeneratorFormField, type GeneratorFormData } from './types/generatorTypes';
-import { MODE_SELECTION, INITIAL_GENERATOR_FORM_DATA } from './constants/generatorConstants';
 import { sanitizeSlug } from './utils/sanitization';
 
 import type { Control } from 'react-hook-form';
@@ -54,6 +48,8 @@ interface CreateCustomGeneratorPageProps {
   generators?: GeneratorListItem[];
   savedGenerators?: GeneratorListItem[];
   onSelectGenerator?: (generator: GeneratorListItem) => void;
+  onDeleteGenerator?: () => void;
+  onGeneratorUpdated?: () => void;
 }
 
 interface CompletionData {
@@ -62,9 +58,25 @@ interface CompletionData {
   [key: string]: unknown;
 }
 
+const fieldBadgeClasses =
+  'inline-block py-0.5 px-2 rounded-full bg-[var(--secondary)] text-primary-600 text-xs font-semibold';
+const fieldListItemClasses =
+  'grid grid-cols-[1fr_auto] items-center gap-sm py-3 px-md bg-transparent text-foreground [&+li]:border-t [&+li]:border-grey-200 dark:[&+li]:border-grey-700 max-[600px]:grid-cols-1';
+const fieldTitleClasses =
+  'inline-flex items-center gap-xs font-semibold text-foreground-heading whitespace-nowrap overflow-hidden text-ellipsis';
+const fieldMetaClasses = 'text-grey-400 text-sm leading-relaxed mt-1 break-words';
+
 // Embedded-only component; use in profile tab
 const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = memo(
-  ({ onCompleted, onCancel, generators = [], savedGenerators = [], onSelectGenerator }) => {
+  ({
+    onCompleted,
+    onCancel,
+    generators = [],
+    savedGenerators = [],
+    onSelectGenerator,
+    onDeleteGenerator,
+    onGeneratorUpdated,
+  }) => {
     const [currentStep, setCurrentStep] = useState<number>(MODE_SELECTION);
     const [aiDescription, setAiDescription] = useState<string>('');
     const [isGeneratingWithAI, setIsGeneratingWithAI] = useState<boolean>(false);
@@ -122,11 +134,6 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = memo
         setValue('contact_email', user.email);
       }
     }, [user, setValue]);
-
-    // Handler for clearing errors when inputs change
-    const handleInputChange = useCallback(() => {
-      setError(null);
-    }, []);
 
     // Handler for AI description
     const handleAiDescriptionChange = useCallback((value: string) => {
@@ -315,7 +322,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = memo
         if (currentStep < STEPS.REVIEW) {
           setCurrentStep(currentStep + 1);
         } else {
-          handleSave();
+          void handleSave();
         }
       },
       [validateStep, currentStep, handleSave]
@@ -409,26 +416,26 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = memo
             <>
               {/* Heading removed to avoid duplication with FormSection title */}
               {!isEditingField && currentFields.length > 0 && (
-                <ul className="list-group list-group--modern mb-3">
+                <ul className="list-none p-0 my-lg rounded-lg bg-[var(--card-background)] shadow-sm border border-grey-200 dark:border-grey-700 mb-md">
                   {currentFields.map((field, index) => (
-                    <li key={index} className="list-group-item">
+                    <li key={index} className={fieldListItemClasses}>
                       <div>
-                        <div className="list-group-item__title">
+                        <div className={fieldTitleClasses}>
                           {field.label || '(Ohne Label)'}
-                          <span className="list-group-item__badge badge--field">
+                          <span className={fieldBadgeClasses}>
                             {field.type === 'textarea' ? 'Langer Text' : 'Kurzer Text'}
                           </span>
                           {field.required && (
-                            <span className="list-group-item__badge" aria-label="Pflichtfeld">
+                            <span className={fieldBadgeClasses} aria-label="Pflichtfeld">
                               Pflichtfeld
                             </span>
                           )}
                         </div>
                         {field.placeholder && (
-                          <div className="list-group-item__meta">{field.placeholder}</div>
+                          <div className={fieldMetaClasses}>{field.placeholder}</div>
                         )}
                       </div>
-                      <div className="list-group-item__actions">
+                      <div className="inline-flex gap-xs">
                         <ProfileIconButton
                           action="edit"
                           ariaLabel="Bearbeiten"
@@ -457,18 +464,20 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = memo
                 />
               )}
               {!isEditingField && (
-                <div className="add-field-controls">
+                <div className="mt-lg">
                   {currentFields.length < 5 && (
                     <button
                       type="button"
                       onClick={startAddField}
-                      className="btn btn-tanne-bordered"
+                      className="px-5 py-2.5 bg-transparent border-2 border-grey-200 dark:border-grey-700 text-foreground rounded-[10px] font-semibold cursor-pointer transition-all duration-200 hover:bg-background-alt"
                     >
                       Neues Feld hinzufügen
                     </button>
                   )}
                   {currentFields.length >= 5 && (
-                    <p className="text-info">Maximale Anzahl von 5 Feldern erreicht.</p>
+                    <p className="text-sm text-primary-600">
+                      Maximale Anzahl von 5 Feldern erreicht.
+                    </p>
                   )}
                 </div>
               )}
@@ -502,9 +511,9 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = memo
           return (
             <>
               <h3>Überprüfung</h3>
-              <div className="review-container">
-                <div className="review-section">
-                  <h4>Basisdaten</h4>
+              <div className="p-lg mt-lg border border-grey-200 dark:border-grey-700 rounded-lg bg-[var(--card-background)]">
+                <div className="mb-lg">
+                  <h4 className="text-foreground-heading mb-md font-semibold">Basisdaten</h4>
                   <p>
                     <strong>Name:</strong> {reviewFormValues.name}
                   </p>
@@ -521,16 +530,16 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = memo
                     <strong>Kontakt-E-Mail:</strong> {reviewFormValues.contact_email}
                   </p>
                 </div>
-                <div className="review-section">
-                  <h4>Formularfelder</h4>
+                <div className="mb-lg border-t border-grey-200 dark:border-grey-700 pt-lg">
+                  <h4 className="text-foreground-heading mb-md font-semibold">Formularfelder</h4>
                   {reviewFormValues.fields.length > 0 ? (
-                    <ul className="list-group list-group--modern">
+                    <ul className="list-none p-0 my-lg rounded-lg bg-[var(--card-background)] shadow-sm border border-grey-200 dark:border-grey-700">
                       {reviewFormValues.fields.map((field, index) => (
-                        <li key={index} className="list-group-item">
+                        <li key={index} className={fieldListItemClasses}>
                           <div>
-                            <div className="list-group-item__title">
+                            <div className={fieldTitleClasses}>
                               {field.label}
-                              <span className="list-group-item__badge badge--field">
+                              <span className={fieldBadgeClasses}>
                                 {field.type === 'textarea'
                                   ? 'Langer Text'
                                   : field.type === 'select'
@@ -538,18 +547,18 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = memo
                                     : 'Kurzer Text'}
                               </span>
                               {field.required && (
-                                <span className="list-group-item__badge" aria-label="Pflichtfeld">
+                                <span className={fieldBadgeClasses} aria-label="Pflichtfeld">
                                   Pflichtfeld
                                 </span>
                               )}
                             </div>
                             {field.placeholder && (
-                              <div className="list-group-item__meta">{field.placeholder}</div>
+                              <div className={fieldMetaClasses}>{field.placeholder}</div>
                             )}
                             {field.type === 'select' &&
                               field.options &&
                               field.options.length > 0 && (
-                                <div className="list-group-item__meta">
+                                <div className={fieldMetaClasses}>
                                   Optionen: {field.options.map((opt) => opt.label).join(', ')}
                                 </div>
                               )}
@@ -561,9 +570,11 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = memo
                     <p>Keine Felder definiert.</p>
                   )}
                 </div>
-                <div className="review-section">
-                  <h4>Prompt</h4>
-                  <pre className="review-prompt-display">{finalPromptReview}</pre>
+                <div className="border-t border-grey-200 dark:border-grey-700 pt-lg">
+                  <h4 className="text-foreground-heading mb-md font-semibold">Prompt</h4>
+                  <pre className="p-md rounded-md border border-grey-200 dark:border-grey-700 whitespace-pre-wrap break-words text-foreground font-mono text-sm bg-background">
+                    {finalPromptReview}
+                  </pre>
                 </div>
               </div>
             </>
@@ -604,6 +615,8 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = memo
           generators={generators}
           savedGenerators={savedGenerators}
           onSelectGenerator={onSelectGenerator}
+          onDeleteGenerator={onDeleteGenerator}
+          onGeneratorUpdated={onGeneratorUpdated}
         />
       );
     }

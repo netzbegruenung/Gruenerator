@@ -30,6 +30,8 @@ import { usePageManager, useMultiPageExport } from '../hooks';
 import { useMobileBridge } from '../hooks/useMobileBridge';
 import { CanvasEditorLayout } from '../layouts';
 import { MobileSubsectionBridgeContext } from '../sidebar/MobileSubsectionBridgeContext';
+import { useAutoSaveStore } from '../stores/useAutoSaveStore';
+import { useCanvasSidebarStore } from '../stores/canvasSidebarStore';
 
 import { GenericCanvas } from './GenericCanvas';
 import { AddPageButton } from './TemplatePickerFlyout';
@@ -49,6 +51,9 @@ const LazySidebarTabBar = lazy(() =>
 );
 const LazySidebarPanel = lazy(() =>
   import('../sidebar').then((m) => ({ default: m.SidebarPanel }))
+);
+const LazyWebSubsectionBar = lazy(() =>
+  import('../sidebar').then((m) => ({ default: m.WebSubsectionBar }))
 );
 
 // Hoisted static JSX elements (Rule 6.3: avoids re-creation every render)
@@ -82,6 +87,10 @@ interface CanvasEditorProps {
   initialPages?: InitialPageDef[];
   /** Mobile bridge — when provided, hides web tab bar + floating toolbar, uses native controls */
   mobileBridge?: MobileBridgeProps;
+  /** When true, tab bar is handled externally (e.g. web app sidebar) via canvasSidebarStore */
+  externalSidebar?: boolean;
+  /** When true + externalSidebar, syncs mobile subsection state to canvasSidebarStore for external mobile UI */
+  externalMobileMode?: boolean;
 }
 
 interface PageWrapperProps {
@@ -237,8 +246,28 @@ export function CanvasEditor({
   maxPages = 10,
   initialPages,
   mobileBridge,
+  externalSidebar = false,
+  externalMobileMode = false,
 }: CanvasEditorProps) {
   const isMobileBridge = Boolean(mobileBridge);
+  const isExternalSidebar = externalSidebar && !isMobileBridge;
+
+  // Track mobile web viewport (< 900px, not native bridge)
+  const [isMobileWeb, setIsMobileWeb] = useState(
+    typeof window !== 'undefined' && window.innerWidth < 900 && !isMobileBridge
+  );
+  useEffect(() => {
+    if (isMobileBridge) return;
+    const handleResize = () => setIsMobileWeb(window.innerWidth < 900);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isMobileBridge]);
+
+  // Mobile web subsection state (for WebSubsectionBar)
+  const [mobileWebSubsections, setMobileWebSubsections] = useState<
+    Array<{ id: string; label: string }>
+  >([]);
+  const [mobileWebActiveSubsection, setMobileWebActiveSubsection] = useState<string | null>(null);
   const {
     pages,
     addPage,
@@ -472,23 +501,120 @@ export function CanvasEditor({
   // Clear stale subsections when active tab changes (new section will report its own)
   const prevActiveTabRef = useRef(activeTab);
   useEffect(() => {
-    if (!mobileBridge) return;
     if (prevActiveTabRef.current !== activeTab) {
       prevActiveTabRef.current = activeTab;
-      mobileBridge.callbacks.onSubsectionsChange([]);
+      if (mobileBridge) {
+        mobileBridge.callbacks.onSubsectionsChange([]);
+      }
+      if (isMobileWeb) {
+        setMobileWebSubsections([]);
+        setMobileWebActiveSubsection(null);
+      }
+      if (isExternalSidebar && externalMobileMode) {
+        setMobileWebSubsections([]);
+        setMobileWebActiveSubsection(null);
+        useCanvasSidebarStore.getState().update({
+          mobileSubsections: [],
+          activeMobileSubsection: null,
+        });
+      }
     }
-  }, [mobileBridge, activeTab]);
+  }, [mobileBridge, isMobileWeb, isExternalSidebar, externalMobileMode, activeTab]);
+
+  // External sidebar store: lifecycle (activate on mount, deactivate on unmount)
+  useEffect(() => {
+    if (!isExternalSidebar) return;
+    useCanvasSidebarStore.getState().activate({
+      tabs: visibleTabs,
+      activeTab,
+      disabledTabs,
+      onTabClick: handleTabClick,
+    });
+    return () => {
+      useCanvasSidebarStore.getState().deactivate();
+    };
+  }, [isExternalSidebar]);
+
+  // External sidebar store: sync tab state + auto-save status on changes
+  useEffect(() => {
+    if (!isExternalSidebar) return;
+    const autoSave = useAutoSaveStore.getState().autoSaveStatus;
+    useCanvasSidebarStore.getState().update({
+      tabs: visibleTabs,
+      activeTab,
+      disabledTabs,
+      autoSaveStatus: autoSave,
+    });
+  }, [isExternalSidebar, visibleTabs, activeTab, disabledTabs]);
+
+  // Subscribe to auto-save changes separately (different store)
+  useEffect(() => {
+    if (!isExternalSidebar) return;
+    let prevStatus = useAutoSaveStore.getState().autoSaveStatus;
+    return useAutoSaveStore.subscribe((state) => {
+      if (state.autoSaveStatus !== prevStatus) {
+        prevStatus = state.autoSaveStatus;
+        useCanvasSidebarStore.getState().update({ autoSaveStatus: state.autoSaveStatus });
+      }
+    });
+  }, [isExternalSidebar]);
+
+  // External mobile mode: sync onMobileSubsectionClick callback to store
+  useEffect(() => {
+    if (!isExternalSidebar || !externalMobileMode) return;
+    useCanvasSidebarStore.getState().update({
+      onMobileSubsectionClick: setMobileWebActiveSubsection,
+    });
+  }, [isExternalSidebar, externalMobileMode]);
 
   // Build subsection bridge context value for MobileSubsectionBridgeContext
-  const subsectionBridgeValue = useMemo<MobileSubsectionBridgeValue>(
-    () => ({
-      active: isMobileBridge,
-      activeSubsection: mobileBridge?.activeSubsection ?? null,
-      onSubsectionsChange: mobileBridge?.callbacks.onSubsectionsChange ?? (() => {}),
-      onActiveSubsectionChange: mobileBridge?.callbacks.onActiveSubsectionChange ?? (() => {}),
-    }),
-    [isMobileBridge, mobileBridge?.activeSubsection, mobileBridge?.callbacks]
-  );
+  // Active for both native bridge AND mobile web (< 900px)
+  const subsectionBridgeValue = useMemo<MobileSubsectionBridgeValue>(() => {
+    if (isMobileBridge) {
+      return {
+        active: true,
+        activeSubsection: mobileBridge?.activeSubsection ?? null,
+        onSubsectionsChange: mobileBridge?.callbacks.onSubsectionsChange ?? (() => {}),
+        onActiveSubsectionChange: mobileBridge?.callbacks.onActiveSubsectionChange ?? (() => {}),
+      };
+    }
+    if (isExternalSidebar && externalMobileMode) {
+      return {
+        active: true,
+        activeSubsection: mobileWebActiveSubsection,
+        onSubsectionsChange: (subs: Array<{ id: string; label: string }>) => {
+          setMobileWebSubsections(subs);
+          useCanvasSidebarStore.getState().update({ mobileSubsections: subs });
+        },
+        onActiveSubsectionChange: (id: string | null) => {
+          setMobileWebActiveSubsection(id);
+          useCanvasSidebarStore.getState().update({ activeMobileSubsection: id });
+        },
+      };
+    }
+    if (isMobileWeb && !isExternalSidebar) {
+      return {
+        active: true,
+        activeSubsection: mobileWebActiveSubsection,
+        onSubsectionsChange: setMobileWebSubsections,
+        onActiveSubsectionChange: setMobileWebActiveSubsection,
+      };
+    }
+    return {
+      active: false,
+      activeSubsection: null,
+      onSubsectionsChange: () => {},
+      onActiveSubsectionChange: () => {},
+    };
+  }, [
+    isMobileBridge,
+    isMobileWeb,
+    isExternalSidebar,
+    externalMobileMode,
+    mobileBridge?.activeSubsection,
+    mobileBridge?.callbacks,
+    mobileWebActiveSubsection,
+  ]);
 
   // Share all pages via native share (Web Share API with multiple files)
   const shareAllPages = useCallback(async () => {
@@ -576,32 +702,84 @@ export function CanvasEditor({
     [pageCount, downloadAllAsZip, isMultiExporting, exportProgress]
   );
 
+  // External sidebar: sync panel content to store so web Sidebar can render it.
+  // Must be before the early return to satisfy Rules of Hooks.
+  useEffect(() => {
+    if (!isExternalSidebar) return;
+    const panelContentElement =
+      activeTab !== null ? (
+        <MobileSubsectionBridgeContext.Provider value={subsectionBridgeValue}>
+          <Suspense fallback={sidebarLoadingFallback}>{renderActiveSection()}</Suspense>
+        </MobileSubsectionBridgeContext.Provider>
+      ) : null;
+    useCanvasSidebarStore.getState().update({ panelContent: panelContentElement });
+  }, [
+    isExternalSidebar,
+    activeTab,
+    activeConfig,
+    activeState,
+    activeActions,
+    activeSelectedElement,
+    subsectionBridgeValue,
+    renderActiveSection,
+  ]);
+
+  // Cleanup panelContent on unmount
+  useEffect(() => {
+    if (!isExternalSidebar) return;
+    return () => {
+      useCanvasSidebarStore.getState().update({ panelContent: null });
+    };
+  }, [isExternalSidebar]);
+
   if (!allConfigsLoaded) {
     return pageLoadingIndicator;
   }
 
   // Build sidebar elements (lazy-loaded to reduce initial bundle)
-  // In mobile bridge mode, native handles the tab bar — only render the panel
-  const tabBar = isMobileBridge ? null : (
-    <Suspense fallback={null}>
-      <LazySidebarTabBar
-        tabs={visibleTabs}
-        activeTab={activeTab}
-        onTabClick={handleTabClick}
-        disabledTabs={disabledTabs}
-      />
-    </Suspense>
-  );
+  // In mobile bridge mode, native handles the tab bar
+  // In external sidebar mode, web app sidebar handles the tab bar
+  const tabBar =
+    isMobileBridge || isExternalSidebar ? null : (
+      <Suspense fallback={null}>
+        <LazySidebarTabBar
+          tabs={visibleTabs}
+          activeTab={activeTab}
+          onTabClick={handleTabClick}
+          disabledTabs={disabledTabs}
+        />
+      </Suspense>
+    );
 
-  const panel = (
+  // Height of the web subsection bar (matches WebSubsectionBar h-[40px])
+  const subsectionBarOffset = isMobileWeb && mobileWebSubsections.length > 0 ? 40 : 0;
+
+  // Internal/mobile mode: render SidebarPanel directly. External mode: panel is rendered by web Sidebar.
+  const panel = isExternalSidebar ? null : (
     <MobileSubsectionBridgeContext.Provider value={subsectionBridgeValue}>
       <Suspense fallback={sidebarLoadingFallback}>
-        <LazySidebarPanel isOpen={activeTab !== null} onClose={handlePanelClose}>
+        <LazySidebarPanel
+          isOpen={activeTab !== null}
+          onClose={handlePanelClose}
+          bottomOffset={subsectionBarOffset}
+        >
           {renderActiveSection()}
         </LazySidebarPanel>
       </Suspense>
     </MobileSubsectionBridgeContext.Provider>
   );
+
+  // Mobile web subsection bar (rendered above the tab bar)
+  const webSubsectionBar =
+    isMobileWeb && !isExternalSidebar && mobileWebSubsections.length > 0 ? (
+      <Suspense fallback={null}>
+        <LazyWebSubsectionBar
+          subsections={mobileWebSubsections}
+          activeSubsection={mobileWebActiveSubsection}
+          onSubsectionClick={setMobileWebActiveSubsection}
+        />
+      </Suspense>
+    ) : null;
 
   return (
     <CanvasEditorLayout
@@ -609,6 +787,8 @@ export function CanvasEditor({
       tabBar={tabBar}
       actions={null}
       hideMobileChrome={isMobileBridge}
+      externalSidebar={isExternalSidebar}
+      subsectionBar={webSubsectionBar}
     >
       <div className="heterogeneous-multipage__pages-container flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs">
         {pages.map((page, index) => {
