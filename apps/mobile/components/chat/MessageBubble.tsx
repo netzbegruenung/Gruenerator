@@ -16,7 +16,7 @@ import { CitationsFooter } from './CitationsFooter';
 import { ToolCallProgress } from './ToolCallProgress';
 
 import type { Theme } from '../../theme/colors';
-import type { GrueneratorMessageMetadata } from '@gruenerator/chat';
+import type { ChatMessageMetadata } from '@gruenerator/chat';
 
 interface Props {
   theme: Theme;
@@ -41,7 +41,7 @@ function UserMessage({ theme }: { theme: Theme }) {
 
 function AssistantMessage({ theme, message, fetchFullText }: Props) {
   const metadata = ((message.metadata as Record<string, unknown>)?.custom ??
-    {}) as GrueneratorMessageMetadata;
+    {}) as ChatMessageMetadata;
   const citations = metadata.citations;
 
   const markdownStyles = useMemo(() => getMarkdownStyles(theme), [theme]);

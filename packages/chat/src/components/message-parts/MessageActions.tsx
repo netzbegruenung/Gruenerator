@@ -3,6 +3,7 @@
 import { memo, useState } from 'react';
 import { Copy, Check, Download, FileEdit, Loader2 } from 'lucide-react';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
+import { useExtraActions } from '../../context/ExtraActionsContext';
 import type { ChatMessage } from '../../hooks/useChatGraphStream';
 
 interface MessageActionsProps {
@@ -10,7 +11,11 @@ interface MessageActionsProps {
   metadata?: ChatMessage['metadata'];
 }
 
-export const MessageActions = memo(function MessageActions({ content, metadata }: MessageActionsProps) {
+export const MessageActions = memo(function MessageActions({
+  content,
+  metadata,
+}: MessageActionsProps) {
+  const extraActions = useExtraActions();
   const [copied, setCopied] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isCreatingDoc, setIsCreatingDoc] = useState(false);
@@ -128,6 +133,18 @@ export const MessageActions = memo(function MessageActions({ content, metadata }
           <FileEdit className="h-4 w-4" />
         )}
       </button>
+      {extraActions?.map((action) => (
+        <button
+          key={action.id}
+          onClick={action.onClick}
+          disabled={action.disabled || action.loading}
+          className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground disabled:opacity-50"
+          aria-label={action.label}
+          title={action.label}
+        >
+          {action.loading ? <Loader2 className="h-4 w-4 animate-spin" /> : action.icon}
+        </button>
+      ))}
     </div>
   );
 });
