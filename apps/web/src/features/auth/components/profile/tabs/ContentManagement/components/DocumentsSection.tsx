@@ -159,11 +159,7 @@ const DocumentsSection = memo(
     } = useDocumentsStore();
 
     // Wolke TanStack Query hooks
-    const {
-      data: wolkeShareLinks = [],
-      isLoading: wolkeLoading,
-      error: wolkeError,
-    } = useShareLinks();
+    const { error: wolkeError } = useShareLinks();
     const { data: syncStatuses = [] } = useSyncStatuses();
     const setAutoSyncMutation = useSetAutoSync();
 

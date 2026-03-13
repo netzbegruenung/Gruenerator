@@ -102,11 +102,7 @@ const ExportDropdown = ({
 
   const { isAuthenticated } = useLazyAuth();
   // Wolke export is currently disabled — don't fetch share links until re-enabled
-  const { data: shareLinks = [], isLoading: loadingShareLinks } = useShareLinks(
-    undefined,
-    undefined,
-    { enabled: false }
-  );
+  const { data: shareLinks = [] } = useShareLinks(undefined, undefined, { enabled: false });
   const uploadToWolkeMutation = useUploadToWolke();
   const activeShareLinks = shareLinks.filter((link) => link.is_active);
   const location = useLocation();
