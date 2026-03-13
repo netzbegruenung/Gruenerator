@@ -153,21 +153,17 @@
   }
 }
 
-/* Mobile formatting toolbar — fixed at viewport bottom by ExperimentalMobileFormattingToolbarController */
-@media (pointer: coarse) {
-  .bn-formatting-toolbar {
-    transition: transform 0.1s ease-out;
-    width: 100%;
-    justify-content: center;
-    border-radius: 0;
-    border-bottom: none;
-    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.12);
-  }
-
-  [data-theme="dark"] .bn-formatting-toolbar {
-    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.3);
-  }
+/* Static formatting toolbar — always visible above editor (mobile DOM WebView) */
+.blocknote-static-toolbar {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
 }
+
+.blocknote-static-toolbar .bn-formatting-toolbar {
+  margin-inline: auto;
+}
+
 
 /* Link toolbar */
 .bn-link-toolbar {

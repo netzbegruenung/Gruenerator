@@ -11,7 +11,6 @@ import { CommentsExtension } from '@blocknote/core/comments';
 import { de } from '@blocknote/core/locales';
 import {
   useCreateBlockNote,
-  ExperimentalMobileFormattingToolbarController,
   FormattingToolbar,
   FormattingToolbarController,
   SuggestionMenuController,
@@ -60,6 +59,7 @@ export interface BlockNoteEditorProps {
   provider?: HocuspocusProvider | null;
   isSynced?: boolean;
   onEditorReady?: (editor: BlockNoteEditorCore) => void;
+  useStaticFormattingToolbar?: boolean;
 }
 
 interface CollaborationUser {
@@ -142,10 +142,12 @@ const BlockNoteEditorInner = ({
   provider,
   isSynced = false,
   onEditorReady,
+  useStaticFormattingToolbar = false,
 }: BlockNoteEditorProps) => {
   const { setEditor: setEditorInStore, removeEditor } = useEditorStore();
   const adapter = useDocsAdapter();
   const isTouchDevice = useIsTouchDevice();
+  const staticToolbar = useStaticFormattingToolbar || isTouchDevice;
   const getMentionMenuItems = useMentionUsers(provider ?? null);
   const hasInitialized = useRef(false);
   const [isReady, setIsReady] = useState(false);
@@ -293,19 +295,15 @@ const BlockNoteEditorInner = ({
   }
 
   return (
-    <div className="blocknote-wrapper">
+    <div className={`blocknote-wrapper${staticToolbar ? ' blocknote-static-toolbar' : ''}`}>
       <ErrorBoundary>
         <BlockNoteView editor={editor} theme="light" formattingToolbar={false} slashMenu={false}>
           <AIMenuController />
-          {isTouchDevice ? (
-            <ExperimentalMobileFormattingToolbarController
-              formattingToolbar={() => (
-                <FormattingToolbar>
-                  {getFormattingToolbarItems()}
-                  <AIToolbarButton />
-                </FormattingToolbar>
-              )}
-            />
+          {staticToolbar ? (
+            <FormattingToolbar>
+              {getFormattingToolbarItems()}
+              <AIToolbarButton />
+            </FormattingToolbar>
           ) : (
             <FormattingToolbarController
               formattingToolbar={() => (
