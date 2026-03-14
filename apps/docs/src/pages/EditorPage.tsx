@@ -170,7 +170,11 @@ export const EditorPage = () => {
     guestId: guestIdentity?.guestId,
     guestName: guestIdentity?.guestName,
   });
-  const { messages, sendMessage, getLocalUser } = useDocumentChat({ ydoc, provider, isSynced });
+  const { messages, sendMessage, getLocalUser, setTyping, typingUsers } = useDocumentChat({
+    ydoc,
+    provider,
+    isSynced,
+  });
   const colorScheme = useColorScheme();
 
   const handleEditorReady = useCallback((editorInstance: BlockNoteEditor) => {
@@ -440,6 +444,8 @@ export const EditorPage = () => {
                     onSend={sendMessage}
                     isConnected={isConnected}
                     hideHeader
+                    typingUsers={typingUsers}
+                    onTypingChange={setTyping}
                   />
                 </Suspense>
               )}
@@ -455,7 +461,11 @@ export const EditorPage = () => {
 
         {showShareModal && !isGuest && (
           <Suspense fallback={null}>
-            <ShareModal documentId={id!} onClose={() => setShowShareModal(false)} />
+            <ShareModal
+              documentId={id!}
+              documentTitle={docData?.title}
+              onClose={() => setShowShareModal(false)}
+            />
           </Suspense>
         )}
 

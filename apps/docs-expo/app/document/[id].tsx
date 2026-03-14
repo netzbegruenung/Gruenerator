@@ -1,14 +1,22 @@
-import { useEffect, useState, useRef } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { useLocalSearchParams, useRouter, type ErrorBoundaryProps } from 'expo-router';
-import { useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@gruenerator/shared/stores';
-import { getValidToken } from '../../services/auth';
-import { lightTheme, darkTheme, colors } from '../../theme';
-import { API_BASE_URL } from '../../config';
-import { WebView } from 'react-native-webview';
 import { StatusBar } from 'expo-status-bar';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { View, StyleSheet, Text, TouchableOpacity, useColorScheme } from 'react-native';
+import { useLocalSearchParams, useRouter, type ErrorBoundaryProps } from 'expo-router';
+
+import DocEditorDOM from '../../components/dom/DocEditorDOM';
+import { GuestBanner } from '../../components/native/GuestBanner';
+import { NativeChatSidebar } from '../../components/native/NativeChatSidebar';
+import { NativeDocTopBar } from '../../components/native/NativeDocTopBar';
+import { NativeShareModal } from '../../components/native/NativeShareModal';
+import { API_BASE_URL, HOCUSPOCUS_URL } from '../../config';
+import { getValidToken } from '../../services/auth';
+import { docsService } from '../../services/docs';
+import { trackDocumentOpen } from '../../services/recentDocs';
+import { useDocsEditorBridgeStore } from '../../stores/docsEditorBridgeStore';
+import { useDocsStore } from '../../stores/docsStore';
+import { lightTheme, darkTheme, colors } from '../../theme';
 
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   return (
@@ -30,63 +38,226 @@ export default function DocumentScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-  const webViewRef = useRef<WebView>(null);
   const { user } = useAuthStore();
 
   const [token, setToken] = useState<string | null>(null);
+  const [initialTitle, setInitialTitle] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [bridgeUrl, setBridgeUrl] = useState<string | null>(null);
 
+  const store = useDocsEditorBridgeStore;
+  const pendingAction = store((s) => s.pendingAction);
+  const actionCounter = store((s) => s.actionCounter);
+
+  // Load token (fast) — mounts editor immediately
   useEffect(() => {
-    const loadToken = async () => {
-      if (!id) {
-        setError('Keine Dokument-ID angegeben');
-        setIsLoading(false);
-        return;
-      }
+    if (!id) {
+      setError('Keine Dokument-ID angegeben');
+      setIsLoading(false);
+      return;
+    }
 
-      const authToken = await getValidToken();
+    getValidToken().then((authToken) => {
       if (!authToken) {
         setError('Nicht angemeldet');
         setIsLoading(false);
         return;
       }
+
+      // Use cached title synchronously if available
+      const cached = useDocsStore.getState().getCachedDoc(id);
+      if (cached) {
+        setInitialTitle(cached.title);
+        store.getState().setDocumentTitle(cached.title);
+      }
+
       setToken(authToken);
       setIsLoading(false);
-    };
 
-    loadToken();
-  }, [id]);
+      // Fetch metadata + track open in background (non-blocking)
+      if (!cached) {
+        docsService
+          .fetchDocument(id)
+          .then((doc) => {
+            if (doc) {
+              setInitialTitle(doc.title);
+              store.getState().setDocumentTitle(doc.title);
+            }
+          })
+          .catch(() => {});
+      }
+      trackDocumentOpen(id);
+    });
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Bridge callbacks: DOM → Native
+  const handleConnectionStatusChange = useCallback(async (status: string) => {
+    store.getState().setConnectionStatus(status as 'connected' | 'syncing' | 'disconnected');
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleTitleChange = useCallback(
+    async (title: string) => {
+      store.getState().setDocumentTitle(title);
+      // Persist title change via API
+      if (id) {
+        try {
+          await docsService.updateDocument(id, { title });
+        } catch {
+          // Silently fail — title is already updated in UI
+        }
+      }
+    },
+    [id]
+  ); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleCanEditChange = useCallback(async (canEdit: boolean) => {
+    store.getState().setCanEdit(canEdit);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleDocumentLoaded = useCallback(async (doc: { title: string; canEdit: boolean }) => {
+    store.getState().setDocumentMeta(doc.title, doc.canEdit);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleChatMessagesChange = useCallback(async (messagesJson: string) => {
+    try {
+      const parsed = JSON.parse(messagesJson);
+      // Don't clear existing messages with empty array — happens during DOM re-init
+      if (parsed.length === 0 && store.getState().chatMessages.length > 0) return;
+      store.getState().setChatMessages(parsed);
+    } catch {
+      // Ignore parse errors
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleLocalUserIdChange = useCallback(async (userId: string) => {
+    store.getState().setLocalUserId(userId);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleTypingUsersChange = useCallback(async (usersJson: string) => {
+    try {
+      store.getState().setTypingUsers(JSON.parse(usersJson));
+    } catch {
+      // Ignore parse errors
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle openShare action from native top bar
+  const [shareModalVisible, setShareModalVisible] = useState(false);
 
   useEffect(() => {
-    if (!token || !id) return;
+    if (pendingAction?.type !== 'openShare') return;
+    store.getState().clearPendingAction();
+    setShareModalVisible(true);
+  }, [pendingAction, actionCounter]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const fetchBridgeCode = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/auth/mobile/session-bridge`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ redirect: `/document/${id}?embedded=true` }),
-        });
+  // --- Native network proxy for DOM WebView (bypasses CORS) ---
 
-        if (!response.ok) {
-          setError(`Session-Bridge fehlgeschlagen (${response.status})`);
-          return;
-        }
-
-        const { code } = await response.json();
-        setBridgeUrl(`${API_BASE_URL}/auth/mobile/session-bridge?code=${encodeURIComponent(code)}`);
-      } catch {
-        setError('Verbindung fehlgeschlagen');
+  const handleProxyFetch = useCallback(
+    async (url: string, options?: string) => {
+      const opts = options ? JSON.parse(options) : {};
+      const headers: Record<string, string> = { ...opts.headers };
+      if (token && !headers['Authorization']) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
-    };
+      const response = await fetch(url, { ...opts, headers });
+      const headersObj: Record<string, string> = {};
+      response.headers.forEach((value, key) => {
+        headersObj[key] = value;
+      });
+      return JSON.stringify({
+        status: response.status,
+        statusText: response.statusText,
+        headers: headersObj,
+        body: await response.text(),
+      });
+    },
+    [token]
+  );
 
-    fetchBridgeCode();
-  }, [token, id]);
+  // WebSocket proxy: native manages the real WS, DOM communicates via async props
+  const wsRef = useRef<WebSocket | null>(null);
+  const wsMessageQueue = useRef<string[]>([]);
+  const wsResolvers = useRef<Array<(msg: string) => void>>([]);
+
+  const handleWsOpen = useCallback(async (url: string, protocols?: string) => {
+    // Close any existing connection to prevent zombie sockets
+    if (wsRef.current) {
+      wsRef.current.onopen = null;
+      wsRef.current.onerror = null;
+      wsRef.current.onclose = null;
+      wsRef.current.onmessage = null;
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    wsMessageQueue.current = [];
+    wsResolvers.current.forEach((r) => r('__close__'));
+    wsResolvers.current = [];
+
+    return new Promise<string>((resolve, reject) => {
+      const ws = protocols ? new WebSocket(url, protocols) : new WebSocket(url);
+      wsRef.current = ws;
+      ws.binaryType = 'arraybuffer';
+
+      ws.onopen = () => {
+        resolve('open');
+      };
+      ws.onerror = () => {
+        reject(new Error('ws-error'));
+      };
+      ws.onclose = (e) => {
+        if (e.code !== 1000) {
+          console.warn('[NativeWS] closed unexpectedly:', e.code, e.reason);
+        }
+        const resolver = wsResolvers.current.shift();
+        if (resolver) resolver('__close__');
+        else wsMessageQueue.current.push('__close__');
+      };
+      ws.onmessage = (e) => {
+        let b64: string;
+        if (e.data instanceof ArrayBuffer) {
+          const bytes = new Uint8Array(e.data);
+          let binary = '';
+          for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          b64 = btoa(binary);
+        } else {
+          b64 = 'str:' + btoa(unescape(encodeURIComponent(e.data)));
+        }
+        const resolver = wsResolvers.current.shift();
+        if (resolver) {
+          resolver(b64);
+        } else {
+          wsMessageQueue.current.push(b64);
+        }
+      };
+    });
+  }, []);
+
+  const handleWsSend = useCallback(async (b64: string) => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+    if (b64.startsWith('str:')) {
+      wsRef.current.send(decodeURIComponent(escape(atob(b64.slice(4)))));
+    } else {
+      const binary = atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      wsRef.current.send(bytes.buffer);
+    }
+  }, []);
+
+  const handleWsReceive = useCallback(async () => {
+    const queued = wsMessageQueue.current.shift();
+    if (queued) return queued;
+    return new Promise<string>((resolve) => wsResolvers.current.push(resolve));
+  }, []);
+
+  const handleWsClose = useCallback(async () => {
+    wsRef.current?.close();
+    wsRef.current = null;
+  }, []);
 
   if (isLoading) {
     return <View style={[styles.container, { backgroundColor: theme.background }]} />;
@@ -110,38 +281,48 @@ export default function DocumentScreen() {
     );
   }
 
-  if (!bridgeUrl) {
-    return <View style={[styles.container, { backgroundColor: theme.background }]} />;
-  }
-
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <StatusBar hidden />
-      <WebView
-        ref={webViewRef}
-        source={{ uri: bridgeUrl }}
-        style={{ flex: 1 }}
-        javaScriptEnabled={true}
-        domStorageEnabled={true}
-        originWhitelist={['*']}
-        sharedCookiesEnabled={true}
-        thirdPartyCookiesEnabled={true}
-        onError={(e) => {
-          setError(`WebView-Fehler: ${e.nativeEvent.description}`);
-        }}
-        onHttpError={(e) => {
-          setError(`WebView HTTP ${e.nativeEvent.statusCode}`);
-        }}
-        onMessage={(event) => {
-          try {
-            const data = JSON.parse(event.nativeEvent.data);
-            if (data.type === 'NAVIGATE_BACK') {
-              router.back();
-            }
-          } catch {
-            // ignore non-JSON messages
-          }
-        }}
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+
+      <NativeDocTopBar />
+      <GuestBanner />
+
+      <View style={styles.editorContainer}>
+        <DocEditorDOM
+          documentId={id!}
+          authToken={token}
+          userId={user.id}
+          userName={user.display_name || user.email || 'Unbekannt'}
+          userEmail={user.email || ''}
+          initialTitle={initialTitle}
+          hocuspocusUrl={HOCUSPOCUS_URL}
+          apiBaseUrl={API_BASE_URL}
+          colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}
+          onConnectionStatusChange={handleConnectionStatusChange}
+          onTitleChange={handleTitleChange}
+          onCanEditChange={handleCanEditChange}
+          onDocumentLoaded={handleDocumentLoaded}
+          onChatMessagesChange={handleChatMessagesChange}
+          onLocalUserIdChange={handleLocalUserIdChange}
+          onTypingUsersChange={handleTypingUsersChange}
+          proxyFetch={handleProxyFetch}
+          wsOpen={handleWsOpen}
+          wsSend={handleWsSend}
+          wsReceive={handleWsReceive}
+          wsClose={handleWsClose}
+          pendingAction={pendingAction}
+          actionCounter={actionCounter}
+          dom={{ scrollEnabled: false }}
+        />
+      </View>
+
+      <NativeChatSidebar />
+      <NativeShareModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        documentId={id!}
+        userDisplayName={user?.display_name ?? undefined}
       />
     </View>
   );
@@ -149,6 +330,9 @@ export default function DocumentScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  editorContainer: {
     flex: 1,
   },
   centerContainer: {

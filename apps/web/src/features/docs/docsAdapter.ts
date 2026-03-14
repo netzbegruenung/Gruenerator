@@ -1,3 +1,4 @@
+import { useAuthStore } from '../../stores/authStore';
 import { buildLoginUrl } from '../../utils/authRedirect';
 import { isDesktopApp } from '../../utils/platform';
 
@@ -52,4 +53,6 @@ export const webAppDocsAdapter: DocsAdapter = {
   navigateToHome: () => {
     window.location.href = '/docs';
   },
+
+  getCurrentUserDisplayName: () => useAuthStore.getState().user?.display_name ?? null,
 };
