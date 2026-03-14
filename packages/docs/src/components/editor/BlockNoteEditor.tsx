@@ -44,6 +44,7 @@ import { useResolveUsers } from '../../hooks/useResolveUsers';
 import { useMentionUsers } from '../../hooks/useMentionUsers';
 import { useDocsAdapter } from '../../context/DocsContext';
 import { useIsTouchDevice } from '../../hooks/useIsTouchDevice';
+import { useEditorPreferencesStore } from '../../stores/editorPreferencesStore';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { Mention } from './Mention';
 import './BlockNoteEditor.css';
@@ -147,7 +148,8 @@ const BlockNoteEditorInner = ({
   const { setEditor: setEditorInStore, removeEditor } = useEditorStore();
   const adapter = useDocsAdapter();
   const isTouchDevice = useIsTouchDevice();
-  const staticToolbar = useStaticFormattingToolbar || isTouchDevice;
+  const toolbarMode = useEditorPreferencesStore((s) => s.toolbarMode);
+  const staticToolbar = useStaticFormattingToolbar || isTouchDevice || toolbarMode === 'fixed';
   const getMentionMenuItems = useMentionUsers(provider ?? null);
   const hasInitialized = useRef(false);
   const [isReady, setIsReady] = useState(false);
@@ -302,7 +304,7 @@ const BlockNoteEditorInner = ({
           {staticToolbar ? (
             <FormattingToolbar>
               {getFormattingToolbarItems()}
-              <AIToolbarButton />
+              {!isTouchDevice && <AIToolbarButton />}
             </FormattingToolbar>
           ) : (
             <FormattingToolbarController
