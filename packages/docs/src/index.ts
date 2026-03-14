@@ -36,10 +36,12 @@ export {
 export { useDocumentChat, type ChatMessage } from './hooks/useDocumentChat';
 export { useBlockNoteComments } from './hooks/useBlockNoteComments';
 export { useResolveUsers } from './hooks/useResolveUsers';
+export { useIsTouchDevice } from './hooks/useIsTouchDevice';
 
 // Stores
 export { useDocumentStore, type Document } from './stores/documentStore';
 export { useEditorStore } from './stores/editorStore';
+export { useEditorPreferencesStore, type ToolbarMode } from './stores/editorPreferencesStore';
 
 // Lib
 export {
