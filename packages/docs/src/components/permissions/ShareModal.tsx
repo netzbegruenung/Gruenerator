@@ -25,6 +25,7 @@ interface ShareSettings {
 
 interface ShareModalProps {
   documentId: string;
+  documentTitle?: string;
   onClose: () => void;
 }
 
@@ -48,9 +49,10 @@ const SHARE_MODE_OPTIONS: { value: ShareMode; label: string; description: string
   },
 ];
 
-export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
+export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalProps) => {
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
+  const userDisplayName = adapter.getCurrentUserDisplayName?.() ?? null;
 
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [shareSettings, setShareSettings] = useState<ShareSettings>({
@@ -61,6 +63,7 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [directShareSuccess, setDirectShareSuccess] = useState(false);
   const [isChangingMode, setIsChangingMode] = useState(false);
   const [hasGroups, setHasGroups] = useState(false);
 
@@ -105,6 +108,29 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
     } catch (err) {
       console.error('Failed to copy link:', err);
       setError('Fehler beim Kopieren des Links');
+    }
+  };
+
+  const directShare = async () => {
+    const shareUrl = `${window.location.origin}/document/${documentId}`;
+    const title = documentTitle || 'Dokument';
+    const message = userDisplayName
+      ? `${userDisplayName} möchte „${title}" mit dir teilen:\n${shareUrl}`
+      : shareUrl;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text: message });
+      } else {
+        await navigator.clipboard.writeText(message);
+        setDirectShareSuccess(true);
+        setTimeout(() => setDirectShareSuccess(false), 2000);
+      }
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        console.error('Failed to share:', err);
+        setError('Fehler beim Teilen');
+      }
     }
   };
 
@@ -344,15 +370,28 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
 
         <div className="share-modal-footer">
           {showLinkSection && (
-            <Button
-              variant="outline"
-              size="xs"
-              radius="xl"
-              color="var(--primary-600)"
-              onClick={copyShareLink}
-            >
-              {copySuccess ? '✓ Kopiert' : 'Link kopieren'}
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="xs"
+                radius="xl"
+                color="var(--primary-600)"
+                onClick={copyShareLink}
+              >
+                {copySuccess ? '✓ Kopiert' : 'Link kopieren'}
+              </Button>
+              {userDisplayName && (
+                <Button
+                  variant="filled"
+                  size="xs"
+                  radius="xl"
+                  color="var(--primary-600)"
+                  onClick={directShare}
+                >
+                  {directShareSuccess ? '✓ Kopiert' : 'Direkt teilen'}
+                </Button>
+              )}
+            </>
           )}
           <Button ml="auto" color="var(--primary-600)" onClick={onClose}>
             Fertig

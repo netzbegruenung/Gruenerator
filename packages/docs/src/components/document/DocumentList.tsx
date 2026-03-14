@@ -35,7 +35,7 @@ export const DocumentList = ({ searchQuery }: DocumentListProps) => {
     updateDocument,
   } = useDocumentStore();
   const [showGallery, setShowGallery] = useState(false);
-  const [shareDocumentId, setShareDocumentId] = useState<string | null>(null);
+  const [shareDoc, setShareDoc] = useState<{ id: string; title: string } | null>(null);
 
   const filteredDocuments = useMemo(() => {
     if (!searchQuery?.trim()) return documents;
@@ -180,7 +180,7 @@ export const DocumentList = ({ searchQuery }: DocumentListProps) => {
                           leftSection={<FiShare2 size={14} />}
                           onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();
-                            setShareDocumentId(doc.id);
+                            setShareDoc({ id: doc.id, title: doc.title });
                           }}
                         >
                           Teilen
@@ -250,8 +250,12 @@ export const DocumentList = ({ searchQuery }: DocumentListProps) => {
         <TemplatePicker onSelect={handleTemplateSelect} onClose={() => setShowGallery(false)} />
       )}
 
-      {shareDocumentId && (
-        <ShareModal documentId={shareDocumentId} onClose={() => setShareDocumentId(null)} />
+      {shareDoc && (
+        <ShareModal
+          documentId={shareDoc.id}
+          documentTitle={shareDoc.title}
+          onClose={() => setShareDoc(null)}
+        />
       )}
     </div>
   );

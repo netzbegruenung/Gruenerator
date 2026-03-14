@@ -1,3 +1,5 @@
+import { useAuthStore } from '../stores/authStore';
+
 import type { DocsAdapter } from '@gruenerator/docs';
 
 const HOCUSPOCUS_URL =
@@ -32,4 +34,6 @@ export const webDocsAdapter: DocsAdapter = {
   navigateToHome: () => {
     window.location.href = '/';
   },
+
+  getCurrentUserDisplayName: () => useAuthStore.getState().user?.display_name ?? null,
 };
