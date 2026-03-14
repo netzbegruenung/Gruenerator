@@ -369,29 +369,25 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
         </div>
 
         <div className="share-modal-footer">
-          {showLinkSection && (
-            <>
-              <Button
-                variant="outline"
-                size="xs"
-                radius="xl"
-                color="var(--primary-600)"
-                onClick={copyShareLink}
-              >
-                {copySuccess ? '✓ Kopiert' : 'Link kopieren'}
-              </Button>
-              {userDisplayName && (
-                <Button
-                  variant="filled"
-                  size="xs"
-                  radius="xl"
-                  color="var(--primary-600)"
-                  onClick={directShare}
-                >
-                  {directShareSuccess ? '✓ Kopiert' : 'Direkt teilen'}
-                </Button>
-              )}
-            </>
+          <Button
+            variant="outline"
+            size="xs"
+            radius="xl"
+            color="var(--primary-600)"
+            onClick={copyShareLink}
+          >
+            {copySuccess ? '✓ Kopiert' : 'Link kopieren'}
+          </Button>
+          {userDisplayName && (
+            <Button
+              variant="filled"
+              size="xs"
+              radius="xl"
+              color="var(--primary-600)"
+              onClick={directShare}
+            >
+              {directShareSuccess ? '✓ Kopiert' : 'Direkt teilen'}
+            </Button>
           )}
           <Button ml="auto" color="var(--primary-600)" onClick={onClose}>
             Fertig
