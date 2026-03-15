@@ -1,17 +1,17 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
-import { HiExternalLink, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
-import { SiCanva } from 'react-icons/si';
-
-import { cn } from '@/utils/cn';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
+  Badge,
+  Button,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
+} from '@gruenerator/ui';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { HiExternalLink, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
+import { SiCanva } from 'react-icons/si';
+
+import { cn } from '@/utils/cn';
 
 const formatDate = (value: string | number | Date | null | undefined) => {
   if (!value) return '';
@@ -142,9 +142,7 @@ const TemplatePreviewModal = ({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[900px] max-h-[80vh] p-0 gap-0 overflow-hidden">
         <DialogHeader className="px-lg py-md border-b border-grey-200 dark:border-grey-700">
-          <DialogTitle className="truncate pr-md">
-            {template.title || 'Vorlage'}
-          </DialogTitle>
+          <DialogTitle className="truncate pr-md">{template.title || 'Vorlage'}</DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden min-h-0 flex">
@@ -193,7 +191,7 @@ const TemplatePreviewModal = ({
                         key={`thumb-${index}`}
                         className={cn(
                           'w-12 h-12 p-0 border-2 border-transparent rounded-md overflow-hidden cursor-pointer bg-background shrink-0',
-                          index === activeImageIndex && 'border-primary-500',
+                          index === activeImageIndex && 'border-primary-500'
                         )}
                         onClick={() => setActiveImageIndex(index)}
                         aria-label={`Bild ${index + 1}`}
@@ -242,7 +240,8 @@ const TemplatePreviewModal = ({
                       key={tag}
                       variant="secondary"
                       className={cn(
-                        onTagClick && 'cursor-pointer transition-colors duration-200 hover:bg-primary-500 hover:text-white',
+                        onTagClick &&
+                          'cursor-pointer transition-colors duration-200 hover:bg-primary-500 hover:text-white'
                       )}
                       onClick={onTagClick ? () => handleTagClick(tag) : undefined}
                       role={onTagClick ? 'button' : undefined}
@@ -266,9 +265,7 @@ const TemplatePreviewModal = ({
                     {dimensions.width} × {dimensions.height}
                   </span>
                 )}
-                {template.created_at && (
-                  <span>{formatDate(template.created_at)}</span>
-                )}
+                {template.created_at && <span>{formatDate(template.created_at)}</span>}
               </div>
             </div>
           </div>

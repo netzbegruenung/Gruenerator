@@ -1,4 +1,11 @@
 import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@gruenerator/ui';
+import {
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
@@ -20,13 +27,6 @@ import type {
 } from '@tanstack/react-table';
 import type { HTMLAttributes, ReactNode } from 'react';
 
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
   TableBody as TableBodyRaw,
   TableCell as TableCellRaw,

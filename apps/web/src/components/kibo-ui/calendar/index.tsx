@@ -13,16 +13,18 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { Button } from '@/components/ui/button';
 import {
+  Button,
   Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
-} from '@/components/ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@gruenerator/ui';
 import { cn } from '@/utils/cn';
 
 export type CalendarState = {

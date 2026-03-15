@@ -1,17 +1,17 @@
-import { useCallback } from 'react';
-
-import { cn } from '@/utils/cn';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
+  Badge,
+  Button,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
+} from '@gruenerator/ui';
+import { useCallback } from 'react';
 
 import type { GalleryItem } from './cards';
+
+import { cn } from '@/utils/cn';
 
 interface AgentPreviewModalProps {
   agent: GalleryItem;
@@ -68,20 +68,20 @@ const AgentPreviewModal = ({ agent, onClose }: AgentPreviewModalProps) => {
             </p>
           )}
 
-          <pre className={cn(
-            'whitespace-pre-wrap break-words bg-background-alt border border-grey-200 dark:border-grey-700 rounded-md p-md',
-            'text-sm leading-relaxed text-foreground max-h-[50vh] overflow-auto m-0',
-          )}>
+          <pre
+            className={cn(
+              'whitespace-pre-wrap break-words bg-background-alt border border-grey-200 dark:border-grey-700 rounded-md p-md',
+              'text-sm leading-relaxed text-foreground max-h-[50vh] overflow-auto m-0'
+            )}
+          >
             {agent._isBuiltIn
-              ? (String(agent.description || 'Kein Prompt verfügbar'))
-              : (String(promptText || 'Kein Prompt verfügbar'))}
+              ? String(agent.description || 'Kein Prompt verfügbar')
+              : String(promptText || 'Kein Prompt verfügbar')}
           </pre>
         </div>
 
         <DialogFooter className="px-lg py-md border-t border-grey-200 dark:border-grey-700">
-          <Button onClick={handleUse}>
-            Agent verwenden
-          </Button>
+          <Button onClick={handleUse}>Agent verwenden</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
