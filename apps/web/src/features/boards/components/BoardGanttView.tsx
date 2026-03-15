@@ -12,7 +12,6 @@ import {
   GanttSidebarItem,
   GanttTimeline,
   GanttHeader,
-  GanttColumns,
   GanttFeatureList,
   GanttFeatureListGroup,
   GanttFeatureRow,
@@ -120,7 +119,6 @@ export const BoardGanttView = memo(function BoardGanttView({
         </GanttSidebar>
         <GanttTimeline>
           <GanttHeader />
-          <GanttColumns />
           <GanttFeatureList>
             {groupedFeatures.map((group) => (
               <GanttFeatureListGroup key={group.status.id}>

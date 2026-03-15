@@ -146,4 +146,5 @@ export const FIELD_IDS = {
   DUE_DATE: 'field-due-date',
   LABELS: 'field-labels',
   ASSIGNEE: 'field-assignee',
+  LINKED_DOCS: 'field-linked-docs',
 } as const;
