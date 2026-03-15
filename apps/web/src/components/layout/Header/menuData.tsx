@@ -10,6 +10,7 @@ export interface BetaFeatures {
   youBetaEnabled?: boolean;
   igelModeEnabled?: boolean;
   isAustrian?: boolean;
+  workplace?: boolean;
 }
 
 // Menu item type definition
@@ -74,14 +75,24 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
       description: 'KI-Bildgenerierung',
       icon: getIcon('navigation', 'sharepic'),
     },
-    tools: {
-      id: 'tools',
-      path: '/tools',
-      title: 'Tools',
-      description: 'Suche, Notebooks, Datenbank & mehr',
-      icon: getIcon('navigation', 'tools'),
+    recherche: {
+      id: 'recherche',
+      path: '/recherche',
+      title: 'Recherche',
+      description: 'Suche, Notebooks & Datenbank',
+      icon: getIcon('navigation', 'suche'),
     },
   };
+
+  if (betaFeatures.workplace) {
+    items.desk = {
+      id: 'desk',
+      path: '/desk',
+      title: 'Desk',
+      description: 'Docs, Boards, Gruppen & Zusammenarbeit',
+      icon: getIcon('navigation', 'desk'),
+    };
+  }
 
   items.chat = {
     id: 'chat',
