@@ -1,8 +1,7 @@
+import { validateShareLink } from '@gruenerator/wolke';
 import React, { useState } from 'react';
 import { FaCloud } from 'react-icons/fa';
 import { HiX, HiCheck, HiExclamationCircle } from 'react-icons/hi';
-
-import { validateShareLink } from '../lib/wolkeApi';
 
 import '../../../assets/styles/features/wolke/wolke.css';
 

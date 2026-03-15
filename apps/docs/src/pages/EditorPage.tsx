@@ -8,21 +8,17 @@ import {
   type Document,
 } from '@gruenerator/docs';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
-import { MantineProvider, SegmentedControl, ScrollArea } from '@mantine/core';
+import { WolkeSaveModal, uploadToWolke } from '@gruenerator/wolke';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FiCloud, FiDownload, FiShare2, FiSidebar } from 'react-icons/fi';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { EditorFAB } from '../components/EditorFAB';
-import { WolkeSaveModal } from '../components/WolkeSaveModal';
-import { useColorScheme } from '../hooks/useColorScheme';
-import { uploadToWolke } from '../lib/wolkeApi';
 import { useAuthStore } from '../stores/authStore';
 
 import type { BlockNoteEditor } from '@blocknote/core';
 
-import '@mantine/core/styles.css';
 import './EditorPage.css';
 
 const ShareModal = lazyWithRetry(() =>
@@ -84,6 +80,11 @@ function getOrCreateGuestIdentity(): { guestId: string; guestName: string; guest
   return identity;
 }
 
+const SIDEBAR_TABS = [
+  { label: 'Chat', value: 'chat' as const },
+  { label: 'Kommentare', value: 'comments' as const },
+];
+
 export const EditorPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -123,30 +124,16 @@ export const EditorPage = () => {
 
   const handleTitleChange = useCallback(
     async (newTitle: string) => {
-      if (!id) {
-        console.warn('[docs-rename] handleTitleChange: no document id, aborting');
-        return;
-      }
-      console.warn(
-        '[docs-rename] handleTitleChange: docId=%s, newTitle="%s", isGuest=%s',
-        id,
-        newTitle,
-        isGuest
-      );
+      if (!id) return;
       const queryKey = ['document', id, isGuest ? 'public' : 'auth'];
       queryClient.setQueryData(queryKey, (old: Document | undefined) =>
         old ? { ...old, title: newTitle } : old
       );
       document.title = newTitle;
       try {
-        const result = await apiClient.put(`/docs/${id}`, { title: newTitle });
-        console.warn(
-          '[docs-rename] handleTitleChange: API success, docId=%s, response=%o',
-          id,
-          result
-        );
+        await apiClient.put(`/docs/${id}`, { title: newTitle });
       } catch (error) {
-        console.error('[docs-rename] handleTitleChange: API failed, docId=%s, error=%o', id, error);
+        console.error('[docs-rename] handleTitleChange failed:', error);
         queryClient.setQueryData(queryKey, docData);
       }
     },
@@ -175,7 +162,6 @@ export const EditorPage = () => {
     provider,
     isSynced,
   });
-  const colorScheme = useColorScheme();
 
   const handleEditorReady = useCallback((editorInstance: BlockNoteEditor) => {
     setEditor(editorInstance);
@@ -313,170 +299,173 @@ export const EditorPage = () => {
   const localUser = getLocalUser();
 
   return (
-    <MantineProvider forceColorScheme={colorScheme}>
-      <div className="editor-page">
-        {isGuest && (
-          <div className="guest-banner">
-            {canEdit ? 'Du bearbeitest' : 'Du liest'} als Gast ({guestIdentity?.guestName})
-            <span className="guest-banner-separator">&middot;</span>
-            <a href={`/login?redirectTo=${encodeURIComponent(`/document/${id}`)}`}>Anmelden</a>
-          </div>
-        )}
+    <div className="editor-page">
+      {isGuest && (
+        <div className="guest-banner">
+          {canEdit ? 'Du bearbeitest' : 'Du liest'} als Gast ({guestIdentity?.guestName})
+          <span className="guest-banner-separator">&middot;</span>
+          <a href={`/login?redirectTo=${encodeURIComponent(`/document/${id}`)}`}>Anmelden</a>
+        </div>
+      )}
 
-        {!isGuest && !canEdit && docData && (
-          <div className="guest-banner">Du hast Lesezugriff auf dieses Dokument</div>
-        )}
+      {!isGuest && !canEdit && docData && (
+        <div className="guest-banner">Du hast Lesezugriff auf dieses Dokument</div>
+      )}
 
-        {isEmbedded ? (
-          <EditorFAB
-            connectionStatus={connectionStatus}
-            sidebarOpen={sidebarOpen}
-            onToggleSidebar={toggleSidebar}
-          />
-        ) : (
-          <EditorTopBar
-            title={docData.title}
-            connectionStatus={connectionStatus}
-            onBack={isGuest ? undefined : () => navigate('/')}
-            editable={canEdit}
-            onTitleChange={handleTitleChange}
-            rightActions={
-              <>
-                {!isGuest && (
-                  <>
-                    <div ref={exportMenuRef} className="dropdown-container">
-                      <button
-                        className="glass-btn"
-                        onClick={() => setShowExportMenu(!showExportMenu)}
-                        aria-label="Exportieren"
-                      >
-                        <FiDownload />
-                      </button>
-                      {showExportMenu && (
-                        <div className="dropdown-menu">
-                          <button className="dropdown-item" onClick={handleExport}>
-                            <FiDownload />
-                            Als Word (.docx)
-                          </button>
-                          <button className="dropdown-item" onClick={handleExportPDF}>
-                            <FiDownload />
-                            Als PDF (.pdf)
-                          </button>
-                          <button className="dropdown-item" onClick={handleExportODT}>
-                            <FiDownload />
-                            Als ODT (.odt)
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
+      {isEmbedded ? (
+        <EditorFAB
+          connectionStatus={connectionStatus}
+          sidebarOpen={sidebarOpen}
+          onToggleSidebar={toggleSidebar}
+        />
+      ) : (
+        <EditorTopBar
+          title={docData.title}
+          connectionStatus={connectionStatus}
+          onBack={isGuest ? undefined : () => navigate('/')}
+          editable={canEdit}
+          onTitleChange={handleTitleChange}
+          rightActions={
+            <>
+              {!isGuest && (
+                <>
+                  <div ref={exportMenuRef} className="dropdown-container">
                     <button
                       className="glass-btn"
-                      onClick={() => setShowWolkeModal(true)}
-                      aria-label="In Wolke speichern"
-                      title="In Wolke speichern"
+                      onClick={() => setShowExportMenu(!showExportMenu)}
+                      aria-label="Exportieren"
                     >
-                      <FiCloud />
+                      <FiDownload />
                     </button>
-
-                    {canEdit && (
-                      <button
-                        className="glass-btn"
-                        onClick={() => setShowShareModal(true)}
-                        aria-label="Teilen"
-                      >
-                        <FiShare2 />
-                      </button>
+                    {showExportMenu && (
+                      <div className="dropdown-menu">
+                        <button className="dropdown-item" onClick={handleExport}>
+                          <FiDownload />
+                          Als Word (.docx)
+                        </button>
+                        <button className="dropdown-item" onClick={handleExportPDF}>
+                          <FiDownload />
+                          Als PDF (.pdf)
+                        </button>
+                        <button className="dropdown-item" onClick={handleExportODT}>
+                          <FiDownload />
+                          Als ODT (.odt)
+                        </button>
+                      </div>
                     )}
+                  </div>
 
-                    <span className="glass-divider" />
-                  </>
-                )}
+                  <button
+                    className="glass-btn"
+                    onClick={() => setShowWolkeModal(true)}
+                    aria-label="In Wolke speichern"
+                    title="In Wolke speichern"
+                  >
+                    <FiCloud />
+                  </button>
 
-                <button
-                  className={`glass-btn ${sidebarOpen ? 'active' : ''}`}
-                  onClick={toggleSidebar}
-                  aria-label="Seitenleiste"
-                  title="Seitenleiste ein-/ausblenden"
-                >
-                  <FiSidebar />
-                </button>
-              </>
-            }
+                  {canEdit && (
+                    <button
+                      className="glass-btn"
+                      onClick={() => setShowShareModal(true)}
+                      aria-label="Teilen"
+                    >
+                      <FiShare2 />
+                    </button>
+                  )}
+
+                  <span className="glass-divider" />
+                </>
+              )}
+
+              <button
+                className={`glass-btn ${sidebarOpen ? 'active' : ''}`}
+                onClick={toggleSidebar}
+                aria-label="Seitenleiste"
+                title="Seitenleiste ein-/ausblenden"
+              >
+                <FiSidebar />
+              </button>
+            </>
+          }
+        />
+      )}
+
+      <div className="editor-content">
+        <main className="editor-main">
+          <BlockNoteEditorComponent
+            documentId={id!}
+            initialContent={docData?.content || ''}
+            documentSubtype={docData.document_subtype}
+            ydoc={ydoc}
+            provider={provider}
+            isSynced={isSynced}
+            editable={canEdit}
+            commentsPortalTarget={commentsPortalTarget}
+            onEditorReady={handleEditorReady}
           />
-        )}
+        </main>
 
-        <div className="editor-content">
-          <main className="editor-main">
-            <BlockNoteEditorComponent
-              documentId={id!}
-              initialContent={docData?.content || ''}
-              documentSubtype={docData.document_subtype}
-              ydoc={ydoc}
-              provider={provider}
-              isSynced={isSynced}
-              editable={canEdit}
-              commentsPortalTarget={commentsPortalTarget}
-              onEditorReady={handleEditorReady}
-            />
-          </main>
-
-          {sidebarOpen && (
-            <aside className="unified-sidebar">
-              <div className="unified-sidebar-header">
-                <SegmentedControl
-                  value={sidebarTab}
-                  onChange={(val) => setSidebarTab(val as 'chat' | 'comments')}
-                  data={[
-                    { label: 'Chat', value: 'chat' },
-                    { label: 'Kommentare', value: 'comments' },
-                  ]}
-                  size="xs"
-                  fullWidth
-                />
+        {sidebarOpen && (
+          <aside className="unified-sidebar">
+            <div className="unified-sidebar-header">
+              <div className="inline-flex w-full rounded-lg bg-grey-100 p-0.5 dark:bg-grey-800">
+                {SIDEBAR_TABS.map((tab) => (
+                  <button
+                    key={tab.value}
+                    onClick={() => setSidebarTab(tab.value)}
+                    className={`flex-1 rounded-md px-3 py-1 text-xs font-medium transition-all ${
+                      sidebarTab === tab.value
+                        ? 'bg-background-pure text-foreground shadow-sm'
+                        : 'text-grey-500 hover:text-grey-700 dark:text-grey-400 dark:hover:text-grey-200'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
+            </div>
 
-              {sidebarTab === 'chat' && (
-                <Suspense fallback={null}>
-                  <ChatSidebar
-                    messages={messages}
-                    currentUserId={localUser?.id ?? null}
-                    onSend={sendMessage}
-                    isConnected={isConnected}
-                    hideHeader
-                    typingUsers={typingUsers}
-                    onTypingChange={setTyping}
-                  />
-                </Suspense>
-              )}
+            {sidebarTab === 'chat' && (
+              <Suspense fallback={null}>
+                <ChatSidebar
+                  messages={messages}
+                  currentUserId={localUser?.id ?? null}
+                  onSend={sendMessage}
+                  isConnected={isConnected}
+                  hideHeader
+                  typingUsers={typingUsers}
+                  onTypingChange={setTyping}
+                />
+              </Suspense>
+            )}
 
-              {sidebarTab === 'comments' && (
-                <ScrollArea style={{ flex: 1 }}>
-                  <div className="comments-portal-content" ref={commentsPortalRef} />
-                </ScrollArea>
-              )}
-            </aside>
-          )}
-        </div>
-
-        {showShareModal && !isGuest && (
-          <Suspense fallback={null}>
-            <ShareModal
-              documentId={id!}
-              documentTitle={docData?.title}
-              onClose={() => setShowShareModal(false)}
-            />
-          </Suspense>
-        )}
-
-        {!isGuest && (
-          <WolkeSaveModal
-            opened={showWolkeModal}
-            onClose={() => setShowWolkeModal(false)}
-            onSave={handleSaveToWolke}
-          />
+            {sidebarTab === 'comments' && (
+              <div className="flex-1 overflow-y-auto">
+                <div className="comments-portal-content" ref={commentsPortalRef} />
+              </div>
+            )}
+          </aside>
         )}
       </div>
-    </MantineProvider>
+
+      {showShareModal && !isGuest && (
+        <Suspense fallback={null}>
+          <ShareModal
+            documentId={id!}
+            documentTitle={docData?.title}
+            onClose={() => setShowShareModal(false)}
+          />
+        </Suspense>
+      )}
+
+      {!isGuest && (
+        <WolkeSaveModal
+          open={showWolkeModal}
+          onOpenChange={setShowWolkeModal}
+          onSave={handleSaveToWolke}
+        />
+      )}
+    </div>
   );
 };

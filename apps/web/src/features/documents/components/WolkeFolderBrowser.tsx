@@ -1,16 +1,15 @@
-import { motion } from 'motion/react';
-import React from 'react';
-
-import Spinner from '../../../components/common/Spinner';
-import { formatRelativeDate } from '../../../utils/dateFormatter';
 import {
   useShareLinks,
   useSyncStatuses,
   useSyncFolder,
   useSetAutoSync,
-} from '../../wolke/hooks/useWolke';
+  type SyncStatus,
+} from '@gruenerator/wolke';
+import { motion } from 'motion/react';
+import React from 'react';
 
-import type { SyncStatus } from '../../wolke/lib/wolkeApi';
+import Spinner from '../../../components/common/Spinner';
+import { formatRelativeDate } from '../../../utils/dateFormatter';
 
 const ITEM_MOTION = {
   initial: { opacity: 0, y: 10 },

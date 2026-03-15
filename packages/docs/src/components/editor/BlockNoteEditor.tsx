@@ -20,7 +20,7 @@ import {
   ThreadsSidebar,
 } from '@blocknote/react';
 import { filterSuggestionItems } from '@blocknote/core/extensions';
-import { BlockNoteView } from '@blocknote/mantine';
+import { BlockNoteView } from '@blocknote/shadcn';
 import {
   AIExtension,
   AIMenuController,
@@ -30,7 +30,7 @@ import {
 import { de as aiDe } from '@blocknote/xl-ai/locales';
 import { DefaultChatTransport } from 'ai';
 import '@blocknote/core/fonts/inter.css';
-import '@blocknote/mantine/style.css';
+import '@blocknote/shadcn/style.css';
 import '@blocknote/xl-ai/style.css';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';

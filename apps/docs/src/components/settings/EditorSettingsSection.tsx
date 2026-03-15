@@ -1,6 +1,10 @@
 import { useEditorPreferencesStore, type ToolbarMode, useIsTouchDevice } from '@gruenerator/docs';
-import { SegmentedControl, Text } from '@mantine/core';
 import { FiEdit3 } from 'react-icons/fi';
+
+const TOOLBAR_OPTIONS: { label: string; value: ToolbarMode }[] = [
+  { label: 'Schwebend', value: 'floating' },
+  { label: 'Fixiert', value: 'fixed' },
+];
 
 export function EditorSettingsSection() {
   const isTouchDevice = useIsTouchDevice();
@@ -24,21 +28,26 @@ export function EditorSettingsSection() {
       </div>
 
       <div className="settings-card">
-        <SegmentedControl
-          value={toolbarMode}
-          onChange={(value) => setToolbarMode(value as ToolbarMode)}
-          fullWidth
-          color="var(--primary-600)"
-          data={[
-            { label: 'Schwebend', value: 'floating' },
-            { label: 'Fixiert', value: 'fixed' },
-          ]}
-        />
-        <Text size="xs" c="dimmed" mt="xs">
+        <div className="inline-flex w-full rounded-lg bg-grey-100 p-1 dark:bg-grey-800">
+          {TOOLBAR_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => setToolbarMode(option.value)}
+              className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
+                toolbarMode === option.value
+                  ? 'bg-primary-600 text-white shadow-sm'
+                  : 'text-grey-600 hover:text-grey-800 dark:text-grey-400 dark:hover:text-grey-200'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-grey-500">
           {toolbarMode === 'floating'
             ? 'Die Formatierungsleiste erscheint bei Textauswahl.'
             : 'Die Formatierungsleiste ist immer sichtbar — wie in Word oder Google Docs.'}
-        </Text>
+        </p>
       </div>
     </section>
   );
