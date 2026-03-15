@@ -161,6 +161,51 @@ pnpm build:web          # Frontend builds
 # Then manually: visit /gruene-{name}, check /notebook gallery, type @alias in chat
 ```
 
+### Hocuspocus Awareness (Real-time Collaboration)
+
+Both `apps/docs` and `apps/web` (boards) use **Hocuspocus** for real-time Yjs collaboration. Awareness (cursor positions, presence, typing indicators) requires careful API usage:
+
+#### Writing Awareness State
+
+Use **separate top-level fields** for custom awareness data. Do NOT nest under `user` — `useCollaboration.ts` periodically resets the `user` field, wiping nested data:
+
+```typescript
+// CORRECT — separate field, won't be overwritten by user updates
+provider.awareness.setLocalStateField('boardCursor', { x, y, t: Date.now() });
+
+// WRONG — gets wiped when useCollaboration resets the user field
+provider.setAwarenessField('user', { ...currentUser, cursor: { x, y } });
+```
+
+#### Reading Awareness State
+
+Use `awareness.on('change', handler)` with **`setTimeout(0)`** inside the handler. Without the timeout, `awareness.getStates()` may return stale data:
+
+```typescript
+// CORRECT — matches the working useCollaborators pattern
+awareness.on('change', () => {
+  setTimeout(() => {
+    awareness.getStates().forEach((state, clientId) => {
+      if (clientId === awareness.clientID) return; // filter self
+      const cursor = state.boardCursor; // read custom field
+    });
+  }, 0);
+});
+
+// WRONG — synchronous read may see stale state
+awareness.on('change', () => {
+  awareness.getStates().forEach(...); // may not reflect latest remote update
+});
+```
+
+Do NOT use `provider.on('awarenessChange', ({ states }))` for self-filtering — the `states` Map uses sequential index keys (0, 1, 2...), not real Yjs clientIDs.
+
+#### Reference Implementations
+
+- **Presence avatars** (working): `useCollaborators()` in `packages/docs/src/hooks/useCollaboration.ts:146-199`
+- **Typing indicators** (working): `useDocumentChat()` in `packages/docs/src/hooks/useDocumentChat.ts:64-101`
+- **Live cursors** (boards): `useBoardCursors()` in `apps/web/src/features/boards/hooks/useBoardCursors.ts`
+
 ### Authentication
 
 Keycloak OIDC via Passport.js. Supports multiple identity providers (.de, .at, .eu domains). Sessions stored in Redis.
@@ -192,7 +237,7 @@ For local Playwright MCP testing without Keycloak, set these env vars and restar
 
 ### Git Safety
 
-**Never use `git stash` or `git stash pop`** without explicit user permission. These commands can silently lose uncommitted work and are almost never necessary.
+**NEVER use `git stash` or `git stash pop`.** These commands are absolutely forbidden — they silently lose uncommitted work and cause merge conflicts that corrupt multiple files. There are no exceptions. If you need to preserve work, commit it to a branch instead.
 
 **Before creating a PR**, always run `git fetch origin master` (or the target branch) to ensure the local remote ref is up to date. This prevents PRs from being based on stale data.
 
