@@ -1,5 +1,4 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { ScrollArea, Stack, Text, Flex, ActionIcon, Divider } from '@mantine/core';
 import { FiX, FiMessageCircle } from 'react-icons/fi';
 import { ChatMessageComponent } from './ChatMessage';
 import { ChatComposer } from './ChatComposer';
@@ -13,6 +12,8 @@ interface ChatSidebarProps {
   isConnected: boolean;
   onClose?: () => void;
   hideHeader?: boolean;
+  typingUsers?: string[];
+  onTypingChange?: (isTyping: boolean) => void;
 }
 
 export const ChatSidebar = ({
@@ -22,6 +23,8 @@ export const ChatSidebar = ({
   isConnected,
   onClose,
   hideHeader = false,
+  typingUsers,
+  onTypingChange,
 }: ChatSidebarProps) => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
@@ -45,45 +48,35 @@ export const ChatSidebar = ({
   }, []);
 
   return (
-    <Flex direction="column" className="chat-sidebar">
+    <div className="chat-sidebar flex flex-col">
       {!hideHeader && (
         <>
-          <Flex align="center" justify="space-between" px="md" py="sm">
-            <Text fw={600} size="sm">
-              Chat
-            </Text>
+          <div className="flex items-center justify-between px-md py-sm">
+            <span className="text-sm font-semibold">Chat</span>
             {onClose && (
-              <ActionIcon
-                variant="subtle"
-                color="gray"
-                size="sm"
+              <button
+                type="button"
                 onClick={onClose}
                 aria-label="Chat schließen"
-                className="chat-sidebar-close"
+                className="chat-sidebar-close items-center justify-center rounded p-1 text-grey-500 hover:bg-grey-100 hover:text-grey-700 dark:text-grey-400 dark:hover:bg-grey-800 dark:hover:text-grey-200"
               >
                 <FiX size={16} />
-              </ActionIcon>
+              </button>
             )}
-          </Flex>
+          </div>
 
-          <Divider />
+          <hr className="border-grey-200 dark:border-grey-700" />
         </>
       )}
 
-      <ScrollArea
-        style={{ flex: 1 }}
-        viewportRef={viewportRef}
-        onScrollPositionChange={checkIfAtBottom}
-      >
+      <div ref={viewportRef} onScroll={checkIfAtBottom} className="flex-1 overflow-y-auto">
         {messages.length === 0 ? (
-          <Flex align="center" justify="center" direction="column" gap="xs" py={60}>
-            <FiMessageCircle size={32} color="var(--grey-300, #bdbdbd)" />
-            <Text c="dimmed" size="sm">
-              Noch keine Nachrichten
-            </Text>
-          </Flex>
+          <div className="flex flex-col items-center justify-center gap-xs py-[60px]">
+            <FiMessageCircle size={32} className="text-grey-300" />
+            <span className="text-sm text-grey-500 dark:text-grey-400">Noch keine Nachrichten</span>
+          </div>
         ) : (
-          <Stack gap="xs" px="sm" py="xs">
+          <div className="flex flex-col gap-xs px-sm py-xs">
             {messages.map((msg) => (
               <ChatMessageComponent
                 key={msg.id}
@@ -91,11 +84,19 @@ export const ChatSidebar = ({
                 isOwnMessage={msg.userId === currentUserId}
               />
             ))}
-          </Stack>
+          </div>
         )}
-      </ScrollArea>
+      </div>
 
-      <ChatComposer onSend={onSend} disabled={!isConnected} />
-    </Flex>
+      {typingUsers && typingUsers.length > 0 && (
+        <span className="px-sm py-1 text-xs italic text-grey-500 dark:text-grey-400">
+          {typingUsers.length === 1
+            ? `${typingUsers[0]} tippt...`
+            : `${typingUsers.join(' und ')} tippen...`}
+        </span>
+      )}
+
+      <ChatComposer onSend={onSend} disabled={!isConnected} onTypingChange={onTypingChange} />
+    </div>
   );
 };

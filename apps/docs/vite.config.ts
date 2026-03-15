@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 import { compression } from 'vite-plugin-compression2';
@@ -54,6 +55,7 @@ export default defineConfig(({ command }) => ({
   plugins: [
     // Only use Tauri stub plugin when NOT in Tauri context
     ...(!isTauri ? [tauriStubPlugin()] : []),
+    tailwindcss(),
     react({ jsxRuntime: 'automatic' }),
     compression({ algorithms: ['gzip', 'brotliCompress'] }),
   ],
@@ -81,9 +83,7 @@ export default defineConfig(({ command }) => ({
           'vendor-editor': [
             '@blocknote/core',
             '@blocknote/react',
-            '@blocknote/mantine',
-            '@mantine/core',
-            '@mantine/hooks',
+            '@blocknote/shadcn',
             'yjs',
             'y-websocket',
             '@hocuspocus/provider',

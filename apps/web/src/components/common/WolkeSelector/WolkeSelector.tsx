@@ -1,11 +1,10 @@
+import { useShareLinks, useSyncStatuses, type WolkeScope } from '@gruenerator/wolke';
 import { type JSX, useMemo } from 'react';
 import { HiOutlineCloud, HiOutlineFolder } from 'react-icons/hi';
 
-import { useShareLinks, useSyncStatuses } from '../../../features/wolke/hooks/useWolke';
 import EnhancedSelect from '../EnhancedSelect';
 import Spinner from '../Spinner';
 
-import type { WolkeScope } from '../../../features/wolke/lib/wolkeApi';
 import type { EnhancedSelectOption } from '../EnhancedSelect/EnhancedSelect';
 import type { MultiValue, SingleValue, ActionMeta } from 'react-select';
 

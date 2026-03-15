@@ -1,10 +1,13 @@
+import {
+  useShareLinks,
+  useWolkeFiles,
+  type ShareLink,
+  type WolkeFileItem,
+} from '@gruenerator/wolke';
 import React, { useState, useEffect, useMemo } from 'react';
 import { HiOutlineCloud, HiOutlineDocument, HiSearch, HiX, HiCheck } from 'react-icons/hi';
 
-import { useShareLinks, useWolkeFiles } from '../../../features/wolke/hooks/useWolke';
 import Spinner from '../Spinner';
-
-import type { ShareLink, WolkeFileItem } from '../../../features/wolke/lib/wolkeApi';
 
 interface SelectedFile extends WolkeFileItem {
   shareLinkId: string;

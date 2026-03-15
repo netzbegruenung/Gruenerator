@@ -1,5 +1,3 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-
 import {
   fetchShareLinks,
   addShareLink,
@@ -15,7 +13,8 @@ import {
   type SyncStatus,
   type WolkeFileItem,
   type ConnectionTestResult,
-} from '../lib/wolkeApi';
+} from '@gruenerator/wolke';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 // ── Query Keys ─────────────────────────────────────────────────────────
 
@@ -26,6 +25,7 @@ const wolkeKeys = {
   syncStatuses: (scope?: WolkeScope, scopeId?: string | null) =>
     ['wolke', 'sync-statuses', scope ?? 'personal', scopeId ?? null] as const,
   files: (shareLinkId: string) => ['wolke', 'files', shareLinkId] as const,
+  browse: (shareLinkId: string, path: string) => ['wolke', 'browse', shareLinkId, path] as const,
 };
 
 // ── Query Hooks ────────────────────────────────────────────────────────
@@ -56,6 +56,15 @@ export function useWolkeFiles(shareLinkId: string | null) {
     queryKey: wolkeKeys.files(shareLinkId!),
     queryFn: () => browseFolder(shareLinkId!),
     staleTime: 3 * 60 * 1000,
+    enabled: !!shareLinkId,
+  });
+}
+
+export function useWolkeBrowse(shareLinkId: string | null, path: string) {
+  return useQuery({
+    queryKey: wolkeKeys.browse(shareLinkId!, path),
+    queryFn: () => browseFolder(shareLinkId!, path || undefined),
+    staleTime: 60_000,
     enabled: !!shareLinkId,
   });
 }

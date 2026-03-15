@@ -1,9 +1,8 @@
-import { useState, type FormEvent } from 'react';
-
-import { useAddShareLink } from '../hooks/useWolke';
-import { validateShareLink, type WolkeScope } from '../lib/wolkeApi';
+import { useAddShareLink, validateShareLink, type WolkeScope } from '@gruenerator/wolke';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { cn } from '@/utils/cn';
 
 interface WolkeAddFormProps {
   scope?: WolkeScope;
@@ -12,12 +11,29 @@ interface WolkeAddFormProps {
   onError?: (message: string) => void;
 }
 
+const INPUT_CLASS =
+  'w-full rounded-lg border border-grey-200 dark:border-grey-700 bg-background px-md py-md text-base focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 disabled:opacity-50';
+
 const WolkeAddForm = ({ scope, scopeId, onSuccess, onError }: WolkeAddFormProps) => {
   const [url, setUrl] = useState('');
   const [label, setLabel] = useState('');
   const [validationError, setValidationError] = useState('');
 
   const addMutation = useAddShareLink(scope, scopeId);
+  const labelRef = useRef<HTMLInputElement>(null);
+
+  const isValidLink = validateShareLink(url).isValid;
+
+  useEffect(() => {
+    if (isValidLink) {
+      labelRef.current?.focus();
+    }
+  }, [isValidLink]);
+
+  const handleUrlChange = (value: string) => {
+    setUrl(value);
+    setValidationError('');
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -43,60 +59,64 @@ const WolkeAddForm = ({ scope, scopeId, onSuccess, onError }: WolkeAddFormProps)
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-sm">
-      <div className="flex flex-col gap-xxs">
-        <label htmlFor="wolke-url" className="text-sm font-medium text-foreground">
-          Nextcloud Share-Link *
-        </label>
-        <input
-          id="wolke-url"
-          type="url"
-          value={url}
-          onChange={(e) => {
-            setUrl(e.target.value);
-            setValidationError('');
-          }}
-          placeholder="https://wolke.netzbegruenung.de/s/AbCdEfGhIj"
-          required
-          disabled={addMutation.isPending}
-          className="w-full rounded-md border border-grey-200 dark:border-grey-700 bg-background px-sm py-xs text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 disabled:opacity-50"
-        />
-        <span className="text-xs text-grey-400">
-          Der Link sollte mit /s/ beginnen und beschreibbar sein
-        </span>
-      </div>
-
-      <div className="flex flex-col gap-xxs">
-        <label htmlFor="wolke-label" className="text-sm font-medium text-foreground">
-          Bezeichnung (optional)
-        </label>
-        <input
-          id="wolke-label"
-          type="text"
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          placeholder="z.B. Ortsverband, Mein Ordner, Grünerator..."
-          disabled={addMutation.isPending}
-          className="w-full rounded-md border border-grey-200 dark:border-grey-700 bg-background px-sm py-xs text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 disabled:opacity-50"
-        />
-      </div>
-
-      {validationError && (
-        <div className="text-sm text-red-600 dark:text-red-400">{validationError}</div>
-      )}
-
-      <div className="flex items-center justify-between">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-md">
+      <p className="text-base text-grey-600 dark:text-grey-300 m-0">
+        Erstelle in deiner Nextcloud einen Share-Link mit Schreibzugriff und füge ihn hier ein.{' '}
         <a
           href="https://doku.services.moritz-waechter.de/docs/Profil/gruene-wolke-tutorial"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-primary-600 hover:underline"
+          className="text-primary-500 dark:text-primary-400 hover:underline"
         >
           Anleitung ansehen
         </a>
-        <Button type="submit" disabled={addMutation.isPending || !url.trim()} size="sm">
-          {addMutation.isPending ? 'Wird hinzugefügt...' : 'Hinzufügen'}
-        </Button>
+      </p>
+      <div className="flex flex-col gap-xxs">
+        <input
+          id="wolke-url"
+          type="url"
+          value={url}
+          onChange={(e) => handleUrlChange(e.target.value)}
+          placeholder="Nextcloud Share-Link einfügen..."
+          required
+          disabled={addMutation.isPending}
+          className={cn(INPUT_CLASS, isValidLink && 'border-primary-500')}
+        />
+        {validationError && (
+          <span className="text-xs text-red-600 dark:text-red-400">{validationError}</span>
+        )}
+        {!isValidLink && !validationError && url.length > 0 && (
+          <span className="text-xs text-grey-400">
+            Der Link sollte mit /s/ beginnen (z.B. wolke.netzbegruenung.de/s/...)
+          </span>
+        )}
+      </div>
+
+      <div
+        className={cn(
+          'grid transition-all duration-200 ease-out',
+          isValidLink ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="flex flex-col gap-md">
+            <input
+              ref={labelRef}
+              id="wolke-label"
+              type="text"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="Bezeichnung (optional)"
+              disabled={addMutation.isPending}
+              className={INPUT_CLASS}
+            />
+            <div className="flex justify-end">
+              <Button type="submit" disabled={addMutation.isPending} size="sm">
+                {addMutation.isPending ? 'Wird hinzugefügt...' : 'Hinzufügen'}
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     </form>
   );

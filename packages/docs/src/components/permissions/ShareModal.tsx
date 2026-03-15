@@ -1,5 +1,5 @@
 import { getAvatarDisplayProps, getRobotAvatarPath } from '@gruenerator/shared/avatar';
-import { Alert, Badge, Button, Group, Loader, Select, Stack, Text } from '@mantine/core';
+import { Alert, AlertDescription, Badge, Button } from '@gruenerator/ui';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 
 import { useDocsAdapter, createDocsApiClient } from '../../context/DocsContext';
@@ -219,57 +219,64 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
 
   const showLinkSection = shareSettings.share_mode !== 'private';
 
+  const shareModeOptions = useMemo(
+    () => [
+      ...(hasGroups ? [{ value: 'private', label: 'Privat' }] : []),
+      { value: 'authenticated', label: 'Mit Anmeldung' },
+      { value: 'public', label: 'Öffentlich' },
+    ],
+    [hasGroups]
+  );
+
   return (
     <div className="share-modal-overlay" onClick={onClose}>
       <div className="share-modal-panel" onClick={(e) => e.stopPropagation()}>
         <div className="share-modal-header">
-          <Text size="lg" fw={600}>
-            Dokument teilen
-          </Text>
+          <span className="text-lg font-semibold">Dokument teilen</span>
           <button onClick={onClose} className="close-button">
             ×
           </button>
         </div>
 
         {error && (
-          <Alert color="red" variant="light" style={{ borderRadius: 0 }}>
-            {error}
+          <Alert variant="destructive" className="rounded-none">
+            <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
         <div className="share-link-section">
           <div className="share-link-row">
-            <Select
-              label="Zugriffsmodus"
-              value={shareSettings.share_mode}
-              onChange={(val) => val && changeShareMode(val as ShareMode)}
-              data={[
-                ...(hasGroups ? [{ value: 'private', label: 'Privat' }] : []),
-                { value: 'authenticated', label: 'Mit Anmeldung' },
-                { value: 'public', label: 'Öffentlich' },
-              ]}
-              disabled={isChangingMode}
-              allowDeselect={false}
-              comboboxProps={{ zIndex: 1100 }}
-              style={{ flex: '1 1 160px', minWidth: 0 }}
-            />
+            <div className="flex flex-col" style={{ flex: '1 1 160px', minWidth: 0 }}>
+              <label className="mb-1 text-sm font-medium">Zugriffsmodus</label>
+              <select
+                className="h-9 rounded-md border border-grey-300 bg-background px-3 text-sm outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 dark:border-grey-600 dark:bg-grey-800"
+                value={shareSettings.share_mode}
+                onChange={(e) => changeShareMode(e.target.value as ShareMode)}
+                disabled={isChangingMode}
+              >
+                {shareModeOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             {showLinkSection && (
-              <Select
-                value={shareSettings.share_permission}
-                onChange={(val) => val && updateSharePermission(val as 'viewer' | 'editor')}
-                data={[
-                  { value: 'editor', label: 'Kann bearbeiten' },
-                  { value: 'viewer', label: 'Kann ansehen' },
-                ]}
-                allowDeselect={false}
-                comboboxProps={{ zIndex: 1100 }}
-                style={{ flex: '0 0 auto', alignSelf: 'flex-end' }}
-              />
+              <div className="flex flex-col self-end" style={{ flex: '0 0 auto' }}>
+                <select
+                  className="h-9 rounded-md border border-grey-300 bg-background px-3 text-sm outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 dark:border-grey-600 dark:bg-grey-800"
+                  value={shareSettings.share_permission}
+                  onChange={(e) => updateSharePermission(e.target.value as 'viewer' | 'editor')}
+                >
+                  <option value="editor">Kann bearbeiten</option>
+                  <option value="viewer">Kann ansehen</option>
+                </select>
+              </div>
             )}
           </div>
-          <Text size="xs" c="dimmed" mt={4}>
+          <span className="mt-1 text-xs text-grey-500 dark:text-grey-400">
             {SHARE_MODE_OPTIONS.find((o) => o.value === shareSettings.share_mode)?.description}
-          </Text>
+          </span>
         </div>
 
         <GroupShareSection
@@ -279,27 +286,23 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
         />
 
         <div className="collaborators-section">
-          <Text size="md" fw={600} mb="sm">
-            Personen mit Zugriff
-          </Text>
+          <p className="mb-3 text-base font-semibold">Personen mit Zugriff</p>
           {isLoading ? (
-            <Group justify="center" py="xl">
-              <Loader size="sm" />
-            </Group>
+            <div className="flex justify-center py-6">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-grey-300 border-t-primary-600" />
+            </div>
           ) : collaborators.length === 0 ? (
-            <Text c="dimmed" ta="center" py="xl">
+            <p className="py-6 text-center text-grey-500 dark:text-grey-400">
               Noch keine Mitarbeiter
-            </Text>
+            </p>
           ) : (
-            <Stack gap="sm">
+            <div className="flex flex-col gap-3">
               {collaborators.map((collaborator) => (
-                <Group
+                <div
                   key={collaborator.user_id}
-                  justify="space-between"
-                  wrap="nowrap"
-                  className="collaborator-item"
+                  className="collaborator-item flex flex-nowrap items-center justify-between"
                 >
-                  <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                  <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-3">
                     {(() => {
                       const avatar = getAvatarDisplayProps(collaborator);
                       return avatar.type === 'robot' ? (
@@ -314,82 +317,62 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
                         </div>
                       );
                     })()}
-                    <div style={{ minWidth: 0 }}>
-                      <Text size="sm" fw={500} truncate>
+                    <div className="min-w-0">
+                      <span className="block truncate text-sm font-medium">
                         {collaborator.display_name}
-                      </Text>
-                      <Text size="xs" c="dimmed" truncate>
+                      </span>
+                      <span className="block truncate text-xs text-grey-500 dark:text-grey-400">
                         {collaborator.email}
-                      </Text>
-                      <Text size="xs" c="dimmed">
+                      </span>
+                      <span className="block text-xs text-grey-500 dark:text-grey-400">
                         Hinzugefügt am {formatDate(collaborator.granted_at)}
-                      </Text>
+                      </span>
                     </div>
-                  </Group>
-                  <Group gap="xs" wrap="nowrap">
+                  </div>
+                  <div className="flex flex-nowrap items-center gap-2">
                     {collaborator.permission_level === 'owner' ? (
-                      <Badge variant="filled" color="var(--primary-600)" size="md">
-                        {getPermissionLabel(collaborator.permission_level)}
-                      </Badge>
+                      <Badge>{getPermissionLabel(collaborator.permission_level)}</Badge>
                     ) : (
                       <>
-                        <Select
-                          size="xs"
+                        <select
+                          className="h-7 w-[150px] rounded-md border border-grey-300 bg-background px-2 text-xs outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 dark:border-grey-600 dark:bg-grey-800"
                           value={collaborator.permission_level}
-                          onChange={(val) =>
-                            val &&
+                          onChange={(e) =>
                             handleUpdatePermission(
                               collaborator.user_id,
-                              val as 'owner' | 'editor' | 'viewer'
+                              e.target.value as 'owner' | 'editor' | 'viewer'
                             )
                           }
-                          data={[
-                            { value: 'editor', label: 'Bearbeiter*in' },
-                            { value: 'viewer', label: 'Betrachter*in' },
-                          ]}
-                          allowDeselect={false}
-                          comboboxProps={{ zIndex: 1100 }}
-                          style={{ width: 150 }}
-                        />
+                        >
+                          <option value="editor">Bearbeiter*in</option>
+                          <option value="viewer">Betrachter*in</option>
+                        </select>
                         <Button
-                          variant="default"
+                          variant="outline"
                           size="xs"
-                          color="red"
                           onClick={() => handleRevokePermission(collaborator.user_id)}
                         >
                           Entfernen
                         </Button>
                       </>
                     )}
-                  </Group>
-                </Group>
+                  </div>
+                </div>
               ))}
-            </Stack>
+            </div>
           )}
         </div>
 
         <div className="share-modal-footer">
-          <Button
-            variant="outline"
-            size="xs"
-            radius="xl"
-            color="var(--primary-600)"
-            onClick={copyShareLink}
-          >
+          <Button variant="outline" size="xs" className="rounded-full" onClick={copyShareLink}>
             {copySuccess ? '✓ Kopiert' : 'Link kopieren'}
           </Button>
           {userDisplayName && (
-            <Button
-              variant="filled"
-              size="xs"
-              radius="xl"
-              color="var(--primary-600)"
-              onClick={directShare}
-            >
+            <Button size="xs" className="rounded-full" onClick={directShare}>
               {directShareSuccess ? '✓ Kopiert' : 'Direkt teilen'}
             </Button>
           )}
-          <Button ml="auto" color="var(--primary-600)" onClick={onClose}>
+          <Button className="ml-auto" onClick={onClose}>
             Fertig
           </Button>
         </div>

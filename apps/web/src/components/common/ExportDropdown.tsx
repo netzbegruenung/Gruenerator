@@ -1,4 +1,9 @@
-import { useAgentStore } from '@gruenerator/chat';
+import {
+  useShareLinks,
+  useUploadToWolke,
+  parseShareLink,
+  type ShareLink,
+} from '@gruenerator/wolke';
 import { type JSX, useState, useEffect, type ReactNode } from 'react';
 import { CiMemoPad } from 'react-icons/ci';
 import { FaFileWord, FaFilePdf } from 'react-icons/fa6';
@@ -26,8 +31,6 @@ import {
   DropdownMenuSubContent,
 } from '../../components/ui/dropdown-menu';
 import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
-import { useShareLinks, useUploadToWolke } from '../../features/wolke/hooks/useWolke';
-import { parseShareLink, type ShareLink } from '../../features/wolke/lib/wolkeApi';
 import { useLazyAuth } from '../../hooks/useAuth';
 import { useBetaFeatures } from '../../hooks/useBetaFeatures';
 import { awaitDeferredTitle } from '../../hooks/useDeferredTitle';
@@ -391,6 +394,7 @@ const ExportDropdown = ({
       const titleLine = freshTitle ? `**${freshTitle}**\n\n` : '';
       const reviewMessage = `Bitte überprüfe den folgenden Text und gib mir konstruktives Feedback:\n\n${titleLine}---\n${plainContent}\n---`;
 
+      const { useAgentStore } = await import('@gruenerator/chat');
       useAgentStore.getState().setPendingMessage(reviewMessage);
       navigate('/chat');
     } catch (err) {

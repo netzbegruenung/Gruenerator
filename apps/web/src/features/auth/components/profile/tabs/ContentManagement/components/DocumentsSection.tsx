@@ -1,3 +1,4 @@
+import { useShareLinks, useSyncStatuses, useSetAutoSync } from '@gruenerator/wolke';
 import {
   useState,
   useRef,
@@ -28,11 +29,6 @@ import { useOptimizedAuth } from '../../../../../../../hooks/useAuth';
 import { useTabIndex } from '../../../../../../../hooks/useTabIndex';
 import { useDocumentsStore } from '../../../../../../../stores/documentsStore';
 import { useDocumentMode } from '../../../../../../documents/hooks/useDocumentMode';
-import {
-  useShareLinks,
-  useSyncStatuses,
-  useSetAutoSync,
-} from '../../../../../../wolke/hooks/useWolke';
 
 // Hooks
 // Removed useUserTexts import - now using combined fetch from documentsStore
@@ -54,7 +50,6 @@ interface DocumentsSectionProps {
   isActive: boolean;
   onSuccessMessage: (message: string) => void;
   onErrorMessage: (message: string) => void;
-  onShareToGroup?: (contentType: string, contentId: string, contentTitle: string) => void;
 }
 
 interface BulkDeleteResult {
@@ -118,7 +113,7 @@ MemoizedDocumentUpload.displayName = 'MemoizedDocumentUpload';
 const DOCUMENT_TYPES = documentAndTextUtils.DOCUMENT_TYPES;
 
 const DocumentsSection = memo(
-  ({ isActive, onSuccessMessage, onErrorMessage, onShareToGroup }: DocumentsSectionProps) => {
+  ({ isActive, onSuccessMessage, onErrorMessage }: DocumentsSectionProps) => {
     // Tab index configuration
     const tabIndex = useTabIndex('PROFILE_CONTENT_MANAGEMENT');
 
@@ -523,12 +518,6 @@ const DocumentsSection = memo(
               }}
               onEdit={handleCombinedEdit}
               onRefreshDocument={handleDocumentRefresh}
-              onShare={(item: unknown) => {
-                const typedItem = item as CombinedItem;
-                if (onShareToGroup) {
-                  onShareToGroup(typedItem.itemType, typedItem.id, typedItem.title || '');
-                }
-              }}
               documentTypes={DOCUMENT_TYPES}
               emptyStateConfig={{
                 noDocuments: 'Keine Inhalte vorhanden.',

@@ -1,3 +1,4 @@
+import { useShareLinks, type WolkeFileItem } from '@gruenerator/wolke';
 import React, { useState, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import {
   HiOutlineDocumentAdd,
@@ -13,7 +14,6 @@ import {
   HiOutlineCloudDownload,
 } from 'react-icons/hi';
 
-import { useShareLinks } from '../../features/wolke/hooks/useWolke';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useDocumentsStore } from '../../stores/documentsStore';
 import { validateUrl, normalizeUrl, generateTitleFromUrl } from '../../utils/urlValidation';
@@ -23,8 +23,6 @@ import FeatureToggle from './FeatureToggle';
 import { Markdown } from './Markdown';
 import Spinner from './Spinner';
 import WolkeFilePicker from './WolkeFilePicker/WolkeFilePicker';
-
-import type { WolkeFileItem } from '../../features/wolke/lib/wolkeApi';
 
 // Import button styles for modal
 import '../../assets/styles/components/ui/button.css';
