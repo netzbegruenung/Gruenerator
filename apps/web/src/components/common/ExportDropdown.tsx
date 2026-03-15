@@ -1,4 +1,14 @@
 import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+} from '@gruenerator/ui';
+import {
   useShareLinks,
   useUploadToWolke,
   parseShareLink,
@@ -20,16 +30,6 @@ import {
 } from 'react-icons/io5';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-} from '../../components/ui/dropdown-menu';
 import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
 import { useLazyAuth } from '../../hooks/useAuth';
 import { useBetaFeatures } from '../../hooks/useBetaFeatures';

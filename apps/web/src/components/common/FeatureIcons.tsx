@@ -1,3 +1,22 @@
+import {
+  Badge,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@gruenerator/ui';
 import React, { type JSX, useState, useRef, useMemo, useCallback } from 'react';
 import {
   HiGlobeAlt,
@@ -19,12 +38,6 @@ import { useAuth } from '../../hooks/useAuth';
 import { useGeneratorSelectionStore } from '../../stores/core/generatorSelectionStore';
 import { cn } from '../../utils/cn';
 import { getPDFPageCount } from '../../utils/fileAttachmentUtils';
-import { Badge } from '../ui/badge';
-import { Button } from '../ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '../ui/dropdown-menu';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 import AttachedFilesList from './AttachedFilesList';
 import ContentSelector, { type AttachedFile } from './ContentSelector';

@@ -1,3 +1,4 @@
+import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { type JSX, useState, memo } from 'react';
 import { HiPlus } from 'react-icons/hi';
 import { HiCog6Tooth } from 'react-icons/hi2';
@@ -6,7 +7,6 @@ import SearchBar from '../../../features/search/components/SearchBar';
 import AddTemplateModal from '../AddTemplateModal/AddTemplateModal';
 
 import '../../../assets/styles/components/profile/profile-action-buttons.css';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/utils/cn';
 
 interface CategoryItem {

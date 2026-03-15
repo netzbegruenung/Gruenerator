@@ -1,3 +1,11 @@
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@gruenerator/ui';
 import { FaSignOutAlt, FaUserCircle } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
 import { Link, useNavigate } from 'react-router-dom';
@@ -8,14 +16,6 @@ import { getAvatarDisplayProps } from '../../../features/auth/services/profileAp
 import { useGroups } from '../../../features/groups/hooks/useGroups';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { cn } from '@/utils/cn';
 
 interface Profile {
@@ -119,7 +119,7 @@ const ProfileButton = () => {
           {renderAvatar('sm')}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[260px] p-0">
+      <DropdownMenuContent align="end" className="w-[280px] p-0">
         <DropdownMenuLabel className="p-0 font-normal">
           <div className="flex items-center gap-md p-md bg-background-alt border-b border-grey-200 dark:border-grey-700">
             <Link
@@ -138,11 +138,13 @@ const ProfileButton = () => {
             </div>
           </div>
         </DropdownMenuLabel>
-        <ProfileMenu variant="dropdown" groups={userGroups} />
+        <div className="py-1">
+          <ProfileMenu variant="dropdown" groups={userGroups} />
+        </div>
         <DropdownMenuSeparator />
-        <div className="flex items-center justify-between pr-sm">
+        <div className="flex items-center justify-between p-1">
           <DropdownMenuItem
-            className="flex-1 gap-sm cursor-pointer"
+            className="flex-1 gap-sm py-2 cursor-pointer"
             onSelect={() => void navigate('/profile')}
           >
             <HiCog className="text-base opacity-80" />
