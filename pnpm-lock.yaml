@@ -1029,6 +1029,9 @@ importers:
       '@gruenerator/docs':
         specifier: workspace:*
         version: link:../../packages/docs
+      '@gruenerator/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@gruenerator/voice':
         specifier: workspace:*
         version: link:../../packages/voice
@@ -1423,18 +1426,15 @@ importers:
       '@gruenerator/collab':
         specifier: workspace:*
         version: link:../collab
+      '@gruenerator/ui':
+        specifier: workspace:*
+        version: link:../ui
       '@gruenerator/voice':
         specifier: workspace:*
         version: link:../voice
       '@hocuspocus/provider':
         specifier: ^3.4.3
         version: 3.4.4(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29)
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
-      cmdk:
-        specifier: ^1.1.1
-        version: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       lucide-react:
         specifier: ^0.577.0
         version: 0.577.0(react@19.2.4)
@@ -1453,9 +1453,6 @@ importers:
       remark-gfm:
         specifier: ^4.0.1
         version: 4.0.1
-      tailwind-merge:
-        specifier: ^3.5.0
-        version: 3.5.0
       tailwindcss:
         specifier: '4'
         version: 4.2.1

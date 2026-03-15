@@ -97,6 +97,7 @@ interface AgentState {
   messageCount: number;
   needsCompaction: boolean;
   pendingMessage: string | null;
+  pendingDraft: string | null;
   chatViewMode: 'overview' | 'thread';
   setSelectedAgent: (agentId: string | null) => void;
   setSelectedProvider: (provider: Provider) => void;
@@ -107,6 +108,7 @@ interface AgentState {
   toggleDeepAgent: () => void;
   setSelectedNotebook: (notebookId: string) => void;
   setPendingMessage: (message: string | null) => void;
+  setPendingDraft: (draft: string | null) => void;
   setChatViewMode: (mode: 'overview' | 'thread') => void;
   setCompactionState: (state: CompactionState) => void;
   loadCompactionState: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
@@ -142,6 +144,7 @@ export const useAgentStore = create<AgentState>()(
       messageCount: 0,
       needsCompaction: false,
       pendingMessage: null,
+      pendingDraft: null,
       chatViewMode: 'overview' as const,
 
       setSelectedAgent: (agentId) => set({ selectedAgentId: agentId }),
@@ -186,6 +189,8 @@ export const useAgentStore = create<AgentState>()(
       setSelectedNotebook: (notebookId) => set({ selectedNotebookId: notebookId }),
 
       setPendingMessage: (message) => set({ pendingMessage: message }),
+
+      setPendingDraft: (draft) => set({ pendingDraft: draft }),
 
       setChatViewMode: (mode) => set({ chatViewMode: mode }),
 

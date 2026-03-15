@@ -3,16 +3,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Check } from 'lucide-react';
 import {
+  Badge,
   Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
-} from '../ui/command';
-import { ScrollArea } from '../ui/scroll-area';
-import { Skeleton } from '../ui/skeleton';
-import { Badge } from '../ui/badge';
+  ScrollArea,
+  Skeleton,
+} from '@gruenerator/ui';
 import { useFileMentionData } from '../../hooks/useFileMentionData';
 import type { UserDocumentItem, UserTextItem } from '../../lib/documentMentionables';
 

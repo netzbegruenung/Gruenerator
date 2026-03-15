@@ -9,37 +9,46 @@ export function AutoMessageSender() {
   const composerRuntime = useComposerRuntime();
   const pendingMessage = useAgentStore((s) => s.pendingMessage);
   const setPendingMessage = useAgentStore((s) => s.setPendingMessage);
-  const switchedRef = useRef(false);
+  const pendingDraft = useAgentStore((s) => s.pendingDraft);
+  const setPendingDraft = useAgentStore((s) => s.setPendingDraft);
+  const switchedRef = useRef<'message' | 'draft' | false>(false);
 
-  // Phase 1: Switch to new thread when pending message appears
+  // Phase 1: Switch to new thread when pending message or draft appears
   useEffect(() => {
-    if (pendingMessage && !switchedRef.current) {
-      switchedRef.current = true;
+    if ((pendingMessage || pendingDraft) && !switchedRef.current) {
+      switchedRef.current = pendingMessage ? 'message' : 'draft';
       assistantRuntime.switchToNewThread();
     }
-    if (!pendingMessage) {
+    if (!pendingMessage && !pendingDraft) {
       switchedRef.current = false;
     }
-  }, [pendingMessage, assistantRuntime]);
+  }, [pendingMessage, pendingDraft, assistantRuntime]);
 
-  // Phase 2: Send message after thread is ready
-  // composerRuntime may change during thread switch — timer resets each time
+  // Phase 2: Send message or set draft after thread is ready
   useEffect(() => {
-    if (!pendingMessage || !switchedRef.current) return;
+    if (!switchedRef.current) return;
+    const text = switchedRef.current === 'message' ? pendingMessage : pendingDraft;
+    if (!text) return;
 
     const timer = setTimeout(() => {
       try {
-        composerRuntime.setText(pendingMessage);
-        composerRuntime.send();
+        composerRuntime.setText(text);
+        if (switchedRef.current === 'message') {
+          composerRuntime.send();
+        }
       } catch (err) {
-        console.warn('[AutoMessageSender] Failed to send:', err);
+        console.warn('[AutoMessageSender] Failed:', err);
       }
-      setPendingMessage(null);
+      if (switchedRef.current === 'message') {
+        setPendingMessage(null);
+      } else {
+        setPendingDraft(null);
+      }
       switchedRef.current = false;
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [pendingMessage, composerRuntime, setPendingMessage]);
+  }, [pendingMessage, pendingDraft, composerRuntime, setPendingMessage, setPendingDraft]);
 
   return null;
 }

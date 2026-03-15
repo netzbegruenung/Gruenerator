@@ -10,6 +10,7 @@ interface ApiThread {
   agentId: string;
   title: string | null;
   status?: string;
+  accessType?: 'owner' | 'shared' | 'group';
   createdAt: string;
   updatedAt: string;
   lastMessage?: {

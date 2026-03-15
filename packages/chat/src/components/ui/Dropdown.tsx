@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn } from '@gruenerator/ui';
 
 interface DropdownProps {
   trigger: ReactNode;
