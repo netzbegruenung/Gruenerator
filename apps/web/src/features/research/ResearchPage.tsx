@@ -1,3 +1,15 @@
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@gruenerator/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { HiArrowsUpDown, HiBarsArrowDown, HiCog6Tooth, HiRectangleStack } from 'react-icons/hi2';
 import { IoSearch } from 'react-icons/io5';
@@ -13,16 +25,6 @@ import ResearchFilterPanel from './components/ResearchFilterPanel';
 import { useResearch, type ResearchResult } from './useResearch';
 import { useResearchFilters, type SearchMode, type SortOption } from './useResearchFilters';
 
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/utils/cn';
 
 const MODE_OPTIONS: { value: SearchMode; label: string }[] = [

@@ -1,22 +1,11 @@
+import { Badge } from '@gruenerator/ui';
 import React from 'react';
 import { type IconType } from 'react-icons';
-import { GiHedgehog } from 'react-icons/gi';
-import {
-  HiOutlineExternalLink,
-  HiOutlineDatabase,
-  HiOutlineUsers,
-  HiSave,
-  HiOutlineDocumentSearch,
-} from 'react-icons/hi';
-import { Link } from 'react-router-dom';
+import { HiOutlineDatabase, HiOutlineUsers, HiSave, HiOutlineDocumentSearch } from 'react-icons/hi';
 
 import FeatureToggle from '../../../../../../components/common/FeatureToggle';
-import { Badge } from '../../../../../../components/ui/badge';
-import { Card } from '../../../../../../components/ui/card';
-import { getIcon } from '../../../../../../config/icons';
 import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
 import { useAuthStore, type SupportedLocale } from '../../../../../../stores/authStore';
-import { cn } from '../../../../../../utils/cn';
 
 interface SettingsSectionProps {
   isActive: boolean;
@@ -25,7 +14,6 @@ interface SettingsSectionProps {
   igelActive: boolean;
   onToggleIgelModus: (checked: boolean) => void;
   isBetaFeaturesUpdating: boolean;
-  compact?: boolean;
 }
 
 interface BetaFeatureUIConfig {
@@ -72,10 +60,8 @@ const LocaleSelector: React.FC = () => {
 const BETA_VIEWS = {
   DATABASE: 'database',
   COLLAB: 'collab',
-  GROUPS: 'groups',
+  WORKPLACE: 'workplace',
   VORLAGEN: 'vorlagen',
-  SCANNER: 'scanner',
-  DOCS: 'docs',
   AUTO_SAVE_GENERATED: 'autoSaveGenerated',
   AUTO_DOCUMENT_SEARCH: 'autoDocumentSearch',
 };
@@ -87,7 +73,6 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
   igelActive,
   onToggleIgelModus,
   isBetaFeaturesUpdating,
-  compact = false,
 }) => {
   const { getBetaFeatureState, updateUserBetaFeatures, getAvailableFeatures, isAdmin } =
     useBetaFeatures();
@@ -117,16 +102,16 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           checkboxLabel: 'Kollaborative Bearbeitung aktivieren',
           icon: HiOutlineUsers,
         };
-      case BETA_VIEWS.GROUPS:
+      case BETA_VIEWS.WORKPLACE:
         return {
-          title: 'Gruppen',
-          description: 'Team-Zusammenarbeit und Inhalte teilen',
-          checked: getBetaFeatureState('groups'),
-          setter: (value: boolean) => updateUserBetaFeatures('groups', value),
-          featureName: 'Gruppen',
-          checkboxLabel: 'Gruppen-Tab im Profil anzeigen und Funktionalität aktivieren',
-          linkTo: '/profile/groups',
-          linkText: 'Zu den Gruppen',
+          title: 'Desk',
+          description: 'Gruppen, Dokumente, Scanner und Boards',
+          checked: getBetaFeatureState('workplace'),
+          setter: (value: boolean) => updateUserBetaFeatures('workplace', value),
+          featureName: 'Desk',
+          checkboxLabel: 'Gruppen, Dokumente, Scanner (OCR) und Kanban-Boards aktivieren',
+          linkTo: '/desk',
+          linkText: 'Zum Desk',
           icon: HiOutlineUsers,
         };
       case BETA_VIEWS.VORLAGEN:
@@ -141,30 +126,6 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           linkText: 'Zu Meine Vorlagen',
           icon: HiOutlineDatabase,
         };
-      case BETA_VIEWS.SCANNER:
-        return {
-          title: 'Scanner (OCR)',
-          description: 'Text aus Dokumenten extrahieren',
-          checked: getBetaFeatureState('scanner'),
-          setter: (value: boolean) => updateUserBetaFeatures('scanner', value),
-          featureName: 'Scanner',
-          checkboxLabel: 'Scanner für Dokumenten-Texterkennung aktivieren',
-          linkTo: '/scanner',
-          linkText: 'Zum Scanner',
-          icon: getIcon('navigation', 'scanner') as IconType,
-        };
-      case BETA_VIEWS.DOCS:
-        return {
-          title: 'Dokumente',
-          description: 'Kollaborativer Dokumenten-Editor mit Echtzeit-Zusammenarbeit',
-          checked: getBetaFeatureState('docs'),
-          setter: (value: boolean) => updateUserBetaFeatures('docs', value),
-          featureName: 'Dokumente',
-          checkboxLabel: 'Kollaborativen Dokumenten-Editor aktivieren',
-          linkTo: '/docs',
-          linkText: 'Zu den Dokumenten',
-          icon: HiOutlineDocumentSearch,
-        };
       case BETA_VIEWS.AUTO_SAVE_GENERATED:
         return {
           title: 'Auto-Speichern generierter Texte',
@@ -178,8 +139,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
       case BETA_VIEWS.AUTO_DOCUMENT_SEARCH:
         return {
           title: 'Automatische Dokumentensuche',
-          description:
-            'KI durchsucht deine Bibliothek automatisch nach relevantem Hintergrundwissen',
+          description: 'KI durchsucht deine Bibliothek automatisch',
           checked: getBetaFeatureState('autoDocumentSearch'),
           setter: (value: boolean) => updateUserBetaFeatures('autoDocumentSearch', value),
           featureName: 'Automatische Dokumentensuche',
@@ -192,37 +152,43 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
     }
   };
 
-  return (
-    <Card className={cn('flex flex-col', compact ? 'p-md' : 'p-lg')}>
-      <div className={cn('font-semibold mb-md', compact ? 'text-sm mb-sm' : 'text-base')}>
-        Experimentelle Features
-      </div>
-      <div className={cn('grid gap-sm', compact ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2')}>
-        {getAvailableFeatures().map((feature) => {
-          const config = getBetaFeatureConfig(feature.key);
-          if (!config) return null;
+  const SETTINGS_KEYS = new Set(['autoSaveGenerated', 'autoDocumentSearch']);
+  const allFeatures = getAvailableFeatures();
+  const settingsFeatures = allFeatures.filter((f) => SETTINGS_KEYS.has(f.key));
+  const experimentalFeatures = allFeatures.filter((f) => !SETTINGS_KEYS.has(f.key));
 
-          return (
-            <div key={feature.key} className="flex items-center gap-sm">
-              <FeatureToggle
-                isActive={config.checked}
-                onToggle={(checked) => {
-                  config.setter(checked);
-                  onSuccessMessage(
-                    `${config.featureName} ${checked ? 'aktiviert' : 'deaktiviert'}.`
-                  );
-                }}
-                label={compact ? config.title : config.checkboxLabel}
-                icon={config.icon}
-                description={config.description}
-                className={cn('flex-1', compact && 'text-sm')}
-              />
-              {feature.isAdminOnly && <Badge variant="secondary">Admin</Badge>}
-            </div>
-          );
-        })}
+  const renderToggle = (feature: { key: string; isAdminOnly: boolean }, isExperimental = false) => {
+    const config = getBetaFeatureConfig(feature.key);
+    if (!config) return null;
+    const description = isExperimental
+      ? `${config.description} (Experimentell)`
+      : config.description;
+    return (
+      <div key={feature.key} className="flex items-center gap-sm">
+        <FeatureToggle
+          isActive={config.checked}
+          onToggle={(checked) => {
+            config.setter(checked);
+            onSuccessMessage(`${config.featureName} ${checked ? 'aktiviert' : 'deaktiviert'}.`);
+          }}
+          label={config.title}
+          icon={config.icon}
+          description={description}
+          className="flex-1"
+        />
+        {feature.isAdminOnly && <Badge variant="secondary">Admin</Badge>}
       </div>
-    </Card>
+    );
+  };
+
+  return (
+    <div>
+      <div className="text-sm font-medium text-foreground mb-md">Einstellungen</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+        {settingsFeatures.map((f) => renderToggle(f))}
+        {experimentalFeatures.map((f) => renderToggle(f, true))}
+      </div>
+    </div>
   );
 };
 

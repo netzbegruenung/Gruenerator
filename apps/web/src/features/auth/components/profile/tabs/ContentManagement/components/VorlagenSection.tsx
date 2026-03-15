@@ -1,3 +1,4 @@
+import { Badge, Button } from '@gruenerator/ui';
 import React, { useState, useCallback, memo, useMemo } from 'react';
 import {
   HiPlus,
@@ -13,8 +14,6 @@ import DocumentOverview, {
   type DocumentItem,
 } from '../../../../../../../components/common/DocumentOverview';
 import EditTemplateModal from '../../../../../../../components/common/EditTemplateModal';
-import { Badge } from '../../../../../../../components/ui/badge';
-import { Button } from '../../../../../../../components/ui/button';
 import { useUserTemplates } from '../../../../../hooks/useProfileData';
 
 interface Template extends DocumentItem {

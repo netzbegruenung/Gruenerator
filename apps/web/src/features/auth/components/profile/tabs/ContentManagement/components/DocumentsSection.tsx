@@ -1,3 +1,4 @@
+import { Button } from '@gruenerator/ui';
 import { useShareLinks, useSyncStatuses, useSetAutoSync } from '@gruenerator/wolke';
 import {
   useState,
@@ -20,7 +21,6 @@ import {
   ProfileIconButton,
   ProfileActionButton,
 } from '../../../../../../../components/profile/actions/ProfileActionButton';
-import { Button } from '../../../../../../../components/ui/button';
 import { Card } from '../../../../../../../components/ui/card';
 import apiClient from '../../../../../../../components/utils/apiClient';
 import * as documentAndTextUtils from '../../../../../../../components/utils/documentAndTextUtils';

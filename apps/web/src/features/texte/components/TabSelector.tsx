@@ -1,12 +1,12 @@
-import { useMemo, useCallback, useRef, memo } from 'react';
-
-import Icon from '../../../components/common/Icon';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '../../../components/ui/dropdown-menu';
+} from '@gruenerator/ui';
+import { useMemo, useCallback, useRef, memo } from 'react';
+
+import Icon from '../../../components/common/Icon';
 import { type TabId, type UniversalSubType, TAB_CONFIGS } from '../types';
 
 import { cn } from '@/utils/cn';
@@ -21,6 +21,7 @@ interface TabSelectorProps {
   selectedUniversalSubType?: UniversalSubType;
   disabled?: boolean;
   isAuthenticated?: boolean;
+  onPreload?: (tabId: TabId) => void;
 }
 
 const TAB_ICONS: Record<TabId, { category: string; name: string }> = {
@@ -64,6 +65,7 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
     selectedUniversalSubType,
     disabled = false,
     isAuthenticated = false,
+    onPreload,
   }) => {
     const tabs = useMemo(
       () =>
@@ -185,6 +187,8 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
                   'bg-secondary-600 border-secondary-600 text-white hover:bg-secondary-600'
               )}
               onClick={() => handleTabClick(tab.id)}
+              onMouseEnter={() => onPreload?.(tab.id)}
+              onFocus={() => onPreload?.(tab.id)}
               disabled={disabled}
               tabIndex={isActive ? 0 : -1}
             >
@@ -241,6 +245,8 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
                   isUniversalActive &&
                     'bg-secondary-600 border-secondary-600 text-white hover:bg-secondary-600'
                 )}
+                onMouseEnter={() => onPreload?.('universal')}
+                onFocus={() => onPreload?.('universal')}
                 disabled={disabled}
                 tabIndex={isUniversalActive ? 0 : -1}
               >
