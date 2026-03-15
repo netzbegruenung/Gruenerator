@@ -1,3 +1,4 @@
+import { Badge, Button } from '@gruenerator/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   useState,
@@ -12,8 +13,6 @@ import { useForm } from 'react-hook-form';
 import { HiCheckCircle, HiArrowLeft, HiUpload, HiX, HiPlus } from 'react-icons/hi';
 
 import { useFormFields } from '../../../components/common/Form/hooks';
-import { Badge } from '../../../components/ui/badge';
-import { Button } from '../../../components/ui/button';
 import { useDocumentsStore } from '../../../stores/documentsStore';
 import { cn } from '../../../utils/cn';
 

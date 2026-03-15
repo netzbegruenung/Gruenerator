@@ -1,7 +1,7 @@
+import { Button } from '@gruenerator/ui';
 import { useAddShareLink, validateShareLink, type WolkeScope } from '@gruenerator/wolke';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
-import { Button } from '@/components/ui/button';
 import { cn } from '@/utils/cn';
 
 interface WolkeAddFormProps {
