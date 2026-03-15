@@ -1,3 +1,4 @@
+import { Button } from '@gruenerator/ui';
 import { motion } from 'motion/react';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -16,8 +17,6 @@ import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import Spinner from '../../../components/common/Spinner';
 import apiClient from '../../../components/utils/apiClient';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
-import '../../../assets/styles/components/ui/button.css';
-import '../styles/VideoSuccessScreen.css';
 
 interface VideoSuccessScreenProps {
   onReset: () => void;
@@ -160,7 +159,6 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
     if (!videoUrl) return;
     setIsSharing(true);
     try {
-      // Extract path from videoUrl for apiClient
       const urlPath = videoUrl.startsWith('/api') ? videoUrl.replace('/api', '') : videoUrl;
       const response = await apiClient.get(urlPath, { responseType: 'blob' });
       const blob = response.data;
@@ -182,87 +180,100 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
   }, [videoUrl, socialText]);
 
   return (
-    <div className="video-success-screen">
-      <div className="video-success-content">
-        <div className="video-success-main">
+    <div className="flex justify-center">
+      <div className="flex w-full max-w-[600px] flex-col items-center p-xl text-center">
+        <div className="flex w-full flex-col items-center gap-md">
           {showSpinner ? (
             <>
-              <div className="video-success-icon loading">
+              <div className="flex size-20 items-center justify-center rounded-full bg-primary-500">
                 <Spinner size="large" white />
               </div>
-              <h2>Dein Video wird verarbeitet</h2>
-              <p>Dein Video wird mit Untertiteln versehen...</p>
+              <h2 className="text-xl font-semibold text-foreground-heading">
+                Dein Video wird verarbeitet
+              </h2>
+              <p className="text-foreground">Dein Video wird mit Untertiteln versehen...</p>
             </>
           ) : exportError ? (
             <>
-              <div className="video-success-icon error">
-                <FaTimes style={{ fontSize: '60px', color: 'var(--error-red)' }} />
+              <div className="flex size-20 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                <FaTimes className="text-[40px] text-red-600" />
               </div>
-              <h2>Export fehlgeschlagen</h2>
-              <p>{exportError}</p>
+              <h2 className="text-xl font-semibold text-foreground-heading">
+                Export fehlgeschlagen
+              </h2>
+              <p className="text-foreground">{exportError}</p>
             </>
           ) : (
             <>
               {videoUrl && (
-                <div className="video-preview-container">
-                  <video className="video-preview" controls src={videoUrl} />
+                <div className="flex justify-center overflow-hidden rounded-lg">
+                  <video
+                    className="block aspect-[9/16] max-h-[60vh] rounded-lg object-contain max-md:max-h-[40vh]"
+                    controls
+                    src={videoUrl}
+                  />
                 </div>
               )}
-              <div className="video-success-info">
+              <div className="flex w-full flex-col items-center gap-md">
                 {!videoUrl && (
-                  <div className="video-success-icon">
+                  <div className="flex size-20 items-center justify-center rounded-full bg-primary-500">
                     <AnimatedCheckmark />
                   </div>
                 )}
-                <h2>Dein Video ist fertig!</h2>
-                <p>Dein Video wurde erfolgreich mit Untertiteln versehen.</p>
+                <h2 className="text-xl font-semibold text-foreground-heading">
+                  Dein Video ist fertig!
+                </h2>
+                <p className="text-foreground">
+                  Dein Video wurde erfolgreich mit Untertiteln versehen.
+                </p>
 
-                <div className="action-buttons">
+                <div className="flex flex-wrap justify-center gap-sm max-md:w-full max-md:flex-col">
                   {videoUrl && (
-                    <button className="btn-primary" onClick={handleDownload}>
+                    <Button onClick={handleDownload}>
                       <FaDownload />
                       Herunterladen
-                    </button>
+                    </Button>
                   )}
                   {videoUrl && canNativeShare && (
-                    <button
-                      className="btn-primary"
+                    <Button
                       onClick={handleShareToInstagram}
                       disabled={isSharing}
                       title="Auf Instagram posten"
                     >
                       {isSharing ? <Spinner size="small" white /> : <FaInstagram />}
                       Posten
-                    </button>
+                    </Button>
                   )}
-                  <button className="btn-primary" onClick={onEditAgain}>
+                  <Button onClick={onEditAgain}>
                     <FaEdit />
                     Bearbeiten
-                  </button>
+                  </Button>
                   {(exportStore.projectId || projectId) && (
-                    <button className="btn-primary" onClick={() => setShowShareModal(true)}>
+                    <Button onClick={() => setShowShareModal(true)}>
                       <FaShareAlt />
                       Video Teilen
-                    </button>
+                    </Button>
                   )}
                 </div>
 
-                <div className="video-success-buttons">
-                  <button
-                    className="btn-icon btn-secondary"
+                <div className="flex justify-center gap-sm">
+                  <Button
+                    variant="outline"
+                    size="icon"
                     onClick={onReset}
                     title="Neues Video verarbeiten"
                   >
                     <FaPlus />
-                  </button>
-                  <button
-                    className="btn-icon btn-secondary"
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
                     onClick={onGenerateSocialText}
                     disabled={isGeneratingSocialText || !!socialText}
                     title="Beitragstext erstellen"
                   >
                     {isGeneratingSocialText ? <Spinner size="small" /> : <FaFileAlt />}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </>
@@ -270,9 +281,11 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
         </div>
 
         {socialText && (
-          <div className="video-social-text-result">
-            <h3>Dein Instagram Reel Text:</h3>
-            <div className="markdown-content">
+          <div className="mt-lg w-full rounded-lg bg-background-alt p-lg text-left dark:bg-background max-md:bg-transparent max-md:p-0 max-md:pt-lg">
+            <h3 className="mb-sm text-base font-semibold text-foreground-heading">
+              Dein Instagram Reel Text:
+            </h3>
+            <div className="prose prose-sm dark:prose-invert max-w-none">
               <Markdown fallback={<div>Loading...</div>}>{socialText}</Markdown>
             </div>
             <CopyButton content={socialText} />

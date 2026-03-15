@@ -1,4 +1,5 @@
 import { useProjectsStore } from '@gruenerator/shared';
+import { Button } from '@gruenerator/ui';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FaSave, FaCheck, FaDownload, FaMagic, FaPlay, FaPause } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
@@ -8,13 +9,6 @@ import FloatingActionButton from '../../../components/common/UI/FloatingActionBu
 import { useAuthStore } from '../../../stores/authStore';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 import useSubtitleCorrection from '../hooks/useSubtitleCorrection';
-import '../../../assets/styles/components/subtitler/download-fallback.css';
-import '../../../assets/styles/components/ui/button.css';
-import '../../../assets/styles/components/actions/action-buttons.css';
-import '../styles/SubtitleEditor.css';
-
-// Import centralized types and utilities
-
 import { parseSubtitleBlocks, formatSubtitleBlocks } from '../utils/subtitleSegmentUtils';
 import { assertCorrectionResponse } from '../utils/validators';
 
@@ -32,7 +26,8 @@ import type {
   SubtitlePreference,
 } from '../types';
 
-// Local interface for fallback button
+import { cn } from '@/utils/cn';
+
 interface FallbackButtonData {
   url?: string;
   filename?: string;
@@ -109,7 +104,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   videoFilename = null,
   videoSize = null,
 }) => {
-  // Style options configuration with preview styling
   const styleOptions: StyleOption[] = [
     {
       id: 'shadow',
@@ -168,12 +162,10 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     { id: 'hd', name: 'Volle Qualität', subtitle: 'Dauert länger' },
   ];
 
-  // Local state for style preferences (synced with parent)
   const [localStyle, setLocalStyle] = useState(stylePreference);
   const [localHeight, setLocalHeight] = useState(heightPreference);
   const [localQuality, setLocalQuality] = useState('normal');
 
-  // Sync local state when props change (e.g., when loading a project)
   useEffect(() => {
     setLocalStyle(stylePreference);
   }, [stylePreference]);
@@ -195,7 +187,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   const handleLocalQualityChange = (qualityId: string): void => {
     setLocalQuality(qualityId);
   };
-  // Use the centralized export store
+
   const exportStore = useSubtitlerExportStore();
   const {
     status: exportStatus,
@@ -207,10 +199,8 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     subscribe,
   } = exportStore;
 
-  // Use project store for saving
   const { saveProject, updateProject, isSaving, saveSuccess } = useProjectsStore();
 
-  // Get user locale and user ID for Austria-specific styling and project exports
   const locale = useAuthStore((state) => state.locale);
   const user = useAuthStore((state) => state.user);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -231,23 +221,18 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   const [isVideoVisible, setIsVideoVisible] = useState<boolean>(true);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
-  // Use subtitle correction hook
   const {
     loading: isCorrecting,
     error: correctionError,
     correctSubtitles,
   } = useSubtitleCorrection();
 
-  // Subscribe to export store for cleanup
   useEffect(() => {
     const unsubscribe = subscribe();
     return unsubscribe;
   }, [subscribe]);
 
-  // Watch for export start and completion
   useEffect(() => {
-    // Only navigate to success when we have a valid NEW token (not null)
-    // This prevents race condition where old token is used before API response
     if (exportStatus === 'exporting' && exportToken) {
       console.log('[SubtitleEditor] Export started with new token:', exportToken);
       onExportSuccess?.(exportToken);
@@ -261,14 +246,12 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     }
   }, [exportStatus, exportToken, exportError, onExportSuccess, onExportComplete]);
 
-  // Emoji detection function
   const detectEmojis = (text: string): boolean => {
     const emojiRegex =
       /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F018}-\u{1F270}]|[\u{238C}-\u{2454}]|[\u{20D0}-\u{20FF}]|[\u{FE0F}]/gu;
     return emojiRegex.test(text);
   };
 
-  // Function to wrap emojis in spans for styling
   const formatTextWithEmojis = (text: string): string => {
     const emojiRegex =
       /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F018}-\u{1F270}]|[\u{238C}-\u{2454}]|[\u{20D0}-\u{20FF}]|[\u{FE0F}]/gu;
@@ -279,16 +262,13 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     );
   };
 
-  // Validiere Props und erstelle Video-URL
   useEffect(() => {
-    // Use streaming URL directly if provided (for saved projects)
     if (videoUrlProp) {
       console.log('[SubtitleEditor] Using streaming video URL');
       setVideoUrl(videoUrlProp);
       return;
     }
 
-    // Create blob URL from file (for new uploads)
     if (!videoFile) {
       console.log('[SubtitleEditor] No video file or URL provided');
       return;
@@ -320,7 +300,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     }
   }, [videoFile, videoUrlProp]);
 
-  // Verarbeite Untertitel
   useEffect(() => {
     if (!subtitles) {
       console.log('[SubtitleEditor] No subtitles provided');
@@ -335,10 +314,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
 
     try {
       console.log('[SubtitleEditor] Processing subtitles:', subtitles);
-
-      // Use centralized parsing utility (eliminates ~27 lines of duplicate code)
       const segments = parseSubtitleBlocks(subtitles);
-
       console.log('[SubtitleEditor] Processed segments:', segments.length);
       setEditableSubtitles(segments);
     } catch (error) {
@@ -347,7 +323,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     }
   }, [subtitles]);
 
-  // Track video visibility for floating play button (mobile only)
   useEffect(() => {
     if (!videoRef.current) return;
 
@@ -362,7 +337,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     return () => observer.disconnect();
   }, [videoUrl]);
 
-  // Track video play/pause state
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -379,7 +353,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     };
   }, [videoUrl]);
 
-  // Toggle video play/pause
   const togglePlayPause = useCallback(() => {
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
@@ -389,7 +362,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     }
   }, []);
 
-  // Handle video metadata loading
   const handleVideoLoadedMetadata = () => {
     if (videoRef.current) {
       const video = videoRef.current;
@@ -403,7 +375,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     }
   };
 
-  // Handle video time updates
   const handleVideoTimeUpdate = () => {
     if (videoRef.current) {
       const currentTime = videoRef.current.currentTime;
@@ -411,7 +382,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     }
   };
 
-  // Timeline handlers
   const scrubTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleTimelineSeek = useCallback((timeInSeconds: number): void => {
@@ -421,7 +391,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     video.currentTime = timeInSeconds;
     setCurrentTimeInSeconds(timeInSeconds);
 
-    // Debounce: only trigger frame refresh after scrubbing stops
     if (scrubTimeoutRef.current) {
       clearTimeout(scrubTimeoutRef.current);
     }
@@ -459,7 +428,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     );
   }, []);
 
-  // Adjust textarea heights on mobile (must be before early return)
   useEffect(() => {
     if (window.innerWidth <= 768 && (videoFile || videoUrlProp) && subtitles) {
       const textareas = document.querySelectorAll('.segment-text');
@@ -470,12 +438,11 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     }
   }, [editableSubtitles, videoFile, videoUrlProp, subtitles]);
 
-  // Frühe Rückgabe bei fehlenden Props
   if ((!videoFile && !videoUrlProp) || !subtitles) {
     console.log('[SubtitleEditor] Missing required props');
     return (
-      <div className="subtitle-editor-container">
-        <div className="loading-message">Lade Video und Untertitel...</div>
+      <div className="w-full">
+        <div className="py-xl text-center text-foreground">Lade Video und Untertitel...</div>
       </div>
     );
   }
@@ -502,7 +469,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const wholeSeconds = Math.floor(seconds % 60);
-    const fractionalSecond = Math.floor((seconds % 1) * 10); // Single decimal place
+    const fractionalSecond = Math.floor((seconds % 1) * 10);
     return `${mins}:${wholeSeconds.toString().padStart(2, '0')}.${fractionalSecond}`;
   };
 
@@ -514,8 +481,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
 
     try {
       setError(null);
-
-      // Format subtitles text using centralized utility (eliminates 13 lines of duplicate code)
       const subtitlesText = formatSubtitleBlocks(editableSubtitles);
 
       console.log('[SubtitleEditor] Starting export via store:', {
@@ -529,8 +494,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
         userId: user?.id,
       });
 
-      // Use the centralized store for export
-      // Map SubtitleSegment[] to Subtitle[] format expected by the store
       const subtitlesForExport = editableSubtitles.map((segment) => ({
         start: segment.startTime,
         end: segment.endTime,
@@ -553,7 +516,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     }
   };
 
-  // Handle saving project
   const handleSaveProject = async (): Promise<void> => {
     if (!uploadId || !editableSubtitles.length) {
       setError('Keine Daten zum Speichern vorhanden.');
@@ -562,8 +524,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
 
     try {
       setError(null);
-
-      // Format subtitles text for storage using centralized utility (eliminates 13 more lines of IDENTICAL code)
       const subtitlesText = formatSubtitleBlocks(editableSubtitles);
 
       if (loadedProject) {
@@ -573,9 +533,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
           heightPreference: localHeight,
         });
       } else {
-        // Create new project
         console.log('[SubtitleEditor] Creating new project with uploadId:', uploadId);
-        // Convert videoMetadataFromUpload to the expected format
         const formattedVideoMetadata = videoMetadataFromUpload
           ? {
               duration: videoMetadataFromUpload.duration ?? 0,
@@ -606,7 +564,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     }
   };
 
-  // Handle AI correction of subtitles
   const handleCorrection = async (): Promise<void> => {
     if (!editableSubtitles.length) return;
 
@@ -614,7 +571,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
       setError(null);
       setCorrectionMessage(null);
 
-      // Use type-safe validation instead of unsafe type assertion
       const response = await correctSubtitles(editableSubtitles);
       assertCorrectionResponse(response, 'subtitle correction');
 
@@ -624,7 +580,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
         return;
       }
 
-      // Apply corrections to subtitles
       const correctedIds = new Set<number>(response.corrections.map((c: CorrectionItem) => c.id));
       setEditableSubtitles((prev) =>
         prev.map((segment) => {
@@ -636,13 +591,11 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
         })
       );
 
-      // Highlight corrected segments
       setCorrectedSegmentIds(correctedIds);
       setCorrectionMessage(
         `${response.corrections.length} Segment${response.corrections.length > 1 ? 'e' : ''} korrigiert`
       );
 
-      // Clear highlights after 2 seconds
       setTimeout(() => {
         setCorrectedSegmentIds(new Set());
         setCorrectionMessage(null);
@@ -654,12 +607,10 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     }
   };
 
-  // Check if mobile
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
 
   return (
-    <div className="subtitle-editor-container">
-      {/* Floating play/pause button for mobile when video is out of view */}
+    <div className="w-full">
       {isMobile && (
         <FloatingActionButton
           icon={isPlaying ? <FaPause /> : <FaPlay />}
@@ -670,20 +621,19 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
       )}
 
       {error && (
-        <div className="error-message">
-          {error}
-          <button className="btn-secondary" onClick={() => setError(null)}>
+        <div className="mb-md flex items-center justify-between gap-md rounded-lg border border-red-600 bg-red-50 p-md text-red-600 dark:bg-grey-800">
+          <span>{error}</span>
+          <Button variant="outline" size="sm" onClick={() => setError(null)}>
             Schließen
-          </button>
+          </Button>
         </div>
       )}
 
-      {/* **Workaround #2: Fallback Download Button** */}
       {showFallbackButton && (
-        <div className="download-fallback">
-          <div className="fallback-message">
-            <p>Automatischer Download fehlgeschlagen?</p>
-            <div className="fallback-buttons">
+        <div className="mb-md rounded-lg border border-grey-200 bg-background-alt p-md dark:border-grey-700">
+          <p className="mb-sm text-sm text-foreground">Automatischer Download fehlgeschlagen?</p>
+          <div className="flex gap-sm">
+            <Button asChild>
               <a
                 href={
                   typeof showFallbackButton === 'string'
@@ -693,30 +643,34 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
                 download={
                   typeof showFallbackButton === 'string' ? undefined : showFallbackButton.filename
                 }
-                className="btn-primary"
                 onClick={() => setShowFallbackButton(null)}
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 Video manuell herunterladen
               </a>
-              <button className="btn-secondary" onClick={() => setShowFallbackButton(null)}>
-                Schließen
-              </button>
-            </div>
+            </Button>
+            <Button variant="outline" onClick={() => setShowFallbackButton(null)}>
+              Schließen
+            </Button>
           </div>
         </div>
       )}
 
-      <div className="subtitle-editor-layout">
-        <div className="preview-and-styling">
-          <div className="subtitle-editor-video-section">
-            <div className="subtitle-editor-video-preview">
+      <div className="flex flex-col gap-md">
+        <div
+          className={cn(
+            'flex flex-col gap-md rounded-xl border border-grey-200 bg-background p-md dark:border-grey-700 dark:bg-background-alt',
+            'lg:flex-row lg:items-start lg:gap-lg lg:p-lg'
+          )}
+        >
+          <div className="flex flex-col items-center gap-xs lg:shrink-0">
+            <div className="flex items-center justify-center overflow-hidden rounded-lg">
               {videoUrl ? (
-                <div style={{ position: 'relative' }}>
+                <div className="relative aspect-[9/16] max-h-[50vh] lg:max-h-[60vh]">
                   <video
                     ref={videoRef}
-                    className="subtitle-editor-preview-video"
+                    className="block h-full w-full rounded-lg object-contain shadow-md"
                     controls
                     crossOrigin="use-credentials"
                     src={videoUrl}
@@ -736,17 +690,17 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
                   />
                 </div>
               ) : (
-                <div className="video-loading">
+                <div className="flex aspect-[9/16] w-[200px] items-center justify-center text-sm text-grey-400">
                   {error ? 'Fehler beim Laden des Videos' : 'Video wird geladen...'}
                 </div>
               )}
             </div>
-            <div className="subtitle-preview-notice">
+            <p className="py-xxs text-center text-xs opacity-70">
               Nur eine Vorschau. Das finale Styling sieht besser aus!
-            </div>
-            <div className="subtitle-editor-video-controls">
-              <button
-                className="btn-icon btn-primary"
+            </p>
+            <div className="flex justify-center gap-xs">
+              <Button
+                size="icon"
                 onClick={() => handleExport(localQuality === 'normal' ? 1080 : null)}
                 disabled={
                   isExporting || exportStatus === 'starting' || exportStatus === 'exporting'
@@ -758,43 +712,54 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
                 ) : (
                   <FaDownload />
                 )}
-              </button>
-              <button
-                className={`btn-icon btn-secondary ${saveSuccess ? 'submit-button--success' : ''}`}
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className={cn(saveSuccess && 'border-primary-500 text-primary-500')}
                 onClick={handleSaveProject}
                 disabled={!editableSubtitles.length}
                 title="Projekt speichern"
               >
                 {saveSuccess ? <FaCheck /> : <FaSave />}
-              </button>
-              <button
-                className={`btn-icon ${showStyling ? 'btn-primary' : 'btn-secondary'}`}
+              </Button>
+              <Button
+                variant={showStyling ? 'default' : 'outline'}
+                size="icon"
                 onClick={() => setShowStyling(!showStyling)}
                 title="Einstellungen"
               >
                 <HiCog />
-              </button>
-              <button
-                className="btn-icon btn-secondary"
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
                 onClick={handleCorrection}
                 disabled={isCorrecting || !editableSubtitles.length}
                 title="AI-Korrektur"
               >
                 {isCorrecting ? <Spinner size="small" /> : <FaMagic />}
-              </button>
+              </Button>
             </div>
-            {correctionMessage && <div className="correction-message">{correctionMessage}</div>}
+            {correctionMessage && (
+              <div className="text-center text-xs font-medium text-primary-600">
+                {correctionMessage}
+              </div>
+            )}
           </div>
 
           {showStyling ? (
-            <div className="styling-section">
-              <div className="style-options-compact">
-                <h4>Stil</h4>
-                <div className="style-options-grid style-grid-2x2">
+            <div className="min-w-[240px] flex-1">
+              <div className="mb-md">
+                <h4 className="mb-xs text-sm font-semibold text-foreground-heading">Stil</h4>
+                <div className="grid grid-cols-2 gap-xs lg:grid-cols-4">
                   {styleOptions.map((option) => (
                     <label
                       key={option.id}
-                      className={`style-option-card ${localStyle === option.id ? 'selected' : ''}`}
+                      className={cn(
+                        'relative cursor-pointer rounded-lg border-[1.5px] border-transparent bg-background-alt p-sm transition-all hover:shadow-md dark:bg-background',
+                        localStyle === option.id && 'border-primary-500 shadow-md'
+                      )}
                     >
                       <input
                         type="radio"
@@ -802,17 +767,17 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
                         value={option.id}
                         checked={localStyle === option.id}
                         onChange={() => handleLocalStyleChange(option.id)}
-                        className="style-option-radio"
+                        className="sr-only"
                       />
-                      <div className="style-option-content">
-                        <div className="style-option-header">
-                          <h4 className="style-option-name">
-                            {option.isRecommended && <span className="recommended-badge">★</span>}
-                            {option.name}
-                          </h4>
-                        </div>
-                        <div className="style-option-preview">
-                          <span className="preview-text" style={option.preview}>
+                      <div className="flex flex-col gap-xs">
+                        <h4 className="text-xs font-medium text-foreground">
+                          {option.isRecommended && (
+                            <span className="mr-xxs text-yellow-500">★</span>
+                          )}
+                          {option.name}
+                        </h4>
+                        <div className="flex items-center justify-center rounded bg-grey-100 p-xs dark:bg-grey-800">
+                          <span className="text-xs font-semibold" style={option.preview}>
                             Beispiel
                           </span>
                         </div>
@@ -821,38 +786,46 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
                   ))}
                 </div>
               </div>
-              <div className="settings-row">
-                <div className="setting-group">
-                  <h4>Position</h4>
-                  <div className="setting-buttons">
+              <div className="flex gap-md max-md:flex-col">
+                <div className="flex-1">
+                  <h4 className="mb-xs text-sm font-semibold text-foreground-heading">Position</h4>
+                  <div className="flex flex-col gap-xs">
                     {heightOptions.map((option) => (
                       <button
                         key={option.id}
                         type="button"
-                        className={`setting-button ${localHeight === option.id ? 'active' : ''}`}
+                        className={cn(
+                          'flex w-full cursor-pointer flex-col items-start gap-0.5 rounded-lg border-[1.5px] border-transparent bg-background-alt px-3.5 py-2.5 text-left transition-all',
+                          'hover:bg-grey-100 dark:hover:bg-grey-800',
+                          localHeight === option.id && 'border-primary-500 bg-background'
+                        )}
                         onClick={() => handleLocalHeightChange(option.id)}
                       >
-                        <span className="setting-button-title">{option.name}</span>
+                        <span className="text-sm font-medium text-foreground">{option.name}</span>
                         {option.subtitle && (
-                          <span className="setting-button-subtitle">{option.subtitle}</span>
+                          <span className="text-xs text-grey-500">{option.subtitle}</span>
                         )}
                       </button>
                     ))}
                   </div>
                 </div>
-                <div className="setting-group">
-                  <h4>Qualität</h4>
-                  <div className="setting-buttons">
+                <div className="flex-1">
+                  <h4 className="mb-xs text-sm font-semibold text-foreground-heading">Qualität</h4>
+                  <div className="flex flex-col gap-xs">
                     {qualityOptions.map((option) => (
                       <button
                         key={option.id}
                         type="button"
-                        className={`setting-button ${localQuality === option.id ? 'active' : ''}`}
+                        className={cn(
+                          'flex w-full cursor-pointer flex-col items-start gap-0.5 rounded-lg border-[1.5px] border-transparent bg-background-alt px-3.5 py-2.5 text-left transition-all',
+                          'hover:bg-grey-100 dark:hover:bg-grey-800',
+                          localQuality === option.id && 'border-primary-500 bg-background'
+                        )}
                         onClick={() => handleLocalQualityChange(option.id)}
                       >
-                        <span className="setting-button-title">{option.name}</span>
+                        <span className="text-sm font-medium text-foreground">{option.name}</span>
                         {option.subtitle && (
-                          <span className="setting-button-subtitle">{option.subtitle}</span>
+                          <span className="text-xs text-grey-500">{option.subtitle}</span>
                         )}
                       </button>
                     ))}
@@ -861,7 +834,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
               </div>
             </div>
           ) : (
-            <div className="timeline-inline">
+            <div className="flex-1">
               <Timeline
                 duration={videoDuration}
                 currentTime={currentTimeInSeconds}
