@@ -1,10 +1,21 @@
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@gruenerator/ui';
 import React, { useState, useEffect } from 'react';
+import { FaCheck, FaCopy, FaShareAlt } from 'react-icons/fa';
 import QRCode from 'react-qr-code';
 
 import EnhancedSelect from '../../../components/common/EnhancedSelect/EnhancedSelect';
 import { useSubtitlerShareStore, getShareUrl } from '../../../stores/subtitlerShareStore';
 import { canShare, shareContent } from '../../../utils/shareUtils';
-import '../styles/ShareVideoModal.css';
+
+import { cn } from '@/utils/cn';
 
 const expirationOptions = [
   { value: 1, label: '1 Tag' },
@@ -82,32 +93,24 @@ const ShareVideoModal: React.FC<ShareVideoModalProps> = ({ projectId, title, onC
   };
 
   return (
-    <div className="share-modal-overlay" onClick={onClose}>
-      <div className="share-modal" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-        <button className="share-modal-close" onClick={onClose}>
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
-        </button>
-
-        <h2>Video teilen</h2>
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[32rem]">
+        <DialogHeader>
+          <DialogTitle>Video teilen</DialogTitle>
+          {!currentShare && (
+            <DialogDescription>
+              Erstelle einen Link, den du mit anderen teilen kannst.
+            </DialogDescription>
+          )}
+        </DialogHeader>
 
         {!currentShare ? (
           <>
-            <p className="share-modal-description">
-              Erstelle einen Link, den du mit anderen teilen kannst.
-            </p>
-
-            <div className="share-modal-form">
-              <div className="form-group">
-                <label htmlFor="shareTitle">Titel</label>
+            <div className="flex flex-col gap-md">
+              <div className="flex flex-col gap-xxs">
+                <label htmlFor="shareTitle" className="text-sm font-medium text-foreground">
+                  Titel
+                </label>
                 <input
                   id="shareTitle"
                   type="text"
@@ -116,6 +119,7 @@ const ShareVideoModal: React.FC<ShareVideoModalProps> = ({ projectId, title, onC
                     setShareTitle(e.target.value)
                   }
                   placeholder="Titel für das geteilte Video"
+                  className="rounded-md border border-grey-300 bg-background px-sm py-xs text-foreground outline-none transition-colors focus:border-primary-500 dark:border-grey-600"
                 />
               </div>
 
@@ -133,128 +137,76 @@ const ShareVideoModal: React.FC<ShareVideoModalProps> = ({ projectId, title, onC
 
             {error && (
               <div
-                className={`share-modal-error ${errorCode === 'EXPORT_REQUIRED' ? 'export-required' : ''}`}
-              >
-                {errorCode === 'EXPORT_REQUIRED' ? (
-                  <>
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="12" y1="8" x2="12" y2="12" />
-                      <line x1="12" y1="16" x2="12.01" y2="16" />
-                    </svg>
-                    <span>{error}</span>
-                  </>
-                ) : (
-                  error
+                className={cn(
+                  'flex items-center gap-sm rounded-md p-sm text-sm',
+                  errorCode === 'EXPORT_REQUIRED'
+                    ? 'bg-yellow-50 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200'
+                    : 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
                 )}
+              >
+                {error}
               </div>
             )}
 
-            <div className="share-modal-actions">
-              <button className="btn-secondary" onClick={onClose} disabled={isCreatingShare}>
+            <DialogFooter>
+              <Button variant="outline" onClick={onClose} disabled={isCreatingShare}>
                 Abbrechen
-              </button>
-              <button
-                className="btn-primary"
-                onClick={handleCreateShare}
-                disabled={isCreatingShare || !shareTitle.trim()}
-              >
+              </Button>
+              <Button onClick={handleCreateShare} disabled={isCreatingShare || !shareTitle.trim()}>
                 {isCreatingShare ? 'Wird erstellt...' : 'Link erstellen'}
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </>
         ) : (
           <>
             {currentShare.status === 'rendering' && (
-              <p className="share-modal-info share-modal-rendering-info">
+              <p className="text-sm text-grey-500">
                 Das Video wird im Hintergrund gerendert. Der Empfänger kann es herunterladen, sobald
                 es fertig ist.
               </p>
             )}
 
-            <div className="share-modal-success-layout">
-              <div className="share-modal-left">
-                <div className="share-qr-container">
-                  <QRCode value={getShareUrl(currentShare.shareToken || '')} size={160} level="M" />
-                </div>
+            <div className="flex gap-lg max-sm:flex-col max-sm:items-center">
+              <div className="shrink-0 rounded-lg bg-white p-sm">
+                <QRCode value={getShareUrl(currentShare.shareToken || '')} size={160} level="M" />
               </div>
 
-              <div className="share-modal-right">
-                <label className="share-link-label">Link kopieren</label>
-                <div className="share-link-container">
+              <div className="flex min-w-0 flex-1 flex-col gap-xs">
+                <label className="text-sm font-medium text-foreground">Link kopieren</label>
+                <div className="flex gap-xxs">
                   <input
                     type="text"
                     readOnly
                     value={getShareUrl(currentShare.shareToken || '')}
-                    className="share-link-input"
+                    className="min-w-0 flex-1 rounded-md border border-grey-300 bg-background-alt px-sm py-xs text-sm text-foreground dark:border-grey-600"
                   />
-                  <button className="share-copy-button" onClick={handleCopyLink}>
-                    {copied ? (
-                      <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <polyline points="20,6 9,17 4,12" />
-                      </svg>
-                    ) : (
-                      <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                      </svg>
-                    )}
-                  </button>
+                  <Button variant="outline" size="icon" onClick={handleCopyLink} title="Kopieren">
+                    {copied ? <FaCheck /> : <FaCopy />}
+                  </Button>
                   {canShare() && (
-                    <button className="share-native-button" onClick={handleNativeShare}>
-                      <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <circle cx="18" cy="5" r="3" />
-                        <circle cx="6" cy="12" r="3" />
-                        <circle cx="18" cy="19" r="3" />
-                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-                      </svg>
-                    </button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleNativeShare}
+                      title="Teilen"
+                    >
+                      <FaShareAlt />
+                    </Button>
                   )}
                 </div>
-                <p className="share-modal-expiry">
+                <p className="text-xs text-grey-500">
                   Gültig bis {formatExpiration(currentShare.expiresAt as string | undefined)}
                 </p>
               </div>
             </div>
 
-            <div className="share-modal-actions-centered">
-              <button className="btn-primary" onClick={onClose}>
-                Fertig
-              </button>
-            </div>
+            <DialogFooter>
+              <Button onClick={onClose}>Fertig</Button>
+            </DialogFooter>
           </>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

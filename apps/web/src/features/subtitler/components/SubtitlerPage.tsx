@@ -1,3 +1,4 @@
+import { Button } from '@gruenerator/ui';
 import axios, { type AxiosError } from 'axios';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FaUserCog } from 'react-icons/fa';
@@ -5,6 +6,7 @@ import { FaUserCog } from 'react-icons/fa';
 import FeatureToggle from '../../../components/common/FeatureToggle';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import MaintenanceNotice from '../../../components/common/MaintenanceNotice';
+import PageContainer from '../../../components/common/PageContainer';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import apiClient from '../../../components/utils/apiClient';
 import { useAuthStore } from '../../../stores/authStore';
@@ -22,14 +24,7 @@ import VideoSuccessScreen from './VideoSuccessScreen';
 import type { AutoProcessingResult } from './AutoProcessingScreen';
 import type { SubtitlePreference, StylePreference, HeightPreference } from '../types';
 
-import '../styles/subtitler.css';
-import '../styles/SubtitleEditor.css';
-import '../styles/VideoSuccessScreen.css';
-import '../styles/ProcessingIndicator.css';
-import '../styles/live-subtitle-preview.css';
-import '../styles/ProjectSelector.css';
-import '../styles/ModeSelector.css';
-import '../styles/AutoProcessingScreen.css';
+import { cn } from '@/utils/cn';
 
 // --- Maintenance Flag ---
 // Set to true to enable maintenance mode for this page
@@ -619,28 +614,29 @@ const SubtitlerPage = (): React.ReactElement => {
     setIsProModeActive(newIsActive);
   }, []);
 
+  const showTitle = step === 'mode-select' && !isProcessing;
+
   return (
     <ErrorBoundary>
-      <div className="subtitler-container">
-        {/* Check for maintenance mode first */}
+      <PageContainer
+        title={showTitle ? 'Grünerator Reel-Studio' : undefined}
+        gradient={step !== 'edit'}
+        className={cn(step === 'edit' && 'max-w-[1600px] 2xl:max-w-[90vw]')}
+      >
         {IS_SUBTITLER_UNDER_MAINTENANCE ? (
           <MaintenanceNotice featureName="Grünerator Reel-Studio" />
         ) : (
           <>
-            {step === 'mode-select' && !isProcessing && (
-              <h1 className="subtitler-title">Grünerator Reel-Studio</h1>
-            )}
-
             {error && (
-              <div className="error-message">
-                {error}
-                <button className="btn-secondary" onClick={() => setError(null)}>
+              <div className="mb-md flex items-center justify-between gap-md rounded-lg border border-red-600 bg-red-50 p-md text-red-600 dark:bg-grey-800">
+                <span>{error}</span>
+                <Button variant="outline" size="sm" onClick={() => setError(null)}>
                   Schließen
-                </button>
+                </Button>
               </div>
             )}
 
-            <div className={`subtitler-content ${step === 'edit' ? 'full-width' : ''}`}>
+            <div className="flex flex-col gap-xl">
               {step === 'select' && (
                 <ProjectSelector
                   onSelectProject={handleSelectProject}
@@ -741,7 +737,7 @@ const SubtitlerPage = (): React.ReactElement => {
             </div>
           </>
         )}
-      </div>
+      </PageContainer>
     </ErrorBoundary>
   );
 };
