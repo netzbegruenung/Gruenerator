@@ -1,3 +1,4 @@
+import { Badge } from '@gruenerator/ui';
 import { memo, useCallback, useMemo } from 'react';
 import { FiFileText } from 'react-icons/fi';
 
@@ -5,8 +6,6 @@ import { useCardActivity } from '../context/BoardAwarenessContext';
 import { FIELD_IDS } from '../types';
 
 import type { Row, Field, SelectOption } from '../types';
-
-import { Badge } from '@/components/ui/badge';
 
 interface CardContentProps {
   row: Row;
@@ -106,7 +105,10 @@ export const CardContent = memo(function CardContent({
         </div>
       )}
 
-      <p className="text-sm text-foreground m-0 leading-snug font-medium">{title}</p>
+      <p className="text-sm text-foreground m-0 leading-snug font-medium">
+        {row.icon && <span className="mr-1">{row.icon}</span>}
+        {title}
+      </p>
 
       {description && (
         <p className="text-xs text-grey-500 m-0 mt-1 line-clamp-2 leading-relaxed">{description}</p>

@@ -1,11 +1,3 @@
-import { useState } from 'react';
-import { HiDotsVertical, HiOutlineTrash, HiShare, HiUserGroup } from 'react-icons/hi';
-import { PiPencilLine, PiStar, PiStarFill } from 'react-icons/pi';
-import { useNavigate } from 'react-router-dom';
-
-import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
-import PageContainer from '../../components/common/PageContainer';
-import ErrorBoundary from '../../components/ErrorBoundary';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +7,15 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from '../../components/ui/dropdown-menu';
+} from '@gruenerator/ui';
+import { useState } from 'react';
+import { HiDotsVertical, HiOutlineTrash, HiShare, HiUserGroup } from 'react-icons/hi';
+import { PiPencilLine, PiStar, PiStarFill } from 'react-icons/pi';
+import { useNavigate } from 'react-router-dom';
+
+import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
+import PageContainer from '../../components/common/PageContainer';
+import ErrorBoundary from '../../components/ErrorBoundary';
 import apiClient from '../../components/utils/apiClient';
 import { getIcon } from '../../config/icons';
 import { useGroups } from '../../features/groups/hooks/useGroups';
