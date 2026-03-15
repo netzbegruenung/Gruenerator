@@ -43,7 +43,6 @@
 
 @import url('./features/auth/profile-cards.css') layer(legacy);
 
-@import url('./pages/homepage.css') layer(legacy);
 @import url('./pages/notfound.css') layer(legacy);
 @import url('./pages/Impressum_datenschutz.css') layer(legacy);
 
@@ -63,6 +62,7 @@
  */
 @source "../../**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/chat/src/**/*.{js,ts,jsx,tsx}";
+@source "../../../../../packages/ui/src/**/*.{js,ts,jsx,tsx}";
 
 /*
  * Tailwind Theme Configuration
