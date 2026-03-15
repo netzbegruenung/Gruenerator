@@ -10,11 +10,20 @@ import {
   useAui,
 } from '@assistant-ui/react';
 import { useShallow } from 'zustand/shallow';
-import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
-import { Dialog, DialogTitle, DialogContent, DialogTrigger } from '../ui/dialog';
-import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  cn,
+} from '@gruenerator/ui';
 import { TooltipIconButton } from './tooltip-icon-button';
-import { cn } from '../../lib/utils';
 
 const useFileSrc = (file: File | undefined) => {
   const [src, setSrc] = useState<string | undefined>(undefined);

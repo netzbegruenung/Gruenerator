@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { filterMentionables, type Mentionable } from '../../lib/mentionables';
 import { getFilteredFunctions } from '../../lib/mentionDetection';
 
@@ -13,6 +13,11 @@ interface MentionPopoverProps {
   anchorRect: { x: number; y: number } | null;
 }
 
+interface MentionSection {
+  label: string;
+  items: Mentionable[];
+}
+
 export function MentionPopover({
   query,
   visible,
@@ -22,8 +27,21 @@ export function MentionPopover({
   anchorRect,
 }: MentionPopoverProps) {
   const listRef = useRef<HTMLDivElement>(null);
-  const { notebooks, tools, documents } = filterMentionables(query);
-  const allItems = [...tools, ...documents, ...notebooks];
+  const { notebooks, tools, boards, docs, documents } = filterMentionables(query);
+
+  const sections: MentionSection[] = useMemo(
+    () =>
+      [
+        { label: 'Werkzeuge', items: tools },
+        { label: 'Boards', items: boards },
+        { label: 'Dokumente', items: docs },
+        { label: 'Dateien', items: documents },
+        { label: 'Notizbücher', items: notebooks },
+      ].filter((s) => s.items.length > 0),
+    [tools, boards, docs, documents, notebooks]
+  );
+
+  const totalItems = sections.reduce((sum, s) => sum + s.items.length, 0);
 
   useEffect(() => {
     if (!visible) return;
@@ -31,7 +49,7 @@ export function MentionPopover({
     el?.scrollIntoView({ block: 'nearest' });
   }, [selectedIndex, visible]);
 
-  if (!visible || allItems.length === 0 || !anchorRect) return null;
+  if (!visible || totalItems === 0 || !anchorRect) return null;
 
   let itemIndex = 0;
 
@@ -46,60 +64,24 @@ export function MentionPopover({
         marginBottom: '0.5rem',
       }}
     >
-      {tools.length > 0 && (
-        <>
+      {sections.map((section) => (
+        <div key={section.label}>
           <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
-            Werkzeuge
+            {section.label}
           </div>
-          {tools.map((tool) => {
+          {section.items.map((item) => {
             const idx = itemIndex++;
             return (
               <MentionItem
-                key={tool.identifier}
-                mentionable={tool}
+                key={item.identifier}
+                mentionable={item}
                 isSelected={idx === selectedIndex}
                 onSelect={onSelect}
               />
             );
           })}
-        </>
-      )}
-      {documents.length > 0 && (
-        <>
-          <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
-            Dateien
-          </div>
-          {documents.map((doc) => {
-            const idx = itemIndex++;
-            return (
-              <MentionItem
-                key={doc.identifier}
-                mentionable={doc}
-                isSelected={idx === selectedIndex}
-                onSelect={onSelect}
-              />
-            );
-          })}
-        </>
-      )}
-      {notebooks.length > 0 && (
-        <>
-          <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
-            Notizbücher
-          </div>
-          {notebooks.map((notebook) => {
-            const idx = itemIndex++;
-            return (
-              <MentionItem
-                key={notebook.identifier}
-                mentionable={notebook}
-                isSelected={idx === selectedIndex}
-                onSelect={onSelect}
-              />
-            );
-          })}
-        </>
-      )}
+        </div>
+      ))}
     </div>
   );
 }

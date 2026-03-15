@@ -65,24 +65,7 @@ function parseSSELine(
   return {};
 }
 
-const INTENT_TO_TOOL: Record<string, string> = {
-  search: 'gruenerator_search',
-  web: 'web_search',
-  research: 'research',
-  examples: 'gruenerator_examples_search',
-};
-
-const DEEP_TOOL_MAP: Record<string, string> = {
-  search_documents: 'gruenerator_search',
-  web_search: 'web_search',
-  research: 'research',
-  search_examples: 'gruenerator_examples_search',
-  generate_image: 'generate_image',
-  scrape_url: 'scrape_url',
-  recall_memory: 'recall_memory',
-  save_memory: 'save_memory',
-  search_user_content: 'search_user_content',
-};
+import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../lib/toolMappings';
 
 interface ToolCallPart {
   type: 'tool-call';
@@ -758,6 +741,8 @@ export function createGrueneratorModelAdapter(
       let forcedTools: string[] = [];
       let documentIds: string[] = [];
       let textIds: string[] = [];
+      let boardIds: string[] = [];
+      let docMentionIds: string[] = [];
       let hasDocumentChat = false;
       for (let i = formattedMessages.length - 1; i >= 0; i--) {
         const msg = formattedMessages[i];
@@ -772,8 +757,13 @@ export function createGrueneratorModelAdapter(
           forcedTools = parsed.forcedTools;
           documentIds = parsed.documentIds;
           textIds = parsed.textIds;
+          boardIds = parsed.boardIds;
+          docMentionIds = parsed.docMentionIds;
           hasDocumentChat = parsed.hasDocumentChat;
           textPart.text = parsed.cleanText;
+          console.debug(
+            `[ModelAdapter:${runId}] Mentions parsed — forcedTools=${JSON.stringify(forcedTools)}, agentId=${effectiveAgentId}, cleanText="${parsed.cleanText.slice(0, 60)}"`
+          );
         }
         break;
       }
@@ -801,6 +791,8 @@ export function createGrueneratorModelAdapter(
           forcedTools: forcedTools.length > 0 ? forcedTools : undefined,
           documentIds: documentIds.length > 0 ? documentIds : undefined,
           textIds: textIds.length > 0 ? textIds : undefined,
+          boardIds: boardIds.length > 0 ? boardIds : undefined,
+          docMentionIds: docMentionIds.length > 0 ? docMentionIds : undefined,
           documentChatIds: documentChatIds.length > 0 ? documentChatIds : undefined,
           documentChatMode: hasDocumentChat || documentChatIds.length > 0 || undefined,
           defaultNotebookId: config.selectedNotebookId || undefined,

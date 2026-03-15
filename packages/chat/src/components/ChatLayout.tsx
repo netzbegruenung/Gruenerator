@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ChatSidebar } from './ChatSidebar';
 import { GrueneratorThread } from './thread/GrueneratorThread';
 import { GrueneratorChatProvider } from '../runtime/GrueneratorChatProvider';
-import { TooltipProvider } from './ui/tooltip';
+import { TooltipProvider } from '@gruenerator/ui';
 
 interface ChatLayoutProps {
   userId?: string;

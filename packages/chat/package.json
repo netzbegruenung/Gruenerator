@@ -18,14 +18,15 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@gruenerator/collab": "workspace:*",
+    "@gruenerator/ui": "workspace:*",
     "@gruenerator/voice": "workspace:*",
-    "clsx": "^2.1.1",
-    "cmdk": "^1.1.1",
+    "@hocuspocus/provider": "^3.4.4",
+    "yjs": "^13.6.29",
     "lucide-react": "^0.577.0",
     "radix-ui": "^1.4.3",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1",
-    "tailwind-merge": "^3.5.0"
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",

@@ -107,7 +107,7 @@ export { ToolCallUI } from './components/ToolCallUI';
 export { grueneratorToolkit } from './components/tool-ui/GrueneratorToolUIs';
 export { ThemeProvider, useTheme } from './components/ThemeProvider';
 export { Dropdown, DropdownItem, ToggleSwitch } from './components/ui/Dropdown';
-export { TooltipProvider } from './components/ui/tooltip';
+export { TooltipProvider } from '@gruenerator/ui';
 
 // Tool UI Schemas
 export { safeParseSerializableCitation } from './components/tool-ui/citation/schema';
@@ -200,18 +200,25 @@ export {
   agentMentionables,
   notebookMentionables,
   documentMentionables,
-  allMentionables,
   getAllMentionables,
   setCustomAgents,
   getCustomAgentMentionables,
   customAgentToMentionable,
+  setBoardMentionables,
+  getBoardMentionables,
+  boardToolMentionables,
+  setDocMentionables,
+  getDocMentionables,
   toolMentionables,
   filterMentionablesByCategory,
   type Mentionable,
   type MentionableType,
   type MentionableCategory,
   type CustomAgentMentionable,
+  type BoardMentionable,
+  type DocMentionable,
 } from './lib/mentionables';
+export { INTENT_TO_TOOL, DEEP_TOOL_MAP } from './lib/toolMappings';
 export {
   registerDocumentSlug,
   resolveDocumentSlug,

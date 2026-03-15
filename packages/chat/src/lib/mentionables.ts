@@ -1,6 +1,6 @@
 import { agentsList, type AgentListItem } from './agents';
 
-export type MentionableType = 'agent' | 'notebook' | 'tool' | 'document';
+export type MentionableType = 'agent' | 'notebook' | 'tool' | 'document' | 'board' | 'doc';
 export type MentionableCategory = 'skill' | 'function';
 
 export interface Mentionable {
@@ -291,6 +291,88 @@ export const toolMentionables: Mentionable[] = [
   },
 ];
 
+export interface BoardMentionable {
+  id: string;
+  title: string;
+  slug: string;
+}
+
+export const boardToolMentionables: Mentionable[] = [
+  {
+    type: 'board',
+    category: 'function',
+    trigger: '@',
+    identifier: 'board-erstellen',
+    title: 'Board erstellen',
+    description: 'Erstellt ein Board aus dem Chatverlauf',
+    avatar: '✨',
+    backgroundColor: '#7C3AED',
+    mention: 'board-erstellen',
+  },
+];
+
+let dynamicBoardMentionables: Mentionable[] = [];
+
+export function setBoardMentionables(boards: BoardMentionable[]): void {
+  dynamicBoardMentionables = boards.map((b) => ({
+    type: 'board' as const,
+    category: 'function' as const,
+    trigger: '@' as const,
+    identifier: b.id,
+    title: b.title,
+    description: `Board: ${b.title}`,
+    avatar: '📋',
+    backgroundColor: '#316049',
+    mention: b.slug,
+  }));
+  rebuildMentionableMap();
+}
+
+export function getBoardMentionables(): Mentionable[] {
+  return [...boardToolMentionables, ...dynamicBoardMentionables];
+}
+
+export const docToolMentionables: Mentionable[] = [
+  {
+    type: 'doc',
+    category: 'function',
+    trigger: '@',
+    identifier: 'dokument-erstellen',
+    title: 'Dokument erstellen',
+    description: 'Erstellt ein Dokument aus dem Chatverlauf',
+    avatar: '📝',
+    backgroundColor: '#0891B2',
+    mention: 'dokument-erstellen',
+  },
+];
+
+export interface DocMentionable {
+  id: string;
+  title: string;
+  slug: string;
+}
+
+let dynamicDocMentionables: Mentionable[] = [];
+
+export function setDocMentionables(docs: DocMentionable[]): void {
+  dynamicDocMentionables = docs.map((d) => ({
+    type: 'doc' as const,
+    category: 'function' as const,
+    trigger: '@' as const,
+    identifier: d.id,
+    title: d.title,
+    description: d.title,
+    avatar: '📝',
+    backgroundColor: '#0891B2',
+    mention: d.slug,
+  }));
+  rebuildMentionableMap();
+}
+
+export function getDocMentionables(): Mentionable[] {
+  return [...docToolMentionables, ...dynamicDocMentionables];
+}
+
 export const documentMentionables: Mentionable[] = [
   {
     type: 'document',
@@ -311,42 +393,35 @@ export function getAllMentionables(): Mentionable[] {
     ...customAgentMentionables,
     ...notebookMentionables,
     ...toolMentionables,
+    ...boardToolMentionables,
+    ...dynamicBoardMentionables,
+    ...docToolMentionables,
+    ...dynamicDocMentionables,
     ...documentMentionables,
   ];
 }
-
-export const allMentionables: Mentionable[] = [
-  ...agentMentionables,
-  ...notebookMentionables,
-  ...toolMentionables,
-  ...documentMentionables,
-];
 
 const mentionableMap = new Map<string, Mentionable>();
 
 function rebuildMentionableMap(): void {
   mentionableMap.clear();
-  for (const m of agentMentionables) {
-    mentionableMap.set(m.mention.toLowerCase(), m);
-  }
-  for (const m of customAgentMentionables) {
-    if (!mentionableMap.has(m.mention.toLowerCase())) {
-      mentionableMap.set(m.mention.toLowerCase(), m);
-    }
-  }
-  for (const m of notebookMentionables) {
-    if (!mentionableMap.has(m.mention.toLowerCase())) {
-      mentionableMap.set(m.mention.toLowerCase(), m);
-    }
-  }
-  for (const m of toolMentionables) {
-    if (!mentionableMap.has(m.mention.toLowerCase())) {
-      mentionableMap.set(m.mention.toLowerCase(), m);
-    }
-  }
-  for (const m of documentMentionables) {
-    if (!mentionableMap.has(m.mention.toLowerCase())) {
-      mentionableMap.set(m.mention.toLowerCase(), m);
+  const orderedSources = [
+    agentMentionables,
+    customAgentMentionables,
+    notebookMentionables,
+    toolMentionables,
+    boardToolMentionables,
+    dynamicBoardMentionables,
+    docToolMentionables,
+    dynamicDocMentionables,
+    documentMentionables,
+  ];
+  for (const source of orderedSources) {
+    for (const m of source) {
+      const key = m.mention.toLowerCase();
+      if (!mentionableMap.has(key)) {
+        mentionableMap.set(key, m);
+      }
     }
   }
 }
@@ -363,14 +438,20 @@ export function filterMentionables(query: string): {
   customAgents: Mentionable[];
   notebooks: Mentionable[];
   tools: Mentionable[];
+  boards: Mentionable[];
+  docs: Mentionable[];
   documents: Mentionable[];
 } {
+  const allBoards = [...boardToolMentionables, ...dynamicBoardMentionables];
+  const allDocs = [...docToolMentionables, ...dynamicDocMentionables];
   if (!query) {
     return {
       agents: agentMentionables,
       customAgents: customAgentMentionables,
       notebooks: notebookMentionables,
       tools: toolMentionables,
+      boards: allBoards,
+      docs: allDocs,
       documents: documentMentionables,
     };
   }
@@ -385,6 +466,8 @@ export function filterMentionables(query: string): {
     customAgents: customAgentMentionables.filter(matchFn),
     notebooks: notebookMentionables.filter(matchFn),
     tools: toolMentionables.filter(matchFn),
+    boards: 'board'.startsWith(q) || q.startsWith('board') ? allBoards : allBoards.filter(matchFn),
+    docs: 'dok'.startsWith(q) || q.startsWith('dok') ? allDocs : allDocs.filter(matchFn),
     documents: documentMentionables.filter(matchFn),
   };
 }
@@ -397,5 +480,5 @@ export function filterMentionablesByCategory(
   if (category === 'skill') {
     return [...all.agents, ...all.customAgents];
   }
-  return [...all.tools, ...all.documents, ...all.notebooks];
+  return [...all.tools, ...all.boards, ...all.docs, ...all.documents, ...all.notebooks];
 }

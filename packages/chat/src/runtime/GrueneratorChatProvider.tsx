@@ -25,7 +25,14 @@ import { createChatApiClient } from '../context/ChatContext';
 import { useAgentStore } from '../stores/chatStore';
 import { useChatConfigStore, type ChatConfig } from '../stores/chatConfigStore';
 import { getDefaultAgent } from '../lib/agents';
-import { setCustomAgents, type CustomAgentMentionable } from '../lib/mentionables';
+import {
+  setCustomAgents,
+  setBoardMentionables,
+  setDocMentionables,
+  type CustomAgentMentionable,
+} from '../lib/mentionables';
+import { useChatCollaboration } from '../hooks/useChatCollaboration';
+import { ChatCollaborationProvider } from '../context/ChatCollaborationContext';
 import { VoxtralDictationAdapter } from '@gruenerator/voice';
 import {
   createGrueneratorModelAdapter,
@@ -49,6 +56,7 @@ import type {
 interface GrueneratorChatProviderProps {
   children: ReactNode;
   userId?: string;
+  userName?: string;
   config?: ChatConfig;
   getExternalThreads?: () => ExternalThreadEntry[];
   onExternalThreadClick?: (externalId: string) => void;
@@ -73,15 +81,12 @@ interface LoadedMessage {
     searchResults?: SearchResult[];
     generatedImage?: GeneratedImage;
     toolCalls?: PersistedToolCall[];
+    senderId?: string;
+    senderName?: string | null;
   };
 }
 
-const INTENT_TO_TOOL: Record<string, string> = {
-  search: 'gruenerator_search',
-  web: 'web_search',
-  research: 'research',
-  examples: 'gruenerator_examples_search',
-};
+import { INTENT_TO_TOOL } from '../lib/toolMappings';
 
 function extractContent(content: unknown): string {
   if (typeof content !== 'string') return '';
@@ -146,6 +151,10 @@ function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMessageLik
     contentParts.push({ type: 'text' as const, text: textContent });
 
     const custom: Record<string, unknown> = {};
+    if (m.metadata?.senderId) {
+      custom.senderId = m.metadata.senderId;
+      custom.senderName = m.metadata.senderName ?? null;
+    }
     if (m.metadata?.citations) custom.citations = m.metadata.citations;
     if (m.metadata?.generatedImage) custom.generatedImage = m.metadata.generatedImage;
     if (m.metadata?.intent)
@@ -344,6 +353,7 @@ function ThreadTitleEffect() {
 export function GrueneratorChatProvider({
   children,
   userId,
+  userName,
   config,
   getExternalThreads,
   onExternalThreadClick,
@@ -378,6 +388,7 @@ export function GrueneratorChatProvider({
   return (
     <GrueneratorChatRuntimeProvider
       userId={userId}
+      userName={userName}
       getExternalThreads={getExternalThreads}
       onExternalThreadClick={onExternalThreadClick}
       activePath={activePath}
@@ -387,15 +398,33 @@ export function GrueneratorChatProvider({
   );
 }
 
+function ChatCollaborationBridge({
+  userId,
+  userName,
+  children,
+}: {
+  userId: string;
+  userName?: string;
+  children: ReactNode;
+}) {
+  const threadId = useAgentStore((s) => s.currentThreadId);
+  const user = useMemo(() => ({ id: userId, name: userName || userId }), [userId, userName]);
+  const collab = useChatCollaboration(threadId, user);
+
+  return <ChatCollaborationProvider value={collab}>{children}</ChatCollaborationProvider>;
+}
+
 function GrueneratorChatRuntimeProvider({
   children,
   userId,
+  userName,
   getExternalThreads,
   onExternalThreadClick,
   activePath,
 }: {
   children: ReactNode;
   userId: string;
+  userName?: string;
   getExternalThreads?: () => ExternalThreadEntry[];
   onExternalThreadClick?: (externalId: string) => void;
   activePath?: string;
@@ -431,6 +460,64 @@ function GrueneratorChatRuntimeProvider({
       }
     };
     loadCustomAgents();
+
+    // Load user's boards for @board mention support
+    const loadBoards = async () => {
+      try {
+        const boards =
+          await providerApiClient.get<Array<{ id: string; title: string }>>('/api/boards');
+        if (Array.isArray(boards)) {
+          setBoardMentionables(
+            boards.map((b) => ({
+              id: b.id,
+              title: b.title,
+              slug: b.title
+                .toLowerCase()
+                .replace(/[äÄ]/g, 'ae')
+                .replace(/[öÖ]/g, 'oe')
+                .replace(/[üÜ]/g, 'ue')
+                .replace(/ß/g, 'ss')
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-|-$/g, ''),
+            }))
+          );
+        }
+      } catch {
+        // Silently ignore — boards in @mention are optional
+      }
+    };
+    loadBoards();
+
+    // Load user's collaborative documents for @doc mention support
+    const loadDocs = async () => {
+      try {
+        const docs =
+          await providerApiClient.get<
+            Array<{ id: string; title: string; document_subtype?: string }>
+          >('/api/docs');
+        if (Array.isArray(docs)) {
+          setDocMentionables(
+            docs
+              .filter((d) => d.document_subtype !== 'boards')
+              .map((d) => ({
+                id: d.id,
+                title: d.title,
+                slug: d.title
+                  .toLowerCase()
+                  .replace(/[äÄ]/g, 'ae')
+                  .replace(/[öÖ]/g, 'oe')
+                  .replace(/[üÜ]/g, 'ue')
+                  .replace(/ß/g, 'ss')
+                  .replace(/[^a-z0-9]+/g, '-')
+                  .replace(/^-|-$/g, ''),
+              }))
+          );
+        }
+      } catch {
+        // Silently ignore — docs in @mention are optional
+      }
+    };
+    loadDocs();
   }, [providerApiClient, userId]);
 
   const getExternalThreadsRef = useRef(getExternalThreads);
@@ -472,7 +559,9 @@ function GrueneratorChatRuntimeProvider({
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
       <ExternalThreadProvider value={externalCtx}>
         <ThreadTitleEffect />
-        {children}
+        <ChatCollaborationBridge userId={userId} userName={userName}>
+          {children}
+        </ChatCollaborationBridge>
       </ExternalThreadProvider>
     </AssistantRuntimeProvider>
   );
