@@ -1,13 +1,22 @@
 import { useAgentStore } from '@gruenerator/chat';
 import { memo, useState, useEffect, useCallback, useMemo } from 'react';
-import { FiCheck, FiTrash2, FiCalendar, FiTag, FiMessageSquare, FiPlus } from 'react-icons/fi';
+import {
+  FiCheck,
+  FiTrash2,
+  FiCalendar,
+  FiTag,
+  FiMessageSquare,
+  FiFileText,
+  FiPlus,
+} from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
 import { FIELD_IDS } from '../types';
 import { LABEL_COLORS } from '../utils/boardDefaults';
 
-import type { Row, Field, SelectOption, CellValue } from '../types';
+import type { Row, Field, SelectOption, CellValue, LinkedDoc } from '../types';
 
+import { CollabDocPicker } from '@/components/common/CollabDocPicker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -41,6 +50,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
+  const [linkedDocs, setLinkedDocs] = useState<LinkedDoc[]>([]);
   const [newLabelText, setNewLabelText] = useState('');
   const [selectedLabelColor, setSelectedLabelColor] = useState(LABEL_COLORS[0]);
 
@@ -58,6 +68,12 @@ export const CardDetailPanel = memo(function CardDetailPanel({
     setDescription((row.cells[FIELD_IDS.DESCRIPTION] as string) || '');
     setDueDate((row.cells[FIELD_IDS.DUE_DATE] as string) || '');
     setSelectedLabelIds((row.cells[FIELD_IDS.LABELS] ?? []) as string[]);
+    try {
+      const raw = row.cells[FIELD_IDS.LINKED_DOCS];
+      setLinkedDocs(typeof raw === 'string' ? JSON.parse(raw) : []);
+    } catch {
+      setLinkedDocs([]);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally sync only on row change or panel open
   }, [rowId, open]);
 
@@ -112,6 +128,26 @@ export const CardDetailPanel = memo(function CardDetailPanel({
     onUpdateField,
     onUpdateCell,
   ]);
+
+  const addLinkedDoc = useCallback(
+    (doc: LinkedDoc) => {
+      if (!row) return;
+      const updated = [...linkedDocs, doc];
+      setLinkedDocs(updated);
+      onUpdateCell(row.id, FIELD_IDS.LINKED_DOCS, JSON.stringify(updated));
+    },
+    [row, linkedDocs, onUpdateCell]
+  );
+
+  const removeLinkedDoc = useCallback(
+    (docId: string) => {
+      if (!row) return;
+      const updated = linkedDocs.filter((d) => d.id !== docId);
+      setLinkedDocs(updated);
+      onUpdateCell(row.id, FIELD_IDS.LINKED_DOCS, JSON.stringify(updated));
+    },
+    [row, linkedDocs, onUpdateCell]
+  );
 
   const handleDiscussInChat = useCallback(() => {
     if (!row) return;
@@ -299,6 +335,45 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                     )}
                   </PopoverContent>
                 </Popover>
+              </div>
+            </div>
+
+            {/* Linked documents */}
+            <div className="flex flex-row">
+              <p className="w-24 shrink-0 text-sm font-medium text-grey-500 dark:text-grey-100 pt-1.5">
+                <FiFileText className="inline mr-1.5" size={13} />
+                Dokumente
+              </p>
+              <div className="flex-1">
+                {linkedDocs.length > 0 && (
+                  <div className="flex flex-col gap-1.5 mb-2">
+                    {linkedDocs.map((doc) => (
+                      <div key={doc.id} className="flex items-center gap-1.5 group">
+                        <a
+                          href={`/docs/${doc.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-primary-600 dark:text-primary-400 hover:underline truncate flex-1"
+                        >
+                          {doc.title}
+                        </a>
+                        <button
+                          onClick={() => removeLinkedDoc(doc.id)}
+                          className="opacity-0 group-hover:opacity-100 text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer transition-opacity text-xs"
+                          title="Entfernen"
+                        >
+                          &times;
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <CollabDocPicker onSelect={addLinkedDoc} excludeIds={linkedDocs.map((d) => d.id)}>
+                  <button className="flex items-center gap-1.5 text-xs text-grey-400 dark:text-grey-300 hover:text-primary-600 bg-transparent border-none cursor-pointer transition-colors">
+                    <FiPlus size={12} />
+                    Verknüpfen
+                  </button>
+                </CollabDocPicker>
               </div>
             </div>
           </div>

@@ -38,6 +38,16 @@ export const CardContent = memo(function CardContent({
   const labelIds = (row.cells[FIELD_IDS.LABELS] ?? []) as string[];
   const assignee = (row.cells[FIELD_IDS.ASSIGNEE] as string) || '';
 
+  const linkedDocsCount = useMemo(() => {
+    try {
+      const raw = row.cells[FIELD_IDS.LINKED_DOCS];
+      const docs = typeof raw === 'string' ? JSON.parse(raw) : [];
+      return Array.isArray(docs) ? docs.length : 0;
+    } catch {
+      return 0;
+    }
+  }, [row.cells]);
+
   const labelsField = useMemo(() => fields.find((f) => f.id === FIELD_IDS.LABELS), [fields]);
   const labelOptions = useMemo(() => {
     if (!labelsField) return [];
@@ -102,12 +112,18 @@ export const CardContent = memo(function CardContent({
         <p className="text-xs text-grey-500 m-0 mt-1 line-clamp-2 leading-relaxed">{description}</p>
       )}
 
-      {(formattedDate || assignee) && (
+      {(formattedDate || linkedDocsCount > 0 || assignee) && (
         <div className="mt-1.5 flex items-center gap-1.5">
           {formattedDate && (
             <Badge variant="outline" className="text-[10px] py-0.5 px-1.5 font-normal">
               {formattedDate}
             </Badge>
+          )}
+          {linkedDocsCount > 0 && (
+            <span className="inline-flex items-center gap-0.5 text-[10px] text-grey-400">
+              <FiFileText size={10} />
+              {linkedDocsCount}
+            </span>
           )}
           {assignee && (
             <span className="text-[10px] text-grey-400 ml-auto truncate max-w-[80px]">

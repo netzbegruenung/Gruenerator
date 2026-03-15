@@ -74,6 +74,13 @@ export const DEFAULT_FIELDS: Field[] = [
     typeOptions: {},
     order: 5,
   },
+  {
+    id: FIELD_IDS.LINKED_DOCS,
+    name: 'Dokumente',
+    type: 'text',
+    typeOptions: {},
+    order: 6,
+  },
 ];
 
 export const DEFAULT_KANBAN_VIEW: BoardView = {
@@ -99,6 +106,7 @@ export function createDefaultRow(statusOptionId: string, userId: string): Row {
       [FIELD_IDS.DUE_DATE]: null,
       [FIELD_IDS.LABELS]: [],
       [FIELD_IDS.ASSIGNEE]: '',
+      [FIELD_IDS.LINKED_DOCS]: '[]',
     },
     createdBy: userId,
     createdAt: new Date().toISOString(),
@@ -114,6 +122,7 @@ export const DEFAULT_ROWS: Row[] = DEFAULT_STATUS_OPTIONS.map((opt) => ({
     [FIELD_IDS.DUE_DATE]: null,
     [FIELD_IDS.LABELS]: [],
     [FIELD_IDS.ASSIGNEE]: '',
+    [FIELD_IDS.LINKED_DOCS]: '[]',
   },
   createdBy: 'system',
   createdAt: new Date().toISOString(),

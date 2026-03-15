@@ -19,6 +19,7 @@ const FIELD_IDS = {
   DUE_DATE: 'field-due-date',
   LABELS: 'field-labels',
   ASSIGNEE: 'field-assignee',
+  LINKED_DOCS: 'field-linked-docs',
 } as const;
 
 export const BOARD_GENERATION_PROMPT = `Du bist ein Projektmanagement-Assistent. Erstelle eine Kanban-Board-Struktur als JSON basierend auf der Beschreibung.
@@ -218,6 +219,14 @@ export function formatBoardAsContext(board: BoardState): string {
       text += `- ${title}`;
       if (desc) text += ` — ${desc}`;
       if (due) text += ` (Fällig: ${due})`;
+      try {
+        const docs = JSON.parse((row.cells[FIELD_IDS.LINKED_DOCS] as string) || '[]') as Array<{
+          title: string;
+        }>;
+        if (docs.length) text += ` {Dokumente: ${docs.map((d) => d.title).join(', ')}}`;
+      } catch {
+        /* ignore parse errors */
+      }
       text += '\n';
     }
     if (groupRows.length === 0) text += '- (keine Aufgaben)\n';
@@ -270,6 +279,7 @@ export function postProcessBoardStructure(
       order: 4,
     },
     { id: FIELD_IDS.ASSIGNEE, name: 'Zuständig', type: 'text', typeOptions: {}, order: 5 },
+    { id: FIELD_IDS.LINKED_DOCS, name: 'Dokumente', type: 'text', typeOptions: {}, order: 6 },
   ];
 
   const now = new Date().toISOString();
@@ -282,6 +292,7 @@ export function postProcessBoardStructure(
       [FIELD_IDS.DUE_DATE]: null,
       [FIELD_IDS.LABELS]: [],
       [FIELD_IDS.ASSIGNEE]: '',
+      [FIELD_IDS.LINKED_DOCS]: '[]',
     },
     createdBy: userId,
     createdAt: now,

@@ -239,6 +239,7 @@ export function PlannerKanban({
           [FIELD_IDS.DUE_DATE]: null,
           [FIELD_IDS.LABELS]: [],
           [FIELD_IDS.ASSIGNEE]: '',
+          [FIELD_IDS.LINKED_DOCS]: '[]',
         },
         createdBy: currentUserId,
         createdAt: new Date().toISOString(),

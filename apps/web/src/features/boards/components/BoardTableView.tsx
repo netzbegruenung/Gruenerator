@@ -163,7 +163,7 @@ export const BoardTableView = memo(function BoardTableView({
                 key={tableRow.id}
                 row={tableRow}
                 className="cursor-pointer hover:bg-grey-50 dark:hover:bg-grey-800/50 transition-colors [&>td]:py-2.5 [&>td]:px-3"
-                onClick={() => handleRowClick(tableRow.original)}
+                onClick={() => handleRowClick(tableRow.original as TableRowData)}
               >
                 {({ cell }) => {
                   const isTitle = cell.column.id === FIELD_IDS.TITLE;
