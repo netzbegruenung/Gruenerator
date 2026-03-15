@@ -1,24 +1,21 @@
-import { memo, useState } from 'react';
-import { FiMoreHorizontal, FiTrash2, FiArchive, FiShare2 } from 'react-icons/fi';
-import { useNavigate } from 'react-router-dom';
-
-import { ShareBoardDialog } from './ShareBoardDialog';
-
-import { Button } from '@/components/ui/button';
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@gruenerator/ui';
+import { memo, useState } from 'react';
+import { FiMoreHorizontal, FiTrash2, FiArchive, FiShare2 } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
+
+import { ShareBoardDialog } from './ShareBoardDialog';
 
 interface BoardDropdownProps {
   boardId: string;

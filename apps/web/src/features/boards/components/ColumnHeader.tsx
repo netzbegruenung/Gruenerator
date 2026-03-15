@@ -1,15 +1,14 @@
-import { memo, useState } from 'react';
-import { FiMoreVertical, FiTrash2, FiEdit2 } from 'react-icons/fi';
-
-import { useColumnActivity } from '../context/BoardAwarenessContext';
-import { COLUMN_COLORS } from '../utils/boardDefaults';
-
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@gruenerator/ui';
+import { memo, useState } from 'react';
+import { FiMoreVertical, FiTrash2, FiEdit2, FiEyeOff } from 'react-icons/fi';
+
+import { useColumnActivity } from '../context/BoardAwarenessContext';
+import { COLUMN_COLORS } from '../utils/boardDefaults';
 
 interface ColumnData {
   id: string;
@@ -23,6 +22,7 @@ interface ColumnHeaderProps {
   cardCount: number;
   onRename: (name: string) => void;
   onDelete: () => void;
+  onHide?: () => void;
   onColorChange: (color: string) => void;
 }
 
@@ -32,6 +32,7 @@ export const ColumnHeader = memo(function ColumnHeader({
   cardCount,
   onRename,
   onDelete,
+  onHide,
   onColorChange,
 }: ColumnHeaderProps) {
   const columnActivity = useColumnActivity(columnId);
@@ -119,6 +120,12 @@ export const ColumnHeader = memo(function ColumnHeader({
               ))}
             </div>
           </div>
+          {onHide && (
+            <DropdownMenuItem onClick={onHide}>
+              <FiEyeOff className="mr-2" size={14} />
+              Spalte ausblenden
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={onDelete} className="text-red-600">
             <FiTrash2 className="mr-2" size={14} />
             Spalte löschen

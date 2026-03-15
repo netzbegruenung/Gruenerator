@@ -1,10 +1,9 @@
 /* eslint-disable react-hooks/set-state-in-effect */
+import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { useState, useEffect, useMemo, type ReactNode } from 'react';
 import { FiSearch, FiUserX } from 'react-icons/fi';
 
 import type { CardAssignee } from '../types';
-
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface Member {
   user_id: string;

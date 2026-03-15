@@ -1,3 +1,4 @@
+import { Badge } from '@gruenerator/ui';
 import { memo, useCallback, useMemo } from 'react';
 import { FiCalendar } from 'react-icons/fi';
 
@@ -13,7 +14,6 @@ import {
   ListItems,
   ListItem,
 } from '@/components/kibo-ui/list';
-import { Badge } from '@/components/ui/badge';
 
 interface BoardListViewProps {
   fields: Field[];
@@ -85,6 +85,7 @@ export const BoardListView = memo(function BoardListView({
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-foreground truncate">
+                          {row.icon && <span className="mr-1">{row.icon}</span>}
                           {title}
                         </span>
                         {rowLabels.length > 0 && (

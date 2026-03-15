@@ -1,16 +1,17 @@
-import { memo, useCallback, useMemo, useState } from 'react';
-import { FiFilter, FiArrowUp, FiArrowDown, FiX, FiPlus, FiColumns } from 'react-icons/fi';
-
-import type { Field, BoardView, FilterRule, SortRule } from '../types';
-
-import { Button } from '@/components/ui/button';
 import {
+  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@gruenerator/ui';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { FiFilter, FiArrowUp, FiArrowDown, FiX, FiPlus, FiColumns } from 'react-icons/fi';
+
+import type { Field, BoardView, FilterRule, SortRule } from '../types';
 
 interface ViewToolbarProps {
   fields: Field[];

@@ -1,4 +1,5 @@
 import { useAgentStore } from '@gruenerator/chat';
+import { Badge, Button, Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { memo, useState, useEffect, useCallback, useMemo } from 'react';
 import {
   FiCheck,
@@ -17,11 +18,79 @@ import { LABEL_COLORS } from '../utils/boardDefaults';
 import type { Row, Field, SelectOption, CellValue, LinkedDoc } from '../types';
 
 import { CollabDocPicker } from '@/components/common/CollabDocPicker';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+
+const COMMON_EMOJI = [
+  '📋',
+  '📌',
+  '🎯',
+  '🔥',
+  '⭐',
+  '💡',
+  '🚀',
+  '✅',
+  '⚡',
+  '🎨',
+  '📝',
+  '🔧',
+  '📢',
+  '🌱',
+  '🤝',
+  '📅',
+  '❗',
+  '🏁',
+  '💬',
+  '🔍',
+  '📊',
+  '🎉',
+  '⏰',
+  '🛑',
+];
+
+function EmojiPicker({ value, onChange }: { value?: string; onChange: (emoji: string) => void }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          className="flex items-center justify-center w-9 h-9 mt-0.5 shrink-0 rounded-md text-lg hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border border-dashed border-grey-200 dark:border-grey-700 cursor-pointer transition-colors"
+          title="Icon wählen"
+        >
+          {value || '😀'}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-2" align="start">
+        <div className="grid grid-cols-8 gap-0.5">
+          {COMMON_EMOJI.map((emoji) => (
+            <button
+              key={emoji}
+              onClick={() => {
+                onChange(emoji);
+                setOpen(false);
+              }}
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer text-lg transition-colors"
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+        {value && (
+          <button
+            onClick={() => {
+              onChange('');
+              setOpen(false);
+            }}
+            className="w-full mt-1 text-xs text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer py-1"
+          >
+            Icon entfernen
+          </button>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 interface CardDetailPanelProps {
   row: Row | null;
@@ -41,6 +110,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
   open,
   onOpenChange,
   onUpdateCell,
+  onUpdateRow,
   onDelete,
   onUpdateField,
 }: CardDetailPanelProps) {
@@ -191,25 +261,31 @@ export const CardDetailPanel = memo(function CardDetailPanel({
 
         <div className="flex-1 overflow-y-auto">
           <div className="px-6 pt-6 pb-2">
-            <textarea
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onBlur={handleTitleBlur}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  e.currentTarget.blur();
-                }
-              }}
-              rows={1}
-              className="w-full text-xl font-bold bg-transparent border-none outline-none text-foreground-heading resize-none leading-relaxed"
-              placeholder="Kartentitel"
-              onInput={(e) => {
-                const target = e.target as HTMLTextAreaElement;
-                target.style.height = 'auto';
-                target.style.height = `${target.scrollHeight}px`;
-              }}
-            />
+            <div className="flex items-start gap-2">
+              <EmojiPicker
+                value={row.icon}
+                onChange={(icon) => onUpdateRow(row.id, { icon: icon || undefined })}
+              />
+              <textarea
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onBlur={handleTitleBlur}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.currentTarget.blur();
+                  }
+                }}
+                rows={1}
+                className="w-full text-xl font-bold bg-transparent border-none outline-none text-foreground-heading resize-none leading-relaxed"
+                placeholder="Kartentitel"
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = `${target.scrollHeight}px`;
+                }}
+              />
+            </div>
           </div>
 
           <div className="px-6 pb-6">
@@ -351,8 +427,6 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                       <div key={doc.id} className="flex items-center gap-1.5 group">
                         <a
                           href={`/docs/${doc.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
                           className="text-sm text-primary-600 dark:text-primary-400 hover:underline truncate flex-1"
                         >
                           {doc.title}

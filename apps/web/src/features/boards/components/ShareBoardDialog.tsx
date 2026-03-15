@@ -1,17 +1,16 @@
-import { useState, useCallback } from 'react';
-import { FiCheck, FiCopy, FiTrash2, FiUsers } from 'react-icons/fi';
-
-import { useBoardSharing } from '../hooks/useBoardSharing';
-
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
+  Badge,
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from '@gruenerator/ui';
+import { useState, useCallback } from 'react';
+import { FiCheck, FiCopy, FiTrash2, FiUsers } from 'react-icons/fi';
+
+import { useBoardSharing } from '../hooks/useBoardSharing';
 
 interface ShareBoardDialogProps {
   boardId: string;

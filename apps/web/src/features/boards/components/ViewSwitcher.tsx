@@ -1,14 +1,14 @@
-import { memo, useCallback } from 'react';
-import { FiColumns, FiGrid, FiList, FiCalendar, FiBarChart2, FiPlus } from 'react-icons/fi';
-
-import type { BoardView, ViewLayout } from '../types';
-
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@gruenerator/ui';
+import { memo, useCallback } from 'react';
+import { FiColumns, FiGrid, FiList, FiCalendar, FiBarChart2, FiPlus } from 'react-icons/fi';
+
+import type { BoardView, ViewLayout } from '../types';
+
 import { cn } from '@/utils/cn';
 
 const VIEW_ICONS: Record<ViewLayout, typeof FiColumns> = {
