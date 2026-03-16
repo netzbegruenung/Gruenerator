@@ -12,6 +12,8 @@ import {
   BalkenGruppeControl,
   SonnenblumenControl,
 } from '../../../components/utils/ImageModificationForm';
+import { btn } from '../../../utils/buttonStyles';
+import { cn } from '../../../utils/cn';
 
 import ConfigDrivenFields from './ConfigDrivenFields';
 
@@ -108,7 +110,7 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
                   style={{ display: 'none' }}
                 />
                 <button
-                  className="btn-secondary"
+                  className={btn.secondary}
                   onClick={() => fileInputRef.current?.click()}
                   disabled={loading}
                   type="button"
@@ -170,7 +172,7 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
             <div className="edit-panel__section">
               {displayAlternatives.length === 0 ? (
                 <button
-                  className="btn-secondary edit-panel__generate-alternatives"
+                  className={cn(btn.secondary, 'edit-panel__generate-alternatives')}
                   onClick={onGenerateAlternatives}
                   disabled={loading || alternativesLoading}
                   type="button"
@@ -296,7 +298,7 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
 
         <div className="edit-panel__actions">
           <button
-            className="btn-primary"
+            className={btn.primary}
             onClick={() => {
               onRegenerate();
               onClose();

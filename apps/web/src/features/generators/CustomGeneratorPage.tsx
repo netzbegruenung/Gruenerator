@@ -4,10 +4,11 @@ import { useParams } from 'react-router-dom';
 import BaseForm from '../../components/common/BaseForm';
 import useBaseForm from '../../components/common/Form/hooks/useBaseForm';
 import ErrorBoundary from '../../components/ErrorBoundary';
-import '../../assets/styles/components/ui/button.css';
 import apiClient from '../../components/utils/apiClient';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useUrlCrawler } from '../../hooks/useUrlCrawler';
+import { btn } from '../../utils/buttonStyles';
+import { cn } from '../../utils/cn';
 
 import DynamicFormFieldRenderer from './components/DynamicFormFieldRenderer';
 import { type GeneratorConfig, DEFAULT_FEATURE_TOGGLES } from './types/generatorTypes';
@@ -198,7 +199,7 @@ const CustomGeneratorPage: React.FC = memo(() => {
       !isOwner ? (
         <button
           type="button"
-          className={`btn-primary size-s ${isSaved ? 'saved' : ''}`}
+          className={cn(btn.primary, btn.sizeS, isSaved && 'saved')}
           onClick={handleSaveGenerator}
           disabled={isSaving || isSaved}
           title={isSaved ? 'Bereits gespeichert' : 'In meinem Profil speichern'}

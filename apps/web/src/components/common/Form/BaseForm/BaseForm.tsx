@@ -13,8 +13,9 @@ import type {
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 
 import isEqual from 'fast-deep-equal';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import React, {
+  startTransition,
   useEffect,
   useRef,
   useState,
@@ -28,11 +29,9 @@ import React, {
 // Import non-baseform CSS (these stay — they style shared UI primitives)
 import '../../../../assets/styles/components/ui/forms.css';
 import '../../../../assets/styles/components/ui/form-select-modern.css';
-import '../../../../assets/styles/components/ui/form-toggle-button.css';
 import '../../../../assets/styles/components/ui/quote-form.css';
 import '../../../../assets/styles/components/ui/FeatureToggle.css';
 import '../../../../assets/styles/components/ui/AttachedFilesList.css';
-import '../../../../assets/styles/components/ui/button.css';
 import '../../../../assets/styles/components/ui/spinner.css';
 import '../../../../assets/styles/components/ui/tooltip.css';
 import '../../../../assets/styles/components/ui/react-select.css';
@@ -155,6 +154,12 @@ const BaseForm: React.FC<BaseFormProps> = ({
   // Form visibility (inlined from useFormVisibility)
   const [isFormVisible, setIsFormVisible] = useState(true);
   const toggleFormVisibility = useCallback(() => setIsFormVisible((prev) => !prev), []);
+
+  // Progressive rendering: show form shell immediately, defer extras
+  const [extrasReady, setExtrasReady] = useState(false);
+  useEffect(() => {
+    startTransition(() => setExtrasReady(true));
+  }, []);
 
   const errorHandling = useErrorHandling() as {
     error: string;
@@ -376,8 +381,7 @@ const BaseForm: React.FC<BaseFormProps> = ({
     <BaseFormProvider value={{ isStartMode, hasContent: !!hasContent }}>
       <div className="flex flex-col w-full">
         {headerContent}
-        <motion.div
-          transition={{ duration: 0.25, ease: 'easeOut' }}
+        <div
           ref={baseFormRef}
           className={baseContainerClasses}
           role="main"
@@ -390,103 +394,93 @@ const BaseForm: React.FC<BaseFormProps> = ({
             )}
           </AnimatePresence>
 
-          <AnimatePresence initial={false}>
-            {isFormVisible && (
-              <motion.div
-                key="form-section"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{
-                  duration: 0.25,
-                  ease: 'easeOut',
-                }}
-                className={cn(
-                  'form-section-motion-wrapper flex-[2] min-w-0',
-                  hasContent && 'flex-1',
-                  isStartMode &&
-                    'max-w-[800px] w-full flex-none xl:max-w-[900px] 2xl:max-w-[1000px] max-md:max-w-full',
-                  noContentColumn &&
-                    'flex-none w-full max-w-[800px] xl:max-w-[900px] 4xl:max-w-[1000px] max-md:max-w-none'
-                )}
+          {isFormVisible && (
+            <div
+              className={cn(
+                'form-section-motion-wrapper flex-[2] min-w-0',
+                hasContent && 'flex-1',
+                isStartMode &&
+                  'max-w-[800px] w-full flex-none xl:max-w-[900px] 2xl:max-w-[1000px] max-md:max-w-full',
+                noContentColumn &&
+                  'flex-none w-full max-w-[800px] xl:max-w-[900px] 4xl:max-w-[1000px] max-md:max-w-none'
+              )}
+            >
+              <FormSection
+                ref={formSectionRef}
+                title={title}
+                subtitle={subtitle}
+                onSubmit={useModernForm ? handleEnhancedSubmit : onSubmit}
+                isFormVisible={isFormVisible}
+                isMultiStep={isMultiStep}
+                onBack={onBack}
+                showBackButton={showBackButton}
+                nextButtonText={resolvedSubmitConfig.buttonText}
+                submitButtonProps={effectiveSubmitButtonProps}
+                interactiveModeToggle={
+                  resolvedInteractiveModeConfig.enabled
+                    ? resolvedInteractiveModeConfig.toggle
+                    : null
+                }
+                useInteractiveModeToggle={resolvedInteractiveModeConfig.enabled}
+                onAttachmentClick={onAttachmentClick}
+                onRemoveFile={onRemoveFile}
+                onPrivacyInfoClick={handlePrivacyInfoClick}
+                enablePlatformSelector={enablePlatformSelector}
+                platformOptions={platformOptions}
+                platformSelectorLabel={platformSelectorLabel}
+                platformSelectorPlaceholder={platformSelectorPlaceholder}
+                platformSelectorHelpText={platformSelectorHelpText}
+                formControl={formControl}
+                showSubmitButton={resolvedSubmitConfig.showButton}
+                formNotice={formNotice}
+                defaultValues={defaultValues}
+                validationRules={validationRules}
+                useModernForm={useModernForm}
+                onFormChange={onFormChange}
+                bottomSectionChildren={bottomSectionChildren}
+                showHideButton={hasAnyContent}
+                onHide={toggleFormVisibility}
+                firstExtrasChildren={firstExtrasChildren}
+                extrasChildren={extrasChildren}
+                featureIconsTabIndex={featureIconsTabIndex}
+                platformSelectorTabIndex={platformSelectorTabIndex}
+                knowledgeSelectorTabIndex={knowledgeSelectorTabIndex}
+                knowledgeSourceSelectorTabIndex={knowledgeSourceSelectorTabIndex}
+                documentSelectorTabIndex={documentSelectorTabIndex}
+                submitButtonTabIndex={submitButtonTabIndex}
+                showProfileSelector={showProfileSelector}
+                showImageUpload={showImageUpload}
+                onImageChange={onImageChange}
+                componentName={componentName}
+                onWebSearchInfoClick={handleWebSearchInfoClick}
+                isImageEditActive={isImageEditActive}
+                customEditContent={customEditContent}
+                enableKnowledgeSelector={enableKnowledgeSelector}
+                hideExtrasSection={hideFormExtras}
+                hideInputSection={hideInputSection}
+                isStartMode={isStartMode}
+                startPageDescription={startPageDescription}
+                examplePrompts={examplePrompts}
+                onExamplePromptClick={handleExamplePromptClick}
+                contextualTip={contextualTip}
+                selectedPlatforms={selectedPlatforms}
+                inputHeaderContent={inputHeaderContent}
+                helpContent={helpContent}
+                isStreaming={isStreaming}
+                streamingMessage={streamingProgress?.message}
+                onAbort={abortStreaming}
+                loading={loading}
+                success={success}
+                useFeatureIcons={useFeatureIcons}
+                showAgentMode={showAgentMode}
+                attachedFiles={attachedFiles}
               >
-                <FormSection
-                  ref={formSectionRef}
-                  title={title}
-                  subtitle={subtitle}
-                  onSubmit={useModernForm ? handleEnhancedSubmit : onSubmit}
-                  isFormVisible={isFormVisible}
-                  isMultiStep={isMultiStep}
-                  onBack={onBack}
-                  showBackButton={showBackButton}
-                  nextButtonText={resolvedSubmitConfig.buttonText}
-                  submitButtonProps={effectiveSubmitButtonProps}
-                  interactiveModeToggle={
-                    resolvedInteractiveModeConfig.enabled
-                      ? resolvedInteractiveModeConfig.toggle
-                      : null
-                  }
-                  useInteractiveModeToggle={resolvedInteractiveModeConfig.enabled}
-                  onAttachmentClick={onAttachmentClick}
-                  onRemoveFile={onRemoveFile}
-                  onPrivacyInfoClick={handlePrivacyInfoClick}
-                  enablePlatformSelector={enablePlatformSelector}
-                  platformOptions={platformOptions}
-                  platformSelectorLabel={platformSelectorLabel}
-                  platformSelectorPlaceholder={platformSelectorPlaceholder}
-                  platformSelectorHelpText={platformSelectorHelpText}
-                  formControl={formControl}
-                  showSubmitButton={resolvedSubmitConfig.showButton}
-                  formNotice={formNotice}
-                  defaultValues={defaultValues}
-                  validationRules={validationRules}
-                  useModernForm={useModernForm}
-                  onFormChange={onFormChange}
-                  bottomSectionChildren={bottomSectionChildren}
-                  showHideButton={hasAnyContent}
-                  onHide={toggleFormVisibility}
-                  firstExtrasChildren={firstExtrasChildren}
-                  extrasChildren={extrasChildren}
-                  featureIconsTabIndex={featureIconsTabIndex}
-                  platformSelectorTabIndex={platformSelectorTabIndex}
-                  knowledgeSelectorTabIndex={knowledgeSelectorTabIndex}
-                  knowledgeSourceSelectorTabIndex={knowledgeSourceSelectorTabIndex}
-                  documentSelectorTabIndex={documentSelectorTabIndex}
-                  submitButtonTabIndex={submitButtonTabIndex}
-                  showProfileSelector={showProfileSelector}
-                  showImageUpload={showImageUpload}
-                  onImageChange={onImageChange}
-                  componentName={componentName}
-                  onWebSearchInfoClick={handleWebSearchInfoClick}
-                  isImageEditActive={isImageEditActive}
-                  customEditContent={customEditContent}
-                  enableKnowledgeSelector={enableKnowledgeSelector}
-                  hideExtrasSection={hideFormExtras}
-                  hideInputSection={hideInputSection}
-                  isStartMode={isStartMode}
-                  startPageDescription={startPageDescription}
-                  examplePrompts={examplePrompts}
-                  onExamplePromptClick={handleExamplePromptClick}
-                  contextualTip={contextualTip}
-                  selectedPlatforms={selectedPlatforms}
-                  inputHeaderContent={inputHeaderContent}
-                  helpContent={helpContent}
-                  isStreaming={isStreaming}
-                  streamingMessage={streamingProgress?.message}
-                  onAbort={abortStreaming}
-                  loading={loading}
-                  success={success}
-                  useFeatureIcons={useFeatureIcons}
-                  showAgentMode={showAgentMode}
-                  attachedFiles={attachedFiles}
-                >
-                  {children}
-                </FormSection>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                {children}
+              </FormSection>
+            </div>
+          )}
 
-          {!isStartMode && (hasAnyContent || !!(error || propError)) && (
+          {extrasReady && !isStartMode && (hasAnyContent || !!(error || propError)) && (
             <motion.div
               transition={{ duration: 0.25, ease: 'easeOut' }}
               className={cn(
@@ -526,14 +520,14 @@ const BaseForm: React.FC<BaseFormProps> = ({
             </motion.div>
           )}
 
-          {!isMobileView && (
+          {extrasReady && !isMobileView && (
             <Suspense fallback={null}>
               <Tooltip id="action-tooltip" place="bottom" />
             </Suspense>
           )}
-        </motion.div>
+        </div>
 
-        {useStartPageLayout && (
+        {extrasReady && useStartPageLayout && (
           <RecentTextsSection
             generatorType={getDocumentType(componentName)}
             onTextLoad={handleLoadRecentText}

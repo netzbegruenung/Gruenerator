@@ -12,20 +12,60 @@ import { isMarkdownContent } from '../common/Form/utils/contentUtils';
 import apiClient from './apiClient';
 import { formatExportContent } from './exportUtils';
 
+interface SharepicEntry {
+  text?: string;
+  content?: string;
+}
+
+interface MixedContent {
+  sharepic?: SharepicEntry | SharepicEntry[] | string | string[];
+  social?: { content?: string } | string;
+  content?: string;
+  [key: string]: unknown;
+}
+
+interface SourceRecommendation {
+  title: string;
+  summary: string;
+}
+
+interface UnusedSource {
+  title: string;
+}
+
+interface SearchExport {
+  analysis?: string;
+  sourceRecommendations?: SourceRecommendation[];
+  unusedSources?: UnusedSource[];
+  [key: string]: unknown;
+}
+
+interface ContentObject {
+  analysis?: string;
+  sharepic?: unknown;
+  social?: unknown;
+  content?: string;
+  text?: string;
+  value?: string;
+  [key: string]: unknown;
+}
+
 /**
  * Converts HTML string to plain text while preserving basic structure
- * @param {string} html - HTML content to convert
- * @returns {string} Plain text with preserved structure
+ * @param html - HTML content to convert
+ * @returns Plain text with preserved structure
  */
-export const convertHtmlToPlainText = async (html) => {
+export const convertHtmlToPlainText = async (html: string): Promise<string> => {
   if (!html) return '';
 
+  let processedHtml = html;
+
   // Convert markdown to HTML first if needed using backend service
-  if (typeof html === 'string' && isMarkdownContent(html)) {
+  if (typeof processedHtml === 'string' && isMarkdownContent(processedHtml)) {
     try {
-      const response = await apiClient.post('/markdown/to-html', { content: html });
+      const response = await apiClient.post('/markdown/to-html', { content: processedHtml });
       if (response.data.success) {
-        html = response.data.html;
+        processedHtml = response.data.html;
       }
     } catch (error) {
       console.error('Error converting markdown to HTML:', error);
@@ -35,7 +75,7 @@ export const convertHtmlToPlainText = async (html) => {
 
   // Create temporary DOM element for parsing
   const tempElement = document.createElement('div');
-  tempElement.innerHTML = html;
+  tempElement.innerHTML = processedHtml;
 
   // Add line breaks for block elements and list formatting
   const blockElements = tempElement.querySelectorAll(
@@ -67,13 +107,13 @@ export const convertHtmlToPlainText = async (html) => {
 
 /**
  * Extracts text content from mixed content objects (sharepic/social format)
- * @param {Object} mixedContent - Object with sharepic and/or social properties
- * @returns {string} Combined text content
+ * @param mixedContent - Object with sharepic and/or social properties
+ * @returns Combined text content
  */
-export const extractMixedContent = (mixedContent) => {
+export const extractMixedContent = (mixedContent: MixedContent): string => {
   if (!mixedContent || typeof mixedContent !== 'object') return '';
 
-  const parts = [];
+  const parts: string[] = [];
 
   if (mixedContent.sharepic) {
     const sharepicEntries = Array.isArray(mixedContent.sharepic)
@@ -82,12 +122,12 @@ export const extractMixedContent = (mixedContent) => {
 
     sharepicEntries.filter(Boolean).forEach((entry) => {
       if (typeof entry === 'object') {
-        const sharepicText = entry.text || entry.content || '';
+        const sharepicText = (entry as SharepicEntry).text || (entry as SharepicEntry).content || '';
         if (sharepicText) {
           parts.push(sharepicText);
         }
       } else if (entry) {
-        parts.push(entry);
+        parts.push(entry as string);
       }
     });
   }
@@ -96,8 +136,8 @@ export const extractMixedContent = (mixedContent) => {
     // Extract content property if it's an object, otherwise use as-is
     const socialContent =
       typeof mixedContent.social === 'object'
-        ? mixedContent.social.content || ''
-        : mixedContent.social;
+        ? (mixedContent.social as { content?: string }).content || ''
+        : (mixedContent.social as string);
     if (socialContent) parts.push(socialContent);
   }
 
@@ -111,11 +151,14 @@ export const extractMixedContent = (mixedContent) => {
 
 /**
  * Extracts content from search export objects
- * @param {Object} searchExport - Object with analysis, sourceRecommendations, unusedSources
- * @param {boolean} includeMetadata - Whether to include source recommendations and unused sources
- * @returns {string} Formatted content
+ * @param searchExport - Object with analysis, sourceRecommendations, unusedSources
+ * @param includeMetadata - Whether to include source recommendations and unused sources
+ * @returns Formatted content
  */
-export const extractSearchExportContent = (searchExport, includeMetadata = true) => {
+export const extractSearchExportContent = (
+  searchExport: SearchExport,
+  includeMetadata = true
+): string => {
   if (!searchExport || typeof searchExport !== 'object') return '';
 
   let content = '';
@@ -126,14 +169,14 @@ export const extractSearchExportContent = (searchExport, includeMetadata = true)
 
     // Clean HTML if present
     if (content.includes('<')) {
-      content = convertHtmlToPlainText(content);
+      content = convertHtmlToPlainText(content) as unknown as string;
     }
   }
 
   if (!includeMetadata) return content;
 
   // Add source recommendations
-  if (searchExport.sourceRecommendations?.length > 0) {
+  if (searchExport.sourceRecommendations?.length && searchExport.sourceRecommendations.length > 0) {
     content += '\n\nQuellenempfehlungen:';
     searchExport.sourceRecommendations.forEach((rec) => {
       content += `\n• ${rec.title} - ${rec.summary}`;
@@ -141,7 +184,7 @@ export const extractSearchExportContent = (searchExport, includeMetadata = true)
   }
 
   // Add unused sources
-  if (searchExport.unusedSources?.length > 0) {
+  if (searchExport.unusedSources?.length && searchExport.unusedSources.length > 0) {
     content += '\n\nWeitere relevante Quellen:';
     searchExport.unusedSources.forEach((source) => {
       content += `\n• ${source.title}`;
@@ -153,18 +196,18 @@ export const extractSearchExportContent = (searchExport, includeMetadata = true)
 
 /**
  * Extracts plain text from any content type for clipboard copying
- * @param {string|Object} content - Content in any supported format
- * @returns {string} Clean plain text suitable for copying
+ * @param content - Content in any supported format
+ * @returns Clean plain text suitable for copying
  */
-export const extractPlainText = async (content) => {
+export const extractPlainText = async (content: string | ContentObject): Promise<string> => {
   // Debug logging in development
   if (process.env.NODE_ENV === 'development') {
     console.log('extractPlainText input:', {
       type: typeof content,
       isObject: typeof content === 'object',
-      hasSharepic: !!content?.sharepic,
-      hasSocial: !!content?.social,
-      hasAnalysis: !!content?.analysis,
+      hasSharepic: !!(content as ContentObject)?.sharepic,
+      hasSocial: !!(content as ContentObject)?.social,
+      hasAnalysis: !!(content as ContentObject)?.analysis,
       objectKeys: typeof content === 'object' ? Object.keys(content) : null,
     });
   }
@@ -174,34 +217,33 @@ export const extractPlainText = async (content) => {
 
   // Handle plain strings
   if (typeof content === 'string') {
+    let processedContent: string = content;
     // Convert markdown first if needed
-    if (isMarkdownContent(content)) {
+    if (isMarkdownContent(processedContent)) {
       const { marked } = await import('marked');
-      content = marked(content, {
+      processedContent = await marked(processedContent, {
         breaks: true, // Convert line breaks to <br>
         gfm: true, // GitHub Flavored Markdown
-        headerIds: false, // Don't add IDs to headers
-        mangle: false, // Don't mangle autolinks
       });
     }
 
     // Check if it's HTML content (after potential markdown conversion)
-    if (content.includes('<') && content.includes('>')) {
-      return convertHtmlToPlainText(content);
+    if (processedContent.includes('<') && processedContent.includes('>')) {
+      return convertHtmlToPlainText(processedContent);
     }
-    return content.trim();
+    return processedContent.trim();
   }
 
   // Handle objects
   if (typeof content === 'object') {
     // Search export format
     if (content.analysis) {
-      return extractSearchExportContent(content, true);
+      return extractSearchExportContent(content as SearchExport, true);
     }
 
     // Mixed content format (sharepic/social)
     if (content.sharepic || content.social) {
-      const mixedText = extractMixedContent(content);
+      const mixedText = extractMixedContent(content as MixedContent);
       return mixedText.includes('<') ? convertHtmlToPlainText(mixedText) : mixedText;
     }
   }
@@ -228,10 +270,10 @@ export const extractPlainText = async (content) => {
 
 /**
  * Extracts formatted text for document exports (sends raw content to backend)
- * @param {string|Object} content - Content in any supported format
- * @returns {Promise<string>} Raw content for backend processing
+ * @param content - Content in any supported format
+ * @returns Raw content for backend processing
  */
-export const extractFormattedText = async (content) => {
+export const extractFormattedText = async (content: string | ContentObject): Promise<string> => {
   // For document exports, send raw content to backend - no frontend conversion
   // Backend will handle markdown/HTML conversion and formatting
 
@@ -247,12 +289,12 @@ export const extractFormattedText = async (content) => {
   if (typeof content === 'object') {
     // Search export format
     if (content.analysis) {
-      return extractSearchExportContent(content, true);
+      return extractSearchExportContent(content as SearchExport, true);
     }
 
     // Mixed content format (sharepic/social)
     if (content.sharepic || content.social) {
-      return extractMixedContent(content);
+      return extractMixedContent(content as MixedContent);
     }
   }
 
@@ -279,10 +321,10 @@ export const extractFormattedText = async (content) => {
 /**
  * Extracts HTML content for rich clipboard copying (Word, Etherpad)
  * Converts markdown to HTML to preserve formatting when pasting
- * @param {string|Object} content - Content in any supported format
- * @returns {string} HTML formatted content for clipboard
+ * @param content - Content in any supported format
+ * @returns HTML formatted content for clipboard
  */
-export const extractHTMLContent = async (content) => {
+export const extractHTMLContent = async (content: string | ContentObject): Promise<string> => {
   if (!content) return '';
 
   // Handle strings (markdown or plain text)
@@ -293,8 +335,6 @@ export const extractHTMLContent = async (content) => {
       return marked(content, {
         breaks: true, // Convert line breaks to <br>
         gfm: true, // GitHub Flavored Markdown
-        headerIds: false, // Don't add IDs to headers
-        mangle: false, // Don't mangle autolinks
       });
     }
 
@@ -309,19 +349,17 @@ export const extractHTMLContent = async (content) => {
 
   // Handle search export objects (use existing specialized formatter)
   if (typeof content === 'object' && content.analysis) {
-    return await formatExportContent(content);
+    return await formatExportContent(content as Parameters<typeof formatExportContent>[0]);
   }
 
   // Handle mixed content (sharepic/social)
   if (typeof content === 'object' && (content.sharepic || content.social)) {
-    const text = extractMixedContent(content);
+    const text = extractMixedContent(content as MixedContent);
     if (isMarkdownContent(text)) {
       const { marked } = await import('marked');
       return marked(text, {
         breaks: true,
         gfm: true,
-        headerIds: false,
-        mangle: false,
       });
     }
     return `<p>${text.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`;

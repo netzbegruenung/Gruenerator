@@ -1,9 +1,51 @@
 /* global process */
-import { useState, useCallback, useEffect } from 'react';
+import { type Dispatch, type SetStateAction, useState, useCallback, useEffect } from 'react';
 
 const ERROR_TIMEOUT = 5000; // 5 Sekunden für automatisches Ausblenden
 
-const errorMessages = {
+interface ErrorMessage {
+  title: string;
+  message: string;
+}
+
+interface ProcessedError extends ErrorMessage {
+  details?: string;
+  code?: string | number;
+  timestamp: string;
+  requestId?: string;
+  status?: number;
+  raw?: unknown;
+}
+
+interface AxiosError {
+  isAxiosError: boolean;
+  response?: {
+    status: number;
+    headers?: Record<string, string>;
+  };
+  code?: string;
+  message?: string;
+  details?: string;
+  requestId?: string;
+}
+
+interface AnthropicError {
+  error: {
+    type: string;
+    message?: string;
+  };
+}
+
+interface AppError {
+  code: string;
+  message?: string;
+  details?: string;
+  requestId?: string;
+}
+
+type ErrorInput = AxiosError | AnthropicError | AppError | string | Error;
+
+const errorMessages: Record<string | number, ErrorMessage> = {
   // HTTP Status Codes
   400: {
     title: 'Ungültige Anfrage',
@@ -113,9 +155,18 @@ const errorMessages = {
   },
 };
 
-const useError = (autoHideTimeout = ERROR_TIMEOUT) => {
-  const [error, setError] = useState(null);
-  const [timeoutId, setTimeoutId] = useState(null);
+interface UseErrorReturn {
+  error: ProcessedError | null;
+  setError: Dispatch<SetStateAction<ProcessedError | null>>;
+  handleError: (err: ErrorInput) => ProcessedError;
+  resetError: () => void;
+  updateError: (errorUpdate: Partial<ProcessedError>) => void;
+  isError: boolean;
+}
+
+const useError = (autoHideTimeout: number = ERROR_TIMEOUT): UseErrorReturn => {
+  const [error, setError] = useState<ProcessedError | null>(null);
+  const [timeoutId, setTimeoutId] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   // Cleanup-Funktion für den Timeout
   useEffect(() => {
@@ -126,7 +177,7 @@ const useError = (autoHideTimeout = ERROR_TIMEOUT) => {
     };
   }, [timeoutId]);
 
-  const resetError = useCallback(() => {
+  const resetError = useCallback((): void => {
     setError(null);
     if (timeoutId) {
       clearTimeout(timeoutId);
@@ -135,23 +186,24 @@ const useError = (autoHideTimeout = ERROR_TIMEOUT) => {
   }, [timeoutId]);
 
   const handleError = useCallback(
-    (err) => {
+    (err: ErrorInput): ProcessedError => {
       console.group('Error Handling');
       console.error('Original error:', err);
 
       // Fehlertyp und Info ermitteln
-      let errorInfo;
-      let errorType;
+      let errorInfo: ErrorMessage | undefined;
+      let errorType: string | number | undefined;
 
-      if (err?.isAxiosError) {
+      if (typeof err === 'object' && err !== null && 'isAxiosError' in err && err.isAxiosError) {
         // Axios Fehler
-        errorType = err.response?.status || err.code || 'ERR_NETWORK';
-      } else if (err?.error?.type) {
+        const axiosErr = err as AxiosError;
+        errorType = axiosErr.response?.status || axiosErr.code || 'ERR_NETWORK';
+      } else if (typeof err === 'object' && err !== null && 'error' in err && (err as AnthropicError).error?.type) {
         // Anthropic API Fehler
-        errorType = err.error.type;
-      } else if (err?.code) {
+        errorType = (err as AnthropicError).error.type;
+      } else if (typeof err === 'object' && err !== null && 'code' in err) {
         // Anwendungsspezifische Fehler
-        errorType = err.code;
+        errorType = (err as AppError).code;
       } else if (typeof err === 'string') {
         // String-Fehler
         errorInfo = {
@@ -165,17 +217,23 @@ const useError = (autoHideTimeout = ERROR_TIMEOUT) => {
 
       // Fehlermeldung aus errorMessages holen, wenn noch nicht gesetzt
       if (!errorInfo) {
-        errorInfo = errorMessages[errorType] || errorMessages.default;
+        errorInfo = errorMessages[errorType as string | number] || errorMessages.default;
       }
 
       // Finalen Fehler-Objekt erstellen
-      const finalError = {
+      const errObj = err as Record<string, unknown>;
+      const finalError: ProcessedError = {
         ...errorInfo,
-        details: err?.details || err?.message || err?.error?.message,
+        details:
+          (errObj?.details as string) ||
+          (errObj?.message as string) ||
+          ((errObj?.error as Record<string, unknown>)?.message as string),
         code: errorType,
         timestamp: new Date().toISOString(),
-        requestId: err?.requestId || err?.response?.headers?.['request-id'],
-        status: err?.response?.status,
+        requestId:
+          (errObj?.requestId as string) ||
+          ((errObj?.response as Record<string, Record<string, string>>)?.headers?.['request-id']),
+        status: (errObj?.response as Record<string, number>)?.status,
         raw: process.env.NODE_ENV === 'development' ? err : undefined,
       };
 
@@ -203,7 +261,7 @@ const useError = (autoHideTimeout = ERROR_TIMEOUT) => {
     [autoHideTimeout, timeoutId, resetError]
   );
 
-  const updateError = useCallback((errorUpdate) => {
+  const updateError = useCallback((errorUpdate: Partial<ProcessedError>): void => {
     setError((current) => (current ? { ...current, ...errorUpdate } : null));
   }, []);
 

@@ -2,10 +2,11 @@ import { useShareStore, getShareUrl } from '@gruenerator/shared';
 import { useState, useEffect } from 'react';
 import QRCode from 'react-qr-code';
 
+import { btn } from '../../../utils/buttonStyles';
+import { cn } from '../../../utils/cn';
 import { canShare, shareContent } from '../../../utils/shareUtils';
 
 import type { JSX } from 'react';
-import './ShareMediaModal.css';
 
 interface ShareData {
   shareToken: string;
@@ -126,9 +127,18 @@ const ShareMediaModal = ({
   const mediaLabel = mediaType === 'video' ? 'Video' : 'Bild';
 
   return (
-    <div className="share-modal-overlay" onClick={onClose}>
-      <div className="share-modal" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-        <button className="share-modal-close" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-md animate-[fadeIn_0.2s_ease]"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-[640px] rounded-lg bg-background p-lg shadow-xl border border-grey-200 dark:border-grey-700 max-[480px]:p-md max-[480px]:rounded-md"
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+      >
+        <button
+          className="absolute top-md right-md flex h-8 w-8 items-center justify-center rounded-full border-none bg-transparent text-foreground text-2xl leading-none p-xxs opacity-60 transition-opacity duration-200 hover:opacity-100 hover:bg-background-alt cursor-pointer"
+          onClick={onClose}
+        >
           <svg
             width="24"
             height="24"
@@ -141,17 +151,19 @@ const ShareMediaModal = ({
           </svg>
         </button>
 
-        <h2>{mediaLabel} teilen</h2>
+        <h2 className="m-0 mb-sm text-xl text-foreground-heading">{mediaLabel} teilen</h2>
 
         {!currentShare ? (
           <>
-            <p className="share-modal-description">
+            <p className="text-grey-400 mb-lg leading-relaxed">
               Erstelle einen Link, den du mit anderen teilen kannst.
             </p>
 
-            <div className="share-modal-form">
-              <div className="form-group">
-                <label htmlFor="shareTitle">Titel</label>
+            <div className="flex flex-col gap-md mb-lg">
+              <div className="flex flex-col gap-xs">
+                <label htmlFor="shareTitle" className="text-sm font-medium text-foreground">
+                  Titel
+                </label>
                 <input
                   id="shareTitle"
                   type="text"
@@ -160,17 +172,24 @@ const ShareMediaModal = ({
                     setShareTitle(e.target.value)
                   }
                   placeholder={`Titel für ${mediaType === 'video' ? 'das geteilte Video' : 'das geteilte Bild'}`}
+                  className="rounded-sm border border-grey-200 dark:border-grey-700 bg-[var(--input-background)] px-md py-sm text-foreground text-base min-h-[var(--form-element-min-height)] transition-[border,box-shadow] duration-200 focus:outline-none focus:border-[var(--primary-600)] focus:shadow-[var(--input-shadow-focus)]"
                 />
               </div>
             </div>
 
             {error && (
               <div
-                className={`share-modal-error ${errorCode === 'NO_SUBTITLES' ? 'export-required' : ''}`}
+                className={cn(
+                  'rounded-sm mb-md px-md py-sm text-sm',
+                  errorCode === 'NO_SUBTITLES'
+                    ? 'flex items-center gap-sm bg-[rgba(255,193,7,0.15)] text-[#856404]'
+                    : 'bg-[rgba(211,47,47,0.1)] text-[var(--error-red)]'
+                )}
               >
                 {errorCode === 'NO_SUBTITLES' ? (
                   <>
                     <svg
+                      className="shrink-0"
                       width="20"
                       height="20"
                       viewBox="0 0 24 24"
@@ -190,11 +209,11 @@ const ShareMediaModal = ({
               </div>
             )}
 
-            <div className="share-modal-actions">
-              <button className="btn-secondary" onClick={onClose} disabled={isCreating}>
+            <div className="flex gap-md justify-end max-[480px]:flex-col-reverse max-[480px]:*:w-full">
+              <button className={btn.secondary} onClick={onClose} disabled={isCreating}>
                 Abbrechen
               </button>
-              <button className="btn-primary" onClick={handleCreateShare} disabled={isCreating}>
+              <button className={btn.primary} onClick={handleCreateShare} disabled={isCreating}>
                 {isCreating ? 'Wird erstellt...' : 'Link erstellen'}
               </button>
             </div>
@@ -202,30 +221,33 @@ const ShareMediaModal = ({
         ) : (
           <>
             {currentShare.status === 'processing' && (
-              <p className="share-modal-info share-modal-rendering-info">
+              <p className="text-sm text-grey-400 text-center mb-lg bg-[rgba(33,150,243,0.1)] px-md py-sm rounded-sm">
                 {mediaType === 'video'
                   ? 'Das Video wird im Hintergrund gerendert. Der Empfänger kann es herunterladen, sobald es fertig ist.'
                   : 'Das Bild wird verarbeitet...'}
               </p>
             )}
 
-            <div className="share-modal-success-layout">
-              <div className="share-modal-left">
-                <div className="share-qr-container">
+            <div className="flex items-center gap-lg max-[600px]:flex-col max-[600px]:items-center">
+              <div className="flex flex-1 flex-col items-center justify-center max-[600px]:w-full">
+                <div className="flex items-center justify-center rounded-sm bg-white p-md">
                   <QRCode value={getShareUrl(currentShare.shareToken)} size={160} level="M" />
                 </div>
               </div>
 
-              <div className="share-modal-right">
-                <label className="share-link-label">Link kopieren</label>
-                <div className="share-link-container">
+              <div className="flex flex-[2] flex-col justify-center max-[600px]:w-full">
+                <label className="text-sm font-medium text-foreground mb-xs">Link kopieren</label>
+                <div className="flex gap-sm mb-md max-[480px]:flex-col">
                   <input
                     type="text"
                     readOnly
                     value={getShareUrl(currentShare.shareToken)}
-                    className="share-link-input"
+                    className="flex-1 rounded-sm border border-grey-200 dark:border-grey-700 bg-[var(--input-background)] px-md py-sm text-foreground text-sm font-mono min-h-[var(--form-element-min-height)]"
                   />
-                  <button className="share-copy-button" onClick={handleCopyLink}>
+                  <button
+                    className="flex items-center justify-center rounded-sm border-none bg-primary-600 px-md py-sm text-white cursor-pointer transition-colors duration-200 hover:bg-primary-700"
+                    onClick={handleCopyLink}
+                  >
                     {copied ? (
                       <svg
                         width="20"
@@ -252,7 +274,10 @@ const ShareMediaModal = ({
                     )}
                   </button>
                   {canShare() && (
-                    <button className="share-native-button" onClick={handleNativeShare}>
+                    <button
+                      className="flex items-center justify-center rounded-sm border-none bg-primary-600 px-md py-sm text-white cursor-pointer transition-colors duration-200 hover:bg-primary-700"
+                      onClick={handleNativeShare}
+                    >
                       <svg
                         width="20"
                         height="20"
@@ -273,8 +298,8 @@ const ShareMediaModal = ({
               </div>
             </div>
 
-            <div className="share-modal-actions-centered">
-              <button className="btn-primary" onClick={onClose}>
+            <div className="flex justify-center mt-md">
+              <button className={btn.primary} onClick={onClose}>
                 Fertig
               </button>
             </div>

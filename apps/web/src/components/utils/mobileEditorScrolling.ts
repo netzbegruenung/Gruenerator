@@ -1,11 +1,22 @@
+interface QuillEditor {
+  root: HTMLElement;
+}
+
+interface QuillRef {
+  current: QuillEditor | null;
+}
+
 /**
  * Utility-Funktion zur Aktivierung des mobilen Scrollings im Quill-Editor
  *
- * @param {React.RefObject} quillRef - Referenz zum Quill-Editor
- * @param {boolean} isEditing - Flag, ob der Editor im Bearbeitungsmodus ist
- * @returns {Function} Cleanup-Funktion zum Entfernen des Event Listeners
+ * @param quillRef - Referenz zum Quill-Editor
+ * @param isEditing - Flag, ob der Editor im Bearbeitungsmodus ist
+ * @returns Cleanup-Funktion zum Entfernen des Event Listeners
  */
-export const enableMobileEditorScrolling = (quillRef, isEditing) => {
+export const enableMobileEditorScrolling = (
+  quillRef: QuillRef,
+  isEditing: boolean
+): (() => void) => {
   function applyMobileScrolling() {
     if (quillRef.current) {
       const editor = quillRef.current;

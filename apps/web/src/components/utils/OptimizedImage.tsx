@@ -1,7 +1,18 @@
-import PropTypes from 'prop-types';
-import React from 'react';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
+
+interface OptimizedImageProps {
+  src: string;
+  alt: string;
+  className?: string;
+  width?: number | string;
+  height?: number | string;
+  effect?: 'blur' | 'black-and-white' | 'opacity';
+  placeholderSrc?: string;
+  onError?: React.ReactEventHandler<HTMLImageElement>;
+  onLoad?: React.ReactEventHandler<HTMLImageElement>;
+  [key: string]: unknown;
+}
 
 const OptimizedImage = ({
   src,
@@ -14,7 +25,7 @@ const OptimizedImage = ({
   onError,
   onLoad,
   ...props
-}) => {
+}: OptimizedImageProps) => {
   return (
     <LazyLoadImage
       src={src}
@@ -29,18 +40,6 @@ const OptimizedImage = ({
       {...props}
     />
   );
-};
-
-OptimizedImage.propTypes = {
-  src: PropTypes.string.isRequired,
-  alt: PropTypes.string.isRequired,
-  className: PropTypes.string,
-  width: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-  height: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-  effect: PropTypes.oneOf(['blur', 'black-and-white', 'opacity']),
-  placeholderSrc: PropTypes.string,
-  onError: PropTypes.func,
-  onLoad: PropTypes.func,
 };
 
 export default OptimizedImage;

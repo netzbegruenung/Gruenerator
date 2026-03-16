@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { btn } from '../../utils/buttonStyles';
+
 import type { JSX, ReactNode, FormEvent } from 'react';
 import '../../assets/styles/components/actions/verify.css';
 
@@ -182,10 +184,10 @@ export default function VerifyFeature({
           {renderAttemptDots()}
           {error && <div className="verify-error">{error}</div>}
           <div className="verify-buttons">
-            <button type="button" onClick={handleBack} className="btn-secondary">
+            <button type="button" onClick={handleBack} className={btn.secondary}>
               {onCancel ? 'Abbrechen' : 'Zurück'}
             </button>
-            <button type="submit" className="btn-primary" disabled={isLocked}>
+            <button type="submit" className={btn.primary} disabled={isLocked}>
               Verifizieren
             </button>
           </div>

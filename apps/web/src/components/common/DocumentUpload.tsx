@@ -16,6 +16,8 @@ import {
 
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useDocumentsStore } from '../../stores/documentsStore';
+import { btn } from '../../utils/buttonStyles';
+import { cn } from '../../utils/cn';
 import { validateUrl, normalizeUrl, generateTitleFromUrl } from '../../utils/urlValidation';
 import apiClient from '../utils/apiClient';
 
@@ -24,8 +26,6 @@ import { Markdown } from './Markdown';
 import Spinner from './Spinner';
 import WolkeFilePicker from './WolkeFilePicker/WolkeFilePicker';
 
-// Import button styles for modal
-import '../../assets/styles/components/ui/button.css';
 import '../../assets/styles/common/markdown-styles.css';
 import './DocumentUpload.css';
 
@@ -507,7 +507,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
             <h3>Dokumente</h3>
             <button
               type="button"
-              className="btn-primary size-s"
+              className={cn(btn.primary, btn.sizeS)}
               onClick={() => setShowUploadForm(true)}
               disabled={isUploading}
             >
@@ -729,7 +729,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                   <div className="px-lg py-md border-t border-grey-200 dark:border-grey-700 bg-grey-50 dark:bg-grey-800 flex justify-end gap-sm">
                     <button
                       onClick={handleUpload}
-                      className="btn-primary size-s"
+                      className={cn(btn.primary, btn.sizeS)}
                       disabled={
                         isUploading ||
                         (uploadMode === 'file' && (!selectedFile || !uploadTitle.trim())) ||
@@ -759,7 +759,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="btn-primary size-s"
+                        className={cn(btn.primary, btn.sizeS)}
                         disabled={isUploading}
                       >
                         Datei ändern
@@ -774,7 +774,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                           resetForm();
                         }
                       }}
-                      className="btn-primary size-s"
+                      className={cn(btn.primary, btn.sizeS)}
                       disabled={isUploading}
                     >
                       Abbrechen
@@ -958,7 +958,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                   >
                     <button
                       onClick={handleUpload}
-                      className="btn-primary size-s"
+                      className={cn(btn.primary, btn.sizeS)}
                       disabled={
                         isUploading ||
                         (uploadMode === 'file' && (!selectedFile || !uploadTitle.trim())) ||
@@ -988,7 +988,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="btn-primary size-s"
+                        className={cn(btn.primary, btn.sizeS)}
                         disabled={isUploading}
                       >
                         Datei ändern
@@ -1003,7 +1003,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                           resetForm();
                         }
                       }}
-                      className="btn-secondary"
+                      className={btn.secondary}
                       disabled={isUploading}
                     >
                       Abbrechen

@@ -345,7 +345,6 @@ const TypeformWizard = forwardRef<TypeformWizardRef, TypeformWizardProps>(
                 onClick={handleBack}
                 text={labels.back}
                 icon={<HiArrowLeft />}
-                className="submit-button"
                 ariaLabel={labels.back}
               />
             )}
@@ -354,7 +353,7 @@ const TypeformWizard = forwardRef<TypeformWizardRef, TypeformWizardProps>(
               loading={disabled}
               text={isLastField ? labels.complete : labels.next}
               icon={isLastField ? <HiCheck /> : <HiArrowRight />}
-              className="form-button"
+              className="flex-1"
               ariaLabel={isLastField ? labels.complete : labels.next}
             />
           </div>

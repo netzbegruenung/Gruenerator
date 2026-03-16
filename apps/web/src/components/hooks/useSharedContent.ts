@@ -1,9 +1,24 @@
 import { useLocation } from 'react-router-dom';
 
-export const useSharedContent = () => {
+interface SharedContent {
+  thema: string;
+  details: string;
+  isFromSharepic: boolean;
+}
+
+interface LocationState {
+  thema?: string;
+  details?: string;
+}
+
+interface UseSharedContentReturn {
+  initialContent: SharedContent;
+}
+
+export const useSharedContent = (): UseSharedContentReturn => {
   const location = useLocation();
 
-  const getInitialContent = () => {
+  const getInitialContent = (): SharedContent => {
     // Prüfe URL-Parameter
     const urlParams = new URLSearchParams(window.location.search);
     const themaFromUrl = urlParams.get('thema');
@@ -19,10 +34,11 @@ export const useSharedContent = () => {
     }
 
     // Ansonsten prüfe Router-State
-    if (location.state?.thema || location.state?.details) {
+    const state = location.state as LocationState | null;
+    if (state?.thema || state?.details) {
       return {
-        thema: location.state.thema || '',
-        details: location.state.details || '',
+        thema: state.thema || '',
+        details: state.details || '',
         isFromSharepic: true,
       };
     }

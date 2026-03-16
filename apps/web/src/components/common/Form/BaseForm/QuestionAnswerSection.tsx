@@ -4,6 +4,8 @@ import SubmitButton from '../../SubmitButton';
 
 import type { Question, QuestionAnswerSectionProps } from '@/types/baseform';
 
+import { btn } from '../../../../utils/buttonStyles';
+import { cn } from '../../../../utils/cn';
 import '../../../../assets/styles/components/interactive-antrag.css';
 import {
   getYesNoEmoji,
@@ -265,7 +267,7 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
       <div className="quiz-navigation">
         <button
           type="button"
-          className="btn-primary size-m"
+          className={cn(btn.primary, btn.sizeM)}
           onClick={handleBack}
           disabled={currentQuestionIndex === 0}
         >
@@ -275,7 +277,7 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
         {currentQuestionIndex < questions.length - 1 ? (
           <button
             type="button"
-            className="btn-primary size-m"
+            className={cn(btn.primary, btn.sizeM)}
             onClick={handleNext}
             disabled={!isCurrentQuestionAnswered}
           >
