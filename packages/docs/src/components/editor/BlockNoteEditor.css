@@ -127,41 +127,27 @@
   opacity: 1;
 }
 
-/* Slash menu customization */
-.bn-suggestion-menu {
-  max-height: 300px;
-  overflow-y: auto;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
 
-@media (max-width: 767px) {
-  .bn-suggestion-menu {
-    max-width: calc(100vw - 32px);
-  }
-
-  .bn-mantine .bn-suggestion-menu-item {
-    height: auto;
-    min-height: 44px;
-  }
-
-  .bn-mt-suggestion-menu-item-title,
-  .bn-mt-suggestion-menu-item-subtitle {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
-/* Static formatting toolbar — always visible above editor (mobile DOM WebView) */
+/* Static formatting toolbar — always visible above editor (touch devices) */
 .blocknote-static-toolbar {
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.blocknote-static-toolbar .bn-container {
   display: flex;
   flex-direction: column-reverse;
-  gap: 8px;
 }
 
 .blocknote-static-toolbar .bn-formatting-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   margin-inline: auto;
+}
+
+.blocknote-static-toolbar .bn-suggestion-menu {
+  max-height: 30dvh;
 }
 
 
@@ -462,31 +448,6 @@
   background-color: var(--grey-800, #1f2937);
   border-color: var(--grey-600, #4b5563);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-/* Buttons inside the comment action toolbar */
-.bn-action-toolbar.bn-comment-actions .mantine-ActionIcon-root,
-.bn-action-toolbar.bn-comment-actions .mantine-Button-root {
-  background-color: transparent;
-  color: var(--grey-700, #374151);
-  border: none;
-}
-
-[data-theme="dark"] .bn-action-toolbar.bn-comment-actions .mantine-ActionIcon-root,
-[data-theme="dark"] .bn-action-toolbar.bn-comment-actions .mantine-Button-root {
-  color: var(--grey-300, #d1d5db);
-}
-
-.bn-action-toolbar.bn-comment-actions .mantine-ActionIcon-root:hover,
-.bn-action-toolbar.bn-comment-actions .mantine-Button-root:hover {
-  background-color: var(--grey-100, #f3f4f6);
-  color: var(--grey-900, #111827);
-}
-
-[data-theme="dark"] .bn-action-toolbar.bn-comment-actions .mantine-ActionIcon-root:hover,
-[data-theme="dark"] .bn-action-toolbar.bn-comment-actions .mantine-Button-root:hover {
-  background-color: var(--grey-700, #374151);
-  color: var(--grey-100, #f3f4f6);
 }
 
 /* Force SVG icons inside action toolbar to inherit color */
