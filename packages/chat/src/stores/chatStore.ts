@@ -34,6 +34,9 @@ export type ModelId = 'mistral' | 'litellm';
 
 export type ToolKey = 'search' | 'web' | 'examples' | 'research';
 
+export type ThreadMode = 'chat' | 'notebook' | 'search';
+export type SearchMode = 'web' | 'deep';
+
 export interface ModelOption {
   id: ModelId;
   name: string;
@@ -99,6 +102,8 @@ interface AgentState {
   pendingMessage: string | null;
   pendingDraft: string | null;
   chatViewMode: 'overview' | 'thread';
+  threadMode: ThreadMode;
+  searchMode: SearchMode;
   setSelectedAgent: (agentId: string | null) => void;
   setSelectedProvider: (provider: Provider) => void;
   setSelectedModel: (model: ModelId) => void;
@@ -110,6 +115,8 @@ interface AgentState {
   setPendingMessage: (message: string | null) => void;
   setPendingDraft: (draft: string | null) => void;
   setChatViewMode: (mode: 'overview' | 'thread') => void;
+  setThreadMode: (mode: ThreadMode) => void;
+  setSearchMode: (mode: SearchMode) => void;
   setCompactionState: (state: CompactionState) => void;
   loadCompactionState: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   triggerCompaction: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
@@ -146,6 +153,8 @@ export const useAgentStore = create<AgentState>()(
       pendingMessage: null,
       pendingDraft: null,
       chatViewMode: 'overview' as const,
+      threadMode: 'chat' as ThreadMode,
+      searchMode: 'web' as SearchMode,
 
       setSelectedAgent: (agentId) => set({ selectedAgentId: agentId }),
 
@@ -193,6 +202,10 @@ export const useAgentStore = create<AgentState>()(
       setPendingDraft: (draft) => set({ pendingDraft: draft }),
 
       setChatViewMode: (mode) => set({ chatViewMode: mode }),
+
+      setThreadMode: (mode) => set({ threadMode: mode }),
+
+      setSearchMode: (mode) => set({ searchMode: mode }),
 
       setCompactionState: (state) => set({ compactionState: state }),
 
@@ -258,7 +271,7 @@ export const useAgentStore = create<AgentState>()(
           removeItem: (key: string) => mem.delete(key),
         };
       }),
-      version: 2,
+      version: 3,
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
           const old = persisted.selectedModel;
@@ -274,6 +287,10 @@ export const useAgentStore = create<AgentState>()(
         if (version < 2) {
           persisted.selectedNotebookId = persisted.selectedNotebookId || 'gruenerator-notebook';
         }
+        if (version < 3) {
+          persisted.threadMode = persisted.threadMode || 'chat';
+          persisted.searchMode = persisted.searchMode || 'web';
+        }
         return persisted;
       },
       partialize: (state) => ({
@@ -284,6 +301,8 @@ export const useAgentStore = create<AgentState>()(
         enabledTools: state.enabledTools,
         useDeepAgent: state.useDeepAgent,
         selectedNotebookId: state.selectedNotebookId,
+        threadMode: state.threadMode,
+        searchMode: state.searchMode,
       }),
     }
   )

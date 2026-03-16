@@ -15,10 +15,12 @@ import {
   Trash2,
   BookOpen,
   Share2,
+  Search,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAgentStore } from '../../stores/chatStore';
 import { useExternalThread } from '../../context/ExternalThreadContext';
+import { getThreadType } from '../../runtime/GrueneratorThreadListAdapter';
 import { ShareThreadDialog } from './ShareThreadDialog';
 
 function useSafeThreadAction(action: 'delete' | 'switchTo' | 'archive' | 'unarchive') {
@@ -66,6 +68,18 @@ function ExternalThreadItem() {
   );
 }
 
+function ThreadTypeIcon({ remoteId }: { remoteId: string | undefined }) {
+  const threadType = remoteId ? getThreadType(remoteId) : 'chat';
+  switch (threadType) {
+    case 'search':
+      return <Search className="h-4 w-4 flex-shrink-0" />;
+    case 'notebook':
+      return <BookOpen className="h-4 w-4 flex-shrink-0" />;
+    default:
+      return <MessageSquare className="h-4 w-4 flex-shrink-0" />;
+  }
+}
+
 export function GrueneratorThreadListItem() {
   const { externalId, remoteId } = useThreadListItem();
   const baseSwitchTo = useSafeThreadAction('switchTo');
@@ -97,7 +111,7 @@ export function GrueneratorThreadListItem() {
           onClick={handleSwitch}
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
         >
-          <MessageSquare className="h-4 w-4 flex-shrink-0" />
+          <ThreadTypeIcon remoteId={remoteId} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm">
               <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />

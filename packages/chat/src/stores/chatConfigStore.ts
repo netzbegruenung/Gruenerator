@@ -10,6 +10,8 @@ export interface ChatConfig {
     chatStream?: string;
     chatResume?: string;
     deepStream?: string;
+    searchStream?: string;
+    notebookStream?: string;
     messages?: string;
     threads?: string;
     summarize?: string;
@@ -24,6 +26,8 @@ export interface ResolvedEndpoints {
   chatStream: string;
   chatResume: string;
   deepStream: string;
+  searchStream: string;
+  notebookStream: string;
   messages: string;
   threads: string;
   summarize: string;
@@ -47,6 +51,8 @@ const DEFAULT_ENDPOINTS: ResolvedEndpoints = {
   chatStream: '/api/chat-graph/stream',
   chatResume: '/api/chat-graph/resume',
   deepStream: '/api/chat-deep/stream',
+  searchStream: '/api/search-graph/stream',
+  notebookStream: '/api/notebook/qa',
   messages: '/api/chat-service/messages',
   threads: '/api/chat-service/threads',
   summarize: '/api/chat-service/summarize',

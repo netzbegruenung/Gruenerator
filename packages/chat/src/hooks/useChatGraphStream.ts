@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { parseSSELine } from '../lib/sseParser';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import type { ProcessedFile } from '../lib/fileUtils';
 
@@ -125,29 +126,6 @@ export interface UseChatGraphStreamReturn {
   setThreadId: (threadId: string | null) => void;
   clearMessages: () => void;
   abort: () => void;
-}
-
-function parseSSELine(
-  line: string,
-  currentEvent: { type: string }
-): { event?: string; data?: unknown } {
-  if (line.startsWith('event: ')) {
-    currentEvent.type = line.slice(7).trim();
-    return {};
-  }
-
-  if (line.startsWith('data: ')) {
-    try {
-      const data = JSON.parse(line.slice(6));
-      const event = currentEvent.type;
-      currentEvent.type = '';
-      return { event, data };
-    } catch {
-      return {};
-    }
-  }
-
-  return {};
 }
 
 export function useChatGraphStream(
