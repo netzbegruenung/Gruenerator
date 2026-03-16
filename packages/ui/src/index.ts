@@ -1,6 +1,7 @@
 export { cn } from './lib/cn';
 
 export { Alert, AlertTitle, AlertDescription } from './components/alert';
+export { FeatureToggle, type FeatureToggleProps } from './components/feature-toggle';
 export { Avatar, AvatarImage, AvatarFallback } from './components/avatar';
 export { Badge, badgeVariants } from './components/badge';
 export { Button, buttonVariants } from './components/button';
@@ -60,5 +61,12 @@ export {
   SelectValue,
 } from './components/select';
 export { Skeleton } from './components/skeleton';
+export { Switch } from './components/switch';
 export { Textarea } from './components/textarea';
 export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/tooltip';
+export { Particles } from './components/particles';
+export {
+  AIPromptInput,
+  type AIPromptInputProps,
+  type AIPromptInputExample,
+} from './components/ai-prompt-input';
