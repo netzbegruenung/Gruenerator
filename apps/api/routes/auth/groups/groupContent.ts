@@ -148,6 +148,7 @@ const validContentTypes = [
   'user_documents',
   'database',
   'collaborative_documents',
+  'system_notebooks',
 ];
 
 // Map content type to actual table name
@@ -192,51 +193,54 @@ router.post(
 
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
 
-      // Verify user owns the content
-      const tableName = tableNameMap[contentType] || contentType;
-      const ownerColumn = contentType === 'collaborative_documents' ? 'created_by' : 'user_id';
+      // System notebooks are globally available — skip ownership check
+      if (contentType !== 'system_notebooks') {
+        // Verify user owns the content
+        const tableName = tableNameMap[contentType] || contentType;
+        const ownerColumn = contentType === 'collaborative_documents' ? 'created_by' : 'user_id';
 
-      // Build ownership query based on content type
-      let ownershipSQL = `SELECT ${ownerColumn} FROM ${tableName} WHERE id = $1`;
-      const ownershipParams: any[] = [contentId];
+        // Build ownership query based on content type
+        let ownershipSQL = `SELECT ${ownerColumn} FROM ${tableName} WHERE id = $1`;
+        const ownershipParams: any[] = [contentId];
 
-      // For user_templates table (templates), also filter by type = 'template'
-      if (tableName === 'user_templates') {
-        ownershipSQL += ` AND type = $2`;
-        ownershipParams.push('template');
-      }
+        // For user_templates table (templates), also filter by type = 'template'
+        if (tableName === 'user_templates') {
+          ownershipSQL += ` AND type = $2`;
+          ownershipParams.push('template');
+        }
 
-      // For collaborative_documents, also filter out deleted
-      if (contentType === 'collaborative_documents') {
-        ownershipSQL += ` AND is_deleted = false`;
-      }
+        // For collaborative_documents, also filter out deleted
+        if (contentType === 'collaborative_documents') {
+          ownershipSQL += ` AND is_deleted = false`;
+        }
 
-      const contentOwnership = await postgres.queryOne(ownershipSQL, ownershipParams, {
-        table: tableName,
-      });
-
-      if (!contentOwnership) {
-        log.error(
-          '[User Groups /groups/:groupId/share POST] Content ownership verification failed:',
-          {
-            contentType,
-            contentId,
-            userId,
-          }
-        );
-        res.status(404).json({
-          success: false,
-          message: 'Inhalt nicht gefunden.',
+        const contentOwnership = await postgres.queryOne(ownershipSQL, ownershipParams, {
+          table: tableName,
         });
-        return;
-      }
 
-      if (contentOwnership[ownerColumn] !== userId) {
-        res.status(403).json({
-          success: false,
-          message: 'Du bist nicht Besitzer*in dieses Inhalts.',
-        });
-        return;
+        if (!contentOwnership) {
+          log.error(
+            '[User Groups /groups/:groupId/share POST] Content ownership verification failed:',
+            {
+              contentType,
+              contentId,
+              userId,
+            }
+          );
+          res.status(404).json({
+            success: false,
+            message: 'Inhalt nicht gefunden.',
+          });
+          return;
+        }
+
+        if (contentOwnership[ownerColumn] !== userId) {
+          res.status(403).json({
+            success: false,
+            message: 'Du bist nicht Besitzer*in dieses Inhalts.',
+          });
+          return;
+        }
       }
 
       // Check if content is already shared with this group via junction table
@@ -427,6 +431,7 @@ router.get(
         user_documents: [],
         database: [],
         collaborative_documents: [],
+        system_notebooks: [],
       };
 
       sharedContent.forEach((share: any) => {
@@ -483,6 +488,19 @@ router.get(
           type: 'notebook_collections',
           result: { data: notebooksData },
           shares: contentByType.notebook_collections,
+        });
+      }
+
+      // System Notebooks (no DB lookup needed — frontend resolves display from config)
+      if (contentByType.system_notebooks.length > 0) {
+        const systemNotebooksData = contentByType.system_notebooks.map((s: any) => ({
+          id: s.content_id,
+          system: true,
+        }));
+        contentResults.push({
+          type: 'system_notebooks',
+          result: { data: systemNotebooksData },
+          shares: contentByType.system_notebooks,
         });
       }
 
@@ -576,6 +594,7 @@ router.get(
         texts: [],
         templates: [],
         collaborative_documents: [],
+        system_notebooks: [],
       };
 
       contentResults.forEach(({ type, result, shares }) => {
@@ -610,6 +629,7 @@ router.get(
           user_documents: 'texts',
           database: 'templates',
           collaborative_documents: 'collaborative_documents',
+          system_notebooks: 'system_notebooks',
         };
 
         groupContent[keyMap[type]] = items;

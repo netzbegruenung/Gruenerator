@@ -30,7 +30,7 @@ const SLIDE_VARIANTS = {
   exit: (direction: number) => ({ x: direction > 0 ? -80 : 80, opacity: 0 }),
 };
 
-const SLIDE_TRANSITION = { duration: 0.2, ease: 'easeInOut' };
+const SLIDE_TRANSITION = { duration: 0.2, ease: 'easeInOut' } as const;
 
 const WolkeFolderBrowser = ({
   shareLinkId: externalShareLinkId,
@@ -99,7 +99,12 @@ const WolkeFolderBrowser = ({
 const GridView = ({ shareLinkId, shareLinkUrl, onFolderSelect }: WolkeFolderBrowserProps) => {
   const [currentPath, setCurrentPath] = useState('');
   const directionRef = useRef(1);
-  const { data: items, isLoading, isError, isFetching } = useWolkeBrowse(shareLinkId, currentPath);
+  const {
+    data: items,
+    isLoading,
+    isError,
+    isFetching,
+  } = useWolkeBrowse(shareLinkId ?? null, currentPath);
   const favourites = useWolkePreferencesStore((s) => s.favourites).filter(
     (f) => f.shareLinkId === shareLinkId
   );
@@ -187,7 +192,7 @@ const GridView = ({ shareLinkId, shareLinkUrl, onFolderSelect }: WolkeFolderBrow
               key={item.name}
               item={item}
               currentPath={currentPath}
-              shareLinkId={shareLinkId}
+              shareLinkId={shareLinkId!}
               shareLinkUrl={shareLinkUrl}
               onNavigate={navigateTo}
             />

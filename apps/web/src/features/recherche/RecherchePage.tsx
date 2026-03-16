@@ -33,7 +33,7 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 import { Separator } from '../../components/ui/separator';
 import apiClient from '../../components/utils/apiClient';
 import { getIcon, NotebookIcon } from '../../config/icons';
-import { useGroups } from '../../features/groups/hooks/useGroups';
+import { useGroups, type GroupSummary } from '../../features/groups/hooks/useGroups';
 import { useAuthStore } from '../../stores/authStore';
 import { useDocumentsStore } from '../../stores/documentsStore';
 import useSidebarFavouritesStore from '../../stores/sidebarFavouritesStore';
@@ -44,7 +44,7 @@ import {
   getAustrianNotebooks,
   getNotebooksByCategory,
   SYSTEM_NOTEBOOKS,
-  type NotebookConfigEntryEntry,
+  type NotebookConfigEntry,
 } from '../notebook/config/notebooksConfig';
 import useNotebookStore from '../notebook/stores/notebookStore';
 
@@ -95,11 +95,32 @@ const HIDDEN_NOTEBOOK_IDS = [
   'boell-stiftung-notebook',
 ];
 
-const NotebookCard = ({ notebook }: { notebook: NotebookConfigEntry }) => {
+const NotebookCard = ({
+  notebook,
+  groups,
+}: {
+  notebook: NotebookConfigEntry;
+  groups: GroupSummary[];
+}) => {
   const navigate = useNavigate();
   const { isFavourite, toggleFavourite, isFull } = useSidebarFavouritesStore();
   const starred = isFavourite(notebook.id);
   const showStar = starred || !isFull();
+  const [sharedGroupId, setSharedGroupId] = useState<string | null>(null);
+
+  const handleShareToGroup = async (groupId: string) => {
+    try {
+      await apiClient.post(`/auth/groups/${groupId}/share`, {
+        contentType: 'system_notebooks',
+        contentId: notebook.id,
+        permissions: { read: true, write: false, collaborative: false },
+      });
+      setSharedGroupId(groupId);
+      setTimeout(() => setSharedGroupId(null), 2000);
+    } catch {
+      // best-effort
+    }
+  };
 
   return (
     <div
@@ -116,6 +137,32 @@ const NotebookCard = ({ notebook }: { notebook: NotebookConfigEntry }) => {
     >
       <notebook.icon className="text-base text-secondary-600 shrink-0" />
       <span className="text-sm font-medium text-foreground-heading flex-1">{notebook.title}</span>
+      {groups.length > 0 && (
+        <div
+          className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center justify-center w-6 h-6 rounded-full text-grey-400 hover:text-foreground transition-colors cursor-pointer"
+                aria-label="Teilen"
+              >
+                <HiShare size={14} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {groups.map((group) => (
+                <DropdownMenuItem key={group.id} onClick={() => handleShareToGroup(group.id)}>
+                  <HiUserGroup />
+                  {sharedGroupId === group.id ? 'Geteilt!' : group.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
       {showStar && (
         <button
           type="button"
@@ -145,44 +192,33 @@ const NotebookSection = ({
   notebooks,
   search,
   columns = 1,
+  groups = [],
 }: {
   title: string;
   notebooks: NotebookConfigEntry[];
   search?: string;
   columns?: 1 | 2;
+  groups?: { id: string; name: string }[];
 }) => {
-  const [expanded, setExpanded] = useState(false);
   const filtered = notebooks
     .filter((nb) => !HIDDEN_NOTEBOOK_IDS.includes(nb.id))
     .filter((nb) => !search || nb.title.toLowerCase().includes(search.toLowerCase()));
   if (filtered.length === 0) return null;
-
-  const shouldCollapse = columns === 1 && filtered.length > COLLAPSE_THRESHOLD && !search;
-  const visible = shouldCollapse && !expanded ? filtered.slice(0, COLLAPSE_THRESHOLD) : filtered;
 
   return (
     <>
       <h2 className="text-xl font-semibold text-foreground-heading mt-xl mb-md">{title}</h2>
       <div
         className={
-          columns === 2 ? 'grid grid-cols-2 max-sm:grid-cols-1 gap-sm' : 'flex flex-col gap-sm'
+          columns === 2
+            ? 'grid grid-cols-4 max-lg:grid-cols-3 max-md:grid-cols-2 max-sm:grid-cols-1 gap-sm'
+            : 'flex flex-col gap-sm'
         }
       >
-        {visible.map((notebook) => (
-          <NotebookCard key={notebook.id} notebook={notebook} />
+        {filtered.map((notebook) => (
+          <NotebookCard key={notebook.id} notebook={notebook} groups={groups} />
         ))}
       </div>
-      {shouldCollapse && (
-        <button
-          type="button"
-          onClick={() => setExpanded(!expanded)}
-          className="mt-sm text-sm text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 cursor-pointer transition-colors"
-        >
-          {expanded
-            ? 'Weniger anzeigen'
-            : `+${filtered.length - COLLAPSE_THRESHOLD} weitere anzeigen`}
-        </button>
-      )}
     </>
   );
 };
@@ -380,27 +416,129 @@ const TEXT_TYPE_LABELS: Record<string, string> = {
 };
 
 interface EigeneTexteProps {
-  texts: { id: string | number; title: string; document_type?: string }[];
+  texts: { id: string | number; title: string; document_type?: string; content?: string }[];
   loading: boolean;
   onDelete: (id: string | number) => Promise<void>;
 }
 
+const TEXT_TYPE_EMOJI: Record<string, string> = {
+  text: '📝',
+  antrag: '📋',
+  social: '📱',
+  press: '📰',
+  universal: '✨',
+  gruene_jugend: '🌻',
+};
+
+interface TextCardProps {
+  text: { id: string | number; title: string; document_type?: string; content?: string };
+  groups: GroupSummary[];
+  onDelete: (id: string | number, title: string) => void;
+  onShareToGroup: (textId: string | number, groupId: string) => void;
+  sharedId: string | number | null;
+}
+
+const TextCard = ({ text, groups, onDelete, onShareToGroup, sharedId }: TextCardProps) => {
+  const navigate = useNavigate();
+  const label = TEXT_TYPE_LABELS[text.document_type ?? ''];
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      className="group flex flex-col bg-background border border-grey-200 dark:border-grey-700 rounded-md overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-grey-300 dark:hover:border-grey-600"
+      onClick={() => navigate(`/texte/texteditor?textId=${text.id}`)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          navigate(`/texte/texteditor?textId=${text.id}`);
+        }
+      }}
+    >
+      <div className="relative bg-white dark:bg-grey-800 aspect-[4/3] overflow-hidden">
+        {text.content ? (
+          <div className="w-[600px] origin-top-left scale-[0.25] p-8 pointer-events-none select-none text-foreground font-sans leading-relaxed">
+            <p className="text-base whitespace-pre-line">
+              {text.content.replace(/<[^>]*>/g, '').slice(0, 500)}
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-full text-4xl select-none">📝</div>
+        )}
+        <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-b from-transparent to-white dark:to-grey-800 pointer-events-none" />
+      </div>
+      <div className="border-t border-grey-100 dark:border-grey-700 px-sm py-sm">
+        <div className="flex items-center gap-xs min-w-0">
+          <HiOutlineDocumentText className="text-sm text-secondary-600 shrink-0" />
+          <span className="text-sm font-medium text-foreground-heading truncate flex-1">
+            {text.title || 'Ohne Titel'}
+          </span>
+          <div
+            className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="flex items-center justify-center w-6 h-6 rounded-full text-grey-400 hover:text-foreground transition-colors cursor-pointer"
+                  aria-label="Aktionen"
+                >
+                  <HiDotsVertical size={14} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => navigate(`/texte/texteditor?textId=${text.id}`)}>
+                  <HiPencil />
+                  Bearbeiten
+                </DropdownMenuItem>
+                {groups.length > 0 && (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <HiShare />
+                      {sharedId === text.id ? 'Geteilt!' : 'Teilen'}
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      {groups.map((group) => (
+                        <DropdownMenuItem
+                          key={group.id}
+                          onClick={() => onShareToGroup(text.id, group.id)}
+                        >
+                          <HiUserGroup />
+                          {group.name}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => onDelete(text.id, text.title)}
+                >
+                  <HiOutlineTrash />
+                  Löschen
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+        {label && <p className="text-xs text-grey-400 mt-0.5 m-0">{label}</p>}
+      </div>
+    </div>
+  );
+};
+
+const TEXTE_COLLAPSE_THRESHOLD = 10;
+
 const EigeneTexte = ({ texts, loading, onDelete }: EigeneTexteProps) => {
   const [expanded, setExpanded] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | number | null>(null);
-  const [sharedInfo, setSharedInfo] = useState<string | number | null>(null);
-  const navigate = useNavigate();
-
+  const [sharedId, setSharedId] = useState<string | number | null>(null);
   const { userGroups = [] } = useGroups({ isActive: texts.length > 0 });
 
-  const handleDelete = async (id: string | number, title: string) => {
+  const handleDelete = (id: string | number, title: string) => {
     if (window.confirm(`Text "${title}" wirklich löschen?`)) {
-      setDeletingId(id);
-      try {
-        await onDelete(id);
-      } finally {
-        setDeletingId(null);
-      }
+      onDelete(id);
     }
   };
 
@@ -411,128 +549,65 @@ const EigeneTexte = ({ texts, loading, onDelete }: EigeneTexteProps) => {
         contentId: textId,
         permissions: { read: true, write: false, collaborative: false },
       });
-      setSharedInfo(textId);
-      setTimeout(() => setSharedInfo(null), 2000);
+      setSharedId(textId);
+      setTimeout(() => setSharedId(null), 2000);
     } catch {
       // best-effort
     }
   };
 
-  const visible =
-    !expanded && texts.length > COLLAPSE_THRESHOLD ? texts.slice(0, COLLAPSE_THRESHOLD) : texts;
-  const shouldCollapse = texts.length > COLLAPSE_THRESHOLD;
-
-  return (
-    <div>
-      <h2 className="text-xl font-semibold text-foreground-heading mt-xl mb-md">Texte</h2>
-      {loading ? (
+  if (loading) {
+    return (
+      <div>
+        <h2 className="text-xl font-semibold text-foreground-heading mt-xl mb-md">Texte</h2>
         <div className="flex items-center gap-sm py-md">
           <div className="size-4 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
           <span className="text-sm text-foreground">Laden...</span>
         </div>
-      ) : texts.length === 0 ? (
+      </div>
+    );
+  }
+
+  if (texts.length === 0) {
+    return (
+      <div>
+        <h2 className="text-xl font-semibold text-foreground-heading mt-xl mb-md">Texte</h2>
         <p className="text-sm text-grey-500 dark:text-grey-400 mb-sm">
           Noch keine gespeicherten Texte.
         </p>
-      ) : (
-        <>
-          <div className="flex flex-col gap-sm">
-            {visible.map((t) => (
-              <div
-                key={t.id}
-                role="button"
-                tabIndex={0}
-                className="group flex items-center gap-sm bg-background border border-grey-200 dark:border-grey-700 rounded-md px-md py-md min-h-[4rem] max-w-[14rem] cursor-pointer transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md"
-                onClick={() => navigate(`/texte/texteditor?textId=${t.id}`)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    navigate(`/texte/texteditor?textId=${t.id}`);
-                  }
-                }}
-              >
-                <HiOutlineDocumentText className="text-base text-secondary-600 shrink-0" />
-                <div className="flex flex-col flex-1 min-w-0">
-                  <span className="text-sm font-medium text-foreground-heading truncate">
-                    {t.title || 'Ohne Titel'}
-                  </span>
-                  {t.document_type && TEXT_TYPE_LABELS[t.document_type] && (
-                    <Badge
-                      variant="secondary"
-                      className="w-fit text-[0.6rem] px-1 py-0 mt-xxs bg-secondary-600 text-white border-transparent"
-                    >
-                      {TEXT_TYPE_LABELS[t.document_type]}
-                    </Badge>
-                  )}
-                </div>
-                <div
-                  className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className="flex items-center justify-center w-6 h-6 rounded-full text-grey-400 hover:text-foreground transition-colors cursor-pointer"
-                        aria-label="Aktionen"
-                      >
-                        <HiDotsVertical size={14} />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => navigate(`/texte/texteditor?textId=${t.id}`)}
-                      >
-                        <HiPencil />
-                        Bearbeiten
-                      </DropdownMenuItem>
-                      <DropdownMenuSub>
-                        <DropdownMenuSubTrigger>
-                          <HiShare />
-                          {sharedInfo === t.id ? 'Geteilt!' : 'Teilen'}
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent>
-                          {(userGroups as { id: string; name: string }[]).length > 0 && (
-                            <>
-                              {(userGroups as { id: string; name: string }[]).map((group) => (
-                                <DropdownMenuItem
-                                  key={group.id}
-                                  onClick={() => handleShareToGroup(t.id, group.id)}
-                                >
-                                  <HiUserGroup />
-                                  {group.name}
-                                </DropdownMenuItem>
-                              ))}
-                            </>
-                          )}
-                        </DropdownMenuSubContent>
-                      </DropdownMenuSub>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onClick={() => handleDelete(t.id, t.title)}
-                      >
-                        <HiOutlineTrash />
-                        {deletingId === t.id ? 'Wird gelöscht…' : 'Löschen'}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-            ))}
-          </div>
-          {shouldCollapse && (
-            <button
-              type="button"
-              onClick={() => setExpanded(!expanded)}
-              className="mt-sm text-sm text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 cursor-pointer transition-colors"
-            >
-              {expanded
-                ? 'Weniger anzeigen'
-                : `+${texts.length - COLLAPSE_THRESHOLD} weitere anzeigen`}
-            </button>
-          )}
-        </>
+      </div>
+    );
+  }
+
+  const shouldCollapse = texts.length > TEXTE_COLLAPSE_THRESHOLD;
+  const visible = shouldCollapse && !expanded ? texts.slice(0, TEXTE_COLLAPSE_THRESHOLD) : texts;
+  const groups = userGroups as { id: string; name: string }[];
+
+  return (
+    <div>
+      <h2 className="text-xl font-semibold text-foreground-heading mt-xl mb-md">Texte</h2>
+      <div className="grid grid-cols-5 max-lg:grid-cols-4 max-md:grid-cols-3 max-sm:grid-cols-2 gap-sm">
+        {visible.map((t) => (
+          <TextCard
+            key={t.id}
+            text={t}
+            groups={groups}
+            onDelete={handleDelete}
+            onShareToGroup={handleShareToGroup}
+            sharedId={sharedId}
+          />
+        ))}
+      </div>
+      {shouldCollapse && (
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="mt-sm text-sm text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 cursor-pointer bg-transparent border-none transition-colors"
+        >
+          {expanded
+            ? 'Weniger anzeigen'
+            : `+${texts.length - TEXTE_COLLAPSE_THRESHOLD} weitere anzeigen`}
+        </button>
       )}
     </div>
   );
@@ -542,6 +617,7 @@ const RecherchePage = () => {
   const navigate = useNavigate();
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
+  const { userGroups = [] } = useGroups({ isActive: true });
 
   const bundesebeneNotebooks = getNotebooksByCategory('bundesebene');
   const landesebeneNotebooks = getNotebooksByCategory('landesebene');
@@ -561,7 +637,7 @@ const RecherchePage = () => {
   const { pollDocumentStatus } = useDocumentsStore();
 
   const [savedTexts, setSavedTexts] = useState<
-    { id: string | number; title: string; document_type?: string }[]
+    { id: string | number; title: string; document_type?: string; content?: string }[]
   >([]);
   const [textsLoading, setTextsLoading] = useState(false);
 
@@ -756,7 +832,7 @@ const RecherchePage = () => {
                 <h2 className="text-xl font-semibold text-foreground-heading mb-md">Notebooks</h2>
                 <div className="grid grid-cols-5 max-lg:grid-cols-4 max-md:grid-cols-3 max-sm:grid-cols-2 gap-sm">
                   {searchResultNotebooks.map((notebook) => (
-                    <NotebookCard key={notebook.id} notebook={notebook} />
+                    <NotebookCard key={notebook.id} notebook={notebook} groups={userGroups} />
                   ))}
                 </div>
               </>
@@ -797,42 +873,34 @@ const RecherchePage = () => {
           </>
         ) : (
           <>
-            {isAustrian ? (
-              <NotebookSection title="Notebooks" notebooks={austrianNotebooks} />
-            ) : (
-              <>
-                <div className="flex flex-wrap gap-xl max-md:flex-col">
-                  <div>
-                    <NotebookSection
-                      title="Deutschlandweit"
-                      notebooks={[...bundesebeneNotebooks, ...weitereNotebooks]}
-                    />
-                  </div>
-                  <div>
-                    <NotebookSection
-                      title="Landesebene"
-                      notebooks={landesebeneNotebooks}
-                      columns={2}
-                    />
-                  </div>
-                  <EigeneNotebooks
-                    qaCollections={qaCollections}
-                    onView={handleView}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                    onShare={handleShare}
-                    onCreate={handleCreate}
-                    loading={collectionsLoading}
-                    copiedId={copiedId}
-                  />
-                  <EigeneTexte
-                    texts={savedTexts}
-                    loading={textsLoading}
-                    onDelete={handleTextDelete}
-                  />
-                </div>
-              </>
-            )}
+            <div className="flex flex-wrap gap-xl max-md:flex-col">
+              <div className="flex-1 min-w-0">
+                <NotebookSection
+                  title="Notebooks"
+                  notebooks={
+                    isAustrian
+                      ? austrianNotebooks
+                      : [...bundesebeneNotebooks, ...landesebeneNotebooks, ...weitereNotebooks]
+                  }
+                  columns={2}
+                  search={searchQuery}
+                  groups={userGroups}
+                />
+              </div>
+              <div>
+                <EigeneNotebooks
+                  qaCollections={qaCollections}
+                  onView={handleView}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onShare={handleShare}
+                  onCreate={handleCreate}
+                  loading={collectionsLoading}
+                  copiedId={copiedId}
+                />
+              </div>
+            </div>
+            <EigeneTexte texts={savedTexts} loading={textsLoading} onDelete={handleTextDelete} />
 
             <Separator className="mt-xl" />
 

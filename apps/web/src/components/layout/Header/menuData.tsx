@@ -92,6 +92,13 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
       description: 'Docs, Boards, Gruppen & Zusammenarbeit',
       icon: getIcon('navigation', 'desk'),
     };
+    items.docs = {
+      id: 'docs',
+      path: '/desk',
+      title: 'Dokumente',
+      description: 'Kollaborative Dokumente',
+      icon: getIcon('navigation', 'docs'),
+    };
   }
 
   items.chat = {
