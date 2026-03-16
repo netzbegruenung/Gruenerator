@@ -1,8 +1,8 @@
 import React, { useState, useEffect, type JSX } from 'react';
 import { HiDownload } from 'react-icons/hi';
 
-import '../../assets/styles/components/common/image-display.css';
 import { useAltTextStore } from '../../features/image-studio/hooks/useAltText';
+import { cn } from '../../utils/cn';
 import useAltTextGeneration from '../hooks/useAltTextGeneration';
 import { ProfileIconButton, ProfileActionButton } from '../profile/actions/ProfileActionButton';
 import apiClient from '../utils/apiClient';
@@ -360,50 +360,85 @@ const ImageDisplay = ({
   return (
     <>
       <div
-        className={`image-display ${isMultiple ? 'multiple-images' : ''} ${fullscreenMode ? 'image-display--fullscreen' : ''}`}
+        className={cn(
+          'flex flex-col gap-md rounded-lg border border-grey-200 bg-background-alt p-md text-base dark:border-grey-700 max-md:gap-sm max-md:p-sm',
+          isMultiple && 'gap-lg',
+          fullscreenMode &&
+            'items-center justify-center border-none bg-transparent p-lg max-md:min-h-[40vh] max-md:p-md min-h-[50vh] max-sm:p-sm'
+        )}
       >
         {!minimal && (
-          <div className="image-display__header">
-            <h4 className="image-display__title">
+          <div className="mb-sm flex flex-wrap items-center justify-between gap-sm max-md:flex-col max-md:items-start">
+            <h4 className="m-0">
               {isMultiple ? `${title} (${sharepicItems.length} Bilder)` : title}
             </h4>
           </div>
         )}
 
-        <div className="image-display__content">
+        <div className={cn('flex flex-col items-center gap-md', fullscreenMode && 'w-full')}>
           {isMultiple && !minimal && (
-            <div className="image-thumbnails">
+            <div className="flex max-w-full flex-wrap items-center justify-center gap-sm rounded-sm border border-grey-200 bg-background p-sm dark:border-grey-700 max-md:flex-nowrap max-md:justify-start max-md:overflow-x-auto max-md:[scrollbar-width:thin] max-md:[-webkit-overflow-scrolling:touch] max-sm:gap-xs max-sm:p-xs">
               {sharepicItems.map((item, index) => (
                 <button
                   key={index}
-                  className={`thumbnail ${index === activeImageIndex ? 'active' : ''}`}
+                  className={cn(
+                    'flex min-w-[80px] flex-shrink-0 cursor-pointer flex-col items-center gap-xs rounded-sm border-2 border-transparent bg-transparent p-xs transition-all duration-200 max-md:min-w-[70px] max-sm:min-w-[60px]',
+                    index === activeImageIndex
+                      ? 'border-[var(--interactive-accent-color)] bg-background-alt shadow-sm'
+                      : 'hover:border-[var(--klee)] hover:bg-background-alt'
+                  )}
                   onClick={() => setActiveImageIndex(index)}
                   title={`${item.type || 'Sharepic'} ${index + 1}`}
                 >
-                  <img src={item.image} alt={`Thumbnail ${index + 1}`} />
-                  <span className="thumbnail-label">{item.type || `Bild ${index + 1}`}</span>
+                  <img
+                    src={item.image}
+                    alt={`Thumbnail ${index + 1}`}
+                    className="h-10 w-[60px] rounded border border-grey-200 object-cover dark:border-grey-700 max-md:h-[35px] max-md:w-[50px] max-sm:h-[30px] max-sm:w-10"
+                  />
+                  <span className="max-w-[80px] truncate text-center text-xs font-medium capitalize text-foreground max-sm:max-w-[60px] max-sm:text-[0.7rem]">
+                    {item.type || `Bild ${index + 1}`}
+                  </span>
                 </button>
               ))}
             </div>
           )}
 
-          <div className="image-display__preview">
-            <div className="image-container">
+          <div className={cn('flex w-full justify-center', fullscreenMode && 'w-full')}>
+            <div
+              className={cn(
+                'relative inline-block',
+                fullscreenMode && 'flex flex-col items-center'
+              )}
+            >
               <img
                 src={currentSharepic.image}
                 alt="Generiertes Bild"
-                className={fullscreenMode ? 'image-preview-fullscreen' : 'image-preview'}
+                className={cn(
+                  fullscreenMode
+                    ? 'max-h-[65vh] max-w-full cursor-pointer rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.15)] transition-all duration-200 hover:scale-[1.01] hover:shadow-[0_12px_40px_rgba(0,0,0,0.2)] max-md:max-h-[50vh] max-md:rounded-lg max-sm:max-h-[45vh]'
+                    : 'w-full max-w-[300px] cursor-pointer rounded-lg border border-grey-200 shadow-[0_2px_8px_rgba(0,0,0,0.1)] transition-all duration-200 hover:scale-[1.02] hover:shadow-[0_4px_12px_rgba(0,0,0,0.15)] dark:border-grey-700 max-md:max-w-[250px] max-sm:max-w-[200px]'
+                )}
                 onClick={openLightbox}
-                style={{ cursor: 'pointer' }}
               />
-              <div className="image-overlay-buttons">
+              <div
+                className={cn(
+                  fullscreenMode
+                    ? 'mt-md static flex gap-sm rounded-3xl bg-background-alt px-md py-sm shadow-[0_2px_8px_rgba(0,0,0,0.1)] max-md:flex-wrap max-md:justify-center'
+                    : 'absolute right-xs top-sm z-[2] flex gap-xs'
+                )}
+              >
                 <ProfileIconButton
                   action="altText"
                   onClick={handleGenerateAltText}
                   disabled={isAltTextLoading || isKiLabelLoading}
                   loading={isAltTextLoading}
                   size="s"
-                  className="image-overlay-btn"
+                  className={cn(
+                    '!flex !items-center !justify-center !rounded-full !border-none !p-xs',
+                    fullscreenMode
+                      ? '!min-h-10 !min-w-10 !bg-background !text-foreground hover:!bg-[var(--klee)] hover:!text-white max-sm:!min-h-9 max-sm:!min-w-9'
+                      : '!min-h-8 !min-w-8 !bg-black/60 !text-white hover:!bg-black/80'
+                  )}
                   title="Alt-Text generieren"
                 />
                 {enableKiLabel && (
@@ -413,7 +448,12 @@ const ImageDisplay = ({
                     disabled={isKiLabelLoading || isAltTextLoading}
                     loading={isKiLabelLoading}
                     size="s"
-                    className="image-overlay-btn"
+                    className={cn(
+                      '!flex !items-center !justify-center !rounded-full !border-none !p-xs',
+                      fullscreenMode
+                        ? '!min-h-10 !min-w-10 !bg-background !text-foreground hover:!bg-[var(--klee)] hover:!text-white max-sm:!min-h-9 max-sm:!min-w-9'
+                        : '!min-h-8 !min-w-8 !bg-black/60 !text-white hover:!bg-black/80'
+                    )}
                     title="KI-Label hinzufügen"
                   />
                 )}
@@ -422,7 +462,12 @@ const ImageDisplay = ({
                     action="canva"
                     onClick={() => setIsCanvaModalOpen(true)}
                     size="s"
-                    className="image-overlay-btn"
+                    className={cn(
+                      '!flex !items-center !justify-center !rounded-full !border-none !p-xs',
+                      fullscreenMode
+                        ? '!min-h-10 !min-w-10 !bg-background !text-foreground hover:!bg-[var(--klee)] hover:!text-white max-sm:!min-h-9 max-sm:!min-w-9'
+                        : '!min-h-8 !min-w-8 !bg-black/60 !text-white hover:!bg-black/80'
+                    )}
                     title="In Canva bearbeiten"
                   />
                 )}
@@ -431,7 +476,12 @@ const ImageDisplay = ({
                     action="edit"
                     onClick={handleEditSharepic}
                     size="s"
-                    className="image-overlay-btn"
+                    className={cn(
+                      '!flex !items-center !justify-center !rounded-full !border-none !p-xs',
+                      fullscreenMode
+                        ? '!min-h-10 !min-w-10 !bg-background !text-foreground hover:!bg-[var(--klee)] hover:!text-white max-sm:!min-h-9 max-sm:!min-w-9'
+                        : '!min-h-8 !min-w-8 !bg-black/60 !text-white hover:!bg-black/80'
+                    )}
                     title="Bild bearbeiten"
                   />
                 )}
@@ -440,7 +490,12 @@ const ImageDisplay = ({
                     action="share"
                     onClick={() => setIsShareModalOpen(true)}
                     size="s"
-                    className="image-overlay-btn"
+                    className={cn(
+                      '!flex !items-center !justify-center !rounded-full !border-none !p-xs',
+                      fullscreenMode
+                        ? '!min-h-10 !min-w-10 !bg-background !text-foreground hover:!bg-[var(--klee)] hover:!text-white max-sm:!min-h-9 max-sm:!min-w-9'
+                        : '!min-h-8 !min-w-8 !bg-black/60 !text-white hover:!bg-black/80'
+                    )}
                     title="Bild teilen"
                   />
                 )}
@@ -448,7 +503,12 @@ const ImageDisplay = ({
                   action="download"
                   onClick={() => handleDownload()}
                   size="s"
-                  className="image-overlay-btn"
+                  className={cn(
+                    '!flex !items-center !justify-center !rounded-full !border-none !p-xs',
+                    fullscreenMode
+                      ? '!min-h-10 !min-w-10 !bg-background !text-foreground hover:!bg-[var(--klee)] hover:!text-white max-sm:!min-h-9 max-sm:!min-w-9'
+                      : '!min-h-8 !min-w-8 !bg-black/60 !text-white hover:!bg-black/80'
+                  )}
                   title="Bild herunterladen"
                 />
               </div>
@@ -456,7 +516,7 @@ const ImageDisplay = ({
           </div>
 
           {!minimal && kiLabelError && (
-            <div className="image-label-error">
+            <div className="mt-sm text-center text-sm text-[var(--error-color,#d73a49)]">
               <span>⚠️ {kiLabelError}</span>
             </div>
           )}
@@ -537,10 +597,13 @@ const ImageDisplay = ({
 
       {/* Lightbox */}
       {isLightboxOpen && (
-        <div className="image-lightbox-overlay" onClick={handleLightboxOverlayClick}>
-          <div className="image-lightbox-content">
+        <div
+          className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/90 p-md animate-[fadeIn_0.3s_ease-out]"
+          onClick={handleLightboxOverlayClick}
+        >
+          <div className="relative flex max-h-[95vh] max-w-[95vw] items-center justify-center animate-[scaleIn_0.3s_ease-out]">
             <button
-              className="image-lightbox-close"
+              className="absolute right-md top-md z-[1101] flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-black/70 text-2xl leading-none text-white transition-all duration-200 hover:scale-110 hover:bg-black/90"
               onClick={closeLightbox}
               aria-label="Lightbox schließen"
             >
@@ -549,7 +612,7 @@ const ImageDisplay = ({
             {isMultiple && sharepicItems.length > 1 && (
               <>
                 <button
-                  className="lightbox-nav lightbox-prev"
+                  className="absolute left-md top-1/2 z-[1102] flex h-[50px] w-[50px] -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-none bg-black/70 text-xl font-bold text-white transition-all duration-200 hover:scale-110 hover:bg-black/90 max-md:h-10 max-md:w-10 max-md:text-base max-sm:h-[35px] max-sm:w-[35px] max-sm:text-sm"
                   onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
                     setActiveImageIndex(
@@ -561,7 +624,7 @@ const ImageDisplay = ({
                   ←
                 </button>
                 <button
-                  className="lightbox-nav lightbox-next"
+                  className="absolute right-md top-1/2 z-[1102] flex h-[50px] w-[50px] -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-none bg-black/70 text-xl font-bold text-white transition-all duration-200 hover:scale-110 hover:bg-black/90 max-md:h-10 max-md:w-10 max-md:text-base max-sm:h-[35px] max-sm:w-[35px] max-sm:text-sm"
                   onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
                     setActiveImageIndex((prev) => (prev + 1) % sharepicItems.length);
@@ -575,15 +638,15 @@ const ImageDisplay = ({
             <img
               src={currentSharepic.image}
               alt="Vergrößertes Bild"
-              className="image-lightbox-image"
+              className="max-h-[90vh] max-w-[90vw] rounded-md object-contain shadow-[0_8px_32px_rgba(0,0,0,0.4)] max-md:max-h-[85%] max-md:max-w-[95%]"
             />
             {isMultiple && (
-              <div className="lightbox-info">
+              <div className="absolute bottom-md left-1/2 z-[1102] flex -translate-x-1/2 items-center gap-xs rounded-sm bg-black/70 px-sm py-xs text-sm text-white">
                 <span>
                   {activeImageIndex + 1} / {sharepicItems.length}
                 </span>
                 {currentSharepic.type && (
-                  <span className="lightbox-type">({currentSharepic.type})</span>
+                  <span className="italic opacity-80">({currentSharepic.type})</span>
                 )}
               </div>
             )}

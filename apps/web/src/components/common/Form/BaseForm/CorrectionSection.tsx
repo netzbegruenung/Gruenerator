@@ -3,7 +3,6 @@ import React, { useState, type ChangeEvent } from 'react';
 import { btn } from '../../../../utils/buttonStyles';
 import { cn } from '../../../../utils/cn';
 import SubmitButton from '../../SubmitButton';
-import '../../../../assets/styles/components/interactive-antrag.css';
 
 interface CorrectionSectionProps {
   onSubmit: (corrections: string) => void;
@@ -34,17 +33,17 @@ const CorrectionSection: React.FC<CorrectionSectionProps> = ({
   };
 
   return (
-    <div className="correction-section">
-      <div className="correction-header">
-        <h3>Plan korrigieren</h3>
-        <p className="correction-hint">
+    <div className="p-lg max-md:p-md">
+      <div>
+        <h3 className="mb-sm font-semibold text-foreground">Plan korrigieren</h3>
+        <p className="mb-md text-[0.9rem] leading-relaxed text-grey-500 dark:text-grey-400">
           Beschreibe deine gewünschten Änderungen am Plan. Du kannst Aspekte ergänzen, ändern oder
           entfernen lassen.
         </p>
       </div>
 
       <textarea
-        className="correction-textarea"
+        className="min-h-[150px] w-full resize-y rounded-sm border-2 border-transparent bg-hover-alt p-md font-inherit text-[0.95rem] leading-relaxed text-foreground transition-colors duration-200 placeholder:italic placeholder:text-grey-400 placeholder:opacity-70 focus:border-[var(--button-color)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 max-md:min-h-[120px] max-md:text-base"
         value={corrections}
         onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setCorrections(e.target.value)}
         onKeyDown={handleKeyDown}
@@ -53,14 +52,16 @@ const CorrectionSection: React.FC<CorrectionSectionProps> = ({
         disabled={loading}
       />
 
-      <p className="correction-shortcut">
-        <kbd>⌘</kbd>+<kbd>Enter</kbd> zum Absenden
+      <p className="mt-sm text-[0.8rem] text-grey-500 opacity-75 dark:text-grey-400 max-md:hidden">
+        <kbd className="rounded bg-hover-alt px-1.5 py-0.5 font-inherit text-xs">⌘</kbd>+
+        <kbd className="rounded bg-hover-alt px-1.5 py-0.5 font-inherit text-xs">Enter</kbd> zum
+        Absenden
       </p>
 
-      <div className="correction-actions">
+      <div className="mt-md flex justify-end gap-md max-md:flex-col">
         <button
           type="button"
-          className={cn(btn.ghost, btn.sizeM)}
+          className={cn(btn.ghost, btn.sizeM, 'max-md:w-full')}
           onClick={onCancel}
           disabled={loading}
         >

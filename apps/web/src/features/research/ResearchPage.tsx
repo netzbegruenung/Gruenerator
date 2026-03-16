@@ -18,7 +18,6 @@ import IndexCard from '../../components/common/IndexCard';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import SearchBar from '../search/components/SearchBar';
-import '../../assets/styles/components/gallery-layout.css';
 
 import ActiveFilterChips from './components/ActiveFilterChips';
 import ResearchFilterPanel from './components/ResearchFilterPanel';
@@ -187,10 +186,14 @@ function ResearchPage() {
 
   return (
     <ErrorBoundary>
-      <div className="gallery-layout">
-        <div className="gallery-header">
-          <h1>Recherche</h1>
-          <p>(Fast) alle grünen Dokumente und Programme an einem Ort durchsuchbar.</p>
+      <div className="mx-auto mt-[60px] max-w-[1200px] flex-col px-lg box-border max-md:mt-0 max-md:px-md max-md:py-lg">
+        <div className="text-center">
+          <h1 className="mb-4 text-[2.5rem] font-semibold text-foreground-heading max-md:text-[1.75rem]">
+            Recherche
+          </h1>
+          <p className="mx-auto mb-xl max-w-[800px] text-center text-[1.1rem] leading-relaxed text-foreground">
+            (Fast) alle grünen Dokumente und Programme an einem Ort durchsuchbar.
+          </p>
         </div>
 
         <div className="mb-xl">
@@ -370,7 +373,7 @@ function ResearchPage() {
         )}
 
         {results.length > 0 && (
-          <div className="gallery-grid">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-2xl max-lg:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] max-md:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] max-md:gap-4">
             {results.map((result, i) => (
               <IndexCard
                 key={`${result.document_id}-${result.collection_id ?? i}`}

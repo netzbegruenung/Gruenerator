@@ -9,9 +9,6 @@ import { DEFAULT_GALLERY_TYPE, GALLERY_CONTENT_TYPES, ORDERED_CONTENT_TYPE_IDS }
 import GalleryControls from './GalleryControls';
 import { useGalleryController } from './useGalleryController';
 
-import '../../../assets/styles/components/gallery-layout.css';
-import '../../../assets/styles/components/gallery-content-type.css';
-
 interface CategoryItem {
   id: string;
   label: string;
@@ -105,7 +102,7 @@ const GalleryContainer = ({
   const renderedContent = useMemo(() => {
     if (loading && (!items || items.length === 0)) {
       return (
-        <div className="content-section-grid">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-md col-span-full">
           {Array.from({ length: 6 }).map((_, index) => (
             <GallerySkeleton key={`skeleton-${index}`} />
           ))}
@@ -120,17 +117,17 @@ const GalleryContainer = ({
     const typedSections = sections as Record<string, GalleryItem[]> | undefined;
     if (typedSections && Object.keys(typedSections).length > 0) {
       return (
-        <div className="all-content-container">
+        <div className="col-span-full flex flex-col gap-lg">
           {activeConfig.sectionOrder?.map((sectionId: unknown) => {
             const sectionIdStr = String(sectionId);
             const list = typedSections[sectionIdStr] || [];
             if (!list.length) return null;
             return (
-              <div className="content-section" key={sectionIdStr}>
-                <h2 className="content-section-title">
+              <div className="mb-lg" key={sectionIdStr}>
+                <h2 className="mb-md border-b border-grey-200 pb-xs dark:border-grey-700">
                   {activeConfig.sectionLabels?.[sectionIdStr] || sectionIdStr}
                 </h2>
-                <div className="content-section-grid">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-md col-span-full">
                   {renderList(list, activeConfig.cardRenderer || sectionIdStr)}
                 </div>
               </div>
@@ -145,19 +142,27 @@ const GalleryContainer = ({
     }
 
     return (
-      <div className="content-section-grid">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-md col-span-full">
         {renderList(items as GalleryItem[], activeConfig.cardRenderer || contentType)}
       </div>
     );
   }, [items, sections, loading, error, activeConfig, renderList, contentType]);
 
   return (
-    <div className="gallery-layout">
-      <div className="gallery-header">
-        {activeConfig.title && <h1>{activeConfig.title}</h1>}
-        {activeConfig.intro && <p>{activeConfig.intro}</p>}
+    <div className="mx-auto mt-[60px] max-w-[1200px] flex-col px-lg box-border max-md:mt-0 max-md:px-md max-md:py-lg">
+      <div className="text-center">
+        {activeConfig.title && (
+          <h1 className="mb-4 text-[2.5rem] font-semibold text-foreground-heading max-md:text-[1.75rem]">
+            {activeConfig.title}
+          </h1>
+        )}
+        {activeConfig.intro && (
+          <p className="mx-auto mb-xl max-w-[800px] text-center text-[1.1rem] leading-relaxed text-foreground">
+            {activeConfig.intro}
+          </p>
+        )}
 
-        <div className="gallery-main-searchbar-section">
+        <div className="mx-auto mb-xl flex w-full justify-center px-md box-border">
           <GalleryControls
             searchTerm={inputValue}
             onSearchChange={setInputValue}
@@ -177,7 +182,9 @@ const GalleryContainer = ({
         </div>
       </div>
 
-      <div className="gallery-grid">{renderedContent}</div>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-2xl max-lg:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] max-md:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] max-md:gap-4">
+        {renderedContent}
+      </div>
 
       {previewTemplate && contentType === 'agents' && (
         <AgentPreviewModal agent={previewTemplate} onClose={handleClosePreview} />

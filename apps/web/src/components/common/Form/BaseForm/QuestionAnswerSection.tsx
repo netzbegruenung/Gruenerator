@@ -1,17 +1,15 @@
 import React, { useState, useEffect, useRef, type ChangeEvent } from 'react';
 
-import SubmitButton from '../../SubmitButton';
-
-import type { Question, QuestionAnswerSectionProps } from '@/types/baseform';
-
 import { btn } from '../../../../utils/buttonStyles';
 import { cn } from '../../../../utils/cn';
-import '../../../../assets/styles/components/interactive-antrag.css';
 import {
   getYesNoEmoji,
   getAnswerOptionEmoji,
   getRoundEmoji,
 } from '../../../../utils/questionEmojiMapper';
+import SubmitButton from '../../SubmitButton';
+
+import type { Question, QuestionAnswerSectionProps } from '@/types/baseform';
 
 const CUSTOM_OPTION_VALUE = '__custom__';
 
@@ -115,26 +113,39 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
     };
 
     return (
-      <div key={question.id} className="question-item quiz-question-card">
-        <label className="question-label">
-          <span className="question-number">{index + 1}.</span>
+      <div
+        key={question.id}
+        className="mb-lg border-b border-grey-200 pb-md last:border-b-0 last:pb-0 dark:border-grey-700 max-md:mb-md"
+      >
+        <label className="mb-sm block break-words font-semibold leading-relaxed text-foreground [hyphens:auto] [overflow-wrap:break-word]">
+          <span className="mr-xxs inline-block text-[var(--interactive-accent-color)]">
+            {index + 1}.
+          </span>
           {question.text}
           {question.refersTo && (
-            <span className="question-clarification-badge">🔍 Präzisierung</span>
+            <span className="ml-sm inline-block rounded-xl bg-[var(--klee)] px-2 py-0.5 align-middle text-xs font-medium text-background max-sm:mt-xxs max-sm:ml-0 max-sm:block max-sm:w-fit">
+              🔍 Präzisierung
+            </span>
           )}
         </label>
 
         {question.questionFormat === 'yes_no' ? (
-          <div className="yes-no-buttons">
+          <div className="mt-sm flex gap-md max-md:flex-col max-md:gap-sm">
             {question.options?.map((option) => (
               <button
                 key={option}
                 type="button"
-                className={`yes-no-button ${questionAnswer === option ? 'selected' : ''}`}
+                className={cn(
+                  'flex min-h-[70px] flex-1 cursor-pointer flex-col items-center justify-center gap-xxs rounded-sm border-2 border-transparent bg-hover-alt px-6 py-5 text-center text-base font-normal text-[var(--button-color)] shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-150 hover:shadow-[0_2px_10px_rgba(0,0,0,0.1)] max-md:min-h-[60px] max-md:w-full max-md:px-5 max-md:py-4',
+                  questionAnswer === option &&
+                    'border-[var(--button-color)] shadow-[0_2px_10px_rgba(0,0,0,0.1)]'
+                )}
                 onClick={() => handleOptionChange(option)}
               >
-                <span className="yes-no-emoji">{getYesNoEmoji(option)}</span>
-                <span className="yes-no-text">{option}</span>
+                <span className="text-[1.8rem] leading-none max-md:text-2xl">
+                  {getYesNoEmoji(option)}
+                </span>
+                <span className="text-[0.95rem] leading-tight max-md:text-[0.9rem]">{option}</span>
               </button>
             ))}
           </div>
@@ -144,23 +155,20 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
               const predefinedOptions = question.options || [];
               const optionCount = predefinedOptions.length;
 
-              let gridClass = 'quiz-grid-2x2';
+              let gridClass = 'grid-cols-2';
               if (optionCount <= 2) {
-                gridClass = 'quiz-grid-horizontal';
+                gridClass = 'grid-cols-2';
               } else if (optionCount === 3) {
-                gridClass = 'quiz-grid-3';
+                gridClass = 'grid-cols-2';
               } else if (optionCount === 4) {
-                gridClass = 'quiz-grid-4';
+                gridClass = 'grid-cols-2';
               }
 
               const totalOptions = question.skipOption ? optionCount + 1 : optionCount;
-              if (totalOptions === 4) {
-                gridClass = 'quiz-grid-4';
-              }
 
               return (
                 <>
-                  <div className={`question-options-grid ${gridClass}`}>
+                  <div className={cn('mt-md grid gap-sm max-sm:!grid-cols-1', gridClass)}>
                     {predefinedOptions.map((option, optionIndex) => {
                       const isChecked = question.allowMultiSelect
                         ? Array.isArray(questionAnswer) && questionAnswer.includes(option)
@@ -174,12 +182,22 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
                         <button
                           key={option}
                           type="button"
-                          className={`quiz-option-button ${isChecked ? 'selected' : ''}`}
+                          className={cn(
+                            'relative flex min-h-[100px] cursor-pointer flex-col items-center justify-center gap-xxs rounded-sm border-2 border-transparent bg-hover-alt p-md text-center text-[0.95rem] font-normal leading-snug shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_2px_10px_rgba(0,0,0,0.1)] max-md:min-h-[80px] max-md:p-sm max-sm:min-h-[70px]',
+                            isChecked &&
+                              'border-[var(--button-color)] shadow-[0_2px_10px_rgba(0,0,0,0.1)]'
+                          )}
                           onClick={() => handleOptionChange(option)}
                         >
-                          {optionEmoji && <span className="option-emoji">{optionEmoji}</span>}
-                          <span className="option-text">{option}</span>
-                          {question.allowMultiSelect && <span className="checkbox-indicator" />}
+                          {optionEmoji && (
+                            <span className="mb-xxs block text-[2rem] leading-none max-md:text-2xl max-sm:text-[1.3rem]">
+                              {optionEmoji}
+                            </span>
+                          )}
+                          <span className="block max-w-full break-words text-[0.9rem] leading-snug [overflow-wrap:break-word] max-md:text-[0.85rem]">
+                            {option}
+                          </span>
+                          {question.allowMultiSelect && <span className="hidden" />}
                         </button>
                       );
                     })}
@@ -187,11 +205,20 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
                     {question.skipOption && (
                       <button
                         type="button"
-                        className={`quiz-option-button ${questionAnswer === question.skipOption.text ? 'selected' : ''}`}
+                        className={cn(
+                          'relative flex min-h-[100px] cursor-pointer flex-col items-center justify-center gap-xxs rounded-sm border-2 border-transparent bg-hover-alt p-md text-center text-[0.95rem] font-normal leading-snug shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_2px_10px_rgba(0,0,0,0.1)] max-md:min-h-[80px] max-md:p-sm max-sm:min-h-[70px]',
+                          optionCount === 3 && 'col-span-full',
+                          questionAnswer === question.skipOption.text &&
+                            'border-[var(--button-color)] shadow-[0_2px_10px_rgba(0,0,0,0.1)]'
+                        )}
                         onClick={() => handleOptionChange(question.skipOption!.text)}
                       >
-                        <span className="option-emoji">{question.skipOption.emoji}</span>
-                        <span className="option-text">{question.skipOption.text}</span>
+                        <span className="mb-xxs block text-[2rem] leading-none max-md:text-2xl max-sm:text-[1.3rem]">
+                          {question.skipOption.emoji}
+                        </span>
+                        <span className="block max-w-full break-words text-[0.9rem] leading-snug [overflow-wrap:break-word] max-md:text-[0.85rem]">
+                          {question.skipOption.text}
+                        </span>
                       </button>
                     )}
                   </div>
@@ -201,24 +228,24 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
                       {!isCustomSelected ? (
                         <button
                           type="button"
-                          className="quiz-option-custom"
+                          className="mt-sm flex w-full cursor-pointer items-center justify-center gap-xxs rounded-sm border-2 border-transparent bg-hover-alt p-md text-[0.95rem] font-normal opacity-85 shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_2px_10px_rgba(0,0,0,0.1)] max-md:p-sm max-md:text-[0.9rem]"
                           onClick={() => handleOptionChange(CUSTOM_OPTION_VALUE)}
                         >
-                          <span className="custom-icon">✏️</span>
+                          <span className="text-[1.2rem]">✏️</span>
                           <span>Eigene Antwort eingeben</span>
                         </button>
                       ) : (
-                        <div className="quiz-option-custom-input-container">
+                        <div className="relative mt-sm w-full">
                           <textarea
                             ref={handleTextareaRef}
-                            className="quiz-option-custom-textarea"
+                            className="min-h-[70px] w-full resize-none overflow-hidden rounded-sm border-2 border-[var(--button-color)] bg-hover-alt p-md pr-12 font-inherit text-[0.95rem] leading-normal text-foreground shadow-[0_2px_10px_rgba(0,0,0,0.1)] transition-shadow duration-200 placeholder:italic placeholder:text-grey-400 placeholder:opacity-70 focus:shadow-[0_2px_12px_rgba(0,0,0,0.12)] focus:outline-none max-md:min-h-[60px] max-md:p-sm max-md:pr-[52px] max-md:text-base"
                             value={typeof questionAnswer === 'string' ? questionAnswer : ''}
                             onChange={handleTextareaChange}
                             placeholder={question.placeholder || 'Deine Antwort...'}
                           />
                           <button
                             type="button"
-                            className="custom-input-close"
+                            className="absolute right-1 top-1 flex h-11 w-11 cursor-pointer items-center justify-center rounded border-none bg-transparent text-2xl leading-none text-foreground transition-all duration-200 hover:bg-[var(--button-color)] hover:text-background"
                             onClick={() => {
                               setCustomSelections({ ...customSelections, [question.id]: false });
                               onAnswerChange?.(question.id, '');
@@ -241,22 +268,22 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
   };
 
   return (
-    <div className="question-answer-section quiz-mode">
+    <div className="my-md p-lg max-md:p-md">
       {questionRound > 1 && (
-        <div className="question-round-indicator">
+        <div className="mb-md rounded-sm bg-[var(--button-color)] px-md py-sm text-center font-semibold text-background">
           <span>
             {getRoundEmoji(questionRound)} Vertiefende Fragen (Runde {questionRound}/2)
           </span>
         </div>
       )}
 
-      <div className="quiz-progress-header">
-        <div className="quiz-progress-text">
+      <div className="mb-lg text-center">
+        <div className="mb-sm block text-[0.95rem] font-semibold text-[var(--button-color)]">
           Frage {currentQuestionIndex + 1} von {questions.length}
         </div>
-        <div className="quiz-progress-bar-container">
+        <div className="h-2 w-full overflow-hidden rounded bg-[var(--input-background)] shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)] max-md:h-2.5">
           <div
-            className="quiz-progress-bar-fill"
+            className="h-full rounded bg-[var(--button-color)] transition-[width] duration-300"
             style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}
           />
         </div>
@@ -264,10 +291,10 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
 
       {renderQuestion(currentQuestion, currentQuestionIndex)}
 
-      <div className="quiz-navigation">
+      <div className="mt-lg flex items-center justify-between gap-md pt-md max-md:flex-col max-md:gap-sm">
         <button
           type="button"
-          className={cn(btn.primary, btn.sizeM)}
+          className={cn(btn.primary, btn.sizeM, 'max-md:min-h-12 max-md:w-full max-md:text-base')}
           onClick={handleBack}
           disabled={currentQuestionIndex === 0}
         >
@@ -277,7 +304,7 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
         {currentQuestionIndex < questions.length - 1 ? (
           <button
             type="button"
-            className={cn(btn.primary, btn.sizeM)}
+            className={cn(btn.primary, btn.sizeM, 'max-md:min-h-12 max-md:w-full max-md:text-base')}
             onClick={handleNext}
             disabled={!isCurrentQuestionAnswered}
           >
@@ -292,7 +319,7 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
               text={
                 (submitButtonProps as Record<string, string>)?.defaultText || 'Fragen beantworten'
               }
-              className="quiz-submit-button button-primary"
+              className={cn(btn.primary, 'max-md:min-h-12 max-md:w-full max-md:text-base')}
               ariaLabel="Fragen beantworten"
               type="submit"
               {...submitButtonProps}
