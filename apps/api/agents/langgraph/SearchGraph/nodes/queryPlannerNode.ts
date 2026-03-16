@@ -54,6 +54,62 @@ function classifyQueryType(query: string): QueryType {
   return 'general';
 }
 
+/**
+ * Format prior messages as conversation context for follow-up reformulation.
+ */
+function formatConversationContext(
+  messages: Array<{ role: string; content: string }>
+): string | null {
+  if (messages.length <= 1) return null;
+  const prior = messages.slice(0, -1).slice(-4);
+  if (prior.length === 0) return null;
+  return prior
+    .map(
+      (m) =>
+        `${m.role === 'user' ? 'Nutzer' : 'Assistent'}: ${typeof m.content === 'string' ? m.content.substring(0, 200) : ''}`
+    )
+    .join('\n');
+}
+
+/**
+ * Reformulate a vague follow-up query using conversation context.
+ */
+async function reformulateFollowUp(
+  rawQuery: string,
+  context: string,
+  aiWorkerPool: any
+): Promise<string> {
+  try {
+    const result = await aiWorkerPool.processRequest(
+      {
+        type: 'text_adjustment',
+        systemPrompt: `Schreibe die aktuelle Suchanfrage so um, dass sie eigenständig verständlich ist.
+Beziehe den Gesprächskontext ein. Antworte NUR mit der reformulierten Anfrage, nichts anderes.
+
+Gesprächsverlauf:
+${context}`,
+        messages: [{ role: 'user', content: `Aktuelle Anfrage: "${rawQuery}"` }],
+        options: {
+          provider: 'litellm',
+          model: 'mistral-small',
+          max_tokens: 80,
+          temperature: 0.0,
+        },
+      },
+      null
+    );
+    if (result.success && result.content) {
+      const reformulated = result.content.replace(/^["']|["']$/g, '').trim();
+      if (reformulated.length > 3) return reformulated;
+    }
+  } catch (err: unknown) {
+    log.warn(
+      `[QueryPlanner] Follow-up reformulation failed: ${err instanceof Error ? err.message : err}`
+    );
+  }
+  return rawQuery;
+}
+
 export async function queryPlannerNode(
   state: SearchGraphState
 ): Promise<Partial<SearchGraphState>> {
@@ -64,7 +120,17 @@ export async function queryPlannerNode(
 
   log.info(`[QueryPlanner] Raw query: "${rawQuery.substring(0, 100)}"`);
 
-  const searchTopic = extractSearchTopic(rawQuery);
+  // Context-aware follow-up reformulation
+  const conversationContext = formatConversationContext(state.messages as any);
+  const isVagueFollowUp = conversationContext && rawQuery.split(/\s+/).length <= 10;
+
+  let effectiveQuery = rawQuery;
+  if (isVagueFollowUp) {
+    effectiveQuery = await reformulateFollowUp(rawQuery, conversationContext, state.aiWorkerPool);
+    log.info(`[QueryPlanner] Reformulated follow-up: "${rawQuery}" → "${effectiveQuery}"`);
+  }
+
+  const searchTopic = extractSearchTopic(effectiveQuery);
   const temporalAnalysis = analyzeTemporality(rawQuery);
   const hasTemporal = temporalAnalysis.urgency !== 'none';
   const queryType = classifyQueryType(rawQuery);

@@ -14,6 +14,7 @@
 
 import { StateGraph, Annotation, END } from '@langchain/langgraph';
 
+import { getAllCollectionIds } from '../../../config/notebookCollectionMap.js';
 import { getDefaultAgentId, getAgent } from '../../../routes/chat/agents/agentLoader.js';
 import { createLogger } from '../../../utils/logger.js';
 import { qualityGateNode } from '../ChatGraph/nodes/qualityGateNode.js';
@@ -309,7 +310,7 @@ export async function initializeSearchState(input: SearchGraphInput): Promise<Se
 
     intent: 'search',
     searchSources: ['documents', 'web'],
-    notebookCollectionIds: [],
+    notebookCollectionIds: getAllCollectionIds(),
     defaultNotebookCollectionIds: [],
     detectedFilters: null,
     enabledTools: { search: true, web: true, research: true },
