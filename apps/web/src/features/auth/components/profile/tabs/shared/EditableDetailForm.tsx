@@ -1,3 +1,5 @@
+import { Input, Textarea } from '@gruenerator/ui';
+
 import FormFieldWrapper from '../../../../../../components/common/Form/Input/FormFieldWrapper';
 import RequiredFieldToggle from '../../../../../../components/common/RequiredFieldToggle';
 import {
@@ -56,10 +58,9 @@ const EditableDetailForm = ({
   const renderGeneratorFields = () => (
     <>
       <FormFieldWrapper label="Titel" htmlFor="edit-title" required>
-        <input
+        <Input
           id="edit-title"
           type="text"
-          className="form-input"
           value={getDisplayValue('title')}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
             updateField('title', e.target.value)
@@ -75,9 +76,8 @@ const EditableDetailForm = ({
         htmlFor="edit-description"
         helpText={`${getDisplayValue('description').length}/500 Zeichen`}
       >
-        <textarea
+        <Textarea
           id="edit-description"
-          className="form-textarea"
           value={getDisplayValue('description')}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
             updateField('description', e.target.value)
@@ -90,10 +90,9 @@ const EditableDetailForm = ({
       </FormFieldWrapper>
 
       <FormFieldWrapper label="Kontakt E-Mail" htmlFor="edit-contact">
-        <input
+        <Input
           id="edit-contact"
           type="email"
-          className="form-input"
           value={getDisplayValue('contact_email')}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
             updateField('contact_email', e.target.value)
@@ -104,9 +103,8 @@ const EditableDetailForm = ({
       </FormFieldWrapper>
 
       <FormFieldWrapper label="Prompt-Vorlage" htmlFor="edit-prompt">
-        <textarea
+        <Textarea
           id="edit-prompt"
-          className="form-textarea"
           value={getDisplayValue('prompt')}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
             updateField('prompt', e.target.value)
@@ -134,10 +132,9 @@ const EditableDetailForm = ({
   const renderNotebookFields = () => (
     <>
       <FormFieldWrapper label="Name" htmlFor="edit-name" required>
-        <input
+        <Input
           id="edit-name"
           type="text"
-          className="form-input"
           value={getDisplayValue('name')}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('name', e.target.value)}
           placeholder="Notebook Name"
@@ -151,9 +148,8 @@ const EditableDetailForm = ({
         htmlFor="edit-description"
         helpText={`${(getDisplayValue('description') || '').length}/500 Zeichen`}
       >
-        <textarea
+        <Textarea
           id="edit-description"
-          className="form-textarea"
           value={getDisplayValue('description') || ''}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
             updateField('description', e.target.value)
@@ -166,9 +162,8 @@ const EditableDetailForm = ({
       </FormFieldWrapper>
 
       <FormFieldWrapper label="Benutzerdefinierte Anweisungen" htmlFor="edit-custom-prompt">
-        <textarea
+        <Textarea
           id="edit-custom-prompt"
-          className="form-textarea"
           value={getDisplayValue('custom_prompt') || ''}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
             updateField('custom_prompt', e.target.value)
@@ -325,9 +320,8 @@ const FormBuilderSection = ({
           className="bg-background-pure border border-grey-200 dark:border-grey-700 rounded-lg p-lg shadow-sm"
         >
           <div className="grid grid-cols-[2fr_1fr_auto_auto] gap-sm items-center max-md:grid-cols-1 max-md:gap-xs">
-            <input
+            <Input
               type="text"
-              className="form-input"
               value={field.label}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 updateFormField(index, { label: e.target.value })
@@ -336,7 +330,7 @@ const FormBuilderSection = ({
               disabled={disabled}
             />
             <select
-              className="form-input"
+              className="h-11 w-full rounded-sm border-0 bg-input-bg px-sm py-sm text-sm text-input-text outline-none appearance-none cursor-pointer"
               value={field.type}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
                 updateFormField(index, { type: e.target.value })
@@ -363,9 +357,9 @@ const FormBuilderSection = ({
               disabled={disabled}
             />
           </div>
-          <input
+          <Input
             type="text"
-            className="form-input mt-sm"
+            className="mt-sm"
             value={field.placeholder || ''}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               updateFormField(index, { placeholder: e.target.value })
@@ -383,9 +377,9 @@ const FormBuilderSection = ({
                   key={optIndex}
                   className="grid grid-cols-[1.5fr_1fr_auto] gap-sm items-center mb-sm max-md:grid-cols-1 max-md:gap-xs"
                 >
-                  <input
+                  <Input
                     type="text"
-                    className="form-input min-w-0"
+                    className="min-w-0"
                     placeholder="Anzeigetext"
                     value={option.label || ''}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
@@ -412,9 +406,9 @@ const FormBuilderSection = ({
                     }}
                     disabled={disabled}
                   />
-                  <input
+                  <Input
                     type="text"
-                    className="form-input min-w-0"
+                    className="min-w-0"
                     placeholder="Technischer Wert"
                     value={option.value || ''}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
