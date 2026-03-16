@@ -11,7 +11,10 @@ interface UseFileUploadReturn {
   uploadFile: () => Promise<unknown>;
 }
 
-const useFileUpload = (allowedTypes: string[], maxSize: number = 10 * 1024 * 1024): UseFileUploadReturn => {
+const useFileUpload = (
+  allowedTypes: string[],
+  maxSize: number = 10 * 1024 * 1024
+): UseFileUploadReturn => {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);

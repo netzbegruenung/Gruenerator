@@ -122,7 +122,8 @@ export const extractMixedContent = (mixedContent: MixedContent): string => {
 
     sharepicEntries.filter(Boolean).forEach((entry) => {
       if (typeof entry === 'object') {
-        const sharepicText = (entry as SharepicEntry).text || (entry as SharepicEntry).content || '';
+        const sharepicText =
+          (entry as SharepicEntry).text || (entry as SharepicEntry).content || '';
         if (sharepicText) {
           parts.push(sharepicText);
         }

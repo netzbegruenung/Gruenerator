@@ -11,7 +11,9 @@ interface UseFormStateReturn<T extends Record<string, unknown>> {
   setError: Dispatch<SetStateAction<string>>;
   formErrors: Record<string, string>;
   setFormErrors: Dispatch<SetStateAction<Record<string, string>>>;
-  handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
+  handleChange: (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => void;
 }
 
 export const useFormState = <T extends Record<string, unknown>>(

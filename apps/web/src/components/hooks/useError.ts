@@ -198,7 +198,12 @@ const useError = (autoHideTimeout: number = ERROR_TIMEOUT): UseErrorReturn => {
         // Axios Fehler
         const axiosErr = err as AxiosError;
         errorType = axiosErr.response?.status || axiosErr.code || 'ERR_NETWORK';
-      } else if (typeof err === 'object' && err !== null && 'error' in err && (err as AnthropicError).error?.type) {
+      } else if (
+        typeof err === 'object' &&
+        err !== null &&
+        'error' in err &&
+        (err as AnthropicError).error?.type
+      ) {
         // Anthropic API Fehler
         errorType = (err as AnthropicError).error.type;
       } else if (typeof err === 'object' && err !== null && 'code' in err) {
@@ -232,7 +237,7 @@ const useError = (autoHideTimeout: number = ERROR_TIMEOUT): UseErrorReturn => {
         timestamp: new Date().toISOString(),
         requestId:
           (errObj?.requestId as string) ||
-          ((errObj?.response as Record<string, Record<string, string>>)?.headers?.['request-id']),
+          (errObj?.response as Record<string, Record<string, string>>)?.headers?.['request-id'],
         status: (errObj?.response as Record<string, number>)?.status,
         raw: process.env.NODE_ENV === 'development' ? err : undefined,
       };

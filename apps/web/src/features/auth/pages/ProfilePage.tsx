@@ -7,13 +7,12 @@ import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { PROFILE_MENU_ITEMS } from '../components/profile/ProfileMenu';
 
-import '../../../assets/styles/features/auth/auth.css';
-import '../../../assets/styles/components/auth/avatar-selection.css';
-
 const ProfileInfoTab = lazy(() => import('../components/profile/ProfileInfoTab'));
-const GroupsManagementTab = lazy(() => import('../components/profile/tabs/GroupsManagement'));
 const ContentManagementTab = lazy(() => import('../components/profile/tabs/ContentManagement'));
 const WolkeManagementTab = lazy(() => import('../components/profile/tabs/WolkeManagement'));
+const NotificationSettingsTab = lazy(
+  () => import('../components/profile/tabs/NotificationSettings')
+);
 
 type TabMapping = Record<string, string>;
 
@@ -43,6 +42,11 @@ const ProfilePage = () => {
   useEffect(() => {
     if (tab === 'dokumente' || tab === 'grafik' || tab === 'anweisungen' || tab === 'vorlagen') {
       navigate('/profile/inhalte', { replace: true });
+      return;
+    }
+
+    if (tab === 'gruppen') {
+      navigate('/gruppen', { replace: true });
       return;
     }
 
@@ -150,19 +154,18 @@ const ProfilePage = () => {
             />
           )}
 
-          {activeTab === 'gruppen' && shouldShowTab('groups') && (
-            <GroupsManagementTab
-              onSuccessMessage={handleSuccessMessage}
-              onErrorMessage={handleErrorMessage}
-              isActive={activeTab === 'gruppen'}
-            />
-          )}
-
           {activeTab === 'wolke' && (
             <WolkeManagementTab
               onSuccessMessage={handleSuccessMessage}
               onErrorMessage={handleErrorMessage}
               isActive={activeTab === 'wolke'}
+            />
+          )}
+
+          {activeTab === 'benachrichtigungen' && (
+            <NotificationSettingsTab
+              onSuccessMessage={handleSuccessMessage}
+              onErrorMessage={handleErrorMessage}
             />
           )}
         </Suspense>

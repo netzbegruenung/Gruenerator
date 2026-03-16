@@ -135,7 +135,11 @@ const useAccessibility = (options: UseAccessibilityOptions = {}) => {
   }, []);
 
   const manageFocusTrap = useCallback(
-    (trapActive: boolean, containerRef: React.RefObject<HTMLElement | null>, _options: Record<string, unknown> = {}): boolean => {
+    (
+      trapActive: boolean,
+      containerRef: React.RefObject<HTMLElement | null>,
+      _options: Record<string, unknown> = {}
+    ): boolean => {
       if (containerRef.current) {
         if (trapActive) {
           // Focus trap is managed by the FocusTrap component in JSX

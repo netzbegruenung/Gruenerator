@@ -214,10 +214,7 @@ export const bulkDeleteQA = async (qaIds: string[]): Promise<ProcessedBulkResult
  * @returns Share action function
  */
 export const createShareAction =
-  (
-    contentType: string,
-    shareHandler: (contentType: string, id: string, title: string) => void
-  ) =>
+  (contentType: string, shareHandler: (contentType: string, id: string, title: string) => void) =>
   (item: ContentItem) => {
     return shareHandler(contentType, item.id || '', item.title || item.name || '');
   };
@@ -228,10 +225,7 @@ export const createShareAction =
  * @param itemType - Type of the item ('text', 'document', 'template')
  * @returns Validation result with canEdit and reason
  */
-export const validateItemEditability = (
-  item: ContentItem,
-  itemType: string
-): EditabilityResult => {
+export const validateItemEditability = (item: ContentItem, itemType: string): EditabilityResult => {
   if (itemType === 'template' && item.id && item.id.startsWith('canva_')) {
     return {
       canEdit: false,
