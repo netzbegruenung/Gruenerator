@@ -1,4 +1,4 @@
-// constants.js
+// constants.ts
 
 // Sharepic Types
 export const SHAREPIC_TYPES = {
@@ -6,7 +6,7 @@ export const SHAREPIC_TYPES = {
   QUOTE_PURE: 'Zitat_Pure',
   THREE_LINES: 'Dreizeilen',
   INFO: 'Info',
-};
+} as const;
 
 // Form Steps
 export const FORM_STEPS = {
@@ -17,31 +17,31 @@ export const FORM_STEPS = {
   QUESTION: 'question', // Interactive slogan selection
   PREVIEW: 'preview',
   RESULT: 'result',
-};
+} as const;
 
 // Font Sizes
 export const FONT_SIZES = {
   S: 75,
   M: 85,
   L: 105,
-};
+} as const;
 
 // Quote-specific font sizes (smaller for longer text)
 export const ZITAT_FONT_SIZES = {
   S: 50,
   M: 60,
   L: 75,
-};
+} as const;
 
-export const MAX_FONT_SIZE = 110;
-export const MIN_FONT_SIZE = 75;
+export const MAX_FONT_SIZE = 110 as const;
+export const MIN_FONT_SIZE = 75 as const;
 
 // Default Colors
 export const DEFAULT_COLORS = [
   { background: '#005538' },
   { background: '#F5F1E9' },
   { background: '#F5F1E9' },
-];
+] as const;
 
 // Validation Messages
 export const VALIDATION_MESSAGES = {
@@ -50,7 +50,7 @@ export const VALIDATION_MESSAGES = {
   REQUIRED_FIELD: 'Dieses Feld ist erforderlich.',
   INVALID_FILE_TYPE: 'Ungültiger Dateityp.',
   FILE_UPLOAD_FAILED: 'Datei-Upload fehlgeschlagen.',
-};
+} as const;
 
 // Button Labels
 export const BUTTON_LABELS = {
@@ -69,7 +69,7 @@ export const BUTTON_LABELS = {
   MENU: 'Menü',
   CLOSE_MENU: 'Menü schließen',
   UNSPLASH_SELECT: 'Zufälliges Naturbild von Unsplash',
-};
+} as const;
 
 // ARIA Labels
 export const ARIA_LABELS = {
@@ -80,7 +80,7 @@ export const ARIA_LABELS = {
   COPY: 'Generierten Text kopieren',
   REGENERATE_TEXT: 'Neuen Beitragstext generieren',
   TOGGLE_DARK_MODE: 'Dunkelmodus umschalten',
-};
+} as const;
 
 // Announcements
 export const ANNOUNCEMENTS = {
@@ -92,7 +92,7 @@ export const ANNOUNCEMENTS = {
   UNSPLASH_IMAGE_LOADING: 'Lade zufälliges Bild von Unsplash...',
   UNSPLASH_IMAGE_LOADED: 'Bild von Unsplash erfolgreich geladen',
   UNSPLASH_IMAGE_ERROR: 'Fehler beim Laden des Bildes von Unsplash',
-};
+} as const;
 
 // UI Elements
 export const UI_ELEMENTS = {
@@ -101,7 +101,7 @@ export const UI_ELEMENTS = {
   FOOTER: 'Fußzeile',
   HEADER: 'Kopfzeile',
   NAV_MENU: 'Navigationsmenü',
-};
+} as const;
 
 // Error Messages
 export const ERROR_MESSAGES = {
@@ -121,15 +121,15 @@ export const ERROR_MESSAGES = {
   FILE_UPLOAD_ERROR: 'Fehler beim Hochladen der Datei',
   NO_IMAGE_SELECTED: 'Bitte wählen Sie ein Bild aus',
   NO_MODIFIED_IMAGE_DATA: 'Keine modifizierten Bilddaten empfangen',
-};
+} as const;
 
 // SharepicGenerator specific constants
 export const SHAREPIC_GENERATOR = {
   TITLE: 'Sharepic Grünerator',
   DEFAULT_FONT_SIZE: FONT_SIZES.M,
-  DEFAULT_BALKEN_OFFSET: [50, -100, 50],
+  DEFAULT_BALKEN_OFFSET: [50, -100, 50] as readonly [number, number, number],
   DEFAULT_COLOR_SCHEME: DEFAULT_COLORS,
-  ALLOWED_FILE_TYPES: ['image/*'],
+  ALLOWED_FILE_TYPES: ['image/*'] as readonly string[],
   CONFIRMATION_MESSAGES: {
     BACK_TO_START:
       'Möchtest du wirklich zurück zum ersten Schritt? Das grünerierte Sharepic geht verloren.',
@@ -143,7 +143,7 @@ export const SHAREPIC_GENERATOR = {
     MODIFYING_IMAGE: 'Modifying image with params:',
     IMAGE_MODIFIED: 'Image modified successfully',
   },
-};
+} as const;
 
 export const IMAGE_MODIFICATION = {
   BALKEN_OFFSET: {
@@ -208,7 +208,7 @@ export const IMAGE_MODIFICATION = {
   },
   BALKEN_GRUPPE_STEP: 100,
   SUNFLOWER_STEP: 25,
-};
+} as const;
 
 // Form Labels
 export const FORM_LABELS = {
@@ -233,7 +233,7 @@ export const FORM_LABELS = {
   LOCATION: 'Ort',
   ORGANIZATION: 'Gliederung',
   CHARACTER_COUNT: 'Zeichenzahl',
-};
+} as const;
 
 // Form Placeholders
 export const FORM_PLACEHOLDERS = {
@@ -261,7 +261,7 @@ export const FORM_PLACEHOLDERS = {
   LOCATION: 'Gib den Ort oder die Region an, z.B. Siegburg, Köln etc...',
   ORGANIZATION: 'Gib die Gliederung an, z.B. LOrtsverband Detmold...',
   CHARACTER_COUNT: 'Gib die gewünschte Zeichenzahl (mindestens 1000) ein.',
-};
+} as const;
 
 // Footer Text
 export const FOOTER_TEXT = {
@@ -275,7 +275,7 @@ export const FOOTER_TEXT = {
     INSTAGRAM: 'https://www.instagram.com/moritz_waechter/?hl=bg',
     LINKEDIN: 'https://www.linkedin.com/in/moritz-w%C3%A4chter-6ab033210',
   },
-};
+} as const;
 
 // Header Text
 export const HEADER_TEXT = {
@@ -313,7 +313,7 @@ export const HEADER_TEXT = {
       { LINK: 'https://person.webbegruenung.de', TEXT: 'Demo-Seite', ICON: 'PiLink' },
     ],
   },
-};
+} as const;
 
 export const WAHLPROGRAMM_GENERATOR = {
   TITLE: 'Wahlprogramm-Grünerator',
@@ -328,4 +328,4 @@ export const WAHLPROGRAMM_GENERATOR = {
     CONTENT_GENERATED: 'Wahlprogramm content generated, updating form data',
     FORM_DATA_UPDATED: 'Form data updated, new step:',
   },
-};
+} as const;

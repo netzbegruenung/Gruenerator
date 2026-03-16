@@ -3,35 +3,64 @@
  * Uses React Query with the profileApiService for consistent caching and state management
  * Syncs with profileStore for UI state management and optimistic updates
  */
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useProfileStore } from '../../../stores/profileStore';
-import { profileApiService } from '../services/profileApiService';
+import {
+  type AnweisungenSaveData,
+  type AnweisungenWissen,
+  type BundleOptions,
+  type CustomGenerator,
+  type CustomGeneratorData,
+  type Document,
+  type Memory,
+  type Profile,
+  type ProfileBundle,
+  type QACollection,
+  type QACollectionData,
+  type SavedText,
+  type UserTemplate,
+  type UserTemplateUpdateData,
+  profileApiService,
+} from '../services/profileApiService';
+
+// === OPTION TYPES ===
+
+interface TabHookOptions {
+  isActive?: boolean;
+  enabled?: boolean;
+}
+
+interface EnabledOnlyOptions {
+  enabled?: boolean;
+}
 
 // Query keys for consistent cache management
 export const QUERY_KEYS = {
-  profile: (userId) => ['profileData', userId],
-  bundledProfile: (userId, options) => ['bundledProfileData', userId, options],
-  anweisungenWissen: (userId) => ['anweisungenWissen', userId],
-  notebookCollections: (userId) => ['notebookCollections', userId],
-  customGenerators: (userId) => ['customGenerators', userId],
-  savedGenerators: (userId) => ['savedGenerators', userId],
-  generatorDocuments: (generatorId) => ['generatorDocuments', generatorId],
-  userTexts: (userId) => ['userTexts', userId],
-  userTemplates: (userId) => ['userTemplates', userId],
-  availableDocuments: (userId) => ['availableDocuments', userId],
-  memories: (userId) => ['memories', userId],
+  profile: (userId: string | undefined) => ['profileData', userId] as const,
+  bundledProfile: (userId: string | undefined, options: BundleOptions) =>
+    ['bundledProfileData', userId, options] as const,
+  anweisungenWissen: (userId: string | undefined) => ['anweisungenWissen', userId] as const,
+  notebookCollections: (userId: string | undefined) => ['notebookCollections', userId] as const,
+  customGenerators: (userId: string | undefined) => ['customGenerators', userId] as const,
+  savedGenerators: (userId: string | undefined) => ['savedGenerators', userId] as const,
+  generatorDocuments: (generatorId: string | undefined) =>
+    ['generatorDocuments', generatorId] as const,
+  userTexts: (userId: string | undefined) => ['userTexts', userId] as const,
+  userTemplates: (userId: string | undefined) => ['userTemplates', userId] as const,
+  availableDocuments: (userId: string | undefined) => ['availableDocuments', userId] as const,
+  memories: (userId: string | undefined) => ['memories', userId] as const,
 };
 
 // === PROFILE DATA ===
-export const useProfile = (userId) => {
+export const useProfile = (userId?: string) => {
   const { user } = useOptimizedAuth();
   const actualUserId = userId || user?.id;
   const syncProfile = useProfileStore((state) => state.syncProfile);
 
-  const query = useQuery({
+  const query = useQuery<Profile, Error>({
     queryKey: QUERY_KEYS.profile(actualUserId),
     queryFn: profileApiService.getProfile,
     enabled: !!actualUserId,
@@ -40,7 +69,7 @@ export const useProfile = (userId) => {
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
-    retry: (failureCount) => failureCount < 2,
+    retry: (failureCount: number) => failureCount < 2,
     // Prevent automatic refetch that could interfere with avatar updates
     refetchInterval: false,
   });
@@ -56,11 +85,11 @@ export const useProfile = (userId) => {
 };
 
 // === BUNDLED PROFILE DATA ===
-export const useBundledProfileData = (options = {}) => {
+export const useBundledProfileData = (options: BundleOptions = {}) => {
   const { user } = useOptimizedAuth();
   const userId = user?.id;
 
-  const defaultOptions = {
+  const defaultOptions: Required<BundleOptions> = {
     includeAnweisungen: true,
     includeNotebookCollections: true,
     includeCustomGenerators: true,
@@ -69,9 +98,9 @@ export const useBundledProfileData = (options = {}) => {
     includeMemories: false,
   };
 
-  const mergedOptions = { ...defaultOptions, ...options };
+  const mergedOptions: Required<BundleOptions> = { ...defaultOptions, ...options };
 
-  return useQuery({
+  return useQuery<ProfileBundle, Error>({
     queryKey: QUERY_KEYS.bundledProfile(userId, mergedOptions),
     queryFn: () => profileApiService.getBundledProfileData(mergedOptions),
     enabled: !!userId,
@@ -80,63 +109,43 @@ export const useBundledProfileData = (options = {}) => {
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
-    retry: (failureCount) => failureCount < 2,
+    retry: (failureCount: number) => failureCount < 2,
   });
 };
 
 // === ANWEISUNGEN & WISSEN ===
-export const useAnweisungenWissen = ({
-  isActive,
-  enabled = true,
-  context = 'user', // 'user' | 'group'
-  groupId = null, // required when context = 'group'
-} = {}) => {
+export const useAnweisungenWissen = ({ isActive, enabled = true }: TabHookOptions = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
   const syncAnweisungenWissen = useProfileStore((state) => state.syncAnweisungenWissen);
-  const setActiveContext = useProfileStore((state) => state.setActiveContext);
 
-  // Context-aware query key
-  const queryKey =
-    context === 'group'
-      ? ['groupAnweisungenWissen', groupId]
-      : QUERY_KEYS.anweisungenWissen(user?.id);
+  const queryKey = QUERY_KEYS.anweisungenWissen(user?.id);
 
-  // Context-aware query function
-  const queryFn =
-    context === 'group'
-      ? () => profileApiService.getAnweisungenWissen(context, groupId)
-      : profileApiService.getAnweisungenWissen;
-
-  const query = useQuery({
+  const query = useQuery<AnweisungenWissen, Error>({
     queryKey,
-    queryFn,
-    enabled: enabled && !!user?.id && isActive && (context === 'user' || !!groupId),
-    staleTime: 5 * 60 * 1000, // Reduced from 15 to 5 minutes for better freshness
-    gcTime: 15 * 60 * 1000, // Reduced from 30 to 15 minutes
+    queryFn: profileApiService.getAnweisungenWissen,
+    enabled: enabled && !!user?.id && isActive,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     refetchOnWindowFocus: false,
-    refetchOnMount: 'always', // Always refetch on mount for fresh data
+    refetchOnMount: 'always',
     retry: 1,
   });
 
   const saveMutation = useMutation({
-    mutationFn: (data) => profileApiService.saveAnweisungenWissen(data, context, groupId),
+    mutationFn: (data: AnweisungenSaveData) => profileApiService.saveAnweisungenWissen(data),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey });
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (entryId) => profileApiService.deleteKnowledgeEntry(entryId, context, groupId),
-    onMutate: async (entryId) => {
-      // Cancel outgoing refetches to avoid optimistic update conflicts
+    mutationFn: (entryId: string | number) => profileApiService.deleteKnowledgeEntry(entryId),
+    onMutate: async (entryId: string | number) => {
       await queryClient.cancelQueries({ queryKey });
+      const previousData = queryClient.getQueryData<AnweisungenWissen>(queryKey);
 
-      // Snapshot previous value for rollback
-      const previousData = queryClient.getQueryData(queryKey);
-
-      // Optimistically update the cache by removing the deleted entry
-      queryClient.setQueryData(queryKey, (old) => {
+      queryClient.setQueryData<AnweisungenWissen>(queryKey, (old) => {
         if (!old) return old;
         return {
           ...old,
@@ -146,31 +155,22 @@ export const useAnweisungenWissen = ({
 
       return { previousData };
     },
-    onError: (err, entryId, context) => {
-      // Rollback optimistic update on error
-      if (context?.previousData) {
-        queryClient.setQueryData(queryKey, context.previousData);
+    onError: (
+      _err: Error,
+      _entryId: string | number,
+      ctx: { previousData: AnweisungenWissen | undefined } | undefined
+    ) => {
+      if (ctx?.previousData) {
+        queryClient.setQueryData(queryKey, ctx.previousData);
       }
     },
     onSettled: () => {
-      // Always refetch after mutation to ensure consistency
       queryClient.invalidateQueries({ queryKey });
       queryClient.refetchQueries({ queryKey, exact: true });
     },
   });
 
-  // Sync with profileStore
   useEffect(() => {
-    // Update active context in store
-    if (context === 'group' && groupId) {
-      setActiveContext('group', groupId);
-    } else {
-      setActiveContext('user');
-    }
-  }, [context, groupId, setActiveContext]);
-
-  useEffect(() => {
-    // Sync query data to store
     if (query.data) {
       syncAnweisungenWissen(query.data);
     }
@@ -182,7 +182,7 @@ export const useAnweisungenWissen = ({
     deleteKnowledgeEntry: deleteMutation.mutateAsync,
     isSaving: saveMutation.isPending,
     isDeleting: deleteMutation.isPending,
-    deletingKnowledgeId: deleteMutation.isPending ? deleteMutation.variables : null, // Track which entry is being deleted
+    deletingKnowledgeId: deleteMutation.isPending ? deleteMutation.variables : null,
     saveError: saveMutation.error,
     deleteError: deleteMutation.error,
     MAX_KNOWLEDGE_ENTRIES: 3,
@@ -190,12 +190,12 @@ export const useAnweisungenWissen = ({
 };
 
 // === Q&A COLLECTIONS ===
-export const useNotebookCollections = ({ isActive, enabled = true } = {}) => {
+export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOptions = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
   const syncNotebookCollections = useProfileStore((state) => state.syncNotebookCollections);
 
-  const query = useQuery({
+  const query = useQuery<QACollection[], Error>({
     queryKey: QUERY_KEYS.notebookCollections(user?.id),
     queryFn: profileApiService.getNotebookCollections,
     enabled: enabled && !!user?.id && isActive,
@@ -214,8 +214,13 @@ export const useNotebookCollections = ({ isActive, enabled = true } = {}) => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ collectionId, collectionData }) =>
-      profileApiService.updateQACollection(collectionId, collectionData),
+    mutationFn: ({
+      collectionId,
+      collectionData,
+    }: {
+      collectionId: string | number;
+      collectionData: QACollectionData;
+    }) => profileApiService.updateQACollection(collectionId, collectionData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
     },
@@ -229,13 +234,13 @@ export const useNotebookCollections = ({ isActive, enabled = true } = {}) => {
   });
 
   const syncMutation = useMutation({
-    mutationFn: (collectionId) => profileApiService.syncQACollection(collectionId),
+    mutationFn: (collectionId: string | number) => profileApiService.syncQACollection(collectionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
     },
   });
 
-  const getQACollection = (collectionId) => {
+  const getQACollection = (collectionId: string | number): QACollection | undefined => {
     const collections = query.data || [];
     return collections.find((c) => c.id === collectionId);
   };
@@ -250,7 +255,7 @@ export const useNotebookCollections = ({ isActive, enabled = true } = {}) => {
   return {
     query,
     createQACollection: createMutation.mutateAsync,
-    updateQACollection: (collectionId, collectionData) =>
+    updateQACollection: (collectionId: string | number, collectionData: QACollectionData) =>
       updateMutation.mutateAsync({ collectionId, collectionData }),
     deleteQACollection: deleteMutation.mutateAsync,
     syncQACollection: syncMutation.mutateAsync,
@@ -272,15 +277,14 @@ export const useNotebookCollections = ({ isActive, enabled = true } = {}) => {
 // - useCustomGeneratorsData: Fetches via React Query and syncs to Zustand (server state owner)
 // - useCustomGeneratorsMutations: Provides update/delete mutations only (no fetching/syncing)
 
-export const useCustomGeneratorsData = ({ isActive, enabled = true } = {}) => {
+export const useCustomGeneratorsData = ({ isActive, enabled = true }: TabHookOptions = {}) => {
   const { user } = useOptimizedAuth();
-  const queryClient = useQueryClient();
   const syncCustomGenerators = useProfileStore((state) => state.syncCustomGenerators);
   const currentGenerators = useProfileStore((state) => state.customGenerators);
 
   const shouldFetch = enabled && !!user?.id && isActive;
 
-  const query = useQuery({
+  const query = useQuery<CustomGenerator[], Error>({
     queryKey: QUERY_KEYS.customGenerators(user?.id),
     queryFn: profileApiService.getCustomGenerators,
     enabled: shouldFetch,
@@ -292,21 +296,37 @@ export const useCustomGeneratorsData = ({ isActive, enabled = true } = {}) => {
   });
 
   // Shallow compare by id+updated_at (or basic length/id fallback) to avoid redundant syncs
-  const areGeneratorsEqual = (a, b) => {
+  const areGeneratorsEqual = (
+    a: CustomGenerator[] | null | undefined,
+    b: CustomGenerator[] | null | undefined
+  ): boolean => {
     if (!Array.isArray(a) || !Array.isArray(b)) return false;
     if (a.length !== b.length) return false;
     for (let i = 0; i < a.length; i++) {
       const ga = a[i];
       const gb = b[i];
-      // If order changes, this will detect difference; that’s fine because state should reflect server order
+      // If order changes, this will detect difference; that's fine because state should reflect server order
       if (String(ga.id) !== String(gb.id)) return false;
       // Prefer updated_at if present; otherwise a few stable fields
-      const aUpdated = ga.updated_at || ga.updatedAt || ga.updated || null;
-      const bUpdated = gb.updated_at || gb.updatedAt || gb.updated || null;
+      const aUpdated =
+        (ga as Record<string, unknown>).updated_at ||
+        (ga as Record<string, unknown>).updatedAt ||
+        (ga as Record<string, unknown>).updated ||
+        null;
+      const bUpdated =
+        (gb as Record<string, unknown>).updated_at ||
+        (gb as Record<string, unknown>).updatedAt ||
+        (gb as Record<string, unknown>).updated ||
+        null;
       if (aUpdated !== bUpdated) return false;
       // Minimal fallback to catch common edits
-      if ((ga.title || ga.name) !== (gb.title || gb.name)) return false;
-      if (ga.slug !== gb.slug) return false;
+      if (
+        ((ga as Record<string, unknown>).title || ga.name) !==
+        ((gb as Record<string, unknown>).title || gb.name)
+      )
+        return false;
+      if ((ga as Record<string, unknown>).slug !== (gb as Record<string, unknown>).slug)
+        return false;
     }
     return true;
   };
@@ -329,12 +349,25 @@ export const useCustomGeneratorsMutations = () => {
   const queryClient = useQueryClient();
 
   const updateMutation = useMutation({
-    mutationFn: ({ generatorId, updateData }) =>
-      profileApiService.updateCustomGenerator(generatorId, updateData),
-    onMutate: async ({ generatorId, updateData }) => {
+    mutationFn: ({
+      generatorId,
+      updateData,
+    }: {
+      generatorId: string | number;
+      updateData: CustomGeneratorData;
+    }) => profileApiService.updateCustomGenerator(generatorId, updateData),
+    onMutate: async ({
+      generatorId,
+      updateData,
+    }: {
+      generatorId: string | number;
+      updateData: CustomGeneratorData;
+    }) => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEYS.customGenerators(user?.id) });
-      const previousGenerators = queryClient.getQueryData(QUERY_KEYS.customGenerators(user?.id));
-      queryClient.setQueryData(QUERY_KEYS.customGenerators(user?.id), (old) => {
+      const previousGenerators = queryClient.getQueryData<CustomGenerator[]>(
+        QUERY_KEYS.customGenerators(user?.id)
+      );
+      queryClient.setQueryData<CustomGenerator[]>(QUERY_KEYS.customGenerators(user?.id), (old) => {
         if (!old) return old;
         return old.map((generator) =>
           String(generator.id) === String(generatorId) ? { ...generator, ...updateData } : generator
@@ -342,15 +375,19 @@ export const useCustomGeneratorsMutations = () => {
       });
       return { previousGenerators, generatorId };
     },
-    onSuccess: (updatedGenerator, { generatorId }) => {
-      queryClient.setQueryData(QUERY_KEYS.customGenerators(user?.id), (old) => {
+    onSuccess: (updatedGenerator: CustomGenerator, { generatorId }) => {
+      queryClient.setQueryData<CustomGenerator[]>(QUERY_KEYS.customGenerators(user?.id), (old) => {
         if (!old) return old;
         return old.map((generator) =>
           String(generator.id) === String(generatorId) ? updatedGenerator : generator
         );
       });
     },
-    onError: (error, variables, context) => {
+    onError: (
+      _error: Error,
+      _variables: { generatorId: string | number; updateData: CustomGeneratorData },
+      context: { previousGenerators: CustomGenerator[] | undefined } | undefined
+    ) => {
       if (context?.previousGenerators) {
         queryClient.setQueryData(QUERY_KEYS.customGenerators(user?.id), context.previousGenerators);
       }
@@ -359,16 +396,22 @@ export const useCustomGeneratorsMutations = () => {
 
   const deleteMutation = useMutation({
     mutationFn: profileApiService.deleteCustomGenerator,
-    onMutate: async (generatorId) => {
+    onMutate: async (generatorId: string | number) => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEYS.customGenerators(user?.id) });
-      const previousGenerators = queryClient.getQueryData(QUERY_KEYS.customGenerators(user?.id));
-      queryClient.setQueryData(QUERY_KEYS.customGenerators(user?.id), (old) => {
+      const previousGenerators = queryClient.getQueryData<CustomGenerator[]>(
+        QUERY_KEYS.customGenerators(user?.id)
+      );
+      queryClient.setQueryData<CustomGenerator[]>(QUERY_KEYS.customGenerators(user?.id), (old) => {
         if (!old) return old;
         return old.filter((generator) => String(generator.id) !== String(generatorId));
       });
       return { previousGenerators, generatorId };
     },
-    onError: (error, variables, context) => {
+    onError: (
+      _error: Error,
+      _variables: string | number,
+      context: { previousGenerators: CustomGenerator[] | undefined } | undefined
+    ) => {
       if (context?.previousGenerators) {
         queryClient.setQueryData(QUERY_KEYS.customGenerators(user?.id), context.previousGenerators);
       }
@@ -376,7 +419,7 @@ export const useCustomGeneratorsMutations = () => {
   });
 
   return {
-    updateGenerator: (generatorId, updateData) =>
+    updateGenerator: (generatorId: string | number, updateData: CustomGeneratorData) =>
       updateMutation.mutateAsync({ generatorId, updateData }),
     deleteGenerator: deleteMutation.mutateAsync,
     isUpdating: updateMutation.isPending,
@@ -387,19 +430,19 @@ export const useCustomGeneratorsMutations = () => {
 };
 
 // Backward-compat wrapper (fetch+sync+mutations) for existing consumers.
-export const useCustomGenerators = ({ isActive, enabled = true } = {}) => {
+export const useCustomGenerators = ({ isActive, enabled = true }: TabHookOptions = {}) => {
   const data = useCustomGeneratorsData({ isActive, enabled });
   const mutations = useCustomGeneratorsMutations();
   return { ...data, ...mutations };
 };
 
 // === SAVED GENERATORS ===
-export const useSavedGenerators = ({ isActive, enabled = true } = {}) => {
+export const useSavedGenerators = ({ isActive, enabled = true }: TabHookOptions = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
   const syncSavedGenerators = useProfileStore((state) => state.syncSavedGenerators);
 
-  const query = useQuery({
+  const query = useQuery<CustomGenerator[], Error>({
     queryKey: QUERY_KEYS.savedGenerators(user?.id),
     queryFn: profileApiService.getSavedGenerators,
     enabled: enabled && !!user?.id && isActive,
@@ -412,16 +455,22 @@ export const useSavedGenerators = ({ isActive, enabled = true } = {}) => {
 
   const unsaveMutation = useMutation({
     mutationFn: profileApiService.unsaveGenerator,
-    onMutate: async (generatorId) => {
+    onMutate: async (generatorId: string | number) => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEYS.savedGenerators(user?.id) });
-      const previousGenerators = queryClient.getQueryData(QUERY_KEYS.savedGenerators(user?.id));
-      queryClient.setQueryData(QUERY_KEYS.savedGenerators(user?.id), (old) => {
+      const previousGenerators = queryClient.getQueryData<CustomGenerator[]>(
+        QUERY_KEYS.savedGenerators(user?.id)
+      );
+      queryClient.setQueryData<CustomGenerator[]>(QUERY_KEYS.savedGenerators(user?.id), (old) => {
         if (!old) return old;
         return old.filter((generator) => String(generator.id) !== String(generatorId));
       });
       return { previousGenerators };
     },
-    onError: (error, variables, context) => {
+    onError: (
+      _error: Error,
+      _variables: string | number,
+      context: { previousGenerators: CustomGenerator[] | undefined } | undefined
+    ) => {
       if (context?.previousGenerators) {
         queryClient.setQueryData(QUERY_KEYS.savedGenerators(user?.id), context.previousGenerators);
       }
@@ -444,29 +493,29 @@ export const useSavedGenerators = ({ isActive, enabled = true } = {}) => {
 };
 
 // === GENERATOR DOCUMENTS ===
-export const useGeneratorDocuments = (generatorId) => {
+export const useGeneratorDocuments = (generatorId: string | undefined) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
 
-  const query = useQuery({
+  const query = useQuery<Document[], Error>({
     queryKey: QUERY_KEYS.generatorDocuments(generatorId),
-    queryFn: () => profileApiService.getGeneratorDocuments(generatorId),
+    queryFn: () => profileApiService.getGeneratorDocuments(generatorId!),
     enabled: !!generatorId && !!user?.id,
     staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
     cacheTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
   });
 
   const addDocumentsMutation = useMutation({
-    mutationFn: (documentIds) =>
-      profileApiService.addDocumentsToGenerator(generatorId, documentIds),
+    mutationFn: (documentIds: string[]) =>
+      profileApiService.addDocumentsToGenerator(generatorId!, documentIds),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.generatorDocuments(generatorId) });
     },
   });
 
   const removeDocumentMutation = useMutation({
-    mutationFn: (documentId) =>
-      profileApiService.removeDocumentFromGenerator(generatorId, documentId),
+    mutationFn: (documentId: string | number) =>
+      profileApiService.removeDocumentFromGenerator(generatorId!, documentId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.generatorDocuments(generatorId) });
     },
@@ -484,12 +533,12 @@ export const useGeneratorDocuments = (generatorId) => {
 };
 
 // === USER TEXTS ===
-export const useUserTexts = ({ isActive, enabled = true } = {}) => {
+export const useUserTexts = ({ isActive, enabled = true }: TabHookOptions = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
   const syncUserTexts = useProfileStore((state) => state.syncUserTexts);
 
-  const query = useQuery({
+  const query = useQuery<SavedText[], Error>({
     queryKey: QUERY_KEYS.userTexts(user?.id),
     queryFn: profileApiService.getUserTexts,
     enabled: enabled && !!user?.id && isActive,
@@ -500,7 +549,8 @@ export const useUserTexts = ({ isActive, enabled = true } = {}) => {
   });
 
   const updateTitleMutation = useMutation({
-    mutationFn: ({ textId, newTitle }) => profileApiService.updateTextTitle(textId, newTitle),
+    mutationFn: ({ textId, newTitle }: { textId: string | number; newTitle: string }) =>
+      profileApiService.updateTextTitle(textId, newTitle),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userTexts(user?.id) });
     },
@@ -522,7 +572,8 @@ export const useUserTexts = ({ isActive, enabled = true } = {}) => {
 
   return {
     query,
-    updateTextTitle: (textId, newTitle) => updateTitleMutation.mutateAsync({ textId, newTitle }),
+    updateTextTitle: (textId: string | number, newTitle: string) =>
+      updateTitleMutation.mutateAsync({ textId, newTitle }),
     deleteText: deleteMutation.mutateAsync,
     isUpdatingTitle: updateTitleMutation.isPending,
     isDeleting: deleteMutation.isPending,
@@ -532,12 +583,12 @@ export const useUserTexts = ({ isActive, enabled = true } = {}) => {
 };
 
 // === USER TEMPLATES ===
-export const useUserTemplates = ({ isActive, enabled = true } = {}) => {
+export const useUserTemplates = ({ isActive, enabled = true }: TabHookOptions = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
   const syncUserTemplates = useProfileStore((state) => state.syncUserTemplates);
 
-  const query = useQuery({
+  const query = useQuery<UserTemplate[], Error>({
     queryKey: QUERY_KEYS.userTemplates(user?.id),
     queryFn: profileApiService.getUserTemplates,
     enabled: enabled && !!user?.id && isActive,
@@ -548,7 +599,7 @@ export const useUserTemplates = ({ isActive, enabled = true } = {}) => {
   });
 
   const updateTitleMutation = useMutation({
-    mutationFn: ({ templateId, newTitle }) =>
+    mutationFn: ({ templateId, newTitle }: { templateId: string | number; newTitle: string }) =>
       profileApiService.updateTemplateTitle(templateId, newTitle),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userTemplates(user?.id) });
@@ -563,7 +614,7 @@ export const useUserTemplates = ({ isActive, enabled = true } = {}) => {
   });
 
   const visibilityMutation = useMutation({
-    mutationFn: ({ templateId, isPrivate }) =>
+    mutationFn: ({ templateId, isPrivate }: { templateId: string | number; isPrivate: boolean }) =>
       profileApiService.updateTemplateVisibility(templateId, isPrivate),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userTemplates(user?.id) });
@@ -571,7 +622,13 @@ export const useUserTemplates = ({ isActive, enabled = true } = {}) => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ templateId, data }) => profileApiService.updateTemplate(templateId, data),
+    mutationFn: ({
+      templateId,
+      data,
+    }: {
+      templateId: string | number;
+      data: UserTemplateUpdateData;
+    }) => profileApiService.updateTemplate(templateId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userTemplates(user?.id) });
     },
@@ -586,12 +643,13 @@ export const useUserTemplates = ({ isActive, enabled = true } = {}) => {
 
   return {
     query,
-    updateTemplateTitle: (templateId, newTitle) =>
+    updateTemplateTitle: (templateId: string | number, newTitle: string) =>
       updateTitleMutation.mutateAsync({ templateId, newTitle }),
     deleteTemplate: deleteMutation.mutateAsync,
-    updateTemplateVisibility: (templateId, isPrivate) =>
+    updateTemplateVisibility: (templateId: string | number, isPrivate: boolean) =>
       visibilityMutation.mutateAsync({ templateId, isPrivate }),
-    updateTemplate: (templateId, data) => updateMutation.mutateAsync({ templateId, data }),
+    updateTemplate: (templateId: string | number, data: UserTemplateUpdateData) =>
+      updateMutation.mutateAsync({ templateId, data }),
     isUpdatingTitle: updateTitleMutation.isPending,
     isDeleting: deleteMutation.isPending,
     isUpdatingVisibility: visibilityMutation.isPending,
@@ -602,11 +660,11 @@ export const useUserTemplates = ({ isActive, enabled = true } = {}) => {
 };
 
 // === AVAILABLE DOCUMENTS ===
-export const useAvailableDocuments = ({ enabled = true } = {}) => {
+export const useAvailableDocuments = ({ enabled = true }: EnabledOnlyOptions = {}) => {
   const { user } = useOptimizedAuth();
   const syncAvailableDocuments = useProfileStore((state) => state.syncAvailableDocuments);
 
-  const query = useQuery({
+  const query = useQuery<Document[], Error>({
     queryKey: QUERY_KEYS.availableDocuments(user?.id),
     queryFn: profileApiService.getAvailableDocuments,
     enabled: enabled && !!user?.id,
@@ -625,14 +683,14 @@ export const useAvailableDocuments = ({ enabled = true } = {}) => {
 };
 
 // === MEMORY (MEM0RY) ===
-export const useMemories = ({ isActive, enabled = true } = {}) => {
+export const useMemories = ({ isActive, enabled = true }: TabHookOptions = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
   const syncMemories = useProfileStore((state) => state.syncMemories);
 
-  const query = useQuery({
+  const query = useQuery<Memory[], Error>({
     queryKey: QUERY_KEYS.memories(user?.id),
-    queryFn: () => profileApiService.getMemories(user?.id),
+    queryFn: () => profileApiService.getMemories(user!.id),
     enabled: enabled && !!user?.id && isActive,
     staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
     cacheTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
@@ -640,7 +698,8 @@ export const useMemories = ({ isActive, enabled = true } = {}) => {
   });
 
   const addMemoryMutation = useMutation({
-    mutationFn: ({ text, topic }) => profileApiService.addMemory(text, topic),
+    mutationFn: ({ text, topic }: { text: string; topic: string }) =>
+      profileApiService.addMemory(text, topic),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.memories(user?.id) });
     },
@@ -662,7 +721,7 @@ export const useMemories = ({ isActive, enabled = true } = {}) => {
 
   return {
     query,
-    addMemory: (text, topic = '') => addMemoryMutation.mutateAsync({ text, topic }),
+    addMemory: (text: string, topic: string = '') => addMemoryMutation.mutateAsync({ text, topic }),
     deleteMemory: deleteMemoryMutation.mutateAsync,
     isAddingMemory: addMemoryMutation.isPending,
     isDeletingMemory: deleteMemoryMutation.isPending,
