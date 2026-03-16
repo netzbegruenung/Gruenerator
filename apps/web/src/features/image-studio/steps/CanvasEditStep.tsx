@@ -8,6 +8,7 @@ import {
 import { motion } from 'motion/react';
 import React, { useState, useEffect } from 'react';
 
+import useSidebarStore from '../../../stores/sidebarStore';
 import { CanvasMobilePanel } from '../components/CanvasMobilePanel';
 import { CanvasMobileSubsectionBar } from '../components/CanvasMobileSubsectionBar';
 import { CanvasMobileTabBar } from '../components/CanvasMobileTabBar';
@@ -69,6 +70,13 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
     const handleResize = () => setIsDesktopViewport(window.innerWidth >= 900);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    useSidebarStore.getState().setCanvasIsActive(true);
+    return () => {
+      useSidebarStore.getState().setCanvasIsActive(false);
+    };
   }, []);
 
   return (

@@ -5,12 +5,11 @@ import { StatusBadge } from '../../../components/common/StatusBadge';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import useImageGenerationLimit from '../../../hooks/useImageGenerationLimit';
 import useImageStudioStore from '../../../stores/imageStudioStore';
+import { cn } from '../../../utils/cn';
 import StepFlow from '../components/StepFlow';
 import { useImageGeneration } from '../hooks/useImageGeneration';
 import TemplateResultStep from '../steps/TemplateResultStep';
 import { FORM_STEPS, getTypeConfig, getTemplateFieldConfig } from '../utils/typeConfig';
-
-import './TemplateStudioFlow.css';
 
 /**
  * TemplateStudioFlow - Unified flow for both template and KI image creation
@@ -209,17 +208,25 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
         <div className="type-selector-screen">
           <div className="type-selector-content">
             {flowTitle && (
-              <div className="template-studio-flow-header">
-                <h1>
+              <div className="flex flex-col mb-lg">
+                <h1 className="flex items-center justify-center gap-sm flex-wrap">
                   {flowTitle}
                   <StatusBadge type="early-access" variant="inline" />
                 </h1>
-                {flowSubtitle && <p className="flow-subtitle">{flowSubtitle}</p>}
+                {flowSubtitle && (
+                  <p className="text-base text-grey-500 mt-sm mb-0 leading-snug text-center max-[768px]:text-[0.9rem]">
+                    {flowSubtitle}
+                  </p>
+                )}
               </div>
             )}
 
             <div
-              className={`template-studio-flow${isWideStep ? ' template-studio-flow--wide' : ''}`}
+              className={cn(
+                'relative w-full max-w-[700px] mx-auto min-[1200px]:max-w-[900px] max-[768px]:p-0',
+                isWideStep &&
+                  'max-w-[1000px] min-[1200px]:max-w-[1200px] min-[1400px]:max-w-[1400px]'
+              )}
             >
               <AnimatePresence mode="wait">
                 <motion.div
@@ -229,7 +236,7 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
                   animate="center"
                   exit="exit"
                   transition={stepTransition}
-                  className="template-studio-flow__step"
+                  className="w-full"
                   onAnimationStart={handleAnimationStart}
                   onAnimationComplete={handleAnimationComplete}
                 >

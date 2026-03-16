@@ -21,7 +21,6 @@ import type {
   TemplateResultEditPanelProps,
   SloganAlternativeWithIndex,
 } from '../types/templateResultTypes';
-import './EditPanel.css';
 
 export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
   isOpen,
@@ -68,36 +67,52 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
   return (
     <AnimatePresence>
       <motion.div
-        className="edit-panel-overlay"
+        className="fixed inset-0 bg-[var(--overlay-dark-sm)] z-[1100] dark:bg-[var(--overlay-dark-md)]"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={handleOverlayClick}
       />
       <motion.div
-        className="edit-panel"
+        className={cn(
+          'fixed bg-background p-0 overflow-hidden z-[1101] flex flex-col',
+          // Mobile: bottom sheet
+          'bottom-0 left-0 right-0 max-h-[85vh] rounded-t-2xl shadow-[0_-4px_24px_rgba(0,0,0,0.12)]',
+          // Desktop: side panel
+          'lg:top-0 lg:right-0 lg:bottom-0 lg:left-auto lg:w-[480px] lg:max-h-screen lg:rounded-l-2xl lg:rounded-tr-none lg:shadow-[-4px_0_24px_rgba(0,0,0,0.12)]',
+          'min-[1440px]:w-[520px]',
+          'dark:shadow-[0_-4px_24px_rgba(0,0,0,0.4)] dark:lg:shadow-[-4px_0_24px_rgba(0,0,0,0.4)]'
+        )}
         initial={isDesktop ? { x: '100%' } : { y: '100%' }}
         animate={isDesktop ? { x: 0 } : { y: 0 }}
         exit={isDesktop ? { x: '100%' } : { y: '100%' }}
         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
       >
-        <div className="edit-panel__header">
-          <h3 className="edit-panel__title">Bild bearbeiten</h3>
-          <button className="edit-panel__close" onClick={onClose} aria-label="Panel schließen">
+        <div className="flex justify-between items-center px-lg py-md border-b border-[var(--border-subtle)] bg-background shrink-0">
+          <h3 className="m-0 text-lg font-semibold text-foreground-heading">Bild bearbeiten</h3>
+          <button
+            className="bg-transparent border-none cursor-pointer p-xs rounded-full flex items-center justify-center text-foreground transition-colors duration-200 hover:bg-background-alt [&_svg]:w-6 [&_svg]:h-6"
+            onClick={onClose}
+            aria-label="Panel schließen"
+          >
             <FaTimes />
           </button>
         </div>
 
-        <div className="edit-panel__content">
+        <div className="flex-1 overflow-y-auto p-lg pb-sm flex flex-col gap-md">
           {fieldConfig?.showImageUpload && (
-            <div className="edit-panel__section">
-              <h4>Hintergrundbild</h4>
-              <div className="image-change-control">
-                <div className="image-change-preview">
+            <div className="flex flex-col gap-sm">
+              <h4 className="m-0 text-base font-semibold text-foreground">Hintergrundbild</h4>
+              <div className="flex items-center gap-md">
+                <div className="w-16 h-16 rounded-md overflow-hidden shrink-0 bg-background-alt flex items-center justify-center">
                   {currentImagePreview ? (
-                    <img src={currentImagePreview} alt="Aktuelles Bild" />
+                    <img
+                      src={currentImagePreview}
+                      alt="Aktuelles Bild"
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
-                    <div className="image-change-placeholder">
+                    <div className="text-foreground opacity-50 [&_svg]:w-6 [&_svg]:h-6">
                       <FaImage />
                     </div>
                   )}
@@ -122,10 +137,10 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
             </div>
           )}
 
-          <div className="edit-panel__section">
-            <h4>Text</h4>
+          <div className="flex flex-col gap-sm">
+            <h4 className="m-0 text-base font-semibold text-foreground">Text</h4>
             {fieldConfig?.showGroupedFontSizeControl ? (
-              <div className="veranstaltung-fields-with-fontsize">
+              <div className="flex flex-col gap-sm">
                 {(fieldConfig?.previewFields || []).map((field) => {
                   const baseFontSizes: Record<string, number> = {
                     eventTitle: 94,
@@ -169,10 +184,10 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
           </div>
 
           {fieldConfig?.showAlternatives && (
-            <div className="edit-panel__section">
+            <div className="flex flex-col gap-sm">
               {displayAlternatives.length === 0 ? (
                 <button
-                  className={cn(btn.secondary, 'edit-panel__generate-alternatives')}
+                  className={btn.secondary}
                   onClick={onGenerateAlternatives}
                   disabled={loading || alternativesLoading}
                   type="button"
@@ -183,7 +198,11 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
               ) : (
                 <>
                   <button
-                    className={`edit-panel__section-toggle ${isAlternativesOpen ? 'edit-panel__section-toggle--open' : ''}`}
+                    className={cn(
+                      'flex items-center gap-sm w-full bg-transparent border-none cursor-pointer py-sm px-0 text-foreground text-base font-semibold transition-colors duration-200 hover:text-[var(--interactive-accent-color)]',
+                      '[&_svg:last-child]:ml-auto [&_svg:last-child]:transition-transform [&_svg:last-child]:duration-200',
+                      isAlternativesOpen && '[&_svg:last-child]:rotate-180'
+                    )}
                     onClick={() => setIsAlternativesOpen(!isAlternativesOpen)}
                     type="button"
                   >
@@ -195,17 +214,17 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
                   <AnimatePresence>
                     {isAlternativesOpen && (
                       <motion.div
-                        className="edit-panel__alternatives"
+                        className="overflow-hidden"
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.2 }}
                       >
-                        <div className="alternatives-pills">
+                        <div className="flex flex-wrap gap-xs py-sm">
                           {displayAlternatives.map((alt) => (
                             <button
                               key={alt._index}
-                              className="alternative-pill"
+                              className="bg-background-alt border border-grey-200 dark:border-grey-700 rounded-full px-sm py-xs text-sm cursor-pointer transition-all duration-200 max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap hover:bg-[var(--tanne-10)] hover:border-[var(--tanne)] hover:text-[var(--tanne)]"
                               onClick={() => handleSloganSwitch(alt, alt._index)}
                               disabled={loading}
                               type="button"
@@ -224,16 +243,16 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
 
           {(fieldConfig?.showCredit ||
             (fieldConfig?.showFontSizeControl && !fieldConfig?.showGroupedFontSizeControl)) && (
-            <div className="edit-panel__row">
+            <div className="flex flex-col gap-md min-[480px]:flex-row min-[480px]:items-stretch">
               {fieldConfig?.showCredit && (
-                <div className="edit-panel__section edit-panel__section--flex">
-                  <h4>Credit</h4>
+                <div className="flex flex-col gap-sm min-[480px]:flex-1 min-[480px]:min-w-0 min-[480px]:pr-md min-[480px]:border-r min-[480px]:border-[var(--border-subtle)]">
+                  <h4 className="m-0 text-base font-semibold text-foreground">Credit</h4>
                   <CreditControl credit={credit || ''} onControlChange={handleControlChange} />
                 </div>
               )}
               {fieldConfig?.showFontSizeControl && !fieldConfig?.showGroupedFontSizeControl && (
-                <div className="edit-panel__section edit-panel__section--auto">
-                  <h4>Schriftgröße</h4>
+                <div className="flex flex-col gap-sm min-[480px]:flex-none min-[480px]:pl-sm">
+                  <h4 className="m-0 text-base font-semibold text-foreground">Schriftgröße</h4>
                   <FontSizeControl
                     fontSize={fontSize}
                     onControlChange={handleControlChange}
@@ -245,8 +264,8 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
           )}
 
           {fieldConfig?.showColorControls && (
-            <div className="edit-panel__section">
-              <h4>Farbschema</h4>
+            <div className="flex flex-col gap-sm">
+              <h4 className="m-0 text-base font-semibold text-foreground">Farbschema</h4>
               <ColorSchemeControl
                 colorScheme={
                   (Array.isArray(colorScheme) ? colorScheme : []) as Array<{ background: string }>
@@ -259,7 +278,10 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
           {fieldConfig?.showAdvancedEditing && (
             <>
               <button
-                className={`edit-panel__advanced-toggle ${isAdvancedEditingOpen ? 'edit-panel__advanced-toggle--open' : ''}`}
+                className={cn(
+                  'flex items-center gap-sm bg-transparent border-none cursor-pointer py-sm px-0 text-foreground text-sm transition-colors duration-200 hover:text-[var(--interactive-accent-color)]',
+                  isAdvancedEditingOpen && '[&_svg:last-child]:rotate-180'
+                )}
                 onClick={toggleAdvancedEditing}
               >
                 <HiSparkles />
@@ -268,23 +290,23 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
               </button>
 
               {isAdvancedEditingOpen && (
-                <div className="advanced-controls-row">
-                  <div className="advanced-control-item">
-                    <h5>Balken</h5>
+                <div className="flex flex-wrap gap-md py-sm">
+                  <div className="flex flex-col gap-xs min-w-[120px]">
+                    <h5 className="m-0 text-sm font-semibold text-foreground">Balken</h5>
                     <BalkenOffsetControl
                       balkenOffset={balkenOffset || [50, -100, 50]}
                       onControlChange={handleControlChange}
                     />
                   </div>
-                  <div className="advanced-control-item">
-                    <h5>Gruppe</h5>
+                  <div className="flex flex-col gap-xs min-w-[120px]">
+                    <h5 className="m-0 text-sm font-semibold text-foreground">Gruppe</h5>
                     <BalkenGruppeControl
                       offset={balkenGruppenOffset || ([0, 0] as [number, number])}
                       onOffsetChange={(value) => handleControlChange('balkenGruppenOffset', value)}
                     />
                   </div>
-                  <div className="advanced-control-item">
-                    <h5>Sonnenblume</h5>
+                  <div className="flex flex-col gap-xs min-w-[120px]">
+                    <h5 className="m-0 text-sm font-semibold text-foreground">Sonnenblume</h5>
                     <SonnenblumenControl
                       offset={sunflowerOffset || ([0, 0] as [number, number])}
                       onOffsetChange={(value) => handleControlChange('sunflowerOffset', value)}
@@ -296,9 +318,9 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
           )}
         </div>
 
-        <div className="edit-panel__actions">
+        <div className="flex gap-md px-lg py-md border-t border-[var(--border-subtle)] bg-background shrink-0">
           <button
-            className={btn.primary}
+            className={cn(btn.primary, 'flex-1')}
             onClick={() => {
               onRegenerate();
               onClose();

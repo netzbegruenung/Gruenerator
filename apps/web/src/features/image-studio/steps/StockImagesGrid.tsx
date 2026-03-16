@@ -6,10 +6,10 @@ import UnsplashAttribution from '../../../components/common/UnsplashAttribution'
 import apiClient from '../../../components/utils/apiClient';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { btn } from '../../../utils/buttonStyles';
+import { cn } from '../../../utils/cn';
 import { useImageSourceStore } from '../hooks/useImageSourceStore';
 import { usePreloadStore } from '../hooks/usePreloadStore';
 import { type StockImage } from '../services/imageSourceService';
-import './StockImagesGrid.css';
 
 const CATEGORY_LABELS: Record<string, string> = {
   empfohlen: 'Empfohlen',
@@ -170,8 +170,8 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
 
   if (isLoadingStockImages && stockImages.length === 0) {
     return (
-      <div className="stock-images-grid__loading">
-        <div className="stock-images-grid__spinner" />
+      <div className="flex flex-col items-center justify-center gap-md p-xl text-center text-foreground opacity-70">
+        <div className="w-8 h-8 border-3 border-grey-300 border-t-primary-500 rounded-full animate-spin" />
         <p>Stock Bilder werden geladen...</p>
       </div>
     );
@@ -179,7 +179,7 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
 
   if (stockImagesError) {
     return (
-      <div className="stock-images-grid__error">
+      <div className="flex flex-col items-center justify-center gap-md p-xl text-center text-foreground opacity-70">
         <p>{stockImagesError}</p>
         <button type="button" className={btn.secondary} onClick={() => fetchStockImages()}>
           <HiRefresh /> Erneut versuchen
@@ -189,13 +189,18 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
   }
 
   return (
-    <div className="stock-images-grid">
-      <div className="stock-images-grid__filters">
+    <div className="flex flex-col gap-md w-full">
+      <div className="flex gap-xs flex-wrap pb-sm border-b border-grey-200 dark:border-grey-700">
         {categories.map((category) => (
           <button
             key={category}
             type="button"
-            className={`stock-images-grid__filter-pill ${currentCategory === category ? 'active' : ''}`}
+            className={cn(
+              'py-xxs px-sm border rounded-full text-[0.8125rem] cursor-pointer transition-all duration-200',
+              currentCategory === category
+                ? 'bg-primary-500 text-white border-primary-500'
+                : 'bg-background-alt text-foreground border-grey-200 dark:border-grey-700 hover:bg-grey-100 dark:hover:bg-grey-800'
+            )}
             onClick={() => handleCategoryChange(category)}
           >
             {CATEGORY_LABELS[category] || category}
@@ -203,7 +208,7 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
         ))}
       </div>
 
-      <div className="stock-images-grid__grid">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-lg p-xs max-[768px]:grid-cols-[repeat(auto-fill,minmax(120px,1fr))] max-[768px]:gap-md">
         <AnimatePresence>
           {filteredImages.map((image, index) => {
             const isSelected = selectedStockImage?.filename === image.filename;
@@ -212,7 +217,10 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
             return (
               <motion.div
                 key={image.filename}
-                className={`stock-images-grid__card ${isSelected ? 'selected' : ''}`}
+                className={cn(
+                  'relative aspect-square rounded-md overflow-hidden cursor-pointer bg-background-alt transition-all duration-200',
+                  isSelected && 'outline-3 outline-primary-500 outline-offset-2'
+                )}
                 onClick={() => handleImageClick(image)}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -225,22 +233,22 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
                   src={imgSrc}
                   alt={image.alt_text}
                   loading="lazy"
-                  className="stock-images-grid__image"
+                  className="w-full h-full object-cover"
                 />
 
                 {isSelected && (
-                  <div className="stock-images-grid__selected-overlay">
+                  <div className="absolute top-xs right-xs w-6 h-6 bg-primary-500 text-white rounded-full flex items-center justify-center text-sm">
                     <HiCheck />
                   </div>
                 )}
 
                 {recommendedImage?.filename === image.filename && !isSelected && (
-                  <div className="stock-images-grid__recommended-badge">
+                  <div className="absolute top-xs right-xs w-6 h-6 bg-[var(--sonne)] text-white rounded-full flex items-center justify-center text-sm">
                     <HiStar />
                   </div>
                 )}
 
-                <div className="stock-images-grid__attribution">
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent pt-md px-xs pb-xxs">
                   <UnsplashAttribution
                     photographer={image.attribution?.photographer || ''}
                     profileUrl={image.attribution?.profileUrl || ''}
@@ -254,7 +262,7 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
       </div>
 
       {filteredImages.length === 0 && !isLoadingStockImages && (
-        <div className="stock-images-grid__empty">
+        <div className="flex flex-col items-center justify-center gap-md p-xl text-center text-foreground opacity-70">
           <p>Keine Bilder in dieser Kategorie gefunden.</p>
         </div>
       )}
