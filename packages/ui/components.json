@@ -16,5 +16,9 @@
     "ui": "src/components",
     "lib": "src/lib",
     "hooks": "src/hooks"
+  },
+  "registries": {
+    "@magicui": "https://magicui.design/r/{name}",
+    "@ai-elements": "https://ai-sdk.dev/elements/api/registry/{name}.json"
   }
 }
