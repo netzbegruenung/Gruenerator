@@ -76,7 +76,12 @@ export function ExcalidrawBoard({ ydoc, provider, isSynced }: ExcalidrawBoardPro
     const yElements = ydoc.getArray('elements');
     const yAssets = ydoc.getMap('assets');
 
-    const binding = new ExcalidrawBinding(yElements, yAssets, api, provider.awareness);
+    const binding = new ExcalidrawBinding(
+      yElements as any,
+      yAssets,
+      api,
+      provider.awareness ?? undefined
+    );
     bindingRef.current = binding;
 
     return () => {

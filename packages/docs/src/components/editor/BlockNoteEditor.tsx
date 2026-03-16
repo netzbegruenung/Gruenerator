@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, useCallback, memo } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+  useSyncExternalStore,
+  memo,
+} from 'react';
 import { createPortal } from 'react-dom';
 import {
   BlockNoteEditor as BlockNoteEditorCore,
@@ -67,6 +75,20 @@ interface CollaborationUser {
   id: string;
   name: string;
   color: string;
+}
+
+function subscribeToTheme(callback: () => void) {
+  const observer = new MutationObserver(callback);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  return () => observer.disconnect();
+}
+
+function getThemeSnapshot(): 'light' | 'dark' {
+  return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+}
+
+function useDocumentTheme(): 'light' | 'dark' {
+  return useSyncExternalStore(subscribeToTheme, getThemeSnapshot);
 }
 
 const EDITOR_DOM_ATTRIBUTES = {
@@ -149,6 +171,7 @@ const BlockNoteEditorInner = ({
   const adapter = useDocsAdapter();
   const isTouchDevice = useIsTouchDevice();
   const toolbarMode = useEditorPreferencesStore((s) => s.toolbarMode);
+  const theme = useDocumentTheme();
   const staticToolbar = useStaticFormattingToolbar || isTouchDevice || toolbarMode === 'fixed';
   const getMentionMenuItems = useMentionUsers(provider ?? null);
   const hasInitialized = useRef(false);
@@ -299,7 +322,7 @@ const BlockNoteEditorInner = ({
   return (
     <div className={`blocknote-wrapper${staticToolbar ? ' blocknote-static-toolbar' : ''}`}>
       <ErrorBoundary>
-        <BlockNoteView editor={editor} theme="light" formattingToolbar={false} slashMenu={false}>
+        <BlockNoteView editor={editor} theme={theme} formattingToolbar={false} slashMenu={false}>
           <AIMenuController />
           {staticToolbar ? (
             <FormattingToolbar>

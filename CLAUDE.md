@@ -520,13 +520,11 @@ import { cn } from "@/lib/utils"
 import { cn } from "../../lib/utils"
 ```
 
-### Docs App (Mantine)
+### Docs App
 
-`apps/docs` uses **Mantine v8** (not Tailwind/shadcn). `MantineProvider` lives in each page component (e.g., `EditorPage.tsx`) with `forceColorScheme={colorScheme}`.
+`apps/docs` and `packages/docs` use **`@blocknote/shadcn`** for the editor UI. Dark mode is driven by the `data-theme` attribute on `document.documentElement` — `BlockNoteEditor` reads it via `useSyncExternalStore` + `MutationObserver`.
 
-- **Color**: Mantine defaults to blue. Always pass `color="var(--primary-600)"` on `Button`, `Badge`, etc. to use the Grünerator green (`#316049`). Destructive actions use `color="red"`.
-- **z-index**: Modals use `z-index: 1000`. Mantine `Select`/`Combobox` dropdowns default to ~300 and render in a portal — pass `comboboxProps={{ zIndex: 1100 }}` inside modals.
-- **Avatars**: Use `getAvatarDisplayProps()` and `getRobotAvatarPath()` from `@gruenerator/shared/avatar` — renders robot SVGs (`/images/profileimages/{1-9}.svg`) or initials. Don't use Mantine `Avatar`.
+- **Avatars**: Use `getAvatarDisplayProps()` and `getRobotAvatarPath()` from `@gruenerator/shared/avatar` — renders robot SVGs (`/images/profileimages/{1-9}.svg`) or initials.
 
 ### State Management
 

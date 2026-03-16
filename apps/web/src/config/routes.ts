@@ -213,7 +213,6 @@ const GruenblogNotebookPage = lazy(() =>
     default: m.createNotebookPage('gruenblog'),
   }))
 );
-const NotebooksGalleryPage = lazy(() => import('../features/notebook/pages/NotebooksGalleryPage'));
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const SharedVideoPage = lazy(() => import('../features/subtitler/components/SharedVideoPage'));
@@ -278,22 +277,65 @@ const ScannerPage = lazy(() =>
       }),
   }))
 );
-const ToolsPage = lazy(() => import('../features/tools/ToolsPage'));
-const GruenOMatDemoPage = lazy(() => import('../features/gruen-o-mat/GruenOMatDemoPage'));
-const ResearchPage = lazy(() => import('../features/research/ResearchPage'));
-const DocsListPage = lazy(() =>
+const TranskriptionPage = lazy(() =>
   Promise.all([
-    import('../features/docs/DocsListPage'),
+    import('../features/transkription/TranskriptionPage'),
     import('../components/common/BetaFeatureWrapper'),
-  ]).then(([docsModule, wrapperModule]) => ({
+  ]).then(([pageModule, wrapperModule]) => ({
     default: (props: Record<string, unknown>) =>
       wrapperModule.default({
-        children: createElement(docsModule.default, props),
-        featureKey: 'docs',
+        children: createElement(pageModule.default, props),
+        featureKey: 'scanner',
         fallbackPath: '/profile?tab=labor',
       }),
   }))
 );
+const ToolsPage = lazy(() => import('../features/tools/ToolsPage'));
+const DeskPage = lazy(() => import('../features/workplace/WorkplacePage'));
+const RecherchePage = lazy(() => import('../features/recherche/RecherchePage'));
+const GruppenPage = lazy(() =>
+  Promise.all([
+    import('../features/groups/pages/GruppenPage'),
+    import('../components/common/BetaFeatureWrapper'),
+  ]).then(([gruppenModule, wrapperModule]) => ({
+    default: (props: Record<string, unknown>) =>
+      wrapperModule.default({
+        children: createElement(gruppenModule.default, props),
+        featureKey: 'groups',
+        fallbackPath: '/',
+      }),
+  }))
+);
+const BoardsListPage = lazy(() =>
+  Promise.all([
+    import('../features/boards/BoardsListPage'),
+    import('../components/common/BetaFeatureWrapper'),
+  ]).then(([boardsModule, wrapperModule]) => ({
+    default: (props: Record<string, unknown>) =>
+      wrapperModule.default({
+        children: createElement(boardsModule.default, props),
+        featureKey: 'boards',
+        fallbackPath: '/profile?tab=labor',
+      }),
+  }))
+);
+const BoardPage = lazy(() =>
+  Promise.all([
+    import('../features/boards/BoardPage'),
+    import('../components/common/BetaFeatureWrapper'),
+  ]).then(([boardsModule, wrapperModule]) => ({
+    default: (props: Record<string, unknown>) =>
+      wrapperModule.default({
+        children: createElement(boardsModule.default, props),
+        featureKey: 'boards',
+        fallbackPath: '/profile?tab=labor',
+      }),
+  }))
+);
+const PublicBoardPage = lazy(() => import('../features/boards/PublicBoardPage'));
+const GruenOMatDemoPage = lazy(() => import('../features/gruen-o-mat/GruenOMatDemoPage'));
+const ResearchPage = lazy(() => import('../features/research/ResearchPage'));
+const DocsListRedirect = lazy(() => Promise.resolve({ default: createRedirect('/desk') }));
 const DocsEditorPage = lazy(() =>
   Promise.all([
     import('../features/docs/DocsEditorPage'),
@@ -333,7 +375,6 @@ export const GrueneratorenBundle = {
   KommunalwikiNotebook: KommunalwikiNotebookPage,
   BoellStiftungNotebook: BoellStiftungNotebookPage,
   GruenblogNotebook: GruenblogNotebookPage,
-  NotebooksGallery: NotebooksGalleryPage,
   DocumentView: DocumentViewPage,
   AntraegeListe: GalleryPage,
   AntragDetail: AntragDetailPage,
@@ -349,6 +390,7 @@ export const GrueneratorenBundle = {
   MobileEditor: MobileEditorPage,
   DatabaseIndex: DatabaseIndexPage,
   Scanner: ScannerPage,
+  Transkription: TranskriptionPage,
 } as const;
 
 // Route Konfigurationen
@@ -371,6 +413,10 @@ const standardRoutes: RouteConfig[] = [
   { path: '/leichte-sprache', component: LeichteSpracheRedirect },
   { path: '/gruene-jugend', component: GrueneratorenBundle.GrueneJugend, withForm: true },
   { path: '/tools', component: ToolsPage },
+  { path: '/desk', component: DeskPage },
+  { path: '/recherche', component: RecherchePage },
+  { path: '/gruppen', component: GruppenPage },
+  { path: '/gruppen/:groupId', component: GruppenPage },
   { path: '/gruen-o-mat', component: GruenOMatDemoPage },
   { path: '/research', component: ResearchPage },
   { path: '/datenbank', component: GrueneratorenBundle.DatabaseIndex },
@@ -419,11 +465,18 @@ const standardRoutes: RouteConfig[] = [
   { path: '/kommunalwiki', component: GrueneratorenBundle.KommunalwikiNotebook, withForm: true },
   { path: '/boell-stiftung', component: GrueneratorenBundle.BoellStiftungNotebook, withForm: true },
   { path: '/gruenblog', component: GrueneratorenBundle.GruenblogNotebook, withForm: true },
-  { path: '/notebook', component: GrueneratorenBundle.NotebooksGallery },
-  { path: '/notebooks', component: GrueneratorenBundle.NotebooksGallery },
+  {
+    path: '/notebook',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/recherche') })),
+  },
+  {
+    path: '/notebooks',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/recherche') })),
+  },
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
   { path: '/reel', component: GrueneratorenBundle.Reel },
   { path: '/scanner', component: GrueneratorenBundle.Scanner },
+  { path: '/transkription', component: GrueneratorenBundle.Transkription },
   { path: '/subtitler/share/:shareToken', component: SharedVideoPage, showHeaderFooter: false },
   { path: '/share/:shareToken', component: SharedMediaPage, showHeaderFooter: false },
   { path: '/gruenerator/erstellen', component: CreateCustomGeneratorPage, withForm: true },
@@ -470,8 +523,11 @@ const standardRoutes: RouteConfig[] = [
   { path: '/pages/example-custom', component: GrueneratorenBundle.CustomExamplePage },
   { path: '/pages/:pageId', component: GrueneratorenBundle.DynamicPageView },
   // Docs collaborative editor
-  { path: '/docs', component: DocsListPage },
+  { path: '/docs', component: DocsListRedirect },
   { path: '/docs/:id', component: DocsEditorPage, showHeaderFooter: false },
+  { path: '/boards', component: BoardsListPage },
+  { path: '/boards/public/:id', component: PublicBoardPage, showHeaderFooter: false },
+  { path: '/boards/:id', component: BoardPage, showHeaderFooter: false },
   { path: '*', component: NotFound },
 ];
 
