@@ -107,7 +107,7 @@ export class AuthService {
       const result = await this.db(
         `SELECT created_by, permissions, share_mode, share_permission
          FROM collaborative_documents
-         WHERE id = $1 AND document_subtype = 'docs' AND is_deleted = false`,
+         WHERE id = $1 AND is_deleted = false`,
         [documentId]
       );
 
@@ -163,6 +163,114 @@ export class AuthService {
     }
   }
 
+  private async checkRoomAccess(
+    documentName: string,
+    userId: string
+  ): Promise<AuthenticationResult> {
+    if (documentName.startsWith('chat-')) {
+      const threadId = documentName.replace('chat-', '');
+      return this.checkChatThreadAccess(threadId, userId);
+    }
+
+    if (documentName.startsWith('group-presence-')) {
+      const groupId = documentName.replace('group-presence-', '');
+      return this.checkGroupPresenceAccess(groupId, userId);
+    }
+
+    return this.checkDocumentPermissions(documentName, userId);
+  }
+
+  private async checkChatThreadAccess(
+    threadId: string,
+    userId: string
+  ): Promise<AuthenticationResult> {
+    log.info(`[Auth-Chat] Checking thread access: ${threadId} for user: ${userId}`);
+
+    const directAccess = await this.db(
+      `SELECT user_id, permissions, is_public FROM chat_threads
+       WHERE id = $1 LIMIT 1`,
+      [threadId]
+    );
+
+    if ((directAccess as unknown[]).length === 0) {
+      log.warn(`[Auth-Chat] Thread ${threadId} not found`);
+      return { authenticated: false, reason: 'Thread not found' };
+    }
+
+    const thread = directAccess[0] as {
+      user_id: string;
+      permissions: Record<string, unknown> | null;
+      is_public: boolean;
+    };
+
+    const isOwner = thread.user_id === userId;
+    const hasDirectPermission = thread.permissions && userId in thread.permissions;
+    const isPublic = thread.is_public;
+
+    if (isOwner || hasDirectPermission || isPublic) {
+      const userResult = await this.db('SELECT display_name FROM profiles WHERE id = $1', [userId]);
+      log.info(
+        `[Auth-Chat] SUCCESS: User ${userId} has ${isOwner ? 'owner' : 'direct/public'} access to thread ${threadId}`
+      );
+      return {
+        authenticated: true,
+        userId,
+        userName: (userResult[0]?.display_name as string) || 'Unknown User',
+        readOnly: !isOwner,
+      };
+    }
+
+    const groupAccess = await this.db(
+      `SELECT 1 FROM group_content_shares gcs
+       INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id
+       WHERE gcs.content_type = 'chat_threads'
+       AND gcs.content_id = $1::uuid
+       AND gm.user_id = $2::uuid
+       LIMIT 1`,
+      [threadId, userId]
+    );
+
+    if ((groupAccess as unknown[]).length > 0) {
+      const userResult = await this.db('SELECT display_name FROM profiles WHERE id = $1', [userId]);
+      log.info(`[Auth-Chat] SUCCESS: User ${userId} has group access to thread ${threadId}`);
+      return {
+        authenticated: true,
+        userId,
+        userName: (userResult[0]?.display_name as string) || 'Unknown User',
+        readOnly: true,
+      };
+    }
+
+    log.warn(`[Auth-Chat] FAILED: User ${userId} has no access to thread ${threadId}`);
+    return { authenticated: false, reason: 'No access to this chat thread' };
+  }
+
+  private async checkGroupPresenceAccess(
+    groupId: string,
+    userId: string
+  ): Promise<AuthenticationResult> {
+    log.info(`[Auth-Presence] Checking group presence: ${groupId} for user: ${userId}`);
+
+    const membership = await this.db(
+      'SELECT 1 FROM group_memberships WHERE group_id = $1 AND user_id = $2::uuid LIMIT 1',
+      [groupId, userId]
+    );
+
+    if ((membership as unknown[]).length === 0) {
+      log.warn(`[Auth-Presence] FAILED: User ${userId} is not a member of group ${groupId}`);
+      return { authenticated: false, reason: 'Not a member of this group' };
+    }
+
+    const userResult = await this.db('SELECT display_name FROM profiles WHERE id = $1', [userId]);
+    log.info(`[Auth-Presence] SUCCESS: User ${userId} authenticated for group presence ${groupId}`);
+    return {
+      authenticated: true,
+      userId,
+      userName: (userResult[0]?.display_name as string) || 'Unknown User',
+      readOnly: false,
+    };
+  }
+
   private async checkDocumentPermissions(
     documentName: string,
     userId: string
@@ -171,7 +279,7 @@ export class AuthService {
     const docResult = await this.db(
       `SELECT created_by, permissions, is_public, share_mode, share_permission, is_deleted
        FROM collaborative_documents
-       WHERE id = $1 AND document_subtype = 'docs'`,
+       WHERE id = $1`,
       [documentName]
     );
 
@@ -312,7 +420,7 @@ export class AuthService {
       const userId = payload.sub as string;
       log.info(`[Auth-Token] Token validated for user: ${userId}`);
 
-      return this.checkDocumentPermissions(documentName, userId);
+      return this.checkRoomAccess(documentName, userId);
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       log.warn(`[Auth-Token] JWT validation failed: ${err.message}`);
@@ -373,6 +481,6 @@ export class AuthService {
     }
 
     log.info(`[Auth-Cookie] User ID from session: ${userId}`);
-    return this.checkDocumentPermissions(documentName, userId);
+    return this.checkRoomAccess(documentName, userId);
   }
 }
