@@ -22,13 +22,14 @@ import { qualityGateNode } from '../../agents/langgraph/ChatGraph/nodes/qualityG
 import { rerankNode } from '../../agents/langgraph/ChatGraph/nodes/rerankNode.js';
 import {
   initializeSearchState,
-  queryOptimizerNode,
   searchExecutorNode,
   deepResearchNode,
   searchRespondNode,
   suggestFollowUpsNode,
   setResearchProgressCallback,
 } from '../../agents/langgraph/SearchGraph/index.js';
+import { intelligentCrawlNode } from '../../agents/langgraph/SearchGraph/nodes/intelligentCrawlNode.js';
+import { queryPlannerNode } from '../../agents/langgraph/SearchGraph/nodes/queryPlannerNode.js';
 import { createLogger } from '../../utils/logger.js';
 import {
   resolveModel,
@@ -157,9 +158,9 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
-    // ── Step 1: Query Optimization ──
-    sse.sendRaw('search_start', { message: 'Optimiere Suchanfrage...' });
-    state = mergeState(state, await queryOptimizerNode(state));
+    // ── Step 1: Query Planning ──
+    sse.sendRaw('search_start', { message: 'Analysiere Suchanfrage...' });
+    state = mergeState(state, await queryPlannerNode(state));
 
     if (abortController.signal.aborted) {
       sse.end();
@@ -188,6 +189,17 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
 
     // ── Sources Preview (BEFORE answer — Perplexity-style) ──
     sse.sendRaw('sources_preview', buildSourcesPreview(state));
+
+    // ── Step 2b: Intelligent Crawl (web mode only — enriches top results with full content) ──
+    if (state.searchMode !== 'deep' && state.searchResults.length > 0) {
+      sse.sendRaw('research_step', { step: 'crawling', message: 'Lese relevante Quellen...' });
+      state = mergeState(state, await intelligentCrawlNode(state));
+    }
+
+    if (abortController.signal.aborted) {
+      sse.end();
+      return;
+    }
 
     // ── Step 3: Rerank ──
     if (state.searchResults.length > 3) {
@@ -243,7 +255,7 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
     const fullText = await streamAndAccumulate({
       model: aiModel,
       messages: messagesForAI,
-      maxTokens: state.searchMode === 'deep' ? 4000 : 2000,
+      maxTokens: state.searchMode === 'deep' ? 4000 : 3000,
       temperature: 0.3,
       sse,
       logPrefix: '[SearchGraph]',

@@ -90,6 +90,9 @@ const SearchStateAnnotation = Annotation.Root({
   complexity: Annotation<'simple' | 'moderate' | 'complex'>({
     reducer: (x, y) => y ?? x ?? 'simple',
   }),
+  queryType: Annotation<string>({
+    reducer: (x, y) => y ?? x ?? 'general',
+  }),
 
   // Search scoping (needed by reused nodes)
   intent: Annotation<'search' | 'web'>({
@@ -179,6 +182,9 @@ const SearchStateAnnotation = Annotation.Root({
   searchTimeMs: Annotation<number>({
     reducer: (x, y) => y ?? x ?? 0,
   }),
+  crawlTimeMs: Annotation<number>({
+    reducer: (x, y) => y ?? x ?? 0,
+  }),
   rerankTimeMs: Annotation<number>({
     reducer: (x, y) => y ?? x ?? 0,
   }),
@@ -198,7 +204,7 @@ type SearchState = typeof SearchStateAnnotation.State;
 /**
  * Route after query optimization: web mode → searchExecutor, deep mode → deepResearch.
  */
-function routeAfterOptimization(state: SearchState): 'searchExecutor' | 'deepResearch' {
+function routeAfterPlanning(state: SearchState): 'searchExecutor' | 'deepResearch' {
   if (state.searchMode === 'deep') {
     log.info('[SearchGraph] Route: queryOptimizer → deepResearch');
     return 'deepResearch';
@@ -229,31 +235,35 @@ function routeAfterQualityGate(state: SearchState): 'searchExecutor' | 'searchRe
  */
 function createSearchGraph() {
   const graph = new StateGraph(SearchStateAnnotation)
-    .addNode('queryOptimizer', queryOptimizerNode as any)
+    .addNode('queryPlanner', queryPlannerNode as any)
     .addNode('searchExecutor', searchExecutorNode as any)
+    .addNode('intelligentCrawl', intelligentCrawlNode as any)
     .addNode('deepResearch', deepResearchNode as any)
     .addNode('rerank', rerankNode as any)
     .addNode('qualityGate', qualityGateNode as any)
     .addNode('searchRespond', searchRespondNode as any)
     .addNode('suggestFollowUps', suggestFollowUpsNode as any)
 
-    // START → queryOptimizer
-    .addEdge('__start__', 'queryOptimizer')
+    // START → queryPlanner
+    .addEdge('__start__', 'queryPlanner')
 
-    // queryOptimizer → conditional: searchExecutor or deepResearch
-    .addConditionalEdges('queryOptimizer', routeAfterOptimization, {
+    // queryPlanner → conditional: web path or deep path
+    .addConditionalEdges('queryPlanner', routeAfterPlanning, {
       searchExecutor: 'searchExecutor',
       deepResearch: 'deepResearch',
     })
 
-    // Both search paths → rerank
-    .addEdge('searchExecutor', 'rerank')
+    // Web path: search → crawl top URLs → rerank
+    .addEdge('searchExecutor', 'intelligentCrawl')
+    .addEdge('intelligentCrawl', 'rerank')
+
+    // Deep path: full research pipeline → rerank
     .addEdge('deepResearch', 'rerank')
 
     // rerank → qualityGate
     .addEdge('rerank', 'qualityGate')
 
-    // qualityGate → conditional: loop or respond
+    // qualityGate → conditional: loop back to search or proceed to respond
     .addConditionalEdges('qualityGate', routeAfterQualityGate, {
       searchExecutor: 'searchExecutor',
       searchRespond: 'searchRespond',
@@ -295,6 +305,7 @@ export async function initializeSearchState(input: SearchGraphInput): Promise<Se
     subQueries: null,
     hasTemporal: false,
     complexity: input.searchMode === 'deep' ? 'complex' : 'simple',
+    queryType: 'general',
 
     intent: 'search',
     searchSources: ['documents', 'web'],
@@ -324,6 +335,7 @@ export async function initializeSearchState(input: SearchGraphInput): Promise<Se
     startTime: Date.now(),
     queryOptimizeTimeMs: 0,
     searchTimeMs: 0,
+    crawlTimeMs: 0,
     rerankTimeMs: 0,
     searchedCollections: [],
     responseTimeMs: 0,

@@ -34,7 +34,7 @@ const MODE_CONFIG: Array<{
   Icon: typeof MessageSquare;
 }> = [
   { mode: 'chat', label: 'Chat', description: 'Vollständiger Assistent', Icon: MessageSquare },
-  { mode: 'notebook', label: 'Notizbuch', description: 'Dokument-Suche', Icon: BookOpen },
+  { mode: 'notebook', label: 'Notebook', description: 'Dokument-Suche', Icon: BookOpen },
   { mode: 'search', label: 'Suche', description: 'Web & Recherche', Icon: Search },
 ];
 
@@ -64,6 +64,13 @@ export function ToolToggles() {
         width="w-64"
         showChevron={false}
         trigger={<Wrench className="h-4 w-4" />}
+        badge={
+          threadMode !== 'chat' ? (
+            <span className="rounded-full bg-primary-100 px-1.5 py-0.5 text-[10px] font-medium leading-none text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
+              {MODE_CONFIG.find((m) => m.mode === threadMode)?.label}
+            </span>
+          ) : undefined
+        }
       >
         {/* Thread Mode */}
         {MODE_CONFIG.map(({ mode, label, description, Icon }) => (
