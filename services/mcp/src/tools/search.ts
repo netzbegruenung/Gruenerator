@@ -288,14 +288,14 @@ async function searchSingleCollectionWithCache({
   filters: Record<string, string> | null;
   useCache: boolean;
 }) {
-  const collectionConfig = config.collections[collectionKey];
+  const collectionConfig = config.collections[collectionKey]!;
 
   try {
     if (useCache) {
       const cachedResults = getCachedSearch(collectionKey, query, searchMode, filters);
-      if (cachedResults) {
+      if (cachedResults && typeof cachedResults === 'object') {
         console.error(`[Search] Cache hit for "${query.substring(0, 30)}..."`);
-        return { ...cachedResults, cached: true };
+        return { ...(cachedResults as Record<string, unknown>), cached: true };
       }
     }
 
@@ -370,11 +370,12 @@ async function searchSingleCollectionWithCache({
     }
 
     return response;
-  } catch (error) {
-    console.error('[Search] Fehler:', error.message);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[Search] Fehler:', message);
     return {
       error: true,
-      message: `Suchfehler: ${error.message}`,
+      message: `Suchfehler: ${message}`,
     };
   }
 }
@@ -406,9 +407,9 @@ async function searchMultipleCollections({
   const cacheKey = `country:${country}`;
   if (useCache) {
     const cachedResults = getCachedSearch(cacheKey, query, searchMode, filters);
-    if (cachedResults) {
+    if (cachedResults && typeof cachedResults === 'object') {
       console.error(`[Search] Cache hit for country search "${query.substring(0, 30)}..."`);
-      return { ...cachedResults, cached: true };
+      return { ...(cachedResults as Record<string, unknown>), cached: true };
     }
   }
 
@@ -515,11 +516,12 @@ async function searchMultipleCollections({
     }
 
     return response;
-  } catch (error) {
-    console.error('[Search] Multi-collection search error:', error.message);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[Search] Multi-collection search error:', message);
     return {
       error: true,
-      message: `Suchfehler: ${error.message}`,
+      message: `Suchfehler: ${message}`,
     };
   }
 }

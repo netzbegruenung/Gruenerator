@@ -5,14 +5,13 @@ import {
   calculateTextSearchScore,
   DEFAULT_HYBRID_CONFIG,
 } from '@gruenerator/shared/search/vector';
+import { type VectorSearchResult, type TextSearchResult } from '@gruenerator/shared/search/vector';
 import { generateQueryVariants, tokenizeQuery, normalizeQuery } from '@gruenerator/shared/utils';
 import { QdrantClient } from '@qdrant/js-client-rest';
 
 import { config } from '../config.ts';
 
-// Import shared search algorithms
-
-let client = null;
+let client: QdrantClient | null = null;
 
 // Use shared hybrid config with MCP-specific overrides
 const hybridConfig = {
@@ -23,12 +22,12 @@ const hybridConfig = {
   confidencePenalty: 0.9,
 };
 
-export async function getQdrantClient() {
+export async function getQdrantClient(): Promise<QdrantClient> {
   if (client) {
     return client;
   }
 
-  const url = new URL(config.qdrant.url);
+  const url = new URL(config.qdrant.url!);
 
   const clientConfig: Record<string, unknown> = {
     host: url.hostname,
@@ -52,9 +51,9 @@ export async function getQdrantClient() {
   try {
     await client.getCollections();
     console.error('[Qdrant] Verbindung hergestellt');
-  } catch (error) {
-    console.error('[Qdrant] Verbindungsfehler:', error.message);
-    throw error;
+  } catch (err) {
+    console.error('[Qdrant] Verbindungsfehler:', err instanceof Error ? err.message : String(err));
+    throw err;
   }
 
   return client;
@@ -63,8 +62,15 @@ export async function getQdrantClient() {
 /**
  * Merge base filter with additional filter
  */
-function mergeFilters(baseFilter, additionalFilter) {
-  if (!additionalFilter) return baseFilter;
+interface QdrantFilter {
+  must?: unknown[];
+}
+
+function mergeFilters(
+  baseFilter: QdrantFilter | null | undefined,
+  additionalFilter: QdrantFilter | null | undefined
+): QdrantFilter | undefined {
+  if (!additionalFilter) return baseFilter ?? undefined;
   if (!baseFilter) return additionalFilter;
 
   const must = [...(baseFilter.must || []), ...(additionalFilter.must || [])];
@@ -83,33 +89,37 @@ export async function searchCollection(
 ) {
   const qdrant = await getQdrantClient();
 
-  const searchParams: Record<string, unknown> = {
+  const results = await qdrant.search(collectionName, {
     vector: embedding,
     limit: limit,
     with_payload: true,
-  };
+    ...(filter ? { filter: filter as Record<string, unknown> } : {}),
+  });
 
-  if (filter) {
-    searchParams.filter = filter;
-  }
-
-  const results = await qdrant.search(collectionName, searchParams);
-
-  return results.map((hit) => ({
-    score: hit.score,
-    title: hit.payload?.title || hit.payload?.metadata?.title || 'Unbekannt',
-    text: hit.payload?.chunk_text || '',
-    url: hit.payload?.url || hit.payload?.source_url || hit.payload?.metadata?.url || null,
-    documentId: hit.payload?.document_id,
-    filename: hit.payload?.filename || hit.payload?.metadata?.filename,
-    qualityScore: hit.payload?.quality_score,
-  }));
+  return results.map((hit) => {
+    const payload = hit.payload as Record<string, unknown> | undefined;
+    const metadata = payload?.metadata as Record<string, unknown> | undefined;
+    return {
+      score: hit.score,
+      title: payload?.title || metadata?.title || 'Unbekannt',
+      text: payload?.chunk_text || '',
+      url: payload?.url || payload?.source_url || metadata?.url || null,
+      documentId: payload?.document_id,
+      filename: payload?.filename || metadata?.filename,
+      qualityScore: payload?.quality_score,
+    };
+  });
 }
 
 /**
  * Text search using Qdrant's scroll API with query variants
  */
-async function performTextSearch(collectionName, searchTerm, limit = 10, baseFilter = null) {
+async function performTextSearch(
+  collectionName: string,
+  searchTerm: string,
+  limit = 10,
+  baseFilter: QdrantFilter | Record<string, unknown> | null = null
+) {
   const qdrant = await getQdrantClient();
 
   const variants = generateQueryVariants(searchTerm);
@@ -120,10 +130,10 @@ async function performTextSearch(collectionName, searchTerm, limit = 10, baseFil
       const textFilter = {
         must: [{ key: 'chunk_text', match: { text: variant } }],
       };
-      const combinedFilter = mergeFilters(textFilter, baseFilter);
+      const combinedFilter = mergeFilters(textFilter, baseFilter as QdrantFilter | null);
 
       const scrollResult = await qdrant.scroll(collectionName, {
-        filter: combinedFilter,
+        filter: combinedFilter as Record<string, unknown> | undefined,
         limit: Math.ceil(limit / variants.length) + 5,
         with_payload: true,
         with_vector: false,
@@ -134,7 +144,10 @@ async function performTextSearch(collectionName, searchTerm, limit = 10, baseFil
         matchType: variant === searchTerm.toLowerCase() ? 'exact' : 'variant',
       };
     } catch (err) {
-      console.error(`[TextSearch] Variant "${variant}" failed:`, err.message);
+      console.error(
+        `[TextSearch] Variant "${variant}" failed:`,
+        err instanceof Error ? err.message : String(err)
+      );
       return { variant, points: [], matchType: 'error' };
     }
   });
@@ -170,10 +183,10 @@ async function performTextSearch(collectionName, searchTerm, limit = 10, baseFil
       const tokenSearchPromises = tokens.map(async (tok) => {
         try {
           const tokenFilter = { must: [{ key: 'chunk_text', match: { text: tok } }] };
-          const combinedFilter = mergeFilters(tokenFilter, baseFilter);
+          const combinedFilter = mergeFilters(tokenFilter, baseFilter as QdrantFilter | null);
 
           const tokRes = await qdrant.scroll(collectionName, {
-            filter: combinedFilter,
+            filter: combinedFilter as Record<string, unknown> | undefined,
             limit: Math.ceil(limit / tokens.length) + 3,
             with_payload: true,
             with_vector: false,
@@ -204,12 +217,15 @@ async function performTextSearch(collectionName, searchTerm, limit = 10, baseFil
     `[TextSearch] Found ${mergedPoints.length} unique results (matchType: ${matchType})`
   );
 
-  return mergedPoints.map(({ point }, index) => ({
-    id: point.id,
-    score: calculateTextSearchScore(searchTerm, point.payload?.chunk_text, index),
-    payload: point.payload,
-    matchType,
-  }));
+  return mergedPoints.map(({ point }, index) => {
+    const payload = point.payload as Record<string, unknown> | undefined;
+    return {
+      id: point.id,
+      score: calculateTextSearchScore(searchTerm, payload?.chunk_text as string | undefined, index),
+      payload,
+      matchType,
+    };
+  });
 }
 
 // calculateTextSearchScore is imported from @gruenerator/shared
@@ -217,7 +233,12 @@ async function performTextSearch(collectionName, searchTerm, limit = 10, baseFil
 /**
  * Apply Reciprocal Rank Fusion - uses shared implementation
  */
-function applyRRF(vectorResults, textResults, limit, k = 60) {
+function applyRRF(
+  vectorResults: VectorSearchResult[],
+  textResults: TextSearchResult[],
+  limit: number,
+  k = 60
+) {
   return applyReciprocalRankFusion(vectorResults, textResults, limit, k, hybridConfig);
 }
 
@@ -225,11 +246,11 @@ function applyRRF(vectorResults, textResults, limit, k = 60) {
  * Apply weighted combination - uses shared implementation
  */
 function applyWeightedCombinationLocal(
-  vectorResults,
-  textResults,
-  vectorWeight,
-  textWeight,
-  limit
+  vectorResults: VectorSearchResult[],
+  textResults: TextSearchResult[],
+  vectorWeight: number,
+  textWeight: number,
+  limit: number
 ) {
   return applyWeightedCombination(vectorResults, textResults, vectorWeight, textWeight, limit);
 }
@@ -237,7 +258,7 @@ function applyWeightedCombinationLocal(
 /**
  * Apply quality gate filtering - uses shared implementation
  */
-function applyQualityGateLocal(results, hasTextMatches) {
+function applyQualityGateLocal(results: VectorSearchResult[], hasTextMatches: boolean) {
   return applyQualityGate(results, hasTextMatches, hybridConfig);
 }
 
@@ -287,28 +308,28 @@ export async function hybridSearchCollection(
 
   // Vector search
   const vectorLimit = limit * 6;
-  const vectorSearchParams: Record<string, unknown> = {
+
+  const vectorResults = await qdrant.search(collectionName, {
     vector: embedding,
     limit: vectorLimit,
     score_threshold: threshold,
     with_payload: true,
-  };
+    ...(filter ? { filter: filter as Record<string, unknown> } : {}),
+  });
 
-  if (filter) {
-    vectorSearchParams.filter = filter;
-  }
-
-  const vectorResults = await qdrant.search(collectionName, vectorSearchParams);
-
-  const mappedVectorResults = vectorResults.map((hit) => ({
-    id: hit.id,
-    score: hit.score,
-    payload: hit.payload,
-    title: hit.payload?.title || hit.payload?.metadata?.title || 'Unbekannt',
-    text: hit.payload?.chunk_text || '',
-    url: hit.payload?.url || hit.payload?.source_url || hit.payload?.metadata?.url || null,
-    qualityScore: hit.payload?.quality_score,
-  }));
+  const mappedVectorResults: VectorSearchResult[] = vectorResults.map((hit) => {
+    const payload = (hit.payload ?? {}) as Record<string, unknown>;
+    const metadata = payload.metadata as Record<string, unknown> | undefined;
+    return {
+      id: hit.id,
+      score: hit.score,
+      payload,
+      title: (payload.title || metadata?.title || 'Unbekannt') as string,
+      text: (payload.chunk_text || '') as string,
+      url: (payload.url || payload.source_url || metadata?.url || null) as string | null,
+      qualityScore: payload.quality_score as number | undefined,
+    };
+  });
 
   console.error(
     `[HybridSearch] Vector: ${mappedVectorResults.length}, Text: ${textResults.length}`
@@ -333,10 +354,11 @@ export async function hybridSearchCollection(
     tW = 0.15;
   }
 
-  // Apply fusion
+  // Apply fusion — cast textResults to shared TextSearchResult type
+  const typedTextResults = textResults as unknown as TextSearchResult[];
   let combinedResults = shouldUseRRF
-    ? applyRRF(mappedVectorResults, textResults, limit * 2, rrfK)
-    : applyWeightedCombinationLocal(mappedVectorResults, textResults, vW, tW, limit * 2);
+    ? applyRRF(mappedVectorResults, typedTextResults, limit * 2, rrfK)
+    : applyWeightedCombinationLocal(mappedVectorResults, typedTextResults, vW, tW, limit * 2);
 
   // Apply quality gate
   combinedResults = applyQualityGateLocal(combinedResults, hasTextMatches);
@@ -345,8 +367,8 @@ export async function hybridSearchCollection(
   // RRF produces scores ~0.01-0.04 (ranking-based), while vector scores are ~0.3-0.9
   // (cosine similarity). Without normalization, RRF results display as "2-4%" relevance.
   if (shouldUseRRF && combinedResults.length > 0 && mappedVectorResults.length > 0) {
-    const topVectorScore = mappedVectorResults[0].score;
-    const topRRFScore = combinedResults[0].score;
+    const topVectorScore = mappedVectorResults[0]!.score;
+    const topRRFScore = combinedResults[0]!.score;
     if (topRRFScore > 0 && topRRFScore < 0.15) {
       const scaleFactor = topVectorScore / topRRFScore;
       combinedResults = combinedResults.map((r) => ({
@@ -399,35 +421,43 @@ export async function hybridSearchCollection(
 /**
  * Text-only search
  */
-export async function textSearchCollection(collectionName, query, limit = 5, filter = null) {
+export async function textSearchCollection(
+  collectionName: string,
+  query: string,
+  limit = 5,
+  filter: Record<string, unknown> | null = null
+) {
   const textResults = await performTextSearch(collectionName, query, limit * 2, filter);
 
-  return textResults.slice(0, limit).map((result) => ({
-    score: result.score,
-    title: result.payload?.title || result.payload?.metadata?.title || 'Unbekannt',
-    text: result.payload?.chunk_text || '',
-    url: result.payload?.url || result.payload?.source_url || result.payload?.metadata?.url || null,
-    documentId: result.payload?.document_id,
-    filename: result.payload?.filename || result.payload?.metadata?.filename,
-    searchMethod: 'text',
-    matchType: result.matchType,
-  }));
+  return textResults.slice(0, limit).map((result) => {
+    const metadata = result.payload?.metadata as Record<string, unknown> | undefined;
+    return {
+      score: result.score,
+      title: result.payload?.title || metadata?.title || 'Unbekannt',
+      text: result.payload?.chunk_text || '',
+      url: result.payload?.url || result.payload?.source_url || metadata?.url || null,
+      documentId: result.payload?.document_id,
+      filename: result.payload?.filename || metadata?.filename,
+      searchMethod: 'text' as const,
+      matchType: result.matchType,
+    };
+  });
 }
 
-export async function getCollectionInfo(collectionName) {
+export async function getCollectionInfo(collectionName: string) {
   const qdrant = await getQdrantClient();
 
   try {
-    const info = await qdrant.getCollection(collectionName);
+    const collectionInfo = await qdrant.getCollection(collectionName);
     return {
       name: collectionName,
-      pointsCount: info.points_count,
-      status: info.status,
+      pointsCount: collectionInfo.points_count,
+      status: collectionInfo.status,
     };
-  } catch (error) {
+  } catch (err) {
     return {
       name: collectionName,
-      error: error.message,
+      error: err instanceof Error ? err.message : String(err),
     };
   }
 }
@@ -462,8 +492,11 @@ async function _getUniqueFieldValues(collectionName: string, fieldName: string, 
     });
 
     return sortedValues.slice(0, limit);
-  } catch (error) {
-    console.error(`[Qdrant] Error fetching unique values for ${fieldName}:`, error.message);
+  } catch (err) {
+    console.error(
+      `[Qdrant] Error fetching unique values for ${fieldName}:`,
+      err instanceof Error ? err.message : String(err)
+    );
     return [];
   }
 }
@@ -473,10 +506,10 @@ async function _getUniqueFieldValues(collectionName: string, fieldName: string, 
  * Returns values sorted by count (most common first)
  */
 export async function getFieldValueCounts(
-  collectionName,
-  fieldName,
+  collectionName: string,
+  fieldName: string,
   maxValues = 50,
-  baseFilter = null
+  baseFilter: Record<string, unknown> | null = null
 ) {
   const qdrant = await getQdrantClient();
 
@@ -524,8 +557,11 @@ export async function getFieldValueCounts(
       .map(([value, count]) => ({ value, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, maxValues);
-  } catch (error) {
-    console.error(`[Qdrant] Error fetching value counts for ${fieldName}:`, error.message);
+  } catch (err) {
+    console.error(
+      `[Qdrant] Error fetching value counts for ${fieldName}:`,
+      err instanceof Error ? err.message : String(err)
+    );
     return [];
   }
 }

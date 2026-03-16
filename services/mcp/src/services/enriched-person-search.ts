@@ -9,6 +9,48 @@ import { getQdrantClient } from '../qdrant/client.ts';
 import { getBundestagMCPClient } from './bundestag-client.ts';
 import { getPersonDetectionService } from './person-detection.ts';
 
+interface PersonBase {
+  id?: string | number;
+  vorname?: string;
+  nachname?: string;
+  titel?: string;
+  fraktion?: string | string[];
+}
+
+interface PersonDetails extends PersonBase {
+  wahlkreis?: string;
+  geburtsdatum?: string;
+  geburtsort?: string;
+  beruf?: string;
+  biografie?: string;
+  vita_kurz?: string;
+  wahlperioden?: unknown;
+}
+
+interface ContentMention {
+  id: string | number;
+  score: number;
+  payload?: Record<string, unknown>;
+  searchMethod: string;
+}
+
+interface DIPDocument {
+  id?: string | number;
+  dokumentnummer?: string;
+  titel?: string;
+  drucksachetyp?: string;
+  datum?: string;
+  wahlperiode?: number;
+  urheber?: string;
+  fundstelle?: string;
+  aktivitaetsart?: string;
+  vorgangsbezug?: unknown;
+}
+
+interface DIPResult {
+  documents?: DIPDocument[];
+}
+
 class EnrichedPersonSearch {
   private personDetection: ReturnType<typeof getPersonDetectionService>;
   private mcpClient: ReturnType<typeof getBundestagMCPClient>;
@@ -25,7 +67,7 @@ class EnrichedPersonSearch {
       return { isPersonQuery: false };
     }
 
-    const person = detection.person;
+    const person = detection.person!;
     const personName = `${person.vorname} ${person.nachname}`;
 
     console.log(
@@ -62,18 +104,21 @@ class EnrichedPersonSearch {
     };
   }
 
-  async _fetchPersonDetails(personId) {
+  async _fetchPersonDetails(personId: string | number | undefined): Promise<PersonDetails | null> {
     if (!personId) return null;
 
     try {
-      return await this.mcpClient.getPerson(personId);
-    } catch (error) {
-      console.error('[EnrichedPersonSearch] Failed to fetch person details:', error.message);
+      return (await this.mcpClient.getPerson(personId)) as PersonDetails;
+    } catch (err) {
+      console.error(
+        '[EnrichedPersonSearch] Failed to fetch person details:',
+        err instanceof Error ? err.message : String(err)
+      );
       return null;
     }
   }
 
-  async _searchBundestagContent(personName, limit = 15) {
+  async _searchBundestagContent(personName: string, limit = 15): Promise<ContentMention[]> {
     try {
       const qdrant = await getQdrantClient();
       const embedding = await generateEmbedding(personName);
@@ -93,13 +138,18 @@ class EnrichedPersonSearch {
         with_payload: true,
       });
 
-      const seen = new Set();
-      const merged = [];
+      const seen = new Set<string | number>();
+      const merged: ContentMention[] = [];
 
       for (const result of searchResults || []) {
         if (!seen.has(result.id)) {
           seen.add(result.id);
-          merged.push({ ...result, searchMethod: 'vector' });
+          merged.push({
+            id: result.id,
+            score: result.score,
+            payload: result.payload as Record<string, unknown>,
+            searchMethod: 'vector',
+          });
         }
       }
 
@@ -109,49 +159,58 @@ class EnrichedPersonSearch {
           merged.push({
             id: point.id,
             score: 0.8,
-            payload: point.payload,
+            payload: point.payload as Record<string, unknown>,
             searchMethod: 'text',
           });
         }
       }
 
       return merged.sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, limit);
-    } catch (error) {
-      console.error('[EnrichedPersonSearch] bundestag_content search failed:', error.message);
+    } catch (err) {
+      console.error(
+        '[EnrichedPersonSearch] bundestag_content search failed:',
+        err instanceof Error ? err.message : String(err)
+      );
       return [];
     }
   }
 
-  async _searchDrucksachen(personName, limit = 20) {
+  async _searchDrucksachen(personName: string, limit = 20): Promise<DIPResult> {
     try {
-      return await this.mcpClient.searchDrucksachen({
+      return (await this.mcpClient.searchDrucksachen({
         urheber: personName,
         wahlperiode: 20,
         limit,
-      });
-    } catch (error) {
-      console.error('[EnrichedPersonSearch] Drucksachen search failed:', error.message);
+      })) as DIPResult;
+    } catch (err) {
+      console.error(
+        '[EnrichedPersonSearch] Drucksachen search failed:',
+        err instanceof Error ? err.message : String(err)
+      );
       return { documents: [] };
     }
   }
 
-  async _searchAktivitaeten(personId, limit = 30) {
+  async _searchAktivitaeten(personId: string | number | undefined, limit = 30): Promise<DIPResult> {
     if (!personId) return { documents: [] };
 
     try {
-      return await this.mcpClient.searchAktivitaeten({
+      return (await this.mcpClient.searchAktivitaeten({
         person_id: personId,
         wahlperiode: 20,
         limit,
-      });
-    } catch (error) {
-      console.error('[EnrichedPersonSearch] Aktivitäten search failed:', error.message);
+      })) as DIPResult;
+    } catch (err) {
+      console.error(
+        '[EnrichedPersonSearch] Aktivitäten search failed:',
+        err instanceof Error ? err.message : String(err)
+      );
       return { documents: [] };
     }
   }
 
-  _buildPersonProfile(basicPerson, detailedPerson) {
-    const details = detailedPerson || {};
+  _buildPersonProfile(basicPerson: PersonBase, detailedPerson: PersonDetails | null) {
+    const details = detailedPerson || ({} as PersonDetails);
     return {
       id: basicPerson.id,
       vorname: basicPerson.vorname || details.vorname,
@@ -170,11 +229,11 @@ class EnrichedPersonSearch {
     };
   }
 
-  _formatContentMentions(results) {
+  _formatContentMentions(results: ContentMention[] | null) {
     return (results || []).map((r) => ({
       title: r.payload?.title || 'Unbekannt',
       url: r.payload?.source_url || r.payload?.url,
-      snippet: this._truncateSnippet(r.payload?.chunk_text, 300),
+      snippet: this._truncateSnippet(r.payload?.chunk_text as string | undefined, 300),
       similarity: r.score || 0,
       searchMethod: r.searchMethod,
       category: r.payload?.primary_category,
@@ -183,7 +242,7 @@ class EnrichedPersonSearch {
     }));
   }
 
-  _formatDrucksachen(result) {
+  _formatDrucksachen(result: DIPResult | null) {
     return (result?.documents || []).map((d) => ({
       id: d.id,
       dokumentnummer: d.dokumentnummer,
@@ -197,7 +256,7 @@ class EnrichedPersonSearch {
     }));
   }
 
-  _formatAktivitaeten(result) {
+  _formatAktivitaeten(result: DIPResult | null) {
     return (result?.documents || []).map((a) => ({
       id: a.id,
       aktivitaetsart: a.aktivitaetsart,
@@ -209,34 +268,51 @@ class EnrichedPersonSearch {
     }));
   }
 
-  _truncateSnippet(text, maxLength = 300) {
+  _truncateSnippet(text: string | undefined, maxLength = 300): string {
     if (!text) return '';
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength).trim() + '...';
   }
 
-  generateActivitySummary(enrichedResult) {
+  generateActivitySummary(enrichedResult: {
+    isPersonQuery: boolean;
+    person?: {
+      name?: string;
+      fraktion?: string;
+      wahlkreis?: string;
+      beruf?: string;
+      vita?: string;
+    };
+    drucksachen?: Array<{
+      drucksachetyp?: string;
+      titel?: string;
+      dokumentnummer?: string;
+      datum?: string;
+    }>;
+    aktivitaeten?: Array<{ aktivitaetsart?: string }>;
+    contentMentions?: Array<{ title?: string }>;
+  }) {
     if (!enrichedResult.isPersonQuery) return null;
 
     const { person, drucksachen, aktivitaeten, contentMentions } = enrichedResult;
-    const lines = [];
+    const lines: string[] = [];
 
-    lines.push(`## ${person.name}`);
-    if (person.fraktion) lines.push(`Fraktion: ${person.fraktion}`);
-    if (person.wahlkreis) lines.push(`Wahlkreis: ${person.wahlkreis}`);
-    if (person.beruf) lines.push(`Beruf: ${person.beruf}`);
-    if (person.vita) lines.push(`\n${person.vita}`);
+    lines.push(`## ${person?.name}`);
+    if (person?.fraktion) lines.push(`Fraktion: ${person.fraktion}`);
+    if (person?.wahlkreis) lines.push(`Wahlkreis: ${person.wahlkreis}`);
+    if (person?.beruf) lines.push(`Beruf: ${person.beruf}`);
+    if (person?.vita) lines.push(`\n${person.vita}`);
 
-    if (drucksachen.length > 0) {
+    if (drucksachen && drucksachen.length > 0) {
       lines.push(`\n### Drucksachen (${drucksachen.length})`);
       for (const d of drucksachen.slice(0, 10)) {
         lines.push(`- [${d.drucksachetyp}] ${d.titel} (${d.dokumentnummer}, ${d.datum})`);
       }
     }
 
-    if (aktivitaeten.length > 0) {
+    if (aktivitaeten && aktivitaeten.length > 0) {
       lines.push(`\n### Aktivitäten (${aktivitaeten.length})`);
-      const byType = {};
+      const byType: Record<string, number> = {};
       for (const a of aktivitaeten) {
         const type = a.aktivitaetsart || 'Sonstige';
         byType[type] = (byType[type] || 0) + 1;
@@ -246,7 +322,7 @@ class EnrichedPersonSearch {
       }
     }
 
-    if (contentMentions.length > 0) {
+    if (contentMentions && contentMentions.length > 0) {
       lines.push(`\n### Erwähnungen auf gruene-bundestag.de (${contentMentions.length})`);
       for (const m of contentMentions.slice(0, 5)) {
         lines.push(`- ${m.title}`);
@@ -257,9 +333,9 @@ class EnrichedPersonSearch {
   }
 }
 
-let serviceInstance = null;
+let serviceInstance: EnrichedPersonSearch | null = null;
 
-function getEnrichedPersonSearch() {
+function getEnrichedPersonSearch(): EnrichedPersonSearch {
   if (!serviceInstance) {
     serviceInstance = new EnrichedPersonSearch();
   }
