@@ -42,7 +42,7 @@ export const ToolCallUI = memo(function ToolCallUI({
 }: ToolCallUIProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const isLoading = state === 'call' || state === 'partial-call';
-  const config = TOOL_CONFIG[toolName] || { icon: Search, label: toolName, color: 'text-gray-600' };
+  const config = TOOL_CONFIG[toolName] || { icon: Search, label: toolName, color: 'text-grey-600' };
   const Icon = config.icon;
 
   const query = useMemo(() => {
@@ -228,7 +228,7 @@ const ToolResultRenderer = memo(function ToolResultRenderer({
 
   const error = getString(result, 'error');
   if (error) {
-    return <p className="text-xs text-red-500">{error}</p>;
+    return <p className="text-xs text-destructive">{error}</p>;
   }
 
   switch (toolName) {
@@ -434,7 +434,7 @@ const ResearchResultUI = memo(function ResearchResultUI({ result }: { result: un
       <div className="flex items-center gap-2 text-[10px]">
         {confidence && (
           <span
-            className={`flex items-center gap-1 ${confidenceColors[confidence as keyof typeof confidenceColors] || 'text-gray-500'}`}
+            className={`flex items-center gap-1 ${confidenceColors[confidence as keyof typeof confidenceColors] || 'text-grey-500'}`}
           >
             <Sparkles className="h-3 w-3" />
             {confidenceLabels[confidence as keyof typeof confidenceLabels] || confidence}

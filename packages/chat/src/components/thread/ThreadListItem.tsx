@@ -134,7 +134,7 @@ export function GrueneratorThreadListItem() {
             </ThreadListItemPrimitive.Archive>
             <ThreadListItemPrimitive.Delete
               onClick={handleDelete}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-red-500/10 hover:text-red-500"
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-destructive/10 hover:text-destructive"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Löschen
@@ -198,7 +198,7 @@ export function GrueneratorArchivedThreadListItem() {
           <ThreadListItemMorePrimitive.Separator className="my-1 h-px bg-border" />
           <ThreadListItemPrimitive.Delete
             onClick={handleDelete}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-red-500/10 hover:text-red-500"
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-destructive/10 hover:text-destructive"
           >
             <Trash2 className="h-3.5 w-3.5" />
             Endgültig löschen
