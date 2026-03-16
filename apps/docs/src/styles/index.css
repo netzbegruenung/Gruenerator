@@ -169,13 +169,6 @@
   }
 }
 
-/* Reset and base styles */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
 html, body {
   height: 100%;
   font-family: 'PT Sans', Arial, sans-serif;
