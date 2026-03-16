@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
+import { generateUserColor, type CollaborationUser } from '@gruenerator/collab';
 import { useDocsAdapter } from '../context/DocsContext';
 
 interface CollaborationState {
@@ -10,28 +11,6 @@ interface CollaborationState {
   isSynced: boolean;
 }
 
-export interface CollaborationUser {
-  id: string;
-  name: string;
-  color: string;
-}
-
-const generateUserColor = () => {
-  const colors = [
-    '#FF6B6B',
-    '#4ECDC4',
-    '#45B7D1',
-    '#FFA07A',
-    '#98D8C8',
-    '#F7DC6F',
-    '#BB8FCE',
-    '#85C1E2',
-    '#F8B739',
-    '#52B788',
-  ];
-  return colors[Math.floor(Math.random() * colors.length)];
-};
-
 export interface UseCollaborationOptions {
   documentId: string;
   user: { id: string; display_name?: string; email?: string } | null;
@@ -40,7 +19,13 @@ export interface UseCollaborationOptions {
   guestName?: string;
 }
 
-export const useCollaboration = ({ documentId, user, isGuest, guestId, guestName }: UseCollaborationOptions) => {
+export const useCollaboration = ({
+  documentId,
+  user,
+  isGuest,
+  guestId,
+  guestName,
+}: UseCollaborationOptions) => {
   const adapter = useDocsAdapter();
   const [state, setState] = useState<CollaborationState>(() => ({
     ydoc: new Y.Doc(),
@@ -61,11 +46,23 @@ export const useCollaboration = ({ documentId, user, isGuest, guestId, guestName
       const url = adapter.getHocuspocusUrl();
       const token = isGuest ? null : await adapter.getHocuspocusToken();
 
+      console.log('[DocsDebug][useCollaboration] initProvider:', {
+        url,
+        documentId,
+        isGuest: !!isGuest,
+        hasToken: !!token,
+        tokenLength: token?.length,
+        tokenPrefix: token?.substring(0, 20) + '...',
+      });
+
+      const WebSocketPolyfill = adapter.getWebSocketPolyfill?.();
+
       const provider = new HocuspocusProvider({
         url,
         name: documentId,
         document: ydoc,
         token: token ?? undefined,
+        ...(WebSocketPolyfill ? { WebSocketPolyfill } : {}),
         ...(isGuest && guestId ? { parameters: { guestId, guestName: guestName || 'Gast' } } : {}),
       });
 
@@ -73,11 +70,16 @@ export const useCollaboration = ({ documentId, user, isGuest, guestId, guestName
 
       const awarenessUser: CollaborationUser = isGuest
         ? { id: guestId || 'guest', name: guestName || 'Gast', color: generateUserColor() }
-        : { id: user!.id, name: user!.display_name || user!.email || 'Anonymous', color: generateUserColor() };
+        : {
+            id: user!.id,
+            name: user!.display_name || user!.email || 'Anonymous',
+            color: generateUserColor(),
+          };
 
       provider.awareness?.setLocalStateField('user', awarenessUser);
 
       provider.on('status', (event: { status: string }) => {
+        console.log('[DocsDebug][useCollaboration] status event:', event.status);
         const newIsConnected = event.status === 'connected';
         setState((prev) => {
           if (prev.isConnected === newIsConnected) return prev;
@@ -86,10 +88,29 @@ export const useCollaboration = ({ documentId, user, isGuest, guestId, guestName
       });
 
       provider.on('synced', () => {
+        console.log('[DocsDebug][useCollaboration] synced!');
         setState((prev) => {
           if (prev.isSynced) return prev;
           return { ...prev, isSynced: true };
         });
+      });
+
+      // Log connection errors — this is the most likely failure point
+      provider.on('close', (event: { event: CloseEvent }) => {
+        console.warn('[DocsDebug][useCollaboration] WebSocket closed:', {
+          code: event.event.code,
+          reason: event.event.reason,
+          wasClean: event.event.wasClean,
+        });
+      });
+
+      provider.on('disconnect', () => {
+        console.warn('[DocsDebug][useCollaboration] disconnected');
+      });
+
+      // HocuspocusProvider emits 'authenticationFailed' if server rejects token
+      provider.on('authenticationFailed', (data: { reason: string }) => {
+        console.error('[DocsDebug][useCollaboration] AUTH FAILED:', data.reason);
       });
 
       setState({
@@ -109,59 +130,4 @@ export const useCollaboration = ({ documentId, user, isGuest, guestId, guestName
   }, [documentId, user, isGuest, guestId, guestName, adapter]);
 
   return state;
-};
-
-export const useCollaborators = (provider: HocuspocusProvider | null) => {
-  const [collaborators, setCollaborators] = useState<CollaborationUser[]>([]);
-  const pendingUpdateRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (!provider) return;
-
-    const awareness = provider.awareness;
-    if (!awareness) return;
-
-    const updateCollaborators = () => {
-      if (pendingUpdateRef.current) {
-        clearTimeout(pendingUpdateRef.current);
-      }
-
-      pendingUpdateRef.current = setTimeout(() => {
-        const states = awareness.getStates();
-        const users: CollaborationUser[] = [];
-
-        states.forEach((state, clientId) => {
-          if (state.user && clientId !== awareness.clientID) {
-            users.push(state.user as CollaborationUser);
-          }
-        });
-
-        setCollaborators((prev) => {
-          const prevIds = prev
-            .map((u) => u.id)
-            .sort()
-            .join(',');
-          const newIds = users
-            .map((u) => u.id)
-            .sort()
-            .join(',');
-          if (prevIds === newIds) return prev;
-          return users;
-        });
-        pendingUpdateRef.current = null;
-      }, 0);
-    };
-
-    awareness.on('change', updateCollaborators);
-    updateCollaborators();
-
-    return () => {
-      awareness.off('change', updateCollaborators);
-      if (pendingUpdateRef.current) {
-        clearTimeout(pendingUpdateRef.current);
-      }
-    };
-  }, [provider]);
-
-  return collaborators;
 };

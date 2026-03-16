@@ -12,6 +12,7 @@ export { BlockNoteEditor, type BlockNoteEditorProps } from './components/editor/
 export { PresenceAvatars } from './components/editor/PresenceAvatars';
 
 // Components — Document
+export { AIDocumentCreator } from './components/document/AIDocumentCreator';
 export { DocumentList } from './components/document/DocumentList';
 export { TemplateCarousel } from './components/document/TemplateCarousel';
 export { TemplatePicker } from './components/document/TemplatePicker';
@@ -28,11 +29,8 @@ export { ShareModal } from './components/permissions/ShareModal';
 export { ErrorBoundary } from './components/common/ErrorBoundary';
 
 // Hooks
-export {
-  useCollaboration,
-  useCollaborators,
-  type CollaborationUser,
-} from './hooks/useCollaboration';
+export { useCollaboration } from './hooks/useCollaboration';
+export { useCollaborators, type CollaborationUser } from '@gruenerator/collab';
 export { useDocumentChat, type ChatMessage } from './hooks/useDocumentChat';
 export { useBlockNoteComments } from './hooks/useBlockNoteComments';
 export { useResolveUsers } from './hooks/useResolveUsers';

@@ -25,7 +25,9 @@ interface UseDocumentChatOptions {
 
 export const useDocumentChat = ({ ydoc, provider, isSynced }: UseDocumentChatOptions) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const arrayRef = useRef<Y.Array<ChatMessage> | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const getLocalUser = useCallback((): ChatUser | null => {
     if (!provider?.awareness) return null;
@@ -58,12 +60,53 @@ export const useDocumentChat = ({ ydoc, provider, isSynced }: UseDocumentChatOpt
     }
   }, [isSynced]);
 
+  // Typing awareness: broadcast and observe typing state via Hocuspocus awareness
+  const setTyping = useCallback(
+    (isTyping: boolean) => {
+      if (!provider?.awareness) return;
+      provider.awareness.setLocalStateField('typing', isTyping);
+
+      // Auto-clear after 3 seconds of no activity
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (isTyping) {
+        typingTimeoutRef.current = setTimeout(() => {
+          provider.awareness?.setLocalStateField('typing', false);
+        }, 3000);
+      }
+    },
+    [provider]
+  );
+
+  useEffect(() => {
+    if (!provider?.awareness) return;
+
+    const handleAwarenessChange = () => {
+      const states = provider.awareness!.getStates();
+      const localClientId = provider.awareness!.clientID;
+      const typing: string[] = [];
+
+      states.forEach((state, clientId) => {
+        if (clientId !== localClientId && state.typing && state.user?.name) {
+          typing.push(state.user.name as string);
+        }
+      });
+
+      setTypingUsers(typing);
+    };
+
+    provider.awareness.on('change', handleAwarenessChange);
+    return () => {
+      provider.awareness?.off('change', handleAwarenessChange);
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    };
+  }, [provider]);
+
   const sendMessage = useCallback(
-    (text: string) => {
+    (text: string, fallbackUser?: ChatUser) => {
       const trimmed = text.trim();
       if (!trimmed || !arrayRef.current) return;
 
-      const user = getLocalUser();
+      const user = getLocalUser() || fallbackUser;
       if (!user) return;
 
       const message: ChatMessage = {
@@ -80,5 +123,5 @@ export const useDocumentChat = ({ ydoc, provider, isSynced }: UseDocumentChatOpt
     [getLocalUser]
   );
 
-  return { messages, sendMessage, getLocalUser };
+  return { messages, sendMessage, getLocalUser, setTyping, typingUsers };
 };

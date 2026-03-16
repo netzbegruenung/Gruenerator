@@ -1,5 +1,5 @@
 import { HocuspocusProvider } from '@hocuspocus/provider';
-import { useCollaborators } from '../../hooks/useCollaboration';
+import { useCollaborators } from '@gruenerator/collab';
 import './PresenceAvatars.css';
 
 interface PresenceAvatarsProps {
