@@ -1,6 +1,5 @@
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@gruenerator/ui';
 import React, { useState, useCallback, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { HiX } from 'react-icons/hi';
 
 import { useTagAutocomplete } from '../TemplateModal';
 
@@ -97,67 +96,20 @@ const EditTemplateModal = ({
     }
   }, [template, title, description, externalUrl, isPrivate, onSave, onSuccess, onClose]);
 
-  const handleBackdropClick = useCallback(
-    (e: React.MouseEvent) => {
-      if (e.target === e.currentTarget) {
-        onClose();
-      }
-    },
-    [onClose]
-  );
-
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    },
-    [onClose]
-  );
-
-  useEffect(() => {
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden';
-    }
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
-    };
-  }, [isOpen, handleKeyDown]);
-
-  if (!isOpen || !template) return null;
+  if (!template) return null;
 
   const canSubmit = title.trim().length > 0;
 
   const fieldClass =
     'mb-md [&_label]:block [&_label]:mb-xs [&_label]:text-[0.875rem] [&_label]:font-medium [&_label]:text-foreground [&_input]:w-full [&_input]:py-sm [&_input]:px-md [&_input]:border [&_input]:border-grey-200 [&_input]:dark:border-grey-700 [&_input]:rounded-lg [&_input]:text-base [&_input]:text-foreground [&_input]:bg-background [&_input]:transition-colors [&_input]:duration-200 [&_input]:focus:outline-none [&_input]:focus:border-[var(--primary)] [&_textarea]:w-full [&_textarea]:py-sm [&_textarea]:px-md [&_textarea]:border [&_textarea]:border-grey-200 [&_textarea]:dark:border-grey-700 [&_textarea]:rounded-lg [&_textarea]:text-base [&_textarea]:text-foreground [&_textarea]:bg-background [&_textarea]:transition-colors [&_textarea]:duration-200 [&_textarea]:focus:outline-none [&_textarea]:focus:border-[var(--primary)] [&_textarea]:resize-y [&_textarea]:min-h-[60px]';
 
-  const modalContent = (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-md max-md:p-0"
-      onClick={handleBackdropClick}
-    >
-      <div
-        className="bg-background rounded-xl shadow-lg w-full max-w-[550px] max-h-[85vh] flex flex-col overflow-hidden min-[900px]:max-w-[750px] max-md:max-w-none max-md:max-h-none max-md:h-full max-md:rounded-none"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="template-modal-title"
-      >
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-[550px] min-[900px]:max-w-[750px] max-md:max-w-none max-md:max-h-none max-md:h-full max-md:rounded-none max-h-[85vh] flex flex-col overflow-hidden p-0">
         <div className="flex items-center justify-between py-md px-lg border-b border-grey-200 dark:border-grey-700">
-          <h2
-            id="template-modal-title"
-            className="m-0 text-[1.25rem] font-semibold text-foreground"
-          >
-            Vorlage bearbeiten
-          </h2>
-          <button
-            className="bg-none border-none p-xs cursor-pointer text-grey-500 rounded-lg flex items-center justify-center transition-colors duration-200 hover:bg-hover-alt hover:text-foreground [&_svg]:w-5 [&_svg]:h-5"
-            onClick={onClose}
-            aria-label="Schließen"
-          >
-            <HiX />
-          </button>
+          <DialogHeader>
+            <DialogTitle className="text-[1.25rem]">Vorlage bearbeiten</DialogTitle>
+          </DialogHeader>
         </div>
 
         <div className="flex-1 overflow-y-auto p-lg">
@@ -251,11 +203,9 @@ const EditTemplateModal = ({
             {isSubmitting ? 'Wird gespeichert...' : 'Speichern'}
           </button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
-
-  return createPortal(modalContent, document.body);
 };
 
 export default EditTemplateModal;
