@@ -38,3 +38,15 @@ export function resolveNotebookCollections(notebookIds: string[]): string[] {
 export function isKnownNotebook(id: string): boolean {
   return id in NOTEBOOK_COLLECTION_MAP;
 }
+
+/**
+ * Returns all unique collection IDs across all notebooks.
+ * Used by SearchGraph to search every available collection in Suche mode.
+ */
+export function getAllCollectionIds(): string[] {
+  const all = new Set<string>();
+  for (const collections of Object.values(NOTEBOOK_COLLECTION_MAP)) {
+    for (const c of collections) all.add(c);
+  }
+  return [...all];
+}

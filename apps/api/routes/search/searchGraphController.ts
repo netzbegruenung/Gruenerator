@@ -250,7 +250,9 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
     sse.sendRaw('response_start', { message: 'Erstelle Antwort...' });
 
     const { model: aiModel } = resolveModel(state.agentConfig);
-    const messagesForAI = buildMessagesForAI(state.responseText, state.messages);
+    // Cap conversation history to last 4 messages to stay under Mistral's quality threshold (~40k tokens)
+    const recentMessages = state.messages.slice(-4);
+    const messagesForAI = buildMessagesForAI(state.responseText, recentMessages);
 
     const fullText = await streamAndAccumulate({
       model: aiModel,

@@ -17,7 +17,7 @@ import type { SearchGraphState } from '../types.js';
 
 const log = createLogger('SearchGraph:SearchRespond');
 
-const SEARCH_CONTEXT_BUDGET = 12000;
+const SEARCH_CONTEXT_BUDGET = 8000;
 const MAX_SEARCH_RESULTS = 10;
 
 /**
@@ -112,13 +112,19 @@ Schreibe wie einen hochwertigen Artikel mit ansprechendem Erzählfluss.
 
 ## ZITATIONSREGELN
 - Dir stehen GENAU ${sourceCount} Quellen zur Verfügung ([1] bis [${sourceCount}]).
-- Zitiere **JEDE Aussage** mit [Nummer]-Notation: "Aussage hier [1]."
-- **JEDER Satz** in deiner Antwort muss mindestens eine Zitation enthalten.
-- Verwende mehrere Quellen pro Aussage wenn möglich: "Fakt hier [1][3]."
+- Zitiere JEDE Aussage mit [Nummer]-Notation: "Aussage hier [1]."
+- Jeder Satz muss mindestens eine Zitation enthalten.
+- Verwende mehrere Quellen wenn möglich: "Fakt hier [1][3]."
 - Erfinde KEINE Quellen über [${sourceCount}] hinaus.
-- Setze die Nummer DIREKT nach dem Satz, VOR dem Punkt: "Text [1]."
-- NIEMALS "laut Quelle", "nach Angaben von" oder "gemäß" — NUR [1], [2] etc.
-- Wenn eine Aussage nicht durch die Quellen gestützt wird, weise explizit darauf hin.
+- Nummer DIREKT nach dem Satz, VOR dem Punkt: "Text [1]."
+- NIEMALS "laut Quelle" oder "nach Angaben" — NUR [1], [2] etc.
+
+## WICHTIG: KEINE HALLUZINATIONEN
+- Zitiere NUR Informationen, die TATSÄCHLICH in den Quellen stehen.
+- Erfinde KEINE Details, Projekte, Namen oder Fakten, die nicht in den Quellen vorkommen.
+- Wenn die Quellen nur allgemeine Informationen enthalten, beschränke dich auf das Allgemeine.
+- Sage lieber "Hierzu liegen keine spezifischen Quellen vor" als falsch zu zitieren.
+- Kombiniere NICHT Informationen aus verschiedenen Quellen zu neuen, nicht belegten Aussagen.
 ${searchContext}`,
     locale
   );
@@ -159,12 +165,17 @@ Beginne direkt — keine meta-Einleitung.
 
 ## ZITATIONSREGELN
 - Dir stehen GENAU ${sourceCount} Quellen zur Verfügung ([1] bis [${sourceCount}]).
-- Zitiere **JEDE Aussage** mit [Nummer]-Notation.
-- **JEDER Satz** muss mindestens eine Zitation enthalten.
-- Verwende mehrere Quellen pro Aussage wenn möglich: "Fakt [1][3]."
+- Zitiere JEDE Aussage mit [Nummer]-Notation.
+- Jeder Satz muss mindestens eine Zitation enthalten.
+- Verwende mehrere Quellen wenn möglich: "Fakt [1][3]."
 - Erfinde KEINE Quellen über [${sourceCount}] hinaus.
-- Format: "Aussage [1]." — Nummer direkt nach dem Satz, vor dem Punkt.
+- Nummer direkt nach dem Satz, vor dem Punkt: "Aussage [1]."
 - NIEMALS "laut Quelle" oder "nach Angaben" — NUR [1], [2] etc.
+
+## WICHTIG: KEINE HALLUZINATIONEN
+- Zitiere NUR Informationen, die TATSÄCHLICH in den Quellen stehen.
+- Erfinde KEINE Details, Projekte, Namen oder Fakten.
+- Sage lieber "Hierzu liegen keine spezifischen Quellen vor" als falsch zu zitieren.
 ${searchContext}`,
     locale
   );

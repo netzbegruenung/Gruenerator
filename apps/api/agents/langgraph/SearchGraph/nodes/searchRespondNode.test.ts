@@ -99,7 +99,7 @@ describe('searchRespondNode', () => {
 
     // Should contain quality requirements
     expect(result.responseText).toContain('Mindestens 400 Wörter');
-    expect(result.responseText).toContain('JEDER Satz');
+    expect(result.responseText).toContain('Jeder Satz');
     expect(result.responseText).toContain('JEDE Aussage');
 
     // Should contain citation rules
