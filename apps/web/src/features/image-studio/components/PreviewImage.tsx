@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
 
+import { cn } from '../../../utils/cn';
 import { lqipMap } from '../utils/lqipMap';
-
-import './PreviewImage.css';
 
 interface PreviewImageProps {
   src: string;
@@ -36,7 +35,7 @@ const PreviewImage: React.FC<PreviewImageProps> = ({
 
   return (
     <div
-      className={`preview-image-wrapper ${loaded ? 'preview-image-wrapper--loaded' : ''}`}
+      className="relative overflow-hidden w-full h-full"
       style={
         lqip
           ? {
@@ -48,7 +47,12 @@ const PreviewImage: React.FC<PreviewImageProps> = ({
       }
     >
       {isWebp && fallbackSrc ? (
-        <picture>
+        <picture
+          className={cn(
+            'block w-full h-full object-cover transition-opacity duration-300',
+            loaded ? 'opacity-100' : 'opacity-0'
+          )}
+        >
           <source srcSet={src} type="image/webp" />
           <img
             src={fallbackSrc}
@@ -64,7 +68,11 @@ const PreviewImage: React.FC<PreviewImageProps> = ({
         <img
           src={src}
           alt={alt}
-          className={className}
+          className={cn(
+            'block w-full h-full object-cover transition-opacity duration-300',
+            loaded ? 'opacity-100' : 'opacity-0',
+            className
+          )}
           loading="lazy"
           width={width}
           height={height}

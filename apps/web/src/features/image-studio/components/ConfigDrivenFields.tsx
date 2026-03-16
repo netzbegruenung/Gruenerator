@@ -4,8 +4,6 @@ import FormFieldWrapper from '../../../components/common/Form/Input/FormFieldWra
 import TextAreaInput from '../../../components/common/Form/Input/TextAreaInput';
 import { type InputField } from '../utils/typeConfig';
 
-import './ConfigDrivenFields.css';
-
 interface ConfigDrivenFieldsProps {
   fields: InputField[];
   values: Record<string, string | undefined>;
@@ -39,7 +37,7 @@ const ConfigDrivenFields: React.FC<ConfigDrivenFieldsProps> = ({
   };
 
   return (
-    <div className={`config-driven-fields ${className}`}>
+    <div className={`flex flex-col ${className}`}>
       {fields.map((field) => {
         const value = values?.[field.name] || '';
         const error = errors?.[field.name];
