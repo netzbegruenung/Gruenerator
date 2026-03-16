@@ -2,7 +2,7 @@
  * @deprecated This import path is deprecated for backwards compatibility only.
  *
  * Please use the canonical import path instead:
- * ```js
+ * ```ts
  * import BaseForm from '@/components/common/Form/BaseForm';
  * // or
  * import BaseForm from '../components/common/Form/BaseForm';
