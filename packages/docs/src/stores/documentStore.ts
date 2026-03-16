@@ -25,6 +25,7 @@ export interface Document {
 interface DocumentStore {
   documents: Document[];
   isLoading: boolean;
+  isGenerating: boolean;
   error: string | null;
   fetchDocuments: (apiClient: DocsApiClient) => Promise<void>;
   createDocument: (
@@ -33,6 +34,7 @@ interface DocumentStore {
     folderId?: string | null,
     documentSubtype?: string
   ) => Promise<Document>;
+  generateDocument: (apiClient: DocsApiClient, description: string) => Promise<Document>;
   updateDocument: (
     apiClient: DocsApiClient,
     id: string,
@@ -46,6 +48,7 @@ interface DocumentStore {
 export const useDocumentStore = create<DocumentStore>((set) => ({
   documents: [],
   isLoading: false,
+  isGenerating: false,
   error: null,
 
   fetchDocuments: async (apiClient) => {
@@ -84,6 +87,24 @@ export const useDocumentStore = create<DocumentStore>((set) => ({
     } catch (error) {
       console.error('Failed to create document:', error);
       set({ error: 'Fehler beim Erstellen des Dokuments' });
+      throw error;
+    }
+  },
+
+  generateDocument: async (apiClient, description) => {
+    set({ isGenerating: true, error: null });
+    try {
+      const newDocument = await apiClient.post<Document>('/docs/generate', { description });
+
+      set((state) => ({
+        documents: [newDocument, ...state.documents],
+        isGenerating: false,
+      }));
+
+      return newDocument;
+    } catch (error) {
+      console.error('Failed to generate document:', error);
+      set({ error: 'Fehler beim Generieren des Dokuments', isGenerating: false });
       throw error;
     }
   },

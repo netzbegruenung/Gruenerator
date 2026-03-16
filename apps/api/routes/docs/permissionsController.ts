@@ -161,7 +161,7 @@ router.post('/:id/permissions', async (req: Request<{ id: string }>, res: Respon
     }
 
     const recipientProfile = (await db.query(
-      'SELECT id, display_name, email FROM profiles WHERE id = $1',
+      'SELECT id, display_name, email, user_defaults FROM profiles WHERE id = $1',
       [user_id]
     )) as ProfileRow[];
     if (recipientProfile.length === 0) {
@@ -180,7 +180,7 @@ router.post('/:id/permissions', async (req: Request<{ id: string }>, res: Respon
       [JSON.stringify(permissions), id]
     );
 
-    // Fire-and-forget: send share notification email
+    // Fire-and-forget: send share notification email (respects recipient's preferences)
     const recipient = recipientProfile[0];
     if (recipient.email) {
       const senderProfile = (await db.query('SELECT display_name FROM profiles WHERE id = $1', [
@@ -189,16 +189,22 @@ router.post('/:id/permissions', async (req: Request<{ id: string }>, res: Respon
       const senderName = senderProfile[0]?.display_name || 'Jemand';
 
       import('../../services/email/index.js')
-        .then(({ sendDocumentShareEmail }) =>
-          sendDocumentShareEmail({
+        .then(async ({ sendDocumentShareEmail, shouldSendNotification }) => {
+          const shouldSend = await shouldSendNotification(
+            user_id,
+            'document_shared',
+            recipient as any
+          );
+          if (!shouldSend) return;
+          return sendDocumentShareEmail({
             recipientEmail: recipient.email!,
             recipientName: recipient.display_name || 'Kolleg*in',
             senderName,
             documentId: id,
             documentTitle: (document.title as string) || 'Unbenanntes Dokument',
             permissionLevel: permission_level,
-          })
-        )
+          });
+        })
         .catch(() => {});
     }
 
