@@ -149,6 +149,8 @@ export interface ChatGraphInput {
   documentIds?: string[];
   textIds?: string[];
   documentChatIds?: string[];
+  boardIds?: string[];
+  docMentionIds?: string[];
   userLocale?: UserLocale;
 }
 
@@ -185,6 +187,14 @@ export interface ChatGraphState {
 
   // Document chat scoping (from @dokumentchat multi-select)
   documentChatIds: string[];
+
+  // Board context (from @board mentions)
+  boardIds: string[];
+  boardContext: string | null;
+
+  // Collaborative document context (from @doc mentions)
+  docMentionIds: string[];
+  documentMentionContext: string | null;
 
   // Memory context (from mem0 cross-thread memory)
   memoryContext: string | null;

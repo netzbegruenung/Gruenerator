@@ -29,7 +29,7 @@ const ATTACHMENT_LIMITS = {
  * Keeps the introduction (60%) and conclusion (40%) for better context.
  * Documents typically have important info at the start and end.
  */
-function truncateDocument(
+export function truncateDocument(
   text: string,
   limit: number = ATTACHMENT_LIMITS.PER_DOCUMENT_CHARS
 ): string {
@@ -310,6 +310,42 @@ Nutze diese Zusammenfassung als Grundlage für deine Antwort.`;
 }
 
 /**
+ * Format board context (from @board mentions).
+ * Injects the board's columns and cards as structured text.
+ */
+function formatBoardContext(boardContext: string | null): string {
+  if (!boardContext) return '';
+
+  return `
+
+## BOARD-KONTEXT
+
+Der Nutzer hat ein Board referenziert. Hier ist der aktuelle Stand:
+
+${boardContext}
+
+---
+Beantworte Fragen zum Board basierend auf dessen Inhalt (Spalten, Karten, Status).`;
+}
+
+/**
+ * Format collaborative document context (from @doc mentions).
+ * Injects the document's text content for AI reference.
+ */
+function formatDocumentMentionContext(documentMentionContext: string | null): string {
+  if (!documentMentionContext) return '';
+
+  return `
+
+## REFERENZIERTE DOKUMENTE (vom Nutzer ausgewählt)
+
+${documentMentionContext}
+
+---
+Beantworte Fragen basierend auf dem Inhalt dieser Dokumente.`;
+}
+
+/**
  * Format memory context from mem0 cross-thread memories.
  * These are persistent facts and preferences about the user.
  */
@@ -354,12 +390,22 @@ Der Nutzer ist in Österreich. Beachte:
  * Build the complete system message with agent role and search context.
  */
 export async function buildSystemMessage(state: ChatGraphState): Promise<string> {
-  const { agentConfig, intent, threadAttachments, memoryContext, summaryContext } = state;
+  const {
+    agentConfig,
+    intent,
+    threadAttachments,
+    memoryContext,
+    summaryContext,
+    boardContext,
+    documentMentionContext,
+  } = state;
   const searchContext = await formatSearchContext(state);
   const attachmentContext = formatAttachmentContext(state);
   const summaryContextFormatted = formatSummaryContext(summaryContext);
   const threadAttachmentsContext = formatThreadAttachmentsContext(threadAttachments);
   const memoryContextFormatted = formatMemoryContext(memoryContext);
+  const boardContextFormatted = formatBoardContext(boardContext);
+  const docMentionContextFormatted = formatDocumentMentionContext(documentMentionContext);
   const localeContext = formatLocaleContext(state.userLocale);
 
   const isDocumentChatMode = state.documentChatIds?.length > 0;
@@ -396,7 +442,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   const systemRole = localizePlaceholders(rawSystemRole, (state.userLocale as Locale) || 'de-DE');
 
   return `${systemRole}
-Heutiges Datum: ${today}${localeContext}${intentGuidance}${memoryContextFormatted}${threadAttachmentsContext}${attachmentContext}${summaryContextFormatted}${searchContext}
+Heutiges Datum: ${today}${localeContext}${intentGuidance}${memoryContextFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${attachmentContext}${summaryContextFormatted}${searchContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo

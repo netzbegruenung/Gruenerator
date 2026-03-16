@@ -22,15 +22,28 @@ export const getUser = (req: express.Request): UserProfile | undefined =>
 export async function createThread(
   userId: string,
   agentId: string,
-  title?: string
-): Promise<{ id: string; user_id: string; agent_id: string; title: string | null }> {
+  title?: string,
+  threadType?: 'chat' | 'search'
+): Promise<{
+  id: string;
+  user_id: string;
+  agent_id: string;
+  title: string | null;
+  thread_type: string;
+}> {
   const postgres = getPostgresInstance();
   const result = (await postgres.query(
-    `INSERT INTO chat_threads (user_id, agent_id, title)
-     VALUES ($1, $2, $3)
-     RETURNING id, user_id, agent_id, title`,
-    [userId, agentId, title || null]
-  )) as { id: string; user_id: string; agent_id: string; title: string | null }[];
+    `INSERT INTO chat_threads (user_id, agent_id, title, thread_type)
+     VALUES ($1, $2, $3, $4)
+     RETURNING id, user_id, agent_id, title, thread_type`,
+    [userId, agentId, title || null, threadType || 'chat']
+  )) as {
+    id: string;
+    user_id: string;
+    agent_id: string;
+    title: string | null;
+    thread_type: string;
+  }[];
   return result[0];
 }
 
@@ -41,13 +54,14 @@ export async function createMessage(
   threadId: string,
   role: string,
   content: string | null,
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, unknown>,
+  userId?: string
 ): Promise<void> {
   const postgres = getPostgresInstance();
   await postgres.query(
-    `INSERT INTO chat_messages (thread_id, role, content, tool_results)
-     VALUES ($1, $2, $3, $4)`,
-    [threadId, role, content, metadata ? JSON.stringify(metadata) : null]
+    `INSERT INTO chat_messages (thread_id, role, content, tool_results, user_id)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [threadId, role, content, metadata ? JSON.stringify(metadata) : null, userId || null]
   );
 }
 

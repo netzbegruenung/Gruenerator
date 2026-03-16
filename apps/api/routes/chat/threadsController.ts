@@ -36,9 +36,23 @@ router.get('/', async (req, res) => {
     }
 
     const threads = await postgres.query(
-      `SELECT id, user_id, agent_id, title, created_at, updated_at, COALESCE(status, 'regular') as status
+      `SELECT id, user_id, agent_id, title, created_at, updated_at, COALESCE(status, 'regular') as status, COALESCE(thread_type, 'chat') as thread_type,
+              CASE
+                WHEN user_id = $1 THEN 'owner'
+                WHEN permissions ? $1::text THEN 'shared'
+                ELSE 'group'
+              END as access_type
        FROM chat_threads
-       WHERE user_id = $1${statusClause}
+       WHERE (
+         user_id = $1
+         OR permissions ? $1::text
+         OR is_public = true
+         OR id IN (
+           SELECT gcs.content_id FROM group_content_shares gcs
+           INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid
+           WHERE gcs.content_type = 'chat_threads'
+         )
+       )${statusClause}
        ORDER BY updated_at DESC`,
       params
     );
@@ -63,6 +77,7 @@ router.get('/', async (req, res) => {
           agentId: thread.agent_id as string,
           title: thread.title as string,
           status: (thread.status as string) || 'regular',
+          threadType: (thread.thread_type as string) || 'chat',
           createdAt: thread.created_at as Date,
           updatedAt: thread.updated_at as Date,
           user_id: thread.user_id as string,
@@ -88,14 +103,14 @@ router.post('/', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { title, agentId } = req.body;
+    const { title, agentId, threadType } = req.body;
 
     const postgres = getPostgresInstance();
     const result = await postgres.query(
-      `INSERT INTO chat_threads (user_id, agent_id, title)
-       VALUES ($1, $2, $3)
-       RETURNING id, user_id, agent_id, title, created_at, updated_at`,
-      [user.id, agentId || 'gruenerator-universal', title || null]
+      `INSERT INTO chat_threads (user_id, agent_id, title, thread_type)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, user_id, agent_id, title, created_at, updated_at, COALESCE(thread_type, 'chat') as thread_type`,
+      [user.id, agentId || 'gruenerator-universal', title || null, threadType || 'chat']
     );
 
     const thread = result[0];
