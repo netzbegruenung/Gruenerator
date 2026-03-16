@@ -42,6 +42,13 @@
     "plugins": ["expo-router", "expo-secure-store", "expo-font"],
     "experiments": {
       "typedRoutes": true
+    },
+    "owner": "moritzius",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f7ba2b59-122a-4147-9c76-639337cb3ba5"
+      }
     }
   }
 }

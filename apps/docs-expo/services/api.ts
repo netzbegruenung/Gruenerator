@@ -53,6 +53,7 @@ export function initializeApiClient(): void {
         await secureStorage.clearAll();
         useAuthStore.getState().clearAuth();
       }
+      return refreshed;
     },
     timeout: 120000,
   });
