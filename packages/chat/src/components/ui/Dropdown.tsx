@@ -148,7 +148,7 @@ export function ToggleSwitch({ enabled }: ToggleSwitchProps) {
     <div
       className={cn(
         'h-5 w-9 rounded-full p-0.5 transition-colors',
-        enabled ? 'bg-secondary-600' : 'bg-toggle-track'
+        enabled ? 'bg-secondary-600' : 'bg-grey-300 dark:bg-grey-600'
       )}
     >
       <div

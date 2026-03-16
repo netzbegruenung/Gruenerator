@@ -83,6 +83,11 @@ export function ChatOverview({ firstName, notebooks, onNavigate }: ChatOverviewP
   const [showAllNotebooks, setShowAllNotebooks] = useState(false);
 
   useEffect(() => {
+    const { pendingMessage, pendingDraft } = useAgentStore.getState();
+    if (pendingMessage || pendingDraft) {
+      useAgentStore.getState().setChatViewMode('thread');
+      return;
+    }
     assistantRuntime.switchToNewThread();
   }, [assistantRuntime]);
 

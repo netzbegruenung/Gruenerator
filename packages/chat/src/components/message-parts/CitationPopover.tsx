@@ -20,7 +20,7 @@ export const CitationBadge = memo(function CitationBadge({
 
   if (!citation) {
     return (
-      <sup className="inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] text-[10px] font-semibold bg-secondary-600 dark:bg-primary-400 text-white rounded-full px-0.5 mx-0.5 align-super">
+      <sup className="inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] text-[10px] font-semibold bg-secondary-600 text-white dark:bg-primary-400 dark:text-grey-950 rounded-full px-0.5 mx-0.5 align-super">
         {citationId}
       </sup>
     );
@@ -32,7 +32,7 @@ export const CitationBadge = memo(function CitationBadge({
     <PopoverPrimitive.Root open={isOpen} onOpenChange={setIsOpen}>
       <PopoverPrimitive.Trigger asChild>
         <button
-          className="inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] text-[10px] font-semibold rounded-full px-0.5 mx-0.5 align-super cursor-pointer transition-opacity hover:opacity-80 bg-secondary-600 dark:bg-primary-400 text-white"
+          className="inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] text-[10px] font-semibold rounded-full px-0.5 mx-0.5 align-super cursor-pointer transition-opacity hover:opacity-80 bg-secondary-600 text-white dark:bg-primary-400 dark:text-grey-950"
           aria-label={`Quelle ${citationId}: ${citation.title}`}
         >
           {citationId}

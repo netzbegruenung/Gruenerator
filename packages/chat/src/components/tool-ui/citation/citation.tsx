@@ -185,7 +185,7 @@ export function Citation(props: CitationProps) {
   // Default variant: full card
   return (
     <article
-      className={cn('relative w-full max-w-md min-w-72', className)}
+      className={cn('relative w-full max-w-[28rem] min-w-72', className)}
       lang={locale}
       data-tool-ui-id={id}
       data-slot="citation"
