@@ -1,4 +1,5 @@
 import { useMediaLibrary, useMediaUpload, useMediaPicker } from '@gruenerator/shared/media-library';
+import { Button } from '@gruenerator/ui';
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   FaImage,
@@ -13,7 +14,6 @@ import {
 
 import LoginRequired from '../../components/common/LoginRequired/LoginRequired';
 import { useOptimizedAuth } from '../../hooks/useAuth';
-import { btn } from '../../utils/buttonStyles';
 import { cn } from '../../utils/cn';
 
 import type { MediaItem, MediaType } from '@gruenerator/shared/media-library';
@@ -208,12 +208,12 @@ const EditModal: React.FC<EditModalProps> = ({ item, onSave, onClose }) => {
           </label>
         </div>
         <div className="flex gap-md justify-end mt-lg">
-          <button className={btn.secondary} onClick={onClose}>
+          <Button variant="brand-outline" size="brand" onClick={onClose}>
             Abbrechen
-          </button>
-          <button className={btn.primary} onClick={handleSave} disabled={isSaving}>
+          </Button>
+          <Button variant="brand" size="brand" onClick={handleSave} disabled={isSaving}>
             {isSaving ? 'Speichern...' : 'Speichern'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -363,18 +363,18 @@ const MediaLibraryPage: React.FC = () => {
           </button>
         </div>
 
-        <label
-          className={cn(btn.primary, 'flex items-center gap-sm cursor-pointer ml-auto max-md:ml-0')}
-        >
-          <FaUpload /> Hochladen
-          <input
-            type="file"
-            accept="image/*,video/*"
-            multiple
-            onChange={(e) => handleFileUpload(e.target.files)}
-            hidden
-          />
-        </label>
+        <Button variant="brand" size="brand" asChild>
+          <label className="flex items-center gap-sm cursor-pointer ml-auto max-md:ml-0">
+            <FaUpload /> Hochladen
+            <input
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              onChange={(e) => handleFileUpload(e.target.files)}
+              hidden
+            />
+          </label>
+        </Button>
       </div>
 
       {isUploading && (
@@ -437,13 +437,15 @@ const MediaLibraryPage: React.FC = () => {
       </div>
 
       {pagination.hasMore && (
-        <button
-          className={cn(btn.secondary, 'block w-full max-w-[300px] mx-auto mt-lg')}
+        <Button
+          variant="brand-outline"
+          size="brand"
+          className="block w-full max-w-[300px] mx-auto mt-lg"
           onClick={loadMore}
           disabled={isLoading}
         >
           {isLoading ? 'Laden...' : 'Mehr laden'}
-        </button>
+        </Button>
       )}
 
       {editingItem && (

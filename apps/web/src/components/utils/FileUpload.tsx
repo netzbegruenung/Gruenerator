@@ -6,7 +6,6 @@ interface UnsplashImage {
   [key: string]: unknown;
 }
 
-import { buttonWrapper } from '../../utils/buttonStyles';
 import { cn } from '../../utils/cn';
 
 interface FileUploadProps {
@@ -90,7 +89,7 @@ const FileUpload = ({
   };
 
   return (
-    <div className={cn(buttonWrapper, isCompact && 'compact')}>
+    <div className={cn('flex items-center flex-1', isCompact && 'compact')}>
       <input
         id="fileUpload"
         type="file"

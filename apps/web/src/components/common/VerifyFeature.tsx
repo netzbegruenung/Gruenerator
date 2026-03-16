@@ -1,7 +1,7 @@
+import { Button } from '@gruenerator/ui';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { btn } from '../../utils/buttonStyles';
 import { cn } from '../../utils/cn';
 
 import type { JSX, ReactNode, FormEvent } from 'react';
@@ -211,16 +211,18 @@ export default function VerifyFeature({
               </div>
             )}
             <div className="flex gap-4 mt-4">
-              <button type="button" onClick={handleBack} className={btn.secondary}>
+              <Button variant="brand-outline" size="brand" type="button" onClick={handleBack}>
                 {onCancel ? 'Abbrechen' : 'Zurück'}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="brand"
+                size="brand"
                 type="submit"
-                className={cn(btn.primary, isLocked && 'opacity-50 cursor-not-allowed')}
+                className={cn(isLocked && 'opacity-50 cursor-not-allowed')}
                 disabled={isLocked}
               >
                 Verifizieren
-              </button>
+              </Button>
             </div>
           </form>
         </div>

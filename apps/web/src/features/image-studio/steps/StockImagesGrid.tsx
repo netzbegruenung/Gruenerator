@@ -1,3 +1,4 @@
+import { Button } from '@gruenerator/ui';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { HiCheck, HiRefresh, HiStar } from 'react-icons/hi';
@@ -5,7 +6,6 @@ import { HiCheck, HiRefresh, HiStar } from 'react-icons/hi';
 import UnsplashAttribution from '../../../components/common/UnsplashAttribution';
 import apiClient from '../../../components/utils/apiClient';
 import useImageStudioStore from '../../../stores/imageStudioStore';
-import { btn } from '../../../utils/buttonStyles';
 import { cn } from '../../../utils/cn';
 import { useImageSourceStore } from '../hooks/useImageSourceStore';
 import { usePreloadStore } from '../hooks/usePreloadStore';
@@ -181,9 +181,9 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
     return (
       <div className="flex flex-col items-center justify-center gap-md p-xl text-center text-foreground opacity-70">
         <p>{stockImagesError}</p>
-        <button type="button" className={btn.secondary} onClick={() => fetchStockImages()}>
+        <Button variant="brand-outline" size="brand" onClick={() => fetchStockImages()}>
           <HiRefresh /> Erneut versuchen
-        </button>
+        </Button>
       </div>
     );
   }

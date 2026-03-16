@@ -1,6 +1,6 @@
+import { buttonVariants } from '@gruenerator/ui';
 import { type JSX, useState, useEffect, useRef, MouseEvent, type ReactNode } from 'react';
 
-import { btn } from '../../utils/buttonStyles';
 import { cn } from '../../utils/cn';
 
 import Spinner from './Spinner';
@@ -119,7 +119,7 @@ const SubmitButton = ({
       type={isStreamingActive ? 'button' : type}
       onClick={handleClick}
       className={cn(
-        btn.primary,
+        buttonVariants({ variant: 'brand', size: 'brand' }),
         loading && !isStreaming && 'opacity-85 cursor-wait',
         internalSuccess && 'bg-[#28a745]',
         isStreamingActive &&

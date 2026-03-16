@@ -1,3 +1,4 @@
+import { Button } from '@gruenerator/ui';
 import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import { useParams } from 'react-router-dom';
 
@@ -7,7 +8,6 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 import apiClient from '../../components/utils/apiClient';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useUrlCrawler } from '../../hooks/useUrlCrawler';
-import { btn } from '../../utils/buttonStyles';
 import { cn } from '../../utils/cn';
 
 import DynamicFormFieldRenderer from './components/DynamicFormFieldRenderer';
@@ -197,16 +197,18 @@ const CustomGeneratorPage: React.FC = memo(() => {
   const saveButton = useMemo(
     () =>
       !isOwner ? (
-        <button
+        <Button
           type="button"
-          className={cn(btn.primary, btn.sizeS, isSaved && 'saved')}
+          variant="brand"
+          size="brand-sm"
+          className={cn(isSaved && 'saved')}
           onClick={handleSaveGenerator}
           disabled={isSaving || isSaved}
           title={isSaved ? 'Bereits gespeichert' : 'In meinem Profil speichern'}
           style={savedButtonStyle}
         >
           {isSaving ? 'Speichern...' : isSaved ? 'Gespeichert ✓' : 'Speichern'}
-        </button>
+        </Button>
       ) : null,
     [isOwner, isSaved, isSaving, handleSaveGenerator, savedButtonStyle]
   );

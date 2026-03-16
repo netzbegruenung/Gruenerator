@@ -1,9 +1,11 @@
+import { Button } from '@gruenerator/ui';
 import { type JSX, useState, useRef, useMemo, useCallback, useEffect, ReactNode } from 'react';
 import { type IconType } from 'react-icons';
 import { FaInstagram, FaFacebook, FaTwitter, FaLinkedin } from 'react-icons/fa';
 import { HiX, HiCheck, HiDownload } from 'react-icons/hi';
 import { IoShareOutline, IoCopyOutline } from 'react-icons/io5';
 
+import { cn } from '../../utils/cn';
 import {
   canShareFiles,
   shareImageFile,
@@ -17,14 +19,11 @@ import {
 } from '../../utils/shareUtils';
 
 type SharePlatform = 'instagram' | 'facebook' | 'twitter' | 'linkedin';
-import {
-  actionButtonsThree,
-  btn,
-  buttonWrapper,
-  copyButton,
-  downloadButton,
-} from '../../utils/buttonStyles';
-import { cn } from '../../utils/cn';
+
+const actionRow =
+  'flex gap-md w-full mb-md mt-md max-md:flex-wrap max-md:gap-3 [&>.button-wrapper]:flex-1 max-md:[&>.button-wrapper]:basis-full max-md:[&>.button-wrapper:nth-child(n+2)]:basis-[calc(50%-0.375rem)]';
+const btnRow =
+  'inline-flex items-center justify-center gap-1.5 px-5 py-2.5 border-none rounded-[5px] bg-secondary-600 text-white cursor-pointer text-base no-underline transition-all duration-200 hover:bg-secondary-700';
 
 const PLATFORM_ICONS: Record<SharePlatform, IconType> = {
   instagram: FaInstagram,
@@ -307,14 +306,14 @@ const SharepicShareModal = ({
 
                       <div
                         className={cn(
-                          actionButtonsThree,
+                          actionRow,
                           'px-md py-sm mb-0 max-sm:flex-col max-sm:gap-xs [&_.button-wrapper]:flex-1 [&_.button-wrapper]:min-w-0 max-sm:[&_.button-wrapper]:flex-none max-sm:[&_.button-wrapper]:w-full [&_button]:w-full [&_button]:whitespace-nowrap [&_button]:text-[0.85rem] [&_button]:h-10 [&_button]:rounded-[var(--button-border-radius,7px)]'
                         )}
                       >
                         {(platformText || socialContent) && (
-                          <div className={buttonWrapper}>
+                          <div className="flex items-center flex-1">
                             <button
-                              className={cn(copyButton, 'flex items-center justify-center gap-1.5')}
+                              className={btnRow}
                               onClick={() => handleCopyText(platformId)}
                               disabled={isSharing}
                             >
@@ -330,9 +329,9 @@ const SharepicShareModal = ({
                             </button>
                           </div>
                         )}
-                        <div className={buttonWrapper}>
+                        <div className="flex items-center flex-1">
                           <button
-                            className={cn(copyButton, 'flex items-center justify-center gap-1.5')}
+                            className={btnRow}
                             onClick={() => handleShareToPlatform(platformId)}
                             disabled={isSharing}
                           >
@@ -354,12 +353,9 @@ const SharepicShareModal = ({
                             )}
                           </button>
                         </div>
-                        <div className={buttonWrapper}>
+                        <div className="flex items-center flex-1">
                           <button
-                            className={cn(
-                              downloadButton,
-                              'flex items-center justify-center gap-1.5'
-                            )}
+                            className={cn(btnRow)}
                             onClick={() => handleDownloadImage(platformId)}
                             disabled={isSharing}
                           >
@@ -386,13 +382,13 @@ const SharepicShareModal = ({
                 </p>
                 <div
                   className={cn(
-                    actionButtonsThree,
+                    actionRow,
                     'p-0 max-sm:flex-col max-sm:gap-xs max-sm:[&_.button-wrapper]:flex-none max-sm:[&_.button-wrapper]:w-full [&_button]:w-full [&_button]:whitespace-nowrap [&_button]:text-[0.85rem] [&_button]:h-10 [&_button]:rounded-[var(--button-border-radius,7px)]'
                   )}
                 >
                   {socialContent && (
-                    <div className={buttonWrapper}>
-                      <button className={copyButton} onClick={() => handleCopyText('default')}>
+                    <div className="flex items-center flex-1">
+                      <button className={btnRow} onClick={() => handleCopyText('default')}>
                         {copySuccess === 'text-default' ? (
                           <>
                             <HiCheck /> Kopiert!
@@ -405,9 +401,10 @@ const SharepicShareModal = ({
                       </button>
                     </div>
                   )}
-                  <div className={buttonWrapper}>
-                    <button
-                      className={btn.primary}
+                  <div className="flex items-center flex-1">
+                    <Button
+                      variant="brand"
+                      size="brand"
                       onClick={() => handleShareToPlatform('instagram')}
                       disabled={isSharing}
                     >
@@ -420,11 +417,11 @@ const SharepicShareModal = ({
                           <FaInstagram /> Bild kopieren
                         </>
                       )}
-                    </button>
+                    </Button>
                   </div>
-                  <div className={buttonWrapper}>
+                  <div className="flex items-center flex-1">
                     <button
-                      className={downloadButton}
+                      className={btnRow}
                       onClick={() => handleDownloadImage('sharepic')}
                       disabled={isSharing}
                     >

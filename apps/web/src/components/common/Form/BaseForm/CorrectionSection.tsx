@@ -1,7 +1,6 @@
+import { Button } from '@gruenerator/ui';
 import React, { useState, type ChangeEvent } from 'react';
 
-import { btn } from '../../../../utils/buttonStyles';
-import { cn } from '../../../../utils/cn';
 import SubmitButton from '../../SubmitButton';
 
 interface CorrectionSectionProps {
@@ -59,14 +58,16 @@ const CorrectionSection: React.FC<CorrectionSectionProps> = ({
       </p>
 
       <div className="mt-md flex justify-end gap-md max-md:flex-col">
-        <button
+        <Button
+          variant="brand-ghost"
+          size="brand-md"
           type="button"
-          className={cn(btn.ghost, btn.sizeM, 'max-md:w-full')}
+          className="max-md:w-full"
           onClick={onCancel}
           disabled={loading}
         >
           Abbrechen
-        </button>
+        </Button>
         <SubmitButton
           onClick={handleSubmit}
           loading={loading}

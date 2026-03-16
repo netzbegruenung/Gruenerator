@@ -1,3 +1,4 @@
+import { Button } from '@gruenerator/ui';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useCallback } from 'react';
 import { FaTimes, FaChevronDown, FaExchangeAlt, FaImage, FaRedo } from 'react-icons/fa';
@@ -12,7 +13,6 @@ import {
   BalkenGruppeControl,
   SonnenblumenControl,
 } from '../../../components/utils/ImageModificationForm';
-import { btn } from '../../../utils/buttonStyles';
 import { cn } from '../../../utils/cn';
 
 import ConfigDrivenFields from './ConfigDrivenFields';
@@ -124,15 +124,16 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
                   onChange={handleImageChange}
                   style={{ display: 'none' }}
                 />
-                <button
-                  className={btn.secondary}
+                <Button
+                  variant="brand-outline"
+                  size="brand"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={loading}
                   type="button"
                 >
                   <FaImage />
                   Bild ändern
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -186,15 +187,16 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
           {fieldConfig?.showAlternatives && (
             <div className="flex flex-col gap-sm">
               {displayAlternatives.length === 0 ? (
-                <button
-                  className={btn.secondary}
+                <Button
+                  variant="brand-outline"
+                  size="brand"
                   onClick={onGenerateAlternatives}
                   disabled={loading || alternativesLoading}
                   type="button"
                 >
                   {alternativesLoading ? <div className="button-spinner" /> : <HiSparkles />}
                   Mehr Alternativen generieren
-                </button>
+                </Button>
               ) : (
                 <>
                   <button
@@ -319,8 +321,10 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
         </div>
 
         <div className="flex gap-md px-lg py-md border-t border-[var(--border-subtle)] bg-background shrink-0">
-          <button
-            className={cn(btn.primary, 'flex-1')}
+          <Button
+            variant="brand"
+            size="brand"
+            className="flex-1"
             onClick={() => {
               onRegenerate();
               onClose();
@@ -329,7 +333,7 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
           >
             {loading ? <div className="button-spinner" /> : <FaRedo />}
             Aktualisieren
-          </button>
+          </Button>
         </div>
       </motion.div>
     </AnimatePresence>

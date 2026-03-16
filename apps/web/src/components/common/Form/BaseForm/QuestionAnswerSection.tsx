@@ -1,6 +1,6 @@
+import { Button } from '@gruenerator/ui';
 import React, { useState, useEffect, useRef, type ChangeEvent } from 'react';
 
-import { btn } from '../../../../utils/buttonStyles';
 import { cn } from '../../../../utils/cn';
 import {
   getYesNoEmoji,
@@ -292,24 +292,28 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
       {renderQuestion(currentQuestion, currentQuestionIndex)}
 
       <div className="mt-lg flex items-center justify-between gap-md pt-md max-md:flex-col max-md:gap-sm">
-        <button
+        <Button
+          variant="brand"
+          size="brand-md"
           type="button"
-          className={cn(btn.primary, btn.sizeM, 'max-md:min-h-12 max-md:w-full max-md:text-base')}
+          className="max-md:min-h-12 max-md:w-full max-md:text-base"
           onClick={handleBack}
           disabled={currentQuestionIndex === 0}
         >
           ← Zurück
-        </button>
+        </Button>
 
         {currentQuestionIndex < questions.length - 1 ? (
-          <button
+          <Button
+            variant="brand"
+            size="brand-md"
             type="button"
-            className={cn(btn.primary, btn.sizeM, 'max-md:min-h-12 max-md:w-full max-md:text-base')}
+            className="max-md:min-h-12 max-md:w-full max-md:text-base"
             onClick={handleNext}
             disabled={!isCurrentQuestionAnswered}
           >
             Weiter →
-          </button>
+          </Button>
         ) : (
           !hideSubmitButton && (
             <SubmitButton
@@ -319,7 +323,7 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
               text={
                 (submitButtonProps as Record<string, string>)?.defaultText || 'Fragen beantworten'
               }
-              className={cn(btn.primary, 'max-md:min-h-12 max-md:w-full max-md:text-base')}
+              className="max-md:min-h-12 max-md:w-full max-md:text-base"
               ariaLabel="Fragen beantworten"
               type="submit"
               {...submitButtonProps}

@@ -1,8 +1,8 @@
+import { Button } from '@gruenerator/ui';
 import React, { useState, useCallback, memo, useEffect } from 'react';
 
 import { TextAreaInput } from '../../components/common/Form/Input';
 import RequiredFieldToggle from '../../components/common/RequiredFieldToggle';
-import { btn } from '../../utils/buttonStyles';
 
 import { usePromptMutations } from './usePromptsData';
 
@@ -90,18 +90,24 @@ const CreatePromptForm: React.FC<CreatePromptFormProps> = memo(
 
           <div className="flex gap-sm max-md:w-full [&_button]:max-md:flex-1">
             {onCancel && (
-              <button
+              <Button
                 type="button"
-                className={btn.secondary}
+                variant="brand-outline"
+                size="brand"
                 onClick={onCancel}
                 disabled={isLoading}
               >
                 Abbrechen
-              </button>
+              </Button>
             )}
-            <button type="submit" className={btn.primary} disabled={isLoading || !prompt.trim()}>
+            <Button
+              variant="brand"
+              size="brand"
+              type="submit"
+              disabled={isLoading || !prompt.trim()}
+            >
               {isLoading ? 'Speichert...' : 'Speichern'}
-            </button>
+            </Button>
           </div>
         </div>
       </form>

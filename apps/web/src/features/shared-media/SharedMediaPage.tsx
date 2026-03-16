@@ -1,3 +1,4 @@
+import { Button } from '@gruenerator/ui';
 import { useState, useEffect, useCallback } from 'react';
 import { FaInstagram } from 'react-icons/fa';
 import QRCode from 'react-qr-code';
@@ -8,7 +9,6 @@ import Spinner from '../../components/common/Spinner';
 import apiClient from '../../components/utils/apiClient';
 import { buildUrl } from '../../config/domains';
 import { useOptimizedAuth } from '../../hooks/useAuth';
-import { btn } from '../../utils/buttonStyles';
 import { cn } from '../../utils/cn';
 import { canShare, shareContent, copyToClipboard } from '../../utils/shareUtils';
 
@@ -347,8 +347,9 @@ const SharedMediaPage = () => {
               ) : (
                 <>
                   <div className={cn('flex gap-sm', 'max-md:flex-col [&_button]:max-md:w-full')}>
-                    <button
-                      className={btn.primary}
+                    <Button
+                      variant="brand"
+                      size="brand"
                       onClick={handleDownload}
                       disabled={isDownloading}
                     >
@@ -357,20 +358,21 @@ const SharedMediaPage = () => {
                         : isVideo
                           ? 'Video herunterladen'
                           : 'Bild herunterladen'}
-                    </button>
-                    <button className={btn.primary} onClick={handleShare}>
+                    </Button>
+                    <Button variant="brand" size="brand" onClick={handleShare}>
                       {copied ? 'Link kopiert!' : 'Link teilen'}
-                    </button>
+                    </Button>
                     {canNativeShare && (
-                      <button
-                        className={btn.primary}
+                      <Button
+                        variant="brand"
+                        size="brand"
                         onClick={handleShareToInstagram}
                         disabled={isSharing}
                         title="Auf Instagram posten"
                       >
                         {isSharing ? <Spinner size="small" white /> : <FaInstagram />}
                         Posten
-                      </button>
+                      </Button>
                     )}
                   </div>
 
