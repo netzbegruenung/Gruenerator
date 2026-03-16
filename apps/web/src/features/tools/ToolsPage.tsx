@@ -1,7 +1,7 @@
-import ErrorBoundary from '../../components/ErrorBoundary';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../components/common/PageContainer';
 import ToolGrid from '../../components/common/ToolGrid';
+import ErrorBoundary from '../../components/ErrorBoundary';
 import { getIcon } from '../../config/icons';
 
 import type { ToolEntry } from '../../components/common/ToolGrid';
@@ -35,7 +35,7 @@ const tools: ToolEntry[] = [
     id: 'boards',
     title: 'Boards',
     description: 'Kanban-Boards zur kollaborativen Aufgabenplanung im Team.',
-    path: '/boards',
+    path: '/desk',
     icon: getIcon('navigation', 'boards'),
     tags: ['Kanban', 'Planung'],
   },

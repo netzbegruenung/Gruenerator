@@ -3,6 +3,7 @@
  * Extracts the existing scanner logic into a separate tab component
  */
 
+import { FeatureToggle } from '@gruenerator/ui';
 import { motion, AnimatePresence } from 'motion/react';
 import { lazy, Suspense, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { HiX } from 'react-icons/hi';
@@ -11,6 +12,7 @@ import {
   PiListChecks,
   PiNotepad,
   PiScan,
+  PiShieldCheck,
   PiTextAa,
   PiUploadSimple,
   PiX,
@@ -90,6 +92,7 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isTransforming, setIsTransforming] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
+  const [usePrivateOcr, setUsePrivateOcr] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
   const { isMobileView } = useResponsive(768);
@@ -257,7 +260,8 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await apiClient.post('/scanner/extract', formData, {
+        const url = usePrivateOcr ? '/scanner/extract?provider=docling' : '/scanner/extract';
+        const response = await apiClient.post(url, formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
@@ -427,13 +431,23 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
                 </button>
               )}
               <button
-                className="cursor-pointer rounded-md border-none bg-none px-sm py-xs text-sm font-medium text-primary transition-colors duration-200 hover:bg-primary-50 dark:hover:bg-primary-900"
+                className="flex size-9 cursor-pointer items-center justify-center rounded-full border border-grey-200 bg-transparent text-lg text-foreground transition-colors duration-200 hover:border-secondary-600 hover:text-secondary-600 dark:border-grey-700 dark:hover:border-secondary-600"
                 onClick={handleUploadClick}
                 type="button"
+                aria-label="Weitere Dateien hinzufügen"
               >
-                + Weitere Dateien
+                +
               </button>
             </div>
+
+            <FeatureToggle
+              isActive={usePrivateOcr}
+              onToggle={setUsePrivateOcr}
+              label="Privat verarbeiten"
+              icon={PiShieldCheck}
+              description="Dokumente werden direkt auf dem Grünerator-Server verarbeitet, ohne Daten an externe Dienste zu senden. Handschriftliche Texte werden in diesem Modus nicht erkannt."
+              noBorder
+            />
 
             <SubmitButton
               text={

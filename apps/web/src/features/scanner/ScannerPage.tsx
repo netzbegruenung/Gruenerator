@@ -2,7 +2,7 @@
  * Scanner Page - Document Scanner with OCR text extraction
  */
 
-import { DottedBackground } from '../../components/common/DottedBackground';
+import { Particles } from '@gruenerator/ui';
 
 import ScannerTab from './tabs/ScannerTab';
 
@@ -40,7 +40,14 @@ const ScannerPageHeader = () => (
 const ScannerPage = () => {
   return (
     <div className="scanner-page relative h-full w-full overflow-clip">
-      <DottedBackground />
+      <Particles
+        className="absolute inset-0 h-full w-full"
+        quantity={80}
+        color="#5F8575"
+        size={0.6}
+        staticity={40}
+        ease={60}
+      />
       <div className="scanner-layout relative z-[1] flex h-full min-h-0 flex-col justify-start overflow-x-clip">
         <ScannerPageHeader />
         <ScannerTab />

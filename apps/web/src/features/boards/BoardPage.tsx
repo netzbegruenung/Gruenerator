@@ -40,6 +40,7 @@ function BoardContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
+  const [expertMode, setExpertMode] = useState(false);
 
   const generatedStructure =
     (location.state as { generatedStructure?: BoardInitialStructure } | null)?.generatedStructure ??
@@ -60,7 +61,7 @@ function BoardContent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['boards'] });
-      navigate('/boards');
+      navigate('/desk');
     },
   });
 
@@ -120,9 +121,11 @@ function BoardContent() {
         isConnected={isConnected}
         isSynced={isSynced}
         isArchived={isBoardArchived(board)}
+        expertMode={expertMode}
         provider={provider}
         onDelete={handleDelete}
         onArchiveToggle={handleArchiveToggle}
+        onExpertModeToggle={() => setExpertMode((prev) => !prev)}
         compact={isWhiteboard}
       />
       {isWhiteboard ? (
@@ -143,6 +146,7 @@ function BoardContent() {
           generatedStructure={generatedStructure}
           currentUserId={String(user?.id || '')}
           groupId={boardGroups[0]?.group_id}
+          expertMode={expertMode}
         />
       )}
     </div>
@@ -156,6 +160,7 @@ function BoardViewContent({
   generatedStructure,
   currentUserId,
   groupId,
+  expertMode,
 }: {
   ydoc: Doc;
   isSynced: boolean;
@@ -163,6 +168,7 @@ function BoardViewContent({
   generatedStructure: BoardInitialStructure | null;
   currentUserId: string;
   groupId?: string;
+  expertMode: boolean;
 }) {
   const boardState = useBoardState(ydoc, isSynced, generatedStructure);
   const [activeViewId, setActiveViewId] = useState('view-kanban-default');
@@ -201,6 +207,18 @@ function BoardViewContent({
     [boardState]
   );
 
+  const handleDeleteView = useCallback(
+    (viewId: string) => {
+      if (boardState.views.length <= 1) return;
+      boardState.removeView(viewId);
+      if (activeViewId === viewId) {
+        const remaining = boardState.views.find((v) => v.id !== viewId);
+        if (remaining) setActiveViewId(remaining.id);
+      }
+    },
+    [boardState, activeViewId]
+  );
+
   const handleRowClick = useCallback((row: Row) => {
     setSelectedRow(row);
     setDetailOpen(true);
@@ -214,13 +232,14 @@ function BoardViewContent({
 
   return (
     <>
-      {boardState.views.length > 0 && (
+      {expertMode && boardState.views.length > 0 && (
         <>
           <ViewSwitcher
             views={boardState.views}
             activeViewId={activeViewId}
             onViewChange={setActiveViewId}
             onAddView={handleAddView}
+            onDeleteView={handleDeleteView}
           />
           <ViewToolbar
             fields={fields}

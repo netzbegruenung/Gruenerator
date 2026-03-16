@@ -5,7 +5,7 @@ import {
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
 import { memo, useCallback } from 'react';
-import { FiColumns, FiGrid, FiList, FiCalendar, FiBarChart2, FiPlus } from 'react-icons/fi';
+import { FiColumns, FiGrid, FiList, FiCalendar, FiBarChart2, FiPlus, FiX } from 'react-icons/fi';
 
 import type { BoardView, ViewLayout } from '../types';
 
@@ -32,6 +32,7 @@ interface ViewSwitcherProps {
   activeViewId: string;
   onViewChange: (viewId: string) => void;
   onAddView: (layout: ViewLayout) => void;
+  onDeleteView: (viewId: string) => void;
 }
 
 export const ViewSwitcher = memo(function ViewSwitcher({
@@ -39,8 +40,10 @@ export const ViewSwitcher = memo(function ViewSwitcher({
   activeViewId,
   onViewChange,
   onAddView,
+  onDeleteView,
 }: ViewSwitcherProps) {
   const existingLayouts = new Set(views.map((v) => v.layout));
+  const canDelete = views.length > 1;
 
   const handleAdd = useCallback((layout: ViewLayout) => onAddView(layout), [onAddView]);
 
@@ -54,7 +57,7 @@ export const ViewSwitcher = memo(function ViewSwitcher({
             key={view.id}
             onClick={() => onViewChange(view.id)}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all border-none cursor-pointer',
+              'group flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all border-none cursor-pointer',
               isActive
                 ? 'bg-background-pure text-foreground shadow-sm dark:bg-[#282828]'
                 : 'bg-transparent text-grey-500 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800'
@@ -62,6 +65,19 @@ export const ViewSwitcher = memo(function ViewSwitcher({
           >
             <Icon size={13} />
             {view.name}
+            {canDelete && (
+              <span
+                role="button"
+                tabIndex={-1}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteView(view.id);
+                }}
+                className="ml-0.5 -mr-1 hidden group-hover:inline-flex items-center justify-center w-4 h-4 rounded hover:bg-grey-200 dark:hover:bg-grey-700 text-grey-400 hover:text-foreground transition-colors"
+              >
+                <FiX size={10} />
+              </span>
+            )}
           </button>
         );
       })}

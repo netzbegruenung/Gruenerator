@@ -1,11 +1,10 @@
-import { Button } from '@gruenerator/ui';
+import { AIPromptInput, Button } from '@gruenerator/ui';
 import { useState, useMemo, useCallback, type FormEvent } from 'react';
 import { HiSparkles } from 'react-icons/hi';
 import { PiFolder, PiLayout, PiUser } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
 import { EarlyAccessBanner } from '../../../components/common/EarlyAccessBanner';
-import { PromptInput, type PromptExample } from '../../../components/common/PromptInput';
 import { StatusBadge } from '../../../components/common/StatusBadge';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useRecentValues } from '../../../hooks/useRecentValues';
@@ -22,7 +21,7 @@ import type { TypeConfig } from '../utils/typeConfig/types';
 import '../image-studio-shared.css';
 import './ImageStudioCategorySelector.css';
 
-const EXAMPLE_PROMPTS: PromptExample[] = [
+const EXAMPLE_PROMPTS = [
   { label: 'Zitat', text: 'Erstelle ein Zitat zum Thema Klimaschutz' },
   { label: 'Sharepic', text: 'Sharepic mit 3 Zeilen über Windenergie' },
   { label: 'Info', text: 'Info-Grafik über erneuerbare Energien' },
@@ -249,7 +248,7 @@ const ImageStudioCategorySelector: React.FC = () => {
 
         {/* AI Prompt Input Section - Hidden for Austrian users */}
         {!isAustrianUser && (
-          <PromptInput
+          <AIPromptInput
             value={promptInput}
             onChange={setPromptInput}
             onSubmit={handlePromptSubmit}
@@ -257,7 +256,6 @@ const ImageStudioCategorySelector: React.FC = () => {
             isLoading={isGenerating}
             error={generationError}
             examples={EXAMPLE_PROMPTS}
-            submitLabel="Sharepic generieren"
           />
         )}
 

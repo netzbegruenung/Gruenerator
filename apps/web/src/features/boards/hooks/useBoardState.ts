@@ -207,6 +207,17 @@ export const useBoardState = (
     [ydoc, yViews]
   );
 
+  const removeView = useCallback(
+    (viewId: string) => {
+      ydoc.transact(() => {
+        const views = yViews.toJSON() as BoardView[];
+        const index = views.findIndex((v) => v.id === viewId);
+        if (index !== -1) yViews.delete(index, 1);
+      });
+    },
+    [ydoc, yViews]
+  );
+
   return {
     fields: state.fields,
     rows: state.rows,
@@ -221,5 +232,6 @@ export const useBoardState = (
     removeField,
     addView,
     updateView,
+    removeView,
   };
 };

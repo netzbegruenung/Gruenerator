@@ -87,7 +87,7 @@ export default defineConfig(({ command }) => ({
       '@mdxeditor/editor',
       '@assistant-ui/react',
     ],
-    exclude: ['motion', 'lodash', 'browser-image-compression', '@imgly/background-removal'],
+    exclude: ['motion', 'browser-image-compression', '@imgly/background-removal'],
     esbuildOptions: {
       target: 'es2022',
       treeShaking: true,
@@ -108,8 +108,7 @@ export default defineConfig(({ command }) => ({
     emptyOutDir: true,
     rollupOptions: {
       treeshake: true,
-      cache: false,
-      maxParallelFileOps: 1,
+      maxParallelFileOps: 3,
       perf: false,
       shimMissingExports: false,
       output: {
@@ -132,20 +131,57 @@ export default defineConfig(({ command }) => ({
           }
           return 'assets/[name].[hash][extname]';
         },
-        manualChunks: {
-          // Core framework vendors
-          'core-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'state-vendor': ['@tanstack/react-query', 'zustand'],
-          'ui-vendor': ['react-tooltip', 'react-hook-form', 'react-dropzone'],
-          'utils-vendor': ['lodash', 'uuid', 'dompurify'],
-          'motion-vendor': ['motion'],
+        manualChunks(id: string) {
+          // Core framework vendors (node_modules — always matched correctly)
+          if (
+            id.includes('node_modules/react/') ||
+            id.includes('node_modules/react-dom/') ||
+            id.includes('node_modules/react-router')
+          )
+            return 'core-vendor';
+          if (
+            id.includes('node_modules/@tanstack/react-query') ||
+            id.includes('node_modules/zustand')
+          )
+            return 'state-vendor';
+          if (
+            id.includes('node_modules/react-tooltip') ||
+            id.includes('node_modules/react-hook-form') ||
+            id.includes('node_modules/react-dropzone')
+          )
+            return 'ui-vendor';
+          if (id.includes('node_modules/uuid') || id.includes('node_modules/dompurify'))
+            return 'utils-vendor';
+          if (id.includes('node_modules/motion')) return 'motion-vendor';
+          if (
+            id.includes('node_modules/konva') ||
+            id.includes('node_modules/react-konva') ||
+            id.includes('node_modules/use-image')
+          )
+            return 'canvas-vendor';
+          if (
+            id.includes('node_modules/onnxruntime-web') ||
+            id.includes('node_modules/@imgly/background-removal')
+          )
+            return 'ai-vendor';
+          if (
+            id.includes('node_modules/@mdxeditor/editor') ||
+            id.includes('node_modules/marked') ||
+            id.includes('node_modules/react-markdown')
+          )
+            return 'editor-vendor';
+          if (
+            id.includes('node_modules/@assistant-ui/react') ||
+            id.includes('node_modules/lucide-react')
+          )
+            return 'chat-vendor';
 
-          // NEW: Additional vendor chunks for better code splitting
-          'shared-vendor': ['@gruenerator/shared'],
-          'canvas-vendor': ['konva', 'react-konva', 'use-image'],
-          'ai-vendor': ['onnxruntime-web', '@imgly/background-removal'],
-          'editor-vendor': ['@mdxeditor/editor', 'marked', 'react-markdown'],
-          'chat-vendor': ['@assistant-ui/react', 'lucide-react'],
+          // Workspace packages — resolved via path aliases, match by filesystem path
+          if (id.includes('packages/shared/src/')) return 'shared-pkg';
+          if (id.includes('packages/canvas-editor/src/')) return 'canvas-editor-pkg';
+          if (id.includes('packages/chat/src/')) return 'chat-pkg';
+          if (id.includes('packages/docs/src/')) return 'docs-pkg';
+          if (id.includes('packages/collab/src/')) return 'collab-pkg';
         },
       },
     },

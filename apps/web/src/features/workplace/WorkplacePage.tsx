@@ -2,11 +2,16 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
-import { useMemo, useState } from 'react';
-import { HiPlus, HiShare, HiUserGroup } from 'react-icons/hi';
-import { PiPencilLine } from 'react-icons/pi';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useMemo, useState } from 'react';
+import { HiDotsVertical, HiOutlineTrash, HiPlus, HiShare, HiUserGroup } from 'react-icons/hi';
+import { PiPencilLine, PiStar, PiStarFill } from 'react-icons/pi';
 import { Link, useNavigate } from 'react-router-dom';
 
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
@@ -17,10 +22,13 @@ import { Separator } from '../../components/ui/separator';
 import apiClient from '../../components/utils/apiClient';
 import { getIcon } from '../../config/icons';
 import useBetaFeatures from '../../hooks/useBetaFeatures';
+import useSidebarFavouritesStore from '../../stores/sidebarFavouritesStore';
+import { cn } from '../../utils/cn';
 import { useBoards } from '../boards/hooks/useBoards';
 import { getBoardType } from '../boards/types';
-import { useGroups, type GroupSummary } from '../groups/hooks/useGroups';
+import { useGroups } from '../groups/hooks/useGroups';
 
+import { UnifiedAICreator } from './components/UnifiedAICreator';
 import useRecentDocs from './hooks/useRecentDocs';
 
 import type { ToolEntry } from '../../components/common/ToolGrid';
@@ -30,41 +38,21 @@ import type { RecentDoc } from './hooks/useRecentDocs';
 const DocsIcon = getIcon('navigation', 'docs');
 const BoardIcon = getIcon('navigation', 'boards');
 
-// Documents are now served inline at /docs/:id within the web app
-const MAX_BOARDS = 6;
-
 const dateFormat: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
 
 const createButtonClass =
-  'flex items-center justify-center w-7 h-7 rounded-full text-primary-600 hover:bg-primary-600/10 transition-colors cursor-pointer no-underline border-none bg-transparent';
-
-const linkClass =
-  'text-sm text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 transition-colors';
-
-interface SectionLink {
-  text: string;
-  href?: string;
-  onClick?: () => void;
-}
-
-interface SectionCreate {
-  href?: string;
-  onClick?: () => void;
-  label?: string;
-}
+  'flex items-center justify-center w-7 h-7 rounded-full text-primary-600 hover:bg-primary-600/10 transition-colors cursor-pointer border-none bg-transparent';
 
 const SectionHeader = ({
   title,
   titleHref,
-  titleOnClick,
-  link,
-  create,
+  onCreate,
+  createLabel,
 }: {
   title: string;
   titleHref?: string;
-  titleOnClick?: () => void;
-  link?: SectionLink;
-  create?: SectionCreate;
+  onCreate?: () => void;
+  createLabel?: string;
 }) => (
   <div className="flex items-center justify-between mb-md">
     <div className="flex items-center gap-xs">
@@ -74,60 +62,20 @@ const SectionHeader = ({
             {title}
           </h2>
         </a>
-      ) : titleOnClick ? (
-        <button
-          type="button"
-          onClick={titleOnClick}
-          className="bg-transparent border-none cursor-pointer p-0"
-        >
-          <h2 className="text-xl font-semibold text-foreground-heading m-0 hover:text-primary-600 transition-colors">
-            {title}
-          </h2>
-        </button>
       ) : (
         <h2 className="text-xl font-semibold text-foreground-heading m-0">{title}</h2>
       )}
-      {create &&
-        (create.href ? (
-          <a
-            href={create.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={createButtonClass}
-            aria-label={create.label ?? 'Neu erstellen'}
-          >
-            <HiPlus size={18} />
-          </a>
-        ) : (
-          <button
-            type="button"
-            onClick={create.onClick}
-            className={createButtonClass}
-            aria-label={create.label ?? 'Neu erstellen'}
-          >
-            <HiPlus size={18} />
-          </button>
-        ))}
-    </div>
-    {link &&
-      (link.href ? (
-        <a
-          href={link.href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`${linkClass} no-underline`}
-        >
-          {link.text}
-        </a>
-      ) : (
+      {onCreate && (
         <button
           type="button"
-          onClick={link.onClick}
-          className={`${linkClass} cursor-pointer bg-transparent border-none`}
+          onClick={onCreate}
+          className={createButtonClass}
+          aria-label={createLabel ?? 'Neu erstellen'}
         >
-          {link.text}
+          <HiPlus size={18} />
         </button>
-      ))}
+      )}
+    </div>
   </div>
 );
 
@@ -135,27 +83,6 @@ const LoadingSpinner = () => (
   <div className="flex items-center gap-sm py-md">
     <div className="size-4 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
     <span className="text-sm text-foreground">Laden...</span>
-  </div>
-);
-
-const EmptyState = ({
-  message,
-  actionLabel,
-  onAction,
-}: {
-  message: string;
-  actionLabel: string;
-  onAction: () => void;
-}) => (
-  <div className="text-center py-lg text-grey-500 dark:text-grey-400">
-    <p className="text-sm mb-sm">{message}</p>
-    <button
-      type="button"
-      onClick={onAction}
-      className="text-sm text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 cursor-pointer bg-transparent border-none transition-colors"
-    >
-      {actionLabel}
-    </button>
   </div>
 );
 
@@ -203,12 +130,27 @@ const BoardCard = ({
   board,
   onClick,
   groups,
+  isFavourite,
+  onToggleFavourite,
+  onDelete,
+  isDeleting,
 }: {
   board: Board;
   onClick: () => void;
-  groups: GroupSummary[];
+  groups: { id: string; name: string }[];
+  isFavourite: boolean;
+  onToggleFavourite: () => void;
+  onDelete: () => void;
+  isDeleting: boolean;
 }) => {
+  const [copiedId, setCopiedId] = useState(false);
   const [sharedGroupId, setSharedGroupId] = useState<string | null>(null);
+
+  const handleShareLink = () => {
+    navigator.clipboard.writeText(`${window.location.origin}/boards/${board.id}`);
+    setCopiedId(true);
+    setTimeout(() => setCopiedId(false), 2000);
+  };
 
   const handleShareToGroup = async (groupId: string) => {
     try {
@@ -249,32 +191,57 @@ const BoardCard = ({
           {new Date(board.updated_at).toLocaleDateString('de-DE', dateFormat)}
         </span>
       </div>
-      {groups.length > 0 && (
-        <div
-          className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="flex items-center justify-center w-6 h-6 rounded-full text-grey-400 hover:text-foreground transition-colors cursor-pointer"
-                aria-label="Teilen"
-              >
-                <HiShare size={14} />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {groups.map((group) => (
-                <DropdownMenuItem key={group.id} onClick={() => handleShareToGroup(group.id)}>
-                  <HiUserGroup />
-                  {sharedGroupId === group.id ? 'Geteilt!' : group.name}
+      <div
+        className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="flex items-center justify-center w-6 h-6 rounded-full text-grey-400 hover:text-foreground transition-colors cursor-pointer"
+              aria-label="Aktionen"
+            >
+              <HiDotsVertical size={14} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onToggleFavourite}>
+              {isFavourite ? <PiStarFill className="text-primary-600" /> : <PiStar />}
+              {isFavourite ? 'Aus Favoriten entfernen' : 'Zu Favoriten'}
+            </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <HiShare />
+                Teilen
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem onClick={handleShareLink}>
+                  <HiShare />
+                  {copiedId ? 'Link kopiert!' : 'Link kopieren'}
                 </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      )}
+                {groups.length > 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    {groups.map((group) => (
+                      <DropdownMenuItem key={group.id} onClick={() => handleShareToGroup(group.id)}>
+                        <HiUserGroup />
+                        {sharedGroupId === group.id ? 'Geteilt!' : group.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </>
+                )}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={onDelete}>
+              <HiOutlineTrash />
+              {isDeleting ? 'Wird gelöscht...' : 'Löschen'}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 };
@@ -323,11 +290,56 @@ const WorkplacePage = () => {
   const showDocs = canAccessBetaFeature('docs');
   const showBoards = canAccessBetaFeature('boards');
 
-  const { boards, isLoading: boardsLoading } = useBoards({ enabled: showBoards });
+  const queryClient = useQueryClient();
+  const {
+    boards,
+    archivedBoards,
+    isLoading: boardsLoading,
+    deleteBoard,
+    createBoard,
+  } = useBoards({ enabled: showBoards });
   const { docs, isLoading: docsLoading } = useRecentDocs(5, showDocs);
   const { userGroups = [] } = useGroups({ isActive: showBoards });
+  const { isFavourite, toggleFavourite } = useSidebarFavouritesStore();
 
-  const displayedBoards = useMemo(() => boards.slice(0, MAX_BOARDS), [boards]);
+  const [boardTab, setBoardTab] = useState<'active' | 'archived'>('active');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const createEmptyDoc = useMutation({
+    mutationFn: async () => {
+      const res = await apiClient.post('/docs', { title: 'Neues Dokument' });
+      return res.data as { id: string };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workplace-recent-docs'] });
+    },
+  });
+
+  const handleCreateDoc = useCallback(() => {
+    createEmptyDoc.mutate(undefined, {
+      onSuccess: (data) => navigate(`/docs/${data.id}`),
+    });
+  }, [createEmptyDoc, navigate]);
+
+  const handleCreateBoard = useCallback(() => {
+    createBoard.mutate(
+      { title: 'Neues Board' },
+      { onSuccess: (board) => navigate(`/boards/${board.id}`) }
+    );
+  }, [createBoard, navigate]);
+
+  const displayedBoards = boardTab === 'active' ? boards : archivedBoards;
+
+  const handleDeleteBoard = async (board: Board) => {
+    if (window.confirm(`Board "${board.title}" wirklich löschen?`)) {
+      setDeletingId(board.id);
+      try {
+        await deleteBoard.mutateAsync(board.id);
+      } finally {
+        setDeletingId(null);
+      }
+    }
+  };
 
   const visibleTools = useMemo(
     () => tools.filter((tool) => !tool.betaFeature || canAccessBetaFeature(tool.betaFeature)),
@@ -338,24 +350,25 @@ const WorkplacePage = () => {
     <ErrorBoundary>
       <PageContainer
         title="Desk"
-        subtitle="Zusammenarbeit, Planung und Teamorganisation."
+        subtitle="Beschreibe dein Vorhaben und die KI erstellt ein Dokument oder Board mit passender Struktur."
         maxWidth="md"
       >
+        {(showDocs || showBoards) && <UnifiedAICreator />}
+
         {showDocs && (
           <section className="mb-xl">
             <SectionHeader
               title="Dokumente"
               titleHref="https://docs.gruenerator.eu"
-              create={{ href: 'https://docs.gruenerator.eu', label: 'Neues Dokument erstellen' }}
+              onCreate={handleCreateDoc}
+              createLabel="Neues Dokument erstellen"
             />
             {docsLoading ? (
               <LoadingSpinner />
             ) : docs.length === 0 ? (
-              <EmptyState
-                message="Noch keine Dokumente vorhanden."
-                actionLabel="Neues Dokument erstellen"
-                onAction={() => window.open('https://docs.gruenerator.eu', '_blank')}
-              />
+              <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
+                Noch keine Dokumente vorhanden.
+              </p>
             ) : (
               <div className="grid grid-cols-5 max-lg:grid-cols-4 max-md:grid-cols-3 max-sm:grid-cols-2 gap-sm">
                 {docs.map((doc) => (
@@ -370,22 +383,45 @@ const WorkplacePage = () => {
           <section className="mb-xl">
             <SectionHeader
               title="Boards"
-              titleOnClick={() => navigate('/boards')}
-              link={
-                boards.length > MAX_BOARDS
-                  ? { text: 'Alle anzeigen →', onClick: () => navigate('/boards') }
-                  : undefined
-              }
-              create={{ onClick: () => navigate('/boards'), label: 'Neues Board erstellen' }}
+              onCreate={handleCreateBoard}
+              createLabel="Neues Board erstellen"
             />
+
+            {archivedBoards.length > 0 && (
+              <div className="flex gap-1 mb-md">
+                <button
+                  onClick={() => setBoardTab('active')}
+                  className={cn(
+                    'px-3 py-1.5 text-sm font-medium rounded-md border-none cursor-pointer transition-colors',
+                    boardTab === 'active'
+                      ? 'bg-grey-200 dark:bg-grey-700 text-foreground'
+                      : 'bg-transparent text-grey-500 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800'
+                  )}
+                >
+                  Aktiv ({boards.length})
+                </button>
+                <button
+                  onClick={() => setBoardTab('archived')}
+                  className={cn(
+                    'px-3 py-1.5 text-sm font-medium rounded-md border-none cursor-pointer transition-colors',
+                    boardTab === 'archived'
+                      ? 'bg-grey-200 dark:bg-grey-700 text-foreground'
+                      : 'bg-transparent text-grey-500 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800'
+                  )}
+                >
+                  Archiviert ({archivedBoards.length})
+                </button>
+              </div>
+            )}
+
             {boardsLoading ? (
               <LoadingSpinner />
             ) : displayedBoards.length === 0 ? (
-              <EmptyState
-                message="Noch keine Boards vorhanden."
-                actionLabel="Erstes Board erstellen"
-                onAction={() => navigate('/boards')}
-              />
+              <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
+                {boardTab === 'active'
+                  ? 'Noch keine Boards vorhanden.'
+                  : 'Keine archivierten Boards.'}
+              </p>
             ) : (
               <div className="grid grid-cols-2 max-sm:grid-cols-1 gap-sm">
                 {displayedBoards.map((board) => (
@@ -393,7 +429,11 @@ const WorkplacePage = () => {
                     key={board.id}
                     board={board}
                     onClick={() => navigate(`/boards/${board.id}`)}
-                    groups={userGroups}
+                    groups={userGroups as { id: string; name: string }[]}
+                    isFavourite={isFavourite(board.id)}
+                    onToggleFavourite={() => toggleFavourite(board.id)}
+                    onDelete={() => handleDeleteBoard(board)}
+                    isDeleting={deletingId === board.id}
                   />
                 ))}
               </div>

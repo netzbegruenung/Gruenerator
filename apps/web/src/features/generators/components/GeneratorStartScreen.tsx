@@ -1,10 +1,7 @@
+import { AIPromptInput } from '@gruenerator/ui';
 import React, { memo, useCallback, useMemo, useState } from 'react';
 
-import PromptInput from '../../../components/common/PromptInput/PromptInput';
-
 import GeneratorDetailPanel from './GeneratorDetailPanel';
-
-import type { PromptExample } from '../../../components/common/PromptInput/PromptInput';
 
 import { cn } from '@/utils/cn';
 
@@ -39,7 +36,7 @@ interface GeneratorStartScreenProps {
   onGeneratorUpdated?: () => void;
 }
 
-const EXAMPLE_PROMPTS: PromptExample[] = [
+const EXAMPLE_PROMPTS = [
   {
     label: '📰 Pressemitteilung',
     text: 'Erstelle einen Grünerator für Pressemitteilungen über neu eröffnete Radwege. Er soll nach dem Ort, der Länge des Radwegs und besonderen Merkmalen fragen.',
@@ -94,7 +91,7 @@ const GeneratorStartScreen: React.FC<GeneratorStartScreenProps> = memo(
     return (
       <div className="w-full max-w-[800px] mx-auto px-md max-md:px-sm">
         <div className="flex flex-col gap-lg">
-          <PromptInput
+          <AIPromptInput
             value={aiDescription}
             onChange={onDescriptionChange}
             onSubmit={onGenerateWithAI}
@@ -102,8 +99,7 @@ const GeneratorStartScreen: React.FC<GeneratorStartScreenProps> = memo(
             isLoading={isLoading}
             error={error}
             examples={EXAMPLE_PROMPTS}
-            minRows={2}
-            submitLabel="Grünerator erstellen"
+            rows={2}
           />
 
           {hasGenerators && (

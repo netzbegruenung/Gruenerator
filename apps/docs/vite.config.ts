@@ -104,6 +104,12 @@ export default defineConfig(({ command }) => ({
         changeOrigin: true,
         secure: false,
       },
+      '/ws': {
+        target: `http://localhost:${process.env.HOCUSPOCUS_PORT || 1240}`,
+        ws: true,
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/ws/, ''),
+      },
     },
   },
 }));

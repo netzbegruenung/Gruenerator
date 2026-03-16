@@ -34,11 +34,26 @@ function ChatPage() {
 
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
 
+  const handleSelectNotebook = useCallback((notebookId: string) => {
+    const store = useAgentStore.getState();
+    store.setThreadMode('notebook');
+    store.setSelectedNotebook(notebookId);
+    store.setChatViewMode('thread');
+  }, []);
+
   useEffect(() => {
     const agentParam = searchParams.get('agent');
     if (agentParam) {
       useAgentStore.getState().setSelectedAgent(agentParam);
       useAgentStore.getState().setChatViewMode('thread');
+    }
+    const modeParam = searchParams.get('mode');
+    if (modeParam === 'search' || modeParam === 'notebook') {
+      useAgentStore.getState().setThreadMode(modeParam);
+      useAgentStore.getState().setChatViewMode('thread');
+    } else if (!modeParam) {
+      // Reset to chat mode when navigating to /chat without ?mode=
+      useAgentStore.getState().setThreadMode('chat');
     }
   }, [searchParams]);
 
@@ -50,6 +65,7 @@ function ChatPage() {
             firstName={firstName}
             notebooks={notebookLinks}
             onNavigate={handleNavigate}
+            onSelectNotebook={handleSelectNotebook}
           />
         ) : (
           <GrueneratorThread />
