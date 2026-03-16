@@ -43,7 +43,7 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
       .describe('Sammlung für die Filterwerte - muss vor gefilterter Suche aufgerufen werden'),
   },
 
-  async handler({ collection }) {
+  async handler({ collection }: { collection: string }) {
     const col = config.collections[collection];
     if (!col) {
       return {
@@ -62,8 +62,11 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
     }
 
     try {
-      const filters = {};
-      const baseFilter = buildCollectionDefaultFilter(collection);
+      const filters: Record<
+        string,
+        { label: string; type: string; values: unknown[]; totalUniqueValues: number }
+      > = {};
+      const baseFilter = buildCollectionDefaultFilter(collection) as Record<string, unknown> | null;
 
       for (const [field, fieldConfig] of Object.entries(col.filterableFields)) {
         console.error(`[Filters] Fetching value counts for ${collection}.${field}`);
@@ -83,11 +86,12 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
         description: col.description,
         filters,
       };
-    } catch (error) {
-      console.error('[Filters] Error:', error.message);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[Filters] Error:', message);
       return {
         error: true,
-        message: `Fehler beim Abrufen der Filter: ${error.message}`,
+        message: `Fehler beim Abrufen der Filter: ${message}`,
         collection: col.displayName,
         collectionId: collection,
       };

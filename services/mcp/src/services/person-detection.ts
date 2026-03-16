@@ -10,7 +10,24 @@ import {
 
 import { getBundestagMCPClient } from './bundestag-client.ts';
 
-const mpCache = new Map();
+interface PersonRecord {
+  id?: string | number;
+  vorname?: string;
+  nachname?: string;
+  titel?: string;
+  fraktion?: string | string[];
+  person_roles?: Array<{ fraktion?: string }>;
+}
+
+interface DetectionResult {
+  detected: boolean;
+  confidence: number;
+  person?: PersonRecord;
+  source?: string;
+  extractedName?: string;
+}
+
+const mpCache = new Map<string, PersonRecord>();
 let cacheLastUpdated = 0;
 const CACHE_TTL = 24 * 60 * 60 * 1000;
 
@@ -68,7 +85,7 @@ class PersonDetectionService {
     this.mcpClient = getBundestagMCPClient();
   }
 
-  async detectPerson(query) {
+  async detectPerson(query: string): Promise<DetectionResult> {
     const trimmed = (query || '').trim();
     if (!trimmed || trimmed.length < 3) {
       return { detected: false, confidence: 0 };
@@ -98,14 +115,14 @@ class PersonDetectionService {
     }
 
     try {
-      const result = await this.mcpClient.searchPersonen({
+      const result = (await this.mcpClient.searchPersonen({
         query: extractedName,
         fraktion: 'GRÜNE',
         limit: 5,
-      });
+      })) as { documents?: PersonRecord[] };
 
       if (result.documents && result.documents.length > 0) {
-        const bestMatch = result.documents[0];
+        const bestMatch = result.documents[0]!;
         const fullName = `${bestMatch.vorname} ${bestMatch.nachname}`;
         const confidence = this.calculateNameSimilarity(extractedName, fullName);
 
@@ -122,8 +139,11 @@ class PersonDetectionService {
           };
         }
       }
-    } catch (error) {
-      console.error('[PersonDetection] API search failed:', error.message);
+    } catch (err) {
+      console.error(
+        '[PersonDetection] API search failed:',
+        err instanceof Error ? err.message : String(err)
+      );
     }
 
     if (cachedMatch && cachedMatch.confidence >= 0.7) {
@@ -139,11 +159,11 @@ class PersonDetectionService {
     return { detected: false, confidence: 0, extractedName };
   }
 
-  extractNameFromQuery(query) {
+  extractNameFromQuery(query: string): string | null {
     for (const pattern of PERSON_PATTERNS) {
       const match = query.match(pattern.re);
       if (match && match[pattern.nameGroup]) {
-        const name = match[pattern.nameGroup].trim();
+        const name = match[pattern.nameGroup]!.trim();
         if (name.length >= 2 && !this.isCommonWord(name)) {
           return name;
         }
@@ -159,7 +179,7 @@ class PersonDetectionService {
     return null;
   }
 
-  isCommonWord(word) {
+  isCommonWord(word: string): boolean {
     const commonWords = new Set([
       'der',
       'die',
@@ -185,7 +205,7 @@ class PersonDetectionService {
     return commonWords.has(word.toLowerCase());
   }
 
-  _isGrueneFraktion(person) {
+  _isGrueneFraktion(person: PersonRecord): boolean {
     const gruenePatterns = ['GRÜNE', 'BÜNDNIS 90/DIE GRÜNEN', 'B90/GRÜNE'];
 
     const fraktion = person.fraktion;
@@ -198,7 +218,7 @@ class PersonDetectionService {
 
     if (person.person_roles && Array.isArray(person.person_roles)) {
       for (const role of person.person_roles) {
-        if (role.fraktion && gruenePatterns.some((p) => role.fraktion.includes(p))) {
+        if (role.fraktion && gruenePatterns.some((p) => role.fraktion!.includes(p))) {
           return true;
         }
       }
@@ -207,14 +227,14 @@ class PersonDetectionService {
     return false;
   }
 
-  findMatchingMP(name) {
+  findMatchingMP(name: string): { person: PersonRecord; confidence: number } | null {
     const normalizedSearch = this.normalizeForCache(name);
 
     if (mpCache.has(normalizedSearch)) {
-      return { person: mpCache.get(normalizedSearch), confidence: 1.0 };
+      return { person: mpCache.get(normalizedSearch)!, confidence: 1.0 };
     }
 
-    let bestMatch = null;
+    let bestMatch: PersonRecord | null = null;
     let bestSimilarity = 0;
 
     for (const [cachedName, person] of mpCache.entries()) {
@@ -228,17 +248,17 @@ class PersonDetectionService {
     return bestMatch ? { person: bestMatch, confidence: bestSimilarity } : null;
   }
 
-  calculateNameSimilarity(name1, name2) {
+  calculateNameSimilarity(name1: string, name2: string): number {
     // Use shared utility from @gruenerator/shared/utils
     return sharedCalculateNameSimilarity(name1, name2);
   }
 
-  normalizeForCache(name) {
+  normalizeForCache(name: string): string {
     // Use shared utility from @gruenerator/shared/utils
     return normalizeForNameMatch(name);
   }
 
-  async ensureCachePopulated() {
+  async ensureCachePopulated(): Promise<void> {
     const now = Date.now();
     if (mpCache.size > 0 && now - cacheLastUpdated < CACHE_TTL) {
       return;
@@ -246,15 +266,15 @@ class PersonDetectionService {
     await this.refreshMPCache();
   }
 
-  async refreshMPCache() {
+  async refreshMPCache(): Promise<void> {
     try {
       console.log('[PersonDetection] Refreshing MP cache...');
 
-      const result = await this.mcpClient.searchPersonen({
+      const result = (await this.mcpClient.searchPersonen({
         fraktion: 'GRÜNE',
         wahlperiode: 20,
         limit: 100,
-      });
+      })) as { documents?: PersonRecord[] };
 
       if (result.documents && result.documents.length > 0) {
         mpCache.clear();
@@ -275,7 +295,7 @@ class PersonDetectionService {
           const normalizedName = this.normalizeForCache(fullName);
           mpCache.set(normalizedName, person);
 
-          const lastName = this.normalizeForCache(person.nachname);
+          const lastName = this.normalizeForCache(person.nachname || '');
           if (!mpCache.has(lastName)) {
             mpCache.set(lastName, person);
           }
@@ -283,8 +303,11 @@ class PersonDetectionService {
         cacheLastUpdated = Date.now();
         console.log(`[PersonDetection] Cached ${mpCache.size} entries`);
       }
-    } catch (error) {
-      console.error('[PersonDetection] Cache refresh failed:', error.message);
+    } catch (err) {
+      console.error(
+        '[PersonDetection] Cache refresh failed:',
+        err instanceof Error ? err.message : String(err)
+      );
       for (const name of KNOWN_GREEN_MPS) {
         const normalized = this.normalizeForCache(name);
         if (!mpCache.has(normalized)) {
@@ -304,9 +327,9 @@ class PersonDetectionService {
   }
 }
 
-let serviceInstance = null;
+let serviceInstance: PersonDetectionService | null = null;
 
-function getPersonDetectionService() {
+function getPersonDetectionService(): PersonDetectionService {
   if (!serviceInstance) {
     serviceInstance = new PersonDetectionService();
   }

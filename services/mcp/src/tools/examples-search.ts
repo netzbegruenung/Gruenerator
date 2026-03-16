@@ -53,7 +53,17 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
     limit: z.number().min(1).max(20).default(5).describe('Anzahl der Ergebnisse'),
   },
 
-  async handler({ query, platform = 'all', country = 'all', limit = 5 }) {
+  async handler({
+    query,
+    platform = 'all',
+    country = 'all',
+    limit = 5,
+  }: {
+    query: string;
+    platform?: string;
+    country?: string;
+    limit?: number;
+  }) {
     try {
       console.log(
         `[ExamplesSearch] Searching for "${query}" (platform: ${platform}, country: ${country})`
@@ -70,18 +80,13 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
       const filter = buildQdrantFilter(filterParams);
 
       // Search in Qdrant
-      const searchParams: Record<string, unknown> = {
+      const results = await qdrant.search(COLLECTION_NAME, {
         vector: embedding,
         limit: limit,
         with_payload: true,
         score_threshold: DEFAULT_THRESHOLD,
-      };
-
-      if (filter) {
-        searchParams.filter = filter;
-      }
-
-      const results = await qdrant.search(COLLECTION_NAME, searchParams);
+        ...(filter ? { filter: filter as Record<string, unknown> } : {}),
+      });
 
       console.log(`[ExamplesSearch] Found ${results?.length || 0} examples`);
 
@@ -108,11 +113,12 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
         resultsCount: examples.length,
         examples,
       };
-    } catch (error) {
-      console.error('[ExamplesSearch] Error:', error.message);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[ExamplesSearch] Error:', message);
 
       // Check if collection doesn't exist
-      if (error.message?.includes('Not found') || error.message?.includes('not found')) {
+      if (message.includes('Not found') || message.includes('not found')) {
         return {
           error: true,
           message: `Collection "${COLLECTION_NAME}" not found. Social media examples may not be indexed yet.`,
@@ -126,7 +132,7 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
 
       return {
         error: true,
-        message: error.message,
+        message,
         query,
         platform,
         country,
