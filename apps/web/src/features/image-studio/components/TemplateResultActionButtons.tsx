@@ -13,9 +13,10 @@ import { HiSparkles } from 'react-icons/hi';
 import { IoCopyOutline, IoCheckmarkOutline } from 'react-icons/io5';
 
 import Spinner from '../../../components/common/Spinner';
+import { actionButtons, btnIcon } from '../../../utils/buttonStyles';
+import { cn } from '../../../utils/cn';
 
 import type { TemplateResultActionButtonsProps } from '../types/templateResultTypes';
-import '../../../assets/styles/components/ui/button.css';
 
 export const TemplateResultActionButtons: React.FC<TemplateResultActionButtonsProps> = ({
   generatedImageSrc,
@@ -48,9 +49,9 @@ export const TemplateResultActionButtons: React.FC<TemplateResultActionButtonsPr
   if (!generatedImageSrc) return null;
 
   return (
-    <div className="action-buttons">
+    <div className={actionButtons}>
       <button
-        className="btn-icon btn-primary"
+        className={btnIcon.primary}
         onClick={onDownload}
         disabled={loading}
         title="Herunterladen"
@@ -60,7 +61,7 @@ export const TemplateResultActionButtons: React.FC<TemplateResultActionButtonsPr
 
       {galleryEditMode ? (
         <button
-          className={`btn-icon btn-primary ${updateSuccess ? 'btn-success' : ''}`}
+          className={cn(btnIcon.primary, updateSuccess && 'bg-[#22c55e]')}
           onClick={onGalleryUpdate}
           disabled={loading || isUpdating}
           title={updateSuccess ? 'Gespeichert!' : 'Änderungen speichern'}
@@ -74,19 +75,14 @@ export const TemplateResultActionButtons: React.FC<TemplateResultActionButtonsPr
           )}
         </button>
       ) : (
-        <button
-          className="btn-icon btn-primary"
-          onClick={onShare}
-          disabled={loading}
-          title="Teilen"
-        >
+        <button className={btnIcon.primary} onClick={onShare} disabled={loading} title="Teilen">
           <FaShareAlt />
         </button>
       )}
 
       {!galleryEditMode && autoSaveStatus === 'saved' && (
         <button
-          className="btn-icon btn-primary"
+          className={btnIcon.primary}
           onClick={onNavigateToGallery}
           title="In Galerie anzeigen"
         >
@@ -96,7 +92,7 @@ export const TemplateResultActionButtons: React.FC<TemplateResultActionButtonsPr
 
       {isAiType ? (
         <button
-          className="btn-icon btn-primary"
+          className={btnIcon.primary}
           onClick={onRecreate}
           disabled={loading}
           title="Neu erstellen"
@@ -105,7 +101,7 @@ export const TemplateResultActionButtons: React.FC<TemplateResultActionButtonsPr
         </button>
       ) : (
         <button
-          className="btn-icon btn-primary"
+          className={btnIcon.primary}
           onClick={onOpenEditPanel}
           disabled={loading}
           title="Bearbeiten"
@@ -117,7 +113,7 @@ export const TemplateResultActionButtons: React.FC<TemplateResultActionButtonsPr
       {isAiEditor && onUndo && onRedo && (
         <>
           <button
-            className="btn-icon btn-primary"
+            className={btnIcon.primary}
             onClick={onUndo}
             disabled={!canUndo || loading}
             title="Rückgängig (Strg+Z)"
@@ -125,7 +121,7 @@ export const TemplateResultActionButtons: React.FC<TemplateResultActionButtonsPr
             <FaUndo />
           </button>
           <button
-            className="btn-icon btn-primary"
+            className={btnIcon.primary}
             onClick={onRedo}
             disabled={!canRedo || loading}
             title="Wiederherstellen (Strg+Shift+Z)"
@@ -136,7 +132,7 @@ export const TemplateResultActionButtons: React.FC<TemplateResultActionButtonsPr
       )}
 
       <button
-        className={`btn-icon btn-primary ${copied ? 'btn-success' : ''}`}
+        className={cn(btnIcon.primary, copied && 'bg-[#22c55e]')}
         onClick={onTextButtonClick}
         disabled={loading || socialLoading || isAltTextLoading}
         title={hasGeneratedText ? (copied ? 'Kopiert!' : 'Text kopieren') : 'Texte generieren'}
@@ -154,7 +150,7 @@ export const TemplateResultActionButtons: React.FC<TemplateResultActionButtonsPr
 
       {canNativeShare && (
         <button
-          className="btn-icon btn-primary"
+          className={btnIcon.primary}
           onClick={onShareToInstagram}
           disabled={loading || isSharing}
           title="Auf Instagram posten"

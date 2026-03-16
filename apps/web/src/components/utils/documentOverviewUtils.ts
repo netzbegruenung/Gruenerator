@@ -1,6 +1,6 @@
 // Utility helpers for DocumentOverview (frontend)
 
-export const truncateForPreview = (content, maxLength = 300) => {
+export const truncateForPreview = (content: string | null | undefined, maxLength = 300): string => {
   if (!content || typeof content !== 'string') return '';
   if (content.length <= maxLength) return content;
 
@@ -18,10 +18,13 @@ export const truncateForPreview = (content, maxLength = 300) => {
 };
 
 // Cache for memoized markdown stripping - prevents expensive regex operations on re-renders
-const stripMarkdownCache = new Map();
+const stripMarkdownCache = new Map<string, string>();
 const CACHE_MAX_SIZE = 500;
 
-export const stripMarkdownForPreview = (content, maxLength = 300) => {
+export const stripMarkdownForPreview = (
+  content: string | null | undefined,
+  maxLength = 300
+): string => {
   if (!content || typeof content !== 'string') return '';
 
   // Create cache key from content hash (first 100 chars + length for uniqueness)
@@ -29,7 +32,7 @@ export const stripMarkdownForPreview = (content, maxLength = 300) => {
 
   // Return cached result if available
   if (stripMarkdownCache.has(cacheKey)) {
-    return stripMarkdownCache.get(cacheKey);
+    return stripMarkdownCache.get(cacheKey)!;
   }
 
   const cleaned = content
@@ -60,7 +63,7 @@ export const stripMarkdownForPreview = (content, maxLength = 300) => {
   return result;
 };
 
-export const formatDate = (dateString) => {
+export const formatDate = (dateString: string | null | undefined): string => {
   if (!dateString) return '';
   try {
     return new Date(dateString).toLocaleString('de-DE', {
@@ -75,8 +78,27 @@ export const formatDate = (dateString) => {
   }
 };
 
-export const getSearchValueFactory = (itemType) => {
-  return (item, field) => {
+interface ItemRecord {
+  name?: string;
+  description?: string;
+  custom_prompt?: string;
+  title?: string;
+  content_preview?: string;
+  full_content?: string;
+  document_count?: number;
+  view_count?: number;
+  word_count?: number;
+  similarity_score?: number;
+  created_at?: string;
+  updated_at?: string;
+  relevantText?: string;
+  [key: string]: unknown;
+}
+
+export const getSearchValueFactory = (
+  itemType: string
+): ((item: ItemRecord, field: string) => string) => {
+  return (item: ItemRecord, field: string): string => {
     if (itemType === 'notebook') {
       switch (field) {
         case 'title':
@@ -86,15 +108,17 @@ export const getSearchValueFactory = (itemType) => {
         case 'full_content':
           return item.custom_prompt || '';
         default:
-          return item[field] || '';
+          return (item[field] as string) || '';
       }
     }
-    return item[field] || '';
+    return (item[field] as string) || '';
   };
 };
 
-export const getSortValueFactory = (itemType) => {
-  return (item, field) => {
+export const getSortValueFactory = (
+  itemType: string
+): ((item: ItemRecord, field: string) => string | number | Date) => {
+  return (item: ItemRecord, field: string): string | number | Date => {
     if (itemType === 'notebook') {
       switch (field) {
         case 'title':
@@ -108,7 +132,7 @@ export const getSortValueFactory = (itemType) => {
         case 'updated_at':
           return item.updated_at ? new Date(item.updated_at) : new Date(0);
         default:
-          return item[field] || '';
+          return (item[field] as string) || '';
       }
     }
 
@@ -124,14 +148,15 @@ export const getSortValueFactory = (itemType) => {
       case 'updated_at':
         return item.updated_at ? new Date(item.updated_at) : new Date(0);
       default:
-        return item[field] || '';
+        return (item[field] as string) || '';
     }
   };
 };
 
-export const normalizeRemoteResults = (remoteResults = []) => {
+export const normalizeRemoteResults = (remoteResults: ItemRecord[] = []): ItemRecord[] => {
   return (remoteResults || []).map((item) => ({
     ...item,
-    content_preview: item.content_preview || item.relevantText || item.full_content || '',
+    content_preview:
+      item.content_preview || (item.relevantText as string) || item.full_content || '',
   }));
 };

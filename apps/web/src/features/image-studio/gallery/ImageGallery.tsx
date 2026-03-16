@@ -14,6 +14,8 @@ import { useNavigate } from 'react-router-dom';
 
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import apiClient from '../../../components/utils/apiClient';
+import { btn } from '../../../utils/buttonStyles';
+import { cn } from '../../../utils/cn';
 import { useTemplateClone } from '../hooks/useTemplateClone';
 
 import type { Share } from '@gruenerator/shared';
@@ -377,7 +379,7 @@ const ImageGallery = () => {
       <div className="image-gallery">
         <div className="image-gallery-header">
           <h1 className="image-gallery-title">Meine Bilder</h1>
-          <button className="btn-primary image-gallery-new-btn" onClick={handleNewImage}>
+          <button className={cn(btn.primary, 'image-gallery-new-btn')} onClick={handleNewImage}>
             <FaPlus />
             Neues Bild
           </button>
@@ -421,7 +423,7 @@ const ImageGallery = () => {
           <p className="image-gallery-empty-text">
             Erstelle dein erstes Bild mit dem Image Studio.
           </p>
-          <button className="btn-primary" onClick={handleNewImage}>
+          <button className={btn.primary} onClick={handleNewImage}>
             <FaPlus />
             Bild erstellen
           </button>
@@ -434,7 +436,7 @@ const ImageGallery = () => {
     <div className="image-gallery">
       <div className="image-gallery-header">
         <h1 className="image-gallery-title">Meine Bilder</h1>
-        <button className="btn-primary image-gallery-new-btn" onClick={handleNewImage}>
+        <button className={cn(btn.primary, 'image-gallery-new-btn')} onClick={handleNewImage}>
           <FaPlus />
           Neues Bild
         </button>

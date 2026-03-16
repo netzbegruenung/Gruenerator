@@ -23,7 +23,6 @@
 @import url('./components/layout/footer.css') layer(legacy);
 @import url('./components/layout/sidebar.css') layer(legacy);
 
-@import url('./components/ui/button.css') layer(legacy);
 @import url('./components/profile/profile-action-buttons.css') layer(legacy);
 
 @import url('./components/ui/quote-form.css') layer(legacy);
@@ -457,4 +456,28 @@
 @keyframes flyout-enter {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── ProgressBar lightsaber glow animation ── */
+@keyframes lightsaber-glow {
+  0%, 100% {
+    box-shadow:
+      0 -2px 8px var(--primary),
+      0 -4px 16px var(--primary),
+      0 -6px 24px rgba(0, 85, 56, 0.4),
+      inset 0 0 4px rgba(255, 255, 255, 0.3);
+  }
+  50% {
+    box-shadow:
+      0 -3px 12px var(--primary),
+      0 -6px 20px var(--primary),
+      0 -9px 28px rgba(0, 85, 56, 0.6),
+      inset 0 0 6px rgba(255, 255, 255, 0.4);
+  }
+}
+
+/* ── FilterPopover fade-in animation ── */
+@keyframes filterPopoverFadeIn {
+  from { opacity: 0; transform: translateY(-8px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }

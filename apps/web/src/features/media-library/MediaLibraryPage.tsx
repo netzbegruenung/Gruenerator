@@ -13,11 +13,11 @@ import {
 
 import LoginRequired from '../../components/common/LoginRequired/LoginRequired';
 import { useOptimizedAuth } from '../../hooks/useAuth';
+import { btn } from '../../utils/buttonStyles';
+import { cn } from '../../utils/cn';
 
 import type { MediaItem, MediaType } from '@gruenerator/shared/media-library';
-
 import './MediaLibraryPage.css';
-import '../../assets/styles/components/ui/button.css';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -174,10 +174,10 @@ const EditModal: React.FC<EditModalProps> = ({ item, onSave, onClose }) => {
           </label>
         </div>
         <div className="media-edit-actions">
-          <button className="btn-secondary" onClick={onClose}>
+          <button className={btn.secondary} onClick={onClose}>
             Abbrechen
           </button>
-          <button className="btn-primary" onClick={handleSave} disabled={isSaving}>
+          <button className={btn.primary} onClick={handleSave} disabled={isSaving}>
             {isSaving ? 'Speichern...' : 'Speichern'}
           </button>
         </div>
@@ -308,7 +308,7 @@ const MediaLibraryPage: React.FC = () => {
           </button>
         </div>
 
-        <label className="upload-btn btn-primary">
+        <label className={cn(btn.primary, 'upload-btn')}>
           <FaUpload /> Hochladen
           <input
             type="file"
@@ -360,7 +360,11 @@ const MediaLibraryPage: React.FC = () => {
       </div>
 
       {pagination.hasMore && (
-        <button className="load-more-btn btn-secondary" onClick={loadMore} disabled={isLoading}>
+        <button
+          className={cn(btn.secondary, 'load-more-btn')}
+          onClick={loadMore}
+          disabled={isLoading}
+        >
           {isLoading ? 'Laden...' : 'Mehr laden'}
         </button>
       )}

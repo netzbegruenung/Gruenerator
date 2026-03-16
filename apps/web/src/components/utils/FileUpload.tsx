@@ -6,6 +6,9 @@ interface UnsplashImage {
   [key: string]: unknown;
 }
 
+import { buttonWrapper } from '../../utils/buttonStyles';
+import { cn } from '../../utils/cn';
+
 interface FileUploadProps {
   loading?: boolean;
   file?: File | null;
@@ -87,7 +90,7 @@ const FileUpload = ({
   };
 
   return (
-    <div className={`button-wrapper ${isCompact ? 'compact' : ''}`}>
+    <div className={cn(buttonWrapper, isCompact && 'compact')}>
       <input
         id="fileUpload"
         type="file"
@@ -103,7 +106,10 @@ const FileUpload = ({
       />
       <label
         htmlFor="fileUpload"
-        className={`file-input-text ${loading ? 'loading' : ''}`}
+        className={cn(
+          'flex items-center justify-center w-full h-[42px] px-5 py-2.5 border-2 border-white rounded-[7px] text-base cursor-pointer transition-all duration-300 bg-secondary-600 text-white gap-2 whitespace-nowrap hover:bg-secondary-700 hover:scale-[1.01]',
+          loading && 'cursor-wait'
+        )}
         onClick={handleClick}
         aria-label={isCompact ? 'Datei hochladen' : undefined}
       >

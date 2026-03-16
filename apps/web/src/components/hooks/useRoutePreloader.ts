@@ -4,13 +4,31 @@ import { useLocation } from 'react-router-dom';
 import { GrueneratorenBundle } from '../../config/routes';
 import { ROUTE_RELATIONSHIPS, getCriticalStyles, preloadFonts } from '../utils/routePreloader';
 
-export const useRoutePreloader = () => {
+interface RouteRelationship {
+  immediate: string[];
+  delayed: string[];
+  styles: string[];
+}
+
+interface CriticalStyles {
+  fontFamily: string;
+  typography: boolean;
+}
+
+interface SavedStyleSheet {
+  href: string | null;
+  rules: CSSRule[];
+}
+
+export const useRoutePreloader = (): void => {
   const location = useLocation();
-  const loadedModules = useRef(new Set());
-  const styleCache = useRef(new Map());
+  const loadedModules = useRef<Set<string>>(new Set());
+  const styleCache = useRef<Map<string, SavedStyleSheet[]>>(new Map());
 
   useEffect(() => {
-    const currentRoute = ROUTE_RELATIONSHIPS[location.pathname];
+    const currentRoute = (ROUTE_RELATIONSHIPS as Record<string, RouteRelationship>)[
+      location.pathname
+    ];
     if (!currentRoute) return;
 
     // Lade Schriftarten beim ersten Rendern
@@ -19,19 +37,20 @@ export const useRoutePreloader = () => {
     }
 
     // Verbesserte Style-Sicherung
-    const saveStyles = () => {
+    const saveStyles = (): SavedStyleSheet[] => {
       if (styleCache.current.has(location.pathname)) {
-        return styleCache.current.get(location.pathname);
+        return styleCache.current.get(location.pathname)!;
       }
 
-      const criticalStyles = getCriticalStyles(location.pathname);
-      const styles = Array.from(document.styleSheets).map((sheet) => ({
+      const criticalStyles = getCriticalStyles(location.pathname) as CriticalStyles;
+      const styles: SavedStyleSheet[] = Array.from(document.styleSheets).map((sheet) => ({
         href: sheet.href,
         rules: Array.from(sheet.cssRules || []).filter((rule) => {
           // Behalte kritische Styles
           return (
-            rule.selectorText?.includes(criticalStyles.fontFamily) ||
-            (criticalStyles.typography && rule.selectorText?.includes('typography'))
+            (rule as CSSStyleRule).selectorText?.includes(criticalStyles.fontFamily) ||
+            (criticalStyles.typography &&
+              (rule as CSSStyleRule).selectorText?.includes('typography'))
           );
         }),
       }));
@@ -41,7 +60,7 @@ export const useRoutePreloader = () => {
     };
 
     // Optimierte Style-Wiederherstellung
-    const restoreStyles = (originalStyles) => {
+    const restoreStyles = (originalStyles: SavedStyleSheet[]): void => {
       const styleElement = document.createElement('style');
       styleElement.setAttribute('data-route', location.pathname);
       document.head.appendChild(styleElement);
@@ -49,7 +68,7 @@ export const useRoutePreloader = () => {
       originalStyles.forEach((original) => {
         original.rules.forEach((rule) => {
           try {
-            styleElement.sheet.insertRule(rule.cssText, styleElement.sheet.cssRules.length);
+            styleElement.sheet!.insertRule(rule.cssText, styleElement.sheet!.cssRules.length);
           } catch (error) {
             console.warn('Style rule insertion failed:', error);
           }
@@ -57,11 +76,16 @@ export const useRoutePreloader = () => {
       });
     };
 
-    const loadModule = async (moduleName) => {
-      if (!loadedModules.current.has(moduleName) && GrueneratorenBundle[moduleName]) {
+    const loadModule = async (moduleName: string): Promise<void> => {
+      if (
+        !loadedModules.current.has(moduleName) &&
+        (GrueneratorenBundle as Record<string, { preload: () => Promise<unknown> }>)[moduleName]
+      ) {
         const originalStyles = saveStyles();
         try {
-          await GrueneratorenBundle[moduleName].preload();
+          await (
+            GrueneratorenBundle as Record<string, { preload: () => Promise<unknown> }>
+          )[moduleName].preload();
           loadedModules.current.add(moduleName);
           restoreStyles(originalStyles);
         } catch (error) {
@@ -71,15 +95,11 @@ export const useRoutePreloader = () => {
     };
 
     // Sofortiges Laden
-    Promise.all(currentRoute.immediate.map((module) => loadModule(module, true))).catch(
-      console.error
-    );
+    Promise.all(currentRoute.immediate.map((module) => loadModule(module))).catch(console.error);
 
     // Verzögertes Laden
     const timeoutId = setTimeout(() => {
-      Promise.all(currentRoute.delayed.map((module) => loadModule(module, false))).catch(
-        console.error
-      );
+      Promise.all(currentRoute.delayed.map((module) => loadModule(module))).catch(console.error);
     }, 2000);
 
     return () => {

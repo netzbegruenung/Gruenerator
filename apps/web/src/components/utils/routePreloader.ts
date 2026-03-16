@@ -1,5 +1,23 @@
+interface RouteRelationship {
+  immediate: string[];
+  delayed: string[];
+  styles: string[];
+  criticalStyles?: {
+    fontFamily?: string;
+    typography?: boolean;
+    [key: string]: unknown;
+  };
+}
+
+interface CriticalStyles {
+  fontFamily: string;
+  typography: boolean;
+  preloadFonts: boolean;
+  [key: string]: unknown;
+}
+
 // Definiere verwandte Module und ihre Beziehungen
-export const ROUTE_RELATIONSHIPS = {
+export const ROUTE_RELATIONSHIPS: Record<string, RouteRelationship> = {
   '/antrag': {
     immediate: ['Pressemitteilung'], // Sofort laden
     delayed: ['Rede', 'SocialMedia'], // Mit Verzögerung laden
@@ -47,7 +65,7 @@ export const ROUTE_RELATIONSHIPS = {
 };
 
 // Neue Hilfsfunktion für Style-Management
-export const getCriticalStyles = (pathname) => {
+export const getCriticalStyles = (pathname: string): CriticalStyles => {
   const route = ROUTE_RELATIONSHIPS[pathname];
   return {
     ...(route?.criticalStyles || {}),
@@ -57,7 +75,7 @@ export const getCriticalStyles = (pathname) => {
   };
 };
 
-export const preloadFonts = () => {
+export const preloadFonts = (): void => {
   const fonts = [
     { path: '../../fonts/PTSans-Regular.woff2', type: 'font/woff2' },
     { path: '../../fonts/PTSans-Bold.woff2', type: 'font/woff2' },

@@ -7,11 +7,12 @@ import apiClient from '../../components/utils/apiClient';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useFormDataBuilder } from '../../hooks/useFormDataBuilder';
 import { useGeneratorSetup } from '../../hooks/useGeneratorSetup';
+import { btn } from '../../utils/buttonStyles';
+import { cn } from '../../utils/cn';
 
 import PromptInputForm from './PromptInputForm';
 
 import type { CustomPrompt } from './types';
-import './prompts.css';
 
 interface FormRef {
   getFormData: () => Record<string, unknown>;
@@ -168,23 +169,23 @@ const PromptPage: React.FC = memo(() => {
     if (isOwner || (!promptData?.owner_first_name && isSaved)) return null;
 
     return (
-      <div className="prompt-page__header-info">
+      <div className="flex items-center justify-between gap-sm px-sm py-xs text-sm text-grey-500 max-md:flex-col max-md:items-stretch max-md:gap-xs max-[480px]:px-0">
         {!isOwner && promptData?.owner_first_name && (
-          <span className="prompt-page__owner">
+          <span className="flex-1">
             Erstellt von {promptData.owner_first_name} {promptData.owner_last_name || ''}
           </span>
         )}
         {!isOwner && !isSaved && (
           <button
             type="button"
-            className="btn-secondary btn-small"
+            className={cn(btn.secondary, btn.sizeS)}
             onClick={handleSave}
             disabled={isSaving}
           >
             {isSaving ? 'Speichert...' : 'Agent speichern'}
           </button>
         )}
-        {isSaved && !isOwner && <span className="prompt-page__saved-badge">✓ Gespeichert</span>}
+        {isSaved && !isOwner && <span className="text-primary-600 font-medium">✓ Gespeichert</span>}
       </div>
     );
   }, [isOwner, isSaved, promptData, handleSave, isSaving]);
@@ -199,11 +200,11 @@ const PromptPage: React.FC = memo(() => {
 
   if (fetchError && !promptData) {
     return (
-      <div className="prompt-page-error">
-        <div className="prompt-page-error-content">
-          <h3>Fehler</h3>
-          <p>{fetchError}</p>
-          <button type="button" className="btn-primary" onClick={handleBack}>
+      <div className="flex justify-center items-center min-h-[300px] p-lg">
+        <div className="text-center max-w-[400px]">
+          <h3 className="m-0 mb-sm text-foreground">Fehler</h3>
+          <p className="m-0 mb-md text-grey-500">{fetchError}</p>
+          <button type="button" className={btn.primary} onClick={handleBack}>
             Zurück
           </button>
         </div>

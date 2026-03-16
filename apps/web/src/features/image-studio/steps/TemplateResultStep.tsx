@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { Markdown } from '../../../components/common/Markdown';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import useImageStudioStore from '../../../stores/imageStudioStore';
+import { btn } from '../../../utils/buttonStyles';
 import { AiHistoryTimeline } from '../components/AiHistoryTimeline';
 import { EditPanel } from '../components/EditPanel';
 import { Lightbox } from '../components/Lightbox';
@@ -592,7 +593,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     return (
       <div className="template-result-step template-result-step--empty">
         <p>Kein Bild generiert. Bitte gehe zurück und versuche es erneut.</p>
-        <button className="btn-primary" onClick={goBack}>
+        <button className={btn.primary} onClick={goBack}>
           <FaArrowLeft />
           Zurück
         </button>

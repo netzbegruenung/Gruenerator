@@ -1,5 +1,7 @@
 import { FaHome } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
+
+import { btn } from '../../utils/buttonStyles';
 const NotFound = () => {
   return (
     <div className="not-found-container">
@@ -10,7 +12,7 @@ const NotFound = () => {
           Ups! Diese Seite scheint nicht zu existieren. Vielleicht wurde sie verschoben oder
           gelöscht.
         </p>
-        <Link to="/" className="btn-primary">
+        <Link to="/" className={btn.primary}>
           <FaHome /> Zurück zur Startseite
         </Link>
       </div>

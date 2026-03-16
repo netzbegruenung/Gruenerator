@@ -1,4 +1,4 @@
-// useAccessibility.js
+// useAccessibility.ts
 /* global process */
 import { useEffect, useCallback, useRef } from 'react';
 
@@ -15,9 +15,61 @@ import {
   createAriaLiveRegion,
 } from '../utils/accessibilityHelpers';
 
-const useAccessibility = (options = {}) => {
-  const formRef = useRef(null);
-  const cleanupFunctions = useRef([]);
+interface UseAccessibilityOptions {
+  enableEnhancedNavigation?: boolean;
+  enableAriaSupport?: boolean;
+  enableErrorAnnouncements?: boolean;
+  enableSuccessAnnouncements?: boolean;
+  keyboardNavigationOptions?: Record<string, unknown>;
+}
+
+interface FocusSequenceControls {
+  focusNext: () => void;
+  focusPrevious: () => void;
+  focusCurrent: () => void;
+  getCurrentIndex: () => number;
+  setCurrentIndex: (index: number) => void;
+}
+
+interface AccessibilityReportElement {
+  tag: string;
+  id: string;
+  label?: string | null;
+}
+
+interface AccessibilityReportInput {
+  tag: string;
+  type: string;
+  id: string;
+  name: string;
+}
+
+interface AccessibilityReportRole {
+  tag: string;
+  role: string | null;
+  id: string;
+}
+
+interface AccessibilityReportFocusable {
+  tag: string;
+  type: string;
+  id: string;
+  tabIndex: number;
+  disabled: boolean;
+}
+
+interface AccessibilityReport {
+  hasAriaLabels: AccessibilityReportElement[];
+  missingLabels: AccessibilityReportInput[];
+  hasRoles: AccessibilityReportRole[];
+  missingRoles: never[];
+  focusableElements: AccessibilityReportFocusable[];
+  accessibilityPreferences: ReturnType<typeof detectAccessibilityPreferences>;
+}
+
+const useAccessibility = (options: UseAccessibilityOptions = {}) => {
+  const formRef = useRef<HTMLElement | null>(null);
+  const cleanupFunctions = useRef<Array<() => void>>([]);
 
   const {
     enableEnhancedNavigation = true,
@@ -47,7 +99,7 @@ const useAccessibility = (options = {}) => {
     const formElement = formRef.current;
 
     // Apply user accessibility preferences
-    const preferences = applyAccessibilityPreferences(formElement);
+    applyAccessibilityPreferences(formElement);
 
     // Setup enhanced keyboard navigation
     if (enableEnhancedNavigation) {
@@ -73,30 +125,33 @@ const useAccessibility = (options = {}) => {
     };
   }, [enableEnhancedNavigation, enableAriaSupport, keyboardNavigationOptions]);
 
-  const announce = useCallback((message) => {
+  const announce = useCallback((message: string): void => {
     announceToScreenReader(message);
     updateAriaLiveRegion(message);
   }, []);
 
-  const focusElement = useCallback((elementId) => {
+  const focusElement = useCallback((elementId: string): void => {
     setFocus(elementId);
   }, []);
 
-  const manageFocusTrap = useCallback((trapActive, containerRef, options = {}) => {
-    if (containerRef.current) {
-      if (trapActive) {
-        // Focus trap is managed by the FocusTrap component in JSX
-        // This hook provides configuration and state management
-      } else {
-        // Focus trap should be inactive
+  const manageFocusTrap = useCallback(
+    (trapActive: boolean, containerRef: React.RefObject<HTMLElement | null>, _options: Record<string, unknown> = {}): boolean => {
+      if (containerRef.current) {
+        if (trapActive) {
+          // Focus trap is managed by the FocusTrap component in JSX
+          // This hook provides configuration and state management
+        } else {
+          // Focus trap should be inactive
+        }
       }
-    }
-    return trapActive;
-  }, []);
+      return trapActive;
+    },
+    []
+  );
 
   // Enhanced error handling with announcements
   const handleFormError = useCallback(
-    (errorMessage, fieldName = '') => {
+    (errorMessage: string, fieldName: string = ''): void => {
       if (enableErrorAnnouncements) {
         announceFormError(errorMessage, fieldName);
       }
@@ -106,7 +161,7 @@ const useAccessibility = (options = {}) => {
 
   // Enhanced success handling with announcements
   const handleFormSuccess = useCallback(
-    (message) => {
+    (message: string): void => {
       if (enableSuccessAnnouncements) {
         announceFormSuccess(message);
       }
@@ -115,7 +170,7 @@ const useAccessibility = (options = {}) => {
   );
 
   // Function to register form element
-  const registerFormElement = useCallback((element) => {
+  const registerFormElement = useCallback((element: HTMLElement | null): void => {
     formRef.current = element;
   }, []);
 
@@ -125,59 +180,62 @@ const useAccessibility = (options = {}) => {
   }, []);
 
   // Minimal focus management - use sparingly to avoid screen reader conflicts
-  const manageFocusSequence = useCallback((elements, startIndex = 0) => {
-    if (!elements || elements.length === 0) return;
+  const manageFocusSequence = useCallback(
+    (elements: HTMLElement[], startIndex: number = 0): FocusSequenceControls | undefined => {
+      if (!elements || elements.length === 0) return;
 
-    console.warn(
-      'manageFocusSequence: Programmatic focus management can interfere with screen readers - use browser native focus instead'
-    );
+      console.warn(
+        'manageFocusSequence: Programmatic focus management can interfere with screen readers - use browser native focus instead'
+      );
 
-    let currentIndex = startIndex;
+      let currentIndex = startIndex;
 
-    const focusNext = () => {
-      // Only move focus if user explicitly requested it, don't auto-focus
-      if (currentIndex < elements.length - 1) {
-        currentIndex++;
-        // Let browser/screen reader handle focus timing
-        setTimeout(() => elements[currentIndex]?.focus(), 0);
-      }
-    };
-
-    const focusPrevious = () => {
-      if (currentIndex > 0) {
-        currentIndex--;
-        setTimeout(() => elements[currentIndex]?.focus(), 0);
-      }
-    };
-
-    const focusCurrent = () => {
-      setTimeout(() => elements[currentIndex]?.focus(), 0);
-    };
-
-    // Don't auto-focus on creation - let screen reader maintain current position
-
-    return {
-      focusNext,
-      focusPrevious,
-      focusCurrent,
-      getCurrentIndex: () => currentIndex,
-      setCurrentIndex: (index) => {
-        if (index >= 0 && index < elements.length) {
-          currentIndex = index;
-          // Don't auto-focus, just update index
+      const focusNext = (): void => {
+        // Only move focus if user explicitly requested it, don't auto-focus
+        if (currentIndex < elements.length - 1) {
+          currentIndex++;
+          // Let browser/screen reader handle focus timing
+          setTimeout(() => elements[currentIndex]?.focus(), 0);
         }
-      },
-    };
-  }, []);
+      };
+
+      const focusPrevious = (): void => {
+        if (currentIndex > 0) {
+          currentIndex--;
+          setTimeout(() => elements[currentIndex]?.focus(), 0);
+        }
+      };
+
+      const focusCurrent = (): void => {
+        setTimeout(() => elements[currentIndex]?.focus(), 0);
+      };
+
+      // Don't auto-focus on creation - let screen reader maintain current position
+
+      return {
+        focusNext,
+        focusPrevious,
+        focusCurrent,
+        getCurrentIndex: () => currentIndex,
+        setCurrentIndex: (index: number) => {
+          if (index >= 0 && index < elements.length) {
+            currentIndex = index;
+            // Don't auto-focus, just update index
+          }
+        },
+      };
+    },
+    []
+  );
 
   // Accessibility testing helpers (for development)
-  const testAccessibility = useCallback(() => {
+  const testAccessibility = useCallback((): AccessibilityReport | undefined => {
     if (process.env.NODE_ENV !== 'development') return;
 
     const formElement = formRef.current;
     if (!formElement) return;
 
-    const report = {
+    const report: AccessibilityReport = {
       hasAriaLabels: [],
       missingLabels: [],
       hasRoles: [],
@@ -197,16 +255,17 @@ const useAccessibility = (options = {}) => {
     // Check for missing labels on inputs
     const inputs = formElement.querySelectorAll('input, select, textarea');
     inputs.forEach((input) => {
+      const inputEl = input as HTMLInputElement;
       const hasLabel =
-        input.labels?.length > 0 ||
-        input.getAttribute('aria-label') ||
-        input.getAttribute('aria-labelledby');
+        inputEl.labels?.length ||
+        inputEl.getAttribute('aria-label') ||
+        inputEl.getAttribute('aria-labelledby');
       if (!hasLabel) {
         report.missingLabels.push({
-          tag: input.tagName,
-          type: input.type,
-          id: input.id,
-          name: input.name,
+          tag: inputEl.tagName,
+          type: inputEl.type,
+          id: inputEl.id,
+          name: inputEl.name,
         });
       }
     });
@@ -223,13 +282,16 @@ const useAccessibility = (options = {}) => {
     const focusableSelectors =
       'input, select, textarea, button, a[href], [tabindex]:not([tabindex="-1"])';
     const focusableElements = formElement.querySelectorAll(focusableSelectors);
-    report.focusableElements = Array.from(focusableElements).map((el) => ({
-      tag: el.tagName,
-      type: el.type,
-      id: el.id,
-      tabIndex: el.tabIndex,
-      disabled: el.disabled,
-    }));
+    report.focusableElements = Array.from(focusableElements).map((el) => {
+      const htmlEl = el as HTMLInputElement;
+      return {
+        tag: htmlEl.tagName,
+        type: htmlEl.type,
+        id: htmlEl.id,
+        tabIndex: htmlEl.tabIndex,
+        disabled: htmlEl.disabled,
+      };
+    });
 
     return report;
   }, [getAccessibilityPreferences]);

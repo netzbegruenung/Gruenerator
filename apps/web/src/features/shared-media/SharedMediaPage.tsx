@@ -8,10 +8,9 @@ import Spinner from '../../components/common/Spinner';
 import apiClient from '../../components/utils/apiClient';
 import { buildUrl } from '../../config/domains';
 import { useOptimizedAuth } from '../../hooks/useAuth';
+import { btn } from '../../utils/buttonStyles';
+import { cn } from '../../utils/cn';
 import { canShare, shareContent, copyToClipboard } from '../../utils/shareUtils';
-
-import './SharedMediaPage.css';
-import '../../assets/styles/components/ui/button.css';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -215,11 +214,11 @@ const SharedMediaPage = () => {
 
   if (loading) {
     return (
-      <div className="shared-media-page">
-        <div className="shared-media-container">
-          <div className="shared-media-loading">
-            <div className="spinner" />
-            <p>Medium wird geladen...</p>
+      <div className="min-h-screen flex items-center justify-center p-lg bg-background-alt">
+        <div className="bg-background rounded-xl shadow-lg max-w-[500px] w-full overflow-hidden border border-grey-200 dark:border-grey-700">
+          <div className="p-2xl text-center">
+            <div className="size-12 border-4 border-grey-200 border-t-secondary-600 rounded-full animate-spin mx-auto mb-md" />
+            <p className="text-grey-400 m-0">Medium wird geladen...</p>
           </div>
         </div>
       </div>
@@ -228,10 +227,11 @@ const SharedMediaPage = () => {
 
   if (error) {
     return (
-      <div className="shared-media-page">
-        <div className="shared-media-container">
-          <div className="shared-media-error">
+      <div className="min-h-screen flex items-center justify-center p-lg bg-background-alt">
+        <div className="bg-background rounded-xl shadow-lg max-w-[500px] w-full overflow-hidden border border-grey-200 dark:border-grey-700">
+          <div className="p-2xl text-center">
             <svg
+              className="text-grey-400 mb-md"
               width="64"
               height="64"
               viewBox="0 0 24 24"
@@ -243,8 +243,8 @@ const SharedMediaPage = () => {
               <line x1="15" y1="9" x2="9" y2="15" />
               <line x1="9" y1="9" x2="15" y2="15" />
             </svg>
-            <h2>Fehler</h2>
-            <p>{error}</p>
+            <h2 className="m-0 mb-sm text-foreground-heading">Fehler</h2>
+            <p className="text-grey-400 m-0">{error}</p>
           </div>
         </div>
       </div>
@@ -253,17 +253,21 @@ const SharedMediaPage = () => {
 
   if (isProcessing) {
     return (
-      <div className="shared-media-page">
-        <div className="shared-media-container">
-          <div className="shared-media-processing">
-            <div className="spinner" />
-            <h2>
+      <div className="min-h-screen flex items-center justify-center p-lg bg-background-alt">
+        <div className="bg-background rounded-xl shadow-lg max-w-[500px] w-full overflow-hidden border border-grey-200 dark:border-grey-700">
+          <div className="p-2xl text-center">
+            <div className="size-12 border-4 border-grey-200 border-t-secondary-600 rounded-full animate-spin mx-auto mb-md" />
+            <h2 className="m-0 mb-sm text-foreground-heading">
               {shareData?.mediaType === 'video'
                 ? 'Video wird gerendert...'
                 : 'Bild wird verarbeitet...'}
             </h2>
-            <p>Das Medium wird gerade vorbereitet. Dies kann einige Minuten dauern.</p>
-            <p className="processing-hint">Diese Seite aktualisiert sich automatisch.</p>
+            <p className="text-grey-400 m-0">
+              Das Medium wird gerade vorbereitet. Dies kann einige Minuten dauern.
+            </p>
+            <p className="text-sm mt-md text-grey-400 opacity-70">
+              Diese Seite aktualisiert sich automatisch.
+            </p>
           </div>
         </div>
       </div>
@@ -273,19 +277,28 @@ const SharedMediaPage = () => {
   const isVideo = shareData?.mediaType === 'video';
 
   return (
-    <div className="shared-media-page">
-      <div className="shared-media-card">
+    <div className="min-h-screen flex items-center justify-center p-lg max-md:p-md max-md:items-start bg-background-alt">
+      <div className="relative bg-background rounded-xl shadow-lg border border-grey-200 dark:border-grey-700 flex max-w-[1400px] max-md:flex-col max-md:w-full overflow-hidden">
         <button
-          className="shared-media-qr"
+          className="absolute top-md right-md z-10 bg-none border-none p-0 cursor-pointer transition-transform duration-200 hover:scale-105 max-md:hidden"
           onClick={handleShare}
           title={copied ? 'Link kopiert!' : 'Klicken zum Teilen'}
         >
           <QRCode value={window.location.href} size={64} level="M" />
-          {copied && <span className="shared-media-qr-copied">Kopiert!</span>}
+          {copied && (
+            <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary-600 text-white px-sm py-xxs rounded-sm text-xs whitespace-nowrap">
+              Kopiert!
+            </span>
+          )}
         </button>
-        <div className="shared-media-left">
+        <div className="shrink-0 flex items-center justify-center bg-background-alt">
           {isVideo ? (
-            <video controls preload="metadata" playsInline>
+            <video
+              className="block max-h-[80vh] max-md:max-h-[50vh] max-md:w-full"
+              controls
+              preload="metadata"
+              playsInline
+            >
               <source src={`${baseURL}/share/${shareToken}/preview`} type="video/mp4" />
               Dein Browser unterstützt keine Video-Wiedergabe.
             </video>
@@ -293,20 +306,22 @@ const SharedMediaPage = () => {
             <img
               src={`${baseURL}/share/${shareToken}/preview`}
               alt={shareData?.title || 'Geteiltes Bild'}
-              className="shared-media-image"
+              className="block max-h-[80vh] max-w-full object-contain max-md:max-h-[50vh] max-md:w-full"
             />
           )}
         </div>
 
-        <div className="shared-media-right">
-          <div className="shared-media-content">
-            <p className="shared-by-message">
+        <div className="flex flex-col p-lg min-w-[280px] max-md:text-center max-md:min-w-0">
+          <div className="flex-1">
+            <p className="m-0 mb-sm text-base text-foreground">
               <strong>{shareData?.sharerName || 'Jemand'}</strong> hat{' '}
               {isVideo ? 'ein Video' : 'ein Bild'} mit dir geteilt
             </p>
-            <h1>{shareData?.title || (isVideo ? 'Geteiltes Video' : 'Geteiltes Bild')}</h1>
+            <h1 className="m-0 mb-sm text-[1.75rem] text-foreground-heading">
+              {shareData?.title || (isVideo ? 'Geteiltes Video' : 'Geteiltes Bild')}
+            </h1>
 
-            <div className="shared-media-download">
+            <div className="mt-xl">
               {!isAuthenticated ? (
                 <LoginRequired
                   variant="inline"
@@ -314,8 +329,9 @@ const SharedMediaPage = () => {
                   message={`Melde dich an, um ${isVideo ? 'dieses Video' : 'dieses Bild'} herunterzuladen.`}
                 />
               ) : downloadSuccess ? (
-                <div className="download-success-inline">
+                <div className="flex items-center gap-sm p-md bg-background rounded-sm text-secondary-600 border border-grey-200 dark:border-grey-700">
                   <svg
+                    className="shrink-0"
                     width="24"
                     height="24"
                     viewBox="0 0 24 24"
@@ -330,9 +346,9 @@ const SharedMediaPage = () => {
                 </div>
               ) : (
                 <>
-                  <div className="shared-media-buttons">
+                  <div className={cn('flex gap-sm', 'max-md:flex-col [&_button]:max-md:w-full')}>
                     <button
-                      className="btn-primary"
+                      className={btn.primary}
                       onClick={handleDownload}
                       disabled={isDownloading}
                     >
@@ -342,12 +358,12 @@ const SharedMediaPage = () => {
                           ? 'Video herunterladen'
                           : 'Bild herunterladen'}
                     </button>
-                    <button className="btn-primary" onClick={handleShare}>
+                    <button className={btn.primary} onClick={handleShare}>
                       {copied ? 'Link kopiert!' : 'Link teilen'}
                     </button>
                     {canNativeShare && (
                       <button
-                        className="btn-primary"
+                        className={btn.primary}
                         onClick={handleShareToInstagram}
                         disabled={isSharing}
                         title="Auf Instagram posten"
@@ -358,18 +374,21 @@ const SharedMediaPage = () => {
                     )}
                   </div>
 
-                  {downloadError && <div className="download-error">{downloadError}</div>}
+                  {downloadError && (
+                    <div className="text-[var(--error-red)] text-sm mt-sm">{downloadError}</div>
+                  )}
                 </>
               )}
             </div>
 
-            <div className="shared-media-footer">
-              <p>
+            <div className="mt-lg pt-md border-t border-grey-200 dark:border-grey-700">
+              <p className="m-0 text-sm text-grey-400">
                 Willst du auch {isVideo ? 'solche Videos' : 'solche Bilder'} erstellen? Mit dem{' '}
                 <a
                   href={buildUrl(isVideo ? '/subtitler' : '/image-studio')}
                   target="_blank"
                   rel="noopener noreferrer"
+                  className="text-secondary-600 no-underline hover:underline"
                 >
                   Grünerator
                 </a>{' '}

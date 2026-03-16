@@ -216,7 +216,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                 </a>
                 <button
                   onClick={this.copyErrorText}
-                  className={`copy-button ${this.state.copied ? 'copied' : ''}`}
+                  className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 border-none rounded-[5px] bg-secondary-600 text-white cursor-pointer text-base no-underline transition-all duration-200 hover:bg-secondary-700 ${this.state.copied ? 'bg-primary-600' : ''}`}
                 >
                   {this.state.copied ? 'Kopiert!' : 'Fehlertext kopieren'}
                 </button>

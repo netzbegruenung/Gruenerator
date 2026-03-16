@@ -1,11 +1,25 @@
 import { useState, useCallback } from 'react';
 
-export const useFormValidation = (validationRules) => {
-  const [errors, setErrors] = useState({});
+interface ValidationRule {
+  required?: boolean;
+  min?: number;
+  max?: number;
+  message?: string;
+}
+
+type ValidationRules = Record<string, ValidationRule>;
+
+interface UseFormValidationReturn {
+  errors: Record<string, string>;
+  validateForm: (formData: Record<string, string>) => boolean;
+}
+
+export const useFormValidation = (validationRules: ValidationRules): UseFormValidationReturn => {
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validateForm = useCallback(
-    (formData) => {
-      const newErrors = {};
+    (formData: Record<string, string>): boolean => {
+      const newErrors: Record<string, string> = {};
       Object.keys(validationRules).forEach((field) => {
         const value = formData[field];
         const fieldRules = validationRules[field];

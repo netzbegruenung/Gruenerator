@@ -5,6 +5,7 @@ import { HiCheck, HiRefresh, HiStar } from 'react-icons/hi';
 import UnsplashAttribution from '../../../components/common/UnsplashAttribution';
 import apiClient from '../../../components/utils/apiClient';
 import useImageStudioStore from '../../../stores/imageStudioStore';
+import { btn } from '../../../utils/buttonStyles';
 import { useImageSourceStore } from '../hooks/useImageSourceStore';
 import { usePreloadStore } from '../hooks/usePreloadStore';
 import { type StockImage } from '../services/imageSourceService';
@@ -180,7 +181,7 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
     return (
       <div className="stock-images-grid__error">
         <p>{stockImagesError}</p>
-        <button type="button" className="btn-secondary" onClick={() => fetchStockImages()}>
+        <button type="button" className={btn.secondary} onClick={() => fetchStockImages()}>
           <HiRefresh /> Erneut versuchen
         </button>
       </div>

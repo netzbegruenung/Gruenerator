@@ -161,19 +161,13 @@ const TemplateInputStep: React.FC<TemplateInputStepProps> = ({
         )}
 
         <div className="template-input-step__actions">
-          <Button
-            onClick={onBack}
-            text="Zurück"
-            icon={<HiArrowLeft />}
-            className="submit-button"
-            ariaLabel="Zurück"
-          />
+          <Button onClick={onBack} text="Zurück" icon={<HiArrowLeft />} ariaLabel="Zurück" />
           <Button
             onClick={handleSubmit}
             loading={loading}
             text="Grünerieren"
             icon={<HiCog />}
-            className="form-button"
+            className="flex-1"
             ariaLabel="Text generieren"
           />
         </div>

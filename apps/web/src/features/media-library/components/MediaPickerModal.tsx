@@ -2,6 +2,8 @@ import { useMediaLibrary, useMediaUpload, useMediaPicker } from '@gruenerator/sh
 import React, { useEffect } from 'react';
 import { FaImage, FaVideo, FaCheck, FaTimes, FaUpload } from 'react-icons/fa';
 
+import { btn } from '../../../utils/buttonStyles';
+
 import type { MediaItem, MediaType } from '@gruenerator/shared/media-library';
 import './MediaPickerModal.css';
 
@@ -150,11 +152,11 @@ const MediaPickerModal: React.FC = () => {
         <footer className="media-picker-footer">
           <span className="selection-count">{selectedItems.length} ausgewählt</span>
           <div className="footer-actions">
-            <button className="btn-secondary" onClick={closePicker}>
+            <button className={btn.secondary} onClick={closePicker}>
               Abbrechen
             </button>
             <button
-              className="btn-primary"
+              className={btn.primary}
               onClick={confirmSelection}
               disabled={selectedItems.length === 0}
             >

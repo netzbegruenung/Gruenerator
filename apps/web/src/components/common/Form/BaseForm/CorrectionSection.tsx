@@ -1,5 +1,7 @@
 import React, { useState, type ChangeEvent } from 'react';
 
+import { btn } from '../../../../utils/buttonStyles';
+import { cn } from '../../../../utils/cn';
 import SubmitButton from '../../SubmitButton';
 import '../../../../assets/styles/components/interactive-antrag.css';
 
@@ -56,7 +58,12 @@ const CorrectionSection: React.FC<CorrectionSectionProps> = ({
       </p>
 
       <div className="correction-actions">
-        <button type="button" className="btn-ghost size-m" onClick={onCancel} disabled={loading}>
+        <button
+          type="button"
+          className={cn(btn.ghost, btn.sizeM)}
+          onClick={onCancel}
+          disabled={loading}
+        >
           Abbrechen
         </button>
         <SubmitButton

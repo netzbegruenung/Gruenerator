@@ -1,4 +1,4 @@
-export const generateSecureId = () => {
+export const generateSecureId = (): string => {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   const length = 20;
   let result = '';

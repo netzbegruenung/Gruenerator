@@ -12,14 +12,14 @@ import apiClient from './apiClient';
 // CONSTANTS AND TYPE DEFINITIONS
 // =====================================================================
 
-export const DOCUMENT_TYPES = {
+export const DOCUMENT_TYPES: Record<string, string> = {
   pdf: 'PDF-Dokument',
   document: 'Dokument',
   text: 'Text',
   upload: 'Hochgeladene Datei',
 };
 
-export const TEXT_DOCUMENT_TYPES = {
+export const TEXT_DOCUMENT_TYPES: Record<string, string> = {
   text: 'Allgemeiner Text',
   antrag: 'Antrag',
   social: 'Social Media',
@@ -32,13 +32,65 @@ export const TEXT_DOCUMENT_TYPES = {
 // ERROR HANDLING UTILITIES
 // =====================================================================
 
+interface BulkOperationResult {
+  success?: number;
+  failed?: number;
+  errors?: string[];
+  [key: string]: unknown;
+}
+
+interface ProcessedBulkResult extends BulkOperationResult {
+  message: string;
+  hasErrors: boolean;
+  isComplete: boolean;
+}
+
+interface Badge {
+  text: string;
+  className: string;
+  type: string;
+}
+
+interface Detail {
+  label: string;
+  value: string;
+}
+
+interface ItemDisplayMetadata {
+  badges: Badge[];
+  details: Detail[];
+  actions: unknown[];
+}
+
+interface EditabilityResult {
+  canEdit: boolean;
+  reason: string | null;
+}
+
+interface DeletabilityResult {
+  canDelete: boolean;
+  reason: string | null;
+}
+
+interface ContentItem {
+  id?: string;
+  title?: string;
+  name?: string;
+  status?: string;
+  file_type?: string;
+  file_size?: number;
+  type?: string;
+  word_count?: number;
+  [key: string]: unknown;
+}
+
 /**
  * Formats API errors into user-friendly messages
- * @param {Error|string} error - The error to format
- * @param {string} context - Context for the error (e.g., 'deleting documents')
- * @returns {string} Formatted error message
+ * @param error - The error to format
+ * @param context - Context for the error (e.g., 'deleting documents')
+ * @returns Formatted error message
  */
-export const formatApiError = (error, context = 'operation') => {
+export const formatApiError = (error: Error | string, context = 'operation'): string => {
   if (typeof error === 'string') {
     return error;
   }
@@ -49,13 +101,17 @@ export const formatApiError = (error, context = 'operation') => {
 
 /**
  * Handles bulk operation results and provides user feedback
- * @param {Object} result - API response result
- * @param {string} operation - Type of operation (e.g., 'delete', 'update')
- * @param {string} itemType - Type of items being processed (e.g., 'documents', 'texts')
- * @returns {Object} Processed result with user-friendly messages
+ * @param result - API response result
+ * @param operation - Type of operation (e.g., 'delete', 'update')
+ * @param itemType - Type of items being processed (e.g., 'documents', 'texts')
+ * @returns Processed result with user-friendly messages
  */
-export const handleBulkOperationResult = (result, operation, itemType) => {
-  const { success = 0, failed = 0, errors = [] } = result;
+export const handleBulkOperationResult = (
+  result: BulkOperationResult,
+  operation: string,
+  itemType: string
+): ProcessedBulkResult => {
+  const { success = 0, failed = 0 } = result;
 
   let message = '';
   if (success > 0 && failed === 0) {
@@ -80,10 +136,10 @@ export const handleBulkOperationResult = (result, operation, itemType) => {
 
 /**
  * Bulk delete documents
- * @param {string[]} documentIds - Array of document IDs to delete
- * @returns {Promise<Object>} Result of bulk delete operation
+ * @param documentIds - Array of document IDs to delete
+ * @returns Result of bulk delete operation
  */
-export const bulkDeleteDocuments = async (documentIds) => {
+export const bulkDeleteDocuments = async (documentIds: string[]): Promise<ProcessedBulkResult> => {
   try {
     console.log('[documentAndTextUtils] Bulk deleting documents:', documentIds);
 
@@ -97,16 +153,16 @@ export const bulkDeleteDocuments = async (documentIds) => {
     return handleBulkOperationResult(result, 'delete', 'Dokumente');
   } catch (error) {
     console.error('[documentAndTextUtils] Error in bulk delete documents:', error);
-    throw new Error(formatApiError(error, 'Bulk-Löschen der Dokumente'));
+    throw new Error(formatApiError(error as Error, 'Bulk-Löschen der Dokumente'));
   }
 };
 
 /**
  * Bulk delete texts
- * @param {string[]} textIds - Array of text IDs to delete
- * @returns {Promise<Object>} Result of bulk delete operation
+ * @param textIds - Array of text IDs to delete
+ * @returns Result of bulk delete operation
  */
-export const bulkDeleteTexts = async (textIds) => {
+export const bulkDeleteTexts = async (textIds: string[]): Promise<ProcessedBulkResult> => {
   try {
     console.log('[documentAndTextUtils] Bulk deleting texts:', textIds);
 
@@ -120,16 +176,16 @@ export const bulkDeleteTexts = async (textIds) => {
     return handleBulkOperationResult(result, 'delete', 'Texte');
   } catch (error) {
     console.error('[documentAndTextUtils] Error in bulk delete texts:', error);
-    throw new Error(formatApiError(error, 'Bulk-Löschen der Texte'));
+    throw new Error(formatApiError(error as Error, 'Bulk-Löschen der Texte'));
   }
 };
 
 /**
  * Bulk delete QA collections
- * @param {string[]} qaIds - Array of QA collection IDs to delete
- * @returns {Promise<Object>} Result of bulk delete operation
+ * @param qaIds - Array of QA collection IDs to delete
+ * @returns Result of bulk delete operation
  */
-export const bulkDeleteQA = async (qaIds) => {
+export const bulkDeleteQA = async (qaIds: string[]): Promise<ProcessedBulkResult> => {
   try {
     console.log('[documentAndTextUtils] Bulk deleting QA collections:', qaIds);
 
@@ -143,7 +199,7 @@ export const bulkDeleteQA = async (qaIds) => {
     return handleBulkOperationResult(result, 'delete', 'Notebooks');
   } catch (error) {
     console.error('[documentAndTextUtils] Error in bulk delete QA:', error);
-    throw new Error(formatApiError(error, 'Bulk-Löschen der Notebooks'));
+    throw new Error(formatApiError(error as Error, 'Bulk-Löschen der Notebooks'));
   }
 };
 
@@ -153,21 +209,29 @@ export const bulkDeleteQA = async (qaIds) => {
 
 /**
  * Creates a share action function for a specific content type
- * @param {string} contentType - Type of content being shared
- * @param {Function} shareHandler - Function to handle the share action
- * @returns {Function} Share action function
+ * @param contentType - Type of content being shared
+ * @param shareHandler - Function to handle the share action
+ * @returns Share action function
  */
-export const createShareAction = (contentType, shareHandler) => (item) => {
-  return shareHandler(contentType, item.id, item.title || item.name);
-};
+export const createShareAction =
+  (
+    contentType: string,
+    shareHandler: (contentType: string, id: string, title: string) => void
+  ) =>
+  (item: ContentItem) => {
+    return shareHandler(contentType, item.id || '', item.title || item.name || '');
+  };
 
 /**
  * Validates if an item can be edited based on its properties
- * @param {Object} item - The item to validate
- * @param {string} itemType - Type of the item ('text', 'document', 'template')
- * @returns {Object} Validation result with canEdit and reason
+ * @param item - The item to validate
+ * @param itemType - Type of the item ('text', 'document', 'template')
+ * @returns Validation result with canEdit and reason
  */
-export const validateItemEditability = (item, itemType) => {
+export const validateItemEditability = (
+  item: ContentItem,
+  itemType: string
+): EditabilityResult => {
   if (itemType === 'template' && item.id && item.id.startsWith('canva_')) {
     return {
       canEdit: false,
@@ -190,11 +254,14 @@ export const validateItemEditability = (item, itemType) => {
 
 /**
  * Validates if an item can be deleted based on its properties
- * @param {Object} item - The item to validate
- * @param {string} itemType - Type of the item ('text', 'document', 'template')
- * @returns {Object} Validation result with canDelete and reason
+ * @param item - The item to validate
+ * @param itemType - Type of the item ('text', 'document', 'template')
+ * @returns Validation result with canDelete and reason
  */
-export const validateItemDeletability = (item, itemType) => {
+export const validateItemDeletability = (
+  item: ContentItem,
+  itemType: string
+): DeletabilityResult => {
   if (itemType === 'template' && item.id && item.id.startsWith('canva_')) {
     return {
       canDelete: false,
@@ -210,12 +277,15 @@ export const validateItemDeletability = (item, itemType) => {
 
 /**
  * Gets display metadata for an item based on its type and properties
- * @param {Object} item - The item to get metadata for
- * @param {string} itemType - Type of the item
- * @returns {Object} Metadata object with display information
+ * @param item - The item to get metadata for
+ * @param itemType - Type of the item
+ * @returns Metadata object with display information
  */
-export const getItemDisplayMetadata = (item, itemType) => {
-  const metadata = {
+export const getItemDisplayMetadata = (
+  item: ContentItem,
+  itemType: string
+): ItemDisplayMetadata => {
+  const metadata: ItemDisplayMetadata = {
     badges: [],
     details: [],
     actions: [],
@@ -223,7 +293,7 @@ export const getItemDisplayMetadata = (item, itemType) => {
 
   // Add status badges
   if (item.status) {
-    const statusConfig = {
+    const statusConfig: Record<string, { text: string; className: string }> = {
       processing: { text: 'Verarbeitung...', className: 'status-processing' },
       completed: { text: 'Abgeschlossen', className: 'status-completed' },
       failed: { text: 'Fehler', className: 'status-error' },
@@ -280,10 +350,10 @@ export const getItemDisplayMetadata = (item, itemType) => {
 
 /**
  * Formats file size in bytes to human-readable format
- * @param {number} bytes - File size in bytes
- * @returns {string} Formatted file size
+ * @param bytes - File size in bytes
+ * @returns Formatted file size
  */
-export const formatFileSize = (bytes) => {
+export const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes';
 
   const k = 1024;
@@ -295,10 +365,10 @@ export const formatFileSize = (bytes) => {
 
 /**
  * Formats a date for display in the UI
- * @param {string|Date} date - Date to format
- * @returns {string} Formatted date string
+ * @param date - Date to format
+ * @returns Formatted date string
  */
-export const formatDisplayDate = (date) => {
+export const formatDisplayDate = (date: string | Date | null | undefined): string => {
   if (!date) return '';
 
   const dateObj = typeof date === 'string' ? new Date(date) : date;
@@ -320,18 +390,18 @@ export const formatDisplayDate = (date) => {
 
 /**
  * Filters items based on search query and filters
- * @param {Array} items - Items to filter
- * @param {string} searchQuery - Search query string
- * @param {Array} searchFields - Fields to search in
- * @param {Object} filters - Additional filters to apply
- * @returns {Array} Filtered items
+ * @param items - Items to filter
+ * @param searchQuery - Search query string
+ * @param searchFields - Fields to search in
+ * @param filters - Additional filters to apply
+ * @returns Filtered items
  */
-export const filterItems = (
-  items,
+export const filterItems = <T extends Record<string, unknown>>(
+  items: T[],
   searchQuery = '',
-  searchFields = ['title', 'name'],
-  filters = {}
-) => {
+  searchFields: string[] = ['title', 'name'],
+  filters: Record<string, unknown> = {}
+): T[] => {
   if (!items || !Array.isArray(items)) return [];
 
   let filteredItems = [...items];
@@ -359,22 +429,26 @@ export const filterItems = (
 
 /**
  * Sorts items based on sort configuration
- * @param {Array} items - Items to sort
- * @param {string} sortBy - Field to sort by
- * @param {string} sortOrder - Sort order ('asc' or 'desc')
- * @returns {Array} Sorted items
+ * @param items - Items to sort
+ * @param sortBy - Field to sort by
+ * @param sortOrder - Sort order ('asc' or 'desc')
+ * @returns Sorted items
  */
-export const sortItems = (items, sortBy = 'created_at', sortOrder = 'desc') => {
+export const sortItems = <T extends Record<string, unknown>>(
+  items: T[],
+  sortBy = 'created_at',
+  sortOrder: 'asc' | 'desc' = 'desc'
+): T[] => {
   if (!items || !Array.isArray(items)) return [];
 
   return [...items].sort((a, b) => {
-    let aValue = a[sortBy];
-    let bValue = b[sortBy];
+    let aValue: unknown = a[sortBy];
+    let bValue: unknown = b[sortBy];
 
     // Handle date fields
     if (sortBy.includes('_at') || sortBy === 'date') {
-      aValue = new Date(aValue);
-      bValue = new Date(bValue);
+      aValue = new Date(aValue as string);
+      bValue = new Date(bValue as string);
     }
 
     // Handle string fields

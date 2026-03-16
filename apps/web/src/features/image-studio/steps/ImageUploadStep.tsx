@@ -9,6 +9,7 @@ import UnsplashAttribution from '../../../components/common/UnsplashAttribution'
 import useDebounce from '../../../components/hooks/useDebounce';
 import apiClient from '../../../components/utils/apiClient';
 import useImageStudioStore from '../../../stores/imageStudioStore';
+import { btn } from '../../../utils/buttonStyles';
 import { slideVariants } from '../components/StepFlow';
 import { useImageSourceStore } from '../hooks/useImageSourceStore';
 import { useUnsplashSearch } from '../hooks/useUnsplashSearch';
@@ -637,7 +638,7 @@ const ImageUploadStep: React.FC<ImageUploadStepProps> = ({
           onClick={onBack}
           text="Zurück"
           icon={<HiArrowLeft />}
-          className="btn-secondary"
+          className={btn.secondary}
           ariaLabel="Zurück"
           disabled={loading}
         />
@@ -646,7 +647,7 @@ const ImageUploadStep: React.FC<ImageUploadStepProps> = ({
             onClick={onNext}
             text={loading ? 'Wird verarbeitet...' : 'Weiter'}
             icon={loading ? undefined : <HiArrowRight />}
-            className="btn-primary"
+            className={btn.primary}
             ariaLabel="Weiter"
             loading={loading}
             disabled={loading}
