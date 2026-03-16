@@ -582,8 +582,8 @@ router.post('/stream', async (req, res) => {
             userId
           );
 
-          const columnNames = boardStructure.columns.map((c) => c.name).join(', ');
-          const cardCount = boardStructure.cards.length;
+          const columnNames = boardStructure.statusOptions.map((c) => c.name).join(', ');
+          const cardCount = boardStructure.rows.length;
 
           const responseText =
             `Board **"${boardTitle}"** wurde erstellt!\n\n` +
