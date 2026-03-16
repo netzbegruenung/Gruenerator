@@ -1,49 +1,51 @@
 import { motion } from 'motion/react';
-import '../../../assets/styles/components/ui/profile-skeleton.css';
+
+import { cn } from '../../../utils/cn';
 
 interface ProfileTabSkeletonProps {
   type?: 'default' | 'list' | 'form' | 'tabs';
   itemCount?: number;
 }
 
-const ProfileTabSkeleton = ({ type = 'default', itemCount = 3 }: ProfileTabSkeletonProps) => {
-  // Gemeinsamer Shimmer-Effekt für alle Skeleton-Elemente
-  const shimmer = {
-    initial: {
-      backgroundPosition: '-500px 0',
+const shimmer = {
+  initial: {
+    backgroundPosition: '-500px 0',
+  },
+  animate: {
+    backgroundPosition: '500px 0',
+    transition: {
+      repeat: Infinity,
+      duration: 1.5,
+      ease: 'linear',
     },
-    animate: {
-      backgroundPosition: '500px 0',
-      transition: {
-        repeat: Infinity,
-        duration: 1.5,
-        ease: 'linear',
-      },
-    },
-  } as const;
+  },
+} as const;
 
-  // Verschiedene Skeletons basierend auf dem Typ
+const shimmerBg =
+  'bg-[linear-gradient(90deg,var(--background-color-alt)_0%,var(--background-color)_20%,var(--background-color-alt)_40%)] bg-[length:1000px_100%]';
+
+const ProfileTabSkeleton = ({ type = 'default', itemCount = 3 }: ProfileTabSkeletonProps) => {
   const renderSkeleton = () => {
     switch (type) {
       case 'list':
         return (
-          <div className="profile-skeleton-list">
+          <div>
             {Array(itemCount)
               .fill(null)
               .map((_, index) => (
                 <motion.div
                   key={index}
-                  className="profile-skeleton-list-item"
+                  className={cn(shimmerBg, 'flex justify-between p-md rounded-xxs mb-sm items-center')}
                   variants={shimmer}
                   initial="initial"
                   animate="animate"
                 >
-                  <div className="profile-skeleton-item-content">
-                    <div className="profile-skeleton-title" />
-                    <div className="profile-skeleton-meta" />
+                  <div className="flex-1">
+                    <div className="h-6 w-3/5 mb-sm bg-background-alt rounded-xxs" />
+                    <div className="h-3.5 w-2/5 bg-background-alt rounded-xxs" />
                   </div>
-                  <div className="profile-skeleton-actions">
-                    <div className="profile-skeleton-button" />
+                  <div className="flex gap-sm">
+                    <div className="w-8 h-8 rounded-full bg-background-alt" />
                   </div>
                 </motion.div>
               ))}
@@ -51,87 +53,94 @@ const ProfileTabSkeleton = ({ type = 'default', itemCount = 3 }: ProfileTabSkele
         );
       case 'form':
         return (
-          <div className="profile-skeleton-form">
+          <div>
             <motion.div
-              className="profile-skeleton-form-title"
+              className={cn(shimmerBg, 'h-8 w-1/2 mb-lg rounded-xxs')}
               variants={shimmer}
               initial="initial"
               animate="animate"
-             />
+            />
             {Array(4)
               .fill(null)
               .map((_, index) => (
-                <div key={index} className="profile-skeleton-form-group">
+                <div key={index} className="mb-md">
                   <motion.div
-                    className="profile-skeleton-label"
+                    className={cn(shimmerBg, 'h-4 w-[30%] mb-sm rounded-xxs')}
                     variants={shimmer}
                     initial="initial"
                     animate="animate"
-                   />
+                  />
                   <motion.div
-                    className="profile-skeleton-input"
+                    className={cn(shimmerBg, 'h-10 w-full rounded-xxs')}
                     variants={shimmer}
                     initial="initial"
                     animate="animate"
-                   />
+                  />
                 </div>
               ))}
-            <div className="profile-skeleton-form-actions">
+            <div className="mt-lg flex justify-end">
               <motion.div
-                className="profile-skeleton-button-primary"
+                className={cn(shimmerBg, 'h-10 w-40 rounded-xxs')}
                 variants={shimmer}
                 initial="initial"
                 animate="animate"
-               />
+              />
             </div>
           </div>
         );
       case 'tabs':
         return (
-          <div className="profile-skeleton-tabs">
-            <div className="profile-skeleton-tabs-navigation">
+          <div className="flex flex-col">
+            <div className="flex gap-sm mb-md">
               {Array(3)
                 .fill(null)
                 .map((_, index) => (
                   <motion.div
                     key={index}
-                    className="profile-skeleton-tab"
+                    className={cn(shimmerBg, 'h-10 w-32 rounded-xxs')}
                     variants={shimmer}
                     initial="initial"
                     animate="animate"
-                   />
+                  />
                 ))}
             </div>
-            <div className="profile-skeleton-tabs-content">
+            <div>
               <motion.div
-                className="profile-skeleton-tabs-panel"
+                className={cn(shimmerBg, 'h-80 w-full rounded-xxs')}
                 variants={shimmer}
                 initial="initial"
                 animate="animate"
-               />
+              />
             </div>
           </div>
         );
       default:
         return (
-          <div className="profile-skeleton-default">
+          <div>
             <motion.div
-              className="profile-skeleton-header"
+              className={cn(shimmerBg, 'h-10 w-3/5 mb-lg rounded-xxs max-md:w-4/5')}
               variants={shimmer}
               initial="initial"
               animate="animate"
-             />
-            <div className="profile-skeleton-content">
+            />
+            <div>
               {Array(itemCount)
                 .fill(null)
                 .map((_, index) => (
                   <motion.div
                     key={index}
-                    className="profile-skeleton-block"
+                    className={cn(
+                      shimmerBg,
+                      'h-5 mb-md rounded-xxs',
+                      index === 0 && 'w-full',
+                      index === 1 && 'w-[90%]',
+                      index === 2 && 'w-3/4',
+                      index > 2 && 'w-4/5'
+                    )}
                     variants={shimmer}
                     initial="initial"
                     animate="animate"
-                   />
+                  />
                 ))}
             </div>
           </div>
@@ -139,7 +148,7 @@ const ProfileTabSkeleton = ({ type = 'default', itemCount = 3 }: ProfileTabSkele
     }
   };
 
-  return <div className="profile-skeleton-container">{renderSkeleton()}</div>;
+  return <div className="w-full p-md">{renderSkeleton()}</div>;
 };
 
 export default ProfileTabSkeleton;

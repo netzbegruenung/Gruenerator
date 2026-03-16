@@ -1,0 +1,196 @@
+/*
+ * Nested prose styles for analysis-content and dossier-content.
+ * These style child elements from ContentRenderer / dangerouslySetInnerHTML
+ * and require descendant selectors + pseudo-elements that Tailwind can't express.
+ */
+
+/* --- analysis-content nested elements --- */
+
+.analysis-content h3 {
+  color: var(--font-color-h);
+  font-size: 18px;
+  font-weight: 500;
+  margin: 24px 0 12px 0;
+  line-height: 1.4;
+}
+
+.analysis-content h3:first-child {
+  margin-top: 0;
+}
+
+.analysis-content strong {
+  color: var(--font-color-h);
+  font-weight: 600;
+}
+
+.analysis-content em {
+  font-style: italic;
+  opacity: 0.9;
+}
+
+.analysis-content p {
+  margin: 0 0 16px 0;
+  white-space: normal;
+}
+
+.analysis-content p:last-child {
+  margin-bottom: 0;
+}
+
+.analysis-content ul {
+  margin: 8px 0;
+  padding-left: 20px;
+  list-style: none;
+}
+
+.analysis-content ul li {
+  position: relative;
+  padding-left: 16px;
+  margin-bottom: 8px;
+  line-height: 1.6;
+}
+
+.analysis-content ul li::before {
+  content: "\2022";
+  position: absolute;
+  left: -4px;
+  color: var(--klee);
+}
+
+.analysis-content ul ul {
+  margin: 8px 0 8px 16px;
+}
+
+.analysis-content ul ul li::before {
+  content: "\25E6";
+}
+
+.analysis-content ul ul ul {
+  margin: 8px 0 8px 16px;
+}
+
+.analysis-content ul ul ul li::before {
+  content: "\25AA";
+  font-size: 0.8em;
+}
+
+[data-theme="dark"] .analysis-content ul li::before {
+  color: var(--secondary);
+}
+
+/* --- dossier-content nested elements (antrag-text-content from ContentRenderer) --- */
+
+.dossier-content .antrag-text-content h1 {
+  font-size: 28px;
+  font-weight: 700;
+  border-bottom: 2px solid var(--klee);
+  padding-bottom: 8px;
+  margin-top: 0;
+}
+
+.dossier-content .antrag-text-content h2 {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--font-color-h);
+}
+
+.dossier-content .antrag-text-content h3 {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--font-color-h);
+}
+
+.dossier-content .antrag-text-content h4 {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--font-color-h);
+}
+
+.dossier-content .antrag-text-content p {
+  margin: 0 0 16px 0;
+  color: var(--font-color);
+}
+
+.dossier-content .antrag-text-content ul {
+  margin: 8px 0;
+  padding-left: 0;
+  margin-left: 20px;
+}
+
+.dossier-content .antrag-text-content ul li {
+  margin-bottom: 8px;
+  line-height: 1.6;
+  color: var(--font-color);
+}
+
+.dossier-content .antrag-text-content strong {
+  color: var(--font-color-h);
+  font-weight: 600;
+}
+
+.dossier-content .antrag-text-content em {
+  font-style: italic;
+  opacity: 0.9;
+}
+
+.dossier-content .antrag-text-content blockquote {
+  border-left: 4px solid var(--klee);
+  background-color: var(--background-color);
+  padding: 12px 16px;
+  margin: 16px 0;
+  border-radius: 0 4px 4px 0;
+}
+
+.dossier-content .antrag-text-content code {
+  background-color: var(--background-color);
+  color: var(--font-color-h);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+/* Dark theme overrides */
+
+[data-theme="dark"] .dossier-content .antrag-text-content blockquote {
+  background-color: var(--hover-color-alt);
+  border-left-color: var(--secondary);
+}
+
+[data-theme="dark"] .dossier-content .antrag-text-content code {
+  background-color: var(--background-color);
+  color: var(--secondary);
+}
+
+[data-theme="dark"] .dossier-content .antrag-text-content h1 {
+  border-bottom-color: var(--secondary);
+}
+
+/* Mobile overrides for dossier nested content */
+
+@media (max-width: 768px) {
+  .analysis-content h3 {
+    padding-right: 60px;
+    text-align: left;
+  }
+
+  .dossier-content .antrag-text-content h1 {
+    font-size: 24px;
+  }
+
+  .dossier-content .antrag-text-content h2 {
+    font-size: 20px;
+  }
+
+  .dossier-content .antrag-text-content h3 {
+    font-size: 16px;
+  }
+
+  .dossier-content .antrag-text-content h4 {
+    font-size: 15px;
+  }
+
+  .dossier-content .antrag-text-content p {
+    font-size: 15px;
+    line-height: 1.6;
+  }
+}

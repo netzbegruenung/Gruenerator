@@ -1,6 +1,13 @@
 import { type JSX, useState, useRef, useEffect } from 'react';
 
-import './SubtitleSegmentList.css';
+import { cn } from '../../utils/cn';
+
+/* Keyframes for segment correction highlight — injected once via <style> */
+const correctionKeyframes = `
+@keyframes segmentCorrectionHighlight {
+  0% { background: var(--klee, #46962b); box-shadow: 0 0 0 3px rgba(70, 150, 43, 0.3); }
+  100% { background: var(--background-color-secondary, #f5f5f5); box-shadow: none; }
+}`;
 
 interface SubtitleSegmentListProps {
   segments: {
@@ -82,7 +89,17 @@ const SubtitleSegmentList = ({
   const timeFormatter = formatTime || defaultFormatTime;
 
   return (
-    <div className="subtitle-segment-list" style={{ '--columns': columns }}>
+    <>
+      <style dangerouslySetInnerHTML={{ __html: correctionKeyframes }} />
+      <div
+        className={cn(
+          'grid gap-sm max-h-[280px] max-md:max-h-[200px] max-md:!grid-cols-1 overflow-y-auto p-sm',
+        'bg-background dark:bg-background border border-grey-200 dark:border-grey-700 rounded-sm'
+      )}
+      style={{
+        gridTemplateColumns: `repeat(${columns}, 1fr)`,
+      }}
+    >
       {segments.map((segment) => {
         const isActive = activeSegmentId === segment.id;
         const isSelected = selectedSegmentId === segment.id;
@@ -95,14 +112,28 @@ const SubtitleSegmentList = ({
             ref={(el: HTMLDivElement | null) => {
               if (segment.id !== undefined) segmentRefs.current[segment.id] = el;
             }}
-            className={`subtitle-segment ${isActive ? 'subtitle-segment--active' : ''} ${isSelected ? 'subtitle-segment--selected' : ''} ${isEditing ? 'subtitle-segment--editing' : ''} ${isCorrected ? 'subtitle-segment--corrected' : ''}`}
+            className={cn(
+              'relative p-sm pr-[50px] cursor-pointer',
+              'bg-background-alt dark:bg-background-alt border border-grey-200 dark:border-grey-700 rounded-sm',
+              'transition-[background-color,border-color] duration-150 ease-in-out',
+              'hover:bg-grey-200 dark:hover:bg-grey-800',
+              isActive && 'bg-[rgba(70,150,43,0.15)] border-[var(--klee)]',
+              isSelected && 'outline-2 outline-[var(--tanne)] -outline-offset-2',
+              isEditing && 'border-[var(--klee)] shadow-[0_0_0_2px_rgba(70,150,43,0.2)]',
+              isCorrected && 'animate-[segmentCorrectionHighlight_2s_ease-out]'
+            )}
             onClick={() => handleSegmentClick(segment)}
           >
             {isEditing ? (
               <input
                 ref={inputRef}
                 type="text"
-                className="subtitle-segment__input"
+                className={cn(
+                  'w-full p-[4px] border border-[var(--klee)] rounded-[4px]',
+                  'text-[13px] font-[inherit]',
+                  'bg-background dark:bg-background text-foreground',
+                  'focus:outline-none focus:shadow-[0_0_0_2px_rgba(70,150,43,0.2)]'
+                )}
                 value={segment.text}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   segment.id !== undefined && onTextChange?.(segment.id, e.target.value)
@@ -112,13 +143,18 @@ const SubtitleSegmentList = ({
                 onClick={(e: React.MouseEvent) => e.stopPropagation()}
               />
             ) : (
-              <span className="subtitle-segment__text">{segment.text}</span>
+              <span className="block text-[13px] leading-snug text-foreground break-words">
+                {segment.text}
+              </span>
             )}
-            <span className="subtitle-segment__time">{timeFormatter(segment.startTime || 0)}</span>
+            <span className="absolute top-[4px] right-[6px] text-[10px] font-mono text-grey-400 opacity-70">
+              {timeFormatter(segment.startTime || 0)}
+            </span>
           </div>
         );
       })}
     </div>
+    </>
   );
 };
 

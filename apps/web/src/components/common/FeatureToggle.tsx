@@ -1,7 +1,8 @@
 import * as Switch from '@radix-ui/react-switch';
 
+import { cn } from '../../utils/cn';
+
 import type { JSX, ComponentType } from 'react';
-import '../../assets/styles/components/ui/FeatureToggle.css';
 
 interface IconProps {
   className?: string;
@@ -38,29 +39,49 @@ const FeatureToggle = ({
 
   return (
     <div
-      className={`feature-toggle ${className || ''} ${disabled ? 'feature-toggle-disabled' : ''} ${noBorder ? 'feature-toggle-no-border' : ''}`}
+      className={cn(
+        'relative flex flex-col p-md rounded-[var(--card-border-radius-small)] border border-[var(--card-border)] transition-all',
+        disabled && 'opacity-50 cursor-not-allowed',
+        noBorder && 'border-none p-0',
+        className
+      )}
     >
-      <div className="feature-header">
+      <div className="flex items-center w-full gap-sm">
         <Switch.Root
-          className="feature-switch"
+          className={cn(
+            'all-unset w-[46px] h-[22px] bg-[var(--input-background)] border border-[var(--input-border)] rounded-[22px] relative shadow-sm transition-all cursor-pointer shrink-0',
+            'focus-visible:outline-2 focus-visible:outline-[var(--interactive-accent-color)] focus-visible:outline-offset-2',
+            'data-[state=checked]:bg-[var(--interactive-accent-color)] data-[state=checked]:border-[var(--interactive-accent-color)] data-[state=checked]:shadow-md'
+          )}
           checked={isActive}
           onCheckedChange={handleToggle}
           aria-label={label}
           tabIndex={tabIndex}
           disabled={disabled}
         >
-          <Switch.Thumb className="feature-switch-thumb" />
-        </Switch.Root>
-        <div className="feature-label">
-          <Icon
-            className={`feature-toggle-icon ${isActive ? 'active' : ''} ${disabled ? 'disabled' : ''}`}
+          <Switch.Thumb
+            className={cn(
+              'block w-4 h-4 bg-background rounded-full shadow-sm transition-all translate-x-[3px] will-change-transform',
+              'data-[state=checked]:translate-x-[27px] data-[state=checked]:bg-background-pure'
+            )}
           />
-          {label} {isActive ? '' : ''}
+        </Switch.Root>
+        <div className="flex items-center text-[0.9rem] text-foreground font-normal grow">
+          <Icon
+            className={cn(
+              'mr-xs text-[1.1rem] text-foreground opacity-70 transition-all',
+              isActive && 'text-[var(--interactive-accent-color)] opacity-100',
+              disabled && 'opacity-40'
+            )}
+          />
+          {label}
         </div>
       </div>
 
       {description && description.trim() && (
-        <div className="feature-description">{description}</div>
+        <div className="mt-sm text-[0.9rem] text-foreground leading-relaxed opacity-80">
+          {description}
+        </div>
       )}
     </div>
   );

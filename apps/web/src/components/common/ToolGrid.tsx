@@ -29,12 +29,13 @@ const columnClasses = {
   4: 'grid-cols-4 max-lg:grid-cols-2 max-sm:grid-cols-1',
 } as const;
 
-const ToolGrid = ({ tools, columns = 4 }: ToolGridProps) => {
+const ToolGrid = ({ tools, columns }: ToolGridProps) => {
   const navigate = useNavigate();
   const { isFavourite, toggleFavourite, isFull } = useSidebarFavouritesStore();
+  const cols = columns ?? (tools.length <= 3 ? 3 : 2);
 
   return (
-    <div className={cn('grid gap-md', columnClasses[columns])}>
+    <div className={cn('grid gap-md', columnClasses[cols])}>
       {tools.map((tool) => {
         const starred = isFavourite(tool.id);
         const showStar = starred || !isFull();

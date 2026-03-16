@@ -119,6 +119,15 @@ export const BoardTableView = memo(function BoardTableView({
         header: ({ column }) => <TableColumnHeader column={column} title={field.name} />,
         cell: ({ row: tableRow }) => {
           const value = tableRow.original[field.id];
+          const rowData = tableRow.original as TableRowData;
+          if (field.id === FIELD_IDS.TITLE && rowData._row.icon) {
+            return (
+              <span className="text-sm truncate max-w-[300px] flex items-center gap-1.5">
+                <span>{rowData._row.icon}</span>
+                {String(value ?? '')}
+              </span>
+            );
+          }
           return <CellRenderer field={field} value={value} />;
         },
         enableSorting: ['text', 'number', 'date'].includes(field.type),

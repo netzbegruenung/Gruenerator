@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react';
-import './InputTip.css';
+
+import { cn } from '../../../../utils/cn';
 
 export interface Tip {
   icon?: string;
@@ -18,14 +19,19 @@ const InputTip = ({ tip, show = true }: InputTipProps) => {
     <AnimatePresence>
       {show && (
         <motion.div
-          className="input-tip"
+          className={cn(
+            'flex items-center gap-xs px-sm py-xs mt-xs',
+            'text-sm max-md:text-xs max-md:px-xs max-md:py-xxs',
+            'text-grey-400 bg-background-alt rounded-sm',
+            'border-l-[3px] border-l-[var(--klee)]'
+          )}
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -4 }}
           transition={{ duration: 0.2 }}
         >
-          {tip.icon && <span className="input-tip__icon">{tip.icon}</span>}
-          <span className="input-tip__text">{tip.text}</span>
+          {tip.icon && <span className="shrink-0 text-[1em]">{tip.icon}</span>}
+          <span className="leading-snug">{tip.text}</span>
         </motion.div>
       )}
     </AnimatePresence>

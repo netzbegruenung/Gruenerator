@@ -1,0 +1,34 @@
+/* Cloud nudge — gentle puff on click */
+
+@keyframes cloud-nudge-1 {
+  0%, 100% { transform: translate(0, 0); }
+  40% { transform: translate(3px, -2px); }
+  70% { transform: translate(-1px, 1px); }
+}
+
+@keyframes cloud-nudge-2 {
+  0%, 100% { transform: translate(0, 0); }
+  40% { transform: translate(-3px, -2px); }
+  70% { transform: translate(1px, 1px); }
+}
+
+[class*="cloud-drift-"] {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+[class*="cloud-drift-"].cloud-nudged {
+  will-change: transform;
+}
+
+[class*="cloud-drift-"] path {
+  pointer-events: auto;
+}
+
+.cloud-drift-1.cloud-nudged { animation: cloud-nudge-1 1.8s ease-out; }
+.cloud-drift-2.cloud-nudged { animation: cloud-nudge-2 2s ease-out; }
+.cloud-drift-3.cloud-nudged { animation: cloud-nudge-1 2.2s ease-out; }
+.cloud-drift-4.cloud-nudged { animation: cloud-nudge-2 1.9s ease-out; }
+.cloud-drift-5.cloud-nudged { animation: cloud-nudge-1 2.1s ease-out; }
+.cloud-drift-6.cloud-nudged { animation: cloud-nudge-2 1.8s ease-out; }
+.cloud-drift-7.cloud-nudged { animation: cloud-nudge-1 2s ease-out; }

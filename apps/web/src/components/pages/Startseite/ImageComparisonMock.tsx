@@ -1,9 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ReactCompareSlider, ReactCompareSliderImage } from 'react-compare-slider';
 
-import GrueneratorImagine from '../../../assets/images/startseite/gruenerator_imagine.png';
-import ImagineOld from '../../../assets/images/startseite/imagine_old.jpg';
-import '../../../assets/styles/components/image-comparison.css';
+import GrueneratorImagine from '../../../assets/images/startseite/gruenerator_imagine.webp';
+import ImagineOld from '../../../assets/images/startseite/imagine_old.webp';
 
 const ImageComparisonMock = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -21,7 +20,6 @@ const ImageComparisonMock = () => {
       const rect = containerRef.current.getBoundingClientRect();
       const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
 
-      // Early exit if the comparison is outside of the viewport
       if (rect.bottom <= 0 || rect.top >= viewportHeight) {
         return;
       }
@@ -57,7 +55,10 @@ const ImageComparisonMock = () => {
   }, []);
 
   return (
-    <div className="image-comparison-container" ref={containerRef}>
+    <div
+      className="w-full h-full relative flex flex-col items-center justify-center p-2 md:p-sm lg:p-md"
+      ref={containerRef}
+    >
       <ReactCompareSlider
         itemOne={<ReactCompareSliderImage src={ImagineOld} alt="Originalbild - Vorher" />}
         itemTwo={
@@ -67,8 +68,8 @@ const ImageComparisonMock = () => {
           />
         }
         position={sliderPosition}
-        className="comparison-slider"
-        onPositionChange={(position) => setSliderPosition(position)}
+        className="w-full max-w-[500px] sm:max-w-[420px] md:max-w-[450px] lg:max-w-[500px] h-auto rounded-lg overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.12)] [--handle-color:var(--interactive-accent-color)]"
+        onPositionChange={setSliderPosition}
       />
     </div>
   );

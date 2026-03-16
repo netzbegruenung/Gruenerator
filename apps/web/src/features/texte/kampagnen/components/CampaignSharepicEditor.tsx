@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
 import { FormInput } from '../../../../components/common/Form/Input';
-import './campaign-sharepic-editor.css';
 
 interface SharepicData {
   line1?: string;
@@ -116,16 +115,16 @@ const CampaignSharepicEditor = ({
   }
 
   return (
-    <div className="campaign-sharepic-editor">
-      <div className="editor-header">
-        <h3 className="editor-title">Sharepic bearbeiten</h3>
-        <p className="editor-subtitle">Bearbeite den Text des Sharepics und generiere es neu</p>
+    <div className="mt-md rounded-md border border-grey-200 bg-background-alt p-md dark:border-grey-700 max-md:p-sm">
+      <div className="mb-md">
+        <h3 className="m-0 mb-xs text-lg font-semibold text-foreground max-md:text-base">Sharepic bearbeiten</h3>
+        <p className="m-0 text-sm text-grey-400">Bearbeite den Text des Sharepics und generiere es neu</p>
       </div>
 
-      <div className="editor-content">
-        <div className="editor-form">
+      <div className="flex flex-col gap-md">
+        <div className="flex flex-col gap-sm">
           {([1, 2, 3, 4, 5] as const).map((lineNum) => (
-            <div key={lineNum} className="editor-field">
+            <div key={lineNum} className="w-full">
               <FormInput
                 name={`line${lineNum}`}
                 label={`Zeile ${lineNum}`}
@@ -138,13 +137,13 @@ const CampaignSharepicEditor = ({
           ))}
 
           {activeSharepic.creditText && (
-            <div className="editor-field">
+            <div className="w-full">
               <label className="form-label">Aktueller Credit-Text</label>
               <div className="current-credit-display">{activeSharepic.creditText}</div>
             </div>
           )}
 
-          <div className="editor-field">
+          <div className="w-full">
             <FormInput
               name="customCredit"
               label="Neuer Credit-Text (optional)"
@@ -157,9 +156,9 @@ const CampaignSharepicEditor = ({
         </div>
 
         {regenerationError && (
-          <div className="editor-error">
-            <span className="error-icon">⚠️</span>
-            <span className="error-text">{regenerationError}</span>
+          <div className="flex items-center gap-sm rounded-sm border border-red-300 bg-red-500/10 px-md py-sm text-red-600 dark:text-red-400">
+            <span className="shrink-0 text-lg">⚠️</span>
+            <span className="flex-1 text-sm">{regenerationError}</span>
           </div>
         )}
       </div>

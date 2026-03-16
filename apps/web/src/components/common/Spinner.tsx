@@ -1,4 +1,4 @@
-import '../../assets/styles/components/ui/spinner.css';
+import { cn } from '../../utils/cn';
 
 export type SpinnerSize = 'small' | 'medium' | 'large';
 
@@ -9,25 +9,42 @@ export interface SpinnerProps {
   className?: string;
 }
 
+const sizeStyles: Record<SpinnerSize, string> = {
+  small: 'h-4 w-4 border-2',
+  medium: 'h-[30px] w-[30px] border-[3px]',
+  large: 'h-10 w-10 border-4',
+};
+
 const Spinner = ({
   size = 'medium',
   white = false,
   withBackground = false,
   className = '',
 }: SpinnerProps) => {
-  const sizeClass = `spinner-${size}`;
-  const colorClass = white ? 'spinner-white' : '';
-  const classes = ['spinner', sizeClass, colorClass, className].filter(Boolean).join(' ');
+  const spinner = (
+    <div
+      className={cn(
+        'shrink-0 rounded-full animate-spin',
+        'border-black/10 border-t-[var(--font-color-h,#005538)]',
+        'dark:border-white/10 dark:border-t-[var(--font-color-h,#005538)]',
+        sizeStyles[size],
+        white && 'border-white/30 border-t-white dark:border-white/30 dark:border-t-white',
+        className
+      )}
+      aria-label="Wird geladen..."
+      role="status"
+    />
+  );
 
   if (withBackground) {
     return (
-      <div className="spinner-with-background">
-        <div className={classes} aria-label="Wird geladen..." role="status" />
+      <div className="flex items-center justify-center bg-[var(--klee,#46a758)] rounded-lg w-9 h-9 p-0 m-0">
+        {spinner}
       </div>
     );
   }
 
-  return <div className={classes} aria-label="Wird geladen..." role="status" />;
+  return spinner;
 };
 
 export default Spinner;

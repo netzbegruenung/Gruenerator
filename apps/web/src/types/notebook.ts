@@ -48,9 +48,11 @@ export interface NotebookListProps {
   onEdit: (id: string) => void;
   onDelete: (id: string) => Promise<void>;
   onShare: (id: string) => void;
+  onShareToGroup?: (id: string, name: string) => void;
   onView: (id: string) => void;
   loading?: boolean;
   processingCollectionIds?: Set<string>;
+  compact?: boolean;
 }
 
 /**

@@ -51,9 +51,9 @@ const CitationBadge = ({
   };
 
   return (
-    <span className="citation-badge-container" ref={badgeRef}>
+    <span className="relative inline" ref={badgeRef}>
       <span
-        className="citation-badge"
+        className="inline-flex items-center justify-center size-[18px] bg-accent dark:bg-primary-400 text-background dark:text-grey-950 text-[0.75rem] font-semibold rounded-full cursor-pointer transition-all duration-200 mx-0.5 relative -top-0.5 select-none hover:bg-link hover:scale-105"
         onMouseEnter={() => setShowPopup(true)}
         onMouseLeave={() => setShowPopup(false)}
         onClick={handleClick}

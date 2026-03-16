@@ -3,9 +3,11 @@ import { Suspense, lazy, Component, type ReactNode } from 'react';
 import { isDesktopApp } from '../../../utils/platform';
 import { minimizeWindow, toggleMaximizeWindow, closeWindow } from '../../../utils/tauriWindow';
 import ProfileButton from '../Header/ProfileButton';
-import './desktop-titlebar.css';
 
 const TabBar = lazy(() => import('../DesktopTabs/TabBar').catch(() => ({ default: () => null })));
+
+const appRegionDrag = { WebkitAppRegion: 'drag' } as React.CSSProperties;
+const appRegionNoDrag = { WebkitAppRegion: 'no-drag' } as React.CSSProperties;
 
 interface TabBarErrorBoundaryProps {
   children: ReactNode;
@@ -29,7 +31,11 @@ class TabBarErrorBoundary extends Component<TabBarErrorBoundaryProps, TabBarErro
   render() {
     if (this.state.hasError) {
       return (
-        <div className="titlebar-title" data-tauri-drag-region>
+        <div
+          className="flex-1 text-primary-600 dark:text-primary-300 text-sm font-semibold pl-3"
+          style={appRegionDrag}
+          data-tauri-drag-region
+        >
           Grünerator
         </div>
       );
@@ -39,7 +45,11 @@ class TabBarErrorBoundary extends Component<TabBarErrorBoundaryProps, TabBarErro
 }
 
 const TitlebarFallback = () => (
-  <div className="titlebar-title" data-tauri-drag-region>
+  <div
+    className="flex-1 text-primary-600 dark:text-primary-300 text-sm font-semibold pl-3"
+    style={appRegionDrag}
+    data-tauri-drag-region
+  >
     Grünerator
   </div>
 );
@@ -56,19 +66,28 @@ const DesktopTitlebar = () => {
   };
 
   return (
-    <div className="desktop-titlebar" data-tauri-drag-region onDoubleClick={handleDoubleClick}>
+    <div
+      className="fixed top-0 left-0 right-0 h-[var(--titlebar-height)] bg-[var(--bar-background)] flex items-center justify-between p-0 pl-16 z-[9999] select-none"
+      style={appRegionDrag}
+      data-tauri-drag-region
+      onDoubleClick={handleDoubleClick}
+    >
       <TabBarErrorBoundary>
         <Suspense fallback={<TitlebarFallback />}>
           <TabBar />
         </Suspense>
       </TabBarErrorBoundary>
 
-      <div className="titlebar-controls">
-        <div className="desktop-titlebar-profile">
+      <div className="flex items-center gap-0" style={appRegionNoDrag}>
+        <div
+          className="px-3 flex items-center h-[var(--titlebar-height)] [&_[data-slot=dropdown-menu-trigger]]:!border-none [&_[data-slot=dropdown-menu-trigger]]:!bg-transparent [&_[data-slot=dropdown-menu-trigger]]:!shadow-none [&_[data-slot=dropdown-menu-trigger]]:!w-8 [&_[data-slot=dropdown-menu-trigger]]:!h-8 [&_[data-slot=dropdown-menu-trigger]]:!p-0 [&>button]:!border-none [&>button]:!bg-transparent [&>button]:!shadow-none [&>button]:!w-8 [&>button]:!h-8 [&>button]:!p-0 [&>a]:!border-none [&>a]:!bg-transparent [&>a]:!shadow-none [&>a]:!w-8 [&>a]:!h-8 [&>a]:!p-0 [&_a]:h-[var(--titlebar-height)] [&_a]:flex [&_a]:items-center [&_a_svg]:text-2xl [&_a_svg]:text-grey-500 [&_a:hover_svg]:text-primary-600 dark:[&_a_svg]:text-grey-400 dark:[&_a:hover_svg]:text-primary-400"
+          style={appRegionNoDrag}
+        >
           <ProfileButton />
         </div>
         <button
-          className="titlebar-button minimize"
+          className="w-[46px] h-[var(--titlebar-height)] flex items-center justify-center bg-transparent border-none text-grey-500 dark:text-grey-400 cursor-pointer transition-colors duration-150 hover:bg-grey-100 hover:text-grey-700 dark:hover:bg-grey-700 dark:hover:text-grey-200 [&_svg]:w-2.5 [&_svg]:h-2.5"
+          style={appRegionNoDrag}
           onClick={() => void minimizeWindow()}
           aria-label="Minimieren"
         >
@@ -77,7 +96,8 @@ const DesktopTitlebar = () => {
           </svg>
         </button>
         <button
-          className="titlebar-button maximize"
+          className="w-[46px] h-[var(--titlebar-height)] flex items-center justify-center bg-transparent border-none text-grey-500 dark:text-grey-400 cursor-pointer transition-colors duration-150 hover:bg-grey-100 hover:text-grey-700 dark:hover:bg-grey-700 dark:hover:text-grey-200 [&_svg]:w-2.5 [&_svg]:h-2.5"
+          style={appRegionNoDrag}
           onClick={() => void toggleMaximizeWindow()}
           aria-label="Maximieren"
         >
@@ -86,7 +106,8 @@ const DesktopTitlebar = () => {
           </svg>
         </button>
         <button
-          className="titlebar-button close"
+          className="w-[46px] h-[var(--titlebar-height)] flex items-center justify-center bg-transparent border-none text-grey-500 dark:text-grey-400 cursor-pointer transition-colors duration-150 hover:bg-[#e81123] hover:text-white [&_svg]:w-2.5 [&_svg]:h-2.5"
+          style={appRegionNoDrag}
           onClick={() => void closeWindow()}
           aria-label="Schließen"
         >

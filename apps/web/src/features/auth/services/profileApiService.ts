@@ -41,7 +41,6 @@ export interface AnweisungenWissen {
 }
 
 export interface GroupAnweisungenWissen extends AnweisungenWissen {
-  customPrompt?: string;
   groupInfo?: {
     [key: string]: unknown;
   };
@@ -52,7 +51,6 @@ export interface GroupAnweisungenWissen extends AnweisungenWissen {
     isAdmin?: boolean;
   };
   joinToken?: string;
-  instructionsEnabled?: boolean;
 }
 
 export interface InstructionsStatusResponse {
@@ -62,14 +60,8 @@ export interface InstructionsStatusResponse {
 }
 
 export interface AnweisungenSaveData {
-  customPrompt?: string;
-  instructionsEnabled?: boolean;
   presseabbinder?: string;
   knowledge?: KnowledgeEntry[];
-  _groupMembership?: {
-    isAdmin: boolean;
-    role?: string;
-  };
 }
 
 export interface AnweisungenSaveResponse {
@@ -338,153 +330,38 @@ export const profileApiService = {
   },
 
   // === ANWEISUNGEN & WISSEN ===
-  async getAnweisungenWissen(
-    context: 'user' | 'group' = 'user',
-    groupId: string | null = null
-  ): Promise<AnweisungenWissen | GroupAnweisungenWissen> {
-    if (context === 'group' && groupId) {
-      // Group endpoint - fetch group details which includes instructions and knowledge
-      const response = await apiClient.get(`/auth/groups/${groupId}/details`);
-      const data = response.data;
+  async getAnweisungenWissen(): Promise<AnweisungenWissen> {
+    const response = await apiClient.get('/auth/anweisungen-wissen');
+    const json = response.data;
 
-      if (!data.success) {
-        throw new Error(data.message || 'Failed to fetch group details');
-      }
-
-      // Transform group data to match expected format (only customPrompt for groups)
-      return {
-        customPrompt: data.instructions.custom_prompt || '',
-        knowledge: data.knowledge || [],
-        // Additional group data
-        groupInfo: data.group,
-        userRole: data.membership.role,
-        isAdmin: data.membership.isAdmin,
-        membership: data.membership,
-        joinToken: data.group?.join_token || data.joinToken,
-        instructionsEnabled: data.instructions.instructions_enabled || false,
-      };
-    } else {
-      // Individual user endpoint (existing logic)
-      const response = await apiClient.get('/auth/anweisungen-wissen');
-      const json = response.data;
-
-      return {
-        presseabbinder: json.presseabbinder || '',
-        knowledge: json.knowledge || [],
-      };
-    }
+    return {
+      presseabbinder: json.presseabbinder || '',
+      knowledge: json.knowledge || [],
+    };
   },
 
-  async saveAnweisungenWissen(
-    data: AnweisungenSaveData,
-    context: 'user' | 'group' = 'user',
-    groupId: string | null = null
-  ): Promise<AnweisungenSaveResponse> {
+  async saveAnweisungenWissen(data: AnweisungenSaveData): Promise<AnweisungenSaveResponse> {
     const cleanedKnowledge = (data.knowledge || []).map((entry: KnowledgeEntry) => ({
       id: typeof entry.id === 'string' && entry.id.startsWith('new-') ? undefined : entry.id,
       title: entry.title,
       content: entry.content,
     }));
 
-    if (context === 'group' && groupId) {
-      // Check if user has permission to edit group content before making API calls
-      // This prevents 403 errors for non-admin group members
-      if (data._groupMembership && !data._groupMembership.isAdmin) {
-        console.log(
-          '[saveAnweisungenWissen] User is not admin, skipping group save to prevent 403 errors'
-        );
-        return {
-          success: true,
-          message: 'Nur Gruppenadministratoren können Gruppeninhalte bearbeiten.',
-          skipSave: true,
-        };
-      }
-      // Group endpoint - save instructions and knowledge separately
-      const promises = [];
+    const payload = {
+      presseabbinder: data.presseabbinder,
+      knowledge: cleanedKnowledge,
+    };
 
-      // Save unified instruction
-      const instructionsPayload = {
-        custom_prompt: data.customPrompt,
-        instructions_enabled: true,
-      };
-
-      const instructionsPromise = apiClient
-        .put(`/auth/groups/${groupId}/instructions`, instructionsPayload)
-        .then((response) => {
-          const respData = response.data;
-          if (!respData.success) {
-            throw new Error(respData.message || 'Failed to update instructions');
-          }
-          return respData;
-        });
-
-      promises.push(instructionsPromise);
-
-      // Handle knowledge entries - implement proper create/update operations
-      if (cleanedKnowledge && cleanedKnowledge.length > 0) {
-        const knowledgePromises = cleanedKnowledge.map(async (entry: KnowledgeEntry) => {
-          // Determine if this is a new entry or an update
-          const isNewEntry =
-            !entry.id || (typeof entry.id === 'string' && entry.id.startsWith('new-'));
-
-          if (isNewEntry) {
-            // Create new knowledge entry
-            const response = await apiClient.post(`/auth/groups/${groupId}/knowledge`, {
-              title: entry.title || 'Untitled',
-              content: entry.content || '',
-            });
-            return response.data;
-          } else {
-            // Update existing knowledge entry
-            const response = await apiClient.put(`/auth/groups/${groupId}/knowledge/${entry.id}`, {
-              title: entry.title || 'Untitled',
-              content: entry.content || '',
-            });
-            return response.data;
-          }
-        });
-
-        // Wait for all knowledge operations to complete
-        const knowledgeResults = await Promise.all(knowledgePromises);
-
-        // Check if any knowledge operations failed
-        const failedKnowledge = knowledgeResults.filter((result) => !result.success);
-        if (failedKnowledge.length > 0) {
-          throw new Error(`Failed to save ${failedKnowledge.length} knowledge entries`);
-        }
-      }
-
-      const results = await Promise.all(promises);
-      return results[0];
-    } else {
-      // Individual user endpoint
-      const payload = {
-        presseabbinder: data.presseabbinder,
-        knowledge: cleanedKnowledge,
-      };
-
-      const response = await apiClient.put('/auth/anweisungen-wissen', payload);
-      return response.data;
-    }
+    const response = await apiClient.put('/auth/anweisungen-wissen', payload);
+    return response.data;
   },
 
-  async deleteKnowledgeEntry(
-    entryId: string | number,
-    context: 'user' | 'group' = 'user',
-    groupId: string | null = null
-  ): Promise<void | string | number> {
+  async deleteKnowledgeEntry(entryId: string | number): Promise<void | string | number> {
     if (typeof entryId === 'string' && entryId.startsWith('new-')) {
       return;
     }
 
-    let url;
-    if (context === 'group' && groupId) {
-      url = `/auth/groups/${groupId}/knowledge/${entryId}`;
-    } else {
-      url = `/auth/anweisungen-wissen/${entryId}`;
-    }
-
-    await apiClient.delete(url);
+    await apiClient.delete(`/auth/anweisungen-wissen/${entryId}`);
     return entryId;
   },
 

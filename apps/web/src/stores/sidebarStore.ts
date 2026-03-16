@@ -6,6 +6,7 @@ interface SidebarState {
   hideAppSidebar: boolean;
   forceExpandedRequesters: Set<string>;
   forceExpanded: boolean;
+  canvasIsActive: boolean;
   open: () => void;
   close: () => void;
   toggle: () => void;
@@ -13,6 +14,7 @@ interface SidebarState {
   releaseHideSidebar: (requesterId: string) => void;
   requestForceExpanded: (requesterId: string) => void;
   releaseForceExpanded: (requesterId: string) => void;
+  setCanvasIsActive: (active: boolean) => void;
 }
 
 const useSidebarStore = create<SidebarState>((set) => ({
@@ -21,6 +23,7 @@ const useSidebarStore = create<SidebarState>((set) => ({
   hideAppSidebar: false,
   forceExpandedRequesters: new Set(),
   forceExpanded: false,
+  canvasIsActive: false,
   open: () => set({ isOpen: true }),
   close: () => set({ isOpen: false }),
   toggle: () => set((state) => ({ isOpen: !state.isOpen })),
@@ -63,6 +66,7 @@ const useSidebarStore = create<SidebarState>((set) => ({
         isOpen: stillForced ? state.isOpen : false,
       };
     }),
+  setCanvasIsActive: (active: boolean) => set({ canvasIsActive: active }),
 }));
 
 export { useSidebarStore };

@@ -95,8 +95,8 @@ export const GALLERY_CONTENT_TYPES: Record<string, GalleryConfig> = {
       type: 'static',
       categories: [
         { id: 'all', label: 'Alle Kategorien' },
-        { id: 'own', label: 'Eigene Generatoren' },
-        { id: 'shared', label: 'Geteilte Generatoren' },
+        { id: 'own', label: 'Eigene Grüneratoren' },
+        { id: 'shared', label: 'Geteilte Grüneratoren' },
         { id: 'popular', label: 'Beliebt' },
       ],
     },

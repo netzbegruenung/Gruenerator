@@ -63,6 +63,7 @@ import {
   PiHouse,
   PiScan,
   PiChatCircle,
+  PiDesktop,
 } from 'react-icons/pi';
 import { RiMagicLine, RiRobot3Line } from 'react-icons/ri';
 
@@ -137,7 +138,14 @@ export type NavigationIconName =
   | 'eigene'
   | 'home'
   | 'scanner'
-  | 'messenger';
+  | 'messenger'
+  | 'docs'
+  | 'boards'
+  | 'gruppen'
+  | 'notebooks'
+  | 'research'
+  | 'desk'
+  | 'transkription';
 
 /**
  * Action icon names
@@ -247,6 +255,13 @@ export const ICONS: IconRegistry = {
     home: PiHouse,
     scanner: PiScan,
     messenger: PiChatCircle,
+    docs: CiMemoPad,
+    boards: PiSquaresFour,
+    gruppen: HiUserGroup,
+    notebooks: FaBook,
+    research: PiBrain,
+    desk: PiDesktop,
+    transkription: HiMicrophone,
   },
 
   actions: {
@@ -306,8 +321,8 @@ export const ICONS: IconRegistry = {
 /**
  * Get an icon component by category and name
  */
-export const getIcon = <C extends IconCategory>(category: C, name: string): IconType | null => {
-  return (ICONS[category] as Record<string, IconType>)?.[name] || null;
+export const getIcon = <C extends IconCategory>(category: C, name: string): IconType | undefined => {
+  return (ICONS[category] as Record<string, IconType>)?.[name] ?? undefined;
 };
 
 /**

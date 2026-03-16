@@ -62,6 +62,7 @@ export interface Row {
   cells: Record<string, CellValue>;
   createdBy: string;
   createdAt: string;
+  icon?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -94,6 +95,7 @@ export interface BoardView {
   groupByFieldId?: string;
   dateFieldId?: string;
   endDateFieldId?: string;
+  hiddenGroupIds?: string[];
   filters: FilterRule[];
   sorts: SortRule[];
   fieldSettings: FieldSetting[];

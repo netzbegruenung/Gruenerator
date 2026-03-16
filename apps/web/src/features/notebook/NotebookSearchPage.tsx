@@ -9,8 +9,6 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 import useApiSubmit from '../../components/hooks/useApiSubmit';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 
-// Ask Feature CSS - Loaded only when this feature is accessed
-import '../../assets/styles/features/notebook/notebook-page.css';
 
 const NotebookSearchPage = () => {
   const componentName = 'ask';
