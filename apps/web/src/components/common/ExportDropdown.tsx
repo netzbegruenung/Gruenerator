@@ -52,7 +52,6 @@ const extractPlainText = extractPlainTextJs as unknown as (content: unknown) => 
 const extractFormattedText = extractFormattedTextJs as unknown as (
   content: unknown
 ) => Promise<string>;
-import '../../assets/styles/components/actions/exportToDocument.css';
 
 interface ExportDropdownProps {
   content: string;
@@ -564,25 +563,38 @@ const ExportDropdown = ({
       {/* Textbegrünung Paste Popup */}
       {showPastePopup && (
         <div
-          className="modal"
+          className="fixed inset-0 bg-black/50 flex justify-center items-center z-[9999] p-8 max-md:p-4"
           role="dialog"
           aria-labelledby="export-modal-title"
           onClick={() => setShowPastePopup(false)}
         >
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <button className="close-button" onClick={() => setShowPastePopup(false)}>
+          <div
+            className="relative bg-background-alt p-10 rounded-2xl max-w-[600px] w-full shadow-[0_8px_32px_rgba(0,0,0,0.1)] max-md:p-7 max-md:rounded-xl max-[360px]:p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="absolute top-4 right-4 bg-transparent border-none cursor-pointer text-foreground-heading p-2 transition-opacity hover:opacity-70"
+              onClick={() => setShowPastePopup(false)}
+            >
               <IoCloseOutline size={24} />
             </button>
-            <h2 id="export-modal-title">Mit Textbegrünung freigeben</h2>
-            <p>
+            <h2 id="export-modal-title" className="text-foreground-heading m-0 mb-6 text-[1.75em] text-center max-md:text-[1.4em] max-[360px]:text-[1.2em]">
+              Mit Textbegrünung freigeben
+            </h2>
+            <p className="my-3 leading-relaxed text-foreground text-[1.1em] max-md:text-base max-[360px]:text-[0.9em]">
               {copySucceeded
                 ? 'Text wurde in Zwischenablage kopiert! Öffne dein Dokument und füge ihn mit Strg+V ein.'
                 : 'Öffne das Textbegrünung-Dokument und füge deinen Text dort ein.'}
             </p>
             {padURL && (
               <>
-                <div className="url-container">
-                  <input type="text" value={padURL} readOnly className="url-input" />
+                <div className="flex my-4 bg-background rounded-lg p-1 border border-[var(--hellgrau)]">
+                  <input
+                    type="text"
+                    value={padURL}
+                    readOnly
+                    className="grow py-3 px-4 border-none bg-transparent text-foreground text-[0.9em] max-[360px]:p-2.5"
+                  />
                   <button
                     onClick={() => {
                       navigator.clipboard
@@ -593,13 +605,16 @@ const ExportDropdown = ({
                         })
                         .catch((err) => console.error('Fehler beim Kopieren:', err));
                     }}
-                    className={`copy-docs-link-button ${urlCopied ? 'copied' : ''}`}
+                    className={`py-2 px-4 border-none rounded-md cursor-pointer bg-transparent text-foreground transition-all flex items-center gap-2 relative hover:opacity-70 max-[360px]:p-2.5 ${urlCopied ? 'text-[var(--primary)]' : ''}`}
                   >
                     {urlCopied ? <IoCheckmarkOutline size={20} /> : <IoCopyOutline size={20} />}
                   </button>
                 </div>
-                <div className="button-group">
-                  <button onClick={handleCopyText} className="export-action-button">
+                <div className="flex gap-4 mt-4 max-md:flex-col max-md:gap-2">
+                  <button
+                    onClick={handleCopyText}
+                    className="flex-1 w-full py-3.5 border-none rounded-lg text-base cursor-pointer bg-[var(--secondary)] text-white transition-all flex items-center justify-center gap-2 disabled:bg-[var(--hellgrau)] disabled:cursor-not-allowed"
+                  >
                     {textCopyIcon} Text kopieren
                   </button>
                   <button
@@ -607,7 +622,7 @@ const ExportDropdown = ({
                       window.open(padURL, '_blank');
                       setShowPastePopup(false);
                     }}
-                    className="open-button"
+                    className="flex-1 w-full py-3.5 border-none rounded-lg text-base cursor-pointer bg-[var(--secondary)] text-white transition-all flex items-center justify-center gap-2 max-[360px]:p-2.5"
                   >
                     <IoOpenOutline size={20} /> Link öffnen
                   </button>

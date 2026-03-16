@@ -2,10 +2,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MdSearch, MdContentCut, MdSubtitles, MdCheck, MdError } from 'react-icons/md';
 
+import { cn } from '@/utils/cn';
+
 import apiClient from '../../../components/utils/apiClient';
 
 import type { IconType } from 'react-icons';
-import '../styles/AutoProcessingScreen.css';
 
 interface Stage {
   id: number;
@@ -139,7 +140,7 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
     if (isCompleted) {
       return (
         <motion.div
-          className="stage-icon completed"
+          className="flex size-8 items-center justify-center rounded-full bg-primary-500 text-white"
           initial={{ scale: 0.8 }}
           animate={{ scale: 1 }}
           transition={{ type: 'spring', stiffness: 300 }}
@@ -152,7 +153,7 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
     if (isActive) {
       return (
         <motion.div
-          className="stage-icon active"
+          className="flex size-8 items-center justify-center rounded-full bg-primary-100 text-primary-600 dark:bg-primary-900/30"
           animate={{ scale: [1, 1.1, 1] }}
           transition={{ repeat: Infinity, duration: 1.5 }}
         >
@@ -162,7 +163,7 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
     }
 
     return (
-      <div className="stage-icon pending">
+      <div className="flex size-8 items-center justify-center rounded-full bg-grey-200 text-grey-400 dark:bg-grey-700 dark:text-grey-500">
         <Icon />
       </div>
     );
@@ -170,42 +171,48 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
 
   if (status === 'error') {
     return (
-      <div className="auto-processing-screen error">
-        <div className="auto-processing-content">
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className="flex max-w-[500px] flex-col items-center gap-lg text-center">
           <motion.div
-            className="error-icon"
+            className="flex size-16 items-center justify-center rounded-full bg-red-100 text-3xl text-red-600 dark:bg-red-900/30"
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', stiffness: 300 }}
           >
             <MdError />
           </motion.div>
-          <h2>Verarbeitung fehlgeschlagen</h2>
-          <p className="error-message">{error}</p>
+          <h2 className="text-xl font-semibold text-foreground-heading">
+            Verarbeitung fehlgeschlagen
+          </h2>
+          <p className="text-foreground">{error}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="auto-processing-screen">
-      <div className="auto-processing-content">
-        <h2>Automatische Verarbeitung</h2>
-        <p className="auto-processing-subtitle">Dein Video wird automatisch optimiert</p>
+    <div className="flex min-h-[400px] items-center justify-center">
+      <div className="flex w-full max-w-[500px] flex-col items-center gap-lg text-center">
+        <h2 className="text-xl font-semibold text-foreground-heading">
+          Automatische Verarbeitung
+        </h2>
+        <p className="text-grey-500">Dein Video wird automatisch optimiert</p>
 
-        <div className="progress-container">
-          <div className="progress-bar-wrapper">
+        <div className="flex w-full items-center gap-sm">
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-grey-200 dark:bg-grey-700">
             <motion.div
-              className="progress-bar-fill"
+              className="h-full rounded-full bg-primary-500"
               initial={{ width: 0 }}
               animate={{ width: `${overallProgress}%` }}
               transition={{ duration: 0.3 }}
             />
           </div>
-          <span className="progress-percentage">{Math.round(overallProgress)}%</span>
+          <span className="min-w-[3ch] text-sm font-medium text-foreground tabular-nums">
+            {Math.round(overallProgress)}%
+          </span>
         </div>
 
-        <div className="stages-container">
+        <div className="flex w-full flex-col gap-xs">
           {STAGES.map((stage) => {
             const isActive = stage.id === currentStage;
             const isCompleted =
@@ -214,19 +221,41 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
             return (
               <motion.div
                 key={stage.id}
-                className={`stage-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
+                className={cn(
+                  'relative flex items-center gap-md rounded-lg p-sm transition-colors',
+                  isActive && 'bg-primary-50 dark:bg-grey-800',
+                  isCompleted && 'opacity-70'
+                )}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: stage.id * 0.1 }}
               >
                 {renderStageIcon(stage, isActive, isCompleted)}
-                <div className="stage-info">
-                  <span className="stage-name">{stage.name}</span>
+                <div className="flex flex-1 items-center gap-sm">
+                  <span
+                    className={cn(
+                      'text-sm',
+                      isActive
+                        ? 'font-medium text-foreground'
+                        : isCompleted
+                          ? 'text-foreground'
+                          : 'text-grey-400 dark:text-grey-500'
+                    )}
+                  >
+                    {stage.name}
+                  </span>
                   {isActive && stageProgress > 0 && stageProgress < 100 && (
-                    <span className="stage-progress">{Math.round(stageProgress)}%</span>
+                    <span className="text-xs text-grey-500 tabular-nums">
+                      {Math.round(stageProgress)}%
+                    </span>
                   )}
                 </div>
-                {isActive && <motion.div className="stage-indicator" layoutId="activeIndicator" />}
+                {isActive && (
+                  <motion.div
+                    className="absolute bottom-0 left-0 h-0.5 w-full rounded-full bg-primary-500"
+                    layoutId="activeIndicator"
+                  />
+                )}
               </motion.div>
             );
           })}
@@ -235,12 +264,12 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
         <AnimatePresence>
           {status === 'complete' && (
             <motion.div
-              className="completion-message"
+              className="flex items-center gap-sm font-medium text-primary-600"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
             >
-              <MdCheck className="completion-icon" />
+              <MdCheck className="text-lg" />
               <span>Verarbeitung abgeschlossen!</span>
             </motion.div>
           )}

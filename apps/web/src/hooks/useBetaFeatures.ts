@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 
-import { useBetaFeaturesStore } from '../stores/betaFeaturesStore';
+import { useBetaFeaturesStore, FEATURE_GROUPS } from '../stores/betaFeaturesStore';
 
 import { useOptimizedAuth } from './useAuth';
 
@@ -45,14 +45,21 @@ interface UseBetaFeaturesReturn {
   updateError: string | null;
 }
 
+// Reverse lookup: child key → parent group key
+const CHILD_TO_GROUP: Record<string, string> = {};
+for (const [groupKey, children] of Object.entries(FEATURE_GROUPS)) {
+  for (const child of children) {
+    CHILD_TO_GROUP[child] = groupKey;
+  }
+}
+
 // Beta features configuration - single source of truth
 const BETA_FEATURES_CONFIG: BetaFeatureConfig[] = [
   { key: 'sharepic', label: 'Sharepic', isAdminOnly: false, devOnly: true },
-  { key: 'groups', label: 'Gruppen', isAdminOnly: false },
+  { key: 'workplace', label: 'Desk', isAdminOnly: false },
   { key: 'vorlagen', label: 'Vorlagen & Galerie', isAdminOnly: false, devOnly: true },
   { key: 'database', label: 'Datenbank', isAdminOnly: true },
   { key: 'notebook', label: 'Notebooks', isAdminOnly: false, defaultEnabled: true },
-  // { key: 'sites', label: 'Web-Visitenkarte', isAdminOnly: false, devOnly: true }, // Removed - outdated
   {
     key: 'interactiveAntrag',
     label: 'Interaktiver Antrag',
@@ -72,8 +79,7 @@ const BETA_FEATURES_CONFIG: BetaFeatureConfig[] = [
     defaultEnabled: false,
   },
   { key: 'prompts', label: 'Eigene Prompts', isAdminOnly: false },
-  { key: 'docs', label: 'Dokumente', isAdminOnly: false },
-  { key: 'scanner', label: 'Scanner (OCR)', isAdminOnly: false },
+  { key: 'memories', label: 'Erinnerungen', isAdminOnly: false, defaultEnabled: true },
   // Profile-only settings (not shown in Labor tab)
   { key: 'igel_modus', label: 'Igel-Modus', isAdminOnly: false, isProfileSetting: true },
   { key: 'labor', label: 'Labor', isAdminOnly: false, isProfileSetting: true },
@@ -110,12 +116,14 @@ export const useBetaFeatures = (_options: UseBetaFeaturesOptions = {}): UseBetaF
   const getBetaFeatureState = React.useCallback(
     (key: string): boolean => {
       const isDev = import.meta.env.DEV;
-      const featureConfig = BETA_FEATURES_CONFIG.find((f) => f.key === key);
+      // If this key belongs to a group, resolve via the group parent
+      const resolvedKey = CHILD_TO_GROUP[key] ?? key;
+      const featureConfig = BETA_FEATURES_CONFIG.find((f) => f.key === resolvedKey);
       if (isDev && featureConfig?.devOnly) {
         return true;
       }
-      if (betaFeatures?.[key] !== undefined) {
-        return !!betaFeatures[key];
+      if (betaFeatures?.[resolvedKey] !== undefined) {
+        return !!betaFeatures[resolvedKey];
       }
       return featureConfig?.defaultEnabled ?? false;
     },
@@ -124,47 +132,28 @@ export const useBetaFeatures = (_options: UseBetaFeaturesOptions = {}): UseBetaF
 
   const canAccessBetaFeature = React.useCallback(
     (featureKey: string): boolean => {
-      const isAdminOnlyFeature = ADMIN_ONLY_FEATURES.includes(featureKey);
+      const resolvedKey = CHILD_TO_GROUP[featureKey] ?? featureKey;
+      const isAdminOnlyFeature = ADMIN_ONLY_FEATURES.includes(resolvedKey);
 
       if (isAdminOnlyFeature && !isAdmin) {
         return false;
       }
 
       const isDev = import.meta.env.DEV;
-      const featureConfig = BETA_FEATURES_CONFIG.find((f) => f.key === featureKey);
+      const featureConfig = BETA_FEATURES_CONFIG.find((f) => f.key === resolvedKey);
       if (isDev && featureConfig?.devOnly) {
         return true;
       }
 
-      if (betaFeatures?.[featureKey] !== undefined) {
-        return !!betaFeatures[featureKey];
+      if (betaFeatures?.[resolvedKey] !== undefined) {
+        return !!betaFeatures[resolvedKey];
       }
       return featureConfig?.defaultEnabled ?? false;
     },
     [betaFeatures, isAdmin]
   );
 
-  const shouldShowTab = React.useCallback(
-    (featureKey: string): boolean => {
-      const isAdminOnlyFeature = ADMIN_ONLY_FEATURES.includes(featureKey);
-
-      if (isAdminOnlyFeature && !isAdmin) {
-        return false;
-      }
-
-      const isDev = import.meta.env.DEV;
-      const featureConfig = BETA_FEATURES_CONFIG.find((f) => f.key === featureKey);
-      if (isDev && featureConfig?.devOnly) {
-        return true;
-      }
-
-      if (betaFeatures?.[featureKey] !== undefined) {
-        return !!betaFeatures[featureKey];
-      }
-      return featureConfig?.defaultEnabled ?? false;
-    },
-    [betaFeatures, isAdmin]
-  );
+  const shouldShowTab = canAccessBetaFeature;
 
   const getAvailableFeatures = React.useCallback((): BetaFeatureConfig[] => {
     const isDev = import.meta.env.DEV;

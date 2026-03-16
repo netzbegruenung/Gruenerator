@@ -25,7 +25,6 @@ import useCampaignSharepicEdit from './hooks/useCampaignSharepicEdit';
 
 import type { GeneratedContent } from '../../../types/baseform';
 import type { Control } from 'react-hook-form';
-import './KampagnenGenerator.css';
 
 // =============================================================================
 // Type Definitions
@@ -513,7 +512,7 @@ const KampagnenGenerator: React.FC = () => {
     ) : null;
 
   return (
-    <div className="kampagnen-generator">
+    <div className="[&_.image-display]:mt-xl">
       <BaseForm
         key={selectedCampaign}
         title="Weihnachtskampagne 2025"
@@ -543,7 +542,7 @@ const KampagnenGenerator: React.FC = () => {
             label="Beitragstext generieren"
             icon={FaInstagram}
             description="Zusätzlich einen passenden Social-Media-Text erstellen"
-            className="campaign-feature-toggle"
+            className="mt-md mb-sm"
           />
         }
       >

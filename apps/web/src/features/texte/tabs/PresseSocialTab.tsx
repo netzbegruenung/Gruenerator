@@ -29,7 +29,6 @@ import {
 import type { SharepicDataItem } from '../../../components/common/ImageDisplay';
 import type { GeneratedContent, ExamplePrompt } from '../../../types/baseform';
 
-import '../presse/presse-social.css';
 
 const PressemitteilungIcon = memo(() => (
   <Icon category="platforms" name="pressemitteilung" size={16} />

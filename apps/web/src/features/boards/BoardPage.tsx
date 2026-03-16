@@ -242,6 +242,7 @@ function BoardViewContent({
           deleteRow={boardState.deleteRow}
           updateField={boardState.updateField}
           removeField={boardState.removeField}
+          onUpdateView={boardState.updateView}
           currentUserId={currentUserId}
           groupId={groupId}
           provider={provider}

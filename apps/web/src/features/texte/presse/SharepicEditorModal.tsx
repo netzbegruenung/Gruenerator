@@ -7,7 +7,6 @@ import { webCanvasEditorServices } from '../../image-studio/webCanvasEditorServi
 
 import type { SharepicDataItem } from '../../../components/common/ImageDisplay';
 import type { DreizeilenAlternative } from '@gruenerator/canvas-editor';
-import './SharepicEditorModal.css';
 
 type SharepicType = 'dreizeilen' | 'headline' | 'zitat' | 'zitat_pure' | 'info' | 'veranstaltung';
 
@@ -260,12 +259,12 @@ const SharepicEditorModal: React.FC<SharepicEditorModalProps> = ({
   }
 
   return (
-    <div className="sharepic-editor-modal-overlay">
-      <div className="sharepic-editor-modal">
+    <div className="fixed inset-0 z-[1200] overflow-hidden bg-background">
+      <div className="flex size-full flex-col">
         <CanvasEditorProvider services={webCanvasEditorServices}>
           <Suspense
             fallback={
-              <div className="canvas-loading">
+              <div className="flex h-full flex-col items-center justify-center gap-md text-foreground">
                 <Spinner size="large" />
                 <span>Canvas wird geladen...</span>
               </div>

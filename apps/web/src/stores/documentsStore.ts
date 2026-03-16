@@ -193,6 +193,11 @@ export const useDocumentsStore = create<DocumentsStore>()(
 
       // Fetch combined content (documents + texts) for improved performance
       fetchCombinedContent: async () => {
+        const { documents, texts, isLoading } = get();
+        if ((documents.length > 0 || texts.length > 0) && !isLoading) {
+          return { documents, texts };
+        }
+
         set((state) => {
           state.isLoading = true;
           state.error = null;

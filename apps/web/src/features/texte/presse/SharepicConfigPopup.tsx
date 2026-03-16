@@ -10,7 +10,6 @@ import FormFieldWrapper from '../../../components/common/Form/Input/FormFieldWra
 import SmartInput from '../../../components/common/Form/SmartInput';
 
 import type { Control, UseFormSetValue, UseFormGetValues } from 'react-hook-form';
-import './SharepicConfigPopup.css';
 
 interface SharepicTypeOption {
   value: string;
@@ -84,25 +83,26 @@ const SharepicConfigPopup = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="sharepic-config-overlay"
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-md max-[480px]:items-end max-[480px]:p-sm"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
         >
           <motion.div
-            className="sharepic-config-modal"
+            className="flex w-full max-w-[420px] flex-col overflow-hidden rounded-lg border border-grey-200 bg-background-pure shadow-lg dark:border-grey-700 max-[480px]:max-h-[80vh] max-[480px]:max-w-full max-[480px]:rounded-b-none"
+            style={{ maxHeight: '90vh' }}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
             onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
-            <div className="sharepic-config-header">
-              <h3>Sharepic konfigurieren</h3>
+            <div className="flex items-center justify-between border-b border-grey-200 p-md dark:border-grey-700">
+              <h3 className="m-0 text-[1.1rem] font-semibold text-foreground">Sharepic konfigurieren</h3>
               <button
                 type="button"
-                className="sharepic-config-close"
+                className="flex size-8 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent text-grey-400 transition-colors hover:bg-background-alt hover:text-foreground"
                 onClick={onClose}
                 aria-label="Schließen"
               >
@@ -110,7 +110,7 @@ const SharepicConfigPopup = ({
               </button>
             </div>
 
-            <div className="sharepic-config-content">
+            <div className="flex flex-col gap-sm overflow-y-auto p-md">
               <Controller
                 name="sharepicType"
                 control={control}
@@ -193,8 +193,12 @@ const SharepicConfigPopup = ({
               </AnimatePresence>
             </div>
 
-            <div className="sharepic-config-footer">
-              <button type="button" className="sharepic-config-done" onClick={onClose}>
+            <div className="flex justify-end border-t border-grey-200 p-md dark:border-grey-700">
+              <button
+                type="button"
+                className="cursor-pointer rounded-sm border-none bg-secondary-600 px-md py-xs font-medium text-white transition-colors hover:bg-primary-700"
+                onClick={onClose}
+              >
                 Fertig
               </button>
             </div>

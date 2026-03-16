@@ -1,17 +1,10 @@
-import { useNavigate } from 'react-router-dom';
-
-import IndexCard from '../../components/common/IndexCard';
-import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../components/ErrorBoundary';
-import '../../assets/styles/components/gallery-layout.css';
+import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
+import PageContainer from '../../components/common/PageContainer';
+import ToolGrid from '../../components/common/ToolGrid';
+import { getIcon } from '../../config/icons';
 
-interface ToolEntry {
-  id: string;
-  title: string;
-  description: string;
-  path: string;
-  tags?: string[];
-}
+import type { ToolEntry } from '../../components/common/ToolGrid';
 
 const tools: ToolEntry[] = [
   {
@@ -19,6 +12,7 @@ const tools: ToolEntry[] = [
     title: 'Suche',
     description: 'Webrecherche für aktuelle Informationen mit KI-Unterstützung.',
     path: '/suche',
+    icon: getIcon('navigation', 'suche'),
     tags: ['Web', 'Recherche'],
   },
   {
@@ -26,6 +20,7 @@ const tools: ToolEntry[] = [
     title: 'Notebooks',
     description: 'Durchsuche grüne Dokumente und Programme mit KI-gestützten Fragen.',
     path: '/notebooks',
+    icon: getIcon('navigation', 'notebooks'),
     tags: ['Dokumente', 'Q&A'],
   },
   {
@@ -33,7 +28,16 @@ const tools: ToolEntry[] = [
     title: 'Recherche',
     description: 'Manuelle Suche über alle gescrapten Dokumente und Programme.',
     path: '/research',
+    icon: getIcon('navigation', 'research'),
     tags: ['Dokumente', 'Qdrant'],
+  },
+  {
+    id: 'boards',
+    title: 'Boards',
+    description: 'Kanban-Boards zur kollaborativen Aufgabenplanung im Team.',
+    path: '/boards',
+    icon: getIcon('navigation', 'boards'),
+    tags: ['Kanban', 'Planung'],
   },
   ...(import.meta.env.DEV
     ? [
@@ -42,6 +46,7 @@ const tools: ToolEntry[] = [
           title: 'Datenbank',
           description: 'Durchsuche Vorlagen, Prompts und Anträge für deine grüne Arbeit.',
           path: '/datenbank',
+          icon: getIcon('navigation', 'datenbank'),
           tags: ['Vorlagen', 'Prompts', 'Anträge'],
         },
         {
@@ -49,38 +54,28 @@ const tools: ToolEntry[] = [
           title: 'Scanner',
           description: 'Text aus Dokumenten extrahieren mit OCR-Erkennung.',
           path: '/scanner',
+          icon: getIcon('navigation', 'scanner'),
           tags: ['OCR', 'Dokumente'],
+        },
+        {
+          id: 'transkription',
+          title: 'Transkription',
+          description: 'Audio- und Meeting-Aufnahmen automatisch transkribieren.',
+          path: '/transkription',
+          icon: getIcon('navigation', 'transkription'),
+          tags: ['Audio', 'Meetings'],
         },
       ]
     : []),
 ];
 
-const ToolsPage = () => {
-  const navigate = useNavigate();
-
-  return (
-    <ErrorBoundary>
-      <div className="gallery-layout">
-        <div className="gallery-header">
-          <h1>Tools</h1>
-          <p>Werkzeuge für Recherche, Wissensmanagement und mehr.</p>
-        </div>
-
-        <div className="gallery-grid">
-          {tools.map((tool) => (
-            <IndexCard
-              key={tool.id}
-              title={tool.title}
-              description={tool.description}
-              tags={tool.tags}
-              onClick={() => navigate(tool.path)}
-            />
-          ))}
-        </div>
-      </div>
-    </ErrorBoundary>
-  );
-};
+const ToolsPage = () => (
+  <ErrorBoundary>
+    <PageContainer title="Tools" subtitle="Werkzeuge für Recherche, Wissensmanagement und mehr.">
+      <ToolGrid tools={tools} columns={3} />
+    </PageContainer>
+  </ErrorBoundary>
+);
 
 export default withAuthRequired(ToolsPage, {
   title: 'Tools',

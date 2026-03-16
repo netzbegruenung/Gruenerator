@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useMemo, memo, useCallback } from 'react';
+import React, { Suspense, lazy, useMemo, memo, useCallback, useState, useEffect } from 'react';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import LoginRequired from '../../components/common/LoginRequired/LoginRequired';
@@ -33,13 +33,36 @@ const VALID_UNIVERSAL_SUB_TYPES: UniversalSubType[] = [
   'leichte_sprache',
 ];
 
+import PresseSocialTab from './tabs/PresseSocialTab';
+
 const TexteTab = lazy(() => import('./tabs/TexteTab'));
-const PresseSocialTab = lazy(() => import('./tabs/PresseSocialTab'));
 const AntragTab = lazy(() => import('./tabs/AntragTab'));
 const UniversalTab = lazy(() => import('./tabs/UniversalTab'));
 const BarrierefreiheitTab = lazy(() => import('./tabs/BarrierefreiheitTab'));
 const TextEditorTab = lazy(() => import('./tabs/TextEditorTab'));
 const EigeneTab = lazy(() => import('./tabs/EigeneTab'));
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const TAB_COMPONENTS: Record<TabId, React.LazyExoticComponent<React.ComponentType<any>> | React.ComponentType<any>> = {
+  'texte': TexteTab,
+  'presse-social': PresseSocialTab,
+  'antrag': AntragTab,
+  'universal': UniversalTab,
+  'barrierefreiheit': BarrierefreiheitTab,
+  'texteditor': TextEditorTab,
+  'eigene': EigeneTab,
+};
+
+// Preload tab chunks on hover/focus — import() is idempotent (returns cached promise)
+export const TAB_PRELOADERS: Record<TabId, () => void> = {
+  'texte': () => import('./tabs/TexteTab'),
+  'presse-social': () => import('./tabs/PresseSocialTab'),
+  'antrag': () => import('./tabs/AntragTab'),
+  'universal': () => import('./tabs/UniversalTab'),
+  'barrierefreiheit': () => import('./tabs/BarrierefreiheitTab'),
+  'texteditor': () => import('./tabs/TextEditorTab'),
+  'eigene': () => import('./tabs/EigeneTab'),
+};
 
 const LOADING_FALLBACK_STYLE: React.CSSProperties = {
   display: 'flex',
@@ -102,6 +125,11 @@ const TexteGenerator: React.FC = () => {
   const user = useAuthStore((state) => state.user);
 
   const { isAuthenticated, loading: authLoading } = useOptimizedAuth();
+
+  // Preload all lazy tab chunks on mount so they're ready before the user clicks
+  useEffect(() => {
+    Object.values(TAB_PRELOADERS).forEach((preload) => preload());
+  }, []);
 
   // Parse the splat (everything after /texte/) into activeTab + universalSubType
   // Compute redirectTo without early returns so hooks below remain unconditional
@@ -177,31 +205,21 @@ const TexteGenerator: React.FC = () => {
     [navigate]
   );
 
+  // Track visited tabs — mount on first visit, keep mounted after (Activity pattern)
+  const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(() => new Set([activeTab]));
+
+  useEffect(() => {
+    setVisitedTabs((prev) => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
+
   if (redirectTo) {
     return <Navigate to={redirectTo} replace />;
   }
-
-  // Render only the active tab (conditional rendering replaces grid stacking)
-  const renderActiveTab = () => {
-    switch (activeTab) {
-      case 'texte':
-        return <TexteTab />;
-      case 'presse-social':
-        return <PresseSocialTab />;
-      case 'antrag':
-        return <AntragTab />;
-      case 'universal':
-        return <UniversalTab selectedType={universalSubType} />;
-      case 'barrierefreiheit':
-        return <BarrierefreiheitTab />;
-      case 'texteditor':
-        return <TextEditorTab />;
-      case 'eigene':
-        return <EigeneTab />;
-      default:
-        return <PresseSocialTab />;
-    }
-  };
 
   return (
     <ErrorBoundary>
@@ -232,6 +250,7 @@ const TexteGenerator: React.FC = () => {
             onUniversalSubTypeChange={handleUniversalSubTypeChange}
             selectedUniversalSubType={universalSubType}
             isAuthenticated={isAuthenticated}
+            onPreload={(tabId) => TAB_PRELOADERS[tabId]?.()}
           />
         </header>
         <div
@@ -254,7 +273,21 @@ const TexteGenerator: React.FC = () => {
               onClose={() => navigate('/texte/presse-social')}
             />
           ) : (
-            <Suspense fallback={<LoadingFallback />}>{renderActiveTab()}</Suspense>
+            Object.entries(TAB_COMPONENTS).map(([tabId, TabComponent]) => {
+              if (!visitedTabs.has(tabId as TabId)) return null;
+              const isActive = tabId === activeTab;
+              return (
+                <div key={tabId} className={isActive ? undefined : 'hidden'}>
+                  <Suspense fallback={<LoadingFallback />}>
+                    {tabId === 'universal' ? (
+                      <TabComponent selectedType={universalSubType} />
+                    ) : (
+                      <TabComponent />
+                    )}
+                  </Suspense>
+                </div>
+              );
+            })
           )}
         </div>
       </div>

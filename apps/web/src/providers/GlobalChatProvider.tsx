@@ -101,6 +101,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   return (
     <GrueneratorChatProvider
       userId={user?.id}
+      userName={user?.display_name || user?.name}
       config={chatConfig}
       getExternalThreads={getExternalThreads}
       onExternalThreadClick={handleExternalClick}

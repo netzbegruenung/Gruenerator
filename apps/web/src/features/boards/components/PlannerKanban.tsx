@@ -65,6 +65,7 @@ interface ColumnBoardProps {
   statusField: Field | undefined;
   onRenameGroup: (groupId: string, name: string) => void;
   onDeleteGroup: (groupId: string) => void;
+  onHideGroup: (groupId: string) => void;
   onColorChange: (groupId: string, color: string) => void;
   handleAddCard: (groupId: string, name: string) => void;
   onCardClick: (row: Row) => void;
@@ -78,6 +79,7 @@ const ColumnBoard = memo(function ColumnBoard({
   cardCount,
   onRenameGroup,
   onDeleteGroup,
+  onHideGroup,
   onColorChange,
   handleAddCard,
   onCardClick,
@@ -88,6 +90,7 @@ const ColumnBoard = memo(function ColumnBoard({
     [onRenameGroup, groupId]
   );
   const onDelete = useCallback(() => onDeleteGroup(groupId), [onDeleteGroup, groupId]);
+  const onHide = useCallback(() => onHideGroup(groupId), [onHideGroup, groupId]);
   const onColor = useCallback(
     (color: string) => onColorChange(groupId, color),
     [onColorChange, groupId]
@@ -111,6 +114,7 @@ const ColumnBoard = memo(function ColumnBoard({
           cardCount={cardCount}
           onRename={onRename}
           onDelete={onDelete}
+          onHide={onHide}
           onColorChange={onColor}
         />
       </KanbanHeader>
@@ -139,6 +143,7 @@ interface PlannerKanbanProps {
   deleteRow: (rowId: string) => void;
   updateField: (fieldId: string, updates: Partial<Field>) => void;
   removeField: (fieldId: string) => void;
+  onUpdateView?: (viewId: string, updates: Partial<BoardView>) => void;
   currentUserId: string;
   groupId?: string;
   provider?: HocuspocusProvider | null;
@@ -154,6 +159,7 @@ export function PlannerKanban({
   updateRowCell,
   deleteRow,
   updateField,
+  onUpdateView,
   currentUserId,
   groupId,
   provider,
@@ -175,8 +181,21 @@ export function PlannerKanban({
     [fields, groupByFieldId]
   );
 
-  const kanbanItems = useMemo(() => rowsToKanbanItems(groups), [groups]);
-  const kanbanColumns = useMemo(() => groupsToColumns(groups), [groups]);
+  const hiddenGroupIds = useMemo(
+    () => new Set(activeView?.hiddenGroupIds ?? []),
+    [activeView?.hiddenGroupIds],
+  );
+  const visibleGroups = useMemo(
+    () => groups.filter((g) => !hiddenGroupIds.has(g.groupId)),
+    [groups, hiddenGroupIds],
+  );
+  const hiddenGroups = useMemo(
+    () => groups.filter((g) => hiddenGroupIds.has(g.groupId)),
+    [groups, hiddenGroupIds],
+  );
+
+  const kanbanItems = useMemo(() => rowsToKanbanItems(visibleGroups), [visibleGroups]);
+  const kanbanColumns = useMemo(() => groupsToColumns(visibleGroups), [visibleGroups]);
 
   const handleCardClick = useCallback(
     (row: Row) => {
@@ -276,6 +295,29 @@ export function PlannerKanban({
     [statusField, updateField]
   );
 
+  const handleHideGroup = useCallback(
+    (groupId: string) => {
+      if (!activeView || !onUpdateView) return;
+      const current = activeView.hiddenGroupIds ?? [];
+      onUpdateView(activeView.id, { hiddenGroupIds: [...current, groupId] });
+    },
+    [activeView, onUpdateView],
+  );
+
+  const handleShowGroup = useCallback(
+    (groupId: string) => {
+      if (!activeView || !onUpdateView) return;
+      const current = activeView.hiddenGroupIds ?? [];
+      onUpdateView(activeView.id, { hiddenGroupIds: current.filter((id) => id !== groupId) });
+    },
+    [activeView, onUpdateView],
+  );
+
+  const handleShowAllGroups = useCallback(() => {
+    if (!activeView || !onUpdateView) return;
+    onUpdateView(activeView.id, { hiddenGroupIds: [] });
+  }, [activeView, onUpdateView]);
+
   const handleDeleteGroup = useCallback(
     (optionId: string) => {
       if (!statusField) return;
@@ -330,13 +372,37 @@ export function PlannerKanban({
           onDragEnd={handleDragEnd}
           className="items-start"
           after={
-            <button
-              onClick={handleAddColumn}
-              className="flex items-center justify-center w-8 h-8 mt-2 shrink-0 rounded-lg bg-transparent text-grey-400 hover:text-foreground hover:bg-grey-200 dark:hover:bg-[#2a2a2a] cursor-pointer transition-colors border-none"
-              title="Spalte hinzufügen"
-            >
-              <FiPlus size={16} />
-            </button>
+            <div className="flex items-start gap-2 shrink-0">
+              <button
+                onClick={handleAddColumn}
+                className="flex items-center justify-center w-8 h-8 mt-2 rounded-lg bg-transparent text-grey-400 hover:text-foreground hover:bg-grey-200 dark:hover:bg-[#2a2a2a] cursor-pointer transition-colors border-none"
+                title="Spalte hinzufügen"
+              >
+                <FiPlus size={16} />
+              </button>
+              {hiddenGroups.length > 0 && (
+                <div className="mt-2 flex flex-col gap-1">
+                  <button
+                    onClick={handleShowAllGroups}
+                    className="px-3 py-1.5 text-xs text-grey-400 hover:text-foreground bg-grey-100 dark:bg-[#1e1e1e] rounded-lg border-none cursor-pointer transition-colors whitespace-nowrap"
+                  >
+                    {hiddenGroups.length} ausgeblendet
+                  </button>
+                  {hiddenGroups.map((g) => (
+                    <button
+                      key={g.groupId}
+                      onClick={() => handleShowGroup(g.groupId)}
+                      className="flex items-center gap-1.5 px-2 py-1 text-[10px] text-grey-400 hover:text-foreground bg-transparent border border-dashed border-grey-200 dark:border-grey-700 rounded cursor-pointer transition-colors whitespace-nowrap"
+                    >
+                      {g.groupColor !== 'transparent' && (
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: g.groupColor }} />
+                      )}
+                      {g.groupName}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           }
         >
           {(column) => (
@@ -349,6 +415,7 @@ export function PlannerKanban({
               statusField={statusField}
               onRenameGroup={handleRenameGroup}
               onDeleteGroup={handleDeleteGroup}
+              onHideGroup={handleHideGroup}
               onColorChange={handleColorChange}
               handleAddCard={handleAddCard}
               onCardClick={handleCardClick}

@@ -1,4 +1,12 @@
-import { type JSX, useState, useEffect, useCallback, useRef, type RefObject, type CSSProperties } from 'react';
+import {
+  type JSX,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type RefObject,
+  type CSSProperties,
+} from 'react';
 import { createPortal } from 'react-dom';
 
 interface CitationPopupProps {
@@ -66,9 +74,15 @@ const CitationPopup = ({ citation, badgeRef }: CitationPopupProps): JSX.Element 
   const displayText = truncatedText.length === 150 ? `${truncatedText}...` : truncatedText;
 
   return createPortal(
-    <span className="citation-popup" ref={popupRef} style={style}>
-      <span className="citation-popup-text">"{displayText}"</span>
-      <span className="citation-popup-source">{citation.document_title}</span>
+    <span
+      className="bg-background-pure border border-grey-200 dark:border-grey-700 rounded-sm shadow-card-elevated p-sm min-w-[200px] max-w-[300px] z-[1000] animate-[popupFadeIn_0.2s_ease-out] text-[0.85rem] flex flex-col gap-xs"
+      ref={popupRef}
+      style={style}
+    >
+      <span className="text-foreground leading-[1.4] mb-xs italic">"{displayText}"</span>
+      <span className="text-foreground-heading font-semibold text-[0.8rem] border-t border-grey-200 dark:border-grey-700 pt-xs">
+        {citation.document_title}
+      </span>
     </span>,
     document.body
   );

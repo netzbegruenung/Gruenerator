@@ -7,7 +7,6 @@ import { getDirectMenuItems, type MenuItemType } from '../../layout/Header/menuD
 
 import type { ComponentType } from 'react';
 import type { IconType } from 'react-icons';
-import './desktop-home.css';
 
 interface FeatureCardProps {
   item: MenuItemType;
@@ -18,9 +17,14 @@ const FeatureCard = ({ item, onClick }: FeatureCardProps) => {
   const IconComponent = item.icon as ComponentType | IconType | null;
 
   return (
-    <button className="desktop-home-card" onClick={onClick}>
-      <div className="desktop-home-card-icon">{IconComponent && <IconComponent />}</div>
-      <span className="desktop-home-card-title">{item.title}</span>
+    <button
+      className="flex flex-col items-center justify-center gap-sm p-lg bg-background border border-grey-200 dark:border-grey-700 rounded-xl cursor-pointer transition-all duration-200 min-h-[120px] hover:scale-[1.02] hover:border-primary-300 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] dark:hover:border-primary-500 dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.3)] active:scale-[0.98]"
+      onClick={onClick}
+    >
+      <div className="flex items-center justify-center w-12 h-12 text-primary-600 dark:text-primary-400 [&_svg]:w-8 [&_svg]:h-8">
+        {IconComponent && <IconComponent />}
+      </div>
+      <span className="text-[0.9rem] font-medium text-foreground text-center">{item.title}</span>
     </button>
   );
 };
@@ -39,11 +43,13 @@ const DesktopHome = () => {
   }, [workplaceEnabled]);
 
   return (
-    <div className="desktop-home">
-      <div className="desktop-home-content">
-        <h1 className="desktop-home-welcome">Willkommen{firstName ? `, ${firstName}` : ''}!</h1>
+    <div className="min-h-full flex items-center justify-center p-xl bg-background">
+      <div className="max-w-[700px] w-full">
+        <h1 className="font-['Raleway','PT_Sans',Arial,sans-serif] text-3xl font-bold text-foreground-heading text-center mb-xl tracking-[-0.02em]">
+          Willkommen{firstName ? `, ${firstName}` : ''}!
+        </h1>
 
-        <div className="desktop-home-grid">
+        <div className="grid grid-cols-3 gap-lg">
           {menuItems.map((item) => (
             <FeatureCard key={item.id} item={item} onClick={() => navigate(item.path!)} />
           ))}
