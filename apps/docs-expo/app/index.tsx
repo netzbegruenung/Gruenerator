@@ -49,11 +49,14 @@ export default function DocumentsScreen() {
     return documents.filter((doc) => (doc.title || 'Unbenannt').toLowerCase().includes(q));
   }, [documents, searchQuery]);
 
+  const { prefetchRecentDocs } = useDocsStore();
+
   useEffect(() => {
     if (user) {
       fetchDocuments();
+      prefetchRecentDocs();
     }
-  }, [fetchDocuments, user]);
+  }, [fetchDocuments, prefetchRecentDocs, user]);
 
   const handleRefresh = useCallback(() => {
     fetchDocuments();

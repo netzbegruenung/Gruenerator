@@ -3,18 +3,18 @@
 import '@mantine/core/styles.css';
 import '@blocknote/core/style.css';
 import '@blocknote/mantine/style.css';
+import '@blocknote/mantine/src/blocknoteStyles.css';
 import '@blocknote/xl-ai/style.css';
 import '@gruenerator/docs/styles';
 import {
   DocsProvider,
   BlockNoteEditor,
-  ChatSidebar,
   useCollaboration,
   useDocumentChat,
   type DocsAdapter,
 } from '@gruenerator/docs';
-import { MantineProvider, SegmentedControl, ScrollArea } from '@mantine/core';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { MantineProvider } from '@mantine/core';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 // --- Base64 <-> ArrayBuffer helpers for the WebSocket bridge ---
 
@@ -224,6 +224,9 @@ interface DocEditorDOMProps {
   onTitleChange: (title: string) => Promise<void>;
   onCanEditChange: (canEdit: boolean) => Promise<void>;
   onDocumentLoaded: (doc: { title: string; canEdit: boolean }) => Promise<void>;
+  onChatMessagesChange: (messagesJson: string) => Promise<void>;
+  onLocalUserIdChange: (userId: string) => Promise<void>;
+  onTypingUsersChange: (usersJson: string) => Promise<void>;
   proxyFetch?: (url: string, options?: string) => Promise<string>;
   wsOpen?: (url: string, protocols?: string) => Promise<string>;
   wsSend?: (b64: string) => Promise<void>;
@@ -241,6 +244,9 @@ function EditorContent({
   userEmail,
   colorScheme,
   onConnectionStatusChange,
+  onChatMessagesChange,
+  onLocalUserIdChange,
+  onTypingUsersChange,
 }: {
   documentId: string;
   userId: string;
@@ -248,6 +254,9 @@ function EditorContent({
   userEmail: string;
   colorScheme: 'light' | 'dark';
   onConnectionStatusChange: (status: string) => Promise<void>;
+  onChatMessagesChange: (messagesJson: string) => Promise<void>;
+  onLocalUserIdChange: (userId: string) => Promise<void>;
+  onTypingUsersChange: (usersJson: string) => Promise<void>;
 }) {
   const user = useMemo(
     () => ({ id: userId, display_name: userName, email: userEmail }),
@@ -257,36 +266,67 @@ function EditorContent({
     documentId,
     user,
   });
-  const { messages, sendMessage, getLocalUser } = useDocumentChat({ ydoc, provider, isSynced });
+  const { messages, sendMessage, getLocalUser, setTyping, typingUsers } = useDocumentChat({
+    ydoc,
+    provider,
+    isSynced,
+  });
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarTab, setSidebarTab] = useState<'chat' | 'comments'>('chat');
-  const commentsPortalRef = useRef<HTMLDivElement>(null);
-  const [commentsPortalTarget, setCommentsPortalTarget] = useState<HTMLElement | null>(null);
+  // Stable refs for callbacks — prevents re-firing effects when callback identity changes
+  const onChatMessagesChangeRef = useRef(onChatMessagesChange);
+  onChatMessagesChangeRef.current = onChatMessagesChange;
+  const onLocalUserIdChangeRef = useRef(onLocalUserIdChange);
+  onLocalUserIdChangeRef.current = onLocalUserIdChange;
+  const onConnectionStatusChangeRef = useRef(onConnectionStatusChange);
+  onConnectionStatusChangeRef.current = onConnectionStatusChange;
+  const onTypingUsersChangeRef = useRef(onTypingUsersChange);
+  onTypingUsersChangeRef.current = onTypingUsersChange;
 
-  // Sync portal target with overlay state (same pattern as EditorPage.tsx:282-286)
+  // Listen for send-chat actions dispatched from native via DocEditorDOM
+  // Uses CustomEvent (not postMessage) to avoid collision with Expo's DOM bridge
   useEffect(() => {
-    setCommentsPortalTarget(
-      sidebarOpen && sidebarTab === 'comments' ? commentsPortalRef.current : null
-    );
-  }, [sidebarOpen, sidebarTab]);
+    const handleSendChat = (e: Event) => {
+      const text = (e as CustomEvent<{ text: string }>).detail?.text;
+      if (typeof text === 'string') {
+        sendMessage(text, { id: userId, name: userName, color: '#52B788' });
+        setTyping(false);
+      }
+    };
+    const handleSetTyping = (e: Event) => {
+      const isTyping = (e as CustomEvent<{ isTyping: boolean }>).detail?.isTyping;
+      if (typeof isTyping === 'boolean') setTyping(isTyping);
+    };
+    window.addEventListener('send-chat', handleSendChat);
+    window.addEventListener('set-typing', handleSetTyping);
+    return () => {
+      window.removeEventListener('send-chat', handleSendChat);
+      window.removeEventListener('set-typing', handleSetTyping);
+    };
+  }, [sendMessage, setTyping]);
+
+  // Bridge chat messages to native — only re-fire when messages change, not callback identity
+  useEffect(() => {
+    onChatMessagesChangeRef.current(JSON.stringify(messages));
+  }, [messages]);
+
+  // Bridge typing users to native
+  useEffect(() => {
+    onTypingUsersChangeRef.current(JSON.stringify(typingUsers));
+  }, [typingUsers]);
+
+  // Bridge local user ID to native
+  useEffect(() => {
+    const localUser = getLocalUser();
+    if (localUser?.id) {
+      onLocalUserIdChangeRef.current(localUser.id);
+    }
+  }, [getLocalUser, isSynced]);
 
   // Report connection status back to native
   useEffect(() => {
     const status = !isConnected ? 'disconnected' : !isSynced ? 'syncing' : 'connected';
-    onConnectionStatusChange(status);
-  }, [isConnected, isSynced, onConnectionStatusChange]);
-
-  // Listen for toggle-chat action from native top bar
-  useEffect(() => {
-    const handler = (e: MessageEvent) => {
-      if (e.data?.type === 'toggle-chat') {
-        setSidebarOpen((prev) => !prev);
-      }
-    };
-    window.addEventListener('message', handler);
-    return () => window.removeEventListener('message', handler);
-  }, []);
+    onConnectionStatusChangeRef.current(status);
+  }, [isConnected, isSynced]);
 
   // Set theme attribute for CSS variables
   useEffect(() => {
@@ -294,177 +334,97 @@ function EditorContent({
     document.documentElement.setAttribute('data-mantine-color-scheme', colorScheme);
   }, [colorScheme]);
 
-  const localUser = getLocalUser();
-
-  if (!isSynced) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          fontFamily: 'system-ui, sans-serif',
-          color: colorScheme === 'dark' ? '#e5e7eb' : '#374151',
-          backgroundColor: colorScheme === 'dark' ? '#111827' : '#fff',
-        }}
-      >
-        <div style={{ textAlign: 'center' }}>
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              border: '3px solid #316049',
-              borderTopColor: 'transparent',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite',
-              margin: '0 auto 12px',
-            }}
-          />
-          <p style={{ margin: 0, fontSize: 14, opacity: 0.7 }}>
-            {isConnected ? 'Synchronisiere...' : 'Verbinde...'}
-          </p>
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div
-      style={{ display: 'flex', flexDirection: 'column', height: '100vh', position: 'relative' }}
-    >
-      {/* Editor */}
-      <div style={{ flex: 1, overflow: 'auto' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      <div style={{ flex: 1, overflow: 'auto', paddingInline: 8 }}>
         <BlockNoteEditor
           documentId={documentId}
           ydoc={ydoc}
           provider={provider}
           isSynced={isSynced}
-          editable={true}
-          showComments={true}
-          commentsPortalTarget={commentsPortalTarget}
+          editable={isSynced}
+          showComments={false}
           useStaticFormattingToolbar={true}
         />
       </div>
-
-      {/* Full-screen overlay for Chat + Comments */}
-      {sidebarOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 200,
-            display: 'flex',
-            flexDirection: 'column',
-            backgroundColor:
-              colorScheme === 'dark' ? 'var(--grey-900, #111827)' : 'var(--background-color, #fff)',
-          }}
-        >
-          {/* Header with close button + tab toggle */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              padding: '8px 12px',
-              gap: '8px',
-              borderBottom: `1px solid ${colorScheme === 'dark' ? 'var(--grey-700, #374151)' : 'var(--grey-200, #e5e7eb)'}`,
-            }}
-          >
-            <button
-              onClick={() => setSidebarOpen(false)}
-              aria-label="Schließen"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 36,
-                height: 36,
-                border: 'none',
-                borderRadius: 8,
-                background: 'none',
-                cursor: 'pointer',
-                flexShrink: 0,
-                color: colorScheme === 'dark' ? '#e5e7eb' : '#374151',
-                fontSize: 18,
-              }}
-            >
-              ✕
-            </button>
-            <SegmentedControl
-              value={sidebarTab}
-              onChange={(val) => setSidebarTab(val as 'chat' | 'comments')}
-              data={[
-                { label: 'Chat', value: 'chat' },
-                { label: 'Kommentare', value: 'comments' },
-              ]}
-              size="xs"
-              fullWidth
-              style={{ flex: 1 }}
-            />
-          </div>
-
-          {/* Chat tab */}
-          {sidebarTab === 'chat' && (
-            <ChatSidebar
-              messages={messages}
-              currentUserId={localUser?.id ?? null}
-              onSend={sendMessage}
-              isConnected={isConnected}
-              hideHeader
-            />
-          )}
-
-          {/* Comments tab — BlockNote renders ThreadsSidebar via portal */}
-          {sidebarTab === 'comments' && (
-            <ScrollArea style={{ flex: 1 }}>
-              <div ref={commentsPortalRef} style={{ padding: '8px' }} />
-            </ScrollArea>
-          )}
-        </div>
-      )}
     </div>
   );
 }
 
 export default function DocEditorDOM(props: DocEditorDOMProps) {
-  const wsBridge: WsBridgeProps | undefined =
-    props.wsOpen && props.wsSend && props.wsReceive && props.wsClose
-      ? {
-          wsOpen: props.wsOpen,
-          wsSend: props.wsSend,
-          wsReceive: props.wsReceive,
-          wsClose: props.wsClose,
-        }
-      : undefined;
+  // Stabilize function props with refs — Expo DOM bridge creates new wrappers on every
+  // native re-render, but the underlying functions are logically stable. Without refs,
+  // the adapter would be recreated on every render, destroying the Hocuspocus provider.
+  const proxyFetchRef = useRef(props.proxyFetch);
+  proxyFetchRef.current = props.proxyFetch;
+  const wsOpenRef = useRef(props.wsOpen);
+  wsOpenRef.current = props.wsOpen;
+  const wsSendRef = useRef(props.wsSend);
+  wsSendRef.current = props.wsSend;
+  const wsReceiveRef = useRef(props.wsReceive);
+  wsReceiveRef.current = props.wsReceive;
+  const wsCloseRef = useRef(props.wsClose);
+  wsCloseRef.current = props.wsClose;
+
+  const hasWsBridge = !!(props.wsOpen && props.wsSend && props.wsReceive && props.wsClose);
 
   const adapter = useMemo(
-    () =>
-      createDomAdapter(
+    () => {
+      const stableWsBridge: WsBridgeProps | undefined = hasWsBridge
+        ? {
+            wsOpen: (url, protocols) => wsOpenRef.current!(url, protocols),
+            wsSend: (b64) => wsSendRef.current!(b64),
+            wsReceive: () => wsReceiveRef.current!(),
+            wsClose: () => wsCloseRef.current!(),
+          }
+        : undefined;
+
+      return createDomAdapter(
         props.authToken,
         props.apiBaseUrl,
         props.hocuspocusUrl,
-        props.proxyFetch,
-        wsBridge
-      ),
+        (url, options) => proxyFetchRef.current!(url, options),
+        stableWsBridge
+      );
+    },
+    // Only recreate when actual values change, not function wrapper identity
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [props.authToken, props.apiBaseUrl, props.hocuspocusUrl, props.proxyFetch, props.wsOpen]
+    [props.authToken, props.apiBaseUrl, props.hocuspocusUrl, hasWsBridge]
   );
 
-  // Handle pending actions from native (toggle-chat, share, export)
+  // Handle pending actions from native (send-chat, share, export)
   const lastProcessedAction = useRef(0);
   useEffect(() => {
     if (!props.pendingAction || props.actionCounter <= lastProcessedAction.current) return;
     lastProcessedAction.current = props.actionCounter;
 
-    if (props.pendingAction.type === 'toggle-chat') {
-      window.postMessage({ type: 'toggle-chat' }, '*');
+    if (props.pendingAction.type === 'send-chat') {
+      const text = (props.pendingAction as { type: string; text: string }).text;
+      window.dispatchEvent(new CustomEvent('send-chat', { detail: { text } }));
+    } else if (props.pendingAction.type === 'set-typing') {
+      const isTyping = (props.pendingAction as { type: string; isTyping: boolean }).isTyping;
+      window.dispatchEvent(new CustomEvent('set-typing', { detail: { isTyping } }));
     }
   }, [props.pendingAction, props.actionCounter]);
 
   const handleConnectionStatusChange = useCallback(
     (status: string) => props.onConnectionStatusChange(status),
     [props.onConnectionStatusChange]
+  );
+
+  const handleChatMessagesChange = useCallback(
+    (messagesJson: string) => props.onChatMessagesChange(messagesJson),
+    [props.onChatMessagesChange]
+  );
+
+  const handleLocalUserIdChange = useCallback(
+    (userId: string) => props.onLocalUserIdChange(userId),
+    [props.onLocalUserIdChange]
+  );
+
+  const handleTypingUsersChange = useCallback(
+    (usersJson: string) => props.onTypingUsersChange(usersJson),
+    [props.onTypingUsersChange]
   );
 
   return (
@@ -477,6 +437,9 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
           userEmail={props.userEmail}
           colorScheme={props.colorScheme}
           onConnectionStatusChange={handleConnectionStatusChange}
+          onChatMessagesChange={handleChatMessagesChange}
+          onLocalUserIdChange={handleLocalUserIdChange}
+          onTypingUsersChange={handleTypingUsersChange}
         />
       </MantineProvider>
     </DocsProvider>

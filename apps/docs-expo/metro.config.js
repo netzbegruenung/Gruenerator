@@ -28,6 +28,15 @@ config.resolver.unstable_conditionNames = ['require', 'import', 'react-native'];
 
 // Resolve .js imports to .ts files (for ESM-style imports in shared package)
 config.resolver.resolveRequest = (context, moduleName, platform) => {
+  // Shim isomorphic-webcrypto — its RN entry crashes in Android WebView
+  // by writing to read-only navigator.userAgent getter
+  if (moduleName === 'isomorphic-webcrypto' || moduleName.startsWith('isomorphic-webcrypto/')) {
+    return {
+      type: 'sourceFile',
+      filePath: path.resolve(projectRoot, 'shims/isomorphic-webcrypto.js'),
+    };
+  }
+
   if (moduleName.endsWith('.js')) {
     const tsName = moduleName.replace(/\.js$/, '.ts');
     try {

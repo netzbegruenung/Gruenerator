@@ -9,36 +9,9 @@ import {
   Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { LOGIN_PROVIDERS } from '@gruenerator/shared/auth';
 import { lightTheme, darkTheme, typography, spacing, colors, borderRadius } from '../../theme';
 import { login, type AuthSource } from '../../services/auth';
-
-interface LoginProvider {
-  enabled: boolean;
-  source: AuthSource;
-  title: string;
-  description: string;
-}
-
-const LOGIN_PROVIDERS: Record<string, LoginProvider> = {
-  gruenesNetz: {
-    enabled: true,
-    source: 'gruenes-netz-login',
-    title: 'Grünes Netz',
-    description: 'Für Mitglieder von BÜNDNIS 90/DIE GRÜNEN',
-  },
-  grueneOesterreich: {
-    enabled: true,
-    source: 'gruene-oesterreich-login',
-    title: 'Die Grünen Österreich',
-    description: 'Für Mitglieder der Grünen Österreich',
-  },
-  netzbegruenung: {
-    enabled: true,
-    source: 'netzbegruenung-login',
-    title: 'Netzbegrünung',
-    description: 'Für Mitglieder der Netzbegrünung',
-  },
-};
 
 export default function LoginScreen() {
   const colorScheme = useColorScheme();
@@ -74,20 +47,20 @@ export default function LoginScreen() {
     Linking.openURL('https://gruenerator.eu/datenschutz');
   };
 
-  const renderLoginOption = (provider: LoginProvider) => {
-    if (!provider.enabled) return null;
+  const enabledProviders = LOGIN_PROVIDERS.filter((p) => p.enabledByDefault);
 
+  const renderLoginOption = (provider: (typeof LOGIN_PROVIDERS)[number]) => {
     const isButtonLoading = loadingSource === provider.source;
 
     return (
       <Pressable
-        key={provider.source}
+        key={provider.id}
         style={({ pressed }) => [
           styles.loginOption,
           { borderColor: theme.border },
           { opacity: pressed || isLoading ? 0.7 : 1 },
         ]}
-        onPress={() => handleLogin(provider.source)}
+        onPress={() => handleLogin(provider.source as AuthSource)}
         disabled={isLoading}
       >
         <View style={styles.loginTextContent}>
@@ -119,9 +92,7 @@ export default function LoginScreen() {
         </View>
       )}
 
-      <View style={styles.loginOptionsContainer}>
-        {Object.values(LOGIN_PROVIDERS).map(renderLoginOption)}
-      </View>
+      <View style={styles.loginOptionsContainer}>{enabledProviders.map(renderLoginOption)}</View>
 
       <View style={styles.legalContainer}>
         <Text style={[styles.legalText, { color: theme.textSecondary }]}>
