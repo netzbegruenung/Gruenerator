@@ -59,11 +59,13 @@ export function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
-        name="(tools)"
+        name="(desk)"
         options={{
-          title: 'Tools',
+          title: 'Desk',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => <Ionicons name="construct" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="desktop-outline" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen

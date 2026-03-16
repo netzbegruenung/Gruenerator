@@ -9,7 +9,7 @@ const { Navigator } = createMaterialTopTabNavigator();
 
 const MaterialTopTabs = withLayoutContext(Navigator);
 
-export default function ToolsLayout() {
+export default function DeskLayout() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
@@ -46,9 +46,12 @@ export default function ToolsLayout() {
         }}
       >
         <MaterialTopTabs.Screen name="suche" options={{ title: 'Suche' }} />
-        <MaterialTopTabs.Screen name="scanner" options={{ title: 'Scanner' }} />
-        <MaterialTopTabs.Screen name="research" options={{ title: 'Recherche' }} />
         <MaterialTopTabs.Screen name="notebooks" options={{ title: 'Notebooks' }} />
+        <MaterialTopTabs.Screen name="scanner" options={{ title: 'Scanner' }} />
+        <MaterialTopTabs.Screen name="transkription" options={{ title: 'Transkription' }} />
+        <MaterialTopTabs.Screen name="research" options={{ title: 'Recherche' }} />
+        <MaterialTopTabs.Screen name="gruppen" options={{ title: 'Gruppen' }} />
+        <MaterialTopTabs.Screen name="boards" options={{ title: 'Boards' }} />
       </MaterialTopTabs>
     </SafeAreaView>
   );

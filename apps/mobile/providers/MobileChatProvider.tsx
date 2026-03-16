@@ -1,5 +1,5 @@
 import { AssistantProvider, type ThreadMessageLike } from '@assistant-ui/react-native';
-import { useAgentStore } from '@gruenerator/chat';
+import { useAgentStore, INTENT_TO_TOOL } from '@gruenerator/chat';
 import { type ReactNode, useEffect, useRef } from 'react';
 
 import { useMobileChatRuntime } from '../hooks/useMobileChatRuntime';
@@ -34,13 +34,6 @@ interface LoadedMessage {
     }>;
   };
 }
-
-const INTENT_TO_TOOL: Record<string, string> = {
-  search: 'gruenerator_search',
-  web: 'web_search',
-  research: 'research',
-  examples: 'gruenerator_examples_search',
-};
 
 function extractContent(content: unknown): string {
   if (typeof content !== 'string') return '';

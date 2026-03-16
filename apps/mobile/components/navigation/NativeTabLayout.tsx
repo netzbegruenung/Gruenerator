@@ -44,20 +44,20 @@ export function NativeTabLayout() {
         })}
         <NativeTabs.Trigger.Label>Medien</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="(tools)">
+      <NativeTabs.Trigger name="(desk)">
         {Platform.select({
           ios: (
             <NativeTabs.Trigger.Icon
-              sf={{ default: 'wrench.and.screwdriver', selected: 'wrench.and.screwdriver.fill' }}
+              sf={{ default: 'desktopcomputer', selected: 'desktopcomputer' }}
             />
           ),
           android: (
             <NativeTabs.Trigger.Icon
-              src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="construct" />}
+              src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="desktop-outline" />}
             />
           ),
         })}
-        <NativeTabs.Trigger.Label>Tools</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>Desk</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(chat)">
         {Platform.select({
