@@ -86,13 +86,15 @@ CREATE TABLE IF NOT EXISTS profiles (
     nextcloud_share_links JSONB DEFAULT '[]',
     document_mode TEXT DEFAULT 'manual',
     user_defaults JSONB DEFAULT '{}',
-    docs BOOLEAN DEFAULT FALSE
+    docs BOOLEAN DEFAULT FALSE,
+    boards BOOLEAN DEFAULT FALSE
 );
 
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS sites_enabled BOOLEAN DEFAULT TRUE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS scanner BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS prompts BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS docs BOOLEAN DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS boards BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bundestag_api_enabled BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS memory_enabled BOOLEAN DEFAULT FALSE;
 
@@ -1023,6 +1025,9 @@ CREATE TABLE IF NOT EXISTS chat_threads (
     status VARCHAR(20) DEFAULT 'regular',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    -- Collaborative sharing (mirrors collaborative_documents pattern)
+    permissions JSONB DEFAULT '{}',
+    is_public BOOLEAN DEFAULT false,
     -- Auto-compaction fields for managing long conversations
     compaction_summary TEXT,
     compacted_up_to_message_id UUID,
@@ -1036,6 +1041,10 @@ ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS compaction_updated_at TIMESTAM
 
 -- Add status column for archive support
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'regular';
+
+-- Thread type: 'chat' (default) or 'search' (Perplexity-style search sessions)
+ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS thread_type VARCHAR(20) DEFAULT 'chat';
+CREATE INDEX IF NOT EXISTS idx_chat_threads_type ON chat_threads(user_id, thread_type, updated_at DESC);
 
 -- Add foreign key for compacted_up_to_message_id (deferred to avoid circular dependency during creation)
 DO $$
@@ -1056,6 +1065,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     thread_id UUID REFERENCES chat_threads(id) ON DELETE CASCADE,
     role VARCHAR(20) NOT NULL CHECK (role IN ('user', 'assistant', 'system', 'tool')),
+    user_id UUID REFERENCES profiles(id),
     content TEXT,
     tool_calls JSONB,
     tool_results JSONB,
@@ -1068,6 +1078,7 @@ CREATE INDEX IF NOT EXISTS idx_chat_threads_updated_at ON chat_threads(updated_a
 CREATE INDEX IF NOT EXISTS idx_chat_threads_user_updated ON chat_threads(user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_chat_threads_compaction ON chat_threads(id) WHERE compaction_summary IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_chat_threads_status ON chat_threads(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_chat_threads_permissions ON chat_threads USING gin (permissions);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_id ON chat_messages(thread_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_created ON chat_messages(thread_id, created_at);
