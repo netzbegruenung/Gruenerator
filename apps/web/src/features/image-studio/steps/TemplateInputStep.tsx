@@ -11,8 +11,6 @@ import { getTypeConfig, getTemplateFieldConfig, IMAGE_STUDIO_TYPES } from '../ut
 
 import type { TypeformField } from '../../../components/common/Form';
 
-import './TemplateInputStep.css';
-
 interface TemplateInputStepProps {
   onSubmit: () => void;
   onBack: () => void;
@@ -112,7 +110,7 @@ const TemplateInputStep: React.FC<TemplateInputStepProps> = ({
   if (typeformMode) {
     return (
       <motion.div
-        className="template-input-step template-input-step--typeform"
+        className="flex flex-col gap-lg w-full"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
@@ -138,13 +136,15 @@ const TemplateInputStep: React.FC<TemplateInputStepProps> = ({
 
   return (
     <motion.div
-      className="template-input-step"
+      className="flex flex-col gap-lg w-full"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="template-input-step__form bg-background-alt border border-grey-200 dark:border-grey-700 rounded-md p-lg shadow-card-elevated overflow-hidden transition-all">
-        <h2 className="template-input-step__title">{typeConfig?.label || 'Sharepic erstellen'}</h2>
+      <div className="flex flex-col gap-md p-lg max-w-[600px] mx-auto w-full bg-background-alt border border-grey-200 dark:border-grey-700 rounded-md shadow-card-elevated overflow-hidden transition-all md:max-w-full md:p-md">
+        <h2 className="m-0 mb-xs text-xl font-semibold text-foreground">
+          {typeConfig?.label || 'Sharepic erstellen'}
+        </h2>
 
         <ConfigDrivenFields
           fields={fieldConfig?.inputFields || []}
@@ -160,7 +160,7 @@ const TemplateInputStep: React.FC<TemplateInputStepProps> = ({
           </p>
         )}
 
-        <div className="template-input-step__actions">
+        <div className="flex gap-md mt-md max-[768px]:flex-col">
           <Button onClick={onBack} text="Zurück" icon={<HiArrowLeft />} ariaLabel="Zurück" />
           <Button
             onClick={handleSubmit}

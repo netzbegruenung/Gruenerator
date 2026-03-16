@@ -83,9 +83,9 @@ export const useRoutePreloader = (): void => {
       ) {
         const originalStyles = saveStyles();
         try {
-          await (
-            GrueneratorenBundle as Record<string, { preload: () => Promise<unknown> }>
-          )[moduleName].preload();
+          await (GrueneratorenBundle as Record<string, { preload: () => Promise<unknown> }>)[
+            moduleName
+          ].preload();
           loadedModules.current.add(moduleName);
           restoreStyles(originalStyles);
         } catch (error) {
