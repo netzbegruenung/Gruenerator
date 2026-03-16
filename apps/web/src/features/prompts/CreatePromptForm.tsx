@@ -7,7 +7,6 @@ import { btn } from '../../utils/buttonStyles';
 import { usePromptMutations } from './usePromptsData';
 
 import type { CustomPrompt } from './types';
-import '../../assets/styles/components/form/form-inputs.css';
 
 interface CreatePromptFormProps {
   editingPrompt?: CustomPrompt | null;

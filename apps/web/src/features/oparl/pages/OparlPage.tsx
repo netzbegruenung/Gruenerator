@@ -4,7 +4,6 @@ import { Markdown } from '../../../components/common/Markdown';
 import SearchBar from '../../search/components/SearchBar';
 import { useOparlSearch } from '../hooks/useOparlSearch';
 
-import '../../../assets/styles/common/markdown-styles.css';
 import type { OparlPaper } from '../types';
 
 const exampleQuestions = [

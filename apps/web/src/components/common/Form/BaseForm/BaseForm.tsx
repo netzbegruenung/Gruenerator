@@ -26,10 +26,7 @@ import React, {
   Suspense,
 } from 'react';
 
-// Import non-baseform CSS (these stay — they style shared UI primitives)
-import '../../../../assets/styles/components/ui/forms.css';
-import '../../../../assets/styles/components/ui/form-select-modern.css';
-import '../../../../assets/styles/components/ui/quote-form.css';
+// Component-specific CSS (not globally loaded)
 import '../../../../assets/styles/components/ui/FeatureToggle.css';
 import '../../../../assets/styles/components/ui/AttachedFilesList.css';
 import '../../../../assets/styles/components/ui/spinner.css';
@@ -38,9 +35,6 @@ import '../../../../assets/styles/components/ui/react-select.css';
 import '../../../../assets/styles/components/ui/knowledge-selector.css';
 import '../../../../assets/styles/components/ui/animatedcheckbox.css';
 import '../../../../assets/styles/components/ui/SegmentedControl.css';
-import '../../../../assets/styles/components/form/form-inputs.css';
-import '../../../../assets/styles/components/form/file-upload.css';
-import '../../../../assets/styles/components/help-tooltip.css';
 
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 import { useTextAutoSave } from '../../../../hooks/useTextAutoSave';

@@ -28,7 +28,6 @@ import {
 // Import extracted components and types
 
 import './image-studio-shared.css';
-import '../../assets/styles/components/form/form-inputs.css';
 
 const ImageStudioPageContent: React.FC = () => {
   const { category: urlCategory, type: urlType } = useParams();

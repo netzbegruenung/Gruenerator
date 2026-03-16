@@ -10,7 +10,6 @@ import { useBaseFormContext } from '../BaseFormContext';
 
 import FormFieldWrapper from './FormFieldWrapper';
 import TextareaWithAutocomplete from './TextareaWithAutocomplete';
-import '../../../../assets/styles/components/form/form-inputs.css';
 
 interface FormTextareaProps {
   name: string;

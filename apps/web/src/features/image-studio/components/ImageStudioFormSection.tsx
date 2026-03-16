@@ -5,8 +5,6 @@ import { EditInstructionForm } from '../forms';
 import { type ImageStudioFormSectionProps } from '../types/componentTypes';
 import { IMAGE_STUDIO_TYPES, FORM_STEPS } from '../utils/typeConfig';
 
-import '../../../assets/styles/components/form/form-inputs.css';
-
 const ImageStudioFormSection: React.FC<ImageStudioFormSectionProps> = ({
   type,
   currentStep,

@@ -45,9 +45,6 @@ import { getActionItems } from './ItemActionBuilder';
 import SelectAllCheckbox from './SelectAllCheckbox';
 import Spinner from './Spinner';
 
-// Import ProfileActionButton CSS for consistent button styling
-import '../../assets/styles/components/profile/profile-action-buttons.css';
-
 // Define default values outside component to prevent re-creation on every render
 const DEFAULT_SEARCH_FIELDS = ['title', 'content_preview', 'full_content'];
 const DEFAULT_SORT_OPTIONS = [

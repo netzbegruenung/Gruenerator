@@ -26,9 +26,6 @@ import { Markdown } from './Markdown';
 import Spinner from './Spinner';
 import WolkeFilePicker from './WolkeFilePicker/WolkeFilePicker';
 
-import '../../assets/styles/common/markdown-styles.css';
-import './DocumentUpload.css';
-
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const ACCEPTED_FILE_TYPES = [
   'application/pdf',
@@ -574,42 +571,50 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                   <div className="document-preview-content">
                     {/* Mode Selector - hide when only one mode allowed */}
                     {(!allowedUploadModes || allowedUploadModes.length > 1) && (
-                      <div
-                        className="upload-mode-selector"
-                        style={{ marginBottom: 'var(--spacing-medium)' }}
-                      >
-                        <div className="mode-tabs">
+                      <div className="mb-md">
+                        <div className="flex gap-xxs bg-background-alt rounded-lg p-xxs border border-grey-200 dark:border-grey-700">
                           {(!allowedUploadModes || allowedUploadModes.includes('file')) && (
                             <button
                               type="button"
-                              className={`mode-tab ${uploadMode === 'file' ? 'active' : ''}`}
+                              className={cn(
+                                'flex-1 flex items-center justify-center gap-xs px-md py-sm bg-transparent border-none rounded-md text-foreground text-sm font-medium cursor-pointer transition-all duration-200 whitespace-nowrap hover:bg-hover-alt disabled:opacity-60 disabled:cursor-not-allowed',
+                                uploadMode === 'file' &&
+                                  'bg-secondary-600 text-white hover:bg-secondary-600'
+                              )}
                               onClick={() => setUploadMode('file')}
                               disabled={isUploading}
                             >
-                              <HiOutlineDocumentAdd className="icon" />
+                              <HiOutlineDocumentAdd className="text-base" />
                               Datei
                             </button>
                           )}
                           {(!allowedUploadModes || allowedUploadModes.includes('url')) && (
                             <button
                               type="button"
-                              className={`mode-tab ${uploadMode === 'url' ? 'active' : ''}`}
+                              className={cn(
+                                'flex-1 flex items-center justify-center gap-xs px-md py-sm bg-transparent border-none rounded-md text-foreground text-sm font-medium cursor-pointer transition-all duration-200 whitespace-nowrap hover:bg-hover-alt disabled:opacity-60 disabled:cursor-not-allowed',
+                                uploadMode === 'url' &&
+                                  'bg-secondary-600 text-white hover:bg-secondary-600'
+                              )}
                               onClick={() => setUploadMode('url')}
                               disabled={isUploading}
                             >
-                              <HiOutlineLink className="icon" />
+                              <HiOutlineLink className="text-base" />
                               URL
                             </button>
                           )}
                           {/* Wolke tab temporarily hidden
                       <button
                         type="button"
-                        className={`mode-tab ${uploadMode === 'wolke' ? 'active' : ''}`}
+                        className={cn(
+                          'flex-1 flex items-center justify-center gap-xs px-md py-sm bg-transparent border-none rounded-md text-foreground text-sm font-medium cursor-pointer transition-all duration-200 whitespace-nowrap hover:bg-hover-alt disabled:opacity-60 disabled:cursor-not-allowed',
+                          uploadMode === 'wolke' && 'bg-secondary-600 text-white hover:bg-secondary-600'
+                        )}
                         onClick={() => setUploadMode('wolke')}
 
                         disabled={isUploading}
                       >
-                        <HiOutlineCloudDownload className="icon" />
+                        <HiOutlineCloudDownload className="text-base" />
                         Wolke
                       </button>
                       */}
@@ -630,7 +635,9 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
 
                           {selectedFile ? (
                             <div className="file-selected-simple">
-                              <span className="file-name">{selectedFile.name}</span>
+                              <span className="text-foreground break-words">
+                                {selectedFile.name}
+                              </span>
                             </div>
                           ) : (
                             <div
@@ -790,42 +797,50 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
               >
                 {/* Mode Selector - hide when only one mode allowed */}
                 {(!allowedUploadModes || allowedUploadModes.length > 1) && (
-                  <div
-                    className="upload-mode-selector"
-                    style={{ marginBottom: 'var(--spacing-medium)' }}
-                  >
-                    <div className="mode-tabs">
+                  <div className="mb-md">
+                    <div className="flex gap-xxs bg-background-alt rounded-lg p-xxs border border-grey-200 dark:border-grey-700">
                       {(!allowedUploadModes || allowedUploadModes.includes('file')) && (
                         <button
                           type="button"
-                          className={`mode-tab ${uploadMode === 'file' ? 'active' : ''}`}
+                          className={cn(
+                            'flex-1 flex items-center justify-center gap-xs px-md py-sm bg-transparent border-none rounded-md text-foreground text-sm font-medium cursor-pointer transition-all duration-200 whitespace-nowrap hover:bg-hover-alt disabled:opacity-60 disabled:cursor-not-allowed',
+                            uploadMode === 'file' &&
+                              'bg-secondary-600 text-white hover:bg-secondary-600'
+                          )}
                           onClick={() => setUploadMode('file')}
                           disabled={isUploading}
                         >
-                          <HiOutlineDocumentAdd className="icon" />
+                          <HiOutlineDocumentAdd className="text-base" />
                           Datei
                         </button>
                       )}
                       {(!allowedUploadModes || allowedUploadModes.includes('url')) && (
                         <button
                           type="button"
-                          className={`mode-tab ${uploadMode === 'url' ? 'active' : ''}`}
+                          className={cn(
+                            'flex-1 flex items-center justify-center gap-xs px-md py-sm bg-transparent border-none rounded-md text-foreground text-sm font-medium cursor-pointer transition-all duration-200 whitespace-nowrap hover:bg-hover-alt disabled:opacity-60 disabled:cursor-not-allowed',
+                            uploadMode === 'url' &&
+                              'bg-secondary-600 text-white hover:bg-secondary-600'
+                          )}
                           onClick={() => setUploadMode('url')}
                           disabled={isUploading}
                         >
-                          <HiOutlineLink className="icon" />
+                          <HiOutlineLink className="text-base" />
                           URL
                         </button>
                       )}
                       {/* Wolke tab temporarily hidden
                   <button
                     type="button"
-                    className={`mode-tab ${uploadMode === 'wolke' ? 'active' : ''}`}
+                    className={cn(
+                      'flex-1 flex items-center justify-center gap-xs px-md py-sm bg-transparent border-none rounded-md text-foreground text-sm font-medium cursor-pointer transition-all duration-200 whitespace-nowrap hover:bg-hover-alt disabled:opacity-60 disabled:cursor-not-allowed',
+                      uploadMode === 'wolke' && 'bg-secondary-600 text-white hover:bg-secondary-600'
+                    )}
                     onClick={() => setUploadMode('wolke')}
                     onMouseEnter={handleWolkeModeHover}
                     disabled={isUploading}
                   >
-                    <HiOutlineCloudDownload className="icon" />
+                    <HiOutlineCloudDownload className="text-base" />
                     Wolke
                   </button>
                   */}
@@ -855,7 +870,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                           </div>
                         ) : (
                           <div className="file-selected-simple">
-                            <span className="file-name">{selectedFile.name}</span>
+                            <span className="text-foreground break-words">{selectedFile.name}</span>
                           </div>
                         )
                       ) : (

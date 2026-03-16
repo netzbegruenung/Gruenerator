@@ -4,8 +4,6 @@ import useCitationStore from '../../../stores/citationStore';
 import { cn } from '../../../utils/cn';
 import { Markdown } from '../Markdown';
 
-import '../../../assets/styles/common/markdown-styles.css';
-
 const CitationModal = (): JSX.Element | null => {
   const modalRef = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLSpanElement>(null);
