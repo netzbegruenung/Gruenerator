@@ -1,4 +1,5 @@
-import { type JSX, useRef } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@gruenerator/ui';
+import { type JSX } from 'react';
 import { SiCanva } from 'react-icons/si';
 
 import CopyButton from './CopyButton';
@@ -8,6 +9,7 @@ import CopyButton from './CopyButton';
  * Shows preview thumbnail, description, and opens template in new tab
  */
 interface CanvaTemplateModalProps {
+  isOpen?: boolean;
   url: string;
   previewImage?: string;
   title?: string;
@@ -22,14 +24,13 @@ interface CanvaTemplateModalProps {
 }
 
 const CanvaTemplateModal = ({
+  isOpen = true,
   url,
   previewImage,
   title = 'In Canva bearbeiten',
   sharepicLines,
   onClose,
 }: CanvaTemplateModalProps): JSX.Element => {
-  const modalRef = useRef(null);
-
   const formatLinesForCopy = (lines: CanvaTemplateModalProps['sharepicLines']) => {
     if (!lines) return '';
     return [1, 2, 3, 4, 5]
@@ -42,34 +43,13 @@ const CanvaTemplateModal = ({
     sharepicLines &&
     [1, 2, 3, 4, 5].some((n) => (sharepicLines as Record<string, string | undefined>)[`line${n}`]);
 
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
   const handleOpenCanva = () => {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1100] p-md max-[560px]:p-sm"
-      onClick={handleOverlayClick}
-    >
-      <div
-        className="relative bg-background-pure rounded-lg shadow-xl border border-grey-200 dark:border-grey-700 max-w-[700px] w-full max-h-[85vh] overflow-y-auto animate-in fade-in slide-in-from-top-5 max-[560px]:max-h-[90vh] max-[560px]:max-w-full"
-        ref={modalRef}
-        onClick={(e: React.MouseEvent) => e.stopPropagation()}
-      >
-        <button
-          className="absolute top-sm right-sm bg-background-pure border-none text-2xl text-foreground cursor-pointer p-xs rounded-sm transition-all duration-200 leading-none w-8 h-8 flex items-center justify-center z-[1] hover:bg-background-alt hover:text-primary-600"
-          onClick={onClose}
-          aria-label="Schliessen"
-        >
-          &times;
-        </button>
-
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-[700px] p-0 overflow-y-auto max-h-[85vh] max-[560px]:max-h-[90vh]">
         <div className="flex flex-row gap-lg p-lg max-[560px]:flex-col max-[560px]:p-md max-[560px]:pt-xl">
           {previewImage && (
             <div className="shrink-0 flex items-center justify-center bg-background-alt rounded-sm p-sm max-[560px]:p-md">
@@ -82,10 +62,12 @@ const CanvaTemplateModal = ({
           )}
 
           <div className="flex flex-col justify-center gap-md flex-1 max-[560px]:text-center max-[560px]:items-center">
-            <div className="flex items-center gap-sm">
-              <SiCanva className="w-6 h-6 text-primary-600" />
-              <h4 className="m-0 text-foreground-heading text-[1.1rem] font-semibold">{title}</h4>
-            </div>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-sm">
+                <SiCanva className="w-6 h-6 text-primary-600" />
+                {title}
+              </DialogTitle>
+            </DialogHeader>
 
             <div className="text-foreground text-[0.9rem] leading-relaxed [&_p]:m-0">
               <p>
@@ -121,8 +103,8 @@ const CanvaTemplateModal = ({
             )}
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

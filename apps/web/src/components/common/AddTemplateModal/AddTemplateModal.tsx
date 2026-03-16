@@ -1,6 +1,5 @@
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@gruenerator/ui';
 import React, { useState, useCallback, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { HiX } from 'react-icons/hi';
 
 import { useAuthStore } from '../../../stores/authStore';
 import { cn } from '../../../utils/cn';
@@ -210,37 +209,6 @@ const AddTemplateModal = ({
     contactEmail,
   ]);
 
-  const handleBackdropClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      if (e.target === e.currentTarget) {
-        onClose();
-      }
-    },
-    [onClose]
-  );
-
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    },
-    [onClose]
-  );
-
-  useEffect(() => {
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden';
-    }
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
-    };
-  }, [isOpen, handleKeyDown]);
-
-  if (!isOpen) return null;
-
   const canSubmit = previewData ? title.trim() : title.trim() && templateUrl.trim();
 
   const fieldClass =
@@ -254,31 +222,15 @@ const AddTemplateModal = ({
       </div>
     );
 
-  const modalContent = (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-md max-md:p-0"
-      onClick={handleBackdropClick}
-    >
-      <div
-        className="bg-background rounded-xl shadow-lg w-full max-w-[550px] max-h-[85vh] flex flex-col overflow-hidden min-[900px]:max-w-[750px] max-md:max-w-none max-md:max-h-none max-md:h-full max-md:rounded-none"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="template-modal-title"
-      >
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-[550px] min-[900px]:max-w-[750px] max-md:max-w-none max-md:max-h-none max-md:h-full max-md:rounded-none max-h-[85vh] flex flex-col overflow-hidden p-0">
         <div className="flex items-center justify-between py-md px-lg border-b border-grey-200 dark:border-grey-700">
-          <h2
-            id="template-modal-title"
-            className="m-0 text-[1.25rem] font-semibold text-foreground"
-          >
-            {groupId ? 'Vorlage zur Gruppe hinzufügen' : 'Neue Vorlage erstellen'}
-          </h2>
-          <button
-            className="bg-none border-none p-xs cursor-pointer text-grey-500 rounded-lg flex items-center justify-center transition-colors duration-200 hover:bg-hover-alt hover:text-foreground [&_svg]:w-5 [&_svg]:h-5"
-            onClick={onClose}
-            aria-label="Schließen"
-          >
-            <HiX />
-          </button>
+          <DialogHeader>
+            <DialogTitle className="text-[1.25rem]">
+              {groupId ? 'Vorlage zur Gruppe hinzufügen' : 'Neue Vorlage erstellen'}
+            </DialogTitle>
+          </DialogHeader>
         </div>
 
         <div className="flex-1 overflow-y-auto p-lg">
@@ -440,11 +392,9 @@ const AddTemplateModal = ({
             {isSubmitting ? 'Wird erstellt...' : groupId ? 'Hinzufügen' : 'Erstellen'}
           </button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
-
-  return createPortal(modalContent, document.body);
 };
 
 export default AddTemplateModal;

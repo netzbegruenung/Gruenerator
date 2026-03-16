@@ -1,5 +1,12 @@
 import { useShareStore, getShareUrl } from '@gruenerator/shared';
-import { Button } from '@gruenerator/ui';
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@gruenerator/ui';
 import { useState, useEffect } from 'react';
 import QRCode from 'react-qr-code';
 
@@ -42,7 +49,7 @@ const ShareMediaModal = ({
   defaultTitle,
   onShareCreated,
   getOriginalImage,
-}: ShareMediaModalProps): JSX.Element | null => {
+}: ShareMediaModalProps): JSX.Element => {
   const [shareTitle, setShareTitle] = useState(defaultTitle || '');
   const [copied, setCopied] = useState(false);
 
@@ -122,36 +129,14 @@ const ShareMediaModal = ({
     }
   };
 
-  if (!isOpen) return null;
-
   const mediaLabel = mediaType === 'video' ? 'Video' : 'Bild';
 
   return (
-    <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-md animate-[fadeIn_0.2s_ease]"
-      onClick={onClose}
-    >
-      <div
-        className="relative w-full max-w-[640px] rounded-lg bg-background p-lg shadow-xl border border-grey-200 dark:border-grey-700 max-[480px]:p-md max-[480px]:rounded-md"
-        onClick={(e: React.MouseEvent) => e.stopPropagation()}
-      >
-        <button
-          className="absolute top-md right-md flex h-8 w-8 items-center justify-center rounded-full border-none bg-transparent text-foreground text-2xl leading-none p-xxs opacity-60 transition-opacity duration-200 hover:opacity-100 hover:bg-background-alt cursor-pointer"
-          onClick={onClose}
-        >
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
-        </button>
-
-        <h2 className="m-0 mb-sm text-xl text-foreground-heading">{mediaLabel} teilen</h2>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-[640px] max-[480px]:p-md max-[480px]:rounded-md">
+        <DialogHeader>
+          <DialogTitle>{mediaLabel} teilen</DialogTitle>
+        </DialogHeader>
 
         {!currentShare ? (
           <>
@@ -209,7 +194,7 @@ const ShareMediaModal = ({
               </div>
             )}
 
-            <div className="flex gap-md justify-end max-[480px]:flex-col-reverse max-[480px]:*:w-full">
+            <DialogFooter className="max-[480px]:flex-col-reverse max-[480px]:*:w-full">
               <Button variant="brand-outline" size="brand" onClick={onClose} disabled={isCreating}>
                 Abbrechen
               </Button>
@@ -221,7 +206,7 @@ const ShareMediaModal = ({
               >
                 {isCreating ? 'Wird erstellt...' : 'Link erstellen'}
               </Button>
-            </div>
+            </DialogFooter>
           </>
         ) : (
           <>
@@ -310,8 +295,8 @@ const ShareMediaModal = ({
             </div>
           </>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
