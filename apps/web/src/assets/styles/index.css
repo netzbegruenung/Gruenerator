@@ -26,9 +26,6 @@
 
 @import url('./components/profile/profile-action-buttons.css') layer(legacy);
 
-@import url('./components/ui/quote-form.css') layer(legacy);
-@import url('./components/ui/LogLevelSelector.css') layer(legacy);
-@import url('./components/help-tooltip.css') layer(legacy);
 @import url('./components/common/auto-save-indicator.css') layer(legacy);
 @import url('./components/ui/form-select-modern.css') layer(legacy);
 @import url('./components/ui/forms.css') layer(legacy);
@@ -37,9 +34,6 @@
 @import url('./components/form/form-image-select.css') layer(legacy);
 
 @import url('./components/baseform/baseform-legacy.css') layer(legacy);
-@import url('./components/actions/advanced-editing.css') layer(legacy);
-@import url('./components/actions/linksave.css') layer(legacy);
-@import url('./components/actions/collection-actions.css') layer(legacy);
 
 @import url('./features/auth/profile-cards.css') layer(legacy);
 
