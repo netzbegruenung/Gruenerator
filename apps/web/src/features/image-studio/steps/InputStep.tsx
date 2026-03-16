@@ -1,9 +1,9 @@
+import { buttonVariants } from '@gruenerator/ui';
 import { motion } from 'motion/react';
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { HiArrowLeft, HiArrowUp } from 'react-icons/hi';
 
 import Button from '../../../components/common/SubmitButton';
-import { btn } from '../../../utils/buttonStyles';
 import { slideVariants } from '../components/StepFlow';
 
 // Props Interface (copied from StepFlow.tsx)
@@ -202,7 +202,7 @@ const InputStep: React.FC<InputStepProps> = ({
           onClick={onBack}
           text="Zurück"
           icon={<HiArrowLeft />}
-          className={btn.secondary}
+          className={buttonVariants({ variant: 'brand-outline', size: 'brand' })}
           ariaLabel="Zurück"
         />
       </div>

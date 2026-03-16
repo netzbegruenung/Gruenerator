@@ -2,7 +2,6 @@ import React, { useCallback, memo, type ReactNode } from 'react';
 import { FiSend } from 'react-icons/fi';
 
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
-import { btnIcon } from '../../../../utils/buttonStyles';
 import FeatureIcons from '../../FeatureIcons';
 import FeatureToggle from '../../FeatureToggle';
 import SubmitButton from '../../SubmitButton';
@@ -170,7 +169,7 @@ const FormExtrasSection: React.FC<ExtendedFormExtrasSectionProps> = ({
                   }
                   icon={<FiSend />}
                   iconOnly={true}
-                  className={cn(btnIcon.primary, 'size-11 min-w-11')}
+                  className="size-11 min-w-11"
                   ariaLabel={isMultiStep ? nextButtonText || 'Weiter' : 'Generieren'}
                   type="submit"
                   tabIndex={submitButtonTabIndex}

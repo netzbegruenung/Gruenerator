@@ -1,9 +1,9 @@
+import { Button } from '@gruenerator/ui';
 import React, { useCallback, lazy, Suspense, memo, useMemo } from 'react';
 
 import { EarlyAccessBanner } from '../../../components/common/EarlyAccessBanner';
 import Icon from '../../../components/common/Icon';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { btn } from '../../../utils/buttonStyles';
 import { useCustomGeneratorsData, useSavedGenerators } from '../../auth/hooks/useProfileData';
 
 const CreateCustomGeneratorPage = lazy(() => import('../../generators/CreateCustomGeneratorPage'));
@@ -34,9 +34,9 @@ const LoginPrompt: React.FC<LoginPromptProps> = memo(({ onLogin }) => (
     <p className="m-0 text-grey-500 max-w-[400px] leading-relaxed">
       Melde dich an, um deine eigenen Grüneratoren und Agenten zu erstellen.
     </p>
-    <button onClick={onLogin} className={btn.primary}>
+    <Button variant="brand" size="brand" onClick={onLogin}>
       Anmelden
-    </button>
+    </Button>
   </div>
 ));
 

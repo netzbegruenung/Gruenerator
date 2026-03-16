@@ -1,3 +1,4 @@
+import { Button } from '@gruenerator/ui';
 import { useState, useMemo, useCallback, type FormEvent } from 'react';
 import { HiSparkles } from 'react-icons/hi';
 import { PiFolder, PiLayout, PiUser } from 'react-icons/pi';
@@ -10,7 +11,6 @@ import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useRecentValues } from '../../../hooks/useRecentValues';
 import { generateSharepicFromPrompt } from '../../../services/sharepicPromptService';
 import useImageStudioStore from '../../../stores/imageStudioStore';
-import { btn } from '../../../utils/buttonStyles';
 import { useRecentGalleryItems, type RecentGalleryItem } from '../hooks/useRecentGalleryItems';
 import { type StartOption } from '../types/componentTypes';
 import { IMAGE_STUDIO_CATEGORIES, IMAGE_STUDIO_TYPES, getTypeConfig } from '../utils/typeConfig';
@@ -235,13 +235,14 @@ const ImageStudioCategorySelector: React.FC = () => {
       <div className="type-selector-content">
         <div className="type-selector-header-row">
           <h1>{firstName ? `Hallo, ${firstName}!` : 'Willkommen im Image-Studio'}</h1>
-          <button
-            className={btn.secondary}
+          <Button
+            variant="brand-outline"
+            size="brand"
             onClick={() => navigate('/image-studio/gallery')}
             style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-small)' }}
           >
             <PiFolder /> Meine Bilder
-          </button>
+          </Button>
         </div>
 
         <EarlyAccessBanner />

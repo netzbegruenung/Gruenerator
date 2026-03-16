@@ -1,3 +1,4 @@
+import { Button } from '@gruenerator/ui';
 import { useShareLinks, type WolkeFileItem } from '@gruenerator/wolke';
 import React, { useState, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import {
@@ -16,7 +17,6 @@ import {
 
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useDocumentsStore } from '../../stores/documentsStore';
-import { btn } from '../../utils/buttonStyles';
 import { cn } from '../../utils/cn';
 import { validateUrl, normalizeUrl, generateTitleFromUrl } from '../../utils/urlValidation';
 import apiClient from '../utils/apiClient';
@@ -502,14 +502,15 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
         {showTitle && (
           <div className="profile-card-header">
             <h3>Dokumente</h3>
-            <button
+            <Button
+              variant="brand"
+              size="brand-sm"
               type="button"
-              className={cn(btn.primary, btn.sizeS)}
               onClick={() => setShowUploadForm(true)}
               disabled={isUploading}
             >
               <HiOutlineDocumentAdd className="icon" /> Inhalt hinzufügen
-            </button>
+            </Button>
           </div>
         )}
 
@@ -734,9 +735,10 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                   */}
                   </div>
                   <div className="px-lg py-md border-t border-grey-200 dark:border-grey-700 bg-grey-50 dark:bg-grey-800 flex justify-end gap-sm">
-                    <button
+                    <Button
+                      variant="brand"
+                      size="brand-sm"
                       onClick={handleUpload}
-                      className={cn(btn.primary, btn.sizeS)}
                       disabled={
                         isUploading ||
                         (uploadMode === 'file' && (!selectedFile || !uploadTitle.trim())) ||
@@ -761,18 +763,21 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                       ) : (
                         'Wolke-Dateien importieren'
                       )}
-                    </button>
+                    </Button>
                     {uploadMode === 'file' && selectedFile && (
-                      <button
+                      <Button
+                        variant="brand"
+                        size="brand-sm"
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className={cn(btn.primary, btn.sizeS)}
                         disabled={isUploading}
                       >
                         Datei ändern
-                      </button>
+                      </Button>
                     )}
-                    <button
+                    <Button
+                      variant="brand"
+                      size="brand-sm"
                       onClick={() => {
                         if (forceShowUploadForm) {
                           // When controlled by parent, notify parent to close
@@ -781,11 +786,10 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                           resetForm();
                         }
                       }}
-                      className={cn(btn.primary, btn.sizeS)}
                       disabled={isUploading}
                     >
                       Abbrechen
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -971,9 +975,10 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                     className="profile-actions"
                     style={{ justifyContent: 'flex-start', gap: '10px' }}
                   >
-                    <button
+                    <Button
+                      variant="brand"
+                      size="brand-sm"
                       onClick={handleUpload}
-                      className={cn(btn.primary, btn.sizeS)}
                       disabled={
                         isUploading ||
                         (uploadMode === 'file' && (!selectedFile || !uploadTitle.trim())) ||
@@ -998,18 +1003,21 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                       ) : (
                         'Wolke-Dateien importieren'
                       )}
-                    </button>
+                    </Button>
                     {uploadMode === 'file' && selectedFile && (
-                      <button
+                      <Button
+                        variant="brand"
+                        size="brand-sm"
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className={cn(btn.primary, btn.sizeS)}
                         disabled={isUploading}
                       >
                         Datei ändern
-                      </button>
+                      </Button>
                     )}
-                    <button
+                    <Button
+                      variant="brand-outline"
+                      size="brand"
                       onClick={() => {
                         if (forceShowUploadForm) {
                           // When controlled by parent, notify parent to close
@@ -1018,11 +1026,10 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                           resetForm();
                         }
                       }}
-                      className={btn.secondary}
                       disabled={isUploading}
                     >
                       Abbrechen
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>

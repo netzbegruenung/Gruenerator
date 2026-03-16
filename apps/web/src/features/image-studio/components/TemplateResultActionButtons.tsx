@@ -1,3 +1,4 @@
+import { Button } from '@gruenerator/ui';
 import React from 'react';
 import {
   FaDownload,
@@ -13,7 +14,6 @@ import { HiSparkles } from 'react-icons/hi';
 import { IoCopyOutline, IoCheckmarkOutline } from 'react-icons/io5';
 
 import Spinner from '../../../components/common/Spinner';
-import { actionButtons, btnIcon } from '../../../utils/buttonStyles';
 import { cn } from '../../../utils/cn';
 
 import type { TemplateResultActionButtonsProps } from '../types/templateResultTypes';
@@ -49,19 +49,22 @@ export const TemplateResultActionButtons: React.FC<TemplateResultActionButtonsPr
   if (!generatedImageSrc) return null;
 
   return (
-    <div className={actionButtons}>
-      <button
-        className={btnIcon.primary}
+    <div className="flex gap-md w-full mb-md">
+      <Button
+        variant="brand"
+        size="brand-icon"
         onClick={onDownload}
         disabled={loading}
         title="Herunterladen"
       >
         <FaDownload />
-      </button>
+      </Button>
 
       {galleryEditMode ? (
-        <button
-          className={cn(btnIcon.primary, updateSuccess && 'bg-[#22c55e]')}
+        <Button
+          variant="brand"
+          size="brand-icon"
+          className={cn(updateSuccess && 'bg-[#22c55e]')}
           onClick={onGalleryUpdate}
           disabled={loading || isUpdating}
           title={updateSuccess ? 'Gespeichert!' : 'Änderungen speichern'}
@@ -73,66 +76,79 @@ export const TemplateResultActionButtons: React.FC<TemplateResultActionButtonsPr
           ) : (
             <FaSave />
           )}
-        </button>
+        </Button>
       ) : (
-        <button className={btnIcon.primary} onClick={onShare} disabled={loading} title="Teilen">
+        <Button
+          variant="brand"
+          size="brand-icon"
+          onClick={onShare}
+          disabled={loading}
+          title="Teilen"
+        >
           <FaShareAlt />
-        </button>
+        </Button>
       )}
 
       {!galleryEditMode && autoSaveStatus === 'saved' && (
-        <button
-          className={btnIcon.primary}
+        <Button
+          variant="brand"
+          size="brand-icon"
           onClick={onNavigateToGallery}
           title="In Galerie anzeigen"
         >
           <FaImages />
-        </button>
+        </Button>
       )}
 
       {isAiType ? (
-        <button
-          className={btnIcon.primary}
+        <Button
+          variant="brand"
+          size="brand-icon"
           onClick={onRecreate}
           disabled={loading}
           title="Neu erstellen"
         >
           <FaRedo />
-        </button>
+        </Button>
       ) : (
-        <button
-          className={btnIcon.primary}
+        <Button
+          variant="brand"
+          size="brand-icon"
           onClick={onOpenEditPanel}
           disabled={loading}
           title="Bearbeiten"
         >
           <FaEdit />
-        </button>
+        </Button>
       )}
 
       {isAiEditor && onUndo && onRedo && (
         <>
-          <button
-            className={btnIcon.primary}
+          <Button
+            variant="brand"
+            size="brand-icon"
             onClick={onUndo}
             disabled={!canUndo || loading}
             title="Rückgängig (Strg+Z)"
           >
             <FaUndo />
-          </button>
-          <button
-            className={btnIcon.primary}
+          </Button>
+          <Button
+            variant="brand"
+            size="brand-icon"
             onClick={onRedo}
             disabled={!canRedo || loading}
             title="Wiederherstellen (Strg+Shift+Z)"
           >
             <FaRedo />
-          </button>
+          </Button>
         </>
       )}
 
-      <button
-        className={cn(btnIcon.primary, copied && 'bg-[#22c55e]')}
+      <Button
+        variant="brand"
+        size="brand-icon"
+        className={cn(copied && 'bg-[#22c55e]')}
         onClick={onTextButtonClick}
         disabled={loading || socialLoading || isAltTextLoading}
         title={hasGeneratedText ? (copied ? 'Kopiert!' : 'Text kopieren') : 'Texte generieren'}
@@ -146,17 +162,18 @@ export const TemplateResultActionButtons: React.FC<TemplateResultActionButtonsPr
         ) : (
           <HiSparkles />
         )}
-      </button>
+      </Button>
 
       {canNativeShare && (
-        <button
-          className={btnIcon.primary}
+        <Button
+          variant="brand"
+          size="brand-icon"
           onClick={onShareToInstagram}
           disabled={loading || isSharing}
           title="Auf Instagram posten"
         >
           {isSharing ? <Spinner size="small" /> : <FaInstagram />}
-        </button>
+        </Button>
       )}
     </div>
   );

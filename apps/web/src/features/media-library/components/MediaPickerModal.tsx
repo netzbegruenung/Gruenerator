@@ -1,8 +1,8 @@
 import { useMediaLibrary, useMediaUpload, useMediaPicker } from '@gruenerator/shared/media-library';
+import { Button } from '@gruenerator/ui';
 import React, { useEffect } from 'react';
 import { FaImage, FaVideo, FaCheck, FaTimes, FaUpload } from 'react-icons/fa';
 
-import { btn } from '../../../utils/buttonStyles';
 import { cn } from '../../../utils/cn';
 
 import type { MediaItem, MediaType } from '@gruenerator/shared/media-library';
@@ -193,16 +193,17 @@ const MediaPickerModal: React.FC = () => {
         <footer className="flex justify-between items-center py-md px-lg border-t border-grey-200 dark:border-grey-700">
           <span className="text-grey-400 text-[0.9rem]">{selectedItems.length} ausgewählt</span>
           <div className="flex gap-md">
-            <button className={btn.secondary} onClick={closePicker}>
+            <Button variant="brand-outline" size="brand" onClick={closePicker}>
               Abbrechen
-            </button>
-            <button
-              className={btn.primary}
+            </Button>
+            <Button
+              variant="brand"
+              size="brand"
               onClick={confirmSelection}
               disabled={selectedItems.length === 0}
             >
               Auswählen
-            </button>
+            </Button>
           </div>
         </footer>
       </div>

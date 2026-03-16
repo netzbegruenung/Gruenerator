@@ -1,8 +1,8 @@
 import { useShareStore, getShareUrl } from '@gruenerator/shared';
+import { Button } from '@gruenerator/ui';
 import { useState, useEffect } from 'react';
 import QRCode from 'react-qr-code';
 
-import { btn } from '../../../utils/buttonStyles';
 import { cn } from '../../../utils/cn';
 import { canShare, shareContent } from '../../../utils/shareUtils';
 
@@ -210,12 +210,17 @@ const ShareMediaModal = ({
             )}
 
             <div className="flex gap-md justify-end max-[480px]:flex-col-reverse max-[480px]:*:w-full">
-              <button className={btn.secondary} onClick={onClose} disabled={isCreating}>
+              <Button variant="brand-outline" size="brand" onClick={onClose} disabled={isCreating}>
                 Abbrechen
-              </button>
-              <button className={btn.primary} onClick={handleCreateShare} disabled={isCreating}>
+              </Button>
+              <Button
+                variant="brand"
+                size="brand"
+                onClick={handleCreateShare}
+                disabled={isCreating}
+              >
                 {isCreating ? 'Wird erstellt...' : 'Link erstellen'}
-              </button>
+              </Button>
             </div>
           </>
         ) : (
@@ -299,9 +304,9 @@ const ShareMediaModal = ({
             </div>
 
             <div className="flex justify-center mt-md">
-              <button className={btn.primary} onClick={onClose}>
+              <Button variant="brand" size="brand" onClick={onClose}>
                 Fertig
-              </button>
+              </Button>
             </div>
           </>
         )}

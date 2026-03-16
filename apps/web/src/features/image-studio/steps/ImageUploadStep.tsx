@@ -1,4 +1,5 @@
 import { useShareStore, type Share } from '@gruenerator/shared/share';
+import { buttonVariants } from '@gruenerator/ui';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import { HiArrowLeft, HiArrowRight, HiX, HiPhotograph, HiSearch } from 'react-icons/hi';
@@ -9,7 +10,6 @@ import UnsplashAttribution from '../../../components/common/UnsplashAttribution'
 import useDebounce from '../../../components/hooks/useDebounce';
 import apiClient from '../../../components/utils/apiClient';
 import useImageStudioStore from '../../../stores/imageStudioStore';
-import { btn } from '../../../utils/buttonStyles';
 import { slideVariants } from '../components/StepFlow';
 import { useImageSourceStore } from '../hooks/useImageSourceStore';
 import { useUnsplashSearch } from '../hooks/useUnsplashSearch';
@@ -638,7 +638,7 @@ const ImageUploadStep: React.FC<ImageUploadStepProps> = ({
           onClick={onBack}
           text="Zurück"
           icon={<HiArrowLeft />}
-          className={btn.secondary}
+          className={buttonVariants({ variant: 'brand-outline', size: 'brand' })}
           ariaLabel="Zurück"
           disabled={loading}
         />
@@ -647,7 +647,7 @@ const ImageUploadStep: React.FC<ImageUploadStepProps> = ({
             onClick={onNext}
             text={loading ? 'Wird verarbeitet...' : 'Weiter'}
             icon={loading ? undefined : <HiArrowRight />}
-            className={btn.primary}
+            className={buttonVariants({ variant: 'brand', size: 'brand' })}
             ariaLabel="Weiter"
             loading={loading}
             disabled={loading}

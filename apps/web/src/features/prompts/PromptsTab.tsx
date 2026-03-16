@@ -1,7 +1,7 @@
+import { Button } from '@gruenerator/ui';
 import React, { useState, useCallback, useMemo, memo, lazy, Suspense } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 
-import { btn } from '../../utils/buttonStyles';
 import { cn } from '../../utils/cn';
 
 import { useCustomPromptsData, useSavedPromptsData, usePromptMutations } from './usePromptsData';
@@ -213,9 +213,9 @@ const PromptsTab: React.FC<PromptsTabProps> = memo(({ isActive }) => {
   return (
     <div className="w-full">
       <div className="flex flex-col items-center gap-md">
-        <button type="button" className={btn.primary} onClick={openCreateForm}>
+        <Button variant="brand" size="brand" type="button" onClick={openCreateForm}>
           + Neuen Agenten erstellen
-        </button>
+        </Button>
 
         {prompts.length > 0 && (
           <div className="w-full mt-sm">

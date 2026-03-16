@@ -1,3 +1,4 @@
+import { Button } from '@gruenerator/ui';
 import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
@@ -7,8 +8,6 @@ import apiClient from '../../components/utils/apiClient';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useFormDataBuilder } from '../../hooks/useFormDataBuilder';
 import { useGeneratorSetup } from '../../hooks/useGeneratorSetup';
-import { btn } from '../../utils/buttonStyles';
-import { cn } from '../../utils/cn';
 
 import PromptInputForm from './PromptInputForm';
 
@@ -176,14 +175,15 @@ const PromptPage: React.FC = memo(() => {
           </span>
         )}
         {!isOwner && !isSaved && (
-          <button
+          <Button
             type="button"
-            className={cn(btn.secondary, btn.sizeS)}
+            variant="brand-outline"
+            size="brand-sm"
             onClick={handleSave}
             disabled={isSaving}
           >
             {isSaving ? 'Speichert...' : 'Agent speichern'}
-          </button>
+          </Button>
         )}
         {isSaved && !isOwner && <span className="text-primary-600 font-medium">✓ Gespeichert</span>}
       </div>
@@ -204,9 +204,9 @@ const PromptPage: React.FC = memo(() => {
         <div className="text-center max-w-[400px]">
           <h3 className="m-0 mb-sm text-foreground">Fehler</h3>
           <p className="m-0 mb-md text-grey-500">{fetchError}</p>
-          <button type="button" className={btn.primary} onClick={handleBack}>
+          <Button variant="brand" size="brand" type="button" onClick={handleBack}>
             Zurück
-          </button>
+          </Button>
         </div>
       </div>
     );
