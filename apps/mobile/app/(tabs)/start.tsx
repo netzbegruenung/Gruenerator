@@ -19,7 +19,7 @@ interface QuickFeature {
     | 'search-outline'
     | 'image-outline'
     | 'create-outline'
-    | 'construct-outline';
+    | 'library-outline';
   route: AppRoute;
 }
 
@@ -58,13 +58,13 @@ const QUICK_FEATURES: QuickFeature[] = [
     id: 'suche',
     label: 'Programm durchsuchen',
     icon: 'search-outline',
-    route: '/(tabs)/(tools)/suche',
+    route: '/(tabs)/(desk)/suche',
   },
   {
-    id: 'tools',
-    label: 'Weitere Tools',
-    icon: 'construct-outline',
-    route: '/(tabs)/(tools)/barrierefreiheit',
+    id: 'notebooks',
+    label: 'Programm-Notebooks',
+    icon: 'library-outline',
+    route: '/(tabs)/(desk)/notebooks',
   },
 ];
 

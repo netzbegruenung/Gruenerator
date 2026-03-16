@@ -20,10 +20,14 @@ export type AppRoute =
   // Media routes
   | '/(tabs)/(media)/reel'
   | '/(tabs)/(media)/image-studio'
-  // Tools routes
-  | '/(tabs)/(tools)/suche'
-  | '/(tabs)/(tools)/texteditor'
-  | '/(tabs)/(tools)/barrierefreiheit'
+  // Desk routes
+  | '/(tabs)/(desk)/suche'
+  | '/(tabs)/(desk)/notebooks'
+  | '/(tabs)/(desk)/scanner'
+  | '/(tabs)/(desk)/transkription'
+  | '/(tabs)/(desk)/research'
+  | '/(tabs)/(desk)/gruppen'
+  | '/(tabs)/(desk)/boards'
   // Modal routes
   | '/(modals)/gruenerator-chat'
   // Auth routes
