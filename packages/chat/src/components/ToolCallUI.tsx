@@ -23,6 +23,7 @@ interface ToolCallUIProps {
 }
 
 const TOOL_CONFIG: Record<string, { icon: typeof Search; label: string; color: string }> = {
+  search_sources: { icon: Search, label: 'Quellen', color: 'text-primary-500' },
   gruenerator_search: { icon: Search, label: 'Dokumente', color: 'text-primary-500' },
   gruenerator_person_search: { icon: User, label: 'Person', color: 'text-secondary-600' },
   gruenerator_examples_search: { icon: Image, label: 'Beispiele', color: 'text-secondary-600' },
@@ -248,6 +249,12 @@ const ToolResultRenderer = memo(function ToolResultRenderer({
             getArray(result, 'results') ||
             (Array.isArray(result) ? result : [])
           }
+        />
+      );
+    case 'search_sources':
+      return (
+        <CompactSearchResults
+          results={getArray(result, 'results') || (Array.isArray(result) ? result : [])}
         />
       );
     case 'web_search':

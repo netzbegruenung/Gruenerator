@@ -20,6 +20,7 @@ export const grueneratorToolkit: Toolkit = {
   web_search: { render: createToolRender('web_search') },
   research: { render: createToolRender('research') },
   gruenerator_examples_search: { render: createToolRender('gruenerator_examples_search') },
+  search_sources: { render: createToolRender('search_sources') },
   ask_human: {
     render: ({ args, result, addResult }) => (
       <AskHumanToolUI args={args ?? {}} result={result} addResult={addResult} />

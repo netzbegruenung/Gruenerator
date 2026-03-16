@@ -234,16 +234,25 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
 }
 
 function useGrueneratorThreadRuntime() {
-  const { selectedAgentId, selectedModel, enabledTools, useDeepAgent, selectedNotebookId } =
-    useAgentStore(
-      useShallow((s) => ({
-        selectedAgentId: s.selectedAgentId,
-        selectedModel: s.selectedModel,
-        enabledTools: s.enabledTools,
-        useDeepAgent: s.useDeepAgent,
-        selectedNotebookId: s.selectedNotebookId,
-      }))
-    );
+  const {
+    selectedAgentId,
+    selectedModel,
+    enabledTools,
+    useDeepAgent,
+    selectedNotebookId,
+    threadMode,
+    searchMode,
+  } = useAgentStore(
+    useShallow((s) => ({
+      selectedAgentId: s.selectedAgentId,
+      selectedModel: s.selectedModel,
+      enabledTools: s.enabledTools,
+      useDeepAgent: s.useDeepAgent,
+      selectedNotebookId: s.selectedNotebookId,
+      threadMode: s.threadMode,
+      searchMode: s.searchMode,
+    }))
+  );
   const incrementMessageCount = useAgentStore((s) => s.incrementMessageCount);
   const needsCompaction = useAgentStore((s) => s.needsCompaction);
   const compactionState = useAgentStore((s) => s.compactionState);
@@ -257,8 +266,18 @@ function useGrueneratorThreadRuntime() {
       threadId: useAgentStore.getState().currentThreadId,
       useDeepAgent,
       selectedNotebookId,
+      threadMode,
+      searchMode,
     }),
-    [selectedAgentId, selectedModel, enabledTools, useDeepAgent, selectedNotebookId]
+    [
+      selectedAgentId,
+      selectedModel,
+      enabledTools,
+      useDeepAgent,
+      selectedNotebookId,
+      threadMode,
+      searchMode,
+    ]
   );
 
   const onThreadCreated = useCallback((newThreadId: string) => {

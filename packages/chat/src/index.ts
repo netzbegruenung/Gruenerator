@@ -37,6 +37,7 @@ export {
 } from './runtime/GrueneratorModelAdapter';
 export {
   createGrueneratorThreadListAdapter,
+  getThreadType,
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';
 
@@ -97,7 +98,7 @@ export {
 
 // Layout & UI Components
 export { ChatLayout } from './components/ChatLayout';
-export { ChatOverview, type NotebookLink } from './components/ChatOverview';
+export { ChatOverview, SwitchToThreadOnSend, type NotebookLink } from './components/ChatOverview';
 export { ChatSidebar } from './components/ChatSidebar';
 export { ChatThreadList } from './components/ChatThreadList';
 export { ModelSelector } from './components/ModelSelector';
@@ -157,6 +158,8 @@ export {
   type ToolKey,
   type ModelOption,
   type ProviderOption,
+  type ThreadMode,
+  type SearchMode,
 } from './stores/chatStore';
 
 export { useDocumentChatStore } from './stores/documentChatStore';
@@ -176,6 +179,12 @@ export { useFileMentionData } from './hooks/useFileMentionData';
 
 // Citation Utils
 export { mapRawCitationsToChat, resolveCitations } from './lib/citationUtils';
+
+// SSE Parsing
+export { parseSSELine, type SSECurrentEvent, type SSEParseResult } from './lib/sseParser';
+
+// URL Utilities
+export { extractDomain, getFaviconUrl, getHostname, faviconFromHostname } from './lib/urlUtils';
 
 // Lib
 export { cn } from './lib/utils';

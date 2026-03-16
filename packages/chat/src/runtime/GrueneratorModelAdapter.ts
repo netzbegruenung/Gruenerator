@@ -14,8 +14,10 @@ import type {
   StreamMetadata,
   ProgressStep,
 } from '../hooks/useChatGraphStream';
-import type { ToolKey } from '../stores/chatStore';
+import type { ToolKey, type ThreadMode, type SearchMode } from '../stores/chatStore';
 import { parseAllMentions } from '../lib/mentionParser';
+import { parseSSELine } from '../lib/sseParser';
+import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../lib/toolMappings';
 import { useDocumentChatStore } from '../stores/documentChatStore';
 
 export type GrueneratorMessageMetadata = {
@@ -25,6 +27,7 @@ export type GrueneratorMessageMetadata = {
   generatedImage?: GeneratedImage;
   streamMetadata?: StreamMetadata;
   threadId?: string;
+  followUpSuggestions?: string[];
   [key: string]: unknown;
 };
 
@@ -35,37 +38,14 @@ export interface GrueneratorAdapterConfig {
   threadId: string | null;
   useDeepAgent?: boolean;
   selectedNotebookId?: string;
+  threadMode?: ThreadMode;
+  searchMode?: SearchMode;
 }
 
 export interface GrueneratorAdapterCallbacks {
   onThreadCreated?: (threadId: string) => void;
   onComplete?: (metadata: StreamMetadata) => void;
 }
-
-function parseSSELine(
-  line: string,
-  currentEvent: { type: string }
-): { event?: string; data?: unknown } {
-  if (line.startsWith('event: ')) {
-    currentEvent.type = line.slice(7).trim();
-    return {};
-  }
-
-  if (line.startsWith('data: ')) {
-    try {
-      const data = JSON.parse(line.slice(6));
-      const event = currentEvent.type;
-      currentEvent.type = '';
-      return { event, data };
-    } catch {
-      return {};
-    }
-  }
-
-  return {};
-}
-
-import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../lib/toolMappings';
 
 interface ToolCallPart {
   type: 'tool-call';
@@ -161,6 +141,7 @@ async function* parseSSEStream(
   let receivedSearchResults: SearchResult[] = [];
   let receivedCitations: Citation[] = [];
   let receivedImage: GeneratedImage | null = null;
+  let receivedFollowUpSuggestions: string[] = [];
   let receivedMetadata: StreamMetadata | null = null;
   let activeToolCall: ToolCallPart | null = null;
   const allToolCalls: ToolCallPart[] = [];
@@ -200,6 +181,8 @@ async function* parseSSEStream(
     if (receivedCitations.length > 0) custom.citations = receivedCitations;
     if (receivedImage) custom.generatedImage = receivedImage;
     if (receivedMetadata) custom.streamMetadata = receivedMetadata;
+    if (receivedFollowUpSuggestions.length > 0)
+      custom.followUpSuggestions = receivedFollowUpSuggestions;
 
     const isInterrupted = interruptPending && currentProgress.stage === 'complete';
 
@@ -451,7 +434,13 @@ async function* parseSSEStream(
         }
 
         case 'text_delta': {
-          accumulatedText += (data as { text: string }).text;
+          const delta = (data as { text: string }).text;
+          accumulatedText += delta;
+          if (accumulatedText.length <= 20 || accumulatedText.length % 200 === 0) {
+            console.debug(
+              `[SSE] text_delta: +${delta.length} chars, total=${accumulatedText.length}`
+            );
+          }
           yield buildResult();
           break;
         }
@@ -488,6 +477,88 @@ async function* parseSSEStream(
         case 'document_indexed': {
           const { documentId } = data as { documentId: string };
           outcome.indexedDocumentIds.push(documentId);
+          break;
+        }
+
+        // ── Search mode events ──
+        case 'sources_preview': {
+          console.debug(`[SSE] sources_preview: ${(data as any)?.results?.length || 0} results`);
+          const { results: previewResults, resultCount } = data as {
+            results?: SearchResult[];
+            resultCount?: number;
+          };
+          if (previewResults) {
+            receivedSearchResults = previewResults;
+            // Create synthetic search_sources tool call for sources-first rendering
+            const sourcesToolCall: ToolCallPart = {
+              type: 'tool-call',
+              toolCallId: `tc_sources_${Date.now()}`,
+              toolName: 'search_sources',
+              argsText: '{}',
+              args: {},
+              result: {
+                results: previewResults,
+                resultCount: resultCount || previewResults.length,
+              },
+            };
+            allToolCalls.push(sourcesToolCall);
+          }
+          transitionStep('generating', 'Generierung');
+          break;
+        }
+
+        case 'suggestions': {
+          const { suggestions: sugg } = data as { suggestions?: string[] };
+          if (sugg) {
+            receivedFollowUpSuggestions = sugg;
+          }
+          break;
+        }
+
+        case 'research_step': {
+          const { step, message } = data as { step: string; message: string };
+          transitionStep(step as ProgressStage, message);
+          currentProgress = { stage: step as ProgressStage, message };
+          break;
+        }
+
+        // ── Notebook mode events ──
+        case 'completion': {
+          const completionData = data as {
+            text?: string;
+            citations?: Array<{
+              index: string;
+              cited_text?: string;
+              document_title?: string;
+              document_id?: string;
+              source_url?: string | null;
+              similarity_score?: number;
+              chunk_index?: number;
+              collection_id?: string;
+              collection_name?: string;
+            }>;
+          };
+          if (completionData.text) {
+            // Normalize [cite:N] markers to [N]
+            accumulatedText = completionData.text.replace(/\[cite:(\d+)\]/g, '[$1]');
+          }
+          if (completionData.citations) {
+            receivedCitations = completionData.citations.map((c) => ({
+              id: parseInt(c.index, 10),
+              title: c.document_title ?? '',
+              url: c.source_url ?? '',
+              snippet: c.cited_text ?? '',
+              citedText: c.cited_text,
+              source: c.collection_name ?? '',
+              collectionName: c.collection_name,
+              documentId: c.document_id,
+              chunkIndex: c.chunk_index,
+              similarityScore: c.similarity_score,
+              collectionId: c.collection_id,
+            }));
+          }
+          transitionStep('complete');
+          currentProgress = { stage: 'complete', message: '' };
           break;
         }
 
@@ -675,6 +746,9 @@ export function createGrueneratorModelAdapter(
         return { id: m.id, role: m.role, parts };
       });
 
+      // Skip attachment extraction and mention parsing for non-chat modes
+      const isChatMode = !config.threadMode || config.threadMode === 'chat';
+
       // Extract attachments from AUI's CompleteAttachment objects on the last user message.
       // AUI stores file/image content in message.attachments[].content, NOT in message.content.
       const extractedAttachments: Array<{
@@ -686,7 +760,7 @@ export function createGrueneratorModelAdapter(
       }> = [];
 
       const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
-      if (lastUserMsg && 'attachments' in lastUserMsg) {
+      if (isChatMode && lastUserMsg && 'attachments' in lastUserMsg) {
         for (const attachment of lastUserMsg.attachments as unknown as Array<{
           name?: string;
           contentType?: string;
@@ -736,6 +810,7 @@ export function createGrueneratorModelAdapter(
       }
 
       // Extract @-mentions from the last user message for agent routing + notebook/document scoping
+      // Only applies in chat mode — search and notebook modes don't use mentions
       let effectiveAgentId = config.agentId;
       let notebookIds: string[] = [];
       let forcedTools: string[] = [];
@@ -744,43 +819,77 @@ export function createGrueneratorModelAdapter(
       let boardIds: string[] = [];
       let docMentionIds: string[] = [];
       let hasDocumentChat = false;
-      for (let i = formattedMessages.length - 1; i >= 0; i--) {
-        const msg = formattedMessages[i];
-        if (msg.role !== 'user') continue;
-        const textPart = msg.parts.find(
-          (p): p is { type: 'text'; text: string } => p.type === 'text'
-        );
-        if (textPart) {
-          const parsed = parseAllMentions(textPart.text);
-          effectiveAgentId = parsed.agentId;
-          notebookIds = parsed.notebookIds;
-          forcedTools = parsed.forcedTools;
-          documentIds = parsed.documentIds;
-          textIds = parsed.textIds;
-          boardIds = parsed.boardIds;
-          docMentionIds = parsed.docMentionIds;
-          hasDocumentChat = parsed.hasDocumentChat;
-          textPart.text = parsed.cleanText;
-          console.debug(
-            `[ModelAdapter:${runId}] Mentions parsed — forcedTools=${JSON.stringify(forcedTools)}, agentId=${effectiveAgentId}, cleanText="${parsed.cleanText.slice(0, 60)}"`
+      if (isChatMode)
+        for (let i = formattedMessages.length - 1; i >= 0; i--) {
+          const msg = formattedMessages[i];
+          if (msg.role !== 'user') continue;
+          const textPart = msg.parts.find(
+            (p): p is { type: 'text'; text: string } => p.type === 'text'
           );
+          if (textPart) {
+            const parsed = parseAllMentions(textPart.text);
+            effectiveAgentId = parsed.agentId;
+            notebookIds = parsed.notebookIds;
+            forcedTools = parsed.forcedTools;
+            documentIds = parsed.documentIds;
+            textIds = parsed.textIds;
+            boardIds = parsed.boardIds;
+            docMentionIds = parsed.docMentionIds;
+            hasDocumentChat = parsed.hasDocumentChat;
+            textPart.text = parsed.cleanText;
+            console.debug(
+              `[ModelAdapter:${runId}] Mentions parsed — forcedTools=${JSON.stringify(forcedTools)}, agentId=${effectiveAgentId}, cleanText="${parsed.cleanText.slice(0, 60)}"`
+            );
+          }
+          break;
         }
-        break;
-      }
 
       // Read thread-persisted documentChatIds for follow-up messages
       const dcStore = useDocumentChatStore.getState();
       const documentChatIds = dcStore.getForThread(config.threadId);
 
       const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
-      const endpoint = config.useDeepAgent ? endpoints.deepStream : endpoints.chatStream;
-      console.debug(
-        `[ModelAdapter:${runId}] Sending stream request → ${endpoint}, threadId=${config.threadId}`
-      );
-      const response = await configFetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const threadMode = config.threadMode || 'chat';
+
+      // Mode-aware endpoint selection
+      const endpoint =
+        threadMode === 'search'
+          ? endpoints.searchStream
+          : threadMode === 'notebook'
+            ? endpoints.notebookStream
+            : config.useDeepAgent
+              ? endpoints.deepStream
+              : endpoints.chatStream;
+
+      // Mode-aware request body
+      let requestBody: Record<string, unknown>;
+
+      if (threadMode === 'search') {
+        // Search mode: simple query + searchMode, no mentions/attachments
+        const lastUserText = formattedMessages
+          .filter((m) => m.role === 'user')
+          .pop()
+          ?.parts?.find((p: { type: string }) => p.type === 'text') as { text: string } | undefined;
+        requestBody = {
+          query: lastUserText?.text || '',
+          messages: formattedMessages,
+          threadId: config.threadId,
+          searchMode: config.searchMode || 'web',
+        };
+      } else if (threadMode === 'notebook') {
+        // Notebook mode: query + collection scoping from selectedNotebookId
+        const lastUserText = formattedMessages
+          .filter((m) => m.role === 'user')
+          .pop()
+          ?.parts?.find((p: { type: string }) => p.type === 'text') as { text: string } | undefined;
+        requestBody = {
+          query: lastUserText?.text || '',
+          notebookId: config.selectedNotebookId || 'gruenerator-notebook',
+          threadId: config.threadId,
+        };
+      } else {
+        // Chat mode: full request with mentions, attachments, tools
+        requestBody = {
           messages: formattedMessages,
           agentId: effectiveAgentId,
           threadId: config.threadId,
@@ -796,7 +905,16 @@ export function createGrueneratorModelAdapter(
           documentChatIds: documentChatIds.length > 0 ? documentChatIds : undefined,
           documentChatMode: hasDocumentChat || documentChatIds.length > 0 || undefined,
           defaultNotebookId: config.selectedNotebookId || undefined,
-        }),
+        };
+      }
+
+      console.debug(
+        `[ModelAdapter:${runId}] Sending stream request → ${endpoint}, threadId=${config.threadId}, mode=${threadMode}`
+      );
+      const response = await configFetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
         signal: abortSignal,
       });
 

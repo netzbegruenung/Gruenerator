@@ -4,6 +4,7 @@ import type {
   ChatModelRunResult,
 } from '@assistant-ui/react';
 import { type ChatProgress, type Citation as ChatCitation } from '../hooks/useChatGraphStream';
+import { parseSSELine } from '../lib/sseParser';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
 function normalizeCiteMarkers(text: string): string {
@@ -94,29 +95,6 @@ interface StreamCompletionData {
 
 export interface NotebookAdapterCallbacks {
   onComplete?: (metadata: NotebookMessageMetadata) => void;
-}
-
-function parseSSELine(
-  line: string,
-  currentEvent: { type: string }
-): { event?: string; data?: unknown } {
-  if (line.startsWith('event: ')) {
-    currentEvent.type = line.slice(7).trim();
-    return {};
-  }
-
-  if (line.startsWith('data: ')) {
-    try {
-      const data = JSON.parse(line.slice(6));
-      const event = currentEvent.type;
-      currentEvent.type = '';
-      return { event, data };
-    } catch {
-      return {};
-    }
-  }
-
-  return {};
 }
 
 export function createNotebookModelAdapter(

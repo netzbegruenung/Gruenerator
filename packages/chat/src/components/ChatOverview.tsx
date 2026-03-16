@@ -47,7 +47,7 @@ function ExampleSuggestions() {
   );
 }
 
-function SwitchToThreadOnSend() {
+export function SwitchToThreadOnSend() {
   const thread = useThread();
   const hasNavigated = useRef(false);
 
@@ -74,11 +74,17 @@ interface ChatOverviewProps {
   firstName?: string | null;
   notebooks?: NotebookLink[];
   onNavigate?: (path: string) => void;
+  onSelectNotebook?: (notebookId: string) => void;
 }
 
 const INITIAL_NOTEBOOK_COUNT = 3;
 
-export function ChatOverview({ firstName, notebooks, onNavigate }: ChatOverviewProps) {
+export function ChatOverview({
+  firstName,
+  notebooks,
+  onNavigate,
+  onSelectNotebook,
+}: ChatOverviewProps) {
   const assistantRuntime = useAssistantRuntime();
   const [showAllNotebooks, setShowAllNotebooks] = useState(false);
 
@@ -128,7 +134,9 @@ export function ChatOverview({ firstName, notebooks, onNavigate }: ChatOverviewP
               (nb) => (
                 <button
                   key={nb.id}
-                  onClick={() => onNavigate?.(nb.path)}
+                  onClick={() =>
+                    onSelectNotebook ? onSelectNotebook(nb.id) : onNavigate?.(nb.path)
+                  }
                   className={cn(
                     'rounded-full border border-border bg-background-alt px-4 py-2 text-sm text-foreground transition-all',
                     'hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm'

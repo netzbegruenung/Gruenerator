@@ -3,6 +3,7 @@
 import type { ChatApiClient } from '../context/ChatContext';
 import type { unstable_RemoteThreadListAdapter as RemoteThreadListAdapter } from '@assistant-ui/react';
 import { createAssistantStream } from 'assistant-stream';
+import { useAgentStore } from '../stores/chatStore';
 
 interface ApiThread {
   id: string;
@@ -10,6 +11,7 @@ interface ApiThread {
   agentId: string;
   title: string | null;
   status?: string;
+  threadType?: string;
   accessType?: 'owner' | 'shared' | 'group';
   createdAt: string;
   updatedAt: string;
@@ -28,6 +30,13 @@ export interface ExternalThreadEntry {
 }
 
 const EXTERNAL_PREFIX = 'notebook:';
+
+// Module-level thread type cache — populated by list() and accessible by ThreadListItem
+const threadTypeCache = new Map<string, string>();
+
+export function getThreadType(remoteId: string): string {
+  return threadTypeCache.get(remoteId) || 'chat';
+}
 
 function isExternal(remoteId: string) {
   return remoteId.startsWith(EXTERNAL_PREFIX);
@@ -66,6 +75,11 @@ export function createGrueneratorThreadListAdapter(
 
         const external = callbacks?.getExternalThreads?.() ?? [];
 
+        // Populate thread type cache for ThreadListItem badge rendering
+        for (const t of cachedThreads) {
+          threadTypeCache.set(t.id, t.threadType || 'chat');
+        }
+
         const apiEntries = cachedThreads.map((t) => ({
           remoteId: t.id,
           status: (t.status === 'archived' ? 'archived' : 'regular') as 'regular' | 'archived',
@@ -94,6 +108,7 @@ export function createGrueneratorThreadListAdapter(
     },
 
     async initialize(_localId: string) {
+      const threadMode = useAgentStore.getState().threadMode;
       const emptyThread = cachedThreads.find(
         (t) => t.agentId === agentId && !t.lastMessage && t.status !== 'archived'
       );
@@ -102,6 +117,7 @@ export function createGrueneratorThreadListAdapter(
       }
       const result = await apiClient.post<{ id: string }>('/api/chat-service/threads', {
         agentId,
+        threadType: threadMode,
       });
       return { remoteId: result.id, externalId: undefined };
     },
@@ -147,6 +163,13 @@ export function createGrueneratorThreadListAdapter(
       const threads = await apiClient.get<ApiThread[]>('/api/chat-service/threads');
       const thread = threads.find((t) => t.id === remoteId);
       if (!thread) throw new Error(`Thread ${remoteId} not found`);
+
+      // Restore threadMode from the loaded thread's type
+      const threadType = thread.threadType || 'chat';
+      if (threadType === 'chat' || threadType === 'notebook' || threadType === 'search') {
+        useAgentStore.getState().setThreadMode(threadType);
+      }
+
       return {
         remoteId: thread.id,
         status: (thread.status === 'archived' ? 'archived' : 'regular') as 'regular' | 'archived',
