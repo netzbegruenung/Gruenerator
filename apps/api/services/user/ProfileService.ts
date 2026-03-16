@@ -197,6 +197,8 @@ class ProfileService {
         prompts: 'prompts',
         scanner: 'scanner',
         docs: 'docs',
+        boards: 'boards',
+        memories: 'memory_enabled',
       };
 
       if (featureColumnMap[feature]) {
@@ -451,6 +453,8 @@ class ProfileService {
       prompts: profile.prompts || false,
       scanner: profile.scanner || false,
       docs: profile.docs || false,
+      boards: profile.boards || false,
+      memories: profile.memory_enabled ?? true,
     };
 
     return {
@@ -487,6 +491,7 @@ class ProfileService {
       videoEditor: 'video_editor',
       prompts: 'prompts',
       scanner: 'scanner',
+      memories: 'memory_enabled',
     };
 
     Object.entries(featureMap).forEach(([key, column]) => {

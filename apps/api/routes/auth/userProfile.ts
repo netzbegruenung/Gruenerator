@@ -263,6 +263,8 @@ router.patch(
         'prompts',
         'scanner',
         'docs',
+        'boards',
+        'memories',
       ];
 
       if (!allowedFeatures.includes(feature)) {

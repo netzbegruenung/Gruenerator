@@ -159,10 +159,17 @@ export class OCRService {
    * Provider is controlled by OCR_PROVIDER env var: 'mistral' (default) or 'docling'.
    * When set to 'docling', falls back to Mistral if the Docling sidecar is unreachable.
    */
-  async extractTextFromDocument(filePath: string): Promise<DocumentExtractionResult> {
+  async extractTextFromDocument(
+    filePath: string,
+    preferredProvider?: string
+  ): Promise<DocumentExtractionResult> {
     const startTime = Date.now();
     const fileExtension = path.extname(filePath).toLowerCase();
-    const configuredProvider = (process.env.OCR_PROVIDER || 'mistral').toLowerCase();
+    const configuredProvider = (
+      preferredProvider ||
+      process.env.OCR_PROVIDER ||
+      'mistral'
+    ).toLowerCase();
     console.log(
       `[OCRService] Starting document text extraction (provider=${configuredProvider}): ${filePath} (${fileExtension})`
     );

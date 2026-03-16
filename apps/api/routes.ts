@@ -26,6 +26,7 @@ import {
   searchController as searchRouter,
   webSearchController as webSearchRouter,
 } from './routes/search/index.js';
+import searchGraphRouter from './routes/search/searchGraphController.js';
 import shareRouter from './routes/share/shareController.js';
 import editSessionRouter from './routes/sharepic/editSession.js';
 import promptRoute from './routes/sharepic/promptRoute.js';
@@ -178,6 +179,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: chatServiceRouter } = await import('./routes/chat/index.js');
   const { default: chatGraphRouter } = await import('./routes/chat/chatGraphController.js');
   const { default: chatDeepRouter } = await import('./routes/chat/chatDeepController.js'); // @experimental — DeepAgent, not production-ready
+  const { default: threadSharingRouter } = await import('./routes/chat/threadSharingController.js');
   const { default: gruenOMatRouter } = await import('./routes/gruenomat/gruenOMatController.js');
   const { default: mediaRouter } = await import('./routes/media/mediaController.js');
   const { sitesController: sitesRouter, publicController: publicSiteRouter } =
@@ -187,6 +189,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: unsplashRouter } = await import('./routes/unsplash/unsplashRoutes.js');
   const { default: docsRouter } = await import('./routes/docs/index.js');
   const { default: publicDocRouter } = await import('./routes/docs/publicDocController.js');
+  const { default: boardsRouter } = await import('./routes/boards/boardsController.js');
+  const { default: publicBoardRouter } = await import('./routes/boards/publicBoardController.js');
   const { default: usersRouter } = await import('./routes/users/userController.js');
   const { default: smartTexteRouter } = await import('./routes/texte/smart.js');
   const { default: contentTitleRouter } = await import('./routes/texte/contentTitleRoute.js');
@@ -215,6 +219,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/claude_text_improver', aiGenerationLimiter, claudeTextImproverRoute);
   app.use('/api/chat', aiGenerationLimiter, grueneratorChatRoute);
   app.use('/api/chat-service', standardMutationLimiter, chatServiceRouter);
+  app.use('/api/chat-service/threads', standardMutationLimiter, threadSharingRouter);
   app.use('/api/chat-graph', aiGenerationLimiter, chatGraphRouter);
   app.use('/api/chat-deep', aiGenerationLimiter, chatDeepRouter); // @experimental — DeepAgent route, not production-ready
   app.use('/api/gruen-o-mat', gruenOMatRouter);
@@ -343,11 +348,14 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/media', requireAuth, mediaRouter);
   app.use('/api/docs/public', publicDocRouter);
   app.use('/api/docs', requireAuth, docsRouter);
+  app.use('/api/boards/public', publicBoardRouter);
+  app.use('/api/boards', requireAuth, boardsRouter);
   app.use('/api/users', requireAuth, usersRouter);
   app.use('/api/voice', voiceRouter);
   app.use('/api/voice/tts', requireAuth, ttsRouter);
   app.use('/api/search', searchRouter);
   app.use('/api/analyze', searchRouter);
+  app.use('/api/search-graph', requireAuth, searchGraphRouter);
   app.use('/api/image-picker', imagePickerRoute);
   app.use('/api/unsplash', unsplashRouter);
   app.use('/api/web-search', webSearchRouter);

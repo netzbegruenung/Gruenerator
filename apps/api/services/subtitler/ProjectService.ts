@@ -465,6 +465,9 @@ export class SubtitlerProjectService {
 
   generateThumbnail(videoPath: string, outputPath: string): Promise<string> {
     return new Promise((resolve, reject) => {
+      // Scale to fit within 480px on the longest side, preserving original aspect ratio.
+      // Portrait (9:16) videos → ~270x480, landscape (16:9) → 480x270.
+      // No padding/letterboxing — the thumbnail matches the video's native shape.
       const ffmpeg: ChildProcess = spawn('ffmpeg', [
         '-y',
         '-i',
@@ -474,7 +477,7 @@ export class SubtitlerProjectService {
         '-vframes',
         '1',
         '-vf',
-        'scale=320:180:force_original_aspect_ratio=decrease,pad=320:180:(ow-iw)/2:(oh-ih)/2',
+        'scale=480:480:force_original_aspect_ratio=decrease',
         '-q:v',
         '2',
         outputPath,

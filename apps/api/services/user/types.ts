@@ -36,6 +36,7 @@ export interface UserProfile {
   scanner?: boolean;
   prompts?: boolean;
   docs?: boolean;
+  boards?: boolean;
   bundestag_api_enabled?: boolean;
   memory_enabled?: boolean;
   custom_prompt?: string;
@@ -98,6 +99,8 @@ export interface BetaFeatures {
   prompts: boolean;
   scanner: boolean;
   docs: boolean;
+  boards: boolean;
+  memories: boolean;
 }
 
 export interface ProfileStats {
