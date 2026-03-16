@@ -50,11 +50,11 @@ interface AnimatedUploadIconProps {
 export const AnimatedUploadIcon = ({ isDragOver, hasFile }: AnimatedUploadIconProps) => {
   return (
     <motion.div
-      className="scanner-upload-icon"
+      className="flex size-20 items-center justify-center text-foreground transition-colors duration-[250ms] ease-[cubic-bezier(0.4,0,0.2,1)] max-md:size-16 [&>svg]:size-10 max-md:[&>svg]:size-8"
       animate={isDragOver ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 400, damping: 20 }}
     >
-      <div className="scanner-upload-icon-circle">
+      <div className="flex size-20 items-center justify-center rounded-full bg-grey-100 transition-colors duration-[250ms] ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-primary hover:text-white dark:bg-grey-800 dark:hover:bg-primary-900 max-md:size-16">
         <motion.svg
           viewBox="0 0 48 48"
           fill="none"
@@ -92,7 +92,7 @@ interface AnimatedFileIconProps {
 export const AnimatedFileIcon = ({ isVisible }: AnimatedFileIconProps) => {
   return (
     <motion.div
-      className="scanner-file-icon"
+      className="flex size-14 shrink-0 items-center justify-center rounded-md bg-primary-50 text-primary max-md:size-12 [&>svg]:size-8 max-md:[&>svg]:size-7"
       variants={fileIconVariants}
       initial="hidden"
       animate={isVisible ? 'visible' : 'hidden'}
