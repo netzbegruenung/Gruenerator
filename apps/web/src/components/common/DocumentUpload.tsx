@@ -1,4 +1,4 @@
-import { Button } from '@gruenerator/ui';
+import { Button, Input } from '@gruenerator/ui';
 import { useShareLinks, type WolkeFileItem } from '@gruenerator/wolke';
 import React, { useState, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import {
@@ -668,9 +668,8 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                         <div className="form-field-wrapper">
                           {/* URL Input */}
                           <label className="form-label">Website URL *</label>
-                          <input
+                          <Input
                             type="url"
-                            className="form-input"
                             value={urlInput}
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                               handleUrlChange(e.target.value)
@@ -703,9 +702,8 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                     {(selectedFile || (uploadMode === 'url' && urlInput.trim())) && (
                       <div className="form-field-wrapper">
                         <label className="form-label">Titel des Dokuments *</label>
-                        <input
+                        <Input
                           type="text"
-                          className="form-input"
                           value={uploadTitle}
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                             setUploadTitle(e.target.value)
@@ -903,9 +901,8 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                     <div className="form-field-wrapper">
                       {/* URL Input */}
                       <label className="form-label">Website URL *</label>
-                      <input
+                      <Input
                         type="url"
-                        className="form-input"
                         value={urlInput}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                           handleUrlChange(e.target.value)
@@ -938,9 +935,8 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
                 {!autoUpload && (selectedFile || (uploadMode === 'url' && urlInput.trim())) && (
                   <div className="form-field-wrapper">
                     <label className="form-label">Titel des Dokuments *</label>
-                    <input
+                    <Input
                       type="text"
-                      className="form-input"
                       value={uploadTitle}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                         setUploadTitle(e.target.value)

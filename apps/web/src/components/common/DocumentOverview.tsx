@@ -7,6 +7,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
+  Input,
 } from '@gruenerator/ui';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { FaFileWord, FaFilePdf } from 'react-icons/fa6';
@@ -598,9 +599,9 @@ const DocumentOverview = ({
 
           {editingTitle === item.id ? (
             <div className="flex flex-col gap-xs flex-1">
-              <input
+              <Input
                 type="text"
-                className="form-input text-base font-semibold p-xs"
+                className="text-base font-semibold p-xs"
                 value={newTitle}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTitle(e.target.value)}
                 onKeyDown={(e: React.KeyboardEvent) => {
@@ -951,9 +952,9 @@ const DocumentOverview = ({
           {enableLocalSearch && (
             <div className="relative max-w-[250px] shrink-0 max-md:max-w-none max-md:min-w-0">
               <HiOutlineSearch className="absolute left-sm top-1/2 -translate-y-1/2 text-grey-500 dark:text-grey-400 text-[1.1rem] pointer-events-none" />
-              <input
+              <Input
                 type="text"
-                className="form-input pl-[calc(var(--spacing-sm)*2+1.1rem)] w-full rounded-[20px] border border-grey-200 dark:border-grey-700 bg-background transition-[border-color,box-shadow] duration-200 focus:outline-none focus:border-primary-600 focus:ring-[3px] focus:ring-primary-600/10 text-sm"
+                className="pl-[calc(var(--spacing-sm)*2+1.1rem)] w-full rounded-[20px] border border-grey-200 dark:border-grey-700 bg-background transition-[border-color,box-shadow] duration-200 focus:outline-none focus:border-primary-600 focus:ring-[3px] focus:ring-primary-600/10 text-sm"
                 placeholder={searchPlaceholder}
                 value={searchState.searchQuery}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -965,7 +966,7 @@ const DocumentOverview = ({
           {remoteSearchEnabled && (
             <div className="ml-2">
               <select
-                className="form-select"
+                className="h-11 w-full rounded-sm border-0 bg-input-bg px-sm py-sm text-sm text-input-text outline-none appearance-none cursor-pointer"
                 value={searchState.searchMode}
                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
                   searchState.setSearchMode(e.target.value)
@@ -997,7 +998,7 @@ const DocumentOverview = ({
 
           <div className="flex gap-xs items-center max-md:justify-between max-md:w-full">
             <select
-              className="form-select min-w-[140px] rounded-lg"
+              className="h-11 min-w-[140px] rounded-lg border-0 bg-input-bg px-sm py-sm text-sm text-input-text outline-none appearance-none cursor-pointer"
               value={sortBy}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSortBy(e.target.value)}
             >
