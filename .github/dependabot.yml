@@ -676,6 +676,32 @@ updates:
           - 'tauri*'
 
   # =============================================================================
+  # VOXTRAL - Self-hosted transcription service (Python)
+  # =============================================================================
+  - package-ecosystem: 'pip'
+    directory: '/services/voxtral'
+    schedule:
+      interval: 'weekly'
+      day: 'saturday'
+      time: '05:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'voxtral'
+    groups:
+      ml-deps:
+        patterns:
+          - 'torch'
+          - 'transformers'
+          - 'mistral-common'
+      server-deps:
+        patterns:
+          - 'fastapi'
+          - 'uvicorn'
+          - 'python-multipart'
+
+  # =============================================================================
   # GITHUB ACTIONS - CI/CD workflows (DAILY for security)
   # =============================================================================
   - package-ecosystem: 'github-actions'
