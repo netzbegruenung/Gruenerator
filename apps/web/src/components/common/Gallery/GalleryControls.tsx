@@ -6,7 +6,6 @@ import { HiCog6Tooth } from 'react-icons/hi2';
 import SearchBar from '../../../features/search/components/SearchBar';
 import AddTemplateModal from '../AddTemplateModal/AddTemplateModal';
 
-import '../../../assets/styles/components/profile/profile-action-buttons.css';
 import { cn } from '@/utils/cn';
 
 interface CategoryItem {
