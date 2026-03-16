@@ -177,13 +177,6 @@ router.post(
           [group.id, userId, 'admin']
         );
 
-        // 3. Create empty instructions entry
-        await postgres.transactionExec(
-          client,
-          'INSERT INTO group_instructions (group_id) VALUES ($1)',
-          [group.id]
-        );
-
         return group;
       });
 
@@ -267,7 +260,7 @@ router.delete(
           groupId,
         ]);
 
-        // 2. Delete group instructions
+        // 2. Delete group instructions (deprecated table, clean up remaining rows)
         await postgres.transactionExec(
           client,
           'DELETE FROM group_instructions WHERE group_id = $1',
@@ -488,14 +481,7 @@ router.get(
         throw new Error('Group not found');
       }
 
-      // 3. Fetch instructions (only custom_prompt remains active - all specific types deprecated)
-      const instructions = await postgres.queryOne(
-        'SELECT group_id, custom_prompt, instructions_enabled FROM group_instructions WHERE group_id = $1',
-        [groupId],
-        { table: 'group_instructions' }
-      );
-
-      // 4. Fetch knowledge
+      // 3. Fetch knowledge
       const knowledge = await postgres.query(
         'SELECT id, title, content, created_by, created_at, updated_at FROM group_knowledge WHERE group_id = $1 ORDER BY created_at ASC',
         [groupId],
@@ -508,11 +494,6 @@ router.get(
       res.json({
         success: true,
         group: group,
-        instructions: instructions || {
-          group_id: groupId,
-          custom_prompt: '',
-          instructions_enabled: false,
-        },
         knowledge: knowledge || [],
         membership: {
           role: membership.role,

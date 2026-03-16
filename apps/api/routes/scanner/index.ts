@@ -85,8 +85,12 @@ router.post(
       await fs.writeFile(tempFilePath, buffer);
       log.debug(`Temp file created: ${tempFilePath}`);
 
-      // Extract text using OcrService
-      const result = await ocrService.extractTextFromDocument(tempFilePath);
+      // Extract text using OcrService (optional per-request provider override)
+      const provider = req.body?.provider || req.query?.provider;
+      const result = await ocrService.extractTextFromDocument(
+        tempFilePath,
+        provider as string | undefined
+      );
       const processingTime = Date.now() - startTime;
 
       log.info(
