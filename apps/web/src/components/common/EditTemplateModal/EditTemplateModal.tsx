@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { HiX } from 'react-icons/hi';
 
 import { useTagAutocomplete } from '../TemplateModal';
-import '../TemplateModal/template-modal.css';
 
 interface TemplateData {
   id?: string;
@@ -131,24 +130,39 @@ const EditTemplateModal = ({
 
   const canSubmit = title.trim().length > 0;
 
+  const fieldClass =
+    'mb-md [&_label]:block [&_label]:mb-xs [&_label]:text-[0.875rem] [&_label]:font-medium [&_label]:text-foreground [&_input]:w-full [&_input]:py-sm [&_input]:px-md [&_input]:border [&_input]:border-grey-200 [&_input]:dark:border-grey-700 [&_input]:rounded-lg [&_input]:text-base [&_input]:text-foreground [&_input]:bg-background [&_input]:transition-colors [&_input]:duration-200 [&_input]:focus:outline-none [&_input]:focus:border-[var(--primary)] [&_textarea]:w-full [&_textarea]:py-sm [&_textarea]:px-md [&_textarea]:border [&_textarea]:border-grey-200 [&_textarea]:dark:border-grey-700 [&_textarea]:rounded-lg [&_textarea]:text-base [&_textarea]:text-foreground [&_textarea]:bg-background [&_textarea]:transition-colors [&_textarea]:duration-200 [&_textarea]:focus:outline-none [&_textarea]:focus:border-[var(--primary)] [&_textarea]:resize-y [&_textarea]:min-h-[60px]';
+
   const modalContent = (
-    <div className="template-modal-backdrop" onClick={handleBackdropClick}>
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-md max-md:p-0"
+      onClick={handleBackdropClick}
+    >
       <div
-        className="template-modal"
+        className="bg-background rounded-xl shadow-lg w-full max-w-[550px] max-h-[85vh] flex flex-col overflow-hidden min-[900px]:max-w-[750px] max-md:max-w-none max-md:max-h-none max-md:h-full max-md:rounded-none"
         role="dialog"
         aria-modal="true"
         aria-labelledby="template-modal-title"
       >
-        <div className="template-modal-header">
-          <h2 id="template-modal-title">Vorlage bearbeiten</h2>
-          <button className="template-modal-close" onClick={onClose} aria-label="Schließen">
+        <div className="flex items-center justify-between py-md px-lg border-b border-grey-200 dark:border-grey-700">
+          <h2
+            id="template-modal-title"
+            className="m-0 text-[1.25rem] font-semibold text-foreground"
+          >
+            Vorlage bearbeiten
+          </h2>
+          <button
+            className="bg-none border-none p-xs cursor-pointer text-grey-500 rounded-lg flex items-center justify-center transition-colors duration-200 hover:bg-hover-alt hover:text-foreground [&_svg]:w-5 [&_svg]:h-5"
+            onClick={onClose}
+            aria-label="Schließen"
+          >
             <HiX />
           </button>
         </div>
 
-        <div className="template-modal-body">
+        <div className="flex-1 overflow-y-auto p-lg">
           {thumbnailUrl && (
-            <div className="template-modal-preview-image template-modal-preview-image--large">
+            <div className="w-full max-h-[200px] h-auto flex items-center justify-center mb-md [&_img]:max-w-full [&_img]:max-h-[200px] [&_img]:w-auto [&_img]:h-auto [&_img]:object-contain">
               <img
                 src={thumbnailUrl}
                 alt="Vorschau"
@@ -159,7 +173,7 @@ const EditTemplateModal = ({
             </div>
           )}
 
-          <div className="template-modal-field">
+          <div className={fieldClass}>
             <label htmlFor="edit-title">Titel *</label>
             <input
               id="edit-title"
@@ -171,15 +185,13 @@ const EditTemplateModal = ({
             />
           </div>
 
-          <div className="template-modal-field">
+          <div className={fieldClass}>
             <label htmlFor="edit-description">Beschreibung</label>
-            <div className="template-modal-textarea-wrapper">
+            <div className="relative">
               {tagAutocomplete.suggestionSuffix && (
-                <div className="template-modal-ghost-text">
-                  <span className="template-modal-ghost-prefix">{tagAutocomplete.ghostPrefix}</span>
-                  <span className="template-modal-ghost-suffix">
-                    {tagAutocomplete.suggestionSuffix}
-                  </span>
+                <div className="absolute inset-0 py-sm px-md text-base font-[inherit] leading-normal pointer-events-none whitespace-pre-wrap break-words overflow-hidden border border-transparent rounded-lg">
+                  <span className="invisible">{tagAutocomplete.ghostPrefix}</span>
+                  <span className="text-grey-400">{tagAutocomplete.suggestionSuffix}</span>
                 </div>
               )}
               <textarea
@@ -191,11 +203,12 @@ const EditTemplateModal = ({
                 placeholder="Beschreibung der Vorlage..."
                 rows={3}
                 disabled={isSubmitting}
+                className="bg-transparent relative z-[1]"
               />
             </div>
           </div>
 
-          <div className="template-modal-field">
+          <div className={fieldClass}>
             <label htmlFor="edit-url">URL</label>
             <input
               id="edit-url"
@@ -207,7 +220,7 @@ const EditTemplateModal = ({
             />
           </div>
 
-          <div className="template-modal-field template-modal-checkbox">
+          <div className="mb-md [&_label]:flex [&_label]:items-center [&_label]:gap-sm [&_label]:cursor-pointer [&_input[type=checkbox]]:w-auto [&_input[type=checkbox]]:cursor-pointer [&_span]:font-normal">
             <label>
               <input
                 type="checkbox"
@@ -221,10 +234,12 @@ const EditTemplateModal = ({
             </label>
           </div>
 
-          {submitError && <p className="template-modal-error">{submitError}</p>}
+          {submitError && (
+            <p className="text-[var(--error-red)] text-[0.875rem] mt-xs mb-0">{submitError}</p>
+          )}
         </div>
 
-        <div className="template-modal-footer">
+        <div className="flex items-center justify-end gap-sm py-md px-lg border-t border-grey-200 dark:border-grey-700">
           <button className="pabtn pabtn--m pabtn--ghost" onClick={onClose} disabled={isSubmitting}>
             Abbrechen
           </button>

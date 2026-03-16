@@ -13,8 +13,6 @@ import { HiArrowLeft, HiArrowRight, HiCheck } from 'react-icons/hi';
 
 import Button from '../../SubmitButton';
 
-import './TypeformWizard.css';
-
 const DEFAULT_LABELS = {
   back: 'Zurück',
   next: 'Weiter',
@@ -289,13 +287,13 @@ const TypeformWizard = forwardRef<TypeformWizardRef, TypeformWizardProps>(
       <div className="typeform-container" onKeyDown={handleKeyDown}>
         <div className="typeform-content">
           {showProgress && (
-            <div className="typeform-progress">
-              <span className="typeform-progress__text">
+            <div className="flex flex-col gap-xs mb-lg">
+              <span className="text-sm text-grey-400 text-center">
                 {currentIndex + 1} / {fields.length}
               </span>
-              <div className="typeform-progress__bar">
+              <div className="h-1 bg-grey-200 dark:bg-grey-700 rounded-[2px] overflow-hidden">
                 <div
-                  className="typeform-progress__fill"
+                  className="h-full bg-primary-600 rounded-[2px] transition-[width] duration-300 ease-in-out"
                   style={{ width: `${((currentIndex + 1) / fields.length) * 100}%` }}
                 />
               </div>
@@ -323,7 +321,7 @@ const TypeformWizard = forwardRef<TypeformWizardRef, TypeformWizardProps>(
                 )}
               </div>
 
-              <div className="typeform-input-wrapper">
+              <div className="flex flex-col gap-sm [&_input]:w-full [&_input]:py-md [&_input]:px-0 [&_input]:text-2xl max-[768px]:[&_input]:text-lg [&_input]:leading-relaxed [&_input]:text-foreground [&_input]:bg-transparent [&_input]:border-0 [&_input]:border-b-2 [&_input]:border-b-grey-200 [&_input]:dark:border-b-grey-700 [&_input]:rounded-none [&_input]:outline-none [&_input]:min-h-0 [&_input]:transition-colors [&_input]:duration-200 [&_input]:focus:border-b-primary-600 [&_input]:placeholder:text-grey-400 [&_textarea]:w-full [&_textarea]:py-md [&_textarea]:px-0 [&_textarea]:text-2xl max-[768px]:[&_textarea]:text-lg [&_textarea]:leading-relaxed [&_textarea]:text-foreground [&_textarea]:bg-transparent [&_textarea]:border-0 [&_textarea]:border-b-2 [&_textarea]:border-b-grey-200 [&_textarea]:dark:border-b-grey-700 [&_textarea]:rounded-none [&_textarea]:outline-none [&_textarea]:min-h-0 [&_textarea]:transition-colors [&_textarea]:duration-200 [&_textarea]:focus:border-b-primary-600 [&_textarea]:placeholder:text-grey-400 [&_textarea]:resize-none [&_textarea]:h-auto [&_textarea]:overflow-hidden [&_select]:w-full [&_select]:p-md [&_select]:text-xl [&_select]:text-foreground [&_select]:bg-background [&_select]:border-2 [&_select]:border-grey-200 [&_select]:dark:border-grey-700 [&_select]:rounded-lg [&_select]:outline-none [&_select]:cursor-pointer [&_select]:transition-colors [&_select]:duration-200 [&_select]:appearance-none [&_select]:focus:border-primary-600">
                 {renderInput()}
 
                 {displayError && (
@@ -339,7 +337,7 @@ const TypeformWizard = forwardRef<TypeformWizardRef, TypeformWizardProps>(
             </motion.div>
           </AnimatePresence>
 
-          <div className="typeform-actions">
+          <div className="flex justify-between gap-md mt-lg">
             {showBackButton && (
               <Button
                 onClick={handleBack}

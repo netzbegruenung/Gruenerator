@@ -165,20 +165,17 @@ export default function VerifyFeature({
 
   return (
     <div className="flex justify-center items-center min-h-screen bg-black/50 fixed inset-0 z-[1000] backdrop-blur-[5px] transition-colors duration-300">
-      <div
-        className={cn(
-          'fixed inset-0 z-[1100] flex justify-center items-center animate-[fadeIn_0.2s_ease-out]'
-        )}
-      >
+      <div className={cn('fixed inset-0 z-[1100] flex justify-center items-center')}>
         <div
           className={cn(
-            'bg-background p-10 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.15)] max-w-[400px] w-[90%] animate-[slideIn_0.3s_ease-out] border border-background-alt transition-all duration-300',
-            isLocked && '[&_input]:border-[#d32f2f] [&_input]:bg-[rgba(211,47,47,0.05)] dark:[&_input]:bg-[rgba(211,47,47,0.1)]'
+            'bg-background p-10 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.15)] max-w-[400px] w-[90%] border border-background-alt transition-all duration-300',
+            isLocked &&
+              '[&_input]:border-[#d32f2f] [&_input]:bg-[rgba(211,47,47,0.05)] dark:[&_input]:bg-[rgba(211,47,47,0.1)]'
           )}
         >
-          <h2 className="text-[var(--primary)] m-0 mb-4 text-2xl text-center">{
-            'Zugriff verifizieren'
-          }</h2>
+          <h2 className="text-[var(--primary)] m-0 mb-4 text-2xl text-center">
+            Zugriff verifizieren
+          </h2>
           <p className="text-grey-500 mb-6 text-center text-[0.95rem]">
             Diese Funktion erfordert eine Verifizierung.
           </p>
@@ -209,7 +206,7 @@ export default function VerifyFeature({
             </div>
             {renderAttemptDots()}
             {error && (
-              <div className="text-[#d32f2f] text-[0.9rem] text-center bg-[rgba(211,47,47,0.1)] py-3 px-3 rounded-md animate-[shake_0.5s_ease-in-out]">
+              <div className="text-[#d32f2f] text-[0.9rem] text-center bg-[rgba(211,47,47,0.1)] py-3 px-3 rounded-md">
                 {error}
               </div>
             )}

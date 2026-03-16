@@ -1,3 +1,5 @@
+import { cn } from '../../../../utils/cn';
+
 interface CalloutBlockProps {
   title?: string;
   text?: string;
@@ -6,6 +8,9 @@ interface CalloutBlockProps {
   onClick?: () => void;
   className?: string;
 }
+
+const calloutButtonClass =
+  "bg-white text-secondary-600 py-md px-xl border-none rounded-lg font-['PT_Sans',Arial,sans-serif] text-base font-semibold cursor-pointer transition-all duration-200 no-underline inline-block hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(0,0,0,0.15)]";
 
 const CalloutBlock = ({
   title,
@@ -16,22 +21,35 @@ const CalloutBlock = ({
   className = '',
 }: CalloutBlockProps) => {
   return (
-    <div className={`callout-block ${className}`}>
-      {title && <h3 className="callout-block__title">{title}</h3>}
-      {text && <p className="callout-block__text">{text}</p>}
+    <div
+      className={cn(
+        'bg-gradient-to-br from-secondary-600 to-primary-600 text-white p-2xl my-2xl rounded-xl text-center shadow-xl w-full max-w-none min-[1025px]:p-[calc(var(--spacing-2xl)*1.5)] min-[1025px]:my-[calc(var(--spacing-2xl)*1.5)] max-md:p-xl',
+        className
+      )}
+    >
+      {title && (
+        <h3 className="text-[1.75rem] m-0 mb-md text-white min-[1025px]:text-[2rem] min-[1025px]:mb-lg max-md:text-[1.5rem]">
+          {title}
+        </h3>
+      )}
+      {text && (
+        <p className="text-lg leading-relaxed m-0 mb-lg opacity-95 min-[1025px]:text-[1.25rem] min-[1025px]:mb-xl">
+          {text}
+        </p>
+      )}
       {buttonText && (
         <>
           {buttonHref ? (
             <a
               href={buttonHref}
-              className="callout-block__button"
+              className={calloutButtonClass}
               target="_blank"
               rel="noopener noreferrer"
             >
               {buttonText}
             </a>
           ) : (
-            <button className="callout-block__button" onClick={onClick}>
+            <button className={calloutButtonClass} onClick={onClick}>
               {buttonText}
             </button>
           )}

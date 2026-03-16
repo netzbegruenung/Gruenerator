@@ -26,10 +26,15 @@ const RequiredFieldToggle = ({
   };
 
   return (
-    <div className={cn('inline-flex items-center gap-xs py-xxs', disabled && 'opacity-50 cursor-not-allowed')}>
+    <div
+      className={cn(
+        'inline-flex items-center gap-xs py-xxs',
+        disabled && 'opacity-50 cursor-not-allowed'
+      )}
+    >
       <Switch.Root
         className={cn(
-          'all-unset w-[38px] h-5 bg-background-alt border border-[var(--border-subtle)] rounded-[20px] relative shadow-sm transition-all cursor-pointer shrink-0',
+          '[all:unset] w-[38px] h-5 bg-background-alt [border:var(--border-subtle)] rounded-[20px] relative shadow-sm transition-all cursor-pointer shrink-0',
           'focus-visible:outline-2 focus-visible:outline-[var(--interactive-accent-color)] focus-visible:outline-offset-2',
           'data-[state=checked]:bg-[var(--button-color)] data-[state=checked]:border-[var(--button-color)]',
           'dark:data-[state=checked]:bg-[var(--klee)] dark:data-[state=checked]:border-[var(--klee)]',
@@ -48,10 +53,12 @@ const RequiredFieldToggle = ({
         />
       </Switch.Root>
       {showLabel && (
-        <span className={cn(
-          'text-[0.85rem] text-foreground font-medium select-none whitespace-nowrap',
-          disabled && 'text-[var(--font-color-disabled)]'
-        )}>
+        <span
+          className={cn(
+            'text-[0.85rem] text-foreground font-medium select-none whitespace-nowrap',
+            disabled && 'text-[var(--font-color-disabled)]'
+          )}
+        >
           {label}
         </span>
       )}

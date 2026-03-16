@@ -2,7 +2,6 @@ import { type JSX, useRef } from 'react';
 import { SiCanva } from 'react-icons/si';
 
 import CopyButton from './CopyButton';
-import '../../assets/styles/components/common/canva-template-modal.css';
 
 /**
  * CanvaTemplateModal - Rich modal for opening Canva templates
@@ -54,58 +53,68 @@ const CanvaTemplateModal = ({
   };
 
   return (
-    <div className="canva-template-modal-overlay" onClick={handleOverlayClick}>
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1100] p-md max-[560px]:p-sm"
+      onClick={handleOverlayClick}
+    >
       <div
-        className="canva-template-modal"
+        className="relative bg-background-pure rounded-lg shadow-xl border border-grey-200 dark:border-grey-700 max-w-[700px] w-full max-h-[85vh] overflow-y-auto animate-in fade-in slide-in-from-top-5 max-[560px]:max-h-[90vh] max-[560px]:max-w-full"
         ref={modalRef}
         onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
-        <button className="canva-template-modal-close" onClick={onClose} aria-label="Schliessen">
+        <button
+          className="absolute top-sm right-sm bg-background-pure border-none text-2xl text-foreground cursor-pointer p-xs rounded-sm transition-all duration-200 leading-none w-8 h-8 flex items-center justify-center z-[1] hover:bg-background-alt hover:text-primary-600"
+          onClick={onClose}
+          aria-label="Schliessen"
+        >
           &times;
         </button>
 
-        <div className="canva-template-modal-content">
+        <div className="flex flex-row gap-lg p-lg max-[560px]:flex-col max-[560px]:p-md max-[560px]:pt-xl">
           {previewImage && (
-            <div className="canva-template-preview">
+            <div className="shrink-0 flex items-center justify-center bg-background-alt rounded-sm p-sm max-[560px]:p-md">
               <img
                 src={previewImage}
                 alt="Vorlagenvorschau"
-                className="canva-template-preview-image"
+                className="w-[180px] h-auto rounded-sm object-contain max-[560px]:w-full max-[560px]:max-w-[200px]"
               />
             </div>
           )}
 
-          <div className="canva-template-info">
-            <div className="canva-template-modal-title">
-              <SiCanva className="canva-template-modal-icon" />
-              <h4>{title}</h4>
+          <div className="flex flex-col justify-center gap-md flex-1 max-[560px]:text-center max-[560px]:items-center">
+            <div className="flex items-center gap-sm">
+              <SiCanva className="w-6 h-6 text-primary-600" />
+              <h4 className="m-0 text-foreground-heading text-[1.1rem] font-semibold">{title}</h4>
             </div>
 
-            <div className="canva-template-description">
+            <div className="text-foreground text-[0.9rem] leading-relaxed [&_p]:m-0">
               <p>
                 Bearbeite diese Vorlage direkt in Canva. Du kannst Texte, Farben und Elemente nach
                 deinen Wünschen anpassen.
               </p>
             </div>
 
-            <div className="canva-template-actions">
-              <button className="canva-template-open-button" onClick={handleOpenCanva}>
-                <SiCanva className="canva-template-button-icon" />
+            <div className="flex max-[560px]:justify-center max-[560px]:w-full">
+              <button
+                className="flex items-center justify-center gap-sm bg-gradient-to-br from-[#7d2ae8] to-[#00c4cc] text-white border-none px-lg py-sm rounded-sm text-[0.95rem] font-semibold cursor-pointer transition-all duration-200 hover:scale-[1.01] hover:shadow-lg max-[560px]:w-full"
+                onClick={handleOpenCanva}
+              >
+                <SiCanva className="w-[18px] h-[18px]" />
                 In Canva öffnen
               </button>
             </div>
 
             {hasLines && (
-              <div className="canva-template-text">
-                <div className="canva-template-text-header">
+              <div className="mt-md p-md bg-background-alt rounded-sm w-full">
+                <div className="flex justify-between items-center mb-sm font-semibold text-[0.85rem] text-foreground-heading">
                   <span>Gedicht-Text:</span>
                   <CopyButton
                     directContent={formatLinesForCopy(sharepicLines)}
                     variant="icon"
-                    className="canva-template-copy-button"
+                    className="p-xs"
                   />
                 </div>
-                <div className="canva-template-text-content">
+                <div className="whitespace-pre-line font-sans text-[0.9rem] leading-relaxed text-foreground">
                   {formatLinesForCopy(sharepicLines)}
                 </div>
               </div>

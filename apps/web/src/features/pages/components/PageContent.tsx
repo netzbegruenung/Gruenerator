@@ -41,13 +41,17 @@ interface PageContentProps {
 const PageContent = ({ content, children }: PageContentProps) => {
   // If children are provided directly, use them
   if (children) {
-    return <div className="page-content">{children}</div>;
+    return (
+      <div className="font-['PT_Sans',Arial,sans-serif] text-lg leading-[1.7] text-foreground max-w-[clamp(640px,50vw,900px)] mx-auto min-[1025px]:leading-[1.8] max-[1024px]:min-[769px]:max-w-[clamp(600px,80vw,750px)] max-md:text-base max-md:max-w-none [&>p]:mb-lg min-[1025px]:[&>p]:mb-xl [&>h2]:mt-2xl [&>h2]:mb-lg [&>h3]:mt-2xl [&>h3]:mb-lg [&>h4]:mt-2xl [&>h4]:mb-lg [&>h2:first-child]:mt-0 [&>h3:first-child]:mt-0 [&>h4:first-child]:mt-0">
+        {children}
+      </div>
+    );
   }
 
   // If structured content is provided, render it
   if (content && Array.isArray(content)) {
     return (
-      <div className="page-content">
+      <div className="font-['PT_Sans',Arial,sans-serif] text-lg leading-[1.7] text-foreground max-w-[clamp(640px,50vw,900px)] mx-auto min-[1025px]:leading-[1.8] max-[1024px]:min-[769px]:max-w-[clamp(600px,80vw,750px)] max-md:text-base max-md:max-w-none [&>p]:mb-lg min-[1025px]:[&>p]:mb-xl [&>h2]:mt-2xl [&>h2]:mb-lg [&>h3]:mt-2xl [&>h3]:mb-lg [&>h4]:mt-2xl [&>h4]:mb-lg [&>h2:first-child]:mt-0 [&>h3:first-child]:mt-0 [&>h4:first-child]:mt-0">
         {content.map((block, index) => {
           switch (block.type) {
             case 'paragraph':
@@ -117,7 +121,7 @@ const PageContent = ({ content, children }: PageContentProps) => {
   // If string content is provided, render as paragraph
   if (typeof content === 'string') {
     return (
-      <div className="page-content">
+      <div className="font-['PT_Sans',Arial,sans-serif] text-lg leading-[1.7] text-foreground max-w-[clamp(640px,50vw,900px)] mx-auto min-[1025px]:leading-[1.8] max-[1024px]:min-[769px]:max-w-[clamp(600px,80vw,750px)] max-md:text-base max-md:max-w-none [&>p]:mb-lg min-[1025px]:[&>p]:mb-xl [&>h2]:mt-2xl [&>h2]:mb-lg [&>h3]:mt-2xl [&>h3]:mb-lg [&>h4]:mt-2xl [&>h4]:mb-lg [&>h2:first-child]:mt-0 [&>h3:first-child]:mt-0 [&>h4:first-child]:mt-0">
         <p>{content}</p>
       </div>
     );
@@ -125,7 +129,7 @@ const PageContent = ({ content, children }: PageContentProps) => {
 
   // Fallback for no content
   return (
-    <div className="page-content">
+    <div className="font-['PT_Sans',Arial,sans-serif] text-lg leading-[1.7] text-foreground max-w-[clamp(640px,50vw,900px)] mx-auto min-[1025px]:leading-[1.8] max-[1024px]:min-[769px]:max-w-[clamp(600px,80vw,750px)] max-md:text-base max-md:max-w-none [&>p]:mb-lg min-[1025px]:[&>p]:mb-xl [&>h2]:mt-2xl [&>h2]:mb-lg [&>h3]:mt-2xl [&>h3]:mb-lg [&>h4]:mt-2xl [&>h4]:mb-lg [&>h2:first-child]:mt-0 [&>h3:first-child]:mt-0 [&>h4:first-child]:mt-0">
       <p>Kein Inhalt verfügbar.</p>
     </div>
   );

@@ -40,7 +40,7 @@ const FeatureToggle = ({
   return (
     <div
       className={cn(
-        'relative flex flex-col p-md rounded-[var(--card-border-radius-small)] border border-[var(--card-border)] transition-all',
+        'relative flex flex-col p-md rounded-[var(--card-border-radius-small)] [border:var(--card-border)] transition-all',
         disabled && 'opacity-50 cursor-not-allowed',
         noBorder && 'border-none p-0',
         className
@@ -49,7 +49,7 @@ const FeatureToggle = ({
       <div className="flex items-center w-full gap-sm">
         <Switch.Root
           className={cn(
-            'all-unset w-[46px] h-[22px] bg-[var(--input-background)] border border-[var(--input-border)] rounded-[22px] relative shadow-sm transition-all cursor-pointer shrink-0',
+            '[all:unset] w-[46px] h-[22px] bg-[var(--input-background)] [border:var(--input-border)] rounded-[22px] relative shadow-sm transition-all cursor-pointer shrink-0',
             'focus-visible:outline-2 focus-visible:outline-[var(--interactive-accent-color)] focus-visible:outline-offset-2',
             'data-[state=checked]:bg-[var(--interactive-accent-color)] data-[state=checked]:border-[var(--interactive-accent-color)] data-[state=checked]:shadow-md'
           )}

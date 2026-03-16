@@ -7,7 +7,6 @@ import {
   IoArrowUndoOutline,
   IoArrowRedoOutline,
 } from 'react-icons/io5';
-import '../../assets/styles/components/actions/action-buttons.css';
 
 import { useLazyAuth } from '../../hooks/useAuth';
 import { useBetaFeatures } from '../../hooks/useBetaFeatures';
@@ -83,7 +82,7 @@ const ActionButtons = ({
   isEditing: _isEditing,
   allowEditing: _allowEditing = true,
   hideEditButton: _hideEditButton = false,
-  className = 'display-actions',
+  className = 'flex gap-2 items-center max-[768px]:gap-1.5',
   showExport = false,
   showDownload = true,
   showExportDropdown = true,
@@ -291,6 +290,9 @@ const ActionButtons = ({
     }
   }, [activeContent, shouldHideButtons, handleUndo, handleRedo]);
 
+  const actionBtnClass =
+    'bg-transparent border-none cursor-pointer p-2 flex items-center justify-center text-foreground-heading transition-all duration-200 rounded-[4px] hover:bg-primary-100 hover:dark:bg-grey-700 hover:shadow-sm active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:w-4 [&_svg]:h-4 max-[768px]:p-2.5 max-[768px]:min-w-[44px] max-[768px]:min-h-[44px] max-[768px]:[&_svg]:w-[18px] max-[768px]:[&_svg]:h-[18px]';
+
   // Button definitions for easy reordering
   const renderButton = (type: string) => {
     const exportDropdownProps = {
@@ -311,7 +313,7 @@ const ActionButtons = ({
         <button
           key="copy"
           onClick={handleCopyToClipboard}
-          className="action-button"
+          className={actionBtnClass}
           aria-label="Kopieren"
           {...(!isMobileView && {
             'data-tooltip-id': 'action-tooltip',
@@ -333,7 +335,7 @@ const ActionButtons = ({
         <button
           key="undo"
           onClick={handleUndo}
-          className="action-button"
+          className={actionBtnClass}
           aria-label="Rückgängig (Strg+Z)"
           disabled={!canUndoState}
           {...(!isMobileView && {
@@ -348,7 +350,7 @@ const ActionButtons = ({
         <button
           key="redo"
           onClick={handleRedo}
-          className="action-button"
+          className={actionBtnClass}
           aria-label="Wiederholen (Strg+Y)"
           disabled={!canRedoState}
           {...(!isMobileView && {
@@ -363,7 +365,7 @@ const ActionButtons = ({
         <button
           key="regenerate"
           onClick={onRegenerate}
-          className="action-button"
+          className={actionBtnClass}
           aria-label="Regenerieren"
           disabled={regenerateLoading}
           {...(!isMobileView && {
@@ -378,7 +380,7 @@ const ActionButtons = ({
         <button
           key="save"
           onClick={handleSave}
-          className="action-button"
+          className={actionBtnClass}
           aria-label="In Supabase speichern"
           disabled={saveLoading}
           {...(!isMobileView && {
@@ -393,7 +395,7 @@ const ActionButtons = ({
         <button
           key="reset"
           onClick={onReset}
-          className="action-button"
+          className={actionBtnClass}
           aria-label="Zurücksetzen"
           {...(!isMobileView && {
             'data-tooltip-id': 'action-tooltip',
