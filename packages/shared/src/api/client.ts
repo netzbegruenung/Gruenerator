@@ -38,12 +38,28 @@ export function createApiClient(options: CreateApiClientOptions): AxiosInstance 
     return config;
   });
 
-  // Response interceptor - handle 401 errors
+  // Response interceptor - handle 401 errors with retry after token refresh
   client.interceptors.response.use(
     (response) => response,
-    (error: AxiosError) => {
-      if (error.response?.status === 401 && onUnauthorized) {
-        onUnauthorized();
+    async (error: AxiosError) => {
+      const originalRequest = error.config;
+      if (
+        error.response?.status === 401 &&
+        onUnauthorized &&
+        originalRequest &&
+        !(originalRequest as any)._retried
+      ) {
+        (originalRequest as any)._retried = true;
+        const refreshed = await onUnauthorized();
+        if (refreshed) {
+          if (authMode === 'bearer' && getAuthToken) {
+            const token = await getAuthToken();
+            if (token) {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+            }
+          }
+          return client.request(originalRequest);
+        }
       }
       return Promise.reject(error);
     }
