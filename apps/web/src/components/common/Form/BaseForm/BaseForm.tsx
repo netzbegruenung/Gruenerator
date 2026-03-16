@@ -28,13 +28,8 @@ import React, {
 
 // Component-specific CSS (not globally loaded)
 import '../../../../assets/styles/components/ui/FeatureToggle.css';
-import '../../../../assets/styles/components/ui/AttachedFilesList.css';
-import '../../../../assets/styles/components/ui/spinner.css';
 import '../../../../assets/styles/components/ui/tooltip.css';
 import '../../../../assets/styles/components/ui/react-select.css';
-import '../../../../assets/styles/components/ui/knowledge-selector.css';
-import '../../../../assets/styles/components/ui/animatedcheckbox.css';
-import '../../../../assets/styles/components/ui/SegmentedControl.css';
 
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 import { useTextAutoSave } from '../../../../hooks/useTextAutoSave';
