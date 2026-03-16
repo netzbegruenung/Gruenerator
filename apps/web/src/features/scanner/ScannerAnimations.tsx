@@ -50,12 +50,13 @@ interface AnimatedUploadIconProps {
 export const AnimatedUploadIcon = ({ isDragOver, hasFile }: AnimatedUploadIconProps) => {
   return (
     <motion.div
-      className="flex size-20 items-center justify-center text-foreground transition-colors duration-[250ms] ease-[cubic-bezier(0.4,0,0.2,1)] max-md:size-16 [&>svg]:size-10 max-md:[&>svg]:size-8"
+      className="flex items-center justify-center"
       animate={isDragOver ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 400, damping: 20 }}
     >
-      <div className="flex size-20 items-center justify-center rounded-full bg-grey-100 transition-colors duration-[250ms] ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-primary hover:text-white dark:bg-grey-800 dark:hover:bg-primary-900 max-md:size-16">
+      <div className="flex size-20 items-center justify-center rounded-full bg-grey-100 text-foreground backdrop-blur-md transition-colors duration-[250ms] ease-[cubic-bezier(0.4,0,0.2,1)] transition-transform duration-300 ease-out hover:scale-105 dark:bg-[#2a2a2a]/80 max-md:size-16">
         <motion.svg
+          className="size-10 max-md:size-8"
           viewBox="0 0 48 48"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"

@@ -14,9 +14,11 @@ interface BoardInlineHeaderProps {
   isConnected: boolean;
   isSynced: boolean;
   isArchived: boolean;
+  expertMode: boolean;
   provider: HocuspocusProvider | null;
   onDelete: () => void;
   onArchiveToggle: () => void;
+  onExpertModeToggle: () => void;
   compact?: boolean;
 }
 
@@ -26,9 +28,11 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
   isConnected,
   isSynced,
   isArchived,
+  expertMode,
   provider,
   onDelete,
   onArchiveToggle,
+  onExpertModeToggle,
   compact,
 }: BoardInlineHeaderProps) {
   const navigate = useNavigate();
@@ -43,7 +47,7 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
     >
       <div className={`flex items-center gap-sm ${compact ? '' : 'order-2 sm:order-1'}`}>
         <button
-          onClick={() => navigate('/boards')}
+          onClick={() => navigate('/desk')}
           className="flex items-center text-grey-500 hover:text-foreground transition-colors bg-transparent border-none cursor-pointer p-1 rounded-md hover:bg-grey-100 dark:hover:bg-[#2a2a2a]"
           aria-label="Zurück zur Board-Liste"
         >
@@ -64,8 +68,10 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
         <BoardDropdown
           boardId={boardId}
           isArchived={isArchived}
+          expertMode={expertMode}
           onDelete={onDelete}
           onArchiveToggle={onArchiveToggle}
+          onExpertModeToggle={onExpertModeToggle}
         />
       </div>
     </div>

@@ -415,8 +415,8 @@ export const CardDetailPanel = memo(function CardDetailPanel({
             </div>
 
             {/* Linked documents */}
-            <div className="flex flex-row">
-              <p className="w-24 shrink-0 text-sm font-medium text-grey-500 dark:text-grey-100 pt-1.5">
+            <div className="flex flex-row items-start">
+              <p className="w-24 shrink-0 text-sm font-medium text-grey-500 dark:text-grey-100 pt-0.5">
                 <FiFileText className="inline mr-1.5" size={13} />
                 Dokumente
               </p>
@@ -454,28 +454,31 @@ export const CardDetailPanel = memo(function CardDetailPanel({
         </div>
 
         <div className="flex items-center justify-between border-t border-grey-200 dark:border-grey-700 px-6 py-3">
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-red-600 hover:bg-red-50 dark:hover:bg-red-950 border-grey-200 dark:border-grey-700"
-            onClick={() => {
-              onDelete(row.id);
-              onOpenChange(false);
-            }}
-          >
-            <FiTrash2 className="mr-1.5" size={13} />
-            Löschen
-          </Button>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleDiscussInChat}>
-              <FiMessageSquare className="mr-1.5" size={13} />
-              Im Chat besprechen
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => {
+                onDelete(row.id);
+                onOpenChange(false);
+              }}
+              title="Löschen"
+            >
+              <FiTrash2 size={15} />
             </Button>
-            <Button size="sm" onClick={handleSave}>
-              <FiCheck className="mr-1.5" size={13} />
-              Speichern
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={handleDiscussInChat}
+              title="Im Chat besprechen"
+            >
+              <FiMessageSquare size={15} />
             </Button>
           </div>
+          <Button size="sm" onClick={handleSave}>
+            <FiCheck className="mr-1.5" size={13} />
+            Speichern
+          </Button>
         </div>
       </SheetContent>
     </Sheet>

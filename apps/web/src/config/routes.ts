@@ -306,19 +306,7 @@ const GruppenPage = lazy(() =>
       }),
   }))
 );
-const BoardsListPage = lazy(() =>
-  Promise.all([
-    import('../features/boards/BoardsListPage'),
-    import('../components/common/BetaFeatureWrapper'),
-  ]).then(([boardsModule, wrapperModule]) => ({
-    default: (props: Record<string, unknown>) =>
-      wrapperModule.default({
-        children: createElement(boardsModule.default, props),
-        featureKey: 'boards',
-        fallbackPath: '/profile?tab=labor',
-      }),
-  }))
-);
+const BoardsListRedirect = lazy(() => Promise.resolve({ default: createRedirect('/desk') }));
 const BoardPage = lazy(() =>
   Promise.all([
     import('../features/boards/BoardPage'),
@@ -525,7 +513,7 @@ const standardRoutes: RouteConfig[] = [
   // Docs collaborative editor
   { path: '/docs', component: DocsListRedirect },
   { path: '/docs/:id', component: DocsEditorPage, showHeaderFooter: false },
-  { path: '/boards', component: BoardsListPage },
+  { path: '/boards', component: BoardsListRedirect },
   { path: '/boards/public/:id', component: PublicBoardPage, showHeaderFooter: false },
   { path: '/boards/:id', component: BoardPage, showHeaderFooter: false },
   { path: '*', component: NotFound },

@@ -12,7 +12,14 @@ import {
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
 import { memo, useState } from 'react';
-import { FiMoreHorizontal, FiTrash2, FiArchive, FiShare2 } from 'react-icons/fi';
+import {
+  FiMoreHorizontal,
+  FiTrash2,
+  FiArchive,
+  FiShare2,
+  FiSliders,
+  FiCheck,
+} from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
 import { ShareBoardDialog } from './ShareBoardDialog';
@@ -20,15 +27,19 @@ import { ShareBoardDialog } from './ShareBoardDialog';
 interface BoardDropdownProps {
   boardId: string;
   isArchived: boolean;
+  expertMode: boolean;
   onDelete: () => void;
   onArchiveToggle: () => void;
+  onExpertModeToggle: () => void;
 }
 
 export const BoardDropdown = memo(function BoardDropdown({
   boardId,
   isArchived,
+  expertMode,
   onDelete,
   onArchiveToggle,
+  onExpertModeToggle,
 }: BoardDropdownProps) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -45,6 +56,11 @@ export const BoardDropdown = memo(function BoardDropdown({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={onExpertModeToggle}>
+            <FiSliders className="mr-2" size={14} />
+            Expert*innenmodus
+            {expertMode && <FiCheck className="ml-auto" size={14} />}
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setShareOpen(true)}>
             <FiShare2 className="mr-2" size={14} />
             Teilen
@@ -78,7 +94,7 @@ export const BoardDropdown = memo(function BoardDropdown({
               onClick={() => {
                 onDelete();
                 setDeleteConfirmOpen(false);
-                navigate('/boards');
+                navigate('/desk');
               }}
             >
               Löschen

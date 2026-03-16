@@ -27,7 +27,7 @@ export function BoardHeader({ title, isConnected, isSynced, provider }: BoardHea
   return (
     <div className="flex items-center gap-sm sm:gap-md px-md sm:px-lg py-2.5 sm:py-3 border-b border-grey-200 bg-background dark:border-grey-700">
       <button
-        onClick={() => navigate('/boards')}
+        onClick={() => navigate('/desk')}
         className="flex items-center gap-xs text-foreground hover:text-primary-600 transition-colors bg-transparent border-none cursor-pointer p-xs rounded-md hover:bg-grey-100 dark:hover:bg-grey-800"
         aria-label="Zurück zur Board-Liste"
       >
