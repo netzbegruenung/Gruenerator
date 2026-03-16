@@ -8,8 +8,9 @@ import { createPortal } from 'react-dom';
 import { webAppDocsAdapter } from '../../features/docs/docsAdapter';
 import { useLazyAuth } from '../../hooks/useAuth';
 
+import { cn } from '@/utils/cn';
+
 import '@mantine/core/styles.css';
-import '../../assets/styles/components/docs-editor-modal.css';
 
 const BlockNoteEditor = lazy(() =>
   import('@gruenerator/docs').then((m) => ({ default: m.BlockNoteEditor }))
@@ -75,11 +76,19 @@ const DocsEditorContent = ({
         connectionStatus={connectionStatus}
         onBack={onClose}
       />
-      <div className="docs-modal-body">
+      <div className="flex-1 overflow-y-auto px-6 pt-4 pb-8 bg-grey-100 dark:bg-grey-900 max-[768px]:px-3 max-[768px]:pt-2 max-[768px]:pb-6">
         {!isReady ? (
-          <div className="docs-modal-loading">Verbinde mit Server...</div>
+          <div className="flex items-center justify-center h-[200px] text-grey-500 text-sm">
+            Verbinde mit Server...
+          </div>
         ) : (
-          <Suspense fallback={<div className="docs-modal-loading">Lädt Editor...</div>}>
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center h-[200px] text-grey-500 text-sm">
+                Lädt Editor...
+              </div>
+            }
+          >
             <BlockNoteEditor
               documentId={documentId}
               initialContent={htmlContent}
@@ -116,8 +125,18 @@ const DocsEditorModal = ({ documentId, initialContent, title, onClose }: DocsEdi
   }, [handleClose]);
 
   return createPortal(
-    <div className={`docs-modal-overlay ${isClosing ? 'docs-modal-closing' : ''}`}>
-      <div className="docs-modal">
+    <div
+      className={cn(
+        'fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex animate-in fade-in duration-200',
+        isClosing && 'animate-out fade-out duration-200'
+      )}
+    >
+      <div
+        className={cn(
+          'flex flex-col w-full h-full bg-background animate-in slide-in-from-bottom-5 duration-250',
+          isClosing && 'animate-out slide-out-to-bottom-5 duration-200'
+        )}
+      >
         <DocsProvider adapter={webAppDocsAdapter}>
           <MantineProvider>
             <DocsEditorContent

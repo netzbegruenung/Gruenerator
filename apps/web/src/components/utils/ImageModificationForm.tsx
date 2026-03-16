@@ -1,9 +1,9 @@
 import { type JSX, useState } from 'react';
 import { FaChevronLeft, FaChevronRight, FaChevronUp, FaChevronDown, FaCog } from 'react-icons/fa';
 
-import { SHAREPIC_GENERATOR, IMAGE_MODIFICATION } from './constants';
-
 import { cn } from '../../utils/cn';
+
+import { SHAREPIC_GENERATOR, IMAGE_MODIFICATION } from './constants';
 
 export interface FontSizeControlProps {
   fontSize?: number;
@@ -104,7 +104,8 @@ export const FontSizeControl = ({
             className={cn(
               'flex-1 py-3 px-3 rounded border border-[var(--border-color)] text-foreground bg-[var(--card-background)] cursor-pointer transition-all duration-200',
               'hover:bg-background-alt hover:border-[var(--interactive-accent-color)]',
-              fontSize === option.value && 'bg-[var(--interactive-accent-color)] border-[var(--interactive-accent-color)] text-white',
+              fontSize === option.value &&
+                'bg-[var(--interactive-accent-color)] border-[var(--interactive-accent-color)] text-white',
               'max-md:flex-[1_1_calc(50%-0.375rem)] max-md:py-2 max-md:text-[0.9em]'
             )}
           >
@@ -115,7 +116,8 @@ export const FontSizeControl = ({
           className={cn(
             'flex-1 py-3 px-3 rounded border border-[var(--border-color)] text-foreground bg-[var(--card-background)] cursor-pointer transition-all duration-200',
             'hover:bg-background-alt hover:border-[var(--interactive-accent-color)]',
-            showSlider && 'bg-[var(--interactive-accent-color)] border-[var(--interactive-accent-color)] text-white',
+            showSlider &&
+              'bg-[var(--interactive-accent-color)] border-[var(--interactive-accent-color)] text-white',
             'max-md:flex-[1_1_calc(50%-0.375rem)] max-md:py-2 max-md:text-[0.9em]'
           )}
           onClick={() => setShowSlider(!showSlider)}
@@ -350,13 +352,18 @@ export const ColorSchemeControl = ({
             className={cn(
               'cursor-pointer bg-none border-2 border-transparent rounded-md p-0.5 transition-all duration-200',
               'hover:border-[var(--klee)]',
-              JSON.stringify(colorScheme) === JSON.stringify(scheme.colors) && 'border-[var(--interactive-accent-color)]'
+              JSON.stringify(colorScheme) === JSON.stringify(scheme.colors) &&
+                'border-[var(--interactive-accent-color)]'
             )}
             onClick={() => onControlChange('colorScheme', scheme.colors)}
             aria-label={`${scheme.name} auswählen`}
             type="button"
           >
-            <img src={scheme.imageSrc} alt={scheme.name} className="w-[50px] h-auto rounded block" />
+            <img
+              src={scheme.imageSrc}
+              alt={scheme.name}
+              className="w-[50px] h-auto rounded block"
+            />
           </button>
         ))}
       </div>
@@ -419,21 +426,33 @@ const CrossControlBase = ({
       <h4 className="text-foreground m-0 mb-sm text-base font-semibold">{title}</h4>
       <p className="text-foreground m-0 mb-sm text-[0.9em] opacity-80">{description}</p>
       <div className="grid grid-cols-3 grid-rows-3 gap-2 w-fit mx-auto">
-        <button onClick={() => handleMove('up')} className={cn(crossBtnClass, 'col-start-2 row-start-1')}>
+        <button
+          onClick={() => handleMove('up')}
+          className={cn(crossBtnClass, 'col-start-2 row-start-1')}
+        >
           <FaChevronUp />
         </button>
-        <button onClick={() => handleMove('left')} className={cn(crossBtnClass, 'col-start-1 row-start-2')}>
+        <button
+          onClick={() => handleMove('left')}
+          className={cn(crossBtnClass, 'col-start-1 row-start-2')}
+        >
           <FaChevronLeft />
         </button>
-        <div className="col-start-2 row-start-2 flex items-center justify-center bg-background-alt border border-[var(--border-subtle)] rounded-[var(--card-border-radius-small)] w-9 h-9 max-md:w-8 max-md:h-8">
+        <div className="col-start-2 row-start-2 flex items-center justify-center bg-background-alt [border:var(--border-subtle)] rounded-[var(--card-border-radius-small)] w-9 h-9 max-md:w-8 max-md:h-8">
           <span className="text-foreground text-[0.8em] max-md:text-[0.75em] font-mono text-center whitespace-nowrap">
             {`${offset[0]},${offset[1]}`}
           </span>
         </div>
-        <button onClick={() => handleMove('right')} className={cn(crossBtnClass, 'col-start-3 row-start-2')}>
+        <button
+          onClick={() => handleMove('right')}
+          className={cn(crossBtnClass, 'col-start-3 row-start-2')}
+        >
           <FaChevronRight />
         </button>
-        <button onClick={() => handleMove('down')} className={cn(crossBtnClass, 'col-start-2 row-start-3')}>
+        <button
+          onClick={() => handleMove('down')}
+          className={cn(crossBtnClass, 'col-start-2 row-start-3')}
+        >
           <FaChevronDown />
         </button>
       </div>
@@ -521,13 +540,13 @@ const ImageModificationForm = ({
           {IMAGE_MODIFICATION.LABELS.OFFSET_CONTROLS_DESCRIPTION}
         </p>
         <div className="grid grid-cols-3 gap-6 w-full mt-6 max-lg:grid-cols-2 max-lg:[&>:last-child]:col-span-full max-lg:[&>:last-child]:max-w-[400px] max-lg:[&>:last-child]:mx-auto max-md:grid-cols-1 max-md:gap-4 max-md:[&>:last-child]:col-auto max-md:[&>:last-child]:max-w-none max-md:[&>:last-child]:mx-0">
-          <div className="bg-[var(--card-background)] border border-[var(--border-subtle)] rounded-[var(--card-border-radius-small)] p-md max-md:p-3">
+          <div className="bg-[var(--card-background)] [border:var(--border-subtle)] rounded-[var(--card-border-radius-small)] p-md max-md:p-3">
             <BalkenGruppeControl
               offset={balkenGruppenOffset}
               onOffsetChange={handleBalkenGruppeOffsetChange}
             />
           </div>
-          <div className="bg-[var(--card-background)] border border-[var(--border-subtle)] rounded-[var(--card-border-radius-small)] p-md max-md:p-3">
+          <div className="bg-[var(--card-background)] [border:var(--border-subtle)] rounded-[var(--card-border-radius-small)] p-md max-md:p-3">
             <SonnenblumenControl
               offset={sunflowerOffset}
               onOffsetChange={handleSunflowerOffsetChange}

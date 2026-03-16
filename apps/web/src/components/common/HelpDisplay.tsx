@@ -1,7 +1,8 @@
 import React, { useEffect, useState, type JSX } from 'react';
 
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
-import '../../assets/styles/components/popups/help.css';
+
+import { cn } from '@/utils/cn';
 
 interface HelpDisplayProps {
   content: string;
@@ -89,21 +90,30 @@ const HelpDisplay = ({
 
     return (
       <div
-        className="help-display help-display--cards"
+        className="flex flex-col gap-sm max-w-[280px] p-0 mb-0 max-[768px]:max-w-full"
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
       >
-        {displayContent && <p className="help-display__cards-intro">{displayContent}</p>}
-        <div className="help-display__card">
-          <h3 className="help-display__card-title">{currentTip.title}</h3>
-          <p className="help-display__card-description">{currentTip.description}</p>
+        {displayContent && (
+          <p className="text-left text-grey-500 mb-sm text-[0.9rem]">{displayContent}</p>
+        )}
+        <div className="bg-background-pure border border-grey-200 dark:border-grey-700 rounded-2xl p-md transition-colors duration-200 hover:border-primary-600 max-[768px]:w-[240px] max-[768px]:p-sm">
+          <h3 className="text-[0.95rem] font-semibold text-foreground-heading m-0 mb-xs">
+            {currentTip.title}
+          </h3>
+          <p className="text-[0.85rem] text-grey-500 m-0 leading-relaxed">
+            {currentTip.description}
+          </p>
         </div>
         {featureItems.length > 1 && (
-          <div className="help-display__dots">
+          <div className="flex justify-center gap-xs pt-xs">
             {featureItems.map((_, index) => (
               <button
                 key={index}
-                className={`help-display__dot ${index === activeIndex ? 'active' : ''}`}
+                className={cn(
+                  'w-2 h-2 rounded-full bg-foreground opacity-30 cursor-pointer border-none p-0 transition-all duration-200 hover:opacity-50',
+                  index === activeIndex && 'opacity-100 scale-[1.2]'
+                )}
                 onClick={() => setActiveIndex(index)}
                 aria-label={`Tipp ${index + 1}`}
               />
@@ -115,10 +125,19 @@ const HelpDisplay = ({
   }
 
   return (
-    <div className={`help-display ${showNewFeatureStyle ? 'help-display--new-feature' : ''}`}>
-      <div className="help-content">
-        {showNewFeatureStyle && <span className="help-display__badge">Neu</span>}
-        <div className="help-content-text">
+    <div
+      className={cn(
+        'rounded-lg pt-0 mb-5',
+        showNewFeatureStyle && 'bg-background-alt rounded-lg px-md py-sm'
+      )}
+    >
+      <div className="text-base leading-relaxed max-[768px]:p-0 [&_h4]:mt-2.5 [&_h4]:mb-2.5 [&_h4]:text-foreground-heading [&_h4]:block [&_p_strong]:mt-2.5 [&_p_strong]:mb-2.5 [&_p_strong]:text-foreground-heading [&_p_strong]:block [&_ul]:list-none [&_ul]:pl-0 [&_ul]:m-0 [&_li]:mb-2 [&_li]:pl-5 [&_li]:relative [&_li]:before:content-['\\2022'] [&_li]:before:absolute [&_li]:before:left-0 [&_li]:before:text-primary-600">
+        {showNewFeatureStyle && (
+          <span className="inline-block bg-primary-600 text-white px-2 py-0.5 rounded-[4px] text-xs font-semibold mb-sm uppercase tracking-wider">
+            Neu
+          </span>
+        )}
+        <div className="[&_p]:mb-sm [&_p]:whitespace-pre-line [&_p:last-child]:mb-0">
           {(() => {
             const colonOrPeriodMatch = displayContent.match(/^([^:.]+[:.]\s*)(.+)$/);
 

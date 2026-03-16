@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 
+import { cn } from '../../../utils/cn';
 import { getReadingTime } from '../../../utils/readingTimeUtils';
 
 import PageContent from './PageContent';
@@ -98,11 +99,16 @@ const PageView = ({ pageId, pageData, children, loading = false, error = null }:
     }
   }, [pageId, pageData]);
 
+  const containerClass =
+    'max-w-[1200px] mx-auto py-xl px-md bg-background min-h-screen max-md:py-lg max-md:px-sm max-[480px]:py-md max-[480px]:px-xs min-[1025px]:py-2xl min-[1025px]:px-xl';
+  const innerClass =
+    'bg-background py-2xl px-xl max-md:py-xl max-md:px-md max-md:shadow-none max-md:rounded-none max-[480px]:py-lg max-[480px]:px-sm min-[769px]:max-[1024px]:rounded-xl min-[769px]:max-[1024px]:shadow-sm min-[769px]:max-[1024px]:transition-shadow min-[769px]:max-[1024px]:duration-300 min-[769px]:max-[1024px]:hover:shadow-md min-[1025px]:py-2xl min-[1025px]:px-[calc(var(--spacing-2xl)*1.5)]';
+
   if (error) {
     return (
-      <div className="page-view-container">
-        <div className="page-view__inner">
-          <div className="page-view__error">
+      <div className={containerClass}>
+        <div className={innerClass}>
+          <div className="text-center py-2xl text-[var(--error-red)] bg-[var(--background-red-light)] rounded-lg my-xl">
             <h2>Fehler beim Laden der Seite</h2>
             <p>{error}</p>
           </div>
@@ -113,9 +119,11 @@ const PageView = ({ pageId, pageData, children, loading = false, error = null }:
 
   if (isLoading) {
     return (
-      <div className="page-view-container">
-        <div className="page-view__inner page-view--loading">
-          <div className="page-view__loading">Seite wird geladen...</div>
+      <div className={containerClass}>
+        <div className={cn(innerClass, 'opacity-70')}>
+          <div className="flex justify-center items-center min-h-[200px] text-grey-400 text-lg">
+            Seite wird geladen...
+          </div>
         </div>
       </div>
     );
@@ -124,8 +132,8 @@ const PageView = ({ pageId, pageData, children, loading = false, error = null }:
   // If children are provided, use them directly (for custom layouts)
   if (children) {
     return (
-      <div className="page-view-container">
-        <div className="page-view__inner">{children}</div>
+      <div className={containerClass}>
+        <div className={innerClass}>{children}</div>
       </div>
     );
   }
@@ -133,8 +141,8 @@ const PageView = ({ pageId, pageData, children, loading = false, error = null }:
   // If page data is provided, render structured page
   if (currentPage) {
     return (
-      <div className="page-view-container">
-        <div className="page-view__inner">
+      <div className={containerClass}>
+        <div className={innerClass}>
           <PageHeader
             title={currentPage.title}
             subtitle={currentPage.subtitle}
@@ -150,9 +158,9 @@ const PageView = ({ pageId, pageData, children, loading = false, error = null }:
 
   // Fallback for no content
   return (
-    <div className="page-view-container">
-      <div className="page-view__inner">
-        <div className="page-view__error">
+    <div className={containerClass}>
+      <div className={innerClass}>
+        <div className="text-center py-2xl text-[var(--error-red)] bg-[var(--background-red-light)] rounded-lg my-xl">
           <h2>Seite nicht gefunden</h2>
           <p>Die angeforderte Seite konnte nicht geladen werden.</p>
         </div>

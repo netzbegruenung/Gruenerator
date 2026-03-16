@@ -3,12 +3,11 @@ import { createPortal } from 'react-dom';
 import { HiX } from 'react-icons/hi';
 
 import { useAuthStore } from '../../../stores/authStore';
+import { cn } from '../../../utils/cn';
+import apiClient from '../../utils/apiClient';
 import { useTagAutocomplete } from '../TemplateModal';
 
 import { suggestTagsFromTemplate } from './tagSuggestions';
-
-import '../TemplateModal/template-modal.css';
-import apiClient from '../../utils/apiClient';
 
 import type { AxiosError } from 'axios';
 
@@ -244,35 +243,48 @@ const AddTemplateModal = ({
 
   const canSubmit = previewData ? title.trim() : title.trim() && templateUrl.trim();
 
+  const fieldClass =
+    'mb-md [&_label]:block [&_label]:mb-xs [&_label]:text-[0.875rem] [&_label]:font-medium [&_label]:text-foreground [&_input]:w-full [&_input]:py-sm [&_input]:px-md [&_input]:border [&_input]:border-grey-200 [&_input]:dark:border-grey-700 [&_input]:rounded-lg [&_input]:text-base [&_input]:text-foreground [&_input]:bg-background [&_input]:transition-colors [&_input]:duration-200 [&_input]:focus:outline-none [&_input]:focus:border-[var(--primary)] [&_textarea]:w-full [&_textarea]:py-sm [&_textarea]:px-md [&_textarea]:border [&_textarea]:border-grey-200 [&_textarea]:dark:border-grey-700 [&_textarea]:rounded-lg [&_textarea]:text-base [&_textarea]:text-foreground [&_textarea]:bg-background [&_textarea]:transition-colors [&_textarea]:duration-200 [&_textarea]:focus:outline-none [&_textarea]:focus:border-[var(--primary)] [&_textarea]:resize-y [&_textarea]:min-h-[60px]';
+
   const renderGhostText = () =>
     tagAutocomplete.suggestionSuffix && (
-      <div className="template-modal-ghost-text">
-        <span className="template-modal-ghost-prefix">{tagAutocomplete.ghostPrefix}</span>
-        <span className="template-modal-ghost-suffix">{tagAutocomplete.suggestionSuffix}</span>
+      <div className="absolute inset-0 py-sm px-md text-base font-[inherit] leading-normal pointer-events-none whitespace-pre-wrap break-words overflow-hidden border border-transparent rounded-lg">
+        <span className="invisible">{tagAutocomplete.ghostPrefix}</span>
+        <span className="text-grey-400">{tagAutocomplete.suggestionSuffix}</span>
       </div>
     );
 
   const modalContent = (
-    <div className="template-modal-backdrop" onClick={handleBackdropClick}>
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-md max-md:p-0"
+      onClick={handleBackdropClick}
+    >
       <div
-        className="template-modal"
+        className="bg-background rounded-xl shadow-lg w-full max-w-[550px] max-h-[85vh] flex flex-col overflow-hidden min-[900px]:max-w-[750px] max-md:max-w-none max-md:max-h-none max-md:h-full max-md:rounded-none"
         role="dialog"
         aria-modal="true"
         aria-labelledby="template-modal-title"
       >
-        <div className="template-modal-header">
-          <h2 id="template-modal-title">
+        <div className="flex items-center justify-between py-md px-lg border-b border-grey-200 dark:border-grey-700">
+          <h2
+            id="template-modal-title"
+            className="m-0 text-[1.25rem] font-semibold text-foreground"
+          >
             {groupId ? 'Vorlage zur Gruppe hinzufügen' : 'Neue Vorlage erstellen'}
           </h2>
-          <button className="template-modal-close" onClick={onClose} aria-label="Schließen">
+          <button
+            className="bg-none border-none p-xs cursor-pointer text-grey-500 rounded-lg flex items-center justify-center transition-colors duration-200 hover:bg-hover-alt hover:text-foreground [&_svg]:w-5 [&_svg]:h-5"
+            onClick={onClose}
+            aria-label="Schließen"
+          >
             <HiX />
           </button>
         </div>
 
-        <div className="template-modal-body">
-          <div className="template-modal-field">
+        <div className="flex-1 overflow-y-auto p-lg">
+          <div className={fieldClass}>
             <label>URL</label>
-            <div className="template-modal-url-row">
+            <div className="flex gap-sm">
               <input
                 type="url"
                 value={templateUrl}
@@ -281,6 +293,7 @@ const AddTemplateModal = ({
                 }
                 placeholder="https://..."
                 disabled={isLoadingPreview}
+                className="flex-1"
               />
               <button
                 className="pabtn pabtn--s pabtn--secondary"
@@ -290,13 +303,15 @@ const AddTemplateModal = ({
                 {isLoadingPreview ? 'Lädt...' : 'Vorschau laden'}
               </button>
             </div>
-            {previewError && <p className="template-modal-error">{previewError}</p>}
+            {previewError && (
+              <p className="text-[var(--error-red)] text-[0.875rem] mt-xs mb-0">{previewError}</p>
+            )}
           </div>
 
           {previewData && (
-            <div className="template-modal-preview">
+            <div className="flex gap-md p-md bg-background-alt rounded-lg mt-md max-md:flex-col">
               {previewData.thumbnail_url && (
-                <div className="template-modal-preview-image">
+                <div className="shrink-0 w-[120px] h-[120px] rounded-lg overflow-hidden bg-background border border-grey-200 dark:border-grey-700 min-[900px]:w-[160px] min-[900px]:h-[160px] max-md:w-full max-md:h-[150px] [&_img]:w-full [&_img]:h-full [&_img]:object-cover">
                   <img
                     src={previewData.thumbnail_url}
                     alt="Vorschau"
@@ -306,8 +321,8 @@ const AddTemplateModal = ({
                   />
                 </div>
               )}
-              <div className="template-modal-preview-fields">
-                <div className="template-modal-field">
+              <div className="flex-1 min-w-0 min-[900px]:grid min-[900px]:grid-cols-2 min-[900px]:gap-sm [&>div:nth-child(1)]:min-[900px]:col-span-full [&>div:nth-child(2)]:min-[900px]:col-span-full [&>div]:min-[900px]:mb-0">
+                <div className={cn(fieldClass, 'mb-sm')}>
                   <label>Titel *</label>
                   <input
                     type="text"
@@ -316,9 +331,9 @@ const AddTemplateModal = ({
                     placeholder="Titel der Vorlage"
                   />
                 </div>
-                <div className="template-modal-field">
+                <div className={cn(fieldClass, 'mb-sm')}>
                   <label>Beschreibung</label>
-                  <div className="template-modal-textarea-wrapper">
+                  <div className="relative">
                     {renderGhostText()}
                     <textarea
                       ref={tagAutocomplete.textareaRef}
@@ -327,10 +342,11 @@ const AddTemplateModal = ({
                       onKeyDown={tagAutocomplete.handleKeyDown}
                       placeholder="Beschreibung der Vorlage..."
                       rows={3}
+                      className="bg-transparent relative z-[1]"
                     />
                   </div>
                 </div>
-                <div className="template-modal-field">
+                <div className={cn(fieldClass, 'mb-sm')}>
                   <label>Autor*in</label>
                   <input
                     type="text"
@@ -341,7 +357,7 @@ const AddTemplateModal = ({
                     placeholder="Name der erstellenden Person"
                   />
                 </div>
-                <div className="template-modal-field">
+                <div className={cn(fieldClass, 'mb-sm last:mb-0')}>
                   <label>Kontakt E-Mail</label>
                   <input
                     type="email"
@@ -358,7 +374,7 @@ const AddTemplateModal = ({
 
           {!previewData && (
             <>
-              <div className="template-modal-field">
+              <div className={fieldClass}>
                 <label>Titel *</label>
                 <input
                   type="text"
@@ -367,9 +383,9 @@ const AddTemplateModal = ({
                   placeholder="Titel der Vorlage"
                 />
               </div>
-              <div className="template-modal-field">
+              <div className={fieldClass}>
                 <label>Beschreibung</label>
-                <div className="template-modal-textarea-wrapper">
+                <div className="relative">
                   {renderGhostText()}
                   <textarea
                     ref={tagAutocomplete.textareaRef}
@@ -378,10 +394,11 @@ const AddTemplateModal = ({
                     onKeyDown={tagAutocomplete.handleKeyDown}
                     placeholder="Beschreibung der Vorlage..."
                     rows={3}
+                    className="bg-transparent relative z-[1]"
                   />
                 </div>
               </div>
-              <div className="template-modal-field">
+              <div className={fieldClass}>
                 <label>Autor*in</label>
                 <input
                   type="text"
@@ -392,7 +409,7 @@ const AddTemplateModal = ({
                   placeholder="Name der erstellenden Person"
                 />
               </div>
-              <div className="template-modal-field">
+              <div className={fieldClass}>
                 <label>Kontakt E-Mail</label>
                 <input
                   type="email"
@@ -406,10 +423,12 @@ const AddTemplateModal = ({
             </>
           )}
 
-          {submitError && <p className="template-modal-error">{submitError}</p>}
+          {submitError && (
+            <p className="text-[var(--error-red)] text-[0.875rem] mt-xs mb-0">{submitError}</p>
+          )}
         </div>
 
-        <div className="template-modal-footer">
+        <div className="flex items-center justify-end gap-sm py-md px-lg border-t border-grey-200 dark:border-grey-700">
           <button className="pabtn pabtn--m pabtn--ghost" onClick={onClose} disabled={isSubmitting}>
             Abbrechen
           </button>

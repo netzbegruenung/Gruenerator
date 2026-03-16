@@ -119,7 +119,7 @@ const MenuDropdown = ({
         createPortal(
           <div
             ref={dropdownRef}
-            className="bg-[var(--card-background)] border border-[var(--card-border)] rounded-[var(--card-border-radius-medium)] shadow-[var(--card-shadow-floating)] z-[9999] min-w-[140px] w-max overflow-visible absolute transition-opacity duration-150 ease-out [&>:first-child]:rounded-t-[var(--card-border-radius-medium)] [&>:last-child]:rounded-b-[var(--card-border-radius-medium)] [&>:only-child]:rounded-[var(--card-border-radius-medium)]"
+            className="bg-[var(--card-background)] [border:var(--card-border)] rounded-[var(--card-border-radius-medium)] shadow-[var(--card-shadow-floating)] z-[9999] min-w-[140px] w-max overflow-visible absolute transition-opacity duration-150 ease-out [&>:first-child]:rounded-t-[var(--card-border-radius-medium)] [&>:last-child]:rounded-b-[var(--card-border-radius-medium)] [&>:only-child]:rounded-[var(--card-border-radius-medium)]"
             style={style}
             onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >

@@ -42,7 +42,7 @@ const SegmentedControl = ({
   return (
     <div
       className={cn(
-        'flex flex-row items-center gap-md border border-[var(--border-subtle,#ddd)] rounded-lg p-sm bg-background w-full box-border',
+        'flex flex-row items-center gap-md [border:1px_solid] border-grey-200 dark:border-grey-700 rounded-lg p-sm bg-background w-full box-border',
         disabled && 'opacity-70'
       )}
     >
@@ -53,7 +53,7 @@ const SegmentedControl = ({
       )}
       <div
         className={cn(
-          'inline-flex rounded-md overflow-hidden grow box-border border border-[var(--border-subtle,#ccc)]',
+          'inline-flex rounded-md overflow-hidden grow box-border border border-grey-200 dark:border-grey-700',
           disabled && 'opacity-70'
         )}
         role="group"
@@ -69,9 +69,10 @@ const SegmentedControl = ({
               type="button"
               className={cn(
                 'grow basis-0 py-2.5 px-4 border-none bg-background text-foreground text-[0.9rem] cursor-pointer text-center whitespace-nowrap transition-all duration-200',
-                !isLast && 'border-r border-r-[var(--border-subtle,#ccc)]',
+                !isLast && 'border-r border-r-grey-200 dark:border-r-grey-700',
                 !isActive && !isDisabled && 'hover:bg-background-alt',
-                isActive && 'bg-[var(--primary,#4CAF50)] text-white font-medium shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)]',
+                isActive &&
+                  'bg-[var(--primary,#4CAF50)] text-white font-medium shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)]',
                 isDisabled && 'cursor-not-allowed',
                 'focus-visible:outline-2 focus-visible:outline-[var(--himmel,#0BA1DD)] focus-visible:outline-offset-[-1px] focus-visible:z-[1] focus-visible:relative'
               )}

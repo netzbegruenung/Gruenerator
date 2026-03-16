@@ -5,9 +5,6 @@ import { Markdown } from '../../../components/common/Markdown';
 import apiClient from '../../../components/utils/apiClient';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 
-// Antrag Detail Feature CSS - Loaded only when this feature is accessed
-import '../../../assets/styles/pages/AntragDetailPage.css';
-
 interface AntragData {
   id: string;
   title: string;
@@ -153,7 +150,7 @@ const AntragDetailPage: FC = () => {
 
   if (loading) {
     return (
-      <div className="antrag-detail-page-container antrag-detail-loading">
+      <div className="flex flex-col items-center justify-center text-center min-h-[300px] gap-md max-w-[960px] w-full text-foreground">
         <p>Antrag wird geladen...</p>
       </div>
     );
@@ -161,20 +158,24 @@ const AntragDetailPage: FC = () => {
 
   if (error) {
     return (
-      <div className="antrag-detail-page-container antrag-detail-error">
-        <h2>Fehler</h2>
+      <div className="flex flex-col items-center justify-center text-center min-h-[300px] gap-md max-w-[960px] w-full text-foreground">
+        <h2 className="text-red-600 m-0">Fehler</h2>
         <p>{error}</p>
-        <Link to="/datenbank/antraege">Zurück zur Übersicht</Link>
+        <Link to="/datenbank/antraege" className="text-[var(--link-color)] underline">
+          Zurück zur Übersicht
+        </Link>
       </div>
     );
   }
 
   if (!antrag) {
     return (
-      <div className="antrag-detail-page-container antrag-detail-error">
-        <h2>Antrag nicht gefunden</h2>
+      <div className="flex flex-col items-center justify-center text-center min-h-[300px] gap-md max-w-[960px] w-full text-foreground">
+        <h2 className="text-red-600 m-0">Antrag nicht gefunden</h2>
         <p>Der angeforderte Antrag konnte nicht gefunden werden.</p>
-        <Link to="/datenbank/antraege">Zurück zur Übersicht</Link>
+        <Link to="/datenbank/antraege" className="text-[var(--link-color)] underline">
+          Zurück zur Übersicht
+        </Link>
       </div>
     );
   }
@@ -184,10 +185,10 @@ const AntragDetailPage: FC = () => {
 
   // --- Render View or Edit Mode ---
   return (
-    <div className="antrag-detail-page-wrapper">
-      <div className="antrag-detail-page-container">
+    <div className="py-xl px-md bg-background min-h-[calc(100vh-var(--header-height,60px)-var(--footer-height,60px))] flex justify-center max-md:py-lg max-md:px-sm">
+      <div className="max-w-[960px] w-full text-foreground">
         {/* Conditional Edit/Cancel/Save buttons */}
-        <div className="antrag-detail-actions">
+        <div className="flex justify-end gap-md mb-lg max-md:flex-col max-md:gap-sm [&_button]:max-md:w-full">
           {canEdit && !isEditing && (
             <button onClick={handleEditClick} className="button button-primary">
               Bearbeiten
@@ -199,17 +200,22 @@ const AntragDetailPage: FC = () => {
         {!isEditing ? (
           <>
             {/* 1. Header Section */}
-            <header className="antrag-detail-page-header">
-              <div className="header-content">
-                <h1>{antrag.title || 'Unbenannter Antrag'}</h1>
+            <header className="flex justify-between items-start gap-lg mb-sm pb-0 max-md:flex-col max-md:items-start max-md:gap-md max-md:border-b-0 max-md:mb-lg">
+              <div className="flex flex-col grow min-w-0 mb-xl mt-xl">
+                <h1 className="m-0 text-foreground-heading leading-[1.2] break-words relative pb-sm after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-[80px] after:h-[4px] after:bg-[var(--klee)] after:rounded-[2px]">
+                  {antrag.title || 'Unbenannter Antrag'}
+                </h1>
               </div>
             </header>
             {/* 2. Tags Section (Moved here) */}
             {antrag.tags && antrag.tags.length > 0 && (
-              <div className="antrag-detail-page-tags">
-                <div className="tags-list">
+              <div className="mb-xl">
+                <div className="flex flex-wrap gap-xs">
                   {antrag.tags.map((tag) => (
-                    <span key={tag} className="tag-chip">
+                    <span
+                      key={tag}
+                      className="inline-block py-xxs px-sm bg-background-alt border border-grey-200 dark:border-grey-700 rounded-[4px] text-[0.9em] text-foreground whitespace-nowrap"
+                    >
                       {tag}
                     </span>
                   ))}
@@ -217,31 +223,46 @@ const AntragDetailPage: FC = () => {
               </div>
             )}
             {/* 3. Main Info Wrapper (Description & Meta side-by-side on Desktop) */}
-            <div className="antrag-detail-main-info">
+            <div className="flex flex-col gap-lg mb-xl lg:flex-row lg:items-stretch lg:gap-xl">
               {antrag.description && (
-                <div className="antrag-detail-description-box">
-                  <p>{antrag.description}</p>
+                <div className="p-md bg-background-alt rounded-sm border border-grey-200 dark:border-grey-700 lg:flex-[1_1_40%] lg:min-w-[300px]">
+                  <p className="m-0 text-[0.95em] leading-relaxed text-foreground">
+                    {antrag.description}
+                  </p>
                 </div>
               )}
 
               {/* Meta Info Section */}
-              <section className="antrag-detail-page-meta">
+              <section className="p-md bg-background-alt rounded-sm border border-grey-200 dark:border-grey-700 grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-lg lg:flex-[1_1_60%] lg:min-w-[350px] max-md:grid-cols-1 max-md:gap-md max-md:mb-lg">
                 {/* Meta items */}
-                <div className="meta-item">
-                  <span className="meta-label">Zuletzt aktualisiert:</span>
-                  <span className="meta-value">{formatDate(antrag.updated_at)}</span>
+                <div className="flex flex-col gap-xxs">
+                  <span className="font-semibold text-foreground text-[0.85em] opacity-80 uppercase tracking-[0.5px]">
+                    Zuletzt aktualisiert:
+                  </span>
+                  <span className="text-foreground break-words leading-[1.4] text-[0.95em]">
+                    {formatDate(antrag.updated_at)}
+                  </span>
                 </div>
 
                 {/* Combined Antragsteller & Kontakt */}
-                {(antrag.antragsteller || antrag.kontakt_email) && ( // Show item if at least one exists
-                  <div className="meta-item">
-                    {antrag.antragsteller && <span className="meta-label">Antragsteller*in:</span>}
+                {(antrag.antragsteller || antrag.kontakt_email) && (
+                  <div className="flex flex-col gap-xxs">
+                    {antrag.antragsteller && (
+                      <span className="font-semibold text-foreground text-[0.85em] opacity-80 uppercase tracking-[0.5px]">
+                        Antragsteller*in:
+                      </span>
+                    )}
 
-                    <span className="meta-value">
+                    <span className="text-foreground break-words leading-[1.4] text-[0.95em]">
                       {antrag.antragsteller}
                       {antrag.antragsteller && antrag.kontakt_email && ', '}
                       {antrag.kontakt_email && (
-                        <a href={`mailto:${antrag.kontakt_email}`}>{antrag.kontakt_email}</a>
+                        <a
+                          href={`mailto:${antrag.kontakt_email}`}
+                          className="text-[var(--link-color)] underline"
+                        >
+                          {antrag.kontakt_email}
+                        </a>
                       )}
                     </span>
                   </div>
@@ -250,7 +271,7 @@ const AntragDetailPage: FC = () => {
             </div>{' '}
             {/* End of main-info */}
             {/* 4. Content Section (Antragstext) */}
-            <section className="antrag-detail-page-content">
+            <section className="mb-2xl max-w-[75ch] mx-auto">
               {/* <h2>Antragstext</h2> */}
               <div className="markdown-content">
                 {antrag.antragstext ? (
@@ -265,7 +286,7 @@ const AntragDetailPage: FC = () => {
           </>
         ) : (
           /* --- Edit Mode --- */
-          <div className="antrag-edit-placeholder">
+          <div>
             <p>Edit functionality has been removed.</p>
             <button onClick={handleCancelClick} className="button button-secondary">
               Cancel
@@ -274,8 +295,11 @@ const AntragDetailPage: FC = () => {
         )}
 
         {/* Optional: Link zurück zur Übersicht */}
-        <div className="antrag-detail-page-footer">
-          <Link to="/datenbank/antraege" className="back-link">
+        <div className="mt-2xl pt-lg border-t border-grey-200 dark:border-grey-700 text-center">
+          <Link
+            to="/datenbank/antraege"
+            className="text-[var(--link-color)] no-underline font-medium transition-colors duration-200 hover:underline"
+          >
             &larr; Zurück zur Antragsübersicht
           </Link>
         </div>
