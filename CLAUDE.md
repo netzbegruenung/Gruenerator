@@ -638,6 +638,14 @@ ESLint (flat config), Prettier, Husky pre-commit hooks (lint-staged), Knip for u
   - Individual services: `build_web`, `build_api`, `build_docs`, `build_mcp`, `build_doku`
   - Registry: `ghcr.io/netzbegruenung/gruenerator-{web,api,docs,mcp,doku}`
 
+#### Adding a New Shared Package (Docker Checklist)
+
+When creating or extracting a new `packages/*` workspace, **three files must be updated** or Docker builds will fail:
+
+1. **Every Dockerfile that transitively depends on the new package** — add `COPY packages/<name>/package.json` (for install caching) and `COPY packages/<name>` (for source). Check both builder and production stages. Use `pnpm --filter <app> list --depth 1 --json | grep @gruenerator` to get the full transitive dependency tree — don't guess from direct `package.json` deps alone.
+2. **`.github/workflows/build-images.yml`** — add `'packages/<name>/**'` to the `dorny/paths-filter` entries for every affected service, so changes trigger rebuilds.
+3. **`.gitignore`** — verify the new package path isn't accidentally matched by a broad pattern (e.g., `docs/` matches any `*/docs/` directory; use `/docs/` to anchor to repo root).
+
 ### Deploying to Test
 1. Merge changes into `test-branch` (e.g. via PR from `master`)
 2. Build images run automatically on push, or trigger manually: `gh workflow run "Build and Push Docker Images" --ref test-branch`
