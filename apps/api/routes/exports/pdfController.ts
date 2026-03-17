@@ -1,6 +1,6 @@
 /**
  * PDF Export Controller
- * Handles PDF document generation with custom fonts
+ * Handles PDF document generation with custom fonts and emoji support
  */
 
 import fs from 'fs/promises';
@@ -15,7 +15,8 @@ import { sanitizeFilename as sanitizeFilenameCentral } from '../../utils/validat
 
 import { htmlToPlainText, parseSections } from './contentParser.js';
 
-import type { ExportRequestBody, ExportResponse, ContentSection } from './types.js';
+import type { ExportRequestBody, ExportResponse } from './types.js';
+import type { PDFFont, PDFPage, RGB } from 'pdf-lib';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -27,6 +28,52 @@ const router = express.Router();
 function sanitizeFilename(name: string, fallback = 'Dokument'): string {
   const sanitized = sanitizeFilenameCentral(name, fallback);
   return sanitized.slice(0, 80) || fallback;
+}
+
+const EMOJI_REGEX = /(\p{Emoji_Presentation}|\p{Extended_Pictographic})/gu;
+
+interface FontRun {
+  text: string;
+  font: PDFFont;
+}
+
+function splitIntoFontRuns(text: string, textFont: PDFFont, emFont: PDFFont): FontRun[] {
+  const runs: FontRun[] = [];
+  let lastIndex = 0;
+
+  for (const match of text.matchAll(EMOJI_REGEX)) {
+    const idx = match.index!;
+    if (idx > lastIndex) {
+      runs.push({ text: text.slice(lastIndex, idx), font: textFont });
+    }
+    runs.push({ text: match[0], font: emFont });
+    lastIndex = idx + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    runs.push({ text: text.slice(lastIndex), font: textFont });
+  }
+
+  return runs.length ? runs : [{ text, font: textFont }];
+}
+
+function measureRuns(runs: FontRun[], fontSize: number): number {
+  return runs.reduce((w, r) => w + r.font.widthOfTextAtSize(r.text, fontSize), 0);
+}
+
+function drawRuns(
+  page: PDFPage,
+  runs: FontRun[],
+  startX: number,
+  y: number,
+  fontSize: number,
+  color: RGB
+): void {
+  let x = startX;
+  for (const run of runs) {
+    page.drawText(run.text, { x, y, size: fontSize, font: run.font, color });
+    x += run.font.widthOfTextAtSize(run.text, fontSize);
+  }
 }
 
 /**
@@ -53,25 +100,26 @@ router.post(
       const margin = 40;
       let y = height - margin;
 
-      // Embed custom fonts
       const fontsDir = path.join(__dirname, '..', '..', 'public', 'fonts');
-      const grueneTypeBytes = await fs.readFile(path.join(fontsDir, 'GrueneTypeNeue-Regular.ttf'));
-      const ptSansRegularBytes = await fs.readFile(path.join(fontsDir, 'PTSans-Regular.ttf'));
+      const [grueneTypeBytes, ptSansRegularBytes, notoEmojiBytes] = await Promise.all([
+        fs.readFile(path.join(fontsDir, 'GrueneTypeNeue-Regular.ttf')),
+        fs.readFile(path.join(fontsDir, 'PTSans-Regular.ttf')),
+        fs.readFile(path.join(fontsDir, 'NotoEmoji-Regular.ttf')),
+      ]);
 
       const titleFont = await pdfDoc.embedFont(grueneTypeBytes);
       const bodyFont = await pdfDoc.embedFont(ptSansRegularBytes);
+      const emojiFont = await pdfDoc.embedFont(notoEmojiBytes);
+
+      const bodyColor = rgb(0.27, 0.27, 0.27);
+      const headingColor = rgb(0.15, 0.15, 0.15);
 
       // Title
       const docTitle = title || 'Dokument';
       const titleSize = 20;
-      const titleWidth = titleFont.widthOfTextAtSize(docTitle, titleSize);
-      page.drawText(docTitle, {
-        x: (width - titleWidth) / 2,
-        y,
-        size: titleSize,
-        font: titleFont,
-        color: rgb(0.15, 0.15, 0.15),
-      });
+      const titleRuns = splitIntoFontRuns(docTitle, titleFont, emojiFont);
+      const titleWidth = measureRuns(titleRuns, titleSize);
+      drawRuns(page, titleRuns, (width - titleWidth) / 2, y, titleSize, headingColor);
       y -= 40;
 
       const drawParagraph = (text: string, isList = false): void => {
@@ -80,62 +128,46 @@ router.post(
         const maxWidth = width - margin * 2 - (isList ? 20 : 0);
         const x = margin + (isList ? 20 : 0);
         const words = text.split(' ');
-        let line = '';
+        let lineWords: string[] = [];
 
-        for (const w of words) {
-          const test = line ? `${line} ${w}` : w;
-          const testWidth = bodyFont.widthOfTextAtSize(test, fontSize);
-
-          if (testWidth <= maxWidth) {
-            line = test;
-          } else {
-            if (y < margin + 50) {
-              page = pdfDoc.addPage([595.28, 841.89]);
-              y = height - margin;
-            }
-            page.drawText(line, {
-              x,
-              y,
-              size: fontSize,
-              font: bodyFont,
-              color: rgb(0.27, 0.27, 0.27),
-            });
-            y -= lineHeight;
-            line = w;
-          }
-        }
-
-        if (line) {
+        const flushLine = () => {
+          if (lineWords.length === 0) return;
           if (y < margin + 50) {
             page = pdfDoc.addPage([595.28, 841.89]);
             y = height - margin;
           }
-          page.drawText(line, {
-            x,
-            y,
-            size: fontSize,
-            font: bodyFont,
-            color: rgb(0.27, 0.27, 0.27),
-          });
+          const lineText = lineWords.join(' ');
+          const runs = splitIntoFontRuns(lineText, bodyFont, emojiFont);
+          drawRuns(page, runs, x, y, fontSize, bodyColor);
           y -= lineHeight;
+          lineWords = [];
+        };
+
+        for (const w of words) {
+          const testText = lineWords.length ? [...lineWords, w].join(' ') : w;
+          const testRuns = splitIntoFontRuns(testText, bodyFont, emojiFont);
+          const testWidth = measureRuns(testRuns, fontSize);
+
+          if (testWidth <= maxWidth) {
+            lineWords.push(w);
+          } else {
+            flushLine();
+            lineWords = [w];
+          }
         }
+
+        flushLine();
         y -= 8;
       };
 
-      // Sections
       for (const sec of sections) {
         if (sec.header) {
           if (y < margin + 50) {
             page = pdfDoc.addPage([595.28, 841.89]);
             y = height - margin;
           }
-          page.drawText(sec.header, {
-            x: margin,
-            y,
-            size: 14,
-            font: titleFont,
-            color: rgb(0.15, 0.15, 0.15),
-          });
+          const headerRuns = splitIntoFontRuns(sec.header, titleFont, emojiFont);
+          drawRuns(page, headerRuns, margin, y, 14, headingColor);
           y -= 25;
         }
 
