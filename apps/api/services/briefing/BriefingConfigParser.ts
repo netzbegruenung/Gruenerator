@@ -25,12 +25,61 @@ const SOCIAL_PLATFORMS: Record<string, SourceConfig['type']> = {
 };
 
 const KNOWN_RSS_FEEDS: Record<string, string> = {
-  'tagesschau.de': 'https://www.tagesschau.de/index~rss2.xml',
+  // German national (verified 2026-03-17)
+  'tagesschau.de': 'https://www.tagesschau.de/xml/rss2/',
   'zeit.de': 'https://newsfeed.zeit.de/index',
   'spiegel.de': 'https://www.spiegel.de/schlagzeilen/index.rss',
   'sueddeutsche.de': 'https://rss.sueddeutsche.de/alles',
   'faz.net': 'https://www.faz.net/rss/aktuell/',
   'taz.de': 'https://taz.de/!p4608;rss/',
+  'welt.de': 'https://www.welt.de/feeds/latest.rss',
+  'n-tv.de': 'https://www.n-tv.de/rss',
+  'stern.de': 'https://www.stern.de/feed/standard/all/',
+  'focus.de': 'https://www.focus.de/RSS/rss_intern.xml',
+  't-online.de': 'https://feeds.t-online.de/rss/nachrichten',
+  'handelsblatt.com': 'https://www.handelsblatt.com/contentexport/feed/schlagzeilen',
+  'heise.de': 'https://www.heise.de/rss/heise-atom.xml',
+  'tagesspiegel.de': 'https://www.tagesspiegel.de/contentexport/feed/berlin',
+  'manager-magazin.de': 'https://www.manager-magazin.de/news/index.rss',
+  'zdf.de': 'https://www.zdf.de/rss/zdf/nachrichten',
+  'deutschlandfunk.de': 'https://www.deutschlandfunk.de/nachrichten-100.rss',
+  'dw.com': 'https://rss.dw.com/rdf/rss-de-all',
+  'wiwo.de': 'https://www.wiwo.de/contentexport/feed/rss/schlagzeilen',
+  'telepolis.de': 'https://www.telepolis.de/news-atom.xml',
+  'cicero.de': 'https://www.cicero.de/rss.xml',
+  'jacobin.de': 'https://jacobin.de/rss',
+  // German public broadcasters (verified)
+  'ndr.de': 'https://www.ndr.de/home/index-rss.xml',
+  'mdr.de': 'https://www.mdr.de/nachrichten/index-rss.xml',
+  // German regional (verified)
+  'rp-online.de': 'https://rp-online.de/feed.rss',
+  'merkur.de': 'https://www.merkur.de/welt/rssfeed.rdf',
+  'fr.de': 'https://www.fr.de/rssfeed.rdf',
+  'stuttgarter-zeitung.de': 'https://www.stuttgarter-zeitung.de/rss/topthemen.rss.feed',
+  'augsburger-allgemeine.de': 'https://www.augsburger-allgemeine.de/rss',
+  'hna.de': 'https://www.hna.de/welt/rssfeed.rdf',
+  // Austrian (verified)
+  'orf.at': 'https://rss.orf.at/news.xml',
+  'derstandard.at': 'https://www.derstandard.at/rss',
+  'diepresse.com': 'https://www.diepresse.com/rss',
+  'kleinezeitung.at': 'https://www.kleinezeitung.at/rss/oesterreich',
+  'nachrichten.at': 'https://www.nachrichten.at/storage/rss/rss/nachrichten.xml',
+  'tt.com': 'https://www.tt.com/rss/news.xml',
+  'news.at': 'https://www.news.at/rss/news',
+  'meinbezirk.at': 'https://www.meinbezirk.at/rss',
+  'noen.at': 'https://www.noen.at/xml/rss',
+  'vienna.at': 'https://www.vienna.at/rss',
+  'ots.at': 'https://www.ots.at/rss/index',
+  'moment.at': 'https://www.moment.at/rss',
+  'kontrast.at': 'https://kontrast.at/feed/',
+  'exxpress.at': 'https://exxpress.at/feed/',
+  'brandaktuell.at': 'https://www.brandaktuell.at/feed/',
+  // European & specialized (verified)
+  'euractiv.de': 'https://www.euractiv.de/feed/',
+  'euronews.com': 'https://de.euronews.com/rss',
+  'nzz.ch': 'https://www.nzz.ch/recent.rss',
+  'correctiv.org': 'https://correctiv.org/feed/',
+  'netzpolitik.org': 'https://netzpolitik.org/feed/',
 };
 
 export async function parsePrompt(prompt: string): Promise<BriefingConfig> {
