@@ -88,9 +88,11 @@ export default defineConfig(({ command }) => ({
       '@assistant-ui/react',
     ],
     exclude: ['motion', 'browser-image-compression', '@imgly/background-removal'],
-    esbuildOptions: {
-      target: 'es2022',
-      treeShaking: true,
+    rolldownOptions: {
+      transform: {
+        define: {},
+      },
+      treeshake: true,
     },
   },
   build: {
@@ -103,14 +105,10 @@ export default defineConfig(({ command }) => ({
     outDir: 'build',
     reportCompressedSize: false,
     modulePreload: { polyfill: true },
-    minify: 'esbuild',
     cssMinify: true,
     emptyOutDir: true,
-    rollupOptions: {
+    rolldownOptions: {
       treeshake: true,
-      maxParallelFileOps: 3,
-      perf: false,
-      shimMissingExports: false,
       output: {
         entryFileNames: 'assets/js/[name].[hash].js',
         chunkFileNames: 'assets/js/[name].[hash].js',
@@ -131,58 +129,80 @@ export default defineConfig(({ command }) => ({
           }
           return 'assets/[name].[hash][extname]';
         },
-        manualChunks(id: string) {
-          // Core framework vendors (node_modules — always matched correctly)
-          if (
-            id.includes('node_modules/react/') ||
-            id.includes('node_modules/react-dom/') ||
-            id.includes('node_modules/react-router')
-          )
-            return 'core-vendor';
-          if (
-            id.includes('node_modules/@tanstack/react-query') ||
-            id.includes('node_modules/zustand')
-          )
-            return 'state-vendor';
-          if (
-            id.includes('node_modules/react-tooltip') ||
-            id.includes('node_modules/react-hook-form') ||
-            id.includes('node_modules/react-dropzone')
-          )
-            return 'ui-vendor';
-          if (id.includes('node_modules/uuid') || id.includes('node_modules/dompurify'))
-            return 'utils-vendor';
-          if (id.includes('node_modules/motion')) return 'motion-vendor';
-          if (
-            id.includes('node_modules/konva') ||
-            id.includes('node_modules/react-konva') ||
-            id.includes('node_modules/use-image')
-          )
-            return 'canvas-vendor';
-          if (
-            id.includes('node_modules/onnxruntime-web') ||
-            id.includes('node_modules/@imgly/background-removal')
-          )
-            return 'ai-vendor';
-          if (
-            id.includes('node_modules/@mdxeditor/editor') ||
-            id.includes('node_modules/marked') ||
-            id.includes('node_modules/react-markdown')
-          )
-            return 'editor-vendor';
-          if (
-            id.includes('node_modules/@assistant-ui/react') ||
-            id.includes('node_modules/lucide-react')
-          )
-            return 'chat-vendor';
-
-          // Workspace packages — resolved via path aliases, match by filesystem path
-          if (id.includes('packages/shared/src/')) return 'shared-pkg';
-          if (id.includes('packages/canvas-editor/src/')) return 'canvas-editor-pkg';
-          if (id.includes('packages/chat/src/')) return 'chat-pkg';
-          if (id.includes('packages/docs/src/')) return 'docs-pkg';
-          if (id.includes('packages/collab/src/')) return 'collab-pkg';
-        },
+      },
+      codeSplitting: {
+        groups: [
+          {
+            name: 'core-vendor',
+            test: /node_modules[\\/](react|react-dom|react-router)/,
+            priority: 20,
+          },
+          {
+            name: 'state-vendor',
+            test: /node_modules[\\/](@tanstack[\\/]react-query|zustand)/,
+            priority: 10,
+          },
+          {
+            name: 'ui-vendor',
+            test: /node_modules[\\/](react-tooltip|react-hook-form|react-dropzone)/,
+            priority: 10,
+          },
+          {
+            name: 'utils-vendor',
+            test: /node_modules[\\/](uuid|dompurify)/,
+            priority: 10,
+          },
+          {
+            name: 'motion-vendor',
+            test: /node_modules[\\/]motion/,
+            priority: 10,
+          },
+          {
+            name: 'canvas-vendor',
+            test: /node_modules[\\/](konva|react-konva|use-image)/,
+            priority: 10,
+          },
+          {
+            name: 'ai-vendor',
+            test: /node_modules[\\/](onnxruntime-web|@imgly[\\/]background-removal)/,
+            priority: 10,
+          },
+          {
+            name: 'editor-vendor',
+            test: /node_modules[\\/](@mdxeditor[\\/]editor|marked|react-markdown)/,
+            priority: 10,
+          },
+          {
+            name: 'chat-vendor',
+            test: /node_modules[\\/](@assistant-ui[\\/]react|lucide-react)/,
+            priority: 10,
+          },
+          {
+            name: 'shared-pkg',
+            test: /packages[\\/]shared[\\/]src/,
+            priority: 5,
+          },
+          {
+            name: 'canvas-editor-pkg',
+            test: /packages[\\/]canvas-editor[\\/]src/,
+            priority: 5,
+          },
+          {
+            name: 'chat-pkg',
+            test: /packages[\\/]chat[\\/]src/,
+            priority: 5,
+          },
+          {
+            name: 'docs-pkg',
+            test: /packages[\\/]docs[\\/]src/,
+            priority: 5,
+          },
+          {
+            name: 'collab-pkg',
+            test: /packages[\\/]collab[\\/]src/,
+            priority: 5,
+          },
+        ],
       },
     },
   },

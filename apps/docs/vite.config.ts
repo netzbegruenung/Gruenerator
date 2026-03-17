@@ -71,26 +71,31 @@ export default defineConfig(({ command }) => ({
     sourcemap: false,
     outDir: 'dist',
     emptyOutDir: true,
-    minify: 'esbuild',
     cssMinify: true,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
         entryFileNames: 'assets/[name].[hash].js',
         chunkFileNames: 'assets/[name].[hash].js',
         assetFileNames: 'assets/[name].[hash][extname]',
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-editor': [
-            '@blocknote/core',
-            '@blocknote/react',
-            '@blocknote/shadcn',
-            'yjs',
-            'y-websocket',
-            '@hocuspocus/provider',
-          ],
-          'vendor-blocknote-ai': ['@blocknote/xl-ai'],
-          'vendor-state': ['@tanstack/react-query', 'zustand', 'axios'],
-        },
+      },
+      codeSplitting: {
+        groups: [
+          {
+            name: 'vendor-react',
+            test: /node_modules[\\/](react|react-dom|react-router)/,
+            priority: 10,
+          },
+          {
+            name: 'vendor-editor',
+            test: /node_modules[\\/](@blocknote|yjs|y-websocket|@hocuspocus)/,
+            priority: 10,
+          },
+          {
+            name: 'vendor-state',
+            test: /node_modules[\\/](@tanstack[\\/]react-query|zustand|axios)/,
+            priority: 10,
+          },
+        ],
       },
     },
   },
