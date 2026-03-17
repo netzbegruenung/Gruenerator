@@ -63,7 +63,7 @@ const DEFAULT_ENDPOINTS: ResolvedEndpoints = {
   chatResume: '/api/chat-graph/resume',
   deepStream: '/api/chat-deep/stream',
   searchStream: '/api/search-graph/stream',
-  notebookStream: '/api/notebook/qa',
+  notebookStream: '/api/chat-service/notebook/stream',
   messages: '/api/chat-service/messages',
   threads: '/api/chat-service/threads',
   summarize: '/api/chat-service/summarize',
