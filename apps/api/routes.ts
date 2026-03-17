@@ -101,16 +101,6 @@ const standardMutationLimiter = isRateLimitDisabled
       message: { error: 'Too many requests, please try again later.' },
     });
 
-const authLimiter = isRateLimitDisabled
-  ? (_req: Request, _res: Response, next: NextFunction) => next()
-  : rateLimit({
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 30, // strict — protects against brute-force on login/register
-      standardHeaders: true,
-      legacyHeaders: false,
-      message: { error: 'Too many authentication requests, please try again later.' },
-    });
-
 const publicReadLimiter = isRateLimitDisabled
   ? (_req: Request, _res: Response, next: NextFunction) => next()
   : rateLimit({
@@ -218,8 +208,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: emailRouter } = await import('./routes/email/emailController.js');
   const { default: videoRouter } = await import('./routes/video/index.js');
 
-  // Auth routes — strict limiter for brute-force protection on login/register
-  app.use('/api/auth', authLimiter, authRouter);
+  // Auth routes — authLimiter applied inside authCore.ts to login/callback only
+  app.use('/api/auth', authRouter);
   app.use('/api/auth/notebook-collections', notebookCollectionsRouter);
   app.use('/api/auth/notebook', notebookInteractionRouter);
   // Public read endpoints — soft limiter prevents scraping

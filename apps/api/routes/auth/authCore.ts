@@ -4,6 +4,7 @@
  */
 
 import express, { type Router, type Response, type NextFunction } from 'express';
+import rateLimit from 'express-rate-limit';
 
 import passport from '../../config/passportSetup.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
@@ -129,8 +130,20 @@ router.get('/test', (_req: AuthRequest, res: Response): void => {
 // Login Flow
 // ============================================================================
 
+const loginLimiter =
+  process.env.DISABLE_RATE_LIMITS === 'true'
+    ? (_req: AuthRequest, _res: Response, next: NextFunction) => next()
+    : rateLimit({
+        windowMs: 15 * 60 * 1000,
+        max: 30,
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: { error: 'Too many login attempts, please try again later.' },
+      });
+
 router.get(
   '/login',
+  loginLimiter,
   checkSessionHealth,
   async (req: AuthSessionRequest, res: Response, next: NextFunction): Promise<void> => {
     const source = req.query.source as string | undefined;
@@ -220,6 +233,7 @@ router.get(
 
 router.get(
   '/callback',
+  loginLimiter,
   passport.authenticate('oidc', {
     failureRedirect: '/auth/error',
     failureMessage: true,
