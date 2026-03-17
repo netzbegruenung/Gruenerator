@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 
 import authMiddleware from './middleware/authMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
+import { briefingRouter, briefingInternalRouter } from './routes/briefing/index.js';
 import etherpadRoute from './routes/etherpad/etherpadController.js';
 import exportDocumentsRouter from './routes/exports/index.js';
 import imagineCreateRoute from './routes/flux/imagineCreate.js';
@@ -390,6 +391,8 @@ export async function setupRoutes(app: Application): Promise<void> {
     app.use('/api/internal', snapshottingRouter);
   }
   app.use('/api/internal/offboarding', offboardingRouter);
+  app.use('/api/internal/briefing', briefingInternalRouter);
+  app.use('/api/briefing', requireAuth, briefingRouter);
 
   app.get('/api/internal/route-stats', async (req: Request, res: Response): Promise<void> => {
     try {
