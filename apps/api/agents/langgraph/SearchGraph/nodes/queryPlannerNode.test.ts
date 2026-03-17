@@ -40,7 +40,7 @@ function makeState(overrides: Partial<SearchGraphState> = {}): SearchGraphState 
     messages: [{ role: 'user', content: 'Verkehrswende in Kommunen' }],
     threadId: null,
     searchMode: 'web',
-    aiWorkerPool: {},
+    aiWorkerPool: null as any,
     userLocale: 'de-DE',
     agentConfig: {} as any,
     searchQuery: null,

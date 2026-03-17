@@ -37,6 +37,7 @@ import type {
   ChatCitation,
   SearchSource,
   UserLocale,
+  QueryType,
 } from './types.js';
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
@@ -91,7 +92,7 @@ const SearchStateAnnotation = Annotation.Root({
   complexity: Annotation<'simple' | 'moderate' | 'complex'>({
     reducer: (x, y) => y ?? x ?? 'simple',
   }),
-  queryType: Annotation<string>({
+  queryType: Annotation<QueryType>({
     reducer: (x, y) => y ?? x ?? 'general',
   }),
 
