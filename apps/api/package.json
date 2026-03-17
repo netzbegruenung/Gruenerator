@@ -64,6 +64,7 @@
     "@types/archiver": "^7.0.0",
     "@types/ws": "^8.18.1",
     "ai": "^6.0.116",
+    "apify-client": "^2.22.2",
     "archiver": "^7.0.1",
     "axios": "^1.13.6",
     "cheerio": "^1.2.0",
