@@ -19,7 +19,10 @@ interface GroupPresenceEntry {
 const MAX_CONNECTIONS = 10;
 
 const HOCUSPOCUS_URL =
-  import.meta.env.VITE_HOCUSPOCUS_URL || `ws://${window.location.hostname}:1240`;
+  import.meta.env.VITE_HOCUSPOCUS_URL ||
+  (window.location.protocol === 'https:'
+    ? `wss://${window.location.host}/ws`
+    : 'ws://localhost:1240');
 
 export function useGroupPresenceManager(groupIds: string[], user: PresenceUser | null) {
   const connectionsRef = useRef<Map<string, GroupPresenceEntry>>(new Map());

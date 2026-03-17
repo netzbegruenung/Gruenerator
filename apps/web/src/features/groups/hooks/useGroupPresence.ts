@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
-
-import { HocuspocusProvider } from '@hocuspocus/provider';
-import * as Y from 'yjs';
 import { generateUserColor, useCollaborators } from '@gruenerator/collab';
+import { HocuspocusProvider } from '@hocuspocus/provider';
+import { useState, useEffect, useRef } from 'react';
+import * as Y from 'yjs';
 
 import type { CollaborationUser } from '@gruenerator/collab';
 
@@ -11,8 +10,11 @@ interface PresenceUser {
   name: string;
 }
 
-const HOCUSPOCUS_URL = import.meta.env.VITE_HOCUSPOCUS_URL
-  || `ws://${window.location.hostname}:1240`;
+const HOCUSPOCUS_URL =
+  import.meta.env.VITE_HOCUSPOCUS_URL ||
+  (window.location.protocol === 'https:'
+    ? `wss://${window.location.host}/ws`
+    : 'ws://localhost:1240');
 
 export function useGroupPresence(
   groupId: string | null,
