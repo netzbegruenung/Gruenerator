@@ -115,9 +115,9 @@ const ImageSizeSelectStep: React.FC<ImageSizeSelectStepProps> = ({
       animate="center"
       exit="exit"
       transition={{ type: 'tween', ease: 'easeOut', duration: 0.3 }}
-      className="typeform-step"
+      className="flex flex-col w-full"
     >
-      <div className="typeform-step__content image-size-select-content">
+      <div className="flex flex-col items-center w-full">
         {/* Title and subtitle are rendered by TemplateStudioFlow header */}
         <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-md w-full my-lg max-[768px]:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] max-[768px]:gap-sm max-[480px]:grid-cols-2">
           {IMAGE_SIZES.map((size) => {
@@ -182,7 +182,7 @@ const ImageSizeSelectStep: React.FC<ImageSizeSelectStepProps> = ({
           </p>
         )}
 
-        <div className="typeform-step__actions">
+        <div className="flex justify-center gap-md mt-lg">
           <Button onClick={onBack} text="Zurück" icon={<HiArrowLeft />} disabled={loading} />
           <Button
             onClick={handleNext}
