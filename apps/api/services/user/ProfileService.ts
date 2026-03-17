@@ -280,6 +280,10 @@ class ProfileService {
       if (!generator || !key) {
         throw new Error('Generator and key are required');
       }
+      const FORBIDDEN_KEYS = ['__proto__', 'constructor', 'prototype'];
+      if (FORBIDDEN_KEYS.includes(generator) || FORBIDDEN_KEYS.includes(key)) {
+        throw new Error('Invalid generator or key name');
+      }
 
       const currentProfile = await this.getProfileById(userId);
       if (!currentProfile) {

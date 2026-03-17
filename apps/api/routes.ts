@@ -101,6 +101,26 @@ const standardMutationLimiter = isRateLimitDisabled
       message: { error: 'Too many requests, please try again later.' },
     });
 
+const authLimiter = isRateLimitDisabled
+  ? (_req: Request, _res: Response, next: NextFunction) => next()
+  : rateLimit({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 30, // strict — protects against brute-force on login/register
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'Too many authentication requests, please try again later.' },
+    });
+
+const publicReadLimiter = isRateLimitDisabled
+  ? (_req: Request, _res: Response, next: NextFunction) => next()
+  : rateLimit({
+      windowMs: 60 * 60 * 1000, // 1 hour
+      max: 500, // soft — prevents scraping, allows normal use
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'Too many requests, please try again later.' },
+    });
+
 const log = createLogger('Routes');
 
 const { requireAuth } = authMiddleware;
@@ -198,17 +218,18 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: emailRouter } = await import('./routes/email/emailController.js');
   const { default: videoRouter } = await import('./routes/video/index.js');
 
-  // Auth routes - combined TypeScript router
-  app.use('/api/auth', authRouter);
+  // Auth routes — strict limiter for brute-force protection on login/register
+  app.use('/api/auth', authLimiter, authRouter);
   app.use('/api/auth/notebook-collections', notebookCollectionsRouter);
   app.use('/api/auth/notebook', notebookInteractionRouter);
-  app.use('/api/documents', documentsRouter);
-  app.use('/api/oparl', oparlRouter);
+  // Public read endpoints — soft limiter prevents scraping
+  app.use('/api/documents', publicReadLimiter, documentsRouter);
+  app.use('/api/oparl', publicReadLimiter, oparlRouter);
   app.use('/api/crawl-url', crawlUrlRouter);
-  app.use('/api/recent-values', recentValuesRouter);
+  app.use('/api/recent-values', publicReadLimiter, recentValuesRouter);
   app.use('/api/antraege', requireAuth, antraegeRouter);
-  app.use('/api/scanner', scannerRouter);
-  app.use('/api/protokoll', protokollRouter);
+  app.use('/api/scanner', publicReadLimiter, scannerRouter);
+  app.use('/api/protokoll', publicReadLimiter, protokollRouter);
 
   app.use('/api/claude_social', aiGenerationLimiter, claudeSocialRoute);
   app.use('/api/claude_alttext', aiGenerationLimiter, claudeAlttextRoute);
@@ -370,7 +391,7 @@ export async function setupRoutes(app: Application): Promise<void> {
     );
     next();
   });
-  app.use('/api/releases', releasesRouter);
+  app.use('/api/releases', publicReadLimiter, releasesRouter);
   app.use('/api/exports', exportDocumentsRouter);
   app.use('/api/markdown', markdownRouter);
   app.use('/api/database', databaseTestRouter);

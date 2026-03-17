@@ -358,7 +358,7 @@ router.post(
     } catch (err) {
       const error = err as Error;
       log.error('Fehler bei der Veranstaltungs-Sharepic-Erstellung:', error);
-      res.status(500).send('Fehler beim Erstellen des Bildes: ' + error.message);
+      res.status(500).json({ error: 'Fehler beim Erstellen des Bildes' });
     } finally {
       if (req.file) {
         fs.unlink(req.file.path, (err) => {
