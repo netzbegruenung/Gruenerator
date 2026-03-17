@@ -1,9 +1,10 @@
 export interface SourceConfig {
-  type: 'web' | 'twitter' | 'instagram' | 'rss';
+  type: 'web' | 'twitter' | 'instagram' | 'rss' | 'documents';
   query?: string;
   domains?: string[];
   username?: string;
   url?: string;
+  collection?: string;
 }
 
 export interface BriefingConfig {
