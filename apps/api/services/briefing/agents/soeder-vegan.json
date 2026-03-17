@@ -3,7 +3,7 @@
   "name": "Söder isst — Vegane Alternative",
   "description": "Monatliche Zusammenfassung von allem, was Markus Söder öffentlich isst, mit veganer Rezeptempfehlung",
   "config": {
-    "sources": [{ "type": "instagram", "username": "markus.soeder" }],
+    "sources": [{ "type": "instagram", "username": "markus.soeder", "keywords": ["söderisst"] }],
     "language": "de",
     "timeRange": "week",
     "maxResultsPerSource": 30,
