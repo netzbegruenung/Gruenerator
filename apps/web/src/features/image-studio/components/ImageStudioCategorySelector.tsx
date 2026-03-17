@@ -15,11 +15,9 @@ import { type StartOption } from '../types/componentTypes';
 import { IMAGE_STUDIO_CATEGORIES, IMAGE_STUDIO_TYPES, getTypeConfig } from '../utils/typeConfig';
 
 import PreviewImage from './PreviewImage';
+import TypeCard from './TypeCard';
 
 import type { TypeConfig } from '../utils/typeConfig/types';
-
-import '../image-studio-shared.css';
-import './ImageStudioCategorySelector.css';
 
 const EXAMPLE_PROMPTS = [
   { label: 'Zitat', text: 'Erstelle ein Zitat zum Thema Klimaschutz' },
@@ -230,15 +228,17 @@ const ImageStudioCategorySelector: React.FC = () => {
   );
 
   return (
-    <div className="type-selector-screen">
-      <div className="type-selector-content">
-        <div className="type-selector-header-row">
-          <h1>{firstName ? `Hallo, ${firstName}!` : 'Willkommen im Image-Studio'}</h1>
+    <div className="w-full flex justify-center p-8 max-[768px]:p-4">
+      <div className="w-full max-w-[var(--container-max-width)] mx-auto px-6 pb-16 text-center max-[768px]:px-4">
+        <div className="flex justify-center items-center gap-md mb-xl pt-lg text-center max-[768px]:flex-col max-[768px]:gap-sm max-[768px]:mb-lg">
+          <h1 className="m-0 text-3xl font-extrabold tracking-tight text-center max-[768px]:text-2xl">
+            {firstName ? `Hallo, ${firstName}!` : 'Willkommen im Image-Studio'}
+          </h1>
           <Button
             variant="brand-outline"
             size="brand"
             onClick={() => navigate('/image-studio/gallery')}
-            style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-small)' }}
+            className="flex items-center gap-sm max-[768px]:w-full max-[768px]:justify-center"
           >
             <PiFolder /> Meine Bilder
           </Button>
@@ -262,12 +262,16 @@ const ImageStudioCategorySelector: React.FC = () => {
         {/* Recent Sections - Side by side when both exist */}
         {(showGallerySection || showRecentTypesSection) &&
           (showGallerySection && showRecentTypesSection ? (
-            <div className="image-studio-recent-sections-row">
-              {/* Recent Gallery Items - Editable saved sharepics */}
-              <div className="image-studio-recent-section">
-                <h3 className="image-studio-section-title">Zuletzt erstellt</h3>
-                <p className="image-studio-section-subtitle">Deine gespeicherten Sharepics</p>
-                <div className="image-studio-recent-grid image-studio-gallery-grid">
+            <div className="grid grid-cols-2 gap-xl mb-xl max-[1023px]:gap-lg max-[768px]:grid-cols-1 max-[768px]:gap-lg">
+              {/* Recent Gallery Items */}
+              <div className="text-left">
+                <h3 className="font-[Raleway,'PT_Sans',Arial,sans-serif] text-sm font-semibold text-[var(--font-color-secondary)] uppercase tracking-wider mb-xs">
+                  Zuletzt erstellt
+                </h3>
+                <p className="font-[Raleway,'PT_Sans',Arial,sans-serif] text-xs text-[var(--font-color-secondary)] mb-md opacity-80">
+                  Deine gespeicherten Sharepics
+                </p>
+                <div className="flex gap-md overflow-x-auto pb-sm scrollbar-none">
                   {recentGalleryItems.map((item) => {
                     const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
                     const thumbnailUrl = item.thumbnailPath
@@ -276,29 +280,40 @@ const ImageStudioCategorySelector: React.FC = () => {
                     return (
                       <div
                         key={item.shareToken}
-                        className="image-studio-recent-card image-studio-gallery-card"
+                        className="shrink-0 w-[140px] flex flex-col items-center gap-sm p-sm bg-background border border-[var(--border-color)] rounded-lg cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md max-[768px]:w-[110px]"
                         onClick={() => handleGalleryItemEdit(item)}
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => e.key === 'Enter' && handleGalleryItemEdit(item)}
                       >
-                        <img src={thumbnailUrl} alt={item.title || 'Sharepic'} loading="lazy" />
-                        <span>{item.title || 'Sharepic'}</span>
+                        <img
+                          src={thumbnailUrl}
+                          alt={item.title || 'Sharepic'}
+                          loading="lazy"
+                          className="w-[120px] h-[120px] object-cover rounded-md bg-background-alt max-[768px]:w-[90px] max-[768px]:h-[90px]"
+                        />
+                        <span className="text-xs font-medium text-foreground text-center whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px] max-[768px]:max-w-[90px]">
+                          {item.title || 'Sharepic'}
+                        </span>
                       </div>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Recent Template Types - Quick access to template types */}
-              <div className="image-studio-recent-section">
-                <h3 className="image-studio-section-title">Zuletzt verwendete Vorlagen</h3>
-                <p className="image-studio-section-subtitle">Schnellzugriff auf deine Favoriten</p>
-                <div className="image-studio-recent-grid">
+              {/* Recent Template Types */}
+              <div className="text-left">
+                <h3 className="font-[Raleway,'PT_Sans',Arial,sans-serif] text-sm font-semibold text-[var(--font-color-secondary)] uppercase tracking-wider mb-xs">
+                  Zuletzt verwendete Vorlagen
+                </h3>
+                <p className="font-[Raleway,'PT_Sans',Arial,sans-serif] text-xs text-[var(--font-color-secondary)] mb-md opacity-80">
+                  Schnellzugriff auf deine Favoriten
+                </p>
+                <div className="flex gap-md overflow-x-auto pb-sm scrollbar-none">
                   {recentTypeConfigs.map((config) => (
                     <div
                       key={config.id}
-                      className="image-studio-recent-card"
+                      className="shrink-0 w-[120px] flex flex-col items-center gap-sm p-sm bg-background-alt rounded-lg cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md max-[768px]:w-[100px]"
                       onClick={() => handleCategorySelect(config.category, null, config.id)}
                       role="button"
                       tabIndex={0}
@@ -313,7 +328,9 @@ const ImageStudioCategorySelector: React.FC = () => {
                           alt={config.label}
                         />
                       )}
-                      <span>{config.label}</span>
+                      <span className="text-xs font-medium text-foreground text-center whitespace-nowrap overflow-hidden text-ellipsis max-w-full">
+                        {config.label}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -321,12 +338,15 @@ const ImageStudioCategorySelector: React.FC = () => {
             </div>
           ) : (
             <>
-              {/* Single section display - full width */}
               {showGallerySection && (
-                <div className="image-studio-recent-section">
-                  <h3 className="image-studio-section-title">Zuletzt erstellt</h3>
-                  <p className="image-studio-section-subtitle">Deine gespeicherten Sharepics</p>
-                  <div className="image-studio-recent-grid image-studio-gallery-grid">
+                <div className="mb-xl text-left">
+                  <h3 className="font-[Raleway,'PT_Sans',Arial,sans-serif] text-sm font-semibold text-[var(--font-color-secondary)] uppercase tracking-wider mb-xs">
+                    Zuletzt erstellt
+                  </h3>
+                  <p className="font-[Raleway,'PT_Sans',Arial,sans-serif] text-xs text-[var(--font-color-secondary)] mb-md opacity-80">
+                    Deine gespeicherten Sharepics
+                  </p>
+                  <div className="flex gap-md overflow-x-auto pb-sm scrollbar-none">
                     {recentGalleryItems.map((item) => {
                       const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
                       const thumbnailUrl = item.thumbnailPath
@@ -335,14 +355,21 @@ const ImageStudioCategorySelector: React.FC = () => {
                       return (
                         <div
                           key={item.shareToken}
-                          className="image-studio-recent-card image-studio-gallery-card"
+                          className="shrink-0 w-[140px] flex flex-col items-center gap-sm p-sm bg-background border border-[var(--border-color)] rounded-lg cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md max-[768px]:w-[110px]"
                           onClick={() => handleGalleryItemEdit(item)}
                           role="button"
                           tabIndex={0}
                           onKeyDown={(e) => e.key === 'Enter' && handleGalleryItemEdit(item)}
                         >
-                          <img src={thumbnailUrl} alt={item.title || 'Sharepic'} loading="lazy" />
-                          <span>{item.title || 'Sharepic'}</span>
+                          <img
+                            src={thumbnailUrl}
+                            alt={item.title || 'Sharepic'}
+                            loading="lazy"
+                            className="w-[120px] h-[120px] object-cover rounded-md bg-background-alt max-[768px]:w-[90px] max-[768px]:h-[90px]"
+                          />
+                          <span className="text-xs font-medium text-foreground text-center whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]">
+                            {item.title || 'Sharepic'}
+                          </span>
                         </div>
                       );
                     })}
@@ -351,16 +378,18 @@ const ImageStudioCategorySelector: React.FC = () => {
               )}
 
               {showRecentTypesSection && (
-                <div className="image-studio-recent-section">
-                  <h3 className="image-studio-section-title">Zuletzt verwendete Vorlagen</h3>
-                  <p className="image-studio-section-subtitle">
+                <div className="mb-xl text-left">
+                  <h3 className="font-[Raleway,'PT_Sans',Arial,sans-serif] text-sm font-semibold text-[var(--font-color-secondary)] uppercase tracking-wider mb-xs">
+                    Zuletzt verwendete Vorlagen
+                  </h3>
+                  <p className="font-[Raleway,'PT_Sans',Arial,sans-serif] text-xs text-[var(--font-color-secondary)] mb-md opacity-80">
                     Schnellzugriff auf deine Favoriten
                   </p>
-                  <div className="image-studio-recent-grid">
+                  <div className="flex gap-md overflow-x-auto pb-sm scrollbar-none">
                     {recentTypeConfigs.map((config) => (
                       <div
                         key={config.id}
-                        className="image-studio-recent-card"
+                        className="shrink-0 w-[120px] flex flex-col items-center gap-sm p-sm bg-background-alt rounded-lg cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md max-[768px]:w-[100px]"
                         onClick={() => handleCategorySelect(config.category, null, config.id)}
                         role="button"
                         tabIndex={0}
@@ -376,7 +405,9 @@ const ImageStudioCategorySelector: React.FC = () => {
                             alt={config.label}
                           />
                         )}
-                        <span>{config.label}</span>
+                        <span className="text-xs font-medium text-foreground text-center whitespace-nowrap overflow-hidden text-ellipsis max-w-full">
+                          {config.label}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -386,70 +417,75 @@ const ImageStudioCategorySelector: React.FC = () => {
           ))}
 
         {/* Templates Section Header */}
-        <div className="image-studio-recent-section image-studio-templates-section">
-          <h3 className="image-studio-section-title">Oder starte mit einer Vorlage</h3>
-          <p className="image-studio-section-subtitle">Wähle aus verschiedenen Formaten</p>
+        <div className="mt-xl text-left">
+          <h3 className="font-[Raleway,'PT_Sans',Arial,sans-serif] text-sm font-semibold text-[var(--font-color-secondary)] uppercase tracking-wider mb-xs">
+            Oder starte mit einer Vorlage
+          </h3>
+          <p className="font-[Raleway,'PT_Sans',Arial,sans-serif] text-xs text-[var(--font-color-secondary)] mb-md opacity-80">
+            Wähle aus verschiedenen Formaten
+          </p>
         </div>
 
-        {/* Existing Category Cards */}
-        <div className="type-options-grid type-options-grid--four">
-          {startOptions.map((option) => (
-            <div
-              key={option.id}
-              className={`type-card ${option.previewImage ? 'type-card--image gradient-dark' : ''} ${option.isComingSoon ? 'coming-soon' : ''}`}
-              onClick={() => {
-                if (option.isComingSoon) return;
-                if (option.id === 'sharepics' && isAustrianUser) {
-                  window.open('https://bildgenerator.gruene.at/', '_blank', 'noopener,noreferrer');
-                  return;
+        {/* Category Cards */}
+        <div className="flex gap-6 w-full max-[1024px]:flex-wrap max-[768px]:grid max-[768px]:grid-cols-2 max-[768px]:gap-4 max-[480px]:grid-cols-1">
+          {startOptions.map((option) => {
+            const handleClick = () => {
+              if (option.isComingSoon) return;
+              if (option.id === 'sharepics' && isAustrianUser) {
+                window.open('https://bildgenerator.gruene.at/', '_blank', 'noopener,noreferrer');
+                return;
+              }
+              if (option.isEarlyAccess) {
+                void navigate('/datenbank/vorlagen');
+                return;
+              }
+              handleCategorySelect(option.category, option.subcategory, option.directType);
+            };
+
+            return option.previewImage ? (
+              <TypeCard
+                key={option.id}
+                onClick={handleClick}
+                previewImage={option.previewImage}
+                previewImageFallback={option.previewImageFallback}
+                label={option.label}
+                description={option.description}
+                isComingSoon={option.isComingSoon}
+                variant="gradient-dark"
+                className="flex-1 aspect-[3/4] max-[1024px]:basis-[calc(50%-0.75rem)] max-[768px]:aspect-square max-[600px]:basis-full"
+                badge={
+                  <>
+                    {option.isComingSoon && <StatusBadge type="coming-soon" variant="card" />}
+                    {option.isEarlyAccess && <StatusBadge type="early-access" variant="card" />}
+                  </>
                 }
-                if (option.isEarlyAccess) {
-                  void navigate('/datenbank/vorlagen');
-                  return;
+              />
+            ) : (
+              <TypeCard
+                key={option.id}
+                onClick={handleClick}
+                label={option.label}
+                description={option.description}
+                isComingSoon={option.isComingSoon}
+                badge={
+                  <>
+                    {option.isComingSoon && <StatusBadge type="coming-soon" variant="card" />}
+                    {option.isEarlyAccess && <StatusBadge type="early-access" variant="card" />}
+                  </>
                 }
-                handleCategorySelect(option.category, option.subcategory, option.directType);
-              }}
-              role="button"
-              tabIndex={option.isComingSoon ? -1 : 0}
-              onKeyDown={(e: React.KeyboardEvent) => {
-                if (e.key !== 'Enter' || option.isComingSoon) return;
-                if (option.id === 'sharepics' && isAustrianUser) {
-                  window.open('https://bildgenerator.gruene.at/', '_blank', 'noopener,noreferrer');
-                  return;
-                }
-                if (option.isEarlyAccess) {
-                  void navigate('/datenbank/vorlagen');
-                  return;
-                }
-                handleCategorySelect(option.category, option.subcategory, option.directType);
-              }}
-            >
-              {option.isComingSoon && <StatusBadge type="coming-soon" variant="card" />}
-              {option.isEarlyAccess && <StatusBadge type="early-access" variant="card" />}
-              {option.previewImage ? (
-                <>
-                  <PreviewImage
-                    src={option.previewImage}
-                    fallbackSrc={option.previewImageFallback}
-                    alt={option.label}
-                    className="type-card__image"
-                    width={600}
-                    height={800}
-                  />
-                  <h3>{option.label}</h3>
-                  <p className="type-card__description">{option.description}</p>
-                </>
-              ) : (
-                <>
-                  <div className="type-icon">
-                    <option.Icon />
-                  </div>
-                  <h3>{option.label}</h3>
-                  <p>{option.description}</p>
-                </>
-              )}
-            </div>
-          ))}
+              >
+                <div className="text-5xl mb-4">
+                  <option.Icon />
+                </div>
+                <h3 className="text-xl mb-4 text-[var(--font-color-h3)] text-center">
+                  {option.label}
+                </h3>
+                <p className="text-base leading-normal mb-6 text-foreground">
+                  {option.description}
+                </p>
+              </TypeCard>
+            );
+          })}
         </div>
       </div>
     </div>

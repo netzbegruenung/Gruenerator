@@ -27,8 +27,6 @@ import {
 
 // Import extracted components and types
 
-import './image-studio-shared.css';
-
 const ImageStudioPageContent: React.FC = () => {
   const { category: urlCategory, type: urlType } = useParams();
   const [searchParams] = useSearchParams();
