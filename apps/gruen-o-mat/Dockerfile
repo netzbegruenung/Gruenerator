@@ -18,8 +18,11 @@ COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc ./
 COPY tsconfig.base.json tsconfig.strict-migration.json ./
 
 # Copy package.json files for workspace resolution
+COPY packages/shared/package.json ./packages/shared/
 COPY packages/chat/package.json ./packages/chat/
 COPY packages/voice/package.json ./packages/voice/
+COPY packages/ui/package.json ./packages/ui/
+COPY packages/collab/package.json ./packages/collab/
 COPY apps/gruen-o-mat/package.json ./apps/gruen-o-mat/
 
 # Install only gruen-o-mat + transitive workspace deps
@@ -27,8 +30,11 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --filter @gruenerator/gruen-o-mat...
 
 # Copy source (changes here don't bust the install cache)
+COPY packages/shared ./packages/shared
 COPY packages/chat ./packages/chat
 COPY packages/voice ./packages/voice
+COPY packages/ui ./packages/ui
+COPY packages/collab ./packages/collab
 COPY apps/gruen-o-mat ./apps/gruen-o-mat
 
 # Build the frontend

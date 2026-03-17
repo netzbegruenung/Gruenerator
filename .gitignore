@@ -91,12 +91,8 @@ AGENTS.md
 # Scripts directory (root only)
 /scripts/
 
-# Documentation (local development)
-docs/
-!apps/api/docs/
-!apps/api/routes/docs/
-!apps/docs/
-!apps/web/src/features/docs/
+# Documentation (local development, root-level only)
+/docs/
 !packages/docs/
 !documentation/docs/
 
