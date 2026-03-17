@@ -20,7 +20,7 @@ on:
         default: false
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: content-sync-${{ github.event.schedule || 'manual' }}
@@ -227,6 +227,23 @@ jobs:
             fi
           } >> $GITHUB_STEP_SUMMARY
 
+      - name: Update content stats page
+        if: always()
+        run: npx tsx apps/api/generate-content-stats.ts
+        env:
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
+          QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
+
+      - name: Commit stats page
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
+          git diff --cached --quiet || git commit -m "docs: update content stats [skip ci]" && git push
+
   # ─── Single-source run (no matrix overhead) ────────────────────
   sync-single:
     name: Sync ${{ inputs.source }}
@@ -294,6 +311,23 @@ jobs:
             echo "**Date:** $(date -d "$TIMESTAMP" '+%d.%m.%Y %H:%M UTC' 2>/dev/null || echo "$TIMESTAMP")"
             echo "**Duration:** ${DURATION}s | **New:** +${STORED} | **Errors:** ${ERRORS}"
           } >> $GITHUB_STEP_SUMMARY
+
+      - name: Update content stats page
+        if: always()
+        run: npx tsx apps/api/generate-content-stats.ts
+        env:
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
+          QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
+
+      - name: Commit stats page
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
+          git diff --cached --quiet || git commit -m "docs: update content stats [skip ci]" && git push
 
       - name: Fail if sync had errors
         if: steps.sync.outcome == 'failure'
