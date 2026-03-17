@@ -55,7 +55,7 @@ export function splitSentences(text: string): SplitResult {
   let match: RegExpExecArray | null;
 
   while ((match = SENTENCE_END_RE.exec(text)) !== null) {
-    const candidateEnd = match.index + match[1].length;
+    const candidateEnd = match.index + (match[1]?.length ?? 0);
     const candidate = text.slice(lastIndex, candidateEnd).trim();
 
     if (candidate.length === 0) continue;
@@ -68,7 +68,7 @@ export function splitSentences(text: string): SplitResult {
     if (candidate.length <= 2) continue;
 
     complete.push(candidate);
-    lastIndex = candidateEnd + match[2].length;
+    lastIndex = candidateEnd + (match[2]?.length ?? 0);
   }
 
   const remainder = text.slice(lastIndex).trim();
