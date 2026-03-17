@@ -20,6 +20,8 @@
  * Run: npx tsx apps/api/update-all-content.ts
  */
 
+import { Mistral } from '@mistralai/mistralai';
+
 import { sendContentSyncEmail } from './services/email/emailService.js';
 import { boellStiftungScraperService } from './services/scrapers/implementations/BoellStiftungScraper.js';
 import { gruenblogScraperService } from './services/scrapers/implementations/GruenblogScraper.js';
@@ -180,6 +182,68 @@ const SOURCE_GROUPS: SourceGroup[] = [
 const VALID_SOURCE_IDS = SOURCE_GROUPS.map((g) => g.id);
 
 /**
+ * Preflight check: verify that required infrastructure (Mistral API, Qdrant) is reachable
+ * before spending 20+ minutes crawling pages that can never be stored.
+ */
+async function preflight(): Promise<void> {
+  const errors: string[] = [];
+
+  // Check MISTRAL_API_KEY
+  const mistralKey = process.env.MISTRAL_API_KEY;
+  if (!mistralKey || mistralKey.trim() === '') {
+    errors.push('MISTRAL_API_KEY is not set — embeddings will fail');
+  } else {
+    try {
+      const client = new Mistral({ apiKey: mistralKey });
+      const resp = await client.models.list();
+      if (!resp?.data?.length) {
+        errors.push('Mistral API returned no models — key may be invalid');
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push(`Mistral API unreachable: ${msg}`);
+    }
+  }
+
+  // Check QDRANT_URL + QDRANT_API_KEY
+  const qdrantUrl = process.env.QDRANT_URL;
+  const qdrantKey = process.env.QDRANT_API_KEY;
+  if (!qdrantUrl || qdrantUrl.trim() === '') {
+    errors.push('QDRANT_URL is not set — vector storage will fail');
+  } else if (!qdrantKey || qdrantKey.trim() === '') {
+    errors.push('QDRANT_API_KEY is not set — vector storage will fail');
+  } else {
+    try {
+      const healthUrl = qdrantUrl.replace(/\/+$/, '') + '/healthz';
+      const resp = await fetch(healthUrl, {
+        headers: { 'api-key': qdrantKey },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!resp.ok) {
+        errors.push(`Qdrant health check returned HTTP ${resp.status}`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push(`Qdrant unreachable at ${qdrantUrl}: ${msg}`);
+    }
+  }
+
+  if (errors.length > 0) {
+    console.error('\n========================================');
+    console.error('  PREFLIGHT CHECK FAILED');
+    console.error('========================================');
+    for (const e of errors) {
+      console.error(`  ✗ ${e}`);
+    }
+    console.error('========================================');
+    console.error('Aborting sync — fix the issues above and retry.\n');
+    process.exit(1);
+  }
+
+  console.log('Preflight: Mistral API ✓, Qdrant ✓\n');
+}
+
+/**
  * Run async tasks with limited concurrency.
  */
 async function parallelLimit<T>(tasks: (() => Promise<T>)[], limit: number): Promise<T[]> {
@@ -263,6 +327,10 @@ interface SyncSummary {
 async function main() {
   const args = parseArgs();
   const syncStart = Date.now();
+
+  if (!args.dryRun) {
+    await preflight();
+  }
 
   // Resolve which groups to run
   let groups = SOURCE_GROUPS;
