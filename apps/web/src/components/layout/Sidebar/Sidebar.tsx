@@ -54,10 +54,8 @@ const iconClass =
 const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isOpen, close, open, toggle, forceExpanded, requestForceExpanded, releaseForceExpanded } =
-    useSidebarStore();
+  const { isOpen, close, open, toggle, forceExpanded } = useSidebarStore();
   const isMobile = useIsMobile();
-  const isChatRoute = location.pathname.startsWith('/chat');
 
   const canvasIsActive = useCanvasSidebarStore((s) => s.isActive);
   const canvasTabs = useCanvasSidebarStore((s) => s.tabs);
@@ -115,21 +113,12 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   const sidebarExpanded = isOpen || forceExpanded;
 
-  // Close sidebar on route change (skip when forceExpanded)
+  // Close sidebar on route change
   useEffect(() => {
     if (!forceExpanded) {
       close();
     }
   }, [location.pathname]);
-
-  // Force sidebar open on /chat route
-  useEffect(() => {
-    if (isChatRoute) {
-      requestForceExpanded('chat');
-    } else {
-      releaseForceExpanded('chat');
-    }
-  }, [isChatRoute, requestForceExpanded, releaseForceExpanded]);
 
   useEffect(() => {
     const observer = new MutationObserver((mutations) => {
@@ -227,7 +216,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       )}
 
       {/* Sidebar Header - Home & Close */}
-      {!isDesktop && (
+      {!isDesktop && sidebarExpanded && (
         <div className="flex items-center justify-between p-2 shrink-0">
           <button
             className="flex items-center justify-center w-10 h-10 p-0 border-none bg-transparent cursor-pointer rounded-sm text-foreground-heading text-[1.4rem] transition-colors hover:bg-hover-alt"
@@ -249,7 +238,12 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         </div>
       )}
 
-      <nav className={cn('flex-none overflow-x-hidden pb-sm', isDesktop && 'pt-3')}>
+      <nav
+        className={cn(
+          'flex-none overflow-x-hidden pb-sm',
+          isDesktop ? 'pt-3' : !sidebarExpanded && 'pt-12'
+        )}
+      >
         {/* Canvas editor tabs — replaces normal nav when canvas is active */}
         {canvasIsActive ? (
           <div className="flex flex-col gap-0.5 p-0" style={{ paddingTop: 'var(--spacing-small)' }}>
@@ -399,13 +393,12 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         )}
       </nav>
 
-      <div
-        id="chat-thread-portal-slot"
-        className={cn(
-          'flex-1 flex flex-col overflow-hidden min-h-0 border-t border-grey-200 dark:border-grey-700 transition-opacity duration-150',
-          sidebarExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        )}
-      />
+      {sidebarExpanded && (
+        <div
+          id="chat-thread-portal-slot"
+          className="flex-1 flex flex-col overflow-hidden min-h-0 border-t border-grey-200 dark:border-grey-700"
+        />
+      )}
 
       {/* Footer - pushed to bottom */}
       <div className="mt-auto px-2 py-xs shrink-0 flex items-center">
@@ -424,6 +417,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           </TooltipContent>
         </Tooltip>
         {!isDesktop &&
+          sidebarExpanded &&
           footerLinks.map((item) => (
             <Link
               key={item.id}
@@ -431,12 +425,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
               className="flex items-center py-sm px-2.5 no-underline text-foreground rounded-sm transition-colors min-h-[40px] hover:bg-hover-alt"
               onClick={() => handleLinkClick(item.path!, item.title)}
             >
-              <span
-                className={cn(
-                  'font-medium text-[0.7rem] text-foreground whitespace-nowrap transition-opacity duration-150 font-[Raleway,PT_Sans,Arial,sans-serif]',
-                  sidebarExpanded ? 'opacity-100' : 'opacity-0'
-                )}
-              >
+              <span className="font-medium text-[0.7rem] text-foreground whitespace-nowrap font-[Raleway,PT_Sans,Arial,sans-serif]">
                 {item.title}
               </span>
             </Link>
@@ -465,12 +454,10 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       {(!isMobile || isDesktop) && (
         <aside
           className={cn(
-            'fixed top-0 left-0 h-dvh bg-background border-r border-grey-200 dark:border-grey-700 z-[1001] flex flex-col overflow-hidden transition-[width] duration-200',
+            'sidebar fixed top-0 left-0 h-dvh bg-background border-r border-grey-200 dark:border-grey-700 z-[1001] flex flex-col overflow-hidden transition-[width] duration-200',
             // Desktop (non-Tauri)
             !isDesktop && 'md:w-14',
-            !isDesktop && isOpen && 'md:w-[280px]',
-            // Force expanded for chat route
-            !isDesktop && forceExpanded && isOpen && 'md:w-[280px]',
+            !isDesktop && sidebarExpanded && 'md:w-[280px]',
             // Tauri desktop mode
             isDesktop &&
               'top-[var(--titlebar-height)] h-[calc(100dvh-var(--titlebar-height))] bg-[var(--bar-background)]',

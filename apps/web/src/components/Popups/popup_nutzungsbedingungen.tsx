@@ -42,7 +42,7 @@ const PopupNutzungsbedingungen = () => {
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-0 w-full bg-background px-5 py-2.5 shadow-[0_-2px_5px_rgba(236,214,214,0.3)] text-left z-[1000] flex items-center box-border max-md:flex-col max-md:p-[15px] max-md:pb-[25px] max-md:gap-2.5 max-md:text-center max-sm:p-2.5">
+    <div className="fixed bottom-0 w-full bg-background px-5 py-2.5 shadow-[0_-2px_5px_rgba(236,214,214,0.3)] text-left z-[1003] flex items-center box-border max-md:flex-col max-md:p-[15px] max-md:pb-[25px] max-md:gap-2.5 max-md:text-center max-sm:p-2.5">
       <p className="grow max-md:text-[0.9em] max-md:mb-2.5 max-sm:text-[0.8em]">
         Diese Website verwendet Cookies. Durch die Nutzung stimmst du den{' '}
         <a href="/datenschutz#nutzungsbedingungen" className="text-foreground-heading underline">
