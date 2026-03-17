@@ -228,7 +228,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
       {/* Sidebar Header - Home & Close */}
       {!isDesktop && (
-        <div className={cn('flex items-center justify-between p-2 shrink-0', !isMobile && 'pt-12')}>
+        <div className="flex items-center justify-between p-2 shrink-0">
           <button
             className="flex items-center justify-center w-10 h-10 p-0 border-none bg-transparent cursor-pointer rounded-sm text-foreground-heading text-[1.4rem] transition-colors hover:bg-hover-alt"
             onClick={() => handleLinkClick('/', 'Start')}
