@@ -11,6 +11,7 @@ import {
   pauseAgent,
   getPreviousExecutionUrls,
 } from './BriefingAgentService.js';
+import { archiveBriefing } from './BriefingArchiveService.js';
 import { deliverBriefing } from './BriefingDeliveryService.js';
 import { collectAll } from './DataCollectorService.js';
 import { isSystemAgent, getSystemAgent } from './SystemAgentLoader.js';
@@ -151,6 +152,8 @@ export async function execute(agentId: string): Promise<void> {
     } else {
       log.warn(`Agent ${agentId}: no delivery email found`);
     }
+
+    await archiveBriefing(agent, summary, newItems);
 
     if (execution) {
       await completeExecution(execution.id, 'completed', {
