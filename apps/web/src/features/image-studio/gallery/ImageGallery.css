@@ -219,7 +219,7 @@
 }
 
 .image-gallery-action-btn {
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: var(--overlay-dark-md);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     color: var(--white);
@@ -330,7 +330,7 @@
 .image-gallery-cancel-btn {
     background-color: rgba(255, 255, 255, 0.2);
     color: var(--white);
-    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .image-gallery-skeleton-grid {
@@ -450,11 +450,6 @@
 
 [data-theme="dark"] .image-gallery-card {
     background-color: var(--background-color-alt);
-    box-shadow: var(--shadow-md);
-}
-
-[data-theme="dark"] .image-gallery-card:hover {
-    box-shadow: var(--shadow-xl);
 }
 
 [data-theme="dark"] .image-gallery-skeleton-card {
@@ -462,11 +457,7 @@
 }
 
 [data-theme="dark"] .image-gallery-type-badge {
-    background-color: rgba(0, 0, 0, 0.7);
-}
-
-[data-theme="dark"] .image-gallery-action-btn {
-    background-color: rgba(0, 0, 0, 0.6);
+    background-color: var(--overlay-dark-md);
 }
 
 @media (max-width: 768px) {

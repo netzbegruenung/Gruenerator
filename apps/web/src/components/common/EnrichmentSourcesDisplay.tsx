@@ -1,7 +1,8 @@
 import { HiDocument, HiGlobeAlt, HiLink, HiLightningBolt, HiSearch } from 'react-icons/hi';
 
-import type { JSX } from 'react';
 import { cn } from '../../utils/cn';
+
+import type { JSX } from 'react';
 
 /**
  * EnrichmentSourcesDisplay component - displays enrichment sources from generation
@@ -82,7 +83,7 @@ const EnrichmentSourcesDisplay = ({
               className={cn(
                 'inline-flex items-center gap-xxs px-xs py-[2px] rounded-sm text-xs max-md:text-[0.7rem] font-medium border',
                 'bg-[rgba(59,130,246,0.1)] border-[var(--interactive-accent-color)] text-[var(--interactive-accent-color)]',
-                'dark:bg-[rgba(59,130,246,0.2)] dark:text-[var(--himmel)]',
+                'dark:bg-[rgba(59,130,246,0.2)] dark:text-[var(--interactive-accent-color)]',
                 '[&_svg]:text-[0.9rem]'
               )}
             >

@@ -133,7 +133,7 @@ function TabbedLayoutInner<T extends string = string>({
                   'cursor-pointer transition-all duration-150 whitespace-nowrap',
                   'hover:bg-background-alt',
                   'disabled:opacity-50 disabled:cursor-not-allowed',
-                  'focus-visible:outline-2 focus-visible:outline-[var(--himmel)] focus-visible:outline-offset-2',
+                  'focus-visible:outline-2 focus-visible:outline-[var(--interactive-accent-color)] focus-visible:outline-offset-2',
                   'max-[640px]:px-sm max-[640px]:py-xs max-[640px]:text-[0.85rem]',
                   'max-[400px]:px-sm max-[400px]:py-xs',
                   isActive &&
@@ -167,7 +167,7 @@ function TabbedLayoutInner<T extends string = string>({
         className={cn(
           'w-full max-w-[800px] mx-auto grid grid-cols-1 grid-rows-1',
           'xl:max-w-[1000px] 3xl:max-w-[1100px]',
-          'focus-visible:outline-2 focus-visible:outline-[var(--himmel)] focus-visible:outline-offset-[-2px] focus-visible:rounded-lg',
+          'focus-visible:outline-2 focus-visible:outline-[var(--interactive-accent-color)] focus-visible:outline-offset-[-2px] focus-visible:rounded-lg',
           fullWidth && 'max-w-full px-lg'
         )}
       >

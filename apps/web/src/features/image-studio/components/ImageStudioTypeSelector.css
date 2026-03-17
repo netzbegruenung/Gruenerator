@@ -21,8 +21,8 @@
   position: absolute;
   top: 12px;
   right: 12px;
-  background: linear-gradient(135deg, var(--himmel) 0%, var(--klee) 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--secondary-600) 0%, var(--klee) 100%);
+  color: var(--white);
   padding: 6px 14px;
   border-radius: 20px;
   font-size: var(--font-size-xxs);

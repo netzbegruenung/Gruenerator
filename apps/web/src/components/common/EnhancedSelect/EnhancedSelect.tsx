@@ -262,7 +262,7 @@ const EnhancedSelect = forwardRef<EnhancedSelectRef, EnhancedSelectProps>(
           return {
             ...base,
             backgroundColor: 'rgba(135, 206, 250, 0.15)',
-            border: '1px solid var(--himmel)',
+            border: '1px solid var(--interactive-accent-color)',
             borderRadius: 'var(--card-border-radius-small)',
           };
         }
@@ -274,7 +274,7 @@ const EnhancedSelect = forwardRef<EnhancedSelectRef, EnhancedSelectProps>(
         if (isSpecialMode) {
           return {
             ...base,
-            color: 'var(--himmel-dark, var(--font-color))',
+            color: 'var(--font-color)',
             fontWeight: 600,
           };
         }
