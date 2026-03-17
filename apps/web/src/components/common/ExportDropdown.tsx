@@ -486,7 +486,7 @@ const ExportDropdown = ({
                 {onEditInDocs && hasDocsAccess && (
                   <DropdownMenuItem onSelect={handleEditInDocsClick} disabled={editInDocsLoading}>
                     <HiOutlineDocumentText />
-                    {editInDocsLoading ? 'Exportiere...' : 'In Docs exportieren'}
+                    {editInDocsLoading ? 'Öffne Editor...' : 'In Docs bearbeiten'}
                   </DropdownMenuItem>
                 )}
 
@@ -578,7 +578,10 @@ const ExportDropdown = ({
             >
               <IoCloseOutline size={24} />
             </button>
-            <h2 id="export-modal-title" className="text-foreground-heading m-0 mb-6 text-[1.75em] text-center max-md:text-[1.4em] max-[360px]:text-[1.2em]">
+            <h2
+              id="export-modal-title"
+              className="text-foreground-heading m-0 mb-6 text-[1.75em] text-center max-md:text-[1.4em] max-[360px]:text-[1.2em]"
+            >
               Mit Textbegrünung freigeben
             </h2>
             <p className="my-3 leading-relaxed text-foreground text-[1.1em] max-md:text-base max-[360px]:text-[0.9em]">
