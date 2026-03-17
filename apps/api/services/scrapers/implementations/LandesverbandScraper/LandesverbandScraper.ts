@@ -22,6 +22,7 @@ import {
 } from '../../../../database/services/QdrantService/operations/batchOperations.js';
 import { BRAND } from '../../../../utils/domainUtils.js';
 import { parallelLimit } from '../../../../utils/parallelLimit.js';
+import { sendLvSyncNotificationEmail } from '../../../email/emailService.js';
 import { mistralEmbeddingService } from '../../../mistral/index.js';
 import { ocrService } from '../../../OcrService/index.js';
 import { BaseScraper } from '../../base/BaseScraper.js';
@@ -531,8 +532,6 @@ export class LandesverbandScraper extends BaseScraper {
       if (!source?.notificationEmail) continue;
 
       try {
-        const { sendLvSyncNotificationEmail } =
-          await import('../../../../services/email/emailService.js');
         await sendLvSyncNotificationEmail(source.notificationEmail, {
           lvName: source.name,
           newArticles: outcome.result.newArticles,

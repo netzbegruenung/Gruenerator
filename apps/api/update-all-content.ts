@@ -65,17 +65,7 @@ function parseArgs(): CliArgs {
   return result;
 }
 
-interface SourceGroupResult {
-  id: string;
-  name: string;
-  stored: number;
-  updated: number;
-  skipped: number;
-  errors: number;
-  duration: number;
-  status: 'success' | 'failed';
-  error?: string;
-}
+import { type SourceGroupResult, type SyncSummary } from './types/syncTypes.js';
 
 interface SourceGroup {
   id: string;
@@ -293,23 +283,6 @@ async function runSourceGroup(group: SourceGroup, args: CliArgs): Promise<Source
 
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
-
-interface SyncSummary {
-  timestamp: string;
-  dryRun: boolean;
-  force: boolean;
-  sources: SourceGroupResult[];
-  totals: {
-    sources: number;
-    succeeded: number;
-    failed: number;
-    stored: number;
-    updated: number;
-    skipped: number;
-    errors: number;
-  };
-  totalDuration: number;
-}
 
 async function main() {
   const args = parseArgs();

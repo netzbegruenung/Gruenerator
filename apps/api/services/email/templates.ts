@@ -266,15 +266,11 @@ ${PRIMARY_URL}`;
   return { html: baseLayout(content), text };
 }
 
-export interface LvSyncArticle {
-  title: string;
-  url: string;
-  type: string;
-}
+import { type NewArticle } from '../scrapers/implementations/LandesverbandScraper/types.js';
 
 export interface LvSyncNotificationTemplateParams {
   lvName: string;
-  newArticles: LvSyncArticle[];
+  newArticles: NewArticle[];
   syncDate: string;
 }
 

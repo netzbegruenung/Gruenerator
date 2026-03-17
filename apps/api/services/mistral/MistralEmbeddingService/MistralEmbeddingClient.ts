@@ -1,3 +1,4 @@
+import { parallelLimit } from '../../../utils/parallelLimit.js';
 import mistralClient from '../../../workers/mistralClient.js';
 
 export interface MistralEmbeddingOptions {
@@ -63,36 +64,27 @@ export class MistralEmbeddingClient {
       `[MistralEmbeddingClient] Splitting ${texts.length} texts into ${batches.length} batches`
     );
 
-    // Process batches concurrently with worker pool
+    // Process batches concurrently with stagger to avoid API burst
     const STAGGER_MS = 100;
-    const results: number[][][] = new Array(batches.length);
-    let nextIndex = 0;
 
-    const runWorker = async (): Promise<void> => {
-      while (nextIndex < batches.length) {
-        const i = nextIndex++;
-        const batch = batches[i];
-
-        // Stagger launches to avoid burst
-        if (i > 0) {
-          await new Promise((r) => setTimeout(r, STAGGER_MS));
-        }
-
-        console.log(
-          `[MistralEmbeddingClient] Processing batch ${i + 1}/${batches.length} (${batch.length} texts)`
-        );
-
-        try {
-          results[i] = await this.processSingleBatch(batch);
-        } catch (error) {
-          results[i] = await this.processBatchFallback(batch, i, error as Error);
-        }
+    const tasks = batches.map((batch, i) => async () => {
+      // Stagger by batch index to spread initial launches
+      if (i > 0) {
+        await new Promise((r) => setTimeout(r, STAGGER_MS * i));
       }
-    };
 
-    const workerCount = Math.min(this.maxConcurrentBatches, batches.length);
-    await Promise.all(Array.from({ length: workerCount }, () => runWorker()));
+      console.log(
+        `[MistralEmbeddingClient] Processing batch ${i + 1}/${batches.length} (${batch.length} texts)`
+      );
 
+      try {
+        return await this.processSingleBatch(batch);
+      } catch (error) {
+        return await this.processBatchFallback(batch, i, error as Error);
+      }
+    });
+
+    const results = await parallelLimit(tasks, this.maxConcurrentBatches);
     return results.flat();
   }
 
