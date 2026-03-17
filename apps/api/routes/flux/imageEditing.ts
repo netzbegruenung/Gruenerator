@@ -9,6 +9,7 @@ import { ImageGenerationCounter } from '../../services/counters/index.js';
 import { FluxImageService } from '../../services/flux/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
+import { addKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 
@@ -326,6 +327,11 @@ router.post(
         `[Image Edit] Image generation completed successfully, output size: ${Math.round(stored.size / 1024)}KB`
       );
 
+      const fluxImageBuffer = Buffer.from(stored.base64, 'base64');
+      const labeledBuffer = await addKiLabel(fluxImageBuffer);
+      const labeledBase64 = labeledBuffer.toString('base64');
+      fs.writeFileSync(stored.filePath, labeledBuffer);
+
       const incrementResult = await imageCounter.incrementCount(userId);
       log.debug(`[Image Edit] Updated usage counter for user ${userId}:`, incrementResult);
 
@@ -345,8 +351,8 @@ router.post(
           path: stored.filePath,
           relativePath: stored.relativePath,
           filename: stored.filename,
-          size: stored.size,
-          base64: `data:image/jpeg;base64,${stored.base64}`,
+          size: labeledBuffer.length,
+          base64: `data:image/jpeg;base64,${labeledBase64}`,
         },
         mode: 'pro',
       });
@@ -476,6 +482,11 @@ router.post(
         `[Image Edit Generate] Image generation completed successfully, output size: ${Math.round(stored.size / 1024)}KB`
       );
 
+      const fluxImageBuffer = Buffer.from(stored.base64, 'base64');
+      const labeledBuffer = await addKiLabel(fluxImageBuffer);
+      const labeledBase64 = labeledBuffer.toString('base64');
+      fs.writeFileSync(stored.filePath, labeledBuffer);
+
       const incrementResult = await imageCounter.incrementCount(userId);
       log.debug(`[Image Edit Generate] Updated usage counter for user ${userId}:`, incrementResult);
 
@@ -488,8 +499,8 @@ router.post(
           path: stored.filePath,
           relativePath: stored.relativePath,
           filename: stored.filename,
-          size: stored.size,
-          base64: `data:image/jpeg;base64,${stored.base64}`,
+          size: labeledBuffer.length,
+          base64: `data:image/jpeg;base64,${labeledBase64}`,
         },
         mode: 'pro',
       });

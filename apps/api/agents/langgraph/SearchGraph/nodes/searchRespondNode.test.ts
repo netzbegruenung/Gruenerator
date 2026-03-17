@@ -14,7 +14,7 @@ function makeState(overrides: Partial<SearchGraphState> = {}): SearchGraphState 
     messages: [{ role: 'user', content: 'test query' }],
     threadId: null,
     searchMode: 'web',
-    aiWorkerPool: {},
+    aiWorkerPool: null as any,
     userLocale: 'de-DE',
     agentConfig: {
       id: 'test',
