@@ -419,30 +419,6 @@
     padding: 0;
   }
 
-  /* Minimal padding for canvas editors - more specific selector overrides typeform-fields.css */
-  .typeform-content.typeform-content {
-    padding: var(--spacing-xxsmall);
-  }
-
-  .typeform-content .type-selector-content .type-selector-screen {
-    padding: var(--spacing-xxsmall);
-  }
-
-  .typeform-content .type-selector-content {
-    padding: 0 var(--spacing-xxsmall);
-  }
-
-  .typeform-content .type-selector-content h1 {
-    font-size: var(--font-size-3xl);
-  }
-
-  .typeform-content .type-selector-content .type-options-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .typeform-content .type-selector-content .type-card {
-    padding: 0;
-  }
 
   .type-card--image h3 {
     font-size: var(--font-size-lg);

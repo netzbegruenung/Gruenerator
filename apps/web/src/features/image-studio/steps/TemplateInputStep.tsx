@@ -126,7 +126,7 @@ const TemplateInputStep: React.FC<TemplateInputStepProps> = ({
         />
 
         {error && (
-          <p className="error-message typeform-global-error" role="alert">
+          <p className="text-[var(--error-red)] text-sm text-center mt-sm" role="alert">
             {error}
           </p>
         )}
@@ -155,7 +155,7 @@ const TemplateInputStep: React.FC<TemplateInputStepProps> = ({
         />
 
         {error && (
-          <p className="error-message" role="alert">
+          <p className="text-[var(--error-red)] text-sm mt-sm" role="alert">
             {error}
           </p>
         )}

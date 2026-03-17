@@ -144,8 +144,8 @@ const StepFlow: React.FC<StepFlowProps> = ({
   }
 
   return (
-    <div className="typeform-container">
-      <div className="typeform-content">
+    <div className="flex flex-col items-center w-full">
+      <div className="w-full max-w-[700px] mx-auto flex flex-col gap-md p-md max-[768px]:p-xs">
         <AnimatePresence mode="wait" custom={direction}>
           {currentStep.type === 'image_upload' && (
             <ImageUploadStep
