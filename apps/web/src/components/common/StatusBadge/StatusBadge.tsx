@@ -22,9 +22,11 @@ const typeStyles: Record<BadgeType, string> = {
 };
 
 const variantStyles: Record<BadgeVariant, string> = {
-  card: 'absolute top-3 right-3 py-1.5 px-3.5 rounded-[20px] text-[var(--font-size-xxs)]',
-  inline: 'inline-flex py-1 px-3 rounded-[20px] text-[var(--font-size-xxs)] max-md:py-[3px] max-md:px-2.5',
-  sidebar: 'inline-flex py-0.5 px-2 rounded-xl text-[0.6rem] tracking-[0.3px] max-md:text-[0.55rem] max-md:py-0.5 max-md:px-1.5',
+  card: 'absolute top-3 right-3 py-1.5 px-3.5 rounded-[20px] text-[length:var(--font-size-xxs)]',
+  inline:
+    'inline-flex py-1 px-3 rounded-[20px] text-[length:var(--font-size-xxs)] max-md:py-[3px] max-md:px-2.5',
+  sidebar:
+    'inline-flex py-0.5 px-2 rounded-xl text-[length:0.6rem] tracking-[0.3px] max-md:text-[length:0.55rem] max-md:py-0.5 max-md:px-1.5',
 };
 
 const StatusBadge = ({ type, variant = 'inline', className = '' }: StatusBadgeProps) => {
