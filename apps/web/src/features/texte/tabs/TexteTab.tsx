@@ -13,7 +13,7 @@ interface FormRef {
   resetForm: (data?: Record<string, unknown>) => void;
 }
 
-type TexteTabProps = Record<string, never>;
+type TexteTabProps = Record<never, never>;
 
 const COMPONENT_NAME = 'texte-generator';
 
@@ -114,13 +114,6 @@ const TexteTab: React.FC<TexteTabProps> = memo(() => {
     ...restBaseFormProps
   } = baseFormProps || {};
 
-  const rawTabIndex = form.generator?.tabIndex;
-  const tabIndexValue = (rawTabIndex || {}) as {
-    formType?: number;
-    hauptfeld?: number;
-    [key: string]: number | undefined;
-  };
-
   return (
     <div className="w-full flex flex-col items-center">
       {form.generator && (
@@ -132,7 +125,7 @@ const TexteTab: React.FC<TexteTabProps> = memo(() => {
           examplePrompts={EXAMPLE_PROMPTS}
           onExamplePromptClick={handleExamplePromptClick}
         >
-          <TexteForm ref={texteFormRef} tabIndex={tabIndexValue} />
+          <TexteForm ref={texteFormRef} />
         </BaseForm>
       )}
     </div>

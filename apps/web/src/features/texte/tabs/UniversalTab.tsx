@@ -249,27 +249,16 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ selectedType }) => {
   }, []);
 
   const renderForm = () => {
-    const rawTabIndex = form.generator?.tabIndex;
-    const tabIndexValue = (rawTabIndex || {}) as
-      | { formType?: number; hauptfeld?: number; [key: string]: number | undefined }
-      | undefined;
     switch (selectedType) {
       case TEXT_TYPES.REDE:
-        return <RedeForm key={`rede-${selectedType}`} ref={redeFormRef} tabIndex={tabIndexValue} />;
+        return <RedeForm key={`rede-${selectedType}`} ref={redeFormRef} />;
       case TEXT_TYPES.WAHLPROGRAMM:
-        return (
-          <WahlprogrammForm
-            key={`wahlprogramm-${selectedType}`}
-            ref={wahlprogrammFormRef}
-            tabIndex={tabIndexValue}
-          />
-        );
+        return <WahlprogrammForm key={`wahlprogramm-${selectedType}`} ref={wahlprogrammFormRef} />;
       case TEXT_TYPES.BUERGERANFRAGEN:
         return (
           <BuergeranfragenForm
             key={`buergeranfragen-${selectedType}`}
             ref={buergeranfragenFormRef}
-            tabIndex={tabIndexValue}
           />
         );
       case TEXT_TYPES.LEICHTE_SPRACHE:
@@ -277,7 +266,6 @@ const UniversalTab: React.FC<UniversalTabProps> = memo(({ selectedType }) => {
           <LeichteSpracheForm
             key={`leichte-sprache-${selectedType}`}
             ref={leichteSpracheFormRef as React.Ref<any>}
-            tabIndex={tabIndexValue}
           />
         );
       default:

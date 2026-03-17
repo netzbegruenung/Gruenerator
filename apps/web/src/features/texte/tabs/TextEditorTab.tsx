@@ -35,8 +35,6 @@ interface UseBaseFormReturn {
   handleSubmitError: (error: unknown) => void;
   generator?: {
     attachedFiles?: Array<{ name: string; content: string }>;
-    tabIndex?: Record<string, number>;
-    baseFormTabIndex?: { platformSelectorTabIndex?: number };
     baseFormProps?: Partial<BaseFormProps>;
     submitForm: (formData: Record<string, unknown>) => Promise<Record<string, unknown>>;
     handleGeneratedContentChange: (content: string) => void;
@@ -44,7 +42,7 @@ interface UseBaseFormReturn {
   };
 }
 
-type TextEditorTabProps = Record<string, never>;
+type TextEditorTabProps = Record<never, never>;
 
 // Memoized icon components to prevent recreation on every render
 const ImproveIcon = memo(() => <PiMagicWand size={16} />);
@@ -186,14 +184,9 @@ const TextEditorTab: React.FC<TextEditorTabProps> = memo(() => {
         placeholder="Aktion auswählen..."
         required={true}
         isMulti={false}
-        tabIndex={form.generator?.baseFormTabIndex?.platformSelectorTabIndex}
       />
     ),
-    [
-      control,
-      platformOptionsForSelector,
-      form.generator?.baseFormTabIndex?.platformSelectorTabIndex,
-    ]
+    [control, platformOptionsForSelector]
   );
 
   const renderFormInputs = useCallback(
@@ -207,12 +200,11 @@ const TextEditorTab: React.FC<TextEditorTabProps> = memo(() => {
         minRows={8}
         maxRows={50}
         className="form-textarea-large"
-        tabIndex={form.generator?.tabIndex?.originalText}
         enableUrlDetection={true}
         onUrlsDetected={handleUrlsDetected}
       />
     ),
-    [control, form.generator?.tabIndex?.originalText, handleUrlsDetected]
+    [control, handleUrlsDetected]
   );
 
   const baseFormProps = form.generator?.baseFormProps || {};

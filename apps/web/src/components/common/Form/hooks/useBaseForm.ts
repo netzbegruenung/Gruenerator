@@ -2,7 +2,7 @@ import { useCallback, useState, useMemo } from 'react';
 import { useForm, type Control, type UseFormProps, type FieldValues } from 'react-hook-form';
 
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
-import { useTabIndex, useBaseFormTabIndex } from '../../../../hooks/useTabIndex';
+import { useTabIndex } from '../../../../hooks/useTabIndex';
 
 import useFormAttachments from './useFormAttachments';
 import useFormFeatures from './useFormFeatures';
@@ -28,7 +28,6 @@ interface GeneratorLogic {
   handleGeneratedContentChange: (content: string) => void;
   toggles: FeatureToggles;
   tabIndex: unknown;
-  baseFormTabIndex: unknown;
   baseFormProps: Record<string, unknown>;
   isStreaming: boolean;
   abortStreaming: () => void;
@@ -173,7 +172,6 @@ const useBaseForm = ({
   // ── Auxiliary hooks (must be called unconditionally) ──────────────────
   useOptimizedAuth();
   const tabIndex = useTabIndex((tabIndexKey ?? undefined) as string | undefined);
-  const baseFormTabIndex = useBaseFormTabIndex((tabIndexKey ?? undefined) as string | undefined);
 
   // ── Composed hooks ───────────────────────────────────────────────────
   const hasEndpoint = !!(generatorType && endpoint);
@@ -192,8 +190,7 @@ const useBaseForm = ({
     defaultValues,
     features,
     generatorType,
-    setFieldValue,
-    tabIndex as Record<string, unknown>
+    setFieldValue
   );
 
   const attachments = useFormAttachments(generatorType);
@@ -345,20 +342,6 @@ const useBaseForm = ({
       onAttachmentClick: attachments.handleAttachmentClick,
       onRemoveFile: attachments.handleRemoveFile,
       attachedFiles: attachments.attachedFiles,
-      featureIconsTabIndex: {
-        webSearch: (tabIndex as Record<string, unknown>)?.webSearch,
-        privacyMode: (tabIndex as Record<string, unknown>)?.privacyMode,
-        attachment: (tabIndex as Record<string, unknown>)?.attachment,
-      },
-      platformSelectorTabIndex: (baseFormTabIndex as Record<string, unknown>)
-        ?.platformSelectorTabIndex,
-      knowledgeSelectorTabIndex: (baseFormTabIndex as Record<string, unknown>)
-        ?.knowledgeSelectorTabIndex,
-      knowledgeSourceSelectorTabIndex: (baseFormTabIndex as Record<string, unknown>)
-        ?.knowledgeSourceSelectorTabIndex,
-      documentSelectorTabIndex: (baseFormTabIndex as Record<string, unknown>)
-        ?.documentSelectorTabIndex,
-      submitButtonTabIndex: (baseFormTabIndex as Record<string, unknown>)?.submitButtonTabIndex,
       formControl: control,
       streamingProgress: submission.streamingProgress,
       isStreaming: submission.isStreaming,
@@ -375,7 +358,6 @@ const useBaseForm = ({
       useFeatureIcons,
       attachments,
       tabIndex,
-      baseFormTabIndex,
       control,
     ]
   );
@@ -395,7 +377,6 @@ const useBaseForm = ({
         handleGeneratedContentChange: submission.handleGeneratedContentChange,
         toggles,
         tabIndex,
-        baseFormTabIndex,
         baseFormProps,
         isStreaming: submission.isStreaming,
         abortStreaming: submission.abortStreaming,

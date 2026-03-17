@@ -10,38 +10,25 @@ import { useProfileData } from '../../stores/profileStore';
 
 import TabSelector from './components/TabSelector';
 import PresseSocialTab from './tabs/PresseSocialTab';
-import { type TabId, type UniversalSubType } from './types';
+import {
+  type TabId,
+  type UniversalSubType,
+  TAB_CONFIGS,
+  PUBLIC_TABS,
+  VALID_UNIVERSAL_SUB_TYPES,
+} from './types';
 
 import { cn } from '@/utils/cn';
+import { announceToScreenReader } from '@/utils/focusManagement';
 
-// Tabs that are accessible without login
-const PUBLIC_TABS: TabId[] = ['presse-social'];
-
-const VALID_TABS: TabId[] = [
-  'texte',
-  'presse-social',
-  'antrag',
-  'universal',
-  'barrierefreiheit',
-  'texteditor',
-  'eigene',
-];
-
-const VALID_UNIVERSAL_SUB_TYPES: UniversalSubType[] = [
-  'rede',
-  'wahlprogramm',
-  'buergeranfragen',
-  'leichte_sprache',
-];
+const VALID_TABS: TabId[] = TAB_CONFIGS.map((c) => c.id);
 
 const TexteTab = lazy(() => import('./tabs/TexteTab'));
 const AntragTab = lazy(() => import('./tabs/AntragTab'));
 const UniversalTab = lazy(() => import('./tabs/UniversalTab'));
-const BarrierefreiheitTab = lazy(() => import('./tabs/BarrierefreiheitTab'));
 const TextEditorTab = lazy(() => import('./tabs/TextEditorTab'));
 const EigeneTab = lazy(() => import('./tabs/EigeneTab'));
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const TAB_COMPONENTS: Record<
   TabId,
   React.LazyExoticComponent<React.ComponentType<any>> | React.ComponentType<any>
@@ -50,7 +37,6 @@ const TAB_COMPONENTS: Record<
   'presse-social': PresseSocialTab,
   antrag: AntragTab,
   universal: UniversalTab,
-  barrierefreiheit: BarrierefreiheitTab,
   texteditor: TextEditorTab,
   eigene: EigeneTab,
 };
@@ -61,7 +47,6 @@ export const TAB_PRELOADERS: Record<TabId, () => void> = {
   'presse-social': () => import('./tabs/PresseSocialTab'),
   antrag: () => import('./tabs/AntragTab'),
   universal: () => import('./tabs/UniversalTab'),
-  barrierefreiheit: () => import('./tabs/BarrierefreiheitTab'),
   texteditor: () => import('./tabs/TextEditorTab'),
   eigene: () => import('./tabs/EigeneTab'),
 };
@@ -73,17 +58,9 @@ const LoadingFallback = memo(() => (
 ));
 LoadingFallback.displayName = 'LoadingFallback';
 
-const TAB_COMPONENT_NAMES: Record<TabId, string> = {
-  texte: 'texte-generator',
-  'presse-social': 'presse-social',
-  antrag: 'antrag-generator',
-  universal: 'universal-text',
-  barrierefreiheit: 'accessibility-generator',
-  texteditor: 'text-editor',
-  eigene: 'eigene-generators',
-};
-
-const UNIVERSAL_SUB_TYPES = ['rede', 'wahlprogramm', 'buergeranfragen', 'leichte_sprache'];
+const TAB_COMPONENT_NAMES: Record<string, string> = Object.fromEntries(
+  TAB_CONFIGS.map((c) => [c.id, c.componentName])
+);
 
 // Map legacy ?tab= values to new path segments
 const LEGACY_TAB_TO_PATH: Record<string, string> = {
@@ -91,7 +68,7 @@ const LEGACY_TAB_TO_PATH: Record<string, string> = {
   'presse-social': '/texte/presse-social',
   antrag: '/texte/antrag',
   universal: '/texte/universal/rede',
-  barrierefreiheit: '/texte/barrierefreiheit',
+  barrierefreiheit: '/texte/universal/leichte_sprache',
   texteditor: '/texte/texteditor',
   eigene: '/texte/eigene',
 };
@@ -106,7 +83,6 @@ const LEGACY_TAB_TO_PATH: Record<string, string> = {
  *   /texte/antrag                    → AntragTab
  *   /texte/universal                 → redirect to /texte/universal/rede
  *   /texte/universal/<subtype>       → UniversalTab
- *   /texte/barrierefreiheit          → BarrierefreiheitTab
  *   /texte/texteditor                → TextEditorTab
  *   /texte/eigene                    → EigeneTab
  */
@@ -140,11 +116,13 @@ const TexteGenerator: React.FC = () => {
   } else if (segments.length === 0) {
     redirectTo = '/texte/presse-social';
   } else {
-    const firstSegment = segments[0] as TabId;
-    if (!VALID_TABS.includes(firstSegment)) {
+    const firstSegment = segments[0];
+    if (firstSegment === 'barrierefreiheit') {
+      redirectTo = '/texte/universal/leichte_sprache';
+    } else if (!VALID_TABS.includes(firstSegment as TabId)) {
       redirectTo = '/texte/presse-social';
     } else {
-      activeTab = firstSegment;
+      activeTab = firstSegment as TabId;
       if (activeTab === 'universal' && segments.length === 1) {
         redirectTo = '/texte/universal/rede';
       } else if (activeTab === 'universal' && segments.length >= 2) {
@@ -173,7 +151,7 @@ const TexteGenerator: React.FC = () => {
       return Object.keys(content).length > 0;
     });
     if (baseCheck) return true;
-    return UNIVERSAL_SUB_TYPES.some((subType) => {
+    return VALID_UNIVERSAL_SUB_TYPES.some((subType) => {
       const content = generatedTexts[`universal-text-${subType}`];
       if (!content) return false;
       if (typeof content === 'string') return content.trim().length > 0;
@@ -182,12 +160,9 @@ const TexteGenerator: React.FC = () => {
   }, [generatedTexts]);
 
   const handleTabChange = useCallback(
-    (tab: TabId) => {
-      if (tab === 'universal') {
-        navigate('/texte/universal/rede');
-      } else {
-        navigate(`/texte/${tab}`);
-      }
+    (tab: TabId, options?: { replace?: boolean }) => {
+      const path = tab === 'universal' ? '/texte/universal/rede' : `/texte/${tab}`;
+      navigate(path, { replace: options?.replace });
     },
     [navigate]
   );
@@ -198,6 +173,12 @@ const TexteGenerator: React.FC = () => {
     },
     [navigate]
   );
+
+  // Announce tab changes to screen readers
+  useEffect(() => {
+    const config = TAB_CONFIGS.find((c) => c.id === activeTab);
+    if (config) announceToScreenReader(`${config.label} Tab ausgewählt`);
+  }, [activeTab]);
 
   // Track visited tabs — mount on first visit, keep mounted after (Activity pattern)
   const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(() => new Set([activeTab]));
@@ -248,30 +229,39 @@ const TexteGenerator: React.FC = () => {
           />
         </header>
         <div
-          id={`tabpanel-${activeTab}`}
-          role="tabpanel"
-          aria-labelledby={`tab-${activeTab}`}
-          tabIndex={0}
           className={cn(
             'w-full max-w-[800px] mx-auto grid grid-cols-1 grid-rows-1',
             'xl:max-w-[1000px] 3xl:max-w-[1100px]',
-            'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-[-2px] focus-visible:rounded-lg',
             hasGeneratedContent && 'max-w-full xl:max-w-full 3xl:max-w-full px-lg max-md:px-0'
           )}
         >
           {showLoginRequired ? (
-            <LoginRequired
-              variant="fullpage"
-              title="Anmeldung erforderlich"
-              message="Melde dich an, um diese Funktion zu nutzen. Der Presse & Social Tab ist auch ohne Anmeldung verfügbar."
-              onClose={() => navigate('/texte/presse-social')}
-            />
+            <div
+              id={`tabpanel-${activeTab}`}
+              role="tabpanel"
+              aria-labelledby={`tab-${activeTab}`}
+              tabIndex={-1}
+            >
+              <LoginRequired
+                variant="fullpage"
+                title="Anmeldung erforderlich"
+                message="Melde dich an, um diese Funktion zu nutzen. Der Presse & Social Tab ist auch ohne Anmeldung verfügbar."
+                onClose={() => navigate('/texte/presse-social')}
+              />
+            </div>
           ) : (
             Object.entries(TAB_COMPONENTS).map(([tabId, TabComponent]) => {
               if (!visitedTabs.has(tabId as TabId)) return null;
               const isActive = tabId === activeTab;
               return (
-                <div key={tabId} className={isActive ? undefined : 'hidden'}>
+                <div
+                  key={tabId}
+                  id={`tabpanel-${tabId}`}
+                  role="tabpanel"
+                  aria-labelledby={`tab-${tabId}`}
+                  tabIndex={-1}
+                  className={isActive ? undefined : 'hidden'}
+                >
                   <Suspense fallback={<LoadingFallback />}>
                     {tabId === 'universal' ? (
                       <TabComponent selectedType={universalSubType} />

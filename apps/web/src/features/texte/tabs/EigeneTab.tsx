@@ -9,7 +9,7 @@ import { type CustomGenerator } from '../../auth/services/profileApiService';
 
 const CreateCustomGeneratorPage = lazy(() => import('../../generators/CreateCustomGeneratorPage'));
 
-type EigeneTabProps = Record<string, never>;
+type EigeneTabProps = Record<never, never>;
 
 interface LoginPromptProps {
   onLogin: () => void;

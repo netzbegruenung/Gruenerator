@@ -7,10 +7,8 @@ import EnhancedSelect from '../EnhancedSelect/EnhancedSelect';
 
 import { FormInput } from './Input';
 
-
 import type { EnhancedSelectOption } from '../EnhancedSelect/EnhancedSelect';
 import type { ActionMeta, SingleValue, MultiValue } from 'react-select';
-
 
 interface SmartInputProps {
   fieldType: string;
@@ -20,7 +18,6 @@ interface SmartInputProps {
   label?: string;
   placeholder?: string;
   rules?: Record<string, unknown>;
-  tabIndex?: number;
   setValue?: (name: string, value: unknown, options?: Record<string, unknown>) => void;
   getValues?: (name?: string) => unknown;
   onSubmitSuccess?: string | null;
@@ -59,7 +56,6 @@ const SmartInput: React.FC<SmartInputProps> = ({
   label,
   placeholder,
   rules,
-  tabIndex,
   setValue,
   getValues,
   onSubmitSuccess = null,
@@ -150,7 +146,6 @@ const SmartInput: React.FC<SmartInputProps> = ({
         label={label}
         placeholder={placeholder}
         rules={rules}
-        tabIndex={tabIndex}
         className={className}
         disabled={disabled}
         {...inputProps}
@@ -218,7 +213,6 @@ const SmartInput: React.FC<SmartInputProps> = ({
             placeholder={placeholder || `${label} eingeben oder aus vorherigen Werten auswählen...`}
             isDisabled={disabled}
             className={className}
-            tabIndex={tabIndex}
             {...inputProps}
           />
         );

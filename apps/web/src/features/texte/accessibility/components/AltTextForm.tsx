@@ -4,20 +4,14 @@ import { useForm } from 'react-hook-form';
 import FileUpload from '../../../../components/common/FileUpload';
 import { useFormFields } from '../../../../components/common/Form/hooks';
 
-interface AltTextFormProps {
-  tabIndex?: {
-    fileUpload?: number;
-    imageDescription?: number;
-    [key: string]: number | undefined;
-  };
-}
+type AltTextFormProps = Record<never, never>;
 
 interface AltTextFormRef {
   getFormData: () => Record<string, unknown>;
   isValid: () => boolean;
 }
 
-const AltTextForm = forwardRef<AltTextFormRef, AltTextFormProps>(({ tabIndex = {} }, ref) => {
+const AltTextForm = forwardRef<AltTextFormRef, AltTextFormProps>((_props, ref) => {
   const { Input } = useFormFields() as unknown as { Input: React.ComponentType<any> };
 
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
@@ -62,7 +56,6 @@ const AltTextForm = forwardRef<AltTextFormRef, AltTextFormProps>(({ tabIndex = {
         allowedTypes={['.jpg', '.jpeg', '.png', '.webp']}
         file={uploadedImage}
         label="Bild für Alt-Text (erforderlich)"
-        tabIndex={tabIndex.fileUpload}
       />
 
       <Input
@@ -71,7 +64,6 @@ const AltTextForm = forwardRef<AltTextFormRef, AltTextFormProps>(({ tabIndex = {
         label="Zusätzliche Bildbeschreibung (optional)"
         placeholder="z.B. Kontext, Zweck oder besondere Details des Bildes..."
         maxRows={3}
-        tabIndex={tabIndex.imageDescription}
       />
     </>
   );

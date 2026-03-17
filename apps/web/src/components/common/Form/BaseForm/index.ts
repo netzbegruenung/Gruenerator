@@ -24,7 +24,6 @@ export type {
   PlatformOption,
   CustomExportOption,
   HelpContent,
-  TabIndexConfig,
   Question,
   GeneratedContent,
   SubmitConfig,

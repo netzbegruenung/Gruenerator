@@ -22,14 +22,6 @@ interface SocialMediaFormProps {
   defaultValues?: Partial<SocialMediaFormData>;
 
   /**
-   * Tab indices for accessibility
-   */
-  tabIndex?: {
-    inhalt?: number;
-    [key: string]: number | undefined;
-  };
-
-  /**
    * Callback when URLs are detected in content
    */
   onUrlsDetected?: (urls: string[]) => void;
@@ -63,7 +55,7 @@ export interface SocialMediaFormRef {
  * ```
  */
 const SocialMediaForm = forwardRef<SocialMediaFormRef, SocialMediaFormProps>(
-  ({ defaultValues = {}, tabIndex = {}, onUrlsDetected }, ref) => {
+  ({ defaultValues = {}, onUrlsDetected }, ref) => {
     const {
       control,
       getValues,
@@ -103,7 +95,6 @@ const SocialMediaForm = forwardRef<SocialMediaFormRef, SocialMediaFormProps>(
         minRows={5}
         maxRows={15}
         className="form-textarea-large"
-        tabIndex={tabIndex.inhalt}
         enableUrlDetection={true}
         onUrlsDetected={onUrlsDetected}
         enableTextAutocomplete={false}

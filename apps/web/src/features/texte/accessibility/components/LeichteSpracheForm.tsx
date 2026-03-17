@@ -4,10 +4,6 @@ import { useForm } from 'react-hook-form';
 import { useFormFields } from '../../../../components/common/Form/hooks';
 
 interface LeichteSpracheFormProps {
-  tabIndex?: {
-    originalText?: number;
-    [key: string]: number | undefined;
-  };
   onUrlsDetected?: (urls: string[]) => void;
 }
 
@@ -17,7 +13,7 @@ interface LeichteSpracheFormRef {
 }
 
 const LeichteSpracheForm = forwardRef<LeichteSpracheFormRef, LeichteSpracheFormProps>(
-  ({ tabIndex = {}, onUrlsDetected }, ref) => {
+  ({ onUrlsDetected }, ref) => {
     const { Textarea } = useFormFields() as unknown as { Textarea: React.ComponentType<any> };
 
     const {
@@ -59,7 +55,6 @@ const LeichteSpracheForm = forwardRef<LeichteSpracheFormRef, LeichteSpracheFormP
           minRows={5}
           maxRows={15}
           className="form-textarea-large"
-          tabIndex={tabIndex.originalText}
           enableUrlDetection={true}
           onUrlsDetected={onUrlsDetected}
         />

@@ -43,7 +43,6 @@ const FormInputSection = forwardRef<HTMLDivElement, FormInputSectionProps>(
       platformSelectorLabel,
       platformSelectorPlaceholder,
       platformSelectorHelpText,
-      platformSelectorTabIndex = 12,
       formControl = null,
       showImageUpload = false,
       uploadedImage = null,
@@ -109,7 +108,6 @@ const FormInputSection = forwardRef<HTMLDivElement, FormInputSectionProps>(
                   placeholder={platformSelectorPlaceholder}
                   required={true}
                   helpText={platformSelectorHelpText}
-                  tabIndex={platformSelectorTabIndex}
                 />
               </div>
             )}

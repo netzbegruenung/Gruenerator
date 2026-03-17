@@ -38,7 +38,6 @@ interface UseBaseFormReturn {
   generator?: {
     attachedFiles?: Array<{ name: string; content: string }>;
     tabIndex?: Record<string, number>;
-    baseFormTabIndex?: { platformSelectorTabIndex?: number };
     baseFormProps?: Partial<BaseFormProps>;
   };
 }
@@ -193,7 +192,6 @@ const AITextImproverGenerator: React.FC = () => {
       placeholder="Aktion auswählen..."
       required={true}
       isMulti={false}
-      tabIndex={form.generator?.baseFormTabIndex?.platformSelectorTabIndex}
     />
   );
 
@@ -206,7 +204,6 @@ const AITextImproverGenerator: React.FC = () => {
       minRows={8}
       maxRows={50}
       className="form-textarea-large"
-      tabIndex={form.generator?.tabIndex?.originalText}
       enableUrlDetection={true}
       onUrlsDetected={handleUrlsDetected}
     />

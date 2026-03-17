@@ -3,13 +3,7 @@ import { useForm, type Control } from 'react-hook-form';
 
 import { FormInput, FormTextarea } from '../../../components/common/Form/Input';
 
-interface BuergeranfragenFormProps {
-  tabIndex?: {
-    formType?: number;
-    hauptfeld?: number;
-    [key: string]: number | undefined;
-  };
-}
+type BuergeranfragenFormProps = Record<never, never>;
 
 interface BuergeranfragenFormRef {
   getFormData: () => Record<string, unknown>;
@@ -17,7 +11,7 @@ interface BuergeranfragenFormRef {
 }
 
 const BuergeranfragenForm = forwardRef<BuergeranfragenFormRef, BuergeranfragenFormProps>(
-  ({ tabIndex = {} }, ref) => {
+  (_props, ref) => {
     const { control, getValues, reset } = useForm({
       defaultValues: {
         gremium: '',
@@ -39,7 +33,6 @@ const BuergeranfragenForm = forwardRef<BuergeranfragenFormRef, BuergeranfragenFo
           label="Gremium"
           placeholder="z.B. Stadtrat, Kreistag, Ortsvorstand..."
           rules={{ required: 'Gremium ist ein Pflichtfeld' }}
-          tabIndex={tabIndex.formType || 10}
         />
 
         <FormTextarea
@@ -51,7 +44,6 @@ const BuergeranfragenForm = forwardRef<BuergeranfragenFormRef, BuergeranfragenFo
           minRows={4}
           maxRows={12}
           className="form-textarea-large"
-          tabIndex={tabIndex.hauptfeld || 11}
         />
 
         <FormTextarea
@@ -62,7 +54,6 @@ const BuergeranfragenForm = forwardRef<BuergeranfragenFormRef, BuergeranfragenFo
           rules={{ required: 'Die gewünschte Antwort ist ein Pflichtfeld' }}
           minRows={3}
           maxRows={8}
-          tabIndex={tabIndex.hauptfeld || 12}
         />
       </>
     );

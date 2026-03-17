@@ -1,13 +1,4 @@
-import type { ReactNode } from 'react';
-
-export type TabId =
-  | 'texte'
-  | 'presse-social'
-  | 'antrag'
-  | 'universal'
-  | 'barrierefreiheit'
-  | 'texteditor'
-  | 'eigene';
+export type TabId = 'texte' | 'presse-social' | 'antrag' | 'universal' | 'texteditor' | 'eigene';
 
 export type UniversalSubType = 'rede' | 'wahlprogramm' | 'buergeranfragen' | 'leichte_sprache';
 
@@ -137,3 +128,14 @@ export const getTabConfig = (tabId: TabId): TabConfig | undefined => {
 
 // Default to 'presse-social' which is the only public tab (accessible without login)
 export const DEFAULT_TAB: TabId = 'presse-social';
+
+// Tabs accessible without login
+export const PUBLIC_TABS: TabId[] = ['presse-social'];
+
+// Valid universal sub-types (single source of truth)
+export const VALID_UNIVERSAL_SUB_TYPES: UniversalSubType[] = [
+  'rede',
+  'wahlprogramm',
+  'buergeranfragen',
+  'leichte_sprache',
+];

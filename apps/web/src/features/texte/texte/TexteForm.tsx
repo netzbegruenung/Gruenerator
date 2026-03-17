@@ -3,20 +3,14 @@ import { useForm, type Control } from 'react-hook-form';
 
 import { FormTextarea } from '../../../components/common/Form/Input';
 
-interface TexteFormProps {
-  tabIndex?: {
-    formType?: number;
-    hauptfeld?: number;
-    [key: string]: number | undefined;
-  };
-}
+type TexteFormProps = Record<never, never>;
 
 interface TexteFormRef {
   getFormData: () => Record<string, unknown>;
   resetForm: (data?: Record<string, unknown>) => void;
 }
 
-const TexteForm = forwardRef<TexteFormRef, TexteFormProps>(({ tabIndex = {} }, ref) => {
+const TexteForm = forwardRef<TexteFormRef, TexteFormProps>((_props, ref) => {
   const { control, getValues, reset } = useForm({
     defaultValues: {
       inhalt: '',
@@ -37,7 +31,6 @@ const TexteForm = forwardRef<TexteFormRef, TexteFormProps>(({ tabIndex = {} }, r
       minRows={6}
       maxRows={16}
       className="form-textarea-large"
-      tabIndex={tabIndex.hauptfeld || 10}
     />
   );
 });
