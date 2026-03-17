@@ -11,8 +11,7 @@ const SidebarToggle = memo(() => {
   return (
     <button
       className={cn(
-        'flex items-center justify-center w-10 h-10 p-0 border-none bg-transparent cursor-pointer rounded-sm transition-colors duration-150 hover:bg-hover-alt md:max-[767px]:w-[38px] md:max-[767px]:h-[38px] min-[1920px]:w-11 min-[1920px]:h-11',
-        isOpen && 'hidden'
+        'flex items-center justify-center w-10 h-10 p-0 border-none bg-transparent cursor-pointer rounded-sm transition-colors duration-150 hover:bg-hover-alt md:max-[767px]:w-[38px] md:max-[767px]:h-[38px] min-[1920px]:w-11 min-[1920px]:h-11'
       )}
       onClick={toggle}
       aria-label={isOpen ? 'Menü schließen' : 'Menü öffnen'}
