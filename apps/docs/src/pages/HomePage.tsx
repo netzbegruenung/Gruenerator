@@ -16,7 +16,6 @@ import { useAuth } from '../hooks/useAuth';
 import { useAuthStore } from '../stores/authStore';
 
 import '@gruenerator/docs/styles';
-import './HomePage.css';
 
 const UserAvatar = ({
   user,
@@ -29,11 +28,15 @@ const UserAvatar = ({
       <img
         src={getRobotAvatarPath(avatar.robotId)}
         alt={avatar.alt || ''}
-        className="home-page-avatar-img"
+        className="w-full h-full object-cover"
       />
     );
   }
-  return <span className="home-page-avatar-initials">{avatar.initials}</span>;
+  return (
+    <span className="text-[0.8rem] font-semibold text-foreground leading-none">
+      {avatar.initials}
+    </span>
+  );
 };
 
 export const HomePage = () => {
@@ -43,19 +46,19 @@ export const HomePage = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   return (
-    <div className="home-page">
-      <div className="home-page-container">
-        <header className="home-page-header">
-          <h1 className="home-page-title">
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto max-w-[1200px] px-md py-lg md:px-xl md:py-xl">
+        <header className="mb-lg pb-md border-b border-grey-200 dark:border-grey-700 flex flex-wrap items-center justify-between gap-sm gap-x-md sm:grid sm:grid-cols-[auto_1fr_auto] sm:gap-md md:mb-xl md:pb-lg">
+          <h1 className="m-0 text-xl font-semibold text-foreground flex items-center gap-2 font-[Raleway,PT_Sans,Arial,sans-serif] sm:text-2xl">
             <img
               src="/images/gruenerator-docs-icon.svg"
               alt="Grünerator"
-              className="home-page-logo"
+              className="h-8 w-auto sm:h-9"
             />
             Docs
           </h1>
 
-          <div className="home-page-search">
+          <div className="order-3 w-full sm:order-none sm:max-w-[480px] sm:justify-self-center md:max-w-[520px]">
             <div className="relative">
               <FiSearch
                 size={16}
@@ -66,7 +69,7 @@ export const HomePage = () => {
                 placeholder="Dokumente durchsuchen…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="home-page-search-input w-full rounded-lg border border-grey-200 bg-background-pure py-2 pl-9 pr-9 text-sm outline-none transition-colors placeholder:text-grey-400 focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30 dark:border-grey-700"
+                className="w-full rounded-full border border-grey-200 bg-grey-50 py-2 pl-9 pr-9 text-sm outline-none transition-colors placeholder:text-grey-400 focus:border-secondary-600 focus:ring-1 focus:ring-secondary-600/30 dark:border-grey-700 dark:bg-grey-800 dark:focus:border-secondary-600"
               />
               {searchQuery && (
                 <button
@@ -80,10 +83,13 @@ export const HomePage = () => {
             </div>
           </div>
 
-          <div className="home-page-user-section">
+          <div className="flex items-center justify-end">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="home-page-avatar-btn" aria-label="Profil-Menü">
+                <button
+                  className="flex items-center justify-center w-9 h-9 rounded-full border-2 border-grey-200 bg-grey-50 cursor-pointer p-0 overflow-hidden transition-[border-color,box-shadow] duration-200 hover:border-secondary-600 hover:shadow-[0_0_0_2px_rgba(95,133,117,0.15)] dark:bg-grey-800 dark:border-grey-600 dark:hover:border-secondary-600 sm:w-10 sm:h-10"
+                  aria-label="Profil-Menü"
+                >
                   <UserAvatar user={user} />
                 </button>
               </DropdownMenuTrigger>
