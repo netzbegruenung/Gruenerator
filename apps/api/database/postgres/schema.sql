@@ -1194,3 +1194,28 @@ CREATE TABLE IF NOT EXISTS briefing_executions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_briefing_executions_agent ON briefing_executions(agent_id, started_at DESC);
+
+-- ============================================================================
+-- Section: In-App Notifications
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT,
+    metadata JSONB DEFAULT '{}',
+    action_url TEXT,
+    group_key TEXT,
+    is_read BOOLEAN DEFAULT FALSE,
+    read_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
+    ON notifications (user_id, created_at DESC)
+    WHERE is_read = FALSE;
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_created
+    ON notifications (user_id, created_at DESC);

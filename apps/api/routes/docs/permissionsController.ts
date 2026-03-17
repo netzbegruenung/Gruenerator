@@ -188,6 +188,24 @@ router.post('/:id/permissions', async (req: Request<{ id: string }>, res: Respon
       ])) as ProfileRow[];
       const senderName = senderProfile[0]?.display_name || 'Jemand';
 
+      const docTitle = (document.title as string) || 'Unbenanntes Dokument';
+
+      // Fire-and-forget: in-app notification
+      import('../../services/notifications/index.js')
+        .then(({ createNotification }) =>
+          createNotification({
+            userId: user_id,
+            type: 'document_shared',
+            title: `${senderName} hat ein Dokument mit dir geteilt`,
+            body: docTitle,
+            metadata: { documentId: id, senderName, permissionLevel: permission_level },
+            actionUrl: `/docs/${id}`,
+            groupKey: `doc:${id}:shared`,
+          })
+        )
+        .catch(() => {});
+
+      // Fire-and-forget: email notification (respects recipient's preferences)
       import('../../services/email/index.js')
         .then(async ({ sendDocumentShareEmail, shouldSendNotification }) => {
           const shouldSend = await shouldSendNotification(
@@ -201,7 +219,7 @@ router.post('/:id/permissions', async (req: Request<{ id: string }>, res: Respon
             recipientName: recipient.display_name || 'Kolleg*in',
             senderName,
             documentId: id,
-            documentTitle: (document.title as string) || 'Unbenanntes Dokument',
+            documentTitle: docTitle,
             permissionLevel: permission_level,
           });
         })
