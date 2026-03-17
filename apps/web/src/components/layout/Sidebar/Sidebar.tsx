@@ -226,9 +226,9 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         </button>
       )}
 
-      {/* Sidebar Header - Home & Close (mobile Sheet header) */}
-      {isMobile && !isDesktop && (
-        <div className="flex items-center justify-between p-2 shrink-0">
+      {/* Sidebar Header - Home & Close */}
+      {!isDesktop && (
+        <div className={cn('flex items-center justify-between p-2 shrink-0', !isMobile && 'pt-12')}>
           <button
             className="flex items-center justify-center w-10 h-10 p-0 border-none bg-transparent cursor-pointer rounded-sm text-foreground-heading text-[1.4rem] transition-colors hover:bg-hover-alt"
             onClick={() => handleLinkClick('/', 'Start')}
@@ -249,7 +249,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         </div>
       )}
 
-      <nav className={cn('flex-none overflow-x-hidden pb-sm', isDesktop ? 'pt-3' : 'pt-12')}>
+      <nav className={cn('flex-none overflow-x-hidden pb-sm', isDesktop && 'pt-3')}>
         {/* Canvas editor tabs — replaces normal nav when canvas is active */}
         {canvasIsActive ? (
           <div className="flex flex-col gap-0.5 p-0" style={{ paddingTop: 'var(--spacing-small)' }}>
