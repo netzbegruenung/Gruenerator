@@ -24,7 +24,6 @@ import {
   processSubtitleSegments,
 } from '../../services/subtitler/downloadUtils.js';
 import { autoSaveProject } from '../../services/subtitler/projectSavingService.js';
-import { correctSubtitlesViaAI } from '../../services/subtitler/subtitleCorrectionService.js';
 import { calculateFontSizing } from '../../services/subtitler/subtitleSizingService.js';
 import { transcribeVideo } from '../../services/subtitler/transcriptionService.js';
 import {
@@ -497,26 +496,6 @@ router.post('/export', async (req: SubtitlerRequest, res: Response): Promise<voi
     }).catch((e) => log.error(`Background export failed: ${e.message}`));
   } catch (e: any) {
     if (!res.headersSent) res.status(500).json({ error: e.message });
-  }
-});
-
-// POST /correct-subtitles
-router.post('/correct-subtitles', async (req: SubtitlerRequest, res: Response): Promise<void> => {
-  const { segments } = req.body;
-  if (!segments?.length) {
-    res.status(400).json({ error: 'Keine Segmente' });
-    return;
-  }
-  try {
-    const pool = req.app.locals.aiWorkerPool;
-    if (!pool) {
-      res.status(500).json({ error: 'AI-Service nicht verfügbar' });
-      return;
-    }
-    const result = await correctSubtitlesViaAI(segments, pool);
-    res.json({ corrections: result.corrections, hasCorrections: result.hasCorrections });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
   }
 });
 
