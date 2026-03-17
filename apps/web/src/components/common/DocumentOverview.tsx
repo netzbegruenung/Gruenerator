@@ -788,11 +788,11 @@ const DocumentOverview = ({
             onShareItem: handleShareItem,
             onDeleteItem: handleDelete,
             onRefreshDocument: handleRefreshDocument,
-            deletingId: deleting,
-            refreshingId: refreshing,
-            wolkeShareLinks,
+            deletingId: deleting ?? undefined,
+            refreshingId: refreshing ?? undefined,
+            wolkeShareLinks: wolkeShareLinks as { id: string; share_link: string }[],
           })
-    ).filter((action) => action.separator || action.show !== false);
+    ).filter((action) => action.separator || action.show !== false) as ActionItem[];
 
     return (
       <>
@@ -1076,7 +1076,11 @@ const DocumentOverview = ({
 
           return (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-lg max-md:grid-cols-1 max-md:gap-md xl:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] 2xl:grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
-              {sorted.map((item) => (cardRenderer ? cardRenderer(item) : renderDefaultCard(item)))}
+              {sorted.map((item) =>
+                cardRenderer
+                  ? cardRenderer(item as DocumentItem)
+                  : renderDefaultCard(item as DocumentItem)
+              )}
             </div>
           );
         })()}

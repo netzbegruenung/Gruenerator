@@ -1,5 +1,4 @@
 import apiClient from './apiClient';
-import { handleError } from './errorHandling';
 
 // Auth Backend URL - only needed for image URL generation
 const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -44,7 +43,7 @@ interface RawTemplate {
   [key: string]: unknown;
 }
 
-interface TransformedTemplate extends RawTemplate {
+interface TransformedTemplate extends Omit<RawTemplate, 'tags'> {
   images: TemplateImage[];
   category: string[];
   tags: string[];
@@ -120,7 +119,7 @@ export const templateService = {
       // Transformiere die Daten in das im Frontend erwartete Format
       return data.map(transformTemplate);
     } catch (error) {
-      handleError(error, 'Fehler beim Abrufen der Templates');
+      console.error(' beim Abrufen der Templates');
       return [];
     }
   },
@@ -143,7 +142,7 @@ export const templateService = {
       // Transform data (similar to getTemplates)
       return data.map(transformTemplate);
     } catch (error) {
-      handleError(error, 'Fehler beim Filtern der Templates nach Kategorie');
+      console.error(' beim Filtern der Templates nach Kategorie');
       return [];
     }
   },
@@ -158,7 +157,7 @@ export const templateService = {
       const data = response.data;
       return data || []; // Return fetched data or an empty array
     } catch (error) {
-      handleError(error, 'Fehler beim Abrufen der Kategorien');
+      console.error(' beim Abrufen der Kategorien');
       return [];
     }
   },
@@ -173,7 +172,7 @@ export const templateService = {
       const data = response.data;
       return data.success ? data.data : [];
     } catch (error) {
-      handleError(error, 'Fehler beim Abrufen der Benutzer-Templates');
+      console.error(' beim Abrufen der Benutzer-Templates');
       return [];
     }
   },
@@ -188,7 +187,7 @@ export const templateService = {
       const response = await apiClient.post('/auth/user-templates', templateData);
       return response.data;
     } catch (error) {
-      handleError(error, 'Fehler beim Erstellen des Templates');
+      console.error(' beim Erstellen des Templates');
       throw error;
     }
   },
@@ -204,7 +203,7 @@ export const templateService = {
       const response = await apiClient.put(`/auth/user-templates/${templateId}`, templateData);
       return response.data;
     } catch (error) {
-      handleError(error, 'Fehler beim Aktualisieren des Templates');
+      console.error(' beim Aktualisieren des Templates');
       throw error;
     }
   },
@@ -219,7 +218,7 @@ export const templateService = {
       const response = await apiClient.delete(`/auth/user-templates/${templateId}`);
       return response.data;
     } catch (error) {
-      handleError(error, 'Fehler beim Löschen des Templates');
+      console.error(' beim Löschen des Templates');
       throw error;
     }
   },
@@ -241,7 +240,7 @@ export const templateService = {
       );
       return response.data;
     } catch (error) {
-      handleError(error, 'Fehler beim Aktualisieren der Template-Metadaten');
+      console.error(' beim Aktualisieren der Template-Metadaten');
       throw error;
     }
   },

@@ -1,23 +1,25 @@
 import { type ComponentType, useState, useEffect } from 'react';
 
-interface PreloadableComponent<P = Record<string, unknown>> extends ComponentType<P> {
-  preload?: () => Promise<{ default: ComponentType<P> }>;
-}
+export type PreloadableComponent = ComponentType<Record<string, unknown>> & {
+  preload?: () => Promise<{ default: ComponentType<Record<string, unknown>> }>;
+};
 
-const componentCache = new Map<PreloadableComponent, ComponentType>();
+const componentCache = new Map<PreloadableComponent, ComponentType<Record<string, unknown>>>();
 
-export const useRouteCache = <P extends Record<string, unknown>>(
-  Component: PreloadableComponent<P>
-): ComponentType<P> => {
-  const [cachedComponent, setCachedComponent] = useState<ComponentType<P> | null>(() => {
-    return (componentCache.get(Component) as ComponentType<P>) || null;
+export const useRouteCache = (
+  Component: PreloadableComponent
+): ComponentType<Record<string, unknown>> => {
+  const [cachedComponent, setCachedComponent] = useState<ComponentType<
+    Record<string, unknown>
+  > | null>(() => {
+    return componentCache.get(Component) || null;
   });
 
   useEffect(() => {
     if (!cachedComponent && Component?.preload) {
       Component.preload().then((module) => {
         const component = module.default;
-        componentCache.set(Component, component as ComponentType);
+        componentCache.set(Component, component);
         setCachedComponent(() => component);
       });
     }

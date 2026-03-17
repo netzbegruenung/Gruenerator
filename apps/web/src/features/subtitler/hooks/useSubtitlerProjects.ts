@@ -56,7 +56,7 @@ export const useSubtitlerProjects = () => {
 
   // Guarded save project
   const saveProject = useCallback(
-    async (projectData: unknown) => {
+    async (projectData: Parameters<typeof storeSaveProject>[0]) => {
       if (!isReady) return Promise.resolve(null);
       return storeSaveProject(projectData);
     },
@@ -65,7 +65,7 @@ export const useSubtitlerProjects = () => {
 
   // Guarded update project
   const updateProject = useCallback(
-    async (projectId: string, updates: unknown) => {
+    async (projectId: string, updates: Parameters<typeof storeUpdateProject>[1]) => {
       if (!isReady) return Promise.resolve(null);
       return storeUpdateProject(projectId, updates);
     },
