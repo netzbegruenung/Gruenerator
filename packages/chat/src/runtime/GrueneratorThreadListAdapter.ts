@@ -113,12 +113,16 @@ export function createGrueneratorThreadListAdapter(
         (t) => t.agentId === agentId && !t.lastMessage && t.status !== 'archived'
       );
       if (emptyThread) {
+        threadTypeCache.set(emptyThread.id, emptyThread.threadType || threadMode);
+        useAgentStore.getState().setCurrentThread(emptyThread.id);
         return { remoteId: emptyThread.id, externalId: undefined };
       }
       const result = await apiClient.post<{ id: string }>('/api/chat-service/threads', {
         agentId,
         threadType: threadMode,
       });
+      threadTypeCache.set(result.id, threadMode);
+      useAgentStore.getState().setCurrentThread(result.id);
       return { remoteId: result.id, externalId: undefined };
     },
 
