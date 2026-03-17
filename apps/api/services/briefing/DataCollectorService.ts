@@ -8,6 +8,7 @@ import {
   getRecentTweets,
   getRecentInstagramPosts,
 } from './ApifyService.js';
+import { getRecentDocuments } from './DocumentSourceService.js';
 import { fetchNewItems } from './RSSService.js';
 
 import type { BriefingConfig, CollectedItem, SourceConfig } from './types.js';
@@ -92,6 +93,10 @@ export async function collectAll(config: BriefingConfig): Promise<CollectedItem[
       case 'twitter':
       case 'instagram':
         return collectFromSocial(source, config.maxResultsPerSource);
+      case 'documents':
+        return source.collection
+          ? getRecentDocuments(source.collection, since, config.maxResultsPerSource)
+          : [];
       default:
         return [];
     }

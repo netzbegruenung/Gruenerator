@@ -48,7 +48,8 @@ Antworte NUR mit validem JSON in diesem Format:
     { "type": "web", "query": "Suchbegriff", "domains": ["example.com"] },
     { "type": "twitter", "username": "benutzername" },
     { "type": "instagram", "username": "benutzername" },
-    { "type": "rss", "url": "https://example.com/rss" }
+    { "type": "rss", "url": "https://example.com/rss" },
+    { "type": "documents", "collection": "berlin" }
   ],
   "language": "de",
   "timeRange": "day",
@@ -57,7 +58,9 @@ Antworte NUR mit validem JSON in diesem Format:
 }
 
 Regeln:
-- "type" kann sein: "web", "twitter", "instagram", "rss"
+- "type" kann sein: "web", "twitter", "instagram", "rss", "documents"
+- Wenn ein Grüner Landesverband genannt wird, nutze "documents" mit der passenden "collection": hamburg, berlin, bayern, thueringen, schleswig-holstein, mecklenburg-vorpommern
+- Weitere document collections: deutschland, bundestagsfraktion, kommunalwiki, gruene-de, gruene-at, oesterreich, gruenblog, boell-stiftung
 - Wenn eine spezifische Website genannt wird, nutze "domains" bei "web" UND füge eine "rss" Quelle hinzu falls bekannt
 - Wenn ein Twitter/X Account genannt wird, nutze "twitter" mit "username" (ohne @)
 - Wenn ein Instagram Account genannt wird, nutze "instagram" mit "username"
@@ -155,7 +158,8 @@ function heuristicParse(prompt: string): BriefingConfig {
 function validateConfig(config: BriefingConfig): BriefingConfig {
   return {
     sources: (config.sources || []).slice(0, 10).map((s) => ({
-      type: ['web', 'twitter', 'instagram', 'rss'].includes(s.type) ? s.type : 'web',
+      type: ['web', 'twitter', 'instagram', 'rss', 'documents'].includes(s.type) ? s.type : 'web',
+      collection: s.collection?.slice(0, 100),
       query: s.query?.slice(0, 500),
       domains: (s.domains || []).slice(0, 5),
       username: s.username?.replace(/^@/, '').slice(0, 50),
