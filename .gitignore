@@ -1,3 +1,6 @@
+# Inspiration / reference repos
+inspiration/
+
 # Dependencies
 node_modules
 package-lock.json
@@ -90,6 +93,9 @@ AGENTS.md
 
 # Scripts directory (root only)
 /scripts/
+
+# Security alerts (local reference, auto-generated)
+SECURITY-ALERTS.md
 
 # Documentation (local development, root-level only)
 /docs/
