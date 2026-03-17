@@ -164,6 +164,7 @@ function validateConfig(config: BriefingConfig): BriefingConfig {
       domains: (s.domains || []).slice(0, 5),
       username: s.username?.replace(/^@/, '').slice(0, 50),
       url: s.url?.slice(0, 2000),
+      keywords: (s.keywords || []).slice(0, 20).map((k) => k.slice(0, 100)),
     })),
     language: config.language || 'de',
     timeRange: config.timeRange === 'week' ? 'week' : 'day',

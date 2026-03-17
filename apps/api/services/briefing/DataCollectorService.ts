@@ -74,6 +74,15 @@ async function collectFromSocial(source: SourceConfig, maxItems: number): Promis
   return searchWeb(`${source.username} site:${platform}`, { timeRange: 'day' });
 }
 
+function filterByKeywords(items: CollectedItem[], keywords?: string[]): CollectedItem[] {
+  if (!keywords?.length) return items;
+  const lower = keywords.map((k) => k.toLowerCase());
+  return items.filter((item) => {
+    const text = `${item.title} ${item.excerpt}`.toLowerCase();
+    return lower.some((k) => text.includes(k));
+  });
+}
+
 function getSinceDate(timeRange: BriefingConfig['timeRange']): Date {
   const now = new Date();
   return timeRange === 'week'
@@ -85,21 +94,27 @@ export async function collectAll(config: BriefingConfig): Promise<CollectedItem[
   const since = getSinceDate(config.timeRange);
 
   const sourcePromises = config.sources.map(async (source): Promise<CollectedItem[]> => {
+    let items: CollectedItem[];
     switch (source.type) {
       case 'web':
-        return collectFromWeb(source, config.timeRange);
+        items = await collectFromWeb(source, config.timeRange);
+        break;
       case 'rss':
-        return collectFromRSS(source, since);
+        items = await collectFromRSS(source, since);
+        break;
       case 'twitter':
       case 'instagram':
-        return collectFromSocial(source, config.maxResultsPerSource);
+        items = await collectFromSocial(source, config.maxResultsPerSource);
+        break;
       case 'documents':
-        return source.collection
-          ? getRecentDocuments(source.collection, since, config.maxResultsPerSource)
+        items = source.collection
+          ? await getRecentDocuments(source.collection, since, config.maxResultsPerSource)
           : [];
+        break;
       default:
-        return [];
+        items = [];
     }
+    return filterByKeywords(items, source.keywords);
   });
 
   const results = await Promise.allSettled(sourcePromises);

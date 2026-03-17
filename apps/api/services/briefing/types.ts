@@ -5,6 +5,7 @@ export interface SourceConfig {
   username?: string;
   url?: string;
   collection?: string;
+  keywords?: string[];
 }
 
 export interface BriefingConfig {
