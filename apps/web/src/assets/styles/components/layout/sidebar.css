@@ -53,16 +53,7 @@
   margin-left: 0;
 }
 
-/* Backdrop overlay when sidebar is open in hidden mode */
-.app-layout.sidebar-hidden.sidebar-open::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  z-index: 1000;
-}
-
-/* Mobile: content takes full width */
+/* Mobile: content takes full width (Sheet handles backdrop/overlay) */
 @media (max-width: 768px) {
   .app-content {
     margin-left: 0;
@@ -70,14 +61,6 @@
 
   .app-layout.sidebar-open .app-content {
     margin-left: 0;
-  }
-
-  .app-layout.sidebar-open::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.4);
-    z-index: 1000;
   }
 }
 

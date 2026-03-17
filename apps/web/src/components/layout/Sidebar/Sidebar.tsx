@@ -1,5 +1,15 @@
 import { useCanvasSidebarStore, SIDEBAR_FONT_SIZES } from '@gruenerator/canvas-editor';
 import { useAgentStore } from '@gruenerator/chat';
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  useIsMobile,
+} from '@gruenerator/ui';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { FaCheck } from 'react-icons/fa';
 import { PiSun, PiMoon, PiHouse, PiX, PiStarFill } from 'react-icons/pi';
@@ -44,8 +54,9 @@ const iconClass =
 const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isOpen, close, open, forceExpanded, requestForceExpanded, releaseForceExpanded } =
+  const { isOpen, close, open, toggle, forceExpanded, requestForceExpanded, releaseForceExpanded } =
     useSidebarStore();
+  const isMobile = useIsMobile();
   const isChatRoute = location.pathname.startsWith('/chat');
 
   const canvasIsActive = useCanvasSidebarStore((s) => s.isActive);
@@ -102,6 +113,8 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   );
   const footerLinks = useMemo(() => getFooterLinks(), []);
 
+  const sidebarExpanded = isOpen || forceExpanded;
+
   // Close sidebar on route change (skip when forceExpanded)
   useEffect(() => {
     if (!forceExpanded) {
@@ -130,15 +143,21 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
     return () => observer.disconnect();
   }, []);
 
+  // Keyboard shortcuts: Escape to close, Ctrl/Cmd+B to toggle
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
         close();
+        return;
+      }
+      if (e.key === 'b' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        toggle();
       }
     };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [isOpen, close]);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, close, toggle]);
 
   const toggleSection = useCallback((sectionKey: string) => {
     setActiveSection((prev) => (prev === sectionKey ? null : sectionKey));
@@ -179,270 +198,292 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   const titleClass = cn(
     'font-semibold text-[0.95rem] text-foreground-heading leading-snug transition-all duration-150 font-[Raleway,PT_Sans,Arial,sans-serif] xl:text-[1rem] 2xl:text-[1.05rem]',
-    isOpen || forceExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'
+    sidebarExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'
   );
 
   const badgeClass = cn(
     'ml-auto transition-opacity duration-150',
-    isOpen || forceExpanded ? 'opacity-100' : 'opacity-0'
+    sidebarExpanded ? 'opacity-100' : 'opacity-0'
   );
 
-  return (
+  // Shared sidebar content rendered in both mobile Sheet and desktop aside
+  const sidebarInner = (
     <>
-      <aside
-        className={cn(
-          'fixed top-0 left-0 h-dvh bg-background border-r border-grey-200 dark:border-grey-700 z-[1001] flex flex-col overflow-hidden transition-[width] duration-200',
-          // Mobile: hidden by default, overlay when open
-          'max-md:w-0 max-md:-translate-x-full',
-          isOpen && 'max-md:w-[85vw] max-md:max-w-[280px] max-md:translate-x-0 max-md:shadow-lg',
-          // Desktop (non-Tauri)
-          !isDesktop && 'md:w-14',
-          !isDesktop && isOpen && 'md:w-[280px]',
-          // Force expanded for chat route
-          !isDesktop && forceExpanded && isOpen && 'md:w-[280px]',
-          // Tauri desktop mode
-          isDesktop &&
-            'top-[var(--titlebar-height)] h-[calc(100dvh-var(--titlebar-height))] bg-[var(--bar-background)]',
-          isDesktop && !isOpen && 'w-16',
-          isDesktop && isOpen && 'w-[220px]'
-        )}
-        aria-label="Hauptnavigation"
-        onMouseEnter={isDesktop ? open : undefined}
-        onMouseLeave={isDesktop && !forceExpanded ? close : undefined}
-      >
-        {/* Logo - desktop only */}
-        {isDesktop && (
+      {/* Logo - desktop (Tauri) only */}
+      {isDesktop && (
+        <button
+          className="flex items-center gap-3 py-3 px-4 m-0 bg-transparent border-none rounded-none cursor-pointer transition-colors w-full border-b border-grey-200 dark:border-grey-700 hover:bg-hover-alt"
+          onClick={() => handleLinkClick('/', 'Start')}
+          type="button"
+          title="Zur Startseite"
+        >
+          <img src="/images/logo-square.png" alt="Grünerator" className="w-8 h-8 shrink-0" />
+          {isOpen && (
+            <span className="font-semibold text-base whitespace-nowrap text-primary-600">
+              Grünerator
+            </span>
+          )}
+        </button>
+      )}
+
+      {/* Sidebar Header - Home & Close (mobile Sheet header) */}
+      {isMobile && !isDesktop && (
+        <div className="flex items-center justify-between p-2 shrink-0">
           <button
-            className="flex items-center gap-3 py-3 px-4 m-0 bg-transparent border-none rounded-none cursor-pointer transition-colors w-full border-b border-grey-200 dark:border-grey-700 hover:bg-hover-alt"
+            className="flex items-center justify-center w-10 h-10 p-0 border-none bg-transparent cursor-pointer rounded-sm text-foreground-heading text-[1.4rem] transition-colors hover:bg-hover-alt"
             onClick={() => handleLinkClick('/', 'Start')}
             type="button"
             title="Zur Startseite"
+            aria-label="Zur Startseite"
           >
-            <img src="/images/logo-square.png" alt="Grünerator" className="w-8 h-8 shrink-0" />
-            {isOpen && (
-              <span className="font-semibold text-base whitespace-nowrap text-primary-600">
-                Grünerator
-              </span>
-            )}
+            <PiHouse aria-hidden="true" />
           </button>
-        )}
-
-        {/* Sidebar Header - Home & Close */}
-        {!isDesktop && (
-          <div
-            className={cn(
-              'flex items-center justify-between p-2 shrink-0 transition-opacity duration-150',
-              isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-            )}
-          >
-            <button
-              className="flex items-center justify-center w-10 h-10 p-0 border-none bg-transparent cursor-pointer rounded-sm text-foreground-heading text-[1.4rem] transition-colors hover:bg-hover-alt"
-              onClick={() => handleLinkClick('/', 'Start')}
-              type="button"
-              title="Zur Startseite"
-              aria-label="Zur Startseite"
-            >
-              <PiHouse aria-hidden="true" />
-            </button>
-            <button
-              className="flex items-center justify-center w-10 h-10 p-0 border-none bg-transparent cursor-pointer rounded-sm text-foreground-heading text-[1.4rem] transition-colors hover:bg-hover-alt"
-              onClick={close}
-              type="button"
-              aria-label="Menü schließen"
-            >
-              <PiX aria-hidden="true" />
-            </button>
-          </div>
-        )}
-
-        <nav className={cn('flex-none overflow-x-hidden pb-sm', isDesktop && 'pt-3')}>
-          {/* Canvas editor tabs — replaces normal nav when canvas is active */}
-          {canvasIsActive ? (
-            <div
-              className="flex flex-col gap-0.5 p-0"
-              style={{ paddingTop: 'var(--spacing-small)' }}
-            >
-              {canvasTabs.map((tab) => {
-                const Icon = tab.icon;
-                const isTabActive = canvasActiveTab === tab.id;
-                const isTabDisabled = canvasDisabledTabs.includes(tab.id);
-                return (
-                  <button
-                    key={tab.id}
-                    className={menuLinkClass(isTabActive, isTabDisabled)}
-                    onClick={() => !isTabDisabled && canvasOnTabClick?.(tab.id)}
-                    disabled={isTabDisabled}
-                    title={tab.label}
-                    aria-label={tab.ariaLabel}
-                    aria-pressed={isTabActive}
-                    type="button"
-                  >
-                    <Icon aria-hidden="true" className={iconClass} />
-                    <span className={titleClass}>{tab.label}</span>
-                  </button>
-                );
-              })}
-
-              {/* Auto-save indicator */}
-              {canvasAutoSaveStatus && (
-                <div
-                  className={cn(
-                    'flex items-center gap-md py-sm px-xs pl-2 mx-2 rounded-sm min-h-8 no-underline whitespace-nowrap transition-colors text-foreground justify-center cursor-default transition-opacity duration-300',
-                    canvasAutoSaveStatus === 'saving' || showCanvasSaved
-                      ? 'opacity-100'
-                      : 'opacity-0'
-                  )}
-                  title={
-                    canvasAutoSaveStatus === 'saving'
-                      ? 'Wird gespeichert...'
-                      : canvasAutoSaveStatus === 'saved'
-                        ? 'Gespeichert'
-                        : canvasAutoSaveStatus === 'error'
-                          ? 'Fehler beim Speichern'
-                          : ''
-                  }
-                >
-                  {canvasAutoSaveStatus === 'saving' && (
-                    <div className="size-4 border-2 border-[var(--border-subtle)] border-t-[var(--interactive-accent-color)] rounded-full animate-spin" />
-                  )}
-                  {showCanvasSaved && <FaCheck size={14} className="text-green-500" />}
-                </div>
-              )}
-            </div>
-          ) : (
-            <>
-              {/* Direct menu items - main navigation */}
-              {additionalItems.length > 0 && (
-                <div className="flex flex-col gap-0.5 p-0">
-                  {additionalItems.map((item) =>
-                    !item.path ? (
-                      <span
-                        key={item.id}
-                        className={menuLinkClass(false, true)}
-                        title={!isOpen ? item.title : undefined}
-                      >
-                        {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
-                        <span className={titleClass}>{item.title}</span>
-                        {item.badge && (
-                          <span className={badgeClass}>
-                            <StatusBadge type={item.badge} variant="sidebar" />
-                          </span>
-                        )}
-                      </span>
-                    ) : isDesktop ? (
-                      <button
-                        key={item.id}
-                        onClick={() =>
-                          item.id === 'chat'
-                            ? handleChatClick()
-                            : handleLinkClick(item.path!, item.title)
-                        }
-                        className={menuLinkClass(isActive(item.path!))}
-                        aria-current={isActive(item.path!) ? 'page' : undefined}
-                        title={!isOpen ? item.title : undefined}
-                        type="button"
-                      >
-                        {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
-                        <span className={titleClass}>{item.title}</span>
-                        {item.badge && (
-                          <span className={badgeClass}>
-                            <StatusBadge type={item.badge} variant="sidebar" />
-                          </span>
-                        )}
-                      </button>
-                    ) : (
-                      <Link
-                        key={item.id}
-                        to={item.path!}
-                        className={menuLinkClass(false)}
-                        onClick={() =>
-                          item.id === 'chat'
-                            ? handleChatClick()
-                            : handleLinkClick(item.path!, item.title)
-                        }
-                      >
-                        {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
-                        <span className={titleClass}>{item.title}</span>
-                        {item.badge && (
-                          <span className={badgeClass}>
-                            <StatusBadge type={item.badge} variant="sidebar" />
-                          </span>
-                        )}
-                      </Link>
-                    )
-                  )}
-                </div>
-              )}
-
-              {/* Favourites */}
-              <SidebarFavourites
-                isOpen={isOpen}
-                isDesktop={isDesktop}
-                onLinkClick={handleLinkClick}
-                isActive={isActive}
-                forceExpanded={forceExpanded}
-              />
-
-              {/* Only render dropdown sections that have items */}
-              {(Object.entries(menuItems) as [keyof typeof menuItems, MenuSection][])
-                .filter(([_, menu]) => menu.items && menu.items.length > 0)
-                .map(([key, menu]) => (
-                  <SidebarSection
-                    key={key}
-                    sectionKey={key}
-                    title={menu.title}
-                    items={menu.items}
-                    isOpen={activeSection === key}
-                    onToggle={() => toggleSection(key)}
-                    onLinkClick={handleLinkClick}
-                    isDesktop={isDesktop}
-                    isActive={isActive}
-                    sidebarExpanded={isOpen || forceExpanded}
-                  />
-                ))}
-            </>
-          )}
-        </nav>
-
-        <div
-          id="chat-thread-portal-slot"
-          className={cn(
-            'flex-1 flex flex-col overflow-hidden min-h-0 border-t border-grey-200 dark:border-grey-700 transition-opacity duration-150',
-            isOpen || forceExpanded
-              ? 'opacity-100 pointer-events-auto'
-              : 'opacity-0 pointer-events-none'
-          )}
-        />
-
-        {/* Footer - pushed to bottom */}
-        <div className="mt-auto px-2 py-xs shrink-0 flex items-center">
           <button
-            className="flex items-center justify-center w-10 h-10 p-0 ml-2 border-none bg-transparent rounded-full cursor-pointer text-foreground-heading hover:bg-hover-alt transition-colors shrink-0 [&_svg]:text-[1.4rem] [&_svg]:shrink-0 [&_svg]:w-6"
-            onClick={toggleDarkMode}
-            aria-label={darkMode ? 'Zum hellen Modus wechseln' : 'Zum dunklen Modus wechseln'}
+            className="flex items-center justify-center w-10 h-10 p-0 border-none bg-transparent cursor-pointer rounded-sm text-foreground-heading text-[1.4rem] transition-colors hover:bg-hover-alt"
+            onClick={close}
+            type="button"
+            aria-label="Menü schließen"
           >
-            {darkMode ? <PiMoon aria-hidden="true" /> : <PiSun aria-hidden="true" />}
+            <PiX aria-hidden="true" />
           </button>
-          {!isDesktop &&
-            footerLinks.map((item) => (
-              <Link
-                key={item.id}
-                to={item.path!}
-                className="flex items-center py-sm px-2.5 no-underline text-foreground rounded-sm transition-colors min-h-[40px] hover:bg-hover-alt"
-                onClick={() => handleLinkClick(item.path!, item.title)}
-              >
-                <span
-                  className={cn(
-                    'font-medium text-[0.7rem] text-foreground whitespace-nowrap transition-opacity duration-150 font-[Raleway,PT_Sans,Arial,sans-serif]',
-                    isOpen || forceExpanded ? 'opacity-100' : 'opacity-0'
-                  )}
-                >
-                  {item.title}
-                </span>
-              </Link>
-            ))}
         </div>
-      </aside>
+      )}
+
+      <nav className={cn('flex-none overflow-x-hidden pb-sm', isDesktop && 'pt-3')}>
+        {/* Canvas editor tabs — replaces normal nav when canvas is active */}
+        {canvasIsActive ? (
+          <div className="flex flex-col gap-0.5 p-0" style={{ paddingTop: 'var(--spacing-small)' }}>
+            {canvasTabs.map((tab) => {
+              const Icon = tab.icon;
+              const isTabActive = canvasActiveTab === tab.id;
+              const isTabDisabled = canvasDisabledTabs.includes(tab.id);
+              return (
+                <Tooltip key={tab.id}>
+                  <TooltipTrigger asChild>
+                    <button
+                      className={menuLinkClass(isTabActive, isTabDisabled)}
+                      onClick={() => !isTabDisabled && canvasOnTabClick?.(tab.id)}
+                      disabled={isTabDisabled}
+                      aria-label={tab.ariaLabel}
+                      aria-pressed={isTabActive}
+                      type="button"
+                    >
+                      <Icon aria-hidden="true" className={iconClass} />
+                      <span className={titleClass}>{tab.label}</span>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" hidden={sidebarExpanded}>
+                    {tab.label}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
+
+            {/* Auto-save indicator */}
+            {canvasAutoSaveStatus && (
+              <div
+                className={cn(
+                  'flex items-center gap-md py-sm px-xs pl-2 mx-2 rounded-sm min-h-8 no-underline whitespace-nowrap transition-colors text-foreground justify-center cursor-default transition-opacity duration-300',
+                  canvasAutoSaveStatus === 'saving' || showCanvasSaved ? 'opacity-100' : 'opacity-0'
+                )}
+                title={
+                  canvasAutoSaveStatus === 'saving'
+                    ? 'Wird gespeichert...'
+                    : canvasAutoSaveStatus === 'saved'
+                      ? 'Gespeichert'
+                      : canvasAutoSaveStatus === 'error'
+                        ? 'Fehler beim Speichern'
+                        : ''
+                }
+              >
+                {canvasAutoSaveStatus === 'saving' && (
+                  <div className="size-4 border-2 border-[var(--border-subtle)] border-t-[var(--interactive-accent-color)] rounded-full animate-spin" />
+                )}
+                {showCanvasSaved && <FaCheck size={14} className="text-green-500" />}
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Direct menu items - main navigation */}
+            {additionalItems.length > 0 && (
+              <div className="flex flex-col gap-0.5 p-0">
+                {additionalItems.map((item) =>
+                  !item.path ? (
+                    <span key={item.id} className={menuLinkClass(false, true)}>
+                      {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
+                      <span className={titleClass}>{item.title}</span>
+                      {item.badge && (
+                        <span className={badgeClass}>
+                          <StatusBadge type={item.badge} variant="sidebar" />
+                        </span>
+                      )}
+                    </span>
+                  ) : isDesktop ? (
+                    <Tooltip key={item.id}>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() =>
+                            item.id === 'chat'
+                              ? handleChatClick()
+                              : handleLinkClick(item.path!, item.title)
+                          }
+                          className={menuLinkClass(isActive(item.path!))}
+                          aria-current={isActive(item.path!) ? 'page' : undefined}
+                          type="button"
+                        >
+                          {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
+                          <span className={titleClass}>{item.title}</span>
+                          {item.badge && (
+                            <span className={badgeClass}>
+                              <StatusBadge type={item.badge} variant="sidebar" />
+                            </span>
+                          )}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" hidden={sidebarExpanded}>
+                        {item.title}
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <Link
+                      key={item.id}
+                      to={item.path!}
+                      className={menuLinkClass(false)}
+                      onClick={() =>
+                        item.id === 'chat'
+                          ? handleChatClick()
+                          : handleLinkClick(item.path!, item.title)
+                      }
+                    >
+                      {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
+                      <span className={titleClass}>{item.title}</span>
+                      {item.badge && (
+                        <span className={badgeClass}>
+                          <StatusBadge type={item.badge} variant="sidebar" />
+                        </span>
+                      )}
+                    </Link>
+                  )
+                )}
+              </div>
+            )}
+
+            {/* Favourites */}
+            <SidebarFavourites
+              isOpen={isOpen}
+              isDesktop={isDesktop}
+              onLinkClick={handleLinkClick}
+              isActive={isActive}
+              forceExpanded={forceExpanded}
+            />
+
+            {/* Only render dropdown sections that have items */}
+            {(Object.entries(menuItems) as [keyof typeof menuItems, MenuSection][])
+              .filter(([_, menu]) => menu.items && menu.items.length > 0)
+              .map(([key, menu]) => (
+                <SidebarSection
+                  key={key}
+                  sectionKey={key}
+                  title={menu.title}
+                  items={menu.items}
+                  isOpen={activeSection === key}
+                  onToggle={() => toggleSection(key)}
+                  onLinkClick={handleLinkClick}
+                  isDesktop={isDesktop}
+                  isActive={isActive}
+                  sidebarExpanded={sidebarExpanded}
+                />
+              ))}
+          </>
+        )}
+      </nav>
+
+      <div
+        id="chat-thread-portal-slot"
+        className={cn(
+          'flex-1 flex flex-col overflow-hidden min-h-0 border-t border-grey-200 dark:border-grey-700 transition-opacity duration-150',
+          sidebarExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        )}
+      />
+
+      {/* Footer - pushed to bottom */}
+      <div className="mt-auto px-2 py-xs shrink-0 flex items-center">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              className="flex items-center justify-center w-10 h-10 p-0 ml-2 border-none bg-transparent rounded-full cursor-pointer text-foreground-heading hover:bg-hover-alt transition-colors shrink-0 [&_svg]:text-[1.4rem] [&_svg]:shrink-0 [&_svg]:w-6"
+              onClick={toggleDarkMode}
+              aria-label={darkMode ? 'Zum hellen Modus wechseln' : 'Zum dunklen Modus wechseln'}
+            >
+              {darkMode ? <PiMoon aria-hidden="true" /> : <PiSun aria-hidden="true" />}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right" hidden={sidebarExpanded}>
+            {darkMode ? 'Heller Modus' : 'Dunkler Modus'}
+          </TooltipContent>
+        </Tooltip>
+        {!isDesktop &&
+          footerLinks.map((item) => (
+            <Link
+              key={item.id}
+              to={item.path!}
+              className="flex items-center py-sm px-2.5 no-underline text-foreground rounded-sm transition-colors min-h-[40px] hover:bg-hover-alt"
+              onClick={() => handleLinkClick(item.path!, item.title)}
+            >
+              <span
+                className={cn(
+                  'font-medium text-[0.7rem] text-foreground whitespace-nowrap transition-opacity duration-150 font-[Raleway,PT_Sans,Arial,sans-serif]',
+                  sidebarExpanded ? 'opacity-100' : 'opacity-0'
+                )}
+              >
+                {item.title}
+              </span>
+            </Link>
+          ))}
+      </div>
+    </>
+  );
+
+  return (
+    <TooltipProvider delayDuration={300}>
+      {/* Mobile: Sheet overlay */}
+      {isMobile && !isDesktop && (
+        <Sheet open={isOpen} onOpenChange={(open) => (open ? undefined : close())}>
+          <SheetContent
+            side="left"
+            showCloseButton={false}
+            className="w-[85vw] max-w-[280px] p-0 bg-background border-r border-grey-200 dark:border-grey-700 flex flex-col gap-0 [&>div]:gap-0"
+          >
+            <SheetTitle className="sr-only">Navigation</SheetTitle>
+            {sidebarInner}
+          </SheetContent>
+        </Sheet>
+      )}
+
+      {/* Desktop: fixed aside */}
+      {(!isMobile || isDesktop) && (
+        <aside
+          className={cn(
+            'fixed top-0 left-0 h-dvh bg-background border-r border-grey-200 dark:border-grey-700 z-[1001] flex flex-col overflow-hidden transition-[width] duration-200',
+            // Desktop (non-Tauri)
+            !isDesktop && 'md:w-14',
+            !isDesktop && isOpen && 'md:w-[280px]',
+            // Force expanded for chat route
+            !isDesktop && forceExpanded && isOpen && 'md:w-[280px]',
+            // Tauri desktop mode
+            isDesktop &&
+              'top-[var(--titlebar-height)] h-[calc(100dvh-var(--titlebar-height))] bg-[var(--bar-background)]',
+            isDesktop && !isOpen && 'w-16',
+            isDesktop && isOpen && 'w-[220px]'
+          )}
+          aria-label="Hauptnavigation"
+          onMouseEnter={isDesktop ? open : undefined}
+          onMouseLeave={isDesktop && !forceExpanded ? close : undefined}
+        >
+          {sidebarInner}
+        </aside>
+      )}
 
       {canvasPanelContent && (
         <div
@@ -454,7 +495,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           </div>
         </div>
       )}
-    </>
+    </TooltipProvider>
   );
 };
 
@@ -516,16 +557,21 @@ function SidebarFavourites({
         );
 
         return isDesktop ? (
-          <button
-            key={item.id}
-            onClick={() => onLinkClick(item.path, item.title)}
-            className={cn(menuLinkClass(isActive(item.path)), 'group')}
-            aria-current={isActive(item.path) ? 'page' : undefined}
-            title={!expanded ? item.title : undefined}
-            type="button"
-          >
-            {content}
-          </button>
+          <Tooltip key={item.id}>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => onLinkClick(item.path, item.title)}
+                className={cn(menuLinkClass(isActive(item.path)), 'group')}
+                aria-current={isActive(item.path) ? 'page' : undefined}
+                type="button"
+              >
+                {content}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" hidden={expanded}>
+              {item.title}
+            </TooltipContent>
+          </Tooltip>
         ) : (
           <Link
             key={item.id}
