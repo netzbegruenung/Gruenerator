@@ -15,10 +15,10 @@ import { useNavigate } from 'react-router-dom';
 
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import apiClient from '../../../components/utils/apiClient';
+import { cn } from '../../../utils/cn';
 import { useTemplateClone } from '../hooks/useTemplateClone';
 
 import type { Share } from '@gruenerator/shared';
-import './ImageGallery.css';
 
 const MAX_IMAGES = 50;
 
@@ -72,12 +72,26 @@ const formatDate = (dateString: string) => {
   return date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
 };
 
+/** Shared shimmer gradient for skeleton loading */
+const shimmerStyle = {
+  background:
+    'linear-gradient(90deg, var(--background-color-alt) 0%, var(--background-color) 50%, var(--background-color-alt) 100%)',
+  backgroundSize: '200% 100%',
+  animation: 'galleryShimmer 1.5s ease-in-out infinite',
+} as const;
+
 const SkeletonCard = () => (
-  <div className="image-gallery-skeleton-card">
-    <div className="image-gallery-skeleton-thumbnail" />
-    <div className="image-gallery-skeleton-info">
-      <div className="image-gallery-skeleton-title" />
-      <div className="image-gallery-skeleton-meta" />
+  <div className="overflow-hidden rounded-[16px] border-[length:var(--border-subtle)] bg-background shadow-sm [border:var(--border-subtle)] dark:bg-background-alt">
+    <div className="aspect-square motion-reduce:animate-none" style={shimmerStyle} />
+    <div className="p-md">
+      <div
+        className="mb-sm h-5 w-[70%] rounded motion-reduce:animate-none"
+        style={{ ...shimmerStyle, animationDelay: '0.1s' }}
+      />
+      <div
+        className="h-4 w-1/2 rounded motion-reduce:animate-none"
+        style={{ ...shimmerStyle, animationDelay: '0.2s' }}
+      />
     </div>
   </div>
 );
@@ -155,47 +169,58 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
 
   return (
     <div
-      className={`image-gallery-card ${isDeleting ? 'deleting' : ''}`}
+      className={cn(
+        'group relative cursor-pointer overflow-hidden rounded-[16px] bg-background shadow-sm transition-[transform,box-shadow] duration-[250ms] ease-[cubic-bezier(0.4,0,0.2,1)] [border:var(--border-subtle)] hover:-translate-y-1 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent dark:bg-background-alt max-[768px]:rounded-[12px] motion-reduce:transition-none motion-reduce:hover:translate-y-0',
+        isDeleting &&
+          '[&_.gallery-thumbnail]:blur-[2px] [&_.gallery-thumbnail]:opacity-40 [&_.gallery-info]:blur-[2px] [&_.gallery-info]:opacity-40'
+      )}
       onClick={() => onClick(image)}
       tabIndex={0}
       onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && onClick(image)}
     >
-      <div className="image-gallery-thumbnail">
+      <div className="gallery-thumbnail relative aspect-square w-full overflow-hidden bg-background-alt after:pointer-events-none after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[60px] after:bg-gradient-to-t after:from-overlay-sm after:to-transparent after:opacity-0 after:transition-opacity after:duration-[250ms] after:ease-linear after:content-[''] group-hover:after:opacity-100">
         {thumbnailUrl ? (
           <img
             src={thumbnailUrl}
             alt={image.title || 'Gespeichertes Bild'}
-            className={imageLoaded ? 'loaded' : 'loading'}
+            className={cn(
+              'h-full w-full object-cover transition-[transform,opacity] duration-[250ms] ease-[cubic-bezier(0.4,0,0.2,1)] group-hover:scale-[1.02] motion-reduce:transition-none motion-reduce:group-hover:scale-100',
+              imageLoaded ? 'opacity-100' : 'opacity-0'
+            )}
             loading="lazy"
             width={400}
             height={500}
             onLoad={() => setImageLoaded(true)}
           />
         ) : (
-          <div className="image-gallery-thumbnail-placeholder">
+          <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,var(--background-color-alt)_0%,var(--background-color)_100%)] text-disabled [&_svg]:text-[2.5rem] [&_svg]:opacity-50">
             <FaImage />
           </div>
         )}
-        {image.imageType && <span className="image-gallery-type-badge">{image.imageType}</span>}
+        {image.imageType && (
+          <span className="absolute bottom-sm left-sm z-[2] rounded-[8px] bg-overlay-md px-2 py-1 text-xs font-medium tracking-[0.02em] text-white backdrop-blur-[8px]">
+            {image.imageType}
+          </span>
+        )}
         {image.status === 'draft' && (
           <span
-            className="image-gallery-type-badge"
-            style={{ background: 'var(--grey-500)', color: 'white' }}
+            className="absolute bottom-sm left-sm z-[2] rounded-[8px] px-2 py-1 text-xs font-medium tracking-[0.02em] text-white backdrop-blur-[8px]"
+            style={{ background: 'var(--grey-500)' }}
           >
             Entwurf
           </span>
         )}
         {isTemplate && (
-          <span className="image-gallery-template-badge">
+          <span className="absolute bottom-sm left-sm z-[2] flex items-center gap-1 rounded-[8px] bg-overlay-md px-2 py-1 text-xs font-medium tracking-[0.02em] text-white backdrop-blur-[8px]">
             <FaSave /> Vorlage
           </span>
         )}
       </div>
 
-      <div className="image-gallery-actions">
+      <div className="absolute right-sm top-sm z-[3] flex gap-xs">
         {isTemplate && (
           <button
-            className="image-gallery-action-btn image-gallery-action-btn--template"
+            className="flex size-9 cursor-pointer items-center justify-center rounded-full border-none bg-overlay-md text-white opacity-0 -translate-y-1 backdrop-blur-[8px] transition-[opacity,transform,background-color] duration-200 ease-linear hover:bg-primary-600 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-[768px]:size-8 max-[768px]:translate-y-0 max-[768px]:opacity-100 motion-reduce:transition-none [&_svg]:text-[0.9rem]"
             onClick={handleUseTemplate}
             title="Vorlage verwenden"
           >
@@ -204,7 +229,7 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
         )}
         {isEditable && (
           <button
-            className="image-gallery-action-btn image-gallery-action-btn--edit"
+            className="flex size-9 cursor-pointer items-center justify-center rounded-full border-none bg-overlay-md text-white opacity-0 -translate-y-1 backdrop-blur-[8px] transition-[opacity,transform,background-color] duration-200 ease-linear hover:bg-primary-600 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-[768px]:size-8 max-[768px]:translate-y-0 max-[768px]:opacity-100 motion-reduce:transition-none [&_svg]:text-[0.9rem]"
             onClick={handleEdit}
             title="Bearbeiten"
           >
@@ -212,21 +237,21 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
           </button>
         )}
         <button
-          className="image-gallery-action-btn image-gallery-action-btn--share"
+          className="flex size-9 cursor-pointer items-center justify-center rounded-full border-none bg-overlay-md text-white opacity-0 -translate-y-1 backdrop-blur-[8px] transition-[opacity,transform,background-color] duration-200 ease-linear hover:bg-secondary-600 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-[768px]:size-8 max-[768px]:translate-y-0 max-[768px]:opacity-100 motion-reduce:transition-none [&_svg]:text-[0.9rem]"
           onClick={handleShare}
           title="Teilen"
         >
           <FaShareAlt />
         </button>
         <button
-          className="image-gallery-action-btn image-gallery-action-btn--download"
+          className="flex size-9 cursor-pointer items-center justify-center rounded-full border-none bg-overlay-md text-white opacity-0 -translate-y-1 backdrop-blur-[8px] transition-[opacity,transform,background-color] duration-200 ease-linear hover:bg-secondary-600 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-[768px]:size-8 max-[768px]:translate-y-0 max-[768px]:opacity-100 motion-reduce:transition-none [&_svg]:text-[0.9rem]"
           onClick={handleDownload}
           title="Herunterladen"
         >
           <FaDownload />
         </button>
         <button
-          className="image-gallery-action-btn image-gallery-action-btn--delete"
+          className="flex size-9 cursor-pointer items-center justify-center rounded-full border-none bg-overlay-md text-white opacity-0 -translate-y-1 backdrop-blur-[8px] transition-[opacity,transform,background-color] duration-200 ease-linear hover:bg-error group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-[768px]:size-8 max-[768px]:translate-y-0 max-[768px]:opacity-100 motion-reduce:transition-none [&_svg]:text-[0.9rem]"
           onClick={handleDelete}
           title="Löschen"
         >
@@ -234,10 +259,12 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
         </button>
       </div>
 
-      <div className="image-gallery-info">
-        <h3 className="image-gallery-item-title">{image.title || 'Unbenanntes Bild'}</h3>
-        <div className="image-gallery-meta">
-          <span className="image-gallery-date">
+      <div className="gallery-info p-md max-[768px]:p-sm">
+        <h3 className="m-0 mb-sm truncate pr-lg text-base font-semibold leading-[1.4] text-foreground-heading max-[768px]:text-sm">
+          {image.title || 'Unbenanntes Bild'}
+        </h3>
+        <div className="flex items-center justify-between text-sm text-disabled max-[768px]:text-xs">
+          <span className="flex items-center gap-xs [&_svg]:text-xs [&_svg]:opacity-80">
             <FaClock />
             {formatDate(image.createdAt)}
           </span>
@@ -245,13 +272,19 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
       </div>
 
       {showDeleteConfirm && (
-        <div className="image-gallery-delete-confirm">
-          <p>Bild löschen?</p>
-          <div className="image-gallery-delete-actions">
-            <button className="image-gallery-confirm-btn" onClick={confirmDelete}>
+        <div className="absolute inset-0 z-10 flex animate-[galleryFadeIn_0.2s_ease] flex-col items-center justify-center gap-md rounded-[16px] bg-[rgba(211,47,47,0.95)] max-[768px]:rounded-[12px]">
+          <p className="m-0 text-base font-semibold text-white">Bild löschen?</p>
+          <div className="flex gap-sm">
+            <button
+              className="cursor-pointer rounded-[20px] border-none bg-white px-5 py-2 text-sm font-medium text-error transition-[transform,box-shadow] duration-150 ease-linear hover:scale-[1.02]"
+              onClick={confirmDelete}
+            >
               Löschen
             </button>
-            <button className="image-gallery-cancel-btn" onClick={cancelDelete}>
+            <button
+              className="cursor-pointer rounded-[20px] border border-solid border-[rgba(255,255,255,0.3)] bg-[rgba(255,255,255,0.2)] px-5 py-2 text-sm font-medium text-white transition-[transform,box-shadow] duration-150 ease-linear hover:scale-[1.02]"
+              onClick={cancelDelete}
+            >
               Abbrechen
             </button>
           </div>
@@ -375,20 +408,22 @@ const ImageGallery = () => {
 
   if (isLoading && imageShares.length === 0) {
     return (
-      <div className="image-gallery">
-        <div className="image-gallery-header">
-          <h1 className="image-gallery-title">Meine Bilder</h1>
+      <div className="mx-auto flex min-h-[calc(100vh-140px)] max-w-[var(--container-max-width)] flex-col p-lg min-[1400px]:max-w-[90vw] max-[768px]:min-h-[calc(100vh-100px)] max-[768px]:p-md">
+        <div className="mb-lg flex items-center justify-between gap-md max-[768px]:mb-md max-[768px]:flex-col max-[768px]:items-stretch">
+          <h1 className="m-0 text-2xl font-bold text-foreground-heading max-[768px]:text-xl">
+            Meine Bilder
+          </h1>
           <Button
             variant="brand"
             size="brand"
-            className="image-gallery-new-btn"
+            className="flex items-center gap-sm whitespace-nowrap max-[768px]:justify-center"
             onClick={handleNewImage}
           >
             <FaPlus />
             Neues Bild
           </Button>
         </div>
-        <div className="image-gallery-skeleton-grid">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-lg max-[768px]:grid-cols-2 max-[768px]:gap-md max-[480px]:grid-cols-1">
           {[...Array(6)].map((_, i) => (
             <SkeletonCard key={i} />
           ))}
@@ -399,11 +434,13 @@ const ImageGallery = () => {
 
   if (error) {
     return (
-      <div className="image-gallery">
-        <div className="image-gallery-header">
-          <h1 className="image-gallery-title">Meine Bilder</h1>
+      <div className="mx-auto flex min-h-[calc(100vh-140px)] max-w-[var(--container-max-width)] flex-col p-lg min-[1400px]:max-w-[90vw] max-[768px]:min-h-[calc(100vh-100px)] max-[768px]:p-md">
+        <div className="mb-lg flex items-center justify-between gap-md max-[768px]:mb-md max-[768px]:flex-col max-[768px]:items-stretch">
+          <h1 className="m-0 text-2xl font-bold text-foreground-heading max-[768px]:text-xl">
+            Meine Bilder
+          </h1>
         </div>
-        <div className="image-gallery-error">
+        <div className="mb-md rounded-[12px] border border-solid border-error bg-[rgba(211,47,47,0.1)] p-md text-error">
           {error}
           <button onClick={clearError} style={{ marginLeft: 'var(--spacing-small)' }}>
             Erneut versuchen
@@ -415,16 +452,20 @@ const ImageGallery = () => {
 
   if (imageShares.length === 0) {
     return (
-      <div className="image-gallery">
-        <div className="image-gallery-header">
-          <h1 className="image-gallery-title">Meine Bilder</h1>
+      <div className="mx-auto flex min-h-[calc(100vh-140px)] max-w-[var(--container-max-width)] flex-col p-lg min-[1400px]:max-w-[90vw] max-[768px]:min-h-[calc(100vh-100px)] max-[768px]:p-md">
+        <div className="mb-lg flex items-center justify-between gap-md max-[768px]:mb-md max-[768px]:flex-col max-[768px]:items-stretch">
+          <h1 className="m-0 text-2xl font-bold text-foreground-heading max-[768px]:text-xl">
+            Meine Bilder
+          </h1>
         </div>
-        <div className="image-gallery-empty">
-          <div className="image-gallery-empty-icon">
+        <div className="flex min-h-[300px] grow flex-col items-center justify-center px-lg py-2xl text-center">
+          <div className="mb-lg text-[4rem] text-disabled opacity-40">
             <FaImage />
           </div>
-          <h2 className="image-gallery-empty-title">Noch keine Bilder</h2>
-          <p className="image-gallery-empty-text">
+          <h2 className="m-0 mb-sm text-2xl font-semibold text-foreground-heading">
+            Noch keine Bilder
+          </h2>
+          <p className="m-0 mb-lg text-base text-disabled">
             Erstelle dein erstes Bild mit dem Image Studio.
           </p>
           <Button variant="brand" size="brand" onClick={handleNewImage}>
@@ -437,13 +478,15 @@ const ImageGallery = () => {
   }
 
   return (
-    <div className="image-gallery">
-      <div className="image-gallery-header">
-        <h1 className="image-gallery-title">Meine Bilder</h1>
+    <div className="mx-auto flex min-h-[calc(100vh-140px)] max-w-[var(--container-max-width)] flex-col p-lg min-[1400px]:max-w-[90vw] max-[768px]:min-h-[calc(100vh-100px)] max-[768px]:p-md">
+      <div className="mb-lg flex items-center justify-between gap-md max-[768px]:mb-md max-[768px]:flex-col max-[768px]:items-stretch">
+        <h1 className="m-0 text-2xl font-bold text-foreground-heading max-[768px]:text-xl">
+          Meine Bilder
+        </h1>
         <Button
           variant="brand"
           size="brand"
-          className="image-gallery-new-btn"
+          className="flex items-center gap-sm whitespace-nowrap max-[768px]:justify-center"
           onClick={handleNewImage}
         >
           <FaPlus />
@@ -451,7 +494,7 @@ const ImageGallery = () => {
         </Button>
       </div>
 
-      <div className="image-gallery-grid">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-lg max-[768px]:grid-cols-2 max-[768px]:gap-md max-[480px]:grid-cols-1">
         {imageShares.map((image) => (
           <ImageGalleryCard
             key={image.id || image.shareToken}
@@ -466,12 +509,12 @@ const ImageGallery = () => {
         ))}
       </div>
 
-      <div className="image-gallery-limit-info">
+      <div className="mt-auto pt-lg text-center text-[0.85rem] text-disabled opacity-70">
         <span>
           {imageShares.length} von {MAX_IMAGES} Bildern
         </span>
         {imageShares.length >= MAX_IMAGES - 5 && (
-          <span className="image-gallery-limit-warning">
+          <span className="font-medium text-error">
             {' '}
             - Ältere Bilder werden bald automatisch gelöscht
           </span>

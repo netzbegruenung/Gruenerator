@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { Markdown } from '../../../components/common/Markdown';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import useImageStudioStore from '../../../stores/imageStudioStore';
+import { cn } from '../../../utils/cn';
 import { AiHistoryTimeline } from '../components/AiHistoryTimeline';
 import { EditPanel } from '../components/EditPanel';
 import { Lightbox } from '../components/Lightbox';
@@ -50,8 +51,6 @@ const CANVAS_SUPPORTED_TYPES = [
   IMAGE_STUDIO_TYPES.SLIDER,
   IMAGE_STUDIO_TYPES.FREEFORM,
 ] as const;
-
-import './TemplateResultStep.css';
 
 const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
   onRegenerate,
@@ -571,18 +570,20 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
   if (!generatedImageSrc && !supportsCanvas) {
     if (loading) {
       return (
-        <div className="template-result-step template-result-step--loading-state">
+        <div className="flex flex-col items-center w-full min-h-[70vh] p-md justify-center min-h-[60vh]">
           <motion.div
-            className="loading-state"
+            className="flex flex-col items-center text-center gap-md max-w-[400px]"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
           >
-            <div className="loading-state__spinner">
-              <div className="spinner-ring" />
+            <div className="relative w-20 h-20">
+              <div className="absolute inset-0 border-4 border-[var(--border-subtle)] border-t-[var(--interactive-accent-color)] rounded-full animate-spin" />
             </div>
-            <h3 className="loading-state__title">Dein Bild wird generiert...</h3>
-            <p className="loading-state__subtitle">
+            <h3 className="m-0 text-[length:var(--font-size-xl)] font-semibold text-foreground-heading">
+              Dein Bild wird generiert...
+            </h3>
+            <p className="m-0 text-[length:var(--font-size-base)] text-foreground opacity-80 leading-[var(--line-height-normal)]">
               Dies kann einige Sekunden dauern. Bitte habe einen Moment Geduld.
             </p>
           </motion.div>
@@ -591,7 +592,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     }
 
     return (
-      <div className="template-result-step template-result-step--empty">
+      <div className="flex flex-col items-center w-full min-h-[70vh] p-md justify-center gap-md text-center">
         <p>Kein Bild generiert. Bitte gehe zurück und versuche es erneut.</p>
         <Button variant="brand" size="brand" onClick={goBack}>
           <FaArrowLeft />
@@ -604,7 +605,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
   if (supportsCanvas && isCanvasMode) {
     return (
       <motion.div
-        className="template-result-step template-result-step--canvas-mode"
+        className="flex flex-col items-center w-full p-0 min-h-[calc(100vh-60px)]"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
@@ -614,16 +615,22 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     );
   }
 
+  const hasText = altText || generatedPosts?.instagram;
+
   return (
     <motion.div
-      className={`template-result-step ${loading ? 'template-result-step--loading' : ''}`}
+      className={cn(
+        'flex flex-col items-center w-full min-h-[70vh] p-md lg:p-0',
+        loading &&
+          '[&_.image-result-hero-img]:opacity-70 [&_.action-buttons_button]:pointer-events-none'
+      )}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="template-result-main">
+      <div className="flex flex-col items-center w-full lg:flex-row lg:items-center lg:justify-center lg:gap-xl lg:p-0">
         <motion.div
-          className="image-result-hero"
+          className="flex justify-center items-center p-md relative lg:shrink-0 lg:p-0"
           initial={isNewImage ? { opacity: 0, scale: 0.95 } : false}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
@@ -631,7 +638,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
           <motion.img
             src={generatedImageSrc || undefined}
             alt={altText || 'Generiertes Sharepic'}
-            className="image-result-hero__img"
+            className="image-result-hero-img max-w-full max-h-[65vh] w-auto h-auto rounded-2xl shadow-xl cursor-pointer transition-transform duration-200 ease-out hover:scale-[1.01] motion-reduce:transition-none min-[768px]:max-h-[70vh] lg:max-h-[75vh]"
             onClick={openLightbox}
             initial={isNewImage ? { filter: 'blur(10px)' } : false}
             animate={{ filter: 'blur(0px)' }}
@@ -639,7 +646,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
           />
           {supportsCanvas && (
             <button
-              className="btn-icon image-result-hero__edit-btn"
+              className="btn-icon absolute top-lg right-lg w-11 h-11 rounded-full bg-background border border-grey-200 dark:border-grey-700 shadow-sm flex items-center justify-center cursor-pointer transition-all duration-200 ease-out text-foreground hover:bg-[var(--interactive-accent-color)] hover:text-white hover:border-[var(--interactive-accent-color)] hover:scale-105 [&_svg]:w-[18px] [&_svg]:h-[18px]"
               onClick={handleSwitchToCanvas}
               title="Im Canvas-Editor bearbeiten"
             >
@@ -649,15 +656,35 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
         </motion.div>
 
         <motion.div
-          className={`image-result-info ${altText || generatedPosts?.instagram ? 'image-result-info--has-text' : ''}`}
+          className={cn(
+            'flex flex-col items-center text-center w-full py-md px-0 gap-md lg:items-start lg:text-left lg:p-0',
+            hasText && 'items-start text-left'
+          )}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.3 }}
         >
-          <div className="image-result-info__header">
-            <div className="image-result-info__text">
-              <h2>Dein Sharepic ist fertig!</h2>
-              <p>
+          <div
+            className={cn(
+              'flex flex-col items-center gap-sm w-full lg:items-start',
+              hasText && 'flex-row justify-between items-center'
+            )}
+          >
+            <div className={cn('flex flex-col gap-xs lg:items-start', hasText && 'items-start')}>
+              <h2
+                className={cn(
+                  'm-0 text-[length:var(--font-size-xl)] font-semibold text-foreground-heading',
+                  hasText && 'text-[length:var(--font-size-lg)]'
+                )}
+              >
+                Dein Sharepic ist fertig!
+              </h2>
+              <p
+                className={cn(
+                  'm-0 text-[length:var(--font-size-base)] text-foreground opacity-80',
+                  hasText && 'hidden'
+                )}
+              >
                 {galleryEditMode
                   ? 'Speichere deine Änderungen oder lade das Bild herunter.'
                   : typeConfig?.usesFluxApi
@@ -699,10 +726,10 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
           </div>
 
           {(altText || generatedPosts?.instagram) && (
-            <div className="image-result-info__generated">
+            <div className="flex flex-col gap-sm w-full">
               {altText && (
                 <motion.div
-                  className="alt-text-result"
+                  className="bg-background-alt px-md py-sm rounded-lg text-left text-[length:var(--font-size-xxs)] leading-[var(--line-height-snug)] text-foreground [&_strong]:font-semibold [&_strong]:text-foreground-heading"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                 >
@@ -711,12 +738,12 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
               )}
               {generatedPosts?.instagram && (
                 <motion.div
-                  className="social-text-result"
+                  className="bg-background-alt px-md py-sm rounded-lg text-left text-[length:var(--font-size-xxs)] leading-[var(--line-height-snug)] text-foreground [&_h3]:m-0 [&_h3]:mb-xs [&_h3]:text-[length:var(--font-size-xs)] [&_h3]:font-semibold [&_h3]:text-foreground-heading"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                 >
                   <h3>Dein Instagram Post:</h3>
-                  <div className="markdown-content">
+                  <div className="markdown-content text-[length:var(--font-size-xxs)] text-foreground mb-xs leading-[var(--line-height-snug)] [&_p]:m-0 [&_p]:mb-1 [&_p:last-child]:mb-0">
                     <Markdown fallback={<div>Laden...</div>}>{generatedPosts.instagram}</Markdown>
                   </div>
                 </motion.div>
