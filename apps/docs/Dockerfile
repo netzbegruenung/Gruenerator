@@ -19,6 +19,7 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/docs/package.json ./packages/docs/
 COPY packages/collab/package.json ./packages/collab/
 COPY packages/ui/package.json ./packages/ui/
+COPY packages/wolke/package.json ./packages/wolke/
 COPY apps/docs/package.json ./apps/docs/
 
 # Install only docs and its transitive workspace deps
@@ -30,6 +31,7 @@ COPY packages/shared ./packages/shared
 COPY packages/docs ./packages/docs
 COPY packages/collab ./packages/collab
 COPY packages/ui ./packages/ui
+COPY packages/wolke ./packages/wolke
 COPY apps/web/src/assets/styles ./apps/web/src/assets/styles
 COPY apps/web/src/assets/fonts ./apps/web/src/assets/fonts
 COPY apps/docs ./apps/docs
@@ -71,6 +73,7 @@ COPY --chown=gruenerator:gruenerator packages/shared/package.json ./packages/sha
 COPY --chown=gruenerator:gruenerator packages/docs/package.json ./packages/docs/
 COPY --chown=gruenerator:gruenerator packages/collab/package.json ./packages/collab/
 COPY --chown=gruenerator:gruenerator packages/ui/package.json ./packages/ui/
+COPY --chown=gruenerator:gruenerator packages/wolke/package.json ./packages/wolke/
 COPY --chown=gruenerator:gruenerator apps/docs/package.json ./apps/docs/
 
 # Switch to non-root user BEFORE install — files are created with correct ownership,

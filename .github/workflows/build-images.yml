@@ -119,6 +119,7 @@ jobs:
               - 'packages/docs/**'
               - 'packages/collab/**'
               - 'packages/ui/**'
+              - 'packages/wolke/**'
             hocuspocus:
               - 'services/hocuspocus/**'
             mcp:

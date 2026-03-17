@@ -14,7 +14,7 @@ import type {
   StreamMetadata,
   ProgressStep,
 } from '../hooks/useChatGraphStream';
-import type { ToolKey, type ThreadMode, type SearchMode } from '../stores/chatStore';
+import type { ToolKey, ThreadMode, SearchMode } from '../stores/chatStore';
 import { parseAllMentions } from '../lib/mentionParser';
 import { parseSSELine } from '../lib/sseParser';
 import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../lib/toolMappings';
