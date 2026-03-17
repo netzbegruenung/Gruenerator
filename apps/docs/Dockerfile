@@ -19,6 +19,7 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/docs/package.json ./packages/docs/
 COPY packages/collab/package.json ./packages/collab/
 COPY packages/ui/package.json ./packages/ui/
+COPY packages/voice/package.json ./packages/voice/
 COPY packages/wolke/package.json ./packages/wolke/
 COPY apps/docs/package.json ./apps/docs/
 
@@ -31,6 +32,7 @@ COPY packages/shared ./packages/shared
 COPY packages/docs ./packages/docs
 COPY packages/collab ./packages/collab
 COPY packages/ui ./packages/ui
+COPY packages/voice ./packages/voice
 COPY packages/wolke ./packages/wolke
 COPY apps/web/src/assets/styles ./apps/web/src/assets/styles
 COPY apps/web/src/assets/fonts ./apps/web/src/assets/fonts
@@ -73,6 +75,7 @@ COPY --chown=gruenerator:gruenerator packages/shared/package.json ./packages/sha
 COPY --chown=gruenerator:gruenerator packages/docs/package.json ./packages/docs/
 COPY --chown=gruenerator:gruenerator packages/collab/package.json ./packages/collab/
 COPY --chown=gruenerator:gruenerator packages/ui/package.json ./packages/ui/
+COPY --chown=gruenerator:gruenerator packages/voice/package.json ./packages/voice/
 COPY --chown=gruenerator:gruenerator packages/wolke/package.json ./packages/wolke/
 COPY --chown=gruenerator:gruenerator apps/docs/package.json ./apps/docs/
 
