@@ -28,6 +28,8 @@ export type GrueneratorMessageMetadata = {
   streamMetadata?: StreamMetadata;
   threadId?: string;
   followUpSuggestions?: string[];
+  agentId?: string;
+  agentMention?: string;
   [key: string]: unknown;
 };
 
@@ -74,7 +76,8 @@ interface StreamOutcome {
 async function* parseSSEStream(
   response: Response,
   callbacks: GrueneratorAdapterCallbacks,
-  outcome: StreamOutcome
+  outcome: StreamOutcome,
+  agentInfo?: { agentId: string; agentMention?: string }
 ): AsyncGenerator<ChatModelRunResult, void> {
   const reader = response.body?.getReader();
 
@@ -183,6 +186,10 @@ async function* parseSSEStream(
     if (receivedMetadata) custom.streamMetadata = receivedMetadata;
     if (receivedFollowUpSuggestions.length > 0)
       custom.followUpSuggestions = receivedFollowUpSuggestions;
+    if (agentInfo?.agentId) {
+      custom.agentId = agentInfo.agentId;
+      if (agentInfo.agentMention) custom.agentMention = agentInfo.agentMention;
+    }
 
     const isInterrupted = interruptPending && currentProgress.stage === 'complete';
 
@@ -616,7 +623,12 @@ export function createGrueneratorModelAdapter(
           }
 
           const resumeOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
-          yield* parseSSEStream(resumeResponse, callbacks, resumeOutcome);
+          yield* parseSSEStream(
+            resumeResponse,
+            callbacks,
+            resumeOutcome,
+            config.agentId ? { agentId: config.agentId } : undefined
+          );
           if (resumeOutcome.interrupted) {
             interruptedThreadId = config.threadId;
             lastInterruptedResult = resumeOutcome.lastResult ?? null;
@@ -752,6 +764,7 @@ export function createGrueneratorModelAdapter(
       // Extract @-mentions from the last user message for agent routing + notebook/document scoping
       // Only applies in chat mode — search and notebook modes don't use mentions
       let effectiveAgentId = config.agentId;
+      let effectiveAgentMention: string | undefined;
       let notebookIds: string[] = [];
       let forcedTools: string[] = [];
       let documentIds: string[] = [];
@@ -769,6 +782,7 @@ export function createGrueneratorModelAdapter(
           if (textPart) {
             const parsed = parseAllMentions(textPart.text);
             effectiveAgentId = parsed.agentId;
+            effectiveAgentMention = parsed.agentMention;
             notebookIds = parsed.notebookIds;
             forcedTools = parsed.forcedTools;
             documentIds = parsed.documentIds;
@@ -858,7 +872,15 @@ export function createGrueneratorModelAdapter(
       }
 
       const streamOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
-      yield* parseSSEStream(response, callbacks, streamOutcome);
+      const resolvedAgentId = effectiveAgentId || config.agentId;
+      yield* parseSSEStream(
+        response,
+        callbacks,
+        streamOutcome,
+        resolvedAgentId
+          ? { agentId: resolvedAgentId, agentMention: effectiveAgentMention }
+          : undefined
+      );
 
       // Persist server-indexed document IDs to thread for follow-up messages
       if (streamOutcome.indexedDocumentIds.length > 0 && config.threadId) {
