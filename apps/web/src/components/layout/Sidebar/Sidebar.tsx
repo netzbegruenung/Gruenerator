@@ -249,7 +249,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         </div>
       )}
 
-      <nav className={cn('flex-none overflow-x-hidden pb-sm', isDesktop && 'pt-3')}>
+      <nav className={cn('flex-none overflow-x-hidden pb-sm', isDesktop ? 'pt-3' : 'pt-12')}>
         {/* Canvas editor tabs — replaces normal nav when canvas is active */}
         {canvasIsActive ? (
           <div className="flex flex-col gap-0.5 p-0" style={{ paddingTop: 'var(--spacing-small)' }}>
