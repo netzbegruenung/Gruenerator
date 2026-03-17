@@ -12,6 +12,9 @@ export type ChatMessageMetadata = {
   progress?: ChatProgress;
   citations?: Citation[];
   additionalSources?: AdditionalSource[];
+  // Skill/agent that generated this message
+  agentId?: string;
+  agentMention?: string;
   // Regular chat specific
   searchResults?: SearchResult[];
   generatedImage?: GeneratedImage;

@@ -9,6 +9,7 @@ export interface MentionResult {
 
 export interface ParsedMentions {
   agentId: string;
+  agentMention?: string;
   notebookIds: string[];
   forcedTools: string[];
   documentIds: string[];
@@ -44,6 +45,7 @@ function addUnique(seen: Set<string>, list: string[], id: string): void {
  */
 export function parseAllMentions(text: string): ParsedMentions {
   let agentId: string | null = null;
+  let agentMention: string | undefined;
   let hasDocumentChat = false;
   const notebookIds: string[] = [];
   const forcedTools: string[] = [];
@@ -104,6 +106,7 @@ export function parseAllMentions(text: string): ParsedMentions {
       // /alias → always treat as agent (skill)
       if (mentionable.type === 'agent') {
         agentId = mentionable.identifier;
+        agentMention = mentionable.mention;
       }
       // If /alias resolves to a non-agent, ignore it (/ is only for skills)
     } else {
@@ -111,6 +114,7 @@ export function parseAllMentions(text: string): ParsedMentions {
       if (mentionable.type === 'agent') {
         // Backward compat: @agent still works for saved threads
         agentId = mentionable.identifier;
+        agentMention = mentionable.mention;
       } else if (mentionable.type === 'tool') {
         addUnique(seenTools, forcedTools, mentionable.identifier);
       } else if (mentionable.type === 'notebook') {
@@ -145,6 +149,7 @@ export function parseAllMentions(text: string): ParsedMentions {
 
   return {
     agentId: agentId ?? getDefaultAgent(),
+    agentMention,
     notebookIds,
     forcedTools,
     documentIds,
