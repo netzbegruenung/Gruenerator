@@ -33,6 +33,7 @@ import { shouldSkipBodyParser, TUS_UPLOAD_PATHS } from './middleware/bodyParserC
 import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
 import { setupRoutes } from './routes.js';
 import { startUploadsCleanup } from './services/cleanup/uploadsCleanupService.js';
+import { startNotificationCleanup } from './services/notifications/notificationCleanupService.js';
 import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
 import { tusServer } from './services/subtitler/tusService.js';
 import { getCorsOrigins, PRIMARY_DOMAIN } from './utils/domainUtils.js';
@@ -80,6 +81,7 @@ if (skipCluster) {
   // Start cleanup schedulers
   startExportCleanup();
   startUploadsCleanup();
+  startNotificationCleanup();
 
   await startWorker();
 } else if (cluster.isPrimary) {
@@ -159,6 +161,7 @@ if (skipCluster) {
   // Start cleanup schedulers (runs in master process only)
   startExportCleanup();
   startUploadsCleanup();
+  startNotificationCleanup();
 
   const { shutdown, registerSignalHandlers } = createMasterShutdownHandler({
     workerTimeout: 10000,

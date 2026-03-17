@@ -18,6 +18,7 @@ import {
 } from './routes/image/index.js';
 import { offboardingRouter, databaseTestRouter, rateLimitRouter } from './routes/internal/index.js';
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
+import notificationsRouter from './routes/notifications/index.js';
 import { oparlRouter } from './routes/oparl/index.js';
 import protokollRouter from './routes/protokoll/index.js';
 import { releasesRouter } from './routes/releases/index.js';
@@ -357,6 +358,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/share', shareRouter);
   app.use('/api/mem0', requireAuth, mem0Router);
   app.use('/api/email', requireAuth, emailRouter);
+  app.use('/api/notifications', requireAuth, notificationsRouter);
   app.use('/api/media', requireAuth, mediaRouter);
   app.use('/api/docs/public', publicDocRouter);
   app.use('/api/docs', requireAuth, docsRouter);
