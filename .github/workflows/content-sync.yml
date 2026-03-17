@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       source:
-        description: 'Source group (empty = all). Options: landesverbaende, gruenblog, gruene-at, kommunalwiki, boell-stiftung, satzungen'
+        description: 'Source group (empty = all). Options: landesverbaende, gruenblog, gruene-at, kommunalwiki, boell-stiftung'
         required: false
         type: string
       dry_run:
@@ -47,7 +47,7 @@ jobs:
           elif [ "$SCHEDULE" = "0 2 * * *" ] || [ -z "$SCHEDULE" ]; then
             # Daily 3 AM CET or manual dispatch (no source) → all sources
             echo 'use_matrix=true' >> $GITHUB_OUTPUT
-            echo 'matrix={"source":["landesverbaende","gruenblog","gruene-at","kommunalwiki","boell-stiftung","satzungen"]}' >> $GITHUB_OUTPUT
+            echo 'matrix={"source":["landesverbaende","gruenblog","gruene-at","kommunalwiki","boell-stiftung"]}' >> $GITHUB_OUTPUT
           else
             # Hourly schedule → landesverbaende only
             echo 'use_matrix=false' >> $GITHUB_OUTPUT

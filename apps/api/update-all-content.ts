@@ -6,7 +6,7 @@
  *
  * Flags:
  *   --source <id>      Run only one source group (landesverbaende, gruenblog,
- *                       gruene-at, kommunalwiki, boell-stiftung, satzungen)
+ *                       gruene-at, kommunalwiki, boell-stiftung)
  *   --force            Force re-process even if already stored
  *   --dry-run          Preview without storing (only supported by landesverbaende)
  *   --concurrency <n>  Max parallel source groups (default: 2)
@@ -28,7 +28,6 @@ import { gruenblogScraperService } from './services/scrapers/implementations/Gru
 import { grueneAtScraperService } from './services/scrapers/implementations/GrueneAtScraper.js';
 import { kommunalwikiScraper } from './services/scrapers/implementations/KommunalwikiScraper.js';
 import { landesverbandScraperService } from './services/scrapers/implementations/LandesverbandScraper/index.js';
-import { satzungenScraperService } from './services/scrapers/implementations/SatzungenScraper.js';
 
 interface CliArgs {
   source?: string;
@@ -145,22 +144,6 @@ const SOURCE_GROUPS: SourceGroup[] = [
     async run(args) {
       await boellStiftungScraperService.init();
       const result = await boellStiftungScraperService.fullCrawl({
-        forceUpdate: args.force,
-      });
-      return {
-        stored: result.stored,
-        updated: result.updated,
-        skipped: result.skipped,
-        errors: result.errors,
-      };
-    },
-  },
-  {
-    id: 'satzungen',
-    name: 'Satzungen',
-    async run(args) {
-      await satzungenScraperService.init();
-      const result = await satzungenScraperService.fullCrawl({
         forceUpdate: args.force,
       });
       return {
