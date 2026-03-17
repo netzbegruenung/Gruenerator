@@ -30,7 +30,7 @@
 }
 
 .image-studio-section-title {
-  font-family: 'Raleway', var(--font-family);
+  font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--font-color-secondary);
@@ -41,7 +41,7 @@
 
 /* Section subtitle styling */
 .image-studio-section-subtitle {
-  font-family: 'Raleway', var(--font-family);
+  font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
   font-size: var(--font-size-xs);
   color: var(--font-color-secondary);
   margin-bottom: var(--spacing-medium);

@@ -245,7 +245,7 @@ const ContentSelectorDialog = React.memo(function ContentSelectorDialog({
               )}
               onClick={handleAutoToggle}
             >
-              <HiLightningBolt className="shrink-0 text-xl opacity-70 text-[var(--himmel)]" />
+              <HiLightningBolt className="shrink-0 text-xl opacity-70 text-[var(--interactive-accent-color)]" />
               <div className="min-w-0 flex-1">
                 <span className="block font-medium">Automatische Suche</span>
                 <span className="block text-sm opacity-60">KI wählt relevante Inhalte</span>

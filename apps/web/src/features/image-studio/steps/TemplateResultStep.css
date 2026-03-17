@@ -68,7 +68,7 @@
   border-radius: 50%;
   background: var(--background-color);
   border: 1px solid var(--border-color);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -79,7 +79,7 @@
 
 .image-result-hero__edit-btn:hover {
   background: var(--interactive-accent-color);
-  color: white;
+  color: var(--white);
   border-color: var(--interactive-accent-color);
   transform: scale(1.05);
 }
@@ -95,7 +95,7 @@
   width: auto;
   height: auto;
   border-radius: var(--card-border-radius-large);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-xl);
   cursor: pointer;
   transition: transform 0.2s ease;
 }
@@ -255,7 +255,7 @@
   right: 0;
   max-height: 85vh;
   border-radius: 16px 16px 0 0;
-  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-xl);
 }
 
 /* Desktop: Side panel */
@@ -268,7 +268,7 @@
     width: 480px;
     max-height: 100vh;
     border-radius: 16px 0 0 16px;
-    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+    box-shadow: var(--shadow-xl);
   }
 }
 
@@ -376,7 +376,7 @@
 .edit-panel .credit-control input:focus {
   outline: none;
   border-color: var(--interactive-accent-color);
-  box-shadow: 0 0 0 2px rgba(0, 135, 62, 0.15);
+  box-shadow: var(--input-shadow-focus);
 }
 
 .edit-panel .credit-control input::placeholder {
@@ -454,7 +454,7 @@
   right: 0;
   background: transparent;
   border: none;
-  color: white;
+  color: var(--white);
   font-size: 32px;
   cursor: pointer;
   padding: var(--spacing-small);
@@ -526,25 +526,15 @@
   font-size: var(--font-size-base);
   color: var(--font-color);
   opacity: 0.8;
-  line-height: 1.5;
+  line-height: var(--line-height-normal);
 }
 
 /* ========================================
    Dark Theme Support
    ======================================== */
 
-[data-theme="dark"] .edit-panel {
-  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.4);
-}
-
 [data-theme="dark"] .edit-panel-overlay {
   background: var(--overlay-dark-md);
-}
-
-@media (min-width: 1024px) {
-  [data-theme="dark"] .edit-panel {
-    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.4);
-  }
 }
 
 /* ========================================
@@ -573,7 +563,7 @@
   border-radius: var(--card-border-radius-small);
   text-align: left;
   font-size: var(--font-size-xxs);
-  line-height: 1.4;
+  line-height: var(--line-height-snug);
   color: var(--font-color);
 }
 
@@ -593,7 +583,7 @@
   font-size: var(--font-size-xxs);
   color: var(--font-color);
   margin-bottom: var(--spacing-xsmall);
-  line-height: 1.4;
+  line-height: var(--line-height-snug);
 }
 
 .social-text-result .markdown-content p {
@@ -827,7 +817,7 @@
   background: var(--background-color-alt);
   color: var(--font-color);
   font-size: var(--font-size-sm);
-  line-height: 1.4;
+  line-height: var(--line-height-snug);
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;
@@ -857,7 +847,7 @@
   align-items: center;
   gap: var(--spacing-xsmall);
   font-size: var(--font-size-small);
-  color: var(--success-color, var(--klee));
+  color: var(--success-color);
   margin-top: var(--spacing-xsmall);
   opacity: 0.9;
 }

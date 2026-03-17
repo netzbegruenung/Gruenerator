@@ -74,7 +74,7 @@ const SegmentedControl = ({
                 isActive &&
                   'bg-[var(--primary,#4CAF50)] text-white font-medium shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)]',
                 isDisabled && 'cursor-not-allowed',
-                'focus-visible:outline-2 focus-visible:outline-[var(--himmel,#0BA1DD)] focus-visible:outline-offset-[-1px] focus-visible:z-[1] focus-visible:relative'
+                'focus-visible:outline-2 focus-visible:outline-[var(--interactive-accent-color)] focus-visible:outline-offset-[-1px] focus-visible:z-[1] focus-visible:relative'
               )}
               onClick={() => handleClick(step.value, step.disabled)}
               disabled={isDisabled}

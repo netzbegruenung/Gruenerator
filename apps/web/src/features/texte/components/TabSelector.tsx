@@ -180,7 +180,7 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
                 'cursor-pointer transition-all duration-150 whitespace-nowrap',
                 'hover:bg-background-alt',
                 'disabled:opacity-50 disabled:cursor-not-allowed',
-                'focus-visible:outline-2 focus-visible:outline-[var(--himmel)] focus-visible:outline-offset-2',
+                'focus-visible:outline-2 focus-visible:outline-[var(--interactive-accent-color)] focus-visible:outline-offset-2',
                 'max-[640px]:px-sm max-[640px]:py-xs max-[640px]:text-[0.85rem]',
                 'max-[400px]:px-sm max-[400px]:py-xs',
                 isActive &&
@@ -239,7 +239,7 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
                   'cursor-pointer transition-all duration-150 whitespace-nowrap',
                   'hover:bg-background-alt',
                   'disabled:opacity-50 disabled:cursor-not-allowed',
-                  'focus-visible:outline-2 focus-visible:outline-[var(--himmel)] focus-visible:outline-offset-2',
+                  'focus-visible:outline-2 focus-visible:outline-[var(--interactive-accent-color)] focus-visible:outline-offset-2',
                   'max-[640px]:px-sm max-[640px]:py-xs max-[640px]:text-[0.85rem]',
                   'max-[400px]:px-sm max-[400px]:py-xs',
                   isUniversalActive &&
