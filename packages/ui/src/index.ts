@@ -46,6 +46,7 @@ export {
   DropdownMenuTrigger,
 } from './components/dropdown-menu';
 export { Input } from './components/input';
+export { Label } from './components/label';
 export { Popover, PopoverContent, PopoverTrigger, PopoverAnchor } from './components/popover';
 export { ScrollArea, ScrollBar } from './components/scroll-area';
 export {
@@ -62,6 +63,7 @@ export {
 } from './components/select';
 export { Skeleton } from './components/skeleton';
 export { Switch } from './components/switch';
+export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants } from './components/tabs';
 export { Textarea } from './components/textarea';
 export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/tooltip';
 export { Particles } from './components/particles';
