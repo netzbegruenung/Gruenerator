@@ -136,7 +136,7 @@
 
 .blocknote-static-toolbar .bn-container {
   display: flex;
-  flex-direction: column-reverse;
+  flex-direction: column;
 }
 
 .blocknote-static-toolbar .bn-formatting-toolbar {

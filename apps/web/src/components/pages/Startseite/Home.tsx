@@ -17,7 +17,7 @@ const NEWSLETTER_URL =
 const headingClass = [
   'text-[2em] min-[480px]:text-[2.5em] lg:text-[var(--font-size-5xl)]',
   'xl:text-[4rem] 3xl:text-[4.2rem] 4xl:text-[4.5rem] 5xl:text-[5rem]',
-  'font-bold text-foreground-heading font-[Raleway,Arial,sans-serif] m-0',
+  'font-bold text-foreground-heading dark:text-white font-[Raleway,Arial,sans-serif] m-0',
 ].join(' ');
 
 const btnBaseClass = [
@@ -31,7 +31,7 @@ const btnBaseClass = [
   '[&_svg]:text-[1.3em]',
 ].join(' ');
 
-const linkBtnClass = `${btnBaseClass} bg-background-alt text-foreground hover:bg-button-hover`;
+const linkBtnClass = `${btnBaseClass} bg-background-alt text-foreground dark:text-white hover:bg-hover-alt`;
 
 const newsletterBtnClass = [
   btnBaseClass,
@@ -67,13 +67,12 @@ const featureImageClass =
   'max-w-full max-h-full w-auto h-auto object-contain rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.12)]';
 
 const useCaseCardClass =
-  'text-center p-xl bg-background rounded-[var(--spacing-responsive-medium)] shadow-[0_2px_12px_rgba(0,0,0,0.06)]';
+  'text-center p-xl bg-background rounded-[var(--spacing-responsive-medium)] shadow-[0_2px_12px_rgba(0,0,0,0.06)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.2)]';
 
 const useCaseIconClass =
   'flex items-center justify-center w-[60px] h-[60px] bg-secondary-500 rounded-2xl text-white mx-auto mb-md [&_svg]:text-[28px]';
 
-const containerMaxWidth =
-  'max-w-[1200px] 3xl:max-w-[1500px] 4xl:max-w-[1600px] 5xl:max-w-[1900px]';
+const containerMaxWidth = 'max-w-[1200px] 3xl:max-w-[1500px] 4xl:max-w-[1600px] 5xl:max-w-[1900px]';
 
 const suspenseFallback = (
   <div className="min-h-[350px] flex items-center justify-center">
@@ -131,9 +130,7 @@ const FEATURES: FeatureData[] = [
     title: 'Generiere Untertitel für Reels & TikToks',
     description:
       'Generiere automatisch ansprechende Untertitel für deine Videos. Perfekt für Social Media - macht deine Inhalte zugänglicher und erhöht die Reichweite.',
-    visual: (
-      <FeatureImage src={ReelMuster} alt="Reel Muster - Grünerator generated content" />
-    ),
+    visual: <FeatureImage src={ReelMuster} alt="Reel Muster - Grünerator generated content" />,
   },
 ];
 
@@ -196,9 +193,7 @@ const Home = () => {
         className={`flex flex-col items-center min-h-[50vh] 4xl:min-h-[55vh] 5xl:min-h-[60vh] px-5 lg:px-[var(--spacing-responsive-xxlarge)] 4xl:px-[60px] 5xl:px-20 pt-8 pb-8 md:pb-10 ${containerMaxWidth} mx-auto bg-background`}
       >
         <header className="flex flex-col items-start mb-xl w-full">
-          <h1 className="sr-only">
-            Grünerator - AI-gestützte Textgenerierung für die Grünen
-          </h1>
+          <h1 className="sr-only">Grünerator - AI-gestützte Textgenerierung für die Grünen</h1>
           <TypeAnimation
             sequence={[
               'Pressemitteilung?',
@@ -220,9 +215,7 @@ const Home = () => {
             className={headingClass}
             aria-label="Verschiedene Textarten, die der Grünerator erstellen kann"
           />
-          <h2 className={`${headingClass} leading-tight`}>
-            Dafür gibt&apos;s den Grünerator.
-          </h2>
+          <h2 className={`${headingClass} leading-tight`}>Dafür gibt&apos;s den Grünerator.</h2>
         </header>
 
         <p className="text-base min-[480px]:text-[1.1em] lg:text-lg xl:text-[1.25em] 3xl:text-[1.3em] 4xl:text-[1.35em] 5xl:text-[1.45em] leading-relaxed 4xl:leading-[1.65] text-foreground self-start text-left mb-8 md:mb-xl">
@@ -324,9 +317,7 @@ const Home = () => {
                     useCase.title
                   )}
                 </h3>
-                <p className="text-base leading-[1.6] text-foreground m-0">
-                  {useCase.description}
-                </p>
+                <p className="text-base leading-[1.6] text-foreground m-0">{useCase.description}</p>
               </div>
             ))}
           </div>
