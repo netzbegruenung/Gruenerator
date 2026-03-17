@@ -155,10 +155,14 @@ export class LinkExtractor {
         const $ = cheerio.load(xml, { xmlMode: true });
 
         $('url > loc').each((_, el) => {
-          const url = $(el).text().trim();
+          let url = $(el).text().trim();
           if (url) {
             // Apply filter if specified
             if (filter && !url.includes(filter)) return;
+            // Canonicalize: strip trailing slash (except root)
+            if (url.length > 1 && url.endsWith('/')) {
+              url = url.slice(0, -1);
+            }
             links.add(url);
           }
         });
