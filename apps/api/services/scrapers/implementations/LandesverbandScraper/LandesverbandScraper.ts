@@ -693,16 +693,32 @@ export class LandesverbandScraper extends BaseScraper {
    */
   #normalizeUrl(url: string | undefined, baseUrl: string): string | null {
     if (!url) return null;
+    let absolute: string;
     if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url;
+      absolute = url;
+    } else if (url.startsWith('//')) {
+      absolute = 'https:' + url;
+    } else if (url.startsWith('/')) {
+      absolute = baseUrl + url;
+    } else {
+      absolute = baseUrl + '/' + url;
     }
-    if (url.startsWith('//')) {
-      return 'https:' + url;
+    // Canonicalize: strip trailing slash (except root), fragment, and query params
+    try {
+      const parsed = new URL(absolute);
+      parsed.hash = '';
+      let canonical = parsed.origin + parsed.pathname;
+      if (canonical.length > 1 && canonical.endsWith('/')) {
+        canonical = canonical.slice(0, -1);
+      }
+      // Preserve query params only for PDF download URLs
+      if (parsed.search && absolute.includes('.pdf')) {
+        canonical += parsed.search;
+      }
+      return canonical;
+    } catch {
+      return absolute;
     }
-    if (url.startsWith('/')) {
-      return baseUrl + url;
-    }
-    return baseUrl + '/' + url;
   }
 
   /**
