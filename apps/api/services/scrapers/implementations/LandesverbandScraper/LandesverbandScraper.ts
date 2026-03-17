@@ -703,15 +703,11 @@ export class LandesverbandScraper extends BaseScraper {
     } else {
       absolute = baseUrl + '/' + url;
     }
-    // Canonicalize: strip trailing slash from pathname (except root) and fragment
+    // Canonicalize: strip fragment only (preserve trailing slashes to match existing Qdrant data)
     try {
       const parsed = new URL(absolute);
       parsed.hash = '';
-      let pathname = parsed.pathname;
-      if (pathname.length > 1 && pathname.endsWith('/')) {
-        pathname = pathname.slice(0, -1);
-      }
-      return parsed.origin + pathname + parsed.search;
+      return parsed.origin + parsed.pathname + parsed.search;
     } catch {
       return absolute;
     }
