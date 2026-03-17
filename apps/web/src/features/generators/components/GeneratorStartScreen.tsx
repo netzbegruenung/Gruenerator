@@ -1,6 +1,8 @@
 import { AIPromptInput } from '@gruenerator/ui';
 import React, { memo, useCallback, useMemo, useState } from 'react';
 
+import { type CustomGenerator } from '../../auth/services/profileApiService';
+
 import GeneratorDetailPanel from './GeneratorDetailPanel';
 
 import { cn } from '@/utils/cn';
@@ -8,30 +10,15 @@ import { cn } from '@/utils/cn';
 const sectionHeaderClasses =
   'text-xs text-foreground-muted uppercase tracking-wide mb-sm font-semibold m-0';
 
-interface GeneratorListItem {
-  id: string;
-  name?: string;
-  title?: string;
-  slug: string;
-  description?: string;
-  prompt?: string;
-  contact_email?: string;
-  form_schema?: Record<string, unknown>;
-  usage_count?: number;
-  created_at?: string;
-  owner_first_name?: string;
-  owner_last_name?: string;
-}
-
 interface GeneratorStartScreenProps {
   aiDescription: string;
   onDescriptionChange: (value: string) => void;
   onGenerateWithAI: () => void;
   isLoading: boolean;
   error?: string | null;
-  generators?: GeneratorListItem[];
-  savedGenerators?: GeneratorListItem[];
-  onSelectGenerator?: (generator: GeneratorListItem) => void;
+  generators?: CustomGenerator[];
+  savedGenerators?: CustomGenerator[];
+  onSelectGenerator?: (generator: CustomGenerator) => void;
   onDeleteGenerator?: () => void;
   onGeneratorUpdated?: () => void;
 }
@@ -71,11 +58,12 @@ const GeneratorStartScreen: React.FC<GeneratorStartScreenProps> = memo(
       [generators.length, savedGenerators.length]
     );
 
-    const handleOwnedGeneratorClick = useCallback((generator: GeneratorListItem) => {
-      setSelectedGeneratorId((prev) => (prev === generator.id ? null : generator.id));
+    const handleOwnedGeneratorClick = useCallback((generator: CustomGenerator) => {
+      const id = String(generator.id);
+      setSelectedGeneratorId((prev) => (prev === id ? null : id));
     }, []);
 
-    const handleOpenGenerator = useCallback((generator: GeneratorListItem) => {
+    const handleOpenGenerator = useCallback((generator: CustomGenerator) => {
       window.open(`/gruenerator/${generator.slug}`, '_blank');
     }, []);
 
@@ -113,7 +101,7 @@ const GeneratorStartScreen: React.FC<GeneratorStartScreenProps> = memo(
                         <button
                           className={cn(
                             'inline-flex items-center gap-xs px-4 py-2 bg-background-alt border border-grey-200 dark:border-grey-700 rounded-lg cursor-pointer transition-all duration-200 text-left text-foreground text-sm font-medium whitespace-nowrap hover:bg-background-pure hover:border-primary-500 mb-xs',
-                            selectedGeneratorId === gen.id &&
+                            selectedGeneratorId === String(gen.id) &&
                               'bg-background-pure border-primary-500 shadow-sm rounded-b-none mb-0'
                           )}
                           onClick={() => handleOwnedGeneratorClick(gen)}
@@ -121,7 +109,7 @@ const GeneratorStartScreen: React.FC<GeneratorStartScreenProps> = memo(
                         >
                           {gen.name || gen.title}
                         </button>
-                        {selectedGeneratorId === gen.id && (
+                        {selectedGeneratorId === String(gen.id) && (
                           <GeneratorDetailPanel
                             generator={gen}
                             onOpen={handleOpenGenerator}

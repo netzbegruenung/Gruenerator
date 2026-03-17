@@ -5,20 +5,11 @@ import { EarlyAccessBanner } from '../../../components/common/EarlyAccessBanner'
 import Icon from '../../../components/common/Icon';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useCustomGeneratorsData, useSavedGenerators } from '../../auth/hooks/useProfileData';
+import { type CustomGenerator } from '../../auth/services/profileApiService';
 
 const CreateCustomGeneratorPage = lazy(() => import('../../generators/CreateCustomGeneratorPage'));
 
 type EigeneTabProps = Record<string, never>;
-
-interface GeneratorListItem {
-  id: string;
-  name?: string;
-  title?: string;
-  slug: string;
-  description?: string;
-  owner_first_name?: string;
-  owner_last_name?: string;
-}
 
 interface LoginPromptProps {
   onLogin: () => void;
@@ -61,19 +52,13 @@ const EigeneTab: React.FC<EigeneTabProps> = memo(() => {
     isActive: true,
   });
 
-  const generators = useMemo(
-    () => (generatorsQuery.data || []) as GeneratorListItem[],
-    [generatorsQuery.data]
-  );
+  const generators = useMemo(() => generatorsQuery.data || [], [generatorsQuery.data]);
 
-  const savedGenerators = useMemo(
-    () => (savedQuery.data || []) as GeneratorListItem[],
-    [savedQuery.data]
-  );
+  const savedGenerators = useMemo(() => savedQuery.data || [], [savedQuery.data]);
 
   const isLoading = authLoading || generatorsQuery.isLoading || savedQuery.isLoading;
 
-  const handleSelectGenerator = useCallback((generator: GeneratorListItem) => {
+  const handleSelectGenerator = useCallback((generator: CustomGenerator) => {
     window.open(`/gruenerator/${generator.slug}`, '_blank');
   }, []);
 
