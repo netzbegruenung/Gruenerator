@@ -1,7 +1,10 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Library } from 'lucide-react';
 import { filterMentionables, type Mentionable } from '../../lib/mentionables';
+import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
+import { SkillLibraryModal } from '../skills/SkillLibraryModal';
 
 interface SkillPopoverProps {
   query: string;
@@ -21,8 +24,14 @@ export function SkillPopover({
   anchorRect,
 }: SkillPopoverProps) {
   const listRef = useRef<HTMLDivElement>(null);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const favorites = useSkillFavoritesStore((s) => s.favorites);
   const { agents, customAgents } = filterMentionables(query);
-  const allItems = [...agents, ...customAgents];
+
+  const quickAccessAgents = agents.filter(
+    (a) => a.isSystemDefault || favorites.includes(a.mention.toLowerCase())
+  );
+  const allItems = [...quickAccessAgents, ...customAgents];
 
   useEffect(() => {
     if (!visible) return;
@@ -30,7 +39,22 @@ export function SkillPopover({
     el?.scrollIntoView({ block: 'nearest' });
   }, [selectedIndex, visible]);
 
-  if (!visible || allItems.length === 0 || !anchorRect) return null;
+  if (libraryOpen) {
+    return (
+      <SkillLibraryModal
+        open={libraryOpen}
+        onClose={() => setLibraryOpen(false)}
+        onSelect={(m) => {
+          onSelect(m);
+          setLibraryOpen(false);
+        }}
+      />
+    );
+  }
+
+  if (!visible || !anchorRect) return null;
+
+  const showEmptyHint = allItems.length === 0 && query.length > 0;
 
   let itemIndex = 0;
 
@@ -45,12 +69,12 @@ export function SkillPopover({
         marginBottom: '0.5rem',
       }}
     >
-      {agents.length > 0 && (
+      {quickAccessAgents.length > 0 && (
         <>
           <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
-            Assistenten
+            Skills
           </div>
-          {agents.map((agent) => {
+          {quickAccessAgents.map((agent) => {
             const idx = itemIndex++;
             return (
               <SkillItem
@@ -66,7 +90,7 @@ export function SkillPopover({
       {customAgents.length > 0 && (
         <>
           <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
-            Meine Agenten
+            Meine Skills
           </div>
           {customAgents.map((agent) => {
             const idx = itemIndex++;
@@ -81,6 +105,19 @@ export function SkillPopover({
           })}
         </>
       )}
+      {showEmptyHint && (
+        <div className="px-3 py-3 text-xs text-foreground-muted">Kein Skill gefunden</div>
+      )}
+      <button
+        className="flex w-full items-center gap-2 border-t border-border px-3 py-2 text-xs text-foreground-muted transition-colors hover:bg-primary/5 hover:text-foreground"
+        onMouseDown={(e) => {
+          e.preventDefault();
+          setLibraryOpen(true);
+        }}
+      >
+        <Library className="h-3.5 w-3.5" />
+        Alle Skills durchsuchen...
+      </button>
     </div>
   );
 }

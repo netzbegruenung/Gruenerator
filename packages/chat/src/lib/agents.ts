@@ -23,6 +23,16 @@ export function getDefaultAgent(): string {
   return 'gruenerator-universal';
 }
 
+export type SkillCategory = 'presse' | 'social' | 'dokumente' | 'recherche' | 'sonstiges';
+
+export const SKILL_CATEGORY_LABELS: Record<SkillCategory, string> = {
+  presse: 'Presse & Kommunikation',
+  social: 'Social Media',
+  dokumente: 'Dokumente & Texte',
+  recherche: 'Recherche & Analyse',
+  sonstiges: 'Sonstiges',
+};
+
 export interface AgentListItem {
   identifier: string;
   title: string;
@@ -31,6 +41,9 @@ export interface AgentListItem {
   backgroundColor: string;
   mention: string;
   contextPrefix?: string;
+  skillCategory?: SkillCategory;
+  promptTemplate?: string;
+  isSystemDefault?: boolean;
 }
 
 export const agentsList: AgentListItem[] = [
@@ -41,6 +54,9 @@ export const agentsList: AgentListItem[] = [
     avatar: '📝',
     backgroundColor: '#316049',
     mention: 'antrag',
+    skillCategory: 'dokumente',
+    isSystemDefault: true,
+    promptTemplate: 'Schreibe einen Antrag zum Thema: ',
   },
   {
     identifier: 'gruenerator-buergerservice',
@@ -49,6 +65,8 @@ export const agentsList: AgentListItem[] = [
     avatar: '💬',
     backgroundColor: '#316049',
     mention: 'bürgerservice',
+    skillCategory: 'presse',
+    promptTemplate: 'Beantworte folgende Anfrage: ',
   },
   {
     identifier: 'gruenerator-gruene-jugend',
@@ -57,6 +75,7 @@ export const agentsList: AgentListItem[] = [
     avatar: '✊',
     backgroundColor: '#46962b',
     mention: 'jugend',
+    skillCategory: 'sonstiges',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
@@ -66,6 +85,9 @@ export const agentsList: AgentListItem[] = [
     backgroundColor: '#316049',
     mention: 'presse',
     contextPrefix: '[Plattform: Pressemitteilung]',
+    skillCategory: 'presse',
+    isSystemDefault: true,
+    promptTemplate: 'Schreibe eine PM zum Thema: ',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
@@ -75,6 +97,9 @@ export const agentsList: AgentListItem[] = [
     backgroundColor: '#E1306C',
     mention: 'instagram',
     contextPrefix: '[Plattform: Instagram]',
+    skillCategory: 'social',
+    isSystemDefault: true,
+    promptTemplate: 'Post zu folgendem Thema: ',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
@@ -84,6 +109,8 @@ export const agentsList: AgentListItem[] = [
     backgroundColor: '#1877F2',
     mention: 'facebook',
     contextPrefix: '[Plattform: Facebook]',
+    skillCategory: 'social',
+    promptTemplate: 'Beitrag zu folgendem Thema: ',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
@@ -93,6 +120,8 @@ export const agentsList: AgentListItem[] = [
     backgroundColor: '#1DA1F2',
     mention: 'twitter',
     contextPrefix: '[Plattform: Twitter]',
+    skillCategory: 'social',
+    promptTemplate: 'Tweet zu folgendem Thema: ',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
@@ -102,6 +131,8 @@ export const agentsList: AgentListItem[] = [
     backgroundColor: '#0A66C2',
     mention: 'linkedin',
     contextPrefix: '[Plattform: LinkedIn]',
+    skillCategory: 'social',
+    promptTemplate: 'LinkedIn-Post zu: ',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
@@ -111,6 +142,8 @@ export const agentsList: AgentListItem[] = [
     backgroundColor: '#FE2C55',
     mention: 'reel',
     contextPrefix: '[Plattform: Reel/TikTok-Skript]',
+    skillCategory: 'social',
+    promptTemplate: 'Skript zu folgendem Thema: ',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
@@ -120,6 +153,8 @@ export const agentsList: AgentListItem[] = [
     backgroundColor: '#F59E0B',
     mention: 'aktion',
     contextPrefix: '[Plattform: Aktionsideen]',
+    skillCategory: 'sonstiges',
+    promptTemplate: 'Entwickle Aktionsideen zu: ',
   },
   {
     identifier: 'gruenerator-rede-schreiber',
@@ -128,6 +163,8 @@ export const agentsList: AgentListItem[] = [
     avatar: '🎙️',
     backgroundColor: '#316049',
     mention: 'rede',
+    skillCategory: 'presse',
+    promptTemplate: 'Schreibe eine Rede zum Thema: ',
   },
   {
     identifier: 'gruenerator-wahlprogramm',
@@ -136,6 +173,7 @@ export const agentsList: AgentListItem[] = [
     avatar: '📋',
     backgroundColor: '#316049',
     mention: 'wahlprogramm',
+    skillCategory: 'dokumente',
   },
 ];
 
