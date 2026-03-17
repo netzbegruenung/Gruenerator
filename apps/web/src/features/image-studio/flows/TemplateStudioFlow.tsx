@@ -65,8 +65,11 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
 
   const [isWideStep, setIsWideStep] = useState(false);
 
+  const [isCanvasEdit, setIsCanvasEdit] = useState(false);
+
   const handleStepChange = useCallback((stepType: string) => {
     setIsWideStep(stepType === 'image_upload');
+    setIsCanvasEdit(stepType === 'canvas_edit');
   }, []);
 
   const handleAnimationStart = useCallback(() => {
@@ -205,8 +208,15 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
   return (
     <ErrorBoundary>
       <LayoutGroup>
-        <div className="type-selector-screen">
-          <div className="type-selector-content">
+        <div
+          className={cn('w-full flex justify-center p-8 max-[768px]:p-4', isCanvasEdit && 'p-0')}
+        >
+          <div
+            className={cn(
+              'w-full max-w-[var(--container-max-width)] mx-auto px-6 pb-16 text-center max-[768px]:px-4',
+              isCanvasEdit && 'p-0 max-w-none'
+            )}
+          >
             {flowTitle && (
               <div className="flex flex-col mb-lg">
                 <h1 className="flex items-center justify-center gap-sm flex-wrap">

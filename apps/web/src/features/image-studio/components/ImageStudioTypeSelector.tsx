@@ -14,14 +14,11 @@ import {
   IMAGE_STUDIO_TYPES,
   KI_SUBCATEGORIES,
   TYPE_CONFIG,
-  FORM_STEPS,
 } from '../utils/typeConfig';
-import { type TypeConfig } from '../utils/typeConfig/types';
 
-import PreviewImage from './PreviewImage';
+import TypeCard from './TypeCard';
 
-import '../image-studio-shared.css';
-import './ImageStudioTypeSelector.css';
+import type { TypeConfig } from '../utils/typeConfig/types';
 
 const ImageStudioTypeSelector: React.FC = () => {
   const navigate = useNavigate();
@@ -37,7 +34,6 @@ const ImageStudioTypeSelector: React.FC = () => {
     return getTypesForCategory(category);
   }, [category]);
 
-  // Hook must be called before early return (Rules of Hooks)
   const handleTypeSelect = useCallback(
     (selectedType: string) => {
       if (!category) return;
@@ -53,15 +49,12 @@ const ImageStudioTypeSelector: React.FC = () => {
     [setType, navigate, category]
   );
 
-  // Wait for category to be set
   if (!category) return null;
 
-  // KI category - show all variants and edit types in one grid
+  // KI category
   if (category === IMAGE_STUDIO_CATEGORIES.KI) {
     const allKiTypes = getAllKiTypes();
     const editTypes = allKiTypes.filter((t) => t.subcategory === KI_SUBCATEGORIES.EDIT);
-
-    // Get variants for pure-create (the style options)
     const pureCreateConfig = TYPE_CONFIG[IMAGE_STUDIO_TYPES.PURE_CREATE];
     const createVariants = pureCreateConfig?.variants || [];
 
@@ -73,49 +66,39 @@ const ImageStudioTypeSelector: React.FC = () => {
     };
 
     return (
-      <div className="type-selector-screen">
-        <div className="type-selector-content">
-          <div className="type-selector-header-wrapper">
-            <h1>Imagine (KI)</h1>
+      <div className="w-full flex justify-center p-8 max-[768px]:p-4">
+        <div className="w-full max-w-[var(--container-max-width)] mx-auto px-6 pb-16 text-center max-[768px]:px-4">
+          <div className="text-center">
+            <h1 className="flex items-center justify-center gap-sm flex-wrap">Imagine (KI)</h1>
           </div>
           {isAustrianUser && (
             <a
               href="https://bildgenerator.gruene.at/"
               target="_blank"
               rel="noopener noreferrer"
-              className="austrian-tool-banner"
+              className="flex items-center gap-md px-lg py-md bg-background-alt border border-[var(--border-subtle)] rounded-lg mb-lg no-underline text-inherit transition-all hover:border-primary-600 hover:shadow-md max-[768px]:flex-col max-[768px]:text-center max-[768px]:gap-sm"
             >
-              <HiExternalLink className="austrian-tool-banner__icon" />
-              <span className="austrian-tool-banner__title">Zum Grünen Bildgenerator</span>
-              <span className="austrian-tool-banner__text">
+              <HiExternalLink className="text-2xl text-primary-600 shrink-0" />
+              <span className="font-semibold text-sm text-[var(--font-color-h)]">
+                Zum Grünen Bildgenerator
+              </span>
+              <span className="text-xs text-foreground">
                 Erstelle Sharepics im passenden Design
               </span>
             </a>
           )}
-          <div className="type-options-grid type-options-grid--five">
+          <div className="flex gap-6 w-full max-[1024px]:flex-wrap max-[768px]:grid max-[768px]:grid-cols-2 max-[768px]:gap-4 max-[480px]:grid-cols-1">
             {editTypes.map((config) => (
-              <div
+              <TypeCard
                 key={config.id}
-                className={`type-card type-card--image no-overlay ${config.isBeta ? 'beta' : ''}`}
                 onClick={() => handleTypeSelect(config.id)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e: React.KeyboardEvent) =>
-                  e.key === 'Enter' && handleTypeSelect(config.id)
-                }
-              >
-                {config.isBeta && <span className="beta-badge">Beta</span>}
-                <PreviewImage
-                  src={config.previewImage ?? ''}
-                  fallbackSrc={config.previewImageFallback}
-                  alt={config.label}
-                  className="type-card__image"
-                  width={600}
-                  height={800}
-                />
-                <h3>{config.label}</h3>
-                <p className="type-card__description">{config.description}</p>
-              </div>
+                previewImage={config.previewImage}
+                previewImageFallback={config.previewImageFallback}
+                label={config.label}
+                description={config.description}
+                className="flex-1 aspect-[3/4] max-[1024px]:basis-[calc(33.333%-1rem)]"
+                badge={config.isBeta ? <StatusBadge type="beta" variant="card" /> : undefined}
+              />
             ))}
             {createVariants.map(
               (variant: {
@@ -125,27 +108,15 @@ const ImageStudioTypeSelector: React.FC = () => {
                 imageUrl: string;
                 fallbackImageUrl?: string;
               }) => (
-                <div
+                <TypeCard
                   key={variant.value}
-                  className="type-card type-card--image no-overlay"
                   onClick={() => handleVariantSelect(variant.value)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e: React.KeyboardEvent) =>
-                    e.key === 'Enter' && handleVariantSelect(variant.value)
-                  }
-                >
-                  <PreviewImage
-                    src={variant.imageUrl}
-                    fallbackSrc={variant.fallbackImageUrl}
-                    alt={variant.label}
-                    className="type-card__image"
-                    width={600}
-                    height={800}
-                  />
-                  <h3>{variant.label}</h3>
-                  <p className="type-card__description">{variant.description}</p>
-                </div>
+                  previewImage={variant.imageUrl}
+                  previewImageFallback={variant.fallbackImageUrl}
+                  label={variant.label}
+                  description={variant.description}
+                  className="flex-1 aspect-[3/4] max-[1024px]:basis-[calc(33.333%-1rem)]"
+                />
               )
             )}
           </div>
@@ -154,60 +125,48 @@ const ImageStudioTypeSelector: React.FC = () => {
     );
   }
 
-  // Templates category - use 3-grid design with filtered types
+  // Templates category
   if (category === IMAGE_STUDIO_CATEGORIES.TEMPLATES) {
     return (
-      <div className="type-selector-screen">
-        <div className="type-selector-content">
-          <div className="type-selector-header-wrapper">
-            <h1>
+      <div className="w-full flex justify-center p-8 max-[768px]:p-4">
+        <div className="w-full max-w-[var(--container-max-width)] mx-auto px-6 pb-16 text-center max-[768px]:px-4">
+          <div className="text-center">
+            <h1 className="flex items-center justify-center gap-sm flex-wrap">
               Wie soll dein Sharepic aussehen?
               <StatusBadge type="early-access" variant="inline" />
             </h1>
           </div>
-          <div className="type-options-grid type-options-grid--three">
+          <div className="grid grid-cols-3 gap-8 mt-8 max-[1024px]:grid-cols-2 max-[1024px]:gap-6 max-[768px]:grid-cols-2 max-[768px]:gap-4 max-[480px]:grid-cols-1">
             {typesInCategory.map((config) => {
               const Icon = config.icon || HiPhotograph;
               return config.previewImage ? (
-                <div
+                <TypeCard
                   key={config.id}
-                  className={`type-card type-card--image no-overlay ${config.isBeta ? 'beta' : ''}`}
                   onClick={() => handleTypeSelect(config.id)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e: React.KeyboardEvent) =>
-                    e.key === 'Enter' && handleTypeSelect(config.id)
-                  }
-                >
-                  {config.isBeta && <span className="beta-badge">Beta</span>}
-                  <PreviewImage
-                    src={config.previewImage ?? ''}
-                    fallbackSrc={config.previewImageFallback}
-                    alt={config.label}
-                    className="type-card__image"
-                    width={600}
-                    height={800}
-                  />
-                  <h3>{config.label}</h3>
-                </div>
+                  previewImage={config.previewImage}
+                  previewImageFallback={config.previewImageFallback}
+                  label={config.label}
+                  className="aspect-[3/4]"
+                  badge={config.isBeta ? <StatusBadge type="beta" variant="card" /> : undefined}
+                />
               ) : (
-                <div
+                <TypeCard
                   key={config.id}
-                  className={`type-card ${config.isBeta ? 'beta' : ''}`}
                   onClick={() => handleTypeSelect(config.id)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e: React.KeyboardEvent) =>
-                    e.key === 'Enter' && handleTypeSelect(config.id)
-                  }
+                  label={config.label}
+                  description={config.description}
+                  badge={config.isBeta ? <StatusBadge type="beta" variant="card" /> : undefined}
                 >
-                  {config.isBeta && <span className="beta-badge">Beta</span>}
-                  <div className="type-icon">
+                  <div className="text-5xl mb-4">
                     <Icon />
                   </div>
-                  <h3>{config.label}</h3>
-                  <p>{config.description}</p>
-                </div>
+                  <h3 className="text-xl mb-4 text-[var(--font-color-h3)] text-center">
+                    {config.label}
+                  </h3>
+                  <p className="text-base leading-normal mb-6 text-foreground">
+                    {config.description}
+                  </p>
+                </TypeCard>
               );
             })}
           </div>
@@ -216,57 +175,46 @@ const ImageStudioTypeSelector: React.FC = () => {
     );
   }
 
-  // Standard type selector fallback (should not be reached with current flow)
+  // Fallback
   return (
-    <div className="type-selector-screen">
-      <div className="type-selector-content">
-        <div className="type-selector-header-wrapper">
-          <h1>{categoryConfig?.label}</h1>
-          <p className="type-selector-intro">{categoryConfig?.description}</p>
+    <div className="w-full flex justify-center p-8 max-[768px]:p-4">
+      <div className="w-full max-w-[var(--container-max-width)] mx-auto px-6 pb-16 text-center max-[768px]:px-4">
+        <div className="text-center">
+          <h1 className="flex items-center justify-center gap-sm flex-wrap">
+            {categoryConfig?.label}
+          </h1>
+          <p className="text-lg mb-12 text-foreground">{categoryConfig?.description}</p>
         </div>
-        <div className="type-options-grid">
+        <div className="grid grid-cols-3 gap-8 mt-8 max-[768px]:grid-cols-1">
           {typesInCategory.map((config) => {
             const Icon = config.icon || HiPhotograph;
             return config.previewImage ? (
-              <div
+              <TypeCard
                 key={config.id}
-                className={`type-card type-card--image ${config.isBeta ? 'beta' : ''}`}
                 onClick={() => handleTypeSelect(config.id)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e: React.KeyboardEvent) =>
-                  e.key === 'Enter' && handleTypeSelect(config.id)
-                }
-              >
-                {config.isBeta && <span className="beta-badge">Beta</span>}
-                <PreviewImage
-                  src={config.previewImage ?? ''}
-                  fallbackSrc={config.previewImageFallback}
-                  alt={config.label}
-                  className="type-card__image"
-                  width={600}
-                  height={800}
-                />
-                <h3>{config.label}</h3>
-              </div>
+                previewImage={config.previewImage}
+                previewImageFallback={config.previewImageFallback}
+                label={config.label}
+                badge={config.isBeta ? <StatusBadge type="beta" variant="card" /> : undefined}
+              />
             ) : (
-              <div
+              <TypeCard
                 key={config.id}
-                className={`type-card ${config.isBeta ? 'beta' : ''}`}
                 onClick={() => handleTypeSelect(config.id)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e: React.KeyboardEvent) =>
-                  e.key === 'Enter' && handleTypeSelect(config.id)
-                }
+                label={config.label}
+                description={config.description}
+                badge={config.isBeta ? <StatusBadge type="beta" variant="card" /> : undefined}
               >
-                {config.isBeta && <span className="beta-badge">Beta</span>}
-                <div className="type-icon">
+                <div className="text-5xl mb-4">
                   <Icon />
                 </div>
-                <h3>{config.label}</h3>
-                <p>{config.description}</p>
-              </div>
+                <h3 className="text-xl mb-4 text-[var(--font-color-h3)] text-center">
+                  {config.label}
+                </h3>
+                <p className="text-base leading-normal mb-6 text-foreground">
+                  {config.description}
+                </p>
+              </TypeCard>
             );
           })}
         </div>
