@@ -31,7 +31,7 @@ export function float32ToWavBlob(samples: Float32Array, sampleRate: number): Blo
 
   const offset = headerSize;
   for (let i = 0; i < samples.length; i++) {
-    const clamped = Math.max(-1, Math.min(1, samples[i]));
+    const clamped = Math.max(-1, Math.min(1, samples[i] ?? 0));
     view.setInt16(offset + i * 2, clamped * 0x7fff, true);
   }
 
@@ -47,7 +47,7 @@ export function base64PCM16ToFloat32(base64: string): Float32Array {
   const int16 = new Int16Array(bytes.buffer);
   const float32 = new Float32Array(int16.length);
   for (let i = 0; i < int16.length; i++) {
-    float32[i] = int16[i] / 32768;
+    float32[i] = (int16[i] ?? 0) / 32768;
   }
   return float32;
 }

@@ -162,13 +162,13 @@ export function useVoiceAgent(config: VoiceAgentConfig) {
               continue;
             }
 
-            if (data.threadId && !store.getState().threadId) {
-              store.getState().setThreadId(data.threadId as string);
+            if (data['threadId'] && !store.getState().threadId) {
+              store.getState().setThreadId(data['threadId'] as string);
             }
 
-            if (data.text && typeof data.text === 'string') {
-              store.getState().appendStreamingText(data.text);
-              sentenceBufferRef.current += data.text;
+            if (data['text'] && typeof data['text'] === 'string') {
+              store.getState().appendStreamingText(data['text']);
+              sentenceBufferRef.current += data['text'];
 
               const { complete, remainder } = splitSentences(sentenceBufferRef.current);
               sentenceBufferRef.current = remainder;
