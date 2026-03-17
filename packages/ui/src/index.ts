@@ -1,4 +1,5 @@
 export { cn } from './lib/cn';
+export { useIsMobile } from './hooks/use-mobile';
 
 export { Alert, AlertTitle, AlertDescription } from './components/alert';
 export { FeatureToggle, type FeatureToggleProps } from './components/feature-toggle';
@@ -66,6 +67,17 @@ export { Switch } from './components/switch';
 export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants } from './components/tabs';
 export { Textarea } from './components/textarea';
 export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/tooltip';
+export { Separator } from './components/separator';
+export {
+  Sheet,
+  SheetTrigger,
+  SheetClose,
+  SheetContent,
+  SheetHeader,
+  SheetFooter,
+  SheetTitle,
+  SheetDescription,
+} from './components/sheet';
 export { Particles } from './components/particles';
 export {
   AIPromptInput,

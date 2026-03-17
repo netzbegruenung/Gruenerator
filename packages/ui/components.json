@@ -19,6 +19,7 @@
   },
   "registries": {
     "@magicui": "https://magicui.design/r/{name}",
-    "@ai-elements": "https://ai-sdk.dev/elements/api/registry/{name}.json"
+    "@ai-elements": "https://ai-sdk.dev/elements/api/registry/{name}.json",
+    "@blocks-so": "https://blocks.so/r/{name}.json"
   }
 }
