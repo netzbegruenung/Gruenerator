@@ -29,7 +29,6 @@ import {
 import type { SharepicDataItem } from '../../../components/common/ImageDisplay';
 import type { GeneratedContent, ExamplePrompt } from '../../../types/baseform';
 
-
 const PressemitteilungIcon = memo(() => (
   <Icon category="platforms" name="pressemitteilung" size={16} />
 ));
@@ -62,7 +61,7 @@ const SharepicMasterEditorModal = lazy(() =>
   }))
 );
 
-type PresseSocialTabProps = Record<string, never>;
+type PresseSocialTabProps = Record<never, never>;
 
 interface GeneratedContentResult {
   sharepic?: unknown[];
@@ -179,8 +178,6 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(() => {
     errors: Record<string, unknown>;
     getValues: (name?: string) => unknown;
     generator?: {
-      tabIndex?: Record<string, number>;
-      baseFormTabIndex?: Record<string, number>;
       baseFormProps?: Record<string, unknown>;
       submitForm?: (formData: Record<string, unknown>) => Promise<Record<string, unknown>>;
     };
@@ -511,7 +508,6 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(() => {
             label=""
             placeholder="Formate"
             required={true}
-            tabIndex={form.generator?.baseFormTabIndex?.platformSelectorTabIndex}
             enableAutoSelect={true}
           />
         }
@@ -521,9 +517,6 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(() => {
           defaultValues={{
             inhalt: typedInitialContent?.inhalt || typedInitialContent?.thema || '',
           }}
-          tabIndex={{
-            inhalt: form.generator?.tabIndex?.inhalt,
-          }}
           onUrlsDetected={handleUrlsDetected}
         />
         <AnimatePresence>
@@ -532,10 +525,6 @@ const PresseSocialTab: React.FC<PresseSocialTabProps> = memo(() => {
               ref={pressemitteilungFormRef}
               defaultValues={{
                 zitatgeber: typedInitialContent?.zitatgeber || userDisplayName,
-              }}
-              tabIndex={{
-                zitatgeber: (form.generator?.tabIndex as Record<string, number> | undefined)
-                  ?.zitatgeber,
               }}
               isVisible={watchPressemitteilung}
               success={false}

@@ -329,13 +329,6 @@ const ContentSelectorDialog = React.memo(function ContentSelectorDialog({
 });
 
 const DEFAULT_ATTACHED_FILES: AttachedFile[] = [];
-const DEFAULT_TAB_INDEX = {
-  webSearch: 11,
-  balancedMode: 12,
-  attachment: 13,
-  interactiveMode: 14,
-} as const;
-
 interface FeatureIconsProps {
   onBalancedModeClick?: () => void;
   onAttachmentClick?: (files: File[]) => void;
@@ -345,12 +338,6 @@ interface FeatureIconsProps {
   attachedFiles?: AttachedFile[];
   attachmentActive?: boolean;
   className?: string;
-  tabIndex?: {
-    webSearch?: number;
-    balancedMode?: number;
-    attachment?: number;
-    interactiveMode?: number;
-  };
   showPrivacyInfoLink?: boolean;
   onPrivacyInfoClick?: () => void;
   showWebSearchInfoLink?: boolean;
@@ -368,7 +355,6 @@ const FeatureIcons = ({
   interactiveModeActive = true,
   attachedFiles = DEFAULT_ATTACHED_FILES,
   className = '',
-  tabIndex = DEFAULT_TAB_INDEX,
   showPrivacyInfoLink = false,
   onPrivacyInfoClick,
   showWebSearchInfoLink = false,
@@ -558,7 +544,6 @@ const FeatureIcons = ({
                 )}
                 onClick={toggleWebSearch}
                 aria-label="Websuche aktivieren"
-                tabIndex={tabIndex.webSearch}
                 type="button"
               >
                 <HiGlobeAlt className="size-5 sm:size-6" />
@@ -587,7 +572,6 @@ const FeatureIcons = ({
                         'bg-secondary-100 dark:bg-secondary-700 text-primary-500'
                     )}
                     aria-label={usePrivacyMode ? 'Gruenerator-GPT' : useProMode ? 'Pro' : 'Kreativ'}
-                    tabIndex={tabIndex.balancedMode}
                     type="button"
                   >
                     {usePrivacyMode ? (
@@ -661,7 +645,6 @@ const FeatureIcons = ({
                         'bg-secondary-100 dark:bg-secondary-700 text-primary-500'
                     )}
                     aria-label="Inhalt"
-                    tabIndex={tabIndex.attachment}
                     type="button"
                     disabled={isValidatingFiles}
                   >
@@ -719,7 +702,6 @@ const FeatureIcons = ({
                   )}
                   onClick={onInteractiveModeClick}
                   aria-label="Interaktiver Modus"
-                  tabIndex={tabIndex.interactiveMode}
                   type="button"
                 >
                   <HiAnnotation className="size-5 sm:size-6" />

@@ -22,7 +22,7 @@ interface FormRef {
   isValid: () => boolean;
 }
 
-type BarrierefreiheitTabProps = Record<string, never>;
+type BarrierefreiheitTabProps = Record<never, never>;
 
 const ACCESSIBILITY_TYPES = {
   ALT_TEXT: 'alt-text',
@@ -203,20 +203,11 @@ const BarrierefreiheitTab: React.FC<BarrierefreiheitTabProps> = memo(() => {
   }, [selectedType, generateAltTextForImage, form, builder]);
 
   const renderForm = () => {
-    const tabIndexValue = form.generator?.tabIndex as
-      | { [key: string]: number | undefined }
-      | undefined;
     switch (selectedType) {
       case ACCESSIBILITY_TYPES.ALT_TEXT:
-        return <AltTextForm ref={formRef as any} tabIndex={tabIndexValue} />;
+        return <AltTextForm ref={formRef as any} />;
       case ACCESSIBILITY_TYPES.LEICHTE_SPRACHE:
-        return (
-          <LeichteSpracheForm
-            ref={formRef as any}
-            tabIndex={tabIndexValue}
-            onUrlsDetected={handleUrlsDetected}
-          />
-        );
+        return <LeichteSpracheForm ref={formRef as any} onUrlsDetected={handleUrlsDetected} />;
       default:
         return null;
     }

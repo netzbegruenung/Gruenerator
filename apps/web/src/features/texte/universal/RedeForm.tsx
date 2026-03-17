@@ -3,20 +3,14 @@ import { type Control, useForm } from 'react-hook-form';
 
 import { FormInput, FormTextarea } from '../../../components/common/Form/Input';
 
-interface RedeFormProps {
-  tabIndex?: {
-    formType?: number;
-    hauptfeld?: number;
-    [key: string]: number | undefined;
-  };
-}
+type RedeFormProps = Record<never, never>;
 
 interface RedeFormRef {
   getFormData: () => Record<string, unknown>;
   resetForm: (data?: Record<string, unknown>) => void;
 }
 
-const RedeForm = forwardRef<RedeFormRef, RedeFormProps>(({ tabIndex = {} }, ref) => {
+const RedeForm = forwardRef<RedeFormRef, RedeFormProps>((_props, ref) => {
   const { control, getValues, reset } = useForm({
     defaultValues: {
       rolle: '',
@@ -37,7 +31,6 @@ const RedeForm = forwardRef<RedeFormRef, RedeFormProps>(({ tabIndex = {} }, ref)
         label="Rolle"
         placeholder="z.B. Sprecher*in der Grünen OV Musterdorf, Antragssteller*in..."
         rules={{ required: 'Rolle ist ein Pflichtfeld' }}
-        tabIndex={tabIndex.formType || 10}
       />
 
       <FormTextarea
@@ -49,7 +42,6 @@ const RedeForm = forwardRef<RedeFormRef, RedeFormProps>(({ tabIndex = {} }, ref)
         minRows={4}
         maxRows={10}
         className="form-textarea-large"
-        tabIndex={tabIndex.hauptfeld || 11}
       />
     </>
   );

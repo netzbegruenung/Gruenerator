@@ -16,7 +16,6 @@ interface SubmitButtonProps {
   type?: 'button' | 'submit' | 'reset';
   statusMessage?: string;
   showStatus?: boolean;
-  tabIndex?: number;
   imageLimitInfo?: {
     count?: number;
     limit?: number;
@@ -39,7 +38,6 @@ const SubmitButton = ({
   type = 'submit',
   statusMessage,
   showStatus = false,
-  tabIndex,
   imageLimitInfo,
   iconOnly = false,
   disabled,
@@ -129,7 +127,6 @@ const SubmitButton = ({
       aria-busy={loading || isStreaming}
       aria-label={isStreamingActive ? 'Abbrechen' : ariaLabel || text}
       disabled={loading && !isStreaming}
-      tabIndex={tabIndex}
     >
       {isStreamingActive ? (
         <>

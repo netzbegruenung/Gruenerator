@@ -100,17 +100,7 @@ const BaseForm: React.FC<BaseFormProps> = ({
   extrasChildren = null,
   useMarkdown = null,
   customEditContent = null,
-  featureIconsTabIndex = {
-    webSearch: 11,
-    privacyMode: 12,
-    attachment: 13,
-  },
-  platformSelectorTabIndex = 12,
-  knowledgeSelectorTabIndex = 14,
-  knowledgeSourceSelectorTabIndex = 13,
   showProfileSelector = true,
-  documentSelectorTabIndex = 15,
-  submitButtonTabIndex = 17,
   showImageUpload = false,
   uploadedImage = null,
   onImageChange = null,
@@ -431,12 +421,6 @@ const BaseForm: React.FC<BaseFormProps> = ({
                 onHide={toggleFormVisibility}
                 firstExtrasChildren={firstExtrasChildren}
                 extrasChildren={extrasChildren}
-                featureIconsTabIndex={featureIconsTabIndex}
-                platformSelectorTabIndex={platformSelectorTabIndex}
-                knowledgeSelectorTabIndex={knowledgeSelectorTabIndex}
-                knowledgeSourceSelectorTabIndex={knowledgeSourceSelectorTabIndex}
-                documentSelectorTabIndex={documentSelectorTabIndex}
-                submitButtonTabIndex={submitButtonTabIndex}
                 showProfileSelector={showProfileSelector}
                 showImageUpload={showImageUpload}
                 onImageChange={onImageChange}

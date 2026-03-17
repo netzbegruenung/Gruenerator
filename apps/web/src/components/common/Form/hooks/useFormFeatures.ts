@@ -23,8 +23,7 @@ const useFormFeatures = (
   defaultValues: Record<string, unknown>,
   features: string[],
   generatorType: string | null,
-  setFieldValue: (name: string, value: unknown) => void,
-  tabIndex: Record<string, unknown>
+  setFieldValue: (name: string, value: unknown) => void
 ): UseFormFeaturesReturn => {
   const webSearch = useWatch({
     control,
@@ -56,9 +55,8 @@ const useFormFeatures = (
       label: 'Websuche verwenden',
       icon: HiGlobeAlt,
       description: '',
-      tabIndex: (tabIndex?.webSearch as number) || 11,
     }),
-    [toggles.webSearch, setFieldValue, tabIndex]
+    [toggles.webSearch, setFieldValue]
   );
 
   const privacyModeToggle = useMemo(
@@ -68,9 +66,8 @@ const useFormFeatures = (
       label: 'Privacy-Mode',
       icon: HiShieldCheck,
       description: 'Verwendet deutsche Server der Netzbegrünung.',
-      tabIndex: (tabIndex?.privacyMode as number) || 13,
     }),
-    [toggles.privacyMode, setFieldValue, tabIndex]
+    [toggles.privacyMode, setFieldValue]
   );
 
   const proModeToggle = useMemo((): FeatureToggleType | null => {

@@ -170,9 +170,6 @@ const GrueneJugendGenerator = (): JSX.Element => {
   );
 
   const renderPlatformSection = () => {
-    if (!form.generator?.baseFormTabIndex) {
-      return null;
-    }
     return (
       <PlatformSelector
         name="platforms"
@@ -181,9 +178,6 @@ const GrueneJugendGenerator = (): JSX.Element => {
         label="Formate"
         placeholder="Formate auswählen..."
         required={true}
-        tabIndex={
-          (form.generator.baseFormTabIndex as Record<string, number>)?.platformSelectorTabIndex
-        }
       />
     );
   };
@@ -192,7 +186,6 @@ const GrueneJugendGenerator = (): JSX.Element => {
     if (!form.generator?.tabIndex) {
       return null;
     }
-    const tabIndex = form.generator.tabIndex as Record<string, number>;
     return (
       <>
         <FormInput
@@ -201,7 +194,6 @@ const GrueneJugendGenerator = (): JSX.Element => {
           label={FORM_LABELS.THEME}
           placeholder={FORM_PLACEHOLDERS.THEME}
           rules={{ required: 'Thema ist ein Pflichtfeld' }}
-          tabIndex={tabIndex.thema}
         />
 
         <FormTextarea
@@ -212,7 +204,6 @@ const GrueneJugendGenerator = (): JSX.Element => {
           rules={{ required: 'Details sind ein Pflichtfeld' }}
           minRows={3}
           maxRows={10}
-          tabIndex={tabIndex.details}
           enableUrlDetection={true}
           onUrlsDetected={handleUrlsDetected}
         />

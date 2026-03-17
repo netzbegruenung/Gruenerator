@@ -28,7 +28,6 @@ interface FormTextareaProps {
   maxLength?: number;
   textareaProps?: Record<string, unknown>;
   labelProps?: Record<string, unknown>;
-  tabIndex?: number;
   enableUrlDetection?: boolean;
   onUrlsDetected?: (urls: string[]) => void;
   enableTextAutocomplete?: boolean;
@@ -64,7 +63,6 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
   maxLength,
   textareaProps = {},
   labelProps = {},
-  tabIndex,
   enableUrlDetection = false,
   onUrlsDetected,
   enableTextAutocomplete = false,
@@ -163,7 +161,6 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
                 maxRows={maxRows}
                 maxLength={maxLength}
                 className={textareaClassName}
-                tabIndex={tabIndex}
                 textareaProps={textareaProps}
                 enableUrlDetection={enableUrlDetection}
                 onFieldValueChange={setFieldValue}
@@ -188,7 +185,6 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
                   maxRows={maxRows}
                   maxLength={maxLength}
                   className={`${textareaClassName} ${error ? 'error-input' : ''}`.trim()}
-                  tabIndex={tabIndex}
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
                     field.onChange(e);
 
@@ -232,7 +228,6 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
           maxLength={maxLength}
           className={textareaClassName}
           value={simpleFormValue}
-          tabIndex={tabIndex}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
             const newVal = e.target.value;
             setField(name, newVal);

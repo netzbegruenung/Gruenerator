@@ -481,9 +481,6 @@ const KampagnenGenerator: React.FC = () => {
           minLength: { value: 2, message: 'Der Ort muss mindestens 2 Zeichen lang sein' },
         }}
         error={typedErrors.location?.message}
-        tabIndex={
-          (form.generator?.tabIndex as Record<string, unknown>)?.location as number | undefined
-        }
       />
 
       <FormTextarea
@@ -493,9 +490,6 @@ const KampagnenGenerator: React.FC = () => {
         placeholder="z.B. lokale Besonderheiten, aktuelle Themen, besondere Schwerpunkte..."
         rows={4}
         error={typedErrors.details?.message}
-        tabIndex={
-          (form.generator?.tabIndex as Record<string, unknown>)?.details as number | undefined
-        }
       />
     </>
   );

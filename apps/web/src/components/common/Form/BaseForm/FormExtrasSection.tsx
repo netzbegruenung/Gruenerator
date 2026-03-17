@@ -13,17 +13,10 @@ import type { AttachedFile } from '../../ContentSelector';
 import type {
   FormExtrasSectionProps,
   FeatureToggle as FeatureToggleType,
-  TabIndexConfig,
   ExamplePrompt,
 } from '@/types/baseform';
 
 import { cn } from '@/utils/cn';
-
-interface FeatureIconsTabIndex {
-  webSearch?: number;
-  balancedMode?: number;
-  attachment?: number;
-}
 
 interface ExtendedFormExtrasSectionProps extends FormExtrasSectionProps {
   loading?: boolean;
@@ -47,12 +40,6 @@ const FormExtrasSection: React.FC<ExtendedFormExtrasSectionProps> = ({
   showSubmitButton = true,
   children,
   firstExtrasChildren = null,
-  featureIconsTabIndex = {
-    webSearch: 11,
-    balancedMode: 12,
-    attachment: 13,
-  } as FeatureIconsTabIndex,
-  submitButtonTabIndex = 17,
   onPrivacyInfoClick,
   onWebSearchInfoClick,
   componentName = 'default',
@@ -135,7 +122,6 @@ const FormExtrasSection: React.FC<ExtendedFormExtrasSectionProps> = ({
                   }
                   attachedFiles={finalAttachedFiles}
                   className="w-auto gap-0"
-                  tabIndex={featureIconsTabIndex}
                   onPrivacyInfoClick={onPrivacyInfoClick}
                   onWebSearchInfoClick={onWebSearchInfoClick}
                   noBorder={true}
@@ -172,7 +158,6 @@ const FormExtrasSection: React.FC<ExtendedFormExtrasSectionProps> = ({
                   className="size-11 min-w-11"
                   ariaLabel={isMultiStep ? nextButtonText || 'Weiter' : 'Generieren'}
                   type="submit"
-                  tabIndex={submitButtonTabIndex}
                   isStreaming={isStreaming}
                   streamingMessage={streamingMessage}
                   onAbort={onAbort}
@@ -199,7 +184,6 @@ const FormExtrasSection: React.FC<ExtendedFormExtrasSectionProps> = ({
                   }
                   attachedFiles={finalAttachedFiles}
                   className="animate-in fade-in duration-200"
-                  tabIndex={featureIconsTabIndex}
                   onPrivacyInfoClick={onPrivacyInfoClick}
                   onWebSearchInfoClick={onWebSearchInfoClick}
                   noBorder={false}
@@ -242,7 +226,6 @@ const FormExtrasSection: React.FC<ExtendedFormExtrasSectionProps> = ({
                   className="w-full button-primary"
                   ariaLabel={isMultiStep ? nextButtonText || 'Weiter' : 'Generieren'}
                   type="submit"
-                  tabIndex={submitButtonTabIndex}
                   isStreaming={isStreaming}
                   streamingMessage={streamingMessage}
                   onAbort={onAbort}

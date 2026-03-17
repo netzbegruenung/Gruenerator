@@ -4,7 +4,6 @@ import { useForm } from 'react-hook-form';
 
 import SmartInput from '../../../../components/common/Form/SmartInput';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../../components/utils/constants';
-import { TabIndexHelpers } from '../../../../utils/tabIndexConfig';
 
 /**
  * Form data structure for Pressemitteilung-specific fields
@@ -23,16 +22,7 @@ interface PressemitteilungFormProps {
   defaultValues?: Partial<PressemitteilungFormData>;
 
   /**
-   * Tab indices for accessibility
-   */
-  tabIndex?: {
-    zitatgeber?: number;
-    [key: string]: number | undefined;
-  };
-
-  /**
    * Whether the form is visible (for conditional rendering)
-   * Used for animation and tab index calculation
    */
   isVisible: boolean;
 
@@ -69,7 +59,7 @@ export interface PressemitteilungFormRef {
  * ```
  */
 const PressemitteilungForm = forwardRef<PressemitteilungFormRef, PressemitteilungFormProps>(
-  ({ defaultValues = {}, tabIndex = {}, isVisible, success }, ref) => {
+  ({ defaultValues = {}, isVisible, success }, ref) => {
     const { control, getValues, setValue, reset } = useForm<PressemitteilungFormData>({
       defaultValues: {
         zitatgeber: defaultValues.zitatgeber || '',
@@ -127,7 +117,6 @@ const PressemitteilungForm = forwardRef<PressemitteilungFormRef, Pressemitteilun
           subtext="Mehrere Personen können genannt werden."
           placeholder={FORM_PLACEHOLDERS.WHO_QUOTE}
           rules={{}}
-          tabIndex={TabIndexHelpers.getConditional(tabIndex.zitatgeber || 0, isVisible)}
           onSubmitSuccess={success ? String(getValues('zitatgeber') || '') : null}
           shouldSave={success}
         />

@@ -28,7 +28,6 @@ interface TextareaWithAutocompleteProps {
   maxRows?: number;
   maxLength?: number;
   className?: string;
-  tabIndex?: number;
   textareaProps?: Record<string, unknown>;
   enableUrlDetection?: boolean;
   onFieldValueChange?: (value: string) => void;
@@ -50,7 +49,6 @@ const TextareaWithAutocomplete = ({
   maxRows,
   maxLength,
   className,
-  tabIndex,
   textareaProps = {},
   enableUrlDetection = false,
   onFieldValueChange,
@@ -129,7 +127,6 @@ const TextareaWithAutocomplete = ({
         maxRows={maxRows}
         maxLength={maxLength}
         className={`${className} ${error ? 'error-input' : ''}`.trim()}
-        tabIndex={tabIndex}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         {...textareaProps}

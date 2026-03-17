@@ -18,7 +18,6 @@ export interface FeatureToggle {
   label: string;
   icon?: ComponentType;
   description?: string;
-  tabIndex?: number;
   isSearching?: boolean;
   statusMessage?: string;
 }
@@ -60,24 +59,6 @@ export interface PlatformConfig {
   label?: string;
   placeholder?: string;
   helpText?: string;
-  tabIndex?: number;
-}
-
-// =============================================================================
-// Tab Index Types
-// =============================================================================
-
-export interface TabIndexConfig {
-  featureIcons?: {
-    webSearch?: number;
-    privacyMode?: number;
-    attachment?: number;
-  };
-  platformSelector?: number;
-  knowledgeSelector?: number;
-  knowledgeSourceSelector?: number;
-  documentSelector?: number;
-  submitButton?: number;
 }
 
 // =============================================================================
@@ -322,7 +303,6 @@ export interface FormInputSectionProps {
   platformSelectorLabel?: string;
   platformSelectorPlaceholder?: string;
   platformSelectorHelpText?: string;
-  platformSelectorTabIndex?: number;
   showImageUpload?: boolean;
   uploadedImage?: unknown;
   onImageChange?: ((image: unknown) => void) | null;
@@ -355,18 +335,9 @@ export interface FormExtrasSectionProps {
   isStartMode?: boolean;
   hide?: boolean;
   usePrivacyMode?: boolean;
-  featureIconsTabIndex?: {
-    webSearch?: number;
-    balancedMode?: number;
-    attachment?: number;
-  };
-  submitButtonTabIndex?: number;
   formControl?: FormControl | null;
   isMultiStep?: boolean;
   componentName?: string;
-  knowledgeSelectorTabIndex?: number;
-  knowledgeSourceSelectorTabIndex?: number;
-  documentSelectorTabIndex?: number;
   showProfileSelector?: boolean;
   enableKnowledgeSelector?: boolean;
   examplePrompts?: ExamplePrompt[];
@@ -419,12 +390,10 @@ export interface FormSectionProps {
   customEditContent?: ReactNode;
   enableKnowledgeSelector?: boolean;
   showProfileSelector?: boolean;
-  documentSelectorTabIndex?: number;
   startPageDescription?: string;
   examplePrompts?: ExamplePrompt[];
   onExamplePromptClick?: (prompt: ExamplePrompt) => void;
   contextualTip?: ContextualTip;
-  tabIndexConfig?: TabIndexConfig;
 }
 
 // =============================================================================
@@ -507,9 +476,6 @@ export interface BaseFormProps {
   // Knowledge and profile
   enableKnowledgeSelector?: boolean;
   showProfileSelector?: boolean;
-  documentSelectorTabIndex?: number;
-  knowledgeSelectorTabIndex?: number;
-  knowledgeSourceSelectorTabIndex?: number;
 
   // Start page layout
   useStartPageLayout?: boolean;
@@ -519,15 +485,6 @@ export interface BaseFormProps {
   contextualTip?: ContextualTip | null;
   /** Array of platform IDs that are currently selected - used to highlight selected platform tags */
   selectedPlatforms?: string[];
-
-  // Tab index configuration
-  featureIconsTabIndex?: {
-    webSearch?: number;
-    privacyMode?: number;
-    attachment?: number;
-  };
-  platformSelectorTabIndex?: number;
-  submitButtonTabIndex?: number;
 
   // Submit button configuration
   submitButtonText?: string;

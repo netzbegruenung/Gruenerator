@@ -7,16 +7,13 @@ import {
 import { useMemo, useCallback, useRef, memo } from 'react';
 
 import Icon from '../../../components/common/Icon';
-import { type TabId, type UniversalSubType, TAB_CONFIGS } from '../types';
+import { type TabId, type UniversalSubType, TAB_CONFIGS, PUBLIC_TABS } from '../types';
 
 import { cn } from '@/utils/cn';
 
-// Tabs that don't require authentication
-const PUBLIC_TABS: TabId[] = ['presse-social'];
-
 interface TabSelectorProps {
   activeTab: TabId;
-  onTabChange: (tab: TabId) => void;
+  onTabChange: (tab: TabId, options?: { replace?: boolean }) => void;
   onUniversalSubTypeChange?: (subType: UniversalSubType) => void;
   selectedUniversalSubType?: UniversalSubType;
   disabled?: boolean;
@@ -29,7 +26,6 @@ const TAB_ICONS: Record<TabId, { category: string; name: string }> = {
   'presse-social': { category: 'platforms', name: 'pressemitteilung' },
   antrag: { category: 'textTypes', name: 'antrag' },
   universal: { category: 'textTypes', name: 'universal' },
-  barrierefreiheit: { category: 'navigation', name: 'barrierefreiheit' },
   texteditor: { category: 'actions', name: 'edit' },
   eigene: { category: 'navigation', name: 'eigene' },
 };
@@ -133,7 +129,7 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
         event.preventDefault();
         const nextId = navigableTabIds[nextIndex];
         tabRefs.current[nextId]?.focus();
-        onTabChange(nextId);
+        onTabChange(nextId, { replace: true });
       },
       [disabled, navigableTabIds, onTabChange]
     );
@@ -245,6 +241,11 @@ const TabSelector: React.FC<TabSelectorProps> = memo(
                   isUniversalActive &&
                     'bg-secondary-600 border-secondary-600 text-white hover:bg-secondary-600'
                 )}
+                onClick={() => {
+                  if (!disabled && activeTab !== 'universal') {
+                    onTabChange('universal');
+                  }
+                }}
                 onMouseEnter={() => onPreload?.('universal')}
                 onFocus={() => onPreload?.('universal')}
                 disabled={disabled}

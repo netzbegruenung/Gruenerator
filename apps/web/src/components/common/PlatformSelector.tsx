@@ -57,7 +57,6 @@ interface PlatformSelectorProps {
   helpText?: string;
   className?: string;
   rules?: Record<string, unknown>;
-  tabIndex?: number;
   isMulti?: boolean;
   value?: string | number | (string | number)[] | null;
   defaultValue?: string | number | (string | number)[] | null;
@@ -91,7 +90,6 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
   helpText,
   className = '',
   rules = {},
-  tabIndex,
   isMulti = true,
   value,
   defaultValue,
@@ -325,7 +323,6 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
           captureMenuScroll={false}
           menuShouldBlockScroll={false}
           menuShouldScrollIntoView={false}
-          tabIndex={tabIndex}
           noOptionsMessage={() => 'Keine Optionen verfügbar'}
           menuPortalTarget={document.body}
           menuPosition="fixed"
@@ -430,7 +427,6 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
             captureMenuScroll={false}
             menuShouldBlockScroll={false}
             menuShouldScrollIntoView={false}
-            tabIndex={tabIndex}
             noOptionsMessage={() => 'Keine Optionen verfügbar'}
             menuPortalTarget={document.body}
             menuPosition="fixed"

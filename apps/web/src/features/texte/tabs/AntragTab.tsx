@@ -13,7 +13,7 @@ import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
 import { useUserDefaults } from '../../../hooks/useUserDefaults';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 
-type AntragTabProps = Record<string, never>;
+type AntragTabProps = Record<never, never>;
 
 interface FormValues {
   inhalt: string;
@@ -201,9 +201,6 @@ const AntragTab: React.FC<AntragTabProps> = memo(() => {
           minRows={5}
           maxRows={15}
           className="form-textarea-large"
-          tabIndex={
-            (form.generator?.tabIndex as Record<string, unknown>)?.inhalt as number | undefined
-          }
         />
 
         <SmartInput
@@ -214,9 +211,6 @@ const AntragTab: React.FC<AntragTabProps> = memo(() => {
           getValues={getValues}
           label={FORM_LABELS.GLIEDERUNG}
           placeholder={FORM_PLACEHOLDERS.GLIEDERUNG}
-          tabIndex={
-            (form.generator?.tabIndex as Record<string, unknown>)?.gliederung as number | undefined
-          }
           onSubmitSuccess={success ? String(getValues('gliederung') || '') : null}
           shouldSave={success}
           formName="antrag"

@@ -19,7 +19,6 @@ interface FormInputProps {
   defaultValue?: string | number;
   inputProps?: Record<string, unknown>;
   labelProps?: Record<string, unknown>;
-  tabIndex?: number;
   subtext?: string;
   onChange?: (value: string) => void;
   [key: string]: unknown;
@@ -43,7 +42,6 @@ const FormInput: React.FC<FormInputProps> = ({
   defaultValue = '',
   inputProps = {},
   labelProps = {},
-  tabIndex,
   ...rest
 }) => {
   const inputId = `form-input-${name}`;
@@ -71,7 +69,6 @@ const FormInput: React.FC<FormInputProps> = ({
           disabled={disabled}
           className={inputClassName}
           value={value}
-          tabIndex={tabIndex}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
             const newVal = e.target.value;
             setField(name, newVal);
@@ -107,7 +104,6 @@ const FormInput: React.FC<FormInputProps> = ({
             placeholder={placeholder}
             disabled={disabled}
             className={`${inputClassName} ${error ? 'error-input' : ''}`.trim()}
-            tabIndex={tabIndex}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
               const value = e.target.value;
               field.onChange(value);

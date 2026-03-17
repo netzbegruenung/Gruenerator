@@ -25,12 +25,6 @@ import type {
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { cn } from '@/utils/cn';
 
-interface FeatureIconsTabIndex {
-  webSearch?: number;
-  privacyMode?: number;
-  attachment?: number;
-}
-
 interface FormSectionProps {
   title?: string | React.ReactNode;
   subtitle?: string;
@@ -65,12 +59,6 @@ interface FormSectionProps {
   firstExtrasChildren?: ReactNode;
   hideExtrasSection?: boolean;
   showSubmitButtonInInputSection?: boolean;
-  featureIconsTabIndex?: FeatureIconsTabIndex;
-  platformSelectorTabIndex?: number;
-  knowledgeSelectorTabIndex?: number;
-  knowledgeSourceSelectorTabIndex?: number;
-  documentSelectorTabIndex?: number;
-  submitButtonTabIndex?: number;
   showProfileSelector?: boolean;
   showImageUpload?: boolean;
   uploadedImage?: unknown;
@@ -136,16 +124,6 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
       firstExtrasChildren = null,
       hideExtrasSection = false,
       showSubmitButtonInInputSection = false,
-      featureIconsTabIndex = {
-        webSearch: 11,
-        privacyMode: 12,
-        attachment: 13,
-      },
-      platformSelectorTabIndex = 12,
-      knowledgeSelectorTabIndex = 14,
-      knowledgeSourceSelectorTabIndex = 13,
-      documentSelectorTabIndex = 15,
-      submitButtonTabIndex = 17,
       showProfileSelector = true,
       showImageUpload = false,
       onImageChange = null,
@@ -312,7 +290,6 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
                       platformSelectorLabel={platformSelectorLabel}
                       platformSelectorPlaceholder={platformSelectorPlaceholder}
                       platformSelectorHelpText={platformSelectorHelpText}
-                      platformSelectorTabIndex={platformSelectorTabIndex}
                       formControl={formControl}
                       showImageUpload={showImageUpload}
                       onImageChange={onImageChange}
@@ -339,11 +316,6 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(
                       firstExtrasChildren={
                         !isMobileView || isStartMode ? firstExtrasChildren : null
                       }
-                      featureIconsTabIndex={featureIconsTabIndex}
-                      knowledgeSelectorTabIndex={knowledgeSelectorTabIndex}
-                      knowledgeSourceSelectorTabIndex={knowledgeSourceSelectorTabIndex}
-                      documentSelectorTabIndex={documentSelectorTabIndex}
-                      submitButtonTabIndex={submitButtonTabIndex}
                       showProfileSelector={showProfileSelector}
                       onPrivacyInfoClick={onPrivacyInfoClick}
                       onWebSearchInfoClick={onWebSearchInfoClick}
