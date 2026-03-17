@@ -8,30 +8,19 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from 'src/components/command';
+} from '../command';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from 'src/components/dropdown-menu';
-import { HoverCard, HoverCardContent, HoverCardTrigger } from 'src/components/hover-card';
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupTextarea,
-} from 'src/components/input-group';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from 'src/components/select';
-import { Spinner } from 'src/components/spinner';
-import { Tooltip, TooltipContent, TooltipTrigger } from 'src/components/tooltip';
-import { cn } from 'src/lib/cn';
+} from '../dropdown-menu';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '../hover-card';
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from '../input-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../select';
+import { Spinner } from '../spinner';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../tooltip';
+import { cn } from '../../lib/cn';
 import type { ChatStatus, FileUIPart, SourceDocumentUIPart } from 'ai';
 import { CornerDownLeftIcon, ImageIcon, Monitor, PlusIcon, SquareIcon, XIcon } from 'lucide-react';
 import { nanoid } from 'nanoid';

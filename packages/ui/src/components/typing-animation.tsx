@@ -15,7 +15,7 @@ import {
   type MotionProps,
 } from 'motion/react';
 
-import { cn } from 'src/lib/cn';
+import { cn } from '../lib/cn';
 
 const motionElements = {
   article: motion.article,
