@@ -48,13 +48,15 @@ async function summarizeResults(agent: BriefingAgent, items: CollectedItem[]): P
       )
       .join('\n\n');
 
+    const instruction =
+      agent.config.customPrompt || formatPrompt[agent.config.outputFormat] || formatPrompt.summary;
+
     const result = await getMistralClient().chat.complete({
       model: 'mistral-small-latest',
       messages: [
         {
           role: 'system',
-          content:
-            'Du bist ein Briefing-Assistent. Fasse Suchergebnisse strukturiert und sachlich zusammen. Antworte auf Deutsch.',
+          content: 'Du bist ein Briefing-Assistent. Antworte auf Deutsch.',
         },
         {
           role: 'user',
@@ -62,7 +64,7 @@ async function summarizeResults(agent: BriefingAgent, items: CollectedItem[]): P
 Beschreibung: ${agent.description || 'Keine Beschreibung'}
 Zeitraum: ${agent.config.timeRange === 'day' ? 'Heute' : 'Diese Woche'}
 
-${formatPrompt[agent.config.outputFormat] || formatPrompt.summary}
+${instruction}
 
 Ergebnisse (${items.length}):
 
