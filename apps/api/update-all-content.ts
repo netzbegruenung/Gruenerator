@@ -35,11 +35,12 @@ interface CliArgs {
   force: boolean;
   dryRun: boolean;
   concurrency: number;
+  noEmail: boolean;
 }
 
 function parseArgs(): CliArgs {
   const args = process.argv.slice(2);
-  const result: CliArgs = { force: false, dryRun: false, concurrency: 2 };
+  const result: CliArgs = { force: false, dryRun: false, concurrency: 2, noEmail: false };
 
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
@@ -54,6 +55,9 @@ function parseArgs(): CliArgs {
         break;
       case '--concurrency':
         result.concurrency = Math.max(1, parseInt(args[++i], 10) || 2);
+        break;
+      case '--no-email':
+        result.noEmail = true;
         break;
     }
   }
@@ -243,24 +247,7 @@ async function preflight(): Promise<void> {
   console.log('Preflight: Mistral API ✓, Qdrant ✓\n');
 }
 
-/**
- * Run async tasks with limited concurrency.
- */
-async function parallelLimit<T>(tasks: (() => Promise<T>)[], limit: number): Promise<T[]> {
-  const results: T[] = new Array(tasks.length);
-  let nextIndex = 0;
-
-  async function runNext(): Promise<void> {
-    while (nextIndex < tasks.length) {
-      const index = nextIndex++;
-      results[index] = await tasks[index]();
-    }
-  }
-
-  const workers = Array.from({ length: Math.min(limit, tasks.length) }, () => runNext());
-  await Promise.all(workers);
-  return results;
-}
+import { parallelLimit } from './utils/parallelLimit.js';
 
 /**
  * Run a source group with timeout and error handling.
@@ -433,7 +420,7 @@ async function main() {
 
   // Send email notification via existing Brevo SMTP (never crash on email failure)
   const emailTo = process.env.CONTENT_SYNC_EMAIL;
-  if (emailTo) {
+  if (emailTo && !args.noEmail) {
     try {
       const runId = process.env.GITHUB_RUN_ID;
       const repo = process.env.GITHUB_REPOSITORY;

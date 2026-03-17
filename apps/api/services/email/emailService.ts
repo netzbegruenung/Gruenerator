@@ -7,9 +7,11 @@ import {
   renderContentDeliveryTemplate,
   renderContentSyncTemplate,
   renderDocumentShareTemplate,
+  renderLvSyncNotificationTemplate,
   type ContentDeliveryTemplateParams,
   type ContentSyncTemplateParams,
   type DocumentShareTemplateParams,
+  type LvSyncNotificationTemplateParams,
 } from './templates.js';
 
 import type { Transporter } from 'nodemailer';
@@ -164,6 +166,22 @@ export async function sendContentSyncEmail(
     : `${icon} Content Sync: +${params.totals.stored} neu, ${params.totals.updated} aktualisiert`;
 
   return sendEmail({ to, subject, html, text });
+}
+
+export async function sendLvSyncNotificationEmail(
+  to: string,
+  params: LvSyncNotificationTemplateParams
+): Promise<boolean> {
+  if (!isConfigured()) return false;
+
+  const { html, text } = renderLvSyncNotificationTemplate(params);
+
+  return sendEmail({
+    to,
+    subject: `${params.newArticles.length} neue Artikel indexiert — ${params.lvName}`,
+    html,
+    text,
+  });
 }
 
 export async function verifyEmailConnection(): Promise<boolean> {

@@ -77,11 +77,19 @@ export interface ContentPathResult {
   totalVectors: number;
   /** Skip reasons with counts */
   skipReasons: Record<string, number>;
+  /** Metadata of newly stored articles (for notifications) */
+  newArticles: NewArticle[];
 }
 
 /**
  * Source scraping result
  */
+export interface NewArticle {
+  title: string;
+  url: string;
+  type: string;
+}
+
 export interface SourceResult {
   /** Source identifier */
   sourceId: string;
@@ -99,6 +107,8 @@ export interface SourceResult {
   totalVectors: number;
   /** Results by content type */
   contentTypes: Record<string, ContentPathResult>;
+  /** Metadata of newly stored articles (for notifications) */
+  newArticles: NewArticle[];
 }
 
 /**
