@@ -1,6 +1,12 @@
 export { cn } from './lib/cn';
 export { useIsMobile } from './hooks/use-mobile';
 
+export {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from './components/accordion';
 export { Alert, AlertTitle, AlertDescription } from './components/alert';
 export { FeatureToggle, type FeatureToggleProps } from './components/feature-toggle';
 export { Avatar, AvatarImage, AvatarFallback } from './components/avatar';
