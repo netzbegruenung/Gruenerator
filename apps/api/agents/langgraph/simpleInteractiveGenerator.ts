@@ -310,7 +310,7 @@ export async function initiateInteractiveGenerator({
 }: InitiateGeneratorParams): Promise<InitiateGeneratorResult> {
   console.log(`[SimpleInteractiveGenerator] Initiating ${generatorType} session`);
 
-  const sessionId = `exp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const sessionId = `exp_${Date.now()}_${crypto.randomUUID().slice(0, 9)}`;
 
   try {
     // Validate input

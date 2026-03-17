@@ -389,18 +389,13 @@ export class WebsiteCrawler extends BaseScraper {
         const href = $(element).attr('href');
         if (!href) return;
 
-        // Skip anchors, javascript, mailto, tel
-        if (
-          href.startsWith('#') ||
-          href.startsWith('javascript:') ||
-          href.startsWith('mailto:') ||
-          href.startsWith('tel:')
-        ) {
-          return;
-        }
-
         // Resolve relative URLs
         const absoluteUrl = new URL(href, currentUrl);
+
+        // Only allow http/https (blocks javascript:, data:, mailto:, tel:, etc.)
+        if (!['http:', 'https:'].includes(absoluteUrl.protocol)) {
+          return;
+        }
 
         // Only include same-domain links
         if (absoluteUrl.hostname !== baseUrlObj.hostname) {

@@ -391,8 +391,10 @@ router.get('/status-test', (req: AuthRequest, res: Response): void => {
 // ============================================================================
 
 router.get('/error', (req: AuthSessionRequest, res: Response): void => {
-  const errorCode = req.query.message || 'unknown_error';
-  const correlationId = req.query.correlationId || 'N/A';
+  const htmlEscape = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const errorCode = htmlEscape(String(req.query.message || 'unknown_error'));
+  const correlationId = htmlEscape(String(req.query.correlationId || 'N/A'));
   const retry = req.query.retry === 'true';
   const keycloakError = req.session?.messages?.slice(-1)[0];
   if (req.session?.messages) delete req.session.messages;
