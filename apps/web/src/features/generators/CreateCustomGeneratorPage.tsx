@@ -8,7 +8,7 @@ import FormTextarea from '../../components/common/Form/Input/FormTextarea';
 import useApiSubmit from '../../components/hooks/useApiSubmit';
 import { ProfileIconButton } from '../../components/profile/actions/ProfileActionButton';
 import { useOptimizedAuth } from '../../hooks/useAuth';
-import { profileApiService } from '../auth/services/profileApiService';
+import { type CustomGenerator, profileApiService } from '../auth/services/profileApiService';
 
 import FieldEditorAssistant from './components/FieldEditorAssistant';
 import GeneratorCreationSuccessScreen from './components/GeneratorCreationSuccessScreen';
@@ -32,22 +32,12 @@ interface AIGeneratedConfig {
   contact_email?: string;
 }
 
-interface GeneratorListItem {
-  id: string;
-  name?: string;
-  title?: string;
-  slug: string;
-  description?: string;
-  owner_first_name?: string;
-  owner_last_name?: string;
-}
-
 interface CreateCustomGeneratorPageProps {
   onCompleted?: (data?: { name: string; slug: string }) => void;
   onCancel?: () => void;
-  generators?: GeneratorListItem[];
-  savedGenerators?: GeneratorListItem[];
-  onSelectGenerator?: (generator: GeneratorListItem) => void;
+  generators?: CustomGenerator[];
+  savedGenerators?: CustomGenerator[];
+  onSelectGenerator?: (generator: CustomGenerator) => void;
   onDeleteGenerator?: () => void;
   onGeneratorUpdated?: () => void;
 }

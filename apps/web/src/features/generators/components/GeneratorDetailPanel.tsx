@@ -6,7 +6,10 @@ import {
 } from '../../../components/profile/actions/ProfileActionButton';
 import EditableDetailForm from '../../../features/auth/components/profile/tabs/shared/EditableDetailForm';
 import { useEditableDetail } from '../../../features/auth/components/profile/tabs/shared/useEditableDetail';
-import { profileApiService } from '../../../features/auth/services/profileApiService';
+import {
+  type CustomGenerator,
+  profileApiService,
+} from '../../../features/auth/services/profileApiService';
 
 interface FormField {
   label: string;
@@ -21,22 +24,9 @@ interface FormSchema {
   fields?: FormField[];
 }
 
-interface GeneratorDetailData {
-  id: string;
-  name?: string;
-  title?: string;
-  slug: string;
-  description?: string;
-  prompt?: string;
-  contact_email?: string;
-  form_schema?: Record<string, unknown>;
-  usage_count?: number;
-  created_at?: string;
-}
-
 interface GeneratorDetailPanelProps {
-  generator: GeneratorDetailData;
-  onOpen: (generator: GeneratorDetailData) => void;
+  generator: CustomGenerator;
+  onOpen: (generator: CustomGenerator) => void;
   onDeleted: () => void;
   onUpdated: () => void;
 }
@@ -50,8 +40,8 @@ const GeneratorDetailPanel: React.FC<GeneratorDetailPanelProps> = memo(
 
     const { isEditing, isLoading, startEdit, cancelEdit, saveEdit, updateField, getDisplayValue } =
       useEditableDetail({
-        entityId: generator.id,
-        entity: generator,
+        entityId: String(generator.id),
+        entity: generator as unknown as Record<string, unknown>,
         updateFn: profileApiService.updateCustomGenerator as (
           entityId: string,
           data: unknown

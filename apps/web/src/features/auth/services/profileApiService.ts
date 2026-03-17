@@ -99,6 +99,16 @@ export interface QACollectionResponse {
 export interface CustomGeneratorData {
   name: string;
   prompt?: string;
+  title?: string;
+  slug?: string;
+  description?: string;
+  contact_email?: string;
+  form_schema?: Record<string, unknown>;
+  usage_count?: number;
+  created_at?: string;
+  owner_first_name?: string;
+  owner_last_name?: string;
+  owner_email?: string;
   [key: string]: unknown;
 }
 
