@@ -26,7 +26,9 @@ export function useChatCollaboration(threadId: string | null, user: ChatCollabor
     const ydoc = new Y.Doc();
     const url = docsBaseUrl
       ? `${docsBaseUrl.replace(/^http/, 'ws')}/hocuspocus`
-      : `ws://${window.location.hostname}:1240`;
+      : window.location.protocol === 'https:'
+        ? `wss://${window.location.host}/ws`
+        : 'ws://localhost:1240';
 
     const provider = new HocuspocusProvider({
       url,
