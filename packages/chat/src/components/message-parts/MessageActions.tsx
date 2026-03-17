@@ -4,6 +4,7 @@ import { memo, useState } from 'react';
 import { Copy, Check, Download, FileEdit, Loader2 } from 'lucide-react';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useExtraActions } from '../../context/ExtraActionsContext';
+import { MessageTTSButton } from './MessageTTSButton';
 import type { ChatMessage } from '../../hooks/useChatGraphStream';
 
 interface MessageActionsProps {
@@ -126,6 +127,7 @@ export const MessageActions = memo(function MessageActions({
       >
         {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
       </button>
+      <MessageTTSButton content={content} />
       <button
         onClick={handleExportDocx}
         disabled={isExporting}
