@@ -159,7 +159,7 @@ export const SearchResultsSection = memo(function SearchResultsSection({
               maxVisible={totalVisible}
             />
           ) : (
-            <div className="space-y-1.5">
+            <div className="space-y-3">
               {(showAll ? citations : citations.slice(0, INITIAL_VISIBLE)).map((citation) => (
                 <CitationCard key={citation.id} {...citation} />
               ))}
@@ -201,14 +201,14 @@ const DocumentGroupedView = memo(function DocumentGroupedView({
   let rendered = 0;
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-4">
       {documentGroups.map((group) => {
         if (rendered >= maxVisible) return null;
         const citationsToShow = group.citations.slice(0, maxVisible - rendered);
         rendered += citationsToShow.length;
 
         return (
-          <div key={group.documentId} className="space-y-1">
+          <div key={group.documentId} className="space-y-2">
             <div className="flex items-center gap-1.5 px-1">
               <FileText className="h-3.5 w-3.5 text-foreground-muted flex-shrink-0" />
               <span className="text-xs font-medium text-foreground leading-tight line-clamp-1">
@@ -221,7 +221,7 @@ const DocumentGroupedView = memo(function DocumentGroupedView({
               )}
             </div>
 
-            <div className="space-y-1 pl-1">
+            <div className="space-y-2 pl-1">
               {citationsToShow.map((citation) => (
                 <CitationCard key={citation.id} {...citation} compact />
               ))}
