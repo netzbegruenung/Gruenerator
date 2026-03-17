@@ -11,35 +11,7 @@ import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { sendContentSyncEmail } from './services/email/emailService.js';
-
-interface SourceGroupResult {
-  id: string;
-  name: string;
-  stored: number;
-  updated: number;
-  skipped: number;
-  errors: number;
-  duration: number;
-  status: 'success' | 'failed';
-  error?: string;
-}
-
-interface SyncSummary {
-  timestamp: string;
-  dryRun: boolean;
-  force: boolean;
-  sources: SourceGroupResult[];
-  totals: {
-    sources: number;
-    succeeded: number;
-    failed: number;
-    stored: number;
-    updated: number;
-    skipped: number;
-    errors: number;
-  };
-  totalDuration: number;
-}
+import { type SyncSummary } from './types/syncTypes.js';
 
 function parseArgs(): { dir: string } {
   const args = process.argv.slice(2);
@@ -54,7 +26,7 @@ function parseArgs(): { dir: string } {
   return { dir };
 }
 
-function main() {
+async function main() {
   const { dir } = parseArgs();
 
   const files = readdirSync(dir).filter((f) => f.endsWith('.json'));
@@ -99,7 +71,6 @@ function main() {
   writeFileSync(summaryPath, JSON.stringify(merged, null, 2));
   console.log(`Merged summary written to ${summaryPath}`);
 
-  // Send email
   const emailTo = process.env.CONTENT_SYNC_EMAIL;
   if (emailTo) {
     const runId = process.env.GITHUB_RUN_ID;
@@ -107,26 +78,28 @@ function main() {
     const server = process.env.GITHUB_SERVER_URL || 'https://github.com';
     const runUrl = runId && repo ? `${server}/${repo}/actions/runs/${runId}` : undefined;
 
-    sendContentSyncEmail(emailTo, {
-      timestamp: merged.timestamp,
-      totalDuration: merged.totalDuration,
-      sources: merged.sources,
-      totals: merged.totals,
-      runUrl,
-      dryRun: merged.dryRun,
-    })
-      .then((sent) =>
-        console.log(
-          sent ? `Email sent to ${emailTo}` : 'Email sending skipped (SMTP not configured)'
-        )
-      )
-      .catch((err) =>
-        console.error(
-          'Email notification failed (non-fatal):',
-          err instanceof Error ? err.message : err
-        )
+    try {
+      const sent = await sendContentSyncEmail(emailTo, {
+        timestamp: merged.timestamp,
+        totalDuration: merged.totalDuration,
+        sources: merged.sources,
+        totals: merged.totals,
+        runUrl,
+        dryRun: merged.dryRun,
+      });
+      console.log(
+        sent ? `Email sent to ${emailTo}` : 'Email sending skipped (SMTP not configured)'
       );
+    } catch (err) {
+      console.error(
+        'Email notification failed (non-fatal):',
+        err instanceof Error ? err.message : err
+      );
+    }
   }
 }
 
-main();
+main().catch((err) => {
+  console.error('Fatal error:', err);
+  process.exit(1);
+});
