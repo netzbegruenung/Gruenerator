@@ -63,6 +63,8 @@ export { GrueneratorComposer } from './components/thread/GrueneratorComposer';
 export { FileMentionPopover } from './components/thread/FileMentionPopover';
 export { DocumentChatPicker } from './components/thread/DocumentChatPicker';
 export { SkillPopover } from './components/thread/SkillPopover';
+export { SkillLibraryModal } from './components/skills/SkillLibraryModal';
+export { useSkillFavoritesStore } from './stores/skillFavoritesStore';
 export { PlusMenu } from './components/thread/PlusMenu';
 export { UserMessage } from './components/thread/UserMessage';
 export { AssistantMessage } from './components/thread/AssistantMessage';
@@ -85,6 +87,8 @@ export { CitationBadge } from './components/message-parts/CitationPopover';
 export { Citation as CitationCard } from './components/tool-ui/citation/ProjectCitation';
 export { GeneratedImageDisplay } from './components/message-parts/GeneratedImageDisplay';
 export { MessageActions } from './components/message-parts/MessageActions';
+export { MessageTTSButton } from './components/message-parts/MessageTTSButton';
+export { useMessageTTS, type TTSState } from './hooks/useMessageTTS';
 
 // Citation Context
 export {
@@ -193,8 +197,10 @@ export {
   agentsList,
   getDefaultAgent,
   resolveAgentMention,
+  SKILL_CATEGORY_LABELS,
   type AgentConfig,
   type AgentListItem,
+  type SkillCategory,
 } from './lib/agents';
 export {
   parseMention,
