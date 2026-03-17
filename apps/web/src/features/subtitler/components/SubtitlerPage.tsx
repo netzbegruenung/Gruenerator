@@ -400,7 +400,13 @@ const SubtitlerPage = (): React.ReactElement => {
             stylePreference,
             heightPreference,
             modePreference,
-            videoMetadata: uploadInfo.metadata || {},
+            videoMetadata: uploadInfo.metadata
+              ? {
+                  duration: uploadInfo.metadata.duration ?? 0,
+                  width: uploadInfo.metadata.width ?? 0,
+                  height: uploadInfo.metadata.height ?? 0,
+                }
+              : undefined,
             videoFilename: uploadInfo.name || 'video.mp4',
             videoSize: uploadInfo.size || 0,
           };

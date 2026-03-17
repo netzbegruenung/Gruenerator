@@ -108,7 +108,10 @@ const AddTemplateModal = ({
       if (data.preview) {
         setPreviewData(data.preview);
         const existingDesc = data.preview.description || '';
-        const suggestedTags = suggestTagsFromTemplate(data.preview, 'url');
+        const suggestedTags = suggestTagsFromTemplate(
+          data.preview as Parameters<typeof suggestTagsFromTemplate>[0],
+          'url'
+        );
         setDescription(
           existingDesc + (existingDesc && suggestedTags ? '\n\n' : '') + suggestedTags
         );

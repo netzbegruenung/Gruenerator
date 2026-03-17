@@ -1,3 +1,4 @@
+import { type IconType } from 'react-icons';
 import {
   HiOutlineEye,
   HiOutlinePencil,
@@ -5,7 +6,6 @@ import {
   HiRefresh,
   HiExternalLink,
 } from 'react-icons/hi';
-import { type IconType } from 'react-icons';
 
 interface WolkeShareLink {
   id: string;
@@ -25,6 +25,7 @@ interface ActionContext {
   itemType?: 'document' | 'notebook';
   onViewItem?: (item: ItemBase) => void;
   onEditItem?: (item: ItemBase) => void;
+  onShareItem?: (item: ItemBase) => void;
   onDeleteItem?: (item: ItemBase) => void;
   onRefreshDocument?: (item: ItemBase) => void;
   deletingId?: string;

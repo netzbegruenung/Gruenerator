@@ -45,24 +45,26 @@ export function useBaseFormAccessibility(params: UseBaseFormAccessibilityParams)
   useEffect(() => {
     enhanceFocusVisibility();
 
-    const labelledElements = [
-      {
-        element: document.querySelector('.submit-button') as HTMLElement | null,
-        label: BUTTON_LABELS.SUBMIT,
-      },
-      {
-        element: document.querySelector('.generate-post-button') as HTMLElement | null,
-        label: BUTTON_LABELS.GENERATE_TEXT,
-      },
-      {
-        element: document.querySelector('.copy-button') as HTMLElement | null,
-        label: BUTTON_LABELS.COPY,
-      },
-      {
-        element: document.querySelector('.edit-button') as HTMLElement | null,
-        label: BUTTON_LABELS.EDIT,
-      },
-    ].filter((item): item is { element: HTMLElement; label: string } => item.element !== null);
+    const labelledElements = (
+      [
+        {
+          element: document.querySelector('.submit-button') as HTMLElement | null,
+          label: BUTTON_LABELS.SUBMIT,
+        },
+        {
+          element: document.querySelector('.generate-post-button') as HTMLElement | null,
+          label: BUTTON_LABELS.GENERATE_TEXT,
+        },
+        {
+          element: document.querySelector('.copy-button') as HTMLElement | null,
+          label: BUTTON_LABELS.COPY,
+        },
+        {
+          element: document.querySelector('.edit-button') as HTMLElement | null,
+          label: BUTTON_LABELS.EDIT,
+        },
+      ] as Array<{ element: HTMLElement | null; label: string }>
+    ).filter((item): item is { element: HTMLElement; label: string } => item.element !== null);
 
     if (labelledElements.length > 0) {
       addAriaLabelsToElements(labelledElements);

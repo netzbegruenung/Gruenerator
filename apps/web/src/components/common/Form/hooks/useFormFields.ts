@@ -22,12 +22,14 @@ export const useFormFields = () => {
     ({ control, ...rest }: { control?: Control | null } & Record<string, unknown>) =>
       React.createElement(Cmp, { control: control || ctxControl, ...rest });
 
+  type BindableComponent = ComponentType<{ control?: Control | null } & Record<string, unknown>>;
+
   return {
-    Input: bind(FormInput),
-    Textarea: bind(FormTextarea),
-    AutoInput: bind(FormAutoInput),
-    Select: bind(FormSelect),
-    Checkbox: bind(FormCheckbox),
+    Input: bind(FormInput as unknown as BindableComponent),
+    Textarea: bind(FormTextarea as unknown as BindableComponent),
+    AutoInput: bind(FormAutoInput as unknown as BindableComponent),
+    Select: bind(FormSelect as unknown as BindableComponent),
+    Checkbox: bind(FormCheckbox as unknown as BindableComponent),
   };
 };
 

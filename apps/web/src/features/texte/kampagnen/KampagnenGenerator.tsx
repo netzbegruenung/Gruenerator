@@ -281,7 +281,7 @@ const KampagnenGenerator: React.FC = () => {
 
   // Campaign sharepic edit hook
   const { regenerateSharepic, isRegenerating, regenerationError, clearError } =
-    useCampaignSharepicEdit() as UseCampaignSharepicEditReturn;
+    useCampaignSharepicEdit() as unknown as UseCampaignSharepicEditReturn;
 
   // Handler for regenerating a single sharepic with edited text
   const handleRegenerateSharepic = useCallback(

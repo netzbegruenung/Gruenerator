@@ -29,7 +29,7 @@ const DownloadExport = ({ content, title, className = 'action-button' }: Downloa
     if (!content) return;
     try {
       // Preprocess content to ensure consistent formatting for export
-      const formattedContent = await extractFormattedText(content);
+      const formattedContent = await extractFormattedText(content as string);
       await generateDOCX(formattedContent, title || 'Download');
     } catch (error) {
       console.error('DOCX download failed:', error);

@@ -4,7 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { routes } from '../../config/routes';
 import PageLayout from '../common/Layout/PageLayout';
 import AppProviders from '../common/Providers/AppProviders';
-import { useRouteCache } from '../hooks/useRouteCache';
+import { type PreloadableComponent, useRouteCache } from '../hooks/useRouteCache';
 
 interface RouteComponentProps {
   path: string;
@@ -44,7 +44,9 @@ const RouteComponent = ({
   }
 
   // Call hook unconditionally (Rules of Hooks)
-  const CachedComponent = useRouteCache(route?.component ?? null);
+  const CachedComponent = useRouteCache(
+    (route?.component ?? null) as unknown as PreloadableComponent
+  );
 
   if (!route) {
     if (process.env.NODE_ENV === 'development') {

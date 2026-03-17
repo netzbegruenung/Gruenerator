@@ -226,7 +226,7 @@ const useError = (autoHideTimeout: number = ERROR_TIMEOUT): UseErrorReturn => {
       }
 
       // Finalen Fehler-Objekt erstellen
-      const errObj = err as Record<string, unknown>;
+      const errObj = err as unknown as Record<string, unknown>;
       const finalError: ProcessedError = {
         ...errorInfo,
         details:

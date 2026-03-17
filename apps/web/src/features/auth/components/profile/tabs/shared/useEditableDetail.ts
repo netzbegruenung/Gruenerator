@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 
-import { handleError } from '../../../../../../components/utils/errorHandling';
+import { handleError, type ErrorState } from '../../../../../../components/utils/errorHandling';
 import {
   useGeneratorEditMode,
   useGeneratorChanges,
@@ -96,8 +96,8 @@ export const useEditableDetail = ({
   // Get display value with fallback to edit data or entity
   const getDisplayValue = useCallback(
     (field: string): unknown => {
-      if (editData && editData[field] !== undefined) {
-        return editData[field];
+      if (editData && (editData as Record<string, unknown>)[field] !== undefined) {
+        return (editData as Record<string, unknown>)[field];
       }
 
       if (entityType === 'generator') {
@@ -210,7 +210,10 @@ export const useEditableDetail = ({
 
       // Optimistic update for generators
       if (entityType === 'generator') {
-        updateGeneratorOptimistic(entityId, updateData);
+        updateGeneratorOptimistic(
+          entityId,
+          updateData as Parameters<typeof updateGeneratorOptimistic>[1]
+        );
       }
 
       await updateFn(entityId, updateData);
@@ -219,7 +222,11 @@ export const useEditableDetail = ({
       onSuccessMessage(`${entityName} erfolgreich aktualisiert.`);
       setGeneratorEditMode(entityId, false);
     } catch (error) {
-      handleError(error, onErrorMessage);
+      handleError(error, (err: ErrorState | null) => {
+        if (err) {
+          onErrorMessage(err.message || err.title || 'Ein Fehler ist aufgetreten');
+        }
+      });
     } finally {
       setGeneratorLoading(entityId, false);
     }

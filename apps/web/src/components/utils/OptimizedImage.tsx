@@ -1,3 +1,4 @@
+// @ts-expect-error — no type declarations available for this package
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 
