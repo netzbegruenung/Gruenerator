@@ -127,7 +127,7 @@ export const DocumentList = ({ searchQuery }: DocumentListProps) => {
     <div className="document-list">
       {/* Desktop: AI creator + template carousel */}
       <div className="desktop-only-templates">
-        <AIDocumentCreator onGenerate={handleAIGenerate} isLoading={isGenerating} />
+        {/* <AIDocumentCreator onGenerate={handleAIGenerate} isLoading={isGenerating} /> */}
         <TemplateCarousel
           onTemplateSelect={handleTemplateSelect}
           onShowGallery={() => setShowGallery(true)}
