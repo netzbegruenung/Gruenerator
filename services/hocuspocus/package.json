@@ -31,14 +31,14 @@
     "pg": "^8.20.0",
     "redis": "^5.11.0",
     "winston": "^3.19.0",
-    "yjs": "^13.6.29"
+    "yjs": "^13.6.30"
   },
   "devDependencies": {
     "@gruenerator/eslint-config": "workspace:*",
     "@types/express": "^5.0.6",
     "@types/node": "^25.5.0",
     "@types/pg": "^8.18.0",
-    "eslint": "^9.39.3",
+    "eslint": "^9.39.4",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
