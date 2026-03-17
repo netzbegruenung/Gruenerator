@@ -703,19 +703,15 @@ export class LandesverbandScraper extends BaseScraper {
     } else {
       absolute = baseUrl + '/' + url;
     }
-    // Canonicalize: strip trailing slash (except root), fragment, and query params
+    // Canonicalize: strip trailing slash from pathname (except root) and fragment
     try {
       const parsed = new URL(absolute);
       parsed.hash = '';
-      let canonical = parsed.origin + parsed.pathname;
-      if (canonical.length > 1 && canonical.endsWith('/')) {
-        canonical = canonical.slice(0, -1);
+      let pathname = parsed.pathname;
+      if (pathname.length > 1 && pathname.endsWith('/')) {
+        pathname = pathname.slice(0, -1);
       }
-      // Preserve query params only for PDF download URLs
-      if (parsed.search && absolute.includes('.pdf')) {
-        canonical += parsed.search;
-      }
-      return canonical;
+      return parsed.origin + pathname + parsed.search;
     } catch {
       return absolute;
     }
