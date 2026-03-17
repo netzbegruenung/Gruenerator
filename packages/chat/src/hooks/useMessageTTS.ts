@@ -55,9 +55,10 @@ export function useMessageTTS({ apiBaseUrl, fetchFn, voiceId }: UseMessageTTSOpt
       });
 
       let firstChunk = true;
+      let hadError = false;
 
       for (const sentence of sentences) {
-        if (abortedRef.current) break;
+        if (abortedRef.current || hadError) break;
 
         await streamSentence(sentence, {
           onChunk: (chunk) => {
@@ -70,18 +71,22 @@ export function useMessageTTS({ apiBaseUrl, fetchFn, voiceId }: UseMessageTTSOpt
           },
           onDone: () => {},
           onError: (err) => {
+            hadError = true;
             if (!abortedRef.current) {
-              console.error('TTS error:', err);
+              console.warn('[TTS] Vorlesen fehlgeschlagen:', err);
             }
           },
         });
       }
 
-      if (!abortedRef.current) {
+      if (hadError) {
+        stopPlayback();
+        updateState('idle');
+      } else if (!abortedRef.current) {
         signalDone();
       }
     },
-    [streamSentence, enqueue, signalDone, setOnPlaybackEnd, updateState]
+    [streamSentence, enqueue, stopPlayback, signalDone, setOnPlaybackEnd, updateState]
   );
 
   const stop = useCallback(() => {

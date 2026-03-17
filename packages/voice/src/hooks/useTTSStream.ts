@@ -57,6 +57,10 @@ export function useTTSStream(config: VoiceAgentConfig) {
               const jsonStr = line.slice(6);
               try {
                 const data = JSON.parse(jsonStr);
+                if (data.error) {
+                  callbacks.onError(data.error);
+                  return;
+                }
                 if (data.audio) {
                   callbacks.onChunk(data as TTSChunk);
                 }

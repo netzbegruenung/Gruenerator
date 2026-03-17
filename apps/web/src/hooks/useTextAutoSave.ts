@@ -59,18 +59,15 @@ export function useTextAutoSave(options: UseTextAutoSaveOptions): UseTextAutoSav
   const performSave = useCallback(
     async (contentToSave: string) => {
       if (!contentToSave || contentToSave.trim().length < 50) {
-        console.log('[useTextAutoSave] Content too short, skipping save');
         return;
       }
 
       // Skip if content hasn't changed
       if (contentToSave === lastSavedContentRef.current) {
-        console.log('[useTextAutoSave] Content unchanged, skipping save');
         return;
       }
 
       try {
-        console.log('[useTextAutoSave] Starting save for', componentName);
         setAutoSaveStatus(componentName, 'saving');
 
         // Extract title from content or metadata
@@ -87,8 +84,6 @@ export function useTextAutoSave(options: UseTextAutoSaveOptions): UseTextAutoSav
           setAutoSaveStatus(componentName, 'saved');
           setLastAutoSaveTime(componentName, Date.now());
           lastSavedContentRef.current = contentToSave;
-
-          console.log('[useTextAutoSave] Save successful for', componentName);
 
           if (onSaveSuccess && result) {
             onSaveSuccess(result);
@@ -124,7 +119,6 @@ export function useTextAutoSave(options: UseTextAutoSaveOptions): UseTextAutoSav
    */
   const triggerManualSave = useCallback(async () => {
     if (!enabled) {
-      console.log('[useTextAutoSave] Auto-save is disabled');
       return;
     }
 

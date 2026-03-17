@@ -271,7 +271,6 @@ async function* parseSSEStream(
                 }
               }
               activeToolCall = null;
-              console.debug('[ToolCall] Created multi-search:', allToolCalls.length, 'tool calls');
             } else {
               const toolArgs = { query: searchQuery || message };
               activeToolCall = {
@@ -281,10 +280,7 @@ async function* parseSSEStream(
                 args: toolArgs,
                 argsText: JSON.stringify(toolArgs),
               };
-              console.debug('[ToolCall] Created:', toolName, 'query:', toolArgs.query.slice(0, 60));
             }
-          } else if (intent !== 'direct' && intent !== 'image') {
-            console.debug('[ToolCall] No tool mapping for intent:', intent);
           }
           yield buildResult();
           break;
@@ -330,12 +326,6 @@ async function* parseSSEStream(
             activeToolCall = Object.assign({}, activeToolCall, {
               result: { results: results || [] },
             });
-            console.debug(
-              '[ToolCall] Result set:',
-              activeToolCall.toolName,
-              'results:',
-              (results || []).length
-            );
           }
           yield buildResult();
           break;
@@ -436,17 +426,11 @@ async function* parseSSEStream(
         case 'text_delta': {
           const delta = (data as { text: string }).text;
           accumulatedText += delta;
-          if (accumulatedText.length <= 20 || accumulatedText.length % 200 === 0) {
-            console.debug(
-              `[SSE] text_delta: +${delta.length} chars, total=${accumulatedText.length}`
-            );
-          }
           yield buildResult();
           break;
         }
 
         case 'interrupt': {
-          console.debug('[SSE] interrupt event received — will set requires-action status');
           interruptPending = true;
           yield buildResult();
           break;
@@ -482,7 +466,6 @@ async function* parseSSEStream(
 
         // ── Search mode events ──
         case 'sources_preview': {
-          console.debug(`[SSE] sources_preview: ${(data as any)?.results?.length || 0} results`);
           const { results: previewResults, resultCount } = data as {
             results?: SearchResult[];
             resultCount?: number;
@@ -578,14 +561,7 @@ async function* parseSSEStream(
   outcome.interrupted = interruptPending;
 
   if (receivedMetadata && !interruptPending) {
-    console.debug('[SSE] Stream complete — calling onComplete');
     callbacks.onComplete?.(receivedMetadata);
-  } else {
-    console.debug(
-      '[SSE] Stream complete — onComplete skipped (metadata=%s, interrupt=%s)',
-      !!receivedMetadata,
-      interruptPending
-    );
   }
 }
 
@@ -601,24 +577,10 @@ export function createGrueneratorModelAdapter(
     async *run(options: ChatModelRunOptions): AsyncGenerator<ChatModelRunResult, void> {
       const { messages, abortSignal } = options;
       const config = getConfig();
-      const runId = `run_${Date.now()}`;
 
       // unstable_getMessage() provides the current assistant message (not in messages array).
       // This is where addResult() writes the user's answer for human tool calls.
       const currentAssistant = options.unstable_getMessage?.();
-      const askHumanInCurrent = currentAssistant?.content?.filter(
-        (p) => p.type === 'tool-call' && p.toolName === 'ask_human'
-      );
-      console.debug(
-        `[ModelAdapter:${runId}] run() called — msgs=${messages.length}, threadId=${config.threadId}, interruptedThread=${interruptedThreadId}, currentAssistant=${currentAssistant ? 'yes' : 'no'}, askHumanInCurrent=${askHumanInCurrent?.length ?? 0}`,
-        askHumanInCurrent?.map((p) => ({
-          toolCallId: p.type === 'tool-call' ? p.toolCallId : '?',
-          hasResult: 'result' in p,
-          resultType: 'result' in p ? typeof p.result : 'none',
-          resultPreview:
-            'result' in p && typeof p.result === 'string' ? String(p.result).slice(0, 50) : null,
-        }))
-      );
 
       // Resume detection via unstable_getMessage() — the canonical way to read addResult() answers.
       // assistant-ui writes the result onto the current assistant message, NOT into messages[].
@@ -633,9 +595,6 @@ export function createGrueneratorModelAdapter(
         );
         if (askHumanResult && askHumanResult.type === 'tool-call') {
           const answer = String(askHumanResult.result);
-          console.debug(
-            `[ModelAdapter:${runId}] Resuming via unstable_getMessage — answer="${answer.slice(0, 80)}"`
-          );
           interruptedThreadId = null;
           lastInterruptedResult = null;
           const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
@@ -671,9 +630,7 @@ export function createGrueneratorModelAdapter(
             p.type === 'tool-call' && p.toolName === 'ask_human' && !('result' in p && p.result)
         );
         if (pendingAskHuman) {
-          console.debug(
-            `[ModelAdapter:${runId}] BLOCKED — pending ask_human in currentAssistant without answer`
-          );
+          console.warn('[ModelAdapter] BLOCKED — pending ask_human without answer');
           throw new DOMException('Aborted', 'AbortError');
         }
       }
@@ -681,17 +638,12 @@ export function createGrueneratorModelAdapter(
       // Stateful guard: block re-invocation if we know this thread has a pending interrupt
       // (covers case where unstable_getMessage returns undefined after history rehydration)
       if (interruptedThreadId && interruptedThreadId === config.threadId) {
-        console.debug(
-          `[ModelAdapter:${runId}] BLOCKED — interruptedThreadId=${interruptedThreadId}, throwing AbortError`
-        );
+        console.warn('[ModelAdapter] BLOCKED — thread has pending interrupt');
         throw new DOMException('Aborted', 'AbortError');
       }
 
       // Clear stale interrupt if switching to a different thread
       if (interruptedThreadId && interruptedThreadId !== config.threadId) {
-        console.debug(
-          `[ModelAdapter:${runId}] Clearing stale interrupt for thread ${interruptedThreadId}`
-        );
         interruptedThreadId = null;
         lastInterruptedResult = null;
       }
@@ -797,18 +749,6 @@ export function createGrueneratorModelAdapter(
         }
       }
 
-      if (extractedAttachments.length > 0) {
-        console.debug(
-          `[ModelAdapter:${runId}] Extracted ${extractedAttachments.length} attachment(s):`,
-          extractedAttachments.map((a) => ({
-            name: a.name,
-            type: a.type,
-            size: a.size,
-            isImage: a.isImage,
-          }))
-        );
-      }
-
       // Extract @-mentions from the last user message for agent routing + notebook/document scoping
       // Only applies in chat mode — search and notebook modes don't use mentions
       let effectiveAgentId = config.agentId;
@@ -837,9 +777,6 @@ export function createGrueneratorModelAdapter(
             docMentionIds = parsed.docMentionIds;
             hasDocumentChat = parsed.hasDocumentChat;
             textPart.text = parsed.cleanText;
-            console.debug(
-              `[ModelAdapter:${runId}] Mentions parsed — forcedTools=${JSON.stringify(forcedTools)}, agentId=${effectiveAgentId}, cleanText="${parsed.cleanText.slice(0, 60)}"`
-            );
           }
           break;
         }
@@ -908,9 +845,6 @@ export function createGrueneratorModelAdapter(
         };
       }
 
-      console.debug(
-        `[ModelAdapter:${runId}] Sending stream request → ${endpoint}, threadId=${config.threadId}, mode=${threadMode}`
-      );
       const response = await configFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -936,9 +870,6 @@ export function createGrueneratorModelAdapter(
       if (streamOutcome.interrupted) {
         interruptedThreadId = config.threadId;
         lastInterruptedResult = streamOutcome.lastResult ?? null;
-        console.debug(
-          `[ModelAdapter:${runId}] Stream interrupted — set interruptedThreadId=${config.threadId}, hasStoredResult=${!!lastInterruptedResult}`
-        );
       }
     },
   };

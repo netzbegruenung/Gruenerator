@@ -32,8 +32,6 @@ export const useSaveToLibrary = () => {
     setIsSessionExpired(false);
 
     try {
-      console.log('[useSaveToLibrary] Saving content to library...');
-
       const response = await apiClient.post(
         '/auth/save-to-library',
         {
@@ -44,7 +42,6 @@ export const useSaveToLibrary = () => {
         { skipAuthRedirect: true }
       );
 
-      console.log('[useSaveToLibrary] Content successfully saved to library');
       setSuccess(true);
 
       // Clear success state after 3 seconds

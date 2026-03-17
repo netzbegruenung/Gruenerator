@@ -299,12 +299,6 @@ function useGrueneratorThreadRuntime() {
   const onComplete = useCallback(
     (_metadata: StreamMetadata) => {
       const tid = useAgentStore.getState().currentThreadId;
-      console.debug(
-        '[ChatProvider] onComplete fired — threadId=',
-        tid,
-        'needsCompaction=',
-        needsCompactionRef.current
-      );
       if (tid) {
         incrementMessageCount();
         incrementMessageCount();
@@ -317,15 +311,10 @@ function useGrueneratorThreadRuntime() {
     [incrementMessageCount, triggerCompaction, runtimeApiClient]
   );
 
-  const prevAdapterRef = useRef<string>('');
-  const modelAdapter = useMemo(() => {
-    const id = `adapter_${Date.now()}`;
-    console.debug(
-      `[ChatProvider] Creating modelAdapter (${id}) — prev was (${prevAdapterRef.current})`
-    );
-    prevAdapterRef.current = id;
-    return createGrueneratorModelAdapter(getConfig, { onThreadCreated, onComplete });
-  }, [getConfig, onThreadCreated, onComplete]);
+  const modelAdapter = useMemo(
+    () => createGrueneratorModelAdapter(getConfig, { onThreadCreated, onComplete }),
+    [getConfig, onThreadCreated, onComplete]
+  );
 
   const dictationAdapter = useMemo(() => new VoxtralDictationAdapter(), []);
 
@@ -357,7 +346,6 @@ function ThreadTitleEffect() {
         const state = aui.threadListItem().getState();
         if (!state.title) {
           titleTriggeredRef.current = currentThreadId;
-          console.log('[TitleGen] Triggering generateTitle via aui for', currentThreadId);
           aui.threadListItem().generateTitle();
         }
       } catch (err: unknown) {
