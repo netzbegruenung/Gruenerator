@@ -266,6 +266,90 @@ ${PRIMARY_URL}`;
   return { html: baseLayout(content), text };
 }
 
+export interface LvSyncArticle {
+  title: string;
+  url: string;
+  type: string;
+}
+
+export interface LvSyncNotificationTemplateParams {
+  lvName: string;
+  newArticles: LvSyncArticle[];
+  syncDate: string;
+}
+
+export function renderLvSyncNotificationTemplate(params: LvSyncNotificationTemplateParams): {
+  html: string;
+  text: string;
+} {
+  const { lvName, newArticles, syncDate } = params;
+
+  const dateStr = new Date(syncDate).toLocaleDateString('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Berlin',
+  });
+
+  const typeLabels: Record<string, string> = {
+    presse: 'Presse',
+    beschluss: 'Beschluss',
+    antrag: 'Antrag',
+    blog: 'Blog',
+    wahlprogramm: 'Wahlprogramm',
+  };
+
+  const articleRows = newArticles
+    .map(
+      (a) =>
+        `<tr>
+          <td style="padding:6px 12px;border:1px solid #e5e5e5;">
+            <a href="${escapeHtml(a.url)}" style="color:${PRIMARY_COLOR};text-decoration:none;">${escapeHtml(a.title)}</a>
+          </td>
+          <td style="padding:6px 12px;border:1px solid #e5e5e5;text-align:center;font-size:12px;color:#888;">${escapeHtml(typeLabels[a.type] || a.type)}</td>
+        </tr>`
+    )
+    .join('\n');
+
+  const content = `
+    <h1 style="margin:0 0 8px 0;font-size:20px;color:#333333;">Neue Inhalte indexiert</h1>
+    <p style="margin:0 0 24px 0;font-size:14px;color:#888888;">${escapeHtml(lvName)} &middot; ${dateStr}</p>
+    <p style="margin:0 0 16px 0;font-size:15px;color:#555555;line-height:1.6;">
+      Beim letzten Content-Sync wurden <strong>${newArticles.length} neue Artikel</strong> f&uuml;r ${escapeHtml(lvName)} indexiert:
+    </p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:24px;">
+      <tr style="background-color:#f8f8f8;">
+        <th style="padding:6px 12px;border:1px solid #e5e5e5;text-align:left;">Artikel</th>
+        <th style="padding:6px 12px;border:1px solid #e5e5e5;text-align:center;">Typ</th>
+      </tr>
+      ${articleRows}
+    </table>
+    <p style="margin:0;font-size:13px;color:#888888;">
+      Diese Artikel sind jetzt im ${escapeHtml(BRAND.name)} durchsuchbar.
+    </p>`;
+
+  const articleLines = newArticles
+    .map((a) => `  - ${a.title} (${typeLabels[a.type] || a.type})\n    ${a.url}`)
+    .join('\n');
+
+  const text = `Neue Inhalte indexiert — ${lvName}
+${dateStr}
+
+Beim letzten Content-Sync wurden ${newArticles.length} neue Artikel für ${lvName} indexiert:
+
+${articleLines}
+
+Diese Artikel sind jetzt im ${BRAND.name} durchsuchbar.
+
+--
+${BRAND.name} — KI-Werkzeuge für Grüne
+${PRIMARY_URL}`;
+
+  return { html: baseLayout(content), text };
+}
+
 export interface ContentDeliveryTemplateParams {
   recipientName?: string;
   contentTitle: string;

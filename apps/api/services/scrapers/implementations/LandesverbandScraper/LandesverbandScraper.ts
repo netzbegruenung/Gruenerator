@@ -21,6 +21,7 @@ import {
   batchDelete,
 } from '../../../../database/services/QdrantService/operations/batchOperations.js';
 import { BRAND } from '../../../../utils/domainUtils.js';
+import { parallelLimit } from '../../../../utils/parallelLimit.js';
 import { mistralEmbeddingService } from '../../../mistral/index.js';
 import { ocrService } from '../../../OcrService/index.js';
 import { BaseScraper } from '../../base/BaseScraper.js';
@@ -134,6 +135,7 @@ export class LandesverbandScraper extends BaseScraper {
       errors: 0,
       totalVectors: 0,
       skipReasons: {},
+      newArticles: [],
     };
 
     this.log(`\nScraping ${source.name} - ${contentPath.type} from ${contentPath.path}`);
@@ -253,7 +255,10 @@ export class LandesverbandScraper extends BaseScraper {
 
           if (storeResult.stored) {
             if (storeResult.updated) result.updated++;
-            else result.stored++;
+            else {
+              result.stored++;
+              result.newArticles.push({ title: pdf.title, url: pdf.url, type: contentPath.type });
+            }
             result.totalVectors += storeResult.vectors || 0;
             this.log(
               `✓ PDF [${i + 1}/${toProcess.length}] ${pdf.title} (${pdf.dateInfo.dateString || 'no date'})`
@@ -369,7 +374,10 @@ export class LandesverbandScraper extends BaseScraper {
 
           if (storeResult.stored) {
             if (storeResult.updated) result.updated++;
-            else result.stored++;
+            else {
+              result.stored++;
+              result.newArticles.push({ title: content.title || url, url, type: contentPath.type });
+            }
             result.totalVectors += storeResult.vectors || 0;
             this.log(`✓ [${i + 1}/${toProcess.length}] ${content.title?.substring(0, 60) || url}`);
           } else {
@@ -418,6 +426,7 @@ export class LandesverbandScraper extends BaseScraper {
       errors: 0,
       totalVectors: 0,
       contentTypes: {},
+      newArticles: [],
     };
 
     for (const contentPath of source.contentPaths) {
@@ -432,6 +441,7 @@ export class LandesverbandScraper extends BaseScraper {
       result.errors += pathResult.errors;
       result.totalVectors += pathResult.totalVectors;
       result.contentTypes[contentPath.type] = pathResult;
+      result.newArticles.push(...pathResult.newArticles);
     }
 
     return result;
@@ -475,20 +485,63 @@ export class LandesverbandScraper extends BaseScraper {
       duration: 0,
     };
 
-    for (const source of sources) {
-      try {
-        const sourceResult = await this.scrapeSource(source.id, { ...options, contentType });
+    const LV_CONCURRENCY = 4;
+    this.log(`Concurrency: ${LV_CONCURRENCY} states in parallel`);
+
+    interface LvOutcome {
+      sourceId: string;
+      result: SourceResult | null;
+      error: string | null;
+    }
+
+    const tasks: (() => Promise<LvOutcome>)[] = sources.map(
+      (source: { id: string }) => async (): Promise<LvOutcome> => {
+        try {
+          const sourceResult = await this.scrapeSource(source.id, { ...options, contentType });
+          return { sourceId: source.id, result: sourceResult, error: null };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error(`[Landesverband] Failed to scrape ${source.id}: ${errorMessage}`);
+          return { sourceId: source.id, result: null, error: errorMessage };
+        }
+      }
+    );
+
+    const outcomes = await parallelLimit(tasks, LV_CONCURRENCY);
+
+    for (const outcome of outcomes) {
+      if (outcome.result) {
         totalResult.sourcesProcessed++;
-        totalResult.stored += sourceResult.stored;
-        totalResult.updated += sourceResult.updated;
-        totalResult.skipped += sourceResult.skipped;
-        totalResult.errors += sourceResult.errors;
-        totalResult.totalVectors += sourceResult.totalVectors;
-        totalResult.bySource[source.id] = sourceResult;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`[Landesverband] Failed to scrape ${source.id}: ${errorMessage}`);
+        totalResult.stored += outcome.result.stored;
+        totalResult.updated += outcome.result.updated;
+        totalResult.skipped += outcome.result.skipped;
+        totalResult.errors += outcome.result.errors;
+        totalResult.totalVectors += outcome.result.totalVectors;
+        totalResult.bySource[outcome.sourceId] = outcome.result;
+      } else {
         totalResult.errors++;
+      }
+    }
+
+    // Send per-LV email notifications for sources with new articles
+    const syncDate = new Date().toISOString();
+    for (const outcome of outcomes) {
+      if (!outcome.result || outcome.result.stored === 0) continue;
+      const source = sources.find((s: { id: string }) => s.id === outcome.sourceId);
+      if (!source?.notificationEmail) continue;
+
+      try {
+        const { sendLvSyncNotificationEmail } =
+          await import('../../../../services/email/emailService.js');
+        await sendLvSyncNotificationEmail(source.notificationEmail, {
+          lvName: source.name,
+          newArticles: outcome.result.newArticles,
+          syncDate,
+        });
+        this.log(`Email sent to ${source.notificationEmail} for ${source.name}`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[Landesverband] Email notification failed for ${source.name}: ${msg}`);
       }
     }
 

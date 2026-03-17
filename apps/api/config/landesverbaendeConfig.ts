@@ -50,6 +50,7 @@ export interface LandesverbandSource {
   excludePatterns: string[];
   qdrantCollection?: string; // Optional: custom collection name (default: landesverbaende_documents)
   maxAgeYears?: number; // Optional: max age of content in years (default: 10)
+  notificationEmail?: string; // Optional: email to notify when new articles are indexed
 }
 
 export interface LandesverbaendeConfig {
