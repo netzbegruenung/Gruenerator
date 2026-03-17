@@ -56,22 +56,6 @@ export type SubtitlePreference = 'manual' | 'auto';
 export type ExportStatus = 'idle' | 'starting' | 'exporting' | 'complete' | 'error';
 
 /**
- * Single correction item from AI correction response
- */
-export interface CorrectionItem {
-  id: number;
-  corrected: string;
-}
-
-/**
- * AI correction response structure
- */
-export interface CorrectionResponse {
-  hasCorrections: boolean;
-  corrections: CorrectionItem[];
-}
-
-/**
  * Loaded project data structure with explicit properties
  * Replaces broad [key: string]: unknown index signature
  */

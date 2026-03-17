@@ -1,16 +1,14 @@
 import { useProjectsStore } from '@gruenerator/shared';
 import { Button } from '@gruenerator/ui';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { FaSave, FaCheck, FaDownload, FaMagic, FaPlay, FaPause } from 'react-icons/fa';
+import { FaSave, FaCheck, FaDownload, FaPlay, FaPause } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
 
 import Spinner from '../../../components/common/Spinner';
 import FloatingActionButton from '../../../components/common/UI/FloatingActionButton';
 import { useAuthStore } from '../../../stores/authStore';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
-import useSubtitleCorrection from '../hooks/useSubtitleCorrection';
 import { parseSubtitleBlocks, formatSubtitleBlocks } from '../utils/subtitleSegmentUtils';
-import { assertCorrectionResponse } from '../utils/validators';
 
 import LiveSubtitlePreview from './LiveSubtitlePreview';
 import Timeline from './Timeline';
@@ -19,8 +17,6 @@ import type {
   SubtitleSegment,
   VideoMetadata,
   LoadedProject,
-  CorrectionResponse,
-  CorrectionItem,
   StylePreference,
   HeightPreference,
   SubtitlePreference,
@@ -216,16 +212,8 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   const [selectedSegmentId, setSelectedSegmentId] = useState<number | null>(null);
   const [videoDuration, setVideoDuration] = useState<number>(0);
   const [showStyling, setShowStyling] = useState<boolean>(false);
-  const [correctedSegmentIds, setCorrectedSegmentIds] = useState<Set<number>>(new Set());
-  const [correctionMessage, setCorrectionMessage] = useState<string | null>(null);
   const [isVideoVisible, setIsVideoVisible] = useState<boolean>(true);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-
-  const {
-    loading: isCorrecting,
-    error: correctionError,
-    correctSubtitles,
-  } = useSubtitleCorrection();
 
   useEffect(() => {
     const unsubscribe = subscribe();
@@ -564,49 +552,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     }
   };
 
-  const handleCorrection = async (): Promise<void> => {
-    if (!editableSubtitles.length) return;
-
-    try {
-      setError(null);
-      setCorrectionMessage(null);
-
-      const response = await correctSubtitles(editableSubtitles);
-      assertCorrectionResponse(response, 'subtitle correction');
-
-      if (!response.hasCorrections) {
-        setCorrectionMessage('Keine Korrekturen notwendig');
-        setTimeout(() => setCorrectionMessage(null), 3000);
-        return;
-      }
-
-      const correctedIds = new Set<number>(response.corrections.map((c: CorrectionItem) => c.id));
-      setEditableSubtitles((prev) =>
-        prev.map((segment) => {
-          const correction = response.corrections.find((c: CorrectionItem) => c.id === segment.id);
-          if (correction) {
-            return { ...segment, text: correction.corrected };
-          }
-          return segment;
-        })
-      );
-
-      setCorrectedSegmentIds(correctedIds);
-      setCorrectionMessage(
-        `${response.corrections.length} Segment${response.corrections.length > 1 ? 'e' : ''} korrigiert`
-      );
-
-      setTimeout(() => {
-        setCorrectedSegmentIds(new Set());
-        setCorrectionMessage(null);
-      }, 2000);
-    } catch (err) {
-      console.error('[SubtitleEditor] Correction error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Fehler bei der KI-Korrektur';
-      setError(errorMessage);
-    }
-  };
-
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
 
   return (
@@ -731,21 +676,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
               >
                 <HiCog />
               </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleCorrection}
-                disabled={isCorrecting || !editableSubtitles.length}
-                title="AI-Korrektur"
-              >
-                {isCorrecting ? <Spinner size="small" /> : <FaMagic />}
-              </Button>
             </div>
-            {correctionMessage && (
-              <div className="text-center text-xs font-medium text-primary-600">
-                {correctionMessage}
-              </div>
-            )}
           </div>
 
           {showStyling ? (
@@ -840,7 +771,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
                 currentTime={currentTimeInSeconds}
                 segments={editableSubtitles}
                 selectedSegmentId={selectedSegmentId}
-                correctedSegmentIds={correctedSegmentIds}
                 onSeek={handleTimelineSeek}
                 onSegmentClick={handleSegmentClick}
                 onTextChange={handleTextChange}

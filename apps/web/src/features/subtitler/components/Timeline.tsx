@@ -14,25 +14,16 @@ interface TimelineProps {
   currentTime: number;
   segments: SubtitleSegment[];
   selectedSegmentId: number | null;
-  correctedSegmentIds?: Set<number>;
   onSeek: (time: number) => void;
   onSegmentClick: (segmentId: number) => void;
   onTextChange: (segmentId: number, text: string) => void;
 }
-
-const correctionKeyframes = `
-@keyframes correctionHighlight {
-  0% { background-color: var(--klee, #46962b); box-shadow: 0 0 0 3px rgba(0, 137, 57, 0.3); }
-  100% { background-color: transparent; box-shadow: none; }
-}
-`;
 
 const Timeline: React.FC<TimelineProps> = ({
   duration,
   currentTime,
   segments,
   selectedSegmentId,
-  correctedSegmentIds = new Set(),
   onSeek,
   onSegmentClick,
   onTextChange,
@@ -210,68 +201,62 @@ const Timeline: React.FC<TimelineProps> = ({
   }
 
   return (
-    <>
-      <style>{correctionKeyframes}</style>
-      <div className="flex w-full flex-col gap-xs rounded-lg border border-grey-200 bg-background p-sm dark:border-grey-700">
-        <div className="grid max-h-[350px] grid-cols-3 gap-3 overflow-y-auto p-sm max-md:max-h-[250px] max-md:grid-cols-1 max-md:gap-2">
-          {segments.map((segment: SubtitleSegment) => {
-            const isActive = activeSegmentId === segment.id;
-            const isSelected = selectedSegmentId === segment.id;
-            const isEditing = editingSegmentId === segment.id;
-            const isCorrected = correctedSegmentIds.has(segment.id);
-
-            return (
-              <div
-                key={segment.id}
-                ref={(el: HTMLDivElement | null) => {
-                  if (el) segmentRefs.current[segment.id] = el;
-                }}
-                data-segment-id={segment.id}
-                className={cn(
-                  'relative flex cursor-pointer select-none items-center gap-3 rounded-lg border px-5 py-4 transition-all',
-                  'border-grey-200 bg-background-alt dark:border-grey-700 dark:bg-grey-800',
-                  'hover:border-primary-300 hover:bg-grey-100 dark:hover:bg-grey-700',
-                  isActive &&
-                    'border-primary-500 bg-primary-50 ring-2 ring-primary-500/15 dark:bg-grey-700',
-                  isSelected && 'outline-2 outline-primary-500 outline-offset-2',
-                  isEditing && 'border-primary-500 p-0',
-                  isCorrected && 'animate-[correctionHighlight_2s_ease-out]'
-                )}
-                tabIndex={0}
-                onClick={(e: React.MouseEvent) => handleSegmentClick(e, segment)}
-                onKeyDown={(e: React.KeyboardEvent) =>
-                  !isEditing && handleSegmentKeyDown(e, segment.id)
-                }
-                onMouseDown={handleScrubStart}
-                onTouchStart={handleScrubStart}
-              >
-                {isEditing ? (
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    className="min-w-0 flex-1 rounded-lg border-none bg-background px-5 py-4 font-inherit text-[1.05rem] font-medium leading-relaxed text-foreground outline-none"
-                    value={segment.text}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      onTextChange(segment.id, e.target.value)
-                    }
-                    onBlur={handleInputBlur}
-                    onKeyDown={(e: React.KeyboardEvent) => handleInputKeyDown(e, segment.id)}
-                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                  />
-                ) : (
-                  <span className="flex-1 text-[1.05rem] font-medium leading-relaxed text-foreground">
-                    {segment.text}
-                  </span>
-                )}
-                <span className="absolute right-2 top-1.5 font-mono text-[0.65rem] font-medium text-foreground opacity-60">
-                  {formatTime(segment.startTime)}
+    <div className="flex w-full flex-col gap-xs rounded-lg border border-grey-200 bg-background p-sm dark:border-grey-700">
+      <div className="grid max-h-[350px] grid-cols-3 gap-3 overflow-y-auto p-sm max-md:max-h-[250px] max-md:grid-cols-1 max-md:gap-2">
+        {segments.map((segment: SubtitleSegment) => {
+          const isActive = activeSegmentId === segment.id;
+          const isSelected = selectedSegmentId === segment.id;
+          const isEditing = editingSegmentId === segment.id;
+          return (
+            <div
+              key={segment.id}
+              ref={(el: HTMLDivElement | null) => {
+                if (el) segmentRefs.current[segment.id] = el;
+              }}
+              data-segment-id={segment.id}
+              className={cn(
+                'relative flex cursor-pointer select-none items-center gap-3 rounded-lg border px-5 py-4 transition-all',
+                'border-grey-200 bg-background-alt dark:border-grey-700 dark:bg-grey-800',
+                'hover:border-primary-300 hover:bg-grey-100 dark:hover:bg-grey-700',
+                isActive &&
+                  'border-primary-500 bg-primary-50 ring-2 ring-primary-500/15 dark:bg-grey-700',
+                isSelected && 'outline-2 outline-primary-500 outline-offset-2',
+                isEditing && 'border-primary-500 p-0'
+              )}
+              tabIndex={0}
+              onClick={(e: React.MouseEvent) => handleSegmentClick(e, segment)}
+              onKeyDown={(e: React.KeyboardEvent) =>
+                !isEditing && handleSegmentKeyDown(e, segment.id)
+              }
+              onMouseDown={handleScrubStart}
+              onTouchStart={handleScrubStart}
+            >
+              {isEditing ? (
+                <input
+                  ref={inputRef}
+                  type="text"
+                  className="min-w-0 flex-1 rounded-lg border-none bg-background px-5 py-4 font-inherit text-[1.05rem] font-medium leading-relaxed text-foreground outline-none"
+                  value={segment.text}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    onTextChange(segment.id, e.target.value)
+                  }
+                  onBlur={handleInputBlur}
+                  onKeyDown={(e: React.KeyboardEvent) => handleInputKeyDown(e, segment.id)}
+                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                />
+              ) : (
+                <span className="flex-1 text-[1.05rem] font-medium leading-relaxed text-foreground">
+                  {segment.text}
                 </span>
-              </div>
-            );
-          })}
-        </div>
+              )}
+              <span className="absolute right-2 top-1.5 font-mono text-[0.65rem] font-medium text-foreground opacity-60">
+                {formatTime(segment.startTime)}
+              </span>
+            </div>
+          );
+        })}
       </div>
-    </>
+    </div>
   );
 };
 
