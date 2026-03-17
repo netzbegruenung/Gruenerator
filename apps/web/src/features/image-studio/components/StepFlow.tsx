@@ -5,7 +5,6 @@ import { useOptimizedAuth } from '../../../hooks/useAuth';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { useDraftAutoSave } from '../hooks/useDraftAutoSave';
 import { useStepFlow } from '../hooks/useStepFlow';
-import '../../../assets/styles/components/image-studio/typeform-fields.css';
 
 // Import extracted steps
 import CanvasEditStep from '../steps/CanvasEditStep';
