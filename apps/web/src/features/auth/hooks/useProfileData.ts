@@ -65,7 +65,7 @@ export const useProfile = (userId?: string) => {
     queryFn: profileApiService.getProfile,
     enabled: !!actualUserId,
     staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
-    cacheTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
+    gcTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
@@ -105,7 +105,7 @@ export const useBundledProfileData = (options: BundleOptions = {}) => {
     queryFn: () => profileApiService.getBundledProfileData(mergedOptions),
     enabled: !!userId,
     staleTime: 15 * 60 * 1000, // 15 minutes cache
-    cacheTime: 30 * 60 * 1000, // 30 minutes in memory
+    gcTime: 30 * 60 * 1000, // 30 minutes in memory
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
@@ -117,7 +117,6 @@ export const useBundledProfileData = (options: BundleOptions = {}) => {
 export const useAnweisungenWissen = ({ isActive, enabled = true }: TabHookOptions = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
-  const syncAnweisungenWissen = useProfileStore((state) => state.syncAnweisungenWissen);
 
   const queryKey = QUERY_KEYS.anweisungenWissen(user?.id);
 
@@ -170,12 +169,6 @@ export const useAnweisungenWissen = ({ isActive, enabled = true }: TabHookOption
     },
   });
 
-  useEffect(() => {
-    if (query.data) {
-      syncAnweisungenWissen(query.data);
-    }
-  }, [query.data, syncAnweisungenWissen]);
-
   return {
     query,
     saveChanges: saveMutation.mutateAsync,
@@ -193,14 +186,13 @@ export const useAnweisungenWissen = ({ isActive, enabled = true }: TabHookOption
 export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOptions = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
-  const syncNotebookCollections = useProfileStore((state) => state.syncNotebookCollections);
 
   const query = useQuery<QACollection[], Error>({
     queryKey: QUERY_KEYS.notebookCollections(user?.id),
     queryFn: profileApiService.getNotebookCollections,
     enabled: enabled && !!user?.id && isActive,
     staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
-    cacheTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
+    gcTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
     refetchOnWindowFocus: false,
     refetchOnMount: 'always',
     retry: 1,
@@ -245,13 +237,6 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
     return collections.find((c) => c.id === collectionId);
   };
 
-  // Sync with profileStore
-  useEffect(() => {
-    if (query.data) {
-      syncNotebookCollections(query.data);
-    }
-  }, [query.data, syncNotebookCollections]);
-
   return {
     query,
     createQACollection: createMutation.mutateAsync,
@@ -279,8 +264,6 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
 
 export const useCustomGeneratorsData = ({ isActive, enabled = true }: TabHookOptions = {}) => {
   const { user } = useOptimizedAuth();
-  const syncCustomGenerators = useProfileStore((state) => state.syncCustomGenerators);
-  const currentGenerators = useProfileStore((state) => state.customGenerators);
 
   const shouldFetch = enabled && !!user?.id && isActive;
 
@@ -288,56 +271,12 @@ export const useCustomGeneratorsData = ({ isActive, enabled = true }: TabHookOpt
     queryKey: QUERY_KEYS.customGenerators(user?.id),
     queryFn: profileApiService.getCustomGenerators,
     enabled: shouldFetch,
-    staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
-    cacheTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
+    staleTime: 15 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnMount: 'always',
     retry: 1,
   });
-
-  // Shallow compare by id+updated_at (or basic length/id fallback) to avoid redundant syncs
-  const areGeneratorsEqual = (
-    a: CustomGenerator[] | null | undefined,
-    b: CustomGenerator[] | null | undefined
-  ): boolean => {
-    if (!Array.isArray(a) || !Array.isArray(b)) return false;
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) {
-      const ga = a[i];
-      const gb = b[i];
-      // If order changes, this will detect difference; that's fine because state should reflect server order
-      if (String(ga.id) !== String(gb.id)) return false;
-      // Prefer updated_at if present; otherwise a few stable fields
-      const aUpdated =
-        (ga as Record<string, unknown>).updated_at ||
-        (ga as Record<string, unknown>).updatedAt ||
-        (ga as Record<string, unknown>).updated ||
-        null;
-      const bUpdated =
-        (gb as Record<string, unknown>).updated_at ||
-        (gb as Record<string, unknown>).updatedAt ||
-        (gb as Record<string, unknown>).updated ||
-        null;
-      if (aUpdated !== bUpdated) return false;
-      // Minimal fallback to catch common edits
-      if (
-        ((ga as Record<string, unknown>).title || ga.name) !==
-        ((gb as Record<string, unknown>).title || gb.name)
-      )
-        return false;
-      if ((ga as Record<string, unknown>).slug !== (gb as Record<string, unknown>).slug)
-        return false;
-    }
-    return true;
-  };
-
-  // Sync with profileStore only when data meaningfully changes
-  useEffect(() => {
-    if (!query.data) return;
-    if (!areGeneratorsEqual(currentGenerators, query.data)) {
-      syncCustomGenerators(query.data);
-    }
-  }, [query.data, currentGenerators, syncCustomGenerators]);
 
   return {
     query,
@@ -440,14 +379,13 @@ export const useCustomGenerators = ({ isActive, enabled = true }: TabHookOptions
 export const useSavedGenerators = ({ isActive, enabled = true }: TabHookOptions = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
-  const syncSavedGenerators = useProfileStore((state) => state.syncSavedGenerators);
 
   const query = useQuery<CustomGenerator[], Error>({
     queryKey: QUERY_KEYS.savedGenerators(user?.id),
     queryFn: profileApiService.getSavedGenerators,
     enabled: enabled && !!user?.id && isActive,
     staleTime: 15 * 60 * 1000,
-    cacheTime: 30 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnMount: 'always',
     retry: 1,
@@ -477,13 +415,6 @@ export const useSavedGenerators = ({ isActive, enabled = true }: TabHookOptions 
     },
   });
 
-  // Sync with profileStore
-  useEffect(() => {
-    if (query.data) {
-      syncSavedGenerators(query.data);
-    }
-  }, [query.data, syncSavedGenerators]);
-
   return {
     query,
     unsaveGenerator: unsaveMutation.mutateAsync,
@@ -502,7 +433,7 @@ export const useGeneratorDocuments = (generatorId: string | undefined) => {
     queryFn: () => profileApiService.getGeneratorDocuments(generatorId!),
     enabled: !!generatorId && !!user?.id,
     staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
-    cacheTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
+    gcTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
   });
 
   const addDocumentsMutation = useMutation({
@@ -536,14 +467,13 @@ export const useGeneratorDocuments = (generatorId: string | undefined) => {
 export const useUserTexts = ({ isActive, enabled = true }: TabHookOptions = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
-  const syncUserTexts = useProfileStore((state) => state.syncUserTexts);
 
   const query = useQuery<SavedText[], Error>({
     queryKey: QUERY_KEYS.userTexts(user?.id),
     queryFn: profileApiService.getUserTexts,
     enabled: enabled && !!user?.id && isActive,
     staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
-    cacheTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
+    gcTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
     refetchOnWindowFocus: false,
     refetchOnMount: 'always',
   });
@@ -563,13 +493,6 @@ export const useUserTexts = ({ isActive, enabled = true }: TabHookOptions = {}) 
     },
   });
 
-  // Sync with profileStore
-  useEffect(() => {
-    if (query.data) {
-      syncUserTexts(query.data);
-    }
-  }, [query.data, syncUserTexts]);
-
   return {
     query,
     updateTextTitle: (textId: string | number, newTitle: string) =>
@@ -586,14 +509,13 @@ export const useUserTexts = ({ isActive, enabled = true }: TabHookOptions = {}) 
 export const useUserTemplates = ({ isActive, enabled = true }: TabHookOptions = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
-  const syncUserTemplates = useProfileStore((state) => state.syncUserTemplates);
 
   const query = useQuery<UserTemplate[], Error>({
     queryKey: QUERY_KEYS.userTemplates(user?.id),
     queryFn: profileApiService.getUserTemplates,
     enabled: enabled && !!user?.id && isActive,
     staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
-    cacheTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
+    gcTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
     refetchOnWindowFocus: false,
     refetchOnMount: 'always',
   });
@@ -634,13 +556,6 @@ export const useUserTemplates = ({ isActive, enabled = true }: TabHookOptions = 
     },
   });
 
-  // Sync with profileStore
-  useEffect(() => {
-    if (query.data) {
-      syncUserTemplates(query.data);
-    }
-  }, [query.data, syncUserTemplates]);
-
   return {
     query,
     updateTemplateTitle: (templateId: string | number, newTitle: string) =>
@@ -662,22 +577,14 @@ export const useUserTemplates = ({ isActive, enabled = true }: TabHookOptions = 
 // === AVAILABLE DOCUMENTS ===
 export const useAvailableDocuments = ({ enabled = true }: EnabledOnlyOptions = {}) => {
   const { user } = useOptimizedAuth();
-  const syncAvailableDocuments = useProfileStore((state) => state.syncAvailableDocuments);
 
   const query = useQuery<Document[], Error>({
     queryKey: QUERY_KEYS.availableDocuments(user?.id),
     queryFn: profileApiService.getAvailableDocuments,
     enabled: enabled && !!user?.id,
     staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
-    cacheTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
+    gcTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
   });
-
-  // Sync with profileStore
-  useEffect(() => {
-    if (query.data) {
-      syncAvailableDocuments(query.data);
-    }
-  }, [query.data, syncAvailableDocuments]);
 
   return query;
 };
@@ -686,14 +593,13 @@ export const useAvailableDocuments = ({ enabled = true }: EnabledOnlyOptions = {
 export const useMemories = ({ isActive, enabled = true }: TabHookOptions = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
-  const syncMemories = useProfileStore((state) => state.syncMemories);
 
   const query = useQuery<Memory[], Error>({
     queryKey: QUERY_KEYS.memories(user?.id),
     queryFn: () => profileApiService.getMemories(user!.id),
     enabled: enabled && !!user?.id && isActive,
     staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
-    cacheTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
+    gcTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
     refetchOnWindowFocus: false,
   });
 
@@ -711,13 +617,6 @@ export const useMemories = ({ isActive, enabled = true }: TabHookOptions = {}) =
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.memories(user?.id) });
     },
   });
-
-  // Sync with profileStore
-  useEffect(() => {
-    if (query.data) {
-      syncMemories(query.data);
-    }
-  }, [query.data, syncMemories]);
 
   return {
     query,
