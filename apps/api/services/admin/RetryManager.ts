@@ -49,16 +49,17 @@ export class RetryManager {
    * Process pending retries
    * @param apiClient - Grüne API client instance
    */
-  static async processRetries(apiClient: GrueneApiClient): Promise<void> {
+  static async processRetries(apiClient: GrueneApiClient): Promise<number> {
     const retries = await this.loadRetries();
     if (!retries || retries.length === 0) {
-      return;
+      return 0;
     }
 
     try {
       await apiClient.batchUpdateOffboardingUsers(retries);
       await this.saveRetries([]);
       log.info(`Successfully processed ${retries.length} retry entries`);
+      return retries.length;
     } catch (error: any) {
       log.error('Failed to process retries:', error.message);
       throw error;
