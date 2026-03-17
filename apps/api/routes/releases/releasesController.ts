@@ -180,12 +180,12 @@ router.get('/download/:platform', (req: Request<{ platform: string }>, res: Resp
   const { platform } = req.params;
   const version = UPDATER_CONFIG.version;
 
-  const fileNameFn = PLATFORM_FILES[platform];
-  if (!fileNameFn) {
+  if (!Object.hasOwn(PLATFORM_FILES, platform)) {
     console.log(`[Releases] Platform not found: ${platform}`);
     res.status(404).json({ error: 'Platform not found' });
     return;
   }
+  const fileNameFn = PLATFORM_FILES[platform];
 
   const fileName = fileNameFn(version);
   const githubUrl = getGitHubDownloadUrl(version, fileName);
