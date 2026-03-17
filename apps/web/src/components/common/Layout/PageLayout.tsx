@@ -97,8 +97,15 @@ const PageLayout = ({
     <GlobalChatProvider>
       <div className={layoutClasses}>
         <header className="fixed top-0 left-0 right-0 z-[1002] flex items-center justify-between px-2 h-12 pointer-events-none">
-          <div className="pointer-events-auto">
+          <div className="pointer-events-auto flex items-center gap-1">
             <SidebarToggle />
+            <a
+              href="/"
+              className="flex items-center justify-center size-10 rounded-sm transition-colors hover:bg-hover-alt"
+              aria-label="Zur Startseite"
+            >
+              <img src="/images/logo-square.png" alt="Grünerator" className="size-7" />
+            </a>
           </div>
           <div className="pointer-events-auto flex items-center gap-1">
             <Suspense fallback={null}>
