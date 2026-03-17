@@ -13,6 +13,7 @@ export interface BriefingConfig {
   timeRange: 'day' | 'week';
   maxResultsPerSource: number;
   outputFormat: 'summary' | 'list' | 'digest';
+  customPrompt?: string;
 }
 
 export interface BriefingAgent {

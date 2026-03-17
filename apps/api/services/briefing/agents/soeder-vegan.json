@@ -1,0 +1,16 @@
+{
+  "id": "system:soeder-vegan",
+  "name": "Söder isst — Vegane Alternative",
+  "description": "Monatliche Zusammenfassung von allem, was Markus Söder öffentlich isst, mit veganer Rezeptempfehlung",
+  "config": {
+    "sources": [{ "type": "instagram", "username": "markus.soeder" }],
+    "language": "de",
+    "timeRange": "week",
+    "maxResultsPerSource": 30,
+    "outputFormat": "digest",
+    "customPrompt": "Analysiere die Instagram-Posts von Markus Söder und finde alle Posts, in denen er Essen zeigt oder erwähnt. Fasse zusammen, was er diesen Monat gegessen hat. Wähle dann das interessanteste oder fleischlastigste Gericht aus und schlage EINE kreative vegane Alternative vor — mit vollständigem Rezept (Zutaten + Zubereitung in 5-8 Schritten). Sei humorvoll aber respektvoll."
+  },
+  "schedule_type": "weekly",
+  "schedule_hour": 10,
+  "delivery_email": "moritz-waechter@outlook.de"
+}
