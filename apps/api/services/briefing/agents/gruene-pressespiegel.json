@@ -1,0 +1,67 @@
+{
+  "id": "system:gruene-pressespiegel",
+  "name": "Grüne Pressespiegel — Top 10 Zeitungen",
+  "description": "Tägliche Zusammenfassung aller Artikel über Die Grünen in den 10 größten deutschen Zeitungen",
+  "config": {
+    "sources": [
+      {
+        "type": "rss",
+        "url": "https://www.tagesschau.de/xml/rss2/",
+        "keywords": ["grüne", "grünen", "habeck", "baerbock", "nouripour", "lang", "bündnis 90"]
+      },
+      {
+        "type": "rss",
+        "url": "https://www.spiegel.de/schlagzeilen/index.rss",
+        "keywords": ["grüne", "grünen", "habeck", "baerbock", "nouripour", "lang", "bündnis 90"]
+      },
+      {
+        "type": "rss",
+        "url": "https://newsfeed.zeit.de/index",
+        "keywords": ["grüne", "grünen", "habeck", "baerbock", "nouripour", "lang", "bündnis 90"]
+      },
+      {
+        "type": "rss",
+        "url": "https://rss.sueddeutsche.de/alles",
+        "keywords": ["grüne", "grünen", "habeck", "baerbock", "nouripour", "lang", "bündnis 90"]
+      },
+      {
+        "type": "rss",
+        "url": "https://www.faz.net/rss/aktuell/",
+        "keywords": ["grüne", "grünen", "habeck", "baerbock", "nouripour", "lang", "bündnis 90"]
+      },
+      {
+        "type": "rss",
+        "url": "https://www.welt.de/feeds/latest.rss",
+        "keywords": ["grüne", "grünen", "habeck", "baerbock", "nouripour", "lang", "bündnis 90"]
+      },
+      {
+        "type": "rss",
+        "url": "https://www.stern.de/feed/standard/all/",
+        "keywords": ["grüne", "grünen", "habeck", "baerbock", "nouripour", "lang", "bündnis 90"]
+      },
+      {
+        "type": "rss",
+        "url": "https://www.n-tv.de/rss",
+        "keywords": ["grüne", "grünen", "habeck", "baerbock", "nouripour", "lang", "bündnis 90"]
+      },
+      {
+        "type": "rss",
+        "url": "https://www.handelsblatt.com/contentexport/feed/schlagzeilen",
+        "keywords": ["grüne", "grünen", "habeck", "baerbock", "nouripour", "lang", "bündnis 90"]
+      },
+      {
+        "type": "rss",
+        "url": "https://www.zdf.de/rss/zdf/nachrichten",
+        "keywords": ["grüne", "grünen", "habeck", "baerbock", "nouripour", "lang", "bündnis 90"]
+      }
+    ],
+    "language": "de",
+    "timeRange": "day",
+    "maxResultsPerSource": 10,
+    "outputFormat": "digest",
+    "customPrompt": "Erstelle einen Pressespiegel über Die Grünen / Bündnis 90. Gruppiere die Artikel nach Themen (z.B. Koalition, Klimapolitik, Innenpolitik, Wirtschaft, Personalien). Bewerte für jedes Thema kurz die Tonalität der Berichterstattung (positiv/neutral/kritisch). Nenne am Ende die 3 wichtigsten Erkenntnisse des Tages für die Partei."
+  },
+  "schedule_type": "daily",
+  "schedule_hour": 20,
+  "delivery_email": "moritz-waechter@outlook.de"
+}
