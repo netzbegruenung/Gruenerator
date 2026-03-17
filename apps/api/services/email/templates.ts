@@ -1,7 +1,7 @@
 import { BRAND, PRIMARY_URL } from '../../config/domains.js';
 
-const PRIMARY_COLOR = '#316049';
-const LOGO_URL = `${PRIMARY_URL}/images/gruenerator_logo_gruen.svg`;
+export const PRIMARY_COLOR = '#316049';
+export const LOGO_URL = `${PRIMARY_URL}/images/gruenerator_logo_gruen.svg`;
 
 export function escapeHtml(str: string): string {
   return str
@@ -12,7 +12,7 @@ export function escapeHtml(str: string): string {
     .replace(/'/g, '&#39;');
 }
 
-function baseLayout(content: string): string {
+export function baseLayout(content: string): string {
   return `<!DOCTYPE html>
 <html lang="de">
 <head>
