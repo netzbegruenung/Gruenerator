@@ -7,7 +7,7 @@ import type { CollectedItem } from './types.js';
 
 const log = createLogger('ApifyService');
 
-const TWITTER_ACTOR = 'apidojo/twitter-scraper-lite';
+const TWITTER_ACTOR = 'apidojo/tweet-scraper';
 const INSTAGRAM_ACTOR = 'apify/instagram-post-scraper';
 const DEFAULT_WAIT_SECS = 120;
 
@@ -38,7 +38,8 @@ export async function getRecentTweets(username: string, maxItems = 20): Promise<
     const run = await apify.actor(TWITTER_ACTOR).call(
       {
         twitterHandles: [handle],
-        maxTweets: maxItems,
+        maxItems,
+        sort: 'Latest',
       },
       { waitSecs: DEFAULT_WAIT_SECS }
     );
