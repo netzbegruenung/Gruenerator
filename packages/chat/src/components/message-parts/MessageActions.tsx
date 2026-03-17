@@ -19,6 +19,7 @@ export const MessageActions = memo(function MessageActions({
   const [copied, setCopied] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isCreatingDoc, setIsCreatingDoc] = useState(false);
+  const [linkedDocId, setLinkedDocId] = useState<string | null>(null);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content);
@@ -70,7 +71,23 @@ export const MessageActions = memo(function MessageActions({
     setIsCreatingDoc(true);
 
     try {
-      const { fetch: configFetch, endpoints, getDocsUrl } = useChatConfigStore.getState();
+      const {
+        onEditInDocs,
+        fetch: configFetch,
+        endpoints,
+        getDocsUrl,
+      } = useChatConfigStore.getState();
+
+      if (onEditInDocs) {
+        const docId = await onEditInDocs(content, undefined, linkedDocId ?? undefined);
+        if (docId && !linkedDocId) setLinkedDocId(docId);
+        return;
+      }
+
+      if (linkedDocId) {
+        window.open(`${getDocsUrl()}/document/${linkedDocId}`, '_blank');
+        return;
+      }
 
       const htmlContent = content
         .split('\n\n')
@@ -82,7 +99,6 @@ export const MessageActions = memo(function MessageActions({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: htmlContent,
-          title: `Chat-Antwort – ${new Date().toLocaleDateString('de-DE')}`,
           documentType: 'chat-response',
         }),
       });
@@ -91,6 +107,7 @@ export const MessageActions = memo(function MessageActions({
 
       const data = await response.json();
       if (data.documentId) {
+        setLinkedDocId(data.documentId);
         window.open(`${getDocsUrl()}/document/${data.documentId}`, '_blank');
       }
     } catch (error) {

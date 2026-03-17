@@ -1,5 +1,14 @@
 import { GrueneratorChatProvider, ChatThreadList, TooltipProvider } from '@gruenerator/chat';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -8,6 +17,8 @@ import useNotebookStore from '../features/notebook/stores/notebookStore';
 import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookChatResolver';
 import { useOptimizedAuth } from '../hooks/useAuth';
 import { buildLoginUrl, isPublicPage } from '../utils/authRedirect';
+
+const DocsEditorModal = lazy(() => import('@/components/common/DocsEditorModal'));
 
 const PORTAL_SLOT_ID = 'chat-thread-portal-slot';
 
@@ -62,6 +73,13 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   const qaCollections = useNotebookStore((s) => s.qaCollections);
   const fetchQACollections = useNotebookStore((s) => s.fetchQACollections);
 
+  const [editorModal, setEditorModal] = useState<{
+    documentId: string;
+    initialContent: string;
+    title: string;
+  } | null>(null);
+  const editorModalSetterRef = useRef(setEditorModal);
+
   useEffect(() => {
     if (qaCollections.length === 0) {
       fetchQACollections();
@@ -94,6 +112,38 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
           window.location.href = buildLoginUrl(currentPath);
         }
       },
+      onEditInDocs: async (content: string, title?: string, existingDocId?: string) => {
+        if (existingDocId) {
+          editorModalSetterRef.current({
+            documentId: existingDocId,
+            initialContent: content,
+            title: title || 'Dokument',
+          });
+          return existingDocId;
+        }
+
+        const htmlContent = content
+          .split('\n\n')
+          .map((block) => `<p>${block.replace(/\n/g, '<br />')}</p>`)
+          .join('');
+
+        const response = await fetch('/api/docs/from-export', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ content: htmlContent, title, documentType: 'chat-response' }),
+        });
+        if (!response.ok) throw new Error('Document creation failed');
+        const data = await response.json();
+        if (data.documentId) {
+          editorModalSetterRef.current({
+            documentId: data.documentId,
+            initialContent: content,
+            title: title || data.title || 'Dokument',
+          });
+          return data.documentId;
+        }
+      },
     }),
     []
   );
@@ -111,6 +161,16 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         {children}
         {user?.id && <ChatThreadPortal />}
       </TooltipProvider>
+      {editorModal && (
+        <Suspense fallback={null}>
+          <DocsEditorModal
+            documentId={editorModal.documentId}
+            initialContent={editorModal.initialContent}
+            title={editorModal.title}
+            onClose={() => setEditorModal(null)}
+          />
+        </Suspense>
+      )}
     </GrueneratorChatProvider>
   );
 }
