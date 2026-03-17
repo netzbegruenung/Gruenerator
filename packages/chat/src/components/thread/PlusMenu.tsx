@@ -1,7 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { PlusIcon, Upload, FileSearch, ChevronRight, Check, Library } from 'lucide-react';
+import {
+  BookOpen,
+  Check,
+  ChevronRight,
+  FileSearch,
+  Library,
+  Paperclip,
+  PlusIcon,
+  Upload,
+  Wand2,
+  Zap,
+} from 'lucide-react';
 import { Dropdown, DropdownItem } from '../ui/Dropdown';
 import { useAgentStore } from '../../stores/chatStore';
 import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
@@ -55,28 +66,28 @@ export function PlusMenu({ onInsertMention, onOpenFileBrowser, onUploadFile }: P
       >
         <div className="relative">
           <DropdownItem
-            icon={<span className="text-base">🎯</span>}
+            icon={<Wand2 className="h-4 w-4 text-foreground-muted" />}
             label="Skills"
             selected={expandedSubmenu === 'skills'}
             onClick={() => toggleSubmenu('skills')}
             trailing={<ChevronRight className="h-4 w-4 text-foreground-muted" />}
           />
           <DropdownItem
-            icon={<span className="text-base">📚</span>}
+            icon={<BookOpen className="h-4 w-4 text-foreground-muted" />}
             label="Quellen"
             selected={expandedSubmenu === 'quellen'}
             onClick={() => toggleSubmenu('quellen')}
             trailing={<ChevronRight className="h-4 w-4 text-foreground-muted" />}
           />
           <DropdownItem
-            icon={<span className="text-base">⚡</span>}
+            icon={<Zap className="h-4 w-4 text-foreground-muted" />}
             label="Funktionen"
             selected={expandedSubmenu === 'funktionen'}
             onClick={() => toggleSubmenu('funktionen')}
             trailing={<ChevronRight className="h-4 w-4 text-foreground-muted" />}
           />
           <DropdownItem
-            icon={<span className="text-base">📎</span>}
+            icon={<Paperclip className="h-4 w-4 text-foreground-muted" />}
             label="Dateien"
             selected={expandedSubmenu === 'dateien'}
             onClick={() => toggleSubmenu('dateien')}
