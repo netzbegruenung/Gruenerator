@@ -239,16 +239,6 @@ const ChatPage = lazy(() => import('../features/chat/ChatPage'));
 // Voice agent (immersive voice conversation)
 const VoiceAgentPage = lazy(() => import('../features/voice-agent/VoiceAgentPage'));
 
-// Pages-Feature importieren
-const DynamicPageView = lazy(() => import('../features/pages/components/DynamicPageView'));
-const StructuredExamplePage = lazy(() =>
-  import('../features/pages/ExamplePage').then((module) => ({
-    default: module.StructuredExamplePage,
-  }))
-);
-const CustomExamplePage = lazy(() =>
-  import('../features/pages/ExamplePage').then((module) => ({ default: module.CustomExamplePage }))
-);
 const MobileEditorPage = lazy(() => import('../pages/MobileEditorPage'));
 const PromptPage = lazy(() => import('../features/prompts/PromptPage'));
 const AgentsGalleryPage = lazy(() => import('../features/prompts/PromptsGalleryPage'));
@@ -371,9 +361,6 @@ export const GrueneratorenBundle = {
   CustomGenerator: CustomGeneratorPage,
   NotebookChat: NotebookChat,
   Chat: ChatPage,
-  DynamicPageView: DynamicPageView,
-  StructuredExamplePage: StructuredExamplePage,
-  CustomExamplePage: CustomExamplePage,
   TextEditor: TextEditorPage,
   MobileEditor: MobileEditorPage,
   DatabaseIndex: DatabaseIndexPage,
@@ -507,9 +494,6 @@ const standardRoutes: RouteConfig[] = [
     withForm: true,
   },
   // Pages Feature Routes
-  { path: '/pages/example-structured', component: GrueneratorenBundle.StructuredExamplePage },
-  { path: '/pages/example-custom', component: GrueneratorenBundle.CustomExamplePage },
-  { path: '/pages/:pageId', component: GrueneratorenBundle.DynamicPageView },
   // Docs collaborative editor
   { path: '/docs', component: DocsListRedirect },
   { path: '/docs/:id', component: DocsEditorPage, showHeaderFooter: false },
