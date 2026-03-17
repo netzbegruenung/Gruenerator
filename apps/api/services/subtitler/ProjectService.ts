@@ -24,6 +24,12 @@ const __dirname = path.dirname(__filename);
 
 const MAX_PROJECTS_PER_USER = 20;
 const PROJECT_STORAGE_PATH = path.join(__dirname, '../../uploads/subtitler-projects');
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function validatePathId(id: string, label: string): string {
+  if (!UUID_RE.test(id)) throw new Error(`Invalid ${label}: must be a UUID`);
+  return id;
+}
 const TUS_UPLOAD_PATH = path.join(__dirname, '../../routes/subtitler/../../../uploads/tus-temp');
 
 export class SubtitlerProjectService {
@@ -206,6 +212,7 @@ export class SubtitlerProjectService {
       await this.enforceProjectLimit(userId);
 
       const projectId = crypto.randomUUID();
+      validatePathId(userId, 'userId');
       const projectDir = path.join(PROJECT_STORAGE_PATH, userId, projectId);
       await fs.mkdir(projectDir, { recursive: true });
 
@@ -399,6 +406,8 @@ export class SubtitlerProjectService {
 
       await this.postgres.delete('subtitler_projects', { id: projectId, user_id: userId });
 
+      validatePathId(userId, 'userId');
+      validatePathId(projectId, 'projectId');
       const projectDir = path.join(PROJECT_STORAGE_PATH, userId, projectId);
       try {
         await fs.rm(projectDir, { recursive: true, force: true });
@@ -517,7 +526,11 @@ export class SubtitlerProjectService {
   }
 
   getSubtitledVideoPath(relativePath: string): string {
-    return path.join(PROJECT_STORAGE_PATH, relativePath);
+    const resolved = path.resolve(PROJECT_STORAGE_PATH, relativePath);
+    if (!resolved.startsWith(path.resolve(PROJECT_STORAGE_PATH) + path.sep)) {
+      throw new Error('Path traversal detected in subtitled video path');
+    }
+    return resolved;
   }
 }
 

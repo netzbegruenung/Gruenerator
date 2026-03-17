@@ -726,14 +726,7 @@ ${dialogueLines}`;
       .replace(/\\/g, '\\\\')
       .replace(/\n/g, '\\N')
       .replace(/\{/g, '\\{')
-      .replace(/\}/g, '\\}')
-      .replace(/ä/g, 'ä')
-      .replace(/ö/g, 'ö')
-      .replace(/ü/g, 'ü')
-      .replace(/Ä/g, 'Ä')
-      .replace(/Ö/g, 'Ö')
-      .replace(/Ü/g, 'Ü')
-      .replace(/ß/g, 'ß');
+      .replace(/\}/g, '\\}');
   }
 
   async createTempAssFile(assContent: string, uploadId: string): Promise<string> {
