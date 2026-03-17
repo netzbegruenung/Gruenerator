@@ -2,12 +2,14 @@ import { useCanvasSidebarStore, SIDEBAR_FONT_SIZES } from '@gruenerator/canvas-e
 import { useAgentStore } from '@gruenerator/chat';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { FaCheck } from 'react-icons/fa';
-import { PiSun, PiMoon, PiHouse, PiX } from 'react-icons/pi';
+import { PiSun, PiMoon, PiHouse, PiX, PiStarFill } from 'react-icons/pi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
+import { getFavouriteItemsById } from '../../../config/sidebarFavouritesConfig';
 import { useLazyAuth, useOptimizedAuth } from '../../../hooks/useAuth';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { useAuthStore } from '../../../stores/authStore';
+import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
 import useSidebarStore from '../../../stores/sidebarStore';
 import { StatusBadge } from '../../common/StatusBadge';
 import {
@@ -20,12 +22,24 @@ import {
 } from '../Header/menuData';
 
 import SidebarSection from './SidebarSection';
+
+import { cn } from '@/utils/cn';
 import '../../../assets/styles/components/layout/sidebar.css';
 
 interface SidebarProps {
   isDesktop?: boolean;
   onNavigate?: (path: string, title: string) => void;
 }
+
+const menuLinkClass = (active: boolean, disabled?: boolean) =>
+  cn(
+    'flex items-center gap-md py-sm px-xs pl-2 mx-2 rounded-sm min-h-[40px] no-underline whitespace-nowrap transition-colors text-foreground hover:bg-hover-alt active:bg-[var(--hover-color)]',
+    active && 'bg-primary-100 text-primary-700 dark:bg-primary-950 dark:text-primary-200',
+    disabled && 'opacity-55 cursor-default pointer-events-none'
+  );
+
+const iconClass =
+  'text-[1.4rem] text-foreground shrink-0 w-6 flex items-center justify-center transition-colors xl:text-[1.5rem] 2xl:text-[1.6rem] 2xl:w-7';
 
 const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   const location = useLocation();
@@ -163,10 +177,35 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
     setDarkMode(!darkMode);
   }, [darkMode]);
 
+  const titleClass = cn(
+    'font-semibold text-[0.95rem] text-foreground-heading leading-snug transition-all duration-150 font-[Raleway,PT_Sans,Arial,sans-serif] xl:text-[1rem] 2xl:text-[1.05rem]',
+    isOpen || forceExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'
+  );
+
+  const badgeClass = cn(
+    'ml-auto transition-opacity duration-150',
+    isOpen || forceExpanded ? 'opacity-100' : 'opacity-0'
+  );
+
   return (
     <>
       <aside
-        className={`sidebar ${isOpen ? 'sidebar--open' : ''} ${isDesktop ? 'sidebar--desktop' : ''} ${forceExpanded && isOpen ? 'sidebar--chat' : ''}`}
+        className={cn(
+          'fixed top-0 left-0 h-dvh bg-background border-r border-grey-200 dark:border-grey-700 z-[1001] flex flex-col overflow-hidden transition-[width] duration-200',
+          // Mobile: hidden by default, overlay when open
+          'max-md:w-0 max-md:-translate-x-full',
+          isOpen && 'max-md:w-[85vw] max-md:max-w-[280px] max-md:translate-x-0 max-md:shadow-lg',
+          // Desktop (non-Tauri)
+          !isDesktop && 'md:w-14',
+          !isDesktop && isOpen && 'md:w-[280px]',
+          // Force expanded for chat route
+          !isDesktop && forceExpanded && isOpen && 'md:w-[280px]',
+          // Tauri desktop mode
+          isDesktop &&
+            'top-[var(--titlebar-height)] h-[calc(100dvh-var(--titlebar-height))] bg-[var(--bar-background)]',
+          isDesktop && !isOpen && 'w-16',
+          isDesktop && isOpen && 'w-[220px]'
+        )}
         aria-label="Hauptnavigation"
         onMouseEnter={isDesktop ? open : undefined}
         onMouseLeave={isDesktop && !forceExpanded ? close : undefined}
@@ -174,21 +213,30 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         {/* Logo - desktop only */}
         {isDesktop && (
           <button
-            className="sidebar-logo"
+            className="flex items-center gap-3 py-3 px-4 m-0 bg-transparent border-none rounded-none cursor-pointer transition-colors w-full border-b border-grey-200 dark:border-grey-700 hover:bg-hover-alt"
             onClick={() => handleLinkClick('/', 'Start')}
             type="button"
             title="Zur Startseite"
           >
-            <img src="/images/logo-square.png" alt="Grünerator" className="sidebar-logo-icon" />
-            {isOpen && <span className="sidebar-logo-text">Grünerator</span>}
+            <img src="/images/logo-square.png" alt="Grünerator" className="w-8 h-8 shrink-0" />
+            {isOpen && (
+              <span className="font-semibold text-base whitespace-nowrap text-primary-600">
+                Grünerator
+              </span>
+            )}
           </button>
         )}
 
         {/* Sidebar Header - Home & Close */}
         {!isDesktop && (
-          <div className="sidebar-header">
+          <div
+            className={cn(
+              'flex items-center justify-between p-2 shrink-0 transition-opacity duration-150',
+              isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+            )}
+          >
             <button
-              className="sidebar-header-btn"
+              className="flex items-center justify-center w-10 h-10 p-0 border-none bg-transparent cursor-pointer rounded-sm text-foreground-heading text-[1.4rem] transition-colors hover:bg-hover-alt"
               onClick={() => handleLinkClick('/', 'Start')}
               type="button"
               title="Zur Startseite"
@@ -197,7 +245,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
               <PiHouse aria-hidden="true" />
             </button>
             <button
-              className="sidebar-header-btn sidebar-header-close"
+              className="flex items-center justify-center w-10 h-10 p-0 border-none bg-transparent cursor-pointer rounded-sm text-foreground-heading text-[1.4rem] transition-colors hover:bg-hover-alt"
               onClick={close}
               type="button"
               aria-label="Menü schließen"
@@ -207,10 +255,13 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           </div>
         )}
 
-        <nav className="sidebar-nav">
+        <nav className={cn('flex-none overflow-x-hidden pb-sm', isDesktop && 'pt-3')}>
           {/* Canvas editor tabs — replaces normal nav when canvas is active */}
           {canvasIsActive ? (
-            <div className="sidebar-main-nav" style={{ paddingTop: 'var(--spacing-small)' }}>
+            <div
+              className="flex flex-col gap-0.5 p-0"
+              style={{ paddingTop: 'var(--spacing-small)' }}
+            >
               {canvasTabs.map((tab) => {
                 const Icon = tab.icon;
                 const isTabActive = canvasActiveTab === tab.id;
@@ -218,7 +269,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
                 return (
                   <button
                     key={tab.id}
-                    className={`sidebar-menu-link${isTabActive ? ' sidebar-menu-link--active' : ''}${isTabDisabled ? ' sidebar-menu-link--disabled' : ''}`}
+                    className={menuLinkClass(isTabActive, isTabDisabled)}
                     onClick={() => !isTabDisabled && canvasOnTabClick?.(tab.id)}
                     disabled={isTabDisabled}
                     title={tab.label}
@@ -226,8 +277,8 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
                     aria-pressed={isTabActive}
                     type="button"
                   >
-                    <Icon aria-hidden="true" className="sidebar-item-icon" />
-                    <span className="sidebar-item-title">{tab.label}</span>
+                    <Icon aria-hidden="true" className={iconClass} />
+                    <span className={titleClass}>{tab.label}</span>
                   </button>
                 );
               })}
@@ -235,7 +286,12 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
               {/* Auto-save indicator */}
               {canvasAutoSaveStatus && (
                 <div
-                  className={`sidebar-menu-link justify-center cursor-default min-h-8 transition-opacity duration-300 ${canvasAutoSaveStatus === 'saving' || showCanvasSaved ? 'opacity-100' : 'opacity-0'}`}
+                  className={cn(
+                    'flex items-center gap-md py-sm px-xs pl-2 mx-2 rounded-sm min-h-8 no-underline whitespace-nowrap transition-colors text-foreground justify-center cursor-default transition-opacity duration-300',
+                    canvasAutoSaveStatus === 'saving' || showCanvasSaved
+                      ? 'opacity-100'
+                      : 'opacity-0'
+                  )}
                   title={
                     canvasAutoSaveStatus === 'saving'
                       ? 'Wird gespeichert...'
@@ -257,19 +313,21 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
             <>
               {/* Direct menu items - main navigation */}
               {additionalItems.length > 0 && (
-                <div className="sidebar-main-nav">
+                <div className="flex flex-col gap-0.5 p-0">
                   {additionalItems.map((item) =>
                     !item.path ? (
                       <span
                         key={item.id}
-                        className="sidebar-menu-link sidebar-menu-link--disabled"
+                        className={menuLinkClass(false, true)}
                         title={!isOpen ? item.title : undefined}
                       >
-                        {item.icon && (
-                          <item.icon aria-hidden="true" className="sidebar-item-icon" />
+                        {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
+                        <span className={titleClass}>{item.title}</span>
+                        {item.badge && (
+                          <span className={badgeClass}>
+                            <StatusBadge type={item.badge} variant="sidebar" />
+                          </span>
                         )}
-                        <span className="sidebar-item-title">{item.title}</span>
-                        {item.badge && <StatusBadge type={item.badge} variant="sidebar" />}
                       </span>
                     ) : isDesktop ? (
                       <button
@@ -279,38 +337,51 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
                             ? handleChatClick()
                             : handleLinkClick(item.path!, item.title)
                         }
-                        className={`sidebar-menu-link ${isActive(item.path!) ? 'sidebar-menu-link--active' : ''}`}
+                        className={menuLinkClass(isActive(item.path!))}
                         aria-current={isActive(item.path!) ? 'page' : undefined}
                         title={!isOpen ? item.title : undefined}
                         type="button"
                       >
-                        {item.icon && (
-                          <item.icon aria-hidden="true" className="sidebar-item-icon" />
+                        {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
+                        <span className={titleClass}>{item.title}</span>
+                        {item.badge && (
+                          <span className={badgeClass}>
+                            <StatusBadge type={item.badge} variant="sidebar" />
+                          </span>
                         )}
-                        <span className="sidebar-item-title">{item.title}</span>
-                        {item.badge && <StatusBadge type={item.badge} variant="sidebar" />}
                       </button>
                     ) : (
                       <Link
                         key={item.id}
                         to={item.path!}
-                        className="sidebar-menu-link"
+                        className={menuLinkClass(false)}
                         onClick={() =>
                           item.id === 'chat'
                             ? handleChatClick()
                             : handleLinkClick(item.path!, item.title)
                         }
                       >
-                        {item.icon && (
-                          <item.icon aria-hidden="true" className="sidebar-item-icon" />
+                        {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
+                        <span className={titleClass}>{item.title}</span>
+                        {item.badge && (
+                          <span className={badgeClass}>
+                            <StatusBadge type={item.badge} variant="sidebar" />
+                          </span>
                         )}
-                        <span className="sidebar-item-title">{item.title}</span>
-                        {item.badge && <StatusBadge type={item.badge} variant="sidebar" />}
                       </Link>
                     )
                   )}
                 </div>
               )}
+
+              {/* Favourites */}
+              <SidebarFavourites
+                isOpen={isOpen}
+                isDesktop={isDesktop}
+                onLinkClick={handleLinkClick}
+                isActive={isActive}
+                forceExpanded={forceExpanded}
+              />
 
               {/* Only render dropdown sections that have items */}
               {(Object.entries(menuItems) as [keyof typeof menuItems, MenuSection][])
@@ -326,19 +397,27 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
                     onLinkClick={handleLinkClick}
                     isDesktop={isDesktop}
                     isActive={isActive}
-                    sidebarExpanded={isOpen}
+                    sidebarExpanded={isOpen || forceExpanded}
                   />
                 ))}
             </>
           )}
         </nav>
 
-        <div id="chat-thread-portal-slot" className="sidebar-chat-threads" />
+        <div
+          id="chat-thread-portal-slot"
+          className={cn(
+            'flex-1 flex flex-col overflow-hidden min-h-0 border-t border-grey-200 dark:border-grey-700 transition-opacity duration-150',
+            isOpen || forceExpanded
+              ? 'opacity-100 pointer-events-auto'
+              : 'opacity-0 pointer-events-none'
+          )}
+        />
 
         {/* Footer - pushed to bottom */}
-        <div className="sidebar-footer">
+        <div className="mt-auto px-2 py-xs shrink-0 flex items-center">
           <button
-            className="sidebar-theme-toggle"
+            className="flex items-center justify-center w-10 h-10 p-0 ml-2 border-none bg-transparent rounded-full cursor-pointer text-foreground-heading hover:bg-hover-alt transition-colors shrink-0 [&_svg]:text-[1.4rem] [&_svg]:shrink-0 [&_svg]:w-6"
             onClick={toggleDarkMode}
             aria-label={darkMode ? 'Zum hellen Modus wechseln' : 'Zum dunklen Modus wechseln'}
           >
@@ -349,10 +428,17 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
               <Link
                 key={item.id}
                 to={item.path!}
-                className="sidebar-footer-link"
+                className="flex items-center py-sm px-2.5 no-underline text-foreground rounded-sm transition-colors min-h-[40px] hover:bg-hover-alt"
                 onClick={() => handleLinkClick(item.path!, item.title)}
               >
-                <span className="sidebar-footer-link-title">{item.title}</span>
+                <span
+                  className={cn(
+                    'font-medium text-[0.7rem] text-foreground whitespace-nowrap transition-opacity duration-150 font-[Raleway,PT_Sans,Arial,sans-serif]',
+                    isOpen || forceExpanded ? 'opacity-100' : 'opacity-0'
+                  )}
+                >
+                  {item.title}
+                </span>
               </Link>
             ))}
         </div>
@@ -371,5 +457,88 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
     </>
   );
 };
+
+function SidebarFavourites({
+  isOpen,
+  isDesktop,
+  onLinkClick,
+  isActive,
+  forceExpanded,
+}: {
+  isOpen: boolean;
+  isDesktop: boolean;
+  onLinkClick: (path: string, title: string) => void;
+  isActive: (path: string) => boolean;
+  forceExpanded: boolean;
+}) {
+  const favouriteIds = useSidebarFavouritesStore((s) => s.favouriteIds);
+  const removeFavourite = useSidebarFavouritesStore((s) => s.removeFavourite);
+  const items = getFavouriteItemsById(favouriteIds);
+
+  if (items.length === 0) return null;
+
+  const expanded = isOpen || forceExpanded;
+
+  const titleClass = cn(
+    'font-semibold text-[0.95rem] text-foreground-heading leading-snug transition-all duration-150 font-[Raleway,PT_Sans,Arial,sans-serif] xl:text-[1rem] 2xl:text-[1.05rem]',
+    expanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'
+  );
+
+  return (
+    <div className="flex flex-col gap-0.5 p-0 border-t border-grey-200 dark:border-grey-700 mt-1 pt-1">
+      {items.map((item) => {
+        const content = (
+          <>
+            {item.icon && (
+              <item.icon
+                aria-hidden="true"
+                className="text-[1.4rem] text-foreground shrink-0 w-6 flex items-center justify-center transition-colors xl:text-[1.5rem] 2xl:text-[1.6rem] 2xl:w-7"
+              />
+            )}
+            <span className={titleClass}>{item.title}</span>
+            <button
+              type="button"
+              className={cn(
+                'ml-auto shrink-0 text-primary-600 hover:text-red-500 transition-all p-0.5',
+                expanded ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              )}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                removeFavourite(item.id);
+              }}
+              aria-label={`${item.title} aus Favoriten entfernen`}
+              title="Aus Favoriten entfernen"
+            >
+              <PiStarFill size={14} />
+            </button>
+          </>
+        );
+
+        return isDesktop ? (
+          <button
+            key={item.id}
+            onClick={() => onLinkClick(item.path, item.title)}
+            className={cn(menuLinkClass(isActive(item.path)), 'group')}
+            aria-current={isActive(item.path) ? 'page' : undefined}
+            title={!expanded ? item.title : undefined}
+            type="button"
+          >
+            {content}
+          </button>
+        ) : (
+          <Link
+            key={item.id}
+            to={item.path}
+            className={cn(menuLinkClass(false), 'group')}
+            onClick={() => onLinkClick(item.path, item.title)}
+          >
+            {content}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
 
 export default Sidebar;
