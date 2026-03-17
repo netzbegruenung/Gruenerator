@@ -49,6 +49,7 @@ const PROFILE_MENU_ITEMS: MenuItem[] = [
     label: 'Benachrichtigungen',
     path: '/profile/benachrichtigungen',
     icon: FaBell,
+    betaFeature: 'workplace',
   },
 ];
 
