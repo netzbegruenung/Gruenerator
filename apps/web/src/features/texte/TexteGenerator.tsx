@@ -9,6 +9,7 @@ import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { useProfileData } from '../../stores/profileStore';
 
 import TabSelector from './components/TabSelector';
+import PresseSocialTab from './tabs/PresseSocialTab';
 import { type TabId, type UniversalSubType } from './types';
 
 import { cn } from '@/utils/cn';
@@ -33,8 +34,6 @@ const VALID_UNIVERSAL_SUB_TYPES: UniversalSubType[] = [
   'leichte_sprache',
 ];
 
-import PresseSocialTab from './tabs/PresseSocialTab';
-
 const TexteTab = lazy(() => import('./tabs/TexteTab'));
 const AntragTab = lazy(() => import('./tabs/AntragTab'));
 const UniversalTab = lazy(() => import('./tabs/UniversalTab'));
@@ -43,37 +42,32 @@ const TextEditorTab = lazy(() => import('./tabs/TextEditorTab'));
 const EigeneTab = lazy(() => import('./tabs/EigeneTab'));
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const TAB_COMPONENTS: Record<TabId, React.LazyExoticComponent<React.ComponentType<any>> | React.ComponentType<any>> = {
-  'texte': TexteTab,
+const TAB_COMPONENTS: Record<
+  TabId,
+  React.LazyExoticComponent<React.ComponentType<any>> | React.ComponentType<any>
+> = {
+  texte: TexteTab,
   'presse-social': PresseSocialTab,
-  'antrag': AntragTab,
-  'universal': UniversalTab,
-  'barrierefreiheit': BarrierefreiheitTab,
-  'texteditor': TextEditorTab,
-  'eigene': EigeneTab,
+  antrag: AntragTab,
+  universal: UniversalTab,
+  barrierefreiheit: BarrierefreiheitTab,
+  texteditor: TextEditorTab,
+  eigene: EigeneTab,
 };
 
 // Preload tab chunks on hover/focus — import() is idempotent (returns cached promise)
 export const TAB_PRELOADERS: Record<TabId, () => void> = {
-  'texte': () => import('./tabs/TexteTab'),
+  texte: () => import('./tabs/TexteTab'),
   'presse-social': () => import('./tabs/PresseSocialTab'),
-  'antrag': () => import('./tabs/AntragTab'),
-  'universal': () => import('./tabs/UniversalTab'),
-  'barrierefreiheit': () => import('./tabs/BarrierefreiheitTab'),
-  'texteditor': () => import('./tabs/TextEditorTab'),
-  'eigene': () => import('./tabs/EigeneTab'),
-};
-
-const LOADING_FALLBACK_STYLE: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'center',
-  alignItems: 'center',
-  minHeight: '400px',
-  color: 'var(--font-color-secondary)',
+  antrag: () => import('./tabs/AntragTab'),
+  universal: () => import('./tabs/UniversalTab'),
+  barrierefreiheit: () => import('./tabs/BarrierefreiheitTab'),
+  texteditor: () => import('./tabs/TextEditorTab'),
+  eigene: () => import('./tabs/EigeneTab'),
 };
 
 const LoadingFallback = memo(() => (
-  <div style={LOADING_FALLBACK_STYLE}>
+  <div className="flex items-center justify-center min-h-[400px] text-foreground-muted">
     <div className="loading-spinner" />
   </div>
 ));
@@ -261,7 +255,7 @@ const TexteGenerator: React.FC = () => {
           className={cn(
             'w-full max-w-[800px] mx-auto grid grid-cols-1 grid-rows-1',
             'xl:max-w-[1000px] 3xl:max-w-[1100px]',
-            'focus-visible:outline-2 focus-visible:outline-[var(--himmel)] focus-visible:outline-offset-[-2px] focus-visible:rounded-lg',
+            'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-[-2px] focus-visible:rounded-lg',
             hasGeneratedContent && 'max-w-full xl:max-w-full 3xl:max-w-full px-lg max-md:px-0'
           )}
         >
