@@ -13,6 +13,7 @@ import {
 } from './BriefingAgentService.js';
 import { deliverBriefing } from './BriefingDeliveryService.js';
 import { collectAll } from './DataCollectorService.js';
+import { isSystemAgent, getSystemAgent } from './SystemAgentLoader.js';
 
 import type { BriefingAgent, CollectedItem } from './types.js';
 
@@ -98,13 +99,19 @@ async function getRecipientEmail(agent: BriefingAgent): Promise<string | null> {
 }
 
 export async function execute(agentId: string): Promise<void> {
-  const agent = await getAgentByIdInternal(agentId);
+  const agent = isSystemAgent(agentId)
+    ? getSystemAgent(agentId)
+    : await getAgentByIdInternal(agentId);
   if (!agent) {
     log.error(`Agent ${agentId} not found`);
     return;
   }
 
-  const execution = await createExecution(agentId);
+  const isSystem = isSystemAgent(agentId);
+
+  // System agents don't have DB rows — skip execution tracking for them
+  // but still log to briefing_executions for history
+  const execution = isSystem ? null : await createExecution(agentId);
 
   try {
     // Collect with timeout (clear timer to avoid leak)
@@ -116,21 +123,21 @@ export async function execute(agentId: string): Promise<void> {
       }),
     ]).finally(() => clearTimeout(timer!));
 
-    // Deduplicate against previous execution (targeted query, not full JSONB load)
-    const previousUrls = await getPreviousExecutionUrls(agentId);
-    const newItems = items.filter((item) => !previousUrls.has(item.url));
+    // Deduplicate against previous execution (system agents skip dedup — no DB history)
+    let newItems: CollectedItem[];
+    if (isSystem) {
+      newItems = items;
+    } else {
+      const previousUrls = await getPreviousExecutionUrls(agentId);
+      newItems = items.filter((item) => !previousUrls.has(item.url));
+    }
 
     if (newItems.length === 0) {
-      await completeExecution(execution.id, 'empty', { results_count: 0 });
-      await markExecuted(agentId, true);
-
-      if (agent.consecutive_empty_count + 1 >= AUTO_PAUSE_THRESHOLD) {
-        await pauseAgent(agentId);
+      if (execution) {
+        await completeExecution(execution.id, 'empty', { results_count: 0 });
+        await markExecuted(agentId, true);
       }
-
-      log.info(
-        `Agent ${agentId}: no new results (${agent.consecutive_empty_count + 1} consecutive)`
-      );
+      log.info(`Agent ${agentId}: no new results`);
       return;
     }
 
@@ -143,20 +150,24 @@ export async function execute(agentId: string): Promise<void> {
       log.warn(`Agent ${agentId}: no delivery email found`);
     }
 
-    await completeExecution(execution.id, 'completed', {
-      results_count: newItems.length,
-      results_summary: summary,
-      results_raw: newItems,
-    });
-    await markExecuted(agentId, false);
+    if (execution) {
+      await completeExecution(execution.id, 'completed', {
+        results_count: newItems.length,
+        results_summary: summary,
+        results_raw: newItems,
+      });
+      await markExecuted(agentId, false);
+    }
 
     log.info(`Agent ${agentId}: delivered ${newItems.length} items`);
   } catch (error) {
     log.error(`Agent ${agentId} execution failed: ${toError(error).message}`);
 
-    await completeExecution(execution.id, 'failed', {
-      error_message: toError(error).message,
-    });
-    await markExecuted(agentId, true);
+    if (execution) {
+      await completeExecution(execution.id, 'failed', {
+        error_message: toError(error).message,
+      });
+      await markExecuted(agentId, true);
+    }
   }
 }

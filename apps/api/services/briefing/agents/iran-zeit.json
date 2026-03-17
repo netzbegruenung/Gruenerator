@@ -1,0 +1,18 @@
+{
+  "id": "system:iran-zeit",
+  "name": "Iran-Berichterstattung ZEIT",
+  "description": "Tägliche Zusammenfassung aller Artikel über Iran auf zeit.de",
+  "config": {
+    "sources": [
+      { "type": "web", "query": "Iran", "domains": ["zeit.de"] },
+      { "type": "rss", "url": "https://newsfeed.zeit.de/politik/index", "query": "Iran" }
+    ],
+    "language": "de",
+    "timeRange": "day",
+    "maxResultsPerSource": 10,
+    "outputFormat": "summary"
+  },
+  "schedule_type": "daily",
+  "schedule_hour": 18,
+  "delivery_email": "moritz-waechter@outlook.de"
+}
