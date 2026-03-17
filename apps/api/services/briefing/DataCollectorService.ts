@@ -3,6 +3,11 @@ import { createLogger } from '../../utils/logger.js';
 import { withRetry } from '../search/searchRetryStrategy.js';
 import { searxngService } from '../search/SearxngService.js';
 
+import {
+  isConfigured as isApifyConfigured,
+  getRecentTweets,
+  getRecentInstagramPosts,
+} from './ApifyService.js';
 import { fetchNewItems } from './RSSService.js';
 
 import type { BriefingConfig, CollectedItem, SourceConfig } from './types.js';
@@ -54,9 +59,16 @@ async function collectFromRSS(source: SourceConfig, since: Date): Promise<Collec
   return fetchNewItems(source.url, since, source.query);
 }
 
-async function collectFromSocial(source: SourceConfig): Promise<CollectedItem[]> {
-  // Phase 2: Apify or RSSHub adapter will replace this web search fallback
+async function collectFromSocial(source: SourceConfig, maxItems: number): Promise<CollectedItem[]> {
   if (!source.username) return [];
+
+  if (isApifyConfigured()) {
+    return source.type === 'twitter'
+      ? getRecentTweets(source.username, maxItems)
+      : getRecentInstagramPosts(source.username, maxItems);
+  }
+
+  // Fallback: web search when APIFY_TOKEN is not set
   const platform = source.type === 'twitter' ? 'twitter.com' : 'instagram.com';
   return searchWeb(`${source.username} site:${platform}`, { timeRange: 'day' });
 }
@@ -79,7 +91,7 @@ export async function collectAll(config: BriefingConfig): Promise<CollectedItem[
         return collectFromRSS(source, since);
       case 'twitter':
       case 'instagram':
-        return collectFromSocial(source);
+        return collectFromSocial(source, config.maxResultsPerSource);
       default:
         return [];
     }
