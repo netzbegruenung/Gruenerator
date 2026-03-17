@@ -128,7 +128,7 @@
 }
 
 
-/* Static formatting toolbar — always visible above editor (touch devices) */
+/* Static formatting toolbar — overlays document like Google Docs / Word */
 .blocknote-static-toolbar {
   padding-top: 0;
   margin-top: 0;
@@ -141,9 +141,31 @@
 
 .blocknote-static-toolbar .bn-formatting-toolbar {
   position: sticky;
-  top: 0;
+  top: -4rem;
   z-index: 10;
-  margin-inline: auto;
+  margin: -4rem -3rem 1rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid var(--grey-200, #e5e7eb);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  background: var(--grey-100, #f3f4f6);
+  display: flex;
+  justify-content: center;
+}
+
+[data-theme="dark"] .blocknote-static-toolbar .bn-formatting-toolbar {
+  border-bottom-color: var(--grey-700, #374151);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  background: var(--grey-900, #111827);
+}
+
+@media (max-width: 767px) {
+  .blocknote-static-toolbar .bn-formatting-toolbar {
+    top: -1rem;
+    margin: -1rem 0 0.5rem;
+    padding: 0.375rem 0.5rem;
+  }
 }
 
 .blocknote-static-toolbar .bn-suggestion-menu {
