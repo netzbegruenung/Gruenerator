@@ -51,6 +51,7 @@ export function createGrueneratorThreadListAdapter(
   }
 ): RemoteThreadListAdapter {
   let cachedThreads: ApiThread[] = [];
+  let pendingInit: Promise<{ remoteId: string; externalId: undefined }> | null = null;
 
   return {
     async list() {
@@ -108,22 +109,38 @@ export function createGrueneratorThreadListAdapter(
     },
 
     async initialize(_localId: string) {
-      const threadMode = useAgentStore.getState().threadMode;
-      const emptyThread = cachedThreads.find(
-        (t) => t.agentId === agentId && !t.lastMessage && t.status !== 'archived'
-      );
-      if (emptyThread) {
-        threadTypeCache.set(emptyThread.id, emptyThread.threadType || threadMode);
-        useAgentStore.getState().setCurrentThread(emptyThread.id);
-        return { remoteId: emptyThread.id, externalId: undefined };
-      }
-      const result = await apiClient.post<{ id: string }>('/api/chat-service/threads', {
-        agentId,
-        threadType: threadMode,
+      if (pendingInit) return pendingInit;
+      pendingInit = (async (): Promise<{ remoteId: string; externalId: undefined }> => {
+        const threadMode = useAgentStore.getState().threadMode;
+        const emptyThread = cachedThreads.find(
+          (t) => t.agentId === agentId && !t.lastMessage && t.status !== 'archived'
+        );
+        if (emptyThread) {
+          threadTypeCache.set(emptyThread.id, emptyThread.threadType || threadMode);
+          useAgentStore.getState().setCurrentThread(emptyThread.id);
+          return { remoteId: emptyThread.id, externalId: undefined };
+        }
+        const result = await apiClient.post<{ id: string }>('/api/chat-service/threads', {
+          agentId,
+          threadType: threadMode,
+        });
+        threadTypeCache.set(result.id, threadMode);
+        useAgentStore.getState().setCurrentThread(result.id);
+        cachedThreads.push({
+          id: result.id,
+          userId: '',
+          agentId,
+          title: null,
+          threadType: threadMode,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          lastMessage: null,
+        });
+        return { remoteId: result.id, externalId: undefined };
+      })().finally(() => {
+        pendingInit = null;
       });
-      threadTypeCache.set(result.id, threadMode);
-      useAgentStore.getState().setCurrentThread(result.id);
-      return { remoteId: result.id, externalId: undefined };
+      return pendingInit;
     },
 
     async rename(remoteId: string, title: string) {
