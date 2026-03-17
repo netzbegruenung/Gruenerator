@@ -75,6 +75,21 @@ export interface UserProfile {
 }
 
 /**
+ * Result of a complete offboarding run (anonymized — no user data)
+ */
+export interface OffboardingResult {
+  success: boolean;
+  processed: number;
+  deleted: number;
+  anonymized: number;
+  notFound: number;
+  failed: number;
+  retriesProcessed: number;
+  durationMs: number;
+  timestamp: string;
+}
+
+/**
  * Anonymization data
  */
 export interface AnonymizationData {
