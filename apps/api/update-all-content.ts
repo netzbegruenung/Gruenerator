@@ -192,8 +192,15 @@ async function preflight(): Promise<void> {
   } else {
     try {
       const healthUrl = qdrantUrl.replace(/\/+$/, '') + '/healthz';
+      const headers: Record<string, string> = { 'api-key': qdrantKey };
+      const basicUser = process.env.QDRANT_BASIC_AUTH_USERNAME;
+      const basicPass = process.env.QDRANT_BASIC_AUTH_PASSWORD;
+      if (basicUser && basicPass) {
+        headers['Authorization'] =
+          `Basic ${Buffer.from(`${basicUser}:${basicPass}`).toString('base64')}`;
+      }
       const resp = await fetch(healthUrl, {
-        headers: { 'api-key': qdrantKey },
+        headers,
         signal: AbortSignal.timeout(10000),
       });
       if (!resp.ok) {
