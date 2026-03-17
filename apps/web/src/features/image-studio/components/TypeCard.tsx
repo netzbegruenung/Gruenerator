@@ -71,28 +71,35 @@ const TypeCard: React.FC<TypeCardProps> = ({
           width={600}
           height={800}
         />
-        <h3
+        <div
           className={cn(
-            'absolute z-[1] m-0 text-white [text-shadow:0_2px_8px_rgba(0,0,0,0.5)]',
+            'absolute z-[1] flex flex-col',
             isGradientDark
-              ? 'top-1/2 left-0 right-0 -translate-y-1/2 text-center font-bold text-2xl px-4 max-[768px]:text-xl'
-              : 'top-0 left-0 right-0 p-6 text-left text-xl leading-snug max-[768px]:text-lg max-[768px]:p-4 max-[768px]:leading-snug'
+              ? 'top-1/2 left-0 right-0 -translate-y-1/2 items-center px-4'
+              : 'top-0 left-0 right-0 p-6 gap-2 max-[768px]:p-4'
           )}
         >
-          {label}
-        </h3>
-        {description && (
-          <p
+          <h3
             className={cn(
-              'absolute z-[1] m-0 text-white [text-shadow:0_2px_6px_rgba(0,0,0,0.6)] leading-snug opacity-0 group-hover:opacity-100 transition-opacity duration-200',
+              'm-0 text-white [text-shadow:0_2px_8px_rgba(0,0,0,0.5)]',
               isGradientDark
-                ? 'top-[calc(50%+1.5rem)] left-0 right-0 text-center px-4 text-lg'
-                : 'top-16 left-0 right-0 px-6 text-left text-lg max-[768px]:top-[3.25rem]'
+                ? 'text-center font-bold text-2xl max-[768px]:text-xl'
+                : 'text-left text-xl leading-snug max-[768px]:text-lg max-[768px]:leading-snug'
             )}
           >
-            {description}
-          </p>
-        )}
+            {label}
+          </h3>
+          {description && (
+            <p
+              className={cn(
+                'm-0 text-white [text-shadow:0_2px_6px_rgba(0,0,0,0.6)] leading-snug opacity-0 group-hover:opacity-100 transition-opacity duration-200',
+                isGradientDark ? 'text-center text-lg' : 'text-left text-lg'
+              )}
+            >
+              {description}
+            </p>
+          )}
+        </div>
         {children}
       </div>
     );
