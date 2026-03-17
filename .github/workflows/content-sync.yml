@@ -2,7 +2,8 @@ name: Content Sync
 
 on:
   schedule:
-    - cron: '0 3 * * *' # Daily at 3 AM UTC
+    - cron: '0 4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20 * * *' # Hourly 06-22 CET → landesverbaende only
+    - cron: '0 2 * * *' # Daily 03:00 CET → all sources
   workflow_dispatch:
     inputs:
       source:
@@ -22,7 +23,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: content-sync
+  group: content-sync-${{ github.event.schedule || 'manual' }}
   cancel-in-progress: false
 
 jobs:
@@ -35,13 +36,22 @@ jobs:
       use_matrix: ${{ steps.set-matrix.outputs.use_matrix }}
     steps:
       - id: set-matrix
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+          SOURCE: ${{ inputs.source }}
         run: |
-          if [ -n "${{ inputs.source }}" ]; then
+          if [ -n "$SOURCE" ]; then
+            # Manual single-source run
             echo 'use_matrix=false' >> $GITHUB_OUTPUT
-            echo 'matrix={"source":["${{ inputs.source }}"]}' >> $GITHUB_OUTPUT
-          else
+            echo "matrix={\"source\":[\"$SOURCE\"]}" >> $GITHUB_OUTPUT
+          elif [ "$SCHEDULE" = "0 2 * * *" ] || [ -z "$SCHEDULE" ]; then
+            # Daily 3 AM CET or manual dispatch (no source) → all sources
             echo 'use_matrix=true' >> $GITHUB_OUTPUT
             echo 'matrix={"source":["landesverbaende","gruenblog","gruene-at","kommunalwiki","boell-stiftung","satzungen"]}' >> $GITHUB_OUTPUT
+          else
+            # Hourly schedule → landesverbaende only
+            echo 'use_matrix=false' >> $GITHUB_OUTPUT
+            echo 'matrix={"source":["landesverbaende"]}' >> $GITHUB_OUTPUT
           fi
 
   # ─── Matrix: one job per source group ──────────────────────────
