@@ -62,11 +62,10 @@ const GroupsOverviewSection = memo(
           transition={MOTION_CONFIG.transition}
         >
           <div className="flex flex-col items-center gap-lg max-w-[32rem] text-center">
-            <div className="flex items-center justify-center size-24 rounded-full bg-primary-500/10">
-              <HiUserGroup className="text-5xl text-primary-500" />
-            </div>
             <div className="flex flex-col gap-xs">
-              <h2 className="text-2xl font-semibold text-foreground">Zusammen stärker</h2>
+              <h2 className="text-2xl font-semibold text-foreground">
+                Du hast noch keine Gruppe erstellt
+              </h2>
               <p className="text-base text-foreground leading-relaxed text-center">
                 Erstelle eine Gruppe, um Anweisungen und Wissen mit deinem Team zu teilen und
                 gemeinsam an Texten zu arbeiten.
