@@ -17,7 +17,6 @@ const cardGridVariants = cva('grid', {
       lg: 'gap-lg',
       xl: 'gap-xl',
       '2xl': 'gap-2xl',
-      '4': 'gap-4',
     },
   },
   defaultVariants: {

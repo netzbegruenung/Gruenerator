@@ -22,13 +22,14 @@ const statusBannerVariants = cva('rounded-md border p-md text-sm', {
 function StatusBanner({
   className,
   variant = 'error',
+  role,
   ...props
 }: React.ComponentProps<'div'> & VariantProps<typeof statusBannerVariants>) {
   return (
     <div
       data-slot="status-banner"
       data-variant={variant}
-      role="status"
+      role={role ?? (variant === 'error' ? 'alert' : 'status')}
       className={cn(statusBannerVariants({ variant, className }))}
       {...props}
     />
