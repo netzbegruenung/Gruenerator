@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, memo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
 import {
   PiMagicWand,
   PiArrowsClockwise,
@@ -7,6 +7,7 @@ import {
   PiBriefcase,
   PiTextAa,
 } from 'react-icons/pi';
+import { useSearchParams } from 'react-router-dom';
 
 import BaseForm from '../../../components/common/BaseForm';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
@@ -14,6 +15,7 @@ import { FormTextarea } from '../../../components/common/Form/Input';
 import PlatformSelector from '../../../components/common/PlatformSelector';
 import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
 import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
+import { profileApiService } from '../../auth/services/profileApiService';
 
 import type { BaseFormProps, HelpContent, PlatformOption } from '@/types/baseform';
 import type { Control, FieldValues } from 'react-hook-form';
@@ -33,6 +35,7 @@ interface UseBaseFormReturn {
   control: Control<FieldValues>;
   handleSubmit: <T>(handler: (data: T) => Promise<void>) => () => Promise<void>;
   handleSubmitError: (error: unknown) => void;
+  setValue: (name: string, value: unknown, options?: Record<string, unknown>) => void;
   generator?: {
     attachedFiles?: Array<{ name: string; content: string }>;
     baseFormProps?: Partial<BaseFormProps>;
@@ -100,6 +103,9 @@ const BASE_FORM_CONFIG = {
 
 const TextEditorTab: React.FC<TextEditorTabProps> = memo(() => {
   const componentName = 'text-improver';
+  const [searchParams] = useSearchParams();
+  const textId = searchParams.get('textId');
+  const [loadingText, setLoadingText] = useState(false);
 
   const getFeatureState = useGeneratorSelectionStore((state) => state.getFeatureState);
   const selectedDocumentIds = useGeneratorSelectionStore((state) => state.selectedDocumentIds);
@@ -110,7 +116,27 @@ const TextEditorTab: React.FC<TextEditorTabProps> = memo(() => {
     BASE_FORM_CONFIG as unknown as Parameters<typeof useBaseForm>[0]
   ) as UseBaseFormReturn;
 
-  const { control, handleSubmit } = form;
+  const { control, handleSubmit, setValue } = form;
+
+  useEffect(() => {
+    if (!textId) return;
+    let cancelled = false;
+    setLoadingText(true);
+    profileApiService
+      .getText(textId)
+      .then((text) => {
+        if (cancelled) return;
+        const plainText = (text.content || '').replace(/<[^>]*>/g, '');
+        setValue('originalText', plainText);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoadingText(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [textId, setValue]);
 
   const { crawledUrls, detectAndCrawlUrls, isCrawling } = useUrlCrawler();
   const isCrawlingRef = useRef(isCrawling);
@@ -208,6 +234,15 @@ const TextEditorTab: React.FC<TextEditorTabProps> = memo(() => {
   );
 
   const baseFormProps = form.generator?.baseFormProps || {};
+
+  if (loadingText) {
+    return (
+      <div className="flex items-center gap-sm py-xl justify-center">
+        <div className="size-4 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
+        <span className="text-sm text-foreground">Text wird geladen...</span>
+      </div>
+    );
+  }
 
   return (
     <BaseForm
