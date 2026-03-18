@@ -1,15 +1,15 @@
+import { StatusBanner } from '@gruenerator/ui';
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../../components/common/PageContainer';
-import { useGroups } from '../hooks/useGroups';
-import { useGroupPresenceManager } from '../hooks/useGroupPresenceManager';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-
 import GroupDetailSection from '../components/GroupDetailSection';
 import GroupsCreateSection from '../components/GroupsCreateSection';
 import GroupsOverviewSection from '../components/GroupsOverviewSection';
+import { useGroupPresenceManager } from '../hooks/useGroupPresenceManager';
+import { useGroups } from '../hooks/useGroups';
 
 interface Group {
   id: string;
@@ -34,11 +34,10 @@ const GruppenPage = () => {
     isDeleteGroupSuccess,
   } = useGroups({ isActive: true });
 
-  const groupIds = useMemo(
-    () => (userGroups || []).map((g: Group) => g.id),
-    [userGroups]
-  );
-  const presenceUser = user ? { id: user.id, name: user.display_name || user.email || 'User' } : null;
+  const groupIds = useMemo(() => (userGroups || []).map((g: Group) => g.id), [userGroups]);
+  const presenceUser = user
+    ? { id: user.id, name: user.display_name || user.email || 'User' }
+    : null;
   const { getOnlineCount } = useGroupPresenceManager(groupId ? [] : groupIds, presenceUser);
 
   useEffect(() => {
@@ -106,16 +105,8 @@ const GruppenPage = () => {
     >
       {(successMessage || errorMessage) && (
         <div className="mb-md">
-          {successMessage && (
-            <div className="rounded-md border border-green-200 bg-green-50 p-md text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400">
-              {successMessage}
-            </div>
-          )}
-          {errorMessage && (
-            <div className="rounded-md border border-red-200 bg-red-50 p-md text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
-              {errorMessage}
-            </div>
-          )}
+          {successMessage && <StatusBanner variant="success">{successMessage}</StatusBanner>}
+          {errorMessage && <StatusBanner variant="error">{errorMessage}</StatusBanner>}
         </div>
       )}
 

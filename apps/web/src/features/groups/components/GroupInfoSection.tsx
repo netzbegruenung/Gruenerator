@@ -1,6 +1,7 @@
 import {
   Badge,
   Button,
+  CardGrid,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -12,9 +13,15 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+  LoadingSection,
   Popover,
   PopoverContent,
   PopoverTrigger,
+  SectionHeader,
 } from '@gruenerator/ui';
 import { memo, useCallback, useRef, useState } from 'react';
 import {
@@ -23,7 +30,6 @@ import {
   HiOutlineLink,
   HiOutlineTrash,
   HiPencil,
-  HiPlus,
   HiCheck,
   HiX,
 } from 'react-icons/hi';
@@ -347,19 +353,11 @@ const GroupInfoSection = memo(
 
         {/* Shared Content */}
         <div>
-          <div className="flex items-center gap-xs mb-md">
-            <h2 className="text-xl font-semibold text-foreground-heading m-0">Geteilte Inhalte</h2>
-            {data?.isAdmin && (
-              <button
-                type="button"
-                onClick={() => setShowAddContent(true)}
-                className="flex items-center justify-center w-7 h-7 rounded-full text-primary-600 hover:bg-primary-600/10 transition-colors cursor-pointer"
-                aria-label="Inhalte hinzufügen"
-              >
-                <HiPlus size={18} />
-              </button>
-            )}
-          </div>
+          <SectionHeader
+            title="Geteilte Inhalte"
+            onCreate={data?.isAdmin ? () => setShowAddContent(true) : undefined}
+            createLabel="Inhalte hinzufügen"
+          />
           {(() => {
             const sections: {
               label: string;
@@ -413,18 +411,19 @@ const GroupInfoSection = memo(
             const totalItems = sections.reduce((sum, s) => sum + s.items.length, 0);
 
             if (isLoadingSharedContent) {
-              return (
-                <p className="text-sm text-foreground italic">Geteilte Inhalte werden geladen...</p>
-              );
+              return <LoadingSection label="Geteilte Inhalte werden geladen..." />;
             }
 
             if (totalItems === 0) {
               return (
-                <div className="rounded-lg border border-dashed border-grey-300 dark:border-grey-600 p-lg text-center">
-                  <p className="text-sm text-grey-400">
-                    Noch keine geteilten Inhalte in dieser Gruppe.
-                  </p>
-                </div>
+                <Empty className="border-grey-300 dark:border-grey-600">
+                  <EmptyHeader>
+                    <EmptyTitle>Keine geteilten Inhalte</EmptyTitle>
+                    <EmptyDescription>
+                      Noch keine geteilten Inhalte in dieser Gruppe.
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
               );
             }
 
@@ -432,49 +431,44 @@ const GroupInfoSection = memo(
               <div className="flex flex-col gap-lg">
                 {sections.map((section) => {
                   if (section.items.length === 0) return null;
-                  const SectionIcon = section.icon;
+                  const ContentIcon = section.icon;
                   return (
                     <div key={section.label}>
-                      <h3 className="text-sm font-medium text-foreground mb-sm">{section.label}</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
+                      <SectionHeader size="sm" title={section.label} />
+                      <CardGrid columns="3">
                         {section.items.map((item) => {
                           const title = item.title || item.name || 'Ohne Titel';
                           const href = section.getLink?.(item);
+                          const content = (
+                            <>
+                              <ContentIcon className="size-5 text-primary-600 dark:text-primary-400 shrink-0" />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-foreground truncate m-0">
+                                  {title}
+                                </p>
+                                {item.shared_by_name && (
+                                  <p className="text-xs text-grey-500 truncate mt-xxs m-0">
+                                    Geteilt von {item.shared_by_name}
+                                  </p>
+                                )}
+                              </div>
+                            </>
+                          );
                           return (
                             <div
                               key={item.id}
-                              className="flex items-center gap-sm rounded-lg border border-grey-200 dark:border-grey-700 bg-background p-sm hover:border-primary-500 hover:shadow-sm transition-all"
+                              className="group flex items-center gap-sm rounded-md border border-grey-200 dark:border-grey-700 bg-background p-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-grey-300 dark:hover:border-grey-600"
                             >
                               {href ? (
                                 <a
                                   href={href}
                                   className="flex items-center gap-sm min-w-0 flex-1 no-underline"
                                 >
-                                  <SectionIcon className="size-5 text-primary-600 dark:text-primary-400 shrink-0" />
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-medium text-foreground truncate">
-                                      {title}
-                                    </p>
-                                    {item.shared_by_name && (
-                                      <p className="text-xs text-grey-500 truncate mt-xxs">
-                                        Geteilt von {item.shared_by_name}
-                                      </p>
-                                    )}
-                                  </div>
+                                  {content}
                                 </a>
                               ) : (
                                 <div className="flex items-center gap-sm min-w-0 flex-1">
-                                  <SectionIcon className="size-5 text-primary-600 dark:text-primary-400 shrink-0" />
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-medium text-foreground truncate">
-                                      {title}
-                                    </p>
-                                    {item.shared_by_name && (
-                                      <p className="text-xs text-grey-500 truncate mt-xxs">
-                                        Geteilt von {item.shared_by_name}
-                                      </p>
-                                    )}
-                                  </div>
+                                  {content}
                                 </div>
                               )}
                               {data?.isAdmin && onUnshareContent && (
@@ -483,7 +477,7 @@ const GroupInfoSection = memo(
                                   onClick={() =>
                                     onUnshareContent(String(item.id), section.contentType)
                                   }
-                                  className="shrink-0 p-1 text-grey-400 hover:text-red-500 transition-colors bg-transparent border-none cursor-pointer rounded"
+                                  className="shrink-0 p-1 text-grey-400 hover:text-red-500 transition-colors bg-transparent border-none cursor-pointer rounded opacity-0 group-hover:opacity-100"
                                   aria-label="Aus Gruppe entfernen"
                                 >
                                   <HiOutlineTrash size={16} />
@@ -492,7 +486,7 @@ const GroupInfoSection = memo(
                             </div>
                           );
                         })}
-                      </div>
+                      </CardGrid>
                     </div>
                   );
                 })}

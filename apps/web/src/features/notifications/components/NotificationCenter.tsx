@@ -57,7 +57,7 @@ const NotificationCenter = () => {
   const navigate = useNavigate();
 
   useNotificationSSE(
-    useCallback((data) => {
+    useCallback((data: { title?: string; body?: string }) => {
       if (data.title) {
         toast(data.title, { description: data.body || undefined });
       }
