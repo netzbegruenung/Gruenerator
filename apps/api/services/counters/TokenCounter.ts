@@ -39,7 +39,7 @@ export class TokenCounter {
    * Trim messages array to fit within token limit
    * Keeps system messages and most recent conversation messages
    */
-  trimMessagesToTokenLimit(messages: Message[], maxTokens = 6000): Message[] {
+  trimMessagesToTokenLimit(messages: Message[], maxTokens = 40000): Message[] {
     if (!Array.isArray(messages) || messages.length === 0) {
       return [];
     }
@@ -115,7 +115,7 @@ export class TokenCounter {
   /**
    * Check if messages array exceeds token limit
    */
-  exceedsTokenLimit(messages: Message[], maxTokens = 6000): boolean {
+  exceedsTokenLimit(messages: Message[], maxTokens = 40000): boolean {
     const stats = this.getTokenStats(messages);
     return stats.totalTokens > maxTokens;
   }
@@ -139,12 +139,12 @@ export const countTokens = (text: string) => tokenCounter.countTokens(text);
 
 export const countMessageTokens = (message: Message) => tokenCounter.countMessageTokens(message);
 
-export const trimMessagesToTokenLimit = (messages: Message[], maxTokens = 6000) =>
+export const trimMessagesToTokenLimit = (messages: Message[], maxTokens = 40000) =>
   tokenCounter.trimMessagesToTokenLimit(messages, maxTokens);
 
 export const getTokenStats = (messages: Message[]) => tokenCounter.getTokenStats(messages);
 
-export const exceedsTokenLimit = (messages: Message[], maxTokens = 6000) =>
+export const exceedsTokenLimit = (messages: Message[], maxTokens = 40000) =>
   tokenCounter.exceedsTokenLimit(messages, maxTokens);
 
 export const formatTokenCount = (tokens: number) => tokenCounter.formatTokenCount(tokens);

@@ -72,17 +72,20 @@ export async function applyCompaction(
     const messageCount = await getMessageCount(threadId);
     const compactionState = await getCompactionState(threadId);
 
+    const messagesForEstimate = prunedValidMessages.map(toTokenCounterMessage);
+    const estimatedTokens = getTokenStats(messagesForEstimate).totalTokens;
+
     const now = Date.now();
     const cooldownActive = now - (lastCompactionTime.get(threadId) ?? 0) < COMPACTION_COOLDOWN_MS;
 
     if (
-      needsCompaction(messageCount, compactionState.summary) &&
+      needsCompaction(messageCount, compactionState.summary, estimatedTokens) &&
       !compactionInProgress.has(threadId) &&
       !cooldownActive
     ) {
       compactionInProgress.add(threadId);
       log.info(
-        `[Context] Thread ${threadId}: ${messageCount} messages, triggering background compaction`
+        `[Context] Thread ${threadId}: ${messageCount} messages, ~${estimatedTokens} tokens, triggering background compaction`
       );
       const threadMessages = await getThreadMessages(threadId);
       generateCompactionSummary(threadId, threadMessages)

@@ -695,7 +695,7 @@ Wenn du search_documents verwendest, beschränke die Suche auf diese Dokument-ID
     });
 
     // Context pruning: trim long conversations to token budget
-    const MAX_CONTEXT_TOKENS = 6000;
+    const MAX_CONTEXT_TOKENS = 40000;
     const messagesForTokenCount: TokenCounterMessage[] = validMessages.map((msg: any) => ({
       role: msg.role,
       content:
