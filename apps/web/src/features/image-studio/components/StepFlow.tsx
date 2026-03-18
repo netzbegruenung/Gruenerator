@@ -81,7 +81,6 @@ const StepFlow: React.FC<StepFlowProps> = ({
     transparentImage,
     typeConfig,
     handleCanvasExport,
-    handleCanvasSave,
     bgRemovalProgress,
   } = useStepFlow({ startAtCanvasEdit });
 
@@ -190,7 +189,6 @@ const StepFlow: React.FC<StepFlowProps> = ({
               sloganAlternatives={sloganAlternatives}
               getFieldValue={getFieldValue}
               handleCanvasExport={handleCanvasExport}
-              handleCanvasSave={handleCanvasSave}
               handleBack={handleBack}
               transparentImage={transparentImage}
               currentStepId={currentStep.id}
