@@ -162,13 +162,17 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   const [localHeight, setLocalHeight] = useState(heightPreference);
   const [localQuality, setLocalQuality] = useState('normal');
 
-  useEffect(() => {
+  // Sync local state when parent prop changes (avoids extra render vs useEffect)
+  const [prevStylePref, setPrevStylePref] = useState(stylePreference);
+  if (stylePreference !== prevStylePref) {
+    setPrevStylePref(stylePreference);
     setLocalStyle(stylePreference);
-  }, [stylePreference]);
-
-  useEffect(() => {
+  }
+  const [prevHeightPref, setPrevHeightPref] = useState(heightPreference);
+  if (heightPreference !== prevHeightPref) {
+    setPrevHeightPref(heightPreference);
     setLocalHeight(heightPreference);
-  }, [heightPreference]);
+  }
 
   const handleLocalStyleChange = (styleId: string): void => {
     setLocalStyle(styleId as StylePreference);

@@ -1,55 +1,32 @@
-import { useState, useEffect, useRef } from 'react';
+import { useCallback } from 'react';
 
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 
 import type { CollaborationUser } from '../types';
 
+import { useAwarenessState } from './useAwarenessState';
+
+function arraysEqualByIds(a: CollaborationUser[], b: CollaborationUser[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i]?.id !== b[i]?.id) return false;
+  }
+  return true;
+}
+
 export function useCollaborators(provider: HocuspocusProvider | null): CollaborationUser[] {
-  const [collaborators, setCollaborators] = useState<CollaborationUser[]>([]);
-  const pendingUpdateRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const selector = useCallback(
+    (states: Map<number, Record<string, unknown>>, localClientId: number) => {
+      const users: CollaborationUser[] = [];
+      states.forEach((state, clientId) => {
+        if (state['user'] && clientId !== localClientId) {
+          users.push(state['user'] as CollaborationUser);
+        }
+      });
+      return users;
+    },
+    []
+  );
 
-  useEffect(() => {
-    if (!provider) return;
-    const awareness = provider.awareness;
-    if (!awareness) return;
-
-    const updateCollaborators = () => {
-      if (pendingUpdateRef.current) clearTimeout(pendingUpdateRef.current);
-
-      pendingUpdateRef.current = setTimeout(() => {
-        const states = awareness.getStates();
-        const users: CollaborationUser[] = [];
-
-        states.forEach((state, clientId) => {
-          if (state['user'] && clientId !== awareness.clientID) {
-            users.push(state['user'] as CollaborationUser);
-          }
-        });
-
-        setCollaborators((prev) => {
-          const prevIds = prev
-            .map((u) => u.id)
-            .sort()
-            .join(',');
-          const newIds = users
-            .map((u) => u.id)
-            .sort()
-            .join(',');
-          if (prevIds === newIds) return prev;
-          return users;
-        });
-        pendingUpdateRef.current = null;
-      }, 0);
-    };
-
-    awareness.on('change', updateCollaborators);
-    updateCollaborators();
-
-    return () => {
-      awareness.off('change', updateCollaborators);
-      if (pendingUpdateRef.current) clearTimeout(pendingUpdateRef.current);
-    };
-  }, [provider]);
-
-  return collaborators;
+  return useAwarenessState(provider, selector, arraysEqualByIds);
 }

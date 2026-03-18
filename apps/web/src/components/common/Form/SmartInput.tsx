@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useCallback, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Controller, type Control } from 'react-hook-form';
 
 import { useLazyAuth } from '../../../hooks/useAuth';
@@ -72,43 +72,42 @@ const SmartInput: React.FC<SmartInputProps> = ({
     autoSave: false,
   });
 
-  const handleSaveValue = useCallback(async () => {
-    if (
-      isAuthenticated &&
-      shouldSave &&
-      onSubmitSuccess &&
-      typeof onSubmitSuccess === 'string' &&
-      onSubmitSuccess.trim()
-    ) {
-      const valueToSave = onSubmitSuccess.trim();
+  const prevSubmitRef = useRef<string | null>(null);
+  const hasPrefilledRef = useRef(false);
 
-      if (!hasRecentValue(valueToSave)) {
-        try {
-          await saveRecentValue(valueToSave, formName);
-          console.log(
-            `[SmartInput] Saved recent value for ${fieldType}:`,
-            valueToSave.substring(0, 50) + '...'
-          );
-        } catch (error) {
-          console.error(`[SmartInput] Failed to save recent value for ${fieldType}:`, error);
-        }
-      }
+  // Save recent value when onSubmitSuccess changes to a new non-null string
+  useEffect(() => {
+    if (
+      !isAuthenticated ||
+      !shouldSave ||
+      !onSubmitSuccess ||
+      typeof onSubmitSuccess !== 'string' ||
+      !onSubmitSuccess.trim()
+    )
+      return;
+
+    const valueToSave = onSubmitSuccess.trim();
+    if (valueToSave === prevSubmitRef.current) return;
+    prevSubmitRef.current = valueToSave;
+
+    if (!hasRecentValue(valueToSave)) {
+      saveRecentValue(valueToSave, formName).catch((error) => {
+        console.error(`[SmartInput] Failed to save recent value for ${fieldType}:`, error);
+      });
     }
   }, [
+    onSubmitSuccess,
     isAuthenticated,
     shouldSave,
-    onSubmitSuccess,
     hasRecentValue,
     saveRecentValue,
     formName,
     fieldType,
   ]);
 
+  // Pre-fill with first recent value (once, after initial load)
   useEffect(() => {
-    void handleSaveValue();
-  }, [handleSaveValue]);
-
-  useEffect(() => {
+    if (hasPrefilledRef.current) return;
     if (isAuthenticated && !isLoading && recentValues.length > 0 && setValue && getValues) {
       const currentValue = getValues(name);
       if (!currentValue) {
@@ -117,6 +116,7 @@ const SmartInput: React.FC<SmartInputProps> = ({
           shouldDirty: false,
         });
       }
+      hasPrefilledRef.current = true;
     }
   }, [isAuthenticated, isLoading, recentValues, name, setValue, getValues]);
 

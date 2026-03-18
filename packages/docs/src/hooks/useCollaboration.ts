@@ -40,11 +40,14 @@ export const useCollaboration = ({
     if (!documentId) return;
     if (!isGuest && !user) return;
 
+    let ignore = false;
     const ydoc = new Y.Doc();
 
     const initProvider = async () => {
       const url = adapter.getHocuspocusUrl();
       const token = isGuest ? null : await adapter.getHocuspocusToken();
+
+      if (ignore) return;
 
       console.log('[DocsDebug][useCollaboration] initProvider:', {
         url,
@@ -66,6 +69,11 @@ export const useCollaboration = ({
         ...(isGuest && guestId ? { parameters: { guestId, guestName: guestName || 'Gast' } } : {}),
       });
 
+      if (ignore) {
+        provider.destroy();
+        return;
+      }
+
       providerRef.current = provider;
 
       const awarenessUser: CollaborationUser = isGuest
@@ -79,6 +87,7 @@ export const useCollaboration = ({
       provider.awareness?.setLocalStateField('user', awarenessUser);
 
       provider.on('status', (event: { status: string }) => {
+        if (ignore) return;
         console.log('[DocsDebug][useCollaboration] status event:', event.status);
         const newIsConnected = event.status === 'connected';
         setState((prev) => {
@@ -88,6 +97,7 @@ export const useCollaboration = ({
       });
 
       provider.on('synced', () => {
+        if (ignore) return;
         console.log('[DocsDebug][useCollaboration] synced!');
         setState((prev) => {
           if (prev.isSynced) return prev;
@@ -95,7 +105,6 @@ export const useCollaboration = ({
         });
       });
 
-      // Log connection errors — this is the most likely failure point
       provider.on('close', (event: { event: CloseEvent }) => {
         console.warn('[DocsDebug][useCollaboration] WebSocket closed:', {
           code: event.event.code,
@@ -108,7 +117,6 @@ export const useCollaboration = ({
         console.warn('[DocsDebug][useCollaboration] disconnected');
       });
 
-      // HocuspocusProvider emits 'authenticationFailed' if server rejects token
       provider.on('authenticationFailed', (data: { reason: string }) => {
         console.error('[DocsDebug][useCollaboration] AUTH FAILED:', data.reason);
       });
@@ -124,6 +132,7 @@ export const useCollaboration = ({
     initProvider();
 
     return () => {
+      ignore = true;
       providerRef.current?.awareness?.setLocalState(null);
       providerRef.current?.destroy();
     };
