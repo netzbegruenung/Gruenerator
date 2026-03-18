@@ -124,6 +124,18 @@ export function ChatOverview({
         <GrueneratorComposer toolbarExtra={<ExampleSuggestions />} />
       </ThreadPrimitive.Root>
 
+      <div className="flex w-full max-w-3xl flex-wrap gap-2 pt-4">
+        <button
+          onClick={() => onNavigate?.('/datenbank/agents')}
+          className={cn(
+            'rounded-full border border-border bg-background-alt px-4 py-2 text-sm text-foreground transition-all',
+            'hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm'
+          )}
+        >
+          Agenten entdecken
+        </button>
+      </div>
+
       {notebooks && notebooks.length > 0 && (
         <div className="w-full max-w-3xl pt-4">
           <h2 className="mb-3 text-sm font-medium text-foreground-muted">
