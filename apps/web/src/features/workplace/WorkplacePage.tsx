@@ -1,4 +1,5 @@
 import {
+  CardGrid,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -7,6 +8,8 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
+  LoadingSection,
+  SectionHeader,
 } from '@gruenerator/ui';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -15,7 +18,6 @@ import {
   HiOutlineDocumentText,
   HiOutlineTrash,
   HiPencil,
-  HiPlus,
   HiShare,
   HiUserGroup,
 } from 'react-icons/hi';
@@ -48,52 +50,6 @@ const DocsIcon = getIcon('navigation', 'docs');
 const BoardIcon = getIcon('navigation', 'boards');
 
 const dateFormat: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
-
-const createButtonClass =
-  'flex items-center justify-center w-7 h-7 rounded-full text-primary-600 hover:bg-primary-600/10 transition-colors cursor-pointer border-none bg-transparent';
-
-const SectionHeader = ({
-  title,
-  titleHref,
-  onCreate,
-  createLabel,
-}: {
-  title: string;
-  titleHref?: string;
-  onCreate?: () => void;
-  createLabel?: string;
-}) => (
-  <div className="flex items-center justify-between mb-md">
-    <div className="flex items-center gap-xs">
-      {titleHref ? (
-        <a href={titleHref} target="_blank" rel="noopener noreferrer" className="no-underline">
-          <h2 className="text-xl font-semibold text-foreground-heading m-0 hover:text-primary-600 transition-colors">
-            {title}
-          </h2>
-        </a>
-      ) : (
-        <h2 className="text-xl font-semibold text-foreground-heading m-0">{title}</h2>
-      )}
-      {onCreate && (
-        <button
-          type="button"
-          onClick={onCreate}
-          className={createButtonClass}
-          aria-label={createLabel ?? 'Neu erstellen'}
-        >
-          <HiPlus size={18} />
-        </button>
-      )}
-    </div>
-  </div>
-);
-
-const LoadingSpinner = () => (
-  <div className="flex items-center gap-sm py-md">
-    <div className="size-4 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
-    <span className="text-sm text-foreground">Laden...</span>
-  </div>
-);
 
 const SUBTYPE_EMOJI: Record<string, string> = {
   blank: '📄',
@@ -533,17 +489,17 @@ const WorkplacePage = () => {
               createLabel="Neues Dokument erstellen"
             />
             {docsLoading ? (
-              <LoadingSpinner />
+              <LoadingSection />
             ) : docs.length === 0 ? (
               <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
                 Noch keine Dokumente vorhanden.
               </p>
             ) : (
-              <div className="grid grid-cols-5 max-lg:grid-cols-4 max-md:grid-cols-3 max-sm:grid-cols-2 gap-sm">
+              <CardGrid columns="5">
                 {docs.map((doc) => (
                   <DocCard key={doc.id} doc={doc} />
                 ))}
-              </div>
+              </CardGrid>
             )}
           </section>
         )}
@@ -584,7 +540,7 @@ const WorkplacePage = () => {
             )}
 
             {boardsLoading ? (
-              <LoadingSpinner />
+              <LoadingSection />
             ) : displayedBoards.length === 0 ? (
               <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
                 {boardTab === 'active'
@@ -592,7 +548,7 @@ const WorkplacePage = () => {
                   : 'Keine archivierten Boards.'}
               </p>
             ) : (
-              <div className="grid grid-cols-2 max-sm:grid-cols-1 gap-sm">
+              <CardGrid columns="2">
                 {displayedBoards.map((board) => (
                   <BoardCard
                     key={board.id}
@@ -605,7 +561,7 @@ const WorkplacePage = () => {
                     isDeleting={deletingId === board.id}
                   />
                 ))}
-              </div>
+              </CardGrid>
             )}
           </section>
         )}
@@ -614,10 +570,10 @@ const WorkplacePage = () => {
           <section className="mb-xl">
             <SectionHeader title="Texte" />
             {textsLoading ? (
-              <LoadingSpinner />
+              <LoadingSection />
             ) : (
               <>
-                <div className="grid grid-cols-5 max-lg:grid-cols-4 max-md:grid-cols-3 max-sm:grid-cols-2 gap-sm">
+                <CardGrid columns="5">
                   {(textsExpanded ? savedTexts : savedTexts.slice(0, TEXTE_COLLAPSE_THRESHOLD)).map(
                     (t) => (
                       <TextCard
@@ -630,7 +586,7 @@ const WorkplacePage = () => {
                       />
                     )
                   )}
-                </div>
+                </CardGrid>
                 {savedTexts.length > TEXTE_COLLAPSE_THRESHOLD && (
                   <button
                     type="button"
@@ -650,7 +606,7 @@ const WorkplacePage = () => {
         {(showDocs || showBoards || savedTexts.length > 0) && <Separator className="mb-xl" />}
 
         <section>
-          <h2 className="text-xl font-semibold text-foreground-heading mb-md">Weitere Tools</h2>
+          <SectionHeader title="Weitere Tools" />
           <ToolGrid tools={visibleTools} />
         </section>
       </PageContainer>

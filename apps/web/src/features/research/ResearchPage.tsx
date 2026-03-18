@@ -9,6 +9,8 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  CardGrid,
+  StatusBanner,
 } from '@gruenerator/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { HiArrowsUpDown, HiBarsArrowDown, HiCog6Tooth, HiRectangleStack } from 'react-icons/hi2';
@@ -358,9 +360,9 @@ function ResearchPage() {
         )}
 
         {error && (
-          <div className="mb-lg rounded-md border border-red-200 bg-red-50 p-md text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+          <StatusBanner variant="error" className="mb-lg">
             {error}
-          </div>
+          </StatusBanner>
         )}
 
         {metadata && (
@@ -373,14 +375,14 @@ function ResearchPage() {
         )}
 
         {results.length > 0 && (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-2xl max-lg:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] max-md:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] max-md:gap-4">
+          <CardGrid columns="auto" gap="2xl" className="max-md:gap-4">
             {results.map((result, i) => (
               <IndexCard
                 key={`${result.document_id}-${result.collection_id ?? i}`}
                 {...resultToCardProps(result)}
               />
             ))}
-          </div>
+          </CardGrid>
         )}
 
         {hasSearched && !isLoading && results.length === 0 && !error && (
