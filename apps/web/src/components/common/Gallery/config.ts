@@ -141,8 +141,8 @@ export const GALLERY_CONTENT_TYPES: Record<string, GalleryConfig> = {
   agents: {
     id: 'agents',
     label: 'Agenten',
-    title: 'Agenten-Datenbank',
-    intro: 'Entdecke Agenten der Community',
+    title: 'Agenten & Skills',
+    intro: 'Entdecke Skills und Agenten der Community',
     searchModes: [
       { value: 'title', label: 'Titel' },
       { value: 'fulltext', label: 'Volltext' },
@@ -151,8 +151,9 @@ export const GALLERY_CONTENT_TYPES: Record<string, GalleryConfig> = {
     defaultSearchMode: 'title',
     fetcher: 'fetchAgents',
     cardRenderer: 'agents',
-    sectionOrder: ['own', 'saved', 'builtin', 'community'],
+    sectionOrder: ['favorites', 'own', 'saved', 'builtin', 'community'],
     sectionLabels: {
+      favorites: 'Favoriten',
       own: 'Meine Agenten',
       saved: 'Gespeicherte Agenten',
       builtin: 'System-Agenten',
