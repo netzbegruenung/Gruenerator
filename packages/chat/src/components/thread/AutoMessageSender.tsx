@@ -11,44 +11,48 @@ export function AutoMessageSender() {
   const setPendingMessage = useAgentStore((s) => s.setPendingMessage);
   const pendingDraft = useAgentStore((s) => s.pendingDraft);
   const setPendingDraft = useAgentStore((s) => s.setPendingDraft);
-  const switchedRef = useRef<'message' | 'draft' | false>(false);
+  const processingRef = useRef(false);
 
-  // Phase 1: Switch to new thread when pending message or draft appears
   useEffect(() => {
-    if ((pendingMessage || pendingDraft) && !switchedRef.current) {
-      switchedRef.current = pendingMessage ? 'message' : 'draft';
-      assistantRuntime.switchToNewThread();
-    }
-    if (!pendingMessage && !pendingDraft) {
-      switchedRef.current = false;
-    }
-  }, [pendingMessage, pendingDraft, assistantRuntime]);
+    if (processingRef.current) return;
+    if (!pendingMessage && !pendingDraft) return;
 
-  // Phase 2: Send message or set draft after thread is ready
-  useEffect(() => {
-    if (!switchedRef.current) return;
-    const text = switchedRef.current === 'message' ? pendingMessage : pendingDraft;
+    const isMessage = !!pendingMessage;
+    const text = isMessage ? pendingMessage : pendingDraft;
     if (!text) return;
+
+    processingRef.current = true;
+    assistantRuntime.switchToNewThread();
 
     const timer = setTimeout(() => {
       try {
         composerRuntime.setText(text);
-        if (switchedRef.current === 'message') {
+        if (isMessage) {
           composerRuntime.send();
         }
       } catch (err) {
         console.warn('[AutoMessageSender] Failed:', err);
       }
-      if (switchedRef.current === 'message') {
+      if (isMessage) {
         setPendingMessage(null);
       } else {
         setPendingDraft(null);
       }
-      switchedRef.current = false;
+      processingRef.current = false;
     }, 500);
 
-    return () => clearTimeout(timer);
-  }, [pendingMessage, pendingDraft, composerRuntime, setPendingMessage, setPendingDraft]);
+    return () => {
+      clearTimeout(timer);
+      processingRef.current = false;
+    };
+  }, [
+    pendingMessage,
+    pendingDraft,
+    composerRuntime,
+    assistantRuntime,
+    setPendingMessage,
+    setPendingDraft,
+  ]);
 
   return null;
 }

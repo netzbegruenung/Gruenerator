@@ -1,21 +1,41 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import * as Y from 'yjs';
-import { generateUserColor } from '@gruenerator/collab';
+import { generateUserColor, useAwarenessState } from '@gruenerator/collab';
 import { useChatConfigStore } from '../stores/chatConfigStore';
-
-interface ChatCollaborationState {
-  provider: HocuspocusProvider | null;
-  typingUsers: string[];
-}
 
 interface ChatCollaborationUser {
   id: string;
   name: string;
 }
 
+function typingUsersEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+const selectTypingUsers = (
+  states: Map<number, Record<string, unknown>>,
+  localClientId: number
+): string[] => {
+  const typing: string[] = [];
+  states.forEach((state, clientId) => {
+    if (clientId === localClientId) return;
+    if (
+      (state['chatTyping'] as { isTyping?: boolean })?.isTyping &&
+      (state['user'] as { name?: string })?.name
+    ) {
+      typing.push((state['user'] as { name: string }).name);
+    }
+  });
+  return typing;
+};
+
 export function useChatCollaboration(threadId: string | null, user: ChatCollaborationUser | null) {
-  const [state, setState] = useState<ChatCollaborationState>({ provider: null, typingUsers: [] });
+  const [provider, setProvider] = useState<HocuspocusProvider | null>(null);
   const providerRef = useRef<HocuspocusProvider | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const docsBaseUrl = useChatConfigStore((s) => s.docsBaseUrl);
@@ -30,55 +50,28 @@ export function useChatCollaboration(threadId: string | null, user: ChatCollabor
         ? `wss://${window.location.host}/ws`
         : 'ws://localhost:1240';
 
-    const provider = new HocuspocusProvider({
+    const p = new HocuspocusProvider({
       url,
       name: `chat-${threadId}`,
       document: ydoc,
     });
 
-    providerRef.current = provider;
+    providerRef.current = p;
 
     const color = generateUserColor();
-    provider.awareness?.setLocalStateField('user', { id: user.id, name: user.name, color });
+    p.awareness?.setLocalStateField('user', { id: user.id, name: user.name, color });
 
-    const pendingRef = { current: null as ReturnType<typeof setTimeout> | null };
-
-    const handleAwareness = () => {
-      if (pendingRef.current) clearTimeout(pendingRef.current);
-      pendingRef.current = setTimeout(() => {
-        const awareness = provider.awareness;
-        if (!awareness) return;
-        const typing: string[] = [];
-
-        awareness.getStates().forEach((s, clientId) => {
-          if (clientId === awareness.clientID) return;
-          if (s['chatTyping']?.isTyping && s['user']?.name) {
-            typing.push(s['user'].name as string);
-          }
-        });
-
-        setState((prev) => {
-          const prevStr = prev.typingUsers.join(',');
-          const newStr = typing.join(',');
-          if (prevStr === newStr) return prev;
-          return { ...prev, typingUsers: typing };
-        });
-        pendingRef.current = null;
-      }, 0);
-    };
-
-    provider.awareness?.on('change', handleAwareness);
-
-    setState({ provider, typingUsers: [] });
+    setProvider(p);
 
     return () => {
-      provider.awareness?.off('change', handleAwareness);
-      provider.awareness?.setLocalState(null);
-      provider.destroy();
+      p.awareness?.setLocalState(null);
+      p.destroy();
       providerRef.current = null;
-      if (pendingRef.current) clearTimeout(pendingRef.current);
+      setProvider(null);
     };
   }, [threadId, user?.id, docsBaseUrl]);
+
+  const typingUsers = useAwarenessState(provider, selectTypingUsers, typingUsersEqual);
 
   const setTyping = useCallback((isTyping: boolean) => {
     const awareness = providerRef.current?.awareness;
@@ -98,8 +91,8 @@ export function useChatCollaboration(threadId: string | null, user: ChatCollabor
   }, []);
 
   return {
-    provider: state.provider,
-    typingUsers: state.typingUsers,
+    provider,
+    typingUsers,
     setTyping,
     broadcastNewMessage,
   };
