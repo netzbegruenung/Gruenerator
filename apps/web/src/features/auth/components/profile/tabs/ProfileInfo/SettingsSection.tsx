@@ -88,8 +88,8 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           featureName: 'Datenbank',
           checkboxLabel:
             "'Texte & Vorlagen'-Tab (Datenbank) anzeigen und Funktionalität aktivieren",
-          linkTo: '/datenbank',
-          linkText: 'Zur Datenbank',
+          linkTo: '/datenbank/agents',
+          linkText: 'Zu Agenten & Skills',
           icon: HiOutlineDatabase,
         };
       case BETA_VIEWS.COLLAB:
