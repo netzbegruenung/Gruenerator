@@ -1,4 +1,3 @@
-import { useCanvasSidebarStore, SIDEBAR_FONT_SIZES } from '@gruenerator/canvas-editor';
 import { useAgentStore } from '@gruenerator/chat';
 import {
   Sheet,
@@ -11,7 +10,6 @@ import {
   useIsMobile,
 } from '@gruenerator/ui';
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { FaCheck } from 'react-icons/fa';
 import { PiSun, PiMoon, PiHouse, PiX, PiStarFill } from 'react-icons/pi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
@@ -56,24 +54,6 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   const navigate = useNavigate();
   const { isOpen, close, open, toggle, forceExpanded } = useSidebarStore();
   const isMobile = useIsMobile();
-
-  const canvasIsActive = useCanvasSidebarStore((s) => s.isActive);
-  const canvasTabs = useCanvasSidebarStore((s) => s.tabs);
-  const canvasActiveTab = useCanvasSidebarStore((s) => s.activeTab);
-  const canvasDisabledTabs = useCanvasSidebarStore((s) => s.disabledTabs);
-  const canvasOnTabClick = useCanvasSidebarStore((s) => s.onTabClick);
-  const canvasAutoSaveStatus = useCanvasSidebarStore((s) => s.autoSaveStatus);
-  const canvasPanelContent = useCanvasSidebarStore((s) => s.panelContent);
-  const [showCanvasSaved, setShowCanvasSaved] = useState(false);
-
-  useEffect(() => {
-    if (canvasAutoSaveStatus === 'saved') {
-      setShowCanvasSaved(true);
-      const timer = setTimeout(() => setShowCanvasSaved(false), 2000);
-      return () => clearTimeout(timer);
-    }
-    return undefined;
-  }, [canvasAutoSaveStatus]);
 
   useLazyAuth();
   const { user } = useOptimizedAuth();
@@ -244,111 +224,32 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           isDesktop ? 'pt-3' : !sidebarExpanded && 'pt-12'
         )}
       >
-        {/* Canvas editor tabs — replaces normal nav when canvas is active */}
-        {canvasIsActive ? (
-          <div className="flex flex-col gap-0.5 p-0" style={{ paddingTop: 'var(--spacing-small)' }}>
-            {canvasTabs.map((tab) => {
-              const Icon = tab.icon;
-              const isTabActive = canvasActiveTab === tab.id;
-              const isTabDisabled = canvasDisabledTabs.includes(tab.id);
-              return (
-                <Tooltip key={tab.id}>
+        {/* Direct menu items - main navigation */}
+        {additionalItems.length > 0 && (
+          <div className="flex flex-col gap-0.5 p-0">
+            {additionalItems.map((item) =>
+              !item.path ? (
+                <span key={item.id} className={menuLinkClass(false, true)}>
+                  {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
+                  <span className={titleClass}>{item.title}</span>
+                  {item.badge && (
+                    <span className={badgeClass}>
+                      <StatusBadge type={item.badge} variant="sidebar" />
+                    </span>
+                  )}
+                </span>
+              ) : isDesktop ? (
+                <Tooltip key={item.id}>
                   <TooltipTrigger asChild>
                     <button
-                      className={menuLinkClass(isTabActive, isTabDisabled)}
-                      onClick={() => !isTabDisabled && canvasOnTabClick?.(tab.id)}
-                      disabled={isTabDisabled}
-                      aria-label={tab.ariaLabel}
-                      aria-pressed={isTabActive}
-                      type="button"
-                    >
-                      <Icon aria-hidden="true" className={iconClass} />
-                      <span className={titleClass}>{tab.label}</span>
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" hidden={sidebarExpanded}>
-                    {tab.label}
-                  </TooltipContent>
-                </Tooltip>
-              );
-            })}
-
-            {/* Auto-save indicator */}
-            {canvasAutoSaveStatus && (
-              <div
-                className={cn(
-                  'flex items-center gap-md py-sm px-xs pl-2 mx-2 rounded-sm min-h-8 no-underline whitespace-nowrap transition-colors text-foreground justify-center cursor-default transition-opacity duration-300',
-                  canvasAutoSaveStatus === 'saving' || showCanvasSaved ? 'opacity-100' : 'opacity-0'
-                )}
-                title={
-                  canvasAutoSaveStatus === 'saving'
-                    ? 'Wird gespeichert...'
-                    : canvasAutoSaveStatus === 'saved'
-                      ? 'Gespeichert'
-                      : canvasAutoSaveStatus === 'error'
-                        ? 'Fehler beim Speichern'
-                        : ''
-                }
-              >
-                {canvasAutoSaveStatus === 'saving' && (
-                  <div className="size-4 border-2 border-[var(--border-subtle)] border-t-[var(--interactive-accent-color)] rounded-full animate-spin" />
-                )}
-                {showCanvasSaved && <FaCheck size={14} className="text-green-500" />}
-              </div>
-            )}
-          </div>
-        ) : (
-          <>
-            {/* Direct menu items - main navigation */}
-            {additionalItems.length > 0 && (
-              <div className="flex flex-col gap-0.5 p-0">
-                {additionalItems.map((item) =>
-                  !item.path ? (
-                    <span key={item.id} className={menuLinkClass(false, true)}>
-                      {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
-                      <span className={titleClass}>{item.title}</span>
-                      {item.badge && (
-                        <span className={badgeClass}>
-                          <StatusBadge type={item.badge} variant="sidebar" />
-                        </span>
-                      )}
-                    </span>
-                  ) : isDesktop ? (
-                    <Tooltip key={item.id}>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() =>
-                            item.id === 'chat'
-                              ? handleChatClick()
-                              : handleLinkClick(item.path!, item.title)
-                          }
-                          className={menuLinkClass(isActive(item.path!))}
-                          aria-current={isActive(item.path!) ? 'page' : undefined}
-                          type="button"
-                        >
-                          {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
-                          <span className={titleClass}>{item.title}</span>
-                          {item.badge && (
-                            <span className={badgeClass}>
-                              <StatusBadge type={item.badge} variant="sidebar" />
-                            </span>
-                          )}
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="right" hidden={sidebarExpanded}>
-                        {item.title}
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <Link
-                      key={item.id}
-                      to={item.path!}
-                      className={menuLinkClass(false)}
                       onClick={() =>
                         item.id === 'chat'
                           ? handleChatClick()
                           : handleLinkClick(item.path!, item.title)
                       }
+                      className={menuLinkClass(isActive(item.path!))}
+                      aria-current={isActive(item.path!) ? 'page' : undefined}
+                      type="button"
                     >
                       {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
                       <span className={titleClass}>{item.title}</span>
@@ -357,40 +258,60 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
                           <StatusBadge type={item.badge} variant="sidebar" />
                         </span>
                       )}
-                    </Link>
-                  )
-                )}
-              </div>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" hidden={sidebarExpanded}>
+                    {item.title}
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <Link
+                  key={item.id}
+                  to={item.path!}
+                  className={menuLinkClass(false)}
+                  onClick={() =>
+                    item.id === 'chat' ? handleChatClick() : handleLinkClick(item.path!, item.title)
+                  }
+                >
+                  {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
+                  <span className={titleClass}>{item.title}</span>
+                  {item.badge && (
+                    <span className={badgeClass}>
+                      <StatusBadge type={item.badge} variant="sidebar" />
+                    </span>
+                  )}
+                </Link>
+              )
             )}
-
-            {/* Favourites */}
-            <SidebarFavourites
-              isOpen={isOpen}
-              isDesktop={isDesktop}
-              onLinkClick={handleLinkClick}
-              isActive={isActive}
-              forceExpanded={forceExpanded}
-            />
-
-            {/* Only render dropdown sections that have items */}
-            {(Object.entries(menuItems) as [keyof typeof menuItems, MenuSection][])
-              .filter(([_, menu]) => menu.items && menu.items.length > 0)
-              .map(([key, menu]) => (
-                <SidebarSection
-                  key={key}
-                  sectionKey={key}
-                  title={menu.title}
-                  items={menu.items}
-                  isOpen={activeSection === key}
-                  onToggle={() => toggleSection(key)}
-                  onLinkClick={handleLinkClick}
-                  isDesktop={isDesktop}
-                  isActive={isActive}
-                  sidebarExpanded={sidebarExpanded}
-                />
-              ))}
-          </>
+          </div>
         )}
+
+        {/* Favourites */}
+        <SidebarFavourites
+          isOpen={isOpen}
+          isDesktop={isDesktop}
+          onLinkClick={handleLinkClick}
+          isActive={isActive}
+          forceExpanded={forceExpanded}
+        />
+
+        {/* Only render dropdown sections that have items */}
+        {(Object.entries(menuItems) as [keyof typeof menuItems, MenuSection][])
+          .filter(([_, menu]) => menu.items && menu.items.length > 0)
+          .map(([key, menu]) => (
+            <SidebarSection
+              key={key}
+              sectionKey={key}
+              title={menu.title}
+              items={menu.items}
+              isOpen={activeSection === key}
+              onToggle={() => toggleSection(key)}
+              onLinkClick={handleLinkClick}
+              isDesktop={isDesktop}
+              isActive={isActive}
+              sidebarExpanded={sidebarExpanded}
+            />
+          ))}
       </nav>
 
       {sidebarExpanded && (
@@ -470,17 +391,6 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         >
           {sidebarInner}
         </aside>
-      )}
-
-      {canvasPanelContent && (
-        <div
-          className="fixed top-0 bottom-0 left-[var(--sidebar-collapsed-width)] z-[1005] w-auto min-w-[120px] max-w-[320px] bg-background rounded-br-xl shadow-[8px_0_24px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col"
-          style={SIDEBAR_FONT_SIZES}
-        >
-          <div className="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-3 pt-[var(--header-height,48px)]">
-            {canvasPanelContent}
-          </div>
-        </div>
       )}
     </TooltipProvider>
   );
