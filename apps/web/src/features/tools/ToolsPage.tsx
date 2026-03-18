@@ -42,14 +42,6 @@ const tools: ToolEntry[] = [
   ...(import.meta.env.DEV
     ? [
         {
-          id: 'datenbank',
-          title: 'Datenbank',
-          description: 'Durchsuche Vorlagen, Prompts und Anträge für deine grüne Arbeit.',
-          path: '/datenbank',
-          icon: getIcon('navigation', 'datenbank'),
-          tags: ['Vorlagen', 'Prompts', 'Anträge'],
-        },
-        {
           id: 'scanner',
           title: 'Scanner',
           description: 'Text aus Dokumenten extrahieren mit OCR-Erkennung.',

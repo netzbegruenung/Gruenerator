@@ -394,7 +394,6 @@ const standardRoutes: RouteConfig[] = [
   { path: '/gruppen/:groupId', component: GruppenPage },
   { path: '/gruen-o-mat', component: GruenOMatDemoPage },
   { path: '/research', component: ResearchPage },
-  { path: '/datenbank', component: GrueneratorenBundle.DatabaseIndex },
   { path: '/datenbank/antraege', component: GrueneratorenBundle.AntraegeListe },
   { path: '/datenbank/antraege/:antragId', component: GrueneratorenBundle.AntragDetail },
   { path: '/datenbank/vorlagen', component: GrueneratorenBundle.VorlagenListe },

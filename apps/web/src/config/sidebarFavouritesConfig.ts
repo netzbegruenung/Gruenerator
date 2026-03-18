@@ -28,12 +28,6 @@ const TOOL_ITEMS: FavouriteItemConfig[] = [
     path: '/research',
     icon: getIcon('navigation', 'research')!,
   },
-  {
-    id: 'datenbank',
-    title: 'Datenbank',
-    path: '/datenbank',
-    icon: getIcon('navigation', 'datenbank')!,
-  },
   { id: 'scanner', title: 'Scanner', path: '/scanner', icon: getIcon('navigation', 'scanner')! },
   {
     id: 'transkription',

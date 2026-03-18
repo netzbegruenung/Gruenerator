@@ -75,14 +75,6 @@ const tools: ToolEntry[] = [
     icon: getIcon('navigation', 'research'),
     tags: ['Dokumente', 'Qdrant'],
   },
-  {
-    id: 'datenbank',
-    title: 'Datenbank',
-    description: 'Durchsuche Vorlagen, Prompts und Anträge für deine grüne Arbeit.',
-    path: '/datenbank',
-    icon: getIcon('navigation', 'datenbank'),
-    tags: ['Vorlagen', 'Prompts', 'Anträge'],
-  },
 ];
 
 const HIDDEN_NOTEBOOK_IDS = [
