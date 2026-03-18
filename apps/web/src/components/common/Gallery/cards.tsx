@@ -1,3 +1,7 @@
+import { createElement } from 'react';
+
+import { AgentFavoriteButton } from './AgentFavoriteButton';
+
 const formatDate = (value: string | Date | null | undefined): string => {
   if (!value) return '';
   try {
@@ -167,6 +171,9 @@ export const cardAdapters: Record<string, CardAdapter> = {
           meta: 'System-Agent',
           onClick: handleClick,
           className: 'agent-card agent-card--builtin',
+          headerActions: createElement(AgentFavoriteButton, {
+            identifier: String(item.identifier || ''),
+          }),
         },
       };
     }

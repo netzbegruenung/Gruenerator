@@ -1,3 +1,4 @@
+import { useSkillFavoritesStore, agentsList as chatAgentsList } from '@gruenerator/chat';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -12,7 +13,6 @@ import {
   PR_TYPES,
 } from './config';
 import { parseSearchQuery, addTagToSearch } from './searchUtils';
-
 
 const DEBOUNCE_DELAY = 500;
 
@@ -216,8 +216,12 @@ const fetchAgents = async ({ searchTerm, searchMode, signal }: FetchOptions) => 
     q
       ? items.filter(
           (a) =>
-            String(a.title || a.name || '').toLowerCase().includes(q) ||
-            String(a.description || '').toLowerCase().includes(q)
+            String(a.title || a.name || '')
+              .toLowerCase()
+              .includes(q) ||
+            String(a.description || '')
+              .toLowerCase()
+              .includes(q)
         )
       : items;
 
@@ -412,17 +416,34 @@ export const useGalleryController = ({
     [availableContentTypeIds]
   );
 
-  const handleTagClick = useCallback(
-    (tag: string) => {
-      setInputValue((prev) => addTagToSearch(prev, tag));
-    },
-    []
-  );
+  const handleTagClick = useCallback((tag: string) => {
+    setInputValue((prev) => addTagToSearch(prev, tag));
+  }, []);
+
+  const skillFavorites = useSkillFavoritesStore((s) => s.favorites);
+
+  const sectionsWithFavorites = useMemo(() => {
+    const rawSections = (dataQuery.data as Record<string, unknown>)?.sections as
+      | Record<string, unknown[]>
+      | undefined;
+    if (!rawSections || resolvedType !== 'agents') return rawSections;
+
+    const builtinItems = (rawSections.builtin || []) as Record<string, unknown>[];
+    const favSet = new Set(skillFavorites);
+    // Map identifier → mention using the chat agentsList
+    const idToMention = new Map(chatAgentsList.map((a) => [a.identifier, a.mention.toLowerCase()]));
+    const favoriteItems = builtinItems.filter((a) => {
+      const mention = idToMention.get(String(a.identifier));
+      return mention && favSet.has(mention);
+    });
+
+    return { ...rawSections, favorites: favoriteItems };
+  }, [dataQuery.data, skillFavorites, resolvedType]);
 
   return {
     config,
     items: ((dataQuery.data as Record<string, unknown>)?.items as unknown[]) || [],
-    sections: (dataQuery.data as Record<string, unknown>)?.sections,
+    sections: sectionsWithFavorites,
     loading: dataQuery.isLoading,
     error: dataQuery.error,
     searchTerm,
