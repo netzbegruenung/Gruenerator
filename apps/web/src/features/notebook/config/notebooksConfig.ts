@@ -44,7 +44,7 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
   {
     id: 'gruene-notebook',
     path: '/gruene-notebook',
-    title: 'Bündnis 90/Die Grünen',
+    title: 'Bundesverband',
     description: 'Durchsuchbar sind die offiziellen Grundsatzprogramme von Bündnis 90/Die Grünen.',
     meta: '3 Programme',
     tags: ['Grundsatzprogramm', 'EU-Wahl', 'Regierung'],

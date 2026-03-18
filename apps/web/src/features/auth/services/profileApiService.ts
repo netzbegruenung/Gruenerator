@@ -548,6 +548,17 @@ export const profileApiService = {
     return data.data || [];
   },
 
+  async getText(textId: string | number): Promise<SavedText> {
+    const response = await apiClient.get(`/auth/saved-texts/${textId}`);
+    const data = response.data;
+
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to fetch text');
+    }
+
+    return data.data;
+  },
+
   async updateTextTitle(textId: string | number, newTitle: string): Promise<SavedTextResponse> {
     const response = await apiClient.post(`/auth/saved-texts/${textId}/metadata`, {
       title: newTitle.trim(),

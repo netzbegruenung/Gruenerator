@@ -403,6 +403,58 @@ router.get(
   }
 );
 
+router.get(
+  '/saved-texts/:id',
+  ensureAuthenticated as any,
+  async (req: AuthRequest<{ id: string }>, res: Response): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      const { id } = req.params;
+
+      if (!id) {
+        res.status(400).json({ success: false, message: 'Text-ID ist erforderlich.' });
+        return;
+      }
+
+      const postgres = getPostgresInstance();
+      await postgres.ensureInitialized();
+
+      const data = await postgres.query(
+        `SELECT id as document_id, title, content, document_type, created_at
+         FROM user_documents
+         WHERE id = $1 AND user_id = $2 AND is_active = true`,
+        [id, userId],
+        { table: 'user_documents' }
+      );
+
+      if (!data || data.length === 0) {
+        res.status(404).json({ success: false, message: 'Text nicht gefunden.' });
+        return;
+      }
+
+      const item = data[0];
+      res.json({
+        success: true,
+        data: {
+          id: item.document_id,
+          title: item.title,
+          content: item.content || '',
+          type: item.document_type,
+          created_at: item.created_at,
+        },
+      });
+    } catch (error) {
+      const err = error as Error;
+      log.error('[User Content /saved-texts/:id GET] Error:', err.message);
+      res.status(500).json({
+        success: false,
+        message: 'Fehler beim Laden des Textes.',
+        details: err.message,
+      });
+    }
+  }
+);
+
 router.delete(
   '/saved-texts/:id',
   ensureAuthenticated as any,

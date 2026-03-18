@@ -210,8 +210,8 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
 
   gruene: {
     id: 'gruene',
-    title: 'Frag Bündnis 90/Die Grünen',
-    authTitle: 'Frag Bündnis 90/Die Grünen',
+    title: 'Frag den Bundesverband',
+    authTitle: 'Frag den Bundesverband',
     collectionType: 'single',
     collections: [
       {
