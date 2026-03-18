@@ -16,6 +16,7 @@ const log = createLogger('CompactionService');
 
 // Configuration constants
 export const COMPACTION_THRESHOLD = 50;
+export const COMPACTION_TOKEN_THRESHOLD = 24000;
 export const KEEP_RECENT = 20;
 export const RE_COMPACTION_THRESHOLD = 50;
 export const SUMMARY_MAX_TOKENS = 800;
@@ -44,9 +45,18 @@ export interface Message {
 }
 
 /**
- * Check if a thread needs compaction based on message count
+ * Check if a thread needs compaction based on message count or estimated token usage.
+ * Token-based threshold catches conversations with few but very large messages
+ * (e.g., pasted articles) that would otherwise lose context before hitting the message count.
  */
-export function needsCompaction(messageCount: number, existingSummary: string | null): boolean {
+export function needsCompaction(
+  messageCount: number,
+  existingSummary: string | null,
+  estimatedTokens?: number
+): boolean {
+  if (estimatedTokens && estimatedTokens >= COMPACTION_TOKEN_THRESHOLD && !existingSummary) {
+    return true;
+  }
   if (!existingSummary) {
     return messageCount >= COMPACTION_THRESHOLD;
   }
