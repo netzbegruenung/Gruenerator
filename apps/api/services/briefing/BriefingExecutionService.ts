@@ -1,8 +1,9 @@
-import { Mistral } from '@mistralai/mistralai';
+import { generateText } from 'ai';
 
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { getBriefingModel } from './aiProvider.js';
 import {
   getAgentByIdInternal,
   createExecution,
@@ -14,6 +15,7 @@ import {
 import { archiveBriefing } from './BriefingArchiveService.js';
 import { deliverBriefing } from './BriefingDeliveryService.js';
 import { collectAll } from './DataCollectorService.js';
+import { compareWithPositions } from './PositionComparisonService.js';
 import { isSystemAgent, getSystemAgent } from './SystemAgentLoader.js';
 
 import type { BriefingAgent, CollectedItem } from './types.js';
@@ -23,22 +25,14 @@ const log = createLogger('BriefingExecution');
 const AUTO_PAUSE_THRESHOLD = 7;
 const EXECUTION_TIMEOUT_MS = 5 * 60 * 1000;
 
-let mistralClient: Mistral | null = null;
-
-function getMistralClient(): Mistral {
-  if (!mistralClient) {
-    mistralClient = new Mistral({ apiKey: process.env.MISTRAL_API_KEY });
-  }
-  return mistralClient;
-}
-
 async function summarizeResults(agent: BriefingAgent, items: CollectedItem[]): Promise<string> {
   try {
     const formatPrompt: Record<string, string> = {
-      summary: 'Erstelle eine zusammenhängende Zusammenfassung der wichtigsten Punkte.',
+      summary:
+        'Schreibe eine zusammenhängende Zusammenfassung als Fließtext. Kurze Absätze mit 2-3 Sätzen. Setze wichtige Namen **fett**. Keine Aufzählungen.',
       list: 'Erstelle eine nummerierte Liste aller relevanten Ergebnisse mit jeweils 1-2 Sätzen.',
       digest:
-        'Erstelle ein kategorisiertes Briefing mit thematischen Überschriften und Stichpunkten.',
+        'Schreibe ein analytisches Briefing als gut lesbaren Fließtext. Kurze Absätze (2-3 Sätze). Setze wichtige Namen und Schlüsselbegriffe **fett**. Verwende Zwischenüberschriften nur für große Themenwechsel. Keine Bullet Points.',
     };
 
     const itemsText = items
@@ -52,16 +46,11 @@ async function summarizeResults(agent: BriefingAgent, items: CollectedItem[]): P
     const instruction =
       agent.config.customPrompt || formatPrompt[agent.config.outputFormat] || formatPrompt.summary;
 
-    const result = await getMistralClient().chat.complete({
-      model: 'mistral-small-latest',
-      messages: [
-        {
-          role: 'system',
-          content: 'Du bist ein Briefing-Assistent. Antworte auf Deutsch.',
-        },
-        {
-          role: 'user',
-          content: `Briefing-Agent: "${agent.name}"
+    const result = await generateText({
+      model: getBriefingModel(),
+      system:
+        'Du bist ein*e Briefing-Autor*in für ein politisches Newsletter-Format. Schreibe analytische Fließtexte auf Deutsch im Stil von Table.Briefings — kurze Absätze, narrative Struktur, direkte Zitate. Setze Namen **fett**.',
+      prompt: `Briefing-Agent: "${agent.name}"
 Beschreibung: ${agent.description || 'Keine Beschreibung'}
 Zeitraum: ${agent.config.timeRange === 'day' ? 'Heute' : 'Diese Woche'}
 
@@ -70,14 +59,11 @@ ${instruction}
 Ergebnisse (${items.length}):
 
 ${itemsText}`,
-        },
-      ],
       temperature: 0.3,
-      maxTokens: 2000,
+      maxOutputTokens: 2000,
     });
 
-    const content = result.choices?.[0]?.message?.content;
-    return typeof content === 'string' ? content : 'Zusammenfassung konnte nicht erstellt werden.';
+    return result.text || 'Zusammenfassung konnte nicht erstellt werden.';
   } catch (error) {
     log.error(`Summarization failed for agent ${agent.id}: ${toError(error).message}`);
     return items
@@ -144,7 +130,16 @@ export async function execute(agentId: string): Promise<void> {
       return;
     }
 
-    const summary = await summarizeResults(agent, newItems);
+    let summary = await summarizeResults(agent, newItems);
+
+    if (agent.config.positionCollections?.length) {
+      const comparison = await compareWithPositions(
+        newItems,
+        agent.config.positionCollections,
+        agent.config.positionComparisonPrompt
+      );
+      summary = summary + '\n\n---\n\n## Vergleich mit Grünen Positionen\n\n' + comparison;
+    }
 
     const email = await getRecipientEmail(agent);
     if (email) {

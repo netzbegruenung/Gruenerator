@@ -281,6 +281,9 @@ const TranskriptionPage = lazy(() =>
   }))
 );
 const ToolsPage = lazy(() => import('../features/tools/ToolsPage'));
+const BriefingPage = lazy(() => import('../features/briefing/BriefingPage'));
+const BriefingArchivePage = lazy(() => import('../features/briefing/BriefingArchivePage'));
+const BriefingArticlePage = lazy(() => import('../features/briefing/BriefingArticlePage'));
 const DeskPage = lazy(() => import('../features/workplace/WorkplacePage'));
 const RecherchePage = lazy(() => import('../features/recherche/RecherchePage'));
 const GruppenPage = lazy(() =>
@@ -313,6 +316,7 @@ const BoardPage = lazy(() =>
 const PublicBoardPage = lazy(() => import('../features/boards/PublicBoardPage'));
 const GruenOMatDemoPage = lazy(() => import('../features/gruen-o-mat/GruenOMatDemoPage'));
 const ResearchPage = lazy(() => import('../features/research/ResearchPage'));
+const MonitorPage = lazy(() => import('../features/monitor/MonitorPage'));
 const DocsListRedirect = lazy(() => Promise.resolve({ default: createRedirect('/desk') }));
 const DocsEditorPage = lazy(() =>
   Promise.all([
@@ -394,6 +398,10 @@ const standardRoutes: RouteConfig[] = [
   { path: '/gruppen/:groupId', component: GruppenPage },
   { path: '/gruen-o-mat', component: GruenOMatDemoPage },
   { path: '/research', component: ResearchPage },
+  { path: '/monitor', component: MonitorPage },
+  { path: '/briefing', component: BriefingPage },
+  { path: '/briefing/:agentId/archiv', component: BriefingArchivePage },
+  { path: '/briefing/:agentId/archiv/:filename', component: BriefingArticlePage },
   { path: '/datenbank/antraege', component: GrueneratorenBundle.AntraegeListe },
   { path: '/datenbank/antraege/:antragId', component: GrueneratorenBundle.AntragDetail },
   { path: '/datenbank/vorlagen', component: GrueneratorenBundle.VorlagenListe },

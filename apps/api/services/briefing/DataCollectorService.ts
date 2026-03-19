@@ -9,6 +9,7 @@ import {
   getRecentInstagramPosts,
 } from './ApifyService.js';
 import { getRecentDocuments } from './DocumentSourceService.js';
+import { scrapeListingPage } from './PageScraperService.js';
 import { fetchNewItems } from './RSSService.js';
 
 import type { BriefingConfig, CollectedItem, SourceConfig } from './types.js';
@@ -74,6 +75,15 @@ async function collectFromSocial(source: SourceConfig, maxItems: number): Promis
   return searchWeb(`${source.username} site:${platform}`, { timeRange: 'day' });
 }
 
+async function collectFromScrape(
+  source: SourceConfig,
+  since: Date,
+  maxResults: number
+): Promise<CollectedItem[]> {
+  if (!source.url || !source.scrapeConfig) return [];
+  return scrapeListingPage(source.url, source.scrapeConfig, since, maxResults);
+}
+
 function filterByKeywords(items: CollectedItem[], keywords?: string[]): CollectedItem[] {
   if (!keywords?.length) return items;
   const lower = keywords.map((k) => k.toLowerCase());
@@ -110,6 +120,12 @@ export async function collectAll(config: BriefingConfig): Promise<CollectedItem[
         items = source.collection
           ? await getRecentDocuments(source.collection, since, config.maxResultsPerSource)
           : [];
+        break;
+      case 'scrape':
+        items =
+          source.url && source.scrapeConfig
+            ? await collectFromScrape(source, since, config.maxResultsPerSource)
+            : [];
         break;
       default:
         items = [];

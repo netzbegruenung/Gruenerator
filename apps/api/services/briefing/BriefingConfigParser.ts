@@ -1,20 +1,13 @@
-import { Mistral } from '@mistralai/mistralai';
+import { generateText } from 'ai';
 
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { getBriefingModel } from './aiProvider.js';
+
 import type { BriefingConfig, SourceConfig } from './types.js';
 
 const log = createLogger('BriefingConfigParser');
-
-let mistralClient: Mistral | null = null;
-
-function getMistralClient(): Mistral {
-  if (!mistralClient) {
-    mistralClient = new Mistral({ apiKey: process.env.MISTRAL_API_KEY });
-  }
-  return mistralClient;
-}
 
 const SOCIAL_PLATFORMS: Record<string, SourceConfig['type']> = {
   twitter: 'twitter',
@@ -24,7 +17,7 @@ const SOCIAL_PLATFORMS: Record<string, SourceConfig['type']> = {
   insta: 'instagram',
 };
 
-const KNOWN_RSS_FEEDS: Record<string, string> = {
+export const KNOWN_RSS_FEEDS: Record<string, string> = {
   // German national (verified 2026-03-17)
   'tagesschau.de': 'https://www.tagesschau.de/xml/rss2/',
   'zeit.de': 'https://newsfeed.zeit.de/index',
@@ -48,9 +41,18 @@ const KNOWN_RSS_FEEDS: Record<string, string> = {
   'telepolis.de': 'https://www.telepolis.de/news-atom.xml',
   'cicero.de': 'https://www.cicero.de/rss.xml',
   'jacobin.de': 'https://jacobin.de/rss',
-  // German public broadcasters (verified)
+  'bild.de': 'https://www.bild.de/rss-feeds/rss-16725492,feed=home.bild.html',
+  'berliner-zeitung.de': 'https://www.berliner-zeitung.de/feed.xml',
+  'sueddeutsche.de/politik': 'https://rss.sueddeutsche.de/rss/Politik',
+  'sueddeutsche.de/wirtschaft': 'https://rss.sueddeutsche.de/rss/Wirtschaft',
+  // German public broadcasters (verified 2026-03-19)
   'ndr.de': 'https://www.ndr.de/home/index-rss.xml',
   'mdr.de': 'https://www.mdr.de/nachrichten/index-rss.xml',
+  'br.de': 'https://nachrichtenfeeds.br.de/rss/nachrichten/seiten/QXAPkQJ',
+  'wdr.de': 'https://www1.wdr.de/uebersicht-100.feed',
+  'swr.de': 'https://www.swr.de/~rss/swraktuell-100.xml',
+  'hessenschau.de': 'https://www.hessenschau.de/index.rss',
+  'rbb24.de': 'https://www.rbb24.de/aktuell/index.xml/feed=rss.xml',
   // German regional (verified)
   'rp-online.de': 'https://rp-online.de/feed.rss',
   'merkur.de': 'https://www.merkur.de/welt/rssfeed.rdf',
@@ -74,22 +76,29 @@ const KNOWN_RSS_FEEDS: Record<string, string> = {
   'kontrast.at': 'https://kontrast.at/feed/',
   'exxpress.at': 'https://exxpress.at/feed/',
   'brandaktuell.at': 'https://www.brandaktuell.at/feed/',
+  'krone.at': 'https://www.krone.at/nachrichten/rss.html',
+  'kurier.at': 'https://kurier.at/xml/rss',
+  'profil.at': 'https://www.profil.at/rss.xml',
+  // 'vol.at': feed failed during testing
   // European & specialized (verified)
   'euractiv.de': 'https://www.euractiv.de/feed/',
   'euronews.com': 'https://de.euronews.com/rss',
   'nzz.ch': 'https://www.nzz.ch/recent.rss',
   'correctiv.org': 'https://correctiv.org/feed/',
   'netzpolitik.org': 'https://netzpolitik.org/feed/',
+  // Additional (verified 2026-03-19)
+  'saechsische.de': 'https://www.saechsische.de/arc/outboundfeeds/rss/',
+  'ksta.de': 'https://feed.ksta.de/feed/rss/politik/index.rss',
+  'rnd.de': 'https://www.rnd.de/arc/outboundfeeds/rss/',
+  'tagesspiegel.de/politik': 'https://www.tagesspiegel.de/contentexport/feed/politik',
+  'eurotopics.net': 'https://www.eurotopics.net/export/de/rss-debatten.xml',
 };
 
 export async function parsePrompt(prompt: string): Promise<BriefingConfig> {
   try {
-    const result = await getMistralClient().chat.complete({
-      model: 'mistral-small-latest',
-      messages: [
-        {
-          role: 'system',
-          content: `Du bist ein JSON-Generator. Analysiere die Benutzeranfrage und erstelle eine strukturierte Konfiguration für einen Briefing-Agenten.
+    const result = await generateText({
+      model: getBriefingModel(),
+      system: `Du bist ein JSON-Generator. Analysiere die Benutzeranfrage und erstelle eine strukturierte Konfiguration für einen Briefing-Agenten.
 
 Antworte NUR mit validem JSON in diesem Format:
 {
@@ -117,18 +126,12 @@ Regeln:
 - "outputFormat": "summary" (Zusammenfassung), "list" (Auflistung), "digest" (kategorisiert)
 - Erstelle sinnvolle Suchbegriffe aus der Beschreibung
 - maxResultsPerSource: 10-20 je nach Komplexität`,
-        },
-        { role: 'user', content: prompt },
-      ],
+      prompt,
       temperature: 0.1,
-      maxTokens: 1000,
-      responseFormat: { type: 'json_object' },
+      maxOutputTokens: 1000,
     });
 
-    const responseText =
-      typeof result.choices?.[0]?.message?.content === 'string'
-        ? result.choices[0].message.content
-        : '';
+    const responseText = result.text || '';
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       log.warn('AI did not return valid JSON, using heuristic fallback');
@@ -207,13 +210,16 @@ function heuristicParse(prompt: string): BriefingConfig {
 function validateConfig(config: BriefingConfig): BriefingConfig {
   return {
     sources: (config.sources || []).slice(0, 10).map((s) => ({
-      type: ['web', 'twitter', 'instagram', 'rss', 'documents'].includes(s.type) ? s.type : 'web',
+      type: ['web', 'twitter', 'instagram', 'rss', 'documents', 'scrape'].includes(s.type)
+        ? s.type
+        : 'web',
       collection: s.collection?.slice(0, 100),
       query: s.query?.slice(0, 500),
       domains: (s.domains || []).slice(0, 5),
       username: s.username?.replace(/^@/, '').slice(0, 50),
       url: s.url?.slice(0, 2000),
       keywords: (s.keywords || []).slice(0, 20).map((k) => k.slice(0, 100)),
+      scrapeConfig: s.scrapeConfig,
     })),
     language: config.language || 'de',
     timeRange: config.timeRange === 'week' ? 'week' : 'day',
@@ -221,5 +227,8 @@ function validateConfig(config: BriefingConfig): BriefingConfig {
     outputFormat: ['summary', 'list', 'digest'].includes(config.outputFormat)
       ? config.outputFormat
       : 'summary',
+    customPrompt: config.customPrompt,
+    positionCollections: config.positionCollections?.slice(0, 10),
+    positionComparisonPrompt: config.positionComparisonPrompt,
   };
 }

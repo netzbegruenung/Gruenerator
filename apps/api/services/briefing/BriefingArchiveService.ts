@@ -60,6 +60,8 @@ export async function archiveBriefing(
             return `Twitter: @${s.username}`;
           case 'documents':
             return `Dokumente: ${s.collection}`;
+          case 'scrape':
+            return `Scrape: ${s.url}`;
           default:
             return s.type;
         }
@@ -75,16 +77,11 @@ export async function archiveBriefing(
 
     const content = `---
 title: '${displayDate}: ${agent.name.replace(/'/g, "''")}'
+agent: '${agent.id}'
+articles: ${items.length}
 ---
 
-# ${agent.name}
-
-**Datum:** ${displayDate}
-**Agent:** \`${agent.id}\`
-**Artikel:** ${items.length}
-**Quellen:** ${sourceSummary}
-
----
+**Agent:** \`${agent.id}\` · **Artikel:** ${items.length}
 
 ${summary}
 

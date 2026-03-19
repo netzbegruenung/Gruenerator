@@ -1,11 +1,25 @@
+export interface ScrapeConfig {
+  articleSelector?: string;
+  linkSelector?: string;
+  titleSelector?: string;
+  dateSelector?: string;
+  dateAttribute?: string;
+  excerptSelector?: string;
+  baseUrl?: string;
+  jsonPattern?: string;
+  maxPages?: number;
+  paginationParam?: string;
+}
+
 export interface SourceConfig {
-  type: 'web' | 'twitter' | 'instagram' | 'rss' | 'documents';
+  type: 'web' | 'twitter' | 'instagram' | 'rss' | 'documents' | 'scrape';
   query?: string;
   domains?: string[];
   username?: string;
   url?: string;
   collection?: string;
   keywords?: string[];
+  scrapeConfig?: ScrapeConfig;
 }
 
 export interface BriefingConfig {
@@ -15,6 +29,8 @@ export interface BriefingConfig {
   maxResultsPerSource: number;
   outputFormat: 'summary' | 'list' | 'digest';
   customPrompt?: string;
+  positionCollections?: string[];
+  positionComparisonPrompt?: string;
 }
 
 export interface BriefingAgent {

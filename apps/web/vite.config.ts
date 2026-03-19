@@ -71,6 +71,7 @@ export default defineConfig(({ command }) => ({
       '@gruenerator/shared': path.resolve(__dirname, '../../packages/shared/src'),
       '@gruenerator/chat': path.resolve(__dirname, '../../packages/chat/src'),
     },
+    dedupe: ['d3-path'],
   },
   optimizeDeps: {
     include: [
@@ -86,6 +87,7 @@ export default defineConfig(({ command }) => ({
       'prop-types',
       '@mdxeditor/editor',
       '@assistant-ui/react',
+      'recharts',
     ],
     exclude: ['motion', 'browser-image-compression', '@imgly/background-removal'],
     rolldownOptions: {
