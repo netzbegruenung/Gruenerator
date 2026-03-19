@@ -18,6 +18,7 @@ import {
 } from './routes/image/index.js';
 import { offboardingRouter, databaseTestRouter, rateLimitRouter } from './routes/internal/index.js';
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
+import { monitorRouter, monitorInternalRouter } from './routes/monitor/index.js';
 import notificationsRouter from './routes/notifications/index.js';
 import { oparlRouter } from './routes/oparl/index.js';
 import protokollRouter from './routes/protokoll/index.js';
@@ -394,7 +395,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   }
   app.use('/api/internal/offboarding', offboardingRouter);
   app.use('/api/internal/briefing', briefingInternalRouter);
+  app.use('/api/internal/monitor', monitorInternalRouter);
   app.use('/api/briefing', requireAuth, briefingRouter);
+  app.use('/api/monitor', requireAuth, monitorRouter);
 
   app.get('/api/internal/route-stats', async (req: Request, res: Response): Promise<void> => {
     try {
