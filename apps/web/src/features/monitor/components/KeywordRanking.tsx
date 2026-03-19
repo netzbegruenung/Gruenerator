@@ -10,7 +10,7 @@ import {
   TooltipTrigger,
 } from '@gruenerator/ui';
 
-import { TOPIC_CONFIG } from '../topicConfig';
+import { TOPIC_COLORS, TOPIC_CONFIG } from '../topicConfig';
 
 import type { TopicCategory } from '../topicConfig';
 
@@ -25,22 +25,6 @@ interface KeywordRankingProps {
   totalArticles: number;
   sourcesCount: number;
 }
-
-const TOPIC_COLORS: Record<string, string> = {
-  migration: '#f59e0b',
-  klima: '#22c55e',
-  wirtschaft: '#3b82f6',
-  soziales: '#ec4899',
-  sicherheit: '#6366f1',
-  gesundheit: '#14b8a6',
-  europa: '#8b5cf6',
-  digital: '#06b6d4',
-  bildung: '#f97316',
-  finanzen: '#eab308',
-  justiz: '#78716c',
-  arbeit: '#84cc16',
-  mobilitaet: '#0ea5e9',
-};
 
 const DEFAULT_COLOR = '#94a3b8';
 

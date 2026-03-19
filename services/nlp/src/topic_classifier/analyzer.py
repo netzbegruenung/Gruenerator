@@ -8,6 +8,7 @@ from collections import Counter
 
 import spacy
 
+from .emotion_analyzer import EmotionAnalyzer
 from .lexicons import TopicCategory, get_topic_labels
 
 
@@ -70,6 +71,7 @@ class TopicClassifier:
 
         # Only need tokenization, POS tagging, morphology, and lemmatization
         self.nlp.select_pipes(enable=["tok2vec", "tagger", "morphologizer", "lemmatizer"])
+        self._emotion_analyzer = EmotionAnalyzer()
         self._ready = True
 
     @property
@@ -166,11 +168,15 @@ class TopicClassifier:
                 for noun, count in lemma_counts.most_common(10)
             ]
 
+            # Emotion analysis (reuses the same spaCy doc)
+            emotion_scores = self._emotion_analyzer.analyze(doc)
+
             results.append({
                 "id": item.get("id", ""),
                 "topics": scores,
                 "primaryTopic": primary_topic,
                 "topNouns": top_nouns,
+                "emotionScores": emotion_scores,
             })
 
         return results

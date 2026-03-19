@@ -1,0 +1,413 @@
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  LoadingSection,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@gruenerator/ui';
+import {
+  ChevronDown,
+  Flame,
+  HandHeart,
+  Heart,
+  Shield,
+  Sparkles,
+  TrendingDown,
+  Trophy,
+} from 'lucide-react';
+import { useMemo, useState } from 'react';
+
+import { useStimmung } from '../hooks/useMonitor';
+import { TOPIC_CONFIG } from '../topicConfig';
+
+import type { MonitorLocale } from '../hooks/useMonitor';
+import type { LucideIcon } from 'lucide-react';
+
+interface StimmungViewProps {
+  locale: MonitorLocale;
+}
+
+interface EmotionConfig {
+  name: string;
+  icon: LucideIcon;
+  hue: string;
+  comms: string;
+  valence: 'positive' | 'negative';
+}
+
+const EMOTION_CONFIG: Record<string, EmotionConfig> = {
+  angst: {
+    name: 'Angst',
+    icon: Shield,
+    hue: 'red',
+    comms: 'Beruhigen. Kompetenz zeigen.',
+    valence: 'negative',
+  },
+  wut: {
+    name: 'Wut',
+    icon: Flame,
+    hue: 'orange',
+    comms: 'Wut kanalisieren oder Distanz wahren.',
+    valence: 'negative',
+  },
+  hoffnung: {
+    name: 'Hoffnung',
+    icon: Sparkles,
+    hue: 'green',
+    comms: 'Verstärken. Eigene Marke verbinden.',
+    valence: 'positive',
+  },
+  enttaeuschung: {
+    name: 'Enttäuschung',
+    icon: TrendingDown,
+    hue: 'blue',
+    comms: 'Alternative sein.',
+    valence: 'negative',
+  },
+  vertrauen: {
+    name: 'Vertrauen',
+    icon: HandHeart,
+    hue: 'violet',
+    comms: 'Mutige Vorschläge machen.',
+    valence: 'positive',
+  },
+  solidaritaet: {
+    name: 'Solidarität',
+    icon: Heart,
+    hue: 'emerald',
+    comms: 'Koalitionsaufbau. Gemeinsam.',
+    valence: 'positive',
+  },
+  stolz: {
+    name: 'Stolz',
+    icon: Trophy,
+    hue: 'yellow',
+    comms: 'Erfolge beanspruchen.',
+    valence: 'positive',
+  },
+};
+
+const EMOTION_KEYS = Object.keys(EMOTION_CONFIG);
+
+function getMoodPosition(overall: Record<string, number>): number {
+  let positive = 0;
+  let negative = 0;
+  for (const [key, score] of Object.entries(overall)) {
+    const config = EMOTION_CONFIG[key];
+    if (!config) continue;
+    if (config.valence === 'positive') positive += score;
+    else negative += score;
+  }
+  const total = positive + negative;
+  if (total === 0) return 50;
+  return (positive / total) * 100;
+}
+
+function getMoodLabel(position: number): string {
+  if (position >= 70) return 'Überwiegend positiv';
+  if (position >= 55) return 'Leicht positiv';
+  if (position >= 45) return 'Ausgeglichen';
+  if (position >= 30) return 'Leicht negativ';
+  return 'Überwiegend negativ';
+}
+
+function MoodBar({ overall }: { overall: Record<string, number> }) {
+  const position = getMoodPosition(overall);
+  const label = getMoodLabel(position);
+
+  return (
+    <div className="space-y-sm">
+      <div className="relative h-4 rounded-full overflow-hidden bg-gradient-to-r from-red-400 via-yellow-300 to-green-400 dark:from-red-600 dark:via-yellow-500 dark:to-green-600">
+        <div
+          className="absolute top-0 h-full w-1 bg-foreground rounded-full shadow-lg transition-all duration-700 ease-out"
+          style={{ left: `clamp(2%, ${position}%, 98%)` }}
+        />
+        <div
+          className="absolute -top-0.5 h-5 w-5 rounded-full border-2 border-foreground bg-background shadow-md transition-all duration-700 ease-out"
+          style={{ left: `clamp(2%, calc(${position}% - 10px), 96%)` }}
+        />
+      </div>
+      <div className="flex justify-between text-xs text-grey-400">
+        <span>Negativ</span>
+        <span className="font-medium text-foreground">{label}</span>
+        <span>Positiv</span>
+      </div>
+    </div>
+  );
+}
+
+function EmotionCard({
+  emotionKey,
+  score,
+  maxScore,
+  isStrongest,
+}: {
+  emotionKey: string;
+  score: number;
+  maxScore: number;
+  isStrongest: boolean;
+}) {
+  const config = EMOTION_CONFIG[emotionKey];
+  if (!config) return null;
+  const Icon = config.icon;
+
+  const intensity = maxScore > 0 ? score / maxScore : 0;
+  const bgAlpha = Math.round(Math.max(5, intensity * 25));
+  const borderAlpha = Math.round(Math.max(10, intensity * 60));
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          className={`
+            relative rounded-xl p-md transition-all duration-300 cursor-default
+            ${isStrongest ? 'col-span-2 row-span-1 sm:col-span-2' : ''}
+          `}
+          style={{
+            opacity: Math.max(0.3, intensity),
+            border: `2px solid color-mix(in srgb, var(--color-${config.hue}-500) ${borderAlpha}%, transparent)`,
+            backgroundColor: `color-mix(in srgb, var(--color-${config.hue}-500) ${bgAlpha}%, transparent)`,
+          }}
+        >
+          <div
+            className={`flex ${isStrongest ? 'flex-row items-center gap-md' : 'flex-col items-center gap-xs'}`}
+          >
+            <div
+              className={`
+                flex items-center justify-center rounded-lg shrink-0
+                ${isStrongest ? 'h-14 w-14' : 'h-12 w-12'}
+              `}
+              style={{
+                backgroundColor: `color-mix(in srgb, var(--color-${config.hue}-500) ${Math.round(intensity * 20 + 5)}%, transparent)`,
+              }}
+            >
+              <Icon
+                className={isStrongest ? 'h-7 w-7' : 'h-6 w-6'}
+                style={{ color: `var(--color-${config.hue}-500)` }}
+              />
+            </div>
+            <div className={isStrongest ? '' : 'text-center'}>
+              <span
+                className={`block font-semibold ${isStrongest ? 'text-base' : 'text-sm'} text-foreground`}
+              >
+                {config.name}
+              </span>
+              {isStrongest && (
+                <span className="block text-xs text-grey-500 mt-0.5">{config.comms}</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p className="font-medium">
+          {config.name}: {score.toFixed(1)}
+        </p>
+        <p className="text-xs text-grey-400">{config.comms}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center justify-between px-md py-sm text-sm font-medium text-foreground hover:bg-grey-50 dark:hover:bg-grey-800/50 transition-colors"
+      >
+        {title}
+        <ChevronDown
+          className={`h-4 w-4 text-grey-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {open && <div className="px-md pb-md">{children}</div>}
+    </div>
+  );
+}
+
+function HeatmapTable({
+  rows,
+  labelKey,
+  labelTransform,
+}: {
+  rows: Array<{ emotions: Record<string, number>; articleCount: number; [key: string]: unknown }>;
+  labelKey: string;
+  labelTransform?: (label: string) => string;
+}) {
+  return (
+    <div className="overflow-x-auto -mx-md">
+      <TooltipProvider delayDuration={100}>
+        <table className="w-full text-xs border-separate" style={{ borderSpacing: '2px' }}>
+          <thead>
+            <tr>
+              <th className="text-left pb-xs pl-md pr-sm text-grey-500 font-normal" />
+              {EMOTION_KEYS.map((e) => {
+                const c = EMOTION_CONFIG[e];
+                if (!c) return null;
+                const Icon = c.icon;
+                return (
+                  <th key={e} className="pb-xs px-0.5 text-center font-normal">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex flex-col items-center gap-0.5">
+                          <Icon
+                            className="h-3.5 w-3.5"
+                            style={{ color: `var(--color-${c.hue}-500)` }}
+                          />
+                          <span className="text-[10px] text-grey-400">{c.name.slice(0, 3)}</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p>{c.name}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const label = String(row[labelKey]);
+              const displayLabel = labelTransform ? labelTransform(label) : label;
+
+              const vals = EMOTION_KEYS.map((e) => row.emotions[e] ?? 0);
+              const nonZero = vals.filter((v) => v > 0);
+              const rowMax = Math.max(...nonZero, 1);
+              const rowMin = Math.min(...(nonZero.length > 1 ? nonZero : [0]));
+              const range = rowMax - rowMin || 1;
+
+              return (
+                <tr key={label}>
+                  <td className="py-2 pl-md pr-sm text-foreground font-medium whitespace-nowrap">
+                    {displayLabel}
+                  </td>
+                  {EMOTION_KEYS.map((e, i) => {
+                    const val = vals[i];
+                    const hue = EMOTION_CONFIG[e]?.hue ?? 'grey';
+                    const isMax = val > 0 && val === rowMax;
+
+                    if (val === 0) {
+                      return (
+                        <td key={e} className="py-2 px-0.5 text-center">
+                          <span className="text-grey-300">&mdash;</span>
+                        </td>
+                      );
+                    }
+
+                    const normalized = (val - rowMin) / range;
+                    const bgAlpha = Math.round(10 + normalized * 35);
+
+                    return (
+                      <td
+                        key={e}
+                        className={`py-2 px-1 text-center rounded-sm transition-colors ${isMax ? 'font-bold' : ''}`}
+                        style={{
+                          backgroundColor: `color-mix(in srgb, var(--color-${hue}-500) ${bgAlpha}%, transparent)`,
+                        }}
+                        title={`${EMOTION_CONFIG[e]?.name}: ${val.toFixed(1)}`}
+                      >
+                        <span className={isMax ? 'text-foreground' : 'text-foreground/70'}>
+                          {val.toFixed(0)}
+                        </span>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </TooltipProvider>
+    </div>
+  );
+}
+
+export function StimmungView({ locale }: StimmungViewProps) {
+  const { data, isLoading } = useStimmung(locale);
+
+  const { sorted, maxScore, strongestKey } = useMemo(() => {
+    if (!data) return { sorted: [], maxScore: 1, strongestKey: undefined };
+    const s = EMOTION_KEYS.map((key) => ({ key, score: data.overall[key] ?? 0 })).sort(
+      (a, b) => b.score - a.score
+    );
+    return { sorted: s, maxScore: s[0]?.score ?? 1, strongestKey: s[0]?.key };
+  }, [data]);
+
+  if (isLoading) return <LoadingSection />;
+  if (!data || Object.keys(data.overall).length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-lg text-center text-sm text-grey-500">
+          Keine Stimmungsdaten verfügbar. Starte einen Monitor-Refresh.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-lg">
+      {/* Layer 1: Mood Indicator */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Stimmungsbarometer</CardTitle>
+          <CardDescription>
+            Emotionale Stimmung in {locale === 'at' ? 'österreichischen' : 'deutschen'}{' '}
+            Nachrichtenmedien heute.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <MoodBar overall={data.overall} />
+        </CardContent>
+      </Card>
+
+      {/* Layer 2: Emotion Cards */}
+      <TooltipProvider delayDuration={150}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-sm">
+          {sorted.map(({ key, score }) => (
+            <EmotionCard
+              key={key}
+              emotionKey={key}
+              score={score}
+              maxScore={maxScore}
+              isStrongest={key === strongestKey}
+            />
+          ))}
+        </div>
+      </TooltipProvider>
+
+      {/* Layer 3: Detail Tables (collapsed) */}
+      <div className="space-y-sm">
+        {data.byTopic.length > 0 && (
+          <DetailSection title="Stimmung nach Thema">
+            <HeatmapTable
+              rows={data.byTopic.slice(0, 10)}
+              labelKey="topic"
+              labelTransform={(t) => TOPIC_CONFIG[t as keyof typeof TOPIC_CONFIG]?.name ?? t}
+            />
+          </DetailSection>
+        )}
+
+        {data.bySource.length > 0 && (
+          <DetailSection title="Stimmung nach Quelle">
+            <HeatmapTable rows={data.bySource.slice(0, 8)} labelKey="source" />
+          </DetailSection>
+        )}
+
+        {data.byKeyword && data.byKeyword.length > 0 && (
+          <DetailSection title="Stimmung nach Keywords">
+            <HeatmapTable rows={data.byKeyword} labelKey="keyword" />
+          </DetailSection>
+        )}
+      </div>
+    </div>
+  );
+}

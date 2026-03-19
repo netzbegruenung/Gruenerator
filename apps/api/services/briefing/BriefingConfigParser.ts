@@ -92,6 +92,8 @@ export const KNOWN_RSS_FEEDS: Record<string, string> = {
   'rnd.de': 'https://www.rnd.de/arc/outboundfeeds/rss/',
   'tagesspiegel.de/politik': 'https://www.tagesspiegel.de/contentexport/feed/politik',
   'eurotopics.net': 'https://www.eurotopics.net/export/de/rss-debatten.xml',
+  'gruene-bundestag.de/fachtexte': 'https://www.gruene-bundestag.de/fachtexte-rss-feed.xml',
+  'gruene-bundestag.de/presse': 'https://www.gruene-bundestag.de/pressemitteilungen-rss-feed.xml',
 };
 
 export async function parsePrompt(prompt: string): Promise<BriefingConfig> {

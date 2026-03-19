@@ -7,8 +7,10 @@ import {
   getTopicArticles,
   searchArticles,
   searchArticlesByKeywords,
+  getStimmung,
 } from '../../services/monitor/MonitorService.js';
 import { getEntitySummary } from '../../services/monitor/MonitorSummaryService.js';
+import { getPolls } from '../../services/monitor/PollScraper.js';
 import { TOPIC_CATEGORIES } from '../../services/monitor/types.js';
 import {
   WATCHER_ENTITIES,
@@ -37,6 +39,7 @@ router.get('/latest', async (req: AuthRequest, res: Response): Promise<void> => 
       res.status(404).json({ error: 'No monitor data available yet' });
       return;
     }
+    res.set('Cache-Control', 'private, max-age=120, stale-while-revalidate=300');
     res.json(snapshot);
   } catch (error) {
     log.error(`GET /latest failed: ${toError(error).message}`);
@@ -48,6 +51,7 @@ router.get('/history', async (req: AuthRequest, res: Response): Promise<void> =>
   try {
     const days = Math.min(Math.max(parseInt(String(req.query.days)) || 7, 1), 30);
     const history = await getHistory(days);
+    res.set('Cache-Control', 'private, max-age=600, stale-while-revalidate=1800');
     res.json(history);
   } catch (error) {
     log.error(`GET /history failed: ${toError(error).message}`);
@@ -67,6 +71,7 @@ router.get(
       const locale = parseLocale(req.query.locale);
       const limit = Math.min(Math.max(parseInt(String(req.query.limit)) || 20, 1), 50);
       const articles = await getTopicArticles(topic as TopicCategory, limit, locale);
+      res.set('Cache-Control', 'private, max-age=120, stale-while-revalidate=300');
       res.json({ topic, articles });
     } catch (error) {
       log.error(`GET /topic failed: ${toError(error).message}`);
@@ -103,6 +108,7 @@ router.get('/keyword-insights', async (req: AuthRequest, res: Response): Promise
       return;
     }
     const insights = await generateKeywordInsights(snapshot.keywords, locale);
+    res.set('Cache-Control', 'private, max-age=1800, stale-while-revalidate=3600');
     res.json(insights);
   } catch (error) {
     log.error(`GET /keyword-insights failed: ${toError(error).message}`);
@@ -110,7 +116,31 @@ router.get('/keyword-insights', async (req: AuthRequest, res: Response): Promise
   }
 });
 
+router.get('/polls', async (_req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const data = await getPolls();
+    res.set('Cache-Control', 'private, max-age=1800, stale-while-revalidate=3600');
+    res.json(data);
+  } catch (error) {
+    log.error(`GET /polls failed: ${toError(error).message}`);
+    res.status(500).json({ error: 'Failed to fetch polls' });
+  }
+});
+
+router.get('/stimmung', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const locale = parseLocale(req.query.locale);
+    const stimmung = await getStimmung(locale);
+    res.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=600');
+    res.json(stimmung);
+  } catch (error) {
+    log.error(`GET /stimmung failed: ${toError(error).message}`);
+    res.status(500).json({ error: 'Failed to fetch stimmung' });
+  }
+});
+
 router.get('/entities', (_req: AuthRequest, res: Response): void => {
+  res.set('Cache-Control', 'private, max-age=86400');
   res.json(WATCHER_ENTITIES.map(({ id, label, keywords }) => ({ id, label, keywords })));
 });
 
@@ -131,6 +161,7 @@ router.get(
         entity.excludePatterns
       );
       const sources = [...new Set(articles.map((a) => a.source))];
+      res.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=600');
       res.json({
         entity: { id: entity.id, label: entity.label },
         count: articles.length,
@@ -161,6 +192,7 @@ router.get(
         entity.excludePatterns
       );
       const result = await getEntitySummary(entity, articles, locale);
+      res.set('Cache-Control', 'private, max-age=600, stale-while-revalidate=1800');
       res.json({
         entity: { id: entity.id, label: entity.label },
         count: result.articleCount,

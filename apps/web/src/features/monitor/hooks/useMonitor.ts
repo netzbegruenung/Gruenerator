@@ -48,6 +48,7 @@ export function useMonitorSnapshot(locale?: MonitorLocale) {
     },
     refetchInterval: 5 * 60 * 1000,
     staleTime: 2 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 
@@ -59,6 +60,7 @@ export function useMonitorHistory(days = 7) {
       return data;
     },
     staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 
@@ -71,6 +73,8 @@ export function useTopicArticles(topic: TopicCategory | null, locale?: MonitorLo
       return data;
     },
     enabled: !!topic,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 
@@ -92,6 +96,7 @@ export function useMonitorSearch(query: string, locale?: MonitorLocale) {
     },
     enabled: query.length >= 2,
     staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 
@@ -123,7 +128,54 @@ export function useKeywordInsights(locale?: MonitorLocale) {
       const { data } = await apiClient.get(`/monitor/keyword-insights${params}`);
       return data;
     },
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+  });
+}
+
+interface StimmungResult {
+  overall: Record<string, number>;
+  byTopic: Array<{ topic: string; emotions: Record<string, number>; articleCount: number }>;
+  bySource: Array<{ source: string; emotions: Record<string, number>; articleCount: number }>;
+  byKeyword: Array<{ keyword: string; emotions: Record<string, number>; articleCount: number }>;
+  dominantEmotion: string | null;
+}
+
+export function useStimmung(locale?: MonitorLocale) {
+  return useQuery<StimmungResult>({
+    queryKey: ['monitor', 'stimmung', locale],
+    queryFn: async () => {
+      const params = locale ? `?locale=${locale}` : '';
+      const { data } = await apiClient.get(`/monitor/stimmung${params}`);
+      return data;
+    },
     staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  });
+}
+
+interface PollResult {
+  institute: string;
+  date: string;
+  parties: Record<string, number | null>;
+}
+
+interface PollData {
+  polls: PollResult[];
+  lastElection: PollResult | null;
+  average: Record<string, number>;
+  scrapedAt: string;
+}
+
+export function usePolls() {
+  return useQuery<PollData>({
+    queryKey: ['monitor', 'polls'],
+    queryFn: async () => {
+      const { data } = await apiClient.get('/monitor/polls');
+      return data;
+    },
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
   });
 }
 
@@ -156,6 +208,7 @@ export function useWatcherEntities() {
       return data;
     },
     staleTime: 60 * 60 * 1000,
+    gcTime: 120 * 60 * 1000,
   });
 }
 
@@ -169,6 +222,7 @@ export function useEntityResults(entityId: string | null, locale?: MonitorLocale
     },
     enabled: !!entityId,
     staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 
@@ -182,6 +236,7 @@ export function useEntitySummary(entityId: string | null, locale?: MonitorLocale
     },
     enabled: !!entityId,
     staleTime: 10 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
   });
 }
 

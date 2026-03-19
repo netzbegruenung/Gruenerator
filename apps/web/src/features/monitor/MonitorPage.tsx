@@ -6,7 +6,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@gruenerator/ui';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../components/common/PageContainer';
@@ -16,17 +16,26 @@ import { useAuthStore } from '../../stores/authStore';
 import { KeywordInsightsCard } from './components/KeywordInsightsCard';
 import { KeywordRanking } from './components/KeywordRanking';
 import { SocialTrends } from './components/SocialTrends';
+import { StimmungView } from './components/StimmungView';
 import { TopicCard } from './components/TopicCard';
 import { TopicDetail } from './components/TopicDetail';
 import { TopicRanking } from './components/TopicRanking';
 import { TopicTrendBar } from './components/TopicTrendBar';
+import { UmfragenView } from './components/UmfragenView';
 import { WatcherView } from './components/WatcherView';
-import { useMonitorSnapshot } from './hooks/useMonitor';
+import { useKeywordInsights, useMonitorSnapshot, usePolls, useStimmung } from './hooks/useMonitor';
 
 import type { MonitorLocale } from './hooks/useMonitor';
 import type { TopicCategory } from './topicConfig';
 
-type MonitorTab = 'topics' | 'keywords' | 'social' | 'watcher' | 'details';
+type MonitorTab =
+  | 'topics'
+  | 'keywords'
+  | 'social'
+  | 'stimmung'
+  | 'umfragen'
+  | 'watcher'
+  | 'details';
 
 function MonitorPage() {
   const authLocale = useAuthStore((s) => s.locale);
@@ -34,8 +43,14 @@ function MonitorPage() {
   const [tab, setTab] = useState<MonitorTab>('topics');
   const [selectedTopic, setSelectedTopic] = useState<TopicCategory | null>(null);
   const { data: snapshot, isLoading, error } = useMonitorSnapshot(locale);
+  useKeywordInsights(locale);
+  useStimmung(locale);
+  usePolls();
 
-  const maxScore = snapshot ? Math.max(...snapshot.topics.map((t) => t.score), 1) : 1;
+  const maxScore = useMemo(
+    () => (snapshot ? Math.max(...snapshot.topics.map((t) => t.score), 1) : 1),
+    [snapshot]
+  );
 
   return (
     <ErrorBoundary>
@@ -71,6 +86,8 @@ function MonitorPage() {
                   <TabsTrigger value="topics">Themen</TabsTrigger>
                   <TabsTrigger value="keywords">Keywords</TabsTrigger>
                   <TabsTrigger value="social">X/Twitter</TabsTrigger>
+                  <TabsTrigger value="stimmung">Stimmung</TabsTrigger>
+                  <TabsTrigger value="umfragen">Umfragen</TabsTrigger>
                   <TabsTrigger value="watcher">Watcher</TabsTrigger>
                   <TabsTrigger value="details">Details</TabsTrigger>
                 </TabsList>
@@ -84,6 +101,10 @@ function MonitorPage() {
             )}
 
             {isLoading && <LoadingSection />}
+
+            {tab === 'stimmung' && <StimmungView locale={locale} />}
+
+            {tab === 'umfragen' && <UmfragenView />}
 
             {tab === 'watcher' && <WatcherView locale={locale} />}
 

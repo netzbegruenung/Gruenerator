@@ -47,6 +47,7 @@ class TopicResult(BaseModel):
     topics: dict[str, float]
     primaryTopic: str | None
     topNouns: list[NounCount] = []
+    emotionScores: dict[str, float] = {}
 
 
 class BatchResponse(BaseModel):
