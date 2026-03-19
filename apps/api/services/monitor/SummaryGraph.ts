@@ -139,7 +139,7 @@ Regeln:
 - Neutral und analytisch, keine Parteinahme
 - Fließtext, keine Aufzählungen oder Überschriften`,
       temperature: 0.3,
-      maxTokens: 2000,
+      maxOutputTokens: 2000,
     });
 
     log.info(`Synthesize: ${result.text.split(/\s+/).length} words`);
@@ -214,7 +214,7 @@ Vergleiche die aktuelle Berichterstattung mit unseren Positionen und analysiere:
 
 Max 150 Wörter. Stichpunkte mit Spiegelstrichen.`,
       temperature: 0.4,
-      maxTokens: 1000,
+      maxOutputTokens: 1000,
     });
 
     log.info(
