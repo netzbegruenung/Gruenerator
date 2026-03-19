@@ -141,6 +141,11 @@ export {
   type ChartConfig,
 } from './components/chart';
 export { LoadingSection } from './components/loading-section';
+export { ArticleCard, type ArticleCardProps } from './components/article-card';
+export { CollapsibleSection, type CollapsibleSectionProps } from './components/collapsible-section';
+export { ProgressBar, progressBarVariants, type ProgressBarProps } from './components/progress-bar';
+export { WordCloud, type WordCloudItem, type WordCloudProps } from './components/word-cloud';
+export { MoodBar, getMoodLabel, type MoodBarProps } from './components/mood-bar';
 export { Toaster } from './components/sonner';
 export {
   NotificationBell,

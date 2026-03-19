@@ -1,5 +1,5 @@
 import {
-  Badge,
+  ArticleCard,
   CardGrid,
   Empty,
   EmptyDescription,
@@ -9,13 +9,13 @@ import {
   LoadingSection,
   SectionHeader,
 } from '@gruenerator/ui';
-import { ArrowLeft, ExternalLink, Search } from 'lucide-react';
+import { ArrowLeft, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { useTopicArticles } from '../hooks/useMonitor';
 import { TOPIC_CONFIG } from '../topicConfig';
 
-import type { MonitorLocale, MonitorArticle } from '../hooks/useMonitor';
+import type { MonitorLocale } from '../hooks/useMonitor';
 import type { TopicCategory } from '../topicConfig';
 
 import { cn } from '@/utils/cn';
@@ -38,44 +38,6 @@ function highlightMatch(text: string, query: string): React.ReactNode {
       </mark>
       {text.slice(idx + query.length)}
     </>
-  );
-}
-
-function ArticleCard({ article, query }: { article: MonitorArticle; query: string }) {
-  return (
-    <a
-      href={article.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-start gap-sm bg-background border border-grey-200 dark:border-grey-700 rounded-md p-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md no-underline"
-    >
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-foreground-heading m-0">
-          {highlightMatch(article.title, query)}
-        </p>
-        {article.excerpt && (
-          <p className="mt-xs text-sm text-foreground leading-relaxed m-0 line-clamp-2">
-            {highlightMatch(article.excerpt.slice(0, 250), query)}
-          </p>
-        )}
-        <div className="mt-sm flex items-center gap-sm">
-          <Badge variant="secondary" className="bg-secondary-600 text-white border-transparent">
-            {article.source}
-          </Badge>
-          {article.publishedAt && (
-            <span className="text-xs text-grey-500 dark:text-grey-400">
-              {new Date(article.publishedAt).toLocaleDateString('de-DE', {
-                day: 'numeric',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </span>
-          )}
-        </div>
-      </div>
-      <ExternalLink className="mt-1 h-4 w-4 shrink-0 text-grey-400" />
-    </a>
   );
 }
 
@@ -142,7 +104,19 @@ export function TopicDetail({ topic, locale, onBack }: TopicDetailProps) {
           {filteredArticles.length > 0 ? (
             <CardGrid columns="1">
               {filteredArticles.map((article) => (
-                <ArticleCard key={article.url} article={article} query={query} />
+                <ArticleCard
+                  key={article.url}
+                  url={article.url}
+                  title={highlightMatch(article.title, query)}
+                  excerpt={
+                    article.excerpt
+                      ? highlightMatch(article.excerpt.slice(0, 250), query)
+                      : undefined
+                  }
+                  source={article.source}
+                  publishedAt={article.publishedAt}
+                  sentiment={article.erSentiment}
+                />
               ))}
             </CardGrid>
           ) : query.length >= 2 ? (

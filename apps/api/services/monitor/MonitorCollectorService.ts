@@ -3,7 +3,7 @@ import { createLogger } from '../../utils/logger.js';
 import { KNOWN_RSS_FEEDS } from '../briefing/BriefingConfigParser.js';
 
 import { scrapeBlueskyAccounts } from './BlueskyScraper.js';
-import { scrapeTableMedia } from './TableMediaScraper.js';
+import { fetchArticlesFromEventRegistry, fetchGrueneArticles } from './EventRegistryService.js';
 
 import type { MonitorLocale } from './types.js';
 
@@ -14,6 +14,7 @@ export interface CollectedMonitorItem {
   title: string;
   excerpt: string;
   source: string;
+  erSentiment?: number;
   publishedAt: string | null;
   locale: MonitorLocale;
 }
@@ -47,8 +48,6 @@ function getLocale(domain: string): MonitorLocale {
 interface RSSItem {
   title?: string;
   link?: string;
-  content?: string;
-  contentSnippet?: string;
   pubDate?: string;
   isoDate?: string;
 }
@@ -64,22 +63,6 @@ async function getParser() {
     });
   }
   return parserInstance;
-}
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function extractBestContent(item: RSSItem): string {
-  const snippet = item.contentSnippet || '';
-  const rawContent = item.content || '';
-  const strippedContent = rawContent ? stripHtml(rawContent) : '';
-
-  // Use whichever is longer — some feeds have richer content in HTML
-  return strippedContent.length > snippet.length ? strippedContent : snippet;
 }
 
 async function fetchFeed(
@@ -99,13 +82,10 @@ async function fetchFeed(
       if (pubDate && new Date(pubDate) < since) continue;
       if (!rssItem.link) continue;
 
-      const title = rssItem.title || '';
-      const excerpt = extractBestContent(rssItem);
-
       items.push({
         url: rssItem.link,
-        title,
-        excerpt,
+        title: rssItem.title || '',
+        excerpt: '',
         source: feed.title || domain,
         publishedAt: pubDate || null,
         locale,
@@ -124,61 +104,53 @@ export async function collectArticles(hoursBack = 24): Promise<CollectedMonitorI
   const since = new Date(Date.now() - hoursBack * 60 * 60 * 1000);
   const allDomains = Object.keys(KNOWN_RSS_FEEDS);
 
-  const feedPromises = allDomains.map((domain) => {
-    const feedUrl = KNOWN_RSS_FEEDS[domain];
-    return fetchFeed(domain, feedUrl, since);
-  });
+  const [rssResults, erDe, erAt, grueneDe, grueneAt, bskyPosts] = await Promise.all([
+    Promise.allSettled(
+      allDomains.map((domain) => fetchFeed(domain, KNOWN_RSS_FEEDS[domain], since))
+    ),
+    fetchArticlesFromEventRegistry('de'),
+    fetchArticlesFromEventRegistry('at'),
+    fetchGrueneArticles('de'),
+    fetchGrueneArticles('at'),
+    scrapeBlueskyAccounts().catch((e: unknown) => {
+      log.error(`Bluesky scrape failed: ${toError(e).message}`);
+      return [] as CollectedMonitorItem[];
+    }),
+  ]);
 
-  const results = await Promise.allSettled(feedPromises);
+  const urlMap = new Map<string, CollectedMonitorItem>();
 
-  const allItems: CollectedMonitorItem[] = [];
-  const seenUrls = new Set<string>();
-  let deCount = 0;
-  let atCount = 0;
-
-  for (const result of results) {
+  // RSS first (title+link only)
+  for (const result of rssResults) {
     if (result.status === 'fulfilled') {
       for (const item of result.value) {
-        if (!seenUrls.has(item.url)) {
-          seenUrls.add(item.url);
-          allItems.push(item);
-          if (item.locale === 'de') deCount++;
-          else atCount++;
-        }
+        urlMap.set(item.url, item);
       }
     }
   }
 
-  // Also scrape Table.Media Berlin (full-text political analysis)
-  try {
-    const tableArticles = await scrapeTableMedia();
-    for (const item of tableArticles) {
-      if (!seenUrls.has(item.url)) {
-        seenUrls.add(item.url);
-        allItems.push(item);
-        deCount++;
-      }
-    }
-  } catch (error) {
-    log.error(`Table.Media scrape failed: ${toError(error).message}`);
+  // EventRegistry political articles overwrite RSS (have body text)
+  for (const item of [...erDe, ...erAt]) {
+    urlMap.set(item.url, item);
   }
 
-  // Scrape Bluesky political accounts (free API, fast)
-  try {
-    const bskyPosts = await scrapeBlueskyAccounts();
-    for (const item of bskyPosts) {
-      if (!seenUrls.has(item.url)) {
-        seenUrls.add(item.url);
-        allItems.push(item);
-        deCount++;
-      }
-    }
-  } catch (error) {
-    log.error(`Bluesky scrape failed: ${toError(error).message}`);
+  // Grüne-specific articles overwrite (have body text + sentiment)
+  for (const item of [...grueneDe, ...grueneAt]) {
+    urlMap.set(item.url, item);
   }
+
+  // Bluesky (own content, always overwrite)
+  for (const item of bskyPosts) {
+    urlMap.set(item.url, item);
+  }
+
+  const allItems = [...urlMap.values()];
+  const deCount = allItems.filter((a) => a.locale === 'de').length;
+  const atCount = allItems.filter((a) => a.locale === 'at').length;
+  const erCount = erDe.length + erAt.length;
 
   log.info(
-    `Collected ${allItems.length} unique articles from ${allDomains.length} feeds + scrape sources (DE: ${deCount}, AT: ${atCount}, since ${since.toISOString()})`
+    `Collected ${allItems.length} unique articles (DE: ${deCount}, AT: ${atCount}, EventRegistry: ${erCount}, RSS: ${allItems.length - erCount}, since ${since.toISOString()})`
   );
   return allItems;
 }

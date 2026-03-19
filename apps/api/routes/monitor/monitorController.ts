@@ -1,6 +1,7 @@
 import { Router, type Response } from 'express';
 
 import { generateKeywordInsights } from '../../services/monitor/KeywordInsightsGraph.js';
+import { generateMonitorBriefing } from '../../services/monitor/MonitorBriefingGraph.js';
 import {
   getLatestSnapshot,
   getHistory,
@@ -8,9 +9,11 @@ import {
   searchArticles,
   searchArticlesByKeywords,
   getStimmung,
+  refreshMonitor,
 } from '../../services/monitor/MonitorService.js';
 import { getEntitySummary } from '../../services/monitor/MonitorSummaryService.js';
 import { getPolls } from '../../services/monitor/PollScraper.js';
+import { getStimmungSummary } from '../../services/monitor/StimmungSummaryService.js';
 import { TOPIC_CATEGORIES } from '../../services/monitor/types.js';
 import {
   WATCHER_ENTITIES,
@@ -19,6 +22,7 @@ import {
 } from '../../services/monitor/watcherEntities.js';
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
+import redisClient from '../../utils/redis/client.js';
 
 import type { TopicCategory, MonitorLocale } from '../../services/monitor/types.js';
 import type { AuthRequest } from '../auth/types.js';
@@ -116,6 +120,58 @@ router.get('/keyword-insights', async (req: AuthRequest, res: Response): Promise
   }
 });
 
+router.get('/briefing', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const locale = parseLocale(req.query.locale) || 'de';
+    const [snapshot, stimmung, pollData] = await Promise.all([
+      getLatestSnapshot(),
+      getStimmung(locale),
+      getPolls(),
+    ]);
+    if (!snapshot) {
+      res.status(404).json({ error: 'No monitor data available' });
+      return;
+    }
+    const result = await generateMonitorBriefing(
+      locale,
+      snapshot,
+      stimmung,
+      pollData?.average ?? {}
+    );
+    res.set('Cache-Control', 'private, max-age=1800, stale-while-revalidate=3600');
+    res.json(result);
+  } catch (error) {
+    log.error(`GET /briefing failed: ${toError(error).message}`);
+    res.status(500).json({ error: 'Failed to generate briefing' });
+  }
+});
+
+router.post('/briefing/refresh', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const locale = parseLocale(req.query.locale) || 'de';
+    await redisClient.del(`monitor:briefing:${locale}`);
+    const [snapshot, stimmung, pollData] = await Promise.all([
+      getLatestSnapshot(),
+      getStimmung(locale),
+      getPolls(),
+    ]);
+    if (!snapshot) {
+      res.status(404).json({ error: 'No monitor data available' });
+      return;
+    }
+    const result = await generateMonitorBriefing(
+      locale,
+      snapshot,
+      stimmung,
+      pollData?.average ?? {}
+    );
+    res.json(result);
+  } catch (error) {
+    log.error(`POST /briefing/refresh failed: ${toError(error).message}`);
+    res.status(500).json({ error: 'Failed to regenerate briefing' });
+  }
+});
+
 router.get('/polls', async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
     const data = await getPolls();
@@ -131,6 +187,11 @@ router.get('/stimmung', async (req: AuthRequest, res: Response): Promise<void> =
   try {
     const locale = parseLocale(req.query.locale);
     const stimmung = await getStimmung(locale);
+    const summary = await getStimmungSummary(locale, stimmung).catch(() => null);
+    if (summary) {
+      stimmung.moodSummary = summary.moodSummary;
+      stimmung.moodReason = summary.dominantReason;
+    }
     res.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=600');
     res.json(stimmung);
   } catch (error) {
@@ -206,5 +267,20 @@ router.get(
     }
   }
 );
+
+router.post('/refresh', async (_req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    log.info('Monitor refresh triggered by user');
+    const snapshot = await refreshMonitor();
+    res.json({
+      success: true,
+      totalArticles: snapshot.totalArticles,
+      activeTopics: snapshot.topics.filter((t) => t.articleCount > 0).length,
+    });
+  } catch (error) {
+    log.error(`POST /refresh failed: ${toError(error).message}`);
+    res.status(500).json({ error: 'Refresh failed' });
+  }
+});
 
 export default router;

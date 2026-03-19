@@ -3,14 +3,16 @@
 Scores articles across 7 emotion dimensions using lexicon matching
 on lemmatized tokens from the spaCy pipeline.
 
-Includes a negation window to skip emotion matches preceded by
-negation words (e.g. "nicht hoffnungsvoll", "kein Vertrauen").
+Features:
+- Negation window: skips emotion matches preceded by negation words
+- Headline weighting: emotion matches in titles count 3x (optional)
 """
 
 from collections import Counter
 
 from spacy.tokens import Doc
 
+from .constants import TITLE_WEIGHT
 from .emotion_lexicons import EmotionCategory, get_emotion
 
 NEGATION_WORDS = frozenset({
@@ -31,8 +33,12 @@ class EmotionAnalyzer:
                 return True
         return False
 
-    def analyze(self, doc: Doc) -> dict[str, float]:
+    def analyze(self, doc: Doc, title_end: int = 0) -> dict[str, float]:
         """Analyze a spaCy Doc and return emotion scores (per-mille).
+
+        Args:
+            doc: spaCy Doc to analyze.
+            title_end: Character offset where the title ends (0 = no weighting).
 
         Returns dict mapping emotion name to score (0-1000 scale).
         Higher = more prevalent in the text.
@@ -51,7 +57,8 @@ class EmotionAnalyzer:
 
             emotion = get_emotion(lemma)
             if emotion and not self._is_negated(doc, token.i):
-                emotion_counts[emotion] += 1
+                multiplier = TITLE_WEIGHT if title_end > 0 and token.idx < title_end else 1.0
+                emotion_counts[emotion] += multiplier
 
         if total_words == 0:
             return {}

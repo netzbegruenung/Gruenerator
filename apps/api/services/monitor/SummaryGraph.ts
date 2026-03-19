@@ -13,6 +13,8 @@ import { z } from 'zod';
 import { createLogger } from '../../utils/logger.js';
 import { getModel, isProviderConfigured } from '../ai/providers.js';
 
+import { EMOTION_NAMES } from './types.js';
+
 import type { MonitorArticle } from './types.js';
 
 const log = createLogger('SummaryGraph');
@@ -154,10 +156,80 @@ Regeln:
   }
 }
 
+function buildRiskContext(articles: MonitorArticle[]): string {
+  const lines: string[] = [];
+
+  // Sentiment overview
+  const sentiments = articles.filter((a) => a.erSentiment != null).map((a) => a.erSentiment!);
+  if (sentiments.length > 0) {
+    const avg = sentiments.reduce((a, b) => a + b, 0) / sentiments.length;
+    const negCount = sentiments.filter((s) => s < -0.3).length;
+    const label = avg < -0.2 ? 'negativ' : avg > 0.1 ? 'positiv' : 'gemischt';
+    lines.push(`Sentiment-Durchschnitt: ${avg.toFixed(2)} (${label})`);
+    if (negCount > 0) lines.push(`Stark negative Artikel: ${negCount} von ${sentiments.length}`);
+  }
+
+  // Emotion profile
+  const emotionTotals: Record<string, number> = {};
+  for (const a of articles) {
+    for (const [k, v] of Object.entries(a.emotionScores ?? {})) {
+      emotionTotals[k] = (emotionTotals[k] ?? 0) + v;
+    }
+  }
+  const emotionParts = Object.entries(emotionTotals)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 4)
+    .map(([k, v]) => `${EMOTION_NAMES[k] || k} ${Math.round(v)}`);
+  if (emotionParts.length > 0) lines.push(`Emotionsprofil: ${emotionParts.join(', ')}`);
+
+  // Topic distribution
+  const topicCounts: Record<string, number> = {};
+  for (const a of articles) {
+    if (a.primaryTopic) topicCounts[a.primaryTopic] = (topicCounts[a.primaryTopic] ?? 0) + 1;
+  }
+  const topTopics = Object.entries(topicCounts)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 4)
+    .map(([k, v]) => `${k} (${v})`);
+  if (topTopics.length > 0) lines.push(`Themen: ${topTopics.join(', ')}`);
+
+  // Top keywords
+  const nounCounts: Record<string, number> = {};
+  for (const a of articles) {
+    for (const n of a.topNouns ?? []) {
+      nounCounts[n.noun] = (nounCounts[n.noun] ?? 0) + n.count;
+    }
+  }
+  const topKw = Object.entries(nounCounts)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5)
+    .map(([k]) => k);
+  if (topKw.length > 0) lines.push(`Schlagwörter: ${topKw.join(', ')}`);
+
+  // Most negative articles
+  const negArticles = articles
+    .filter((a) => a.erSentiment != null && a.erSentiment < -0.3)
+    .sort((a, b) => (a.erSentiment ?? 0) - (b.erSentiment ?? 0))
+    .slice(0, 3);
+  if (negArticles.length > 0) {
+    lines.push(
+      '\nNegativste Artikel:\n' +
+        negArticles
+          .map((a) => `- [${a.source}] "${a.title}" (Sentiment: ${a.erSentiment!.toFixed(1)})`)
+          .join('\n')
+    );
+  }
+
+  return lines.join('\n');
+}
+
 async function attackAnalysisNode(state: SummaryState): Promise<Partial<SummaryState>> {
   if (state.facts.length < 3) {
     return { attackAnalysis: '' };
   }
+
+  // Build risk context from article metadata
+  const riskContext = buildRiskContext(state.articles);
 
   // Extract key themes from facts for notebook search
   const themes = [...new Set(state.facts.map((f) => f.context).filter(Boolean))].slice(0, 5);
@@ -183,7 +255,7 @@ async function attackAnalysisNode(state: SummaryState): Promise<Partial<SummaryS
 
     if (positions.length > 0) {
       positionsContext =
-        '\n\nRelevante Grüne Positionen aus Parteiprogrammen:\n' +
+        '\nRelevante Grüne Positionen aus Parteiprogrammen:\n' +
         positions.map((p) => `- "${p.source}": ${(p.excerpt || '').slice(0, 200)}`).join('\n');
     }
   } catch {
@@ -194,35 +266,46 @@ async function attackAnalysisNode(state: SummaryState): Promise<Partial<SummaryS
     const model = getModel(PROVIDER);
     const result = await generateText({
       model,
-      system: `Du bist ein*e erfahrene*r politische*r Strategieberater*in. Du vergleichst aktuelle Medienberichterstattung mit den offiziellen Positionen von Bündnis 90/Die Grünen.
+      system: `Du bist ein*e politische*r Risikoanalyst*in für Bündnis 90/Die Grünen.
 
 Politischer Kontext (Stand März 2026):
 - Bundeskanzler: Friedrich Merz (CDU), Koalition: CDU/CSU + SPD
 - Bündnis 90/Die Grünen sind Oppositionspartei im Bundestag
 
-Schreibe auf Deutsch mit Genderstern (*). Sei direkt und konkret.`,
-      prompt: `Aktuelle Berichterstattung über ${state.entityLabel}:
+Du erhältst Fakten aus der aktuellen Berichterstattung, quantitative Risiko-Daten (Sentiment, Emotionen, Themen) und unsere Parteipositionen.
+Schreibe auf Deutsch mit Genderstern (*). Sei direkt und konkret. Nenne Quellen.`,
+      prompt: `RISIKO-DATEN:
+${riskContext || 'Keine Sentiment-Daten verfügbar.'}
 
+EXTRAHIERTE FAKTEN über ${state.entityLabel}:
 ${factsFormatted}
 ${positionsContext}
 
-Vergleiche die aktuelle Berichterstattung mit unseren Positionen und analysiere:
+Erstelle eine Risikoanalyse:
 
-**Angriffsflächen** — Wo könnten politische Gegner*innen die Grünen angreifen? Wo haben wir schwache oder fehlende Positionen zu den aktuellen Themen? (2-3 Stichpunkte)
+**Risiken** (sortiert nach Dringlichkeit)
+- Nenne das konkrete Risiko, die Quelle und warum es gefährlich ist
+- Stark negative Artikel (Sentiment < -0.3) = hohe Priorität
+- Hohe Angst/Wut in der Berichterstattung = dringender Handlungsbedarf
+(2-3 Stichpunkte)
 
-**Chancen** — Wo können die Grünen in die Offensive gehen? Wo haben wir starke Positionen, die zur aktuellen Debatte passen und die Regierung angreifbar machen? (2-3 Stichpunkte)
+**Chancen** (sortiert nach Potenzial)
+- Nenne die konkrete Chance und wie wir sie nutzen können
+- Positive Berichterstattung = Verstärkungspotenzial
+- Themen mit Hoffnung/Vertrauen = günstige Gelegenheiten
+(2-3 Stichpunkte)
 
-Max 150 Wörter. Stichpunkte mit Spiegelstrichen.`,
-      temperature: 0.4,
+Max 200 Wörter. Stichpunkte mit Spiegelstrichen.`,
+      temperature: 0.3,
       maxOutputTokens: 1000,
     });
 
     log.info(
-      `AttackAnalysis: ${result.text.split(/\s+/).length} words (${positionsContext ? 'with' : 'without'} positions)`
+      `RiskAnalysis: ${result.text.split(/\s+/).length} words (${positionsContext ? 'with' : 'without'} positions, ${riskContext ? 'with' : 'without'} risk data)`
     );
     return { attackAnalysis: result.text };
   } catch (error) {
-    log.error(`AttackAnalysis failed: ${error}`);
+    log.error(`RiskAnalysis failed: ${error}`);
     return { attackAnalysis: '' };
   }
 }
