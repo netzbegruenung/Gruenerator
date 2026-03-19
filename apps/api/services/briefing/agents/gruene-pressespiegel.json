@@ -59,7 +59,7 @@
     "timeRange": "day",
     "maxResultsPerSource": 10,
     "outputFormat": "digest",
-    "customPrompt": "Erstelle einen Pressespiegel über Die Grünen / Bündnis 90. Gruppiere die Artikel nach Themen (z.B. Koalition, Klimapolitik, Innenpolitik, Wirtschaft, Personalien). Bewerte für jedes Thema kurz die Tonalität der Berichterstattung (positiv/neutral/kritisch). Nenne am Ende die 3 wichtigsten Erkenntnisse des Tages für die Partei."
+    "customPrompt": "Schreibe einen Pressespiegel über die heutige Berichterstattung zu Bündnis 90/Die Grünen.\n\nStilregeln:\n- Fließtext mit kurzen Absätzen (2-3 Sätze). KEINE Aufzählungen, KEINE Bullet Points.\n- Setze Mediennamen und Politiker*innen-Namen **fett**.\n- Beginne mit dem wichtigsten Thema des Tages.\n- Ordne ein: Ist die Berichterstattung eher positiv, kritisch oder neutral?\n- Schließe mit 1-2 Sätzen: Was bedeutet die Nachrichtenlage für die Partei?\n- Tone: analytisch, wie ein Briefing für die Parteispitze."
   },
   "schedule_type": "daily",
   "schedule_hour": 20,

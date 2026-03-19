@@ -1,3 +1,7 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
 import { Router, type Response } from 'express';
 
 import { type AuthenticatedRequest } from '../../middleware/types.js';
@@ -224,6 +228,67 @@ router.post('/parse', async (req: AuthenticatedRequest, res: Response): Promise<
     }
     const config = await parsePrompt(prompt);
     res.json({ success: true, config });
+  } catch (error) {
+    res.status(500).json({ error: toError(error).message });
+  }
+});
+
+const __briefingFilename = fileURLToPath(import.meta.url);
+const __briefingDirname = path.dirname(__briefingFilename);
+const ARCHIVE_DIR = path.resolve(__briefingDirname, '../../../../documentation/docs/briefings');
+
+router.get('/archives', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    if (!fs.existsSync(ARCHIVE_DIR)) {
+      res.json({ success: true, archives: [] });
+      return;
+    }
+
+    const filterAgentId = typeof req.query.agentId === 'string' ? req.query.agentId : null;
+    const files = fs.readdirSync(ARCHIVE_DIR).filter((f) => f.endsWith('.md') && f !== 'intro.md');
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    interface ArchiveEntry {
+      filename: string;
+      date: string | null;
+      agentId: string | null;
+      title: string;
+      articleCount: number;
+      summary: string;
+    }
+
+    const archives: ArchiveEntry[] = [];
+
+    for (const filename of files) {
+      const dateMatch = filename.match(/^(\d{4}-\d{2}-\d{2})/);
+      const date = dateMatch ? dateMatch[1] : null;
+      if (date && new Date(date) < thirtyDaysAgo) continue;
+
+      const content = fs.readFileSync(path.join(ARCHIVE_DIR, filename), 'utf-8');
+
+      const agentMatch = content.match(/\*\*Agent:\*\*\s*`([^`]+)`/);
+      const agentId = agentMatch?.[1] || null;
+      if (filterAgentId && agentId !== filterAgentId) continue;
+
+      const titleMatch = content.match(/^#\s+(.+)$/m);
+      const articleMatch = content.match(/\*\*Artikel(?:\s*gefunden)?:\*\*\s*(\d+)/);
+
+      const summaryStart = content.indexOf('---\n', content.indexOf('---\n') + 4);
+      const summary = summaryStart > -1 ? content.slice(summaryStart + 4).trim() : '';
+
+      archives.push({
+        filename,
+        date,
+        agentId,
+        title: titleMatch?.[1] || filename,
+        articleCount: articleMatch ? parseInt(articleMatch[1]) : 0,
+        summary: filterAgentId ? summary : summary.slice(0, 2000),
+      });
+    }
+
+    archives.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    res.json({ success: true, archives });
   } catch (error) {
     res.status(500).json({ error: toError(error).message });
   }

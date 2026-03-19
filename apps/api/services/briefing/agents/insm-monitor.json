@@ -1,0 +1,33 @@
+{
+  "id": "system:insm-monitor",
+  "name": "INSM Lobby-Monitor",
+  "description": "Wöchentliche kritische Analyse der INSM-Veröffentlichungen mit Vergleich zu Grünen Positionen",
+  "config": {
+    "sources": [
+      {
+        "type": "scrape",
+        "url": "https://www.insm.de/aktuelles",
+        "scrapeConfig": {
+          "baseUrl": "https://www.insm.de",
+          "articleSelector": "article, [class*='teaser'], [class*='card']",
+          "linkSelector": "a[href*='/aktuelles/']",
+          "titleSelector": "h2, h3, [class*='title']",
+          "dateSelector": "time, [class*='date']",
+          "dateAttribute": "datetime",
+          "excerptSelector": "p, [class*='excerpt'], [class*='text']",
+          "maxPages": 1
+        }
+      }
+    ],
+    "language": "de",
+    "timeRange": "week",
+    "maxResultsPerSource": 20,
+    "outputFormat": "digest",
+    "positionCollections": ["deutschland", "bundestagsfraktion", "gruene-de"],
+    "positionComparisonPrompt": "Schreibe einen analytischen Fließtext im Stil eines politischen Briefings. Vergleiche die INSM-Positionen mit den Grünen Positionen.\n\nStilregeln:\n- Schreibe als zusammenhängenden, gut lesbaren Text mit kurzen Absätzen (2-3 Sätze).\n- KEINE Überschriften, KEINE Aufzählungen, KEINE Tabellen.\n- Setze wichtige Namen und Organisationen **fett**.\n- Verwende direkte Zitate aus den Quellen in Anführungszeichen.\n- Verlinke Quellenverweise als [N] am Ende relevanter Aussagen.\n- Erzähle eine Geschichte: Was will die INSM? Was halten die Grünen dagegen? Wo gibt es überraschende Überschneidungen?\n- Tone: analytisch, kritisch, aber sachlich. Wie ein politisches Briefing für Entscheider*innen.",
+    "customPrompt": "Schreibe ein Briefing über die INSM-Veröffentlichungen dieser Woche. Die INSM (Initiative Neue Soziale Marktwirtschaft) ist eine arbeitgeberfinanzierte Lobby-Organisation.\n\nStilregeln:\n- Fließtext mit kurzen Absätzen (2-3 Sätze). KEINE Aufzählungen, KEINE Bullet Points.\n- Setze wichtige Namen und Organisationen **fett**.\n- Setze INSM-Behauptungen in Anführungszeichen.\n- Erzähle eine Geschichte: Was will die INSM diese Woche? Was ist die Agenda dahinter?\n- Tone: analytisch, kritisch, sachlich. Wie ein Briefing für Entscheider*innen."
+  },
+  "schedule_type": "weekly",
+  "schedule_hour": 9,
+  "delivery_email": "moritz-waechter@outlook.de"
+}
