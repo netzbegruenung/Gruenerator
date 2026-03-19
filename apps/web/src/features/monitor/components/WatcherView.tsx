@@ -1,16 +1,15 @@
 import {
-  Badge,
+  ArticleCard,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-  CardGrid,
   Input,
   LoadingSection,
   Skeleton,
 } from '@gruenerator/ui';
-import { ExternalLink, Search, Shield, Sparkles } from 'lucide-react';
+import { Search, Shield, Sparkles } from 'lucide-react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 
 import { Markdown } from '../../../components/common/Markdown/Markdown';
@@ -53,52 +52,42 @@ function highlightMatch(text: string, pattern: RegExp | null): React.ReactNode {
   });
 }
 
-function ArticleCard({ article, pattern }: { article: MonitorArticle; pattern: RegExp | null }) {
-  return (
-    <a
-      href={article.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-start gap-sm bg-background border border-grey-200 dark:border-grey-700 rounded-md p-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md no-underline"
-    >
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-foreground-heading m-0">
-          {highlightMatch(article.title, pattern)}
-        </p>
-        {article.excerpt && (
-          <p className="mt-xs text-sm text-foreground leading-relaxed m-0 line-clamp-2">
-            {highlightMatch(article.excerpt.slice(0, 250), pattern)}
-          </p>
-        )}
-        <div className="mt-sm flex items-center gap-sm">
-          <Badge variant="secondary" className="bg-secondary-600 text-white border-transparent">
-            {article.source}
-          </Badge>
-          {article.publishedAt && (
-            <span className="text-xs text-grey-500 dark:text-grey-400">
-              {new Date(article.publishedAt).toLocaleDateString('de-DE', {
-                day: 'numeric',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </span>
-          )}
-        </div>
-      </div>
-      <ExternalLink className="mt-1 h-4 w-4 shrink-0 text-grey-400" />
-    </a>
-  );
+function useAvgSentiment(articles?: MonitorArticle[]): number | null {
+  return useMemo(() => {
+    const withSentiment = (articles ?? []).filter((a) => a.erSentiment != null);
+    if (withSentiment.length === 0) return null;
+    return withSentiment.reduce((sum, a) => sum + a.erSentiment!, 0) / withSentiment.length;
+  }, [articles]);
+}
+
+function RiskBadge({ sentiment }: { sentiment: number | null }) {
+  if (sentiment == null) return null;
+  const level = sentiment < -0.2 ? 'Hoch' : sentiment > 0.1 ? 'Niedrig' : 'Mittel';
+  const color =
+    sentiment < -0.2
+      ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+      : sentiment > 0.1
+        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+  return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${color}`}>{level}</span>;
 }
 
 function EntityView({ entityId, locale }: { entityId: string; locale: MonitorLocale }) {
   const { data: entities } = useWatcherEntities();
   const { data: results, isLoading } = useEntityResults(entityId, locale);
   const { data: summaryData, isLoading: summaryLoading } = useEntitySummary(entityId, locale);
+  const avgSentiment = useAvgSentiment(results?.articles);
 
   const entity = entities?.find((e) => e.id === entityId);
   const keywords = entity?.keywords ?? [];
   const pattern = useHighlightPattern(keywords);
+
+  const riskBorderColor =
+    avgSentiment != null && avgSentiment < -0.2
+      ? 'border-red-300 dark:border-red-800'
+      : avgSentiment != null && avgSentiment > 0.1
+        ? 'border-green-300 dark:border-green-800'
+        : 'border-amber-200 dark:border-amber-800';
 
   return (
     <div>
@@ -142,14 +131,15 @@ function EntityView({ entityId, locale }: { entityId: string; locale: MonitorLoc
       )}
 
       {summaryData?.attackAnalysis && (
-        <Card className="mb-lg border-amber-200 dark:border-amber-800">
+        <Card className={`mb-lg ${riskBorderColor}`}>
           <CardHeader>
             <div className="flex items-center gap-sm">
               <Shield className="h-4 w-4 text-amber-500" />
-              <CardTitle>Strategische Analyse</CardTitle>
+              <CardTitle>Risiko-Monitor</CardTitle>
+              <RiskBadge sentiment={avgSentiment} />
             </div>
             <CardDescription>
-              Vergleich der aktuellen Berichterstattung mit unseren Positionen.
+              Risikoanalyse basierend auf Sentiment, Emotionen und Parteipositionen.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -174,11 +164,23 @@ function EntityView({ entityId, locale }: { entityId: string; locale: MonitorLoc
             </p>
           )}
 
-          <CardGrid columns="1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-sm">
             {results.articles.map((article) => (
-              <ArticleCard key={article.url} article={article} pattern={pattern} />
+              <ArticleCard
+                key={article.url}
+                url={article.url}
+                title={highlightMatch(article.title, pattern)}
+                excerpt={
+                  article.excerpt
+                    ? highlightMatch(article.excerpt.slice(0, 250), pattern)
+                    : undefined
+                }
+                source={article.source}
+                publishedAt={article.publishedAt}
+                sentiment={article.erSentiment}
+              />
             ))}
-          </CardGrid>
+          </div>
         </>
       )}
     </div>
@@ -220,11 +222,23 @@ function CustomSearch({ locale }: { locale: MonitorLocale }) {
           <p className="mb-md text-xs text-grey-500 dark:text-grey-400">
             {data.count} Treffer für &ldquo;{data.query}&rdquo; in {data.sources.length} Quellen
           </p>
-          <CardGrid columns="1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-sm">
             {data.articles.map((article) => (
-              <ArticleCard key={article.url} article={article} pattern={pattern} />
+              <ArticleCard
+                key={article.url}
+                url={article.url}
+                title={highlightMatch(article.title, pattern)}
+                excerpt={
+                  article.excerpt
+                    ? highlightMatch(article.excerpt.slice(0, 250), pattern)
+                    : undefined
+                }
+                source={article.source}
+                publishedAt={article.publishedAt}
+                sentiment={article.erSentiment}
+              />
             ))}
-          </CardGrid>
+          </div>
         </>
       )}
     </div>

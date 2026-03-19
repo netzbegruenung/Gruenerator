@@ -4,23 +4,17 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CollapsibleSection,
   LoadingSection,
+  MoodBar,
+  getMoodLabel,
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@gruenerator/ui';
-import {
-  ChevronDown,
-  Flame,
-  HandHeart,
-  Heart,
-  Shield,
-  Sparkles,
-  TrendingDown,
-  Trophy,
-} from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Flame, HandHeart, Heart, Shield, Sparkles, TrendingDown, Trophy } from 'lucide-react';
+import { useMemo } from 'react';
 
 import { useStimmung } from '../hooks/useMonitor';
 import { TOPIC_CONFIG } from '../topicConfig';
@@ -108,39 +102,6 @@ function getMoodPosition(overall: Record<string, number>): number {
   return (positive / total) * 100;
 }
 
-function getMoodLabel(position: number): string {
-  if (position >= 70) return 'Überwiegend positiv';
-  if (position >= 55) return 'Leicht positiv';
-  if (position >= 45) return 'Ausgeglichen';
-  if (position >= 30) return 'Leicht negativ';
-  return 'Überwiegend negativ';
-}
-
-function MoodBar({ overall }: { overall: Record<string, number> }) {
-  const position = getMoodPosition(overall);
-  const label = getMoodLabel(position);
-
-  return (
-    <div className="space-y-sm">
-      <div className="relative h-4 rounded-full overflow-hidden bg-gradient-to-r from-red-400 via-yellow-300 to-green-400 dark:from-red-600 dark:via-yellow-500 dark:to-green-600">
-        <div
-          className="absolute top-0 h-full w-1 bg-foreground rounded-full shadow-lg transition-all duration-700 ease-out"
-          style={{ left: `clamp(2%, ${position}%, 98%)` }}
-        />
-        <div
-          className="absolute -top-0.5 h-5 w-5 rounded-full border-2 border-foreground bg-background shadow-md transition-all duration-700 ease-out"
-          style={{ left: `clamp(2%, calc(${position}% - 10px), 96%)` }}
-        />
-      </div>
-      <div className="flex justify-between text-xs text-grey-400">
-        <span>Negativ</span>
-        <span className="font-medium text-foreground">{label}</span>
-        <span>Positiv</span>
-      </div>
-    </div>
-  );
-}
-
 function EmotionCard({
   emotionKey,
   score,
@@ -211,25 +172,6 @@ function EmotionCard({
         <p className="text-xs text-grey-400">{config.comms}</p>
       </TooltipContent>
     </Tooltip>
-  );
-}
-
-function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between px-md py-sm text-sm font-medium text-foreground hover:bg-grey-50 dark:hover:bg-grey-800/50 transition-colors"
-      >
-        {title}
-        <ChevronDown
-          className={`h-4 w-4 text-grey-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-        />
-      </button>
-      {open && <div className="px-md pb-md">{children}</div>}
-    </div>
   );
 }
 
@@ -364,8 +306,11 @@ export function StimmungView({ locale }: StimmungViewProps) {
             Nachrichtenmedien heute.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <MoodBar overall={data.overall} />
+        <CardContent className="space-y-sm">
+          <MoodBar position={getMoodPosition(data.overall)} />
+          {data.moodSummary && (
+            <p className="text-sm text-foreground/80 italic">{data.moodSummary}</p>
+          )}
         </CardContent>
       </Card>
 
@@ -387,25 +332,25 @@ export function StimmungView({ locale }: StimmungViewProps) {
       {/* Layer 3: Detail Tables (collapsed) */}
       <div className="space-y-sm">
         {data.byTopic.length > 0 && (
-          <DetailSection title="Stimmung nach Thema">
+          <CollapsibleSection title="Stimmung nach Thema" bordered>
             <HeatmapTable
               rows={data.byTopic.slice(0, 10)}
               labelKey="topic"
               labelTransform={(t) => TOPIC_CONFIG[t as keyof typeof TOPIC_CONFIG]?.name ?? t}
             />
-          </DetailSection>
+          </CollapsibleSection>
         )}
 
         {data.bySource.length > 0 && (
-          <DetailSection title="Stimmung nach Quelle">
+          <CollapsibleSection title="Stimmung nach Quelle" bordered>
             <HeatmapTable rows={data.bySource.slice(0, 8)} labelKey="source" />
-          </DetailSection>
+          </CollapsibleSection>
         )}
 
         {data.byKeyword && data.byKeyword.length > 0 && (
-          <DetailSection title="Stimmung nach Keywords">
+          <CollapsibleSection title="Stimmung nach Keywords" bordered>
             <HeatmapTable rows={data.byKeyword} labelKey="keyword" />
-          </DetailSection>
+          </CollapsibleSection>
         )}
       </div>
     </div>

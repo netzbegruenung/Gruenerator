@@ -1,16 +1,21 @@
-"""Simplified spaCy-based topic classifier for German news articles.
+"""spaCy-based topic classifier for German news articles.
 
 Loads de_core_news_lg, extracts lemmatized nouns, matches against
 topic lexicons, and returns per-topic scores.
+
+Features:
+- Headline weighting: title matches count 3x (headlines carry strongest topical signal)
+- Political actor mapping: politician names serve as topic signals via TOPIC_MULTI_LABEL
+- Emotion analysis with negation window (delegated to EmotionAnalyzer)
 """
 
 from collections import Counter
 
 import spacy
 
+from .constants import TITLE_WEIGHT
 from .emotion_analyzer import EmotionAnalyzer
 from .lexicons import TopicCategory, get_topic_labels
-
 
 STOPWORD_NOUNS = {
     # From bundestag-analysis: procedural/parliamentary terms
@@ -120,18 +125,22 @@ class TopicClassifier:
             List of dicts with 'id', 'topics', 'primaryTopic' fields.
         """
         text_contents = []
+        title_char_ends: list[int] = []
         for item in texts:
-            combined = f"{item.get('title', '')} {item.get('text', '')}"
-            text_contents.append(combined)
+            title = item.get('title', '')
+            body = item.get('text', '')
+            text_contents.append(f"{title} {body}")
+            title_char_ends.append(len(title))
 
         results = []
-        for doc, item in zip(
+        for idx, (doc, item) in enumerate(zip(
             self.nlp.pipe(text_contents, batch_size=50, n_process=1),
             texts,
-        ):
+        )):
             noun_counts: Counter[TopicCategory] = Counter()
             lemma_counts: Counter[str] = Counter()
             total_nouns = 0
+            title_end = title_char_ends[idx]
 
             for token in doc:
                 if token.pos_ not in ("NOUN", "PROPN"):
@@ -144,9 +153,13 @@ class TopicClassifier:
 
                 total_nouns += 1
                 lemma_counts[lemma] += 1
+
+                in_title = token.idx < title_end
+                multiplier = TITLE_WEIGHT if in_title else 1.0
+
                 labels = get_topic_labels(lemma)
                 for topic, weight in labels:
-                    noun_counts[topic] += weight
+                    noun_counts[topic] += weight * multiplier
 
             scores: dict[str, float] = {}
             primary_topic = None
@@ -168,8 +181,8 @@ class TopicClassifier:
                 for noun, count in lemma_counts.most_common(10)
             ]
 
-            # Emotion analysis (reuses the same spaCy doc)
-            emotion_scores = self._emotion_analyzer.analyze(doc)
+            # Emotion analysis (reuses the same spaCy doc, with headline weighting)
+            emotion_scores = self._emotion_analyzer.analyze(doc, title_end=title_end)
 
             results.append({
                 "id": item.get("id", ""),

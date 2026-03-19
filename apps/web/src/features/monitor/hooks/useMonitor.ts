@@ -1,7 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import apiClient from '../../../components/utils/apiClient';
 
+import type { Citation, Source } from '../../../components/common/Citation';
 import type { TopicCategory } from '../topicConfig';
 
 export type MonitorLocale = 'de' | 'at';
@@ -15,6 +16,7 @@ interface MonitorArticle {
   locale: MonitorLocale;
   topics: Partial<Record<TopicCategory, number>>;
   primaryTopic: TopicCategory | null;
+  erSentiment?: number;
 }
 
 interface TopicScore {
@@ -24,10 +26,24 @@ interface TopicScore {
   topArticles: MonitorArticle[];
 }
 
+interface KeywordEntry {
+  keyword: string;
+  count: number;
+  topic: TopicCategory | null;
+}
+
+interface SocialTrend {
+  rank: number;
+  name: string;
+  url: string;
+}
+
 interface MonitorSnapshot {
   id: string;
   createdAt: string;
   topics: TopicScore[];
+  keywords?: KeywordEntry[];
+  socialTrends?: SocialTrend[];
   totalArticles: number;
   sources: string[];
   articlesByLocale: { de: number; at: number };
@@ -102,22 +118,8 @@ export function useMonitorSearch(query: string, locale?: MonitorLocale) {
 
 interface KeywordInsightsResult {
   text: string;
-  citations: Array<{
-    index: string;
-    cited_text: string;
-    document_title: string;
-    document_id: string;
-    source_url: string | null;
-    similarity_score: number;
-    chunk_index: number;
-    collection_id?: string;
-    collection_name?: string;
-  }>;
-  sources: Array<{
-    document_id: string;
-    document_title: string;
-    source_url: string | null;
-  }>;
+  citations: Citation[];
+  sources: Source[];
 }
 
 export function useKeywordInsights(locale?: MonitorLocale) {
@@ -133,11 +135,32 @@ export function useKeywordInsights(locale?: MonitorLocale) {
   });
 }
 
+interface MonitorBriefingResult {
+  briefing: string;
+  tweets: Array<{ text: string; topic: string; hashtags: string[] }>;
+  generatedAt: string;
+}
+
+export function useMonitorBriefing(locale?: MonitorLocale) {
+  return useQuery<MonitorBriefingResult>({
+    queryKey: ['monitor', 'briefing', locale],
+    queryFn: async () => {
+      const params = locale ? `?locale=${locale}` : '';
+      const { data } = await apiClient.get(`/monitor/briefing${params}`);
+      return data;
+    },
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+  });
+}
+
 interface StimmungResult {
   overall: Record<string, number>;
   byTopic: Array<{ topic: string; emotions: Record<string, number>; articleCount: number }>;
   bySource: Array<{ source: string; emotions: Record<string, number>; articleCount: number }>;
   byKeyword: Array<{ keyword: string; emotions: Record<string, number>; articleCount: number }>;
+  moodSummary?: string;
+  moodReason?: string;
   dominantEmotion: string | null;
 }
 
@@ -237,6 +260,33 @@ export function useEntitySummary(entityId: string | null, locale?: MonitorLocale
     enabled: !!entityId,
     staleTime: 10 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
+  });
+}
+
+export function useBriefingRefresh(locale?: MonitorLocale) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const params = locale ? `?locale=${locale}` : '';
+      const { data } = await apiClient.post(`/monitor/briefing/refresh${params}`);
+      return data as MonitorBriefingResult;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['monitor', 'briefing'] });
+    },
+  });
+}
+
+export function useMonitorRefresh() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post('/monitor/refresh');
+      return data as { success: boolean; totalArticles: number; activeTopics: number };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['monitor'] });
+    },
   });
 }
 

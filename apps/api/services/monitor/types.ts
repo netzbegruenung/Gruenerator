@@ -49,6 +49,7 @@ export interface MonitorArticle {
   primaryTopic: TopicCategory | null;
   topNouns?: NounCount[];
   emotionScores?: EmotionScores;
+  erSentiment?: number;
 }
 
 export interface KeywordEntry {
@@ -92,6 +93,22 @@ export const EMOTION_NAMES: Record<string, string> = {
   vertrauen: 'Vertrauen',
   solidaritaet: 'Solidarität',
   stolz: 'Stolz',
+};
+
+export const TOPIC_NAMES: Record<string, string> = {
+  migration: 'Migration',
+  klima: 'Klima & Umwelt',
+  wirtschaft: 'Wirtschaft',
+  soziales: 'Soziales',
+  sicherheit: 'Sicherheit',
+  gesundheit: 'Gesundheit',
+  europa: 'Europa/Außen',
+  digital: 'Digitales & Medien',
+  bildung: 'Bildung',
+  finanzen: 'Finanzen',
+  justiz: 'Justiz/Recht',
+  arbeit: 'Arbeit',
+  mobilitaet: 'Mobilität',
 };
 
 export interface NounCount {

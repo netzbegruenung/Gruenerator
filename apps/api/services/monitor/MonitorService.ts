@@ -5,6 +5,7 @@ import { createLogger } from '../../utils/logger.js';
 import redisClient from '../../utils/redis/client.js';
 
 import { generateKeywordInsights } from './KeywordInsightsGraph.js';
+import { generateMonitorBriefing } from './MonitorBriefingGraph.js';
 import { collectArticles } from './MonitorCollectorService.js';
 import { getEntitySummary } from './MonitorSummaryService.js';
 import { classifyArticles } from './NlpClientService.js';
@@ -95,7 +96,7 @@ export async function refreshMonitor(): Promise<MonitorSnapshot> {
 
   const collected = await collectArticles(24);
   if (collected.length === 0) {
-    throw new Error('No articles collected from RSS feeds');
+    throw new Error('No articles collected from any source');
   }
 
   const nlpInput = collected.map((item) => ({
@@ -133,6 +134,7 @@ export async function refreshMonitor(): Promise<MonitorSnapshot> {
       primaryTopic: classification?.primaryTopic ?? null,
       topNouns: classification?.topNouns ?? [],
       emotionScores: classification?.emotionScores ?? {},
+      ...(item.erSentiment != null ? { erSentiment: item.erSentiment } : {}),
     };
     allArticles.push(article);
     if (classification?.primaryTopic) {
@@ -190,6 +192,14 @@ export async function refreshMonitor(): Promise<MonitorSnapshot> {
   }
 
   getPolls().catch((err) => log.warn(`Background polls warm failed: ${err}`));
+
+  for (const locale of ['de', 'at'] as const) {
+    Promise.all([getLatestSnapshot(locale), getStimmung(locale), getPolls()])
+      .then(([snap, stimmung, polls]) => {
+        if (snap) return generateMonitorBriefing(locale, snap, stimmung, polls?.average ?? {});
+      })
+      .catch((err) => log.warn(`Background briefing warm (${locale}) failed: ${err}`));
+  }
 
   for (const entity of WATCHER_ENTITIES) {
     searchArticlesByKeywords(entity.keywords, entity.locale, 50, entity.excludePatterns)
@@ -257,21 +267,22 @@ async function upsertArticles(articles: MonitorArticle[]): Promise<void> {
       JSON.stringify(a.topics),
       JSON.stringify(a.topNouns ?? []),
       JSON.stringify(a.emotionScores ?? {}),
+      a.erSentiment ?? null,
     ]);
 
     // Build batch VALUES clause
     const placeholders: string[] = [];
     const params: unknown[] = [];
     for (let i = 0; i < values.length; i++) {
-      const offset = i * 10;
+      const offset = i * 11;
       placeholders.push(
-        `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}::timestamptz, $${offset + 7}, $${offset + 8}::jsonb, $${offset + 9}::jsonb, $${offset + 10}::jsonb)`
+        `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}::timestamptz, $${offset + 7}, $${offset + 8}::jsonb, $${offset + 9}::jsonb, $${offset + 10}::jsonb, $${offset + 11})`
       );
       params.push(...values[i]);
     }
 
     await db().query(
-      `INSERT INTO monitor_articles (url, title, excerpt, source, locale, published_at, primary_topic, topic_scores, top_nouns, emotion_scores)
+      `INSERT INTO monitor_articles (url, title, excerpt, source, locale, published_at, primary_topic, topic_scores, top_nouns, emotion_scores, er_sentiment)
        VALUES ${placeholders.join(', ')}
        ON CONFLICT (url) DO UPDATE SET
          title = EXCLUDED.title,
@@ -280,6 +291,7 @@ async function upsertArticles(articles: MonitorArticle[]): Promise<void> {
          topic_scores = EXCLUDED.topic_scores,
          top_nouns = EXCLUDED.top_nouns,
          emotion_scores = EXCLUDED.emotion_scores,
+         er_sentiment = COALESCE(EXCLUDED.er_sentiment, monitor_articles.er_sentiment),
          last_seen_at = now()`,
       params
     );
@@ -362,7 +374,7 @@ export async function getLatestSnapshot(locale?: MonitorLocale): Promise<Monitor
     if (locale) {
       // Rebuild filtered: get classified articles for this locale from DB
       const localeArticles = await db().query(
-        `SELECT url, title, excerpt, source, locale, published_at, primary_topic, topic_scores
+        `SELECT url, title, excerpt, source, locale, published_at, primary_topic, topic_scores, er_sentiment
          FROM monitor_articles
          WHERE locale = $1 AND primary_topic IS NOT NULL AND last_seen_at > now() - interval '25 hours'
          ORDER BY published_at DESC NULLS LAST`,
@@ -404,6 +416,8 @@ export interface StimmungResult {
   bySource: Array<{ source: string; emotions: Record<string, number>; articleCount: number }>;
   byKeyword: Array<{ keyword: string; emotions: Record<string, number>; articleCount: number }>;
   dominantEmotion: string | null;
+  moodSummary?: string;
+  moodReason?: string;
 }
 
 export async function getStimmung(locale?: MonitorLocale): Promise<StimmungResult> {
@@ -613,7 +627,7 @@ export async function getTopicArticles(
 
     params.push(limit);
     const rows = await db().query(
-      `SELECT url, title, excerpt, source, locale, published_at, primary_topic, topic_scores
+      `SELECT url, title, excerpt, source, locale, published_at, primary_topic, topic_scores, er_sentiment
        FROM monitor_articles
        WHERE ${conditions.join(' AND ')}
        ORDER BY (topic_scores->>$1)::float DESC NULLS LAST
@@ -650,7 +664,7 @@ export async function searchArticles(
 
     params.push(limit);
     const rows = await db().query(
-      `SELECT url, title, excerpt, source, locale, published_at, primary_topic, topic_scores
+      `SELECT url, title, excerpt, source, locale, published_at, primary_topic, topic_scores, er_sentiment
        FROM monitor_articles
        WHERE ${conditions.join(' AND ')}
        ORDER BY published_at DESC NULLS LAST
@@ -699,7 +713,7 @@ export async function searchArticlesByKeywords(
 
     params.push(limit);
     const rows = await db().query(
-      `SELECT url, title, excerpt, source, locale, published_at, primary_topic, topic_scores
+      `SELECT url, title, excerpt, source, locale, published_at, primary_topic, topic_scores, er_sentiment
        FROM monitor_articles
        WHERE ${conditions.join(' AND ')}
        ORDER BY published_at DESC NULLS LAST
@@ -726,5 +740,6 @@ function rowToArticle(row: Record<string, unknown>): MonitorArticle {
     publishedAt: row.published_at ? (row.published_at as string) : null,
     primaryTopic: (row.primary_topic as TopicCategory) || null,
     topics: (row.topic_scores as Record<string, number>) || {},
+    ...(row.er_sentiment != null ? { erSentiment: row.er_sentiment as number } : {}),
   };
 }

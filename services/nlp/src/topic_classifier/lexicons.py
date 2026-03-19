@@ -437,6 +437,19 @@ TOPIC_MULTI_LABEL: dict[str, list[tuple[TopicCategory, float]]] = {
     "burnout": [(TopicCategory.GESUNDHEIT, 0.8), (TopicCategory.ARBEIT, 0.8)],
     "inflation": [(TopicCategory.FINANZEN, 1.0), (TopicCategory.WIRTSCHAFT, 0.7)],
     "prävention": [(TopicCategory.GESUNDHEIT, 0.7), (TopicCategory.SICHERHEIT, 0.7)],
+    # Political actors as topic signals (distinctive names with clear portfolios)
+    "habeck": [(TopicCategory.WIRTSCHAFT, 1.0), (TopicCategory.KLIMA, 0.7)],
+    "lauterbach": [(TopicCategory.GESUNDHEIT, 1.0)],
+    "faeser": [(TopicCategory.SICHERHEIT, 1.0), (TopicCategory.MIGRATION, 0.7)],
+    "lindner": [(TopicCategory.FINANZEN, 1.0)],
+    "wissing": [(TopicCategory.DIGITAL, 0.8), (TopicCategory.MOBILITAET, 0.8)],
+    "stark-watzinger": [(TopicCategory.BILDUNG, 1.0)],
+    "özdemir": [(TopicCategory.KLIMA, 0.8), (TopicCategory.SOZIALES, 0.5)],
+    "heil": [(TopicCategory.ARBEIT, 1.0), (TopicCategory.SOZIALES, 0.7)],
+    "paus": [(TopicCategory.SOZIALES, 1.0)],
+    "baerbock": [(TopicCategory.EUROPA, 1.0)],
+    "pistorius": [(TopicCategory.SICHERHEIT, 1.0)],
+    "geywitz": [(TopicCategory.SOZIALES, 0.8)],
 }
 
 
