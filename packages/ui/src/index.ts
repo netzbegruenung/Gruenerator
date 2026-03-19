@@ -9,6 +9,8 @@ export {
 } from './components/accordion';
 export { Alert, AlertTitle, AlertDescription } from './components/alert';
 export { FeatureToggle, type FeatureToggleProps } from './components/feature-toggle';
+export { FileCard } from './components/file-card';
+export { Ripple } from './components/ripple';
 export { Avatar, AvatarImage, AvatarFallback } from './components/avatar';
 export { Badge, badgeVariants } from './components/badge';
 export { Button, buttonVariants } from './components/button';

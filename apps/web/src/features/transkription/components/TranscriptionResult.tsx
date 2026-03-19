@@ -1,6 +1,8 @@
-import { cn } from '@/utils/cn';
+import Markdown from '../../../components/common/Markdown/Markdown';
 
 import type { TranscriptionSegment } from '../hooks/useTranscription';
+
+import { cn } from '@/utils/cn';
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -21,7 +23,8 @@ function getSpeakerColor(index: number): string {
   return SPEAKER_COLORS[index % SPEAKER_COLORS.length];
 }
 
-function getSpeakerLabel(id: string): string {
+function getSpeakerLabel(id: string, speakerMap?: Record<string, string>): string {
+  if (speakerMap?.[id]) return speakerMap[id];
   const match = id.match(/speaker_(\d+)/);
   if (!match) return id;
   return `Sprecher*in ${parseInt(match[1]) + 1}`;
@@ -32,6 +35,9 @@ interface TranscriptionResultProps {
   segments: TranscriptionSegment[];
   hasTimestamps: boolean;
   isStreaming?: boolean;
+  formattedText?: string;
+  onShowOriginal?: () => void;
+  speakerMap?: Record<string, string>;
 }
 
 export default function TranscriptionResult({
@@ -39,25 +45,27 @@ export default function TranscriptionResult({
   segments,
   hasTimestamps,
   isStreaming,
+  formattedText,
+  onShowOriginal,
+  speakerMap,
 }: TranscriptionResultProps) {
-  if (hasTimestamps && segments.length > 0) {
+  if (formattedText) {
     return (
-      <div className="bg-background border border-grey-200 dark:border-grey-700 rounded-lg p-lg max-h-[500px] overflow-y-auto">
-        <div className="flex flex-col gap-sm">
-          {segments.map((seg, i) => (
-            <div key={i} className="flex gap-sm">
-              <span className="text-xs text-grey-400 dark:text-grey-500 font-mono whitespace-nowrap pt-0.5 min-w-[5rem]">
-                {formatTime(seg.start)} – {formatTime(seg.end)}
-              </span>
-              <p className="text-sm text-foreground m-0 leading-relaxed">{seg.text}</p>
-            </div>
-          ))}
-        </div>
+      <div className="display-container flex flex-col rounded-md bg-background-pure shadow-[0_4px_20px_rgba(0,0,0,0.15)] p-lg max-h-[75vh] overflow-y-auto max-md:p-md max-md:shadow-none">
+        <Markdown className="prose prose-sm dark:prose-invert max-w-none">{formattedText}</Markdown>
+        {onShowOriginal && (
+          <button
+            type="button"
+            onClick={onShowOriginal}
+            className="mt-md text-xs text-grey-400 dark:text-grey-500 hover:text-foreground transition-colors cursor-pointer"
+          >
+            Originaltext anzeigen
+          </button>
+        )}
       </div>
     );
   }
-
-  // Diarized text: parse [speaker_N] markers
+  // Diarized text: parse [speaker_N] markers (check before timestamps — diarized output also has segments)
   const hasSpeakers = text.includes('[speaker_');
   if (hasSpeakers) {
     const parts = text.split(/(\[speaker_\d+\])/g).filter(Boolean);
@@ -76,7 +84,7 @@ export default function TranscriptionResult({
     }
 
     return (
-      <div className="bg-background border border-grey-200 dark:border-grey-700 rounded-lg p-lg max-h-[500px] overflow-y-auto">
+      <div className="display-container flex flex-col rounded-md bg-background-pure shadow-[0_4px_20px_rgba(0,0,0,0.15)] p-lg max-h-[75vh] overflow-y-auto max-md:p-md max-md:shadow-none">
         <div className="flex flex-col gap-md">
           {blocks.map((block, i) => {
             const speakerIndex = parseInt(block.speaker.match(/\d+/)?.[0] ?? '0');
@@ -84,7 +92,7 @@ export default function TranscriptionResult({
               <div key={i}>
                 {block.speaker && (
                   <span className={cn('text-xs font-semibold', getSpeakerColor(speakerIndex))}>
-                    {getSpeakerLabel(block.speaker)}
+                    {getSpeakerLabel(block.speaker, speakerMap)}
                   </span>
                 )}
                 <p className="text-sm text-foreground m-0 mt-xs leading-relaxed">{block.text}</p>
@@ -96,9 +104,26 @@ export default function TranscriptionResult({
     );
   }
 
+  if (hasTimestamps && segments.length > 0) {
+    return (
+      <div className="display-container flex flex-col rounded-md bg-background-pure shadow-[0_4px_20px_rgba(0,0,0,0.15)] p-lg max-h-[75vh] overflow-y-auto max-md:p-md max-md:shadow-none">
+        <div className="flex flex-col gap-sm">
+          {segments.map((seg, i) => (
+            <div key={i} className="flex gap-sm">
+              <span className="text-xs text-grey-400 dark:text-grey-500 font-mono whitespace-nowrap pt-0.5 min-w-[5rem]">
+                {formatTime(seg.start)} – {formatTime(seg.end)}
+              </span>
+              <p className="text-sm text-foreground m-0 leading-relaxed">{seg.text}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   // Plain text
   return (
-    <div className="bg-background border border-grey-200 dark:border-grey-700 rounded-lg p-lg max-h-[500px] overflow-y-auto">
+    <div className="display-container flex flex-col rounded-md bg-background-pure shadow-[0_4px_20px_rgba(0,0,0,0.15)] p-lg max-h-[75vh] overflow-y-auto max-md:p-md max-md:shadow-none">
       <p className="text-sm text-foreground m-0 leading-relaxed whitespace-pre-wrap">
         {text}
         {isStreaming && (

@@ -286,6 +286,7 @@
   --animate-streaming-cursor: streaming-cursor-blink 0.8s step-end infinite;
   --animate-bounce-gentle: bounce-gentle 0.5s ease infinite alternate;
   --animate-spin-slow: spin-slow 2s linear infinite;
+  --animate-ripple: ripple 2s ease calc(var(--i, 0) * 0.2s) infinite;
   --animate-breathe: breathe 1.5s ease-in-out infinite;
 
   /* Canvas Editor Animations */
@@ -401,6 +402,11 @@
 @keyframes breathe {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.08); }
+}
+
+@keyframes ripple {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(0.9); }
 }
 
 /* ── Canvas Editor Keyframe Animations ── */
