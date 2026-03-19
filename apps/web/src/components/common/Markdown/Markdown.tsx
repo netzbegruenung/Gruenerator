@@ -60,7 +60,14 @@ const preprocessMarkdown = (text: string): string => {
 export const MARKDOWN_COMPONENTS: Partial<Components> = {
   a: (props): JSX.Element => {
     const { node, ...rest } = props as AnchorHTMLAttributes<HTMLAnchorElement> & { node?: unknown };
-    return <a {...rest} target="_blank" rel="noopener noreferrer" />;
+    return (
+      <a
+        {...rest}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-primary-500 underline decoration-primary-500/30 underline-offset-2 hover:decoration-primary-500 transition-colors"
+      />
+    );
   },
 };
 
