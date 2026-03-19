@@ -6,14 +6,16 @@ export interface TranscriptionSegment {
   start: number;
   end: number;
   text: string;
+  speakerId?: string | null;
 }
 
 export interface TranscriptionState {
-  status: 'idle' | 'uploading' | 'transcribing' | 'done' | 'error';
+  status: 'idle' | 'uploading' | 'extracting' | 'transcribing' | 'done' | 'error';
   progress: number;
   text: string;
   segments: TranscriptionSegment[];
   hasTimestamps: boolean;
+  speakerMap: Record<string, string>;
   error: string | null;
 }
 
@@ -30,14 +32,25 @@ const INITIAL_STATE: TranscriptionState = {
   text: '',
   segments: [],
   hasTimestamps: false,
+  speakerMap: {},
   error: null,
 };
 
-async function parseSSEStream(
-  response: Response,
-  onDelta: (text: string) => void,
-  onDone: (text: string) => void,
-) {
+interface SSECallbacks {
+  onExtractionStart: () => void;
+  onExtractionProgress: (percent: number, timemark: string) => void;
+  onExtractionComplete: () => void;
+  onTranscriptionStart: () => void;
+  onDelta: (text: string) => void;
+  onDone: (data: {
+    text: string;
+    segments?: TranscriptionSegment[];
+    hasTimestamps?: boolean;
+    speakerMap?: Record<string, string>;
+  }) => void;
+}
+
+async function parseSSEStream(response: Response, callbacks: SSECallbacks) {
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -57,15 +70,36 @@ async function parseSSEStream(
 
       try {
         const data = JSON.parse(dataLine.slice(6));
-        if (data.type === 'text.delta') {
-          onDelta(data.text);
-        } else if (data.type === 'done') {
-          onDone(data.text ?? '');
-        } else if (data.type === 'error') {
-          throw new Error(data.text ?? 'Streaming-Fehler');
+        switch (data.type) {
+          case 'extraction_start':
+            callbacks.onExtractionStart();
+            break;
+          case 'extraction_progress':
+            callbacks.onExtractionProgress(data.percent ?? 0, data.timemark ?? '');
+            break;
+          case 'extraction_complete':
+            callbacks.onExtractionComplete();
+            break;
+          case 'transcription_start':
+            callbacks.onTranscriptionStart();
+            break;
+          case 'text.delta':
+            callbacks.onDelta(data.text);
+            break;
+          case 'done':
+            callbacks.onDone({
+              text: data.text ?? '',
+              segments: data.segments,
+              hasTimestamps: data.hasTimestamps,
+              speakerMap: data.speakerMap,
+            });
+            break;
+          case 'error':
+            throw new Error(data.text ?? 'Streaming-Fehler');
         }
-      } catch {
-        // skip malformed events
+      } catch (err) {
+        if (err instanceof Error && err.message !== 'Streaming-Fehler') throw err;
+        if (err instanceof Error) throw err;
       }
     }
   }
@@ -75,100 +109,123 @@ export function useTranscription() {
   const [state, setState] = useState<TranscriptionState>(INITIAL_STATE);
   const abortRef = useRef<AbortController | null>(null);
 
-  const transcribe = useCallback(async (file: File, options: TranscriptionOptions) => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
+  const transcribe = useCallback(
+    async (file: File, options: TranscriptionOptions): Promise<string | null> => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
 
-    const formData = new FormData();
-    formData.append('audio', file);
+      const formData = new FormData();
+      formData.append('audio', file);
 
-    const needsStandardEndpoint = options.diarize || options.timestamps || options.privacyMode;
+      const isVideo = file.type.startsWith('video/');
+      const usePrivacyEndpoint = options.privacyMode && !isVideo;
 
-    try {
-      setState({ ...INITIAL_STATE, status: 'uploading' });
+      try {
+        setState({ ...INITIAL_STATE, status: 'uploading' });
 
-      if (needsStandardEndpoint) {
-        const params = new URLSearchParams({
-          language: options.language,
-          ...(options.diarize && { diarize: 'true' }),
-          ...(options.timestamps && { timestamps: 'true' }),
-          ...(options.privacyMode && { privacyMode: 'true' }),
-        });
+        if (usePrivacyEndpoint) {
+          const params = new URLSearchParams({
+            language: options.language,
+            ...(options.diarize && { diarize: 'true' }),
+            ...(options.timestamps && { timestamps: 'true' }),
+            ...(options.privacyMode && { privacyMode: 'true' }),
+          });
 
-        setState((s) => ({ ...s, status: 'transcribing', progress: 100 }));
+          const response = await apiClient.post(`/voice/transcribe?${params}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            signal: controller.signal,
+            timeout: 900000,
+            onUploadProgress: (e) => {
+              if (e.total) {
+                setState((s) => ({ ...s, progress: Math.round((e.loaded / e.total!) * 100) }));
+              }
+            },
+          });
 
-        const response = await apiClient.post(`/voice/transcribe?${params}`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          signal: controller.signal,
-          timeout: options.privacyMode ? 900000 : undefined,
-          onUploadProgress: (e) => {
-            if (e.total) {
-              setState((s) => ({ ...s, progress: Math.round((e.loaded / e.total!) * 100) }));
-            }
-          },
-        });
+          const data = response.data;
+          if (!data.success) throw new Error(data.error ?? 'Transkription fehlgeschlagen');
 
-        const data = response.data;
-        if (!data.success) throw new Error(data.error ?? 'Transkription fehlgeschlagen');
+          const text = data.text ?? '';
+          setState({
+            status: 'done',
+            progress: 100,
+            text,
+            segments: data.segments ?? [],
+            hasTimestamps: data.hasTimestamps ?? false,
+            speakerMap: data.speakerMap ?? {},
+            error: null,
+          });
+          return text;
+        } else {
+          const params = new URLSearchParams({
+            language: options.language,
+            ...(options.diarize && { diarize: 'true' }),
+            ...(options.timestamps && { timestamps: 'true' }),
+          });
 
-        setState({
-          status: 'done',
-          progress: 100,
-          text: data.text ?? '',
-          segments: data.segments ?? [],
-          hasTimestamps: data.hasTimestamps ?? false,
-          error: null,
-        });
-      } else {
-        setState((s) => ({ ...s, status: 'transcribing', progress: 100 }));
+          const response = await fetch(`/api/voice/transcribe/stream?${params}`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+            signal: controller.signal,
+          });
 
-        const response = await fetch(`/api/voice/transcribe/stream?language=${options.language}`, {
-          method: 'POST',
-          body: formData,
-          credentials: 'include',
-          signal: controller.signal,
-        });
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.error ?? `HTTP ${response.status}`);
+          }
 
-        if (!response.ok) {
-          const err = await response.json().catch(() => ({}));
-          throw new Error(err.error ?? `HTTP ${response.status}`);
+          setState((s) => ({ ...s, status: isVideo ? 'extracting' : 'transcribing', progress: 0 }));
+
+          let fullText = '';
+
+          await parseSSEStream(response, {
+            onExtractionStart: () => {
+              setState((s) => ({ ...s, status: 'extracting', progress: 0 }));
+            },
+            onExtractionProgress: (percent) => {
+              setState((s) => ({ ...s, status: 'extracting', progress: percent }));
+            },
+            onExtractionComplete: () => {
+              setState((s) => ({ ...s, status: 'transcribing', progress: 0 }));
+            },
+            onTranscriptionStart: () => {
+              setState((s) => ({ ...s, status: 'transcribing', progress: 0 }));
+            },
+            onDelta: (text) => {
+              fullText += text;
+              setState((s) => ({ ...s, text: fullText }));
+            },
+            onDone: (data) => {
+              fullText = data.text || fullText;
+              setState({
+                status: 'done',
+                progress: 100,
+                text: fullText,
+                segments: data.segments ?? [],
+                hasTimestamps: data.hasTimestamps ?? false,
+                speakerMap: data.speakerMap ?? {},
+                error: null,
+              });
+            },
+          });
+
+          setState((s) => (s.status !== 'done' ? { ...s, status: 'done' } : s));
+          return fullText;
         }
-
-        let fullText = '';
-
-        await parseSSEStream(
-          response,
-          (delta) => {
-            fullText += delta;
-            setState((s) => ({ ...s, text: fullText }));
-          },
-          (finalText) => {
-            if (finalText) fullText = finalText;
-            setState({
-              status: 'done',
-              progress: 100,
-              text: fullText,
-              segments: [],
-              hasTimestamps: false,
-              error: null,
-            });
-          },
-        );
-
-        if (state.status !== 'done') {
-          setState((s) => ({ ...s, status: 'done' }));
-        }
+      } catch (err) {
+        if (controller.signal.aborted) return null;
+        setState((s) => ({
+          ...s,
+          status: 'error',
+          error: err instanceof Error ? err.message : 'Unbekannter Fehler',
+        }));
+        return null;
       }
-    } catch (err) {
-      if (controller.signal.aborted) return;
-      setState((s) => ({
-        ...s,
-        status: 'error',
-        error: err instanceof Error ? err.message : 'Unbekannter Fehler',
-      }));
-    }
-  }, []);
+    },
+    []
+  );
 
   const reset = useCallback(() => {
     abortRef.current?.abort();

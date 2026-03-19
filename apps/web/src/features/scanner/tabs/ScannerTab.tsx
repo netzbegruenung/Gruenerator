@@ -9,7 +9,10 @@ import { lazy, Suspense, useState, useCallback, useMemo, useRef, useEffect } fro
 import { HiX } from 'react-icons/hi';
 import {
   PiCamera,
+  PiCheckSquare,
+  PiKanban,
   PiListChecks,
+  PiNotePencil,
   PiNotepad,
   PiScan,
   PiShieldCheck,
@@ -22,9 +25,12 @@ import DisplaySection from '../../../components/common/Form/BaseForm/DisplaySect
 import useResponsive from '../../../components/common/Form/hooks/useResponsive';
 import SubmitButton from '../../../components/common/SubmitButton';
 import apiClient from '../../../components/utils/apiClient';
+import { useContentActions } from '../../../hooks/useContentActions';
 import { useAuthStore } from '../../../stores/authStore';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { cn } from '../../../utils/cn';
+
+const DocsEditorModal = lazy(() => import('../../../components/common/DocsEditorModal'));
 import { uploadZoneVariants, AnimatedUploadIcon, AnimatedFileIcon } from '../ScannerAnimations';
 
 const CameraScanner = lazy(() => import('../CameraScanner'));
@@ -104,6 +110,26 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
   const setGeneratedText = useGeneratedTextStore((state) => state.setGeneratedText);
   const setTextWithHistory = useGeneratedTextStore((state) => state.setTextWithHistory);
   const clearGeneratedText = useGeneratedTextStore((state) => state.clearGeneratedText);
+
+  const getContent = useCallback(() => {
+    const stored = useGeneratedTextStore.getState().getGeneratedText(COMPONENT_NAME);
+    if (typeof stored === 'string') return stored;
+    if (stored && typeof stored === 'object' && 'content' in stored)
+      return String(stored.content ?? '');
+    return result?.text || '';
+  }, [result]);
+  const getTitle = useCallback(
+    () => (selectedFiles.length === 1 ? selectedFiles[0].name.replace(/\.[^.]+$/, '') : 'Scanner'),
+    [selectedFiles]
+  );
+  const {
+    handleOpenInDocs,
+    handleCreateTodoList,
+    handleCreateBoard,
+    actionLoading,
+    editorModal,
+    closeEditorModal,
+  } = useContentActions({ getContent, getTitle });
 
   const handleTransform = useCallback(
     async (instruction: string) => {
@@ -519,6 +545,22 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
                   showRedoControls={true}
                   showResetButton={true}
                   onReset={handleClearFile}
+                  customExportOptions={[
+                    {
+                      id: 'todo-list',
+                      label: 'Aufgabenliste erstellen',
+                      icon: <PiCheckSquare size={16} />,
+                      onClick: handleCreateTodoList,
+                      disabled: !!actionLoading,
+                    },
+                    {
+                      id: 'board',
+                      label: 'Board erstellen',
+                      icon: <PiKanban size={16} />,
+                      onClick: handleCreateBoard,
+                      disabled: !!actionLoading,
+                    },
+                  ]}
                 />
               </div>
 
@@ -580,6 +622,17 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
           }
         >
           <CameraScanner onCapture={handleCameraCapture} onClose={() => setShowCamera(false)} />
+        </Suspense>
+      )}
+
+      {editorModal && (
+        <Suspense fallback={null}>
+          <DocsEditorModal
+            documentId={editorModal.documentId}
+            initialContent={editorModal.initialContent}
+            title={editorModal.title}
+            onClose={closeEditorModal}
+          />
         </Suspense>
       )}
     </div>

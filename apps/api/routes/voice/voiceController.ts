@@ -3,10 +3,20 @@
  * Handles audio transcription and chat using Mistral Voxtral
  */
 
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+
 import express, { type Request, type Response, type Router } from 'express';
 import multer, { type FileFilterCallback } from 'multer';
 
+import { extractAudio, cleanupFiles } from '../../services/subtitler/videoUploadService.js';
 import mistralVoiceService from '../../services/voice/mistralVoiceService.js';
+import {
+  generateProtokoll,
+  identifySpeakers,
+  extractTodoList,
+} from '../../services/voice/protokollService.js';
 import { createLogger } from '../../utils/logger.js';
 import { createSSEStream } from '../chat/services/sseHelpers.js';
 
@@ -71,6 +81,7 @@ interface TranscribeResponse {
   text?: string;
   segments?: TranscriptionSegment[];
   hasTimestamps?: boolean;
+  speakerMap?: Record<string, string>;
   language?: string;
   error?: string;
 }
@@ -111,19 +122,60 @@ interface TranscriptionOptions {
 
 const router: Router = express.Router();
 
+const VIDEO_MIME_TYPES = new Set([
+  'video/mp4',
+  'video/quicktime',
+  'video/x-msvideo',
+  'video/x-matroska',
+  'video/webm',
+  'video/mpeg',
+  'video/ogg',
+  'video/3gpp',
+]);
+
+function isVideoFile(mimetype: string): boolean {
+  return VIDEO_MIME_TYPES.has(mimetype) || mimetype.startsWith('video/');
+}
+
+interface ExtractOptions {
+  onProgress?: (percent: number, timemark: string) => void;
+}
+
+async function extractAudioFromVideo(
+  videoBuffer: Buffer,
+  originalname: string,
+  options?: ExtractOptions
+): Promise<{ buffer: Buffer; filename: string }> {
+  const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'voice-video-'));
+  const ext = path.extname(originalname) || '.mp4';
+  const videoPath = path.join(tmpDir, `input${ext}`);
+  const audioPath = path.join(tmpDir, 'extracted.mp3');
+
+  try {
+    await fs.promises.writeFile(videoPath, videoBuffer);
+    await extractAudio(videoPath, audioPath, { onProgress: options?.onProgress });
+    const audioBuffer = await fs.promises.readFile(audioPath);
+    const audioFilename = originalname.replace(/\.[^.]+$/, '.mp3');
+    return { buffer: audioBuffer, filename: audioFilename };
+  } finally {
+    await cleanupFiles(videoPath, audioPath);
+    await fs.promises.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 // Multer configuration for in-memory upload
 const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB Limit (Mistral supports ~15 minutes)
+  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB for video files
   fileFilter: (_req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
-    if (mistralVoiceService.isFormatSupported(file.mimetype)) {
+    if (mistralVoiceService.isFormatSupported(file.mimetype) || isVideoFile(file.mimetype)) {
       cb(null, true);
     } else {
       cb(
         new Error(
-          `Unsupported audio format: ${file.mimetype}. Supported formats: ${mistralVoiceService.getSupportedFormats().join(', ')}`
+          `Unsupported format: ${file.mimetype}. Supported: audio (${mistralVoiceService.getSupportedFormats().join(', ')}), video (mp4, mov, avi, mkv, webm)`
         )
       );
     }
@@ -149,8 +201,8 @@ router.post(
       });
     }
 
-    const audioBuffer = req.file.buffer;
-    const filename = req.file.originalname;
+    let audioBuffer = req.file.buffer;
+    let filename = req.file.originalname;
 
     const options: TranscriptionOptions = {
       language: req.query.language || req.body.language || 'de',
@@ -162,6 +214,18 @@ router.post(
     };
 
     try {
+      if (isVideoFile(req.file.mimetype)) {
+        log.debug('[Voice] Video detected, extracting audio from:', filename);
+        const extracted = await extractAudioFromVideo(req.file.buffer, filename);
+        audioBuffer = extracted.buffer;
+        filename = extracted.filename;
+        log.debug(
+          '[Voice] Audio extracted:',
+          filename,
+          `(${(audioBuffer.length / 1024 / 1024).toFixed(1)} MB)`
+        );
+      }
+
       log.debug('[Voice] Starting transcription for:', filename, 'Options:', options);
 
       const result = (await mistralVoiceService.transcribeFromBuffer(
@@ -170,11 +234,17 @@ router.post(
         options
       )) as unknown as TranscriptionResult;
 
+      let speakerMap: Record<string, string> = {};
+      if (options.diarize && result.text.includes('[speaker_')) {
+        speakerMap = await identifySpeakers(result.text);
+      }
+
       return res.json({
         success: true,
         text: result.text,
         segments: result.segments,
         hasTimestamps: result.hasTimestamps,
+        speakerMap,
         language: options.language,
       });
     } catch (error) {
@@ -190,7 +260,10 @@ router.post(
 
 /**
  * POST /api/voice/transcribe/stream
- * Streaming transcription — returns SSE events as text is transcribed
+ * Streaming transcription — returns SSE events as text is transcribed.
+ * For video files, also emits extraction_progress/extraction_complete events.
+ * Supports diarize/timestamps — when enabled, uses non-streaming transcription
+ * but still wraps in SSE for consistent progress feedback.
  */
 router.post(
   '/transcribe/stream',
@@ -203,23 +276,79 @@ router.post(
       });
     }
 
-    const audioBuffer = req.file.buffer;
-    const filename = req.file.originalname;
+    let audioBuffer = req.file.buffer;
+    let filename = req.file.originalname;
     const language = req.query.language || req.body.language || 'de';
+    const diarize = req.query.diarize === 'true' || req.body.diarize === true;
+    const timestamps = req.query.timestamps === 'true' || req.body.timestamps === true;
+    const needsFullTranscription = diarize || timestamps;
+
+    log.debug('[Voice] /transcribe/stream params:', {
+      language,
+      diarize,
+      timestamps,
+      needsFullTranscription,
+      query: req.query,
+    });
 
     const sse = createSSEStream(res);
 
     try {
-      log.debug('[Voice] Starting streaming transcription for:', filename);
+      if (isVideoFile(req.file.mimetype)) {
+        log.debug('[Voice] Video detected, extracting audio from:', filename);
+        sse.sendRaw('extraction_start', { type: 'extraction_start' });
 
-      for await (const event of mistralVoiceService.transcribeFromBufferStream(
-        audioBuffer,
-        filename,
-        {
+        const extracted = await extractAudioFromVideo(req.file.buffer, filename, {
+          onProgress: (percent, timemark) => {
+            sse.sendRaw('extraction_progress', { type: 'extraction_progress', percent, timemark });
+          },
+        });
+        audioBuffer = extracted.buffer;
+        filename = extracted.filename;
+
+        const audioSizeMB = +(audioBuffer.length / 1024 / 1024).toFixed(1);
+        log.debug('[Voice] Audio extracted:', filename, `(${audioSizeMB} MB)`);
+        sse.sendRaw('extraction_complete', { type: 'extraction_complete', audioSizeMB });
+      }
+
+      log.debug('[Voice] Starting transcription for:', filename, { diarize, timestamps });
+      sse.sendRaw('transcription_start', { type: 'transcription_start' });
+
+      if (needsFullTranscription) {
+        const options: TranscriptionOptions = {
           language,
+          timestamp_granularities: timestamps ? ['segment'] : undefined,
+          diarize: diarize || undefined,
+        };
+
+        const result = (await mistralVoiceService.transcribeFromBuffer(
+          audioBuffer,
+          filename,
+          options
+        )) as unknown as TranscriptionResult;
+
+        let speakerMap: Record<string, string> = {};
+        if (diarize && result.text.includes('[speaker_')) {
+          log.debug('[Voice] Identifying speakers...');
+          speakerMap = await identifySpeakers(result.text);
+          log.debug('[Voice] Speaker map:', speakerMap);
         }
-      )) {
-        sse.sendRaw(event.type, event);
+
+        sse.sendRaw('done', {
+          type: 'done',
+          text: result.text,
+          segments: result.segments,
+          hasTimestamps: result.hasTimestamps,
+          speakerMap,
+        });
+      } else {
+        for await (const event of mistralVoiceService.transcribeFromBufferStream(
+          audioBuffer,
+          filename,
+          { language }
+        )) {
+          sse.sendRaw(event.type, event);
+        }
       }
     } catch (error) {
       log.error('[Voice] Streaming transcription error:', error);
@@ -333,19 +462,91 @@ router.post(
 );
 
 /**
+ * POST /api/voice/protokoll
+ * Generate a structured protocol from transcription text using GPT-OSS via LiteLLM
+ */
+router.post('/protokoll', async (req: Request, res: Response) => {
+  const { inputText, protokollTyp } = req.body;
+
+  if (!inputText) {
+    return res.status(400).json({ success: false, error: 'Kein Text angegeben' });
+  }
+
+  try {
+    const content = await generateProtokoll({
+      inputText,
+      protokollTyp: protokollTyp || 'Sitzungsprotokoll',
+    });
+    return res.json({ success: true, content });
+  } catch (error) {
+    log.error('[Voice] Protokoll error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Fehler bei der Protokoll-Erstellung: ' + (error as Error).message,
+    });
+  }
+});
+
+/**
+ * POST /api/voice/identify-speakers
+ * Use GPT-OSS to identify speaker names from diarized transcription context
+ */
+router.post('/identify-speakers', async (req: Request, res: Response) => {
+  const { text } = req.body;
+
+  if (!text) {
+    return res.status(400).json({ success: false, error: 'Kein Text angegeben' });
+  }
+
+  try {
+    const mapping = await identifySpeakers(text);
+    return res.json({ success: true, mapping });
+  } catch (error) {
+    log.error('[Voice] Speaker identification error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Fehler bei der Sprecher*innen-Erkennung: ' + (error as Error).message,
+    });
+  }
+});
+
+/**
+ * POST /api/voice/todo-list
+ * Extract action items from transcription text via GPT-OSS and return as checklist HTML
+ */
+router.post('/todo-list', async (req: Request, res: Response) => {
+  const { text, title } = req.body;
+
+  if (!text) {
+    return res.status(400).json({ success: false, error: 'Kein Text angegeben' });
+  }
+
+  try {
+    const html = await extractTodoList(text, title);
+    return res.json({ success: true, content: html });
+  } catch (error) {
+    log.error('[Voice] Todo list error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Fehler bei der Aufgaben-Extraktion: ' + (error as Error).message,
+    });
+  }
+});
+
+/**
  * GET /api/voice/formats
  * Get supported audio formats
  */
 router.get('/formats', (_req: Request, res: Response<FormatsResponse>) => {
   try {
-    const formats = mistralVoiceService.getSupportedFormats();
+    const formats = [...mistralVoiceService.getSupportedFormats(), ...Array.from(VIDEO_MIME_TYPES)];
 
     return res.json({
       success: true,
       supportedFormats: formats,
-      maxFileSize: '50MB',
+      maxFileSize: '500MB (video), 50MB (audio)',
       maxDuration: '~30 minutes for transcription, ~40 minutes for understanding',
-      provider: 'Mistral Voxtral',
+      provider: 'Mistral Voxtral (video converted via FFmpeg)',
     });
   } catch (error) {
     log.error('[Voice] Formats error:', error);
