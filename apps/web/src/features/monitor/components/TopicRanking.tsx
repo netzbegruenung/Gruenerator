@@ -9,9 +9,10 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@gruenerator/ui';
+import { useMemo } from 'react';
 import { Bar, BarChart, XAxis, YAxis } from 'recharts';
 
-import { TOPIC_CONFIG } from '../topicConfig';
+import { TOPIC_COLORS, TOPIC_CONFIG } from '../topicConfig';
 
 import type { TopicScore } from '../hooks/useMonitor';
 import type { TopicCategory } from '../topicConfig';
@@ -24,26 +25,28 @@ interface TopicRankingProps {
 }
 
 export function TopicRanking({ topics, totalArticles, sourcesCount, onClick }: TopicRankingProps) {
-  const activeTopics = topics.filter((t) => t.articleCount > 0);
-
-  const chartData = activeTopics.map((t) => ({
-    topic: t.topic,
-    articles: t.articleCount,
-    fill: TOPIC_COLORS[t.topic] || '#888',
-  }));
-
-  const chartConfig: ChartConfig = {
-    articles: { label: 'Artikel' },
-    ...Object.fromEntries(
-      activeTopics.map((t) => [
-        t.topic,
-        {
-          label: TOPIC_CONFIG[t.topic]?.name ?? t.topic,
-          color: TOPIC_COLORS[t.topic] || '#888',
-        },
-      ])
-    ),
-  } satisfies ChartConfig;
+  const { chartData, chartConfig } = useMemo(() => {
+    const active = topics.filter((t) => t.articleCount > 0);
+    return {
+      chartData: active.map((t) => ({
+        topic: t.topic,
+        articles: t.articleCount,
+        fill: TOPIC_COLORS[t.topic] || '#888',
+      })),
+      chartConfig: {
+        articles: { label: 'Artikel' },
+        ...Object.fromEntries(
+          active.map((t) => [
+            t.topic,
+            {
+              label: TOPIC_CONFIG[t.topic]?.name ?? t.topic,
+              color: TOPIC_COLORS[t.topic] || '#888',
+            },
+          ])
+        ),
+      } satisfies ChartConfig,
+    };
+  }, [topics]);
 
   return (
     <Card>
@@ -82,19 +85,3 @@ export function TopicRanking({ topics, totalArticles, sourcesCount, onClick }: T
     </Card>
   );
 }
-
-const TOPIC_COLORS: Record<string, string> = {
-  migration: '#f59e0b',
-  klima: '#22c55e',
-  wirtschaft: '#3b82f6',
-  soziales: '#ec4899',
-  sicherheit: '#6366f1',
-  gesundheit: '#14b8a6',
-  europa: '#8b5cf6',
-  digital: '#06b6d4',
-  bildung: '#f97316',
-  finanzen: '#eab308',
-  justiz: '#78716c',
-  arbeit: '#84cc16',
-  mobilitaet: '#0ea5e9',
-};

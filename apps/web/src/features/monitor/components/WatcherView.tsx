@@ -11,7 +11,7 @@ import {
   Skeleton,
 } from '@gruenerator/ui';
 import { ExternalLink, Search, Shield, Sparkles } from 'lucide-react';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 import { Markdown } from '../../../components/common/Markdown/Markdown';
 import {
@@ -27,25 +27,33 @@ interface WatcherViewProps {
   locale: MonitorLocale;
 }
 
-function highlightMatch(text: string, keywords: string[]): React.ReactNode {
-  if (keywords.length === 0) return text;
-  const pattern = new RegExp(
-    `(${keywords.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`,
-    'gi'
-  );
+function useHighlightPattern(keywords: string[]): RegExp | null {
+  return useMemo(() => {
+    if (keywords.length === 0) return null;
+    return new RegExp(
+      `(${keywords.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`,
+      'gi'
+    );
+  }, [keywords]);
+}
+
+function highlightMatch(text: string, pattern: RegExp | null): React.ReactNode {
+  if (!pattern) return text;
+  pattern.lastIndex = 0;
   const parts = text.split(pattern);
-  return parts.map((part, i) =>
-    pattern.test(part) ? (
+  return parts.map((part, i) => {
+    pattern.lastIndex = 0;
+    return pattern.test(part) ? (
       <mark key={i} className="rounded-sm bg-yellow-200 px-0.5 dark:bg-yellow-800">
         {part}
       </mark>
     ) : (
       part
-    )
-  );
+    );
+  });
 }
 
-function ArticleCard({ article, keywords }: { article: MonitorArticle; keywords: string[] }) {
+function ArticleCard({ article, pattern }: { article: MonitorArticle; pattern: RegExp | null }) {
   return (
     <a
       href={article.url}
@@ -55,11 +63,11 @@ function ArticleCard({ article, keywords }: { article: MonitorArticle; keywords:
     >
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-foreground-heading m-0">
-          {highlightMatch(article.title, keywords)}
+          {highlightMatch(article.title, pattern)}
         </p>
         {article.excerpt && (
           <p className="mt-xs text-sm text-foreground leading-relaxed m-0 line-clamp-2">
-            {highlightMatch(article.excerpt.slice(0, 250), keywords)}
+            {highlightMatch(article.excerpt.slice(0, 250), pattern)}
           </p>
         )}
         <div className="mt-sm flex items-center gap-sm">
@@ -90,6 +98,7 @@ function EntityView({ entityId, locale }: { entityId: string; locale: MonitorLoc
 
   const entity = entities?.find((e) => e.id === entityId);
   const keywords = entity?.keywords ?? [];
+  const pattern = useHighlightPattern(keywords);
 
   return (
     <div>
@@ -167,7 +176,7 @@ function EntityView({ entityId, locale }: { entityId: string; locale: MonitorLoc
 
           <CardGrid columns="1">
             {results.articles.map((article) => (
-              <ArticleCard key={article.url} article={article} keywords={keywords} />
+              <ArticleCard key={article.url} article={article} pattern={pattern} />
             ))}
           </CardGrid>
         </>
@@ -180,6 +189,8 @@ function CustomSearch({ locale }: { locale: MonitorLocale }) {
   const [inputValue, setInputValue] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const searchKeywords = useMemo(() => (debouncedQuery ? [debouncedQuery] : []), [debouncedQuery]);
+  const pattern = useHighlightPattern(searchKeywords);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -211,11 +222,7 @@ function CustomSearch({ locale }: { locale: MonitorLocale }) {
           </p>
           <CardGrid columns="1">
             {data.articles.map((article) => (
-              <ArticleCard
-                key={article.url}
-                article={article}
-                keywords={debouncedQuery ? [debouncedQuery] : []}
-              />
+              <ArticleCard key={article.url} article={article} pattern={pattern} />
             ))}
           </CardGrid>
         </>

@@ -48,6 +48,7 @@ export interface MonitorArticle {
   topics: Partial<Record<TopicCategory, number>>;
   primaryTopic: TopicCategory | null;
   topNouns?: NounCount[];
+  emotionScores?: EmotionScores;
 }
 
 export interface KeywordEntry {
@@ -73,6 +74,26 @@ export interface MonitorSnapshot {
   articlesByLocale: { de: number; at: number };
 }
 
+export interface EmotionScores {
+  angst?: number;
+  wut?: number;
+  hoffnung?: number;
+  enttaeuschung?: number;
+  vertrauen?: number;
+  solidaritaet?: number;
+  stolz?: number;
+}
+
+export const EMOTION_NAMES: Record<string, string> = {
+  angst: 'Angst',
+  wut: 'Wut',
+  hoffnung: 'Hoffnung',
+  enttaeuschung: 'Enttäuschung',
+  vertrauen: 'Vertrauen',
+  solidaritaet: 'Solidarität',
+  stolz: 'Stolz',
+};
+
 export interface NounCount {
   noun: string;
   count: number;
@@ -83,4 +104,5 @@ export interface NlpClassificationResult {
   topics: Partial<Record<TopicCategory, number>>;
   primaryTopic: TopicCategory | null;
   topNouns: NounCount[];
+  emotionScores: EmotionScores;
 }

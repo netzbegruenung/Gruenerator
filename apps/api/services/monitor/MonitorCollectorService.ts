@@ -2,6 +2,7 @@ import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { KNOWN_RSS_FEEDS } from '../briefing/BriefingConfigParser.js';
 
+import { scrapeBlueskyAccounts } from './BlueskyScraper.js';
 import { scrapeTableMedia } from './TableMediaScraper.js';
 
 import type { MonitorLocale } from './types.js';
@@ -160,6 +161,20 @@ export async function collectArticles(hoursBack = 24): Promise<CollectedMonitorI
     }
   } catch (error) {
     log.error(`Table.Media scrape failed: ${toError(error).message}`);
+  }
+
+  // Scrape Bluesky political accounts (free API, fast)
+  try {
+    const bskyPosts = await scrapeBlueskyAccounts();
+    for (const item of bskyPosts) {
+      if (!seenUrls.has(item.url)) {
+        seenUrls.add(item.url);
+        allItems.push(item);
+        deCount++;
+      }
+    }
+  } catch (error) {
+    log.error(`Bluesky scrape failed: ${toError(error).message}`);
   }
 
   log.info(
