@@ -3,7 +3,7 @@ import { type JSX, useCallback, type KeyboardEvent } from 'react';
 import useCitationStore, { type LinkConfig } from '../../../stores/citationStore';
 import { cn } from '../../../utils/cn';
 
-interface Source {
+export interface Source {
   document_id?: string;
   document_title?: string;
   url?: string;
@@ -13,7 +13,7 @@ interface Source {
   [key: string]: unknown;
 }
 
-interface Citation {
+export interface Citation {
   document_id?: string;
   document_title?: string;
   url?: string;
