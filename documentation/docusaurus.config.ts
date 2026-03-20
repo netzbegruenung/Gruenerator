@@ -156,7 +156,7 @@ const config: Config = {
           position: 'left',
           items: [
             { to: '/docs/category/grünerieren', label: 'Grünerieren' },
-            { to: '/docs/category/themen-monitor', label: 'Themen-Monitor' },
+            { to: '/docs/monitor/intro', label: 'Themen-Monitor' },
             { to: '/docs/category/profil', label: 'Profil' },
             { to: '/docs/category/integrationen', label: 'Integrationen' },
           ],

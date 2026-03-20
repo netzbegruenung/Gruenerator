@@ -4,9 +4,14 @@
  * Includes robots.txt checking to respect publisher crawl policies.
  */
 
+import { createRequire } from 'module';
 import { URL } from 'url';
 
-import robotsParser from 'robots-parser';
+const require = createRequire(import.meta.url);
+const robotsParser = require('robots-parser') as (
+  url: string,
+  content: string
+) => { isAllowed(url: string, ua?: string): boolean | undefined };
 
 import type { ValidationResult } from '../types.js';
 

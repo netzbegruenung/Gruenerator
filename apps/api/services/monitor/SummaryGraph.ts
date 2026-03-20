@@ -397,7 +397,11 @@ export async function generateEntitySummary(
   articles: MonitorArticle[]
 ): Promise<EntitySummaryGraphResult> {
   if (articles.length === 0) {
-    return { summary: `Keine aktuellen Artikel über ${entityLabel} gefunden.`, attackAnalysis: '', riskAnalysis: null };
+    return {
+      summary: `Keine aktuellen Artikel über ${entityLabel} gefunden.`,
+      attackAnalysis: '',
+      riskAnalysis: null,
+    };
   }
 
   try {
@@ -431,6 +435,7 @@ export async function generateEntitySummary(
     return {
       summary: `**${articles.length} Artikel über ${entityLabel}:**\n\n${fallback}`,
       attackAnalysis: '',
+      riskAnalysis: null,
     };
   }
 }
