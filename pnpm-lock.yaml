@@ -271,6 +271,9 @@ importers:
       redis:
         specifier: ^5.11.0
         version: 5.11.0
+      robots-parser:
+        specifier: ^3.0.1
+        version: 3.0.1
       rss-parser:
         specifier: ^3.13.0
         version: 3.13.0
