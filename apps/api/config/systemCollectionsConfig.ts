@@ -285,6 +285,21 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     ],
     defaultFilter: { field: 'landesverband', value: 'MV' },
   },
+  'brandenburg-system': {
+    id: 'brandenburg-system',
+    qdrantCollection: 'landesverbaende_documents',
+    name: 'Grüne Brandenburg',
+    description: 'Pressemitteilungen, Beschlüsse und Wahlprogramme der Grünen Brandenburg',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [
+      { field: 'content_type', label: 'Typ', type: 'keyword' },
+      { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
+      { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
+    defaultFilter: { field: 'landesverband', value: 'BB' },
+  },
 };
 
 // =============================================================================

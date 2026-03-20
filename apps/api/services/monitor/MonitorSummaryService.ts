@@ -10,9 +10,17 @@ const log = createLogger('MonitorSummary');
 
 const SUMMARY_TTL_SECONDS = 3600; // 1 hour
 
+export interface RiskItem {
+  title: string;
+  source: string;
+  reasoning: string;
+  severity: 'high' | 'medium' | 'low';
+}
+
 export interface EntitySummaryResult {
   summary: string;
   attackAnalysis: string;
+  riskAnalysis?: { risks: RiskItem[]; opportunities: RiskItem[] } | null;
   generatedAt: string;
   articleCount: number;
 }
@@ -39,6 +47,7 @@ export async function getEntitySummary(
   const result: EntitySummaryResult = {
     summary: graphResult.summary,
     attackAnalysis: graphResult.attackAnalysis,
+    riskAnalysis: graphResult.riskAnalysis ?? null,
     generatedAt: new Date().toISOString(),
     articleCount: articles.length,
   };

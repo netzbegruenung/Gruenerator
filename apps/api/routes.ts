@@ -218,7 +218,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Public read endpoints — soft limiter prevents scraping
   app.use('/api/documents', publicReadLimiter, documentsRouter);
   app.use('/api/oparl', publicReadLimiter, oparlRouter);
-  app.use('/api/crawl-url', crawlUrlRouter);
+  app.use('/api/crawl-url', requireAuth, standardMutationLimiter, crawlUrlRouter);
   app.use('/api/recent-values', publicReadLimiter, recentValuesRouter);
   app.use('/api/antraege', requireAuth, antraegeRouter);
   app.use('/api/scanner', publicReadLimiter, scannerRouter);

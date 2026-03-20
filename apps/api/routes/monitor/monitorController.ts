@@ -13,6 +13,10 @@ import {
 } from '../../services/monitor/MonitorService.js';
 import { getEntitySummary } from '../../services/monitor/MonitorSummaryService.js';
 import { getPolls } from '../../services/monitor/PollScraper.js';
+import {
+  getPolitProPolls,
+  POLITPRO_PARLIAMENTS,
+} from '../../services/monitor/PolitProService.js';
 import { getStimmungSummary } from '../../services/monitor/StimmungSummaryService.js';
 import { TOPIC_CATEGORIES } from '../../services/monitor/types.js';
 import {
@@ -124,7 +128,7 @@ router.get('/briefing', async (req: AuthRequest, res: Response): Promise<void> =
   try {
     const locale = parseLocale(req.query.locale) || 'de';
     const [snapshot, stimmung, pollData] = await Promise.all([
-      getLatestSnapshot(),
+      getLatestSnapshot(locale),
       getStimmung(locale),
       getPolls(),
     ]);
@@ -151,7 +155,7 @@ router.post('/briefing/refresh', async (req: AuthRequest, res: Response): Promis
     const locale = parseLocale(req.query.locale) || 'de';
     await redisClient.del(`monitor:briefing:${locale}`);
     const [snapshot, stimmung, pollData] = await Promise.all([
-      getLatestSnapshot(),
+      getLatestSnapshot(locale),
       getStimmung(locale),
       getPolls(),
     ]);
@@ -172,15 +176,24 @@ router.post('/briefing/refresh', async (req: AuthRequest, res: Response): Promis
   }
 });
 
-router.get('/polls', async (_req: AuthRequest, res: Response): Promise<void> => {
+router.get('/polls', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const data = await getPolls();
+    const parliament = (req.query.parliament as string) || 'deutschland';
+    const politProData = await getPolitProPolls(parliament);
+    if (!politProData) {
+      log.warn(`PolitPro returned null for "${parliament}", falling back to wahlrecht.de`);
+    }
+    const data = politProData ?? (await getPolls());
     res.set('Cache-Control', 'private, max-age=1800, stale-while-revalidate=3600');
     res.json(data);
   } catch (error) {
     log.error(`GET /polls failed: ${toError(error).message}`);
     res.status(500).json({ error: 'Failed to fetch polls' });
   }
+});
+
+router.get('/polls/parliaments', (_req: AuthRequest, res: Response): void => {
+  res.json(POLITPRO_PARLIAMENTS);
 });
 
 router.get('/stimmung', async (req: AuthRequest, res: Response): Promise<void> => {

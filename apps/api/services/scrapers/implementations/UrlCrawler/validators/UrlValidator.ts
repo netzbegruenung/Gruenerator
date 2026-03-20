@@ -1,14 +1,61 @@
 /**
  * URL Validator
- * Validates and sanitizes URLs for crawling
+ * Validates and sanitizes URLs for crawling.
+ * Includes robots.txt checking to respect publisher crawl policies.
  */
 
 import { URL } from 'url';
+
+import robotsParser from 'robots-parser';
 
 import type { ValidationResult } from '../types.js';
 
 const MAX_URL_LENGTH = 8192;
 const MAX_SANITIZATION_ITERATIONS = 20;
+const ROBOTS_CACHE_TTL = 60 * 60 * 1000;
+const ROBOTS_FETCH_TIMEOUT = 3000;
+const BOT_USER_AGENT = 'Gruenerator/1.0';
+
+const robotsCache = new Map<string, { allowed: boolean; expiry: number }>();
+
+async function isAllowedByRobotsTxt(url: string): Promise<boolean> {
+  try {
+    const parsed = new URL(url);
+    const origin = parsed.origin;
+
+    const cached = robotsCache.get(origin);
+    if (cached && cached.expiry > Date.now()) {
+      return cached.allowed;
+    }
+
+    const robotsUrl = `${origin}/robots.txt`;
+    const resp = await fetch(robotsUrl, {
+      signal: AbortSignal.timeout(ROBOTS_FETCH_TIMEOUT),
+      headers: { 'User-Agent': BOT_USER_AGENT },
+    });
+
+    let allowed = true;
+    if (resp.ok) {
+      const text = await resp.text();
+      const robots = robotsParser(robotsUrl, text);
+      allowed = robots.isAllowed(url, BOT_USER_AGENT) ?? true;
+    }
+
+    robotsCache.set(origin, { allowed, expiry: Date.now() + ROBOTS_CACHE_TTL });
+
+    // Clean old entries periodically
+    if (robotsCache.size > 200) {
+      const now = Date.now();
+      for (const [key, val] of robotsCache) {
+        if (val.expiry < now) robotsCache.delete(key);
+      }
+    }
+
+    return allowed;
+  } catch {
+    return true;
+  }
+}
 
 function countChar(str: string, char: string): number {
   let count = 0;
@@ -19,9 +66,6 @@ function countChar(str: string, char: string): number {
 }
 
 export class UrlValidator {
-  /**
-   * Validates if a URL is valid and accessible
-   */
   static async validateUrl(url: string): Promise<ValidationResult> {
     if (!url || url.length > MAX_URL_LENGTH) {
       return { isValid: false, error: 'URL is empty or too long' };
@@ -53,6 +97,14 @@ export class UrlValidator {
         }
       }
 
+      const allowed = await isAllowedByRobotsTxt(url);
+      if (!allowed) {
+        return {
+          isValid: false,
+          error: 'Diese URL erlaubt kein automatisches Lesen (robots.txt).',
+        };
+      }
+
       return { isValid: true };
     } catch {
       return {
@@ -62,10 +114,6 @@ export class UrlValidator {
     }
   }
 
-  /**
-   * Sanitizes a URL by removing common extraction artifacts
-   * Handles cases where URLs are extracted from text with surrounding punctuation
-   */
   static sanitizeUrl(url: string): string {
     if (!url) return url;
 

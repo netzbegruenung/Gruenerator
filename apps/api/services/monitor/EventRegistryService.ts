@@ -10,6 +10,19 @@ const ER_API_URL = 'https://eventregistry.org/api/v1/article/getArticles';
 const ER_CACHE_TTL = 4 * 3600;
 const ER_TIMEOUT = 30000;
 
+const BLOCKED_SOURCES = new Set([
+  'politically incorrect',
+  'pi-news',
+  'pinews',
+  'compact-online',
+  'jungefreiheit',
+  'junge freiheit',
+  'auf1',
+  'auf1.tv',
+  'report24',
+  'reitschuster',
+]);
+
 const GRUENE_CONCEPTS: Record<MonitorLocale, string> = {
   de: "http://en.wikipedia.org/wiki/Alliance_'90/The_Greens",
   at: 'http://en.wikipedia.org/wiki/The_Greens_(Austria)',
@@ -79,7 +92,7 @@ async function fetchER(
     const erArticles = data?.articles?.results ?? [];
 
     const items: CollectedMonitorItem[] = erArticles
-      .filter((a) => a.url && a.title)
+      .filter((a) => a.url && a.title && !BLOCKED_SOURCES.has((a.source?.title || '').toLowerCase()))
       .map((a) => ({
         url: a.url,
         title: a.title,
@@ -124,6 +137,7 @@ export async function fetchArticlesFromEventRegistry(
       sourceLocationUri: sourceLocation,
       categoryUri: 'news/Politics',
       ignoreSourceGroupUri: 'paywall/paywalled_sources',
+      ignoreSourceUri: ['pi-news.net', 'compact-online.de', 'jungefreiheit.de', 'auf1.tv', 'report24.news', 'reitschuster.de'],
       isDuplicateFilter: 'skipDuplicates',
       forceMaxDataTimeWindow: 7,
       articlesCount: 100,
@@ -153,6 +167,7 @@ export async function fetchGrueneArticles(locale: MonitorLocale): Promise<Collec
       lang: 'deu',
       conceptUri: GRUENE_CONCEPTS[locale],
       ignoreSourceGroupUri: 'paywall/paywalled_sources',
+      ignoreSourceUri: ['pi-news.net', 'compact-online.de', 'jungefreiheit.de', 'auf1.tv', 'report24.news', 'reitschuster.de'],
       isDuplicateFilter: 'skipDuplicates',
       forceMaxDataTimeWindow: 7,
       articlesCount: 50,

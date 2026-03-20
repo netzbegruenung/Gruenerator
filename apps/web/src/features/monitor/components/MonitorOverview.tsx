@@ -1,20 +1,23 @@
 import { Card, CardContent, MoodBar, ProgressBar, Separator, Skeleton } from '@gruenerator/ui';
-import { ArrowRight, Check, ChevronRight, Copy, RefreshCw, Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowRight, BookOpen, Check, ChevronRight, Copy, ExternalLink, Flame, RefreshCw, Sparkles } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Markdown } from '../../../components/common/Markdown/Markdown';
 import {
   useBriefingRefresh,
+  useKeywordInsights,
   useMonitorBriefing,
   useMonitorSnapshot,
   usePolls,
   useStimmung,
+  useTopicArticles,
+  useTopicPosition,
 } from '../hooks/useMonitor';
 import { TOPIC_COLORS, TOPIC_CONFIG } from '../topicConfig';
 
 import { UmfragenView } from './UmfragenView';
 
-import type { MonitorLocale } from '../hooks/useMonitor';
+import type { MonitorArticle, MonitorLocale } from '../hooks/useMonitor';
 import type { TopicCategory } from '../topicConfig';
 
 type MonitorTab =
@@ -168,6 +171,120 @@ function TweetCard({ tweet }: { tweet: { text: string; topic: string; hashtags: 
   );
 }
 
+// ─── Hot Topic Content: News ticker + Position ──────────────────────
+
+function HotTopicContent({
+  articles,
+  keyword,
+}: {
+  articles: MonitorArticle[];
+  keyword?: string;
+}) {
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval>>(undefined);
+  const { data: position } = useTopicPosition(keyword);
+
+  const items = articles.filter((a) => a.title).slice(0, 10);
+
+  const advance = useCallback(() => {
+    setCurrentIdx((prev) => (prev + 1) % items.length);
+  }, [items.length]);
+
+  useEffect(() => {
+    if (paused || items.length <= 1) return;
+    intervalRef.current = setInterval(advance, 5000);
+    return () => clearInterval(intervalRef.current);
+  }, [paused, advance, items.length]);
+
+  const current = items[currentIdx];
+  if (!current) return null;
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-[3fr_2fr] gap-md mb-md">
+      {/* Left: auto-scrolling news headline */}
+      <div
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+      >
+        <a
+          href={current.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block no-underline group"
+        >
+          <div className="flex items-center gap-xs mb-xs">
+            <span className="text-xs font-semibold text-primary-600 dark:text-primary-400 uppercase tracking-wide">
+              {current.source}
+            </span>
+            {current.publishedAt && (
+              <span className="text-[10px] text-grey-400">
+                · {new Date(current.publishedAt).toLocaleString('de-DE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+            <ExternalLink className="h-3 w-3 text-grey-300 opacity-0 group-hover:opacity-100 transition-opacity ml-auto" />
+          </div>
+          <p className="text-base font-semibold text-foreground-heading leading-snug m-0 mb-xs group-hover:text-primary-600 transition-colors">
+            {current.title}
+          </p>
+          {current.excerpt && (
+            <p className="text-sm text-foreground/70 leading-relaxed m-0 line-clamp-2">
+              {current.excerpt.slice(0, 200)}
+            </p>
+          )}
+        </a>
+        {items.length > 1 && (
+          <div className="flex items-center gap-1 mt-sm">
+            {items.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentIdx(i)}
+                className={`h-1.5 rounded-full border-none cursor-pointer transition-all ${
+                  i === currentIdx
+                    ? 'w-4 bg-primary-500'
+                    : 'w-1.5 bg-grey-300 dark:bg-grey-600 hover:bg-grey-400'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Right: matching party position */}
+      {position ? (
+        <a
+          href={position.source_url || '#'}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex flex-col gap-xs p-md rounded-lg border border-primary-200 dark:border-primary-800 bg-primary-50/50 dark:bg-primary-950/20 no-underline hover:shadow-sm transition-shadow"
+        >
+          <div className="flex items-center gap-xs">
+            <BookOpen className="h-3.5 w-3.5 text-primary-500 shrink-0" />
+            <span className="text-[10px] font-semibold text-primary-600 dark:text-primary-400 uppercase tracking-wide">
+              Grüne Position
+            </span>
+          </div>
+          <p className="text-xs font-medium text-foreground-heading m-0 line-clamp-2">
+            {position.document_title}
+          </p>
+          <p className="text-[11px] text-foreground/70 leading-relaxed m-0 line-clamp-4">
+            „{position.relevant_content?.slice(0, 250)}…"
+          </p>
+          <div className="flex items-center gap-xs mt-auto pt-xs">
+            <span className="text-[10px] text-grey-400">{position.collection_name}</span>
+            <ExternalLink className="h-3 w-3 text-grey-300 ml-auto" />
+          </div>
+        </a>
+      ) : (
+        <div className="flex flex-col items-center justify-center p-md rounded-lg border border-dashed border-grey-200 dark:border-grey-700">
+          <BookOpen className="h-5 w-5 text-grey-300 mb-xs" />
+          <p className="text-[11px] text-grey-400 text-center">Suche nach passender Grüner Position…</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Overview ───────────────────────────────────────────────────
 
 export function MonitorOverview({ locale, onTopicClick, onNavigateTab }: MonitorOverviewProps) {
@@ -179,46 +296,103 @@ export function MonitorOverview({ locale, onTopicClick, onNavigateTab }: Monitor
 
   const maxScore = snapshot ? Math.max(...snapshot.topics.map((t) => t.score), 1) : 1;
 
+  const hotTopic = snapshot?.topics[0];
+  const hotTopicConfig = hotTopic ? TOPIC_CONFIG[hotTopic.topic] : null;
+  const hotTopicEmotion = useMemo(() => {
+    if (!stimmung?.byTopic || !hotTopic) return null;
+    const topicStimmung = stimmung.byTopic.find((t) => t.topic === hotTopic.topic);
+    if (!topicStimmung) return null;
+    const sorted = Object.entries(topicStimmung.emotions).sort(([, a], [, b]) => b - a);
+    return sorted[0] ? { key: sorted[0][0], name: EMOTION_NAMES[sorted[0][0]] || sorted[0][0] } : null;
+  }, [stimmung, hotTopic]);
+
   return (
     <div>
-      {/* Section 1: AI Daily Briefing */}
-      <section className="mb-2xl">
-        <div className="flex items-center gap-sm mb-sm">
-          <Sparkles className="h-5 w-5 text-primary-500" />
-          <h2 className="text-xl font-semibold text-foreground-heading m-0">Tages-Briefing</h2>
-        </div>
-        {briefing?.generatedAt && (
-          <p className="text-xs text-grey-400 mb-lg">
-            KI-generierte Zusammenfassung · Stand{' '}
-            {new Date(briefing.generatedAt).toLocaleString('de-DE', {
-              day: 'numeric',
-              month: 'short',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </p>
-        )}
+      {/* Section 0: Hot Topic Hero */}
+      {hotTopic && hotTopicConfig && (() => {
+        const topKeyword = snapshot?.keywords?.[0]?.keyword;
+        return (
+        <section className="mb-2xl">
+          <div className="rounded-xl border border-grey-200 dark:border-grey-700 p-lg bg-background">
+            {/* Big keyword + topic badge */}
+            <div className="mb-md">
+              {topKeyword && (
+                <h2 className="flex items-center gap-sm text-3xl sm:text-4xl font-black text-foreground-heading m-0 mb-xs capitalize">
+                  <Flame className="h-7 w-7 text-orange-500 shrink-0" />
+                  {topKeyword}
+                </h2>
+              )}
+              <div className="flex items-center gap-sm flex-wrap">
+                <span
+                  className="inline-flex items-center gap-xs text-xs font-medium px-2 py-0.5 rounded-full"
+                  style={{
+                    color: TOPIC_COLORS[hotTopic.topic],
+                    backgroundColor: `${TOPIC_COLORS[hotTopic.topic]}15`,
+                  }}
+                >
+                  <hotTopicConfig.icon className="h-3 w-3" />
+                  {hotTopicConfig.name}
+                </span>
+                <span className="text-xs text-grey-500">
+                  {hotTopic.articleCount} Artikel
+                </span>
+                {hotTopicEmotion && (
+                  <span className="text-xs text-grey-400">· {hotTopicEmotion.name} dominiert</span>
+                )}
+                <button
+                  onClick={() => onTopicClick(hotTopic.topic)}
+                  className="ml-auto text-xs text-primary-600 hover:underline border-none bg-transparent cursor-pointer flex items-center gap-0.5"
+                >
+                  Alle Artikel <ArrowRight className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
 
-        {briefingLoading ? (
-          <div className="space-y-md">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-[92%]" />
-            <Skeleton className="h-4 w-[88%]" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-[75%]" />
-            <Skeleton className="h-4 w-[95%]" />
-            <Skeleton className="h-4 w-[60%]" />
+            {/* News ticker + Party position */}
+            <HotTopicContent
+              articles={hotTopic.topArticles}
+              keyword={topKeyword}
+            />
+
+            {/* AI Briefing — embedded in Hot Topic */}
+            {briefing?.briefing ? (
+              <div className="mt-md pt-md border-t border-grey-100 dark:border-grey-800">
+                <div className="flex items-center gap-xs mb-sm">
+                  <Sparkles className="h-3.5 w-3.5 text-primary-500" />
+                  <span className="text-xs font-semibold text-grey-500 uppercase tracking-wide">
+                    KI-Einordnung
+                  </span>
+                  {briefing.generatedAt && (
+                    <span className="text-[10px] text-grey-400">
+                      · {new Date(briefing.generatedAt).toLocaleString('de-DE', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  )}
+                </div>
+                <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-foreground leading-relaxed">
+                  <Markdown>{briefing.briefing}</Markdown>
+                </div>
+              </div>
+            ) : briefingLoading ? (
+              <div className="mt-md pt-md border-t border-grey-100 dark:border-grey-800 space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-[90%]" />
+                <Skeleton className="h-4 w-[80%]" />
+              </div>
+            ) : null}
+
+            {/* AI mood summary */}
+            {stimmung?.moodSummary && (
+              <p className="mt-sm text-xs text-foreground/70 italic">{stimmung.moodSummary}</p>
+            )}
           </div>
-        ) : briefing?.briefing ? (
-          <div className="prose prose-lg dark:prose-invert max-w-none text-foreground leading-relaxed">
-            <Markdown>{briefing.briefing}</Markdown>
-          </div>
-        ) : (
-          <p className="text-sm text-grey-400">
-            Briefing wird beim nächsten Monitor-Refresh generiert.
-          </p>
-        )}
-      </section>
+        </section>
+        );
+      })()}
 
       {/* Section 2: Tweet Suggestions — always show 3 slots */}
       <section className="mb-2xl">

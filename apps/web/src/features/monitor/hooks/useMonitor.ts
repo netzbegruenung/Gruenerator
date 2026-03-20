@@ -188,17 +188,36 @@ interface PollData {
   lastElection: PollResult | null;
   average: Record<string, number>;
   scrapedAt: string;
+  source?: 'politpro';
+  parliament?: string;
+  trend?: Record<string, Array<{ date: string; value: number }>>;
 }
 
-export function usePolls() {
+export interface PollParliament {
+  id: string;
+  name: string;
+}
+
+export function usePolls(parliament = 'deutschland') {
   return useQuery<PollData>({
-    queryKey: ['monitor', 'polls'],
+    queryKey: ['monitor', 'polls', parliament],
     queryFn: async () => {
-      const { data } = await apiClient.get('/monitor/polls');
+      const { data } = await apiClient.get(`/monitor/polls?parliament=${parliament}`);
       return data;
     },
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
+  });
+}
+
+export function usePollParliaments() {
+  return useQuery<PollParliament[]>({
+    queryKey: ['monitor', 'polls', 'parliaments'],
+    queryFn: async () => {
+      const { data } = await apiClient.get('/monitor/polls/parliaments');
+      return data;
+    },
+    staleTime: 60 * 60 * 1000,
   });
 }
 
@@ -215,11 +234,19 @@ interface EntityResult {
   articles: MonitorArticle[];
 }
 
+interface RiskItem {
+  title: string;
+  source: string;
+  reasoning: string;
+  severity: 'high' | 'medium' | 'low';
+}
+
 interface EntitySummaryResult {
   entity: { id: string; label: string };
   count: number;
   summary: string;
   attackAnalysis: string;
+  riskAnalysis?: { risks: RiskItem[]; opportunities: RiskItem[] } | null;
   generatedAt: string;
 }
 
@@ -287,6 +314,30 @@ export function useMonitorRefresh() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['monitor'] });
     },
+  });
+}
+
+interface TopicPositionResult {
+  document_title: string;
+  source_url: string;
+  relevant_content: string;
+  similarity_score: number;
+  collection_name: string;
+}
+
+export function useTopicPosition(keyword?: string) {
+  return useQuery<TopicPositionResult | null>({
+    queryKey: ['monitor', 'position', keyword],
+    queryFn: async () => {
+      const { data } = await apiClient.post('/research/search', {
+        query: keyword,
+        collectionIds: ['grundsatz-system', 'bundestagsfraktion-system'],
+        limit: 1,
+      });
+      return data.results?.[0] ?? null;
+    },
+    enabled: !!keyword,
+    staleTime: 30 * 60 * 1000,
   });
 }
 

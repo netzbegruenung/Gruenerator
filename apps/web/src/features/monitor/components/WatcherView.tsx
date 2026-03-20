@@ -9,7 +9,7 @@ import {
   LoadingSection,
   Skeleton,
 } from '@gruenerator/ui';
-import { Search, Shield, Sparkles } from 'lucide-react';
+import { AlertTriangle, Search, Shield, Sparkles, TrendingUp } from 'lucide-react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 
 import { Markdown } from '../../../components/common/Markdown/Markdown';
@@ -60,6 +60,13 @@ function useAvgSentiment(articles?: MonitorArticle[]): number | null {
   }, [articles]);
 }
 
+interface RiskItem {
+  title: string;
+  source: string;
+  reasoning: string;
+  severity: 'high' | 'medium' | 'low';
+}
+
 function RiskBadge({ sentiment }: { sentiment: number | null }) {
   if (sentiment == null) return null;
   const level = sentiment < -0.2 ? 'Hoch' : sentiment > 0.1 ? 'Niedrig' : 'Mittel';
@@ -70,6 +77,32 @@ function RiskBadge({ sentiment }: { sentiment: number | null }) {
         ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
         : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
   return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${color}`}>{level}</span>;
+}
+
+const SEVERITY_COLORS = {
+  high: 'border-l-red-500',
+  medium: 'border-l-amber-500',
+  low: 'border-l-grey-400',
+};
+
+function RiskItemCard({ item, type }: { item: RiskItem; type: 'risk' | 'opportunity' }) {
+  const [expanded, setExpanded] = useState(false);
+  const borderColor = type === 'risk' ? SEVERITY_COLORS[item.severity] : 'border-l-green-500';
+
+  return (
+    <button
+      onClick={() => setExpanded(!expanded)}
+      className={`w-full text-left border-l-3 pl-sm py-xs rounded-r-md transition-colors hover:bg-grey-50 dark:hover:bg-grey-800/30 ${borderColor}`}
+    >
+      <div className="flex items-start justify-between gap-xs">
+        <span className="text-xs font-medium text-foreground leading-snug">{item.title}</span>
+        <span className="text-[10px] text-grey-400 shrink-0">{item.source}</span>
+      </div>
+      {expanded && (
+        <p className="text-[11px] text-foreground/70 mt-xs leading-relaxed">{item.reasoning}</p>
+      )}
+    </button>
+  );
 }
 
 function EntityView({ entityId, locale }: { entityId: string; locale: MonitorLocale }) {
@@ -130,7 +163,7 @@ function EntityView({ entityId, locale }: { entityId: string; locale: MonitorLoc
         </Card>
       )}
 
-      {summaryData?.attackAnalysis && (
+      {(summaryData?.riskAnalysis || summaryData?.attackAnalysis) && (
         <Card className={`mb-lg ${riskBorderColor}`}>
           <CardHeader>
             <div className="flex items-center gap-sm">
@@ -138,14 +171,38 @@ function EntityView({ entityId, locale }: { entityId: string; locale: MonitorLoc
               <CardTitle>Risiko-Monitor</CardTitle>
               <RiskBadge sentiment={avgSentiment} />
             </div>
-            <CardDescription>
-              Risikoanalyse basierend auf Sentiment, Emotionen und Parteipositionen.
-            </CardDescription>
           </CardHeader>
           <CardContent>
-            <Markdown className="prose prose-sm dark:prose-invert max-w-none text-sm text-foreground leading-relaxed">
-              {summaryData.attackAnalysis}
-            </Markdown>
+            {summaryData.riskAnalysis ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+                <div>
+                  <div className="flex items-center gap-xs mb-sm">
+                    <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+                    <span className="text-xs font-semibold text-foreground-heading">Risiken</span>
+                  </div>
+                  <div className="space-y-xs">
+                    {summaryData.riskAnalysis.risks.map((risk, i) => (
+                      <RiskItemCard key={i} item={risk} type="risk" />
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center gap-xs mb-sm">
+                    <TrendingUp className="h-3.5 w-3.5 text-green-500" />
+                    <span className="text-xs font-semibold text-foreground-heading">Chancen</span>
+                  </div>
+                  <div className="space-y-xs">
+                    {summaryData.riskAnalysis.opportunities.map((opp, i) => (
+                      <RiskItemCard key={i} item={opp} type="opportunity" />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <Markdown className="prose prose-sm dark:prose-invert max-w-none text-sm text-foreground leading-relaxed">
+                {summaryData.attackAnalysis}
+              </Markdown>
+            )}
           </CardContent>
         </Card>
       )}

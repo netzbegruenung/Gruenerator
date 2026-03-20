@@ -1,3 +1,4 @@
+export { AnimatedCircularProgressBar } from './components/animated-circular-progress-bar';
 export { cn } from './lib/cn';
 export { useIsMobile } from './hooks/use-mobile';
 
