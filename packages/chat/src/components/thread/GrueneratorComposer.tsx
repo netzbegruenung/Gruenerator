@@ -254,8 +254,8 @@ export function GrueneratorComposer({ isRunning, toolbarExtra }: GrueneratorComp
 
   return (
     <div className="px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-      <ComposerPrimitive.Root className="relative mx-auto flex w-full max-w-3xl flex-col rounded-3xl border border-border bg-surface">
-        <ComposerPrimitive.Quote className="mx-3 mt-3 flex items-start gap-2 rounded-r-lg border-l-4 border-primary/40 bg-primary/5 px-3 py-2 text-sm">
+      <ComposerPrimitive.Root className="composer-root relative mx-auto flex w-full max-w-3xl flex-col rounded-3xl border border-border bg-surface shadow-sm transition-shadow focus-within:shadow-md focus-within:border-primary/30">
+        <ComposerPrimitive.Quote className="mx-4 mt-4 flex items-start gap-2 rounded-r-lg border-l-4 border-primary/40 bg-primary/5 px-3 py-2 text-sm">
           <ComposerPrimitive.QuoteText className="line-clamp-2 flex-1 italic text-foreground-muted" />
           <ComposerPrimitive.QuoteDismiss className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-foreground-muted hover:text-foreground">
             <X className="h-3 w-3" />
@@ -290,8 +290,17 @@ export function GrueneratorComposer({ isRunning, toolbarExtra }: GrueneratorComp
           />
         )}
 
-        <div className="flex items-center">
-          <div className="input-tools-button flex items-center gap-1">
+        <ComposerPrimitive.Input
+          ref={textareaRef}
+          autoFocus
+          placeholder="Nachricht schreiben..."
+          className="min-h-[3rem] max-h-40 w-full flex-grow resize-none bg-transparent px-5 pt-4 pb-2 text-foreground outline-none placeholder:text-foreground-muted/60"
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+        />
+
+        <div className="flex items-center justify-between px-2 pb-2">
+          <div className="flex items-center gap-0.5">
             <ComposerPrimitive.AddAttachment asChild>
               <button ref={uploadRef} className="hidden" aria-hidden="true" />
             </ComposerPrimitive.AddAttachment>
@@ -301,16 +310,8 @@ export function GrueneratorComposer({ isRunning, toolbarExtra }: GrueneratorComp
               onUploadFile={handlePlusMenuUpload}
             />
             <ToolToggles />
+            {toolbarExtra}
           </div>
-          {toolbarExtra}
-          <ComposerPrimitive.Input
-            ref={textareaRef}
-            autoFocus
-            placeholder="Nachricht schreiben"
-            className="h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 pl-2 text-foreground outline-none placeholder:text-foreground-muted"
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-          />
           <ComposerButtons isRunning={isRunning} />
         </div>
       </ComposerPrimitive.Root>

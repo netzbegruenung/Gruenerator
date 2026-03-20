@@ -109,16 +109,7 @@ export function ChatOverview({
       </div>
 
       <ThreadPrimitive.Root
-        className={cn(
-          'w-full max-w-3xl shrink-0',
-          '[&>div]:px-0',
-          '[&_div:has(>.input-tools-button)]:flex-wrap',
-          '[&_textarea]:order-first [&_textarea]:w-full [&_textarea]:min-h-[72px] [&_textarea]:text-base [&_textarea]:pl-4',
-          '[&_.input-tools-button]:order-2',
-          '[&_.input-tools-button~div]:order-3',
-          '[&_textarea~button]:order-4 [&_textarea~button]:ml-auto',
-          '[&>div>p.text-center]:hidden'
-        )}
+        className={cn('w-full max-w-3xl shrink-0', '[&>div]:px-0', '[&>div>p.text-center]:hidden')}
       >
         <SwitchToThreadOnSend />
         <GrueneratorComposer toolbarExtra={<ExampleSuggestions />} />
