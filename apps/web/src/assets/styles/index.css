@@ -409,6 +409,13 @@
   50% { transform: translate(-50%, -50%) scale(0.9); }
 }
 
+@keyframes equalizer {
+  0%, 100% { transform: scaleY(0.3); }
+  25% { transform: scaleY(1); }
+  50% { transform: scaleY(0.5); }
+  75% { transform: scaleY(0.8); }
+}
+
 /* ── Canvas Editor Keyframe Animations ── */
 
 @keyframes slideDownFade {
