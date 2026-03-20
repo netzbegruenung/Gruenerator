@@ -1,4 +1,5 @@
 import {
+  AnimatedCircularProgressBar,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -22,6 +23,7 @@ import { downloadFile } from '../../utils/downloadFile';
 
 const DocsEditorModal = lazy(() => import('../../components/common/DocsEditorModal'));
 
+import AudioVisualizer from './components/AudioVisualizer';
 import TranscriptionResult from './components/TranscriptionResult';
 import UploadZone from './components/UploadZone';
 import { useProtokoll } from './hooks/useProtokoll';
@@ -268,49 +270,47 @@ const TranskriptionPage = () => {
         )}
 
         {(state.status === 'uploading' || state.status === 'extracting') && (
-          <div className="flex flex-col items-center gap-md py-xl">
-            <div className="flex items-center gap-sm text-xs text-grey-400 dark:text-grey-500 mb-sm">
-              <span
-                className={
-                  state.status === 'uploading'
-                    ? 'text-primary-600 font-semibold'
-                    : 'text-primary-600'
-                }
-              >
-                Hochladen
-              </span>
-              <span>→</span>
-              {isVideo && (
-                <>
-                  <span
-                    className={
-                      state.status === 'extracting' ? 'text-primary-600 font-semibold' : ''
-                    }
-                  >
-                    Audio extrahieren
-                  </span>
-                  <span>→</span>
-                </>
-              )}
-              <span>Transkribieren</span>
+          <div className="flex flex-col items-center gap-lg py-xl">
+            <AnimatedCircularProgressBar
+              value={state.progress}
+              min={0}
+              max={100}
+              gaugePrimaryColor="var(--primary-600)"
+              gaugeSecondaryColor="var(--grey-200)"
+              className="size-32"
+            />
+            <div className="flex flex-col items-center gap-xs">
+              <p className="text-sm font-medium text-foreground">
+                {state.status === 'uploading' &&
+                  (isVideo ? 'Video wird hochgeladen' : 'Wird hochgeladen')}
+                {state.status === 'extracting' && 'Audio wird extrahiert'}
+              </p>
+              <div className="flex items-center gap-sm text-xs text-grey-400 dark:text-grey-500">
+                <span
+                  className={
+                    state.status === 'uploading'
+                      ? 'text-primary-600 font-semibold'
+                      : 'text-primary-600'
+                  }
+                >
+                  Hochladen
+                </span>
+                <span>→</span>
+                {isVideo && (
+                  <>
+                    <span
+                      className={
+                        state.status === 'extracting' ? 'text-primary-600 font-semibold' : ''
+                      }
+                    >
+                      Extrahieren
+                    </span>
+                    <span>→</span>
+                  </>
+                )}
+                <span>Transkribieren</span>
+              </div>
             </div>
-
-            <div className="w-full max-w-[20rem] h-2 bg-grey-200 dark:bg-grey-700 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary-500 rounded-full transition-all duration-300"
-                style={{ width: `${state.progress}%` }}
-              />
-            </div>
-            <p className="text-sm text-grey-500 dark:text-grey-400">
-              {state.status === 'uploading' && (
-                <>
-                  {isVideo ? 'Video wird hochgeladen' : 'Hochladen'}... {state.progress}%
-                </>
-              )}
-              {state.status === 'extracting' && (
-                <>Audio wird extrahiert... {state.progress > 0 ? `${state.progress}%` : ''}</>
-              )}
-            </p>
           </div>
         )}
 
@@ -325,25 +325,27 @@ const TranskriptionPage = () => {
                 isStreaming
               />
             ) : (
-              <div className="flex flex-col items-center gap-md py-xl">
-                <div className="flex items-center gap-sm text-xs text-grey-400 dark:text-grey-500 mb-sm">
-                  <span className="text-primary-600">Hochladen</span>
-                  <span>→</span>
-                  {isVideo && (
-                    <>
-                      <span className="text-primary-600">Audio extrahieren</span>
-                      <span>→</span>
-                    </>
+              <div className="flex flex-col items-center gap-lg py-xl">
+                <AudioVisualizer className="h-12" />
+                <div className="flex flex-col items-center gap-xs">
+                  <p className="text-sm font-medium text-foreground">Wird transkribiert...</p>
+                  <div className="flex items-center gap-sm text-xs text-grey-400 dark:text-grey-500">
+                    <span className="text-primary-600">Hochladen</span>
+                    <span>→</span>
+                    {isVideo && (
+                      <>
+                        <span className="text-primary-600">Extrahieren</span>
+                        <span>→</span>
+                      </>
+                    )}
+                    <span className="text-primary-600 font-semibold">Transkribieren</span>
+                  </div>
+                  {options.privacyMode && (
+                    <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                      (Datenschutz-Modus — kann länger dauern)
+                    </p>
                   )}
-                  <span className="text-primary-600 font-semibold">Transkribieren</span>
                 </div>
-                <div className="size-8 animate-spin rounded-full border-3 border-grey-200 border-t-primary-500" />
-                <p className="text-sm text-grey-500 dark:text-grey-400">Wird transkribiert...</p>
-                {options.privacyMode && (
-                  <p className="text-xs text-emerald-700 dark:text-emerald-400">
-                    (Datenschutz-Modus — kann länger dauern)
-                  </p>
-                )}
               </div>
             )}
           </div>
