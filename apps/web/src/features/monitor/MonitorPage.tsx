@@ -1,13 +1,6 @@
-import {
-  Button,
-  LoadingSection,
-  StatusBanner,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from '@gruenerator/ui';
-import { RefreshCw, RotateCcw } from 'lucide-react';
+import { Button, LoadingSection, StatusBanner, Tabs, TabsList, TabsTrigger } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
+import { RefreshCw, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
 
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
@@ -54,7 +47,7 @@ function MonitorPage() {
   return (
     <ErrorBoundary>
       <PageContainer
-        title="Themen-Monitor"
+        title="Monitor"
         subtitle={`Meistdiskutierte Themen in ${locale === 'at' ? 'österreichischen' : 'deutschen'} Nachrichtenmedien der letzten 24 Stunden.`}
         maxWidth="lg"
       >
@@ -116,7 +109,7 @@ function MonitorPage() {
 
             {error && (
               <StatusBanner variant="error" className="mb-lg">
-                Themen-Monitor konnte nicht geladen werden. Bitte versuche es später erneut.
+                Monitor konnte nicht geladen werden. Bitte versuche es später erneut.
               </StatusBanner>
             )}
 
@@ -172,4 +165,4 @@ function MonitorPage() {
   );
 }
 
-export default withAuthRequired(MonitorPage, { title: 'Themen-Monitor' });
+export default withAuthRequired(MonitorPage, { title: 'Monitor' });

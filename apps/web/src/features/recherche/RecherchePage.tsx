@@ -75,6 +75,14 @@ const tools: ToolEntry[] = [
     icon: getIcon('navigation', 'research'),
     tags: ['Dokumente', 'Qdrant'],
   },
+  {
+    id: 'monitor',
+    title: 'Monitor',
+    description: 'Medienbeobachtung mit Themen, Stimmung, Umfragen und Risiko-Analyse.',
+    path: '/monitor',
+    icon: getIcon('navigation', 'monitor'),
+    tags: ['Medien', 'Trends'],
+  },
 ];
 
 const HIDDEN_NOTEBOOK_IDS = [
