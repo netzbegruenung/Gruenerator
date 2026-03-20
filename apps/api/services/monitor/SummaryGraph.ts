@@ -39,6 +39,21 @@ type ExtractedFact = z.infer<typeof ExtractedFactSchema>;
 
 // ─── State ───────────────────────────────────────────────────────────
 
+export const RiskItemSchema = z.object({
+  title: z.string().describe('Kurze Überschrift des Risikos/der Chance (max 10 Wörter)'),
+  source: z.string().describe('Quelle: Medium oder Institution (z.B. "Bundestag", "Weser-Kurier")'),
+  reasoning: z.string().describe('Begründung in 1-2 Sätzen'),
+  severity: z.enum(['high', 'medium', 'low']).describe('Dringlichkeit/Potenzial'),
+});
+
+export const RiskAnalysisSchema = z.object({
+  risks: z.array(RiskItemSchema).describe('2-3 konkrete Risiken, sortiert nach Dringlichkeit'),
+  opportunities: z.array(RiskItemSchema).describe('2-3 konkrete Chancen, sortiert nach Potenzial'),
+});
+
+export type RiskItem = z.infer<typeof RiskItemSchema>;
+export type RiskAnalysis = z.infer<typeof RiskAnalysisSchema>;
+
 const SummaryStateAnnotation = Annotation.Root({
   entityLabel: Annotation<string>({ reducer: (x, y) => y ?? x }),
   summaryPrompt: Annotation<string>({ reducer: (x, y) => y ?? x }),
@@ -48,6 +63,7 @@ const SummaryStateAnnotation = Annotation.Root({
   qualityPass: Annotation<boolean>({ reducer: (_, y) => y }),
   summaryText: Annotation<string>({ reducer: (_, y) => y ?? '' }),
   attackAnalysis: Annotation<string>({ reducer: (_, y) => y ?? '' }),
+  riskAnalysis: Annotation<RiskAnalysis | null>({ reducer: (_, y) => y ?? null }),
   finalMarkdown: Annotation<string>({ reducer: (_, y) => y ?? '' }),
 });
 
@@ -264,16 +280,16 @@ async function attackAnalysisNode(state: SummaryState): Promise<Partial<SummaryS
 
   try {
     const model = getModel(PROVIDER);
-    const result = await generateText({
+    const result = await generateObject({
       model,
+      schema: RiskAnalysisSchema,
       system: `Du bist ein*e politische*r Risikoanalyst*in für Bündnis 90/Die Grünen.
 
 Politischer Kontext (Stand März 2026):
 - Bundeskanzler: Friedrich Merz (CDU), Koalition: CDU/CSU + SPD
 - Bündnis 90/Die Grünen sind Oppositionspartei im Bundestag
 
-Du erhältst Fakten aus der aktuellen Berichterstattung, quantitative Risiko-Daten (Sentiment, Emotionen, Themen) und unsere Parteipositionen.
-Schreibe auf Deutsch mit Genderstern (*). Sei direkt und konkret. Nenne Quellen.`,
+Schreibe auf Deutsch mit Genderstern (*). Sei direkt und konkret.`,
       prompt: `RISIKO-DATEN:
 ${riskContext || 'Keine Sentiment-Daten verfügbar.'}
 
@@ -281,32 +297,34 @@ EXTRAHIERTE FAKTEN über ${state.entityLabel}:
 ${factsFormatted}
 ${positionsContext}
 
-Erstelle eine Risikoanalyse:
+Analysiere die Berichterstattung und identifiziere:
+- 2-3 konkrete Risiken (Angriffsflächen, negative Berichterstattung, fehlende Positionen)
+- 2-3 konkrete Chancen (positive Themen, starke Positionen, Verstärkungspotenzial)
 
-**Risiken** (sortiert nach Dringlichkeit)
-- Nenne das konkrete Risiko, die Quelle und warum es gefährlich ist
-- Stark negative Artikel (Sentiment < -0.3) = hohe Priorität
-- Hohe Angst/Wut in der Berichterstattung = dringender Handlungsbedarf
-(2-3 Stichpunkte)
-
-**Chancen** (sortiert nach Potenzial)
-- Nenne die konkrete Chance und wie wir sie nutzen können
-- Positive Berichterstattung = Verstärkungspotenzial
-- Themen mit Hoffnung/Vertrauen = günstige Gelegenheiten
-(2-3 Stichpunkte)
-
-Max 200 Wörter. Stichpunkte mit Spiegelstrichen.`,
+Jedes Item braucht: kurze Überschrift, Quelle, Begründung, Dringlichkeit (high/medium/low).
+Stark negative Artikel (Sentiment < -0.3) = höhere Dringlichkeit.`,
       temperature: 0.3,
-      maxOutputTokens: 1000,
+      maxOutputTokens: 1500,
     });
 
+    const analysis = result.object;
     log.info(
-      `RiskAnalysis: ${result.text.split(/\s+/).length} words (${positionsContext ? 'with' : 'without'} positions, ${riskContext ? 'with' : 'without'} risk data)`
+      `RiskAnalysis: ${analysis.risks.length} risks, ${analysis.opportunities.length} opportunities (${positionsContext ? 'with' : 'without'} positions)`
     );
-    return { attackAnalysis: result.text };
+
+    // Keep backward-compatible markdown in attackAnalysis
+    const markdown = [
+      '**Risiken**',
+      ...analysis.risks.map((r) => `- **${r.title}** (${r.source}) — ${r.reasoning}`),
+      '',
+      '**Chancen**',
+      ...analysis.opportunities.map((o) => `- **${o.title}** (${o.source}) — ${o.reasoning}`),
+    ].join('\n');
+
+    return { attackAnalysis: markdown, riskAnalysis: analysis };
   } catch (error) {
     log.error(`RiskAnalysis failed: ${error}`);
-    return { attackAnalysis: '' };
+    return { attackAnalysis: '', riskAnalysis: null };
   }
 }
 
@@ -370,6 +388,7 @@ const graph = new StateGraph(SummaryStateAnnotation)
 export interface EntitySummaryGraphResult {
   summary: string;
   attackAnalysis: string;
+  riskAnalysis: RiskAnalysis | null;
 }
 
 export async function generateEntitySummary(
@@ -378,7 +397,7 @@ export async function generateEntitySummary(
   articles: MonitorArticle[]
 ): Promise<EntitySummaryGraphResult> {
   if (articles.length === 0) {
-    return { summary: `Keine aktuellen Artikel über ${entityLabel} gefunden.`, attackAnalysis: '' };
+    return { summary: `Keine aktuellen Artikel über ${entityLabel} gefunden.`, attackAnalysis: '', riskAnalysis: null };
   }
 
   try {
@@ -391,6 +410,7 @@ export async function generateEntitySummary(
       qualityPass: false,
       summaryText: '',
       attackAnalysis: '',
+      riskAnalysis: null,
       finalMarkdown: '',
     });
 
@@ -400,6 +420,7 @@ export async function generateEntitySummary(
         result.summaryText ||
         `Zusammenfassung für ${entityLabel} konnte nicht erstellt werden.`,
       attackAnalysis: result.attackAnalysis || '',
+      riskAnalysis: result.riskAnalysis ?? null,
     };
   } catch (error) {
     log.error(`SummaryGraph failed for ${entityLabel}: ${error}`);

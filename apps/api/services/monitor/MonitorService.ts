@@ -69,7 +69,7 @@ function buildSnapshot(
       topic: cat,
       score: Math.round(entry.score * 10) / 10,
       articleCount: entry.articles.length,
-      topArticles: sorted.slice(0, 5),
+      topArticles: sorted.slice(0, 10),
     };
   }).sort((a, b) => b.score - a.score);
 

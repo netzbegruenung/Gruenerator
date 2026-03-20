@@ -83,38 +83,34 @@ async function composeBriefingNode(state: BriefingState): Promise<Partial<Briefi
     const model = getModel(PROVIDER);
     const result = await generateText({
       model,
-      system: `Du bist ein*e erfahrene*r Medienanalyst*in und schreibst ein tägliches Medien-Briefing für das Kommunikationsteam von Bündnis 90/Die Grünen.
+      system: `Du bist ein*e erfahrene*r Medienanalyst*in und schreibst eine kurze KI-Einordnung zum dominierenden Thema des Tages für das Kommunikationsteam von Bündnis 90/Die Grünen.
 
-Schreibe 3-4 kurze Absätze (jeweils 2-3 Sätze), die die wichtigsten Entwicklungen der letzten 24 Stunden zusammenfassen. Der Ton ist professionell, analytisch und zugänglich — wie ein Morning Briefing, nicht wie ein Nachrichtenticker.
+Schreibe 2-3 kurze Absätze (jeweils 2-3 Sätze) über das Hot Topic. Der Ton ist professionell, analytisch und zugänglich.
 
 REGELN:
-- Beginne mit dem dominierenden Thema des Tages und den heißesten Themen
-- Wenn Grüne-Positionen vorhanden sind: Stelle den Bezug zwischen aktuellem Thema und Grünen-Positionen her
-- Erwähne die emotionale Grundstimmung in den Medien, wenn sie auffällig ist
-- Erwähne relevante Umfragewerte nur, wenn sie sich verändert haben
+- Schreibe AUSSCHLIESSLICH über das Hot Topic "${state.dominantTopicName}"
+- Beziehe dich auf die konkreten Schlagzeilen — nenne Quellen und Akteur*innen
+- Wenn Grüne-Positionen vorhanden sind: Stelle den Bezug zum aktuellen Thema her
+- Erwähne die emotionale Stimmung nur kurz, wenn auffällig
+- Nenne KEINE anderen Themen, Umfragewerte oder Statistiken
 - Setze **wichtige Begriffe** und **Akteur*innen** fett
 - Verwende Genderstern (*) bei Personenbezeichnungen
-- Max 300 Wörter insgesamt
-- Keine Aufzählungen, keine Überschriften — reiner Fließtext in Absätzen
-- Schreibe auf Deutsch`,
-      prompt: `Hier sind die aktuellen Daten für das Tages-Briefing:
+- Max 200 Wörter
+- Keine Aufzählungen, keine Überschriften — reiner Fließtext
+- Schreibe auf Deutsch
+- Erwähne NUR Medien, Parteien und Akteur*innen aus dem Fokusland`,
+      prompt: `${state.meta}
 
-${state.meta}
-
-THEMEN-RANKING (nach Medienpräsenz):
+HOT TOPIC:
 ${state.topicsText}
 
-TOP-KEYWORDS:
-${state.keywordsText}
+Weitere Themen: ${state.keywordsText}
 
 STIMMUNGSLAGE:
 ${state.stimmungText}
+${state.positionsText ? `\nGRÜNE POSITIONEN ZU "${state.dominantTopicName}":\n${state.positionsText}` : ''}
 
-UMFRAGEWERTE:
-${state.pollsText}
-${state.positionsText ? `\nGRÜNE POSITIONEN ZUM DOMINIERENDEN THEMA "${state.dominantTopicName}":\n${state.positionsText}` : ''}
-
-Erstelle das Tages-Briefing.`,
+Schreibe die KI-Einordnung zum Hot Topic "${state.dominantTopicName}".`,
       temperature: 0.4,
       maxOutputTokens: 1500,
     });
@@ -226,20 +222,28 @@ const graph = new StateGraph(BriefingStateAnnotation)
 
 // ─── Data Formatting Helpers ─────────────────────────────────────────
 
-function formatTopics(snapshot: MonitorSnapshot): string {
+function formatHotTopic(snapshot: MonitorSnapshot): string {
+  const top = snapshot.topics.find((t) => t.articleCount > 0);
+  if (!top) return '';
+  const name = TOPIC_NAMES[top.topic] || top.topic;
+  const headlines = top.topArticles
+    .slice(0, 5)
+    .map((a, i) => `${i + 1}. [${a.source}] ${a.title}`)
+    .join('\n');
+  return `${name} (${top.articleCount} Artikel)\nTop-Schlagzeilen:\n${headlines}`;
+}
+
+function formatOtherTopics(snapshot: MonitorSnapshot): string {
   return snapshot.topics
     .filter((t) => t.articleCount > 0)
-    .slice(0, 7)
-    .map(
-      (t, i) =>
-        `${i + 1}. ${TOPIC_NAMES[t.topic] || t.topic} (${t.articleCount} Artikel, Score ${t.score})`
-    )
-    .join('\n');
+    .slice(1, 4)
+    .map((t) => `${TOPIC_NAMES[t.topic] || t.topic} (${t.articleCount} Artikel)`)
+    .join(', ');
 }
 
 function formatKeywords(snapshot: MonitorSnapshot): string {
   return (snapshot.keywords || [])
-    .slice(0, 15)
+    .slice(0, 8)
     .map((k) => `${k.keyword} (${k.count}x)`)
     .join(', ');
 }
@@ -300,8 +304,8 @@ export async function generateMonitorBriefing(
     `generateMonitorBriefing: cache MISS for ${locale}, generating via ${PROVIDER_LABEL}...`
   );
 
-  const topicsText = formatTopics(snapshot);
-  if (!topicsText) {
+  const hotTopicText = formatHotTopic(snapshot);
+  if (!hotTopicText) {
     log.warn('generateMonitorBriefing: no topics with articles, aborting');
     return {
       briefing: 'Keine Daten für das Briefing verfügbar.',
@@ -313,16 +317,17 @@ export async function generateMonitorBriefing(
   try {
     const topTopic = snapshot.topics.find((t) => t.articleCount > 0);
     const dominantTopicName = topTopic ? TOPIC_NAMES[topTopic.topic] || topTopic.topic : '';
+    const country = locale === 'at' ? 'Österreich' : 'Deutschland';
     log.info(
-      `generateMonitorBriefing: dominant topic: "${dominantTopicName}", ${snapshot.totalArticles} articles, ${snapshot.sources.length} sources`
+      `generateMonitorBriefing: hot topic: "${dominantTopicName}", ${snapshot.totalArticles} articles, locale: ${country}`
     );
 
     const result = await graph.invoke({
-      topicsText,
-      keywordsText: formatKeywords(snapshot),
+      topicsText: hotTopicText,
+      keywordsText: formatOtherTopics(snapshot),
       stimmungText: formatStimmung(stimmung),
       pollsText: formatPolls(pollAverages),
-      meta: `${snapshot.totalArticles} Artikel aus ${snapshot.sources.length} Quellen (${locale === 'at' ? 'Österreich' : 'Deutschland'})`,
+      meta: `Fokus: ${country} · ${snapshot.totalArticles} Artikel aus ${snapshot.sources.length} Quellen`,
       dominantTopicName,
       positionsText: '',
       briefingText: '',

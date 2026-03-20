@@ -198,6 +198,11 @@ const MecklenburgVorpommernNotebookPage = lazy(() =>
     default: m.createNotebookPage('mecklenburgVorpommern'),
   }))
 );
+const BrandenburgNotebookPage = lazy(() =>
+  import('../features/notebook/components/NotebookPage').then((m) => ({
+    default: m.createNotebookPage('brandenburg'),
+  }))
+);
 const KommunalwikiNotebookPage = lazy(() =>
   import('../features/notebook/components/NotebookPage').then((m) => ({
     default: m.createNotebookPage('kommunalwiki'),
@@ -354,6 +359,7 @@ export const GrueneratorenBundle = {
   BayernNotebook: BayernNotebookPage,
   BerlinNotebook: BerlinNotebookPage,
   MecklenburgVorpommernNotebook: MecklenburgVorpommernNotebookPage,
+  BrandenburgNotebook: BrandenburgNotebookPage,
   KommunalwikiNotebook: KommunalwikiNotebookPage,
   BoellStiftungNotebook: BoellStiftungNotebookPage,
   GruenblogNotebook: GruenblogNotebookPage,
@@ -442,6 +448,11 @@ const standardRoutes: RouteConfig[] = [
   {
     path: '/gruene-mecklenburg-vorpommern',
     component: GrueneratorenBundle.MecklenburgVorpommernNotebook,
+    withForm: true,
+  },
+  {
+    path: '/gruene-brandenburg',
+    component: GrueneratorenBundle.BrandenburgNotebook,
     withForm: true,
   },
   { path: '/kommunalwiki', component: GrueneratorenBundle.KommunalwikiNotebook, withForm: true },

@@ -1,14 +1,14 @@
 import {
   Button,
-  CardGrid,
   LoadingSection,
   StatusBanner,
   Tabs,
   TabsList,
   TabsTrigger,
 } from '@gruenerator/ui';
-import { RefreshCw } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { RefreshCw, RotateCcw } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../components/common/PageContainer';
@@ -20,10 +20,8 @@ import { KeywordRanking } from './components/KeywordRanking';
 import { MonitorOverview } from './components/MonitorOverview';
 import { SocialTrends } from './components/SocialTrends';
 import { StimmungView } from './components/StimmungView';
-import { TopicCard } from './components/TopicCard';
 import { TopicDetail } from './components/TopicDetail';
 import { TopicRanking } from './components/TopicRanking';
-import { TopicTrendBar } from './components/TopicTrendBar';
 import { UmfragenView } from './components/UmfragenView';
 import { WatcherView } from './components/WatcherView';
 import {
@@ -38,16 +36,10 @@ import {
 import type { MonitorLocale } from './hooks/useMonitor';
 import type { TopicCategory } from './topicConfig';
 
-type MonitorTab =
-  | 'overview'
-  | 'topics'
-  | 'social'
-  | 'stimmung'
-  | 'umfragen'
-  | 'watcher'
-  | 'details';
+type MonitorTab = 'overview' | 'topics' | 'stimmung' | 'umfragen' | 'watcher';
 
 function MonitorPage() {
+  const queryClient = useQueryClient();
   const authLocale = useAuthStore((s) => s.locale);
   const [locale, setLocale] = useState<MonitorLocale>(authLocale === 'de-AT' ? 'at' : 'de');
   const [tab, setTab] = useState<MonitorTab>('overview');
@@ -58,11 +50,6 @@ function MonitorPage() {
   useMonitorBriefing(locale);
   useStimmung(locale);
   usePolls();
-
-  const maxScore = useMemo(
-    () => (snapshot ? Math.max(...snapshot.topics.map((t) => t.score), 1) : 1),
-    [snapshot]
-  );
 
   return (
     <ErrorBoundary>
@@ -96,23 +83,33 @@ function MonitorPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => refresh.mutate()}
-                  disabled={refresh.isPending}
+                  onClick={() => queryClient.invalidateQueries({ queryKey: ['monitor'] })}
                   className="text-grey-400 hover:text-foreground"
+                  title="Daten neu laden"
                 >
-                  <RefreshCw className={`h-4 w-4 ${refresh.isPending ? 'animate-spin' : ''}`} />
+                  <RefreshCw className="h-4 w-4" />
                 </Button>
+                {import.meta.env.DEV && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => refresh.mutate()}
+                    disabled={refresh.isPending}
+                    className="text-red-400 hover:text-red-600"
+                    title="DEV: Kompletter Refresh (RSS + EventRegistry + NLP)"
+                  >
+                    <RotateCcw className={`h-4 w-4 ${refresh.isPending ? 'animate-spin' : ''}`} />
+                  </Button>
+                )}
               </div>
 
               <Tabs value={tab} onValueChange={(v) => setTab(v as MonitorTab)}>
                 <TabsList>
                   <TabsTrigger value="overview">Überblick</TabsTrigger>
                   <TabsTrigger value="topics">Themen</TabsTrigger>
-                  <TabsTrigger value="social">X/Twitter</TabsTrigger>
                   <TabsTrigger value="stimmung">Stimmung</TabsTrigger>
                   <TabsTrigger value="umfragen">Umfragen</TabsTrigger>
                   <TabsTrigger value="watcher">Watcher</TabsTrigger>
-                  <TabsTrigger value="details">Details</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
@@ -135,62 +132,36 @@ function MonitorPage() {
 
             {tab === 'stimmung' && <StimmungView locale={locale} />}
 
-            {tab === 'umfragen' && <UmfragenView />}
+            {tab === 'umfragen' && <UmfragenView locale={locale} />}
 
             {tab === 'watcher' && <WatcherView locale={locale} />}
 
             {snapshot && (
               <>
                 {tab === 'topics' && (
-                  <>
-                    <TopicRanking
-                      topics={snapshot.topics}
-                      totalArticles={snapshot.totalArticles}
-                      sourcesCount={snapshot.sources.length}
-                      onClick={setSelectedTopic}
-                    />
-                    {snapshot.keywords && snapshot.keywords.length > 0 && (
-                      <div className="mt-xl">
-                        <KeywordInsightsCard locale={locale} />
-                        <KeywordRanking
-                          keywords={snapshot.keywords}
-                          totalArticles={snapshot.totalArticles}
-                          sourcesCount={snapshot.sources.length}
-                        />
-                      </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-lg items-start">
+                    <div>
+                      <TopicRanking
+                        topics={snapshot.topics}
+                        totalArticles={snapshot.totalArticles}
+                        sourcesCount={snapshot.sources.length}
+                        onClick={setSelectedTopic}
+                      />
+                      {snapshot.keywords && snapshot.keywords.length > 0 && (
+                        <div className="mt-xl">
+                          <KeywordInsightsCard locale={locale} />
+                          <KeywordRanking
+                            keywords={snapshot.keywords}
+                            totalArticles={snapshot.totalArticles}
+                            sourcesCount={snapshot.sources.length}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {snapshot.socialTrends && snapshot.socialTrends.length > 0 && (
+                      <SocialTrends trends={snapshot.socialTrends} />
                     )}
-                  </>
-                )}
-
-                {tab === 'social' && snapshot.socialTrends && (
-                  <SocialTrends trends={snapshot.socialTrends} />
-                )}
-
-                {tab === 'details' && (
-                  <>
-                    <TopicTrendBar topics={snapshot.topics} />
-                    <p className="mb-md text-xs text-grey-500 dark:text-grey-400">
-                      {snapshot.totalArticles} Artikel aus {snapshot.sources.length} Quellen
-                      {' · '}
-                      Stand:{' '}
-                      {new Date(snapshot.createdAt).toLocaleString('de-DE', {
-                        day: 'numeric',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </p>
-                    <CardGrid columns="3">
-                      {snapshot.topics.map((topicScore) => (
-                        <TopicCard
-                          key={topicScore.topic}
-                          topicScore={topicScore}
-                          maxScore={maxScore}
-                          onClick={setSelectedTopic}
-                        />
-                      ))}
-                    </CardGrid>
-                  </>
+                  </div>
                 )}
               </>
             )}

@@ -123,6 +123,18 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
     category: 'landesebene',
   },
   {
+    id: 'brandenburg-notebook',
+    path: '/gruene-brandenburg',
+    title: 'Brandenburg',
+    description:
+      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und Wahlprogramme der Grünen Brandenburg.',
+    meta: 'Archiv',
+    tags: ['Brandenburg', 'Beschlüsse', 'Presse', 'Wahlprogramme'],
+    icon: PiTree,
+    order: 9,
+    category: 'landesebene',
+  },
+  {
     id: 'oesterreich-notebook',
     path: '/gruene-oesterreich',
     title: 'Die Grünen Österreich',
