@@ -29,7 +29,15 @@ import {
 import type { MonitorLocale } from './hooks/useMonitor';
 import type { TopicCategory } from './topicConfig';
 
-type MonitorTab = 'overview' | 'topics' | 'stimmung' | 'umfragen' | 'watcher';
+type MonitorTab =
+  | 'overview'
+  | 'topics'
+  | 'keywords'
+  | 'social'
+  | 'stimmung'
+  | 'umfragen'
+  | 'watcher'
+  | 'details';
 
 function MonitorPage() {
   const queryClient = useQueryClient();

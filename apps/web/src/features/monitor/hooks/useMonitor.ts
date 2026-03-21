@@ -341,6 +341,27 @@ export function useTopicPosition(keyword?: string) {
   });
 }
 
+const TOPIC_DOCUMENT_COLLECTIONS: Record<MonitorLocale, string[]> = {
+  de: ['boell-stiftung-system', 'kommunalwiki-system', 'bundestagsfraktion-system'],
+  at: ['oesterreich-gruene-system', 'gruene-at-system'],
+};
+
+export function useTopicDocuments(keyword?: string, locale: MonitorLocale = 'de') {
+  return useQuery<TopicPositionResult[]>({
+    queryKey: ['monitor', 'topic-documents', keyword, locale],
+    queryFn: async () => {
+      const { data } = await apiClient.post('/research/search', {
+        query: keyword,
+        collectionIds: TOPIC_DOCUMENT_COLLECTIONS[locale],
+        limit: 3,
+      });
+      return data.results ?? [];
+    },
+    enabled: !!keyword,
+    staleTime: 30 * 60 * 1000,
+  });
+}
+
 export type {
   MonitorSnapshot,
   TopicScore,
