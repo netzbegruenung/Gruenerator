@@ -228,16 +228,61 @@ function DocumentCard({
       <p className="text-xs text-foreground/70 leading-relaxed m-0 line-clamp-3 flex-1">
         {doc.relevant_content?.slice(0, 200)}
       </p>
-
-      <div className="pt-sm border-t border-grey-100 dark:border-grey-800">
-        <span
-          className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-          style={{ color, backgroundColor: `${color}15` }}
-        >
-          {doc.collection_name}
-        </span>
-      </div>
     </a>
+  );
+}
+
+// ─── Auto-advance carousel hook ─────────────────────────────────────
+
+function useAutoAdvance(length: number, intervalMs = 5000) {
+  const [idx, setIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval>>(undefined);
+
+  // Reset index when data length changes
+  useEffect(() => {
+    setIdx(0);
+  }, [length]);
+
+  const advance = useCallback(() => {
+    setIdx((prev) => (prev + 1) % length);
+  }, [length]);
+
+  useEffect(() => {
+    if (paused || length <= 1) return;
+    intervalRef.current = setInterval(advance, intervalMs);
+    return () => clearInterval(intervalRef.current);
+  }, [paused, advance, length, intervalMs]);
+
+  return { idx, setIdx, paused, setPaused };
+}
+
+// ─── Dot indicators ─────────────────────────────────────────────────
+
+function DotIndicators({
+  count,
+  activeIdx,
+  onSelect,
+}: {
+  count: number;
+  activeIdx: number;
+  onSelect: (i: number) => void;
+}) {
+  if (count <= 1) return null;
+  return (
+    <div className="flex items-center gap-1 mt-sm">
+      {Array.from({ length: count }, (_, i) => (
+        <button
+          key={i}
+          onClick={() => onSelect(i)}
+          className={`h-1.5 rounded-full border-none cursor-pointer transition-all ${
+            i === activeIdx
+              ? 'w-4 bg-primary-500'
+              : 'w-1.5 bg-grey-300 dark:bg-grey-600 hover:bg-grey-400'
+          }`}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -252,43 +297,18 @@ function HotTopicContent({
   keyword?: string;
   locale: MonitorLocale;
 }) {
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval>>(undefined);
   const { data: documents = [] } = useTopicDocuments(keyword, locale);
-  const [docIdx, setDocIdx] = useState(0);
-  const docIntervalRef = useRef<ReturnType<typeof setInterval>>(undefined);
-  const [docPaused, setDocPaused] = useState(false);
-
   const items = articles.filter((a) => a.title).slice(0, 10);
+  const news = useAutoAdvance(items.length);
+  const docs = useAutoAdvance(documents.length);
 
-  const advance = useCallback(() => {
-    setCurrentIdx((prev) => (prev + 1) % items.length);
-  }, [items.length]);
-
-  useEffect(() => {
-    if (paused || items.length <= 1) return;
-    intervalRef.current = setInterval(advance, 5000);
-    return () => clearInterval(intervalRef.current);
-  }, [paused, advance, items.length]);
-
-  const advanceDoc = useCallback(() => {
-    setDocIdx((prev) => (prev + 1) % documents.length);
-  }, [documents.length]);
-
-  useEffect(() => {
-    if (docPaused || documents.length <= 1) return;
-    docIntervalRef.current = setInterval(advanceDoc, 5000);
-    return () => clearInterval(docIntervalRef.current);
-  }, [docPaused, advanceDoc, documents.length]);
-
-  const current = items[currentIdx];
+  const current = items[news.idx];
   if (!current) return null;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-[3fr_2fr] gap-md mb-md">
       {/* Left: auto-scrolling news headline */}
-      <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+      <div onMouseEnter={() => news.setPaused(true)} onMouseLeave={() => news.setPaused(false)}>
         <a
           href={current.url}
           target="_blank"
@@ -321,43 +341,15 @@ function HotTopicContent({
             </p>
           )}
         </a>
-        {items.length > 1 && (
-          <div className="flex items-center gap-1 mt-sm">
-            {items.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setCurrentIdx(i)}
-                className={`h-1.5 rounded-full border-none cursor-pointer transition-all ${
-                  i === currentIdx
-                    ? 'w-4 bg-primary-500'
-                    : 'w-1.5 bg-grey-300 dark:bg-grey-600 hover:bg-grey-400'
-                }`}
-              />
-            ))}
-          </div>
-        )}
+        <DotIndicators count={items.length} activeIdx={news.idx} onSelect={news.setIdx} />
       </div>
 
       {/* Right: document carousel */}
-      <div onMouseEnter={() => setDocPaused(true)} onMouseLeave={() => setDocPaused(false)}>
+      <div onMouseEnter={() => docs.setPaused(true)} onMouseLeave={() => docs.setPaused(false)}>
         {documents.length > 0 ? (
           <>
-            <DocumentCard doc={documents[docIdx % documents.length]} />
-            {documents.length > 1 && (
-              <div className="flex items-center gap-1 mt-sm">
-                {documents.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setDocIdx(i)}
-                    className={`h-1.5 rounded-full border-none cursor-pointer transition-all ${
-                      i === docIdx
-                        ? 'w-4 bg-primary-500'
-                        : 'w-1.5 bg-grey-300 dark:bg-grey-600 hover:bg-grey-400'
-                    }`}
-                  />
-                ))}
-              </div>
-            )}
+            <DocumentCard doc={documents[docs.idx]} />
+            <DotIndicators count={documents.length} activeIdx={docs.idx} onSelect={docs.setIdx} />
           </>
         ) : (
           <div className="flex flex-col items-center justify-center p-md rounded-lg border border-dashed border-grey-200 dark:border-grey-700 h-full">
