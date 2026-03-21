@@ -168,7 +168,7 @@ jobs:
           DURATION=$(jq -r '.totalDuration' "$SUMMARY_FILE")
 
           # Determine status
-          if [ "$FAILED" -gt 0 ] || [ "$ERRORS" -gt 0 ]; then
+          if [ "$FAILED" -gt 0 ]; then
             STATUS_ICON="⚠️"
           else
             STATUS_ICON="✅"

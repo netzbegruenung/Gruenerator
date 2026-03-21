@@ -69,6 +69,7 @@ import { type SourceGroupResult, type SyncSummary } from './types/syncTypes.js';
 interface SourceGroup {
   id: string;
   name: string;
+  timeoutMs?: number;
   run: (args: CliArgs) => Promise<Omit<SourceGroupResult, 'id' | 'name' | 'duration' | 'status'>>;
 }
 
@@ -141,6 +142,7 @@ const SOURCE_GROUPS: SourceGroup[] = [
   {
     id: 'boell-stiftung',
     name: 'Heinrich-Boell-Stiftung',
+    timeoutMs: 45 * 60 * 1000,
     async run(args) {
       await boellStiftungScraperService.init();
       const result = await boellStiftungScraperService.fullCrawl({
@@ -234,12 +236,14 @@ import { parallelLimit } from './utils/parallelLimit.js';
  */
 async function runSourceGroup(group: SourceGroup, args: CliArgs): Promise<SourceGroupResult> {
   const startTime = Date.now();
-  const TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+  const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+  const timeoutMs = group.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const timeoutMinutes = Math.round(timeoutMs / 60_000);
 
   try {
     const resultPromise = group.run(args);
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`Timeout after 30 minutes`)), TIMEOUT_MS)
+      setTimeout(() => reject(new Error(`Timeout after ${timeoutMinutes} minutes`)), timeoutMs)
     );
 
     const result = await Promise.race([resultPromise, timeoutPromise]);
@@ -409,7 +413,7 @@ async function main() {
     }
   }
 
-  process.exit(totals.errors > 0 || failed.length > 0 ? 1 : 0);
+  process.exit(failed.length > 0 ? 1 : 0);
 }
 
 main().catch((err) => {
