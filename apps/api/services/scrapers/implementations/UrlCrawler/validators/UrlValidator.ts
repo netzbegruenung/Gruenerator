@@ -21,7 +21,8 @@ const ROBOTS_CACHE_TTL = 60 * 60 * 1000;
 const ROBOTS_FETCH_TIMEOUT = 3000;
 const BOT_USER_AGENT = 'Gruenerator/1.0';
 
-const robotsCache = new Map<string, { allowed: boolean; expiry: number }>();
+type RobotsChecker = { isAllowed(url: string, ua?: string): boolean | undefined };
+const robotsCache = new Map<string, { checker: RobotsChecker | null; expiry: number }>();
 
 async function isAllowedByRobotsTxt(url: string): Promise<boolean> {
   try {
@@ -30,7 +31,7 @@ async function isAllowedByRobotsTxt(url: string): Promise<boolean> {
 
     const cached = robotsCache.get(origin);
     if (cached && cached.expiry > Date.now()) {
-      return cached.allowed;
+      return cached.checker ? (cached.checker.isAllowed(url, BOT_USER_AGENT) ?? true) : true;
     }
 
     const robotsUrl = `${origin}/robots.txt`;
@@ -39,14 +40,13 @@ async function isAllowedByRobotsTxt(url: string): Promise<boolean> {
       headers: { 'User-Agent': BOT_USER_AGENT },
     });
 
-    let allowed = true;
+    let checker: RobotsChecker | null = null;
     if (resp.ok) {
       const text = await resp.text();
-      const robots = robotsParser(robotsUrl, text);
-      allowed = robots.isAllowed(url, BOT_USER_AGENT) ?? true;
+      checker = robotsParser(robotsUrl, text);
     }
 
-    robotsCache.set(origin, { allowed, expiry: Date.now() + ROBOTS_CACHE_TTL });
+    robotsCache.set(origin, { checker, expiry: Date.now() + ROBOTS_CACHE_TTL });
 
     // Clean old entries periodically
     if (robotsCache.size > 200) {
@@ -56,7 +56,7 @@ async function isAllowedByRobotsTxt(url: string): Promise<boolean> {
       }
     }
 
-    return allowed;
+    return checker ? (checker.isAllowed(url, BOT_USER_AGENT) ?? true) : true;
   } catch {
     return true;
   }
