@@ -3,6 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../../components/utils/apiClient';
 
 import type { Citation, Source } from '../../../components/common/Citation';
+
+function localeQuery(locale?: MonitorLocale): string {
+  return locale ? `?locale=${locale}` : '';
+}
 import type { TopicCategory } from '../topicConfig';
 
 export type MonitorLocale = 'de' | 'at';
@@ -58,7 +62,7 @@ export function useMonitorSnapshot(locale?: MonitorLocale) {
   return useQuery<MonitorSnapshot>({
     queryKey: ['monitor', 'latest', locale],
     queryFn: async () => {
-      const params = locale ? `?locale=${locale}` : '';
+      const params = localeQuery(locale);
       const { data } = await apiClient.get(`/monitor/latest${params}`);
       return data;
     },
@@ -84,7 +88,7 @@ export function useTopicArticles(topic: TopicCategory | null, locale?: MonitorLo
   return useQuery<{ topic: string; articles: MonitorArticle[] }>({
     queryKey: ['monitor', 'topic', topic, locale],
     queryFn: async () => {
-      const params = locale ? `?locale=${locale}` : '';
+      const params = localeQuery(locale);
       const { data } = await apiClient.get(`/monitor/topic/${topic}${params}`);
       return data;
     },
@@ -126,7 +130,7 @@ export function useKeywordInsights(locale?: MonitorLocale) {
   return useQuery<KeywordInsightsResult>({
     queryKey: ['monitor', 'keyword-insights', locale],
     queryFn: async () => {
-      const params = locale ? `?locale=${locale}` : '';
+      const params = localeQuery(locale);
       const { data } = await apiClient.get(`/monitor/keyword-insights${params}`);
       return data;
     },
@@ -145,7 +149,7 @@ export function useMonitorBriefing(locale?: MonitorLocale) {
   return useQuery<MonitorBriefingResult>({
     queryKey: ['monitor', 'briefing', locale],
     queryFn: async () => {
-      const params = locale ? `?locale=${locale}` : '';
+      const params = localeQuery(locale);
       const { data } = await apiClient.get(`/monitor/briefing${params}`);
       return data;
     },
@@ -168,7 +172,7 @@ export function useStimmung(locale?: MonitorLocale) {
   return useQuery<StimmungResult>({
     queryKey: ['monitor', 'stimmung', locale],
     queryFn: async () => {
-      const params = locale ? `?locale=${locale}` : '';
+      const params = localeQuery(locale);
       const { data } = await apiClient.get(`/monitor/stimmung${params}`);
       return data;
     },
@@ -266,7 +270,7 @@ export function useEntityResults(entityId: string | null, locale?: MonitorLocale
   return useQuery<EntityResult>({
     queryKey: ['monitor', 'entity', entityId, locale],
     queryFn: async () => {
-      const params = locale ? `?locale=${locale}` : '';
+      const params = localeQuery(locale);
       const { data } = await apiClient.get(`/monitor/entities/${entityId}${params}`);
       return data;
     },
@@ -280,7 +284,7 @@ export function useEntitySummary(entityId: string | null, locale?: MonitorLocale
   return useQuery<EntitySummaryResult>({
     queryKey: ['monitor', 'entity-summary', entityId, locale],
     queryFn: async () => {
-      const params = locale ? `?locale=${locale}` : '';
+      const params = localeQuery(locale);
       const { data } = await apiClient.get(`/monitor/entities/${entityId}/summary${params}`);
       return data;
     },
@@ -294,7 +298,7 @@ export function useBriefingRefresh(locale?: MonitorLocale) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      const params = locale ? `?locale=${locale}` : '';
+      const params = localeQuery(locale);
       const { data } = await apiClient.post(`/monitor/briefing/refresh${params}`);
       return data as MonitorBriefingResult;
     },

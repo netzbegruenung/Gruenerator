@@ -13,6 +13,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Markdown } from '../../../components/common/Markdown/Markdown';
+import { EMOTION_CONFIG, getMoodPosition } from '../emotionConfig';
 import {
   useBriefingRefresh,
   useKeywordInsights,
@@ -45,51 +46,11 @@ interface MonitorOverviewProps {
   onNavigateTab: (tab: MonitorTab) => void;
 }
 
-// ─── Stimmung helper (same as StimmungView) ──────────────────────────
-
-const EMOTION_VALENCE: Record<string, 'positive' | 'negative'> = {
-  angst: 'negative',
-  wut: 'negative',
-  hoffnung: 'positive',
-  enttaeuschung: 'negative',
-  vertrauen: 'positive',
-  solidaritaet: 'positive',
-  stolz: 'positive',
-};
-
-const EMOTION_NAMES: Record<string, string> = {
-  angst: 'Angst',
-  wut: 'Wut',
-  hoffnung: 'Hoffnung',
-  enttaeuschung: 'Enttäuschung',
-  vertrauen: 'Vertrauen',
-  solidaritaet: 'Solidarität',
-  stolz: 'Stolz',
-};
-
-const EMOTION_HUES: Record<string, string> = {
-  angst: 'red',
-  wut: 'orange',
-  hoffnung: 'green',
-  enttaeuschung: 'blue',
-  vertrauen: 'violet',
-  solidaritaet: 'emerald',
-  stolz: 'yellow',
-};
-
-function getMoodPosition(overall: Record<string, number>): number {
-  let positive = 0;
-  let negative = 0;
-  for (const [key, score] of Object.entries(overall)) {
-    const valence = EMOTION_VALENCE[key];
-    if (!valence) continue;
-    if (valence === 'positive') positive += score;
-    else negative += score;
-  }
-  const total = positive + negative;
-  if (total === 0) return 50;
-  return (positive / total) * 100;
-}
+// Derive simple lookup maps from shared EMOTION_CONFIG
+const EMOTION_NAMES = Object.fromEntries(
+  Object.entries(EMOTION_CONFIG).map(([k, v]) => [k, v.name])
+);
+const EMOTION_HUES = Object.fromEntries(Object.entries(EMOTION_CONFIG).map(([k, v]) => [k, v.hue]));
 
 // ─── X/Twitter icon ──────────────────────────────────────────────────
 
