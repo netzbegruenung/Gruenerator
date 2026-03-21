@@ -242,6 +242,8 @@ function useGrueneratorThreadRuntime() {
     selectedNotebookId,
     threadMode,
     searchMode,
+    customSystemPrompt,
+    customEnabledTools,
   } = useAgentStore(
     useShallow((s) => ({
       selectedAgentId: s.selectedAgentId,
@@ -251,6 +253,8 @@ function useGrueneratorThreadRuntime() {
       selectedNotebookId: s.selectedNotebookId,
       threadMode: s.threadMode,
       searchMode: s.searchMode,
+      customSystemPrompt: s.customSystemPrompt,
+      customEnabledTools: s.customEnabledTools,
     }))
   );
   const incrementMessageCount = useAgentStore((s) => s.incrementMessageCount);
@@ -268,6 +272,8 @@ function useGrueneratorThreadRuntime() {
       selectedNotebookId,
       threadMode,
       searchMode,
+      customSystemPrompt,
+      customEnabledTools,
     }),
     [
       selectedAgentId,
@@ -277,6 +283,8 @@ function useGrueneratorThreadRuntime() {
       selectedNotebookId,
       threadMode,
       searchMode,
+      customSystemPrompt,
+      customEnabledTools,
     ]
   );
 

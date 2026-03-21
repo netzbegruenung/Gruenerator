@@ -14,6 +14,7 @@ import { getAgent, loadAgents, getDefaultAgentId } from './agents/agentLoader.js
 import chatStreamRouter from './chatStreamController.js';
 import messagesRouter from './messagesController.js';
 import notebookStreamRouter from './notebookStreamController.js';
+import promptGeneratorRouter from './promptGeneratorController.js';
 import summarizeRouter from './summarizeController.js';
 import threadsRouter from './threadsController.js';
 
@@ -24,6 +25,7 @@ router.use('/threads', threadsRouter);
 router.use('/messages', messagesRouter);
 router.use('/notebook/stream', notebookStreamRouter);
 router.use('/summarize', summarizeRouter);
+router.use('/generate-system-prompt', promptGeneratorRouter);
 
 router.get('/agents', async (req, res) => {
   try {

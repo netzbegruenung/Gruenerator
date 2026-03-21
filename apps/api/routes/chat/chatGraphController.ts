@@ -60,6 +60,7 @@ import {
   createMessage,
   touchThread,
   threadExists,
+  getThreadSettings,
 } from './services/threadPersistenceService.js';
 
 import type { ProcessedAttachmentMeta } from './services/attachmentProcessingService.js';
@@ -101,6 +102,7 @@ router.post('/stream', async (req, res) => {
       defaultNotebookId: rawDefaultNotebookId,
       boardIds: rawBoardIds,
       docMentionIds: rawDocMentionIds,
+      customSystemPrompt: rawCustomSystemPrompt,
     } = req.body as {
       messages: UIMessage[];
       agentId?: string;
@@ -117,6 +119,7 @@ router.post('/stream', async (req, res) => {
       defaultNotebookId?: string;
       boardIds?: string[];
       docMentionIds?: string[];
+      customSystemPrompt?: string;
     };
 
     // === Validate ===
@@ -236,12 +239,29 @@ router.post('/stream', async (req, res) => {
       }
     }
 
+    // === Resolve custom system prompt + tools (thread-level > request body) ===
+    let resolvedCustomPrompt: string | undefined = rawCustomSystemPrompt;
+    let resolvedEnabledTools = enabledTools;
+
+    if (
+      actualThreadId &&
+      (resolvedCustomPrompt === undefined || resolvedEnabledTools === undefined)
+    ) {
+      const threadSettings = await getThreadSettings(actualThreadId);
+      if (resolvedCustomPrompt === undefined && threadSettings?.custom_system_prompt) {
+        resolvedCustomPrompt = threadSettings.custom_system_prompt;
+      }
+      if (resolvedEnabledTools === undefined && threadSettings?.custom_enabled_tools) {
+        resolvedEnabledTools = threadSettings.custom_enabled_tools as Record<string, boolean>;
+      }
+    }
+
     // === Initialize state ===
     const initialState = await initializeChatState({
       messages: validMessages,
       threadId: actualThreadId,
       agentId: agentId || 'gruenerator-universal',
-      enabledTools: enabledTools || {
+      enabledTools: resolvedEnabledTools || {
         search: true,
         web: true,
         person: true,
@@ -265,6 +285,7 @@ router.post('/stream', async (req, res) => {
       boardIds: rawBoardIds?.length ? rawBoardIds : undefined,
       docMentionIds: rawDocMentionIds?.length ? rawDocMentionIds : undefined,
       userLocale: (user as any)?.locale || 'de-DE',
+      customSystemPrompt: resolvedCustomPrompt,
     });
 
     const userLocale = (user as any)?.locale || 'de-DE';
