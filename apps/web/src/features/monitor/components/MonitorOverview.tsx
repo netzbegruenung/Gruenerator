@@ -1,5 +1,15 @@
 import { Card, CardContent, MoodBar, ProgressBar, Separator, Skeleton } from '@gruenerator/ui';
-import { ArrowRight, BookOpen, Check, ChevronRight, Copy, ExternalLink, Flame, RefreshCw, Sparkles } from 'lucide-react';
+import {
+  ArrowRight,
+  Check,
+  ChevronRight,
+  Copy,
+  ExternalLink,
+  Flame,
+  Library,
+  RefreshCw,
+  Sparkles,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Markdown } from '../../../components/common/Markdown/Markdown';
@@ -11,7 +21,7 @@ import {
   usePolls,
   useStimmung,
   useTopicArticles,
-  useTopicPosition,
+  useTopicDocuments,
 } from '../hooks/useMonitor';
 import { TOPIC_COLORS, TOPIC_CONFIG } from '../topicConfig';
 
@@ -171,19 +181,84 @@ function TweetCard({ tweet }: { tweet: { text: string; topic: string; hashtags: 
   );
 }
 
-// ─── Hot Topic Content: News ticker + Position ──────────────────────
+// ─── Document Card (article from Qdrant collections) ────────────────
+
+const COLLECTION_COLORS: Record<string, string> = {
+  'Grüne Bundestagsfraktion': '#22c55e',
+  KommunalWiki: '#3b82f6',
+  'Heinrich-Böll-Stiftung': '#f59e0b',
+  'Grüne Österreich': '#22c55e',
+  'Grüne Österreich (gruene.at)': '#16a34a',
+};
+
+function DocumentCard({
+  doc,
+}: {
+  doc: {
+    document_title: string;
+    source_url: string;
+    relevant_content: string;
+    collection_name: string;
+  };
+}) {
+  const color = COLLECTION_COLORS[doc.collection_name] || '#94a3b8';
+
+  return (
+    <a
+      href={doc.source_url || '#'}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="relative flex flex-col gap-md overflow-hidden rounded-xl border border-grey-200 dark:border-grey-700 p-lg bg-background no-underline group hover:shadow-sm transition-shadow"
+    >
+      <div className="flex items-center gap-sm">
+        <div
+          className="h-8 w-8 rounded-full flex items-center justify-center shrink-0"
+          style={{ backgroundColor: `${color}15` }}
+        >
+          <Library className="h-4 w-4" style={{ color }} />
+        </div>
+        <span className="text-xs font-medium text-grey-500 truncate">{doc.collection_name}</span>
+        <ExternalLink className="h-3 w-3 text-grey-300 opacity-0 group-hover:opacity-100 transition-opacity ml-auto shrink-0" />
+      </div>
+
+      <p className="text-sm font-semibold text-foreground-heading leading-snug m-0 line-clamp-2 group-hover:text-primary-600 transition-colors">
+        {doc.document_title}
+      </p>
+
+      <p className="text-xs text-foreground/70 leading-relaxed m-0 line-clamp-3 flex-1">
+        {doc.relevant_content?.slice(0, 200)}
+      </p>
+
+      <div className="pt-sm border-t border-grey-100 dark:border-grey-800">
+        <span
+          className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+          style={{ color, backgroundColor: `${color}15` }}
+        >
+          {doc.collection_name}
+        </span>
+      </div>
+    </a>
+  );
+}
+
+// ─── Hot Topic Content: News ticker + Documents ─────────────────────
 
 function HotTopicContent({
   articles,
   keyword,
+  locale,
 }: {
   articles: MonitorArticle[];
   keyword?: string;
+  locale: MonitorLocale;
 }) {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [paused, setPaused] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval>>(undefined);
-  const { data: position } = useTopicPosition(keyword);
+  const { data: documents = [] } = useTopicDocuments(keyword, locale);
+  const [docIdx, setDocIdx] = useState(0);
+  const docIntervalRef = useRef<ReturnType<typeof setInterval>>(undefined);
+  const [docPaused, setDocPaused] = useState(false);
 
   const items = articles.filter((a) => a.title).slice(0, 10);
 
@@ -197,16 +272,23 @@ function HotTopicContent({
     return () => clearInterval(intervalRef.current);
   }, [paused, advance, items.length]);
 
+  const advanceDoc = useCallback(() => {
+    setDocIdx((prev) => (prev + 1) % documents.length);
+  }, [documents.length]);
+
+  useEffect(() => {
+    if (docPaused || documents.length <= 1) return;
+    docIntervalRef.current = setInterval(advanceDoc, 5000);
+    return () => clearInterval(docIntervalRef.current);
+  }, [docPaused, advanceDoc, documents.length]);
+
   const current = items[currentIdx];
   if (!current) return null;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-[3fr_2fr] gap-md mb-md">
       {/* Left: auto-scrolling news headline */}
-      <div
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
-      >
+      <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
         <a
           href={current.url}
           target="_blank"
@@ -219,7 +301,13 @@ function HotTopicContent({
             </span>
             {current.publishedAt && (
               <span className="text-[10px] text-grey-400">
-                · {new Date(current.publishedAt).toLocaleString('de-DE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                ·{' '}
+                {new Date(current.publishedAt).toLocaleString('de-DE', {
+                  day: 'numeric',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
               </span>
             )}
             <ExternalLink className="h-3 w-3 text-grey-300 opacity-0 group-hover:opacity-100 transition-opacity ml-auto" />
@@ -250,37 +338,36 @@ function HotTopicContent({
         )}
       </div>
 
-      {/* Right: matching party position */}
-      {position ? (
-        <a
-          href={position.source_url || '#'}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex flex-col gap-xs p-md rounded-lg border border-primary-200 dark:border-primary-800 bg-primary-50/50 dark:bg-primary-950/20 no-underline hover:shadow-sm transition-shadow"
-        >
-          <div className="flex items-center gap-xs">
-            <BookOpen className="h-3.5 w-3.5 text-primary-500 shrink-0" />
-            <span className="text-[10px] font-semibold text-primary-600 dark:text-primary-400 uppercase tracking-wide">
-              Grüne Position
-            </span>
+      {/* Right: document carousel */}
+      <div onMouseEnter={() => setDocPaused(true)} onMouseLeave={() => setDocPaused(false)}>
+        {documents.length > 0 ? (
+          <>
+            <DocumentCard doc={documents[docIdx % documents.length]} />
+            {documents.length > 1 && (
+              <div className="flex items-center gap-1 mt-sm">
+                {documents.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setDocIdx(i)}
+                    className={`h-1.5 rounded-full border-none cursor-pointer transition-all ${
+                      i === docIdx
+                        ? 'w-4 bg-primary-500'
+                        : 'w-1.5 bg-grey-300 dark:bg-grey-600 hover:bg-grey-400'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center p-md rounded-lg border border-dashed border-grey-200 dark:border-grey-700 h-full">
+            <Library className="h-5 w-5 text-grey-300 mb-xs" />
+            <p className="text-[11px] text-grey-400 text-center">
+              Suche nach passenden Dokumenten…
+            </p>
           </div>
-          <p className="text-xs font-medium text-foreground-heading m-0 line-clamp-2">
-            {position.document_title}
-          </p>
-          <p className="text-[11px] text-foreground/70 leading-relaxed m-0 line-clamp-4">
-            „{position.relevant_content?.slice(0, 250)}…"
-          </p>
-          <div className="flex items-center gap-xs mt-auto pt-xs">
-            <span className="text-[10px] text-grey-400">{position.collection_name}</span>
-            <ExternalLink className="h-3 w-3 text-grey-300 ml-auto" />
-          </div>
-        </a>
-      ) : (
-        <div className="flex flex-col items-center justify-center p-md rounded-lg border border-dashed border-grey-200 dark:border-grey-700">
-          <BookOpen className="h-5 w-5 text-grey-300 mb-xs" />
-          <p className="text-[11px] text-grey-400 text-center">Suche nach passender Grüner Position…</p>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -303,96 +390,102 @@ export function MonitorOverview({ locale, onTopicClick, onNavigateTab }: Monitor
     const topicStimmung = stimmung.byTopic.find((t) => t.topic === hotTopic.topic);
     if (!topicStimmung) return null;
     const sorted = Object.entries(topicStimmung.emotions).sort(([, a], [, b]) => b - a);
-    return sorted[0] ? { key: sorted[0][0], name: EMOTION_NAMES[sorted[0][0]] || sorted[0][0] } : null;
+    return sorted[0]
+      ? { key: sorted[0][0], name: EMOTION_NAMES[sorted[0][0]] || sorted[0][0] }
+      : null;
   }, [stimmung, hotTopic]);
 
   return (
     <div>
       {/* Section 0: Hot Topic Hero */}
-      {hotTopic && hotTopicConfig && (() => {
-        const topKeyword = snapshot?.keywords?.[0]?.keyword;
-        return (
-        <section className="mb-2xl">
-          <div className="rounded-xl border border-grey-200 dark:border-grey-700 p-lg bg-background">
-            {/* Big keyword + topic badge */}
-            <div className="mb-md">
-              {topKeyword && (
-                <h2 className="flex items-center gap-sm text-3xl sm:text-4xl font-black text-foreground-heading m-0 mb-xs capitalize">
-                  <Flame className="h-7 w-7 text-orange-500 shrink-0" />
-                  {topKeyword}
-                </h2>
-              )}
-              <div className="flex items-center gap-sm flex-wrap">
-                <span
-                  className="inline-flex items-center gap-xs text-xs font-medium px-2 py-0.5 rounded-full"
-                  style={{
-                    color: TOPIC_COLORS[hotTopic.topic],
-                    backgroundColor: `${TOPIC_COLORS[hotTopic.topic]}15`,
-                  }}
-                >
-                  <hotTopicConfig.icon className="h-3 w-3" />
-                  {hotTopicConfig.name}
-                </span>
-                <span className="text-xs text-grey-500">
-                  {hotTopic.articleCount} Artikel
-                </span>
-                {hotTopicEmotion && (
-                  <span className="text-xs text-grey-400">· {hotTopicEmotion.name} dominiert</span>
-                )}
-                <button
-                  onClick={() => onTopicClick(hotTopic.topic)}
-                  className="ml-auto text-xs text-primary-600 hover:underline border-none bg-transparent cursor-pointer flex items-center gap-0.5"
-                >
-                  Alle Artikel <ArrowRight className="h-3 w-3" />
-                </button>
-              </div>
-            </div>
-
-            {/* News ticker + Party position */}
-            <HotTopicContent
-              articles={hotTopic.topArticles}
-              keyword={topKeyword}
-            />
-
-            {/* AI Briefing — embedded in Hot Topic */}
-            {briefing?.briefing ? (
-              <div className="mt-md pt-md border-t border-grey-100 dark:border-grey-800">
-                <div className="flex items-center gap-xs mb-sm">
-                  <Sparkles className="h-3.5 w-3.5 text-primary-500" />
-                  <span className="text-xs font-semibold text-grey-500 uppercase tracking-wide">
-                    KI-Einordnung
-                  </span>
-                  {briefing.generatedAt && (
-                    <span className="text-[10px] text-grey-400">
-                      · {new Date(briefing.generatedAt).toLocaleString('de-DE', {
-                        day: 'numeric',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
+      {hotTopic &&
+        hotTopicConfig &&
+        (() => {
+          const topKeyword = snapshot?.keywords?.[0]?.keyword;
+          return (
+            <section className="mb-2xl">
+              <div className="rounded-xl border border-grey-200 dark:border-grey-700 p-lg bg-background">
+                {/* Big keyword + topic badge */}
+                <div className="mb-md">
+                  {topKeyword && (
+                    <h2 className="flex items-center gap-sm text-3xl sm:text-4xl font-black text-foreground-heading m-0 mb-xs capitalize">
+                      <Flame className="h-7 w-7 text-orange-500 shrink-0" />
+                      {topKeyword}
+                    </h2>
                   )}
+                  <div className="flex items-center gap-sm flex-wrap">
+                    <span
+                      className="inline-flex items-center gap-xs text-xs font-medium px-2 py-0.5 rounded-full"
+                      style={{
+                        color: TOPIC_COLORS[hotTopic.topic],
+                        backgroundColor: `${TOPIC_COLORS[hotTopic.topic]}15`,
+                      }}
+                    >
+                      <hotTopicConfig.icon className="h-3 w-3" />
+                      {hotTopicConfig.name}
+                    </span>
+                    <span className="text-xs text-grey-500">{hotTopic.articleCount} Artikel</span>
+                    {hotTopicEmotion && (
+                      <span className="text-xs text-grey-400">
+                        · {hotTopicEmotion.name} dominiert
+                      </span>
+                    )}
+                    <button
+                      onClick={() => onTopicClick(hotTopic.topic)}
+                      className="ml-auto text-xs text-primary-600 hover:underline border-none bg-transparent cursor-pointer flex items-center gap-0.5"
+                    >
+                      Alle Artikel <ArrowRight className="h-3 w-3" />
+                    </button>
+                  </div>
                 </div>
-                <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-foreground leading-relaxed">
-                  <Markdown>{briefing.briefing}</Markdown>
-                </div>
-              </div>
-            ) : briefingLoading ? (
-              <div className="mt-md pt-md border-t border-grey-100 dark:border-grey-800 space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-[90%]" />
-                <Skeleton className="h-4 w-[80%]" />
-              </div>
-            ) : null}
 
-            {/* AI mood summary */}
-            {stimmung?.moodSummary && (
-              <p className="mt-sm text-xs text-foreground/70 italic">{stimmung.moodSummary}</p>
-            )}
-          </div>
-        </section>
-        );
-      })()}
+                {/* News ticker + Party position */}
+                <HotTopicContent
+                  articles={hotTopic.topArticles}
+                  keyword={topKeyword}
+                  locale={locale}
+                />
+
+                {/* AI Briefing — embedded in Hot Topic */}
+                {briefing?.briefing ? (
+                  <div className="mt-md pt-md border-t border-grey-100 dark:border-grey-800">
+                    <div className="flex items-center gap-xs mb-sm">
+                      <Sparkles className="h-3.5 w-3.5 text-primary-500" />
+                      <span className="text-xs font-semibold text-grey-500 uppercase tracking-wide">
+                        KI-Einordnung
+                      </span>
+                      {briefing.generatedAt && (
+                        <span className="text-[10px] text-grey-400">
+                          ·{' '}
+                          {new Date(briefing.generatedAt).toLocaleString('de-DE', {
+                            day: 'numeric',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      )}
+                    </div>
+                    <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-foreground leading-relaxed">
+                      <Markdown>{briefing.briefing}</Markdown>
+                    </div>
+                  </div>
+                ) : briefingLoading ? (
+                  <div className="mt-md pt-md border-t border-grey-100 dark:border-grey-800 space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-[90%]" />
+                    <Skeleton className="h-4 w-[80%]" />
+                  </div>
+                ) : null}
+
+                {/* AI mood summary */}
+                {stimmung?.moodSummary && (
+                  <p className="mt-sm text-xs text-foreground/70 italic">{stimmung.moodSummary}</p>
+                )}
+              </div>
+            </section>
+          );
+        })()}
 
       {/* Section 2: Tweet Suggestions — always show 3 slots */}
       <section className="mb-2xl">
@@ -523,7 +616,7 @@ export function MonitorOverview({ locale, onTopicClick, onNavigateTab }: Monitor
 
       {/* Section 5: Sonntagsfrage */}
       <section className="mb-2xl">
-        <UmfragenView />
+        <UmfragenView locale={locale} />
       </section>
 
       {/* Section 6: Quick Links */}
