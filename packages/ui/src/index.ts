@@ -149,6 +149,12 @@ export { CollapsibleSection, type CollapsibleSectionProps } from './components/c
 export { ProgressBar, progressBarVariants, type ProgressBarProps } from './components/progress-bar';
 export { WordCloud, type WordCloudItem, type WordCloudProps } from './components/word-cloud';
 export { MoodBar, getMoodLabel, type MoodBarProps } from './components/mood-bar';
+export {
+  MultiStepForm,
+  type MultiStepFormProps,
+  type StepProps,
+} from './components/multi-step-form';
+export { SelectCard, type SelectCardProps } from './components/select-card';
 export { Toaster } from './components/sonner';
 export {
   NotificationBell,

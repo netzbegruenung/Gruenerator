@@ -85,3 +85,55 @@ export async function touchThread(threadId: string): Promise<void> {
     threadId,
   ]);
 }
+
+export interface ThreadSettings {
+  custom_system_prompt: string | null;
+  custom_enabled_tools: Record<string, boolean> | null;
+}
+
+export async function getThreadSettings(threadId: string): Promise<ThreadSettings | null> {
+  const postgres = getPostgresInstance();
+  const result = await postgres.query(
+    `SELECT custom_system_prompt, custom_enabled_tools FROM chat_threads WHERE id = $1`,
+    [threadId]
+  );
+  if (!result[0]) return null;
+  return {
+    custom_system_prompt: (result[0].custom_system_prompt as string) || null,
+    custom_enabled_tools: (result[0].custom_enabled_tools as Record<string, boolean>) || null,
+  };
+}
+
+export async function updateThreadSettings(
+  threadId: string,
+  userId: string,
+  settings: {
+    customSystemPrompt?: string | null;
+    customEnabledTools?: Record<string, boolean> | null;
+  }
+): Promise<boolean> {
+  const postgres = getPostgresInstance();
+  const setClauses: string[] = ['updated_at = CURRENT_TIMESTAMP'];
+  const params: unknown[] = [];
+  let paramIdx = 1;
+
+  if (settings.customSystemPrompt !== undefined) {
+    setClauses.push(`custom_system_prompt = $${paramIdx}`);
+    params.push(settings.customSystemPrompt);
+    paramIdx++;
+  }
+
+  if (settings.customEnabledTools !== undefined) {
+    setClauses.push(`custom_enabled_tools = $${paramIdx}`);
+    params.push(settings.customEnabledTools ? JSON.stringify(settings.customEnabledTools) : null);
+    paramIdx++;
+  }
+
+  params.push(threadId, userId);
+
+  const result = await postgres.query(
+    `UPDATE chat_threads SET ${setClauses.join(', ')} WHERE id = $${paramIdx} AND user_id = $${paramIdx + 1} RETURNING id`,
+    params
+  );
+  return (result as unknown[]).length > 0;
+}

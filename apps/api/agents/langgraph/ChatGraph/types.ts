@@ -152,6 +152,7 @@ export interface ChatGraphInput {
   boardIds?: string[];
   docMentionIds?: string[];
   userLocale?: UserLocale;
+  customSystemPrompt?: string;
 }
 
 /**
@@ -195,6 +196,9 @@ export interface ChatGraphState {
   // Collaborative document context (from @doc mentions)
   docMentionIds: string[];
   documentMentionContext: string | null;
+
+  // Custom system prompt (replaces entire agent system prompt when set)
+  customSystemPrompt: string | null;
 
   // Memory context (from mem0 cross-thread memory)
   memoryContext: string | null;

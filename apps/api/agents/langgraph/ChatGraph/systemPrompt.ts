@@ -26,6 +26,7 @@ export interface SystemPromptContext {
   userInstructions?: string;
   conversationSummary?: string;
   userLocale?: string;
+  customSystemPrompt?: string;
 }
 
 /**

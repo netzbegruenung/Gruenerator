@@ -433,6 +433,12 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
     year: 'numeric',
   });
 
+  // Custom system prompt: replaces the entire agent prompt when set
+  if (state.customSystemPrompt) {
+    return `${state.customSystemPrompt}
+Heutiges Datum: ${today}${localeContext}${memoryContextFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${attachmentContext}${summaryContextFormatted}${searchContext}${hasSources ? `\n${citationInstruction}` : ''}`;
+  }
+
   // Use a neutral, non-partisan system role for document summaries
   const NEUTRAL_SUMMARY_ROLE =
     'Du bist ein hilfreicher Assistent, der Dokumente objektiv und neutral zusammenfasst. ' +

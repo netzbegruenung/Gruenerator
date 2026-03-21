@@ -12,9 +12,10 @@ interface SidebarProps {
   onToggle: () => void;
   userId?: string;
   onLogout?: () => void;
+  onNavigate?: (path: string) => void;
 }
 
-export function ChatSidebar({ isOpen, onToggle, userId, onLogout }: SidebarProps) {
+export function ChatSidebar({ isOpen, onToggle, userId, onLogout, onNavigate }: SidebarProps) {
   const { theme, setTheme } = useTheme();
 
   return (

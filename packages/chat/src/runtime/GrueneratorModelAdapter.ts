@@ -42,6 +42,8 @@ export interface GrueneratorAdapterConfig {
   selectedNotebookId?: string;
   threadMode?: ThreadMode;
   searchMode?: SearchMode;
+  customSystemPrompt?: string | null;
+  customEnabledTools?: Record<string, boolean> | null;
 }
 
 export interface GrueneratorAdapterCallbacks {
@@ -844,7 +846,9 @@ export function createGrueneratorModelAdapter(
           messages: formattedMessages,
           agentId: effectiveAgentId,
           threadId: config.threadId,
-          enabledTools: config.enabledTools,
+          enabledTools: config.customEnabledTools
+            ? { ...config.enabledTools, ...config.customEnabledTools }
+            : config.enabledTools,
           modelId: config.modelId,
           attachments: extractedAttachments.length > 0 ? extractedAttachments : undefined,
           notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
@@ -856,6 +860,7 @@ export function createGrueneratorModelAdapter(
           documentChatIds: documentChatIds.length > 0 ? documentChatIds : undefined,
           documentChatMode: hasDocumentChat || documentChatIds.length > 0 || undefined,
           defaultNotebookId: config.selectedNotebookId || undefined,
+          customSystemPrompt: config.customSystemPrompt || undefined,
         };
       }
 

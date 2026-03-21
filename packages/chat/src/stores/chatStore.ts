@@ -87,6 +87,11 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
   },
 ];
 
+interface ThreadSettings {
+  customSystemPrompt: string | null;
+  customEnabledTools: Record<string, boolean> | null;
+}
+
 interface AgentState {
   selectedAgentId: string | null;
   selectedProvider: Provider;
@@ -104,6 +109,8 @@ interface AgentState {
   chatViewMode: 'overview' | 'thread';
   threadMode: ThreadMode;
   searchMode: SearchMode;
+  customSystemPrompt: string | null;
+  customEnabledTools: Record<string, boolean> | null;
   setSelectedAgent: (agentId: string | null) => void;
   setSelectedProvider: (provider: Provider) => void;
   setSelectedModel: (model: ModelId) => void;
@@ -121,6 +128,10 @@ interface AgentState {
   loadCompactionState: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   triggerCompaction: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   incrementMessageCount: () => void;
+  setCustomSystemPrompt: (prompt: string | null) => void;
+  setCustomEnabledTools: (tools: Record<string, boolean> | null) => void;
+  loadThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
+  saveThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
 }
 
 const DEFAULT_ENABLED_TOOLS: Record<ToolKey, boolean> = {
@@ -155,6 +166,8 @@ export const useAgentStore = create<AgentState>()(
       chatViewMode: 'overview' as const,
       threadMode: 'chat' as ThreadMode,
       searchMode: 'web' as SearchMode,
+      customSystemPrompt: null,
+      customEnabledTools: null,
 
       setSelectedAgent: (agentId) => set({ selectedAgentId: agentId }),
 
@@ -173,6 +186,8 @@ export const useAgentStore = create<AgentState>()(
           compactionState: { ...DEFAULT_COMPACTION_STATE },
           messageCount: 0,
           needsCompaction: false,
+          customSystemPrompt: null,
+          customEnabledTools: null,
         }),
 
       toggleTool: (tool) =>
@@ -255,6 +270,40 @@ export const useAgentStore = create<AgentState>()(
           messageCount: state.messageCount + 1,
           needsCompaction: state.messageCount + 1 >= 50 && !state.compactionState.summary,
         })),
+
+      setCustomSystemPrompt: (prompt) => set({ customSystemPrompt: prompt }),
+
+      setCustomEnabledTools: (tools) => set({ customEnabledTools: tools }),
+
+      loadThreadSettings: async (threadId: string, apiClient: ChatApiClient) => {
+        try {
+          const response = await apiClient.get<ThreadSettings>(
+            `/api/chat-service/threads/${threadId}/settings`
+          );
+          set({
+            customSystemPrompt: response.customSystemPrompt,
+            customEnabledTools: response.customEnabledTools,
+          });
+        } catch (error) {
+          console.error('Failed to load thread settings:', error);
+          set({ customSystemPrompt: null, customEnabledTools: null });
+        }
+      },
+
+      saveThreadSettings: async (threadId: string, apiClient: ChatApiClient) => {
+        const state = useAgentStore.getState();
+        try {
+          await apiClient.patch<{ success: boolean }>(
+            `/api/chat-service/threads/${threadId}/settings`,
+            {
+              customSystemPrompt: state.customSystemPrompt,
+              customEnabledTools: state.customEnabledTools,
+            }
+          );
+        } catch (error) {
+          console.error('Failed to save thread settings:', error);
+        }
+      },
     }),
     {
       name: 'gruenerator-chat-store',

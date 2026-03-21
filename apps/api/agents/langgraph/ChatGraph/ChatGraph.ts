@@ -121,6 +121,11 @@ const ChatStateAnnotation = Annotation.Root({
     reducer: (x, y) => y ?? x,
   }),
 
+  // Custom system prompt (replaces entire agent system prompt when set)
+  customSystemPrompt: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
+  }),
+
   // Memory context (from mem0 cross-thread memory)
   memoryContext: Annotation<string | null>({
     reducer: (x, y) => y ?? x,
@@ -477,6 +482,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     // Collaborative document context (from @doc mentions, populated by controller)
     docMentionIds: input.docMentionIds || [],
     documentMentionContext: null,
+
+    // Custom system prompt (from thread or user settings)
+    customSystemPrompt: input.customSystemPrompt || null,
 
     // Memory context (will be set by controller before graph execution)
     memoryContext: null,

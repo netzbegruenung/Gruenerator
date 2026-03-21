@@ -125,6 +125,15 @@ export function ChatOverview({
         >
           Agenten entdecken
         </button>
+        <button
+          onClick={() => onNavigate?.('/chat/settings')}
+          className={cn(
+            'rounded-full border border-border bg-background-alt px-4 py-2 text-sm text-foreground transition-all',
+            'hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm'
+          )}
+        >
+          Eigener Chat
+        </button>
       </div>
 
       {notebooks && notebooks.length > 0 && (
