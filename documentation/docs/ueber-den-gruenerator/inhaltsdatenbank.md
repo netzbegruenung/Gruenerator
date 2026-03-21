@@ -6,18 +6,18 @@ description: Aktuelle Statistiken über die indexierten Inhalte im Grünerator
 
 # Inhaltsdatenbank
 
-> Zuletzt aktualisiert: **17.03.2026, 20:11**
+> Zuletzt aktualisiert: **21.03.2026, 22:41**
 
 ## Übersicht
 
 Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei.
-Insgesamt sind **39.811 Vektoren** in der Datenbank gespeichert.
+Insgesamt sind **41.220 Vektoren** in der Datenbank gespeichert.
 
 ## Sammlungen
 
 | Sammlung               |   Vektoren |
 | ---------------------- | ---------: |
-| Landesverbände         |     20.058 |
+| Landesverbände         |     21.467 |
 | KommunalWiki           |      7.115 |
 | Bundestag              |      4.650 |
 | Böll-Stiftung          |      2.788 |
@@ -28,7 +28,7 @@ Insgesamt sind **39.811 Vektoren** in der Datenbank gespeichert.
 | Satzungen              |        712 |
 | Social-Media-Beispiele |        694 |
 | Grünblog               |        288 |
-| **Gesamt**             | **39.811** |
+| **Gesamt**             | **41.220** |
 
 ## Landesverbände
 
