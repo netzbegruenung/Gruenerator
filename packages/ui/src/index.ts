@@ -1,4 +1,5 @@
 export { AnimatedCircularProgressBar } from './components/animated-circular-progress-bar';
+export { ImageComparisonSlider } from './components/ui/image-comparison-slider-horizontal';
 export { cn } from './lib/cn';
 export { useIsMobile } from './hooks/use-mobile';
 export { useAutoAdvance } from './hooks/use-auto-advance';
