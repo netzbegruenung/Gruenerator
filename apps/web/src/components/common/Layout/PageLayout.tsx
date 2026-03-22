@@ -1,8 +1,4 @@
 import { type JSX, useEffect, Suspense, lazy, useState, type ReactNode, useCallback } from 'react';
-
-const NotificationCenter = lazy(
-  () => import('../../../features/notifications/components/NotificationCenter')
-);
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { GlobalChatProvider } from '../../../providers/GlobalChatProvider';
@@ -101,9 +97,6 @@ const PageLayout = ({
             <SidebarToggle />
           </div>
           <div className="pointer-events-auto flex items-center gap-1">
-            <Suspense fallback={null}>
-              <NotificationCenter />
-            </Suspense>
             <ProfileButton />
           </div>
         </header>

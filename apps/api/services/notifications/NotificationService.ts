@@ -73,6 +73,17 @@ export async function markAllAsRead(userId: string): Promise<void> {
   );
 }
 
+export async function dismissNotification(notificationId: string, userId: string): Promise<void> {
+  await db.query('DELETE FROM notifications WHERE id = $1 AND user_id = $2', [
+    notificationId,
+    userId,
+  ]);
+}
+
+export async function dismissAllNotifications(userId: string): Promise<void> {
+  await db.query('DELETE FROM notifications WHERE user_id = $1', [userId]);
+}
+
 export async function deleteOldNotifications(daysOld: number = 90): Promise<number> {
   const rows = (await db.query(
     `DELETE FROM notifications WHERE created_at < CURRENT_TIMESTAMP - make_interval(days => $1) RETURNING id`,

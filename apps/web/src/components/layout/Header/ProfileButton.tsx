@@ -1,20 +1,32 @@
 import {
+  Badge,
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
 } from '@gruenerator/ui';
-import { FaSignOutAlt, FaUserCircle } from 'react-icons/fa';
+import { LogOut } from 'lucide-react';
+import { useCallback } from 'react';
+import { FaCloud, FaFolder, FaUserCircle, FaUsers } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
-import ProfileMenu from '../../../features/auth/components/profile/ProfileMenu';
 import { useProfile, useCustomGeneratorsData } from '../../../features/auth/hooks/useProfileData';
 import { getAvatarDisplayProps } from '../../../features/auth/services/profileApiService';
 import { useGroups } from '../../../features/groups/hooks/useGroups';
+import NotificationList from '../../../features/notifications/components/NotificationList';
+import {
+  useUnreadCount,
+  useMarkAllAsRead,
+} from '../../../features/notifications/hooks/useNotifications';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
+import { useNotificationSSE } from '../../../hooks/useNotificationSSE';
+import { useNotificationStore } from '../../../stores/notificationStore';
+
+import type { IconType } from 'react-icons';
 
 import { cn } from '@/utils/cn';
 
@@ -23,28 +35,59 @@ interface Profile {
   avatar_robot_id?: number;
 }
 
+interface NavItem {
+  key: string;
+  label: string;
+  path: string;
+  icon: IconType;
+  betaFeature?: string;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { key: 'gruppen', label: 'Gruppen', path: '/gruppen', icon: FaUsers, betaFeature: 'groups' },
+  { key: 'inhalte', label: 'Dateien', path: '/profile/inhalte', icon: FaFolder },
+  { key: 'wolke', label: 'Wolke', path: '/profile/wolke', icon: FaCloud },
+  { key: 'einstellungen', label: 'Einstellungen', path: '/profile', icon: HiCog },
+];
+
 const ProfileButton = () => {
   const { user, loading, logout, isLoggingOut, isInitialLoad, setLoginIntent } = useOptimizedAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { shouldShowTab } = useBetaFeatures();
 
   const { data: profile } = useProfile(user?.id) as { data: Profile | undefined };
-
   useCustomGeneratorsData({ enabled: !!user?.id });
-
   const { userGroups = [] } = useGroups({ isActive: !!user?.id });
 
   const displayName = profile?.display_name || '';
   const avatarRobotId = profile?.avatar_robot_id ?? 1;
   const isProfileLoading = isInitialLoad;
 
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
+
+  useNotificationSSE(
+    useCallback((data: { title?: string; body?: string }) => {
+      if (data.title) {
+        import('sonner').then(({ toast }) =>
+          toast(data.title, { description: data.body || undefined })
+        );
+      }
+    }, [])
+  );
+  useUnreadCount();
+  const markAllAsRead = useMarkAllAsRead();
+
+  const filteredNavItems = NAV_ITEMS.filter((item) =>
+    item.betaFeature ? shouldShowTab(item.betaFeature) : true
+  );
+
   const getPossessiveForm = (name: string | undefined): string => {
     if (!name) return 'Dein';
-
     if (/[sßzx]$/.test(name) || name.endsWith('ss') || name.endsWith('tz') || name.endsWith('ce')) {
       return `${name}'`;
-    } else {
-      return `${name}'s`;
     }
+    return `${name}'s`;
   };
 
   const avatarProps = getAvatarDisplayProps({
@@ -110,65 +153,104 @@ const ProfileButton = () => {
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu
+      onOpenChange={(open) => {
+        if (open && unreadCount > 0) markAllAsRead.mutate();
+      }}
+    >
       <DropdownMenuTrigger asChild>
         <button
-          className="flex items-center justify-center size-[38px] rounded-full border border-grey-200 dark:border-grey-700 bg-background hover:border-primary-500 hover:bg-hover-alt transition-colors overflow-hidden"
+          className="relative flex items-center justify-center size-[38px] rounded-full border border-grey-200 dark:border-grey-700 bg-background hover:border-primary-500 hover:bg-hover-alt transition-colors"
           aria-label="Profil-Menü öffnen"
         >
           {renderAvatar('sm')}
+          {unreadCount > 0 && (
+            <Badge
+              variant="destructive"
+              className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full p-0 text-[9px] font-bold"
+            >
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </Badge>
+          )}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[280px] p-0">
-        <DropdownMenuLabel className="p-0 font-normal">
-          <div className="flex items-center gap-md p-md bg-background-alt border-b border-grey-200 dark:border-grey-700">
-            <Link
-              to="/profile"
-              className="shrink-0 rounded-full transition-transform hover:scale-[1.08]"
-            >
-              {renderAvatar('lg')}
-            </Link>
-            <div className="min-w-0 text-left">
-              <div className="text-[1.2rem] font-semibold text-foreground-heading truncate">
-                {displayName ? getPossessiveForm(displayName.split(' ')[0]) : 'Dein'} Grünerator
-              </div>
-              <div className="text-[0.85rem] text-foreground opacity-80 truncate">
-                {user?.email || ''}
-              </div>
+      <DropdownMenuContent align="end" className="w-[320px] p-0" sideOffset={8}>
+        {/* User info header */}
+        <div className="flex items-center gap-md p-md bg-background-alt border-b border-grey-200 dark:border-grey-700">
+          <Link
+            to="/profile"
+            className="shrink-0 rounded-full transition-transform hover:scale-[1.08]"
+          >
+            {renderAvatar('lg')}
+          </Link>
+          <div className="min-w-0 text-left">
+            <div className="text-[1.2rem] font-semibold text-foreground-heading truncate">
+              {displayName ? getPossessiveForm(displayName.split(' ')[0]) : 'Dein'} Grünerator
+            </div>
+            <div className="text-[0.85rem] text-foreground opacity-80 truncate">
+              {user?.email || ''}
             </div>
           </div>
-        </DropdownMenuLabel>
-        <div className="py-1">
-          <ProfileMenu variant="dropdown" groups={userGroups} />
         </div>
-        <DropdownMenuSeparator />
-        <div className="flex items-center justify-between p-1">
-          <DropdownMenuItem
-            className="flex-1 gap-sm py-2 cursor-pointer"
-            onSelect={() => void navigate('/profile')}
-          >
-            <HiCog className="text-base opacity-80" />
-            <span>Einstellungen</span>
-          </DropdownMenuItem>
-          <button
-            className={cn(
-              'flex items-center justify-center size-9 rounded-full transition-colors',
-              isLoggingOut
-                ? 'opacity-50 cursor-not-allowed text-foreground'
-                : 'text-error cursor-pointer hover:bg-error/10'
-            )}
-            disabled={isLoggingOut}
-            onClick={() => {
-              if (!isLoggingOut) {
-                void logout();
-              }
-            }}
-            aria-label={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
-            title={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
-          >
-            <FaSignOutAlt />
-          </button>
+
+        {/* Icon row navigation */}
+        <div className="flex items-center justify-center gap-xs px-md py-sm">
+          {filteredNavItems.map((item) => {
+            const isActive =
+              item.key === 'einstellungen'
+                ? location.pathname === '/profile'
+                : location.pathname.startsWith(item.path);
+            return (
+              <Tooltip key={item.key}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => navigate(item.path)}
+                    className={cn(
+                      'flex items-center justify-center size-9 rounded-lg transition-colors',
+                      isActive
+                        ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400'
+                        : 'text-grey-500 hover:bg-background-alt hover:text-foreground'
+                    )}
+                    aria-label={item.label}
+                  >
+                    <item.icon className="size-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">
+                  {item.label}
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+          <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-xxs" />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isLoggingOut) void logout();
+                }}
+                disabled={isLoggingOut}
+                className={cn(
+                  'flex items-center justify-center size-9 rounded-lg transition-colors',
+                  isLoggingOut
+                    ? 'opacity-50 cursor-not-allowed text-grey-400'
+                    : 'text-grey-500 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600'
+                )}
+                aria-label={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
+              >
+                <LogOut className="size-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs">
+              {isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
+            </TooltipContent>
+          </Tooltip>
         </div>
+
+        {/* Notifications */}
+        <NotificationList />
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -5,6 +5,8 @@ import {
   getUnreadCount,
   markAsRead,
   markAllAsRead,
+  dismissNotification,
+  dismissAllNotifications,
   subscribeToUserNotifications,
   unsubscribeFromUserNotifications,
 } from '../../services/notifications/index.js';
@@ -118,6 +120,39 @@ router.patch('/read-all', async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     log.error('Failed to mark all as read', { error: error.message });
     return res.status(500).json({ error: 'Failed to mark all as read' });
+  }
+});
+
+/**
+ * DELETE /api/notifications/:id — dismiss a single notification
+ */
+router.delete('/:id', async (req: AuthRequest<{ id: string }>, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { id } = req.params;
+    await dismissNotification(id, userId);
+    return res.json({ success: true });
+  } catch (error: any) {
+    log.error('Failed to dismiss notification', { error: error.message });
+    return res.status(500).json({ error: 'Failed to dismiss notification' });
+  }
+});
+
+/**
+ * DELETE /api/notifications — dismiss all notifications
+ */
+router.delete('/', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    await dismissAllNotifications(userId);
+    return res.json({ success: true });
+  } catch (error: any) {
+    log.error('Failed to dismiss all notifications', { error: error.message });
+    return res.status(500).json({ error: 'Failed to dismiss all' });
   }
 });
 

@@ -4,8 +4,12 @@ export {
   getUnreadCount,
   markAsRead,
   markAllAsRead,
+  dismissNotification,
+  dismissAllNotifications,
   deleteOldNotifications,
 } from './NotificationService.js';
+
+export { notifyGroupMembers } from './groupNotifications.js';
 
 export {
   subscribeToUserNotifications,

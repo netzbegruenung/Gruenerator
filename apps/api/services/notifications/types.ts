@@ -1,8 +1,16 @@
+// Display properties (icons, labels, images) are configured in the frontend:
+// apps/web/src/features/notifications/notificationConfig.ts
 export type NotificationType =
   | 'document_shared'
-  | 'document_edited'
+  | 'document_permission_changed'
+  | 'document_access_revoked'
   | 'board_updates'
-  | 'group_activity';
+  | 'group_activity'
+  | 'group_member_joined'
+  | 'group_role_changed'
+  | 'group_content_shared'
+  | 'group_deleted'
+  | 'wolke_setup';
 
 export interface Notification {
   id: string;
