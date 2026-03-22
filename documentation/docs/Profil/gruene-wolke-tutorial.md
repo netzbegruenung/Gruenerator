@@ -4,7 +4,7 @@ sidebar_position: 2
 
 # Wolke einbinden
 
-Die Grüne Wolke ist unser sicherer Cloud-Speicher für alle grünen Organisationen. Mit der richtigen Konfiguration kannst du deine Dateien nahtlos mit dem Grünerator teilen und automatisch Dokumente hochladen lassen. Diese Anleitung zeigt dir, wie du einen Share-Link mit den richtigen Berechtigungen erstellst.
+Die Grüne Wolke ist unser sicherer Cloud-Speicher für alle grünen Organisationen. Mit der richtigen Konfiguration kannst du deine Dateien nahtlos mit dem Grünerator teilen und automatisch Dokumente hochladen lassen. Diese Anleitung zeigt dir, wie du einen öffentlichen Link mit den richtigen Berechtigungen erstellst.
 
 ## Was du benötigst
 
@@ -22,47 +22,29 @@ Der Grünerator benötigt spezielle Berechtigungen, um automatisch generierte Do
 
 ![Grüne Wolke Hauptinterface](/assets/images/wolke-tutorial/step1.png)
 
-### Schritt 2: Teilen-Dialog öffnen
+### Schritt 2: Öffentlichen Link erstellen
 
-Klicke im Teilen-Tab auf "Link teilen", um die Freigabe-Optionen zu öffnen. Die Teilen-Option befindet sich in der rechten Seitenleiste, wenn ein Ordner ausgewählt ist.
+Wähle den Ordner aus und klicke rechts auf „Teilen". Klicke dann unten auf **„Öffentlichen Link erstellen"**, um einen Freigabe-Link zu generieren.
 
 ![Ordnerauswahl in der Grünen Wolke](/assets/images/wolke-tutorial/step2.png)
 
-### Schritt 3: Freigabe aktivieren
+### Schritt 3: Berechtigungen konfigurieren
 
-Es erscheint eine Meldung, dass du die benötigten Informationen eingeben musst. Aktiviere "Ablauf des Links aktivieren" falls gewünscht. Du kannst optional ein Ablaufdatum für den Link festlegen.
+Nachdem der Link erstellt wurde, stelle sicher, dass unter „Link teilen" die Berechtigung auf **„Kann bearbeiten"** steht. Diese Berechtigung ist zwingend erforderlich, damit der Grünerator Dateien hochladen kann.
 
-![Teilen-Dialog öffnen](/assets/images/wolke-tutorial/step3.png)
+![Link teilen: Kann bearbeiten auswählen](/assets/images/wolke-tutorial/permissions.png)
 
-### Schritt 4: Freigabe erstellen
+### Schritt 4: Link kopieren und verwenden
 
-Klicke auf "Freigabe erstellen", um den Share-Link zu generieren. Nach diesem Schritt wird automatisch ein öffentlicher Link erstellt.
-
-![Freigabe-Einstellungen konfigurieren](/assets/images/wolke-tutorial/step4.png)
-
-### Schritt 5: Berechtigungen konfigurieren
-
-Nachdem der Link erstellt wurde, klicke auf das Dropdown-Menü neben "Link teilen" und wähle "Kann bearbeiten". Diese Berechtigung ist zwingend erforderlich, damit der Grünerator Dateien hochladen kann.
-
-![Freigabe erstellen](/assets/images/wolke-tutorial/step5.png)
-
-Stelle sicher, dass die Berechtigungen richtig eingestellt sind:
-
-![Berechtigungen konfigurieren](/assets/images/wolke-tutorial/step6.png)
-
-### Schritt 6: Link kopieren und verwenden
-
-Der Share-Link wurde erstellt! Kopiere den Link und füge ihn in das Grünerator-Setup-Fenster ein. Der Link sollte etwa so aussehen: https://wolke.netzbegruenung.de/s/AbCdEfGhIj
-
-![Fertiger Share-Link](/assets/images/wolke-tutorial/step7.png)
+Der öffentliche Link wurde erstellt! Kopiere den Link und füge ihn im Grünerator unter Profil → Wolke ein. Der Link sollte etwa so aussehen: https://wolke.netzbegruenung.de/s/AbCdEfGhIj
 
 ## Wichtige Hinweise
 
-Die Berechtigung "Kann bearbeiten" ist zwingend erforderlich. Ein eigener Ordner wie "Grünerator" hilft bei der Organisation. Der Link funktioniert auch ohne Ablaufdatum. Du kannst jederzeit die Berechtigungen ändern oder den Link deaktivieren.
+Die Berechtigung „Kann bearbeiten" ist zwingend erforderlich. Ein eigener Ordner wie „Grünerator" hilft bei der Organisation. Der Link funktioniert auch ohne Ablaufdatum. Du kannst jederzeit die Berechtigungen ändern oder den Link deaktivieren.
 
 ## Häufige Probleme und Lösungen
 
-Falls der Grünerator Probleme beim Hochladen hat, überprüfe zunächst die Berechtigungen deines Share-Links. Die häufigste Ursache ist eine fehlende "Kann bearbeiten"-Berechtigung.
+Falls der Grünerator Probleme beim Hochladen hat, überprüfe zunächst die Berechtigungen deines Links. Die häufigste Ursache ist eine fehlende „Kann bearbeiten"-Berechtigung.
 
 :::tip Bereit für die Einrichtung?
 Öffne die [Grüne Wolke](https://wolke.netzbegruenung.de/) und folge der Anleitung Schritt für Schritt.

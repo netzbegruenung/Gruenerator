@@ -5,6 +5,7 @@ export type {
   WolkeFileItem,
   SyncStatus,
   ConnectionTestResult,
+  ConnectionErrorCode,
   ShareLinkValidationResult,
   ParsedShareLink,
 } from './types';

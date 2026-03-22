@@ -61,7 +61,8 @@ const WolkeAddForm = ({ scope, scopeId, onSuccess, onError }: WolkeAddFormProps)
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-md">
       <p className="text-base text-grey-600 dark:text-grey-300 m-0">
-        Erstelle in deiner Nextcloud einen Share-Link mit Schreibzugriff und füge ihn hier ein.{' '}
+        Erstelle in deiner Wolke einen Link mit der Berechtigung „Kann bearbeiten" und füge ihn hier
+        ein.{' '}
         <a
           href="https://doku.services.moritz-waechter.de/docs/Profil/gruene-wolke-tutorial"
           target="_blank"
@@ -77,7 +78,7 @@ const WolkeAddForm = ({ scope, scopeId, onSuccess, onError }: WolkeAddFormProps)
           type="url"
           value={url}
           onChange={(e) => handleUrlChange(e.target.value)}
-          placeholder="Nextcloud Share-Link einfügen..."
+          placeholder="Wolke-Link einfügen..."
           required
           disabled={addMutation.isPending}
           className={cn(INPUT_CLASS, isValidLink && 'border-primary-500')}
@@ -86,9 +87,7 @@ const WolkeAddForm = ({ scope, scopeId, onSuccess, onError }: WolkeAddFormProps)
           <span className="text-xs text-red-600 dark:text-red-400">{validationError}</span>
         )}
         {!isValidLink && !validationError && url.length > 0 && (
-          <span className="text-xs text-grey-400">
-            Der Link sollte mit /s/ beginnen (z.B. wolke.netzbegruenung.de/s/...)
-          </span>
+          <span className="text-xs text-grey-400">Das sieht nicht nach einem Wolke-Link aus</span>
         )}
       </div>
 

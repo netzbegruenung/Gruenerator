@@ -1,12 +1,14 @@
 import { useShareLinks } from '@gruenerator/wolke';
 import { motion } from 'motion/react';
-import { memo } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { FiCloud } from 'react-icons/fi';
 
 import AutoBackupSection from '../../../../../wolke/components/AutoBackupSection';
+import CloudButton from '../../../../../wolke/components/CloudButton';
 import CloudCard from '../../../../../wolke/components/CloudCard';
 import WolkeAddForm from '../../../../../wolke/components/WolkeAddForm';
 import WolkeConnectionCard from '../../../../../wolke/components/WolkeConnectionCard';
+import WolkeSetupWizard from '../../../../../wolke/components/WolkeSetupWizard';
 import './clouds.css';
 
 interface WolkeManagementViewProps {
@@ -107,6 +109,19 @@ BottomClouds.displayName = 'BottomClouds';
 const WolkeManagementView = memo(
   ({ onSuccessMessage, onErrorMessage }: WolkeManagementViewProps) => {
     const { data: shareLinks = [], isLoading } = useShareLinks();
+    const [showWizard, setShowWizard] = useState(false);
+    const [showManualForm, setShowManualForm] = useState(false);
+
+    const hasLinks = !isLoading && shareLinks.length > 0;
+
+    const handleWizardSuccess = useCallback(
+      (message: string) => {
+        setShowWizard(false);
+        setShowManualForm(false);
+        onSuccessMessage(message);
+      },
+      [onSuccessMessage]
+    );
 
     return (
       <motion.div
@@ -124,13 +139,15 @@ const WolkeManagementView = memo(
               <h2 className="text-xl font-semibold text-foreground-heading m-0">Wolke</h2>
             </div>
 
-            <WolkeAddForm onSuccess={onSuccessMessage} onError={onErrorMessage} />
+            {(hasLinks || showManualForm) && (
+              <WolkeAddForm onSuccess={onSuccessMessage} onError={onErrorMessage} />
+            )}
 
             {isLoading && (
               <p className="text-sm text-grey-400 text-center py-sm">Lade Verbindungen...</p>
             )}
 
-            {!isLoading && shareLinks.length > 0 && (
+            {hasLinks && (
               <>
                 <hr className="border-grey-200 dark:border-grey-700" />
                 <div className="flex flex-col gap-sm">
@@ -149,13 +166,28 @@ const WolkeManagementView = memo(
               </>
             )}
 
-            {!isLoading && shareLinks.length === 0 && (
-              <p className="text-sm text-grey-400 text-center py-md">
-                Füge einen Nextcloud Share-Link ein, um zu beginnen.
-              </p>
+            {!isLoading && shareLinks.length === 0 && !showManualForm && !showWizard && (
+              <div className="flex flex-col items-center gap-sm py-lg">
+                <CloudButton onClick={() => setShowWizard(true)} />
+                <button
+                  type="button"
+                  onClick={() => setShowManualForm(true)}
+                  className="text-xs text-grey-400 hover:text-foreground hover:underline transition-colors mt-sm"
+                >
+                  oder manuell einrichten
+                </button>
+              </div>
             )}
 
-            {!isLoading && shareLinks.length > 0 && (
+            {!isLoading && shareLinks.length === 0 && showWizard && (
+              <WolkeSetupWizard
+                onSuccess={handleWizardSuccess}
+                onError={onErrorMessage}
+                onCancel={() => setShowWizard(false)}
+              />
+            )}
+
+            {hasLinks && (
               <>
                 <hr className="border-grey-200 dark:border-grey-700" />
                 <AutoBackupSection />

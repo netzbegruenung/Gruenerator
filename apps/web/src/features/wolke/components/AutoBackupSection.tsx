@@ -1,6 +1,5 @@
-import { FiClock, FiFolder, FiPlus } from 'react-icons/fi';
-
 import { useWolkePreferencesStore, type BackupInterval } from '@gruenerator/wolke';
+import { FiClock, FiFolder, FiPlus } from 'react-icons/fi';
 
 import WolkeFolderBrowser from './WolkeFolderBrowser';
 
@@ -43,8 +42,8 @@ const AutoBackupSection = () => {
         </div>
         <p className="text-xs text-grey-500 dark:text-grey-300 leading-relaxed">
           Sichere deine Dokumente automatisch in der Wolke. Änderungen werden im gewählten Intervall
-          als DOCX-Datei in den gewählten Ordner exportiert — so hast du immer ein aktuelles
-          Backup in deiner Nextcloud.
+          als DOCX-Datei in den gewählten Ordner exportiert — so hast du immer ein aktuelles Backup
+          in deiner Wolke.
         </p>
       </div>
 
@@ -82,6 +81,22 @@ const AutoBackupSection = () => {
               )}
             </div>
             <div className="rounded-lg border border-grey-200 dark:border-grey-700 p-sm">
+              <div className="flex items-center gap-xs px-sm py-xs mb-xs">
+                <FiFolder className="w-3.5 h-3.5 text-grey-500" />
+                <span className="text-xs text-foreground">Hauptordner</span>
+                <button
+                  type="button"
+                  onClick={() => handleFolderSelect('', 'Hauptordner')}
+                  className={cn(
+                    'ml-auto shrink-0 px-xs py-0.5 rounded text-[0.65rem] font-medium transition-all',
+                    autoBackup.folderPath === ''
+                      ? 'bg-primary-500 text-white'
+                      : 'text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/30'
+                  )}
+                >
+                  {autoBackup.folderPath === '' ? 'Ausgewählt' : 'Auswählen'}
+                </button>
+              </div>
               <WolkeFolderBrowser onFolderSelect={handleFolderSelect} />
             </div>
           </div>
