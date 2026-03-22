@@ -1,9 +1,12 @@
-import apiClient from '../../../components/utils/apiClient';
 import {
   getRobotAvatarPath,
   validateRobotId,
   getRobotAvatarAlt,
-} from '../../groups/utils/avatarUtils';
+  shouldShowRobotAvatar,
+  getInitials,
+} from '@gruenerator/shared/avatar';
+
+import apiClient from '../../../components/utils/apiClient';
 
 export interface Profile {
   avatar_robot_id?: string | number;
@@ -726,41 +729,9 @@ export const profileApiService = {
 };
 
 // === AVATAR UTILITIES ===
-/**
- * Get initials from display name or email
- * @param {string} displayName - Full display name
- * @param {string} mail - Email address
- * @returns {string} Initials (2 characters)
- */
-export const getInitials = (displayName: string | undefined, mail: string | undefined): string => {
-  if (displayName && displayName.trim()) {
-    const nameParts = displayName.trim().split(/\s+/);
-    if (nameParts.length >= 2) {
-      return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
-    } else {
-      return displayName.substring(0, 2).toUpperCase();
-    }
-  } else if (mail) {
-    return mail.substring(0, 2).toUpperCase();
-  }
-  return 'U'; // Default fallback
-};
 
-/**
- * Determines whether to show a robot avatar or initials
- * @param {number|string} avatarRobotId - The robot avatar ID
- * @returns {boolean} True if robot avatar should be shown
- */
-export const shouldShowRobotAvatar = (avatarRobotId: unknown): boolean => {
-  const id = Number(avatarRobotId);
-  return !isNaN(id) && id >= 1 && id <= 9;
-};
+export { getInitials, shouldShowRobotAvatar };
 
-/**
- * Gets the avatar display properties (robot or initials)
- * @param {object} profile - User profile object
- * @returns {object} Avatar display properties
- */
 export const getAvatarDisplayProps = (profile: Profile | null): AvatarDisplay => {
   const { avatar_robot_id, display_name, email } = profile || {};
 
