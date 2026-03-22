@@ -221,8 +221,17 @@ class ProfileService {
    */
   async updateAvatar(userId: string, avatarRobotId: number): Promise<UserProfile> {
     try {
-      if (!avatarRobotId || avatarRobotId < 1 || avatarRobotId > 9) {
-        throw new Error('Avatar Robot ID must be between 1 and 9');
+      if (!avatarRobotId || avatarRobotId < 1 || avatarRobotId > 10) {
+        throw new Error('Avatar Robot ID must be between 1 and 10');
+      }
+
+      if (avatarRobotId === 10) {
+        const { NextcloudShareManager } =
+          await import('../../utils/integrations/nextcloud/shareManager.js');
+        const shareLinks = await NextcloudShareManager.getShareLinks(userId);
+        if (!shareLinks || shareLinks.length === 0) {
+          throw new Error('Avatar 10 (Wolki) requires an active Wolke connection');
+        }
       }
 
       const result = await this.updateProfile(userId, { avatar_robot_id: avatarRobotId });
