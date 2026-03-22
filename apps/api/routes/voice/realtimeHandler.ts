@@ -1,4 +1,3 @@
-// @ts-expect-error — package has no exports map; subpath resolves at runtime
 import { AudioEncoding, RealtimeTranscription } from '@mistralai/mistralai/extra/realtime';
 import { WebSocketServer, type WebSocket as WsWebSocket } from 'ws';
 
