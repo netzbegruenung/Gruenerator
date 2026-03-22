@@ -77,3 +77,11 @@ export function getMoodPosition(overall: Record<string, number>): number {
   if (total === 0) return 50;
   return (positive / total) * 100;
 }
+
+export const EMOTION_NAMES: Record<string, string> = Object.fromEntries(
+  Object.entries(EMOTION_CONFIG).map(([k, v]) => [k, v.name])
+);
+
+export const EMOTION_HUES: Record<string, string> = Object.fromEntries(
+  Object.entries(EMOTION_CONFIG).map(([k, v]) => [k, v.hue])
+);

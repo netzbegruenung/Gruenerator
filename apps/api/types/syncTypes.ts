@@ -4,6 +4,7 @@ export interface SourceGroupResult {
   stored: number;
   updated: number;
   skipped: number;
+  fetchErrors: number;
   errors: number;
   duration: number;
   status: 'success' | 'failed';
@@ -22,6 +23,7 @@ export interface SyncSummary {
     stored: number;
     updated: number;
     skipped: number;
+    fetchErrors: number;
     errors: number;
   };
   totalDuration: number;

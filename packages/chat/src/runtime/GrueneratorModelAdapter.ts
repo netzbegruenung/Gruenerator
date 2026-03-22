@@ -840,6 +840,28 @@ export function createGrueneratorModelAdapter(
           notebookId: config.selectedNotebookId || 'gruenerator-notebook',
           threadId: config.threadId,
         };
+      } else if (threadMode === 'eigener') {
+        // Eigener Chat mode: like chat but with custom prompt, no stale agentId
+        requestBody = {
+          messages: formattedMessages,
+          agentId: null,
+          threadId: config.threadId,
+          enabledTools: config.customEnabledTools
+            ? { ...config.enabledTools, ...config.customEnabledTools }
+            : config.enabledTools,
+          modelId: config.modelId,
+          attachments: extractedAttachments.length > 0 ? extractedAttachments : undefined,
+          notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
+          forcedTools: forcedTools.length > 0 ? forcedTools : undefined,
+          documentIds: documentIds.length > 0 ? documentIds : undefined,
+          textIds: textIds.length > 0 ? textIds : undefined,
+          boardIds: boardIds.length > 0 ? boardIds : undefined,
+          docMentionIds: docMentionIds.length > 0 ? docMentionIds : undefined,
+          documentChatIds: documentChatIds.length > 0 ? documentChatIds : undefined,
+          documentChatMode: hasDocumentChat || documentChatIds.length > 0 || undefined,
+          defaultNotebookId: config.selectedNotebookId || undefined,
+          customSystemPrompt: config.customSystemPrompt || undefined,
+        };
       } else {
         // Chat mode: full request with mentions, attachments, tools
         requestBody = {

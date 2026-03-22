@@ -112,7 +112,11 @@ export function ChatOverview({
         className={cn('w-full max-w-3xl shrink-0', '[&>div]:px-0', '[&>div>p.text-center]:hidden')}
       >
         <SwitchToThreadOnSend />
-        <GrueneratorComposer toolbarExtra={<ExampleSuggestions />} />
+        <GrueneratorComposer
+          toolbarExtra={<ExampleSuggestions />}
+          onNavigate={onNavigate}
+          firstName={firstName}
+        />
       </ThreadPrimitive.Root>
 
       <div className="flex w-full max-w-3xl flex-wrap gap-2 pt-4">

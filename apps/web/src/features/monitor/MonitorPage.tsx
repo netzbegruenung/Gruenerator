@@ -124,11 +124,7 @@ function MonitorPage() {
             {isLoading && tab !== 'overview' && <LoadingSection />}
 
             {tab === 'overview' && (
-              <MonitorOverview
-                locale={locale}
-                onTopicClick={setSelectedTopic}
-                onNavigateTab={setTab}
-              />
+              <MonitorOverview locale={locale} onTopicClick={setSelectedTopic} />
             )}
 
             {tab === 'stimmung' && <StimmungView locale={locale} />}

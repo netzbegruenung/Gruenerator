@@ -885,7 +885,11 @@ router.post('/stream', async (req, res) => {
     sse.end();
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    log.error('[ChatGraph] Controller error:', errorMessage);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    log.error(`[ChatGraph] Controller error: ${errorMessage}`);
+    if (errorStack) log.error(`[ChatGraph] Stack: ${errorStack}`);
+    if (!(error instanceof Error))
+      log.error(`[ChatGraph] Raw error: ${JSON.stringify(error)?.slice(0, 500)}`);
     if (!sse.isEnded()) {
       sse.send('error', { error: PROGRESS_MESSAGES.internalError });
       sse.end();
@@ -1052,7 +1056,9 @@ router.post('/resume', async (req, res) => {
     sse.end();
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    log.error('[ChatGraph:Resume] Controller error:', errorMessage);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    log.error(`[ChatGraph:Resume] Controller error: ${errorMessage}`);
+    if (errorStack) log.error(`[ChatGraph:Resume] Stack: ${errorStack}`);
     if (!sse.isEnded()) {
       sse.send('error', { error: PROGRESS_MESSAGES.internalError });
       sse.end();

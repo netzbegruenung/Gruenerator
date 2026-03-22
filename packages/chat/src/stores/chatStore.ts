@@ -34,7 +34,7 @@ export type ModelId = 'mistral' | 'litellm';
 
 export type ToolKey = 'search' | 'web' | 'examples' | 'research';
 
-export type ThreadMode = 'chat' | 'notebook' | 'search';
+export type ThreadMode = 'chat' | 'notebook' | 'search' | 'eigener';
 export type SearchMode = 'web' | 'deep';
 
 export interface ModelOption {
@@ -180,15 +180,15 @@ export const useAgentStore = create<AgentState>()(
         }
       },
 
-      setCurrentThread: (threadId) =>
+      setCurrentThread: (threadId) => {
+        if (useAgentStore.getState().currentThreadId === threadId) return;
         set({
           currentThreadId: threadId,
           compactionState: { ...DEFAULT_COMPACTION_STATE },
           messageCount: 0,
           needsCompaction: false,
-          customSystemPrompt: null,
-          customEnabledTools: null,
-        }),
+        });
+      },
 
       toggleTool: (tool) =>
         set((state) => ({
@@ -280,13 +280,21 @@ export const useAgentStore = create<AgentState>()(
           const response = await apiClient.get<ThreadSettings>(
             `/api/chat-service/threads/${threadId}/settings`
           );
+          if (useAgentStore.getState().currentThreadId !== threadId) return;
           set({
-            customSystemPrompt: response.customSystemPrompt,
-            customEnabledTools: response.customEnabledTools,
+            customSystemPrompt: response.customSystemPrompt ?? null,
+            customEnabledTools: response.customEnabledTools ?? null,
           });
-        } catch (error) {
-          console.error('Failed to load thread settings:', error);
-          set({ customSystemPrompt: null, customEnabledTools: null });
+        } catch {
+          // Thread may not exist yet
+        }
+        const state = useAgentStore.getState();
+        if (
+          state.currentThreadId === threadId &&
+          state.threadMode === 'eigener' &&
+          !state.customSystemPrompt
+        ) {
+          set({ threadMode: 'chat' });
         }
       },
 
@@ -320,7 +328,7 @@ export const useAgentStore = create<AgentState>()(
           removeItem: (key: string) => mem.delete(key),
         };
       }),
-      version: 3,
+      version: 4,
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
           const old = persisted.selectedModel;

@@ -1,3 +1,17 @@
+import {
+  PiMagnifyingGlass,
+  PiBooks,
+  PiBank,
+  PiCompass,
+  PiMapPin,
+  PiTree,
+  PiGlobe,
+  PiBuildings,
+  PiFlag,
+  PiScales,
+  PiLightbulb,
+  PiNewspaper,
+} from 'react-icons/pi';
 import { agentsList, type AgentListItem } from './agents';
 
 export type MentionableType = 'agent' | 'notebook' | 'tool' | 'document' | 'board' | 'doc';
@@ -17,6 +31,7 @@ export interface Mentionable {
   skillCategory?: import('./agents').SkillCategory;
   promptTemplate?: string;
   isSystemDefault?: boolean;
+  icon?: React.ComponentType<{ className?: string }>;
 }
 
 export interface CustomAgentMentionable {
@@ -80,6 +95,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Alle Quellen',
     description: 'Durchsucht mehrere Quellen parallel',
     avatar: '🔍',
+    icon: PiMagnifyingGlass,
     backgroundColor: '#316049',
     mention: 'alle',
   },
@@ -91,6 +107,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grundsatzprogramm',
     description: 'Grundsatzprogramme von Bündnis 90/Die Grünen',
     avatar: '📗',
+    icon: PiBooks,
     backgroundColor: '#316049',
     mention: 'grundsatz',
   },
@@ -102,6 +119,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Bundestagsfraktion',
     description: 'Inhalte von gruene-bundestag.de',
     avatar: '🏛️',
+    icon: PiBank,
     backgroundColor: '#316049',
     mention: 'bundestag',
   },
@@ -113,6 +131,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Hamburg',
     description: 'Beschlüsse und Presse der Grünen Hamburg',
     avatar: '⚓',
+    icon: PiCompass,
     backgroundColor: '#316049',
     mention: 'hamburg',
   },
@@ -124,6 +143,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Schleswig-Holstein',
     description: 'Wahlprogramm Schleswig-Holstein',
     avatar: '🌊',
+    icon: PiMapPin,
     backgroundColor: '#316049',
     mention: 'sh',
   },
@@ -135,6 +155,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Thüringen',
     description: 'Beschlüsse und Wahlprogramme Thüringen',
     avatar: '🏔️',
+    icon: PiTree,
     backgroundColor: '#316049',
     mention: 'thüringen',
   },
@@ -146,6 +167,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Österreich',
     description: 'Programme von Die Grünen Österreich',
     avatar: '🇦🇹',
+    icon: PiGlobe,
     backgroundColor: '#88B04B',
     mention: 'at',
   },
@@ -157,6 +179,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Bayern',
     description: 'Regierungsprogramm Bayern',
     avatar: '🦁',
+    icon: PiMapPin,
     backgroundColor: '#316049',
     mention: 'bayern',
   },
@@ -168,6 +191,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Berlin',
     description: 'Pressemitteilungen und Beschlüsse Berlin',
     avatar: '🐻',
+    icon: PiBuildings,
     backgroundColor: '#316049',
     mention: 'berlin',
   },
@@ -179,6 +203,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Mecklenburg-Vorpommern',
     description: 'Presse und Parteitagsbeschlüsse MV',
     avatar: '🦅',
+    icon: PiFlag,
     backgroundColor: '#316049',
     mention: 'mv',
   },
@@ -190,6 +215,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Brandenburg',
     description: 'Presse, Beschlüsse und Wahlprogramme Brandenburg',
     avatar: '🦅',
+    icon: PiTree,
     backgroundColor: '#316049',
     mention: 'brandenburg',
   },
@@ -201,6 +227,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'KommunalWiki',
     description: 'Fachwissen zur Kommunalpolitik',
     avatar: '📚',
+    icon: PiScales,
     backgroundColor: '#316049',
     mention: 'kommunalwiki',
   },
@@ -212,6 +239,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Heinrich-Böll-Stiftung',
     description: 'Analysen und Dossiers der Böll-Stiftung',
     avatar: '📖',
+    icon: PiLightbulb,
     backgroundColor: '#316049',
     mention: 'böll',
   },
@@ -223,6 +251,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grünblog',
     description: 'Onlinemagazin der Grünen',
     avatar: '📰',
+    icon: PiNewspaper,
     backgroundColor: '#316049',
     mention: 'gruenblog',
   },

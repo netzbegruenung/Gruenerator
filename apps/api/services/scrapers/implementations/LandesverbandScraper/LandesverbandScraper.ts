@@ -65,7 +65,7 @@ export class LandesverbandScraper extends BaseScraper {
       verbose: true,
     });
 
-    this.crawlDelay = 500;
+    this.crawlDelay = 300;
     this.batchSize = 10;
     this.timeout = 60000;
     this.maxRetries = 3;

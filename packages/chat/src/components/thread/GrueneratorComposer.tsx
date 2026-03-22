@@ -21,6 +21,8 @@ import type { DocumentMention } from '../../lib/documentMentionables';
 interface GrueneratorComposerProps {
   isRunning?: boolean;
   toolbarExtra?: React.ReactNode;
+  onNavigate?: (path: string) => void;
+  firstName?: string | null;
 }
 
 function SendButton() {
@@ -96,7 +98,12 @@ const INITIAL_MENTION_STATE: MentionState = {
   mentionStart: -1,
 };
 
-export function GrueneratorComposer({ isRunning, toolbarExtra }: GrueneratorComposerProps) {
+export function GrueneratorComposer({
+  isRunning,
+  toolbarExtra,
+  onNavigate,
+  firstName,
+}: GrueneratorComposerProps) {
   const composerRuntime = useComposerRuntime();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadRef = useRef<HTMLButtonElement>(null);
@@ -309,7 +316,7 @@ export function GrueneratorComposer({ isRunning, toolbarExtra }: GrueneratorComp
               onOpenFileBrowser={handlePlusMenuOpenFileBrowser}
               onUploadFile={handlePlusMenuUpload}
             />
-            <ToolToggles />
+            <ToolToggles onNavigate={onNavigate} firstName={firstName} />
             {toolbarExtra}
           </div>
           <ComposerButtons isRunning={isRunning} />

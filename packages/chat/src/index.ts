@@ -105,13 +105,11 @@ export { ChatLayout } from './components/ChatLayout';
 export { ChatOverview, SwitchToThreadOnSend, type NotebookLink } from './components/ChatOverview';
 export { ChatSidebar } from './components/ChatSidebar';
 export { ChatThreadList } from './components/ChatThreadList';
-export { ModelSelector } from './components/ModelSelector';
 export { ToolToggles } from './components/ToolToggles';
 export { MarkdownContent } from './components/MarkdownContent';
 export { ToolCallUI } from './components/ToolCallUI';
 export { grueneratorToolkit } from './components/tool-ui/GrueneratorToolUIs';
 export { ThemeProvider, useTheme } from './components/ThemeProvider';
-export { Dropdown, DropdownItem, ToggleSwitch } from './components/ui/Dropdown';
 export { TooltipProvider } from '@gruenerator/ui';
 
 // Tool UI Schemas

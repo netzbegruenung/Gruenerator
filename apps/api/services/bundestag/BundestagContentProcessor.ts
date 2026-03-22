@@ -17,7 +17,7 @@ interface PageData {
   title?: string;
   section?: string;
   content_hash?: string;
-  published_at?: string;
+  published_at?: string | null;
 }
 
 /**

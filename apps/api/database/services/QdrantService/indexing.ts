@@ -48,7 +48,7 @@ export interface WebContentMetadata {
   title?: string;
   primary_category?: string;
   section?: string;
-  published_at?: string;
+  published_at?: string | null;
   content_hash?: string;
   full_text?: string;
 }

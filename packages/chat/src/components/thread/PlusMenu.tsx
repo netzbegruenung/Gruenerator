@@ -4,7 +4,6 @@ import { useState } from 'react';
 import {
   BookOpen,
   Check,
-  ChevronRight,
   FileSearch,
   Library,
   Paperclip,
@@ -13,7 +12,17 @@ import {
   Wand2,
   Zap,
 } from 'lucide-react';
-import { Dropdown, DropdownItem } from '../ui/Dropdown';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuSeparator,
+} from '@gruenerator/ui';
+import { composerToolbarButtonClass } from '../../lib/utils';
 import { useAgentStore } from '../../stores/chatStore';
 import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
 import {
@@ -25,8 +34,6 @@ import {
 } from '../../lib/mentionables';
 import { SkillLibraryModal } from '../skills/SkillLibraryModal';
 
-type Submenu = 'skills' | 'quellen' | 'funktionen' | 'dateien';
-
 interface PlusMenuProps {
   onInsertMention: (mentionable: Mentionable) => void;
   onOpenFileBrowser: () => void;
@@ -34,7 +41,6 @@ interface PlusMenuProps {
 }
 
 export function PlusMenu({ onInsertMention, onOpenFileBrowser, onUploadFile }: PlusMenuProps) {
-  const [expandedSubmenu, setExpandedSubmenu] = useState<Submenu | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const customAgents = getCustomAgentMentionables();
   const favorites = useSkillFavoritesStore((s) => s.favorites);
@@ -45,118 +51,94 @@ export function PlusMenu({ onInsertMention, onOpenFileBrowser, onUploadFile }: P
   const selectedNotebookId = useAgentStore((s) => s.selectedNotebookId);
   const setSelectedNotebook = useAgentStore((s) => s.setSelectedNotebook);
 
-  const handleOpenChange = (open: boolean) => {
-    if (!open) setExpandedSubmenu(null);
-  };
-
-  const toggleSubmenu = (menu: Submenu) => {
-    setExpandedSubmenu((prev) => (prev === menu ? null : menu));
-  };
-
   return (
     <>
-      <Dropdown
-        trigger={<PlusIcon className="h-5 w-5 stroke-[1.5px]" />}
-        direction="up"
-        align="left"
-        width="w-80"
-        showChevron={false}
-        onOpenChange={handleOpenChange}
-        containerClassName="overflow-visible"
-      >
-        <div className="relative">
-          <DropdownItem
-            icon={<Wand2 className="h-4 w-4 text-foreground-muted" />}
-            label="Skills"
-            selected={expandedSubmenu === 'skills'}
-            onClick={() => toggleSubmenu('skills')}
-            trailing={<ChevronRight className="h-4 w-4 text-foreground-muted" />}
-          />
-          <DropdownItem
-            icon={<BookOpen className="h-4 w-4 text-foreground-muted" />}
-            label="Quellen"
-            selected={expandedSubmenu === 'quellen'}
-            onClick={() => toggleSubmenu('quellen')}
-            trailing={<ChevronRight className="h-4 w-4 text-foreground-muted" />}
-          />
-          <DropdownItem
-            icon={<Zap className="h-4 w-4 text-foreground-muted" />}
-            label="Funktionen"
-            selected={expandedSubmenu === 'funktionen'}
-            onClick={() => toggleSubmenu('funktionen')}
-            trailing={<ChevronRight className="h-4 w-4 text-foreground-muted" />}
-          />
-          <DropdownItem
-            icon={<Paperclip className="h-4 w-4 text-foreground-muted" />}
-            label="Dateien"
-            selected={expandedSubmenu === 'dateien'}
-            onClick={() => toggleSubmenu('dateien')}
-            trailing={<ChevronRight className="h-4 w-4 text-foreground-muted" />}
-          />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button type="button" className={composerToolbarButtonClass}>
+            <PlusIcon className="h-5 w-5 stroke-[1.5px]" />
+          </button>
+        </DropdownMenuTrigger>
 
-          {expandedSubmenu && (
-            <div className="absolute left-full bottom-0 ml-1 w-72 rounded-xl border border-border bg-background p-1 shadow-lg max-h-[24rem] overflow-y-auto">
-              {expandedSubmenu === 'skills' && (
-                <>
-                  {allQuickSkills.map((skill) => (
-                    <DropdownItem
-                      key={skill.mention}
-                      icon={<span className="text-base">{skill.avatar}</span>}
-                      label={skill.title}
-                      onClick={() => onInsertMention(skill)}
-                    />
-                  ))}
-                  <div className="border-t border-border mt-1 pt-1">
-                    <DropdownItem
-                      icon={<Library className="h-4 w-4 text-foreground-muted" />}
-                      label="Alle Skills durchsuchen..."
-                      onClick={() => setLibraryOpen(true)}
-                    />
-                  </div>
-                </>
-              )}
-              {expandedSubmenu === 'quellen' &&
-                notebookMentionables.map((notebook) => (
-                  <DropdownItem
+        <DropdownMenuContent side="top" align="start" className="w-48">
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Wand2 className="h-3.5 w-3.5" />
+              Skills
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
+              {allQuickSkills.map((skill) => (
+                <DropdownMenuItem key={skill.mention} onClick={() => onInsertMention(skill)}>
+                  <span className="text-base leading-none">{skill.avatar}</span>
+                  {skill.title}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setLibraryOpen(true)}>
+                <Library className="h-3.5 w-3.5" />
+                Alle Skills durchsuchen...
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <BookOpen className="h-3.5 w-3.5" />
+              Quellen
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
+              {notebookMentionables.map((notebook) => {
+                const NbIcon = notebook.icon ?? BookOpen;
+                return (
+                  <DropdownMenuItem
                     key={notebook.identifier}
-                    icon={<span className="text-base">{notebook.avatar}</span>}
-                    label={notebook.title}
-                    selected={selectedNotebookId === notebook.identifier}
                     onClick={() => setSelectedNotebook(notebook.identifier)}
-                    trailing={
-                      selectedNotebookId === notebook.identifier ? (
-                        <Check className="h-4 w-4 text-primary-500" />
-                      ) : undefined
-                    }
-                  />
-                ))}
-              {expandedSubmenu === 'funktionen' &&
-                toolMentionables.map((tool) => (
-                  <DropdownItem
-                    key={tool.identifier}
-                    icon={<span className="text-base">{tool.avatar}</span>}
-                    label={tool.title}
-                    onClick={() => onInsertMention(tool)}
-                  />
-                ))}
-              {expandedSubmenu === 'dateien' && (
-                <>
-                  <DropdownItem
-                    icon={<Upload className="h-4 w-4 text-foreground-muted" />}
-                    label="Datei hochladen"
-                    onClick={onUploadFile}
-                  />
-                  <DropdownItem
-                    icon={<FileSearch className="h-4 w-4 text-foreground-muted" />}
-                    label="Dokument referenzieren"
-                    onClick={onOpenFileBrowser}
-                  />
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      </Dropdown>
+                  >
+                    <NbIcon className="h-3.5 w-3.5" />
+                    <span className="flex-1">{notebook.title}</span>
+                    {selectedNotebookId === notebook.identifier && (
+                      <Check className="h-3.5 w-3.5 text-primary-500" />
+                    )}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Zap className="h-3.5 w-3.5" />
+              Funktionen
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              {toolMentionables.map((tool) => (
+                <DropdownMenuItem key={tool.identifier} onClick={() => onInsertMention(tool)}>
+                  <span className="text-base leading-none">{tool.avatar}</span>
+                  {tool.title}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Paperclip className="h-3.5 w-3.5" />
+              Dateien
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem onClick={onUploadFile}>
+                <Upload className="h-3.5 w-3.5" />
+                Datei hochladen
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onOpenFileBrowser}>
+                <FileSearch className="h-3.5 w-3.5" />
+                Dokument referenzieren
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
       <SkillLibraryModal
         open={libraryOpen}
         onClose={() => setLibraryOpen(false)}
