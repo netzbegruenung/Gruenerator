@@ -4,7 +4,7 @@
 # =============================================================================
 # Stage 1: Builder - Install deps and compile TypeScript
 # =============================================================================
-FROM node:20-slim AS builder
+FROM node:22-slim AS builder
 
 # Install build dependencies for native modules
 # Note: @napi-rs/canvas uses pre-built binaries, no Cairo/Pango needed
@@ -62,7 +62,7 @@ RUN rm -rf dist/prompts dist/static-data dist/public dist/assets && \
 # =============================================================================
 # Stage 2: Production - Fresh install with production deps only
 # =============================================================================
-FROM node:20-slim AS production
+FROM node:22-slim AS production
 
 LABEL org.opencontainers.image.title="Gruenerator API"
 LABEL org.opencontainers.image.source="https://github.com/netzbegruenung/Gruenerator"
