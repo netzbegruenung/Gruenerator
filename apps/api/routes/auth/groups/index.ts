@@ -5,21 +5,21 @@
 
 import express, { type Router } from 'express';
 
+import groupAvatarRouter from './groupAvatar.js';
 import groupContentRouter from './groupContent.js';
 import groupCoreRouter, { getPostgresAndCheckMembership } from './groupCore.js';
-import groupKnowledgeRouter from './groupKnowledge.js';
 
 const router: Router = express.Router();
 
 // Mount all group routers
 router.use(groupCoreRouter);
-router.use(groupKnowledgeRouter);
 router.use(groupContentRouter);
+router.use(groupAvatarRouter);
 
 export default router;
 
 // Also export individual routers for flexibility
-export { groupCoreRouter, groupKnowledgeRouter, groupContentRouter };
+export { groupCoreRouter, groupContentRouter };
 
 // Re-export helper function from groupCore
 export { getPostgresAndCheckMembership };
