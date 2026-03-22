@@ -1,6 +1,10 @@
 export { AnimatedCircularProgressBar } from './components/animated-circular-progress-bar';
 export { cn } from './lib/cn';
 export { useIsMobile } from './hooks/use-mobile';
+export { useAutoAdvance } from './hooks/use-auto-advance';
+export { DotIndicators } from './components/dot-indicators';
+export { DocumentCard, type DocumentCardProps } from './components/document-card';
+export { TweetCard, TweetXIcon, type TweetCardProps } from './components/tweet-card';
 
 export {
   Accordion,

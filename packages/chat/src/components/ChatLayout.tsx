@@ -8,11 +8,12 @@ import { TooltipProvider } from '@gruenerator/ui';
 
 interface ChatLayoutProps {
   userId?: string;
+  firstName?: string | null;
   onLogout?: () => void;
   onNavigate?: (path: string) => void;
 }
 
-export function ChatLayout({ userId, onLogout, onNavigate }: ChatLayoutProps) {
+export function ChatLayout({ userId, firstName, onLogout, onNavigate }: ChatLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
@@ -27,7 +28,7 @@ export function ChatLayout({ userId, onLogout, onNavigate }: ChatLayoutProps) {
             onNavigate={onNavigate}
           />
           <main className="flex flex-1 flex-col overflow-hidden">
-            <GrueneratorThread />
+            <GrueneratorThread onNavigate={onNavigate} firstName={firstName} />
           </main>
         </div>
       </TooltipProvider>

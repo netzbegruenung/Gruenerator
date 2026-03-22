@@ -11,7 +11,12 @@ import { GrueneratorComposer } from './GrueneratorComposer';
 import { AutoMessageSender } from './AutoMessageSender';
 import { useChatCollaborationContext } from '../../context/ChatCollaborationContext';
 
-export function GrueneratorThread() {
+interface GrueneratorThreadProps {
+  onNavigate?: (path: string) => void;
+  firstName?: string | null;
+}
+
+export function GrueneratorThread({ onNavigate, firstName }: GrueneratorThreadProps = {}) {
   const thread = useThread();
   const messageComponents = useMemo(() => ({ UserMessage, AssistantMessage }), []);
   const collab = useChatCollaborationContext();
@@ -48,7 +53,11 @@ export function GrueneratorThread() {
         </SelectionToolbarPrimitive.Quote>
       </SelectionToolbarPrimitive.Root>
 
-      <GrueneratorComposer isRunning={thread.isRunning} />
+      <GrueneratorComposer
+        isRunning={thread.isRunning}
+        onNavigate={onNavigate}
+        firstName={firstName}
+      />
     </ThreadPrimitive.Root>
   );
 }

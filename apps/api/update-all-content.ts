@@ -24,6 +24,7 @@ import { Mistral } from '@mistralai/mistralai';
 
 import { sendContentSyncEmail } from './services/email/emailService.js';
 import { boellStiftungScraperService } from './services/scrapers/implementations/BoellStiftungScraper.js';
+import { bundestagScraperService } from './services/scrapers/implementations/BundestagScraper/index.js';
 import { gruenblogScraperService } from './services/scrapers/implementations/GruenblogScraper.js';
 import { grueneAtScraperService } from './services/scrapers/implementations/GrueneAtScraper.js';
 import { kommunalwikiScraper } from './services/scrapers/implementations/KommunalwikiScraper.js';
@@ -87,7 +88,8 @@ const SOURCE_GROUPS: SourceGroup[] = [
         stored: result.stored,
         updated: result.updated,
         skipped: result.skipped,
-        errors: result.errors,
+        fetchErrors: result.errors,
+        errors: 0,
       };
     },
   },
@@ -99,27 +101,32 @@ const SOURCE_GROUPS: SourceGroup[] = [
       const result = await gruenblogScraperService.fullCrawl({
         forceUpdate: args.force,
       });
+      const fetchErrors = result.skipReasons?.fetch_error?.count ?? 0;
       return {
         stored: result.stored,
         updated: result.updated,
         skipped: result.skipped,
-        errors: result.errors,
+        fetchErrors,
+        errors: Math.max(0, result.errors - fetchErrors),
       };
     },
   },
   {
     id: 'gruene-at',
     name: 'Gruene Oesterreich (gruene.at)',
+    timeoutMs: 45 * 60 * 1000,
     async run(args) {
       await grueneAtScraperService.init();
       const result = await grueneAtScraperService.fullCrawl({
         forceUpdate: args.force,
       });
+      const fetchErrors = result.skipReasons?.fetch_error?.count ?? 0;
       return {
         stored: result.stored,
         updated: result.updated,
         skipped: result.skipped,
-        errors: result.errors,
+        fetchErrors,
+        errors: Math.max(0, result.errors - fetchErrors),
       };
     },
   },
@@ -135,7 +142,8 @@ const SOURCE_GROUPS: SourceGroup[] = [
         stored: result.stored,
         updated: result.updated,
         skipped: result.skipped,
-        errors: result.errors,
+        fetchErrors: result.errors,
+        errors: 0,
       };
     },
   },
@@ -148,10 +156,30 @@ const SOURCE_GROUPS: SourceGroup[] = [
       const result = await boellStiftungScraperService.fullCrawl({
         forceUpdate: args.force,
       });
+      const fetchErrors = result.skipReasons?.fetch_error?.count ?? 0;
       return {
         stored: result.stored,
         updated: result.updated,
         skipped: result.skipped,
+        fetchErrors,
+        errors: Math.max(0, result.errors - fetchErrors),
+      };
+    },
+  },
+  {
+    id: 'bundestag',
+    name: 'Grüne Bundestagsfraktion (gruene-bundestag.de)',
+    timeoutMs: 20 * 60 * 1000,
+    async run(args) {
+      await bundestagScraperService.init();
+      const result = await bundestagScraperService.scrapeAllSources({
+        forceUpdate: args.force,
+      });
+      return {
+        stored: result.stored,
+        updated: result.updated,
+        skipped: result.skipped,
+        fetchErrors: 0,
         errors: result.errors,
       };
     },
@@ -267,6 +295,7 @@ async function runSourceGroup(group: SourceGroup, args: CliArgs): Promise<Source
       stored: 0,
       updated: 0,
       skipped: 0,
+      fetchErrors: 0,
       errors: 1,
       duration,
       status: 'failed',
@@ -313,7 +342,7 @@ async function main() {
 
     if (result.status === 'success') {
       console.log(
-        `  [DONE] ${group.name}: New ${result.stored} | Updated ${result.updated} | Skipped ${result.skipped} | Errors ${result.errors} (${result.duration}s)`
+        `  [DONE] ${group.name}: New ${result.stored} | Updated ${result.updated} | Skipped ${result.skipped} | Unreachable ${result.fetchErrors ?? 0} | Errors ${result.errors} (${result.duration}s)`
       );
     }
 
@@ -328,9 +357,10 @@ async function main() {
       stored: acc.stored + r.stored,
       updated: acc.updated + r.updated,
       skipped: acc.skipped + r.skipped,
+      fetchErrors: acc.fetchErrors + (r.fetchErrors ?? 0),
       errors: acc.errors + r.errors,
     }),
-    { stored: 0, updated: 0, skipped: 0, errors: 0 }
+    { stored: 0, updated: 0, skipped: 0, fetchErrors: 0, errors: 0 }
   );
 
   const failed = results.filter((r) => r.status === 'failed');
@@ -343,7 +373,8 @@ async function main() {
   console.log(`  New:        ${totals.stored}`);
   console.log(`  Updated:    ${totals.updated}`);
   console.log(`  Skipped:    ${totals.skipped}`);
-  console.log(`  Errors:     ${totals.errors}`);
+  if (totals.fetchErrors > 0) console.log(`  Unreachable:${totals.fetchErrors}`);
+  if (totals.errors > 0) console.log(`  Errors:     ${totals.errors}`);
   console.log('========================================\n');
 
   if (totals.stored > 0) {
@@ -375,6 +406,7 @@ async function main() {
       stored: totals.stored,
       updated: totals.updated,
       skipped: totals.skipped,
+      fetchErrors: totals.fetchErrors,
       errors: totals.errors,
     },
     totalDuration: Math.round((Date.now() - syncStart) / 1000),

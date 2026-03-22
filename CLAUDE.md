@@ -51,8 +51,8 @@ pnpm --filter @gruenerator/desktop dev           # Tauri desktop dev
 
 ### Data Stores
 
-- **PostgreSQL** — Primary DB. Schema at `apps/api/database/postgres/schema.sql`.
-- **Redis** — Sessions, caching, rate limiting.
+- **PostgreSQL** — Primary DB. Schema at `apps/api/database/postgres/schema.sql`. Connect: `PGPASSWORD=gruenerator psql -h localhost -U gruenerator -d gruenerator`
+- **Redis** — Sessions, caching, rate limiting. Connect: `redis-cli -a 'F-e9ZjuJ03U-@'`. Useful: `GET "monitor:stimmung:de"`, `DEL "monitor:stimmung:de"` to clear cache.
 - **Qdrant** — Vector embeddings for semantic search.
 
 ### Adding a New Landesverband Notebook
@@ -165,6 +165,16 @@ cd packages/chat && npx shadcn@latest add <component-name>
 ### State Management
 
 Zustand for global state. TanStack Query (React Query v5) for server state/data fetching with axios.
+
+### Avoid Unnecessary `useEffect`
+
+Follow [You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect). Rules:
+
+1. **Derive during render** — if it can be calculated from props/state, don't put it in state or an Effect. Use `const` or `useMemo`.
+2. **Event handlers, not Effects** — user-triggered actions (save, submit, navigate) belong in event handlers, not Effects.
+3. **Reset via `key`** — to reset component state when an ID changes, use `key={id}` on the component instead of an Effect that resets state.
+4. **No Effect chains** — cascading `useEffect → setState → useEffect` is a code smell. Compute in one pass or handle in the event handler.
+5. **`useEffect` is for external sync only** — subscriptions, WebSocket connections, DOM measurements. Not for derived state, not for reacting to user events.
 
 ### Commits
 

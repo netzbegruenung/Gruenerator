@@ -27,6 +27,7 @@ import { generatePointId } from '../../../utils/validation/index.js';
 import { smartChunkDocument } from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { BaseScraper } from '../base/BaseScraper.js';
+import { batchProcess } from '../utils/batchFetch.js';
 import { removeUnwantedElements } from '../utils/htmlCleaner.js';
 
 import type { ScraperResult } from '../types.js';
@@ -176,7 +177,7 @@ export class GrueneAtScraper extends BaseScraper {
     });
 
     this.baseUrl = 'https://gruene.at';
-    this.crawlDelay = 500;
+    this.crawlDelay = 300;
     this.timeout = 30000;
     this.maxRetries = 3;
     this.userAgent = BRAND?.botUserAgent || 'Gruenerator-Bot/1.0';
@@ -489,21 +490,40 @@ export class GrueneAtScraper extends BaseScraper {
       const entries = await this.discoverFromSitemaps();
       result.totalUrls = entries.length;
 
-      const toProcess = maxArticles ? entries.slice(0, maxArticles) : entries;
+      const toProcess = (maxArticles ? entries.slice(0, maxArticles) : entries).filter(
+        ({ url }) => {
+          if (this.visitedUrls.has(url)) return false;
+          this.visitedUrls.add(url);
+          return true;
+        }
+      );
 
-      for (let i = 0; i < toProcess.length; i++) {
-        const { url, contentType } = toProcess[i];
+      this.log(`Prefetching ${toProcess.length} pages (concurrency: 5)...`);
+      const fetched = await batchProcess(toProcess, ({ url }) => this.#fetchPage(url), {
+        concurrency: 5,
+        delayMs: this.crawlDelay,
+      });
 
-        if (this.visitedUrls.has(url)) continue;
-        this.visitedUrls.add(url);
+      for (let i = 0; i < fetched.length; i++) {
+        const entry = fetched[i];
+        const { url, contentType } = entry.item;
+
+        if ('error' in entry) {
+          result.errors++;
+          result.skipReasons.fetch_error.count++;
+          if (result.skipReasons.fetch_error.examples.length < 5) {
+            result.skipReasons.fetch_error.examples.push(url);
+          }
+          continue;
+        }
+
+        const html = entry.result;
+        if (!html) {
+          result.skipped++;
+          continue;
+        }
 
         try {
-          const html = await this.#fetchPage(url);
-          if (!html) {
-            result.skipped++;
-            continue;
-          }
-
           const content = this.#extractContent(html, url, contentType);
 
           if (!forceUpdate) {
@@ -531,7 +551,7 @@ export class GrueneAtScraper extends BaseScraper {
             }
             result.totalVectors += processResult.vectors || 0;
             this.log(
-              `[${i + 1}/${toProcess.length}] [${contentType}] "${content.title?.substring(0, 50)}" (${processResult.chunks} chunks)`
+              `[${i + 1}/${fetched.length}] [${contentType}] "${content.title?.substring(0, 50)}" (${processResult.chunks} chunks)`
             );
           } else {
             result.skipped++;
@@ -544,15 +564,9 @@ export class GrueneAtScraper extends BaseScraper {
           }
         } catch (error) {
           const msg = error instanceof Error ? error.message : 'Unknown error';
-          console.error(`[GrueneAt] Error ${url}: ${msg}`);
+          console.error(`[GrueneAt] Error processing ${url}: ${msg}`);
           result.errors++;
-          result.skipReasons.fetch_error.count++;
-          if (result.skipReasons.fetch_error.examples.length < 5) {
-            result.skipReasons.fetch_error.examples.push(url);
-          }
         }
-
-        await this.delay(this.crawlDelay);
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';

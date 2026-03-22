@@ -61,6 +61,7 @@ async function main() {
       stored: allSources.reduce((sum, s) => sum + s.stored, 0),
       updated: allSources.reduce((sum, s) => sum + s.updated, 0),
       skipped: allSources.reduce((sum, s) => sum + s.skipped, 0),
+      fetchErrors: allSources.reduce((sum, s) => sum + (s.fetchErrors ?? 0), 0),
       errors: allSources.reduce((sum, s) => sum + s.errors, 0),
     },
     totalDuration: Math.max(...partials.map((p) => p.totalDuration)),

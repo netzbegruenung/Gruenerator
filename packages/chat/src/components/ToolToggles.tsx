@@ -10,17 +10,35 @@ import {
   MessageSquare,
   BookOpen,
   Search,
-  Check,
+  FileSearch,
+  BookMarked,
+  FlaskConical,
+  Settings,
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuCheckboxItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+} from '@gruenerator/ui';
+import { cn, composerToolbarButtonClass } from '../lib/utils';
+import { useShallow } from 'zustand/shallow';
 import {
   useAgentStore,
   MODEL_OPTIONS,
   type ModelOption,
   type ThreadMode,
+  type ToolKey,
 } from '../stores/chatStore';
 import { notebookMentionables } from '../lib/mentionables';
 import { ShareThreadDialog } from './thread/ShareThreadDialog';
-import { Dropdown, DropdownItem, ToggleSwitch } from './ui/Dropdown';
 
 const MODEL_ICONS: Record<ModelOption['icon'], typeof Sparkles> = {
   sparkles: Sparkles,
@@ -30,105 +48,207 @@ const MODEL_ICONS: Record<ModelOption['icon'], typeof Sparkles> = {
 const MODE_CONFIG: Array<{
   mode: ThreadMode;
   label: string;
-  description: string;
   Icon: typeof MessageSquare;
 }> = [
-  { mode: 'chat', label: 'Chat', description: 'Vollständiger Assistent', Icon: MessageSquare },
-  { mode: 'notebook', label: 'Notebook', description: 'Dokument-Suche', Icon: BookOpen },
-  { mode: 'search', label: 'Suche', description: 'Web & Recherche', Icon: Search },
+  { mode: 'chat', label: 'Chat', Icon: MessageSquare },
+  { mode: 'notebook', label: 'Notebook', Icon: BookOpen },
+  { mode: 'search', label: 'Suche', Icon: Search },
 ];
 
-export function ToolToggles() {
-  const enabledTools = useAgentStore((s) => s.enabledTools);
+const TOOL_CONFIG: Array<{ key: ToolKey; label: string; Icon: typeof Globe }> = [
+  { key: 'search', label: 'Dokumentensuche', Icon: FileSearch },
+  { key: 'web', label: 'Websuche', Icon: Globe },
+  { key: 'examples', label: 'Beispiele', Icon: BookMarked },
+  { key: 'research', label: 'Recherche', Icon: FlaskConical },
+];
+
+interface ToolTogglesProps {
+  onNavigate?: (path: string) => void;
+  firstName?: string | null;
+}
+
+export function ToolToggles({ onNavigate, firstName }: ToolTogglesProps) {
+  const {
+    enabledTools,
+    selectedModel,
+    currentThreadId: threadId,
+    threadMode,
+    selectedNotebookId,
+    customSystemPrompt,
+  } = useAgentStore(
+    useShallow((s) => ({
+      enabledTools: s.enabledTools,
+      selectedModel: s.selectedModel,
+      currentThreadId: s.currentThreadId,
+      threadMode: s.threadMode,
+      selectedNotebookId: s.selectedNotebookId,
+      customSystemPrompt: s.customSystemPrompt,
+    }))
+  );
   const toggleTool = useAgentStore((s) => s.toggleTool);
-  const selectedModel = useAgentStore((s) => s.selectedModel);
   const setSelectedModel = useAgentStore((s) => s.setSelectedModel);
-  const threadId = useAgentStore((s) => s.currentThreadId);
-  const threadMode = useAgentStore((s) => s.threadMode);
   const setThreadMode = useAgentStore((s) => s.setThreadMode);
-  const selectedNotebookId = useAgentStore((s) => s.selectedNotebookId);
   const setSelectedNotebook = useAgentStore((s) => s.setSelectedNotebook);
   const [shareOpen, setShareOpen] = useState(false);
 
-  const webEnabled = enabledTools.web;
+  const hasCustomPrompt = !!customSystemPrompt;
 
   const current = MODEL_OPTIONS.find((m) => m.id === selectedModel) ?? MODEL_OPTIONS[0];
-  const next = MODEL_OPTIONS[(MODEL_OPTIONS.indexOf(current) + 1) % MODEL_OPTIONS.length];
   const CurrentIcon = MODEL_ICONS[current.icon];
+  const ActiveModeIcon =
+    threadMode === 'eigener'
+      ? Settings
+      : (MODE_CONFIG.find((m) => m.mode === threadMode)?.Icon ?? MessageSquare);
+
+  const eigenerBadgeLabel = firstName ? `${firstName}s Chat` : 'Eigener';
+
+  const handleModeChange = (value: string) => {
+    if (value === 'eigener' && !hasCustomPrompt) return;
+    setThreadMode(value as ThreadMode);
+  };
 
   return (
     <>
-      <Dropdown
-        align="left"
-        direction="up"
-        width="w-64"
-        showChevron={false}
-        trigger={<Wrench className="h-4 w-4" />}
-        badge={
-          threadMode !== 'chat' ? (
-            <span className="rounded-full bg-primary-100 px-1.5 py-0.5 text-[10px] font-medium leading-none text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
-              {MODE_CONFIG.find((m) => m.mode === threadMode)?.label}
-            </span>
-          ) : undefined
-        }
-      >
-        {/* Thread Mode */}
-        {MODE_CONFIG.map(({ mode, label, description, Icon }) => (
-          <DropdownItem
-            key={mode}
-            icon={<Icon className="h-4 w-4 text-foreground-muted" />}
-            label={label}
-            description={description}
-            onClick={() => setThreadMode(mode)}
-            selected={threadMode === mode}
-            trailing={
-              threadMode === mode ? <Check className="h-4 w-4 text-secondary-600" /> : undefined
-            }
-          />
-        ))}
-        {threadMode === 'notebook' && (
-          <div className="px-3 py-1.5">
-            <select
-              value={selectedNotebookId}
-              onChange={(e) => setSelectedNotebook(e.target.value)}
-              className="w-full rounded border border-border bg-surface px-2 py-1 text-xs text-foreground"
-            >
-              {notebookMentionables.map((nb) => (
-                <option key={nb.identifier} value={nb.identifier}>
-                  {nb.avatar} {nb.title}
-                </option>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button type="button" className={composerToolbarButtonClass}>
+            <Wrench className="h-4 w-4" />
+            {threadMode !== 'chat' && (
+              <span className="rounded-full bg-primary-100 px-1.5 py-0.5 text-[10px] font-medium leading-none text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
+                {threadMode === 'eigener'
+                  ? eigenerBadgeLabel
+                  : MODE_CONFIG.find((m) => m.mode === threadMode)?.label}
+              </span>
+            )}
+          </button>
+        </DropdownMenuTrigger>
+
+        <DropdownMenuContent side="top" align="start" className="w-48">
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <ActiveModeIcon className="h-3.5 w-3.5" />
+              Modus
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuRadioGroup value={threadMode} onValueChange={handleModeChange}>
+                {MODE_CONFIG.map(({ mode, label, Icon }) => (
+                  <DropdownMenuRadioItem key={mode} value={mode}>
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </DropdownMenuRadioItem>
+                ))}
+                <DropdownMenuRadioItem value="eigener" disabled={!hasCustomPrompt} className="pr-1">
+                  <Settings className="h-3.5 w-3.5" />
+                  <span className="flex-1">Eigener Chat</span>
+                  {onNavigate && (
+                    <button
+                      type="button"
+                      className="ml-1 rounded p-0.5 text-foreground-muted hover:text-foreground hover:bg-hover-overlay transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onNavigate('/chat/settings');
+                      }}
+                      aria-label="Eigenen Chat bearbeiten"
+                    >
+                      <Settings className="h-3 w-3" />
+                    </button>
+                  )}
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+
+              {!hasCustomPrompt && (
+                <>
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1.5">
+                    <p className="text-[11px] text-foreground-muted">Noch nicht konfiguriert.</p>
+                    {onNavigate && (
+                      <button
+                        type="button"
+                        className="mt-1 flex items-center gap-1 text-[11px] font-medium text-primary-600 hover:text-primary-500 transition-colors"
+                        onClick={() => onNavigate('/chat/settings')}
+                      >
+                        <Settings className="h-3 w-3" />
+                        Jetzt einrichten
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {threadMode === 'notebook' && (
+                <>
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1">
+                    <select
+                      value={selectedNotebookId}
+                      onChange={(e) => setSelectedNotebook(e.target.value)}
+                      className="w-full rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] text-foreground"
+                    >
+                      {notebookMentionables.map((nb) => (
+                        <option key={nb.identifier} value={nb.identifier}>
+                          {nb.avatar} {nb.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Wrench className="h-3.5 w-3.5" />
+              Werkzeuge
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              {TOOL_CONFIG.map(({ key, label, Icon }) => (
+                <DropdownMenuCheckboxItem
+                  key={key}
+                  checked={enabledTools[key]}
+                  onCheckedChange={() => toggleTool(key)}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {label}
+                </DropdownMenuCheckboxItem>
               ))}
-            </select>
-          </div>
-        )}
-        <div className="border-t border-border my-1" />
-        <DropdownItem
-          icon={<Globe className="h-4 w-4 text-tool-web" />}
-          iconClassName={webEnabled ? 'bg-tool-web-bg' : 'bg-surface'}
-          label="Websuche"
-          description="Aktuelle Nachrichten & Infos"
-          onClick={() => toggleTool('web')}
-          trailing={<ToggleSwitch enabled={webEnabled} />}
-        />
-        <div className="border-t border-border my-1" />
-        <DropdownItem
-          icon={<CurrentIcon className="h-4 w-4 text-foreground-muted" />}
-          label={current.name}
-          description={`Wechseln zu ${next.name}`}
-          onClick={() => setSelectedModel(next.id)}
-        />
-        {threadId && (
-          <>
-            <div className="border-t border-border my-1" />
-            <DropdownItem
-              icon={<Share2 className="h-4 w-4 text-foreground-muted" />}
-              label="Chat teilen"
-              description="Mit Gruppe zusammenarbeiten"
-              onClick={() => setShareOpen(true)}
-            />
-          </>
-        )}
-      </Dropdown>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <CurrentIcon className="h-3.5 w-3.5" />
+              Modell
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuRadioGroup
+                value={selectedModel}
+                onValueChange={(v) => setSelectedModel(v as typeof selectedModel)}
+              >
+                {MODEL_OPTIONS.map((model) => {
+                  const Icon = MODEL_ICONS[model.icon];
+                  return (
+                    <DropdownMenuRadioItem key={model.id} value={model.id}>
+                      <Icon className="h-3.5 w-3.5" />
+                      {model.name}
+                    </DropdownMenuRadioItem>
+                  );
+                })}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+
+          {threadId && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setShareOpen(true)}>
+                <Share2 className="h-3.5 w-3.5" />
+                Teilen
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <ShareThreadDialog threadId={threadId} open={shareOpen} onOpenChange={setShareOpen} />
     </>

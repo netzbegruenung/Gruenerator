@@ -205,6 +205,7 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
             );
             const converted = convertToThreadMessageLike(msgs);
             loadCompactionState(remoteId, apiClient);
+            useAgentStore.getState().loadThreadSettings(remoteId, apiClient);
             return ExportedMessageRepository.fromArray(converted);
           } catch (error) {
             console.error('Error loading messages:', error);

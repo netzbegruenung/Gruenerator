@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       source:
-        description: 'Source group (empty = all). Options: landesverbaende, gruenblog, gruene-at, kommunalwiki, boell-stiftung'
+        description: 'Source group (empty = all). Options: landesverbaende, gruenblog, gruene-at, kommunalwiki, boell-stiftung, bundestag'
         required: false
         type: string
       dry_run:
@@ -47,7 +47,7 @@ jobs:
           elif [ "$SCHEDULE" = "0 2 * * *" ] || [ -z "$SCHEDULE" ]; then
             # Daily 3 AM CET or manual dispatch (no source) → all sources
             echo 'use_matrix=true' >> $GITHUB_OUTPUT
-            echo 'matrix={"source":["landesverbaende","gruenblog","gruene-at","kommunalwiki","boell-stiftung"]}' >> $GITHUB_OUTPUT
+            echo 'matrix={"source":["landesverbaende","gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag"]}' >> $GITHUB_OUTPUT
           else
             # Hourly schedule → landesverbaende only
             echo 'use_matrix=false' >> $GITHUB_OUTPUT
@@ -164,11 +164,12 @@ jobs:
           STORED=$(jq -r '.totals.stored' "$SUMMARY_FILE")
           UPDATED=$(jq -r '.totals.updated' "$SUMMARY_FILE")
           SKIPPED=$(jq -r '.totals.skipped' "$SUMMARY_FILE")
+          FETCH_ERRORS=$(jq -r '.totals.fetchErrors // 0' "$SUMMARY_FILE")
           ERRORS=$(jq -r '.totals.errors' "$SUMMARY_FILE")
           DURATION=$(jq -r '.totalDuration' "$SUMMARY_FILE")
 
           # Determine status
-          if [ "$FAILED" -gt 0 ]; then
+          if [ "$FAILED" -gt 0 ] || [ "$ERRORS" -gt 0 ]; then
             STATUS_ICON="⚠️"
           else
             STATUS_ICON="✅"
@@ -197,14 +198,15 @@ jobs:
             echo "| New documents | $STORED |"
             echo "| Updated | $UPDATED |"
             echo "| Skipped (unchanged) | $SKIPPED |"
-            echo "| Errors | $ERRORS |"
+            if [ "$FETCH_ERRORS" -gt 0 ]; then echo "| Unreachable pages | $FETCH_ERRORS |"; fi
+            if [ "$ERRORS" -gt 0 ]; then echo "| **Errors** | **$ERRORS** |"; fi
             echo ""
             echo "### Per Source"
             echo ""
-            echo "| Source | Status | New | Updated | Skipped | Errors | Duration |"
-            echo "|--------|--------|----:|--------:|--------:|-------:|---------:|"
+            echo "| Source | Status | New | Updated | Skipped | Unreachable | Errors | Duration |"
+            echo "|--------|--------|----:|--------:|--------:|------------:|-------:|---------:|"
 
-            jq -r '.sources[] | "| \(.name) | \(if .status == "success" then "✅" else "❌" end) | \(.stored) | \(.updated) | \(.skipped) | \(.errors) | \(.duration)s |"' "$SUMMARY_FILE"
+            jq -r '.sources[] | "| \(.name) | \(if .status == "success" then "✅" else "❌" end) | \(.stored) | \(.updated) | \(.skipped) | \(.fetchErrors // 0) | \(.errors) | \(.duration)s |"' "$SUMMARY_FILE"
 
             echo ""
 

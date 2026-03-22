@@ -15,8 +15,10 @@ import {
 } from '@assistant-ui/react';
 import { GrueneratorComposer, GrueneratorThread, useAgentStore } from '@gruenerator/chat';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
+import { useFirstName } from '../../../hooks/useFirstName';
 
 import { cn } from '@/utils/cn';
 
@@ -91,6 +93,8 @@ const COMPOSER_ROOT_CLASS = cn(
 );
 
 function SearchPage() {
+  const navigate = useNavigate();
+  const firstName = useFirstName();
   const [isThreadView, setIsThreadView] = useState(false);
   const assistantRuntime = useAssistantRuntime();
 
@@ -104,7 +108,7 @@ function SearchPage() {
   }, []);
 
   if (isThreadView) {
-    return <GrueneratorThread />;
+    return <GrueneratorThread onNavigate={navigate} firstName={firstName} />;
   }
 
   return (
@@ -120,7 +124,11 @@ function SearchPage() {
 
       <ThreadPrimitive.Root className={COMPOSER_ROOT_CLASS}>
         <SwitchToThread onSwitch={handleSwitchToThread} />
-        <GrueneratorComposer toolbarExtra={<SearchExampleSuggestions />} />
+        <GrueneratorComposer
+          toolbarExtra={<SearchExampleSuggestions />}
+          onNavigate={navigate}
+          firstName={firstName}
+        />
       </ThreadPrimitive.Root>
 
       <p className="mt-4 w-full max-w-3xl text-center text-xs text-foreground-muted">
