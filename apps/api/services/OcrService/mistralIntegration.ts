@@ -11,7 +11,6 @@ import type { Mistral } from '@mistralai/mistralai';
 import type {
   DocumentURLChunk,
   ImageURLChunk,
-  OCRRequest,
 } from '@mistralai/mistralai/models/components/index.js';
 
 const IMAGE_EXTENSIONS = new Set([
@@ -53,7 +52,7 @@ export async function extractTextWithMistralOCR(
 
     const dataUri = `data:${mediaType};base64,${base64Data}`;
 
-    const document: OCRRequest['document'] = IMAGE_EXTENSIONS.has(fileExtension)
+    const document: ImageURLChunk | DocumentURLChunk = IMAGE_EXTENSIONS.has(fileExtension)
       ? ({ type: 'image_url', imageUrl: dataUri } satisfies ImageURLChunk)
       : ({ type: 'document_url', documentUrl: dataUri } satisfies DocumentURLChunk);
 

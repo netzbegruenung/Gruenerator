@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@gruenerator/voice": "workspace:*",
-    "ai": "^6.0.116",
+    "ai": "^6.0.134",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

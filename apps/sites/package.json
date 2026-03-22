@@ -14,9 +14,9 @@
   "dependencies": {
     "@gruenerator/shared": "workspace:*",
     "@gruenerator/sites-design": "workspace:*",
-    "@mdxeditor/editor": "^3.52.4",
-    "@sentry/react": "^10.43.0",
-    "@tanstack/react-query": "^5.90.21",
+    "@mdxeditor/editor": "^3.52.5",
+    "@sentry/react": "^10.45.0",
+    "@tanstack/react-query": "^5.95.0",
     "axios": "^1.13.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -29,14 +29,14 @@
   },
   "devDependencies": {
     "@gruenerator/eslint-config": "workspace:*",
-    "@tailwindcss/vite": "^4.2.1",
+    "@tailwindcss/vite": "^4.2.2",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "eslint": "^9.39.4",
-    "tailwindcss": "^4.2.1",
+    "tailwindcss": "^4.2.2",
     "typescript": "^5.9.3",
-    "vite": "^8.0.0"
+    "vite": "^8.0.1"
   }
 }
