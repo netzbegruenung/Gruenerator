@@ -12,7 +12,7 @@ export async function canAccessThread(threadId: string, userId: string): Promise
   const directAccess = await db.query(
     `SELECT 1 FROM chat_threads
      WHERE id = $1
-     AND (user_id = $2 OR permissions ? $2 OR is_public = true)
+     AND (user_id = $2 OR permissions ? $2::text OR is_public = true)
      LIMIT 1`,
     [threadId, userId]
   );
