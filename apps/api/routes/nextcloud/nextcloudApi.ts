@@ -155,6 +155,26 @@ router.post('/share-links', async (req: Request, res: Response): Promise<void> =
       };
     }
 
+    // Send Wolki unlock notification on first share link
+    try {
+      const allLinks = await NextcloudShareManager.getShareLinks(userId);
+      if (allLinks.length === 1) {
+        const { createNotification } = await import('../../services/notifications/index.js');
+        await createNotification({
+          userId,
+          type: 'wolke_setup',
+          title: 'Wolki freigeschaltet!',
+          body: 'Deine Wolke ist verbunden — du hast einen neuen Avatar freigeschaltet!',
+          actionUrl: '/profile',
+          metadata: { avatarId: 10 },
+        });
+      }
+    } catch (notifErr) {
+      log.warn('[NextcloudApi] Failed to send Wolki notification', {
+        error: (notifErr as Error).message,
+      });
+    }
+
     res.status(201).json({
       success: true,
       shareLink: savedLink,
