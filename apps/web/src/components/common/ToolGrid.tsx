@@ -14,6 +14,7 @@ export interface ToolEntry {
   description: string;
   path: string;
   icon?: IconType;
+  imageUrl?: string;
   tags?: string[];
   betaFeature?: string;
 }
@@ -53,9 +54,13 @@ const ToolGrid = ({ tools, columns }: ToolGridProps) => {
               }
             }}
           >
-            {tool.icon && (
+            {(tool.imageUrl || tool.icon) && (
               <div className="flex items-center justify-center px-md text-secondary-600 shrink-0">
-                <tool.icon className="text-2xl" />
+                {tool.imageUrl ? (
+                  <img src={tool.imageUrl} alt="" className="size-8 rounded-full object-cover" />
+                ) : (
+                  tool.icon && <tool.icon className="text-2xl" />
+                )}
               </div>
             )}
 

@@ -69,14 +69,12 @@ const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
               className="w-full rounded-md border border-grey-300 dark:border-grey-600 bg-background px-sm py-xs text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
-              placeholder="Name der neuen Gruppe (optional)"
+              placeholder="Name der neuen Gruppe"
               maxLength={100}
+              required
               autoFocus
               disabled={isCreatingGroup}
             />
-            <span className="text-xs text-foreground">
-              Falls leer, wird &quot;unbenannte Gruppe&quot; verwendet.
-            </span>
           </label>
         </form>
 
@@ -84,7 +82,11 @@ const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isCreatingGroup}>
             Abbrechen
           </Button>
-          <Button type="submit" form="create-group-form" disabled={isCreatingGroup}>
+          <Button
+            type="submit"
+            form="create-group-form"
+            disabled={isCreatingGroup || !groupName.trim()}
+          >
             {isCreatingGroup ? 'Wird erstellt...' : 'Gruppe erstellen'}
           </Button>
         </DialogFooter>

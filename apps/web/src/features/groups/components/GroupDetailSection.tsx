@@ -1,27 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
-import { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 
 import apiClient from '../../../components/utils/apiClient';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { getNotebookById } from '../../notebook/config/notebooksConfig';
 import { useGroupPresence } from '../hooks/useGroupPresence';
-import { useGroups, useGroupSharing } from '../hooks/useGroups';
+import { useGroups, useGroupAvatar, useGroupLinks, useGroupSharing } from '../hooks/useGroups';
 
-import GroupInfoSection from './GroupInfoSection';
-
-interface GroupData {
-  isAdmin?: boolean;
-  membership?: {
-    role?: string;
-  };
-  groupInfo?: {
-    id?: string;
-    name?: string;
-    description?: string;
-  };
-  joinToken?: string;
-  [key: string]: unknown;
-}
+import GroupInfoSection, { type GroupData } from './GroupInfoSection';
 
 interface GroupDetailSectionProps {
   groupId: string;
@@ -36,7 +23,7 @@ const GroupDetailSection = memo(
       groupId,
       user ? { id: user.id, name: user.display_name || user.email || 'User' } : null
     );
-    const onlineUserIds = new Set(onlineMembers.map((m) => m.id));
+    const onlineUserIds = useMemo(() => new Set(onlineMembers.map((m) => m.id)), [onlineMembers]);
 
     const [isEditingName, setIsEditingName] = useState(false);
     const [editedGroupName, setEditedGroupName] = useState('');
@@ -81,15 +68,32 @@ const GroupDetailSection = memo(
     const { deleteGroup, isDeletingGroup, updateGroupName, updateGroupInfo, isUpdatingGroupName } =
       useGroups({ isActive: true });
 
+    const { uploadAvatar, isUploadingAvatar, deleteAvatar, isDeletingAvatar } =
+      useGroupAvatar(groupId);
+
+    const { addLink, updateLink, deleteLink, isAddingLink, isUpdatingLink } =
+      useGroupLinks(groupId);
+
     const { groupContent, isLoadingGroupContent, unshareContent, refetchGroupContent } =
       useGroupSharing(groupId, { isActive: true });
-    const allCollabDocs = groupContent?.collaborative_documents || [];
-    const sharedCollabDocs = allCollabDocs.filter((d: any) => d.document_subtype !== 'boards');
-    const sharedBoards = allCollabDocs.filter((d: any) => d.document_subtype === 'boards');
-    const sharedDocuments = groupContent?.documents || [];
-    const sharedGenerators = groupContent?.generators || [];
-    const sharedNotebooks = groupContent?.notebooks || [];
-    const sharedTexts = groupContent?.texts || [];
+
+    const sharedContent = useMemo(() => {
+      const allCollabDocs = groupContent?.collaborative_documents || [];
+      return {
+        collabDocs: allCollabDocs.filter((d: any) => d.document_subtype !== 'boards'),
+        boards: allCollabDocs.filter((d: any) => d.document_subtype === 'boards'),
+        documents: groupContent?.documents || [],
+        generators: groupContent?.generators || [],
+        notebooks: [
+          ...(groupContent?.notebooks || []),
+          ...(groupContent?.system_notebooks || []).map((nb: any) => {
+            const config = getNotebookById(nb.id);
+            return { ...nb, name: config?.title ?? nb.id };
+          }),
+        ],
+        texts: groupContent?.texts || [],
+      };
+    }, [groupContent]);
 
     useEffect(() => {
       if (!data) return;
@@ -231,6 +235,7 @@ const GroupDetailSection = memo(
         <GroupInfoSection
           data={data}
           groupId={groupId}
+          currentUserId={user?.id}
           isEditingName={isEditingName}
           editedGroupName={editedGroupName}
           setEditedGroupName={setEditedGroupName}
@@ -250,12 +255,7 @@ const GroupDetailSection = memo(
           saveGroupDescription={saveGroupDescription}
           confirmDeleteGroup={confirmDeleteGroup}
           onlineUserIds={onlineUserIds}
-          sharedCollabDocs={sharedCollabDocs}
-          sharedBoards={sharedBoards}
-          sharedDocuments={sharedDocuments}
-          sharedGenerators={sharedGenerators}
-          sharedNotebooks={sharedNotebooks}
-          sharedTexts={sharedTexts}
+          sharedContent={sharedContent}
           isLoadingSharedContent={isLoadingGroupContent}
           onUnshareContent={(contentId, contentType) => {
             if (window.confirm('Inhalt aus der Gruppe entfernen?')) {
@@ -263,6 +263,14 @@ const GroupDetailSection = memo(
             }
           }}
           refetchSharedContent={refetchGroupContent}
+          onUploadAvatar={(file) => uploadAvatar(file)}
+          onDeleteAvatar={() => deleteAvatar()}
+          isUploadingAvatar={isUploadingAvatar || isDeletingAvatar}
+          onAddLink={addLink}
+          onUpdateLink={updateLink}
+          onDeleteLink={deleteLink}
+          isAddingLink={isAddingLink}
+          isUpdatingLink={isUpdatingLink}
         />
       </motion.div>
     );

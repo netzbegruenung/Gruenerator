@@ -185,6 +185,7 @@ Conventional Commits enforced by commitlint: `feat:`, `fix:`, `chore:`, `refacto
 Strict mode. The entire stack is TypeScript — frontend, backend, shared packages, and mobile.
 
 - **Type-only imports**: ESLint enforces `consistent-type-imports` with inline style. Always use `import { type Foo } from './types'` (not `import type { Foo }`). Auto-fixable with `eslint --fix`.
+- **No `undefined` — 100% type safety**: Never use `undefined` anywhere — not explicitly, not via `?? undefined`, not via ternaries. If a value can be `null`, widen the type to `| null`. If a field is optional, omit it entirely via conditional `if` blocks. Fix the root type mismatch rather than adding conversion shims.
 
 ### Express 5 Route Typing
 

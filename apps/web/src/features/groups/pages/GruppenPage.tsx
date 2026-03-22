@@ -1,75 +1,37 @@
 import { StatusBanner } from '@gruenerator/ui';
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../../components/common/PageContainer';
-import { useOptimizedAuth } from '../../../hooks/useAuth';
 import GroupDetailSection from '../components/GroupDetailSection';
 import GroupsCreateSection from '../components/GroupsCreateSection';
 import GroupsOverviewSection from '../components/GroupsOverviewSection';
-import { useGroupPresenceManager } from '../hooks/useGroupPresenceManager';
-import { useGroups } from '../hooks/useGroups';
-
-interface Group {
-  id: string;
-  name: string;
-  isAdmin?: boolean;
-}
+import { useGroups, type GroupSummary } from '../hooks/useGroups';
 
 const GruppenPage = () => {
   const navigate = useNavigate();
   const { groupId } = useParams<{ groupId?: string }>();
-  const { user } = useOptimizedAuth();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const errorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const {
-    userGroups,
-    createGroup,
-    isCreatingGroup,
-    isCreateGroupError,
-    createGroupError,
-    isDeleteGroupSuccess,
-  } = useGroups({ isActive: true });
+  const { userGroups, createGroup, isCreatingGroup, isCreateGroupError, createGroupError } =
+    useGroups({ isActive: true });
 
-  const groupIds = useMemo(() => (userGroups || []).map((g: Group) => g.id), [userGroups]);
-  const presenceUser = user
-    ? { id: user.id, name: user.display_name || user.email || 'User' }
-    : null;
-  const { getOnlineCount } = useGroupPresenceManager(groupId ? [] : groupIds, presenceUser);
+  const showSuccess = useCallback((msg: string) => {
+    if (successTimer.current) clearTimeout(successTimer.current);
+    setSuccessMessage(msg);
+    successTimer.current = setTimeout(() => setSuccessMessage(''), 5000);
+  }, []);
 
-  useEffect(() => {
-    if (successMessage) {
-      const timer = setTimeout(() => setSuccessMessage(''), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [successMessage]);
-
-  useEffect(() => {
-    if (errorMessage) {
-      const timer = setTimeout(() => setErrorMessage(''), 7000);
-      return () => clearTimeout(timer);
-    }
-  }, [errorMessage]);
-
-  useEffect(() => {
-    if (isDeleteGroupSuccess && groupId && userGroups) {
-      const deletedGroupWasSelected = !userGroups.some((g: Group) => g.id === groupId);
-      if (deletedGroupWasSelected) {
-        setSuccessMessage('Gruppe erfolgreich gelöscht!');
-        navigate('/gruppen', { replace: true });
-      }
-    }
-  }, [isDeleteGroupSuccess, groupId, userGroups, navigate]);
-
-  const handleSelectGroup = useCallback(
-    (id: string) => {
-      navigate(`/gruppen/${id}`);
-    },
-    [navigate]
-  );
+  const showError = useCallback((msg: string) => {
+    if (errorTimer.current) clearTimeout(errorTimer.current);
+    setErrorMessage(msg);
+    errorTimer.current = setTimeout(() => setErrorMessage(''), 7000);
+  }, []);
 
   const handleCreateNew = useCallback(() => {
     setCreateDialogOpen(true);
@@ -80,27 +42,29 @@ const GruppenPage = () => {
   const handleCreateGroup = useCallback(
     (groupName: string) => {
       if (isCreatingGroup) return;
-      const name = groupName.trim() || 'unbenannte Gruppe';
+      const name = groupName.trim();
       setSuccessMessage('');
       setErrorMessage('');
       createGroup(name, {
-        onSuccess: (newGroup: Group) => {
+        onSuccess: (newGroup: GroupSummary) => {
           setCreateDialogOpen(false);
-          setSuccessMessage(`Gruppe "${name}" erfolgreich erstellt!`);
+          showSuccess(`Gruppe "${name}" erfolgreich erstellt!`);
           navigate(`/gruppen/${newGroup.id}`);
         },
         onError: (error: Error | null) => {
-          setErrorMessage(error?.message || 'Gruppe konnte nicht erstellt werden.');
+          showError(error?.message || 'Gruppe konnte nicht erstellt werden.');
         },
       });
     },
-    [isCreatingGroup, createGroup, navigate]
+    [isCreatingGroup, createGroup, navigate, showSuccess, showError]
   );
 
   return (
     <PageContainer
-      title={groupId ? undefined : 'Gruppen'}
-      subtitle={groupId ? undefined : 'Verwalte deine Gruppen, Mitglieder und geteilte Inhalte.'}
+      {...(!groupId && {
+        title: 'Gruppen',
+        subtitle: 'Verwalte deine Gruppen, Mitglieder und geteilte Inhalte.',
+      })}
       maxWidth="sm"
     >
       {(successMessage || errorMessage) && (
@@ -113,17 +77,15 @@ const GruppenPage = () => {
       {groupId ? (
         <GroupDetailSection
           groupId={groupId}
-          onSuccessMessage={setSuccessMessage}
-          onErrorMessage={setErrorMessage}
+          onSuccessMessage={showSuccess}
+          onErrorMessage={showError}
         />
       ) : (
         <GroupsOverviewSection
           userGroups={userGroups}
           isCreatingGroup={isCreatingGroup}
           onCreateNew={handleCreateNew}
-          onSelectGroup={handleSelectGroup}
           tabIndex={{ createGroupButton: 1 }}
-          getOnlineCount={getOnlineCount}
         />
       )}
 

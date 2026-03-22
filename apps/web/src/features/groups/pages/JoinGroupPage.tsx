@@ -14,7 +14,9 @@ const JoinGroupPage = () => {
   const navigate = useNavigate();
   const { user: supabaseUser, loading: isLoading, isAuthResolved } = useOptimizedAuth();
   const [groupName, setGroupName] = useState('');
-  const [status, setStatus] = useState('loading');
+  const [status, setStatus] = useState<
+    'loading' | 'ready' | 'already_member' | 'success' | 'error'
+  >('loading');
 
   const { joinGroup, isJoiningGroup, isJoinGroupError, joinGroupError, isJoinGroupSuccess } =
     useGroups({ isActive: true });

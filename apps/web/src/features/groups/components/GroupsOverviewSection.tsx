@@ -6,24 +6,17 @@ import { HiPlus, HiUserGroup } from 'react-icons/hi';
 import ToolGrid from '../../../components/common/ToolGrid';
 
 import type { ToolEntry } from '../../../components/common/ToolGrid';
-
-interface Group {
-  id: string;
-  name: string;
-  isAdmin?: boolean;
-}
+import type { GroupSummary } from '../hooks/useGroups';
 
 interface TabIndexConfig {
   createGroupButton?: number;
 }
 
 interface GroupsOverviewSectionProps {
-  userGroups: Group[] | null | undefined;
+  userGroups: GroupSummary[] | null | undefined;
   isCreatingGroup: boolean;
   onCreateNew: () => void;
-  onSelectGroup: (groupId: string) => void;
   tabIndex: TabIndexConfig;
-  getOnlineCount?: (groupId: string) => number;
 }
 
 const MOTION_CONFIG = {
@@ -43,13 +36,19 @@ const GroupsOverviewSection = memo(
 
     const tools: ToolEntry[] = useMemo(
       () =>
-        (userGroups || []).map((g) => ({
-          id: g.id,
-          title: g.name,
-          description: 'Gruppe',
-          path: `/gruppen/${g.id}`,
-          icon: HiUserGroup,
-        })),
+        (userGroups || []).map((g) => {
+          const entry: ToolEntry = {
+            id: g.id,
+            title: g.name,
+            description: 'Gruppe',
+            path: `/gruppen/${g.id}`,
+            icon: HiUserGroup,
+          };
+          if (g.avatar_url) {
+            entry.imageUrl = `/api/auth/groups/${g.id}/avatar`;
+          }
+          return entry;
+        }),
       [userGroups]
     );
 
@@ -61,27 +60,16 @@ const GroupsOverviewSection = memo(
           animate={MOTION_CONFIG.animate}
           transition={MOTION_CONFIG.transition}
         >
-          <div className="flex flex-col items-center gap-lg max-w-[32rem] text-center">
-            <div className="flex flex-col gap-xs">
-              <h2 className="text-2xl font-semibold text-foreground">
-                Du hast noch keine Gruppe erstellt
-              </h2>
-              <p className="text-base text-foreground leading-relaxed text-center">
-                Erstelle eine Gruppe, um Anweisungen und Wissen mit deinem Team zu teilen und
-                gemeinsam an Texten zu arbeiten.
-              </p>
-            </div>
-            <Button
-              onClick={onCreateNew}
-              disabled={isCreatingGroup}
-              tabIndex={tabIndex.createGroupButton}
-              aria-label="Neue Gruppe erstellen"
-              size="lg"
-            >
-              <HiPlus />
-              {isCreatingGroup ? 'Wird erstellt...' : 'Erste Gruppe erstellen'}
-            </Button>
-          </div>
+          <Button
+            onClick={onCreateNew}
+            disabled={isCreatingGroup}
+            tabIndex={tabIndex.createGroupButton}
+            aria-label="Neue Gruppe erstellen"
+            size="lg"
+          >
+            <HiPlus />
+            {isCreatingGroup ? 'Wird erstellt...' : 'Erste Gruppe erstellen'}
+          </Button>
         </motion.div>
       );
     }

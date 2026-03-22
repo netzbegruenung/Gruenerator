@@ -5,12 +5,12 @@ import * as Y from 'yjs';
 
 import type { CollaborationUser } from '@gruenerator/collab';
 
-interface PresenceUser {
+export interface PresenceUser {
   id: string;
   name: string;
 }
 
-const HOCUSPOCUS_URL =
+export const HOCUSPOCUS_URL =
   import.meta.env.VITE_HOCUSPOCUS_URL ||
   (window.location.protocol === 'https:'
     ? `wss://${window.location.host}/ws`

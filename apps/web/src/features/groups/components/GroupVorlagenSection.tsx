@@ -84,7 +84,6 @@ const GroupVorlagenSection = memo(
 
     return (
       <div>
-        {/* Tag editor (admin only) */}
         {isAdmin && (
           <div className="mb-sm">
             <div className="flex flex-wrap items-center gap-xs mb-xs">
@@ -128,7 +127,6 @@ const GroupVorlagenSection = memo(
           </div>
         )}
 
-        {/* Empty state: no tags */}
         {tags.length === 0 && (
           <p className="text-xs text-foreground italic">
             {isAdmin
@@ -137,10 +135,8 @@ const GroupVorlagenSection = memo(
           </p>
         )}
 
-        {/* Content when tags exist */}
         {tags.length > 0 && (
           <>
-            {/* Tabs */}
             <div className="flex flex-wrap gap-xxs mb-sm border-b border-grey-200 dark:border-grey-700 pb-xs">
               <button
                 onClick={() => setActiveTab('alle')}
@@ -173,12 +169,10 @@ const GroupVorlagenSection = memo(
               ))}
             </div>
 
-            {/* Loading */}
             {isLoading && (
               <p className="text-xs text-foreground italic py-sm">Vorlagen werden geladen...</p>
             )}
 
-            {/* Empty state: tags but no matches */}
             {!isLoading && filteredVorlagen.length === 0 && (
               <p className="text-xs text-foreground italic py-sm">
                 Keine Vorlagen für {activeTab === 'alle' ? 'diese Tags' : `"${activeTab}"`}{' '}
@@ -186,18 +180,15 @@ const GroupVorlagenSection = memo(
               </p>
             )}
 
-            {/* Template cards grid */}
             {!isLoading && filteredVorlagen.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-sm">
                 {filteredVorlagen.map((vorlage) => (
                   <a
                     key={vorlage.id}
                     href={vorlage.external_url || '#'}
-                    target={vorlage.external_url ? '_blank' : undefined}
-                    rel={vorlage.external_url ? 'noopener noreferrer' : undefined}
+                    {...(vorlage.external_url && { target: '_blank', rel: 'noopener noreferrer' })}
                     className="group flex flex-col rounded-lg border border-grey-200 dark:border-grey-700 bg-background overflow-hidden hover:border-primary-500 hover:shadow-md transition-all"
                   >
-                    {/* Thumbnail */}
                     <div className="aspect-[4/3] bg-grey-100 dark:bg-grey-800 flex items-center justify-center overflow-hidden">
                       {vorlage.thumbnail_url ? (
                         <img
@@ -211,7 +202,6 @@ const GroupVorlagenSection = memo(
                       )}
                     </div>
 
-                    {/* Info */}
                     <div className="p-xs flex flex-col gap-xxs">
                       <div className="flex items-start justify-between gap-xxs">
                         <h4 className="text-sm font-medium text-foreground line-clamp-1">
