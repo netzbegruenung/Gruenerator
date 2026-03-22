@@ -6,7 +6,8 @@ import { useDocsAdapter, createDocsApiClient } from '../../context/DocsContext';
 import { GroupShareSection } from './GroupShareSection';
 import './ShareModal.css';
 
-interface Collaborator {
+interface UserCollaborator {
+  type?: 'user';
   user_id: string;
   display_name: string;
   email: string;
@@ -16,6 +17,17 @@ interface Collaborator {
   granted_at: string;
   granted_by?: string;
 }
+
+interface GroupCollaborator {
+  type: 'group';
+  group_id: string;
+  group_name: string;
+  permission_level: 'editor' | 'viewer';
+  shared_at: string;
+  member_count: number;
+}
+
+type Collaborator = UserCollaborator | GroupCollaborator;
 
 interface ShareSettings {
   is_public: boolean;
@@ -181,6 +193,27 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
     }
   };
 
+  const handleUpdateGroupPermission = async (groupId: string, newLevel: 'editor' | 'viewer') => {
+    try {
+      await apiClient.put(`/docs/${documentId}/groups/${groupId}`, { permission_level: newLevel });
+      await fetchCollaborators();
+    } catch (err) {
+      console.error('Failed to update group permission:', err);
+      setError('Fehler beim Aktualisieren der Gruppen-Berechtigung');
+    }
+  };
+
+  const handleRemoveGroup = async (groupId: string) => {
+    if (!window.confirm('Gruppe wirklich entfernen?')) return;
+    try {
+      await apiClient.delete(`/docs/${documentId}/groups/${groupId}`);
+      await fetchCollaborators();
+    } catch (err) {
+      console.error('Failed to remove group:', err);
+      setError('Fehler beim Entfernen der Gruppe');
+    }
+  };
+
   const handleRevokePermission = async (userId: string) => {
     if (!window.confirm('Berechtigung wirklich entziehen?')) {
       return;
@@ -286,61 +319,49 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
         />
 
         <div className="collaborators-section">
-          <p className="mb-3 text-base font-semibold">Personen mit Zugriff</p>
+          <p className="mb-3 text-base font-semibold">Zugriff</p>
           {isLoading ? (
             <div className="flex justify-center py-6">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-grey-300 border-t-primary-600" />
             </div>
           ) : collaborators.length === 0 ? (
             <p className="py-6 text-center text-grey-500 dark:text-grey-400">
-              Noch keine Mitarbeiter
+              Noch niemand eingeladen
             </p>
           ) : (
             <div className="flex flex-col gap-3">
-              {collaborators.map((collaborator) => (
-                <div
-                  key={collaborator.user_id}
-                  className="collaborator-item flex flex-nowrap items-center justify-between"
-                >
-                  <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-3">
-                    {(() => {
-                      const avatar = getAvatarDisplayProps(collaborator);
-                      return avatar.type === 'robot' ? (
-                        <img
-                          src={getRobotAvatarPath(avatar.robotId!)}
-                          alt={avatar.alt}
-                          className="collaborator-avatar"
-                        />
-                      ) : (
-                        <div className="collaborator-avatar collaborator-avatar-initials">
-                          {avatar.initials}
+              {collaborators.map((collaborator) => {
+                if (collaborator.type === 'group') {
+                  return (
+                    <div
+                      key={`group-${collaborator.group_id}`}
+                      className="collaborator-item flex flex-nowrap items-center justify-between"
+                    >
+                      <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-3">
+                        <div
+                          className="collaborator-avatar collaborator-avatar-initials"
+                          style={{ fontSize: '0.7rem' }}
+                        >
+                          👥
                         </div>
-                      );
-                    })()}
-                    <div className="min-w-0">
-                      <span className="block truncate text-sm font-medium">
-                        {collaborator.display_name}
-                      </span>
-                      <span className="block truncate text-xs text-grey-500 dark:text-grey-400">
-                        {collaborator.email}
-                      </span>
-                      <span className="block text-xs text-grey-500 dark:text-grey-400">
-                        Hinzugefügt am {formatDate(collaborator.granted_at)}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex flex-nowrap items-center gap-2">
-                    {collaborator.permission_level === 'owner' ? (
-                      <Badge>{getPermissionLabel(collaborator.permission_level)}</Badge>
-                    ) : (
-                      <>
+                        <div className="min-w-0">
+                          <span className="block truncate text-sm font-medium">
+                            {collaborator.group_name}
+                          </span>
+                          <span className="block text-xs text-grey-500 dark:text-grey-400">
+                            Gruppe · {collaborator.member_count}{' '}
+                            {collaborator.member_count === 1 ? 'Mitglied' : 'Mitglieder'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-nowrap items-center gap-2">
                         <select
                           className="h-7 w-[150px] rounded-md border border-grey-300 bg-background px-2 text-xs outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 dark:border-grey-600 dark:bg-grey-800"
                           value={collaborator.permission_level}
                           onChange={(e) =>
-                            handleUpdatePermission(
-                              collaborator.user_id,
-                              e.target.value as 'owner' | 'editor' | 'viewer'
+                            handleUpdateGroupPermission(
+                              collaborator.group_id,
+                              e.target.value as 'editor' | 'viewer'
                             )
                           }
                         >
@@ -350,15 +371,78 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
                         <Button
                           variant="outline"
                           size="xs"
-                          onClick={() => handleRevokePermission(collaborator.user_id)}
+                          onClick={() => handleRemoveGroup(collaborator.group_id)}
                         >
                           Entfernen
                         </Button>
-                      </>
-                    )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div
+                    key={collaborator.user_id}
+                    className="collaborator-item flex flex-nowrap items-center justify-between"
+                  >
+                    <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-3">
+                      {(() => {
+                        const avatar = getAvatarDisplayProps(collaborator);
+                        return avatar.type === 'robot' ? (
+                          <img
+                            src={getRobotAvatarPath(avatar.robotId!)}
+                            alt={avatar.alt}
+                            className="collaborator-avatar"
+                          />
+                        ) : (
+                          <div className="collaborator-avatar collaborator-avatar-initials">
+                            {avatar.initials}
+                          </div>
+                        );
+                      })()}
+                      <div className="min-w-0">
+                        <span className="block truncate text-sm font-medium">
+                          {collaborator.display_name}
+                        </span>
+                        <span className="block truncate text-xs text-grey-500 dark:text-grey-400">
+                          {collaborator.email}
+                        </span>
+                        <span className="block text-xs text-grey-500 dark:text-grey-400">
+                          Hinzugefügt am {formatDate(collaborator.granted_at)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-nowrap items-center gap-2">
+                      {collaborator.permission_level === 'owner' ? (
+                        <Badge>{getPermissionLabel(collaborator.permission_level)}</Badge>
+                      ) : (
+                        <>
+                          <select
+                            className="h-7 w-[150px] rounded-md border border-grey-300 bg-background px-2 text-xs outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 dark:border-grey-600 dark:bg-grey-800"
+                            value={collaborator.permission_level}
+                            onChange={(e) =>
+                              handleUpdatePermission(
+                                collaborator.user_id,
+                                e.target.value as 'owner' | 'editor' | 'viewer'
+                              )
+                            }
+                          >
+                            <option value="editor">Bearbeiter*in</option>
+                            <option value="viewer">Betrachter*in</option>
+                          </select>
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            onClick={() => handleRevokePermission(collaborator.user_id)}
+                          >
+                            Entfernen
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

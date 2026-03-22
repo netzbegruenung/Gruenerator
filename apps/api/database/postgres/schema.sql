@@ -146,7 +146,9 @@ CREATE TABLE IF NOT EXISTS groups (
     is_active BOOLEAN DEFAULT TRUE,
     group_type TEXT DEFAULT 'standard',
     settings JSONB DEFAULT '{}',
-    wolke_share_links JSONB DEFAULT '[]'
+    wolke_share_links JSONB DEFAULT '[]',
+    avatar_url TEXT,
+    links JSONB DEFAULT '[]'
 );
 
 CREATE TABLE IF NOT EXISTS group_memberships (
@@ -180,16 +182,6 @@ CREATE TABLE IF NOT EXISTS group_instructions (
     UNIQUE(group_id)
 );
 
-CREATE TABLE IF NOT EXISTS group_knowledge (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
-    title TEXT NOT NULL,
-    content TEXT NOT NULL,
-    tags JSONB,
-    created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-);
 
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -773,7 +765,6 @@ CREATE INDEX IF NOT EXISTS idx_group_content_shares_shared_by ON group_content_s
 CREATE INDEX IF NOT EXISTS idx_group_instructions_group_id ON group_instructions(group_id);
 CREATE INDEX IF NOT EXISTS idx_group_instructions_is_active ON group_instructions(is_active);
 CREATE INDEX IF NOT EXISTS idx_group_instructions_group_active ON group_instructions(group_id, is_active);
-CREATE INDEX IF NOT EXISTS idx_group_knowledge_group_id ON group_knowledge(group_id);
 
 -- Documents indexes
 CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id);
@@ -918,10 +909,6 @@ CREATE TRIGGER update_group_instructions_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_group_knowledge_updated_at
-    BEFORE UPDATE ON group_knowledge
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
 
 -- Documents triggers
 CREATE TRIGGER update_documents_updated_at
