@@ -369,7 +369,7 @@ export const useAuth = (options: AuthOptions = {}) => {
         return {
           isAuthenticated: true,
           user: {
-            id: 'dev-user-123',
+            id: '00000000-0000-4000-a000-000000000001',
             email: 'dev@gruenerator.de',
             display_name: 'Test User',
             avatar_robot_id: 1,
