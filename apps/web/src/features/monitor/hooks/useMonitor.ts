@@ -142,6 +142,7 @@ export function useKeywordInsights(locale?: MonitorLocale) {
 interface MonitorBriefingResult {
   briefing: string;
   tweets: Array<{ text: string; topic: string; hashtags: string[] }>;
+  citations?: Array<{ id: string; title: string; url: string; snippet: string }>;
   generatedAt: string;
 }
 

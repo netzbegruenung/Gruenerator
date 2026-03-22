@@ -144,7 +144,7 @@ class TransferService {
   async listUserTransfers(userId: string): Promise<TransferRecord[]> {
     await this.ensureInitialized();
 
-    return this.postgres!.query<TransferRecord>(
+    return this.postgres!.query(
       `SELECT id, share_token, file_name, file_size, mime_type,
               download_count, created_at, wolke_share_link_id, wolke_file_path, user_id
        FROM shared_media
@@ -152,13 +152,13 @@ class TransferService {
        ORDER BY created_at DESC
        LIMIT 50`,
       [userId]
-    );
+    ) as Promise<TransferRecord[]>;
   }
 
   async deleteTransfer(userId: string, shareToken: string): Promise<boolean> {
     await this.ensureInitialized();
 
-    const result = await this.postgres!.query<{ id: string }>(
+    const result = await this.postgres!.query(
       `DELETE FROM shared_media
        WHERE share_token = $1 AND user_id = $2 AND media_type = 'transfer'
        RETURNING id`,

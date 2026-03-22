@@ -14,13 +14,13 @@
     "start:prod": "NODE_ENV=production npx tsx server.ts"
   },
   "dependencies": {
-    "@blocknote/core": "^0.47.1",
-    "@blocknote/react": "^0.47.1",
-    "@blocknote/shadcn": "^0.47.1",
-    "@blocknote/xl-ai": "^0.47.1",
-    "@blocknote/xl-docx-exporter": "^0.47.1",
-    "@blocknote/xl-odt-exporter": "^0.47.1",
-    "@blocknote/xl-pdf-exporter": "^0.47.1",
+    "@blocknote/core": "^0.47.2",
+    "@blocknote/react": "^0.47.2",
+    "@blocknote/shadcn": "^0.47.2",
+    "@blocknote/xl-ai": "^0.47.2",
+    "@blocknote/xl-docx-exporter": "^0.47.2",
+    "@blocknote/xl-odt-exporter": "^0.47.2",
+    "@blocknote/xl-pdf-exporter": "^0.47.2",
     "@floating-ui/react": "^0.27.19",
     "@gruenerator/docs": "workspace:*",
     "@gruenerator/shared": "workspace:*",
@@ -28,12 +28,12 @@
     "@gruenerator/wolke": "workspace:*",
     "@hocuspocus/provider": "^3.4.4",
     "@react-pdf/renderer": "^4.3.2",
-    "@tanstack/react-query": "^5.90.21",
+    "@tanstack/react-query": "^5.95.0",
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-fs": "^2.4.5",
     "@tauri-apps/plugin-opener": "^2.5.3",
     "@tauri-apps/plugin-shell": "^2.3.5",
-    "ai": "^6.0.116",
+    "ai": "^6.0.134",
     "axios": "^1.13.6",
     "clsx": "^2.1.1",
     "compression": "^1.8.1",
@@ -55,7 +55,7 @@
   },
   "devDependencies": {
     "@gruenerator/eslint-config": "workspace:*",
-    "@tailwindcss/vite": "^4.2.1",
+    "@tailwindcss/vite": "^4.2.2",
     "@types/compression": "^1.8.1",
     "@types/express": "^5.0.6",
     "@types/lodash.throttle": "^4.1.9",
@@ -65,10 +65,10 @@
     "@vitejs/plugin-react": "^6.0.1",
     "eslint": "^9.39.4",
     "sass-embedded": "^1.98.0",
-    "tailwindcss": "^4.2.1",
+    "tailwindcss": "^4.2.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vite": "^8.0.0",
-    "vite-plugin-compression2": "^2.5.2"
+    "vite": "^8.0.1",
+    "vite-plugin-compression2": "^2.5.3"
   }
 }
