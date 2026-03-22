@@ -33,10 +33,6 @@ const GroupDetailSection = memo(
 
     const isInitialized = useRef(false);
 
-    useEffect(() => {
-      isInitialized.current = false;
-    }, [groupId]);
-
     const {
       data: rawData,
       isLoading: isLoadingDetails,

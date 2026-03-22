@@ -30,9 +30,12 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
   const [customSelections, setCustomSelections] = useState<CustomSelectionsState>({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
-  useEffect(() => {
+  // Reset index when questions change (store previous reference)
+  const [prevQuestions, setPrevQuestions] = useState(questions);
+  if (questions !== prevQuestions) {
+    setPrevQuestions(questions);
     setCurrentQuestionIndex(0);
-  }, [questions]);
+  }
 
   const allAnswered = questions.every((q) => {
     const answer = answers[q.id];

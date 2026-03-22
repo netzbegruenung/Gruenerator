@@ -33,25 +33,19 @@ const BulkDeleteConfirmModal = ({
 }: BulkDeleteConfirmModalProps) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const [confirmText, setConfirmText] = useState('');
-  const [isConfirmValid, setIsConfirmValid] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const isConfirmValid = confirmText.trim().toLowerCase() === 'löschen';
 
   // Reset state when modal opens/closes
   useEffect(() => {
     if (isOpen) {
       setConfirmText('');
-      setIsConfirmValid(false);
-      // Focus the input after a short delay to ensure modal is rendered
       setTimeout(() => {
         inputRef.current?.focus();
       }, 100);
     }
   }, [isOpen]);
-
-  // Validate confirmation text
-  useEffect(() => {
-    setIsConfirmValid(confirmText.trim().toLowerCase() === 'löschen');
-  }, [confirmText]);
 
   if (!isOpen) return null;
 

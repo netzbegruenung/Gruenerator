@@ -93,11 +93,17 @@ const TemplatePreviewModal = ({
   }, [template]);
 
   const hasMultipleImages = allImages.length > 1;
-  const currentImage = allImages[activeImageIndex] || allImages[0];
 
-  useEffect(() => {
+  // Reset index when template changes — derive safe index
+  const safeImageIndex = activeImageIndex < allImages.length ? activeImageIndex : 0;
+  const currentImage = allImages[safeImageIndex] || allImages[0];
+
+  // Reset to first image when switching templates
+  const [prevTemplateId, setPrevTemplateId] = useState(template?.id);
+  if (template?.id !== prevTemplateId) {
+    setPrevTemplateId(template?.id);
     setActiveImageIndex(0);
-  }, [template?.id]);
+  }
 
   useEffect(() => {
     if (!isOpen || !hasMultipleImages) return;

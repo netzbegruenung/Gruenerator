@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@gruenerator/ui';
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 
 import { useTagAutocomplete } from '../TemplateModal';
 
@@ -38,35 +38,20 @@ const EditTemplateModal = ({
   onSave,
   template,
 }: EditTemplateModalProps) => {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [externalUrl, setExternalUrl] = useState('');
-  const [thumbnailUrl, setThumbnailUrl] = useState('');
-  const [isPrivate, setIsPrivate] = useState(false);
+  const [title, setTitle] = useState(template?.title || '');
+  const [description, setDescription] = useState(template?.description || '');
+  const [externalUrl, setExternalUrl] = useState(
+    template?.external_url || template?.canva_url || ''
+  );
+  const [thumbnailUrl, setThumbnailUrl] = useState(
+    template?.thumbnail_url || template?.preview_image_url || ''
+  );
+  const [isPrivate, setIsPrivate] = useState(template?.is_private !== false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const tagAutocomplete = useTagAutocomplete(description, setDescription);
-
-  useEffect(() => {
-    if (isOpen && template) {
-      setTitle(template.title || '');
-      setDescription(template.description || '');
-      setExternalUrl(template.external_url || template.canva_url || '');
-      setThumbnailUrl(template.thumbnail_url || template.preview_image_url || '');
-      setIsPrivate(template.is_private !== false);
-      setSubmitError(null);
-      tagAutocomplete.reset();
-    }
-  }, [isOpen, template]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setSubmitError(null);
-      tagAutocomplete.reset();
-    }
-  }, [isOpen]);
 
   const handleSubmit = useCallback(async (): Promise<void> => {
     if (!title.trim()) {
