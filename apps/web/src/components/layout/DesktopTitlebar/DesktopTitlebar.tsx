@@ -5,9 +5,6 @@ import { minimizeWindow, toggleMaximizeWindow, closeWindow } from '../../../util
 import ProfileButton from '../Header/ProfileButton';
 
 const TabBar = lazy(() => import('../DesktopTabs/TabBar').catch(() => ({ default: () => null })));
-const NotificationCenter = lazy(
-  () => import('../../../features/notifications/components/NotificationCenter')
-);
 
 const appRegionDrag = { WebkitAppRegion: 'drag' } as React.CSSProperties;
 const appRegionNoDrag = { WebkitAppRegion: 'no-drag' } as React.CSSProperties;
@@ -86,9 +83,6 @@ const DesktopTitlebar = () => {
           className="px-3 flex items-center h-[var(--titlebar-height)] [&_[data-slot=dropdown-menu-trigger]]:!border-none [&_[data-slot=dropdown-menu-trigger]]:!bg-transparent [&_[data-slot=dropdown-menu-trigger]]:!shadow-none [&_[data-slot=dropdown-menu-trigger]]:!w-8 [&_[data-slot=dropdown-menu-trigger]]:!h-8 [&_[data-slot=dropdown-menu-trigger]]:!p-0 [&>button]:!border-none [&>button]:!bg-transparent [&>button]:!shadow-none [&>button]:!w-8 [&>button]:!h-8 [&>button]:!p-0 [&>a]:!border-none [&>a]:!bg-transparent [&>a]:!shadow-none [&>a]:!w-8 [&>a]:!h-8 [&>a]:!p-0 [&_a]:h-[var(--titlebar-height)] [&_a]:flex [&_a]:items-center [&_a_svg]:text-2xl [&_a_svg]:text-grey-500 [&_a:hover_svg]:text-primary-600 dark:[&_a_svg]:text-grey-400 dark:[&_a:hover_svg]:text-primary-400"
           style={appRegionNoDrag}
         >
-          <Suspense fallback={null}>
-            <NotificationCenter />
-          </Suspense>
           <ProfileButton />
         </div>
         <button

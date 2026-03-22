@@ -3,19 +3,7 @@ import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tansta
 import apiClient from '../../../components/utils/apiClient';
 import { useNotificationStore } from '../../../stores/notificationStore';
 
-interface Notification {
-  id: string;
-  user_id: string;
-  type: string;
-  title: string;
-  body: string | null;
-  metadata: Record<string, unknown>;
-  action_url: string | null;
-  group_key: string | null;
-  is_read: boolean;
-  read_at: string | null;
-  created_at: string;
-}
+import type { Notification } from '../types';
 
 const QUERY_KEY = ['notifications'];
 const PAGE_SIZE = 20;
@@ -73,6 +61,37 @@ export function useMarkAllAsRead() {
   return useMutation({
     mutationFn: async () => {
       await apiClient.patch('/notifications/read-all');
+    },
+    onSuccess: () => {
+      setUnreadCount(0);
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    },
+  });
+}
+
+export function useDismissNotification() {
+  const queryClient = useQueryClient();
+  const decrementUnreadCount = useNotificationStore((s) => s.decrementUnreadCount);
+
+  return useMutation({
+    mutationFn: async ({ id, isUnread }: { id: string; isUnread: boolean }) => {
+      await apiClient.delete(`/notifications/${id}`);
+      return { isUnread };
+    },
+    onSuccess: (_, { isUnread }) => {
+      if (isUnread) decrementUnreadCount();
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    },
+  });
+}
+
+export function useDismissAll() {
+  const queryClient = useQueryClient();
+  const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
+
+  return useMutation({
+    mutationFn: async () => {
+      await apiClient.delete('/notifications');
     },
     onSuccess: () => {
       setUnreadCount(0);
