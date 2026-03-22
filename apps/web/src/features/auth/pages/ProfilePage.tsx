@@ -10,9 +10,6 @@ import { PROFILE_MENU_ITEMS } from '../components/profile/ProfileMenu';
 const ProfileInfoTab = lazy(() => import('../components/profile/ProfileInfoTab'));
 const ContentManagementTab = lazy(() => import('../components/profile/tabs/ContentManagement'));
 const WolkeManagementTab = lazy(() => import('../components/profile/tabs/WolkeManagement'));
-const NotificationSettingsTab = lazy(
-  () => import('../components/profile/tabs/NotificationSettings')
-);
 
 type TabMapping = Record<string, string>;
 
@@ -57,6 +54,11 @@ const ProfilePage = () => {
 
     if (tab === 'integrationen' || tab === 'canva') {
       navigate('/profile/inhalte', { replace: true });
+      return;
+    }
+
+    if (tab === 'benachrichtigungen') {
+      navigate('/profile', { replace: true });
       return;
     }
 
@@ -159,13 +161,6 @@ const ProfilePage = () => {
               onSuccessMessage={handleSuccessMessage}
               onErrorMessage={handleErrorMessage}
               isActive={activeTab === 'wolke'}
-            />
-          )}
-
-          {activeTab === 'benachrichtigungen' && (
-            <NotificationSettingsTab
-              onSuccessMessage={handleSuccessMessage}
-              onErrorMessage={handleErrorMessage}
             />
           )}
         </Suspense>

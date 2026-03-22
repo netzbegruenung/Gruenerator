@@ -1,10 +1,12 @@
 import { Badge } from '@gruenerator/ui';
 import React from 'react';
 import { type IconType } from 'react-icons';
-import { HiOutlineDatabase, HiOutlineUsers, HiSave, HiOutlineDocumentSearch } from 'react-icons/hi';
+import { HiOutlineDatabase, HiOutlineDocumentSearch, HiOutlineUsers, HiSave } from 'react-icons/hi';
 
 import FeatureToggle from '../../../../../../components/common/FeatureToggle';
+import { getEmailPreferenceTypes } from '../../../../../../features/notifications/notificationConfig';
 import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
+import { useUserDefaults } from '../../../../../../hooks/useUserDefaults';
 import { useAuthStore, type SupportedLocale } from '../../../../../../stores/authStore';
 
 interface SettingsSectionProps {
@@ -104,14 +106,14 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
         };
       case BETA_VIEWS.WORKPLACE:
         return {
-          title: 'Desk',
+          title: 'Workplace',
           description: 'Gruppen, Dokumente, Scanner und Boards',
           checked: getBetaFeatureState('workplace'),
           setter: (value: boolean) => updateUserBetaFeatures('workplace', value),
-          featureName: 'Desk',
+          featureName: 'Workplace',
           checkboxLabel: 'Gruppen, Dokumente, Scanner (OCR) und Kanban-Boards aktivieren',
-          linkTo: '/desk',
-          linkText: 'Zum Desk',
+          linkTo: '/workplace',
+          linkText: 'Zum Workplace',
           icon: HiOutlineUsers,
         };
       case BETA_VIEWS.VORLAGEN:
@@ -182,11 +184,50 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
   };
 
   return (
+    <div className="flex flex-col gap-lg">
+      <div>
+        <div className="text-sm font-medium text-foreground mb-md">Einstellungen</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+          {settingsFeatures.map((f) => renderToggle(f))}
+          {experimentalFeatures.map((f) => renderToggle(f, true))}
+        </div>
+      </div>
+
+      <NotificationToggles onSuccessMessage={onSuccessMessage} onErrorMessage={onErrorMessage} />
+    </div>
+  );
+};
+
+const NotificationToggles: React.FC<{
+  onSuccessMessage: (msg: string) => void;
+  onErrorMessage: (msg: string) => void;
+}> = ({ onSuccessMessage, onErrorMessage }) => {
+  const { get, set } = useUserDefaults<boolean>('notifications');
+  const categories = getEmailPreferenceTypes();
+
+  const handleToggle = async (key: string, label: string, checked: boolean) => {
+    try {
+      await set(key, checked);
+      onSuccessMessage(`${label} ${checked ? 'aktiviert' : 'deaktiviert'}.`);
+    } catch {
+      onErrorMessage('Einstellung konnte nicht gespeichert werden.');
+    }
+  };
+
+  return (
     <div>
-      <div className="text-sm font-medium text-foreground mb-md">Einstellungen</div>
+      <div className="text-sm font-medium text-foreground mb-md">E-Mail-Benachrichtigungen</div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
-        {settingsFeatures.map((f) => renderToggle(f))}
-        {experimentalFeatures.map((f) => renderToggle(f, true))}
+        {categories.map((cat) => (
+          <FeatureToggle
+            key={cat.key}
+            isActive={get(cat.key, true)}
+            onToggle={(checked) => handleToggle(cat.key, cat.label, checked)}
+            label={cat.label}
+            icon={cat.icon}
+            description={cat.description}
+          />
+        ))}
       </div>
     </div>
   );
