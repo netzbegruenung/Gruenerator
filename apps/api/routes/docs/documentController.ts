@@ -174,7 +174,6 @@ router.get('/', async (req: Request, res: Response) => {
             INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
             WHERE gcs.content_type = 'collaborative_documents'
           ) THEN 'group'
-          WHEN cd.is_public = true THEN 'public'
         END AS access_type
        FROM collaborative_documents cd
        LEFT JOIN profiles p ON cd.created_by = p.id
@@ -185,7 +184,6 @@ router.get('/', async (req: Request, res: Response) => {
         AND (
           cd.created_by = $1
           OR cd.permissions ? $1::text
-          OR cd.is_public = true
           OR cd.id IN (
             SELECT gcs.content_id
             FROM group_content_shares gcs
