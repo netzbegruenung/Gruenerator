@@ -795,12 +795,10 @@ router.put(
       ]);
 
       if (group && String(group.created_by) === String(memberId)) {
-        res
-          .status(400)
-          .json({
-            success: false,
-            message: 'Die Rolle der Gruppenersteller*in kann nicht geändert werden.',
-          });
+        res.status(400).json({
+          success: false,
+          message: 'Die Rolle der Gruppenersteller*in kann nicht geändert werden.',
+        });
         return;
       }
 
@@ -853,12 +851,31 @@ const ALLOWED_LINK_ICONS = new Set([
   'calendar',
   'chat',
   'folder',
+  'phone',
+  'video',
+  'document',
+  'map',
   'signal',
   'whatsapp',
   'telegram',
+  'discord',
+  'slack',
+  'mattermost',
   'canva',
+  'figma',
+  'miro',
   'drive',
-  'video',
+  'nextcloud',
+  'notion',
+  'trello',
+  'github',
+  'zoom',
+  'googlemeet',
+  'youtube',
+  'instagram',
+  'mastodon',
+  'linkedin',
+  'x',
 ]);
 const MAX_LINKS = 20;
 

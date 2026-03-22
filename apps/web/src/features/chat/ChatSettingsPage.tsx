@@ -164,7 +164,7 @@ function ChatSettingsPage() {
   const [toolToggles, setToolToggles] = useState<Record<string, boolean>>(customEnabledTools || {});
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const successTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showWizard, setShowWizard] = useState(!customSystemPrompt);
 
   // Multi-step state
@@ -184,7 +184,12 @@ function ChatSettingsPage() {
     setShowWizard(!customSystemPrompt);
   }, [customSystemPrompt, customEnabledTools]);
 
-  useEffect(() => () => clearTimeout(successTimerRef.current), []);
+  useEffect(
+    () => () => {
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    },
+    []
+  );
 
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -223,7 +228,7 @@ function ChatSettingsPage() {
 
       setShowWizard(false);
       setSuccessMessage('Einstellungen gespeichert');
-      clearTimeout(successTimerRef.current);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
       successTimerRef.current = setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
       console.error('Failed to save chat settings:', error);

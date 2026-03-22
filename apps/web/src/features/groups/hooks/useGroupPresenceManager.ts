@@ -3,12 +3,9 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Y from 'yjs';
 
-import type { CollaborationUser } from '@gruenerator/collab';
+import { HOCUSPOCUS_URL, type PresenceUser } from './useGroupPresence';
 
-interface PresenceUser {
-  id: string;
-  name: string;
-}
+import type { CollaborationUser } from '@gruenerator/collab';
 
 interface GroupPresenceEntry {
   provider: HocuspocusProvider;
@@ -17,12 +14,6 @@ interface GroupPresenceEntry {
 }
 
 const MAX_CONNECTIONS = 10;
-
-const HOCUSPOCUS_URL =
-  import.meta.env.VITE_HOCUSPOCUS_URL ||
-  (window.location.protocol === 'https:'
-    ? `wss://${window.location.host}/ws`
-    : 'ws://localhost:1240');
 
 export function useGroupPresenceManager(groupIds: string[], user: PresenceUser | null) {
   const connectionsRef = useRef<Map<string, GroupPresenceEntry>>(new Map());

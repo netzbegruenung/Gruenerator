@@ -8,6 +8,7 @@ export interface GroupSummary {
   id: string;
   name: string;
   description?: string;
+  avatar_url?: string | null;
   member_count?: number;
   role?: string;
   created_at?: string;
@@ -34,21 +35,6 @@ interface UseGroupsOptions {
   isActive?: boolean;
 }
 
-const requestCache = new Map<string, Promise<unknown>>();
-
-const deduplicatedFetch = <T>(key: string, fetcher: () => Promise<T>): Promise<T> => {
-  if (requestCache.has(key)) {
-    return requestCache.get(key) as Promise<T>;
-  }
-
-  const promise = fetcher().finally(() => {
-    requestCache.delete(key);
-  });
-
-  requestCache.set(key, promise);
-  return promise;
-};
-
 export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
   const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
   const queryClient = useQueryClient();
@@ -70,18 +56,9 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
   const groupsQueryKey = ['userGroups', user?.id];
 
   const fetchGroupsFn = async (): Promise<GroupSummary[]> => {
-    if (!user?.id) {
-      throw new Error('User not authenticated');
-    }
-
-    const requestKey = `groups_${user.id}`;
-    return deduplicatedFetch(requestKey, async () => {
-      const response = await apiClient.get('/auth/groups', {
-        skipAuthRedirect: true,
-      });
-      const data = response.data;
-      return data.groups || [];
-    });
+    if (!user?.id) throw new Error('User not authenticated');
+    const response = await apiClient.get('/auth/groups', { skipAuthRedirect: true });
+    return response.data.groups || [];
   };
 
   const query = useQuery({
@@ -294,22 +271,15 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
   };
 };
 
-export const useGroupMembers = (groupId: string | null, { isActive }: UseGroupsOptions = {}) => {
+export const useGroupMembers = (groupId: string | null, _options: UseGroupsOptions = {}) => {
   const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
 
   const membersQueryKey = ['groupMembers', groupId];
 
   const fetchMembersFn = async (): Promise<GroupMember[]> => {
-    if (!user?.id || !groupId) {
-      throw new Error('User not authenticated or group ID missing');
-    }
-
-    const requestKey = `members_${groupId}_${user.id}`;
-    return deduplicatedFetch(requestKey, async () => {
-      const response = await apiClient.get(`/auth/groups/${groupId}/members`);
-      const data = response.data;
-      return data.members || [];
-    });
+    if (!user?.id || !groupId) throw new Error('User not authenticated or group ID missing');
+    const response = await apiClient.get(`/auth/groups/${groupId}/members`);
+    return response.data.members || [];
   };
 
   const query = useQuery({
@@ -335,11 +305,32 @@ export const useGroupMembers = (groupId: string | null, { isActive }: UseGroupsO
   };
 };
 
+export const useUpdateMemberRole = (groupId: string) => {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async ({ memberId, role }: { memberId: string; role: 'admin' | 'member' }) => {
+      const response = await apiClient.put(`/auth/groups/${groupId}/members/${memberId}/role`, {
+        role,
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['groupMembers', groupId] });
+    },
+  });
+
+  return {
+    updateMemberRole: mutation.mutate,
+    isUpdatingRole: mutation.isPending,
+  };
+};
+
 interface GroupContentData {
   [key: string]: any[];
 }
 
-export const useGroupSharing = (groupId: string | null, { isActive }: UseGroupsOptions = {}) => {
+export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptions = {}) => {
   const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
   const queryClient = useQueryClient();
 
@@ -349,7 +340,7 @@ export const useGroupSharing = (groupId: string | null, { isActive }: UseGroupsO
     if (!user?.id || !groupId) {
       throw new Error('User not authenticated or group ID missing');
     }
-    const response = await apiClient.get(`/auth/groups/${groupId}/content?_t=${Date.now()}`);
+    const response = await apiClient.get(`/auth/groups/${groupId}/content`);
     return response.data.content || {};
   };
 
@@ -459,6 +450,96 @@ export const useUpdateGroupSettings = (groupId: string | null) => {
       });
     },
     isUpdatingSettings: mutation.isPending,
+  };
+};
+
+export const useGroupAvatar = (groupId: string | null) => {
+  const queryClient = useQueryClient();
+
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      if (!groupId) throw new Error('Group ID missing');
+      const formData = new FormData();
+      formData.append('avatar', file);
+      const response = await apiClient.post(`/auth/groups/${groupId}/avatar`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['groupDetails', groupId] });
+      queryClient.invalidateQueries({ queryKey: ['userGroups'] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!groupId) throw new Error('Group ID missing');
+      await apiClient.delete(`/auth/groups/${groupId}/avatar`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['groupDetails', groupId] });
+      queryClient.invalidateQueries({ queryKey: ['userGroups'] });
+    },
+  });
+
+  return {
+    uploadAvatar: uploadMutation.mutate,
+    isUploadingAvatar: uploadMutation.isPending,
+    uploadAvatarError: uploadMutation.error,
+    deleteAvatar: deleteMutation.mutate,
+    isDeletingAvatar: deleteMutation.isPending,
+  };
+};
+
+export interface GroupLink {
+  id: string;
+  title: string;
+  url: string;
+  description?: string;
+  icon: string;
+}
+
+export const useGroupLinks = (groupId: string | null) => {
+  const queryClient = useQueryClient();
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['groupDetails', groupId] });
+  };
+
+  const addMutation = useMutation({
+    mutationFn: async (link: Omit<GroupLink, 'id'>) => {
+      if (!groupId) throw new Error('Group ID missing');
+      const response = await apiClient.post(`/auth/groups/${groupId}/links`, link);
+      return response.data.link as GroupLink;
+    },
+    onSuccess: invalidate,
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ linkId, ...link }: Omit<GroupLink, 'id'> & { linkId: string }) => {
+      if (!groupId) throw new Error('Group ID missing');
+      const response = await apiClient.put(`/auth/groups/${groupId}/links/${linkId}`, link);
+      return response.data.link as GroupLink;
+    },
+    onSuccess: invalidate,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (linkId: string) => {
+      if (!groupId) throw new Error('Group ID missing');
+      await apiClient.delete(`/auth/groups/${groupId}/links/${linkId}`);
+    },
+    onSuccess: invalidate,
+  });
+
+  return {
+    addLink: addMutation.mutate,
+    isAddingLink: addMutation.isPending,
+    updateLink: updateMutation.mutate,
+    isUpdatingLink: updateMutation.isPending,
+    deleteLink: deleteMutation.mutate,
+    isDeletingLink: deleteMutation.isPending,
   };
 };
 

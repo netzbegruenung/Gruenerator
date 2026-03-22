@@ -19,6 +19,7 @@ export { Ripple } from './components/ripple';
 export { Avatar, AvatarImage, AvatarFallback } from './components/avatar';
 export { Badge, badgeVariants } from './components/badge';
 export { Button, buttonVariants } from './components/button';
+export { Checkbox } from './components/checkbox';
 export {
   Command,
   CommandDialog,
@@ -164,3 +165,12 @@ export {
   NotificationBell,
   type NotificationBellProps,
 } from './components/notifications/notification-bell';
+export {
+  Pagination,
+  PaginationContent,
+  PaginationLink,
+  PaginationItem,
+  PaginationPrevious,
+  PaginationNext,
+  PaginationEllipsis,
+} from './components/pagination';

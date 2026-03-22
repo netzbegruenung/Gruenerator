@@ -1,4 +1,5 @@
 import {
+  ArticleCard,
   Card,
   CardContent,
   MoodBar,
@@ -7,21 +8,19 @@ import {
   TweetCard,
   TweetXIcon,
 } from '@gruenerator/ui';
-import { ArrowRight, ChevronRight, Flame, RefreshCw, Sparkles } from 'lucide-react';
+import { ChevronRight, Flame, RefreshCw, Sparkles } from 'lucide-react';
 import { useMemo } from 'react';
 
-import { Markdown } from '../../../components/common/Markdown/Markdown';
+import { CitationSourcesDisplay, CitationTextRenderer } from '../../../components/common/Citation';
 import { EMOTION_HUES, EMOTION_NAMES, getMoodPosition } from '../emotionConfig';
 import {
   useBriefingRefresh,
   useMonitorBriefing,
   useMonitorSnapshot,
-  usePolls,
   useStimmung,
 } from '../hooks/useMonitor';
 import { TOPIC_COLORS, TOPIC_CONFIG } from '../topicConfig';
 
-import { HotTopicContent } from './HotTopicContent';
 import { UmfragenView } from './UmfragenView';
 
 import type { MonitorLocale } from '../hooks/useMonitor';
@@ -32,115 +31,126 @@ interface MonitorOverviewProps {
   onTopicClick: (topic: TopicCategory) => void;
 }
 
+const BRIEFING_LINK_CONFIG = {
+  type: 'vectorDocument' as const,
+  basePath: '/documents',
+  linkKey: 'document_id',
+  titleKey: 'document_title',
+};
+
 export function MonitorOverview({ locale, onTopicClick }: MonitorOverviewProps) {
   const { data: snapshot } = useMonitorSnapshot(locale);
   const { data: briefing, isLoading: briefingLoading } = useMonitorBriefing(locale);
+  const briefingCitations = useMemo(
+    () =>
+      (briefing?.citations ?? []).map((c) => ({
+        index: Number(c.id),
+        document_title: c.title,
+        source_url: c.url,
+        cited_text: c.snippet,
+      })),
+    [briefing?.citations]
+  );
   const { data: stimmung } = useStimmung(locale);
   const briefingRefresh = useBriefingRefresh(locale);
-  usePolls();
 
   const maxScore = snapshot ? Math.max(...snapshot.topics.map((t) => t.score), 1) : 1;
 
   const hotTopic = snapshot?.topics[0];
   const hotTopicConfig = hotTopic ? TOPIC_CONFIG[hotTopic.topic] : null;
-  const hotTopicEmotion = useMemo(() => {
-    if (!stimmung?.byTopic || !hotTopic) return null;
-    const topicStimmung = stimmung.byTopic.find((t) => t.topic === hotTopic.topic);
-    if (!topicStimmung) return null;
-    const sorted = Object.entries(topicStimmung.emotions).sort(([, a], [, b]) => b - a);
-    return sorted[0]
-      ? { key: sorted[0][0], name: EMOTION_NAMES[sorted[0][0]] || sorted[0][0] }
-      : null;
-  }, [stimmung, hotTopic]);
+  const topHeadline = hotTopic?.topArticles[0]?.title;
+  const topicSearchQuery = hotTopicConfig?.description || hotTopicConfig?.name;
 
   return (
     <div>
       {/* Section 0: Hot Topic Hero */}
-      {hotTopic &&
-        hotTopicConfig &&
-        (() => {
-          const topHeadline = hotTopic.topArticles[0]?.title;
-          const topicSearchQuery = hotTopicConfig.description || hotTopicConfig.name;
-          return (
-            <section className="mb-2xl">
-              <div className="rounded-xl border border-grey-200 dark:border-grey-700 p-lg bg-background">
-                <div className="mb-md">
-                  {topHeadline && (
-                    <h2 className="flex items-center gap-sm text-xl sm:text-2xl font-black text-foreground-heading m-0 mb-xs">
-                      <Flame className="h-6 w-6 text-orange-500 shrink-0" />
-                      {topHeadline}
-                    </h2>
-                  )}
-                  <div className="flex items-center gap-sm flex-wrap">
-                    <span
-                      className="inline-flex items-center gap-xs text-xs font-medium px-2 py-0.5 rounded-full"
-                      style={{
-                        color: TOPIC_COLORS[hotTopic.topic],
-                        backgroundColor: `${TOPIC_COLORS[hotTopic.topic]}15`,
-                      }}
-                    >
-                      <hotTopicConfig.icon className="h-3 w-3" />
-                      {hotTopicConfig.name}
+      {hotTopic && hotTopicConfig && (
+        <section className="mb-2xl">
+          <div className="rounded-xl border border-grey-200 dark:border-grey-700 p-lg bg-background">
+            <div className="mb-md">
+              {topHeadline && (
+                <h2 className="flex items-center gap-sm text-xl sm:text-2xl font-black text-foreground-heading m-0 mb-xs">
+                  <Flame className="h-6 w-6 text-orange-500 shrink-0" />
+                  {topHeadline}
+                </h2>
+              )}
+              <div className="flex items-center gap-sm flex-wrap">
+                <span
+                  className="inline-flex items-center gap-xs text-xs font-medium px-2 py-0.5 rounded-full"
+                  style={{
+                    color: TOPIC_COLORS[hotTopic.topic],
+                    backgroundColor: `${TOPIC_COLORS[hotTopic.topic]}15`,
+                  }}
+                >
+                  <hotTopicConfig.icon className="h-3 w-3" />
+                  {hotTopicConfig.name}
+                </span>
+              </div>
+            </div>
+
+            {briefing?.briefing ? (
+              <div className="mt-md pt-md border-t border-grey-100 dark:border-grey-800">
+                <div className="flex items-center gap-xs mb-sm">
+                  <Sparkles className="h-3.5 w-3.5 text-primary-500" />
+                  <span className="text-xs font-semibold text-grey-500 uppercase tracking-wide">
+                    KI-Einordnung
+                  </span>
+                  {briefing.generatedAt && (
+                    <span className="text-[10px] text-grey-400">
+                      ·{' '}
+                      {new Date(briefing.generatedAt).toLocaleString('de-DE', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
                     </span>
-                    <span className="text-xs text-grey-500">{hotTopic.articleCount} Artikel</span>
-                    {hotTopicEmotion && (
-                      <span className="text-xs text-grey-400">
-                        · {hotTopicEmotion.name} dominiert
-                      </span>
-                    )}
-                    <button
-                      onClick={() => onTopicClick(hotTopic.topic)}
-                      className="ml-auto text-xs text-primary-600 hover:underline border-none bg-transparent cursor-pointer flex items-center gap-0.5"
-                    >
-                      Alle Artikel <ArrowRight className="h-3 w-3" />
-                    </button>
-                  </div>
+                  )}
                 </div>
-
-                <HotTopicContent
-                  articles={hotTopic.topArticles}
-                  topicQuery={topicSearchQuery}
-                  locale={locale}
+                <CitationTextRenderer
+                  text={briefing.briefing}
+                  citations={briefingCitations}
+                  className="text-sm leading-relaxed"
+                  linkConfig={BRIEFING_LINK_CONFIG}
                 />
-
-                {briefing?.briefing ? (
-                  <div className="mt-md pt-md border-t border-grey-100 dark:border-grey-800">
-                    <div className="flex items-center gap-xs mb-sm">
-                      <Sparkles className="h-3.5 w-3.5 text-primary-500" />
-                      <span className="text-xs font-semibold text-grey-500 uppercase tracking-wide">
-                        KI-Einordnung
-                      </span>
-                      {briefing.generatedAt && (
-                        <span className="text-[10px] text-grey-400">
-                          ·{' '}
-                          {new Date(briefing.generatedAt).toLocaleString('de-DE', {
-                            day: 'numeric',
-                            month: 'short',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      )}
-                    </div>
-                    <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-foreground leading-relaxed">
-                      <Markdown>{briefing.briefing}</Markdown>
-                    </div>
-                  </div>
-                ) : briefingLoading ? (
-                  <div className="mt-md pt-md border-t border-grey-100 dark:border-grey-800 space-y-2">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-[90%]" />
-                    <Skeleton className="h-4 w-[80%]" />
-                  </div>
-                ) : null}
-
-                {stimmung?.moodSummary && (
-                  <p className="mt-sm text-xs text-foreground/70 italic">{stimmung.moodSummary}</p>
+                {briefingCitations.length > 0 && (
+                  <CitationSourcesDisplay
+                    citations={briefingCitations}
+                    linkConfig={BRIEFING_LINK_CONFIG}
+                    className="mt-sm"
+                  />
                 )}
               </div>
-            </section>
-          );
-        })()}
+            ) : briefingLoading ? (
+              <div className="mt-md pt-md border-t border-grey-100 dark:border-grey-800 space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-[90%]" />
+                <Skeleton className="h-4 w-[80%]" />
+              </div>
+            ) : null}
+          </div>
+        </section>
+      )}
+
+      {/* Section 1: Top Articles */}
+      {hotTopic && hotTopic.topArticles.length > 0 && (
+        <section className="mb-2xl">
+          <h2 className="text-lg font-semibold text-foreground mb-md">Top-Artikel</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
+            {hotTopic.topArticles.slice(0, 3).map((article) => (
+              <ArticleCard
+                key={article.url}
+                url={article.url}
+                title={article.title}
+                excerpt={article.excerpt}
+                source={article.source}
+                publishedAt={article.publishedAt}
+                sentiment={article.erSentiment}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Section 2: Tweet Suggestions */}
       <section className="mb-2xl">
@@ -162,8 +172,7 @@ export function MonitorOverview({ locale, onTopicClick }: MonitorOverviewProps) 
             const tweet = briefing?.tweets?.[i];
             if (tweet) {
               const topicColor = TOPIC_COLORS[tweet.topic] || '#94a3b8';
-              const topicName =
-                TOPIC_CONFIG[tweet.topic as keyof typeof TOPIC_CONFIG]?.name ?? tweet.topic;
+              const topicName = TOPIC_CONFIG[tweet.topic as TopicCategory]?.name ?? tweet.topic;
               return (
                 <TweetCard
                   key={i}
@@ -253,27 +262,29 @@ export function MonitorOverview({ locale, onTopicClick }: MonitorOverviewProps) 
                 <MoodBar position={getMoodPosition(stimmung.overall)} />
               </div>
               <div className="space-y-0.5">
-                {Object.entries(stimmung.overall)
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([key, score]) => {
-                    const name = EMOTION_NAMES[key];
-                    const hue = EMOTION_HUES[key];
-                    if (!name || !hue) return null;
-                    const maxEmotion = Math.max(...Object.values(stimmung.overall), 1);
-                    const barValue = (score / maxEmotion) * 100;
+                {(() => {
+                  const maxEmotion = Math.max(...Object.values(stimmung.overall), 1);
+                  return Object.entries(stimmung.overall)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([key, score]) => {
+                      const name = EMOTION_NAMES[key];
+                      const hue = EMOTION_HUES[key];
+                      if (!name || !hue) return null;
+                      const barValue = (score / maxEmotion) * 100;
 
-                    return (
-                      <div key={key} className="flex items-center gap-sm px-sm py-0.5">
-                        <span className="text-xs text-foreground w-24 shrink-0">{name}</span>
-                        <div className="flex-1">
-                          <ProgressBar value={barValue} color={`var(--color-${hue}-500)`} />
+                      return (
+                        <div key={key} className="flex items-center gap-sm px-sm py-0.5">
+                          <span className="text-xs text-foreground w-24 shrink-0">{name}</span>
+                          <div className="flex-1">
+                            <ProgressBar value={barValue} color={`var(--color-${hue}-500)`} />
+                          </div>
+                          <span className="text-[11px] text-grey-400 tabular-nums w-6 text-right shrink-0">
+                            {Math.round(score)}
+                          </span>
                         </div>
-                        <span className="text-[11px] text-grey-400 tabular-nums w-6 text-right shrink-0">
-                          {Math.round(score)}
-                        </span>
-                      </div>
-                    );
-                  })}
+                      );
+                    });
+                })()}
               </div>
             </CardContent>
           </Card>

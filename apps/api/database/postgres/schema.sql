@@ -166,7 +166,7 @@ CREATE TABLE IF NOT EXISTS group_content_shares (
     group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
     shared_by_user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     content_type TEXT NOT NULL,
-    content_id UUID NOT NULL,
+    content_id TEXT NOT NULL,
     permissions JSONB DEFAULT '{}',
     shared_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -616,7 +616,7 @@ CREATE TABLE IF NOT EXISTS shared_media (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
     share_token VARCHAR(32) UNIQUE NOT NULL,
-    media_type VARCHAR(10) NOT NULL CHECK (media_type IN ('video', 'image')),
+    media_type VARCHAR(10) NOT NULL CHECK (media_type IN ('video', 'image', 'transfer')),
     title TEXT,
     file_path TEXT,
     file_name TEXT,
@@ -643,6 +643,8 @@ ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS template_visibility TEXT DEFAU
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS template_use_count INTEGER DEFAULT 0;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS template_creator_name TEXT;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS original_template_id UUID REFERENCES shared_media(id);
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS wolke_share_link_id TEXT;
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS wolke_file_path TEXT;
 
 CREATE TABLE IF NOT EXISTS shared_media_downloads (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

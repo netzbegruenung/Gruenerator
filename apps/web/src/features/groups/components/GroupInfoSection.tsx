@@ -1,3 +1,4 @@
+import { getRobotAvatarPath, validateRobotId } from '@gruenerator/shared/avatar';
 import {
   Badge,
   Button,
@@ -13,10 +14,6 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
   LoadingSection,
   Popover,
   PopoverContent,
@@ -28,6 +25,7 @@ import {
   HiDotsVertical,
   HiOutlineDocumentText,
   HiOutlineLink,
+  HiOutlinePhotograph,
   HiOutlineTrash,
   HiPencil,
   HiCheck,
@@ -36,18 +34,22 @@ import {
 import { PiSquaresFour } from 'react-icons/pi';
 
 import apiClient from '../../../components/utils/apiClient';
-import { useGroupMembers } from '../hooks/useGroups';
+import { useGroupMembers, getGroupInitials, type GroupLink } from '../hooks/useGroups';
 
 import AddContentToGroupModal from './AddContentToGroupModal';
+import GroupLinksSection from './GroupLinksSection';
 import GroupMembersList from './GroupMembersList';
 
-interface GroupInfo {
+export interface GroupInfo {
   id?: string;
   name?: string;
   description?: string;
+  created_by?: string;
+  avatar_url?: string | null;
+  links?: GroupLink[];
 }
 
-interface GroupData {
+export interface GroupData {
   isAdmin?: boolean;
   membership?: {
     role?: string;
@@ -57,7 +59,7 @@ interface GroupData {
   [key: string]: unknown;
 }
 
-interface SharedItem {
+export interface SharedItem {
   id: string | number;
   title?: string;
   name?: string;
@@ -66,6 +68,15 @@ interface SharedItem {
   shared_at?: string;
   shared_by_name?: string;
   contentType?: string;
+}
+
+export interface SharedContent {
+  collabDocs: SharedItem[];
+  boards: SharedItem[];
+  documents: SharedItem[];
+  generators: SharedItem[];
+  notebooks: SharedItem[];
+  texts: SharedItem[];
 }
 
 interface GroupInfoSectionProps {
@@ -90,15 +101,19 @@ interface GroupInfoSectionProps {
   saveGroupDescription: () => void;
   confirmDeleteGroup: () => void;
   onlineUserIds?: Set<string>;
-  sharedCollabDocs: SharedItem[];
-  sharedBoards: SharedItem[];
-  sharedDocuments: SharedItem[];
-  sharedGenerators: SharedItem[];
-  sharedNotebooks: SharedItem[];
-  sharedTexts: SharedItem[];
+  sharedContent: SharedContent;
   isLoadingSharedContent: boolean;
   onUnshareContent?: (contentId: string, contentType: string) => void;
   refetchSharedContent?: () => void;
+  currentUserId?: string;
+  onUploadAvatar?: (file: File) => void;
+  onDeleteAvatar?: () => void;
+  isUploadingAvatar?: boolean;
+  onAddLink?: (link: Omit<GroupLink, 'id'>) => void;
+  onUpdateLink?: (data: Omit<GroupLink, 'id'> & { linkId: string }) => void;
+  onDeleteLink?: (linkId: string) => void;
+  isAddingLink?: boolean;
+  isUpdatingLink?: boolean;
 }
 
 const GroupInfoSection = memo(
@@ -124,21 +139,39 @@ const GroupInfoSection = memo(
     saveGroupDescription,
     confirmDeleteGroup,
     onlineUserIds,
-    sharedCollabDocs,
-    sharedBoards,
-    sharedDocuments,
-    sharedGenerators,
-    sharedNotebooks,
-    sharedTexts,
+    sharedContent,
     isLoadingSharedContent,
     onUnshareContent,
     refetchSharedContent,
+    currentUserId,
+    onUploadAvatar,
+    onDeleteAvatar,
+    isUploadingAvatar,
+    onAddLink,
+    onUpdateLink,
+    onDeleteLink,
+    isAddingLink,
+    isUpdatingLink,
   }: GroupInfoSectionProps) => {
     const { members, isLoadingMembers } = useGroupMembers(groupId, { isActive: true });
     const [membersPopoverOpen, setMembersPopoverOpen] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showAddContent, setShowAddContent] = useState(false);
     const popoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const avatarInputRef = useRef<HTMLInputElement>(null);
+    const [avatarTimestamp, setAvatarTimestamp] = useState(Date.now());
+
+    const handleAvatarFileChange = useCallback(
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file && onUploadAvatar) {
+          onUploadAvatar(file);
+          setAvatarTimestamp(Date.now());
+        }
+        if (avatarInputRef.current) avatarInputRef.current.value = '';
+      },
+      [onUploadAvatar]
+    );
 
     const handleMembersMouseEnter = useCallback(() => {
       if (popoverTimeoutRef.current) clearTimeout(popoverTimeoutRef.current);
@@ -151,7 +184,6 @@ const GroupInfoSection = memo(
 
     const memberCount = members?.length ?? 0;
 
-    // Memoized handlers to prevent inline function recreation
     const handleSaveBoth = useCallback(() => {
       saveGroupName();
       saveGroupDescription();
@@ -207,7 +239,6 @@ const GroupInfoSection = memo(
 
     return (
       <>
-        {/* Page Header with actions top-right */}
         <div className="relative mb-xl">
           <div className="absolute right-0 top-0 flex items-center gap-sm">
             <Popover open={membersPopoverOpen} onOpenChange={setMembersPopoverOpen}>
@@ -226,7 +257,7 @@ const GroupInfoSection = memo(
                         .map((member: { user_id: string; avatar_robot_id?: number }) => (
                           <span key={member.user_id} className="relative">
                             <img
-                              src={`/images/profileimages/${member.avatar_robot_id || 1}.svg`}
+                              src={getRobotAvatarPath(validateRobotId(member.avatar_robot_id))}
                               alt=""
                               className="size-7 rounded-full ring-2 ring-background"
                             />
@@ -250,7 +281,13 @@ const GroupInfoSection = memo(
                 onMouseEnter={handleMembersMouseEnter}
                 onMouseLeave={handleMembersMouseLeave}
               >
-                <GroupMembersList groupId={groupId} isActive />
+                <GroupMembersList
+                  groupId={groupId}
+                  isActive
+                  isCurrentUserAdmin={data?.isAdmin}
+                  currentUserId={currentUserId}
+                  createdBy={data?.groupInfo?.created_by}
+                />
               </PopoverContent>
             </Popover>
             {data?.isAdmin && (
@@ -265,6 +302,19 @@ const GroupInfoSection = memo(
                     <HiPencil className="size-4 mr-xs" />
                     Bearbeiten
                   </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={isUploadingAvatar}
+                  >
+                    <HiOutlinePhotograph className="size-4 mr-xs" />
+                    Gruppenbild ändern
+                  </DropdownMenuItem>
+                  {data?.groupInfo?.avatar_url && onDeleteAvatar && (
+                    <DropdownMenuItem onClick={onDeleteAvatar} disabled={isUploadingAvatar}>
+                      <HiOutlineTrash className="size-4 mr-xs" />
+                      Gruppenbild entfernen
+                    </DropdownMenuItem>
+                  )}
                   {data?.joinToken && (
                     <DropdownMenuItem onClick={copyJoinLink}>
                       <HiOutlineLink className="size-4 mr-xs" />
@@ -285,77 +335,117 @@ const GroupInfoSection = memo(
             )}
           </div>
 
-          {isEditingName ? (
-            <div className="flex flex-col items-center gap-sm max-w-[400px] mx-auto">
-              <input
-                type="text"
-                value={editedGroupName}
-                onChange={handleGroupNameChange}
-                className="w-full rounded-md border-2 border-primary-500 bg-background px-sm py-xs text-2xl font-bold text-foreground text-center focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                placeholder="Gruppenname"
-                maxLength={100}
-                autoFocus
-                aria-label="Gruppenname bearbeiten"
-              />
-              <textarea
-                value={editedGroupDescription}
-                onChange={handleGroupDescriptionChange}
-                className="w-full rounded-md border border-grey-300 dark:border-grey-600 bg-background px-sm py-xs text-sm resize-none overflow-hidden text-center focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
-                placeholder="Beschreibung der Gruppe (optional)..."
-                maxLength={500}
-                disabled={isUpdatingGroupName}
-                style={{ minHeight: 'auto' }}
-                onInput={handleTextareaAutoResize}
-              />
-              {editedGroupDescription.length >= 450 && (
-                <div className="text-xs text-foreground">
-                  {editedGroupDescription.length}/500 Zeichen
+          <div className="flex items-start gap-md">
+            <div className="relative group/avatar shrink-0">
+              {data?.groupInfo?.avatar_url ? (
+                <img
+                  src={`/api/auth/groups/${groupId}/avatar?t=${avatarTimestamp}`}
+                  alt={data?.groupInfo?.name || 'Gruppe'}
+                  className="size-16 rounded-full object-cover ring-2 ring-grey-200 dark:ring-grey-700"
+                />
+              ) : (
+                <div className="size-16 rounded-full bg-primary-100 dark:bg-primary-900/30 ring-2 ring-grey-200 dark:ring-grey-700 flex items-center justify-center">
+                  <span className="text-xl font-bold text-primary-600 dark:text-primary-400">
+                    {getGroupInitials(data?.groupInfo?.name)}
+                  </span>
                 </div>
               )}
-              <div className="flex gap-xs">
-                <Button
-                  variant="default"
-                  size="icon-xs"
-                  onClick={handleSaveBoth}
-                  disabled={!editedGroupName.trim() || isUpdatingGroupName}
-                  title="Speichern"
+              {data?.isAdmin && onUploadAvatar && (
+                <button
+                  type="button"
+                  className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 group-hover/avatar:bg-black/40 transition-colors cursor-pointer border-none"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={isUploadingAvatar}
+                  aria-label="Gruppenbild ändern"
                 >
-                  <HiCheck />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon-xs"
-                  onClick={handleCancelBoth}
+                  <HiOutlinePhotograph className="size-5 text-white opacity-0 group-hover/avatar:opacity-100 transition-opacity" />
+                </button>
+              )}
+              {isUploadingAvatar && (
+                <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40">
+                  <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+            </div>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              className="hidden"
+              onChange={handleAvatarFileChange}
+            />
+
+            {isEditingName ? (
+              <div className="flex flex-col gap-sm flex-1 min-w-0">
+                <input
+                  type="text"
+                  value={editedGroupName}
+                  onChange={handleGroupNameChange}
+                  className="w-full rounded-md border-2 border-primary-500 bg-background px-sm py-xs text-2xl font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                  placeholder="Gruppenname"
+                  maxLength={100}
+                  autoFocus
+                  aria-label="Gruppenname bearbeiten"
+                />
+                <textarea
+                  value={editedGroupDescription}
+                  onChange={handleGroupDescriptionChange}
+                  className="w-full rounded-md border border-grey-300 dark:border-grey-600 bg-background px-sm py-xs text-sm resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                  placeholder="Beschreibung der Gruppe (optional)..."
+                  maxLength={500}
                   disabled={isUpdatingGroupName}
-                  title="Abbrechen"
-                >
-                  <HiX />
-                </Button>
+                  style={{ minHeight: 'auto' }}
+                  onInput={handleTextareaAutoResize}
+                />
+                {editedGroupDescription.length >= 450 && (
+                  <div className="text-xs text-foreground">
+                    {editedGroupDescription.length}/500 Zeichen
+                  </div>
+                )}
+                <div className="flex gap-xs">
+                  <Button
+                    variant="default"
+                    size="icon-xs"
+                    onClick={handleSaveBoth}
+                    disabled={!editedGroupName.trim() || isUpdatingGroupName}
+                    title="Speichern"
+                  >
+                    <HiCheck />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon-xs"
+                    onClick={handleCancelBoth}
+                    disabled={isUpdatingGroupName}
+                    title="Abbrechen"
+                  >
+                    <HiX />
+                  </Button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-sm mb-sm">
-                <h1 className="text-4xl max-md:text-2xl font-semibold text-foreground-heading m-0">
-                  {data?.groupInfo?.name}
-                </h1>
-                {data?.isAdmin && <Badge variant="default">Admin</Badge>}
+            ) : (
+              <div className="flex flex-col justify-center min-w-0">
+                <div className="flex items-center gap-sm">
+                  <h1 className="text-3xl max-md:text-xl font-semibold text-foreground-heading m-0 truncate">
+                    {data?.groupInfo?.name}
+                  </h1>
+                  {data?.isAdmin && <Badge variant="default">Admin</Badge>}
+                </div>
+                <p className="text-sm text-foreground mt-xs m-0">
+                  {data?.groupInfo?.description ||
+                    (data?.isAdmin
+                      ? 'Verwalte Mitglieder und geteilte Inhalte.'
+                      : 'Du bist Mitglied dieser Gruppe.')}
+                </p>
               </div>
-              <p className="text-lg text-foreground max-w-[800px] mx-auto">
-                {data?.groupInfo?.description ||
-                  (data?.isAdmin
-                    ? 'Verwalte Mitglieder und geteilte Inhalte.'
-                    : 'Du bist Mitglied dieser Gruppe.')}
-              </p>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
-        {/* Shared Content */}
         <div>
           <SectionHeader
             title="Geteilte Inhalte"
-            onCreate={data?.isAdmin ? () => setShowAddContent(true) : undefined}
+            {...(data?.isAdmin && { onCreate: () => setShowAddContent(true) })}
             createLabel="Inhalte hinzufügen"
           />
           {(() => {
@@ -368,47 +458,49 @@ const GroupInfoSection = memo(
             }[] = [
               {
                 label: 'Docs',
-                items: sharedCollabDocs,
+                items: sharedContent.collabDocs,
                 contentType: 'collaborative_documents',
                 icon: HiOutlineDocumentText,
                 getLink: (item) => `/docs/${item.id}`,
               },
               {
                 label: 'Boards',
-                items: sharedBoards,
+                items: sharedContent.boards,
                 contentType: 'collaborative_documents',
                 icon: PiSquaresFour,
                 getLink: (item) => `/boards/${item.id}`,
               },
               {
                 label: 'Grüneratoren',
-                items: sharedGenerators,
+                items: sharedContent.generators,
                 contentType: 'custom_generators',
                 icon: HiOutlineDocumentText,
                 getLink: (item) => `/gruenerator/${item.slug || item.id}`,
               },
               {
                 label: 'Notebooks',
-                items: sharedNotebooks,
+                items: sharedContent.notebooks,
                 contentType: 'notebook_collections',
                 icon: HiOutlineDocumentText,
                 getLink: (item) => `/notebook/${item.id}`,
               },
               {
                 label: 'Dokumente',
-                items: sharedDocuments,
+                items: sharedContent.documents,
                 contentType: 'documents',
                 icon: HiOutlineDocumentText,
                 getLink: (item) => `/documents/${item.id}`,
               },
               {
                 label: 'Texte',
-                items: sharedTexts,
+                items: sharedContent.texts,
                 contentType: 'user_documents',
                 icon: HiOutlineDocumentText,
               },
             ];
-            const totalItems = sections.reduce((sum, s) => sum + s.items.length, 0);
+            const groupLinks = data?.groupInfo?.links || [];
+            const totalItems =
+              sections.reduce((sum, s) => sum + s.items.length, 0) + groupLinks.length;
 
             if (isLoadingSharedContent) {
               return <LoadingSection label="Geteilte Inhalte werden geladen..." />;
@@ -416,19 +508,25 @@ const GroupInfoSection = memo(
 
             if (totalItems === 0) {
               return (
-                <Empty className="border-grey-300 dark:border-grey-600">
-                  <EmptyHeader>
-                    <EmptyTitle>Keine geteilten Inhalte</EmptyTitle>
-                    <EmptyDescription>
-                      Noch keine geteilten Inhalte in dieser Gruppe.
-                    </EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
+                <div className="flex items-center justify-center py-2xl text-center">
+                  <p className="text-sm text-grey-500">
+                    Noch keine geteilten Inhalte in dieser Gruppe.
+                  </p>
+                </div>
               );
             }
 
             return (
               <div className="flex flex-col gap-lg">
+                {onUpdateLink && onDeleteLink && groupLinks.length > 0 && (
+                  <GroupLinksSection
+                    links={groupLinks}
+                    isAdmin={!!data?.isAdmin}
+                    onUpdateLink={onUpdateLink}
+                    onDeleteLink={onDeleteLink}
+                    isUpdatingLink={!!isUpdatingLink}
+                  />
+                )}
                 {sections.map((section) => {
                   if (section.items.length === 0) return null;
                   const ContentIcon = section.icon;
@@ -505,10 +603,11 @@ const GroupInfoSection = memo(
               setShowAddContent(false);
               refetchSharedContent?.();
             }}
+            onAddLink={onAddLink}
+            isAddingLink={isAddingLink}
           />
         )}
 
-        {/* Delete confirmation dialog */}
         <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
           <DialogContent className="sm:max-w-[24rem]">
             <DialogHeader>
