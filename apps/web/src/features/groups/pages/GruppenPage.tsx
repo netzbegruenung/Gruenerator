@@ -76,6 +76,7 @@ const GruppenPage = () => {
 
       {groupId ? (
         <GroupDetailSection
+          key={groupId}
           groupId={groupId}
           onSuccessMessage={showSuccess}
           onErrorMessage={showError}
