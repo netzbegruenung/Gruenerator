@@ -170,7 +170,7 @@ const ProfileView = ({
           </div>
           {username && <div className="text-sm text-grey-500">@{username}</div>}
           {(email || user?.email) && (
-            <div className="text-sm text-grey-400">{email || user?.email}</div>
+            <div className="text-sm text-grey-400 break-all">{email || user?.email}</div>
           )}
         </div>
 
