@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { ThreadPrimitive, SelectionToolbarPrimitive, useThread } from '@assistant-ui/react';
+import { useMemo } from 'react';
+import { ThreadPrimitive, SelectionToolbarPrimitive } from '@assistant-ui/react';
+import { useAuiState } from '@assistant-ui/store';
 import { QuoteIcon } from 'lucide-react';
 import { useCollaborators, PresenceAvatars, TypingIndicator } from '@gruenerator/collab';
 import { WelcomeScreen } from './WelcomeScreen';
@@ -17,7 +18,7 @@ interface GrueneratorThreadProps {
 }
 
 export function GrueneratorThread({ onNavigate, firstName }: GrueneratorThreadProps = {}) {
-  const thread = useThread();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
   const messageComponents = useMemo(() => ({ UserMessage, AssistantMessage }), []);
   const collab = useChatCollaborationContext();
   const collaborators = useCollaborators(collab?.provider ?? null);
@@ -53,11 +54,7 @@ export function GrueneratorThread({ onNavigate, firstName }: GrueneratorThreadPr
         </SelectionToolbarPrimitive.Quote>
       </SelectionToolbarPrimitive.Root>
 
-      <GrueneratorComposer
-        isRunning={thread.isRunning}
-        onNavigate={onNavigate}
-        firstName={firstName}
-      />
+      <GrueneratorComposer isRunning={isRunning} onNavigate={onNavigate} firstName={firstName} />
     </ThreadPrimitive.Root>
   );
 }

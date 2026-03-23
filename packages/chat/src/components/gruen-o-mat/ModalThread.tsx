@@ -1,4 +1,5 @@
-import { useMessage, ComposerPrimitive, ThreadPrimitive, useThread } from '@assistant-ui/react';
+import { useMessage, ComposerPrimitive, ThreadPrimitive } from '@assistant-ui/react';
+import { useAuiState } from '@assistant-ui/store';
 import { ArrowUp, Leaf, Square } from 'lucide-react';
 import { memo, useMemo } from 'react';
 
@@ -125,7 +126,7 @@ const ModalAssistantMessage = memo(function ModalAssistantMessage() {
 });
 
 function ModalComposer() {
-  const thread = useThread();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
 
   return (
     <div className="border-t border-border p-2" data-gom-composer="">
@@ -136,7 +137,7 @@ function ModalComposer() {
           className="h-10 flex-grow resize-none bg-transparent px-2 text-xs text-foreground outline-none placeholder:text-foreground-muted"
           rows={1}
         />
-        {thread.isRunning ? (
+        {isRunning ? (
           <ComposerPrimitive.Cancel
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-error text-white"
             aria-label="Abbrechen"
