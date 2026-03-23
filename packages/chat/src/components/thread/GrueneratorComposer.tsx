@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useCallback } from 'react';
+import { memo, useRef, useState, useCallback } from 'react';
 import { ComposerPrimitive, useComposerRuntime } from '@assistant-ui/react';
 import { useAuiState } from '@assistant-ui/store';
 import { ArrowUp, Mic, Square, X } from 'lucide-react';
@@ -103,7 +103,7 @@ const INITIAL_MENTION_STATE: MentionState = {
   mentionStart: -1,
 };
 
-export function GrueneratorComposer({
+export const GrueneratorComposer = memo(function GrueneratorComposer({
   isRunning,
   toolbarExtra,
   onNavigate,
@@ -340,4 +340,4 @@ export function GrueneratorComposer({
       <p className="mt-1 hidden text-center text-xs text-foreground-muted sm:block">{disclaimer}</p>
     </div>
   );
-}
+});
