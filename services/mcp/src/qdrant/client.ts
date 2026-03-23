@@ -101,12 +101,13 @@ export async function searchCollection(
     const metadata = payload?.metadata as Record<string, unknown> | undefined;
     return {
       score: hit.score,
-      title: payload?.title || metadata?.title || 'Unbekannt',
-      text: payload?.chunk_text || '',
-      url: payload?.url || payload?.source_url || metadata?.url || null,
-      documentId: payload?.document_id,
+      title: String(payload?.title || metadata?.title || 'Unbekannt'),
+      text: String(payload?.chunk_text || ''),
+      url: (payload?.url || payload?.source_url || metadata?.url || null) as string | null,
+      documentId: payload?.document_id as string | undefined,
       filename: payload?.filename || metadata?.filename,
-      qualityScore: payload?.quality_score,
+      qualityScore: payload?.quality_score as number | undefined,
+      payload,
     };
   });
 }
@@ -388,18 +389,18 @@ export async function hybridSearchCollection(
 
     return {
       score: Math.min(result.score * qualityBoost, 1.0),
-      title: result.title || result.payload?.title || 'Unbekannt',
-      text: result.text || result.payload?.chunk_text || '',
-      url:
-        result.url ||
+      title: String(result.title || result.payload?.title || 'Unbekannt'),
+      text: String(result.text || result.payload?.chunk_text || ''),
+      url: (result.url ||
         result.payload?.url ||
         result.payload?.source_url ||
         (result.payload?.metadata as Record<string, unknown>)?.url ||
-        null,
-      documentId: result.documentId || result.payload?.document_id,
+        null) as string | null,
+      documentId: (result.documentId || result.payload?.document_id) as string | undefined,
       filename: result.filename || result.payload?.filename,
-      searchMethod: result.searchMethod,
+      searchMethod: result.searchMethod as string | undefined,
       qualityScore,
+      payload: result.payload,
     };
   });
 
@@ -433,13 +434,16 @@ export async function textSearchCollection(
     const metadata = result.payload?.metadata as Record<string, unknown> | undefined;
     return {
       score: result.score,
-      title: result.payload?.title || metadata?.title || 'Unbekannt',
-      text: result.payload?.chunk_text || '',
-      url: result.payload?.url || result.payload?.source_url || metadata?.url || null,
-      documentId: result.payload?.document_id,
+      title: String(result.payload?.title || metadata?.title || 'Unbekannt'),
+      text: String(result.payload?.chunk_text || ''),
+      url: (result.payload?.url || result.payload?.source_url || metadata?.url || null) as
+        | string
+        | null,
+      documentId: result.payload?.document_id as string | undefined,
       filename: result.payload?.filename || metadata?.filename,
       searchMethod: 'text' as const,
       matchType: result.matchType,
+      payload: result.payload,
     };
   });
 }
