@@ -39,6 +39,7 @@ router.get('/', async (req, res) => {
     const rows = await postgres.query(
       `SELECT t.id, t.user_id, t.agent_id, t.title, t.created_at, t.updated_at,
               COALESCE(t.status, 'regular') as status, COALESCE(t.thread_type, 'chat') as thread_type,
+              t.notebook_collection_id,
               CASE
                 WHEN t.user_id = $1 THEN 'owner'
                 WHEN t.permissions ? $1::text THEN 'shared'
@@ -74,6 +75,7 @@ router.get('/', async (req, res) => {
       title: row.title as string,
       status: (row.status as string) || 'regular',
       threadType: (row.thread_type as string) || 'chat',
+      notebookCollectionId: (row.notebook_collection_id as string) || null,
       createdAt: row.created_at as Date,
       updatedAt: row.updated_at as Date,
       user_id: row.user_id as string,

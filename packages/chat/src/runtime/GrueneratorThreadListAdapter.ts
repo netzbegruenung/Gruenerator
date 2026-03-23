@@ -12,6 +12,7 @@ interface ApiThread {
   title: string | null;
   status?: string;
   threadType?: string;
+  notebookCollectionId?: string | null;
   accessType?: 'owner' | 'shared' | 'group';
   createdAt: string;
   updatedAt: string;
@@ -33,9 +34,14 @@ const EXTERNAL_PREFIX = 'notebook:';
 
 // Module-level thread type cache — populated by list() and accessible by ThreadListItem
 const threadTypeCache = new Map<string, string>();
+const notebookCollectionCache = new Map<string, string>();
 
 export function getThreadType(remoteId: string): string {
   return threadTypeCache.get(remoteId) || 'chat';
+}
+
+export function getNotebookCollectionId(remoteId: string): string | null {
+  return notebookCollectionCache.get(remoteId) || null;
 }
 
 function isExternal(remoteId: string) {
@@ -76,9 +82,12 @@ export function createGrueneratorThreadListAdapter(
 
         const external = callbacks?.getExternalThreads?.() ?? [];
 
-        // Populate thread type cache for ThreadListItem badge rendering
+        // Populate thread type + notebook collection caches for ThreadListItem rendering
         for (const t of cachedThreads) {
           threadTypeCache.set(t.id, t.threadType || 'chat');
+          if (t.notebookCollectionId) {
+            notebookCollectionCache.set(t.id, t.notebookCollectionId);
+          }
         }
 
         const apiEntries = cachedThreads.map((t) => ({

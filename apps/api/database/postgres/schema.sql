@@ -1037,7 +1037,10 @@ ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS thread_type VARCHAR(20) DEFAUL
 -- Custom chat: per-thread system prompt override and tool configuration
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS custom_system_prompt TEXT DEFAULT NULL;
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS custom_enabled_tools JSONB DEFAULT NULL;
+ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS notebook_collection_id VARCHAR(255);
+ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS notebook_collection_ids JSONB;
 CREATE INDEX IF NOT EXISTS idx_chat_threads_type ON chat_threads(user_id, thread_type, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_threads_notebook_collection ON chat_threads(notebook_collection_id) WHERE notebook_collection_id IS NOT NULL;
 
 -- Add foreign key for compacted_up_to_message_id (deferred to avoid circular dependency during creation)
 DO $$

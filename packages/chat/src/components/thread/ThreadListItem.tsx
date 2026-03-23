@@ -20,7 +20,7 @@ import {
 import { cn } from '../../lib/utils';
 import { useAgentStore } from '../../stores/chatStore';
 import { useExternalThread } from '../../context/ExternalThreadContext';
-import { getThreadType } from '../../runtime/GrueneratorThreadListAdapter';
+import { getThreadType, getNotebookCollectionId } from '../../runtime/GrueneratorThreadListAdapter';
 import { ShareThreadDialog } from './ShareThreadDialog';
 
 function useSafeThreadAction(action: 'delete' | 'switchTo' | 'archive' | 'unarchive') {
@@ -86,12 +86,27 @@ export function GrueneratorThreadListItem() {
   const handleArchive = useSafeThreadAction('archive');
   const handleDelete = useSafeThreadAction('delete');
   const [shareOpen, setShareOpen] = useState(false);
+  const ctx = useExternalThread();
   const handleSwitch = useCallback(
     (e: MouseEvent) => {
+      // Notebook threads navigate to the notebook page instead of opening in chat
+      if (remoteId) {
+        const threadType = getThreadType(remoteId);
+        if (threadType === 'notebook') {
+          const collectionId = getNotebookCollectionId(remoteId);
+          if (collectionId && ctx?.onClick) {
+            const path = collectionId.endsWith('-system')
+              ? `/gruene-${collectionId.replace('-system', '')}?thread=${remoteId}`
+              : `/notebook/${collectionId}?thread=${remoteId}`;
+            ctx.onClick(path);
+            return;
+          }
+        }
+      }
       useAgentStore.getState().setChatViewMode('thread');
       baseSwitchTo(e);
     },
-    [baseSwitchTo]
+    [baseSwitchTo, remoteId, ctx]
   );
 
   if (externalId) {
