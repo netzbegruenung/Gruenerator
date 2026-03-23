@@ -38,6 +38,7 @@ export {
 export {
   createGrueneratorThreadListAdapter,
   getThreadType,
+  getNotebookCollectionId,
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';
 
@@ -55,7 +56,12 @@ export {
   type NotebookMessageMetadata,
   type NotebookAdapterCallbacks,
 } from './runtime/NotebookModelAdapter';
-export { NotebookComposer, type SourceFilterConfig } from './components/notebook/NotebookComposer';
+export {
+  NotebookComposer,
+  type SourceFilterConfig,
+  type CategoryFilterConfig,
+} from './components/notebook/NotebookComposer';
+export { type CategoryFilterField } from './components/notebook/CategoryFilterDropdown';
 
 // Thread Components
 export { GrueneratorThread } from './components/thread/GrueneratorThread';
@@ -99,6 +105,14 @@ export {
   type CitationContextValue,
   type FetchFullTextFn,
 } from './context/CitationContext';
+
+// Citation Panel (chunk-level navigation)
+export {
+  CitationPanelProvider,
+  useCitationPanel,
+  type CitationPanelTarget,
+} from './context/CitationPanelContext';
+export { CitationSidePanel } from './components/message-parts/CitationSidePanel';
 
 // Layout & UI Components
 export { ChatLayout } from './components/ChatLayout';
