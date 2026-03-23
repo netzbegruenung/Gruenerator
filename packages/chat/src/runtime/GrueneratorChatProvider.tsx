@@ -452,8 +452,30 @@ function GrueneratorChatRuntimeProvider({
     [fetchFn, onUnauthorized]
   );
 
-  // Load user's custom prompts for @mention support
+  // Auto-activate mentionables on chat-related routes
+  const mentionablesActivated = useAgentStore((s) => s.mentionablesActivated);
   useEffect(() => {
+    if (mentionablesActivated) return;
+    const isChatRoute =
+      activePath?.startsWith('/chat') ||
+      activePath?.startsWith('/gruene-') ||
+      activePath?.startsWith('/kommunalwiki') ||
+      activePath?.startsWith('/boell-stiftung') ||
+      activePath?.startsWith('/gruenblog') ||
+      activePath?.startsWith('/notebook') ||
+      activePath?.startsWith('/gruenerator-notebook') ||
+      activePath?.startsWith('/suche') ||
+      activePath?.startsWith('/ask') ||
+      activePath?.startsWith('/gruen-o-mat');
+    if (isChatRoute) {
+      useAgentStore.getState().activateMentionables();
+    }
+  }, [activePath, mentionablesActivated]);
+
+  // Load @mention data (custom agents, boards, docs) — deferred until chat is used
+  useEffect(() => {
+    if (!mentionablesActivated) return;
+
     const loadCustomAgents = async () => {
       try {
         const [ownPrompts, savedPrompts] = await Promise.all([
@@ -477,7 +499,6 @@ function GrueneratorChatRuntimeProvider({
     };
     loadCustomAgents();
 
-    // Load user's boards for @board mention support
     const loadBoards = async () => {
       try {
         const boards =
@@ -504,7 +525,6 @@ function GrueneratorChatRuntimeProvider({
     };
     loadBoards();
 
-    // Load user's collaborative documents for @doc mention support
     const loadDocs = async () => {
       try {
         const docs =
@@ -534,7 +554,7 @@ function GrueneratorChatRuntimeProvider({
       }
     };
     loadDocs();
-  }, [providerApiClient, userId]);
+  }, [providerApiClient, userId, mentionablesActivated]);
 
   const getExternalThreadsRef = useRef(getExternalThreads);
   useEffect(() => {
