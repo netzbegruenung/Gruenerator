@@ -64,6 +64,7 @@ export default defineConfig(({ command }) => ({
       '@': path.resolve(__dirname, 'src'),
       '@gruenerator/shared': path.resolve(__dirname, '../../packages/shared/src'),
     },
+    dedupe: ['d3-path'],
   },
   build: {
     // Use compatible targets for native WebViews (Chrome=Edge WebView2, Safari=WKWebView)
