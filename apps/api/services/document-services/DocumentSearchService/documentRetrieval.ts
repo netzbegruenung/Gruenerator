@@ -9,6 +9,8 @@
 
 import type {
   DocumentFullTextResult,
+  DocumentChunksResult,
+  DocumentChunkItem,
   BulkDocumentResult,
   BulkDocumentData,
   BulkDocumentError,
@@ -92,6 +94,56 @@ export async function getDocumentFullText(
       chunkCount: 0,
       error: errorMessage,
     };
+  }
+}
+
+/**
+ * Get individual chunks for a document, sorted by chunk_index.
+ * Supports both user documents (in 'documents' collection with user_id)
+ * and system documents (in named collections without user_id).
+ */
+export async function getDocumentChunks(
+  qdrantOps: QdrantOperations,
+  userId: string,
+  documentId: string,
+  options?: { qdrantCollection?: string }
+): Promise<DocumentChunksResult> {
+  try {
+    const collectionName = options?.qdrantCollection || 'documents';
+    const mustFilters: QdrantFilter['must'] = [
+      { key: 'document_id', match: { value: documentId } },
+    ];
+    if (!options?.qdrantCollection) {
+      mustFilters.unshift({ key: 'user_id', match: { value: userId } });
+    }
+    const filter: QdrantFilter = { must: mustFilters };
+
+    const rawChunks = await qdrantOps.scrollDocuments(collectionName, filter, {
+      limit: 1000,
+      withPayload: true,
+      withVector: false,
+    });
+
+    if (!rawChunks || rawChunks.length === 0) {
+      return { success: false, chunks: [], chunkCount: 0, error: 'No chunks found' };
+    }
+
+    const chunks: DocumentChunkItem[] = rawChunks
+      .map((chunk) => ({
+        index: typeof chunk.payload.chunk_index === 'number' ? chunk.payload.chunk_index : 0,
+        text: typeof chunk.payload.chunk_text === 'string' ? chunk.payload.chunk_text : '',
+        tokens: typeof chunk.payload.token_count === 'number' ? chunk.payload.token_count : 0,
+        pageNumber:
+          typeof chunk.payload.page_number === 'number' ? chunk.payload.page_number : null,
+      }))
+      .filter((c) => c.text.trim().length > 0)
+      .sort((a, b) => a.index - b.index);
+
+    return { success: true, chunks, chunkCount: chunks.length };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[DocumentRetrieval] Error getting document chunks:', error);
+    return { success: false, chunks: [], chunkCount: 0, error: errorMessage };
   }
 }
 

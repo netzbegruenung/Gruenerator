@@ -246,6 +246,26 @@ export interface DocumentFullTextResult {
 }
 
 /**
+ * Individual chunk from a document
+ */
+export interface DocumentChunkItem {
+  index: number;
+  text: string;
+  tokens: number;
+  pageNumber?: number | null;
+}
+
+/**
+ * Result of retrieving individual chunks for a document
+ */
+export interface DocumentChunksResult {
+  success: boolean;
+  chunks: DocumentChunkItem[];
+  chunkCount: number;
+  error?: string;
+}
+
+/**
  * Document data for bulk retrieval
  */
 export interface BulkDocumentData {

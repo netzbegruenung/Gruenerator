@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, memo } from 'react';
-import { ChevronDown, ChevronRight, FileText, Globe, Paperclip } from 'lucide-react';
+import { ChevronRight, FileText, Globe, Paperclip } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { type Citation } from '../../hooks/useChatGraphStream';
 import { Citation as CitationCard } from '../tool-ui/citation/ProjectCitation';
@@ -41,8 +41,6 @@ interface AdditionalSourceGroup {
   snippet: string;
   count: number;
 }
-
-const INITIAL_VISIBLE = 4;
 
 function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
@@ -116,7 +114,6 @@ export const SearchResultsSection = memo(function SearchResultsSection({
   additionalSources,
 }: SearchResultsSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [showAll, setShowAll] = useState(false);
 
   // Listen for external expand requests (e.g. from CitationPopover "Mehr anzeigen")
   useEffect(() => {
@@ -134,9 +131,6 @@ export const SearchResultsSection = memo(function SearchResultsSection({
 
   if (citations.length === 0) return null;
 
-  const totalVisible = showAll ? citations.length : INITIAL_VISIBLE;
-  const hasMore = citations.length > INITIAL_VISIBLE;
-
   return (
     <div className="mt-3 pt-3 border-t border-border">
       {/* Collapsed trigger */}
@@ -151,35 +145,16 @@ export const SearchResultsSection = memo(function SearchResultsSection({
 
       {isOpen && (
         <div className="mt-2">
-          {/* Document-grouped view when documentId data is available */}
           {hasDocumentIds ? (
-            <DocumentGroupedView
-              documentGroups={documentGroups}
-              ungrouped={ungrouped}
-              maxVisible={totalVisible}
-            />
+            <DocumentGroupedView documentGroups={documentGroups} ungrouped={ungrouped} />
           ) : (
             <div className="space-y-3">
-              {(showAll ? citations : citations.slice(0, INITIAL_VISIBLE)).map((citation) => (
+              {citations.map((citation) => (
                 <CitationCard key={citation.id} {...citation} />
               ))}
             </div>
           )}
 
-          {/* Show more / less toggle */}
-          {hasMore && (
-            <button
-              onClick={() => setShowAll(!showAll)}
-              className="mt-2 flex items-center gap-1 text-xs font-medium text-foreground-muted hover:text-foreground transition-colors"
-            >
-              <ChevronDown
-                className={cn('h-3.5 w-3.5 transition-transform', showAll && 'rotate-180')}
-              />
-              {showAll ? 'Weniger anzeigen' : `Alle ${citations.length} Quellen anzeigen`}
-            </button>
-          )}
-
-          {/* Additional uncited sources */}
           {additionalSources && additionalSources.length > 0 && (
             <AdditionalSourcesSection sources={additionalSources} />
           )}
@@ -192,54 +167,44 @@ export const SearchResultsSection = memo(function SearchResultsSection({
 const DocumentGroupedView = memo(function DocumentGroupedView({
   documentGroups,
   ungrouped,
-  maxVisible,
 }: {
   documentGroups: DocumentGroup[];
   ungrouped: Citation[];
-  maxVisible: number;
 }) {
-  let rendered = 0;
-
   return (
     <div className="space-y-4">
-      {documentGroups.map((group) => {
-        if (rendered >= maxVisible) return null;
-        const citationsToShow = group.citations.slice(0, maxVisible - rendered);
-        rendered += citationsToShow.length;
-
-        return (
-          <div key={group.documentId} className="space-y-2">
-            <div className="flex items-center gap-1.5 px-1">
-              <FileText className="h-3.5 w-3.5 text-foreground-muted flex-shrink-0" />
-              <span className="text-xs font-medium text-foreground leading-tight line-clamp-1">
-                {group.title}
+      {documentGroups.map((group) => (
+        <div key={group.documentId} className="space-y-2">
+          <div className="flex items-center gap-1.5 px-1">
+            <FileText className="h-3.5 w-3.5 text-foreground-muted flex-shrink-0" />
+            <span className="text-xs font-medium text-foreground leading-tight line-clamp-1">
+              {group.title}
+            </span>
+            {group.citations.length > 1 && (
+              <span className="text-[10px] text-foreground-muted flex-shrink-0">
+                {group.citations.length} Abschnitte
               </span>
-              {group.citations.length > 1 && (
-                <span className="text-[10px] text-foreground-muted flex-shrink-0">
-                  {group.citations.length} Abschnitte
-                </span>
-              )}
-            </div>
-
-            <div className="space-y-2 pl-1">
-              {citationsToShow.map((citation) => (
-                <CitationCard key={citation.id} {...citation} compact />
-              ))}
-            </div>
+            )}
           </div>
-        );
-      })}
 
-      {ungrouped.length > 0 && rendered < maxVisible && (
+          <div className="space-y-2 pl-1">
+            {group.citations.map((citation) => (
+              <CitationCard key={citation.id} {...citation} compact />
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {ungrouped.length > 0 && (
         <div className="space-y-1">
-          {ungrouped.length > 0 && documentGroups.length > 0 && (
+          {documentGroups.length > 0 && (
             <div className="flex items-center gap-1.5 px-1">
               <Globe className="h-3.5 w-3.5 text-foreground-muted flex-shrink-0" />
               <span className="text-xs font-medium text-foreground">Web</span>
             </div>
           )}
           <div className="space-y-1 pl-1">
-            {ungrouped.slice(0, maxVisible - rendered).map((citation) => (
+            {ungrouped.map((citation) => (
               <CitationCard key={citation.id} {...citation} />
             ))}
           </div>

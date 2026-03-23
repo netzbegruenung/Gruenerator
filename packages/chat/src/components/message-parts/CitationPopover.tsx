@@ -2,10 +2,11 @@
 
 import { memo, useState } from 'react';
 import { Popover as PopoverPrimitive } from 'radix-ui';
-import { ExternalLink } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import type { Citation } from '../../hooks/useChatGraphStream';
 import { cn } from '../../lib/utils';
 import { getCollectionStyle } from '../../lib/collectionStyles';
+import { useCitationPanel } from '../../context/CitationPanelContext';
 
 interface CitationBadgeProps {
   citationId: number;
@@ -17,6 +18,7 @@ export const CitationBadge = memo(function CitationBadge({
   citation,
 }: CitationBadgeProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const citationPanel = useCitationPanel();
 
   if (!citation) {
     return (
@@ -45,7 +47,7 @@ export const CitationBadge = memo(function CitationBadge({
             sideOffset={4}
             align="center"
             className={cn(
-              'z-50 w-72 rounded-lg border border-border bg-card p-3 shadow-lg',
+              'z-50 w-80 max-w-[90vw] rounded-lg border border-border bg-card p-3 shadow-lg',
               'animate-in fade-in-0 zoom-in-95',
               'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95'
             )}
@@ -64,76 +66,67 @@ export const CitationBadge = memo(function CitationBadge({
                         loading="lazy"
                       />
                     )}
-                    <p className="text-sm font-medium text-foreground leading-tight line-clamp-2">
-                      {citation.title}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                    {citation.collectionName && (
-                      <span
-                        className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-                        style={{
-                          backgroundColor: collectionStyle.bg,
-                          color: collectionStyle.color,
-                        }}
+                    {citation.url ? (
+                      <a
+                        href={citation.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-medium text-primary leading-tight hover:underline"
                       >
-                        {citation.collectionName}
-                      </span>
-                    )}
-                    {citation.contentType && (
-                      <span className="text-[10px] text-foreground-muted italic">
-                        {citation.contentType}
-                      </span>
-                    )}
-                    {citation.domain && (
-                      <span className="text-[10px] text-foreground-muted">{citation.domain}</span>
-                    )}
-                    {citation.chunkIndex != null && (
-                      <span className="text-[10px] text-foreground-muted">
-                        Abschn. {citation.chunkIndex}
-                      </span>
+                        {citation.title}
+                      </a>
+                    ) : (
+                      <p className="text-sm font-medium text-foreground leading-tight">
+                        {citation.title}
+                      </p>
                     )}
                   </div>
+                  {(citation.collectionName || citation.domain) && (
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      {citation.collectionName && (
+                        <span
+                          className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                          style={{
+                            backgroundColor: collectionStyle.bg,
+                            color: collectionStyle.color,
+                          }}
+                        >
+                          {citation.collectionName}
+                        </span>
+                      )}
+                      {citation.domain && (
+                        <span className="text-[10px] text-foreground-muted">{citation.domain}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <p className="text-xs text-foreground-muted leading-relaxed line-clamp-4">
+              <p className="text-xs text-foreground-muted leading-relaxed">
                 {citation.citedText || citation.snippet}
               </p>
 
-              <div className="flex items-center gap-3">
-                {citation.url && (
-                  <a
-                    href={citation.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                  >
-                    Quelle öffnen
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                )}
-                {citation.collectionId && citation.citedText && (
+              {citation.documentId && citation.chunkIndex != null && citation.collectionId && (
+                <div className="flex justify-end">
                   <button
-                    className="text-xs font-medium text-primary hover:underline"
+                    className="rounded-md p-1 text-foreground-muted transition-colors hover:bg-background-alt hover:text-foreground"
                     onClick={() => {
                       setIsOpen(false);
-                      // Expand collapsed sources section first
-                      document.dispatchEvent(new Event('citation-expand-sources'));
-                      // Wait for DOM update, then scroll to the source card
-                      requestAnimationFrame(() => {
-                        const sourceCard = document.getElementById(`source-card-${citationId}`);
-                        if (sourceCard) {
-                          sourceCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                          sourceCard.querySelector('button')?.click();
-                        }
+                      citationPanel.open({
+                        documentId: citation.documentId!,
+                        documentTitle: citation.title || 'Dokument',
+                        chunkIndex: citation.chunkIndex!,
+                        collectionId: citation.collectionId!,
+                        sourceUrl: citation.url || '',
                       });
                     }}
+                    aria-label="Im Dokument lesen"
+                    title="Im Dokument lesen"
                   >
-                    Mehr anzeigen
+                    <FileText className="h-4 w-4" />
                   </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
             <PopoverPrimitive.Arrow className="fill-card" />
           </PopoverPrimitive.Content>
