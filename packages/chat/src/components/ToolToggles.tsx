@@ -4,8 +4,6 @@ import { useState } from 'react';
 import {
   Globe,
   Wrench,
-  Sparkles,
-  Server,
   Share2,
   MessageSquare,
   BookOpen,
@@ -29,21 +27,11 @@ import {
   DropdownMenuSubContent,
 } from '@gruenerator/ui';
 import { cn, composerToolbarButtonClass } from '../lib/utils';
+import { MODEL_ICONS } from '../lib/modelIcons';
 import { useShallow } from 'zustand/shallow';
-import {
-  useAgentStore,
-  MODEL_OPTIONS,
-  type ModelOption,
-  type ThreadMode,
-  type ToolKey,
-} from '../stores/chatStore';
+import { useAgentStore, MODEL_OPTIONS, type ThreadMode, type ToolKey } from '../stores/chatStore';
 import { notebookMentionables } from '../lib/mentionables';
 import { ShareThreadDialog } from './thread/ShareThreadDialog';
-
-const MODEL_ICONS: Record<ModelOption['icon'], typeof Sparkles> = {
-  sparkles: Sparkles,
-  server: Server,
-};
 
 const MODE_CONFIG: Array<{
   mode: ThreadMode;

@@ -23,6 +23,11 @@ interface GrueneratorComposerProps {
   toolbarExtra?: React.ReactNode;
   onNavigate?: (path: string) => void;
   firstName?: string | null;
+  placeholder?: string;
+  disclaimer?: string;
+  showMentions?: boolean;
+  showPlusMenu?: boolean;
+  showToolToggles?: boolean;
 }
 
 function SendButton() {
@@ -103,6 +108,11 @@ export function GrueneratorComposer({
   toolbarExtra,
   onNavigate,
   firstName,
+  placeholder = 'Nachricht schreiben...',
+  disclaimer = 'Grünerator kann Fehler machen. Wichtige Infos bitte prüfen.',
+  showMentions = true,
+  showPlusMenu = true,
+  showToolToggles = true,
 }: GrueneratorComposerProps) {
   const composerRuntime = useComposerRuntime();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -271,41 +281,42 @@ export function GrueneratorComposer({
 
         <ComposerAttachments />
 
-        {mention.mode === 'datei' ? (
-          <FileMentionPopover
-            visible={mention.visible}
-            onSelect={handleDocumentSelect}
-            onDismiss={dismissPopover}
-          />
-        ) : mention.mode === 'skills' ? (
-          <SkillPopover
-            query={mention.query}
-            visible={mention.visible}
-            onSelect={handleSelect}
-            onDismiss={dismissPopover}
-            selectedIndex={mention.selectedIndex}
-            anchorRect={mention.anchorRect}
-          />
-        ) : (
-          <MentionPopover
-            query={mention.query}
-            visible={mention.visible}
-            onSelect={handleSelect}
-            onDismiss={dismissPopover}
-            selectedIndex={mention.selectedIndex}
-            anchorRect={mention.anchorRect}
-          />
-        )}
+        {showMentions &&
+          (mention.mode === 'datei' ? (
+            <FileMentionPopover
+              visible={mention.visible}
+              onSelect={handleDocumentSelect}
+              onDismiss={dismissPopover}
+            />
+          ) : mention.mode === 'skills' ? (
+            <SkillPopover
+              query={mention.query}
+              visible={mention.visible}
+              onSelect={handleSelect}
+              onDismiss={dismissPopover}
+              selectedIndex={mention.selectedIndex}
+              anchorRect={mention.anchorRect}
+            />
+          ) : (
+            <MentionPopover
+              query={mention.query}
+              visible={mention.visible}
+              onSelect={handleSelect}
+              onDismiss={dismissPopover}
+              selectedIndex={mention.selectedIndex}
+              anchorRect={mention.anchorRect}
+            />
+          ))}
 
         <ComposerPrimitive.Input
           ref={textareaRef}
           autoFocus={
             typeof window !== 'undefined' && !window.matchMedia('(pointer: coarse)').matches
           }
-          placeholder="Nachricht schreiben..."
+          placeholder={placeholder}
           className="min-h-[3rem] max-h-40 w-full flex-grow resize-none bg-transparent px-5 pt-4 pb-2 text-foreground outline-none placeholder:text-foreground-muted/60"
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
+          onChange={showMentions ? handleChange : undefined}
+          onKeyDown={showMentions ? handleKeyDown : undefined}
         />
 
         <div className="flex items-center justify-between px-2 pb-2">
@@ -313,20 +324,20 @@ export function GrueneratorComposer({
             <ComposerPrimitive.AddAttachment asChild>
               <button ref={uploadRef} className="hidden" aria-hidden="true" />
             </ComposerPrimitive.AddAttachment>
-            <PlusMenu
-              onInsertMention={handleSelect}
-              onOpenFileBrowser={handlePlusMenuOpenFileBrowser}
-              onUploadFile={handlePlusMenuUpload}
-            />
-            <ToolToggles onNavigate={onNavigate} firstName={firstName} />
+            {showPlusMenu && (
+              <PlusMenu
+                onInsertMention={handleSelect}
+                onOpenFileBrowser={handlePlusMenuOpenFileBrowser}
+                onUploadFile={handlePlusMenuUpload}
+              />
+            )}
+            {showToolToggles && <ToolToggles onNavigate={onNavigate} firstName={firstName} />}
             {toolbarExtra}
           </div>
           <ComposerButtons isRunning={isRunning} />
         </div>
       </ComposerPrimitive.Root>
-      <p className="mt-1 hidden text-center text-xs text-foreground-muted sm:block">
-        Grünerator kann Fehler machen. Wichtige Infos bitte prüfen.
-      </p>
+      <p className="mt-1 hidden text-center text-xs text-foreground-muted sm:block">{disclaimer}</p>
     </div>
   );
 }
