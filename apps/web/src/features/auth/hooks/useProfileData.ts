@@ -18,13 +18,13 @@ import {
   type Memory,
   type Profile,
   type ProfileBundle,
-  type QACollection,
-  type QACollectionData,
   type SavedText,
   type UserTemplate,
   type UserTemplateUpdateData,
   profileApiService,
 } from '../services/profileApiService';
+
+import type { NotebookCollection, NotebookCollectionInput } from '../../../types/notebook';
 
 // === OPTION TYPES ===
 
@@ -187,7 +187,7 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
 
-  const query = useQuery<QACollection[], Error>({
+  const query = useQuery<NotebookCollection[], Error>({
     queryKey: QUERY_KEYS.notebookCollections(user?.id),
     queryFn: profileApiService.getNotebookCollections,
     enabled: enabled && !!user?.id && isActive,
@@ -211,7 +211,7 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
       collectionData,
     }: {
       collectionId: string | number;
-      collectionData: QACollectionData;
+      collectionData: NotebookCollectionInput;
     }) => profileApiService.updateQACollection(collectionId, collectionData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
@@ -232,7 +232,7 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
     },
   });
 
-  const getQACollection = (collectionId: string | number): QACollection | undefined => {
+  const getQACollection = (collectionId: string | number): NotebookCollection | undefined => {
     const collections = query.data || [];
     return collections.find((c) => c.id === collectionId);
   };
@@ -240,7 +240,7 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
   return {
     query,
     createQACollection: createMutation.mutateAsync,
-    updateQACollection: (collectionId: string | number, collectionData: QACollectionData) =>
+    updateQACollection: (collectionId: string | number, collectionData: NotebookCollectionInput) =>
       updateMutation.mutateAsync({ collectionId, collectionData }),
     deleteQACollection: deleteMutation.mutateAsync,
     syncQACollection: syncMutation.mutateAsync,

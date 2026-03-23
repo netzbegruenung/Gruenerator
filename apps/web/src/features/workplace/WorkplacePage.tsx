@@ -8,11 +8,11 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-  LoadingSection,
   SectionHeader,
+  Skeleton,
 } from '@gruenerator/ui';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   HiDotsVertical,
   HiOutlineDocumentText,
@@ -34,7 +34,7 @@ import { getIcon } from '../../config/icons';
 import useBetaFeatures from '../../hooks/useBetaFeatures';
 import useSidebarFavouritesStore from '../../stores/sidebarFavouritesStore';
 import { cn } from '../../utils/cn';
-import { profileApiService } from '../auth/services/profileApiService';
+import { useUserTexts } from '../auth/hooks/useProfileData';
 import { useBoards } from '../boards/hooks/useBoards';
 import { getBoardType } from '../boards/types';
 import { useGroups, type GroupSummary } from '../groups/hooks/useGroups';
@@ -384,36 +384,19 @@ const WorkplacePage = () => {
   const [boardTab, setBoardTab] = useState<'active' | 'archived'>('active');
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const [savedTexts, setSavedTexts] = useState<
-    { id: string | number; title: string; document_type?: string; content?: string }[]
-  >([]);
-  const [textsLoading, setTextsLoading] = useState(false);
+  const { query: textsQuery, deleteText: deleteTextMutation } = useUserTexts({ isActive: true });
+  const savedTexts = textsQuery.data ?? [];
+  const textsLoading = textsQuery.isLoading;
   const [textsExpanded, setTextsExpanded] = useState(false);
   const [sharedTextId, setSharedTextId] = useState<string | number | null>(null);
-
-  const fetchTexts = useCallback(async () => {
-    setTextsLoading(true);
-    try {
-      const texts = await profileApiService.getUserTexts();
-      setSavedTexts(texts);
-    } catch {
-      // silent
-    } finally {
-      setTextsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchTexts();
-  }, [fetchTexts]);
 
   const handleTextDelete = useCallback(
     (id: string | number, title: string) => {
       if (window.confirm(`Text "${title}" wirklich löschen?`)) {
-        profileApiService.deleteText(id).then(() => fetchTexts());
+        deleteTextMutation(id);
       }
     },
-    [fetchTexts]
+    [deleteTextMutation]
   );
 
   const handleTextShareToGroup = useCallback(async (textId: string | number, groupId: string) => {
@@ -489,7 +472,20 @@ const WorkplacePage = () => {
               createLabel="Neues Dokument erstellen"
             />
             {docsLoading ? (
-              <LoadingSection />
+              <CardGrid columns="5">
+                {Array.from({ length: 5 }, (_, i) => (
+                  <div
+                    key={i}
+                    className="rounded-md border border-grey-200 dark:border-grey-700 overflow-hidden"
+                  >
+                    <Skeleton className="aspect-[4/3] rounded-none" />
+                    <div className="px-sm py-sm">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-1/2 mt-1.5" />
+                    </div>
+                  </div>
+                ))}
+              </CardGrid>
             ) : docs.length === 0 ? (
               <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
                 Noch keine Dokumente vorhanden.
@@ -540,7 +536,20 @@ const WorkplacePage = () => {
             )}
 
             {boardsLoading ? (
-              <LoadingSection />
+              <CardGrid columns="2">
+                {Array.from({ length: 4 }, (_, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-sm border border-grey-200 dark:border-grey-700 rounded-md px-md py-md min-h-[4rem]"
+                  >
+                    <Skeleton className="size-5 rounded shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <Skeleton className="h-4 w-2/3" />
+                      <Skeleton className="h-3 w-1/3 mt-1.5" />
+                    </div>
+                  </div>
+                ))}
+              </CardGrid>
             ) : displayedBoards.length === 0 ? (
               <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
                 {boardTab === 'active'
@@ -570,7 +579,20 @@ const WorkplacePage = () => {
           <section className="mb-xl">
             <SectionHeader title="Texte" />
             {textsLoading ? (
-              <LoadingSection />
+              <CardGrid columns="5">
+                {Array.from({ length: 5 }, (_, i) => (
+                  <div
+                    key={i}
+                    className="rounded-md border border-grey-200 dark:border-grey-700 overflow-hidden"
+                  >
+                    <Skeleton className="aspect-[4/3] rounded-none" />
+                    <div className="px-sm py-sm">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-1/3 mt-1.5" />
+                    </div>
+                  </div>
+                ))}
+              </CardGrid>
             ) : (
               <>
                 <CardGrid columns="5">

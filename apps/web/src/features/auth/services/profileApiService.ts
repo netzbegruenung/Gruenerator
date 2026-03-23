@@ -75,28 +75,7 @@ export interface AnweisungenSaveResponse {
 }
 
 // === Q&A COLLECTION TYPES ===
-export interface QACollectionData {
-  name: string;
-  description?: string;
-  custom_prompt?: string;
-  selectionMode?: 'documents' | 'wolke';
-  documents?: (string | number)[];
-  wolkeShareLinks?: string[];
-  auto_sync?: boolean;
-  remove_missing_on_sync?: boolean;
-}
-
-export interface QACollection extends QACollectionData {
-  id: string | number;
-}
-
-export interface QACollectionResponse {
-  success: boolean;
-  message?: string;
-  collection?: QACollection;
-  collections?: QACollection[];
-  [key: string]: unknown;
-}
+import type { NotebookCollection, NotebookCollectionInput } from '../../../types/notebook';
 
 // === CUSTOM GENERATOR TYPES ===
 export interface CustomGeneratorData {
@@ -201,7 +180,7 @@ export interface MemoryResponse {
 export interface ProfileBundle {
   profile: Profile;
   anweisungenWissen: AnweisungenWissen | null;
-  notebookCollections: QACollection[] | null;
+  notebookCollections: NotebookCollection[] | null;
   customGenerators: CustomGenerator[] | null;
   userTexts: SavedText[] | null;
   userTemplates: UserTemplate[] | null;
@@ -379,7 +358,7 @@ export const profileApiService = {
   },
 
   // === Q&A COLLECTIONS ===
-  async getNotebookCollections(): Promise<QACollection[]> {
+  async getNotebookCollections(): Promise<NotebookCollection[]> {
     const response = await apiClient.get('/auth/notebook-collections');
     const json = response.data;
 
@@ -390,7 +369,7 @@ export const profileApiService = {
     return json.collections || [];
   },
 
-  async createQACollection(collectionData: QACollectionData): Promise<QACollection> {
+  async createQACollection(collectionData: NotebookCollectionInput): Promise<NotebookCollection> {
     const selectionMode = collectionData.selectionMode || 'documents';
     const body = {
       name: collectionData.name,
@@ -420,8 +399,8 @@ export const profileApiService = {
 
   async updateQACollection(
     collectionId: string | number,
-    collectionData: QACollectionData
-  ): Promise<QACollectionResponse> {
+    collectionData: NotebookCollectionInput
+  ): Promise<{ success: boolean; message?: string }> {
     const selectionMode = collectionData.selectionMode || 'documents';
     const body = {
       name: collectionData.name,
@@ -449,7 +428,9 @@ export const profileApiService = {
     return json;
   },
 
-  async syncQACollection(collectionId: string | number): Promise<QACollectionResponse> {
+  async syncQACollection(
+    collectionId: string | number
+  ): Promise<{ success: boolean; message?: string }> {
     const response = await apiClient.post(`/auth/notebook-collections/${collectionId}/sync`);
     const json = response.data;
 
@@ -464,7 +445,9 @@ export const profileApiService = {
     return json;
   },
 
-  async deleteQACollection(collectionId: string | number): Promise<QACollectionResponse> {
+  async deleteQACollection(
+    collectionId: string | number
+  ): Promise<{ success: boolean; message?: string }> {
     const response = await apiClient.delete(`/auth/notebook-collections/${collectionId}`);
     const json = response.data;
 
