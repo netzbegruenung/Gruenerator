@@ -120,7 +120,12 @@ export class NotebookQAService {
         effectiveFilters,
         effectiveCollectionIds
       );
-      return this._searchCollection(collectionId, trimmedQuestion, documentScope, filtersForCollection);
+      return this._searchCollection(
+        collectionId,
+        trimmedQuestion,
+        documentScope,
+        filtersForCollection
+      );
     });
 
     const searchResultsArrays = await Promise.all(searchPromises);
@@ -750,7 +755,8 @@ export class NotebookQAService {
     aiWorkerPool: any,
     isSystemCollection: boolean
   ): Promise<string> {
-    const refsSummary = Object.keys(referencesMap)
+    const refKeys = Object.keys(referencesMap);
+    const refsSummary = refKeys
       .map((id) => {
         const ref = referencesMap[id];
         const snippet = ref.snippets[0]?.[0] || '';
@@ -764,7 +770,8 @@ export class NotebookQAService {
       ? buildDraftPromptGrundsatz('Grüne Dokumente')
       : buildDraftPromptGeneral('Ihre Dokumente');
 
-    const userPrompt = `Frage: ${question}\n\nVerfügbare Quellen:\n${refsSummary}`;
+    const validIds = refKeys.join(', ');
+    const userPrompt = `Frage: ${question}\n\nGültige Quellen-IDs: ${validIds}\nVerwende AUSSCHLIESSLICH diese IDs für Quellenangaben.\n\nVerfügbare Quellen:\n${refsSummary}`;
 
     const aiResult = await aiWorkerPool.processRequest({
       type: 'qa_draft',
