@@ -23,7 +23,11 @@ export async function createThread(
   userId: string,
   agentId: string,
   title?: string,
-  threadType?: 'chat' | 'search'
+  threadType?: 'chat' | 'search' | 'notebook',
+  options?: {
+    notebookCollectionId?: string;
+    notebookCollectionIds?: string[];
+  }
 ): Promise<{
   id: string;
   user_id: string;
@@ -33,10 +37,17 @@ export async function createThread(
 }> {
   const postgres = getPostgresInstance();
   const result = (await postgres.query(
-    `INSERT INTO chat_threads (user_id, agent_id, title, thread_type)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, notebook_collection_id, notebook_collection_ids)
+     VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING id, user_id, agent_id, title, thread_type`,
-    [userId, agentId, title || null, threadType || 'chat']
+    [
+      userId,
+      agentId,
+      title || null,
+      threadType || 'chat',
+      options?.notebookCollectionId || null,
+      options?.notebookCollectionIds ? JSON.stringify(options.notebookCollectionIds) : null,
+    ]
   )) as {
     id: string;
     user_id: string;
