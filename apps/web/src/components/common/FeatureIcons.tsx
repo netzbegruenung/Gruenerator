@@ -363,23 +363,17 @@ const FeatureIcons = ({
   hideLoginPrompt = false,
   showAgentMode = false,
 }: FeatureIconsProps): JSX.Element | null => {
-  // Single batched selector — prevents N re-renders when store hydrates
+  // Data selector — useShallow for change detection on values that actually change
   const {
     useWebSearch,
     usePrivacyMode,
     useProMode,
     useAutomaticSearch,
     useAgentMode,
-    toggleWebSearch,
-    togglePrivacyMode,
-    toggleProMode,
-    toggleAgentMode,
     selectedDocumentIds,
     selectedTextIds,
     availableDocuments,
     availableTexts,
-    toggleDocumentSelection,
-    toggleTextSelection,
   } = useGeneratorSelectionStore(
     useShallow((state) => ({
       useWebSearch: state.useWebSearch,
@@ -387,18 +381,20 @@ const FeatureIcons = ({
       useProMode: state.useProMode,
       useAutomaticSearch: state.useAutomaticSearch,
       useAgentMode: state.useAgentMode,
-      toggleWebSearch: state.toggleWebSearch,
-      togglePrivacyMode: state.togglePrivacyMode,
-      toggleProMode: state.toggleProMode,
-      toggleAgentMode: state.toggleAgentMode,
       selectedDocumentIds: state.selectedDocumentIds,
       selectedTextIds: state.selectedTextIds,
       availableDocuments: state.availableDocuments,
       availableTexts: state.availableTexts,
-      toggleDocumentSelection: state.toggleDocumentSelection,
-      toggleTextSelection: state.toggleTextSelection,
     }))
   );
+
+  // Action selectors — Zustand functions are referentially stable, no useShallow needed
+  const toggleWebSearch = useGeneratorSelectionStore((s) => s.toggleWebSearch);
+  const togglePrivacyMode = useGeneratorSelectionStore((s) => s.togglePrivacyMode);
+  const toggleProMode = useGeneratorSelectionStore((s) => s.toggleProMode);
+  const toggleAgentMode = useGeneratorSelectionStore((s) => s.toggleAgentMode);
+  const toggleDocumentSelection = useGeneratorSelectionStore((s) => s.toggleDocumentSelection);
+  const toggleTextSelection = useGeneratorSelectionStore((s) => s.toggleTextSelection);
 
   const [isValidatingFiles, setIsValidatingFiles] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);

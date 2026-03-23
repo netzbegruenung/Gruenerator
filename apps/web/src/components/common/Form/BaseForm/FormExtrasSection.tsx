@@ -1,4 +1,4 @@
-import React, { useCallback, memo, type ReactNode } from 'react';
+import React, { useCallback, useRef, memo, type ReactNode } from 'react';
 import { FiSend } from 'react-icons/fi';
 
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
@@ -65,19 +65,26 @@ const FormExtrasSection: React.FC<ExtendedFormExtrasSectionProps> = ({
     (state) => state.generatedTexts[componentName] || ''
   );
 
+  const interactiveModeToggleRef = useRef(interactiveModeToggle);
+  interactiveModeToggleRef.current = interactiveModeToggle;
   const handleInteractiveModeClick = useCallback((): void => {
-    if (interactiveModeToggle && interactiveModeToggle.onToggle) {
-      interactiveModeToggle.onToggle(!interactiveModeToggle.isActive);
+    const toggle = interactiveModeToggleRef.current;
+    if (toggle && toggle.onToggle) {
+      toggle.onToggle(!toggle.isActive);
     }
-  }, [interactiveModeToggle]);
+  }, []);
 
+  const balancedModeToggleRef = useRef(balancedModeToggle);
+  balancedModeToggleRef.current = balancedModeToggle;
   const handleBalancedModeClick = useCallback(() => {
-    balancedModeToggle?.onToggle?.(!balancedModeToggle.isActive);
-  }, [balancedModeToggle]);
+    balancedModeToggleRef.current?.onToggle?.(!balancedModeToggleRef.current.isActive);
+  }, []);
 
+  const onRemoveFileRef = useRef(onRemoveFile);
+  onRemoveFileRef.current = onRemoveFile;
   const handleRemoveFile = useCallback(() => {
-    onRemoveFile?.(0);
-  }, [onRemoveFile]);
+    onRemoveFileRef.current?.(0);
+  }, []);
 
   if (hide) {
     return null;
