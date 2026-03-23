@@ -314,12 +314,13 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           ))}
       </nav>
 
-      {sidebarExpanded && (
-        <div
-          id="chat-thread-portal-slot"
-          className="flex-1 flex flex-col overflow-hidden min-h-0 border-t border-grey-200 dark:border-grey-700"
-        />
-      )}
+      <div
+        id="chat-thread-portal-slot"
+        className={cn(
+          'flex-1 flex flex-col overflow-hidden min-h-0 border-t border-grey-200 dark:border-grey-700',
+          !sidebarExpanded && 'hidden'
+        )}
+      />
 
       {/* Footer - pushed to bottom */}
       <div className="mt-auto px-2 py-xs shrink-0 flex items-center">

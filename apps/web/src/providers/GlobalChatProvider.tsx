@@ -28,19 +28,9 @@ function ChatThreadPortal() {
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
-    const el = document.getElementById(PORTAL_SLOT_ID);
-    if (el) {
-      setPortalTarget(el);
-      return;
-    }
-
-    const observer = new MutationObserver(() => {
-      const target = document.getElementById(PORTAL_SLOT_ID);
-      if (target) {
-        setPortalTarget(target);
-        observer.disconnect();
-      }
-    });
+    const sync = () => setPortalTarget(document.getElementById(PORTAL_SLOT_ID));
+    sync();
+    const observer = new MutationObserver(sync);
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, []);
