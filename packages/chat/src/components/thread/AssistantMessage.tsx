@@ -35,7 +35,7 @@ function AssistantMessageTextPart({
 
 const partComponents = { Text: AssistantMessageTextPart };
 
-export function AssistantMessage() {
+export const AssistantMessage = memo(function AssistantMessage() {
   const message = useMessage();
   const selectedAgentId = useAgentStore((s) => s.selectedAgentId);
   const custom = message.metadata?.custom as ChatMessageMetadata | undefined;
@@ -159,4 +159,4 @@ export function AssistantMessage() {
       </div>
     </MessagePrimitive.Root>
   );
-}
+});

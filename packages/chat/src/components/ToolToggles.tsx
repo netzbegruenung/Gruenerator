@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import {
   Globe,
   Wrench,
@@ -55,7 +55,7 @@ interface ToolTogglesProps {
   firstName?: string | null;
 }
 
-export function ToolToggles({ onNavigate, firstName }: ToolTogglesProps) {
+export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: ToolTogglesProps) {
   const {
     enabledTools,
     selectedModel,
@@ -241,4 +241,4 @@ export function ToolToggles({ onNavigate, firstName }: ToolTogglesProps) {
       <ShareThreadDialog threadId={threadId} open={shareOpen} onOpenChange={setShareOpen} />
     </>
   );
-}
+});

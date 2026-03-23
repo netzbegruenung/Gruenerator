@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { memo, useEffect } from 'react';
 import { Dialog as DialogPrimitive } from 'radix-ui';
 import { Users, Check, X } from 'lucide-react';
 import { useThreadSharing } from '../../hooks/useThreadSharing';
@@ -11,7 +11,11 @@ interface ShareThreadDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function ShareThreadDialog({ threadId, open, onOpenChange }: ShareThreadDialogProps) {
+export const ShareThreadDialog = memo(function ShareThreadDialog({
+  threadId,
+  open,
+  onOpenChange,
+}: ShareThreadDialogProps) {
   const { sharedGroups, userGroups, loading, shareWithGroup, unshare, reload } = useThreadSharing(
     open ? threadId : null
   );
@@ -81,4 +85,4 @@ export function ShareThreadDialog({ threadId, open, onOpenChange }: ShareThreadD
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
   );
-}
+});

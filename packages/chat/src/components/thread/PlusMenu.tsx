@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import {
   BookOpen,
   Check,
@@ -40,7 +40,11 @@ interface PlusMenuProps {
   onUploadFile: () => void;
 }
 
-export function PlusMenu({ onInsertMention, onOpenFileBrowser, onUploadFile }: PlusMenuProps) {
+export const PlusMenu = memo(function PlusMenu({
+  onInsertMention,
+  onOpenFileBrowser,
+  onUploadFile,
+}: PlusMenuProps) {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const customAgents = getCustomAgentMentionables();
   const favorites = useSkillFavoritesStore((s) => s.favorites);
@@ -149,4 +153,4 @@ export function PlusMenu({ onInsertMention, onOpenFileBrowser, onUploadFile }: P
       />
     </>
   );
-}
+});
