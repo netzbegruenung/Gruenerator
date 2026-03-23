@@ -36,6 +36,10 @@ export interface NotebookAdapterConfig {
   extraParams?: Record<string, unknown>;
   mode?: 'fast' | 'deep';
   endpoint?: string;
+  documentIds?: string[];
+  threadId?: string | null;
+  provider?: string;
+  model?: string;
 }
 
 export interface Citation {
@@ -95,6 +99,7 @@ interface StreamCompletionData {
 
 export interface NotebookAdapterCallbacks {
   onComplete?: (metadata: NotebookMessageMetadata) => void;
+  onThreadCreated?: (threadId: string) => void;
 }
 
 export function createNotebookModelAdapter(
@@ -131,6 +136,10 @@ export function createNotebookModelAdapter(
         ...(config.filters && { filters: config.filters }),
         locale: config.locale,
         ...(config.mode && { mode: config.mode }),
+        ...(config.documentIds?.length && { documentIds: config.documentIds }),
+        ...(config.threadId && { threadId: config.threadId }),
+        ...(config.provider && { provider: config.provider }),
+        ...(config.model && { model: config.model }),
         ...config.extraParams,
       };
 
@@ -189,6 +198,13 @@ export function createNotebookModelAdapter(
             if (!event || !data) continue;
 
             switch (event) {
+              case 'thread_created': {
+                const { threadId } = data as { threadId: string };
+                console.debug('[Notebook] Thread created:', threadId);
+                callbacks.onThreadCreated?.(threadId);
+                break;
+              }
+
               case 'search_start': {
                 const { message } = data as { message: string };
                 console.debug(
