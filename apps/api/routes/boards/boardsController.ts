@@ -48,13 +48,13 @@ router.get('/', async (req: Request, res: Response) => {
         cd.document_subtype = $1
         AND cd.is_deleted = false
         AND (
-          cd.created_by = $2
+          cd.created_by = $2::uuid
           OR cd.permissions ? $2::text
           OR cd.is_public = true
           OR cd.id IN (
             SELECT gcs.content_id
             FROM group_content_shares gcs
-            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2
+            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2::uuid
             WHERE gcs.content_type = 'collaborative_documents'
           )
         )
