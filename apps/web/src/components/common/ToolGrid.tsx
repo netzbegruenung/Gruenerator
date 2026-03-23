@@ -1,4 +1,5 @@
 import { Badge } from '@gruenerator/ui';
+import { memo } from 'react';
 import { PiStar, PiStarFill } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
@@ -30,9 +31,11 @@ const columnClasses = {
   4: 'grid-cols-4 max-lg:grid-cols-2 max-sm:grid-cols-1',
 } as const;
 
-const ToolGrid = ({ tools, columns }: ToolGridProps) => {
+const ToolGrid = memo(({ tools, columns }: ToolGridProps) => {
   const navigate = useNavigate();
-  const { isFavourite, toggleFavourite, isFull } = useSidebarFavouritesStore();
+  const isFavourite = useSidebarFavouritesStore((s) => s.isFavourite);
+  const toggleFavourite = useSidebarFavouritesStore((s) => s.toggleFavourite);
+  const isFull = useSidebarFavouritesStore((s) => s.isFull);
   const cols = columns ?? (tools.length <= 3 ? 3 : 2);
 
   return (
@@ -114,6 +117,8 @@ const ToolGrid = ({ tools, columns }: ToolGridProps) => {
       })}
     </div>
   );
-};
+});
+
+ToolGrid.displayName = 'ToolGrid';
 
 export default ToolGrid;

@@ -8,6 +8,7 @@ import {
   PiTextAa,
 } from 'react-icons/pi';
 import { useSearchParams } from 'react-router-dom';
+import { useShallow } from 'zustand/react/shallow';
 
 import BaseForm from '../../../components/common/BaseForm';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
@@ -107,10 +108,15 @@ const TextEditorTab: React.FC<TextEditorTabProps> = memo(() => {
   const textId = searchParams.get('textId');
   const [loadingText, setLoadingText] = useState(false);
 
-  const getFeatureState = useGeneratorSelectionStore((state) => state.getFeatureState);
-  const selectedDocumentIds = useGeneratorSelectionStore((state) => state.selectedDocumentIds);
-  const selectedTextIds = useGeneratorSelectionStore((state) => state.selectedTextIds);
-  const usePrivacyMode = useGeneratorSelectionStore((state) => state.usePrivacyMode);
+  const { getFeatureState, selectedDocumentIds, selectedTextIds, usePrivacyMode } =
+    useGeneratorSelectionStore(
+      useShallow((state) => ({
+        getFeatureState: state.getFeatureState,
+        selectedDocumentIds: state.selectedDocumentIds,
+        selectedTextIds: state.selectedTextIds,
+        usePrivacyMode: state.usePrivacyMode,
+      }))
+    );
 
   const form = useBaseForm(
     BASE_FORM_CONFIG as unknown as Parameters<typeof useBaseForm>[0]

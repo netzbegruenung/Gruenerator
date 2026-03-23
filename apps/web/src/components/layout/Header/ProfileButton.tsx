@@ -8,14 +8,13 @@ import {
   TooltipTrigger,
 } from '@gruenerator/ui';
 import { LogOut } from 'lucide-react';
-import { useCallback } from 'react';
+import { memo } from 'react';
 import { FaCloud, FaFolder, FaUserCircle, FaUsers } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
-import { useProfile, useCustomGeneratorsData } from '../../../features/auth/hooks/useProfileData';
+import { useProfile } from '../../../features/auth/hooks/useProfileData';
 import { getAvatarDisplayProps } from '../../../features/auth/services/profileApiService';
-import { useGroups } from '../../../features/groups/hooks/useGroups';
 import NotificationList from '../../../features/notifications/components/NotificationList';
 import {
   useUnreadCount,
@@ -23,7 +22,6 @@ import {
 } from '../../../features/notifications/hooks/useNotifications';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
-import { useNotificationSSE } from '../../../hooks/useNotificationSSE';
 import { useNotificationStore } from '../../../stores/notificationStore';
 
 import type { IconType } from 'react-icons';
@@ -57,24 +55,12 @@ const ProfileButton = () => {
   const { shouldShowTab } = useBetaFeatures();
 
   const { data: profile } = useProfile(user?.id) as { data: Profile | undefined };
-  useCustomGeneratorsData({ enabled: !!user?.id });
-  const { userGroups = [] } = useGroups({ isActive: !!user?.id });
 
   const displayName = profile?.display_name || '';
   const avatarRobotId = profile?.avatar_robot_id ?? 1;
   const isProfileLoading = isInitialLoad;
 
   const unreadCount = useNotificationStore((s) => s.unreadCount);
-
-  useNotificationSSE(
-    useCallback((data: { title?: string; body?: string }) => {
-      if (data.title) {
-        import('sonner').then(({ toast }) =>
-          toast(data.title, { description: data.body || undefined })
-        );
-      }
-    }, [])
-  );
   useUnreadCount();
   const markAllAsRead = useMarkAllAsRead();
 
@@ -256,4 +242,4 @@ const ProfileButton = () => {
   );
 };
 
-export default ProfileButton;
+export default memo(ProfileButton);
