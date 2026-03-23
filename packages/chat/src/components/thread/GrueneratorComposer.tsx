@@ -260,7 +260,7 @@ export function GrueneratorComposer({
   }, []);
 
   return (
-    <div className="px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <div className="px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] sm:pb-[max(1rem,env(safe-area-inset-bottom))]">
       <ComposerPrimitive.Root className="composer-root relative mx-auto flex w-full max-w-3xl flex-col rounded-3xl border border-border bg-surface shadow-sm transition-shadow focus-within:shadow-md focus-within:border-primary/30">
         <ComposerPrimitive.Quote className="mx-4 mt-4 flex items-start gap-2 rounded-r-lg border-l-4 border-primary/40 bg-primary/5 px-3 py-2 text-sm">
           <ComposerPrimitive.QuoteText className="line-clamp-2 flex-1 italic text-foreground-muted" />
@@ -299,7 +299,9 @@ export function GrueneratorComposer({
 
         <ComposerPrimitive.Input
           ref={textareaRef}
-          autoFocus={typeof window !== 'undefined' && !window.matchMedia('(pointer: coarse)').matches}
+          autoFocus={
+            typeof window !== 'undefined' && !window.matchMedia('(pointer: coarse)').matches
+          }
           placeholder="Nachricht schreiben..."
           className="min-h-[3rem] max-h-40 w-full flex-grow resize-none bg-transparent px-5 pt-4 pb-2 text-foreground outline-none placeholder:text-foreground-muted/60"
           onChange={handleChange}
@@ -322,7 +324,7 @@ export function GrueneratorComposer({
           <ComposerButtons isRunning={isRunning} />
         </div>
       </ComposerPrimitive.Root>
-      <p className="mt-2 text-center text-xs text-foreground-muted">
+      <p className="mt-1 hidden text-center text-xs text-foreground-muted sm:block">
         Grünerator kann Fehler machen. Wichtige Infos bitte prüfen.
       </p>
     </div>
