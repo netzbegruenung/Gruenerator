@@ -166,12 +166,12 @@ router.get('/', async (req: Request, res: Response) => {
         p.display_name as creator_name,
         le.display_name as last_editor_name,
         CASE
-          WHEN cd.created_by = $1 THEN 'owner'
+          WHEN cd.created_by = $1::uuid THEN 'owner'
           WHEN cd.permissions ? $1::text THEN 'direct'
           WHEN cd.id IN (
             SELECT gcs.content_id
             FROM group_content_shares gcs
-            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid
             WHERE gcs.content_type = 'collaborative_documents'
           ) THEN 'group'
         END AS access_type
@@ -182,12 +182,12 @@ router.get('/', async (req: Request, res: Response) => {
         cd.document_subtype = ANY($2::text[])
         AND cd.is_deleted = false
         AND (
-          cd.created_by = $1
+          cd.created_by = $1::uuid
           OR cd.permissions ? $1::text
           OR cd.id IN (
             SELECT gcs.content_id
             FROM group_content_shares gcs
-            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid
             WHERE gcs.content_type = 'collaborative_documents'
           )
         )

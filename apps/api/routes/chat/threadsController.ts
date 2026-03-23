@@ -41,7 +41,7 @@ router.get('/', async (req, res) => {
               COALESCE(t.status, 'regular') as status, COALESCE(t.thread_type, 'chat') as thread_type,
               t.notebook_collection_id,
               CASE
-                WHEN t.user_id = $1 THEN 'owner'
+                WHEN t.user_id = $1::uuid THEN 'owner'
                 WHEN t.permissions ? $1::text THEN 'shared'
                 ELSE 'group'
               END as access_type,
@@ -55,7 +55,7 @@ router.get('/', async (req, res) => {
          LIMIT 1
        ) m ON true
        WHERE (
-         t.user_id = $1
+         t.user_id = $1::uuid
          OR t.permissions ? $1::text
          OR t.is_public = true
          OR t.id IN (
