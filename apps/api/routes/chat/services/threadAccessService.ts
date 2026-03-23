@@ -16,7 +16,7 @@ export async function canAccessThread(threadId: string, userId: string): Promise
      LIMIT 1`,
     [threadId, userId]
   );
-  if ((directAccess as unknown[]).length > 0) return true;
+  if (directAccess.length > 0) return true;
 
   // Check group access separately to avoid type conflicts
   const groupAccess = await db.query(
@@ -28,5 +28,5 @@ export async function canAccessThread(threadId: string, userId: string): Promise
      LIMIT 1`,
     [threadId, userId]
   );
-  return (groupAccess as unknown[]).length > 0;
+  return groupAccess.length > 0;
 }

@@ -158,7 +158,7 @@ class TransferService {
   async deleteTransfer(userId: string, shareToken: string): Promise<boolean> {
     await this.ensureInitialized();
 
-    const result = await this.postgres!.query(
+    const result = await this.postgres!.query<{ id: string }>(
       `DELETE FROM shared_media
        WHERE share_token = $1 AND user_id = $2 AND media_type = 'transfer'
        RETURNING id`,
