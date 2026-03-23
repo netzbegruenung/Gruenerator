@@ -1,4 +1,9 @@
-import { GrueneratorChatProvider, ChatThreadList, TooltipProvider } from '@gruenerator/chat';
+import {
+  GrueneratorChatProvider,
+  ChatThreadList,
+  TooltipProvider,
+  useAgentStore,
+} from '@gruenerator/chat';
 import {
   lazy,
   Suspense,
@@ -70,11 +75,11 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   } | null>(null);
   const editorModalSetterRef = useRef(setEditorModal);
 
+  const mentionablesActivated = useAgentStore((s) => s.mentionablesActivated);
   useEffect(() => {
-    if (qaCollections.length === 0) {
-      fetchQACollections();
-    }
-  }, [qaCollections.length, fetchQACollections]);
+    if (!mentionablesActivated || qaCollections.length > 0) return;
+    fetchQACollections();
+  }, [mentionablesActivated, qaCollections.length, fetchQACollections]);
 
   const getExternalThreads = useCallback(() => {
     const userCols = qaCollections.map((c) => ({ id: c.id, name: c.name }));
