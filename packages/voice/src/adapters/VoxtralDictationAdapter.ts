@@ -3,6 +3,7 @@ import { type DictationAdapter } from '@assistant-ui/react';
 type Unsubscribe = () => void;
 
 const TARGET_SAMPLE_RATE = 16000;
+const INACTIVITY_TIMEOUT_MS = 30_000;
 
 const WORKLET_PROCESSOR_CODE = `
 class PCMDownsampleProcessor extends AudioWorkletProcessor {
@@ -82,37 +83,51 @@ export class VoxtralDictationAdapter implements DictationAdapter {
     let audioContext: AudioContext | null = null;
     let mediaStream: MediaStream | null = null;
     let workletNode: AudioWorkletNode | null = null;
-    let cancelled = false;
+    let stopping = false;
     let fullText = '';
     let doneResolve: (() => void) | null = null;
+    let inactivityTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const resetInactivityTimer = () => {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      if (stopping) return;
+      inactivityTimer = setTimeout(() => {
+        stopping = true;
+        stopAudioCapture();
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'stop' }));
+        }
+      }, INACTIVITY_TIMEOUT_MS);
+    };
+
+    const clearInactivityTimer = () => {
+      if (inactivityTimer) {
+        clearTimeout(inactivityTimer);
+        inactivityTimer = null;
+      }
+    };
 
     const session: DictationAdapter.Session = {
       status: { type: 'starting' },
 
       stop: async () => {
-        if (cancelled || session.status.type === 'ended') return;
-
-        // Stop audio capture but keep WebSocket open for remaining events
+        if (stopping || session.status.type === 'ended') return;
+        stopping = true;
+        clearInactivityTimer();
         stopAudioCapture();
 
-        // Tell backend to flush remaining audio and finalize
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: 'stop' }));
+
+          await new Promise<void>((resolve) => {
+            const timeout = setTimeout(resolve, 8000);
+            doneResolve = () => {
+              clearTimeout(timeout);
+              resolve();
+            };
+          });
         }
 
-        // Wait for the "done" event from Mistral (or timeout after 8s)
-        await new Promise<void>((resolve) => {
-          const timeout = setTimeout(() => {
-            resolve();
-          }, 8000);
-
-          doneResolve = () => {
-            clearTimeout(timeout);
-            resolve();
-          };
-        });
-
-        // Clean up WebSocket
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.close();
         }
@@ -122,8 +137,9 @@ export class VoxtralDictationAdapter implements DictationAdapter {
       },
 
       cancel: () => {
-        cancelled = true;
-        cleanup(true);
+        stopping = true;
+        clearInactivityTimer();
+        cleanup();
         emitEnd('cancelled');
       },
 
@@ -165,85 +181,25 @@ export class VoxtralDictationAdapter implements DictationAdapter {
       for (const cb of speechEndCallbacks) cb({ transcript: fullText });
     };
 
-    const cleanup = (closeWs: boolean) => {
+    const cleanup = () => {
       stopAudioCapture();
-      if (closeWs && ws && ws.readyState === WebSocket.OPEN) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
         ws.close();
-        ws = null;
       }
+      ws = null;
     };
 
-    const startRealtime = async () => {
+    const startSession = async () => {
       try {
-        // 1. Open WebSocket to backend
-        ws = new WebSocket(this._wsUrl);
-
-        await new Promise<void>((resolve, reject) => {
-          const timeout = setTimeout(
-            () => reject(new Error('WebSocket connection timeout')),
-            10000
-          );
-          ws!.onopen = () => {};
-          ws!.onmessage = (e) => {
-            try {
-              const msg = JSON.parse(e.data as string) as { type: string };
-              if (msg.type === 'session.ready') {
-                clearTimeout(timeout);
-                resolve();
-              } else if (msg.type === 'error') {
-                clearTimeout(timeout);
-                reject(new Error((msg as { message?: string }).message || 'Session error'));
-              }
-            } catch {
-              // Ignore non-JSON messages during handshake
-            }
-          };
-          ws!.onerror = () => {
-            clearTimeout(timeout);
-            reject(new Error('WebSocket connection failed'));
-          };
-          ws!.onclose = () => {
-            clearTimeout(timeout);
-            reject(new Error('WebSocket closed before session ready'));
-          };
-        });
-
-        if (cancelled) return;
-
-        // 2. Set up message handler for transcription events
-        ws.onmessage = (e) => {
-          try {
-            const msg = JSON.parse(e.data as string) as { type: string; text?: string };
-            if (msg.type === 'text.delta' && msg.text) {
-              fullText += msg.text;
-              for (const cb of speechCallbacks) cb({ transcript: fullText, isFinal: false });
-            } else if (msg.type === 'done') {
-              for (const cb of speechCallbacks) cb({ transcript: fullText, isFinal: true });
-              if (doneResolve) {
-                doneResolve();
-                doneResolve = null;
-              }
-            }
-          } catch {
-            // Ignore parse errors
-          }
-        };
-
-        ws.onclose = () => {
-          emitEnd('stopped');
-        };
-
-        // 3. Acquire microphone
         mediaStream = await navigator.mediaDevices.getUserMedia({
           audio: { sampleRate: { ideal: TARGET_SAMPLE_RATE }, channelCount: 1 },
         });
 
-        if (cancelled) {
+        if (stopping) {
           mediaStream.getTracks().forEach((t) => t.stop());
           return;
         }
 
-        // 4. Set up AudioWorklet for PCM conversion + downsampling
         audioContext = new AudioContext();
         const blob = new Blob([WORKLET_PROCESSOR_CODE], { type: 'application/javascript' });
         const workletUrl = URL.createObjectURL(blob);
@@ -262,16 +218,76 @@ export class VoxtralDictationAdapter implements DictationAdapter {
         source.connect(workletNode);
         workletNode.connect(audioContext.destination);
 
+        ws = new WebSocket(this._wsUrl);
+
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(
+            () => reject(new Error('WebSocket connection timeout')),
+            10000
+          );
+          ws!.onmessage = (e) => {
+            try {
+              const msg = JSON.parse(e.data as string) as { type: string };
+              if (msg.type === 'session.ready') {
+                clearTimeout(timeout);
+                resolve();
+              } else if (msg.type === 'error') {
+                clearTimeout(timeout);
+                reject(new Error((msg as { message?: string }).message || 'Session error'));
+              }
+            } catch {
+              // Ignore non-JSON during handshake
+            }
+          };
+          ws!.onerror = () => {
+            clearTimeout(timeout);
+            reject(new Error('WebSocket connection failed'));
+          };
+          ws!.onclose = () => {
+            clearTimeout(timeout);
+            reject(new Error('WebSocket closed before session ready'));
+          };
+        });
+
+        if (stopping) return;
+
+        ws.onmessage = (e) => {
+          try {
+            const msg = JSON.parse(e.data as string) as { type: string; text?: string };
+            if (msg.type === 'text.delta' && msg.text) {
+              fullText += msg.text;
+              for (const cb of speechCallbacks) cb({ transcript: fullText, isFinal: false });
+              resetInactivityTimer();
+            } else if (msg.type === 'done') {
+              for (const cb of speechCallbacks) cb({ transcript: fullText, isFinal: true });
+              if (doneResolve) {
+                doneResolve();
+                doneResolve = null;
+              }
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        };
+
+        ws.onclose = () => {
+          ws = null;
+          if (!stopping) {
+            emitEnd('stopped');
+          }
+        };
+
         session.status = { type: 'running' };
         for (const cb of speechStartCallbacks) cb();
+        resetInactivityTimer();
       } catch (err) {
         console.error('[VoxtralDictation] Realtime setup failed:', err);
-        cleanup(true);
+        cleanup();
         emitEnd('error');
       }
     };
 
-    startRealtime();
+    startSession();
     return session;
   }
 }

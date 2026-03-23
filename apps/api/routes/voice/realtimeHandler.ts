@@ -9,6 +9,11 @@ const log = createLogger('voiceRealtime');
 const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY;
 const REALTIME_MODEL = 'voxtral-mini-transcribe-realtime-2602';
 
+const AUDIO_FORMAT = {
+  encoding: AudioEncoding.PcmS16le,
+  sampleRate: 16000,
+} as const;
+
 export function attachRealtimeWebSocket(server: http.Server): void {
   const wss = new WebSocketServer({ noServer: true });
 
@@ -28,83 +33,114 @@ export function attachRealtimeWebSocket(server: http.Server): void {
 }
 
 async function handleRealtimeSession(clientWs: WsWebSocket): Promise<void> {
-  try {
-    const client = new RealtimeTranscription({ apiKey: MISTRAL_API_KEY });
-    const connection = await client.connect(REALTIME_MODEL, {
-      audioFormat: {
-        encoding: AudioEncoding.PcmS16le,
-        sampleRate: 16000,
-      },
-    });
+  const client = new RealtimeTranscription({ apiKey: MISTRAL_API_KEY });
+  let activeConnection: Awaited<ReturnType<typeof client.connect>> | null = null;
+  let stopped = false;
+  let clientDisconnected = false;
+  const audioBuffer: Uint8Array[] = [];
 
-    clientWs.send(JSON.stringify({ type: 'session.ready' }));
-    log.debug('[Realtime] Mistral session established');
+  clientWs.on('message', async (data: Buffer | ArrayBuffer | Buffer[], isBinary: boolean) => {
+    if (isBinary) {
+      const chunk =
+        data instanceof Buffer ? new Uint8Array(data) : new Uint8Array(data as ArrayBuffer);
 
-    // Forward audio from browser to Mistral, handle stop signal
-    clientWs.on('message', async (data: Buffer | ArrayBuffer | Buffer[], isBinary: boolean) => {
-      if (connection.isClosed) return;
-
-      if (isBinary) {
+      if (activeConnection && !activeConnection.isClosed) {
         try {
-          const chunk =
-            data instanceof Buffer ? new Uint8Array(data) : new Uint8Array(data as ArrayBuffer);
-          await connection.sendAudio(chunk);
+          await activeConnection.sendAudio(chunk);
         } catch (err) {
           log.error('[Realtime] Error sending audio to Mistral:', err);
         }
       } else {
-        // Text message — check for stop signal
-        try {
-          const msg = JSON.parse(data.toString()) as { type: string };
-          if (msg.type === 'stop') {
-            log.debug('[Realtime] Stop signal received, flushing audio');
-            await connection.flushAudio();
-            await connection.endAudio();
+        audioBuffer.push(chunk);
+      }
+    } else {
+      try {
+        const msg = JSON.parse(data.toString()) as { type: string };
+        if (msg.type === 'stop') {
+          log.debug('[Realtime] Stop signal received');
+          stopped = true;
+          if (activeConnection && !activeConnection.isClosed) {
+            await activeConnection.flushAudio();
+            await activeConnection.endAudio();
           }
-        } catch {
-          // Ignore malformed JSON
+        }
+      } catch {
+        // Ignore malformed JSON
+      }
+    }
+  });
+
+  clientWs.on('close', async () => {
+    log.debug('[Realtime] Client disconnected');
+    clientDisconnected = true;
+    stopped = true;
+    try {
+      if (activeConnection && !activeConnection.isClosed) {
+        await activeConnection.close();
+      }
+    } catch {
+      // Connection may already be closed
+    }
+  });
+
+  try {
+    while (!stopped && !clientDisconnected && clientWs.readyState === clientWs.OPEN) {
+      activeConnection = await client.connect(REALTIME_MODEL, { audioFormat: AUDIO_FORMAT });
+
+      if (audioBuffer.length === 0) {
+        clientWs.send(JSON.stringify({ type: 'session.ready' }));
+      }
+      log.debug('[Realtime] Mistral connection established');
+
+      for (const buffered of audioBuffer) {
+        if (!activeConnection.isClosed) {
+          await activeConnection.sendAudio(buffered);
         }
       }
-    });
+      audioBuffer.length = 0;
 
-    clientWs.on('close', async () => {
-      log.debug('[Realtime] Client disconnected');
+      let segmentDone = false;
+
+      for await (const event of activeConnection) {
+        if (clientWs.readyState !== clientWs.OPEN) break;
+
+        const eventObj = event as Record<string, unknown>;
+        const eventType = eventObj.type as string;
+
+        if (eventType === 'transcription.text.delta') {
+          clientWs.send(
+            JSON.stringify({ type: 'text.delta', text: (eventObj as { text: string }).text })
+          );
+        } else if (eventType === 'transcription.done') {
+          if (stopped) {
+            clientWs.send(JSON.stringify({ type: 'done' }));
+          }
+          segmentDone = true;
+          break;
+        } else if (eventType === 'error') {
+          const errDetail = eventObj.error as { message?: string } | undefined;
+          clientWs.send(
+            JSON.stringify({
+              type: 'error',
+              message: errDetail?.message || 'Transcription error',
+            })
+          );
+          stopped = true;
+          break;
+        }
+      }
+
       try {
-        if (!connection.isClosed) {
-          await connection.close();
+        if (!activeConnection.isClosed) {
+          await activeConnection.close();
         }
       } catch {
         // Connection may already be closed
       }
-    });
+      activeConnection = null;
 
-    // Forward transcription events from Mistral to browser
-    for await (const event of connection) {
-      if (clientWs.readyState !== clientWs.OPEN) break;
-
-      const eventObj = event as Record<string, unknown>;
-      const eventType = eventObj.type as string;
-
-      if (eventType === 'transcription.text.delta') {
-        clientWs.send(
-          JSON.stringify({ type: 'text.delta', text: (eventObj as { text: string }).text })
-        );
-      } else if (eventType === 'transcription.done') {
-        clientWs.send(JSON.stringify({ type: 'done' }));
-        break;
-      } else if (eventType === 'error') {
-        const errDetail = eventObj.error as { message?: string } | undefined;
-        clientWs.send(
-          JSON.stringify({
-            type: 'error',
-            message: errDetail?.message || 'Transcription error',
-          })
-        );
-        break;
-      }
+      if (!segmentDone) break;
     }
-
-    await connection.close();
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     log.error('[Realtime] Session error:', message);
@@ -113,6 +149,13 @@ async function handleRealtimeSession(clientWs: WsWebSocket): Promise<void> {
       clientWs.send(JSON.stringify({ type: 'error', message }));
     }
   } finally {
+    if (activeConnection && !activeConnection.isClosed) {
+      try {
+        await activeConnection.close();
+      } catch {
+        // Ignore
+      }
+    }
     if (clientWs.readyState === clientWs.OPEN) {
       clientWs.close();
     }
