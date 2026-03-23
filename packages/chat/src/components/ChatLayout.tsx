@@ -19,7 +19,7 @@ export function ChatLayout({ userId, firstName, onLogout, onNavigate }: ChatLayo
   return (
     <GrueneratorChatProvider userId={userId}>
       <TooltipProvider>
-        <div className="flex h-screen overflow-hidden bg-background">
+        <div className="flex h-dvh overflow-hidden bg-background">
           <ChatSidebar
             isOpen={sidebarOpen}
             onToggle={() => setSidebarOpen(!sidebarOpen)}

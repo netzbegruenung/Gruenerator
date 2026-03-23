@@ -93,7 +93,7 @@ export const MarkdownContent = memo(function MarkdownContent({ content }: Markdo
         if (isInline) {
           return (
             <code
-              className="rounded bg-code-inline-bg px-1 py-0.5 font-mono text-sm break-all"
+              className="rounded bg-code-inline-bg px-1 py-0.5 font-mono text-sm break-words"
               {...props}
             >
               {children}

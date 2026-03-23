@@ -299,7 +299,7 @@ export function GrueneratorComposer({
 
         <ComposerPrimitive.Input
           ref={textareaRef}
-          autoFocus
+          autoFocus={typeof window !== 'undefined' && !window.matchMedia('(pointer: coarse)').matches}
           placeholder="Nachricht schreiben..."
           className="min-h-[3rem] max-h-40 w-full flex-grow resize-none bg-transparent px-5 pt-4 pb-2 text-foreground outline-none placeholder:text-foreground-muted/60"
           onChange={handleChange}
