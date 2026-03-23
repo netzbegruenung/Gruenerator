@@ -21,6 +21,10 @@ export const config = {
     apiKey: process.env.MISTRAL_API_KEY,
   },
 
+  api: {
+    url: process.env.GRUENERATOR_API_URL || null,
+  },
+
   // Use shared collection configurations from @gruenerator/shared
   collections: COLLECTIONS,
 };

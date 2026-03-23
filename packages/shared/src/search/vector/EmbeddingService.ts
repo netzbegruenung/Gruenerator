@@ -93,7 +93,7 @@ export class EmbeddingService {
     const allEmbeddings: number[][] = [];
 
     for (let i = 0; i < batches.length; i++) {
-      const batch = batches[i];
+      const batch = batches[i]!;
 
       try {
         const batchEmbeddings = await this.processSingleBatch(batch);

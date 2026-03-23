@@ -233,7 +233,10 @@ export function getFilterableFields(key: string): string[] {
  * @returns Array of collection keys
  */
 export function getCollectionsWithField(fieldName: string): CollectionKey[] {
-  return COLLECTION_KEYS.filter((key) => fieldName in COLLECTIONS[key].filterableFields);
+  return COLLECTION_KEYS.filter((key) => {
+    const col = COLLECTIONS[key];
+    return col && fieldName in col.filterableFields;
+  });
 }
 
 /**
@@ -247,7 +250,7 @@ export function getCollectionsWithField(fieldName: string): CollectionKey[] {
 export function getDefaultSearchCollections(country: 'DE' | 'AT'): CollectionKey[] {
   return COLLECTION_KEYS.filter((key) => {
     const col = COLLECTIONS[key];
-    if (!col.includeInDefaultSearch) return false;
+    if (!col || !col.includeInDefaultSearch) return false;
     if (!col.country) return true;
     return col.country === country;
   });

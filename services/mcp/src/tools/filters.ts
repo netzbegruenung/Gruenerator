@@ -80,11 +80,25 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
         };
       }
 
+      const firstField = Object.keys(filters)[0];
+      const firstValue = firstField
+        ? (filters[firstField]?.values[0] as { value: string } | undefined)?.value
+        : null;
+      const usageExample = firstField
+        ? {
+            step1: `gruenerator_get_filters({ collection: "${collection}" })`,
+            step2: `gruenerator_search({ query: "Dein Suchbegriff", country: "DE", collection: "${collection}", filters: { ${firstField}: "${firstValue || 'WERT'}" } })`,
+          }
+        : null;
+
       return {
         collection: col.displayName,
         collectionId: collection,
         description: col.description,
         filters,
+        usageExample,
+        hinweis:
+          'Nutze die Werte aus "values" direkt als Filter bei gruenerator_search. Die Werte sind exakt und dürfen nicht verändert werden.',
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
