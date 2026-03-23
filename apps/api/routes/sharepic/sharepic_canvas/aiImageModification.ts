@@ -2,6 +2,7 @@ import { generateText } from 'ai';
 import { Router, type Request, type Response } from 'express';
 
 import { getModel } from '../../../services/ai/providers.js';
+import { extractJsonObject } from '../../../utils/jsonParser.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('aiImageModifica');
@@ -214,10 +215,13 @@ async function generateImageModification(
       temperature: 0.2,
     });
 
-    const textContent = result.text;
-    log.debug('[AI Image Modification API] Processed text content:', textContent);
+    log.debug('[AI Image Modification API] Processed text content:', result.text);
 
-    return JSON.parse(textContent) as Partial<DreizeilenParams>;
+    const parsed = extractJsonObject<Partial<DreizeilenParams>>(result.text);
+    if (!parsed) {
+      throw new Error('Failed to parse JSON from AI response');
+    }
+    return parsed;
   } catch (error) {
     log.error('[AI Image Modification API] Error generating image modification:', error);
     throw error;
