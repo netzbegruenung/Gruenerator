@@ -32,7 +32,7 @@ export function GrueneratorThread({ onNavigate, firstName }: GrueneratorThreadPr
         </div>
       )}
 
-      <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto scrollbar-thin">
+      <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto overflow-x-hidden scrollbar-thin">
         <div className="flex flex-grow flex-col gap-6 px-4 pt-8 pb-4">
           <ThreadPrimitive.Empty>
             <WelcomeScreen />

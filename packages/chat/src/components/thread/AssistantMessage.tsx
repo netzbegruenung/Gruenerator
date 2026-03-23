@@ -27,7 +27,7 @@ function AssistantMessageTextPart({
   if (!text) return null;
 
   return (
-    <div className="prose prose-sm max-w-none">
+    <div className="prose prose-sm max-w-none break-words">
       <MarkdownContent content={text} />
     </div>
   );
@@ -78,7 +78,7 @@ export function AssistantMessage() {
   const showSearchResults = !isStreaming && citations.length > 0;
 
   return (
-    <MessagePrimitive.Root className="group mx-auto flex w-full max-w-3xl items-start gap-4">
+    <MessagePrimitive.Root className="group mx-auto flex w-full min-w-0 max-w-3xl items-start gap-4">
       {messageAgent ? (
         <div
           className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm"
