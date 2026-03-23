@@ -1,12 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  ThreadPrimitive,
-  useAssistantRuntime,
-  useComposerRuntime,
-  useThread,
-} from '@assistant-ui/react';
+import { ThreadPrimitive, useAssistantRuntime, useComposerRuntime } from '@assistant-ui/react';
+import { useAuiState } from '@assistant-ui/store';
 import { useAgentStore } from '../stores/chatStore';
 import { cn } from '../lib/utils';
 import { GrueneratorComposer } from './thread/GrueneratorComposer';
@@ -48,18 +44,18 @@ function ExampleSuggestions() {
 }
 
 export function SwitchToThreadOnSend() {
-  const thread = useThread();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
   const hasNavigated = useRef(false);
 
   useEffect(() => {
-    if (thread.isRunning && !hasNavigated.current) {
+    if (isRunning && !hasNavigated.current) {
       hasNavigated.current = true;
       useAgentStore.getState().setChatViewMode('thread');
     }
-    if (!thread.isRunning) {
+    if (!isRunning) {
       hasNavigated.current = false;
     }
-  }, [thread.isRunning]);
+  }, [isRunning]);
 
   return null;
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useThread } from '@assistant-ui/react';
+import { useAuiState } from '@assistant-ui/store';
 import { BookOpen, Settings, Zap } from 'lucide-react';
 import {
   DropdownMenu,
@@ -300,11 +300,11 @@ export function NotebookComposer({
   selectedModel,
   onModelChange,
 }: NotebookComposerProps) {
-  const thread = useThread();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
 
   return (
     <GrueneratorComposer
-      isRunning={thread.isRunning}
+      isRunning={isRunning}
       placeholder={placeholder}
       disclaimer="Antworten können ungenau sein. Wichtige Infos bitte prüfen."
       showMentions={false}
