@@ -20,7 +20,7 @@ export function UserMessage() {
   const senderId = custom?.senderId;
 
   return (
-    <MessagePrimitive.Root className="mx-auto flex w-full max-w-3xl justify-end">
+    <MessagePrimitive.Root className="mx-auto flex w-full min-w-0 max-w-3xl justify-end">
       <div className="max-w-[85%]">
         {senderId && (
           <p className="mb-1 text-right text-xs text-grey-400">
@@ -30,7 +30,7 @@ export function UserMessage() {
         <div className="rounded-3xl bg-user-bubble px-4 py-3">
           <UserMessageAttachments />
           <QuoteBlock />
-          <div className="whitespace-pre-wrap text-foreground">
+          <div className="whitespace-pre-wrap break-words text-foreground">
             <MessagePrimitive.Parts />
           </div>
         </div>
