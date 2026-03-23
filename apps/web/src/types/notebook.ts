@@ -63,9 +63,11 @@ export interface NotebookCollectionInput {
   description?: string;
   custom_prompt?: string;
   selectionMode?: 'documents' | 'wolke' | 'mixed';
-  documents?: string[];
+  documents?: (string | number)[];
   wolkeShareLinks?: string[];
   labels?: string[];
+  auto_sync?: boolean;
+  remove_missing_on_sync?: boolean;
 }
 
 /**

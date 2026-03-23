@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
 import { motion } from 'motion/react';
-import React, { useState } from 'react';
+import React, { memo, useState } from 'react';
 import {
   HiDotsVertical,
   HiOutlineTrash,
@@ -197,4 +197,7 @@ const NotebookList: React.FC<NotebookListProps> = ({
   );
 };
 
-export default NotebookList;
+const MemoizedNotebookList = memo(NotebookList);
+MemoizedNotebookList.displayName = 'NotebookList';
+
+export default MemoizedNotebookList;
