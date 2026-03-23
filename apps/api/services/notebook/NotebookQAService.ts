@@ -325,7 +325,8 @@ export class NotebookQAService {
       searchParams,
     });
 
-    const expanded = expandResultsToChunks(searchResults);
+    const collectionName = systemConfig?.name || collection?.name || collectionId;
+    const expanded = expandResultsToChunks(searchResults, collectionId, collectionName);
     const deduped = deduplicateResults(expanded, false);
     const sorted = filterAndSortResults(deduped, { threshold: 0.35, limit: 30 });
 
@@ -572,7 +573,8 @@ export class NotebookQAService {
       searchParams,
     });
 
-    const expanded = expandResultsToChunks(searchResults);
+    const singleCollectionName = systemConfig?.name || collection?.name || collectionId;
+    const expanded = expandResultsToChunks(searchResults, collectionId, singleCollectionName);
     const deduped = deduplicateResults(expanded, false);
     const sortedResults = filterAndSortResults(deduped, { threshold: 0.35, limit: 30 });
 
