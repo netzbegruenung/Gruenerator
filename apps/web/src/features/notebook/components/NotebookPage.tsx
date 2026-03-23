@@ -233,15 +233,13 @@ const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactE
                     }}
                   />
                 </div>
-                <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto bg-background">
-                  <NotebookComposer
-                    placeholder={config.placeholder}
-                    sourceFilters={sourceFilters}
-                    mode={mode}
-                    onModeChange={setMode}
-                  />
-                </ThreadPrimitive.ViewportFooter>
               </ThreadPrimitive.Viewport>
+              <NotebookComposer
+                placeholder={config.placeholder}
+                sourceFilters={sourceFilters}
+                mode={mode}
+                onModeChange={setMode}
+              />
             </ThreadPrimitive.Root>
           </div>
         </ExtraActionsProvider>
