@@ -1,9 +1,13 @@
 /**
  * Berlin Scraping Script
  *
- * Scrapes Grüne Berlin content from gruene.berlin (Typo3 CMS):
- *   - berlin-lv-presse: Nachrichten/Pressemitteilungen
- *   - berlin-lv-beschluesse: Beschlüsse
+ * Scrapes Grüne Berlin content from two sites:
+ *   gruene.berlin (Typo3 CMS — Landesverband):
+ *     - berlin-lv-presse: Nachrichten/Pressemitteilungen
+ *     - berlin-lv-beschluesse: Beschlüsse
+ *   gruene-fraktion.berlin (WordPress — Fraktion):
+ *     - berlin-fraktion-presse: Pressemitteilungen
+ *     - berlin-fraktion-beschluesse: Beschlüsse
  *
  * Flags:
  *   --source <id>  → Run only a specific source (e.g., berlin-lv-presse)
@@ -13,7 +17,12 @@
 
 import { landesverbandScraperService } from './services/scrapers/implementations/LandesverbandScraper/index.js';
 
-const BERLIN_SOURCES = ['berlin-lv-presse', 'berlin-lv-beschluesse'];
+const BERLIN_SOURCES = [
+  'berlin-lv-presse',
+  'berlin-lv-beschluesse',
+  'berlin-fraktion-presse',
+  'berlin-fraktion-beschluesse',
+];
 
 function parseArgs(): { source?: string } {
   const args = process.argv.slice(2);

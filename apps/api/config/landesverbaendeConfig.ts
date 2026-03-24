@@ -347,6 +347,68 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         '.png',
       ],
     },
+    {
+      id: 'berlin-fraktion-presse',
+      name: 'Grüne Fraktion Berlin Presse',
+      shortName: 'BE-F',
+      type: 'fraktion',
+      baseUrl: 'https://gruene-fraktion.berlin',
+      cms: 'wordpress',
+      maxAgeYears: 5,
+      contentPaths: [
+        {
+          type: 'presse',
+          path: '/pressemitteilungen/',
+          listSelector: 'article a[href*="/pressemitteilungen/"]',
+          paginationPattern: '/page/{page}/',
+          maxPages: 120,
+        },
+      ],
+      contentSelectors: {
+        title: ['h1.entry-title', 'h1.wp-block-heading', 'h1', 'meta[property="og:title"]'],
+        date: [
+          'time[datetime]',
+          '.entry-date',
+          '.post-date',
+          'meta[property="article:published_time"]',
+        ],
+        content: ['.entry-content', '.wp-block-paragraph', 'article .content', 'main article'],
+        categories: ['a[rel="category tag"]', '.post-categories a', 'a[href*="/category/"]'],
+        author: ['.author-name', '.byline'],
+      },
+      excludePatterns: ['/tag/', '/author/', '/wp-content/', '/wp-admin/', '#', 'javascript:'],
+    },
+    {
+      id: 'berlin-fraktion-beschluesse',
+      name: 'Grüne Fraktion Berlin Beschlüsse',
+      shortName: 'BE-F',
+      type: 'fraktion',
+      baseUrl: 'https://gruene-fraktion.berlin',
+      cms: 'wordpress',
+      maxAgeYears: 5,
+      contentPaths: [
+        {
+          type: 'beschluss',
+          path: '/beschluesse/',
+          listSelector: 'ul.dlm-downloads a[href*="/download/"]',
+          isPdfArchive: true,
+          maxPages: 1,
+        },
+      ],
+      contentSelectors: {
+        title: ['h1.entry-title', 'h1.wp-block-heading', 'h1', 'meta[property="og:title"]'],
+        date: [
+          'time[datetime]',
+          '.entry-date',
+          '.post-date',
+          'meta[property="article:published_time"]',
+        ],
+        content: ['.entry-content', '.wp-block-paragraph', 'article .content', 'main article'],
+        categories: ['a[rel="category tag"]', '.post-categories a', 'a[href*="/category/"]'],
+        author: ['.author-name', '.byline'],
+      },
+      excludePatterns: ['/tag/', '/author/', '/wp-content/', '/wp-admin/', '#', 'javascript:'],
+    },
 
     // ═══════════════════════════════════════════════════════════════════
     // THÜRINGEN
