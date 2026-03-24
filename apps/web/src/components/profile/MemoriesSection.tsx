@@ -9,8 +9,9 @@ import {
   DialogTitle,
 } from '@gruenerator/ui';
 import * as Switch from '@radix-ui/react-switch';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trash2, Plus, AlertTriangle, Brain, RefreshCw } from 'lucide-react';
-import React, { memo, useState, useEffect, useCallback } from 'react';
+import React, { memo, useState } from 'react';
 
 import { profileApiService, type Memory } from '@/features/auth/services/profileApiService';
 import { useOptimizedAuth } from '@/hooks/useAuth';
@@ -52,82 +53,82 @@ export default memo(function MemoriesSection() {
   const userId = user?.id;
   const { getBetaFeatureState, updateUserBetaFeatures } = useBetaFeatures();
   const memoriesEnabled = getBetaFeatureState('memories');
+  const queryClient = useQueryClient();
 
-  const [memories, setMemories] = useState<Memory[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryKey = ['memories', userId];
+
+  const {
+    data: memories = [],
+    isLoading,
+    error: queryError,
+  } = useQuery<Memory[]>({
+    queryKey,
+    queryFn: () => profileApiService.getMemories(userId!),
+    enabled: !!userId && memoriesEnabled,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [newText, setNewText] = useState('');
   const [newTopic, setNewTopic] = useState('');
-  const [isAdding, setIsAdding] = useState(false);
-
-  const [deletingId, setDeletingId] = useState<string | number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | number | null>(null);
-
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
-  const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
-  const fetchMemories = useCallback(async () => {
-    if (!userId) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const result = await profileApiService.getMemories(userId);
-      setMemories(result);
-    } catch (err) {
-      setError((err as Error).message || 'Fehler beim Laden der Erinnerungen.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [userId]);
+  const error = queryError?.message ?? mutationError;
 
-  useEffect(() => {
-    fetchMemories();
-  }, [fetchMemories]);
-
-  const handleAdd = async () => {
-    if (!newText.trim()) return;
-    setIsAdding(true);
-    try {
-      await profileApiService.addMemory(newText.trim(), newTopic);
+  const addMutation = useMutation({
+    mutationFn: ({ text, topic }: { text: string; topic: string }) =>
+      profileApiService.addMemory(text, topic),
+    onSuccess: () => {
       setNewText('');
       setNewTopic('');
       setShowAddForm(false);
-      await fetchMemories();
-    } catch (err) {
-      setError((err as Error).message || 'Fehler beim Speichern.');
-    } finally {
-      setIsAdding(false);
-    }
-  };
+      setMutationError(null);
+      queryClient.invalidateQueries({ queryKey });
+    },
+    onError: (err: Error) => {
+      setMutationError(err.message || 'Fehler beim Speichern.');
+    },
+  });
 
-  const handleDelete = async (memoryId: string | number) => {
-    setDeletingId(memoryId);
-    try {
-      await profileApiService.deleteMemory(memoryId);
-      setMemories((prev) => prev.filter((m) => m.id !== memoryId));
+  const deleteMutation = useMutation({
+    mutationFn: (memoryId: string | number) => profileApiService.deleteMemory(memoryId),
+    onMutate: async (memoryId) => {
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<Memory[]>(queryKey);
+      queryClient.setQueryData<Memory[]>(queryKey, (old) =>
+        old ? old.filter((m) => m.id !== memoryId) : []
+      );
       setConfirmDeleteId(null);
-    } catch (err) {
-      setError((err as Error).message || 'Fehler beim Löschen.');
-    } finally {
-      setDeletingId(null);
-    }
-  };
+      setMutationError(null);
+      return { previous };
+    },
+    onError: (err: Error, _memoryId, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKey, context.previous);
+      }
+      setMutationError(err.message || 'Fehler beim Löschen.');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey });
+    },
+  });
 
-  const handleDeleteAll = async () => {
-    if (!userId) return;
-    setIsDeletingAll(true);
-    try {
-      await profileApiService.deleteAllMemories(userId);
-      setMemories([]);
+  const deleteAllMutation = useMutation({
+    mutationFn: () => profileApiService.deleteAllMemories(userId!),
+    onSuccess: () => {
+      queryClient.setQueryData<Memory[]>(queryKey, []);
       setShowDeleteAllDialog(false);
-    } catch (err) {
-      setError((err as Error).message || 'Fehler beim Löschen aller Erinnerungen.');
-    } finally {
-      setIsDeletingAll(false);
-    }
-  };
+      setMutationError(null);
+    },
+    onError: (err: Error) => {
+      setMutationError(err.message || 'Fehler beim Löschen aller Erinnerungen.');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey });
+    },
+  });
 
   if (!userId) return null;
 
@@ -167,7 +168,7 @@ export default memo(function MemoriesSection() {
         <div className="flex items-center gap-sm rounded-md border border-red-300 bg-red-50 p-sm mb-md text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
           <AlertTriangle className="size-4 shrink-0" />
           <span className="flex-1">{error}</span>
-          <Button variant="ghost" size="xs" onClick={() => setError(null)}>
+          <Button variant="ghost" size="xs" onClick={() => setMutationError(null)}>
             OK
           </Button>
         </div>
@@ -182,14 +183,14 @@ export default memo(function MemoriesSection() {
             className="w-full resize-none rounded-md border border-grey-300 bg-input-bg p-sm text-sm text-foreground placeholder:text-grey-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-grey-600"
             rows={2}
             maxLength={1000}
-            disabled={isAdding}
+            disabled={addMutation.isPending}
           />
           <div className="flex items-center gap-sm">
             <select
               value={newTopic}
               onChange={(e) => setNewTopic(e.target.value)}
               className="rounded-md border border-grey-300 bg-input-bg px-sm py-1.5 text-sm text-foreground dark:border-grey-600"
-              disabled={isAdding}
+              disabled={addMutation.isPending}
             >
               {TOPIC_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -199,8 +200,12 @@ export default memo(function MemoriesSection() {
             </select>
             <div className="flex-1" />
             <span className="text-xs text-grey-400">{newText.length}/1000</span>
-            <Button size="sm" onClick={handleAdd} disabled={isAdding || !newText.trim()}>
-              {isAdding ? (
+            <Button
+              size="sm"
+              onClick={() => addMutation.mutate({ text: newText.trim(), topic: newTopic })}
+              disabled={addMutation.isPending || !newText.trim()}
+            >
+              {addMutation.isPending ? (
                 <RefreshCw className="size-3.5 animate-spin" />
               ) : (
                 <Plus className="size-3.5" />
@@ -211,7 +216,6 @@ export default memo(function MemoriesSection() {
         </div>
       )}
 
-      {/* Memory list */}
       {!memoriesEnabled ? null : isLoading ? (
         <div className="space-y-sm">
           {[1, 2, 3].map((i) => (
@@ -244,16 +248,15 @@ export default memo(function MemoriesSection() {
                 </div>
               </div>
 
-              {/* Delete */}
               {confirmDeleteId === memory.id ? (
                 <div className="flex shrink-0 items-center gap-1">
                   <Button
                     variant="destructive"
                     size="xs"
-                    onClick={() => handleDelete(memory.id)}
-                    disabled={deletingId === memory.id}
+                    onClick={() => deleteMutation.mutate(memory.id)}
+                    disabled={deleteMutation.isPending && deleteMutation.variables === memory.id}
                   >
-                    {deletingId === memory.id ? (
+                    {deleteMutation.isPending && deleteMutation.variables === memory.id ? (
                       <RefreshCw className="size-3 animate-spin" />
                     ) : (
                       'Ja'
@@ -279,7 +282,6 @@ export default memo(function MemoriesSection() {
         </div>
       )}
 
-      {/* Delete all (GDPR) */}
       {memoriesEnabled && memories.length > 0 && (
         <div className="mt-md flex justify-end">
           <Button
@@ -294,7 +296,6 @@ export default memo(function MemoriesSection() {
         </div>
       )}
 
-      {/* Delete all confirmation dialog */}
       <Dialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
         <DialogContent>
           <DialogHeader>
@@ -308,12 +309,16 @@ export default memo(function MemoriesSection() {
             <Button
               variant="outline"
               onClick={() => setShowDeleteAllDialog(false)}
-              disabled={isDeletingAll}
+              disabled={deleteAllMutation.isPending}
             >
               Abbrechen
             </Button>
-            <Button variant="destructive" onClick={handleDeleteAll} disabled={isDeletingAll}>
-              {isDeletingAll ? (
+            <Button
+              variant="destructive"
+              onClick={() => deleteAllMutation.mutate()}
+              disabled={deleteAllMutation.isPending}
+            >
+              {deleteAllMutation.isPending ? (
                 <>
                   <RefreshCw className="size-3.5 animate-spin" />
                   Lösche…
