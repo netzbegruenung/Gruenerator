@@ -66,6 +66,22 @@ export default defineConfig(({ command }) => ({
     },
     dedupe: ['d3-path'],
   },
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      '@tanstack/react-query',
+      'zustand',
+      'axios',
+      'yjs',
+    ],
+    exclude: [
+      '@blocknote/xl-docx-exporter',
+      '@blocknote/xl-pdf-exporter',
+      '@blocknote/xl-odt-exporter',
+    ],
+  },
   build: {
     // Use compatible targets for native WebViews (Chrome=Edge WebView2, Safari=WKWebView)
     target: isTauri ? ['chrome105', 'safari15'] : 'es2022',
@@ -104,6 +120,10 @@ export default defineConfig(({ command }) => ({
     port: 3002,
     strictPort: true,
     open: command === 'serve' && !isTauri,
+    hmr: {
+      overlay: false,
+    },
+    forwardConsole: true,
     proxy: {
       '/api': {
         target: process.env.VITE_API_TARGET || 'http://localhost:3001',

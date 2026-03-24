@@ -29,10 +29,10 @@ router.get('/', async (req, res) => {
     const statusFilter = (req.query.status as string) || undefined;
     const postgres = getPostgresInstance();
 
-    const params: unknown[] = [user.id];
+    const params: unknown[] = [user.id, user.id];
     let statusClause = '';
     if (statusFilter) {
-      statusClause = ' AND COALESCE(status, $2) = $2';
+      statusClause = ' AND COALESCE(status, $3) = $3';
       params.push(statusFilter);
     }
 
@@ -41,8 +41,8 @@ router.get('/', async (req, res) => {
               COALESCE(t.status, 'regular') as status, COALESCE(t.thread_type, 'chat') as thread_type,
               t.notebook_collection_id,
               CASE
-                WHEN t.user_id = $1::uuid THEN 'owner'
-                WHEN t.permissions ? $1::text THEN 'shared'
+                WHEN t.user_id = $1 THEN 'owner'
+                WHEN t.permissions ? $2 THEN 'shared'
                 ELSE 'group'
               END as access_type,
               m.content as last_msg_content, m.role as last_msg_role, m.created_at as last_msg_created_at
@@ -55,12 +55,12 @@ router.get('/', async (req, res) => {
          LIMIT 1
        ) m ON true
        WHERE (
-         t.user_id = $1::uuid
-         OR t.permissions ? $1::text
+         t.user_id = $1
+         OR t.permissions ? $2
          OR t.is_public = true
          OR t.id IN (
-           SELECT gcs.content_id FROM group_content_shares gcs
-           INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid
+           SELECT gcs.content_id::uuid FROM group_content_shares gcs
+           INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
            WHERE gcs.content_type = 'chat_threads'
          )
        )${statusClause}

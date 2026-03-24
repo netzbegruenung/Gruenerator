@@ -76,12 +76,6 @@ export const useDocumentChat = ({ ydoc, provider, isSynced }: UseDocumentChatOpt
     };
   }, [ydoc]);
 
-  useEffect(() => {
-    if (isSynced && arrayRef.current) {
-      setMessages(arrayRef.current.toJSON() as ChatMessage[]);
-    }
-  }, [isSynced]);
-
   // Typing awareness: broadcast and observe typing state via Hocuspocus awareness
   const setTyping = useCallback(
     (isTyping: boolean) => {

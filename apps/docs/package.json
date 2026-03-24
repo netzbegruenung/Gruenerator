@@ -64,6 +64,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "eslint": "^9.39.4",
+    "react-scan": "^0.5.3",
     "sass-embedded": "^1.98.0",
     "tailwindcss": "^4.2.2",
     "tsx": "^4.21.0",
