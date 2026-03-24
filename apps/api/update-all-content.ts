@@ -29,6 +29,7 @@ import { gruenblogScraperService } from './services/scrapers/implementations/Gru
 import { grueneAtScraperService } from './services/scrapers/implementations/GrueneAtScraper.js';
 import { kommunalwikiScraper } from './services/scrapers/implementations/KommunalwikiScraper.js';
 import { landesverbandScraperService } from './services/scrapers/implementations/LandesverbandScraper/index.js';
+import { scrapeAndIndexSocialMedia } from './services/scrapers/implementations/SocialMediaExamplesScraper.js';
 
 interface CliArgs {
   source?: string;
@@ -180,6 +181,23 @@ const SOURCE_GROUPS: SourceGroup[] = [
         updated: result.updated,
         skipped: result.skipped,
         fetchErrors: 0,
+        errors: result.errors,
+      };
+    },
+  },
+  {
+    id: 'social-media',
+    name: 'Social Media Examples (Instagram + Facebook)',
+    timeoutMs: 30 * 60 * 1000,
+    async run(args) {
+      const result = await scrapeAndIndexSocialMedia({
+        forceUpdate: args.force,
+      });
+      return {
+        stored: result.stored,
+        updated: result.updated,
+        skipped: result.skipped,
+        fetchErrors: result.fetchErrors,
         errors: result.errors,
       };
     },

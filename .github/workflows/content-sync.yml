@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       source:
-        description: 'Source group (empty = all). Options: landesverbaende, gruenblog, gruene-at, kommunalwiki, boell-stiftung, bundestag'
+        description: 'Source group (empty = all). Options: landesverbaende, gruenblog, gruene-at, kommunalwiki, boell-stiftung, bundestag, social-media'
         required: false
         type: string
       dry_run:
@@ -47,7 +47,7 @@ jobs:
           elif [ "$SCHEDULE" = "0 2 * * *" ] || [ -z "$SCHEDULE" ]; then
             # Daily 3 AM CET or manual dispatch (no source) → all sources
             echo 'use_matrix=true' >> $GITHUB_OUTPUT
-            echo 'matrix={"source":["landesverbaende","gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag"]}' >> $GITHUB_OUTPUT
+            echo 'matrix={"source":["landesverbaende","gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag","social-media"]}' >> $GITHUB_OUTPUT
           else
             # Hourly schedule → landesverbaende only
             echo 'use_matrix=false' >> $GITHUB_OUTPUT
@@ -88,6 +88,7 @@ jobs:
           QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
           QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
           BREVO_SMTP_HOST: ${{ secrets.BREVO_SMTP_HOST }}
           BREVO_SMTP_PORT: ${{ secrets.BREVO_SMTP_PORT }}
           BREVO_SMTP_USER: ${{ secrets.BREVO_SMTP_USER }}
@@ -277,6 +278,7 @@ jobs:
           QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
           QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
           BREVO_SMTP_HOST: ${{ secrets.BREVO_SMTP_HOST }}
           BREVO_SMTP_PORT: ${{ secrets.BREVO_SMTP_PORT }}
           BREVO_SMTP_USER: ${{ secrets.BREVO_SMTP_USER }}
