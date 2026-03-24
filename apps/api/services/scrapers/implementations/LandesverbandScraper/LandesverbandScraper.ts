@@ -215,7 +215,9 @@ export class LandesverbandScraper extends BaseScraper {
           const arrayBuffer = await response.arrayBuffer();
           const pdfBuffer = Buffer.from(arrayBuffer);
 
-          const filename = pdf.url.split('/').pop() || 'document.pdf';
+          const rawFilename =
+            new URL(pdf.url).pathname.replace(/\/$/, '').split('/').pop() || 'document';
+          const filename = rawFilename.endsWith('.pdf') ? rawFilename : `${rawFilename}.pdf`;
 
           // Write PDF to temp file for OcrService
           const tempPath = path.join(os.tmpdir(), `landesverband_${Date.now()}_${filename}`);
