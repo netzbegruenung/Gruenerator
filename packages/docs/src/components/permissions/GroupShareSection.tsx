@@ -54,7 +54,7 @@ export const GroupShareSection = ({
 
   useEffect(() => {
     void fetchData();
-  }, [documentId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fetchData]);
 
   const sharedGroupIds = new Set(groupShares.map((s) => s.group_id));
   const availableGroups = userGroups.filter((g) => !sharedGroupIds.has(g.id));

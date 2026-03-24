@@ -157,7 +157,7 @@ router.get('/', async (req: Request, res: Response) => {
     const limitParam = Number(req.query.limit);
     const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 200) : null;
 
-    const params: unknown[] = [userId, DOCS_SUBTYPES];
+    const params: unknown[] = [userId, userId, DOCS_SUBTYPES];
     const limitClause = limit ? `LIMIT $${params.push(limit)}` : '';
 
     const result = (await db.query(
@@ -166,12 +166,12 @@ router.get('/', async (req: Request, res: Response) => {
         p.display_name as creator_name,
         le.display_name as last_editor_name,
         CASE
-          WHEN cd.created_by = $1::uuid THEN 'owner'
-          WHEN cd.permissions ? $1::text THEN 'direct'
+          WHEN cd.created_by = $1 THEN 'owner'
+          WHEN cd.permissions ? $2 THEN 'direct'
           WHEN cd.id IN (
-            SELECT gcs.content_id
+            SELECT gcs.content_id::uuid
             FROM group_content_shares gcs
-            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid
+            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
             WHERE gcs.content_type = 'collaborative_documents'
           ) THEN 'group'
         END AS access_type
@@ -179,15 +179,15 @@ router.get('/', async (req: Request, res: Response) => {
        LEFT JOIN profiles p ON cd.created_by = p.id
        LEFT JOIN profiles le ON cd.last_edited_by = le.id
        WHERE
-        cd.document_subtype = ANY($2::text[])
+        cd.document_subtype = ANY($3::text[])
         AND cd.is_deleted = false
         AND (
-          cd.created_by = $1::uuid
-          OR cd.permissions ? $1::text
+          cd.created_by = $1
+          OR cd.permissions ? $2
           OR cd.id IN (
-            SELECT gcs.content_id
+            SELECT gcs.content_id::uuid
             FROM group_content_shares gcs
-            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid
+            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
             WHERE gcs.content_type = 'collaborative_documents'
           )
         )

@@ -41,12 +41,6 @@ export const ChatSidebar = ({
     }
   }, [messages.length]);
 
-  useEffect(() => {
-    if (viewportRef.current) {
-      viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
-    }
-  }, []);
-
   return (
     <div className="chat-sidebar flex flex-col">
       {!hideHeader && (

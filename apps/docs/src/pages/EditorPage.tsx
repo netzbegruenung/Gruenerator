@@ -10,7 +10,7 @@ import {
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
 import { WolkeSaveModal, uploadToWolke } from '@gruenerator/wolke';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
 import { FiCloud, FiDownload, FiShare2, FiSidebar } from 'react-icons/fi';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -20,6 +20,8 @@ import { useAuthStore } from '../stores/authStore';
 import type { BlockNoteEditor } from '@blocknote/core';
 
 import './EditorPage.css';
+
+const MemoizedBlockNoteEditor = memo(BlockNoteEditorComponent);
 
 const ShareModal = lazyWithRetry(() =>
   import('@gruenerator/docs').then((m) => ({ default: m.ShareModal }))
@@ -92,8 +94,8 @@ export const EditorPage = () => {
   const isEmbedded = searchParams.get('embedded') === 'true';
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
-  const user = useAuthStore((state) => state.user);
-  const isAuthLoading = useAuthStore((state) => state.isLoading);
+  const user = useAuthStore((s) => s.user);
+  const isAuthLoading = useAuthStore((s) => s.isLoading);
   const isGuest = !user;
 
   const guestIdentity = useMemo(() => (isGuest ? getOrCreateGuestIdentity() : null), [isGuest]);
@@ -275,6 +277,8 @@ export const EditorPage = () => {
     );
   }, [sidebarOpen, sidebarTab]);
 
+  const initialContent = useMemo(() => docData?.content || '', [docData?.content]);
+
   if (docIsLoading) {
     return <div className="loading-container" />;
   }
@@ -393,9 +397,9 @@ export const EditorPage = () => {
 
       <div className="editor-content">
         <main className="editor-main">
-          <BlockNoteEditorComponent
+          <MemoizedBlockNoteEditor
             documentId={id!}
-            initialContent={docData?.content || ''}
+            initialContent={initialContent}
             documentSubtype={docData.document_subtype}
             ydoc={ydoc}
             provider={provider}

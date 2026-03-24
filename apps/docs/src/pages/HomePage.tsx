@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
-import { useState } from 'react';
+import { memo, useDeferredValue, useState } from 'react';
 import { FiLogOut, FiSearch, FiSettings, FiX } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
@@ -17,33 +17,37 @@ import { useAuthStore } from '../stores/authStore';
 
 import '@gruenerator/docs/styles';
 
-const UserAvatar = ({
-  user,
-}: {
-  user: { display_name?: string; email?: string; avatar_robot_id?: number } | null;
-}) => {
-  const avatar = getAvatarDisplayProps(user);
-  if (avatar.type === 'robot' && avatar.robotId) {
+const UserAvatar = memo(
+  ({
+    user,
+  }: {
+    user: { display_name?: string; email?: string; avatar_robot_id?: number } | null;
+  }) => {
+    const avatar = getAvatarDisplayProps(user);
+    if (avatar.type === 'robot' && avatar.robotId) {
+      return (
+        <img
+          src={getRobotAvatarPath(avatar.robotId)}
+          alt={avatar.alt || ''}
+          className="w-full h-full object-cover"
+        />
+      );
+    }
     return (
-      <img
-        src={getRobotAvatarPath(avatar.robotId)}
-        alt={avatar.alt || ''}
-        className="w-full h-full object-cover"
-      />
+      <span className="text-[0.8rem] font-semibold text-foreground leading-none">
+        {avatar.initials}
+      </span>
     );
   }
-  return (
-    <span className="text-[0.8rem] font-semibold text-foreground leading-none">
-      {avatar.initials}
-    </span>
-  );
-};
+);
+UserAvatar.displayName = 'UserAvatar';
 
 export const HomePage = () => {
   const { user } = useAuth();
-  const { logout } = useAuthStore();
+  const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const deferredSearch = useDeferredValue(searchQuery);
 
   return (
     <div className="min-h-screen bg-background">
@@ -118,7 +122,7 @@ export const HomePage = () => {
         </header>
 
         <main>
-          <DocumentList searchQuery={searchQuery} />
+          <DocumentList searchQuery={deferredSearch} />
         </main>
       </div>
     </div>

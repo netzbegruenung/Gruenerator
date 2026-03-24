@@ -7,7 +7,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FiPlus,
   FiFile,
@@ -31,20 +31,22 @@ interface DocumentListProps {
   searchQuery?: string;
 }
 
-export const DocumentList = ({ searchQuery }: DocumentListProps) => {
+export const DocumentList = memo(({ searchQuery }: DocumentListProps) => {
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
-  const {
-    documents,
-    isLoading,
-    isGenerating,
-    error,
-    fetchDocuments,
-    createDocument,
-    generateDocument,
-    deleteDocument,
-    updateDocument,
-  } = useDocumentStore();
+
+  // Data selectors — only re-render when these values change
+  const documents = useDocumentStore((s) => s.documents);
+  const isLoading = useDocumentStore((s) => s.isLoading);
+  const isGenerating = useDocumentStore((s) => s.isGenerating);
+  const error = useDocumentStore((s) => s.error);
+
+  // Action selectors — referentially stable
+  const fetchDocuments = useDocumentStore((s) => s.fetchDocuments);
+  const createDocument = useDocumentStore((s) => s.createDocument);
+  const generateDocument = useDocumentStore((s) => s.generateDocument);
+  const deleteDocument = useDocumentStore((s) => s.deleteDocument);
+  const updateDocument = useDocumentStore((s) => s.updateDocument);
   const [showGallery, setShowGallery] = useState(false);
   const [shareDoc, setShareDoc] = useState<{ id: string; title: string } | null>(null);
 
@@ -58,26 +60,34 @@ export const DocumentList = ({ searchQuery }: DocumentListProps) => {
     fetchDocuments(apiClient);
   }, [fetchDocuments, apiClient]);
 
-  const handleTemplateSelect = async (templateType: TemplateType) => {
-    setShowGallery(false);
-    try {
-      const template = templates.find((t) => t.id === templateType);
-      const title = template?.defaultTitle || 'Neues Dokument';
-      const newDoc = await createDocument(apiClient, title, null, templateType);
-      adapter.navigateToDocument(newDoc.id);
-    } catch (error) {
-      console.error('Failed to create document:', error);
-    }
-  };
+  const handleTemplateSelect = useCallback(
+    async (templateType: TemplateType) => {
+      setShowGallery(false);
+      try {
+        const template = templates.find((t) => t.id === templateType);
+        const title = template?.defaultTitle || 'Neues Dokument';
+        const newDoc = await createDocument(apiClient, title, null, templateType);
+        adapter.navigateToDocument(newDoc.id);
+      } catch (error) {
+        console.error('Failed to create document:', error);
+      }
+    },
+    [createDocument, apiClient, adapter]
+  );
 
-  const handleAIGenerate = async (description: string) => {
-    try {
-      const newDoc = await generateDocument(apiClient, description);
-      adapter.navigateToDocument(newDoc.id);
-    } catch (error) {
-      console.error('Failed to generate document:', error);
-    }
-  };
+  const handleAIGenerate = useCallback(
+    async (description: string) => {
+      try {
+        const newDoc = await generateDocument(apiClient, description);
+        adapter.navigateToDocument(newDoc.id);
+      } catch (error) {
+        console.error('Failed to generate document:', error);
+      }
+    },
+    [generateDocument, apiClient, adapter]
+  );
+
+  const handleShowGallery = useCallback(() => setShowGallery(true), []);
 
   const handleDeleteDocument = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -130,7 +140,7 @@ export const DocumentList = ({ searchQuery }: DocumentListProps) => {
         {/* <AIDocumentCreator onGenerate={handleAIGenerate} isLoading={isGenerating} /> */}
         <TemplateCarousel
           onTemplateSelect={handleTemplateSelect}
-          onShowGallery={() => setShowGallery(true)}
+          onShowGallery={handleShowGallery}
         />
       </div>
 
@@ -279,4 +289,6 @@ export const DocumentList = ({ searchQuery }: DocumentListProps) => {
       )}
     </div>
   );
-};
+});
+
+DocumentList.displayName = 'DocumentList';
