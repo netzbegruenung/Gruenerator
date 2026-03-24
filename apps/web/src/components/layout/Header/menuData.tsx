@@ -44,55 +44,55 @@ export type DirectMenuItemsResult = Record<string, MenuItemType>;
 
 // Direkte Menüpunkte ohne Dropdown
 export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuItemsResult => {
-  const items: DirectMenuItemsResult = {
-    texte: {
-      id: 'texte',
-      path: '/texte',
-      title: 'Texte',
-      description: 'Anträge, Presse & Social Media, Universal',
-      icon: getIcon('navigation', 'texte'),
-    },
-    reel: {
-      id: 'reel',
-      path: '/reel',
-      title: 'Reel',
-      description: 'Untertitel für Social Media Videos',
-      icon: getIcon('navigation', 'reel'),
-    },
-    // TEMPORARILY HIDDEN - Image Studio menu item
-    // imageStudio: {
-    //   id: 'image-studio',
-    //   path: '/image-studio',
-    //   title: 'Bilder',
-    //   description: 'Sharepics & KI-Bildgenerierung',
-    //   icon: getIcon('navigation', 'sharepic'),
-    //   badge: 'early-access'
-    // },
-    imagine: {
-      id: 'imagine',
-      path: '/imagine',
-      title: 'Imagine',
-      description: 'KI-Bildgenerierung',
-      icon: getIcon('navigation', 'sharepic'),
-    },
-    recherche: {
-      id: 'recherche',
-      path: '/recherche',
-      title: 'Recherche',
-      description: 'Suche, Notebooks & Datenbank',
-      icon: getIcon('navigation', 'suche'),
-    },
-  };
+  const items: DirectMenuItemsResult = {};
 
   if (betaFeatures.workplace) {
-    items.desk = {
-      id: 'desk',
-      path: '/desk',
-      title: 'Desk',
-      description: 'Docs, Boards, Gruppen & Zusammenarbeit',
-      icon: getIcon('navigation', 'desk'),
+    items.startseite = {
+      id: 'startseite',
+      path: '/startseite',
+      title: 'Startseite',
+      description: 'Übersicht & Features',
+      icon: getIcon('navigation', 'home'),
     };
   }
+
+  items.texte = {
+    id: 'texte',
+    path: '/texte',
+    title: 'Texte',
+    description: 'Anträge, Presse & Social Media, Universal',
+    icon: getIcon('navigation', 'texte'),
+  };
+  items.reel = {
+    id: 'reel',
+    path: '/reel',
+    title: 'Reel',
+    description: 'Untertitel für Social Media Videos',
+    icon: getIcon('navigation', 'reel'),
+  };
+  // TEMPORARILY HIDDEN - Image Studio menu item
+  // imageStudio: {
+  //   id: 'image-studio',
+  //   path: '/image-studio',
+  //   title: 'Bilder',
+  //   description: 'Sharepics & KI-Bildgenerierung',
+  //   icon: getIcon('navigation', 'sharepic'),
+  //   badge: 'early-access'
+  // },
+  items.imagine = {
+    id: 'imagine',
+    path: '/imagine',
+    title: 'Imagine',
+    description: 'KI-Bildgenerierung',
+    icon: getIcon('navigation', 'sharepic'),
+  };
+  items.recherche = {
+    id: 'recherche',
+    path: '/recherche',
+    title: 'Recherche',
+    description: 'Suche, Notebooks & Datenbank',
+    icon: getIcon('navigation', 'suche'),
+  };
 
   items.chat = {
     id: 'chat',

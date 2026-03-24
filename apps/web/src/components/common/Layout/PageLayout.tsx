@@ -9,6 +9,8 @@ import ProfileButton from '../../layout/Header/ProfileButton';
 import { Sidebar } from '../../layout/Sidebar';
 import SidebarToggle from '../../layout/SidebarToggle';
 
+import { GlobalBridges } from './GlobalBridges';
+
 const Footer = lazy(() => import('../../layout/Footer/Footer'));
 
 const DesktopTitlebar = lazy(() => import('../../layout/DesktopTitlebar/DesktopTitlebar'));
@@ -36,8 +38,6 @@ const PageLayout = ({
   const { pathname } = useLocation();
   const isHomePage = pathname === '/';
   const { createTab, tabs, activeTabId } = useDesktopTabsStore();
-
-  useEffect(() => {}, [showHeaderFooter, darkMode, children]);
 
   useEffect(() => {
     const footerTimeout = setTimeout(() => {
@@ -91,6 +91,7 @@ const PageLayout = ({
 
   return (
     <GlobalChatProvider>
+      <GlobalBridges />
       <div className={layoutClasses}>
         <header className="fixed top-0 left-0 right-0 z-[1002] flex items-center justify-between px-2 h-12 pointer-events-none">
           <div className="pointer-events-auto">
