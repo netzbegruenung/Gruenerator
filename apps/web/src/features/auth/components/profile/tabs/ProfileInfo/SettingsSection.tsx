@@ -1,5 +1,5 @@
 import { Badge } from '@gruenerator/ui';
-import React from 'react';
+import React, { memo } from 'react';
 import { type IconType } from 'react-icons';
 import { HiOutlineDatabase, HiOutlineDocumentSearch, HiOutlineUsers, HiSave } from 'react-icons/hi';
 
@@ -68,140 +68,144 @@ const BETA_VIEWS = {
   AUTO_DOCUMENT_SEARCH: 'autoDocumentSearch',
 };
 
-const SettingsSection: React.FC<SettingsSectionProps> = ({
-  isActive,
-  onSuccessMessage,
-  onErrorMessage,
-  igelActive,
-  onToggleIgelModus,
-  isBetaFeaturesUpdating,
-}) => {
-  const { getBetaFeatureState, updateUserBetaFeatures, getAvailableFeatures, isAdmin } =
-    useBetaFeatures();
+const SettingsSection: React.FC<SettingsSectionProps> = memo(
+  ({
+    isActive,
+    onSuccessMessage,
+    onErrorMessage,
+    igelActive,
+    onToggleIgelModus,
+    isBetaFeaturesUpdating,
+  }) => {
+    const { getBetaFeatureState, updateUserBetaFeatures, availableFeatures, isAdmin } =
+      useBetaFeatures();
 
-  const getBetaFeatureConfig = (viewKey: BetaViewKey): BetaFeatureUIConfig | null => {
-    switch (viewKey) {
-      case BETA_VIEWS.DATABASE:
-        return {
-          title: 'Texte & Vorlagen',
-          description: 'Datenbank für Texte und Vorlagen',
-          checked: getBetaFeatureState('database'),
-          setter: (value: boolean) => updateUserBetaFeatures('database', value),
-          featureName: 'Datenbank',
-          checkboxLabel:
-            "'Texte & Vorlagen'-Tab (Datenbank) anzeigen und Funktionalität aktivieren",
-          linkTo: '/datenbank/agents',
-          linkText: 'Zu Agenten & Skills',
-          icon: HiOutlineDatabase,
-        };
-      case BETA_VIEWS.COLLAB:
-        return {
-          title: 'Kollaborative Bearbeitung',
-          description: 'Echtzeit-Zusammenarbeit an Dokumenten',
-          checked: getBetaFeatureState('collab'),
-          setter: (value: boolean) => updateUserBetaFeatures('collab', value),
-          featureName: 'Kollaborative Bearbeitung',
-          checkboxLabel: 'Kollaborative Bearbeitung aktivieren',
-          icon: HiOutlineUsers,
-        };
-      case BETA_VIEWS.WORKPLACE:
-        return {
-          title: 'Workplace',
-          description: 'Gruppen, Dokumente, Scanner und Boards',
-          checked: getBetaFeatureState('workplace'),
-          setter: (value: boolean) => updateUserBetaFeatures('workplace', value),
-          featureName: 'Workplace',
-          checkboxLabel: 'Gruppen, Dokumente, Scanner (OCR) und Kanban-Boards aktivieren',
-          linkTo: '/workplace',
-          linkText: 'Zum Workplace',
-          icon: HiOutlineUsers,
-        };
-      case BETA_VIEWS.VORLAGEN:
-        return {
-          title: 'Vorlagen & Galerie',
-          description: 'Persönliche und öffentliche Vorlagen',
-          checked: getBetaFeatureState('vorlagen'),
-          setter: (value: boolean) => updateUserBetaFeatures('vorlagen', value),
-          featureName: 'Vorlagen & Galerie',
-          checkboxLabel: 'Meine Vorlagen und Vorlagen-Galerie aktivieren',
-          linkTo: '/profile/inhalte/vorlagen',
-          linkText: 'Zu Meine Vorlagen',
-          icon: HiOutlineDatabase,
-        };
-      case BETA_VIEWS.AUTO_SAVE_GENERATED:
-        return {
-          title: 'Auto-Speichern generierter Texte',
-          description: 'Generierte Texte automatisch in der Bibliothek speichern',
-          checked: getBetaFeatureState('autoSaveGenerated'),
-          setter: (value: boolean) => updateUserBetaFeatures('autoSaveGenerated', value),
-          featureName: 'Auto-Speichern generierter Texte',
-          checkboxLabel: 'Automatisches Speichern generierter Texte in der Bibliothek aktivieren',
-          icon: HiSave,
-        };
-      case BETA_VIEWS.AUTO_DOCUMENT_SEARCH:
-        return {
-          title: 'Automatische Dokumentensuche',
-          description: 'KI durchsucht deine Bibliothek automatisch',
-          checked: getBetaFeatureState('autoDocumentSearch'),
-          setter: (value: boolean) => updateUserBetaFeatures('autoDocumentSearch', value),
-          featureName: 'Automatische Dokumentensuche',
-          checkboxLabel:
-            'Automatische Suche in deiner Dokumenten-Bibliothek bei der Textgenerierung aktivieren',
-          icon: HiOutlineDocumentSearch,
-        };
-      default:
-        return null;
-    }
-  };
+    const getBetaFeatureConfig = (viewKey: BetaViewKey): BetaFeatureUIConfig | null => {
+      switch (viewKey) {
+        case BETA_VIEWS.DATABASE:
+          return {
+            title: 'Texte & Vorlagen',
+            description: 'Datenbank für Texte und Vorlagen',
+            checked: getBetaFeatureState('database'),
+            setter: (value: boolean) => updateUserBetaFeatures('database', value),
+            featureName: 'Datenbank',
+            checkboxLabel:
+              "'Texte & Vorlagen'-Tab (Datenbank) anzeigen und Funktionalität aktivieren",
+            linkTo: '/datenbank/agents',
+            linkText: 'Zu Agenten & Skills',
+            icon: HiOutlineDatabase,
+          };
+        case BETA_VIEWS.COLLAB:
+          return {
+            title: 'Kollaborative Bearbeitung',
+            description: 'Echtzeit-Zusammenarbeit an Dokumenten',
+            checked: getBetaFeatureState('collab'),
+            setter: (value: boolean) => updateUserBetaFeatures('collab', value),
+            featureName: 'Kollaborative Bearbeitung',
+            checkboxLabel: 'Kollaborative Bearbeitung aktivieren',
+            icon: HiOutlineUsers,
+          };
+        case BETA_VIEWS.WORKPLACE:
+          return {
+            title: 'Workplace',
+            description: 'Gruppen, Dokumente, Scanner und Boards',
+            checked: getBetaFeatureState('workplace'),
+            setter: (value: boolean) => updateUserBetaFeatures('workplace', value),
+            featureName: 'Workplace',
+            checkboxLabel: 'Gruppen, Dokumente, Scanner (OCR) und Kanban-Boards aktivieren',
+            linkTo: '/workplace',
+            linkText: 'Zum Workplace',
+            icon: HiOutlineUsers,
+          };
+        case BETA_VIEWS.VORLAGEN:
+          return {
+            title: 'Vorlagen & Galerie',
+            description: 'Persönliche und öffentliche Vorlagen',
+            checked: getBetaFeatureState('vorlagen'),
+            setter: (value: boolean) => updateUserBetaFeatures('vorlagen', value),
+            featureName: 'Vorlagen & Galerie',
+            checkboxLabel: 'Meine Vorlagen und Vorlagen-Galerie aktivieren',
+            linkTo: '/profile/inhalte/vorlagen',
+            linkText: 'Zu Meine Vorlagen',
+            icon: HiOutlineDatabase,
+          };
+        case BETA_VIEWS.AUTO_SAVE_GENERATED:
+          return {
+            title: 'Auto-Speichern generierter Texte',
+            description: 'Generierte Texte automatisch in der Bibliothek speichern',
+            checked: getBetaFeatureState('autoSaveGenerated'),
+            setter: (value: boolean) => updateUserBetaFeatures('autoSaveGenerated', value),
+            featureName: 'Auto-Speichern generierter Texte',
+            checkboxLabel: 'Automatisches Speichern generierter Texte in der Bibliothek aktivieren',
+            icon: HiSave,
+          };
+        case BETA_VIEWS.AUTO_DOCUMENT_SEARCH:
+          return {
+            title: 'Automatische Dokumentensuche',
+            description: 'KI durchsucht deine Bibliothek automatisch',
+            checked: getBetaFeatureState('autoDocumentSearch'),
+            setter: (value: boolean) => updateUserBetaFeatures('autoDocumentSearch', value),
+            featureName: 'Automatische Dokumentensuche',
+            checkboxLabel:
+              'Automatische Suche in deiner Dokumenten-Bibliothek bei der Textgenerierung aktivieren',
+            icon: HiOutlineDocumentSearch,
+          };
+        default:
+          return null;
+      }
+    };
 
-  const SETTINGS_KEYS = new Set(['autoSaveGenerated', 'autoDocumentSearch']);
-  const allFeatures = getAvailableFeatures();
-  const settingsFeatures = allFeatures.filter((f) => SETTINGS_KEYS.has(f.key));
-  const experimentalFeatures = allFeatures.filter((f) => !SETTINGS_KEYS.has(f.key));
+    const SETTINGS_KEYS = new Set(['autoSaveGenerated', 'autoDocumentSearch']);
+    const settingsFeatures = availableFeatures.filter((f) => SETTINGS_KEYS.has(f.key));
+    const experimentalFeatures = availableFeatures.filter((f) => !SETTINGS_KEYS.has(f.key));
 
-  const renderToggle = (feature: { key: string; isAdminOnly: boolean }, isExperimental = false) => {
-    const config = getBetaFeatureConfig(feature.key);
-    if (!config) return null;
-    const description = isExperimental
-      ? `${config.description} (Experimentell)`
-      : config.description;
+    const renderToggle = (
+      feature: { key: string; isAdminOnly: boolean },
+      isExperimental = false
+    ) => {
+      const config = getBetaFeatureConfig(feature.key);
+      if (!config) return null;
+      const description = isExperimental
+        ? `${config.description} (Experimentell)`
+        : config.description;
+      return (
+        <div key={feature.key} className="flex items-center gap-sm">
+          <FeatureToggle
+            isActive={config.checked}
+            onToggle={(checked) => {
+              config.setter(checked);
+              onSuccessMessage(`${config.featureName} ${checked ? 'aktiviert' : 'deaktiviert'}.`);
+            }}
+            label={config.title}
+            icon={config.icon}
+            description={description}
+            className="flex-1"
+          />
+          {feature.isAdminOnly && <Badge variant="secondary">Admin</Badge>}
+        </div>
+      );
+    };
+
     return (
-      <div key={feature.key} className="flex items-center gap-sm">
-        <FeatureToggle
-          isActive={config.checked}
-          onToggle={(checked) => {
-            config.setter(checked);
-            onSuccessMessage(`${config.featureName} ${checked ? 'aktiviert' : 'deaktiviert'}.`);
-          }}
-          label={config.title}
-          icon={config.icon}
-          description={description}
-          className="flex-1"
-        />
-        {feature.isAdminOnly && <Badge variant="secondary">Admin</Badge>}
+      <div className="flex flex-col gap-lg">
+        <div>
+          <div className="text-sm font-medium text-foreground mb-md">Einstellungen</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+            {settingsFeatures.map((f) => renderToggle(f))}
+            {experimentalFeatures.map((f) => renderToggle(f, true))}
+          </div>
+        </div>
+
+        <NotificationToggles onSuccessMessage={onSuccessMessage} onErrorMessage={onErrorMessage} />
       </div>
     );
-  };
-
-  return (
-    <div className="flex flex-col gap-lg">
-      <div>
-        <div className="text-sm font-medium text-foreground mb-md">Einstellungen</div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
-          {settingsFeatures.map((f) => renderToggle(f))}
-          {experimentalFeatures.map((f) => renderToggle(f, true))}
-        </div>
-      </div>
-
-      <NotificationToggles onSuccessMessage={onSuccessMessage} onErrorMessage={onErrorMessage} />
-    </div>
-  );
-};
+  }
+);
 
 const NotificationToggles: React.FC<{
   onSuccessMessage: (msg: string) => void;
   onErrorMessage: (msg: string) => void;
-}> = ({ onSuccessMessage, onErrorMessage }) => {
+}> = memo(({ onSuccessMessage, onErrorMessage }) => {
   const { get, set } = useUserDefaults<boolean>('notifications');
   const categories = getEmailPreferenceTypes();
 
@@ -231,7 +235,7 @@ const NotificationToggles: React.FC<{
       </div>
     </div>
   );
-};
+});
 
 export default SettingsSection;
 export { LocaleSelector };

@@ -37,6 +37,7 @@ interface UseBetaFeaturesReturn {
   getBetaFeatureState: (key: string) => boolean;
   canAccessBetaFeature: (featureKey: string) => boolean;
   shouldShowTab: (featureKey: string) => boolean;
+  availableFeatures: BetaFeatureConfig[];
   getAvailableFeatures: () => BetaFeatureConfig[];
   updateUserBetaFeatures: (featureKey: string, isEnabled: boolean) => Promise<void>;
   isAdmin: boolean;
@@ -155,24 +156,20 @@ export const useBetaFeatures = (_options: UseBetaFeaturesOptions = {}): UseBetaF
 
   const shouldShowTab = canAccessBetaFeature;
 
-  const getAvailableFeatures = React.useCallback((): BetaFeatureConfig[] => {
+  const availableFeatures = React.useMemo((): BetaFeatureConfig[] => {
     const isDev = import.meta.env.DEV;
-    const available = BETA_FEATURES_CONFIG.filter(
+    return BETA_FEATURES_CONFIG.filter(
       (feature) =>
         (!feature.isAdminOnly || isAdmin) &&
         !feature.isProfileSetting &&
         (!feature.devOnly || isDev)
     );
-    console.log(
-      '[BetaFeatures] DEV:',
-      isDev,
-      'isAdmin:',
-      isAdmin,
-      'available:',
-      available.map((f) => f.key)
-    );
-    return available;
   }, [isAdmin]);
+
+  const getAvailableFeatures = React.useCallback(
+    (): BetaFeatureConfig[] => availableFeatures,
+    [availableFeatures]
+  );
 
   const updateUserBetaFeatures = React.useCallback(
     (featureKey: string, isEnabled: boolean): Promise<void> => toggle(featureKey, isEnabled),
@@ -190,6 +187,7 @@ export const useBetaFeatures = (_options: UseBetaFeaturesOptions = {}): UseBetaF
     getBetaFeatureState,
     canAccessBetaFeature,
     shouldShowTab,
+    availableFeatures,
     getAvailableFeatures,
 
     // Actions
