@@ -24,6 +24,7 @@ export interface ContentPath {
   paginationPattern?: string;
   maxPages?: number;
   isPdfArchive?: boolean;
+  processUndatedPdfs?: boolean; // When true, process PDFs without detectable dates instead of skipping them (default: false)
   paginationOffset?: number; // Offset for page number in pagination (default: 0). Use -1 for Drupal 0-indexed pagination.
   paginationLinkSelector?: string; // Optional: CSS selector for pagination links. When set, follows "next" links from HTML instead of constructing URLs (needed for Typo3 cHash).
   sitemapUrls?: string[]; // Optional: fetch URLs from sitemaps instead of pagination
@@ -392,6 +393,7 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           path: '/beschluesse/',
           listSelector: 'ul.dlm-downloads a[href*="/download/"]',
           isPdfArchive: true,
+          processUndatedPdfs: true,
           maxPages: 1,
         },
       ],

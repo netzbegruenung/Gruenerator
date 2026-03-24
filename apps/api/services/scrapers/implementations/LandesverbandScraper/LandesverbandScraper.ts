@@ -163,12 +163,19 @@ export class LandesverbandScraper extends BaseScraper {
       }
 
       if (undatedPdfs.length > 0) {
-        this.log(`Skipping ${undatedPdfs.length} PDFs without detectable dates`);
-        result.skipped += undatedPdfs.length;
-        result.skipReasons['no_date'] = (result.skipReasons['no_date'] || 0) + undatedPdfs.length;
+        if (contentPath.processUndatedPdfs) {
+          this.log(`Found ${undatedPdfs.length} PDFs without detectable dates (will process)`);
+        } else {
+          this.log(`Skipping ${undatedPdfs.length} PDFs without detectable dates`);
+          result.skipped += undatedPdfs.length;
+          result.skipReasons['no_date'] = (result.skipReasons['no_date'] || 0) + undatedPdfs.length;
+        }
       }
 
-      const toProcess = maxDocuments ? recentPdfs.slice(0, maxDocuments) : recentPdfs;
+      const processable = contentPath.processUndatedPdfs
+        ? [...recentPdfs, ...undatedPdfs]
+        : recentPdfs;
+      const toProcess = maxDocuments ? processable.slice(0, maxDocuments) : processable;
 
       // Dry run: check Qdrant for existing PDFs, report counts, skip processing
       if (dryRun) {
