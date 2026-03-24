@@ -10,7 +10,7 @@ import {
 } from '@gruenerator/ui';
 import * as Switch from '@radix-ui/react-switch';
 import { Trash2, Plus, AlertTriangle, Brain, RefreshCw } from 'lucide-react';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { memo, useState, useEffect, useCallback } from 'react';
 
 import { profileApiService, type Memory } from '@/features/auth/services/profileApiService';
 import { useOptimizedAuth } from '@/hooks/useAuth';
@@ -47,7 +47,7 @@ function formatRelativeTime(dateStr: string | undefined): string {
   return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-export default function MemoriesSection() {
+export default memo(function MemoriesSection() {
   const { user } = useOptimizedAuth();
   const userId = user?.id;
   const { getBetaFeatureState, updateUserBetaFeatures } = useBetaFeatures();
@@ -327,4 +327,4 @@ export default function MemoriesSection() {
       </Dialog>
     </div>
   );
-}
+});
