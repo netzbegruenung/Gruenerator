@@ -137,8 +137,9 @@ const JoinGroupPage = lazy(() => import('../features/groups/pages/JoinGroupPage'
 const HomeWrapper = lazy(() =>
   isDesktopApp()
     ? import('../components/pages/DesktopHome/DesktopHome')
-    : import('../components/pages/Startseite')
+    : import('../components/pages/SmartHome')
 );
+const Startseite = lazy(() => import('../components/pages/Startseite'));
 const Datenschutz = lazy(
   () => import('../components/pages/Impressum_Datenschutz_Terms/Datenschutz')
 );
@@ -382,6 +383,7 @@ export const GrueneratorenBundle = {
 // Route Konfigurationen
 const standardRoutes: RouteConfig[] = [
   { path: '/', component: HomeWrapper },
+  { path: '/startseite', component: Startseite },
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
   // Redirects from old routes to unified generator
