@@ -202,7 +202,10 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     name: 'social_media_examples',
     optimizer: 'large',
     hnsw: 'enhanced',
-    indexes: [{ field: 'platform', type: 'keywordTenant' }],
+    indexes: [
+      { field: 'platform', type: 'keywordTenant' },
+      { field: 'country', type: 'keyword' },
+    ],
     handleRaceCondition: true,
   },
   user_texts: {
