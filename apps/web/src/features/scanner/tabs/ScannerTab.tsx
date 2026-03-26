@@ -21,11 +21,11 @@ import {
   PiX,
 } from 'react-icons/pi';
 
-import DisplaySection from '../../../components/common/Form/BaseForm/DisplaySection';
-import useResponsive from '../../../components/common/Form/hooks/useResponsive';
+import DisplaySection from '../../../components/common/ContentDisplay/DisplaySection';
 import SubmitButton from '../../../components/common/SubmitButton';
 import apiClient from '../../../components/utils/apiClient';
 import { useContentActions } from '../../../hooks/useContentActions';
+import useResponsive from '../../../hooks/useResponsive';
 import { useAuthStore } from '../../../stores/authStore';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { cn } from '../../../utils/cn';
