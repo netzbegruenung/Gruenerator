@@ -492,7 +492,7 @@ CREATE TABLE IF NOT EXISTS user_templates (
     status TEXT DEFAULT 'published',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT valid_template_status CHECK (status IN ('published', 'draft', 'archived', 'private', 'public', 'enabled', 'active'))
+    CONSTRAINT valid_template_status CHECK (status IN ('published', 'draft', 'archived', 'private', 'public', 'enabled', 'active', 'pending_review', 'rejected'))
 );
 
 CREATE TABLE IF NOT EXISTS template_likes (
@@ -645,11 +645,18 @@ ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS template_creator_name TEXT;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS original_template_id UUID REFERENCES shared_media(id);
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS wolke_share_link_id TEXT;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS wolke_file_path TEXT;
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS password_hash TEXT;
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS transfer_files JSONB DEFAULT '[]';
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS transfer_message TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_shared_media_expires
+  ON shared_media(expires_at) WHERE media_type = 'transfer' AND expires_at IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS shared_media_downloads (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     shared_media_id UUID REFERENCES shared_media(id) ON DELETE CASCADE,
-    downloader_email TEXT NOT NULL,
+    downloader_email TEXT,
     downloaded_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     ip_address TEXT
 );
@@ -1230,3 +1237,40 @@ CREATE TABLE IF NOT EXISTS monitor_snapshots (
 );
 
 CREATE INDEX IF NOT EXISTS idx_monitor_snapshots_created ON monitor_snapshots(created_at DESC);
+
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- SECTION: PRESENTATIONS
+-- Collaborative presentation editor (Presenton-based slide system)
+-- ════════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS collaborative_presentations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL DEFAULT 'Neue Präsentation',
+  user_id TEXT NOT NULL,
+  language TEXT DEFAULT 'de',
+  theme JSONB DEFAULT '{}',
+  template TEXT DEFAULT 'general',
+  permissions JSONB DEFAULT '{}',
+  is_public BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS presentation_slides (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  presentation_id UUID NOT NULL REFERENCES collaborative_presentations(id) ON DELETE CASCADE,
+  index INTEGER NOT NULL,
+  layout_group TEXT NOT NULL DEFAULT 'general',
+  layout TEXT NOT NULL,
+  content JSONB NOT NULL DEFAULT '{}',
+  speaker_note TEXT,
+  properties JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_presentations_user_id ON collaborative_presentations(user_id);
+CREATE INDEX IF NOT EXISTS idx_presentations_updated_at ON collaborative_presentations(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_presentation_slides_presentation_id ON presentation_slides(presentation_id);
+CREATE INDEX IF NOT EXISTS idx_presentation_slides_order ON presentation_slides(presentation_id, index);

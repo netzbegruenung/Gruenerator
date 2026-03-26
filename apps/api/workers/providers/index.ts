@@ -1,6 +1,7 @@
 import * as ionos from './ionosAdapter.js';
 import * as litellm from './litellmAdapter.js';
 import * as mistral from './mistralAdapter.js';
+import * as regolo from './regoloAdapter.js';
 
 import type { ProviderName } from '../../services/ai/providers.js';
 import type { AIRequestData, AIWorkerResult } from '../types.js';
@@ -9,7 +10,7 @@ interface ProviderModule {
   execute(requestId: string, data: AIRequestData): Promise<AIWorkerResult>;
 }
 
-const adapters: Record<string, ProviderModule> = { mistral, ionos, litellm };
+const adapters: Record<string, ProviderModule> = { mistral, ionos, litellm, regolo };
 
 async function executeProvider(
   providerName: ProviderName | string,
@@ -23,4 +24,4 @@ async function executeProvider(
   return adapter.execute(requestId, data);
 }
 
-export { mistral, ionos, litellm, adapters, executeProvider };
+export { mistral, ionos, litellm, regolo, adapters, executeProvider };

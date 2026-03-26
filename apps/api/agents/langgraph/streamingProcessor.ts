@@ -207,7 +207,7 @@ export async function processGraphRequestStreaming(
     });
 
     let effectiveProvider = selection.provider;
-    const effectiveModel = selection.model;
+    let effectiveModel = selection.model;
 
     // Privacy mode rotation
     if (usePrivacyMode) {
@@ -227,12 +227,33 @@ export async function processGraphRequestStreaming(
       }
     }
 
-    // Explicit provider override (from request data)
+    // Explicit provider + model override (from request data, e.g. playground)
     if (requestData.provider) {
       effectiveProvider = requestData.provider;
     }
+    if (requestData.model) {
+      effectiveModel = requestData.model;
+    }
 
-    log.debug(`[streaming] Using provider=${effectiveProvider}, model=${effectiveModel}`);
+    // Reasoning effort: explicit from request (playground), or auto-detect from content type
+    const REASONING_BY_TYPE: Record<string, string> = {
+      antrag_simple: 'medium',
+      antrag: 'high',
+      kleine_anfrage: 'medium',
+      grosse_anfrage: 'high',
+      rede: 'medium',
+      wahlprogramm: 'medium',
+      qa_draft: 'low',
+      universal: 'low',
+      social: 'low',
+      buergeranfragen: 'low',
+      leichte_sprache: 'low',
+    };
+    const reasoningEffort =
+      (requestData.reasoningEffort as string | undefined) || REASONING_BY_TYPE[routeType];
+    log.debug(
+      `[streaming] Using provider=${effectiveProvider}, model=${effectiveModel}${reasoningEffort ? `, reasoningEffort=${reasoningEffort}` : ''}`
+    );
 
     // Build messages for streamText
     const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
@@ -260,27 +281,77 @@ export async function processGraphRequestStreaming(
     const result = streamText({
       model,
       messages,
-      maxOutputTokens: aiOptions.max_tokens || 16384,
+      maxOutputTokens: reasoningEffort
+        ? 32768
+        : aiOptions.max_tokens
+          ? aiOptions.max_tokens * 2
+          : 16384,
       temperature: aiOptions.temperature ?? 0.7,
       abortSignal: abortController.signal,
+      ...(reasoningEffort
+        ? {
+            providerOptions: {
+              openai: { reasoningEffort },
+            },
+          }
+        : {}),
     });
 
     let fullText = '';
+    let isReasoning = false;
+
+    // Heartbeat: send keepalive comment every 8s so proxies/browsers don't close the connection
+    const heartbeatInterval = setInterval(() => {
+      if (!abortController.signal.aborted) {
+        res.write(': heartbeat\n\n');
+      }
+    }, 8000);
 
     try {
-      for await (const chunk of result.textStream) {
+      for await (const part of result.fullStream) {
         if (abortController.signal.aborted) break;
-        fullText += chunk;
-        sse.sendRaw('text_delta', { text: chunk });
+
+        switch (part.type) {
+          case 'reasoning-start': {
+            isReasoning = true;
+            sse.sendRaw('reasoning_start', {});
+            break;
+          }
+          case 'reasoning-delta': {
+            sse.sendRaw('reasoning_delta', { text: (part as any).text });
+            break;
+          }
+          case 'reasoning-end': {
+            isReasoning = false;
+            sse.sendRaw('reasoning_end', {});
+            break;
+          }
+          case 'text-delta': {
+            fullText += part.text;
+            sse.sendRaw('text_delta', { text: part.text });
+            break;
+          }
+          case 'error': {
+            throw part.error;
+          }
+          default:
+            break;
+        }
       }
+
+      log.debug(`[streaming] fullStream finished: textLength=${fullText.length}`);
     } catch (streamError: unknown) {
       if (abortController.signal.aborted) {
         log.debug(`[streaming] Stream aborted by client for ${routeType}`);
+        clearInterval(heartbeatInterval);
         sse.end();
         return;
       }
+      clearInterval(heartbeatInterval);
       throw streamError;
     }
+
+    clearInterval(heartbeatInterval);
 
     // Log successful generation
     logGeneration({

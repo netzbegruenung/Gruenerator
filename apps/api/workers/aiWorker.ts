@@ -161,6 +161,15 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
         ...data,
         options: effectiveOptions,
       });
+    } else if (!result && selection.provider === 'regolo' && !explicitProvider) {
+      console.log(
+        `[AI Worker ${requestId}] Using Regolo provider with temperature: ${effectiveOptions.temperature ?? 'default'}`
+      );
+      sendProgress(requestId, 15);
+      result = await providers.executeProvider('regolo', requestId, {
+        ...data,
+        options: effectiveOptions,
+      });
     } else if (!result && !explicitProvider) {
       console.log(
         `[AI Worker ${requestId}] Using default Mistral provider with temperature: ${effectiveOptions.temperature ?? 'default'}`

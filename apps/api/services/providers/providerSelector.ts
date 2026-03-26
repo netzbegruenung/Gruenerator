@@ -69,6 +69,10 @@ export function determineProviderFromModel(modelName: string = ''): ProviderName
   if (name.includes('llama') || name.includes('meta-llama')) {
     return 'ionos';
   }
+  // Regolo-prefixed models
+  if (name.startsWith('regolo/') || name.includes('regolo')) {
+    return 'regolo';
+  }
   return 'mistral';
 }
 
@@ -89,9 +93,9 @@ export function selectProviderAndModel({
   metadata = {},
   env = process.env,
 }: SelectProviderParams): ProviderResult {
-  // Base defaults
-  let provider: ProviderName = (options.provider as ProviderName) || 'mistral';
-  let model: ModelName = options.model || 'mistral-large-2512';
+  // Base defaults — GPT-OSS 120B via LiteLLM as primary model
+  let provider: ProviderName = (options.provider as ProviderName) || 'litellm';
+  let model: ModelName = options.model || 'gpt-oss:120b';
 
   // Ultra mode (useUltraMode flag) - routes to IONOS with high-quality model
   if (options.useUltraMode === true) {
@@ -104,43 +108,46 @@ export function selectProviderAndModel({
     model = options.model || 'magistral-medium-latest';
   }
 
-  // Type-based defaults (preserve existing special cases)
-  // Notebook enrichment - fetch context from notebook - use fast model
+  // Type-based defaults
+  // Notebook enrichment - fast model
   if (type === 'notebook_enrich') {
     provider = 'mistral';
     model = options.model || 'mistral-large-2512';
   }
-  // Fast mode QA draft - use faster model, no citations
+  // Fast mode QA draft - fast model
   else if (type === 'qa_draft_fast') {
     provider = 'mistral';
     model = options.model || 'mistral-large-2512';
   }
-  // QA draft (final answer) uses magistral for higher quality
+  // QA draft (final answer) — GPT-OSS with reasoning
   else if (type === 'qa_draft') {
-    provider = 'mistral';
-    model = options.model || 'magistral-medium-latest';
+    provider = 'litellm';
+    model = options.model || 'gpt-oss:120b';
   }
-  // QA intermediate steps (planner, repair, tools) use standard model
+  // QA intermediate steps (planner, repair, tools) — fast model
   else if (type === 'qa_tools' || type === 'qa_planner' || type === 'qa_repair') {
     provider = 'mistral';
     model = options.model || 'mistral-large-2512';
-  } else if (
+  }
+  // Legislative documents — GPT-OSS (reasoning handled via reasoningEffort)
+  else if (
     type === 'antrag_simple' ||
     type === 'antrag' ||
     type === 'kleine_anfrage' ||
     type === 'grosse_anfrage'
   ) {
-    provider = 'mistral';
-    model = options.model || 'magistral-medium-latest';
-  } else if (type === 'antrag_question_generation' || type === 'antrag_qa_summary') {
+    provider = 'litellm';
+    model = options.model || 'gpt-oss:120b';
+  }
+  // Fast helper tasks — Mistral Small
+  else if (type === 'antrag_question_generation' || type === 'antrag_qa_summary') {
     provider = 'mistral';
     model = options.model || 'mistral-small-latest';
   } else if (type === 'gruenerator_ask' || type === 'gruenerator_ask_grundsatz') {
-    // Use Mistral for fast Q&A
     provider = 'mistral';
     model = options.model || 'mistral-small-latest';
   }
-  // Sharepic types - use Mistral Large for short creative text
+  // Sharepic types — short creative text, GPT-OSS
   else if (
     type === 'sharepic_dreizeilen' ||
     type === 'sharepic_zitat' ||
@@ -149,8 +156,8 @@ export function selectProviderAndModel({
     type === 'sharepic_info' ||
     type === 'sharepic_veranstaltung'
   ) {
-    provider = 'mistral';
-    model = options.model || 'mistral-large-2512';
+    provider = 'litellm';
+    model = options.model || 'gpt-oss:120b';
   }
 
   // Respect explicit provider at top-level if present (routes may set data.provider)

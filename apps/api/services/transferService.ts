@@ -25,6 +25,9 @@ interface TransferRecord {
   wolke_file_path: string | null;
   user_id: string;
   sharer_name?: string;
+  expires_at?: Date | null;
+  password_hash?: string | null;
+  transfer_message?: string | null;
 }
 
 interface CreateTransferParams {
@@ -34,6 +37,15 @@ interface CreateTransferParams {
   mimeType: string;
   wolkeShareLinkId: string;
   wolkeFilePath: string;
+  passwordHash?: string;
+  expiresAt?: Date;
+  message?: string;
+}
+
+interface TransferOptions {
+  password?: string;
+  expiresInDays?: number;
+  message?: string;
 }
 
 class TransferService {
@@ -70,8 +82,9 @@ class TransferService {
     const result = await this.postgres!.query<{ id: string }>(
       `INSERT INTO shared_media (
         user_id, share_token, media_type, file_name, file_size, mime_type,
-        status, wolke_share_link_id, wolke_file_path, is_library_item
-      ) VALUES ($1, $2, 'transfer', $3, $4, $5, 'ready', $6, $7, FALSE)
+        status, wolke_share_link_id, wolke_file_path, is_library_item,
+        password_hash, expires_at, transfer_message
+      ) VALUES ($1, $2, 'transfer', $3, $4, $5, 'ready', $6, $7, FALSE, $8, $9, $10)
       RETURNING id`,
       [
         params.userId,
@@ -81,6 +94,9 @@ class TransferService {
         params.mimeType,
         params.wolkeShareLinkId,
         params.wolkeFilePath,
+        params.passwordHash ?? null,
+        params.expiresAt ?? null,
+        params.message ?? null,
       ]
     );
 
@@ -104,19 +120,23 @@ class TransferService {
     return rows[0] ?? null;
   }
 
-  async proxyDownload(shareToken: string): Promise<DownloadFileResult & { fileName: string }> {
-    const transfer = await this.getTransferByToken(shareToken);
-    if (!transfer) {
-      throw new Error('Transfer not found');
-    }
-
-    if (!transfer.wolke_share_link_id || !transfer.wolke_file_path) {
+  /**
+   * Proxy-download a transfer file from Nextcloud.
+   * Accepts pre-loaded share data to avoid redundant DB queries.
+   */
+  async proxyDownloadWithRecord(record: {
+    user_id: string;
+    wolke_share_link_id?: string | null;
+    wolke_file_path?: string | null;
+    file_name?: string | null;
+  }): Promise<DownloadFileResult & { fileName: string }> {
+    if (!record.wolke_share_link_id || !record.wolke_file_path) {
       throw new Error('Transfer has no Wolke reference');
     }
 
-    const shareLinks = await NextcloudShareManager.getShareLinks(transfer.user_id);
+    const shareLinks = await NextcloudShareManager.getShareLinks(record.user_id);
     const wolkeLink = shareLinks.find(
-      (link: NextcloudShareLink) => link.id === transfer.wolke_share_link_id && link.is_active
+      (link: NextcloudShareLink) => link.id === record.wolke_share_link_id && link.is_active
     );
 
     if (!wolkeLink) {
@@ -124,21 +144,27 @@ class TransferService {
     }
 
     const client = new NextcloudApiClient(wolkeLink.share_link);
-    const webdavPath = `/public.php/webdav/${transfer.wolke_file_path}`;
+    const webdavPath = `/public.php/webdav/${record.wolke_file_path}`;
 
     log.info('Proxying download from Wolke', {
-      shareToken: shareToken.substring(0, 8),
-      path: transfer.wolke_file_path,
+      path: record.wolke_file_path,
     });
 
     const result = await client.downloadFile(webdavPath);
 
-    await this.incrementDownloadCount(shareToken);
-
     return {
       ...result,
-      fileName: transfer.file_name || 'download',
+      fileName: record.file_name || 'download',
     };
+  }
+
+  async proxyDownload(shareToken: string): Promise<DownloadFileResult & { fileName: string }> {
+    const transfer = await this.getTransferByToken(shareToken);
+    if (!transfer) {
+      throw new Error('Transfer not found');
+    }
+
+    return this.proxyDownloadWithRecord(transfer);
   }
 
   async listUserTransfers(userId: string): Promise<TransferRecord[]> {
@@ -146,7 +172,8 @@ class TransferService {
 
     return this.postgres!.query<TransferRecord>(
       `SELECT id, share_token, file_name, file_size, mime_type,
-              download_count, created_at, wolke_share_link_id, wolke_file_path, user_id
+              download_count, created_at, wolke_share_link_id, wolke_file_path, user_id,
+              expires_at, password_hash, transfer_message
        FROM shared_media
        WHERE user_id = $1 AND media_type = 'transfer'
        ORDER BY created_at DESC
@@ -168,18 +195,6 @@ class TransferService {
     return result.length > 0;
   }
 
-  private async incrementDownloadCount(shareToken: string): Promise<void> {
-    try {
-      await this.postgres!.query(
-        `UPDATE shared_media SET download_count = download_count + 1
-         WHERE share_token = $1 AND media_type = 'transfer'`,
-        [shareToken]
-      );
-    } catch (error) {
-      log.error('Failed to increment download count', { error });
-    }
-  }
-
   /**
    * Upload a file buffer to Nextcloud and create a transfer record.
    * Returns the share token for the transfer link.
@@ -190,7 +205,8 @@ class TransferService {
     originalFilename: string,
     mimeType: string,
     wolkeShareLinkId: string,
-    folderPath?: string
+    folderPath?: string,
+    options?: TransferOptions
   ): Promise<{ shareToken: string; id: string }> {
     const shareLinks = await NextcloudShareManager.getShareLinks(userId);
     const wolkeLink = shareLinks.find(
@@ -211,6 +227,10 @@ class TransferService {
     const targetFolder = folderPath || TRANSFER_FOLDER;
 
     const client = new NextcloudApiClient(wolkeLink.share_link);
+
+    // Ensure the transfer folder exists (auto-create on first use)
+    await client.ensureFolder(targetFolder);
+
     const uploadResult = await client.uploadFile(fileBuffer, safeFilename, targetFolder);
 
     if (!uploadResult.success) {
@@ -219,6 +239,21 @@ class TransferService {
 
     const wolkeFilePath = targetFolder ? `${targetFolder}/${safeFilename}` : safeFilename;
 
+    // Hash password if provided (scrypt format: "salt:hash")
+    let passwordHash: string | undefined;
+    if (options?.password) {
+      const salt = crypto.randomBytes(16).toString('hex');
+      const hash = crypto.scryptSync(options.password, salt, 64).toString('hex');
+      passwordHash = `${salt}:${hash}`;
+    }
+
+    // Calculate expiry
+    let expiresAt: Date | undefined;
+    if (options?.expiresInDays && options.expiresInDays > 0) {
+      expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + options.expiresInDays);
+    }
+
     return this.createTransfer({
       userId,
       fileName: originalFilename,
@@ -226,6 +261,9 @@ class TransferService {
       mimeType,
       wolkeShareLinkId,
       wolkeFilePath,
+      passwordHash,
+      expiresAt,
+      message: options?.message,
     });
   }
 }

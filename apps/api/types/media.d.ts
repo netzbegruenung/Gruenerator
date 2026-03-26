@@ -25,7 +25,7 @@ export interface SharedMediaRow {
   id: string;
   user_id: string;
   share_token: string;
-  media_type: 'image' | 'video';
+  media_type: 'image' | 'video' | 'transfer';
   title: string | null;
   file_path: string | null;
   file_name: string | null;
@@ -47,6 +47,22 @@ export interface SharedMediaRow {
   updated_at: Date;
   sharer_name?: string;
   template_visibility?: 'private' | 'unlisted' | 'public';
+  wolke_share_link_id?: string | null;
+  wolke_file_path?: string | null;
+  expires_at?: Date | null;
+  password_hash?: string | null;
+  transfer_files?: TransferFileEntry[] | null;
+  transfer_message?: string | null;
+}
+
+/**
+ * Entry in the transfer_files JSONB array
+ */
+export interface TransferFileEntry {
+  name: string;
+  size: number;
+  mimeType: string;
+  wolkePath: string;
 }
 
 /**

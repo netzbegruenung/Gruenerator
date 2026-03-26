@@ -6,7 +6,7 @@ import axios, { AxiosResponse } from 'axios';
 
 const sleep = promisify(setTimeout);
 
-export type FluxBackend = 'hosted' | 'local';
+export type FluxBackend = 'hosted' | 'local' | 'regolo' | 'ionos';
 
 export interface FluxImageServiceOptions {
   apiKey?: string;
@@ -126,6 +126,18 @@ class FluxImageService {
       // @ts-ignore - comfyui module is excluded from Docker build
       const mod = await import('../comfyui/ComfyUIImageService.js');
       return new mod.default() as unknown as FluxImageService;
+    }
+
+    if (useBackend === 'regolo') {
+      console.log('[FluxImageService] Using Regolo Qwen-Image backend');
+      const { RegoloImageService } = await import('./RegoloImageService.js');
+      return new RegoloImageService() as unknown as FluxImageService;
+    }
+
+    if (useBackend === 'ionos') {
+      console.log('[FluxImageService] Using IONOS FLUX.1-schnell backend');
+      const { IonosImageService } = await import('./IonosImageService.js');
+      return new IonosImageService() as unknown as FluxImageService;
     }
 
     console.log('[FluxImageService] Using hosted BFL API backend');

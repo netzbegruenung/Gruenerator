@@ -380,6 +380,49 @@ class NextcloudApiClient {
   }
 
   /**
+   * Ensure a folder exists in the share, creating it via MKCOL if needed.
+   * Returns true if the folder exists (created or already existed).
+   */
+  async ensureFolder(folderPath: string): Promise<boolean> {
+    const encodedPath = folderPath
+      .split('/')
+      .filter(Boolean)
+      .map((segment) => encodeURIComponent(segment))
+      .join('/');
+    const folderUrl = `${this.webdavUrl}/${encodedPath}`;
+
+    try {
+      // Check if it exists (PROPFIND)
+      await this.axiosInstance.request({
+        method: 'PROPFIND',
+        url: folderUrl,
+        headers: { Depth: '0' },
+      });
+      return true;
+    } catch {
+      // Doesn't exist, try to create
+    }
+
+    try {
+      await this.axiosInstance.request({
+        method: 'MKCOL',
+        url: folderUrl,
+      });
+      console.log('[NextcloudApiClient] Created folder', { folderPath });
+      return true;
+    } catch (error) {
+      const err = error as AxiosError;
+      // 405 = already exists (race condition), treat as success
+      if (err.response?.status === 405) return true;
+      console.error('[NextcloudApiClient] Failed to create folder', {
+        folderPath,
+        status: err.response?.status,
+      });
+      return false;
+    }
+  }
+
+  /**
    * List files and folders at a given path within the share
    */
   async listFolder(folderPath?: string): Promise<NextcloudFile[]> {

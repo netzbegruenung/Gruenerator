@@ -13,14 +13,14 @@ interface GenerateRequest extends Request {
   body: {
     text?: string;
     modelId?: string;
-    voiceId?: number;
-    cfgScale?: number;
+    voiceId?: string;
+    refAudio?: string;
     language?: string;
   };
 }
 
 router.post('/generate', async (req: GenerateRequest, res: Response) => {
-  const { text, modelId, voiceId, cfgScale, language } = req.body;
+  const { text, modelId, voiceId, refAudio, language } = req.body;
 
   if (!text || typeof text !== 'string') {
     return res.status(400).json({ success: false, error: 'Text ist erforderlich' });
@@ -37,7 +37,7 @@ router.post('/generate', async (req: GenerateRequest, res: Response) => {
     const wavBuffer = await ttsService.generateSpeech(text, {
       modelId,
       voiceId,
-      cfgScale,
+      refAudio,
       language,
     });
 
@@ -57,7 +57,7 @@ router.post('/generate', async (req: GenerateRequest, res: Response) => {
 });
 
 router.post('/stream', async (req: GenerateRequest, res: Response) => {
-  const { text, modelId, voiceId, cfgScale, language } = req.body;
+  const { text, modelId, voiceId, refAudio, language } = req.body;
 
   if (!text || typeof text !== 'string') {
     return res.status(400).json({ success: false, error: 'Text ist erforderlich' });
@@ -80,7 +80,7 @@ router.post('/stream', async (req: GenerateRequest, res: Response) => {
   try {
     await ttsService.streamSpeech(
       text,
-      { modelId, voiceId, cfgScale, language },
+      { modelId, voiceId, refAudio, language },
       {
         onChunk: (chunk) => {
           res.write(

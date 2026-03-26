@@ -13,7 +13,9 @@ import { createLogger } from '../../utils/logger.js';
 import { startBackgroundCompression } from './backgroundCompressionService.js';
 import { transcribeWithGladia } from './gladiaService.js';
 import { generateManualSubtitles } from './manualSubtitleGeneratorService.js';
+import { transcribeWithRegolo } from './regoloTranscriptionService.js';
 import { extractAudio } from './videoUploadService.js';
+import { transcribeWithVoxtral } from './voxtralTranscriptionService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -29,21 +31,50 @@ interface AIWorkerPool {
   processRequest(request: any): Promise<any>;
 }
 
+/**
+ * Provider chain: regolo faster-whisper (default) → voxtral → gladia (legacy)
+ * Override with TRANSCRIPTION_PROVIDER env var: regolo | voxtral | gladia
+ */
 async function transcribeWithProvider(
   audioPath: string,
   requestWordTimestamps: boolean = false,
   uploadId: string | null = null
 ): Promise<TranscriptionResult> {
-  log.debug('Using Gladia for transcription');
+  const provider = process.env.TRANSCRIPTION_PROVIDER || 'regolo';
 
-  try {
-    return await transcribeWithGladia(audioPath, requestWordTimestamps, uploadId);
-  } catch (error: any) {
-    if (error.message === 'CANCELLED') {
-      log.info(`Transcription cancelled for upload: ${uploadId}`);
+  if (provider === 'regolo' && process.env.REGOLO_API_KEY) {
+    log.debug('Using Regolo (faster-whisper) for transcription');
+    try {
+      return await transcribeWithRegolo(audioPath, requestWordTimestamps, uploadId);
+    } catch (error: any) {
+      log.warn(`Regolo transcription failed: ${error.message}`);
     }
-    throw error;
   }
+
+  if ((provider === 'voxtral' || provider === 'regolo') && process.env.MISTRAL_API_KEY) {
+    log.debug('Using Voxtral for transcription');
+    try {
+      return await transcribeWithVoxtral(audioPath, requestWordTimestamps, uploadId);
+    } catch (error: any) {
+      log.warn(`Voxtral transcription failed: ${error.message}`);
+    }
+  }
+
+  if (process.env.GLADIA_API_KEY) {
+    log.debug('Using Gladia for transcription (legacy fallback)');
+    try {
+      return await transcribeWithGladia(audioPath, requestWordTimestamps, uploadId);
+    } catch (error: any) {
+      if (error.message === 'CANCELLED') {
+        log.info(`Transcription cancelled for upload: ${uploadId}`);
+      }
+      throw error;
+    }
+  }
+
+  throw new Error(
+    'No transcription provider configured. Set REGOLO_API_KEY (faster-whisper), MISTRAL_API_KEY (Voxtral), or GLADIA_API_KEY.'
+  );
 }
 
 async function transcribeVideo(

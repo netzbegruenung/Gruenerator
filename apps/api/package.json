@@ -85,7 +85,6 @@
     "ioredis": "^5.10.1",
     "jose": "^6.2.2",
     "jsonrepair": "^3.13.3",
-    "kugelaudio": "^0.2.3",
     "langchain": "^1.2.36",
     "marked": "^17.0.5",
     "mem0ai": "^2.4.2",

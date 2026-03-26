@@ -1,6 +1,8 @@
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { sendPushToUser } from '../../services/pushNotificationService.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { shouldDeliver, getProfileForDelivery } from './notificationPreferences.js';
 import { publishNotification } from './notificationPubSub.js';
 
 import type { Notification, CreateNotificationParams, NotificationListOptions } from './types.js';
@@ -9,8 +11,40 @@ const log = createLogger('NotificationService');
 
 const db = getPostgresInstance();
 
-export async function createNotification(params: CreateNotificationParams): Promise<Notification> {
+function firePush(
+  userId: string,
+  title: string,
+  body: string | null,
+  type: string,
+  actionUrl?: string | null,
+  notificationId?: string
+) {
+  sendPushToUser(userId, {
+    title,
+    body: body ?? '',
+    data: {
+      type,
+      action_url: actionUrl,
+      ...(notificationId ? { notification_id: notificationId } : {}),
+    },
+  }).catch((err) => {
+    log.warn('Failed to send push notification', { userId, error: err.message });
+  });
+}
+
+export async function createNotification(
+  params: CreateNotificationParams
+): Promise<Notification | null> {
   const { userId, type, title, body, metadata = {}, actionUrl, groupKey } = params;
+
+  const profile = await getProfileForDelivery(userId);
+  const showInApp = await shouldDeliver(userId, type, 'in_app', profile);
+
+  if (!showInApp) {
+    const sendPush = await shouldDeliver(userId, type, 'push', profile);
+    if (sendPush) firePush(userId, title, body ?? null, type, actionUrl);
+    return null;
+  }
 
   const rows = (await db.query(
     `INSERT INTO notifications (user_id, type, title, body, metadata, action_url, group_key)
@@ -32,6 +66,9 @@ export async function createNotification(params: CreateNotificationParams): Prom
   publishNotification(userId, notification).catch((err) => {
     log.warn('Failed to publish notification via Redis', { userId, error: err.message });
   });
+
+  const sendPush = await shouldDeliver(userId, type, 'push', profile);
+  if (sendPush) firePush(userId, title, body ?? null, type, actionUrl, notification.id);
 
   return notification;
 }

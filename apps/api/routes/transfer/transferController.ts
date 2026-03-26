@@ -41,9 +41,12 @@ router.post(
         return;
       }
 
-      const { shareLinkId, folderPath } = req.body as {
+      const { shareLinkId, folderPath, password, expiresInDays, message } = req.body as {
         shareLinkId: string;
         folderPath?: string;
+        password?: string;
+        expiresInDays?: string;
+        message?: string;
       };
 
       if (!shareLinkId) {
@@ -66,7 +69,12 @@ router.post(
         originalname,
         mimetype,
         shareLinkId,
-        folderPath as string | undefined
+        folderPath as string | undefined,
+        {
+          password: password || undefined,
+          expiresInDays: expiresInDays ? parseInt(expiresInDays, 10) : undefined,
+          message: message || undefined,
+        }
       );
 
       res.json({
@@ -120,6 +128,8 @@ router.get('/list', requireAuth, async (req: Request, res: Response): Promise<vo
         mimeType: t.mime_type,
         downloadCount: t.download_count,
         createdAt: t.created_at,
+        expiresAt: t.expires_at ?? null,
+        isPasswordProtected: !!t.password_hash,
       })),
     });
   } catch (error) {
