@@ -6,7 +6,6 @@ import useDebounce from '../../../../components/hooks/useDebounce';
 import { COMBINED_DICTIONARY } from '../../../../hooks/useTextAutocomplete';
 import { useSimpleFormStore } from '../../../../stores/core/simpleFormStore';
 import { detectUrls } from '../../../../utils/urlDetection';
-import { useBaseFormContext } from '../BaseFormContext';
 
 import FormFieldWrapper from './FormFieldWrapper';
 import TextareaWithAutocomplete from './TextareaWithAutocomplete';
@@ -35,6 +34,7 @@ interface FormTextareaProps {
   autocompleteMinChars?: number;
   autocompleteAddHashtag?: boolean;
   onChange?: (value: string) => void;
+  isStartMode?: boolean;
   [key: string]: unknown;
 }
 
@@ -70,11 +70,10 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
   autocompleteMinChars = 3,
   autocompleteAddHashtag = true,
   onChange,
+  isStartMode = false,
   ...rest
 }) => {
-  // All hooks must be called unconditionally at the top
-  const { isStartMode: storeIsStartMode } = useBaseFormContext();
-  const minRows = storeIsStartMode ? 2 : minRowsProp;
+  const minRows = isStartMode ? 2 : minRowsProp;
 
   // Simple form store hooks - called unconditionally
   const rawValue = useSimpleFormStore((state) => state.fields[name]);
@@ -85,7 +84,7 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
   const textareaClassName = [
     'form-textarea',
     className,
-    storeIsStartMode && 'bg-transparent border-none text-[1.1rem] leading-[1.6] focus:outline-none',
+    isStartMode && 'bg-transparent border-none text-[1.1rem] leading-[1.6] focus:outline-none',
   ]
     .filter(Boolean)
     .join(' ');

@@ -8,7 +8,6 @@ import {
 import TextareaAutosize from 'react-textarea-autosize';
 
 import { useSimpleFormStore } from '../../../../stores/core/simpleFormStore';
-import { useBaseFormContext } from '../BaseFormContext';
 
 import FormFieldWrapper from './FormFieldWrapper';
 
@@ -87,6 +86,7 @@ export interface FormAutoInputProps<T extends FieldValues = FieldValues> extends
   textareaProps?: TextareaHTMLAttributes<HTMLTextAreaElement>;
   labelProps?: LabelHTMLAttributes<HTMLLabelElement>;
   onChange?: (value: string) => void;
+  isStartMode?: boolean;
 }
 
 const formatText = (text: string, autoFormat: boolean): string => {
@@ -119,17 +119,15 @@ function FormAutoInput<T extends FieldValues = FieldValues>({
   textareaProps = {},
   labelProps = {},
   onChange: onChangeProp,
+  isStartMode = false,
   ...rest
 }: FormAutoInputProps<T>) {
-  // All hooks must be called unconditionally at the top
-  const { isStartMode: storeIsStartMode } = useBaseFormContext();
-
   // Simple form store hooks - called unconditionally
   const rawValue = useSimpleFormStore((state) => state.fields[String(name)]);
   const setField = useSimpleFormStore((state) => state.setField);
   const simpleFormValue = (rawValue as string) ?? defaultValue;
 
-  const minRows = storeIsStartMode ? 2 : minRowsProp;
+  const minRows = isStartMode ? 2 : minRowsProp;
   const autoInputId = `form-auto-input-${String(name)}`;
   const autoInputClassName = `form-textarea form-auto-input ${className}`.trim();
 

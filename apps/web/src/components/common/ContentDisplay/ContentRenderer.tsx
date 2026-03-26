@@ -1,15 +1,15 @@
 import React, { type ReactNode } from 'react';
 
-import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
-import { CitationBadge } from '../../Citation';
-import ImageDisplay, { type SharepicDataItem } from '../../ImageDisplay';
-import { Markdown } from '../../Markdown';
+import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
+import { CitationBadge } from '../Citation';
 import {
   isMarkdownContent,
   normalizeLineBreaks,
   removeGruenTitleTags,
   stripWrappingCodeFence,
-} from '../utils/contentUtils';
+} from '../Form/utils/contentUtils';
+import ImageDisplay, { type SharepicDataItem } from '../ImageDisplay';
+import { Markdown } from '../Markdown';
 
 import type { ContentRendererProps, GeneratedContent } from '@/types/baseform';
 

@@ -1,17 +1,17 @@
 import { useDocumentStore, createDocsApiClient } from '@gruenerator/docs';
 import React, { forwardRef, lazy, Suspense, type ReactNode, useMemo } from 'react';
 
-import { webAppDocsAdapter } from '../../../../features/docs/docsAdapter';
-import { useLazyAuth } from '../../../../hooks/useAuth';
-import { useDeferredTitle, awaitDeferredTitle } from '../../../../hooks/useDeferredTitle';
-import { useSaveToLibrary } from '../../../../hooks/useSaveToLibrary';
-import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
-import { getDocsUrl } from '../../../../utils/docsUrl';
-import useApiSubmit from '../../../hooks/useApiSubmit';
-import { extractHTMLContent as extractHTMLContentJs } from '../../../utils/contentExtractor';
-import ActionButtons from '../../ActionButtons';
-import AutoSaveIndicator from '../../AutoSaveIndicator';
-import EnrichmentSourcesDisplay from '../../EnrichmentSourcesDisplay';
+import { webAppDocsAdapter } from '../../../features/docs/docsAdapter';
+import { useLazyAuth } from '../../../hooks/useAuth';
+import { useDeferredTitle, awaitDeferredTitle } from '../../../hooks/useDeferredTitle';
+import { useSaveToLibrary } from '../../../hooks/useSaveToLibrary';
+import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
+import { getDocsUrl } from '../../../utils/docsUrl';
+import useApiSubmit from '../../hooks/useApiSubmit';
+import { extractHTMLContent as extractHTMLContentJs } from '../../utils/contentExtractor';
+import ActionButtons from '../ActionButtons';
+import AutoSaveIndicator from '../AutoSaveIndicator';
+import EnrichmentSourcesDisplay from '../EnrichmentSourcesDisplay';
 
 import ContentRenderer from './ContentRenderer';
 import ErrorDisplay from './ErrorDisplay';
@@ -27,7 +27,7 @@ import { cn } from '@/utils/cn';
 
 const extractHTMLContent = extractHTMLContentJs as unknown as (content: unknown) => Promise<string>;
 
-const DocsEditorModal = lazy(() => import('../../DocsEditorModal'));
+const DocsEditorModal = lazy(() => import('../DocsEditorModal'));
 
 // Extended content type for internal use that includes all possible properties
 interface ExtendedContent {
