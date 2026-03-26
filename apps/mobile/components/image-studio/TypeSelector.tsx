@@ -226,6 +226,7 @@ export function TypeSelector({
           ))}
         </View>
 
+        {/* Sharepic-Vorlagen temporarily hidden
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Sharepic-Vorlagen</Text>
         <Text style={[styles.sectionSubtitle, { color: theme.textSecondary }]}>
           Gestalte Sharepics mit dem Canvas-Editor
@@ -281,6 +282,7 @@ export function TypeSelector({
             </Pressable>
           ))}
         </View>
+        */}
 
         <View
           style={[
@@ -311,12 +313,10 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h3,
-    textAlign: 'center',
     marginBottom: spacing.xsmall,
   },
   subtitle: {
     ...typography.body,
-    textAlign: 'center',
     marginBottom: spacing.large,
   },
   grid: {

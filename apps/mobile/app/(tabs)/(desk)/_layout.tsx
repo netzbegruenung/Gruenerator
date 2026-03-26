@@ -1,58 +1,24 @@
-import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
-import { withLayoutContext } from 'expo-router';
+import { Stack } from 'expo-router';
 import { useColorScheme } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { lightTheme, darkTheme, colors } from '../../../theme';
-
-const { Navigator } = createMaterialTopTabNavigator();
-
-const MaterialTopTabs = withLayoutContext(Navigator);
+import { lightTheme, darkTheme } from '../../../theme';
 
 export default function DeskLayout() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['top']}>
-      <MaterialTopTabs
-        screenOptions={{
-          tabBarActiveTintColor: colors.primary[600],
-          tabBarInactiveTintColor: theme.textSecondary,
-          tabBarIndicatorStyle: {
-            backgroundColor: colors.primary[600],
-            height: 3,
-          },
-          tabBarStyle: {
-            backgroundColor: theme.background,
-            elevation: 0,
-            shadowOpacity: 0,
-            borderBottomWidth: 1,
-            borderBottomColor: theme.border,
-          },
-          tabBarLabelStyle: {
-            fontSize: 12,
-            fontWeight: '600',
-            textTransform: 'none',
-          },
-          tabBarPressColor: colors.primary[100],
-          tabBarScrollEnabled: true,
-          tabBarItemStyle: {
-            width: 'auto',
-            minWidth: 80,
-          },
-          swipeEnabled: true,
-          lazy: true,
-        }}
-      >
-        <MaterialTopTabs.Screen name="suche" options={{ title: 'Suche' }} />
-        <MaterialTopTabs.Screen name="notebooks" options={{ title: 'Notebooks' }} />
-        <MaterialTopTabs.Screen name="scanner" options={{ title: 'Scanner' }} />
-        <MaterialTopTabs.Screen name="transkription" options={{ title: 'Transkription' }} />
-        <MaterialTopTabs.Screen name="research" options={{ title: 'Recherche' }} />
-        <MaterialTopTabs.Screen name="gruppen" options={{ title: 'Gruppen' }} />
-        <MaterialTopTabs.Screen name="boards" options={{ title: 'Boards' }} />
-      </MaterialTopTabs>
-    </SafeAreaView>
+    <Stack
+      screenOptions={{
+        headerStyle: { backgroundColor: theme.background },
+        headerTintColor: theme.text,
+        headerShadowVisible: false,
+      }}
+    >
+      <Stack.Screen name="index" options={{ title: 'Desk', headerShown: false }} />
+      <Stack.Screen name="scanner" options={{ title: 'Scanner' }} />
+      <Stack.Screen name="transkription" options={{ title: 'Transkription' }} />
+      <Stack.Screen name="gruppen" options={{ title: 'Gruppen' }} />
+    </Stack>
   );
 }

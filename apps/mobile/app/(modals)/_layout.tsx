@@ -24,14 +24,6 @@ export default function ModalsLayout() {
         gestureEnabled: true,
         gestureDirection: 'vertical',
       }}
-    >
-      <Stack.Screen
-        name="gruenerator-chat"
-        options={{
-          headerShown: false,
-          presentation: 'fullScreenModal',
-        }}
-      />
-    </Stack>
+    />
   );
 }
