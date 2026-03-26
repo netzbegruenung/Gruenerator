@@ -1,0 +1,18 @@
+This package contains code derived from Presenton
+(https://github.com/presenton/presenton).
+
+Presenton is licensed under the Apache License, Version 2.0.
+
+Original Copyright (c) 2024-2026 Presenton Contributors
+
+Modifications:
+- Adapted slide layout components from Next.js 14 / React 18 to React 19
+- Replaced Zod v4 schemas with Zod v3 for monorepo compatibility
+- Replaced CSS variable names to align with Gruenerator design tokens
+- Removed Mixpanel tracking from all components
+- Added Zustand store (replacing Redux Toolkit)
+- Added SlidesAdapter context for platform-agnostic API access
+- Added Hocuspocus collaboration support
+
+The full text of the Apache License 2.0 can be found at:
+http://www.apache.org/licenses/LICENSE-2.0

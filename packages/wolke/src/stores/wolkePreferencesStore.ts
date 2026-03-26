@@ -17,9 +17,15 @@ export interface WolkeAutoBackupConfig {
   interval: BackupInterval;
 }
 
+export interface WolkeTransferFolderConfig {
+  shareLinkId: string | null;
+  folderPath: string;
+}
+
 interface WolkePreferencesState {
   favourites: WolkeFavouriteFolder[];
   autoBackup: WolkeAutoBackupConfig;
+  transferFolder: WolkeTransferFolderConfig;
 }
 
 interface WolkePreferencesActions {
@@ -32,6 +38,8 @@ interface WolkePreferencesActions {
   setAutoBackupTarget: (shareLinkId: string, folderPath: string, folderName: string) => void;
   clearAutoBackupTarget: () => void;
   setAutoBackupInterval: (interval: BackupInterval) => void;
+  setTransferFolder: (shareLinkId: string, folderPath: string) => void;
+  resetTransferFolder: () => void;
 }
 
 type WolkePreferencesStore = WolkePreferencesState & WolkePreferencesActions;
@@ -44,11 +52,17 @@ const DEFAULT_AUTO_BACKUP: WolkeAutoBackupConfig = {
   interval: 'daily',
 };
 
+const DEFAULT_TRANSFER_FOLDER: WolkeTransferFolderConfig = {
+  shareLinkId: null,
+  folderPath: 'Gruenerator-Transfer',
+};
+
 const useWolkePreferencesStore = create<WolkePreferencesStore>()(
   persist(
     (set, get) => ({
       favourites: [],
       autoBackup: DEFAULT_AUTO_BACKUP,
+      transferFolder: DEFAULT_TRANSFER_FOLDER,
 
       addFavourite: (folder) => {
         const { favourites } = get();
@@ -117,6 +131,14 @@ const useWolkePreferencesStore = create<WolkePreferencesStore>()(
 
       setAutoBackupInterval: (interval) => {
         set({ autoBackup: { ...get().autoBackup, interval } });
+      },
+
+      setTransferFolder: (shareLinkId, folderPath) => {
+        set({ transferFolder: { shareLinkId, folderPath } });
+      },
+
+      resetTransferFolder: () => {
+        set({ transferFolder: DEFAULT_TRANSFER_FOLDER });
       },
     }),
     {

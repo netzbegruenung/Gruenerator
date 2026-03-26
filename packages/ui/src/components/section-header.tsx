@@ -16,6 +16,9 @@ const sectionHeaderVariants = cva('flex items-center justify-between', {
   },
 });
 
+const plusButtonClass =
+  'flex items-center justify-center w-7 h-7 rounded-full text-primary-600 hover:bg-primary-600/10 transition-colors cursor-pointer border-none bg-transparent';
+
 function SectionHeader({
   className,
   size = 'default',
@@ -23,6 +26,7 @@ function SectionHeader({
   titleHref,
   onCreate,
   createLabel,
+  createMenu,
   actions,
   ...props
 }: React.ComponentProps<'div'> &
@@ -31,6 +35,8 @@ function SectionHeader({
     titleHref?: string;
     onCreate?: () => void;
     createLabel?: string;
+    /** Wraps the plus button as a dropdown trigger. Receives the button as children. */
+    createMenu?: (trigger: React.ReactNode) => React.ReactNode;
     actions?: React.ReactNode;
   }) {
   const Heading = size === 'sm' ? 'h3' : 'h2';
@@ -38,6 +44,18 @@ function SectionHeader({
     size === 'sm'
       ? 'text-sm font-medium text-foreground m-0'
       : 'text-xl font-semibold text-foreground-heading m-0';
+
+  const plusButton =
+    onCreate || createMenu ? (
+      <button
+        type="button"
+        onClick={createMenu ? undefined : onCreate}
+        className={plusButtonClass}
+        aria-label={createLabel ?? 'Neu erstellen'}
+      >
+        <PlusIcon className="size-[18px]" />
+      </button>
+    ) : null;
 
   return (
     <div
@@ -56,20 +74,13 @@ function SectionHeader({
         ) : (
           <Heading className={headingClass}>{title}</Heading>
         )}
-        {onCreate && (
-          <button
-            type="button"
-            onClick={onCreate}
-            className="flex items-center justify-center w-7 h-7 rounded-full text-primary-600 hover:bg-primary-600/10 transition-colors cursor-pointer border-none bg-transparent"
-            aria-label={createLabel ?? 'Neu erstellen'}
-          >
-            <PlusIcon className="size-[18px]" />
-          </button>
-        )}
+        {createMenu && plusButton ? createMenu(plusButton) : plusButton}
       </div>
       {actions && <div className="flex items-center gap-xs">{actions}</div>}
     </div>
   );
 }
 
-export { SectionHeader, sectionHeaderVariants };
+const MemoizedSectionHeader = React.memo(SectionHeader);
+
+export { MemoizedSectionHeader as SectionHeader, sectionHeaderVariants };

@@ -69,6 +69,7 @@ export interface BlockNoteEditorProps {
   isSynced?: boolean;
   onEditorReady?: (editor: BlockNoteEditorCore) => void;
   useStaticFormattingToolbar?: boolean;
+  hideFormattingToolbar?: boolean;
 }
 
 interface CollaborationUser {
@@ -166,6 +167,7 @@ const BlockNoteEditorInner = ({
   isSynced = false,
   onEditorReady,
   useStaticFormattingToolbar = false,
+  hideFormattingToolbar = false,
 }: BlockNoteEditorProps) => {
   const { setEditor: setEditorInStore, removeEditor } = useEditorStore();
   const adapter = useDocsAdapter();
@@ -324,7 +326,7 @@ const BlockNoteEditorInner = ({
       <ErrorBoundary>
         <BlockNoteView editor={editor} theme={theme} formattingToolbar={false} slashMenu={false}>
           <AIMenuController />
-          {staticToolbar ? (
+          {hideFormattingToolbar ? null : staticToolbar ? (
             <FormattingToolbar>
               {getFormattingToolbarItems()}
               {!isTouchDevice && <AIToolbarButton />}

@@ -1,6 +1,6 @@
 import { useVoxtralDictation } from '@gruenerator/voice';
 import { ArrowRight, Mic, Square } from 'lucide-react';
-import { useCallback, type ReactNode } from 'react';
+import React, { useCallback, type ReactNode } from 'react';
 
 import { cn } from '../lib/cn';
 
@@ -17,6 +17,9 @@ export interface AIPromptInputProps {
   isLoading?: boolean;
   disabled?: boolean;
   examples?: AIPromptInputExample[];
+  /** Renders inside the input border, bottom-left (e.g. FeatureIcons, dropdowns) */
+  toolbar?: ReactNode;
+  /** Renders outside the input border (e.g. example pills) */
   footer?: ReactNode;
   error?: string | null;
   rows?: number;
@@ -38,12 +41,12 @@ function ActionButton({
   onSubmit: () => void;
 }) {
   const base =
-    'flex items-center justify-center w-8 h-8 shrink-0 rounded-lg border-none cursor-pointer transition-all';
+    'flex items-center justify-center size-7 shrink-0 rounded-full border-none cursor-pointer transition-all';
 
   if (isLoading) {
     return (
       <button disabled className={cn(base, 'bg-primary text-primary-foreground cursor-default')}>
-        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        <span className="size-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
       </button>
     );
   }
@@ -56,7 +59,7 @@ function ActionButton({
         className={cn(base, 'bg-red-500 text-white animate-pulse')}
         title="Aufnahme stoppen"
       >
-        <Square className="size-3.5" />
+        <Square className="size-3" />
       </button>
     );
   }
@@ -68,7 +71,7 @@ function ActionButton({
         onClick={onDictate}
         className={cn(
           base,
-          'bg-grey-100 dark:bg-grey-800 text-grey-400 hover:text-foreground hover:bg-grey-200 dark:hover:bg-grey-700'
+          'text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800'
         )}
         title="Spracheingabe"
       >
@@ -80,9 +83,9 @@ function ActionButton({
   return (
     <button
       onClick={onSubmit}
-      className={cn(base, 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm')}
+      className={cn(base, 'bg-primary text-primary-foreground hover:bg-primary/90')}
     >
-      <ArrowRight className="size-4" />
+      <ArrowRight className="size-3.5" />
     </button>
   );
 }
@@ -92,7 +95,7 @@ const pillClass = cn(
   'hover:border-grey-300 dark:hover:border-grey-600 hover:text-foreground hover:bg-grey-50 dark:hover:bg-[#2a2a2a]'
 );
 
-export function AIPromptInput({
+export const AIPromptInput = React.memo(function AIPromptInput({
   value,
   onChange,
   onSubmit,
@@ -100,9 +103,10 @@ export function AIPromptInput({
   isLoading = false,
   disabled = false,
   examples,
+  toolbar,
   footer,
   error,
-  rows = 3,
+  rows = 2,
   transparent = false,
   className,
 }: AIPromptInputProps) {
@@ -123,24 +127,28 @@ export function AIPromptInput({
   const isEmpty = value.trim().length < 3;
 
   return (
-    <div className={cn('w-full', className)}>
+    <div className={cn('w-full max-w-[680px] mx-auto', className)}>
       <div
         className={cn(
-          'flex items-end gap-2',
+          'flex flex-col',
           !transparent &&
-            'rounded-xl border border-grey-200 dark:border-grey-700 bg-background-pure shadow-sm focus-within:shadow-md p-2'
+            'rounded-2xl border border-grey-200 dark:border-grey-700 bg-background-pure shadow-sm focus-within:shadow-md transition-shadow'
         )}
       >
-        <textarea
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          rows={rows}
-          disabled={disabled || isLoading}
-          className="flex-1 min-w-0 px-2 py-2 text-base outline-none resize-none placeholder:text-grey-400 leading-relaxed bg-transparent border-none"
-        />
-        <div className="pb-1">
+        <div className="px-4 pt-3 pb-1">
+          <textarea
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            rows={rows}
+            disabled={disabled || isLoading}
+            className="w-full min-w-0 text-[15px] outline-none resize-none placeholder:text-grey-400 leading-relaxed bg-transparent border-none p-0"
+          />
+        </div>
+
+        <div className="flex items-center gap-1.5 px-3 pb-2.5">
+          <div className="flex-1 flex items-center gap-1 min-w-0">{toolbar}</div>
           <ActionButton
             isEmpty={isEmpty}
             isDictating={isDictating}
@@ -154,25 +162,23 @@ export function AIPromptInput({
       {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
 
       {(footer || (examples && examples.length > 0)) && (
-        <div className="flex items-center gap-3 mt-3">
+        <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
           {footer}
-          {examples && examples.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              {examples.map((example) => (
-                <button
-                  key={example.label}
-                  type="button"
-                  onClick={() => onChange(example.text)}
-                  disabled={disabled || isLoading}
-                  className={pillClass}
-                >
-                  {example.label}
-                </button>
-              ))}
-            </div>
-          )}
+          {examples &&
+            examples.length > 0 &&
+            examples.map((example) => (
+              <button
+                key={example.label}
+                type="button"
+                onClick={() => onChange(example.text)}
+                disabled={disabled || isLoading}
+                className={pillClass}
+              >
+                {example.label}
+              </button>
+            ))}
         </div>
       )}
     </div>
   );
-}
+});

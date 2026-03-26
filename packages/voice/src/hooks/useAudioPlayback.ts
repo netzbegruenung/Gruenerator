@@ -1,13 +1,13 @@
 /**
  * Web Audio API PCM chunk queue player.
  *
- * Receives base64-encoded PCM16 chunks from KugelAudio TTS and plays
+ * Receives base64-encoded float32 LE PCM chunks from Voxtral TTS and plays
  * them gaplessly using AudioBufferSourceNode scheduling. Each chunk is
  * scheduled to start exactly when the previous one ends.
  */
 
 import { useCallback, useRef } from 'react';
-import { base64PCM16ToFloat32 } from '../lib/pcmUtils';
+import { base64Float32LEToFloat32 } from '../lib/pcmUtils';
 
 export function useAudioPlayback() {
   const ctxRef = useRef<AudioContext | null>(null);
@@ -31,7 +31,7 @@ export function useAudioPlayback() {
   const enqueue = useCallback(
     (pcmBase64: string, sampleRate: number) => {
       const ctx = ensureContext();
-      const float32 = base64PCM16ToFloat32(pcmBase64);
+      const float32 = base64Float32LEToFloat32(pcmBase64);
 
       const audioBuffer = ctx.createBuffer(1, float32.length, sampleRate);
       audioBuffer.getChannelData(0).set(float32);

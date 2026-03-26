@@ -23,6 +23,7 @@
     "@blocknote/xl-pdf-exporter": "^0.47.2",
     "@floating-ui/react": "^0.27.19",
     "@gruenerator/docs": "workspace:*",
+    "@gruenerator/slides": "workspace:*",
     "@gruenerator/shared": "workspace:*",
     "@gruenerator/ui": "workspace:*",
     "@gruenerator/wolke": "workspace:*",
