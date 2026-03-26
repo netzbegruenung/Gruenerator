@@ -4,7 +4,6 @@ import { CheckCheck } from 'lucide-react';
 import { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { useNotificationStore } from '../../../stores/notificationStore';
 import {
   useNotifications,
   useMarkAsRead,
@@ -62,10 +61,13 @@ function formatShortTime(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
 }
 
-const NotificationList = () => {
+interface NotificationListProps {
+  unreadCount: number;
+}
+
+const NotificationList = ({ unreadCount }: NotificationListProps) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const unreadCount = useNotificationStore((s) => s.unreadCount);
   const { data: notifData, hasNextPage, fetchNextPage, isFetchingNextPage } = useNotifications();
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();

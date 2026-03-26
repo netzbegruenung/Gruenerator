@@ -1,13 +1,16 @@
 import { StatusBanner } from '@gruenerator/ui';
 import { useState, useCallback, useRef } from 'react';
+import { HiUserGroup } from 'react-icons/hi';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../../components/common/PageContainer';
+import ToolGrid from '../../../components/common/ToolGrid';
 import GroupDetailSection from '../components/GroupDetailSection';
 import GroupsCreateSection from '../components/GroupsCreateSection';
-import GroupsOverviewSection from '../components/GroupsOverviewSection';
 import { useGroups, type GroupSummary } from '../hooks/useGroups';
+
+import type { ToolEntry } from '../../../components/common/ToolGrid';
 
 const GruppenPage = () => {
   const navigate = useNavigate();
@@ -82,11 +85,17 @@ const GruppenPage = () => {
           onErrorMessage={showError}
         />
       ) : (
-        <GroupsOverviewSection
-          userGroups={userGroups}
-          isCreatingGroup={isCreatingGroup}
-          onCreateNew={handleCreateNew}
-          tabIndex={{ createGroupButton: 1 }}
+        <ToolGrid
+          tools={(userGroups || []).map(
+            (g): ToolEntry => ({
+              id: g.id,
+              title: g.name,
+              description: 'Gruppe',
+              path: `/gruppen/${g.id}`,
+              icon: HiUserGroup,
+            })
+          )}
+          columns={2}
         />
       )}
 

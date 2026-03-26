@@ -521,35 +521,19 @@ const FeatureIcons = ({
   return (
     <div
       className={cn(
-        'relative flex w-full flex-col gap-xs',
-        !noBorder && 'mb-xs rounded-sm border border-grey-200 dark:border-grey-700 p-sm',
+        'relative flex flex-col gap-xs',
+        !noBorder
+          ? 'w-full mb-xs rounded-sm border border-grey-200 dark:border-grey-700 p-sm'
+          : 'w-auto',
         className
       )}
     >
       <TooltipProvider>
-        <div className="flex flex-nowrap items-center justify-center gap-xs">
-          {/* Web Search Toggle */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn(
-                  'size-9 sm:size-10 text-grey-600 dark:text-grey-400 hover:bg-secondary-50 dark:hover:bg-secondary-700 transition-colors duration-150',
-                  useWebSearch && 'bg-secondary-100 dark:bg-secondary-700 text-primary-500'
-                )}
-                onClick={toggleWebSearch}
-                aria-label="Websuche aktivieren"
-                type="button"
-              >
-                <HiGlobeAlt className="size-5 sm:size-6" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Websuche</TooltipContent>
-          </Tooltip>
+        <div className="flex flex-nowrap items-center justify-start gap-xs">
+          {/* Web Search — removed, integrated into Pro mode */}
 
-          {/* AI Mode Dropdown */}
-          <DropdownMenu
+          {/* AI Mode Dropdown — disabled: model selection now automatic (GPT-OSS + reasoning by type) */}
+          {/* <DropdownMenu
             open={balancedOpen}
             onOpenChange={(open) => {
               setBalancedOpen(open);
@@ -593,9 +577,9 @@ const FeatureIcons = ({
                 onSelectPro={handleSelectPro}
               />
             </DropdownMenuContent>
-          </DropdownMenu>
+          </DropdownMenu> */}
 
-          {/* Agent Mode Toggle */}
+          {/* Pro Mode Toggle */}
           {showAgentMode && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -607,16 +591,16 @@ const FeatureIcons = ({
                     useAgentMode && 'bg-secondary-100 dark:bg-secondary-700 text-primary-500'
                   )}
                   onClick={toggleAgentMode}
-                  aria-label="Agent-Modus"
+                  aria-label="Pro-Modus"
                   type="button"
                 >
-                  <HiBeaker className="size-5 sm:size-6" />
+                  <HiPlusCircle className="size-5 sm:size-6" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
                 {useAgentMode
-                  ? 'Agent-Modus aktiv: Recherche + Strategie'
-                  : 'Agent-Modus: Recherchiert und erstellt Kommunikationsstrategie'}
+                  ? 'Pro-Modus aktiv: Recherche + Strategie'
+                  : 'Pro-Modus: Recherchiert und erstellt Kommunikationsstrategie'}
               </TooltipContent>
             </Tooltip>
           )}

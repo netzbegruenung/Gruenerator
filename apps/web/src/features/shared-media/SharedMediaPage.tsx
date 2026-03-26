@@ -1,5 +1,5 @@
 import { Button } from '@gruenerator/ui';
-import { useState, useEffect, useCallback } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { FaInstagram } from 'react-icons/fa';
 import QRCode from 'react-qr-code';
 import { useParams } from 'react-router-dom';
@@ -12,13 +12,26 @@ import { useOptimizedAuth } from '../../hooks/useAuth';
 import { cn } from '../../utils/cn';
 import { canShare, shareContent, copyToClipboard } from '../../utils/shareUtils';
 
+const TransferDownloadPage = lazy(() => import('../transfer/components/TransferDownloadPage'));
+
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
 
-interface ShareData {
+interface TransferFields {
+  fileName: string | null;
+  fileSize: number | null;
+  mimeType: string | null;
+  isPasswordProtected: boolean;
+  expiresAt: string | null;
+  transferMessage: string | null;
+  transferFiles: Array<{ name: string; size: number; mimeType: string }> | null;
+}
+
+interface ShareData extends Partial<TransferFields> {
   title: string;
-  mediaType: 'video' | 'image';
+  mediaType: 'video' | 'image' | 'transfer';
   sharerName: string;
   status: 'processing' | 'ready' | 'failed';
+  downloadCount?: number;
 }
 
 const SharedMediaPage = () => {
@@ -274,6 +287,34 @@ const SharedMediaPage = () => {
     );
   }
 
+  // Transfer downloads get their own dedicated page
+  if (shareData?.mediaType === 'transfer' && shareToken) {
+    return (
+      <Suspense
+        fallback={
+          <div className="flex min-h-screen items-center justify-center bg-background-alt">
+            <Spinner />
+          </div>
+        }
+      >
+        <TransferDownloadPage
+          shareToken={shareToken}
+          shareData={{
+            fileName: shareData.fileName ?? null,
+            fileSize: shareData.fileSize ?? null,
+            mimeType: shareData.mimeType ?? null,
+            sharerName: shareData.sharerName,
+            downloadCount: shareData.downloadCount ?? 0,
+            isPasswordProtected: shareData.isPasswordProtected ?? false,
+            expiresAt: shareData.expiresAt ?? null,
+            transferMessage: shareData.transferMessage ?? null,
+            transferFiles: shareData.transferFiles ?? null,
+          }}
+        />
+      </Suspense>
+    );
+  }
+
   const isVideo = shareData?.mediaType === 'video';
 
   return (
@@ -387,7 +428,7 @@ const SharedMediaPage = () => {
               <p className="m-0 text-sm text-grey-400">
                 Willst du auch {isVideo ? 'solche Videos' : 'solche Bilder'} erstellen? Mit dem{' '}
                 <a
-                  href={buildUrl(isVideo ? '/subtitler' : '/image-studio')}
+                  href={buildUrl(isVideo ? '/subtitler' : '/studio')}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-secondary-600 no-underline hover:underline"

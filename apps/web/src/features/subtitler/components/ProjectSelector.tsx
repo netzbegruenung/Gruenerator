@@ -7,14 +7,9 @@ import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import Spinner from '../../../components/common/Spinner';
 import apiClient from '../../../components/utils/apiClient';
 import useDragDropFiles, { VIDEO_ACCEPT } from '../../../hooks/useDragDropFiles';
+import { getVideoMetadata, TUS_UPLOAD_ENDPOINT, type VideoMetadata } from '../utils/videoUtils';
 
 import { cn } from '@/utils/cn';
-
-interface VideoMetadata {
-  duration?: number;
-  width?: number;
-  height?: number;
-}
 
 interface Project {
   id: string;
@@ -61,7 +56,6 @@ const formatFileSize = (bytes: number | string | undefined): string => {
 
 const isDevelopment = import.meta.env.VITE_APP_ENV === 'development';
 const baseURL = isDevelopment ? 'http://localhost:3001/api' : `${window.location.origin}/api`;
-const TUS_UPLOAD_ENDPOINT = `${apiClient.defaults.baseURL}/subtitler/upload`;
 
 const SkeletonCard = () => (
   <div className="overflow-hidden rounded-xl border border-grey-200 bg-background shadow-sm dark:border-grey-700 dark:bg-background-alt">
@@ -242,23 +236,6 @@ const ProjectCard = ({ project, onSelect, onDelete, onShare, isLoading }: Projec
       )}
     </div>
   );
-};
-
-const getVideoMetadata = (file: File): Promise<VideoMetadata> => {
-  return new Promise((resolve) => {
-    const video = document.createElement('video');
-    video.preload = 'metadata';
-    video.onloadedmetadata = () => {
-      const metadata: VideoMetadata = {
-        duration: video.duration,
-        width: video.videoWidth,
-        height: video.videoHeight,
-      };
-      resolve(metadata);
-      URL.revokeObjectURL(video.src);
-    };
-    video.src = URL.createObjectURL(file);
-  });
 };
 
 interface UploadData {

@@ -10,12 +10,17 @@ interface TransferItem {
   mimeType: string;
   downloadCount: number;
   createdAt: string;
+  expiresAt: string | null;
+  isPasswordProtected: boolean;
 }
 
 interface UploadTransferParams {
   file: File;
   shareLinkId: string;
   folderPath?: string;
+  password?: string;
+  expiresInDays?: number;
+  message?: string;
 }
 
 interface UploadResult {
@@ -31,6 +36,7 @@ export function useTransferList() {
       const { data } = await apiClient.get('/transfer/list');
       return data.transfers;
     },
+    staleTime: 30_000,
   });
 }
 
@@ -38,12 +44,21 @@ export function useUploadTransfer() {
   const queryClient = useQueryClient();
 
   return useMutation<UploadResult, Error, UploadTransferParams>({
-    mutationFn: async ({ file, shareLinkId, folderPath }) => {
+    mutationFn: async ({ file, shareLinkId, folderPath, password, expiresInDays, message }) => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('shareLinkId', shareLinkId);
       if (folderPath) {
         formData.append('folderPath', folderPath);
+      }
+      if (password) {
+        formData.append('password', password);
+      }
+      if (expiresInDays !== undefined) {
+        formData.append('expiresInDays', String(expiresInDays));
+      }
+      if (message) {
+        formData.append('message', message);
       }
 
       const { data } = await apiClient.post('/transfer/upload', formData, {

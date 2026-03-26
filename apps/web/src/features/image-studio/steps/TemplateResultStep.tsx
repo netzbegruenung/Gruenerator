@@ -214,9 +214,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     setCurrentStep(firstStep);
 
     // Navigate to type route to ensure clean state
-    const route = subcategory
-      ? `/image-studio/${category}/${subcategory}`
-      : `/image-studio/${category}`;
+    const route = subcategory ? `/studio/${category}/${subcategory}` : `/studio/${category}`;
     navigate(route);
   }, [typeConfig, category, subcategory, updateFormData, setCurrentStep, navigate]);
 
@@ -713,7 +711,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
               onDownload={handleDownload}
               onShare={() => setShowShareModal(true)}
               onGalleryUpdate={handleGalleryUpdate}
-              onNavigateToGallery={() => navigate('/image-studio/gallery')}
+              onNavigateToGallery={() => navigate('/studio/gallery')}
               onOpenEditPanel={supportsCanvas ? handleSwitchToCanvas : openEditPanel}
               onRecreate={handleRecreate}
               onTextButtonClick={handleTextButtonClick}

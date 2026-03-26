@@ -10,7 +10,7 @@ import {
   useIsMobile,
 } from '@gruenerator/ui';
 import { useState, useEffect, useMemo, useCallback, memo } from 'react';
-import { PiSun, PiMoon, PiHouse, PiX, PiStarFill } from 'react-icons/pi';
+import { PiSun, PiMoon, PiHouse, PiX, PiStarFill, PiPlus } from 'react-icons/pi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { getFavouriteItemsById } from '../../../config/sidebarFavouritesConfig';
@@ -132,7 +132,17 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
     setActiveSection((prev) => (prev === sectionKey ? null : sectionKey));
   }, []);
 
-  const isActive = useCallback((path: string) => location.pathname === path, [location.pathname]);
+  const isActive = useCallback(
+    (path: string, activePaths?: string[]) => {
+      if (activePaths) {
+        return activePaths.some(
+          (p) => location.pathname === p || location.pathname.startsWith(p + '/')
+        );
+      }
+      return location.pathname === path;
+    },
+    [location.pathname]
+  );
 
   const handleLinkClick = useCallback(
     (path: string, title: string = '') => {
@@ -195,35 +205,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         </button>
       )}
 
-      {/* Sidebar Header - Home & Close */}
-      {!isDesktop && sidebarExpanded && (
-        <div className="flex items-center justify-between p-2 shrink-0">
-          <button
-            className="flex items-center justify-center w-10 h-10 p-0 border-none bg-transparent cursor-pointer rounded-sm text-foreground-heading text-[1.4rem] transition-colors hover:bg-hover-alt"
-            onClick={() => handleLinkClick('/', 'Start')}
-            type="button"
-            title="Zur Startseite"
-            aria-label="Zur Startseite"
-          >
-            <PiHouse aria-hidden="true" />
-          </button>
-          <button
-            className="flex items-center justify-center w-10 h-10 p-0 border-none bg-transparent cursor-pointer rounded-sm text-foreground-heading text-[1.4rem] transition-colors hover:bg-hover-alt"
-            onClick={close}
-            type="button"
-            aria-label="Menü schließen"
-          >
-            <PiX aria-hidden="true" />
-          </button>
-        </div>
-      )}
-
-      <nav
-        className={cn(
-          'flex-none overflow-x-hidden pb-sm',
-          isDesktop ? 'pt-3' : !sidebarExpanded && 'pt-12'
-        )}
-      >
+      <nav className={cn('flex-none overflow-x-hidden pb-sm', isDesktop ? 'pt-3' : 'pt-12')}>
         {/* Direct menu items - main navigation */}
         {additionalItems.length > 0 && (
           <div className="flex flex-col gap-0.5 p-0">
@@ -247,8 +229,8 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
                           ? handleChatClick()
                           : handleLinkClick(item.path!, item.title)
                       }
-                      className={menuLinkClass(isActive(item.path!))}
-                      aria-current={isActive(item.path!) ? 'page' : undefined}
+                      className={menuLinkClass(isActive(item.path!, item.activePaths))}
+                      aria-current={isActive(item.path!, item.activePaths) ? 'page' : undefined}
                       type="button"
                     >
                       {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
@@ -285,6 +267,35 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
             )}
           </div>
         )}
+
+        {/* New Chat */}
+        <div className="flex flex-col gap-0.5 p-0 mt-xs">
+          {isDesktop ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button onClick={handleChatClick} className={menuLinkClass(false)} type="button">
+                  <PiPlus aria-hidden="true" className={iconClass} />
+                  <span className={titleClass}>Neuer Chat</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" hidden={sidebarExpanded}>
+                Neuer Chat
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <button
+              onClick={() => {
+                handleChatClick();
+                close();
+              }}
+              className={menuLinkClass(false)}
+              type="button"
+            >
+              <PiPlus aria-hidden="true" className={iconClass} />
+              <span className={titleClass}>Neuer Chat</span>
+            </button>
+          )}
+        </div>
 
         {/* Favourites */}
         <SidebarFavourites
@@ -364,7 +375,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           <SheetContent
             side="left"
             showCloseButton={false}
-            className="w-[85vw] max-w-[280px] p-0 bg-background border-r border-grey-200 dark:border-grey-700 flex flex-col gap-0 [&>div]:gap-0"
+            className="w-[85vw] max-w-[280px] p-0 bg-background flex flex-col gap-0 [&>div]:gap-0"
           >
             <SheetTitle className="sr-only">Navigation</SheetTitle>
             {sidebarInner}
@@ -376,7 +387,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       {(!isMobile || isDesktop) && (
         <aside
           className={cn(
-            'sidebar fixed top-0 left-0 h-dvh bg-background border-r border-grey-200 dark:border-grey-700 z-[1001] flex flex-col overflow-hidden transition-[width] duration-200',
+            'sidebar fixed top-0 left-0 h-dvh bg-background z-[1001] flex flex-col overflow-hidden transition-[width] duration-200',
             // Desktop (non-Tauri)
             !isDesktop && 'md:w-14',
             !isDesktop && sidebarExpanded && 'md:w-[280px]',
@@ -407,7 +418,7 @@ function SidebarFavourites({
   isOpen: boolean;
   isDesktop: boolean;
   onLinkClick: (path: string, title: string) => void;
-  isActive: (path: string) => boolean;
+  isActive: (path: string, activePaths?: string[]) => boolean;
   forceExpanded: boolean;
 }) {
   const favouriteIds = useSidebarFavouritesStore((s) => s.favouriteIds);

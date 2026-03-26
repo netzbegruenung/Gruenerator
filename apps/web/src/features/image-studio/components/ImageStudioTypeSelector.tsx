@@ -43,7 +43,7 @@ const ImageStudioTypeSelector: React.FC = () => {
       if (category === IMAGE_STUDIO_CATEGORIES.KI) {
         navigate(`/imagine/${urlSegment}`);
       } else {
-        navigate(`/image-studio/${config?.category || category}/${urlSegment}`);
+        navigate(`/studio/${config?.category || category}/${urlSegment}`);
       }
     },
     [setType, navigate, category]

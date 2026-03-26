@@ -8,9 +8,9 @@ import {
   TooltipTrigger,
 } from '@gruenerator/ui';
 import { LogOut } from 'lucide-react';
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { FaCloud, FaFolder, FaUserCircle, FaUsers } from 'react-icons/fa';
-import { HiCog } from 'react-icons/hi';
+import { HiCog, HiChat } from 'react-icons/hi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
@@ -22,16 +22,12 @@ import {
 } from '../../../features/notifications/hooks/useNotifications';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
-import { useNotificationStore } from '../../../stores/notificationStore';
 
+import type { AvatarDisplay, Profile } from '../../../features/auth/services/profileApiService';
+import type { User } from '../../../stores/authStore';
 import type { IconType } from 'react-icons';
 
 import { cn } from '@/utils/cn';
-
-interface Profile {
-  display_name?: string;
-  avatar_robot_id?: number;
-}
 
 interface NavItem {
   key: string;
@@ -43,75 +39,168 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { key: 'gruppen', label: 'Gruppen', path: '/gruppen', icon: FaUsers, betaFeature: 'groups' },
+  { key: 'chat-settings', label: 'Eigener Chat', path: '/chat/settings', icon: HiChat },
   { key: 'inhalte', label: 'Dateien', path: '/profile/inhalte', icon: FaFolder },
   { key: 'wolke', label: 'Wolke', path: '/profile/wolke', icon: FaCloud },
   { key: 'einstellungen', label: 'Einstellungen', path: '/profile', icon: HiCog },
 ];
 
-const ProfileButton = () => {
-  const { user, loading, logout, isLoggingOut, isInitialLoad, setLoginIntent } = useOptimizedAuth();
+const getPossessiveForm = (name: string | undefined): string => {
+  if (!name) return 'Dein';
+  if (/[sßzx]$/.test(name) || name.endsWith('ss') || name.endsWith('tz') || name.endsWith('ce')) {
+    return `${name}'`;
+  }
+  return `${name}'s`;
+};
+
+const renderAvatar = (avatarProps: AvatarDisplay, size: 'sm' | 'lg', isLoading?: boolean) => {
+  const sizeClass = size === 'sm' ? 'size-full' : 'size-12';
+  const loadingStyle = isLoading
+    ? { opacity: 0.8, transition: 'opacity 0.2s ease-in-out' }
+    : undefined;
+
+  if (avatarProps.type === 'robot') {
+    return (
+      <div
+        className={cn('flex items-center justify-center overflow-hidden rounded-full', sizeClass)}
+      >
+        <img
+          src={avatarProps.src}
+          alt={avatarProps.alt}
+          className="size-full rounded-full object-cover"
+          style={loadingStyle}
+        />
+      </div>
+    );
+  }
+  return (
+    <FaUserCircle
+      className={cn('text-foreground-heading', size === 'sm' ? 'text-lg' : 'text-[3rem]')}
+      style={loadingStyle}
+    />
+  );
+};
+
+interface ProfileDropdownContentProps {
+  user: User;
+  unreadCount: number;
+}
+
+const ProfileDropdownContent = memo(({ user, unreadCount }: ProfileDropdownContentProps) => {
+  const { logout, isLoggingOut } = useOptimizedAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { shouldShowTab } = useBetaFeatures();
 
-  const { data: profile } = useProfile(user?.id) as { data: Profile | undefined };
+  const { data: profile } = useProfile(user.id) as { data: Profile | undefined };
 
   const displayName = profile?.display_name || '';
   const avatarRobotId = profile?.avatar_robot_id ?? 1;
-  const isProfileLoading = isInitialLoad;
 
-  const unreadCount = useNotificationStore((s) => s.unreadCount);
-  useUnreadCount();
-  const markAllAsRead = useMarkAllAsRead();
+  const avatarProps = getAvatarDisplayProps({
+    avatar_robot_id: avatarRobotId,
+    display_name: displayName,
+    email: user.email,
+  });
 
   const filteredNavItems = NAV_ITEMS.filter((item) =>
     item.betaFeature ? shouldShowTab(item.betaFeature) : true
   );
 
-  const getPossessiveForm = (name: string | undefined): string => {
-    if (!name) return 'Dein';
-    if (/[sßzx]$/.test(name) || name.endsWith('ss') || name.endsWith('tz') || name.endsWith('ce')) {
-      return `${name}'`;
-    }
-    return `${name}'s`;
-  };
+  return (
+    <>
+      <div className="flex items-center gap-md p-md bg-background-alt border-b border-grey-200 dark:border-grey-700">
+        <Link
+          to="/profile"
+          className="shrink-0 rounded-full transition-transform hover:scale-[1.08]"
+        >
+          {renderAvatar(avatarProps, 'lg')}
+        </Link>
+        <div className="min-w-0 text-left">
+          <div className="text-[1.2rem] font-semibold text-foreground-heading truncate">
+            {displayName ? getPossessiveForm(displayName.split(' ')[0]) : 'Dein'} Grünerator
+          </div>
+          <div className="text-[0.85rem] text-foreground opacity-80 truncate">{user.email}</div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-center gap-xs px-md py-sm">
+        {filteredNavItems.map((item) => {
+          const isActive =
+            item.key === 'einstellungen'
+              ? location.pathname === '/profile'
+              : location.pathname.startsWith(item.path);
+          return (
+            <Tooltip key={item.key}>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => navigate(item.path)}
+                  className={cn(
+                    'flex items-center justify-center size-9 rounded-lg transition-colors',
+                    isActive
+                      ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400'
+                      : 'text-grey-500 hover:bg-background-alt hover:text-foreground'
+                  )}
+                  aria-label={item.label}
+                >
+                  <item.icon className="size-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                {item.label}
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
+        <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-xxs" />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => {
+                if (!isLoggingOut) void logout();
+              }}
+              disabled={isLoggingOut}
+              className={cn(
+                'flex items-center justify-center size-9 rounded-lg transition-colors',
+                isLoggingOut
+                  ? 'opacity-50 cursor-not-allowed text-grey-400'
+                  : 'text-grey-500 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600'
+              )}
+              aria-label={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
+            >
+              <LogOut className="size-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">
+            {isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
+          </TooltipContent>
+        </Tooltip>
+      </div>
+
+      <NotificationList unreadCount={unreadCount} />
+    </>
+  );
+});
+ProfileDropdownContent.displayName = 'ProfileDropdownContent';
+
+const ProfileButton = () => {
+  const { user, loading, isInitialLoad, setLoginIntent } = useOptimizedAuth();
+  const [open, setOpen] = useState(false);
+
+  const { data: unreadCount = 0 } = useUnreadCount();
+  const markAllAsRead = useMarkAllAsRead();
+
+  const { data: profile } = useProfile(user?.id) as { data: Profile | undefined };
+  const avatarRobotId = profile?.avatar_robot_id ?? 1;
+  const displayName = profile?.display_name || '';
 
   const avatarProps = getAvatarDisplayProps({
     avatar_robot_id: avatarRobotId,
     display_name: displayName,
     email: user?.email,
   });
-
-  const renderAvatar = (size: 'sm' | 'lg') => {
-    const sizeClass = size === 'sm' ? 'size-full' : 'size-12';
-    if (avatarProps.type === 'robot') {
-      return (
-        <div
-          className={cn('flex items-center justify-center overflow-hidden rounded-full', sizeClass)}
-        >
-          <img
-            src={avatarProps.src}
-            alt={avatarProps.alt}
-            className="size-full rounded-full object-cover"
-            style={{
-              opacity: size === 'sm' && isProfileLoading ? 0.8 : 1,
-              transition: 'opacity 0.2s ease-in-out',
-            }}
-          />
-        </div>
-      );
-    }
-    return (
-      <FaUserCircle
-        className={cn('text-foreground-heading', size === 'sm' ? 'text-lg' : 'text-[3rem]')}
-        style={
-          size === 'sm'
-            ? { opacity: isProfileLoading ? 0.8 : 1, transition: 'opacity 0.2s ease-in-out' }
-            : undefined
-        }
-      />
-    );
-  };
 
   if (!loading && !user) {
     return (
@@ -140,8 +229,10 @@ const ProfileButton = () => {
 
   return (
     <DropdownMenu
-      onOpenChange={(open) => {
-        if (open && unreadCount > 0) markAllAsRead.mutate();
+      open={open}
+      onOpenChange={(isOpen) => {
+        setOpen(isOpen);
+        if (isOpen && unreadCount > 0) markAllAsRead.mutate();
       }}
     >
       <DropdownMenuTrigger asChild>
@@ -149,7 +240,7 @@ const ProfileButton = () => {
           className="relative flex items-center justify-center size-[38px] rounded-full border border-grey-200 dark:border-grey-700 bg-background hover:border-primary-500 hover:bg-hover-alt transition-colors"
           aria-label="Profil-Menü öffnen"
         >
-          {renderAvatar('sm')}
+          {renderAvatar(avatarProps, 'sm', isInitialLoad)}
           {unreadCount > 0 && (
             <Badge
               variant="destructive"
@@ -161,85 +252,10 @@ const ProfileButton = () => {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[320px] p-0" sideOffset={8}>
-        {/* User info header */}
-        <div className="flex items-center gap-md p-md bg-background-alt border-b border-grey-200 dark:border-grey-700">
-          <Link
-            to="/profile"
-            className="shrink-0 rounded-full transition-transform hover:scale-[1.08]"
-          >
-            {renderAvatar('lg')}
-          </Link>
-          <div className="min-w-0 text-left">
-            <div className="text-[1.2rem] font-semibold text-foreground-heading truncate">
-              {displayName ? getPossessiveForm(displayName.split(' ')[0]) : 'Dein'} Grünerator
-            </div>
-            <div className="text-[0.85rem] text-foreground opacity-80 truncate">
-              {user?.email || ''}
-            </div>
-          </div>
-        </div>
-
-        {/* Icon row navigation */}
-        <div className="flex items-center justify-center gap-xs px-md py-sm">
-          {filteredNavItems.map((item) => {
-            const isActive =
-              item.key === 'einstellungen'
-                ? location.pathname === '/profile'
-                : location.pathname.startsWith(item.path);
-            return (
-              <Tooltip key={item.key}>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={() => navigate(item.path)}
-                    className={cn(
-                      'flex items-center justify-center size-9 rounded-lg transition-colors',
-                      isActive
-                        ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400'
-                        : 'text-grey-500 hover:bg-background-alt hover:text-foreground'
-                    )}
-                    aria-label={item.label}
-                  >
-                    <item.icon className="size-4" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs">
-                  {item.label}
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-          <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-xxs" />
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!isLoggingOut) void logout();
-                }}
-                disabled={isLoggingOut}
-                className={cn(
-                  'flex items-center justify-center size-9 rounded-lg transition-colors',
-                  isLoggingOut
-                    ? 'opacity-50 cursor-not-allowed text-grey-400'
-                    : 'text-grey-500 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600'
-                )}
-                aria-label={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
-              >
-                <LogOut className="size-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-xs">
-              {isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
-            </TooltipContent>
-          </Tooltip>
-        </div>
-
-        {/* Notifications */}
-        <NotificationList />
+        {open && user && <ProfileDropdownContent user={user} unreadCount={unreadCount} />}
       </DropdownMenuContent>
     </DropdownMenu>
   );
 };
 
-export default memo(ProfileButton);
+export default ProfileButton;

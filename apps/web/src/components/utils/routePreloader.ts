@@ -37,17 +37,17 @@ export const ROUTE_RELATIONSHIPS: Record<string, RouteRelationship> = {
     delayed: ['Pressemitteilung'],
     styles: ['typography', 'baseform'],
   },
-  '/image-studio': {
+  '/studio': {
     immediate: ['SocialMedia'],
     delayed: [],
     styles: ['typography', 'imagemodificator'],
   },
-  '/image-studio/templates': {
+  '/studio/templates': {
     immediate: ['SocialMedia'],
     delayed: [],
     styles: ['typography', 'imagemodificator'],
   },
-  '/image-studio/ki': {
+  '/studio/ki': {
     immediate: ['SocialMedia'],
     delayed: [],
     styles: ['typography', 'imagemodificator'],

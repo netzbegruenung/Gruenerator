@@ -17,6 +17,7 @@ import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import apiClient from '../../../components/utils/apiClient';
 import { cn } from '../../../utils/cn';
 import { useTemplateClone } from '../hooks/useTemplateClone';
+import { getSharepicRoute } from '../utils/sharepicRoutes';
 
 import type { Share } from '@gruenerator/shared';
 
@@ -360,16 +361,7 @@ const ImageGallery = () => {
         return;
       }
 
-      // Map sharepic types to Image Studio routes
-      const typeRouteMap: Record<SharepicTypeKey, string> = {
-        Dreizeilen: '/image-studio/templates/dreizeilen',
-        Zitat: '/image-studio/templates/zitat',
-        Zitat_Pure: '/image-studio/templates/zitat-pure',
-        Info: '/image-studio/templates/info',
-        Headline: '/image-studio/templates/headline',
-      };
-
-      const route = typeRouteMap[sharepicType];
+      const route = getSharepicRoute(sharepicType);
       if (!route) {
         console.warn('Unknown sharepic type:', sharepicType);
         return;
@@ -401,7 +393,7 @@ const ImageGallery = () => {
   );
 
   const handleNewImage = () => {
-    navigate('/image-studio');
+    navigate('/studio');
   };
 
   const imageShares = shares.filter((s) => s.mediaType === 'image') as GalleryImage[];

@@ -1,5 +1,4 @@
 import {
-  AnimatedCircularProgressBar,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -7,7 +6,9 @@ import {
   DropdownMenuTrigger,
   FeatureToggle,
   FileCard,
+  ProcessingState,
   Ripple,
+  StepBreadcrumb,
 } from '@gruenerator/ui';
 import { lazy, Suspense, useCallback, useState } from 'react';
 import { HiDocumentText, HiDownload } from 'react-icons/hi';
@@ -270,48 +271,22 @@ const TranskriptionPage = () => {
         )}
 
         {(state.status === 'uploading' || state.status === 'extracting') && (
-          <div className="flex flex-col items-center gap-lg py-xl">
-            <AnimatedCircularProgressBar
-              value={state.progress}
-              min={0}
-              max={100}
-              gaugePrimaryColor="var(--primary-600)"
-              gaugeSecondaryColor="var(--grey-200)"
-              className="size-32"
-            />
-            <div className="flex flex-col items-center gap-xs">
-              <p className="text-sm font-medium text-foreground">
-                {state.status === 'uploading' &&
-                  (isVideo ? 'Video wird hochgeladen' : 'Wird hochgeladen')}
-                {state.status === 'extracting' && 'Audio wird extrahiert'}
-              </p>
-              <div className="flex items-center gap-sm text-xs text-grey-400 dark:text-grey-500">
-                <span
-                  className={
-                    state.status === 'uploading'
-                      ? 'text-primary-600 font-semibold'
-                      : 'text-primary-600'
-                  }
-                >
-                  Hochladen
-                </span>
-                <span>→</span>
-                {isVideo && (
-                  <>
-                    <span
-                      className={
-                        state.status === 'extracting' ? 'text-primary-600 font-semibold' : ''
-                      }
-                    >
-                      Extrahieren
-                    </span>
-                    <span>→</span>
-                  </>
-                )}
-                <span>Transkribieren</span>
-              </div>
-            </div>
-          </div>
+          <ProcessingState
+            progress={state.progress}
+            label={
+              state.status === 'uploading'
+                ? isVideo
+                  ? 'Video wird hochgeladen'
+                  : 'Wird hochgeladen'
+                : 'Audio wird extrahiert'
+            }
+            steps={
+              isVideo
+                ? [{ label: 'Hochladen' }, { label: 'Extrahieren' }, { label: 'Transkribieren' }]
+                : [{ label: 'Hochladen' }, { label: 'Transkribieren' }]
+            }
+            activeStepIndex={state.status === 'uploading' ? 0 : 1}
+          />
         )}
 
         {state.status === 'transcribing' && (
@@ -329,17 +304,18 @@ const TranskriptionPage = () => {
                 <AudioVisualizer className="h-12" />
                 <div className="flex flex-col items-center gap-xs">
                   <p className="text-sm font-medium text-foreground">Wird transkribiert...</p>
-                  <div className="flex items-center gap-sm text-xs text-grey-400 dark:text-grey-500">
-                    <span className="text-primary-600">Hochladen</span>
-                    <span>→</span>
-                    {isVideo && (
-                      <>
-                        <span className="text-primary-600">Extrahieren</span>
-                        <span>→</span>
-                      </>
-                    )}
-                    <span className="text-primary-600 font-semibold">Transkribieren</span>
-                  </div>
+                  <StepBreadcrumb
+                    steps={
+                      isVideo
+                        ? [
+                            { label: 'Hochladen' },
+                            { label: 'Extrahieren' },
+                            { label: 'Transkribieren' },
+                          ]
+                        : [{ label: 'Hochladen' }, { label: 'Transkribieren' }]
+                    }
+                    activeIndex={isVideo ? 2 : 1}
+                  />
                   {options.privacyMode && (
                     <p className="text-xs text-emerald-700 dark:text-emerald-400">
                       (Datenschutz-Modus — kann länger dauern)
