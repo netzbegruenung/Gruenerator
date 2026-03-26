@@ -52,6 +52,7 @@ export { default as useWolkePreferencesStore } from './stores/wolkePreferencesSt
 export type {
   WolkeFavouriteFolder,
   WolkeAutoBackupConfig,
+  WolkeTransferFolderConfig,
   BackupInterval,
 } from './stores/wolkePreferencesStore';
 

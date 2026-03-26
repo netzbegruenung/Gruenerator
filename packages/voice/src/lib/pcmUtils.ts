@@ -1,7 +1,7 @@
 /**
- * Converts Float32 PCM samples to a WAV blob suitable for upload.
- * KugelAudio returns PCM16 (signed 16-bit LE) at 24kHz — the decode
- * functions handle that format.
+ * PCM audio utilities for TTS playback.
+ * Voxtral TTS returns float32 LE PCM at 24kHz for streaming.
+ * Legacy PCM16 decoder kept for backward compatibility.
  */
 
 export function float32ToWavBlob(samples: Float32Array, sampleRate: number): Blob {
@@ -50,6 +50,15 @@ export function base64PCM16ToFloat32(base64: string): Float32Array {
     float32[i] = (int16[i] ?? 0) / 32768;
   }
   return float32;
+}
+
+export function base64Float32LEToFloat32(base64: string): Float32Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new Float32Array(bytes.buffer);
 }
 
 function writeString(view: DataView, offset: number, str: string) {

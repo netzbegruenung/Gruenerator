@@ -18,6 +18,9 @@ const LoginPage = lazyWithRetry(() =>
 const SettingsPage = lazyWithRetry(() =>
   import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage }))
 );
+const PresentationPage = lazyWithRetry(() =>
+  import('./pages/PresentationPage').then((m) => ({ default: m.PresentationPage }))
+);
 
 // Initialize API client (side-effect: sets up shared API client)
 import './lib/apiClient';
@@ -60,6 +63,16 @@ function App() {
                   <ProtectedRoute>
                     <ErrorBoundary showHomeLink>
                       <EditorPage />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/presentation/:id"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary showHomeLink>
+                      <PresentationPage />
                     </ErrorBoundary>
                   </ProtectedRoute>
                 }

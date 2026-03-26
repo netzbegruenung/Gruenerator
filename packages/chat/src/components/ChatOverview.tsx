@@ -114,64 +114,6 @@ export function ChatOverview({
           firstName={firstName}
         />
       </ThreadPrimitive.Root>
-
-      <div className="flex w-full max-w-3xl flex-wrap gap-2 pt-4">
-        <button
-          onClick={() => onNavigate?.('/datenbank/agents')}
-          className={cn(
-            'rounded-full border border-border bg-background-alt px-4 py-2 text-sm text-foreground transition-all',
-            'hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm'
-          )}
-        >
-          Agenten entdecken
-        </button>
-        <button
-          onClick={() => onNavigate?.('/chat/settings')}
-          className={cn(
-            'rounded-full border border-border bg-background-alt px-4 py-2 text-sm text-foreground transition-all',
-            'hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm'
-          )}
-        >
-          Eigener Chat
-        </button>
-      </div>
-
-      {notebooks && notebooks.length > 0 && (
-        <div className="w-full max-w-3xl pt-4">
-          <h2 className="mb-3 text-sm font-medium text-foreground-muted">
-            oder chatte mit einem Notebook
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {(showAllNotebooks ? notebooks : notebooks.slice(0, INITIAL_NOTEBOOK_COUNT)).map(
-              (nb) => (
-                <button
-                  key={nb.id}
-                  onClick={() =>
-                    onSelectNotebook ? onSelectNotebook(nb.id) : onNavigate?.(nb.path)
-                  }
-                  className={cn(
-                    'rounded-full border border-border bg-background-alt px-4 py-2 text-sm text-foreground transition-all',
-                    'hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm'
-                  )}
-                >
-                  {nb.title}
-                </button>
-              )
-            )}
-            {!showAllNotebooks && notebooks.length > INITIAL_NOTEBOOK_COUNT && (
-              <button
-                onClick={() => setShowAllNotebooks(true)}
-                className={cn(
-                  'rounded-full border border-dashed border-border px-4 py-2 text-sm text-foreground-muted transition-all',
-                  'hover:border-primary/30 hover:text-foreground'
-                )}
-              >
-                +{notebooks.length - INITIAL_NOTEBOOK_COUNT} mehr
-              </button>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

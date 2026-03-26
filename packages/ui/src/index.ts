@@ -175,3 +175,25 @@ export {
   PaginationNext,
   PaginationEllipsis,
 } from './components/pagination';
+export { UploadZone, type UploadZoneProps, type Accept } from './components/upload-zone';
+export {
+  StepBreadcrumb,
+  type StepBreadcrumbStep,
+  type StepBreadcrumbProps,
+} from './components/step-breadcrumb';
+export { ProcessingState, type ProcessingStateProps } from './components/processing-state';
+export { PreviewImage, type PreviewImageProps } from './components/preview-image';
+export { FeatureCard, type FeatureCardProps } from './components/feature-card';
+
+export {
+  PillGroup,
+  pillBase,
+  pillActive,
+  pillInactive,
+  toggleSelection,
+  type SettingOption,
+  type SettingConfig,
+} from './components/pill-group';
+export { SettingsDropdown, type SettingsDropdownProps } from './components/settings-dropdown';
+export { SettingsTagInput, type SettingsTagInputProps } from './components/settings-tag-input';
+export { CardActionsMenu, type CardActionsMenuProps } from './components/card-actions';

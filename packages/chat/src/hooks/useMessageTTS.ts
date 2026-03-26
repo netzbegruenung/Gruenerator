@@ -11,7 +11,7 @@ export type TTSState = 'idle' | 'loading' | 'playing';
 interface UseMessageTTSOptions {
   apiBaseUrl: string;
   fetchFn?: (url: string, options?: RequestInit) => Promise<Response>;
-  voiceId?: number;
+  voiceId?: string;
 }
 
 export function useMessageTTS({ apiBaseUrl, fetchFn, voiceId }: UseMessageTTSOptions) {
