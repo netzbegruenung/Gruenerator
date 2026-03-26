@@ -374,7 +374,7 @@ export const useAuth = (options: AuthOptions = {}) => {
             email: 'dev@gruenerator.de',
             display_name: 'Test User',
             avatar_robot_id: 1,
-            beta_features: {},
+            beta_features: { workplace: true },
             user_defaults: {},
             locale: 'de-DE',
             igel_modus: false,

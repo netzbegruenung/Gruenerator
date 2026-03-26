@@ -292,7 +292,7 @@ const ImageDisplay = ({
     }
 
     // Open Image Studio in new tab with editing session
-    const url = new URL(window.location.origin + '/image-studio/templates');
+    const url = new URL(window.location.origin + '/studio/templates');
     url.searchParams.append('editSession', editingSessionId);
     window.open(url.toString(), '_blank');
   };

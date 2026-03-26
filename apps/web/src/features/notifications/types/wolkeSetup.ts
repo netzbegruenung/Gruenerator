@@ -11,7 +11,7 @@ const wolkeSetup: NotificationTypeConfig = {
   description: 'Benachrichtigung bei Wolke-Einrichtung',
   icon: Bell,
   image: '/images/profileimages/10.svg',
-  emailPreference: false,
+  group: 'system',
   actions: (ctx) => [
     setAvatarAction(10, 'Wolki aktivieren')(ctx),
     navigateAction('/profile', 'Profil öffnen')(ctx),

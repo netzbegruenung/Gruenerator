@@ -1,29 +1,20 @@
+import { ProcessingState } from '@gruenerator/ui';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { MdSearch, MdContentCut, MdSubtitles, MdCheck, MdError } from 'react-icons/md';
-
-import { cn } from '@/utils/cn';
+import { MdCheck, MdError } from 'react-icons/md';
 
 import apiClient from '../../../components/utils/apiClient';
-
-import type { IconType } from 'react-icons';
-
-interface Stage {
-  id: number;
-  name: string;
-  Icon: IconType;
-}
-
-const STAGES: Stage[] = [
-  { id: 1, name: 'Video wird analysiert...', Icon: MdSearch },
-  { id: 2, name: 'Stille Teile werden entfernt...', Icon: MdContentCut },
-  { id: 3, name: 'Untertitel werden generiert...', Icon: MdSubtitles },
-  { id: 4, name: 'Wird fertiggestellt...', Icon: MdCheck },
-];
 
 const POLL_INTERVAL = 2000;
 const POLL_INTERVAL_EXTENDED = 5000;
 const EXTENDED_POLL_THRESHOLD = 30000;
+
+function mapBackendStage(backendStage: number): number {
+  if (backendStage <= 3) return 0;
+  return 1;
+}
+
+const STEPS = [{ label: 'Untertitel' }, { label: 'Fertigstellung' }];
 
 export interface AutoProcessingResult {
   outputPath: string;
@@ -45,13 +36,11 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
   onError,
 }) => {
   const [status, setStatus] = useState<'processing' | 'complete' | 'error'>('processing');
-  const [currentStage, setCurrentStage] = useState<number>(1);
-  const [stageProgress, setStageProgress] = useState<number>(0);
-  const [overallProgress, setOverallProgress] = useState<number>(0);
+  const [activeStepIndex, setActiveStepIndex] = useState(0);
+  const [overallProgress, setOverallProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [outputPath, setOutputPath] = useState<string | null>(null);
 
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startTimeRef = useRef<number>(Date.now());
 
   const pollProgress = useCallback(async () => {
@@ -63,25 +52,21 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
 
       if (data.status === 'complete') {
         setStatus('complete');
-        setCurrentStage(4);
-        setStageProgress(100);
+        setActiveStepIndex(1);
         setOverallProgress(100);
-        setOutputPath(data.outputPath);
 
         if (pollingRef.current) {
-          clearInterval(pollingRef.current);
+          clearTimeout(pollingRef.current);
           pollingRef.current = null;
         }
 
-        if (onComplete) {
-          onComplete({
-            outputPath: data.outputPath,
-            duration: data.duration,
-            uploadId,
-            projectId: data.projectId || null,
-            subtitles: data.subtitles || null,
-          });
-        }
+        onComplete({
+          outputPath: data.outputPath,
+          duration: data.duration,
+          uploadId,
+          projectId: data.projectId || null,
+          subtitles: data.subtitles || null,
+        });
         return;
       }
 
@@ -90,7 +75,7 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
         setError(data.error || 'Verarbeitung fehlgeschlagen');
 
         if (pollingRef.current) {
-          clearInterval(pollingRef.current);
+          clearTimeout(pollingRef.current);
           pollingRef.current = null;
         }
 
@@ -100,8 +85,7 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
         return;
       }
 
-      if (data.stage) setCurrentStage(data.stage);
-      if (data.stageProgress !== undefined) setStageProgress(data.stageProgress);
+      if (data.stage) setActiveStepIndex(mapBackendStage(data.stage));
       if (data.overallProgress !== undefined) setOverallProgress(data.overallProgress);
     } catch (err) {
       console.error('[AutoProcessingScreen] Poll error:', err);
@@ -112,170 +96,81 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
     if (!uploadId) return;
 
     startTimeRef.current = Date.now();
-    pollProgress();
+    let cancelled = false;
 
-    pollingRef.current = setInterval(() => {
+    function scheduleNextPoll(): void {
+      if (cancelled) return;
       const elapsed = Date.now() - startTimeRef.current;
       const interval = elapsed > EXTENDED_POLL_THRESHOLD ? POLL_INTERVAL_EXTENDED : POLL_INTERVAL;
+      pollingRef.current = setTimeout(async () => {
+        if (cancelled) return;
+        await pollProgress();
+        scheduleNextPoll();
+      }, interval);
+    }
 
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-        pollingRef.current = setInterval(pollProgress, interval);
-      }
-
-      pollProgress();
-    }, POLL_INTERVAL);
+    pollProgress().then(() => scheduleNextPoll());
 
     return () => {
+      cancelled = true;
       if (pollingRef.current) {
-        clearInterval(pollingRef.current);
+        clearTimeout(pollingRef.current);
         pollingRef.current = null;
       }
     };
   }, [uploadId, pollProgress]);
 
-  const renderStageIcon = (stage: Stage, isActive: boolean, isCompleted: boolean) => {
-    const Icon = stage.Icon;
-
-    if (isCompleted) {
-      return (
+  if (status === 'error') {
+    return (
+      <div className="flex flex-col items-center gap-md py-xl text-center">
         <motion.div
-          className="flex size-8 items-center justify-center rounded-full bg-primary-500 text-white"
-          initial={{ scale: 0.8 }}
+          className="flex size-16 items-center justify-center rounded-full bg-red-100 text-3xl text-red-600 dark:bg-red-900/30"
+          initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: 'spring', stiffness: 300 }}
         >
-          <MdCheck />
+          <MdError />
         </motion.div>
-      );
-    }
-
-    if (isActive) {
-      return (
-        <motion.div
-          className="flex size-8 items-center justify-center rounded-full bg-primary-100 text-primary-600 dark:bg-primary-900/30"
-          animate={{ scale: [1, 1.1, 1] }}
-          transition={{ repeat: Infinity, duration: 1.5 }}
-        >
-          <Icon />
-        </motion.div>
-      );
-    }
-
-    return (
-      <div className="flex size-8 items-center justify-center rounded-full bg-grey-200 text-grey-400 dark:bg-grey-700 dark:text-grey-500">
-        <Icon />
-      </div>
-    );
-  };
-
-  if (status === 'error') {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <div className="flex max-w-[500px] flex-col items-center gap-lg text-center">
-          <motion.div
-            className="flex size-16 items-center justify-center rounded-full bg-red-100 text-3xl text-red-600 dark:bg-red-900/30"
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: 'spring', stiffness: 300 }}
-          >
-            <MdError />
-          </motion.div>
-          <h2 className="text-xl font-semibold text-foreground-heading">
-            Verarbeitung fehlgeschlagen
-          </h2>
-          <p className="text-foreground">{error}</p>
-        </div>
+        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
       </div>
     );
   }
 
+  const stepsWithSuffix = STEPS.map((step, i) =>
+    i === 1 && activeStepIndex === 1 ? { ...step, suffix: `${Math.round(overallProgress)}%` } : step
+  );
+
+  const label =
+    activeStepIndex === 0
+      ? 'Untertitel werden generiert...'
+      : status === 'complete'
+        ? ''
+        : 'Wird fertiggestellt...';
+
   return (
-    <div className="flex min-h-[400px] items-center justify-center">
-      <div className="flex w-full max-w-[500px] flex-col items-center gap-lg text-center">
-        <h2 className="text-xl font-semibold text-foreground-heading">
-          Automatische Verarbeitung
-        </h2>
-        <p className="text-grey-500">Dein Video wird automatisch optimiert</p>
-
-        <div className="flex w-full items-center gap-sm">
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-grey-200 dark:bg-grey-700">
-            <motion.div
-              className="h-full rounded-full bg-primary-500"
-              initial={{ width: 0 }}
-              animate={{ width: `${overallProgress}%` }}
-              transition={{ duration: 0.3 }}
-            />
-          </div>
-          <span className="min-w-[3ch] text-sm font-medium text-foreground tabular-nums">
-            {Math.round(overallProgress)}%
-          </span>
-        </div>
-
-        <div className="flex w-full flex-col gap-xs">
-          {STAGES.map((stage) => {
-            const isActive = stage.id === currentStage;
-            const isCompleted =
-              stage.id < currentStage || (stage.id === currentStage && status === 'complete');
-
-            return (
+    <>
+      <ProcessingState
+        progress={overallProgress}
+        label={label}
+        steps={stepsWithSuffix}
+        activeStepIndex={activeStepIndex}
+        footer={
+          <AnimatePresence>
+            {status === 'complete' && (
               <motion.div
-                key={stage.id}
-                className={cn(
-                  'relative flex items-center gap-md rounded-lg p-sm transition-colors',
-                  isActive && 'bg-primary-50 dark:bg-grey-800',
-                  isCompleted && 'opacity-70'
-                )}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: stage.id * 0.1 }}
+                className="flex items-center gap-sm font-medium text-primary-600"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
               >
-                {renderStageIcon(stage, isActive, isCompleted)}
-                <div className="flex flex-1 items-center gap-sm">
-                  <span
-                    className={cn(
-                      'text-sm',
-                      isActive
-                        ? 'font-medium text-foreground'
-                        : isCompleted
-                          ? 'text-foreground'
-                          : 'text-grey-400 dark:text-grey-500'
-                    )}
-                  >
-                    {stage.name}
-                  </span>
-                  {isActive && stageProgress > 0 && stageProgress < 100 && (
-                    <span className="text-xs text-grey-500 tabular-nums">
-                      {Math.round(stageProgress)}%
-                    </span>
-                  )}
-                </div>
-                {isActive && (
-                  <motion.div
-                    className="absolute bottom-0 left-0 h-0.5 w-full rounded-full bg-primary-500"
-                    layoutId="activeIndicator"
-                  />
-                )}
+                <MdCheck className="text-lg" />
+                <span>Fertig!</span>
               </motion.div>
-            );
-          })}
-        </div>
-
-        <AnimatePresence>
-          {status === 'complete' && (
-            <motion.div
-              className="flex items-center gap-sm font-medium text-primary-600"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-            >
-              <MdCheck className="text-lg" />
-              <span>Verarbeitung abgeschlossen!</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </div>
+            )}
+          </AnimatePresence>
+        }
+      />
+    </>
   );
 };
 

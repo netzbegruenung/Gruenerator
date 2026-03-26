@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
@@ -51,5 +52,21 @@ const useSidebarFavouritesStore = create<SidebarFavouritesStore>()(
     }
   )
 );
+
+/**
+ * Hook for a single item's favourite status.
+ * Only re-renders when THIS item's status changes (not when other items change).
+ */
+export function useIsFavourite(id: string): boolean {
+  return useSidebarFavouritesStore(useCallback((s) => s.favouriteIds.includes(id), [id]));
+}
+
+/**
+ * Hook for whether the favourites list is full.
+ * Only re-renders when the count crosses the threshold.
+ */
+export function useIsFavouritesFull(): boolean {
+  return useSidebarFavouritesStore((s) => s.favouriteIds.length >= MAX_FAVOURITES);
+}
 
 export default useSidebarFavouritesStore;

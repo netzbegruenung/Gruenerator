@@ -2,6 +2,7 @@ import { Bell, ExternalLink, SmilePlus } from 'lucide-react';
 
 import { NOTIFICATION_TYPES } from './types';
 
+import type { NotificationGroup } from './types';
 import type { ComponentType } from 'react';
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -28,7 +29,7 @@ export interface NotificationTypeConfig {
   description: string;
   icon: ComponentType<{ className?: string }>;
   image?: string;
-  emailPreference?: boolean;
+  group?: NotificationGroup;
   actions?: (ctx: NotificationActionContext) => (NotificationAction | null)[];
 }
 
@@ -102,9 +103,25 @@ export function getNotificationActions(
 }
 
 export function getEmailPreferenceTypes() {
-  return Object.entries(NOTIFICATION_TYPES)
-    .filter(([, config]) => config.emailPreference !== false)
-    .map(([key, config]) => ({ key, ...config }));
+  return getAllPreferenceTypes();
+}
+
+export function getAllPreferenceTypes() {
+  return Object.entries(NOTIFICATION_TYPES).map(([key, config]) => ({ key, ...config }));
+}
+
+export function getPreferenceTypesByGroup() {
+  const all = getAllPreferenceTypes();
+  const grouped = new Map<string, typeof all>();
+
+  for (const entry of all) {
+    const group = entry.group ?? 'system';
+    const existing = grouped.get(group) ?? [];
+    existing.push(entry);
+    grouped.set(group, existing);
+  }
+
+  return grouped;
 }
 
 export function truncateBody(body: string | null | undefined): string | null {
