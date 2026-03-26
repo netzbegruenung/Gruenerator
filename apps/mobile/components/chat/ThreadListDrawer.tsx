@@ -1,9 +1,6 @@
 import {
-  ThreadListRoot,
-  ThreadListItems,
-  ThreadListNew,
-  ThreadListItemRoot,
-  ThreadListItemTitle,
+  ThreadListPrimitive,
+  ThreadListItemPrimitive,
   ThreadListItemByIndexProvider,
   useAui,
 } from '@assistant-ui/react-native';
@@ -54,7 +51,7 @@ const ThreadItem = memo(function ThreadItem({
 
   return (
     <ThreadListItemByIndexProvider index={index} archived={false}>
-      <ThreadListItemRoot style={styles.itemRoot}>
+      <ThreadListItemPrimitive.Root style={styles.itemRoot}>
         <Pressable
           onPress={handlePress}
           style={({ pressed }) => [
@@ -64,14 +61,14 @@ const ThreadItem = memo(function ThreadItem({
         >
           <Ionicons name="chatbubble-outline" size={18} color={theme.textSecondary} />
           <Text style={[styles.itemTitle, { color: theme.text }]} numberOfLines={1}>
-            <ThreadListItemTitle fallback="Neue Unterhaltung" />
+            <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
           </Text>
         </Pressable>
 
         <Pressable onPress={handleDelete} style={styles.deleteButton} hitSlop={8}>
           <Ionicons name="trash-outline" size={16} color={theme.textSecondary} />
         </Pressable>
-      </ThreadListItemRoot>
+      </ThreadListItemPrimitive.Root>
     </ThreadListItemByIndexProvider>
   );
 });
@@ -136,12 +133,12 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({
   );
 
   return (
-    <ThreadListRoot style={[styles.container, { backgroundColor: theme.background }]}>
+    <ThreadListPrimitive.Root style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + spacing.small }]}>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Unterhaltungen</Text>
-        <ThreadListNew style={styles.newButton}>
+        <ThreadListPrimitive.New style={styles.newButton}>
           <Ionicons name="create-outline" size={22} color={colors.primary[600]} />
-        </ThreadListNew>
+        </ThreadListPrimitive.New>
       </View>
 
       <Pressable
@@ -160,7 +157,7 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({
 
       <View style={[styles.separator, { backgroundColor: theme.border }]} />
 
-      <ThreadListItems
+      <ThreadListPrimitive.Items
         renderItem={renderItem}
         style={styles.list}
         contentContainerStyle={styles.listContent}
@@ -174,7 +171,7 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({
         onSelectAgent={handleSelectAgent}
         onInsertMention={handleInsertMention}
       />
-    </ThreadListRoot>
+    </ThreadListPrimitive.Root>
   );
 });
 

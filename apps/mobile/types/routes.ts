@@ -13,23 +13,18 @@ export type AppRoute =
   | '/'
   | '/start'
   | '/profile'
-  // Texte routes
-  | '/(tabs)/(texte)/presse'
-  | '/(tabs)/(texte)/antrag'
-  | '/(tabs)/(texte)/universal'
   // Media routes
   | '/(tabs)/(media)/reel'
   | '/(tabs)/(media)/image-studio'
   // Desk routes
-  | '/(tabs)/(desk)/suche'
-  | '/(tabs)/(desk)/notebooks'
   | '/(tabs)/(desk)/scanner'
   | '/(tabs)/(desk)/transkription'
-  | '/(tabs)/(desk)/research'
   | '/(tabs)/(desk)/gruppen'
   | '/(tabs)/(desk)/boards'
-  // Modal routes
-  | '/(modals)/gruenerator-chat'
+  // Recherche routes
+  | '/(tabs)/(recherche)'
+  | '/(tabs)/(recherche)/suche'
+  | '/(tabs)/(recherche)/research'
   // Auth routes
   | '/(auth)/login'
   | '/auth/callback'
@@ -48,9 +43,6 @@ export type AppRoute =
  * Modal routes that accept parameters
  */
 export interface ModalRouteParams {
-  '/(modals)/gruenerator-chat': {
-    initialMessage?: string;
-  };
   '/(focused)/chat-conversation': {
     threadId: string;
     initialMessage?: string;

@@ -1,10 +1,8 @@
 import {
-  ComposerRoot,
-  ComposerSend,
-  ComposerCancel,
-  ComposerAttachments,
-  useThreadIsRunning,
   useAui,
+  useAuiState,
+  ComposerPrimitive,
+  AttachmentPrimitive,
 } from '@assistant-ui/react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { detectMention, computeMentionInsertion, type Mentionable } from '@gruenerator/chat';
@@ -28,6 +26,7 @@ import {
 import { colors, spacing, borderRadius } from '../../theme';
 
 import { ComposerAttachmentUI } from './AttachmentUI';
+import { ChatSettingsSheet } from './ChatSettingsSheet';
 import { MentionSuggestions } from './MentionSuggestions';
 
 import type { Theme } from '../../theme/colors';
@@ -45,6 +44,7 @@ interface Props {
   bottomInset?: number;
   onOpenDocBrowser?: () => void;
   inputRef?: React.RefObject<TextInput | null>;
+  showSettings?: boolean;
 }
 
 export function AssistantComposer({
@@ -52,8 +52,9 @@ export function AssistantComposer({
   bottomInset = 0,
   onOpenDocBrowser,
   inputRef: externalInputRef,
+  showSettings = true,
 }: Props) {
-  const isRunning = useThreadIsRunning();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
   const aui = useAui();
   const internalInputRef = useRef<TextInput>(null);
   const inputRef = externalInputRef ?? internalInputRef;
@@ -61,6 +62,7 @@ export function AssistantComposer({
   const selectionRef = useRef(0);
   const [mention, setMention] = useState<MentionState | null>(null);
   const [plusMenuVisible, setPlusMenuVisible] = useState(false);
+  const [settingsVisible, setSettingsVisible] = useState(false);
 
   const onChangeText = useCallback(
     (value: string) => {
@@ -154,7 +156,7 @@ export function AssistantComposer({
   );
 
   return (
-    <ComposerRoot
+    <ComposerPrimitive.Root
       style={[styles.root, { backgroundColor: theme.background, paddingBottom: bottomInset }]}
     >
       {mention?.visible && (
@@ -168,7 +170,7 @@ export function AssistantComposer({
         />
       )}
       <View style={styles.attachmentsRow}>
-        <ComposerAttachments components={{ Attachment: ComposerAttachmentUI }} />
+        <ComposerPrimitive.Attachments components={{ Attachment: ComposerAttachmentUI }} />
       </View>
       <View
         style={[styles.inputRow, { backgroundColor: theme.surface }, styles.inputRowWithActions]}
@@ -176,6 +178,11 @@ export function AssistantComposer({
         <Pressable onPress={() => setPlusMenuVisible(true)} style={styles.actionButton} hitSlop={8}>
           <Ionicons name="add-circle-outline" size={22} color={theme.textSecondary} />
         </Pressable>
+        {showSettings && (
+          <Pressable onPress={() => setSettingsVisible(true)} style={styles.actionButton} hitSlop={8}>
+            <Ionicons name="options-outline" size={20} color={theme.textSecondary} />
+          </Pressable>
+        )}
         <TextInput
           ref={inputRef}
           style={[styles.input, { color: theme.text }]}
@@ -186,11 +193,11 @@ export function AssistantComposer({
           onSelectionChange={onSelectionChange}
         />
         {isRunning ? (
-          <ComposerCancel style={styles.cancelButton}>
+          <ComposerPrimitive.Cancel style={styles.cancelButton}>
             <ActivityIndicator size="small" color={colors.error[500]} />
-          </ComposerCancel>
+          </ComposerPrimitive.Cancel>
         ) : (
-          <ComposerSend
+          <ComposerPrimitive.Send
             style={styles.sendButton}
             onPressIn={() => {
               inputRef.current?.clear();
@@ -199,7 +206,7 @@ export function AssistantComposer({
             }}
           >
             <Ionicons name="send" size={16} color={colors.white} />
-          </ComposerSend>
+          </ComposerPrimitive.Send>
         )}
       </View>
       <Modal
@@ -231,7 +238,13 @@ export function AssistantComposer({
           </View>
         </Pressable>
       </Modal>
-    </ComposerRoot>
+      {showSettings && (
+        <ChatSettingsSheet
+          visible={settingsVisible}
+          onDismiss={() => setSettingsVisible(false)}
+        />
+      )}
+    </ComposerPrimitive.Root>
   );
 }
 

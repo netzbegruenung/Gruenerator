@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "234282064802",
+    "project_id": "gruenerator-b4849",
+    "storage_bucket": "gruenerator-b4849.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:234282064802:android:3b5f0717f2a608ce7670fb",
+        "android_client_info": {
+          "package_name": "de.gruenerator.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDlA9RPU3f-IS5m8RhJemEhD0FAKALijWU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,4 +1,4 @@
-import { useThreadIsRunning } from '@assistant-ui/react-native';
+import { useAuiState } from '@assistant-ui/react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { memo } from 'react';
 import { View, Text, Pressable, ActivityIndicator, StyleSheet, useColorScheme } from 'react-native';
@@ -20,7 +20,7 @@ export const ChatDrawerHeader = memo(function ChatDrawerHeader({
   const colorScheme = useColorScheme();
   const theme = themeProp ?? (colorScheme === 'dark' ? darkTheme : lightTheme);
   const insets = useSafeAreaInsets();
-  const isRunning = useThreadIsRunning();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
 
   return (
     <View style={[styles.header, { paddingTop: insets.top, backgroundColor: theme.background }]}>

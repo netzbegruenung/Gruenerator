@@ -1,13 +1,10 @@
 import {
-  ThreadRoot,
-  ThreadMessages,
-  ThreadEmpty,
+  ThreadPrimitive,
   useAui,
-  type ThreadMessage,
 } from '@assistant-ui/react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { chatSuggestions } from '@gruenerator/chat';
-import { memo, useCallback, useRef, useState } from 'react';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, type TextInput, Pressable, StyleSheet, useColorScheme } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -60,10 +57,7 @@ export const AssistantThread = memo(function AssistantThread({ theme: themeProp 
   const composerInputRef = useRef<TextInput>(null);
   const [docBrowserVisible, setDocBrowserVisible] = useState(false);
 
-  const renderMessage = useCallback(
-    ({ message }: { message: ThreadMessage }) => <MessageBubble theme={theme} message={message} />,
-    [theme]
-  );
+  const messageComponents = useMemo(() => ({ Message: MessageBubble }), []);
 
   const handleOpenDocBrowser = useCallback(() => setDocBrowserVisible(true), []);
 
@@ -82,12 +76,12 @@ export const AssistantThread = memo(function AssistantThread({ theme: themeProp 
 
   return (
     <KeyboardAvoidingView behavior="padding" style={styles.container}>
-      <ThreadRoot style={[styles.container, { backgroundColor: theme.background }]}>
-        <ThreadEmpty>
+      <ThreadPrimitive.Root style={[styles.container, { backgroundColor: theme.background }]}>
+        <ThreadPrimitive.Empty>
           <EmptyState theme={theme} />
-        </ThreadEmpty>
-        <ThreadMessages
-          renderMessage={renderMessage}
+        </ThreadPrimitive.Empty>
+        <ThreadPrimitive.Messages
+          components={messageComponents}
           contentContainerStyle={messagesContentStyle}
           keyboardDismissMode="interactive"
         />
@@ -103,7 +97,7 @@ export const AssistantThread = memo(function AssistantThread({ theme: themeProp 
           onSelect={handleDocumentSelect}
           onDismiss={() => setDocBrowserVisible(false)}
         />
-      </ThreadRoot>
+      </ThreadPrimitive.Root>
     </KeyboardAvoidingView>
   );
 });

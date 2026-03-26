@@ -5,8 +5,9 @@ import {
   toolMentionables,
   type Mentionable,
 } from '@gruenerator/chat';
-import { Modal, View, Text, Pressable, ScrollView, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, useColorScheme } from 'react-native';
 
+import { BottomSheet } from '../common/BottomSheet';
 import { colors, spacing, lightTheme, darkTheme } from '../../theme';
 
 interface NewChatSheetProps {
@@ -34,14 +35,7 @@ export function NewChatSheet({
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <View />
-      </Pressable>
-      <View
-        style={[styles.sheet, { backgroundColor: theme.background, borderColor: theme.border }]}
-      >
-        <View style={[styles.handle, { backgroundColor: theme.border }]} />
+    <BottomSheet visible={visible} onClose={onClose} maxHeight="70%">
 
         <Pressable
           style={({ pressed }) => [
@@ -163,30 +157,11 @@ export function NewChatSheet({
             </Pressable>
           ))}
         </ScrollView>
-      </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-  },
-  sheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingBottom: spacing.xlarge,
-    maxHeight: '70%',
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: spacing.small,
-    marginBottom: spacing.medium,
-  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

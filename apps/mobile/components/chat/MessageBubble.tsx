@@ -1,74 +1,94 @@
 import {
-  MessageRoot,
-  MessageContent,
-  MessageIf,
-  MessageAttachments,
-  type ThreadMessage,
+  MessagePrimitive,
+  useAuiState,
 } from '@assistant-ui/react-native';
-import { memo, useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
 
 import { MessageAttachmentUI } from './AttachmentUI';
 import { CitationsFooter } from './CitationsFooter';
+import { MessageActionsSheet } from './MessageActionsSheet';
 import { ToolCallProgress } from './ToolCallProgress';
 
 import type { Theme } from '../../theme/colors';
 import type { ChatMessageMetadata } from '@gruenerator/chat';
 
-interface Props {
-  theme: Theme;
-  message: ThreadMessage;
-  fetchFullText?: (url: string, collectionId: string) => Promise<string | null>;
+function useResolvedTheme(): Theme {
+  const colorScheme = useColorScheme();
+  return colorScheme === 'dark' ? darkTheme : lightTheme;
 }
 
-function UserMessage({ theme }: { theme: Theme }) {
+export const UserMessageComponent = memo(function UserMessageComponent() {
   return (
-    <MessageIf user>
-      <MessageRoot style={[styles.messageRow, styles.userRow]}>
-        <View style={[styles.bubble, styles.userBubble]}>
-          <MessageAttachments components={{ Attachment: MessageAttachmentUI }} />
-          <MessageContent
-            renderText={({ part }) => <Text style={styles.userText}>{part.text}</Text>}
-          />
-        </View>
-      </MessageRoot>
-    </MessageIf>
+    <MessagePrimitive.Root style={[styles.messageRow, styles.userRow]}>
+      <View style={[styles.bubble, styles.userBubble]}>
+        <MessagePrimitive.Attachments components={{ Attachment: MessageAttachmentUI }} />
+        <MessagePrimitive.Content
+          renderText={({ part }) => <Text style={styles.userText}>{part.text}</Text>}
+        />
+      </View>
+    </MessagePrimitive.Root>
   );
-}
+});
 
-function AssistantMessage({ theme, message, fetchFullText }: Props) {
+export const AssistantMessageComponent = memo(function AssistantMessageComponent() {
+  const theme = useResolvedTheme();
+  const message = useAuiState((s) => s.message);
   const metadata = ((message.metadata as Record<string, unknown>)?.custom ??
     {}) as ChatMessageMetadata;
   const citations = metadata.citations;
+  const [actionsVisible, setActionsVisible] = useState(false);
 
   const markdownStyles = useMemo(() => getMarkdownStyles(theme), [theme]);
 
-  return (
-    <MessageIf assistant>
-      <MessageRoot style={[styles.messageRow, styles.assistantRow]}>
-        <View style={[styles.bubble, styles.assistantBubble, { backgroundColor: theme.surface }]}>
-          <MessageContent
-            renderText={({ part }) => <Markdown style={markdownStyles}>{part.text}</Markdown>}
-            renderToolCall={({ part }) => <ToolCallProgress part={part} theme={theme} />}
-            renderSource={() => <></>}
-          />
-          {citations && citations.length > 0 && (
-            <CitationsFooter citations={citations} theme={theme} fetchFullText={fetchFullText} />
-          )}
-        </View>
-      </MessageRoot>
-    </MessageIf>
-  );
-}
+  const messageText = useMemo(() => {
+    return message.content
+      .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+      .map((p) => p.text)
+      .join('');
+  }, [message.content]);
 
-export const MessageBubble = memo(function MessageBubble({ theme, message, fetchFullText }: Props) {
+  const handleLongPress = useCallback(() => {
+    if (messageText) setActionsVisible(true);
+  }, [messageText]);
+
   return (
     <>
-      <UserMessage theme={theme} />
-      <AssistantMessage theme={theme} message={message} fetchFullText={fetchFullText} />
+      <MessagePrimitive.Root style={[styles.messageRow, styles.assistantRow]}>
+        <Pressable onLongPress={handleLongPress}>
+          <View style={[styles.bubble, styles.assistantBubble, { backgroundColor: theme.surface }]}>
+            <MessagePrimitive.Content
+              renderText={({ part }) => <Markdown style={markdownStyles}>{part.text}</Markdown>}
+              renderToolCall={({ part }) => <ToolCallProgress part={part} theme={theme} />}
+              renderSource={() => <></>}
+            />
+            {citations && citations.length > 0 && (
+              <CitationsFooter citations={citations} theme={theme} />
+            )}
+          </View>
+        </Pressable>
+      </MessagePrimitive.Root>
+      <MessageActionsSheet
+        visible={actionsVisible}
+        onClose={() => setActionsVisible(false)}
+        message={messageText ? { role: 'assistant', text: messageText, metadata: metadata as Record<string, unknown> } : null}
+      />
+    </>
+  );
+});
+
+export const MessageBubble = memo(function MessageBubble() {
+  return (
+    <>
+      <MessagePrimitive.If user>
+        <UserMessageComponent />
+      </MessagePrimitive.If>
+      <MessagePrimitive.If assistant>
+        <AssistantMessageComponent />
+      </MessagePrimitive.If>
     </>
   );
 });

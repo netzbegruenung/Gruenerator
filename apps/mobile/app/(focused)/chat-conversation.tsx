@@ -1,20 +1,21 @@
-import { useAssistantRuntime } from '@assistant-ui/react-native';
+import { useAui } from '@assistant-ui/react-native';
 import { useAgentStore } from '@gruenerator/chat';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
-import { StyleSheet, useColorScheme, View } from 'react-native';
+import { StyleSheet, useColorScheme } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AssistantThread } from '../../components/chat';
 import { MobileChatProvider } from '../../providers/MobileChatProvider';
 import { lightTheme, darkTheme } from '../../theme';
 
 function InitialMessageSender({ message }: { message: string }) {
-  const runtime = useAssistantRuntime();
+  const aui = useAui();
 
   useEffect(() => {
     if (message) {
-      runtime.thread.composer.setText(message);
-      runtime.thread.composer.send();
+      aui.composer().setText(message);
+      aui.composer().send();
     }
     // Only run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -44,12 +45,12 @@ export default function ChatConversationScreen() {
   const isNewChat = threadId === 'new';
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top', 'bottom']}>
       <MobileChatProvider threadId={isNewChat ? null : threadId}>
         <AssistantThread theme={theme} />
         {isNewChat && initialMessage && <InitialMessageSender message={initialMessage} />}
       </MobileChatProvider>
-    </View>
+    </SafeAreaView>
   );
 }
 
