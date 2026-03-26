@@ -10,7 +10,30 @@ export type NotificationType =
   | 'group_role_changed'
   | 'group_content_shared'
   | 'group_deleted'
-  | 'wolke_setup';
+  | 'wolke_setup'
+  | 'transfer_downloaded';
+
+export type NotificationChannel = 'email' | 'push' | 'in_app';
+
+export interface ChannelPreferences {
+  email: boolean;
+  push: boolean;
+  in_app: boolean;
+}
+
+export const ALL_NOTIFICATION_TYPES: NotificationType[] = [
+  'document_shared',
+  'document_permission_changed',
+  'document_access_revoked',
+  'board_updates',
+  'group_activity',
+  'group_member_joined',
+  'group_role_changed',
+  'group_content_shared',
+  'group_deleted',
+  'wolke_setup',
+  'transfer_downloaded',
+];
 
 export interface Notification {
   id: string;

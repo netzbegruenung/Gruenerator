@@ -438,6 +438,122 @@ router.patch(
 );
 
 // ============================================================================
+// Notification Preferences (per-category, per-channel)
+// ============================================================================
+
+router.get(
+  '/profile/notification-preferences',
+  ensureAuthenticated as any,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const { getPreferencesForUser, getDefaultPreferences } =
+        await import('../../services/notifications/notificationPreferences.js');
+      const preferences = await getPreferencesForUser(req.user!.id);
+      const defaults = getDefaultPreferences();
+
+      res.json({ success: true, preferences, defaults });
+    } catch (error) {
+      const err = error as Error;
+      log.error('[Notification Preferences GET] Error:', err);
+      res.status(500).json({
+        success: false,
+        message: err.message || 'Fehler beim Laden der Benachrichtigungseinstellungen.',
+      });
+    }
+  }
+);
+
+router.patch(
+  '/profile/notification-preferences',
+  ensureAuthenticated as any,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const { category, channels } = req.body as {
+        category: string;
+        channels: { email?: boolean; push?: boolean; in_app?: boolean };
+      };
+
+      if (!category || !channels || typeof channels !== 'object') {
+        res.status(400).json({
+          success: false,
+          message: 'category und channels sind erforderlich.',
+        });
+        return;
+      }
+
+      const { ALL_NOTIFICATION_TYPES } = await import('../../services/notifications/types.js');
+      if (!ALL_NOTIFICATION_TYPES.includes(category as any)) {
+        res.status(400).json({
+          success: false,
+          message: `Unbekannter Benachrichtigungstyp: ${category}`,
+        });
+        return;
+      }
+
+      const profileService = getProfileService();
+      const profile = await profileService.getProfileById(req.user!.id);
+      const currentNotifications = profile?.user_defaults?.notifications ?? {};
+      const { getDefaultPreferences } =
+        await import('../../services/notifications/notificationPreferences.js');
+      const defaults = getDefaultPreferences();
+      const currentChannels = currentNotifications[category];
+
+      let base: { email: boolean; push: boolean; in_app: boolean };
+      if (
+        currentChannels &&
+        typeof currentChannels === 'object' &&
+        !Array.isArray(currentChannels)
+      ) {
+        base = currentChannels as { email: boolean; push: boolean; in_app: boolean };
+      } else if (typeof currentChannels === 'boolean') {
+        base = {
+          email: currentChannels,
+          push: defaults[category as keyof typeof defaults]?.push ?? true,
+          in_app: defaults[category as keyof typeof defaults]?.in_app ?? true,
+        };
+      } else {
+        base = {
+          ...(defaults[category as keyof typeof defaults] ?? {
+            email: true,
+            push: true,
+            in_app: true,
+          }),
+        };
+      }
+
+      const merged = {
+        email: typeof channels.email === 'boolean' ? channels.email : base.email,
+        push: typeof channels.push === 'boolean' ? channels.push : base.push,
+        in_app: typeof channels.in_app === 'boolean' ? channels.in_app : base.in_app,
+      };
+
+      await profileService.updateUserDefault(req.user!.id, 'notifications', category, merged);
+
+      const { getPreferencesForUser } =
+        await import('../../services/notifications/notificationPreferences.js');
+      const preferences = await getPreferencesForUser(req.user!.id);
+
+      log.debug(
+        `[Notification Preferences] User ${req.user!.id}: ${category} = ${JSON.stringify(merged)}`
+      );
+
+      res.json({
+        success: true,
+        preferences,
+        message: 'Benachrichtigungseinstellung gespeichert.',
+      });
+    } catch (error) {
+      const err = error as Error;
+      log.error('[Notification Preferences PATCH] Error:', err);
+      res.status(500).json({
+        success: false,
+        message: err.message || 'Fehler beim Speichern der Benachrichtigungseinstellung.',
+      });
+    }
+  }
+);
+
+// ============================================================================
 // Igel-Modus (Grüne Jugend)
 // ============================================================================
 

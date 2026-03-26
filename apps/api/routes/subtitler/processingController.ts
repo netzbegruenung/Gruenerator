@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 import express, { type Response, type Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 
+import { getSharedMediaService } from '../../services/sharedMediaService.js';
 import AssSubtitleService from '../../services/subtitler/assSubtitleService.js';
 import { processVideoAutomatically } from '../../services/subtitler/autoProcessingService.js';
 import { getCompressionStatus } from '../../services/subtitler/backgroundCompressionService.js';
@@ -591,6 +592,20 @@ router.post('/process-auto', async (req: SubtitlerRequest, res: Response): Promi
             projectId = r.projectId;
           } catch {
             /* ignored */
+          }
+
+          if (projectId && result.outputPath) {
+            try {
+              const shareService = getSharedMediaService();
+              await shareService.createVideoShare(userId, {
+                videoPath: result.outputPath,
+                title: originalFilename.replace(/\.[^.]+$/, ''),
+                duration: result.duration || undefined,
+                projectId,
+              });
+            } catch (shareErr) {
+              log.warn(`Auto-share creation failed: ${(shareErr as Error).message}`);
+            }
           }
         }
         await redisClient.set(

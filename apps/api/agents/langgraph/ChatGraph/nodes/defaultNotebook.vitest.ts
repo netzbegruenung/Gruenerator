@@ -143,9 +143,15 @@ function getSearchedCollections(): string[] {
 // ─── resolveNotebookCollections ─────────────────────────────────────────
 
 describe('resolveNotebookCollections', () => {
-  it('resolves gruenerator-notebook to 4 default German collections', () => {
+  it('resolves gruenerator-notebook to 5 default German collections', () => {
     const result = resolveNotebookCollections(['gruenerator-notebook']);
-    expect(result).toEqual(['deutschland', 'bundestagsfraktion', 'gruene-de', 'kommunalwiki']);
+    expect(result).toEqual([
+      'deutschland',
+      'bundestagsfraktion',
+      'gruene-de',
+      'kommunalwiki',
+      'gruenblog',
+    ]);
   });
 
   it('resolves hamburg-notebook to hamburg collection', () => {
@@ -574,10 +580,11 @@ describe('searchNode – web intent', () => {
 // ─── Default behavior equivalence ───────────────────────────────────────
 
 describe('default behavior equivalence', () => {
-  it('gruenerator-notebook resolves to same collections as de-DE locale fallback', () => {
+  it('gruenerator-notebook is superset of de-DE locale fallback (adds gruenblog)', () => {
     const fromNotebook = resolveNotebookCollections(['gruenerator-notebook']);
     const fromLocale = getDefaultCollectionsForLocale('de-DE');
-    expect(fromNotebook).toEqual(fromLocale);
+    expect(fromNotebook).toEqual(expect.arrayContaining(fromLocale));
+    expect(fromNotebook).toContain('gruenblog');
   });
 
   it('oesterreich-notebook resolves to subset of de-AT locale fallback', () => {

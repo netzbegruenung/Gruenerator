@@ -17,9 +17,18 @@ export {
   publishNotification,
 } from './notificationPubSub.js';
 
+export {
+  shouldDeliver,
+  shouldSendNotification,
+  getPreferencesForUser,
+  getDefaultPreferences,
+} from './notificationPreferences.js';
+
 export type {
   Notification,
   NotificationType,
+  NotificationChannel,
+  ChannelPreferences,
   CreateNotificationParams,
   NotificationListOptions,
 } from './types.js';
