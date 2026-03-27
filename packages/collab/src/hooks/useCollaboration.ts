@@ -109,6 +109,11 @@ export const useCollaboration = ({
         console.warn('[Hocuspocus] Auth failed:', data.reason);
       });
 
+      if (ignore) {
+        provider.destroy();
+        return;
+      }
+
       setState({
         ydoc,
         provider,
@@ -116,7 +121,9 @@ export const useCollaboration = ({
         isSynced: false,
       });
 
-      provider.connect();
+      if (!ignore) {
+        provider.connect();
+      }
     };
 
     initProvider();
