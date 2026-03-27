@@ -64,7 +64,15 @@ const TextCard = React.memo(
           {text.content ? (
             <div className="w-[600px] origin-top-left scale-[0.25] p-8 pointer-events-none select-none text-foreground font-sans leading-relaxed">
               <p className="text-base whitespace-pre-line">
-                {text.content.replace(/<[^>]*>/g, '').slice(0, 500)}
+                {(() => {
+                  let s = text.content;
+                  let p: string;
+                  do {
+                    p = s;
+                    s = s.replace(/<[^>]*>/g, '');
+                  } while (s !== p);
+                  return s.slice(0, 500);
+                })()}
               </p>
             </div>
           ) : (

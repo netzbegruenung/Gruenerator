@@ -26,7 +26,7 @@ export interface DocsAdapter {
   /** Navigate to document list */
   navigateToHome(): void;
   /** Optional custom WebSocket constructor for environments where native WS doesn't work (e.g. Expo DOM) */
-  getWebSocketPolyfill?(): unknown;
+  getWebSocketPolyfill?(): (new (...args: unknown[]) => WebSocket) | undefined;
   /** Get the current user's display name (for personalized sharing) */
   getCurrentUserDisplayName?(): string | null;
 }

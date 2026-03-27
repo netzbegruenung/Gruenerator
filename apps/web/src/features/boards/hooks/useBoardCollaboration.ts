@@ -15,7 +15,7 @@ export const useBoardCollaboration = (boardId: string) => {
             id: String(user.id),
             display_name: user.display_name,
             email: user.email,
-            avatar_robot_id: user.avatar_robot_id,
+            avatar_robot_id: user.avatar_robot_id ? Number(user.avatar_robot_id) : null,
           }
         : null,
     [user?.id, user?.display_name, user?.email, user?.avatar_robot_id]

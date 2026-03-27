@@ -1,6 +1,10 @@
+import * as os from 'os';
+import * as path from 'path';
+
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
 
 import { sanitizeFilename } from '../../utils/validation/index.js';
+import { validateUrlSync } from '../../utils/validation/urlSecurity.js';
 
 // Type Definitions
 export interface ParsedShareLink {
@@ -72,6 +76,11 @@ class NextcloudApiClient {
     this.baseURL = this.parsedLink.baseUrl;
     this.shareToken = this.parsedLink.shareToken;
     this.webdavUrl = `${this.baseURL}/public.php/webdav`;
+
+    const urlCheck = validateUrlSync(this.baseURL, { allowedProtocols: ['https:'] });
+    if (!urlCheck.isValid) {
+      throw new Error(`Invalid Nextcloud share URL: ${urlCheck.error}`);
+    }
 
     // Create axios instance with basic authentication using share token
     this.axiosInstance = axios.create({
@@ -279,6 +288,12 @@ class NextcloudApiClient {
         uploadUrl = `${this.webdavUrl}/${encodedPath}`;
       }
       uploadUrl = `${uploadUrl}/${encodeURIComponent(safeFilename)}`;
+
+      const expectedDir = path.resolve(os.tmpdir(), 'gruenerator-transfer');
+      const resolvedPath = path.resolve(filePath);
+      if (!resolvedPath.startsWith(expectedDir + path.sep) && resolvedPath !== expectedDir) {
+        throw new Error('File path outside allowed directory');
+      }
 
       const stat = fs.statSync(filePath);
       const stream = fs.createReadStream(filePath);

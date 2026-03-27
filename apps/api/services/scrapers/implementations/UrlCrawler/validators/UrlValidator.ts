@@ -7,6 +7,8 @@
 import { createRequire } from 'module';
 import { URL } from 'url';
 
+import { safeFetch } from '../../../../../utils/validation/urlSecurity.js';
+
 const require = createRequire(import.meta.url);
 const robotsParser = require('robots-parser') as (
   url: string,
@@ -35,7 +37,7 @@ async function isAllowedByRobotsTxt(url: string): Promise<boolean> {
     }
 
     const robotsUrl = `${origin}/robots.txt`;
-    const resp = await fetch(robotsUrl, {
+    const resp = await safeFetch(robotsUrl, {
       signal: AbortSignal.timeout(ROBOTS_FETCH_TIMEOUT),
       headers: { 'User-Agent': BOT_USER_AGENT },
     });
