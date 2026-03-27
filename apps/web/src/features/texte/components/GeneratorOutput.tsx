@@ -1,41 +1,25 @@
-import React, { memo } from 'react';
+import React, { memo, useCallback } from 'react';
 
-import DisplaySection from '../../../components/common/ContentDisplay/DisplaySection';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 
-import type { CustomExportOption, HelpContent } from '@/types/baseform';
-import type { ReactNode } from 'react';
+import TextResultScreen from './TextResultScreen';
 
 export interface GeneratorOutputProps {
   componentName: string;
+  isOpen: boolean;
+  onClose: () => void;
   title?: string;
   useMarkdown?: boolean | null;
-  helpContent?: HelpContent | null;
-  customRenderer?:
-    | ((props: {
-        content: unknown;
-        generatedContent: unknown;
-        componentName: string;
-        helpContent?: HelpContent | null;
-        onEditModeToggle?: () => void;
-      }) => ReactNode)
-    | null;
-  customExportOptions?: CustomExportOption[];
-  hideDefaultExportOptions?: boolean;
-  onReset?: () => void;
   onRegenerate?: () => void | Promise<void>;
 }
 
 const GeneratorOutput: React.FC<GeneratorOutputProps> = memo(
   ({
     componentName,
+    isOpen,
+    onClose,
     title = 'Generierter Text',
     useMarkdown = true,
-    helpContent,
-    customRenderer,
-    customExportOptions,
-    hideDefaultExportOptions,
-    onReset,
     onRegenerate,
   }) => {
     const hasContent = useGeneratedTextStore((state) => {
@@ -45,20 +29,16 @@ const GeneratorOutput: React.FC<GeneratorOutputProps> = memo(
       return Object.keys(content).length > 0;
     });
 
-    if (!hasContent) return null;
+    if (!hasContent || !isOpen) return null;
 
     return (
-      <DisplaySection
-        title={title}
+      <TextResultScreen
+        isOpen
+        onClose={onClose}
         componentName={componentName}
+        title={title}
         useMarkdown={useMarkdown}
-        helpContent={helpContent}
-        customRenderer={customRenderer}
-        customExportOptions={customExportOptions}
-        hideDefaultExportOptions={hideDefaultExportOptions}
-        showResetButton={!!onReset}
-        onReset={onReset}
-        onGeneratePost={onRegenerate}
+        onRegenerate={onRegenerate}
       />
     );
   }

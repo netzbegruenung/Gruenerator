@@ -1,8 +1,11 @@
+import { SectionHeader } from '@gruenerator/ui';
 import { useState } from 'react';
 
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../components/common/PageContainer';
+import ToolGrid from '../../components/common/ToolGrid';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import { getIcon } from '../../config/icons';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import useBetaFeatures from '../../hooks/useBetaFeatures';
 import { useFirstName } from '../../hooks/useFirstName';
@@ -14,6 +17,27 @@ import NotebooksSection from './components/NotebooksSection';
 import RecentlyCreatedSection from './components/RecentlyCreatedSection';
 import TextsSection from './components/TextsSection';
 import ToolsSection from './components/ToolsSection';
+
+import type { ToolEntry } from '../../components/common/ToolGrid';
+
+const BOTTOM_TOOLS: ToolEntry[] = [
+  {
+    id: 'vorlagen',
+    title: 'Vorlagen',
+    description: 'Sharepic-Vorlagen erstellen und bearbeiten.',
+    path: '/datenbank/vorlagen',
+    icon: getIcon('navigation', 'vorlagen'),
+    tags: ['Sharepics', 'Design'],
+  },
+  {
+    id: 'recherche',
+    title: 'Recherche',
+    description: 'Websuche und Quellenrecherche mit KI-Unterstützung.',
+    path: '/recherche',
+    icon: getIcon('navigation', 'suche'),
+    tags: ['Suche', 'Quellen'],
+  },
+];
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -55,10 +79,13 @@ const WorkplacePage = () => {
 
         <TextsSection />
 
-        <div className="grid grid-cols-2 gap-xl max-md:grid-cols-1">
-          <GroupsSection />
-          <NotebooksSection />
-        </div>
+        <GroupsSection />
+        <NotebooksSection />
+
+        <section className="mb-xl">
+          <SectionHeader title="Weitere Tools" />
+          <ToolGrid tools={BOTTOM_TOOLS} columns={2} />
+        </section>
       </PageContainer>
     </ErrorBoundary>
   );

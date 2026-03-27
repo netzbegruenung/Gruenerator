@@ -118,8 +118,6 @@ const RecentItemCard = memo(
     onDelete: (item: RecentItem) => void;
     onShare: (item: RecentItem) => void;
   }) => {
-    const isDocOrBoard = item.type === 'doc' || item.type === 'board';
-
     const TypeIcon = TYPE_ICONS[item.type];
 
     return (
@@ -176,7 +174,7 @@ const RecentItemCard = memo(
             onDelete={() => onDelete(item)}
             className="[&_button]:bg-white/80 dark:[&_button]:bg-grey-800/80 [&_button]:backdrop-blur-sm"
           >
-            {isDocOrBoard && <FavouriteMenuItem id={item.id} />}
+            {item.type === 'board' && <FavouriteMenuItem id={item.id} />}
           </CardActionsMenu>
         </div>
 
