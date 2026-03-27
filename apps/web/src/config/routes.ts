@@ -6,11 +6,13 @@ import { isDesktopApp } from '../utils/platform';
 /**
  * Route configuration interface
  */
+export type LayoutMode = 'default' | 'fullscreen' | 'immersive' | 'noChrome';
+
 export interface RouteConfig {
   path: string;
   component: LazyExoticComponent<ComponentType<Record<string, unknown>>>;
   withForm?: boolean;
-  showHeaderFooter?: boolean;
+  layoutMode?: LayoutMode;
 }
 
 /**
@@ -145,6 +147,9 @@ const GruenblogNotebookPage = lazy(() =>
 );
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
+const SubtitlerBetaPage = lazy(
+  () => import('../features/subtitler-beta/components/SubtitlerBetaPage')
+);
 const SharedVideoPage = lazy(() => import('../features/subtitler/components/SharedVideoPage'));
 const SharedMediaPage = lazy(() => import('../features/shared-media/SharedMediaPage'));
 const ImageStudioPage = lazy(() => import('../features/image-studio/ImageStudioPage'));
@@ -356,11 +361,12 @@ const standardRoutes: RouteConfig[] = [
   },
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
   { path: '/reel', component: GrueneratorenBundle.Reel },
-  { path: '/scanner', component: GrueneratorenBundle.Scanner },
-  { path: '/transfer', component: GrueneratorenBundle.Transfer },
+  { path: '/reel/beta', component: SubtitlerBetaPage },
+  { path: '/scanner', component: GrueneratorenBundle.Scanner, layoutMode: 'immersive' },
+  { path: '/transfer', component: GrueneratorenBundle.Transfer, layoutMode: 'immersive' },
   { path: '/transkription', component: GrueneratorenBundle.Transkription },
-  { path: '/subtitler/share/:shareToken', component: SharedVideoPage, showHeaderFooter: false },
-  { path: '/share/:shareToken', component: SharedMediaPage, showHeaderFooter: false },
+  { path: '/subtitler/share/:shareToken', component: SharedVideoPage, layoutMode: 'noChrome' },
+  { path: '/share/:shareToken', component: SharedMediaPage, layoutMode: 'noChrome' },
   { path: '/gruenerator/erstellen', component: CreateCustomGeneratorPage, withForm: true },
   { path: '/gruenerator/:slug', component: GrueneratorenBundle.CustomGenerator, withForm: true },
   // Redirects for removed pages
@@ -389,10 +395,10 @@ const standardRoutes: RouteConfig[] = [
   // Gruppen-Route
   { path: '/join-group/:joinToken', component: JoinGroupPage },
   // Q&A Chat Routen
-  { path: '/notebook/:id', component: GrueneratorenBundle.NotebookChat },
+  { path: '/notebook/:id', component: GrueneratorenBundle.NotebookChat, layoutMode: 'fullscreen' },
   { path: '/chat/settings', component: ChatSettingsPage },
-  { path: '/chat', component: GrueneratorenBundle.Chat },
-  { path: '/voice', component: VoiceAgentPage, showHeaderFooter: false },
+  { path: '/chat', component: GrueneratorenBundle.Chat, layoutMode: 'fullscreen' },
+  { path: '/voice', component: VoiceAgentPage, layoutMode: 'noChrome' },
   // Apps & Connect Page
   { path: '/apps', component: AppsPage },
   // Media Library Route
@@ -414,61 +420,30 @@ const standardRoutes: RouteConfig[] = [
   // Pages Feature Routes
   // Docs collaborative editor
   { path: '/docs', component: DocsListRedirect },
-  { path: '/docs/:id', component: DocsEditorPage, showHeaderFooter: false },
+  { path: '/docs/:id', component: DocsEditorPage, layoutMode: 'noChrome' },
   { path: '/boards', component: BoardsListRedirect },
-  { path: '/boards/public/:id', component: PublicBoardPage, showHeaderFooter: false },
-  { path: '/boards/:id', component: BoardPage, showHeaderFooter: false },
+  { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome' },
+  { path: '/boards/:id', component: BoardPage, layoutMode: 'noChrome' },
   { path: '*', component: NotFound },
 ];
 
+// Mobile editor is noChrome — added as standard route
+standardRoutes.push({
+  path: '/mobile-editor',
+  component: GrueneratorenBundle.MobileEditor,
+  layoutMode: 'noChrome',
+});
+
 const specialRoutes: RouteConfig[] = [];
-
-/**
- * Hilfsfunktion zum Erstellen der No-Header-Footer-Variante
- */
-const createNoHeaderFooterRoute = (route: RouteConfig): RouteConfig | null => {
-  if (route.path === '*') return null;
-
-  let noHeaderPath: string;
-  if (route.path === '/') {
-    noHeaderPath = '/no-header-footer';
-  } else if (route.path.endsWith('/*')) {
-    // /texte/* → /texte-no-header-footer/*
-    noHeaderPath = `${route.path.slice(0, -2)}-no-header-footer/*`;
-  } else {
-    noHeaderPath = `${route.path}-no-header-footer`;
-  }
-
-  return {
-    ...route,
-    path: noHeaderPath,
-    showHeaderFooter: false,
-  };
-};
 
 export interface Routes {
   standard: RouteConfig[];
   special: RouteConfig[];
-  noHeaderFooter: RouteConfig[];
 }
 
 export const routes: Routes = {
   standard: standardRoutes,
   special: specialRoutes,
-  noHeaderFooter: [
-    {
-      path: '/mobile-editor',
-      component: GrueneratorenBundle.MobileEditor,
-      showHeaderFooter: false,
-    },
-    ...standardRoutes
-      .map(createNoHeaderFooterRoute)
-      .filter((route): route is RouteConfig => route !== null)
-      .filter((route) => route.path !== '/editor/collab/:documentId-no-header-footer'),
-    ...specialRoutes
-      .map(createNoHeaderFooterRoute)
-      .filter((route): route is RouteConfig => route !== null),
-  ],
 };
 
 export default routes;

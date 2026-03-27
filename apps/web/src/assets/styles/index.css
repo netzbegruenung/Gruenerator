@@ -148,12 +148,12 @@
   --spacing-xl: var(--spacing-xlarge);
   --spacing-2xl: var(--spacing-xxlarge);
 
-  /* Shadows */
-  --shadow-sm: var(--shadow-sm);
-  --shadow-md: var(--shadow-md);
-  --shadow-lg: var(--shadow-lg);
-  --shadow-xl: var(--shadow-xl);
+  /* Shadows — inlined to avoid circular var() references */
   --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 6px 16px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.15);
 
   /* Card Shadows */
   --shadow-card-subtle: var(--card-shadow-subtle);
