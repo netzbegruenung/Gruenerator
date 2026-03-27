@@ -68,7 +68,7 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
     refetchOnWindowFocus: false,
-    refetchOnMount: 'always' as const,
+    refetchOnMount: true,
     refetchOnReconnect: true,
     retry: (failureCount: number) => failureCount < 2,
     refetchInterval: false,

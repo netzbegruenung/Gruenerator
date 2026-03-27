@@ -191,10 +191,10 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
     queryKey: QUERY_KEYS.notebookCollections(user?.id),
     queryFn: profileApiService.getNotebookCollections,
     enabled: enabled && !!user?.id && isActive,
-    staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
-    gcTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
+    staleTime: 15 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
-    refetchOnMount: 'always',
+    refetchOnMount: true,
     retry: 1,
   });
 
@@ -472,10 +472,10 @@ export const useUserTexts = ({ isActive, enabled = true }: TabHookOptions = {}) 
     queryKey: QUERY_KEYS.userTexts(user?.id),
     queryFn: profileApiService.getUserTexts,
     enabled: enabled && !!user?.id && isActive,
-    staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
-    gcTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
+    staleTime: 15 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
-    refetchOnMount: 'always',
+    refetchOnMount: true,
   });
 
   const updateTitleMutation = useMutation({

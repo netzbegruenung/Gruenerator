@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 
 import authMiddleware from './middleware/authMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
+import authInitRouter from './routes/auth/initController.js';
 import { briefingRouter, briefingInternalRouter } from './routes/briefing/index.js';
 import etherpadRoute from './routes/etherpad/etherpadController.js';
 import exportDocumentsRouter from './routes/exports/index.js';
@@ -69,6 +70,7 @@ import {
 import { recentValuesRouter } from './routes/user/index.js';
 import ttsRouter from './routes/voice/ttsController.js';
 import voiceRouter from './routes/voice/voiceController.js';
+import recentActivityRouter from './routes/workplace/recentActivityController.js';
 import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
 import * as tusServiceModule from './services/subtitler/tusService.js';
 import { createLogger } from './utils/logger.js';
@@ -364,6 +366,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/transfer', standardMutationLimiter, transferRouter);
   app.use('/api/mem0', requireAuth, mem0Router);
   app.use('/api/email', requireAuth, emailRouter);
+  app.use('/api/auth/init', authInitRouter);
+  app.use('/api/recent-activity', recentActivityRouter);
   app.use('/api/notifications', requireAuth, notificationsRouter);
   app.use('/api/media', requireAuth, mediaRouter);
   app.use('/api/docs/public', publicDocRouter);

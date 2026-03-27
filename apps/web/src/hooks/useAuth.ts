@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 
 import apiClient from '../components/utils/apiClient';
 import { useAuthStore, type AuthStore } from '../stores/authStore';
-import useBetaFeaturesStore from '../stores/betaFeaturesStore';
 
 interface AuthOptions {
   skipAuth?: boolean;
@@ -456,92 +455,22 @@ export const useAuth = (options: AuthOptions = {}) => {
             supabaseSession: authData.supabaseSession as any,
           });
 
-          // Prefetch groups if user doesn't already have groups loaded
-          if (!authData.user.groups) {
-            queryClient.prefetchQuery({
-              queryKey: ['userGroups', authData.user.id],
-              queryFn: async () => {
-                try {
-                  const response = await apiClient.get('/auth/groups', {
-                    skipAuthRedirect: true,
-                  });
-                  return response.data.groups || [];
-                } catch (error: unknown) {
-                  console.warn('[useAuth] Groups prefetch failed:', error);
-                  return [];
-                }
-              },
-              staleTime: 2 * 60 * 1000, // 2 minutes
+          // Consolidated init: single request seeds all query caches
+          const userId = (authData.user as Record<string, unknown>).id as string;
+          apiClient
+            .get('/auth/init', { skipAuthRedirect: true })
+            .then((response) => {
+              const { groups, savedTexts, notebookCollections, recentActivity } =
+                response.data as Record<string, unknown[]>;
+              if (groups) queryClient.setQueryData(['userGroups', userId], groups);
+              if (savedTexts) queryClient.setQueryData(['userTexts', userId], savedTexts);
+              if (notebookCollections)
+                queryClient.setQueryData(['notebookCollections', userId], notebookCollections);
+              if (recentActivity) queryClient.setQueryData(['recent-activity'], recentActivity);
+            })
+            .catch((error: unknown) => {
+              console.warn('[useAuth] Init prefetch failed, falling back:', error);
             });
-          }
-
-          // Prefetch workplace data if beta features are cached
-          const { betaFeatures } = useBetaFeaturesStore.getState();
-          if (betaFeatures.workplace) {
-            queryClient.prefetchQuery({
-              queryKey: ['workplace-recent-docs', 5],
-              queryFn: async () => {
-                try {
-                  const response = await apiClient.get('/docs?limit=5', {
-                    skipAuthRedirect: true,
-                  });
-                  return (response.data as { document_subtype?: string }[]).filter(
-                    (d) => d.document_subtype !== 'boards'
-                  );
-                } catch {
-                  return [];
-                }
-              },
-              staleTime: 5 * 60 * 1000,
-            });
-
-            queryClient.prefetchQuery({
-              queryKey: ['boards'],
-              queryFn: async () => {
-                try {
-                  const response = await apiClient.get('/boards', {
-                    skipAuthRedirect: true,
-                  });
-                  return response.data;
-                } catch {
-                  return [];
-                }
-              },
-              staleTime: 5 * 60 * 1000,
-            });
-          }
-
-          // Prefetch saved texts
-          queryClient.prefetchQuery({
-            queryKey: ['userTexts', (authData.user as Record<string, unknown>).id],
-            queryFn: async () => {
-              try {
-                const response = await apiClient.get('/auth/saved-texts', {
-                  skipAuthRedirect: true,
-                });
-                return (response.data as { data?: unknown[] })?.data || [];
-              } catch {
-                return [];
-              }
-            },
-            staleTime: 15 * 60 * 1000,
-          });
-
-          // Prefetch notebook collections
-          queryClient.prefetchQuery({
-            queryKey: ['notebookCollections', (authData.user as Record<string, unknown>).id],
-            queryFn: async () => {
-              try {
-                const response = await apiClient.get('/auth/notebook-collections', {
-                  skipAuthRedirect: true,
-                });
-                return (response.data as { collections?: unknown[] })?.collections || [];
-              } catch {
-                return [];
-              }
-            },
-            staleTime: 15 * 60 * 1000,
-          });
         }
 
         if (authData.supabaseSession) {

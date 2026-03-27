@@ -87,8 +87,10 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
 
       if (data.stage) setActiveStepIndex(mapBackendStage(data.stage));
       if (data.overallProgress !== undefined) setOverallProgress(data.overallProgress);
-    } catch (err) {
-      console.error('[AutoProcessingScreen] Poll error:', err);
+    } catch (err: any) {
+      if (err?.response?.status !== 404) {
+        console.error('[AutoProcessingScreen] Poll error:', err);
+      }
     }
   }, [uploadId, onComplete, onError]);
 
