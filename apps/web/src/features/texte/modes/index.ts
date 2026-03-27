@@ -40,17 +40,11 @@ export const MODE_GROUPS: ModeGroupEntry[] = [
   { id: 'antrag', label: 'Anträge' },
   { id: 'imagine', label: 'Bilder' },
   { id: 'boards', label: 'Boards' },
+  { id: 'eigene', label: 'Eigene' },
   {
     id: 'sonstige',
     label: 'Sonstige',
-    submodes: [
-      'texteditor',
-      'rede',
-      'wahlprogramm',
-      'buergeranfragen',
-      'leichte_sprache',
-      'eigene',
-    ],
+    submodes: ['texteditor', 'rede', 'wahlprogramm', 'buergeranfragen', 'leichte_sprache'],
   },
 ];
 
@@ -62,5 +56,4 @@ export const SUBMODE_LABELS: Record<string, string> = {
   wahlprogramm: 'Wahlprogramm',
   buergeranfragen: 'Bürger*innenanfragen',
   leichte_sprache: 'Leichte Sprache',
-  eigene: 'Eigene',
 };

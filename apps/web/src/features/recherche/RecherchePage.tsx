@@ -597,7 +597,10 @@ const RecherchePage = () => {
 
   return (
     <ErrorBoundary>
-      <PageContainer title="Recherche" subtitle="Suche, Wissensmanagement und Dokumentenrecherche.">
+      <PageContainer
+        title="Grünerator Datenbank"
+        subtitle="Suche, Wissensmanagement und Dokumentenrecherche."
+      >
         <div className="relative max-w-[500px] mx-auto mb-lg">
           <PiMagnifyingGlass className="absolute left-md top-1/2 -translate-y-1/2 text-grey-400 text-lg" />
           <input
@@ -709,5 +712,5 @@ const RecherchePage = () => {
 };
 
 export default withAuthRequired(RecherchePage, {
-  title: 'Recherche',
+  title: 'Grünerator Datenbank',
 });
