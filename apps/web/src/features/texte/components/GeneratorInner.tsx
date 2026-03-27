@@ -1,5 +1,5 @@
 import { AIPromptInput } from '@gruenerator/ui';
-import React, { memo, useCallback, useMemo, useRef } from 'react';
+import React, { memo, useCallback, useMemo, useRef, useState } from 'react';
 
 import { useGenerator } from '../hooks/useGenerator';
 import { useModeState } from '../hooks/useModeState';
@@ -16,6 +16,7 @@ interface GeneratorInnerProps {
 }
 
 const GeneratorInner: React.FC<GeneratorInnerProps> = memo(({ def }) => {
+  const [showResult, setShowResult] = useState(false);
   const { state: modeState, updateField } = useModeState(def.id, def);
 
   const gen = useGenerator({
@@ -39,6 +40,7 @@ const GeneratorInner: React.FC<GeneratorInnerProps> = memo(({ def }) => {
         ? { [def.promptField]: promptRef.current }
         : {};
     void gen.submit(extraFields);
+    setShowResult(true);
   }, [def, gen.submit]);
 
   const toolbar = useMemo(
@@ -78,6 +80,8 @@ const GeneratorInner: React.FC<GeneratorInnerProps> = memo(({ def }) => {
       />
       <GeneratorOutput
         componentName={def.componentName}
+        isOpen={showResult}
+        onClose={() => setShowResult(false)}
         useMarkdown={def.useMarkdown}
         onRegenerate={onSubmit}
       />

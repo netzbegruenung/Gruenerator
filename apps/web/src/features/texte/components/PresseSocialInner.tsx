@@ -27,6 +27,7 @@ interface PresseSocialInnerProps {
 const PresseSocialInner: React.FC<PresseSocialInnerProps> = memo(({ def }) => {
   const { state: modeState, updateField } = useModeState(def.id);
   const [prompt, setPrompt] = useState('');
+  const [showResult, setShowResult] = useState(false);
 
   const setActiveComponent = useGeneratorSelectionStore((s) => s.setActiveComponent);
   const activatedRef = useRef(false);
@@ -95,6 +96,7 @@ const PresseSocialInner: React.FC<PresseSocialInnerProps> = memo(({ def }) => {
           ...(result.sharepic ? { sharepic: result.sharepic } : {}),
         };
         setGeneratedText(def.componentName, serializableContent, serializableContent.metadata);
+        setShowResult(true);
       }
     } catch (error) {
       console.error('[PresseSocial] Submit error:', error);
@@ -141,6 +143,8 @@ const PresseSocialInner: React.FC<PresseSocialInnerProps> = memo(({ def }) => {
       />
       <GeneratorOutput
         componentName={def.componentName}
+        isOpen={showResult}
+        onClose={() => setShowResult(false)}
         useMarkdown={def.useMarkdown}
         onRegenerate={onSubmit}
       />
