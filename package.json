@@ -44,7 +44,7 @@
     "documentation"
   ],
   "dependencies": {
-    "@supabase/supabase-js": "^2.99.3",
+    "@supabase/supabase-js": "^2.100.1",
     "dotenv": "^17.3.1"
   },
   "devDependencies": {
@@ -58,7 +58,7 @@
     "cross-env": "^10.1.0",
     "eslint": "^9.39.4",
     "husky": "^9.1.7",
-    "knip": "^6.0.2",
+    "knip": "^6.0.6",
     "lint-staged": "^16.4.0",
     "prettier": "^3.8.1",
     "semantic-release": "^25.0.3",
