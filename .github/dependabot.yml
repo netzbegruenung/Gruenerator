@@ -342,40 +342,6 @@ updates:
         update-types: ['version-update:semver-major']
 
   # =============================================================================
-  # DOCS EXPO - Mobile docs app (apps/docs-expo)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/apps/docs-expo'
-    schedule:
-      interval: 'weekly'
-      day: 'thursday'
-      time: '06:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'docs-expo'
-    groups:
-      expo:
-        patterns:
-          - 'expo'
-          - 'expo-*'
-      all-minor-patch:
-        update-types:
-          - 'minor'
-          - 'patch'
-        exclude-patterns:
-          - 'expo'
-          - 'expo-*'
-    ignore:
-      - dependency-name: 'expo'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'react-native'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'react'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
   # SHARED PACKAGE (packages/shared)
   # =============================================================================
   - package-ecosystem: 'npm'

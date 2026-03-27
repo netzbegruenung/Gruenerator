@@ -407,7 +407,6 @@ function EditorContent({
   // Set theme attribute for CSS variables
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', colorScheme);
-    document.documentElement.setAttribute('data-mantine-color-scheme', colorScheme);
   }, [colorScheme]);
 
   return (
