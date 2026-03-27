@@ -94,4 +94,65 @@ router.post(
   }
 );
 
+router.post(
+  '/saved-texts/migrate-all-to-docs',
+  ensureAuthenticated as any,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+
+      const texts = await db.query(
+        `SELECT id, title, content, metadata FROM user_documents
+         WHERE user_id = $1 AND is_active = true
+           AND (metadata IS NULL OR NOT (metadata ? 'converted_doc_id'))
+         ORDER BY updated_at DESC`,
+        [userId]
+      );
+
+      if (texts.length === 0) {
+        res.json({ success: true, converted: 0, skipped: 0 });
+        return;
+      }
+
+      const permissionsJson = JSON.stringify({
+        [userId]: { level: 'owner', granted_at: new Date().toISOString() },
+      });
+
+      let converted = 0;
+
+      for (const row of texts) {
+        const text = row as { id: string; title: string; content: string };
+        try {
+          const htmlContent = contentToHtml(text.content);
+
+          const docResult = await db.query(
+            `INSERT INTO collaborative_documents
+              (title, content, created_by, last_edited_by, document_subtype, is_public, permissions)
+             VALUES ($1, $2, $3, $3, 'blank', false, $4)
+             RETURNING id`,
+            [text.title, htmlContent, userId, permissionsJson]
+          );
+
+          const docId = (docResult[0] as { id: string }).id;
+
+          await db.query(
+            `UPDATE user_documents SET metadata = jsonb_set(COALESCE(metadata, '{}'::jsonb), '{converted_doc_id}', $1) WHERE id = $2`,
+            [JSON.stringify(docId), text.id]
+          );
+
+          converted++;
+        } catch (err: any) {
+          log.warn(`[Migrate] Failed to convert text ${text.id}: ${err.message}`);
+        }
+      }
+
+      log.info(`[Migrate] User ${userId}: ${converted}/${texts.length} texts converted to docs`);
+      res.json({ success: true, converted, total: texts.length });
+    } catch (err: any) {
+      log.error('[Migrate All Texts] Error:', err);
+      res.status(500).json({ success: false, message: 'Migration fehlgeschlagen' });
+    }
+  }
+);
+
 export default router;
