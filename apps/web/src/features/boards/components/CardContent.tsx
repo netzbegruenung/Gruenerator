@@ -1,3 +1,4 @@
+import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import { Badge } from '@gruenerator/ui';
 import { memo, useCallback, useMemo } from 'react';
 import { FiFileText } from 'react-icons/fi';
@@ -81,7 +82,7 @@ export const CardContent = memo(function CardContent({
           title={`${activeUser.user.name} bearbeitet`}
         >
           <img
-            src={`/images/profileimages/${(activeUser.user as Record<string, unknown>).avatarRobotId || 1}.svg`}
+            src={getRobotAvatarPath(activeUser.user.avatarRobotId ?? 1)}
             alt=""
             className="w-3.5 h-3.5 rounded-full"
           />

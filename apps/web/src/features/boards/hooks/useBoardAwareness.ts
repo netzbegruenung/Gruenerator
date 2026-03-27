@@ -4,14 +4,14 @@ import type { HocuspocusProvider } from '@hocuspocus/provider';
 
 export interface RemoteCursor {
   clientId: number;
-  user: { id: string; name: string; color: string };
+  user: { id: string; name: string; color: string; avatarRobotId?: number };
   x: number;
   y: number;
 }
 
 export interface RemoteActivity {
   clientId: number;
-  user: { id: string; name: string; color: string };
+  user: { id: string; name: string; color: string; avatarRobotId?: number };
   selectedCardId: string | null;
   draggedCardId: string | null;
   dragTargetColumnId: string | null;
