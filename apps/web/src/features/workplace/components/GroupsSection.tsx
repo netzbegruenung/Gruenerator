@@ -21,6 +21,7 @@ const GroupsSection: React.FC = memo(() => {
           description: 'Gruppe',
           path: `/gruppen/${g.id}`,
           icon: HiUserGroup,
+          ...(g.avatar_url ? { imageUrl: `/api/auth/groups/${g.id}/avatar` } : {}),
         };
         return entry;
       }),

@@ -2,6 +2,8 @@ import {
   Badge,
   CardActionsMenu,
   CardGrid,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
   ListCard,
   ListCardActions,
   ListCardContent,
@@ -9,7 +11,10 @@ import {
   ListCardTitle,
 } from '@gruenerator/ui';
 import { memo } from 'react';
+import { PiStar, PiStarFill } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
+
+import useSidebarFavouritesStore, { useIsFavourite } from '../../stores/sidebarFavouritesStore';
 
 import FavouriteStar from './FavouriteStar';
 
@@ -30,12 +35,25 @@ export interface ToolEntry {
 
 interface ToolGridProps {
   tools: ToolEntry[];
-  columns?: 2 | 3 | 4;
+  columns?: 2 | 3 | 4 | 5;
   compact?: boolean;
   showFavourites?: boolean;
   onShare?: (id: string) => void;
   onDelete?: (id: string) => void;
 }
+
+const FavouriteMenuItem = memo(({ id }: { id: string }) => {
+  const starred = useIsFavourite(id);
+  const toggleFavourite = useSidebarFavouritesStore((s) => s.toggleFavourite);
+
+  return (
+    <DropdownMenuItem onClick={() => toggleFavourite(id)}>
+      {starred ? <PiStarFill className="text-primary-600" /> : <PiStar />}
+      {starred ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+    </DropdownMenuItem>
+  );
+});
+FavouriteMenuItem.displayName = 'FavouriteMenuItem';
 
 const CompactToolCard = memo(
   ({
@@ -50,7 +68,7 @@ const CompactToolCard = memo(
     onDelete?: (id: string) => void;
   }) => {
     const navigate = useNavigate();
-    const hasActions = onShare || onDelete;
+    const hasActions = showFavourites || onShare || onDelete;
 
     return (
       <ListCard
@@ -65,21 +83,31 @@ const CompactToolCard = memo(
         tabIndex={0}
         className="py-sm"
       >
-        {tool.icon && (
+        {(tool.imageUrl || tool.icon) && (
           <ListCardIcon>
-            <tool.icon />
+            {tool.imageUrl ? (
+              <img src={tool.imageUrl} alt="" className="size-6 rounded-full object-cover" />
+            ) : (
+              tool.icon && <tool.icon />
+            )}
           </ListCardIcon>
         )}
         <ListCardContent>
           <ListCardTitle>{tool.title}</ListCardTitle>
         </ListCardContent>
-        {showFavourites && <FavouriteStar id={tool.id} />}
         {hasActions && (
-          <ListCardActions>
+          <ListCardActions className="opacity-100">
             <CardActionsMenu
               {...(onShare ? { onShare: () => onShare(tool.id) } : {})}
               {...(onDelete ? { onDelete: () => onDelete(tool.id) } : {})}
-            />
+            >
+              {showFavourites && (
+                <>
+                  <FavouriteMenuItem id={tool.id} />
+                  {(onShare || onDelete) && <DropdownMenuSeparator />}
+                </>
+              )}
+            </CardActionsMenu>
           </ListCardActions>
         )}
       </ListCard>
@@ -147,6 +175,7 @@ const COLUMN_MAP: Record<number, '1' | '2' | '3' | '5' | 'auto'> = {
   2: '2',
   3: '3',
   4: 'auto',
+  5: '5',
 };
 
 const ToolGrid = memo(
