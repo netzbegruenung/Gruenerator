@@ -49,15 +49,6 @@ export const useCollaboration = ({
 
       if (ignore) return;
 
-      console.log('[DocsDebug][useCollaboration] initProvider:', {
-        url,
-        documentId,
-        isGuest: !!isGuest,
-        hasToken: !!token,
-        tokenLength: token?.length,
-        tokenPrefix: token?.substring(0, 20) + '...',
-      });
-
       const WebSocketPolyfill = adapter.getWebSocketPolyfill?.();
 
       const provider = new HocuspocusProvider({
@@ -65,6 +56,8 @@ export const useCollaboration = ({
         name: documentId,
         document: ydoc,
         token: token ?? undefined,
+        maxAttempts: 15,
+        delay: 3000,
         ...(WebSocketPolyfill ? { WebSocketPolyfill } : {}),
         ...(isGuest && guestId ? { parameters: { guestId, guestName: guestName || 'Gast' } } : {}),
       });
@@ -88,7 +81,6 @@ export const useCollaboration = ({
 
       provider.on('status', (event: { status: string }) => {
         if (ignore) return;
-        console.log('[DocsDebug][useCollaboration] status event:', event.status);
         const newIsConnected = event.status === 'connected';
         setState((prev) => {
           if (prev.isConnected === newIsConnected) return prev;
@@ -98,27 +90,14 @@ export const useCollaboration = ({
 
       provider.on('synced', () => {
         if (ignore) return;
-        console.log('[DocsDebug][useCollaboration] synced!');
         setState((prev) => {
           if (prev.isSynced) return prev;
           return { ...prev, isSynced: true };
         });
       });
 
-      provider.on('close', (event: { event: CloseEvent }) => {
-        console.warn('[DocsDebug][useCollaboration] WebSocket closed:', {
-          code: event.event.code,
-          reason: event.event.reason,
-          wasClean: event.event.wasClean,
-        });
-      });
-
-      provider.on('disconnect', () => {
-        console.warn('[DocsDebug][useCollaboration] disconnected');
-      });
-
       provider.on('authenticationFailed', (data: { reason: string }) => {
-        console.error('[DocsDebug][useCollaboration] AUTH FAILED:', data.reason);
+        console.warn('[Hocuspocus] Auth failed:', data.reason);
       });
 
       setState({

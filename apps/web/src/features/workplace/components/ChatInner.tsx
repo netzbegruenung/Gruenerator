@@ -9,10 +9,11 @@ import { cn } from '@/utils/cn';
 
 function NavigateToChatOnSend() {
   const navigate = useNavigate();
-  const threadRuntime = useThreadRuntime();
+  const threadRuntime = useThreadRuntime({ optional: true });
   const hasNavigated = useRef(false);
 
   useEffect(() => {
+    if (!threadRuntime) return;
     return threadRuntime.subscribe(() => {
       if (threadRuntime.getState().isRunning && !hasNavigated.current) {
         hasNavigated.current = true;
