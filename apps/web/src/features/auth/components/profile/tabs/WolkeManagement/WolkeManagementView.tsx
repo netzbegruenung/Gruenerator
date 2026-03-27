@@ -9,6 +9,8 @@ import CloudCard from '../../../../../wolke/components/CloudCard';
 import WolkeAddForm from '../../../../../wolke/components/WolkeAddForm';
 import WolkeConnectionCard from '../../../../../wolke/components/WolkeConnectionCard';
 import WolkeSetupWizard from '../../../../../wolke/components/WolkeSetupWizard';
+
+import { cn } from '@/utils/cn';
 import './clouds.css';
 
 interface WolkeManagementViewProps {
@@ -130,14 +132,16 @@ const WolkeManagementView = memo(
         animate={MOTION_CONFIG.animate}
         transition={MOTION_CONFIG.transition}
       >
-        <TopClouds />
-        <BottomClouds />
+        {!showWizard && <TopClouds />}
+        {!showWizard && <BottomClouds />}
         <CloudCard>
-          <div className="flex flex-col gap-xl p-xl">
-            <div className="flex items-center gap-sm">
-              <FiCloud className="w-6 h-6 text-primary-500 dark:text-primary-400" />
-              <h2 className="text-xl font-semibold text-foreground-heading m-0">Wolke</h2>
-            </div>
+          <div className={cn('flex flex-col p-xl', showWizard ? 'gap-md md:gap-xl' : 'gap-xl')}>
+            {!showWizard && (
+              <div className="flex items-center gap-sm">
+                <FiCloud className="w-6 h-6 text-primary-500 dark:text-primary-400" />
+                <h2 className="text-xl font-semibold text-foreground-heading m-0">Wolke</h2>
+              </div>
+            )}
 
             {(hasLinks || showManualForm) && (
               <WolkeAddForm onSuccess={onSuccessMessage} onError={onErrorMessage} />
