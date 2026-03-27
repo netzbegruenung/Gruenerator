@@ -54,7 +54,7 @@ export function useChatCollaboration(threadId: string | null, user: ChatCollabor
       url,
       name: `chat-${threadId}`,
       document: ydoc,
-    } as Parameters<typeof HocuspocusProvider>[0]);
+    } as ConstructorParameters<typeof HocuspocusProvider>[0]);
 
     providerRef.current = p;
 
