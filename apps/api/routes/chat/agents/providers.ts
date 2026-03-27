@@ -15,15 +15,18 @@ const LITELLM_DEFAULT_MODEL = 'gpt-oss:120b';
  * Available models that can be selected by the user.
  * Maps user-facing model IDs to provider/model configurations.
  */
-export const AVAILABLE_MODELS: Record<string, { provider: 'mistral' | 'litellm'; model: string }> =
-  {
-    // 'mistral' is intentionally absent — it uses agent defaults (like 'auto')
-    // Legacy IDs kept for backward compatibility (old stored client preferences)
-    'mistral-large': { provider: 'mistral', model: 'mistral-large-latest' },
-    'mistral-medium': { provider: 'mistral', model: 'mistral-medium-latest' },
-    'pixtral-large': { provider: 'mistral', model: 'pixtral-large-latest' },
-    litellm: { provider: 'litellm', model: 'gpt-oss:120b' },
-  };
+export const AVAILABLE_MODELS: Record<
+  string,
+  { provider: 'mistral' | 'litellm' | 'regolo'; model: string }
+> = {
+  // 'mistral' is intentionally absent — it uses agent defaults (like 'auto')
+  // Legacy IDs kept for backward compatibility (old stored client preferences)
+  'mistral-large': { provider: 'mistral', model: 'mistral-large-latest' },
+  'mistral-medium': { provider: 'mistral', model: 'mistral-medium-latest' },
+  'pixtral-large': { provider: 'mistral', model: 'pixtral-large-latest' },
+  litellm: { provider: 'litellm', model: 'gpt-oss:120b' },
+  regolo: { provider: 'regolo', model: process.env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b' },
+};
 
 /**
  * Get model configuration by user-facing model ID.
@@ -31,12 +34,13 @@ export const AVAILABLE_MODELS: Record<string, { provider: 'mistral' | 'litellm';
  */
 export function getModelConfig(
   modelId: string
-): { provider: 'mistral' | 'litellm'; model: string } | null {
+): { provider: 'mistral' | 'litellm' | 'regolo'; model: string } | null {
   return AVAILABLE_MODELS[modelId] || null;
 }
 
 let mistralInstance: ReturnType<typeof createMistral> | null = null;
 let litellmInstance: ReturnType<typeof createOpenAI> | null = null;
+let regoloInstance: ReturnType<typeof createOpenAI> | null = null;
 
 function getMistralProvider() {
   if (!mistralInstance) {
@@ -62,6 +66,21 @@ function getLiteLLMProvider() {
   return litellmInstance;
 }
 
+function getRegoloProvider() {
+  if (!regoloInstance) {
+    const apiKey = process.env.REGOLO_API_KEY;
+    if (!apiKey) {
+      throw new Error('REGOLO_API_KEY is not configured');
+    }
+    regoloInstance = createOpenAI({
+      baseURL: 'https://api.regolo.ai/v1',
+      apiKey,
+      name: 'regolo',
+    });
+  }
+  return regoloInstance;
+}
+
 export function isProviderConfigured(provider: AgentConfig['provider']): boolean {
   let configured = false;
   switch (provider) {
@@ -78,6 +97,10 @@ export function isProviderConfigured(provider: AgentConfig['provider']): boolean
       console.log(
         `[providers] Checking litellm: BASE_URL=${hasBaseUrl ? 'set' : 'NOT SET'}, API_KEY=${hasApiKey ? 'set' : 'NOT SET'}`
       );
+      return configured;
+    case 'regolo':
+      configured = !!process.env.REGOLO_API_KEY;
+      console.log(`[providers] Checking regolo: REGOLO_API_KEY=${configured ? 'set' : 'NOT SET'}`);
       return configured;
     case 'anthropic':
       return false;
@@ -103,6 +126,14 @@ export function getModel(provider: AgentConfig['provider'], modelId: string): La
       console.log(`[providers] LiteLLM model created successfully`);
       return model;
     }
+    case 'regolo': {
+      const regoloDefault = process.env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
+      console.log(`[providers] Creating Regolo model: ${modelId || regoloDefault}`);
+      const regolo = getRegoloProvider();
+      const model = regolo(modelId || regoloDefault);
+      console.log(`[providers] Regolo model created successfully`);
+      return model;
+    }
     case 'anthropic':
       throw new Error('Anthropic provider is not yet implemented');
     default:
@@ -116,6 +147,8 @@ export function getProviderName(provider: AgentConfig['provider']): string {
       return 'Mistral AI';
     case 'litellm':
       return 'LiteLLM (GPT-OSS)';
+    case 'regolo':
+      return 'Regolo AI';
     case 'anthropic':
       return 'Anthropic Claude';
     default:

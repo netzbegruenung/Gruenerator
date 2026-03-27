@@ -1,18 +1,26 @@
 /**
  * useTabIndex Hook
  *
+ * @deprecated Positive tabIndex values are an anti-pattern. Use natural DOM order instead.
+ * Only kept for profile page compatibility.
+ *
  * Provides centralized tabIndex management for forms and components.
  * Ensures consistent tab navigation across the application.
  */
 
 import { useMemo } from 'react';
 
-import { TAB_INDEX_CONFIG, TabIndexHelpers, DEFAULT_TAB_INDEX } from '../utils/tabIndexConfig';
+import { TAB_INDEX_CONFIG, TabIndexHelpers } from '../utils/tabIndexConfig';
 
 type PageType = keyof typeof TAB_INDEX_CONFIG;
 type TabIndexConfig = Record<string, number>;
 
+const EMPTY_CONFIG = {} as Record<string, number>;
+
 /**
+ * @deprecated Positive tabIndex values are an anti-pattern. Use natural DOM order instead.
+ * Only kept for profile page compatibility.
+ *
  * Custom hook for managing tabIndex values
  * @param {string} pageType - The page type key from TAB_INDEX_CONFIG
  * @returns {object} Object with tabIndex values and helper functions
@@ -20,15 +28,12 @@ type TabIndexConfig = Record<string, number>;
 export const useTabIndex = (pageType: PageType | string | undefined) => {
   const config = useMemo(() => {
     if (!pageType) {
-      return DEFAULT_TAB_INDEX;
+      return EMPTY_CONFIG;
     }
 
     const isValidPageType = pageType in TAB_INDEX_CONFIG;
     if (!isValidPageType) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn(`useTabIndex: Unknown pageType "${pageType}", using default config`);
-      }
-      return DEFAULT_TAB_INDEX;
+      return EMPTY_CONFIG;
     }
 
     return TAB_INDEX_CONFIG[pageType as PageType];
@@ -56,7 +61,7 @@ export const useTabIndex = (pageType: PageType | string | undefined) => {
        */
       getWithOffset: (elementKey: string, offset = 0) => {
         if (!pageType || !(pageType in TAB_INDEX_CONFIG)) {
-          return (DEFAULT_TAB_INDEX[elementKey as keyof typeof DEFAULT_TAB_INDEX] ?? 100) + offset;
+          return (config[elementKey as keyof typeof config] ?? 0) + offset;
         }
         return TabIndexHelpers.getWithOffset(pageType as PageType, elementKey, offset);
       },
@@ -128,31 +133,6 @@ export const useFormTabIndex = (pageType: PageType | string | undefined, element
       get: tabIndex.get,
     },
   };
-};
-
-/**
- * Hook for BaseForm components to get standard form element tabIndex values
- * @param {string} pageType - The page type key
- * @returns {object} Standard form element tabIndex values
- */
-export const useBaseFormTabIndex = (pageType: PageType | string | undefined) => {
-  const tabIndex = useTabIndex(pageType);
-
-  return useMemo(
-    () => ({
-      platformSelector: tabIndex.get('platformSelector') || 12,
-      knowledgeSourceSelector: tabIndex.get('knowledgeSourceSelector') || 13,
-      knowledgeSelector: tabIndex.get('knowledgeSelector') || 14,
-      submit: tabIndex.get('submit') || 19,
-
-      // For passing to child components
-      platformSelectorTabIndex: tabIndex.get('platformSelector') || 12,
-      knowledgeSourceSelectorTabIndex: tabIndex.get('knowledgeSourceSelector') || 13,
-      knowledgeSelectorTabIndex: tabIndex.get('knowledgeSelector') || 14,
-      submitButtonTabIndex: tabIndex.get('submit') || 19,
-    }),
-    [tabIndex]
-  );
 };
 
 export default useTabIndex;

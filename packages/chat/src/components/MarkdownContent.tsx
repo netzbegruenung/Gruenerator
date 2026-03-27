@@ -83,7 +83,7 @@ export const MarkdownContent = memo(function MarkdownContent({ content }: Markdo
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-primary underline hover:text-primary-dark"
+          className="text-primary underline hover:text-primary-dark break-words"
         >
           {children}
         </a>
@@ -92,7 +92,10 @@ export const MarkdownContent = memo(function MarkdownContent({ content }: Markdo
         const isInline = !className?.includes('language-');
         if (isInline) {
           return (
-            <code className="rounded bg-code-inline-bg px-1 py-0.5 font-mono text-sm" {...props}>
+            <code
+              className="rounded bg-code-inline-bg px-1 py-0.5 font-mono text-sm break-words"
+              {...props}
+            >
               {children}
             </code>
           );

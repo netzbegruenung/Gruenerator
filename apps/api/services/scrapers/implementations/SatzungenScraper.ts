@@ -477,7 +477,7 @@ export class SatzungenScraper extends BaseScraper {
     this.landesverband = 'NRW';
     this.qdrant = null;
     this.mistralClient = null;
-    this.crawlDelay = 2000;
+    this.crawlDelay = 500;
     this.batchSize = 10;
     this.timeout = 60000;
     this.maxRetries = 3;

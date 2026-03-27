@@ -8,6 +8,7 @@ import {
   useLocalRuntime,
   type ThreadMessageLike,
 } from '@assistant-ui/react';
+import { VoxtralDictationAdapter } from '@gruenerator/voice';
 import {
   createNotebookModelAdapter,
   type NotebookAdapterConfig,
@@ -28,8 +29,13 @@ export interface NotebookChatProviderProps {
   extraParams?: Record<string, unknown>;
   initialMessages?: readonly ThreadMessageLike[];
   onComplete?: (metadata: NotebookMessageMetadata) => void;
+  onThreadCreated?: (threadId: string) => void;
   mode?: 'fast' | 'deep';
   endpoint?: string;
+  documentIds?: string[];
+  threadId?: string | null;
+  provider?: string;
+  model?: string;
 }
 
 /**
@@ -50,10 +56,25 @@ function NotebookChatProviderInner({
   extraParams,
   initialMessages,
   onComplete,
+  onThreadCreated,
   mode,
   endpoint,
+  documentIds,
+  threadId: initialThreadId,
+  provider,
+  model,
 }: NotebookChatProviderProps) {
   const isMulti = collections.length > 1;
+  // Use a ref for threadId so adapter is not recreated when it changes mid-conversation
+  const threadIdRef = useRef<string | null>(initialThreadId || null);
+
+  const handleThreadCreated = useCallback(
+    (newThreadId: string) => {
+      threadIdRef.current = newThreadId;
+      onThreadCreated?.(newThreadId);
+    },
+    [onThreadCreated]
+  );
 
   const getConfig = useCallback(
     (): NotebookAdapterConfig => ({
@@ -66,8 +87,23 @@ function NotebookChatProviderInner({
       extraParams,
       mode,
       endpoint,
+      documentIds,
+      threadId: threadIdRef.current,
+      provider,
+      model,
     }),
-    [collections, isMulti, filters, locale, extraParams, mode, endpoint]
+    [
+      collections,
+      isMulti,
+      filters,
+      locale,
+      extraParams,
+      mode,
+      endpoint,
+      documentIds,
+      provider,
+      model,
+    ]
   );
 
   const onCompleteRef = useRef(onComplete);
@@ -77,9 +113,20 @@ function NotebookChatProviderInner({
     onCompleteRef.current?.(metadata);
   }, []);
 
+  const handleThreadCreatedRef = useRef(handleThreadCreated);
+  handleThreadCreatedRef.current = handleThreadCreated;
+
+  const stableOnThreadCreated = useCallback((tid: string) => {
+    handleThreadCreatedRef.current(tid);
+  }, []);
+
   const adapter = useMemo(
-    () => createNotebookModelAdapter(getConfig, { onComplete: stableOnComplete }),
-    [getConfig, stableOnComplete]
+    () =>
+      createNotebookModelAdapter(getConfig, {
+        onComplete: stableOnComplete,
+        onThreadCreated: stableOnThreadCreated,
+      }),
+    [getConfig, stableOnComplete, stableOnThreadCreated]
   );
 
   const prevAdapterRef = useRef(adapter);
@@ -88,7 +135,12 @@ function NotebookChatProviderInner({
     prevAdapterRef.current = adapter;
   }
 
-  const runtime = useLocalRuntime(adapter, { initialMessages });
+  const dictationAdapter = useMemo(() => new VoxtralDictationAdapter(), []);
+
+  const runtime = useLocalRuntime(adapter, {
+    initialMessages,
+    adapters: { dictation: dictationAdapter },
+  });
 
   return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>;
 }

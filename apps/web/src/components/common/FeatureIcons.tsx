@@ -1,3 +1,22 @@
+import {
+  Badge,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@gruenerator/ui';
 import React, { type JSX, useState, useRef, useMemo, useCallback } from 'react';
 import {
   HiGlobeAlt,
@@ -19,12 +38,6 @@ import { useAuth } from '../../hooks/useAuth';
 import { useGeneratorSelectionStore } from '../../stores/core/generatorSelectionStore';
 import { cn } from '../../utils/cn';
 import { getPDFPageCount } from '../../utils/fileAttachmentUtils';
-import { Badge } from '../ui/badge';
-import { Button } from '../ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '../ui/dropdown-menu';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 import AttachedFilesList from './AttachedFilesList';
 import ContentSelector, { type AttachedFile } from './ContentSelector';
@@ -232,7 +245,7 @@ const ContentSelectorDialog = React.memo(function ContentSelectorDialog({
               )}
               onClick={handleAutoToggle}
             >
-              <HiLightningBolt className="shrink-0 text-xl opacity-70 text-[var(--himmel)]" />
+              <HiLightningBolt className="shrink-0 text-xl opacity-70 text-[var(--interactive-accent-color)]" />
               <div className="min-w-0 flex-1">
                 <span className="block font-medium">Automatische Suche</span>
                 <span className="block text-sm opacity-60">KI wählt relevante Inhalte</span>
@@ -316,13 +329,6 @@ const ContentSelectorDialog = React.memo(function ContentSelectorDialog({
 });
 
 const DEFAULT_ATTACHED_FILES: AttachedFile[] = [];
-const DEFAULT_TAB_INDEX = {
-  webSearch: 11,
-  balancedMode: 12,
-  attachment: 13,
-  interactiveMode: 14,
-} as const;
-
 interface FeatureIconsProps {
   onBalancedModeClick?: () => void;
   onAttachmentClick?: (files: File[]) => void;
@@ -332,12 +338,6 @@ interface FeatureIconsProps {
   attachedFiles?: AttachedFile[];
   attachmentActive?: boolean;
   className?: string;
-  tabIndex?: {
-    webSearch?: number;
-    balancedMode?: number;
-    attachment?: number;
-    interactiveMode?: number;
-  };
   showPrivacyInfoLink?: boolean;
   onPrivacyInfoClick?: () => void;
   showWebSearchInfoLink?: boolean;
@@ -355,7 +355,6 @@ const FeatureIcons = ({
   interactiveModeActive = true,
   attachedFiles = DEFAULT_ATTACHED_FILES,
   className = '',
-  tabIndex = DEFAULT_TAB_INDEX,
   showPrivacyInfoLink = false,
   onPrivacyInfoClick,
   showWebSearchInfoLink = false,
@@ -364,23 +363,17 @@ const FeatureIcons = ({
   hideLoginPrompt = false,
   showAgentMode = false,
 }: FeatureIconsProps): JSX.Element | null => {
-  // Single batched selector — prevents N re-renders when store hydrates
+  // Data selector — useShallow for change detection on values that actually change
   const {
     useWebSearch,
     usePrivacyMode,
     useProMode,
     useAutomaticSearch,
     useAgentMode,
-    toggleWebSearch,
-    togglePrivacyMode,
-    toggleProMode,
-    toggleAgentMode,
     selectedDocumentIds,
     selectedTextIds,
     availableDocuments,
     availableTexts,
-    toggleDocumentSelection,
-    toggleTextSelection,
   } = useGeneratorSelectionStore(
     useShallow((state) => ({
       useWebSearch: state.useWebSearch,
@@ -388,18 +381,20 @@ const FeatureIcons = ({
       useProMode: state.useProMode,
       useAutomaticSearch: state.useAutomaticSearch,
       useAgentMode: state.useAgentMode,
-      toggleWebSearch: state.toggleWebSearch,
-      togglePrivacyMode: state.togglePrivacyMode,
-      toggleProMode: state.toggleProMode,
-      toggleAgentMode: state.toggleAgentMode,
       selectedDocumentIds: state.selectedDocumentIds,
       selectedTextIds: state.selectedTextIds,
       availableDocuments: state.availableDocuments,
       availableTexts: state.availableTexts,
-      toggleDocumentSelection: state.toggleDocumentSelection,
-      toggleTextSelection: state.toggleTextSelection,
     }))
   );
+
+  // Action selectors — Zustand functions are referentially stable, no useShallow needed
+  const toggleWebSearch = useGeneratorSelectionStore((s) => s.toggleWebSearch);
+  const togglePrivacyMode = useGeneratorSelectionStore((s) => s.togglePrivacyMode);
+  const toggleProMode = useGeneratorSelectionStore((s) => s.toggleProMode);
+  const toggleAgentMode = useGeneratorSelectionStore((s) => s.toggleAgentMode);
+  const toggleDocumentSelection = useGeneratorSelectionStore((s) => s.toggleDocumentSelection);
+  const toggleTextSelection = useGeneratorSelectionStore((s) => s.toggleTextSelection);
 
   const [isValidatingFiles, setIsValidatingFiles] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -526,36 +521,19 @@ const FeatureIcons = ({
   return (
     <div
       className={cn(
-        'relative flex w-full flex-col gap-xs',
-        !noBorder && 'mb-xs rounded-sm border border-grey-200 dark:border-grey-700 p-sm',
+        'relative flex flex-col gap-xs',
+        !noBorder
+          ? 'w-full mb-xs rounded-sm border border-grey-200 dark:border-grey-700 p-sm'
+          : 'w-auto',
         className
       )}
     >
       <TooltipProvider>
-        <div className="flex flex-nowrap items-center justify-center gap-xs">
-          {/* Web Search Toggle */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn(
-                  'size-9 sm:size-10 text-grey-600 dark:text-grey-400 hover:bg-secondary-50 dark:hover:bg-secondary-700 transition-colors duration-150',
-                  useWebSearch && 'bg-secondary-100 dark:bg-secondary-700 text-primary-500'
-                )}
-                onClick={toggleWebSearch}
-                aria-label="Websuche aktivieren"
-                tabIndex={tabIndex.webSearch}
-                type="button"
-              >
-                <HiGlobeAlt className="size-5 sm:size-6" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Websuche</TooltipContent>
-          </Tooltip>
+        <div className="flex flex-nowrap items-center justify-start gap-xs">
+          {/* Web Search — removed, integrated into Pro mode */}
 
-          {/* AI Mode Dropdown */}
-          <DropdownMenu
+          {/* AI Mode Dropdown — disabled: model selection now automatic (GPT-OSS + reasoning by type) */}
+          {/* <DropdownMenu
             open={balancedOpen}
             onOpenChange={(open) => {
               setBalancedOpen(open);
@@ -574,7 +552,6 @@ const FeatureIcons = ({
                         'bg-secondary-100 dark:bg-secondary-700 text-primary-500'
                     )}
                     aria-label={usePrivacyMode ? 'Gruenerator-GPT' : useProMode ? 'Pro' : 'Kreativ'}
-                    tabIndex={tabIndex.balancedMode}
                     type="button"
                   >
                     {usePrivacyMode ? (
@@ -600,9 +577,9 @@ const FeatureIcons = ({
                 onSelectPro={handleSelectPro}
               />
             </DropdownMenuContent>
-          </DropdownMenu>
+          </DropdownMenu> */}
 
-          {/* Agent Mode Toggle */}
+          {/* Pro Mode Toggle */}
           {showAgentMode && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -614,16 +591,16 @@ const FeatureIcons = ({
                     useAgentMode && 'bg-secondary-100 dark:bg-secondary-700 text-primary-500'
                   )}
                   onClick={toggleAgentMode}
-                  aria-label="Agent-Modus"
+                  aria-label="Pro-Modus"
                   type="button"
                 >
-                  <HiBeaker className="size-5 sm:size-6" />
+                  <HiPlusCircle className="size-5 sm:size-6" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
                 {useAgentMode
-                  ? 'Agent-Modus aktiv: Recherche + Strategie'
-                  : 'Agent-Modus: Recherchiert und erstellt Kommunikationsstrategie'}
+                  ? 'Pro-Modus aktiv: Recherche + Strategie'
+                  : 'Pro-Modus: Recherchiert und erstellt Kommunikationsstrategie'}
               </TooltipContent>
             </Tooltip>
           )}
@@ -648,7 +625,6 @@ const FeatureIcons = ({
                         'bg-secondary-100 dark:bg-secondary-700 text-primary-500'
                     )}
                     aria-label="Inhalt"
-                    tabIndex={tabIndex.attachment}
                     type="button"
                     disabled={isValidatingFiles}
                   >
@@ -706,7 +682,6 @@ const FeatureIcons = ({
                   )}
                   onClick={onInteractiveModeClick}
                   aria-label="Interaktiver Modus"
-                  tabIndex={tabIndex.interactiveMode}
                   type="button"
                 >
                   <HiAnnotation className="size-5 sm:size-6" />

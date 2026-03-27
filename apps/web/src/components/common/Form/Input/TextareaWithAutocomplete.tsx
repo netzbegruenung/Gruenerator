@@ -11,7 +11,6 @@ import { type ControllerRenderProps, type FieldError } from 'react-hook-form';
 import TextareaAutosize from 'react-textarea-autosize';
 
 import { useTextAutocomplete, COMBINED_DICTIONARY } from '../../../../hooks/useTextAutocomplete';
-import '../../../../assets/styles/components/form/form-inputs.css';
 
 /**
  * TextareaWithAutocomplete - Standalone textarea component with ghost-text autocomplete
@@ -29,7 +28,6 @@ interface TextareaWithAutocompleteProps {
   maxRows?: number;
   maxLength?: number;
   className?: string;
-  tabIndex?: number;
   textareaProps?: Record<string, unknown>;
   enableUrlDetection?: boolean;
   onFieldValueChange?: (value: string) => void;
@@ -51,7 +49,6 @@ const TextareaWithAutocomplete = ({
   maxRows,
   maxLength,
   className,
-  tabIndex,
   textareaProps = {},
   enableUrlDetection = false,
   onFieldValueChange,
@@ -130,7 +127,6 @@ const TextareaWithAutocomplete = ({
         maxRows={maxRows}
         maxLength={maxLength}
         className={`${className} ${error ? 'error-input' : ''}`.trim()}
-        tabIndex={tabIndex}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         {...textareaProps}

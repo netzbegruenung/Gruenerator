@@ -1,113 +1,170 @@
 import { DocumentList } from '@gruenerator/docs';
 import { getAvatarDisplayProps, getRobotAvatarPath } from '@gruenerator/shared/avatar';
-import { MantineProvider, Menu, ActionIcon, TextInput } from '@mantine/core';
-import { useState } from 'react';
+import { PresentationList, SlidesProvider } from '@gruenerator/slides';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@gruenerator/ui';
+import { memo, useDeferredValue, useState } from 'react';
 import { FiLogOut, FiSearch, FiSettings, FiX } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../hooks/useAuth';
-import { useColorScheme } from '../hooks/useColorScheme';
+import { webSlidesAdapter } from '../lib/slidesAdapter';
 import { useAuthStore } from '../stores/authStore';
 
 import '@gruenerator/docs/styles';
-import '@mantine/core/styles.css';
-import './HomePage.css';
 
-const UserAvatar = ({
-  user,
-}: {
-  user: { display_name?: string; email?: string; avatar_robot_id?: number } | null;
-}) => {
-  const avatar = getAvatarDisplayProps(user);
-  if (avatar.type === 'robot' && avatar.robotId) {
+const UserAvatar = memo(
+  ({
+    user,
+  }: {
+    user: { display_name?: string; email?: string; avatar_robot_id?: number } | null;
+  }) => {
+    const avatar = getAvatarDisplayProps(user);
+    if (avatar.type === 'robot' && avatar.robotId) {
+      return (
+        <img
+          src={getRobotAvatarPath(avatar.robotId)}
+          alt={avatar.alt || ''}
+          className="w-full h-full object-cover"
+        />
+      );
+    }
     return (
-      <img
-        src={getRobotAvatarPath(avatar.robotId)}
-        alt={avatar.alt || ''}
-        className="home-page-avatar-img"
-      />
+      <span className="text-[0.8rem] font-semibold text-foreground leading-none">
+        {avatar.initials}
+      </span>
     );
   }
-  return <span className="home-page-avatar-initials">{avatar.initials}</span>;
-};
+);
+UserAvatar.displayName = 'UserAvatar';
+
+type ContentTab = 'documents' | 'presentations';
 
 export const HomePage = () => {
   const { user } = useAuth();
-  const { logout } = useAuthStore();
-  const colorScheme = useColorScheme();
+  const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const deferredSearch = useDeferredValue(searchQuery);
+  const [activeTab, setActiveTab] = useState<ContentTab>('documents');
 
   return (
-    <MantineProvider forceColorScheme={colorScheme}>
-      <div className="home-page">
-        <div className="home-page-container">
-          <header className="home-page-header">
-            <h1 className="home-page-title">
-              <img
-                src="/images/gruenerator-docs-icon.svg"
-                alt="Grünerator"
-                className="home-page-logo"
-              />
-              Docs
-            </h1>
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto max-w-[1200px] px-md py-lg md:px-xl md:py-xl">
+        <header className="mb-lg pb-md border-b border-grey-200 dark:border-grey-700 flex flex-wrap items-center justify-between gap-sm gap-x-md sm:grid sm:grid-cols-[auto_1fr_auto] sm:gap-md md:mb-xl md:pb-lg">
+          <h1 className="m-0 text-xl font-semibold text-foreground flex items-center gap-2 font-[Raleway,PT_Sans,Arial,sans-serif] sm:text-2xl">
+            <img
+              src="/images/gruenerator-docs-icon.svg"
+              alt="Grünerator"
+              className="h-8 w-auto sm:h-9"
+            />
+            Docs
+          </h1>
 
-            <div className="home-page-search">
-              <TextInput
-                placeholder="Dokumente durchsuchen…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.currentTarget.value)}
-                leftSection={<FiSearch size={16} />}
-                rightSection={
-                  searchQuery ? (
-                    <ActionIcon
-                      variant="subtle"
-                      color="gray"
-                      size="sm"
-                      onClick={() => setSearchQuery('')}
-                      aria-label="Suche zurücksetzen"
-                    >
-                      <FiX size={14} />
-                    </ActionIcon>
-                  ) : null
+          <div className="order-3 w-full sm:order-none sm:max-w-[480px] sm:justify-self-center md:max-w-[520px]">
+            <div className="relative">
+              <FiSearch
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-grey-400"
+              />
+              <input
+                type="text"
+                placeholder={
+                  activeTab === 'documents'
+                    ? 'Dokumente durchsuchen…'
+                    : 'Präsentationen durchsuchen…'
                 }
-                classNames={{ input: 'home-page-search-input' }}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-full border border-grey-200 bg-grey-50 py-2 pl-9 pr-9 text-sm outline-none transition-colors placeholder:text-grey-400 focus:border-secondary-600 focus:ring-1 focus:ring-secondary-600/30 dark:border-grey-700 dark:bg-grey-800 dark:focus:border-secondary-600"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Suche zurücksetzen"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-grey-400 hover:bg-grey-100 hover:text-grey-600 dark:hover:bg-grey-800"
+                >
+                  <FiX size={14} />
+                </button>
+              )}
             </div>
+          </div>
 
-            <div className="home-page-user-section">
-              <Menu position="bottom-end" shadow="md" withArrow>
-                <Menu.Target>
-                  <button className="home-page-avatar-btn" aria-label="Profil-Menü">
-                    <UserAvatar user={user} />
-                  </button>
-                </Menu.Target>
-                <Menu.Dropdown>
-                  <Menu.Label>{user?.display_name || user?.email}</Menu.Label>
-                  <Menu.Item
-                    leftSection={<FiSettings size={14} />}
-                    onClick={() => navigate('/settings')}
-                  >
-                    Einstellungen
-                  </Menu.Item>
-                  <Menu.Divider />
-                  <Menu.Item
-                    leftSection={<FiLogOut size={14} />}
-                    onClick={() => logout()}
-                    color="red"
-                  >
-                    Abmelden
-                  </Menu.Item>
-                </Menu.Dropdown>
-              </Menu>
-            </div>
-          </header>
+          <div className="flex items-center justify-end">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="flex items-center justify-center w-9 h-9 rounded-full border-2 border-grey-200 bg-grey-50 cursor-pointer p-0 overflow-hidden transition-[border-color,box-shadow] duration-200 hover:border-secondary-600 hover:shadow-[0_0_0_2px_rgba(95,133,117,0.15)] dark:bg-grey-800 dark:border-grey-600 dark:hover:border-secondary-600 sm:w-10 sm:h-10"
+                  aria-label="Profil-Menü"
+                >
+                  <UserAvatar user={user} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="bg-background-pure shadow-lg border border-grey-200 dark:border-grey-700"
+              >
+                <DropdownMenuLabel className="text-foreground">
+                  {user?.display_name || user?.email}
+                </DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => navigate('/settings')}>
+                  <FiSettings size={14} />
+                  Einstellungen
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => logout()}
+                  className="text-red-600 focus:text-red-600"
+                >
+                  <FiLogOut size={14} />
+                  Abmelden
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </header>
 
-          <main>
-            <DocumentList searchQuery={searchQuery} />
-          </main>
+        <div className="flex gap-1 mb-md border-b border-grey-200 dark:border-grey-700">
+          <button
+            onClick={() => setActiveTab('documents')}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              activeTab === 'documents'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-grey-500 hover:text-grey-700 dark:hover:text-grey-300'
+            }`}
+          >
+            Dokumente
+          </button>
+          <button
+            onClick={() => setActiveTab('presentations')}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              activeTab === 'presentations'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-grey-500 hover:text-grey-700 dark:hover:text-grey-300'
+            }`}
+          >
+            Präsentationen
+          </button>
         </div>
+
+        <main>
+          {activeTab === 'documents' && <DocumentList searchQuery={deferredSearch} />}
+          {activeTab === 'presentations' && (
+            <SlidesProvider adapter={webSlidesAdapter}>
+              <PresentationList
+                searchQuery={deferredSearch}
+                onPresentationClick={(id) => navigate(`/presentation/${id}`)}
+              />
+            </SlidesProvider>
+          )}
+        </main>
       </div>
-    </MantineProvider>
+    </div>
   );
 };

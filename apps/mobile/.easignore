@@ -1,0 +1,63 @@
+# Dependencies (EAS installs these in the cloud)
+**/node_modules/
+
+# Native build artifacts (EAS runs prebuild)
+apps/mobile/android/
+apps/mobile/ios/
+apps/docs-expo/android/
+apps/docs-expo/ios/
+
+# Other apps not needed for EAS builds (mobile / docs-expo)
+apps/web/
+apps/api/
+apps/docs/
+apps/docs-desktop/
+apps/desktop/
+apps/sites/
+apps/gruen-o-mat/
+apps/wordpress/
+
+# Services not needed
+/services/
+
+# Reference repos (1.4 GB of cloned repos)
+/inspiration/
+
+# Documentation
+/documentation/
+
+# Playwright, docs, tooling
+/.playwright-mcp/
+/docs/
+
+# Dev/build artifacts
+**/.expo/
+**/dist/
+**/*.tsbuildinfo
+**/.turbo/
+
+# Large media/test files
+*.mp4
+*.mov
+*.avi
+*.swp
+
+# Large root files
+*.jar
+*.md
+!README.md
+/*.png
+
+# Git
+.git/
+
+# IDE / tooling
+.idea/
+.vscode/
+.claude/
+.husky/
+.github/
+
+# Secrets
+**/google-service-account.json
+**/.env*.local

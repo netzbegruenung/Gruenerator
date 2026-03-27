@@ -22,17 +22,7 @@ export function NativeTabLayout() {
         })}
         <NativeTabs.Trigger.Label>Start</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="(texte)">
-        {Platform.select({
-          ios: <NativeTabs.Trigger.Icon sf={{ default: 'doc.text', selected: 'doc.text.fill' }} />,
-          android: (
-            <NativeTabs.Trigger.Icon
-              src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="document-text" />}
-            />
-          ),
-        })}
-        <NativeTabs.Trigger.Label>Texte</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="(chat)" hidden />
       <NativeTabs.Trigger name="(media)">
         {Platform.select({
           ios: <NativeTabs.Trigger.Icon sf={{ default: 'video', selected: 'video.fill' }} />,
@@ -44,38 +34,36 @@ export function NativeTabLayout() {
         })}
         <NativeTabs.Trigger.Label>Medien</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="(tools)">
+      <NativeTabs.Trigger name="(docs)">
         {Platform.select({
           ios: (
             <NativeTabs.Trigger.Icon
-              sf={{ default: 'wrench.and.screwdriver', selected: 'wrench.and.screwdriver.fill' }}
+              sf={{ default: 'doc.text', selected: 'doc.text.fill' }}
             />
           ),
           android: (
             <NativeTabs.Trigger.Icon
-              src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="construct" />}
+              src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="document-text" />}
             />
           ),
         })}
-        <NativeTabs.Trigger.Label>Tools</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>Docs</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="(chat)">
+      <NativeTabs.Trigger name="(desk)" hidden />
+      <NativeTabs.Trigger name="(recherche)">
         {Platform.select({
           ios: (
             <NativeTabs.Trigger.Icon
-              sf={{
-                default: 'bubble.left.and.text.bubble.right',
-                selected: 'bubble.left.and.text.bubble.right.fill',
-              }}
+              sf={{ default: 'magnifyingglass', selected: 'magnifyingglass' }}
             />
           ),
           android: (
             <NativeTabs.Trigger.Icon
-              src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="chatbubble-ellipses" />}
+              src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="search" />}
             />
           ),
         })}
-        <NativeTabs.Trigger.Label>Chat</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>Recherche</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile" hidden />
     </NativeTabs>

@@ -22,7 +22,6 @@ import {
 import { ffmpegPool } from './ffmpegPool.js';
 import { ffmpeg, ffprobe, normalizeRotation, FFprobeMetadata } from './ffmpegWrapper.js';
 import * as hwaccel from './hwaccelUtils.js';
-import { detectSilence, calculateTrimPoints, type SilenceData } from './silenceDetectionService.js';
 import { transcribeVideo } from './transcriptionService.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -49,10 +48,10 @@ interface Stage {
 }
 
 const STAGES: Record<string, Stage> = {
-  ANALYZING: { id: 1, name: 'Video wird analysiert...', weight: 15 },
-  TRIMMING: { id: 2, name: 'Stille Teile werden entfernt...', weight: 20 },
-  SUBTITLES: { id: 3, name: 'Untertitel werden generiert...', weight: 55 },
-  FINALIZING: { id: 4, name: 'Wird fertiggestellt...', weight: 10 },
+  ANALYZING: { id: 1, name: 'Video wird analysiert...', weight: 5 },
+  TRIMMING: { id: 2, name: 'Wird vorbereitet...', weight: 0 },
+  SUBTITLES: { id: 3, name: 'Untertitel werden generiert...', weight: 25 },
+  FINALIZING: { id: 4, name: 'Wird fertiggestellt...', weight: 70 },
 };
 
 interface ProgressData {
@@ -272,15 +271,8 @@ async function processVideoAutomatically(
       overallProgress: calculateOverallProgress(STAGES.ANALYZING.id, 50),
     });
 
-    let silenceData: SilenceData | undefined;
-    let trimPoints: TrimPoints = { trimStart: 0, trimEnd: metadata.duration, hasTrimming: false };
-
-    try {
-      silenceData = await detectSilence(inputPath);
-      trimPoints = calculateTrimPoints(silenceData);
-    } catch (silenceError: any) {
-      log.warn(`Silence detection failed: ${silenceError.message} - using full video`);
-    }
+    // No silence detection — subtitles only, no video trimming
+    const trimPoints: TrimPoints = { trimStart: 0, trimEnd: metadata.duration, hasTrimming: false };
 
     await updateProgress(uploadId, {
       stage: STAGES.ANALYZING.id,

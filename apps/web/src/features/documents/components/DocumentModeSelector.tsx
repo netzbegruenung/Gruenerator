@@ -2,6 +2,8 @@ import { HiFolder } from 'react-icons/hi';
 
 import FeatureToggle from '../../../components/common/FeatureToggle';
 
+import { cn } from '@/utils/cn';
+
 interface DocumentModeSelectorProps {
   currentMode?: 'wolke' | 'manual';
   onModeChange?: (mode: 'wolke' | 'manual') => void;
@@ -36,10 +38,10 @@ const DocumentModeSelector = ({
   };
 
   return (
-    <div className="document-mode-selector">
-      <div className="document-mode-selector-header">
-        <h3>Dokumenten-Verwaltung</h3>
-        <p className="document-mode-selector-description">
+    <div className="mb-lg rounded-lg border border-grey-200 bg-background p-lg dark:border-grey-700">
+      <div className="mb-lg text-center">
+        <h3 className="m-0 mb-sm text-lg font-semibold text-foreground">Dokumenten-Verwaltung</h3>
+        <p className="m-0 text-base text-foreground">
           Wähle, wie du deine Dokumente verwalten möchtest
         </p>
       </div>
@@ -56,12 +58,12 @@ const DocumentModeSelector = ({
               ? 'Ganze Ordner werden automatisch synchronisiert und bleiben immer aktuell.'
               : 'Einzelne Dokumente direkt hochladen für maximale Privatsphäre und sofortige Verarbeitung.'
         }
-        className={`document-mode-feature-toggle ${disabled ? 'disabled' : ''}`}
+        className={cn('my-md', disabled && 'opacity-50 pointer-events-none')}
         disabled={disabled && isWolkeMode}
       />
 
       {loading && (
-        <div className="document-mode-loading">
+        <div className="mt-md flex items-center justify-center gap-sm rounded-lg bg-background-alt p-md text-sm text-foreground">
           <div className="spinner" />
           <span>Modus wird gewechselt...</span>
         </div>

@@ -87,7 +87,7 @@ const CitationTextRenderer = ({
   }
 
   return (
-    <span className={`${className} citation-text-renderer`}>
+    <span className={`${className} inline`}>
       {parts.map((part, index) => {
         if (part.type === 'citation') {
           return (
@@ -100,7 +100,7 @@ const CitationTextRenderer = ({
           );
         }
         return (
-          <Markdown key={index} className="citation-text-segment" inline>
+          <Markdown key={index} className="inline" inline>
             {part.content || ''}
           </Markdown>
         );

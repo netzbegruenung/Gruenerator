@@ -152,7 +152,7 @@ export function SourceCard(props: SourceMessagePartProps) {
             </button>
           )}
 
-          {fullTextError && <p className="mt-1 text-xs text-red-500">{fullTextError}</p>}
+          {fullTextError && <p className="mt-1 text-xs text-destructive">{fullTextError}</p>}
         </div>
       )}
     </div>

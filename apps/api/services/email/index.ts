@@ -7,3 +7,5 @@ export {
   type DocumentShareEmailParams,
   type ContentDeliveryEmailParams,
 } from './emailService.js';
+
+export { shouldSendNotification } from './notificationPreferences.js';

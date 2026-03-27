@@ -25,7 +25,9 @@ import {
 import { createLogger } from '../../utils/logger.js';
 import { containsPromptLeakage } from '../gruenomat/topicGuard.js';
 
-import { getModel, isProviderConfigured } from './agents/providers.js';
+import { isProviderConfigured } from './agents/providers.js';
+import { resolveModel } from './services/responseStreamingService.js';
+import { SSEWriter } from './services/sseHelpers.js';
 
 import type { SearchContext } from '../../services/notebook/types.js';
 import type express from 'express';
@@ -53,6 +55,8 @@ export interface NotebookStreamOptions {
   noResultsMessage?: string;
   /** Minimum results after rerank to proceed with generation (default: 0 = no gate). */
   minResultsForGeneration?: number;
+  /** Filter search to specific document IDs within the collection. */
+  documentIds?: string[];
 }
 
 export function sendSSE(res: express.Response, event: string, data: any): void {
@@ -61,7 +65,16 @@ export function sendSSE(res: express.Response, event: string, data: any): void {
   res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
 
-export async function handleNotebookStream(options: NotebookStreamOptions): Promise<void> {
+export interface NotebookStreamResult {
+  answer: string;
+  citations: any[];
+  sources: any[];
+  question: string;
+}
+
+export async function handleNotebookStream(
+  options: NotebookStreamOptions
+): Promise<NotebookStreamResult | null> {
   const {
     req,
     res,
@@ -74,16 +87,15 @@ export async function handleNotebookStream(options: NotebookStreamOptions): Prom
     mode,
     userId,
     allowUserCollections = true,
+    documentIds,
   } = options;
 
   const isFast = mode === 'fast';
 
-  // SSE headers
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');
-  res.flushHeaders();
+  // SSE headers (skip if already flushed by controller for thread_created)
+  if (!res.headersSent) {
+    SSEWriter.initHeaders(res);
+  }
 
   const abortController = new AbortController();
   req.on('close', () => {
@@ -94,20 +106,20 @@ export async function handleNotebookStream(options: NotebookStreamOptions): Prom
     if (!messages || messages.length === 0) {
       sendSSE(res, 'error', { error: 'Messages are required' });
       res.end();
-      return;
+      return null;
     }
 
     if (!collectionId && (!collectionIds || collectionIds.length === 0)) {
       sendSSE(res, 'error', { error: 'collectionId or collectionIds is required' });
       res.end();
-      return;
+      return null;
     }
 
     const lastUserMessage = messages.filter((m) => m.role === 'user').pop();
     if (!lastUserMessage || typeof lastUserMessage.content !== 'string') {
       sendSSE(res, 'error', { error: 'No user message found' });
       res.end();
-      return;
+      return null;
     }
 
     const question = lastUserMessage.content;
@@ -132,7 +144,11 @@ export async function handleNotebookStream(options: NotebookStreamOptions): Prom
         getDocumentIdsFn: async (id: string) => {
           if (!allowUserCollections) return [];
           const docs = await notebookHelper.getCollectionDocuments(id);
-          return docs.map((d) => d.document_id);
+          const allIds = docs.map((d) => d.document_id);
+          if (documentIds?.length) {
+            return allIds.filter((docId) => documentIds.includes(docId));
+          }
+          return allIds;
         },
       });
     } catch (error: any) {
@@ -140,7 +156,7 @@ export async function handleNotebookStream(options: NotebookStreamOptions): Prom
       log.debug(`⏱ Search context failed: ${Date.now() - t0}ms`);
       sendSSE(res, 'error', { error: error.message || 'Failed to get search context' });
       res.end();
-      return;
+      return null;
     }
 
     const t1 = Date.now();
@@ -206,7 +222,7 @@ export async function handleNotebookStream(options: NotebookStreamOptions): Prom
         },
       });
       res.end();
-      return;
+      return null;
     }
 
     // Handle no results case
@@ -228,20 +244,18 @@ export async function handleNotebookStream(options: NotebookStreamOptions): Prom
         },
       });
       res.end();
-      return;
+      return null;
     }
 
-    // Determine AI provider and model
-    const effectiveProvider = provider || DEFAULT_PROVIDER;
-    const effectiveModel = model || DEFAULT_MODEL;
+    // Determine AI provider and model (same resolution as chat — handles model ID → real name)
+    const defaultAgentConfig = { provider: DEFAULT_PROVIDER, model: DEFAULT_MODEL };
+    const { model: aiModel, provider: resolvedProvider } = resolveModel(defaultAgentConfig, model);
 
-    if (!isProviderConfigured(effectiveProvider as any)) {
-      sendSSE(res, 'error', { error: `Provider "${effectiveProvider}" is not configured` });
+    if (!isProviderConfigured(resolvedProvider as any)) {
+      sendSSE(res, 'error', { error: `Provider "${resolvedProvider}" is not configured` });
       res.end();
-      return;
+      return null;
     }
-
-    const aiModel = getModel(effectiveProvider as any, effectiveModel);
 
     // Layer 2: Use XML delimiters for content isolation when a system prompt override
     // is active (Gruen-O-Mat). This structurally separates user input from retrieved
@@ -287,7 +301,7 @@ export async function handleNotebookStream(options: NotebookStreamOptions): Prom
         log.debug('Notebook stream aborted by client disconnect');
         log.debug(`⏱ Total (aborted): ${Date.now() - t0}ms, ${fullText.length} chars`);
         res.end();
-        return;
+        return null;
       }
       const t4err = Date.now();
       log.warn('Stream error (accumulated %d chars): %s', fullText.length, streamError.message);
@@ -347,7 +361,7 @@ export async function handleNotebookStream(options: NotebookStreamOptions): Prom
       }
       log.debug(`⏱ Total (error path): ${Date.now() - t0}ms`);
       res.end();
-      return;
+      return null;
     }
 
     const t4 = Date.now();
@@ -366,7 +380,7 @@ export async function handleNotebookStream(options: NotebookStreamOptions): Prom
         metadata: { totalResults: searchContext.sortedResults.length, leakageDetected: true },
       });
       res.end();
-      return;
+      return null;
     }
 
     const { renumberedDraft, newReferencesMap } = renumberCitationsInOrder(
@@ -419,9 +433,12 @@ export async function handleNotebookStream(options: NotebookStreamOptions): Prom
       `⏱ Total: ${t6 - t0}ms [${isFast ? 'fast' : 'deep'}] (search=${t1 - t0}, setup=${t2 - t1}, ttft=${(firstChunkTime || t2) - t2}, stream=${t4 - (firstChunkTime || t2)}, cite=${t5 - t4})`
     );
     res.end();
+
+    return { answer: cleanDraft, citations, sources, question };
   } catch (error: any) {
     log.error('Notebook stream error:', error);
     sendSSE(res, 'error', { error: 'Internal server error' });
     res.end();
+    return null;
   }
 }

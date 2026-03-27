@@ -10,8 +10,8 @@
 import type { Message as TokenCounterMessage } from '../../../services/counters/types.js';
 
 export const CONTEXT_CONFIG = {
-  MAX_CONTEXT_TOKENS: 6000,
-  RESPONSE_RESERVE: 1500,
+  MAX_CONTEXT_TOKENS: 40000,
+  RESPONSE_RESERVE: 2000,
 };
 
 /**

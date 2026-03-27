@@ -10,7 +10,12 @@ import { GrueneApiClient } from './GrueneApiClient.js';
 import { GrueneratorOffboarding } from './GrueneratorOffboarding.js';
 import { RetryManager } from './RetryManager.js';
 
-import type { GrueneApiConfig, OffboardingUser, BatchUpdateEntry } from './types.js';
+import type {
+  GrueneApiConfig,
+  OffboardingUser,
+  BatchUpdateEntry,
+  OffboardingResult,
+} from './types.js';
 
 const log = createLogger('OffboardingService');
 
@@ -102,24 +107,32 @@ export class OffboardingService {
    * Run the complete offboarding process
    * @returns True if successful, false otherwise
    */
-  async runOffboarding(): Promise<boolean> {
+  async runOffboarding(): Promise<OffboardingResult> {
+    const startTime = Date.now();
+    const counts = { deleted: 0, anonymized: 0, not_found: 0, failed: 0 };
+    let retriesProcessed = 0;
+    let success = true;
+
     log.info('Starting Grünerator offboarding process');
 
     try {
-      // First, process any retries
-      await RetryManager.processRetries(this.apiClient);
+      retriesProcessed = await RetryManager.processRetries(this.apiClient);
     } catch (error: any) {
       log.error('Retry processing failed:', error.message);
-      return false;
+      success = false;
     }
 
-    // Process new offboarding requests
     for await (const batch of this.processUserBatches()) {
+      for (const entry of batch) {
+        counts[entry.status] = (counts[entry.status] || 0) + 1;
+      }
+
       try {
         await this.apiClient.batchUpdateOffboardingUsers(batch);
         log.info(`Successfully reported ${batch.length} processed users to API`);
       } catch (error: any) {
         log.error('Failed to report processed users to API:', error.message);
+        success = false;
 
         try {
           await RetryManager.saveRetries(batch);
@@ -131,8 +144,24 @@ export class OffboardingService {
       }
     }
 
-    log.info('Offboarding process completed');
-    return true;
+    const result: OffboardingResult = {
+      success,
+      processed: counts.deleted + counts.anonymized + counts.not_found + counts.failed,
+      deleted: counts.deleted,
+      anonymized: counts.anonymized,
+      notFound: counts.not_found,
+      failed: counts.failed,
+      retriesProcessed,
+      durationMs: Date.now() - startTime,
+      timestamp: new Date().toISOString(),
+    };
+
+    log.info(
+      `Offboarding completed in ${result.durationMs}ms: ${result.processed} processed ` +
+        `(${result.deleted} deleted, ${result.anonymized} anonymized, ${result.notFound} not found, ${result.failed} failed)`
+    );
+
+    return result;
   }
 
   /**
@@ -163,8 +192,8 @@ export async function runOffboardingCLI(): Promise<void> {
   try {
     OffboardingService.validateConfig();
     const service = new OffboardingService();
-    const success = await service.runOffboarding();
-    process.exit(success ? 0 : 1);
+    const result = await service.runOffboarding();
+    process.exit(result.success ? 0 : 1);
   } catch (error: any) {
     log.error('Offboarding service failed:', error.message);
     process.exit(1);

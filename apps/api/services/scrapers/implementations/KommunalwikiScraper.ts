@@ -117,10 +117,11 @@ export class KommunalwikiScraper extends BaseScraper {
       });
       if (apcontinue) params.set('apcontinue', apcontinue);
 
-      const response = await fetch(`${this.apiUrl}?${params}`);
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
-      }
+      const response = await this.fetchWithRetry(`${this.apiUrl}?${params}`, {
+        timeout: 30000,
+        maxRetries: 3,
+        headers: { Accept: 'application/json' },
+      });
 
       const data = await response.json();
 
@@ -158,10 +159,11 @@ export class KommunalwikiScraper extends BaseScraper {
       format: 'json',
     });
 
-    const response = await fetch(`${this.apiUrl}?${params}`);
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.status}`);
-    }
+    const response = await this.fetchWithRetry(`${this.apiUrl}?${params}`, {
+      timeout: 30000,
+      maxRetries: 3,
+      headers: { Accept: 'application/json' },
+    });
 
     return await response.json();
   }

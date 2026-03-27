@@ -118,7 +118,7 @@ export function buildCitations(results: SearchResult[]): Citation[] {
       title: r.title,
       url: r.url || '',
       snippet: r.content.slice(0, 200),
-      citedText: r.content.length > 200 ? r.content.slice(0, 1500) : undefined,
+      citedText: r.content.length > 50 ? r.content.slice(0, 1500) : undefined,
       source: r.source,
       collectionName: resolveCollectionName(r.source),
       domain: extractDomain(r.url),

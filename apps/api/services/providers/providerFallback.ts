@@ -22,6 +22,8 @@ export function isProviderAvailable(provider: ProviderName): boolean {
       return !!process.env.LITELLM_API_KEY;
     case 'mistral':
       return !!process.env.MISTRAL_API_KEY;
+    case 'regolo':
+      return !!process.env.REGOLO_API_KEY;
     default:
       return false;
   }
@@ -38,6 +40,8 @@ export function getPrivacyModelForProvider(provider: ProviderName): ModelName {
       return 'gpt-oss:120b';
     case 'mistral':
       return 'mistral-large-2512';
+    case 'regolo':
+      return process.env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
     default:
       return 'gpt-oss:120b';
   }
@@ -54,6 +58,8 @@ export function getSharepicFallbackModel(provider: ProviderName): ModelName {
       return 'openai/gpt-oss-120b';
     case 'litellm':
       return 'gpt-oss:120b';
+    case 'regolo':
+      return process.env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
     default:
       return 'mistral-large-2512';
   }
@@ -79,7 +85,7 @@ export async function tryPrivacyModeProviders(
   execForProvider: ProviderExecutor,
   requestId: string,
   data: PrivacyProviderData,
-  chain: ProviderName[] = ['litellm', 'mistral', 'ionos']
+  chain: ProviderName[] = ['litellm', 'regolo', 'mistral', 'ionos']
 ): Promise<ExecutionResponse> {
   let lastError: Error | undefined;
   const attemptedProviders: ProviderName[] = [];

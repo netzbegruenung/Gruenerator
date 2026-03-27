@@ -14,13 +14,14 @@ import { createOpenAI } from '@ai-sdk/openai';
 import type { LanguageModel } from 'ai';
 
 // Provider name types
-export type ProviderName = 'mistral' | 'litellm' | 'ionos';
+export type ProviderName = 'mistral' | 'litellm' | 'ionos' | 'regolo';
 
 // Default models per provider
 const PROVIDER_DEFAULTS = {
   mistral: 'mistral-large-2512',
   litellm: 'gpt-oss:120b',
   ionos: 'openai/gpt-oss-120b',
+  regolo: process.env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b',
 } as const;
 
 const LITELLM_DEFAULT_BASE_URL = 'https://litellm.netzbegruenung.verdigado.net';
@@ -42,6 +43,7 @@ const IONOS_INCOMPATIBLE_PATTERNS = [
 let mistralInstance: ReturnType<typeof createMistral> | null = null;
 let litellmInstance: ReturnType<typeof createOpenAI> | null = null;
 let ionosInstance: ReturnType<typeof createOpenAI> | null = null;
+let regoloInstance: ReturnType<typeof createOpenAI> | null = null;
 
 /**
  * Get the Mistral provider instance (singleton)
@@ -94,6 +96,25 @@ function getIONOSProvider(): ReturnType<typeof createOpenAI> {
 }
 
 /**
+ * Get the Regolo provider instance (singleton)
+ * Uses OpenAI-compatible API at api.regolo.ai
+ */
+function getRegoloProvider(): ReturnType<typeof createOpenAI> {
+  if (!regoloInstance) {
+    const apiKey = process.env.REGOLO_API_KEY;
+    if (!apiKey) {
+      throw new Error('REGOLO_API_KEY environment variable is required');
+    }
+    regoloInstance = createOpenAI({
+      baseURL: 'https://api.regolo.ai/v1',
+      apiKey,
+      name: 'regolo',
+    });
+  }
+  return regoloInstance;
+}
+
+/**
  * Validate and potentially replace a model ID for IONOS compatibility
  */
 function validateIONOSModel(modelId: string, defaultModel: string): string {
@@ -120,6 +141,8 @@ export function isProviderConfigured(provider: ProviderName | string): boolean {
       return !!process.env.LITELLM_API_KEY;
     case 'ionos':
       return !!process.env.IONOS_API_TOKEN;
+    case 'regolo':
+      return !!process.env.REGOLO_API_KEY;
     default:
       return false;
   }
@@ -146,6 +169,10 @@ export function getModel(provider: ProviderName | string, modelId?: string): Lan
       );
       return ionos.chat(validatedModel);
     }
+    case 'regolo': {
+      const regolo = getRegoloProvider();
+      return regolo.chat(modelId || PROVIDER_DEFAULTS.regolo);
+    }
     default:
       throw new Error(`Unknown provider: ${provider}`);
   }
@@ -162,6 +189,8 @@ export function getDefaultModel(provider: ProviderName | string): string {
       return PROVIDER_DEFAULTS.litellm;
     case 'ionos':
       return PROVIDER_DEFAULTS.ionos;
+    case 'regolo':
+      return PROVIDER_DEFAULTS.regolo;
     default:
       return PROVIDER_DEFAULTS.mistral;
   }
@@ -178,6 +207,8 @@ export function getProviderDisplayName(provider: ProviderName | string): string 
       return 'LiteLLM (GPT-OSS)';
     case 'ionos':
       return 'IONOS (GPT-OSS)';
+    case 'regolo':
+      return 'Regolo AI';
     default:
       return 'Unknown Provider';
   }
@@ -190,5 +221,6 @@ export function normalizeProviderName(provider: string): ProviderName {
   const lower = provider.toLowerCase();
   if (lower === 'ionos') return 'ionos';
   if (lower === 'litellm') return 'litellm';
+  if (lower === 'regolo') return 'regolo';
   return 'mistral';
 }

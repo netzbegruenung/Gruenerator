@@ -2,7 +2,7 @@
 sidebar_position: 1
 ---
 
-# Grünerator in deinem KI-Chat nutzen
+# Grünerator in ChatGPT & Co nutzen
 
 Du kannst den Grünerator direkt in **ChatGPT**, **Claude**, **Mistral Le Chat** oder **OpenWebUI** verwenden — ohne gruenerator.eu öffnen zu müssen. Dein KI-Assistent kann dann grüne Parteiprogramme durchsuchen, Positionen zu Themen finden und dir beim Schreiben politischer Texte helfen.
 

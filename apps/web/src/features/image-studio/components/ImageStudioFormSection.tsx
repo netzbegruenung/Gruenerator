@@ -1,11 +1,10 @@
+import { Input, Textarea } from '@gruenerator/ui';
 import React from 'react';
 
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { EditInstructionForm } from '../forms';
 import { type ImageStudioFormSectionProps } from '../types/componentTypes';
 import { IMAGE_STUDIO_TYPES, FORM_STEPS } from '../utils/typeConfig';
-
-import '../../../assets/styles/components/form/form-inputs.css';
 
 const ImageStudioFormSection: React.FC<ImageStudioFormSectionProps> = ({
   type,
@@ -26,14 +25,14 @@ const ImageStudioFormSection: React.FC<ImageStudioFormSectionProps> = ({
           <h3>
             <label htmlFor="thema">Thema</label>
           </h3>
-          <input
+          <Input
             type="text"
             id="thema"
             name="thema"
             value={thema}
             onChange={handleChange}
             placeholder="z.B. Klimaschutz, Verkehrswende..."
-            className={`form-input ${formErrors.thema ? 'error-input' : ''}`}
+            className={formErrors.thema ? 'error-input' : ''}
           />
           {formErrors.thema && <span className="error-message">{formErrors.thema}</span>}
         </div>
@@ -41,14 +40,13 @@ const ImageStudioFormSection: React.FC<ImageStudioFormSectionProps> = ({
           <h3>
             <label htmlFor="details">Details (optional)</label>
           </h3>
-          <textarea
+          <Textarea
             id="details"
             name="details"
             value={details}
             onChange={handleChange}
             placeholder="Zusätzliche Informationen..."
             rows={3}
-            className="form-textarea"
           />
         </div>
       </>
@@ -62,7 +60,7 @@ const ImageStudioFormSection: React.FC<ImageStudioFormSectionProps> = ({
           <h3>
             <label htmlFor="purePrompt">Bildbeschreibung</label>
           </h3>
-          <textarea
+          <Textarea
             id="purePrompt"
             name="purePrompt"
             value={purePrompt}
@@ -71,7 +69,7 @@ const ImageStudioFormSection: React.FC<ImageStudioFormSectionProps> = ({
             }
             placeholder="Beschreibe das Bild, das du erstellen möchtest..."
             rows={4}
-            className={`form-textarea ${formErrors.purePrompt ? 'error-input' : ''}`}
+            className={formErrors.purePrompt ? 'error-input' : ''}
           />
           {formErrors.purePrompt && <span className="error-message">{formErrors.purePrompt}</span>}
         </div>
@@ -103,14 +101,7 @@ const ImageStudioFormSection: React.FC<ImageStudioFormSectionProps> = ({
           <h3>
             <label htmlFor="quote">Zitat</label>
           </h3>
-          <textarea
-            id="quote"
-            name="quote"
-            value={quote}
-            onChange={handleChange}
-            rows={3}
-            className="form-textarea"
-          />
+          <Textarea id="quote" name="quote" value={quote} onChange={handleChange} rows={3} />
         </div>
       );
     }
@@ -121,40 +112,25 @@ const ImageStudioFormSection: React.FC<ImageStudioFormSectionProps> = ({
             <h3>
               <label htmlFor="header">Header</label>
             </h3>
-            <input
-              type="text"
-              id="header"
-              name="header"
-              value={header}
-              onChange={handleChange}
-              className="form-input"
-            />
+            <Input type="text" id="header" name="header" value={header} onChange={handleChange} />
           </div>
           <div className="form-field-wrapper">
             <h3>
               <label htmlFor="subheader">Subheader</label>
             </h3>
-            <input
+            <Input
               type="text"
               id="subheader"
               name="subheader"
               value={subheader}
               onChange={handleChange}
-              className="form-input"
             />
           </div>
           <div className="form-field-wrapper">
             <h3>
               <label htmlFor="body">Body</label>
             </h3>
-            <textarea
-              id="body"
-              name="body"
-              value={body}
-              onChange={handleChange}
-              rows={3}
-              className="form-textarea"
-            />
+            <Textarea id="body" name="body" value={body} onChange={handleChange} rows={3} />
           </div>
         </>
       );
@@ -165,40 +141,19 @@ const ImageStudioFormSection: React.FC<ImageStudioFormSectionProps> = ({
           <h3>
             <label htmlFor="line1">Zeile 1</label>
           </h3>
-          <input
-            type="text"
-            id="line1"
-            name="line1"
-            value={line1}
-            onChange={handleChange}
-            className="form-input"
-          />
+          <Input type="text" id="line1" name="line1" value={line1} onChange={handleChange} />
         </div>
         <div className="form-field-wrapper">
           <h3>
             <label htmlFor="line2">Zeile 2</label>
           </h3>
-          <input
-            type="text"
-            id="line2"
-            name="line2"
-            value={line2}
-            onChange={handleChange}
-            className="form-input"
-          />
+          <Input type="text" id="line2" name="line2" value={line2} onChange={handleChange} />
         </div>
         <div className="form-field-wrapper">
           <h3>
             <label htmlFor="line3">Zeile 3</label>
           </h3>
-          <input
-            type="text"
-            id="line3"
-            name="line3"
-            value={line3}
-            onChange={handleChange}
-            className="form-input"
-          />
+          <Input type="text" id="line3" name="line3" value={line3} onChange={handleChange} />
         </div>
       </>
     );

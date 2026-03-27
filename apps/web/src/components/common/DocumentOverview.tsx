@@ -1,3 +1,14 @@
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+  Input,
+} from '@gruenerator/ui';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { FaFileWord, FaFilePdf } from 'react-icons/fa6';
 import {
@@ -19,16 +30,6 @@ import { useFilteredAndGroupedItems } from '../../hooks/useFilteredAndGroupedIte
 import { useSearchState } from '../../hooks/useSearchState';
 import { useExportStore } from '../../stores/core/exportStore';
 import { cn } from '../../utils/cn';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from '../ui/dropdown-menu';
 import apiClient from '../utils/apiClient';
 import {
   truncateForPreview,
@@ -44,9 +45,6 @@ import EnhancedSelect from './EnhancedSelect/EnhancedSelect';
 import { getActionItems } from './ItemActionBuilder';
 import SelectAllCheckbox from './SelectAllCheckbox';
 import Spinner from './Spinner';
-
-// Import ProfileActionButton CSS for consistent button styling
-import '../../assets/styles/components/profile/profile-action-buttons.css';
 
 // Define default values outside component to prevent re-creation on every render
 const DEFAULT_SEARCH_FIELDS = ['title', 'content_preview', 'full_content'];
@@ -601,9 +599,9 @@ const DocumentOverview = ({
 
           {editingTitle === item.id ? (
             <div className="flex flex-col gap-xs flex-1">
-              <input
+              <Input
                 type="text"
-                className="form-input text-base font-semibold p-xs"
+                className="text-base font-semibold p-xs"
                 value={newTitle}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTitle(e.target.value)}
                 onKeyDown={(e: React.KeyboardEvent) => {
@@ -790,11 +788,11 @@ const DocumentOverview = ({
             onShareItem: handleShareItem,
             onDeleteItem: handleDelete,
             onRefreshDocument: handleRefreshDocument,
-            deletingId: deleting,
-            refreshingId: refreshing,
-            wolkeShareLinks,
+            deletingId: deleting ?? undefined,
+            refreshingId: refreshing ?? undefined,
+            wolkeShareLinks: wolkeShareLinks as { id: string; share_link: string }[],
           })
-    ).filter((action) => action.separator || action.show !== false);
+    ).filter((action) => action.separator || action.show !== false) as ActionItem[];
 
     return (
       <>
@@ -954,9 +952,9 @@ const DocumentOverview = ({
           {enableLocalSearch && (
             <div className="relative max-w-[250px] shrink-0 max-md:max-w-none max-md:min-w-0">
               <HiOutlineSearch className="absolute left-sm top-1/2 -translate-y-1/2 text-grey-500 dark:text-grey-400 text-[1.1rem] pointer-events-none" />
-              <input
+              <Input
                 type="text"
-                className="form-input pl-[calc(var(--spacing-sm)*2+1.1rem)] w-full rounded-[20px] border border-grey-200 dark:border-grey-700 bg-background transition-[border-color,box-shadow] duration-200 focus:outline-none focus:border-primary-600 focus:ring-[3px] focus:ring-primary-600/10 text-sm"
+                className="pl-[calc(var(--spacing-sm)*2+1.1rem)] w-full rounded-[20px] border border-grey-200 dark:border-grey-700 bg-background transition-[border-color,box-shadow] duration-200 focus:outline-none focus:border-primary-600 focus:ring-[3px] focus:ring-primary-600/10 text-sm"
                 placeholder={searchPlaceholder}
                 value={searchState.searchQuery}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -968,7 +966,7 @@ const DocumentOverview = ({
           {remoteSearchEnabled && (
             <div className="ml-2">
               <select
-                className="form-select"
+                className="h-11 w-full rounded-sm border-0 bg-input-bg px-sm py-sm text-sm text-input-text outline-none appearance-none cursor-pointer"
                 value={searchState.searchMode}
                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
                   searchState.setSearchMode(e.target.value)
@@ -1000,7 +998,7 @@ const DocumentOverview = ({
 
           <div className="flex gap-xs items-center max-md:justify-between max-md:w-full">
             <select
-              className="form-select min-w-[140px] rounded-lg"
+              className="h-11 min-w-[140px] rounded-lg border-0 bg-input-bg px-sm py-sm text-sm text-input-text outline-none appearance-none cursor-pointer"
               value={sortBy}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSortBy(e.target.value)}
             >
@@ -1078,7 +1076,11 @@ const DocumentOverview = ({
 
           return (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-lg max-md:grid-cols-1 max-md:gap-md xl:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] 2xl:grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
-              {sorted.map((item) => (cardRenderer ? cardRenderer(item) : renderDefaultCard(item)))}
+              {sorted.map((item) =>
+                cardRenderer
+                  ? cardRenderer(item as DocumentItem)
+                  : renderDefaultCard(item as DocumentItem)
+              )}
             </div>
           );
         })()}

@@ -1,6 +1,8 @@
 /**
  * Centralized TabIndex Configuration
  *
+ * @deprecated This system will be removed. Use natural DOM order instead of positive tabIndex values.
+ *
  * This file manages all tabIndex values across the application to ensure:
  * - Header navigation comes first (0-5)
  * - Generator forms start after header (10+)
@@ -22,151 +24,6 @@ export const TAB_INDEX_RANGES = {
 
 // Page-specific tabIndex configurations
 export const TAB_INDEX_CONFIG = {
-  // Presse & Social Media Generator
-  PRESS_SOCIAL: {
-    // Form fields (100-399)
-    thema: 100,
-    details: 110,
-
-    // Feature icons (400-499)
-    webSearch: 400,
-    privacyMode: 410,
-    attachment: 420,
-
-    // Selectors (500-699)
-    platformSelector: 500,
-    knowledgeSourceSelector: 510,
-    knowledgeSelector: 520,
-
-    // Conditional fields (700-899) - AnimatePresence
-    sharepicType: 700,
-    zitatAuthor: 710,
-    zitatgeber: 720,
-    pressekontakt: 730,
-
-    // Actions (900-999)
-    submit: 900,
-  },
-
-  // Antrag Generator
-  ANTRAG: {
-    // Form fields (100-399)
-    idee: 100,
-    details: 110,
-    gliederung: 120,
-
-    // Feature icons (400-499)
-    webSearch: 400,
-    privacyMode: 410,
-    attachment: 420,
-
-    // Selectors (500-699)
-    platformSelector: 500,
-    knowledgeSourceSelector: 510,
-    knowledgeSelector: 520,
-
-    // Actions (900-999)
-    submit: 900,
-  },
-
-  // Grüne Jugend Generator
-  GRUENE_JUGEND: {
-    // Form fields (100-399)
-    thema: 100,
-    details: 110,
-
-    // Feature icons (400-499)
-    webSearch: 400,
-    privacyMode: 410,
-    attachment: 420,
-
-    // Selectors (500-699)
-    platformSelector: 500,
-    knowledgeSourceSelector: 510,
-    knowledgeSelector: 520,
-
-    // Actions (900-999)
-    submit: 900,
-  },
-
-  // Universal Text Generator
-  UNIVERSAL: {
-    // Form fields (100-399)
-    formType: 100,
-    hauptfeld: 110,
-
-    // Feature icons (400-499)
-    webSearch: 400,
-    privacyMode: 410,
-    attachment: 420,
-
-    // Selectors (500-699)
-    platformSelector: 500,
-    knowledgeSourceSelector: 510,
-    knowledgeSelector: 520,
-
-    // Actions (900-999)
-    submit: 900,
-  },
-
-  // Texte Generator
-  TEXTE: {
-    // Form fields (100-399)
-    inhalt: 100,
-
-    // Feature icons (400-499)
-    webSearch: 400,
-    privacyMode: 410,
-    attachment: 420,
-
-    // Selectors (500-699)
-    platformSelector: 500,
-    knowledgeSourceSelector: 510,
-    knowledgeSelector: 520,
-
-    // Actions (900-999)
-    submit: 900,
-  },
-
-  // Alt-Text Generator
-  ALT_TEXT: {
-    // Form fields (100-399)
-    imageSource: 100,
-    imageUpload: 110,
-    imageDescription: 120,
-
-    // Feature icons (400-499)
-    privacyMode: 400,
-
-    // Selectors (500-699)
-    platformSelector: 500,
-    knowledgeSourceSelector: 510,
-    knowledgeSelector: 520,
-
-    // Actions (900-999)
-    submit: 900,
-  },
-
-  // Leichte Sprache Generator
-  LEICHTE_SPRACHE: {
-    // Form fields (100-399)
-    originalText: 100,
-    targetLanguage: 110,
-
-    // Feature icons (400-499)
-    webSearch: 400,
-    privacyMode: 410,
-    attachment: 420,
-
-    // Selectors (500-699)
-    platformSelector: 500,
-    knowledgeSourceSelector: 510,
-    knowledgeSelector: 520,
-
-    // Actions (900-999)
-    submit: 900,
-  },
-
   // Profile Page - Main navigation
   PROFILE: {
     // Tab navigation buttons (1000-1099)
@@ -316,18 +173,6 @@ export const TAB_INDEX_CONFIG = {
     settingInput: 1110,
     actionButton: 1120,
   },
-
-  // Home Page
-  HOME: {
-    // Primary buttons (100-199)
-    primaryButtons: 100,
-
-    // Secondary buttons (200-299)
-    secondaryButtons: 200,
-
-    // Newsletter (300-399)
-    newsletter: 300,
-  },
 };
 
 type SectionName =
@@ -432,13 +277,6 @@ export const TabIndexHelpers = {
 
 // Export individual page configs for convenience
 export const {
-  PRESS_SOCIAL,
-  ANTRAG,
-  GRUENE_JUGEND,
-  UNIVERSAL,
-  TEXTE,
-  ALT_TEXT,
-  LEICHTE_SPRACHE,
   PROFILE,
   PROFILE_INFO,
   PROFILE_GROUPS,
@@ -446,24 +284,4 @@ export const {
   PROFILE_CONTENT_MANAGEMENT,
   PROFILE_GENERATORS,
   PROFILE_LABOR,
-  HOME,
 } = TAB_INDEX_CONFIG;
-
-// Default configuration for unknown pages
-export const DEFAULT_TAB_INDEX = {
-  // Form fields (100-399)
-  form: 100,
-
-  // Feature icons (400-499)
-  webSearch: 400,
-  privacyMode: 410,
-  attachment: 420,
-
-  // Selectors (500-699)
-  platformSelector: 500,
-  knowledgeSourceSelector: 510,
-  knowledgeSelector: 520,
-
-  // Actions (900-999)
-  submit: 900,
-};

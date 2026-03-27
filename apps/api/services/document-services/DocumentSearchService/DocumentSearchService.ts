@@ -38,6 +38,7 @@ import type {
   DeleteResult,
   UserVectorStats,
   DocumentFullTextResult,
+  DocumentChunksResult,
   BulkDocumentResult,
   FirstChunksResult,
   BundestagSearchOptions,
@@ -478,6 +479,18 @@ export class DocumentSearchService extends BaseSearchService {
       throw new Error('Qdrant not available');
     }
     return await docRetrieval.getDocumentFullText(this.qdrantOps, userId, documentId);
+  }
+
+  async getDocumentChunks(
+    userId: string,
+    documentId: string,
+    options?: { qdrantCollection?: string }
+  ): Promise<DocumentChunksResult> {
+    await this.ensureInitialized();
+    if (!this.qdrantOps) {
+      throw new Error('Qdrant not available');
+    }
+    return await docRetrieval.getDocumentChunks(this.qdrantOps, userId, documentId, options);
   }
 
   async getMultipleDocumentsFullText(

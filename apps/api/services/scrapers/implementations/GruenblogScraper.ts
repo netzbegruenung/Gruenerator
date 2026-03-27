@@ -18,6 +18,7 @@ import { generatePointId } from '../../../utils/validation/index.js';
 import { smartChunkDocument } from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { BaseScraper } from '../base/BaseScraper.js';
+import { batchProcess } from '../utils/batchFetch.js';
 import { removeUnwantedElements } from '../utils/htmlCleaner.js';
 
 import type { ScraperResult } from '../types.js';
@@ -107,7 +108,7 @@ export class GruenblogScraper extends BaseScraper {
     });
 
     this.baseUrl = 'https://gruenblog.com';
-    this.crawlDelay = 500;
+    this.crawlDelay = 300;
     this.timeout = 30000;
     this.maxRetries = 3;
     this.userAgent = BRAND?.botUserAgent || 'Gruenerator-Bot/1.0';
@@ -453,21 +454,38 @@ export class GruenblogScraper extends BaseScraper {
       const urls = await this.discoverFromSitemap();
       result.totalUrls = urls.length;
 
-      const urlsToProcess = maxArticles ? urls.slice(0, maxArticles) : urls;
-
-      for (let i = 0; i < urlsToProcess.length; i++) {
-        const url = urlsToProcess[i];
-
-        if (this.visitedUrls.has(url)) continue;
+      const urlsToProcess = (maxArticles ? urls.slice(0, maxArticles) : urls).filter((url) => {
+        if (this.visitedUrls.has(url)) return false;
         this.visitedUrls.add(url);
+        return true;
+      });
+
+      this.log(`Prefetching ${urlsToProcess.length} pages (concurrency: 5)...`);
+      const fetched = await batchProcess(urlsToProcess, (url) => this.#fetchPage(url), {
+        concurrency: 5,
+        delayMs: this.crawlDelay,
+      });
+
+      for (let i = 0; i < fetched.length; i++) {
+        const entry = fetched[i];
+        const url = entry.item;
+
+        if ('error' in entry) {
+          result.errors++;
+          result.skipReasons.fetch_error.count++;
+          if (result.skipReasons.fetch_error.examples.length < 5) {
+            result.skipReasons.fetch_error.examples.push(url);
+          }
+          continue;
+        }
+
+        const html = entry.result;
+        if (!html) {
+          result.skipped++;
+          continue;
+        }
 
         try {
-          const html = await this.#fetchPage(url);
-          if (!html) {
-            result.skipped++;
-            continue;
-          }
-
           const content = this.#extractContent(html, url);
 
           if (!forceUpdate) {
@@ -495,7 +513,7 @@ export class GruenblogScraper extends BaseScraper {
             }
             result.totalVectors += processResult.vectors || 0;
             this.log(
-              `[${i + 1}/${urlsToProcess.length}] "${content.title?.substring(0, 50)}" (${processResult.chunks} chunks)`
+              `[${i + 1}/${fetched.length}] "${content.title?.substring(0, 50)}" (${processResult.chunks} chunks)`
             );
           } else {
             result.skipped++;
@@ -510,15 +528,9 @@ export class GruenblogScraper extends BaseScraper {
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.error(`[Gruenblog] Error ${url}: ${errorMessage}`);
+          console.error(`[Gruenblog] Error processing ${url}: ${errorMessage}`);
           result.errors++;
-          result.skipReasons.fetch_error.count++;
-          if (result.skipReasons.fetch_error.examples.length < 5) {
-            result.skipReasons.fetch_error.examples.push(url);
-          }
         }
-
-        await this.delay(this.crawlDelay);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

@@ -1,11 +1,12 @@
+import { Button } from '@gruenerator/ui';
 import React, { useState, useCallback, useMemo, memo, lazy, Suspense } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+
+import { cn } from '../../utils/cn';
 
 import { useCustomPromptsData, useSavedPromptsData, usePromptMutations } from './usePromptsData';
 
 import type { CustomPrompt } from './types';
-import '../../assets/styles/components/ui/button.css';
-import './prompts.css';
 
 const CreatePromptForm = lazy(() => import('./CreatePromptForm'));
 
@@ -14,7 +15,7 @@ interface PromptsTabProps {
 }
 
 const LoadingSpinner = memo(() => (
-  <div className="prompts-loading">
+  <div className="flex justify-center p-lg">
     <div className="loading-spinner" />
   </div>
 ));
@@ -34,15 +35,30 @@ const PromptCard = memo<PromptCardProps>(({ prompt, onUse, onEdit, onDelete }) =
   const stopPropagation = useCallback((e: React.MouseEvent) => e.stopPropagation(), []);
 
   return (
-    <button type="button" className="prompt-card prompt-card--owner" onClick={handleUse}>
-      <div className="prompt-card-content">
-        <span className="prompt-card-name">{prompt.name}</span>
-        {prompt.is_public && <span className="prompt-card-badge">Öffentlich</span>}
+    <button
+      type="button"
+      className={cn(
+        'w-full flex items-center justify-between px-md py-sm bg-background-alt border border-grey-200 dark:border-grey-700 rounded-md cursor-pointer text-left transition-all duration-150',
+        'hover:bg-hover-alt hover:border-secondary-600',
+        'border-l-[3px] border-l-secondary-600',
+        'max-md:flex-col max-md:items-stretch max-md:gap-2'
+      )}
+      onClick={handleUse}
+    >
+      <div className="flex-1 min-w-0 flex items-center gap-sm">
+        <span className="font-medium text-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+          {prompt.name}
+        </span>
+        {prompt.is_public && (
+          <span className="text-xs px-2 py-0.5 rounded-xl font-medium bg-secondary-100 text-secondary-600 shrink-0">
+            Öffentlich
+          </span>
+        )}
       </div>
-      <div className="prompt-card-actions" onClick={stopPropagation}>
+      <div className="flex gap-1 ml-sm max-md:ml-0 max-md:justify-end" onClick={stopPropagation}>
         <button
           type="button"
-          className="prompt-card-action"
+          className="size-8 flex items-center justify-center bg-transparent border-none rounded cursor-pointer transition-colors duration-150 hover:bg-background"
           onClick={handleEdit}
           title="Bearbeiten"
         >
@@ -50,7 +66,7 @@ const PromptCard = memo<PromptCardProps>(({ prompt, onUse, onEdit, onDelete }) =
         </button>
         <button
           type="button"
-          className="prompt-card-action prompt-card-action--danger"
+          className="size-8 flex items-center justify-center bg-transparent border-none rounded cursor-pointer transition-colors duration-150 hover:bg-[var(--background-red-light)]"
           onClick={handleDelete}
           title="Löschen"
         >
@@ -74,19 +90,30 @@ const SavedPromptCard = memo<SavedPromptCardProps>(({ prompt, onUse, onUnsave })
   const stopPropagation = useCallback((e: React.MouseEvent) => e.stopPropagation(), []);
 
   return (
-    <button type="button" className="prompt-card prompt-card--saved" onClick={handleUse}>
-      <div className="prompt-card-content">
-        <span className="prompt-card-name">{prompt.name}</span>
+    <button
+      type="button"
+      className={cn(
+        'w-full flex items-center justify-between px-md py-sm bg-background-alt border border-grey-200 dark:border-grey-700 rounded-md cursor-pointer text-left transition-all duration-150',
+        'hover:bg-hover-alt hover:border-secondary-600',
+        'border-l-[3px] border-l-primary-600',
+        'max-md:flex-col max-md:items-stretch max-md:gap-2'
+      )}
+      onClick={handleUse}
+    >
+      <div className="flex-1 min-w-0 flex items-center gap-sm">
+        <span className="font-medium text-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+          {prompt.name}
+        </span>
         {prompt.owner_first_name && (
-          <span className="prompt-card-badge prompt-card-badge--owner">
+          <span className="text-xs px-2 py-0.5 rounded-xl font-medium bg-grey-100 text-grey-600 shrink-0">
             von {prompt.owner_first_name}
           </span>
         )}
       </div>
-      <div className="prompt-card-actions" onClick={stopPropagation}>
+      <div className="flex gap-1 ml-sm max-md:ml-0 max-md:justify-end" onClick={stopPropagation}>
         <button
           type="button"
-          className="prompt-card-action prompt-card-action--danger"
+          className="size-8 flex items-center justify-center bg-transparent border-none rounded cursor-pointer transition-colors duration-150 hover:bg-[var(--background-red-light)]"
           onClick={handleUnsave}
           title="Nicht mehr speichern"
         >
@@ -161,16 +188,21 @@ const PromptsTab: React.FC<PromptsTabProps> = memo(({ isActive }) => {
 
   if (showForm) {
     return (
-      <div className="prompts-tab">
-        <div className="prompts-content">
+      <div className="w-full">
+        <div className="flex flex-col items-center gap-md">
           <Suspense fallback={<LoadingSpinner />}>
             <CreatePromptForm
               editingPrompt={editingPrompt}
               onComplete={handleFormComplete}
-              onCancel={prompts.length > 0 || savedPrompts.length > 0 ? handleFormCancel : undefined}
+              onCancel={
+                prompts.length > 0 || savedPrompts.length > 0 ? handleFormCancel : undefined
+              }
             />
           </Suspense>
-          <Link to="/datenbank/agents" className="prompts-gallery-link">
+          <Link
+            to="/datenbank/agents"
+            className="w-full block text-center p-md mt-md text-secondary-600 no-underline font-medium border-t border-grey-200 dark:border-grey-700 hover:underline"
+          >
             Öffentliche Agenten entdecken →
           </Link>
         </div>
@@ -179,16 +211,18 @@ const PromptsTab: React.FC<PromptsTabProps> = memo(({ isActive }) => {
   }
 
   return (
-    <div className="prompts-tab">
-      <div className="prompts-content">
-        <button type="button" className="btn-primary" onClick={openCreateForm}>
+    <div className="w-full">
+      <div className="flex flex-col items-center gap-md">
+        <Button variant="brand" size="brand" type="button" onClick={openCreateForm}>
           + Neuen Agenten erstellen
-        </button>
+        </Button>
 
         {prompts.length > 0 && (
-          <div className="prompts-section">
-            <h4>Meine Agenten</h4>
-            <div className="prompts-list">
+          <div className="w-full mt-sm">
+            <h4 className="m-0 mb-sm text-sm font-semibold text-grey-500 uppercase tracking-wide">
+              Meine Agenten
+            </h4>
+            <div className="flex flex-col gap-xs">
               {prompts.map((prompt) => (
                 <PromptCard
                   key={prompt.id}
@@ -203,9 +237,11 @@ const PromptsTab: React.FC<PromptsTabProps> = memo(({ isActive }) => {
         )}
 
         {savedPrompts.length > 0 && (
-          <div className="prompts-section">
-            <h4>Gespeicherte Agenten</h4>
-            <div className="prompts-list">
+          <div className="w-full mt-sm">
+            <h4 className="m-0 mb-sm text-sm font-semibold text-grey-500 uppercase tracking-wide">
+              Gespeicherte Agenten
+            </h4>
+            <div className="flex flex-col gap-xs">
               {savedPrompts.map((prompt) => (
                 <SavedPromptCard
                   key={prompt.id}
@@ -218,7 +254,10 @@ const PromptsTab: React.FC<PromptsTabProps> = memo(({ isActive }) => {
           </div>
         )}
 
-        <Link to="/datenbank/agents" className="prompts-gallery-link">
+        <Link
+          to="/datenbank/agents"
+          className="w-full block text-center p-md mt-md text-secondary-600 no-underline font-medium border-t border-grey-200 dark:border-grey-700 hover:underline"
+        >
           Öffentliche Agenten entdecken →
         </Link>
       </div>

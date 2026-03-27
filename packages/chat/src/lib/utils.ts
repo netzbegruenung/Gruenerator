@@ -1,6 +1,4 @@
-import { type ClassValue, clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+export { cn } from '@gruenerator/ui';
 
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+export const composerToolbarButtonClass =
+  'flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-foreground-muted transition-colors hover:text-foreground hover:bg-hover-overlay';

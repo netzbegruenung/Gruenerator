@@ -1,25 +1,3 @@
-.content-wrapper {
-  margin-top: var(--safe-area-top);
-  margin-bottom: 20px;
-  display: flex;
-  flex-direction: column;
-}
-
-@media (max-width: 768px) {
-  .content-wrapper {
-    margin-top: var(--spacing-large);
-  }
-}
-
-.content-wrapper.full-height {
-  min-height: calc(100vh - var(--safe-area-top) - var(--safe-area-top));
-}
-
-.content-wrapper.no-header-footer {
-  min-height: 100vh;
-  margin-top: 0;
-  margin-bottom: 0;
-}
 
 body {
   min-height: 100vh;
@@ -44,49 +22,3 @@ main {
   flex: 1;
   padding-top: var(--titlebar-height);
 }
-
-.desktop-layout .content-wrapper.desktop-main {
-  margin-top: 0;
-  margin-bottom: 0;
-  margin-left: var(--sidebar-collapsed-width);
-  min-height: calc(100vh - var(--titlebar-height));
-  flex: 1;
-  transition: margin-left 0.2s ease;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-/* When sidebar is expanded, content doesn't shift - sidebar overlays */
-.desktop-sidebar.expanded ~ .content-wrapper.desktop-main {
-  margin-left: var(--sidebar-collapsed-width);
-}
-
-/* Web desktop layout adjustments (excludes Tauri) */
-@media (min-width: 1024px) {
-  .content-wrapper:not(.desktop-main) {
-    margin-top: var(--spacing-large);
-  }
-}
-
-/* Full-viewport layout with proper flex height chain (chat + notebook) */
-.app-content:has(.chat-page-root, .notebook-page-root) {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  height: 100dvh;
-  padding-top: var(--header-height);
-}
-
-.content-wrapper:has(.chat-page-root, .notebook-page-root) {
-  margin-top: 0;
-  margin-bottom: 0;
-  min-height: 0;
-  flex: 1;
-  overflow: hidden;
-}
-
-.chat-page-root,
-.notebook-page-root {
-  height: 100%;
-} 

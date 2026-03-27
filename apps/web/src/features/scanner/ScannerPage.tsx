@@ -2,40 +2,53 @@
  * Scanner Page - Document Scanner with OCR text extraction
  */
 
+import { Particles } from '@gruenerator/ui';
 import { useState } from 'react';
 
-import DotGrid from './DotGrid';
 import ScannerTab from './tabs/ScannerTab';
-import '../../assets/styles/pages/scanner.css';
 
 const FILE_TYPE_BADGES = ['PDF', 'Bilder', 'DOCX', 'PPTX'] as const;
 
 const ScannerPageHeader = () => (
-  <div className="scanner-page-header">
-    <h1 className="scanner-zen-title">Scanner</h1>
-    <p className="scanner-zen-subtitle">
+  <div className="flex w-full flex-col items-center gap-xs pb-lg text-center">
+    <h1 className="m-0 text-[2.2rem] font-semibold text-foreground max-md:text-[1.8rem] max-[480px]:text-[1.5rem]">
+      Scanner
+    </h1>
+    <p className="m-0 text-base font-normal leading-relaxed text-foreground max-md:text-[0.9375rem]">
       Dokumente digitalisieren und Texte automatisch extrahieren
     </p>
-    <div className="scanner-badges">
+    <div className="mt-sm flex flex-wrap justify-center gap-sm">
       {FILE_TYPE_BADGES.map((type) => (
-        <span key={type} className="scanner-badge">
+        <span
+          key={type}
+          className="inline-block whitespace-nowrap rounded-2xl border border-grey-300 bg-transparent px-3 py-1 text-xs font-medium tracking-[0.02em] text-foreground dark:border-grey-600"
+        >
           {type}
         </span>
       ))}
-      <span className="scanner-badge">bis 50 MB</span>
+      <span className="inline-block whitespace-nowrap rounded-2xl border border-grey-300 bg-transparent px-3 py-1 text-xs font-medium tracking-[0.02em] text-foreground dark:border-grey-600">
+        bis 50 MB
+      </span>
     </div>
   </div>
 );
 
 const ScannerPage = () => {
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [hasResults, setHasResults] = useState(false);
 
   return (
-    <div className="scanner-page scanner-zen">
-      <DotGrid isProcessing={isProcessing} />
-      <div className="scanner-layout">
-        <ScannerPageHeader />
-        <ScannerTab onProcessingChange={setIsProcessing} />
+    <div className="relative h-full w-full overflow-clip">
+      <Particles
+        className="absolute inset-0 h-full w-full"
+        quantity={80}
+        color="#5F8575"
+        size={0.6}
+        staticity={40}
+        ease={60}
+      />
+      <div className="relative z-[1] flex h-full min-h-0 flex-col justify-start overflow-x-clip">
+        {!hasResults && <ScannerPageHeader />}
+        <ScannerTab onResultsChange={setHasResults} />
       </div>
     </div>
   );

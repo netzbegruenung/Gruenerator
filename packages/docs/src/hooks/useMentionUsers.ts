@@ -3,7 +3,7 @@ import { type BlockNoteEditor } from '@blocknote/core';
 import { type DefaultReactSuggestionItem } from '@blocknote/react';
 import { type HocuspocusProvider } from '@hocuspocus/provider';
 import { useDocsAdapter } from '../context/DocsContext';
-import { type CollaborationUser } from './useCollaboration';
+import { type CollaborationUser } from '@gruenerator/collab';
 
 interface SearchUser {
   id: string;

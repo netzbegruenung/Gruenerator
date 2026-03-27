@@ -1,8 +1,10 @@
+import { Button } from '@gruenerator/ui';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { cn } from '../../utils/cn';
+
 import type { JSX, ReactNode, FormEvent } from 'react';
-import '../../assets/styles/components/actions/verify.css';
 
 interface EyeIconProps {
   closed?: boolean;
@@ -141,9 +143,17 @@ export default function VerifyFeature({
 
   const renderAttemptDots = () => {
     return (
-      <div className="verify-attempts">
+      <div className="flex gap-2 justify-center my-2">
         {[...Array(MAX_ATTEMPTS)].map((_, index) => (
-          <div key={index} className={`attempt-dot ${index < attempts ? 'failed' : 'active'}`} />
+          <div
+            key={index}
+            className={cn(
+              'w-1.5 h-1.5 rounded-full transition-all duration-300',
+              index < attempts
+                ? 'bg-[#d32f2f] dark:bg-[#ff4444]'
+                : 'bg-background-alt dark:bg-background'
+            )}
+          />
         ))}
       </div>
     );
@@ -154,42 +164,68 @@ export default function VerifyFeature({
   }
 
   return (
-    <div className="verify-container">
-      <div className={`verify-box ${isLocked ? 'locked' : ''}`}>
-        <h2>Zugriff verifizieren</h2>
-        <p>Diese Funktion erfordert eine Verifizierung.</p>
+    <div className="flex justify-center items-center min-h-screen bg-black/50 fixed inset-0 z-[1000] backdrop-blur-[5px] transition-colors duration-300">
+      <div className={cn('fixed inset-0 z-[1100] flex justify-center items-center')}>
+        <div
+          className={cn(
+            'bg-background p-10 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.15)] max-w-[400px] w-[90%] border border-background-alt transition-all duration-300',
+            isLocked &&
+              '[&_input]:border-[#d32f2f] [&_input]:bg-[rgba(211,47,47,0.05)] dark:[&_input]:bg-[rgba(211,47,47,0.1)]'
+          )}
+        >
+          <h2 className="text-[var(--primary)] m-0 mb-4 text-2xl text-center">
+            Zugriff verifizieren
+          </h2>
+          <p className="text-grey-500 mb-6 text-center text-[0.95rem]">
+            Diese Funktion erfordert eine Verifizierung.
+          </p>
 
-        <form onSubmit={handleSubmit} className="verify-form">
-          <div className="verify-input-group">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-              placeholder="Passwort eingeben"
-              className="verify-input"
-              disabled={isLocked}
-            />
-            <button
-              type="button"
-              onClick={togglePasswordVisibility}
-              className="verify-password-toggle"
-              aria-label={showPassword ? 'Passwort verbergen' : 'Passwort anzeigen'}
-              disabled={isLocked}
-            >
-              <EyeIcon closed={!showPassword} />
-            </button>
-          </div>
-          {renderAttemptDots()}
-          {error && <div className="verify-error">{error}</div>}
-          <div className="verify-buttons">
-            <button type="button" onClick={handleBack} className="btn-secondary">
-              {onCancel ? 'Abbrechen' : 'Zurück'}
-            </button>
-            <button type="submit" className="btn-primary" disabled={isLocked}>
-              Verifizieren
-            </button>
-          </div>
-        </form>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div className="relative flex items-center">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+                placeholder="Passwort eingeben"
+                className={cn(
+                  'w-full py-3 px-4 pr-12 border-2 border-grey-300 rounded-lg text-base transition-all duration-200',
+                  'focus:border-[var(--primary)] focus:outline-none focus:shadow-[0_0_0_3px_rgba(var(--primary-rgb),0.1)]',
+                  isLocked && 'opacity-50 cursor-not-allowed'
+                )}
+                disabled={isLocked}
+              />
+              <button
+                type="button"
+                onClick={togglePasswordVisibility}
+                className="absolute right-3 bg-none border-none p-2 cursor-pointer text-grey-500 transition-colors hover:text-[var(--primary)]"
+                aria-label={showPassword ? 'Passwort verbergen' : 'Passwort anzeigen'}
+                disabled={isLocked}
+              >
+                <EyeIcon closed={!showPassword} />
+              </button>
+            </div>
+            {renderAttemptDots()}
+            {error && (
+              <div className="text-[#d32f2f] text-[0.9rem] text-center bg-[rgba(211,47,47,0.1)] py-3 px-3 rounded-md">
+                {error}
+              </div>
+            )}
+            <div className="flex gap-4 mt-4">
+              <Button variant="brand-outline" size="brand" type="button" onClick={handleBack}>
+                {onCancel ? 'Abbrechen' : 'Zurück'}
+              </Button>
+              <Button
+                variant="brand"
+                size="brand"
+                type="submit"
+                className={cn(isLocked && 'opacity-50 cursor-not-allowed')}
+                disabled={isLocked}
+              >
+                Verifizieren
+              </Button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

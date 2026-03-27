@@ -13,7 +13,8 @@
 
 import { createHash, randomBytes } from 'crypto';
 
-import express, { type Response } from 'express';
+import express, { type Response, type NextFunction } from 'express';
+import rateLimit from 'express-rate-limit';
 import { SignJWT, jwtVerify } from 'jose';
 
 import { createLogger } from '../../utils/logger.js';
@@ -24,6 +25,17 @@ import type { UserProfile } from '../../services/user/types.js';
 
 const log = createLogger('mobileAuth');
 const router = express.Router();
+
+const mobileAuthLimiter =
+  process.env.DISABLE_RATE_LIMITS === 'true'
+    ? (_req: AuthRequest, _res: Response, next: NextFunction) => next()
+    : rateLimit({
+        windowMs: 15 * 60 * 1000,
+        max: 30,
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: { error: 'Too many authentication requests, please try again later.' },
+      });
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.SESSION_SECRET || 'fallback-secret-please-change'
@@ -152,6 +164,7 @@ function sanitizeUserForResponse(user: UserProfile): Partial<UserProfile> {
  */
 router.post(
   '/mobile/consume-login-code',
+  mobileAuthLimiter,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { code } = req.body as ConsumeLoginCodeBody;
@@ -270,113 +283,117 @@ router.post(
  *
  * Refresh the access token using a valid refresh token.
  */
-router.post('/mobile/refresh', async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const { refresh_token } = req.body as RefreshTokenBody;
+router.post(
+  '/mobile/refresh',
+  mobileAuthLimiter,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const { refresh_token } = req.body as RefreshTokenBody;
 
-    if (!refresh_token) {
-      res.status(400).json({
-        success: false,
-        error: 'missing_refresh_token',
-        message: 'Refresh token is required',
-      } as TokenResponse);
-      return;
-    }
+      if (!refresh_token) {
+        res.status(400).json({
+          success: false,
+          error: 'missing_refresh_token',
+          message: 'Refresh token is required',
+        } as TokenResponse);
+        return;
+      }
 
-    const tokenHash = hashToken(refresh_token);
+      const tokenHash = hashToken(refresh_token);
 
-    // Look up refresh token in database
-    const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
-    const db = getPostgresInstance();
+      // Look up refresh token in database
+      const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
+      const db = getPostgresInstance();
 
-    const result = await db.query(
-      `SELECT user_id, expires_at, revoked_at
+      const result = await db.query(
+        `SELECT user_id, expires_at, revoked_at
        FROM app_refresh_tokens
        WHERE token_hash = $1`,
-      [tokenHash]
-    );
+        [tokenHash]
+      );
 
-    if (result.length === 0) {
-      log.warn('[MobileAuth] Refresh token not found');
-      res.status(401).json({
-        success: false,
-        error: 'invalid_refresh_token',
-        message: 'Invalid refresh token',
+      if (result.length === 0) {
+        log.warn('[MobileAuth] Refresh token not found');
+        res.status(401).json({
+          success: false,
+          error: 'invalid_refresh_token',
+          message: 'Invalid refresh token',
+        } as TokenResponse);
+        return;
+      }
+
+      const tokenRecord = result[0];
+
+      // Check if token is revoked
+      if (tokenRecord.revoked_at) {
+        log.warn('[MobileAuth] Attempted to use revoked refresh token', {
+          userId: tokenRecord.user_id,
+        });
+        res.status(401).json({
+          success: false,
+          error: 'token_revoked',
+          message: 'Refresh token has been revoked',
+        } as TokenResponse);
+        return;
+      }
+
+      // Check if token is expired
+      if (new Date(tokenRecord.expires_at as string) < new Date()) {
+        log.warn('[MobileAuth] Attempted to use expired refresh token', {
+          userId: tokenRecord.user_id,
+        });
+        res.status(401).json({
+          success: false,
+          error: 'token_expired',
+          message: 'Refresh token has expired',
+        } as TokenResponse);
+        return;
+      }
+
+      // Load user
+      const { getProfileService } = await import('../../services/user/ProfileService.js');
+      const profileService = getProfileService();
+      const user = await profileService.getProfileById(tokenRecord.user_id as string);
+
+      if (!user) {
+        log.error('[MobileAuth] User not found for refresh token', {
+          userId: tokenRecord.user_id,
+        });
+        res.status(404).json({
+          success: false,
+          error: 'user_not_found',
+          message: 'User account not found',
+        } as TokenResponse);
+        return;
+      }
+
+      // Update last_used_at
+      await db.query(`UPDATE app_refresh_tokens SET last_used_at = NOW() WHERE token_hash = $1`, [
+        tokenHash,
+      ]);
+
+      // Generate new access token
+      const accessToken = await createAccessToken(user);
+
+      log.debug('[MobileAuth] Access token refreshed', { userId: user.id });
+
+      res.json({
+        success: true,
+        access_token: accessToken,
+        token_type: 'Bearer',
+        expires_in: 900,
+        user: sanitizeUserForResponse(user),
       } as TokenResponse);
-      return;
-    }
-
-    const tokenRecord = result[0];
-
-    // Check if token is revoked
-    if (tokenRecord.revoked_at) {
-      log.warn('[MobileAuth] Attempted to use revoked refresh token', {
-        userId: tokenRecord.user_id,
-      });
-      res.status(401).json({
+    } catch (error) {
+      log.error('[MobileAuth] Error refreshing token:', error);
+      res.status(500).json({
         success: false,
-        error: 'token_revoked',
-        message: 'Refresh token has been revoked',
+        error: 'server_error',
+        message: 'Failed to refresh token',
       } as TokenResponse);
-      return;
     }
-
-    // Check if token is expired
-    if (new Date(tokenRecord.expires_at as string) < new Date()) {
-      log.warn('[MobileAuth] Attempted to use expired refresh token', {
-        userId: tokenRecord.user_id,
-      });
-      res.status(401).json({
-        success: false,
-        error: 'token_expired',
-        message: 'Refresh token has expired',
-      } as TokenResponse);
-      return;
-    }
-
-    // Load user
-    const { getProfileService } = await import('../../services/user/ProfileService.js');
-    const profileService = getProfileService();
-    const user = await profileService.getProfileById(tokenRecord.user_id as string);
-
-    if (!user) {
-      log.error('[MobileAuth] User not found for refresh token', {
-        userId: tokenRecord.user_id,
-      });
-      res.status(404).json({
-        success: false,
-        error: 'user_not_found',
-        message: 'User account not found',
-      } as TokenResponse);
-      return;
-    }
-
-    // Update last_used_at
-    await db.query(`UPDATE app_refresh_tokens SET last_used_at = NOW() WHERE token_hash = $1`, [
-      tokenHash,
-    ]);
-
-    // Generate new access token
-    const accessToken = await createAccessToken(user);
-
-    log.debug('[MobileAuth] Access token refreshed', { userId: user.id });
-
-    res.json({
-      success: true,
-      access_token: accessToken,
-      token_type: 'Bearer',
-      expires_in: 900,
-      user: sanitizeUserForResponse(user),
-    } as TokenResponse);
-  } catch (error) {
-    log.error('[MobileAuth] Error refreshing token:', error);
-    res.status(500).json({
-      success: false,
-      error: 'server_error',
-      message: 'Failed to refresh token',
-    } as TokenResponse);
   }
-});
+);
 
 /**
  * GET /auth/mobile/status
@@ -722,59 +739,63 @@ function sanitizeRedirect(redirect: string): string {
  * Step 1: Exchange a mobile JWT for a single-use bridge code.
  * The code is opaque and short-lived (30s). No sensitive token in URLs.
  */
-router.post('/mobile/session-bridge', async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const authHeader = req.headers.authorization;
-    const redirect = req.body?.redirect as string;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      res.status(401).json({ error: 'Authorization header with Bearer token required' });
-      return;
-    }
-
-    if (!redirect) {
-      res.status(400).json({ error: 'Missing redirect' });
-      return;
-    }
-
-    const token = authHeader.substring(7);
-
-    let payload;
+router.post(
+  '/mobile/session-bridge',
+  mobileAuthLimiter,
+  async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const result = await jwtVerify(token, JWT_SECRET, {
-        issuer: 'gruenerator-api',
-        audience: 'gruenerator-app',
+      const authHeader = req.headers.authorization;
+      const redirect = req.body?.redirect as string;
+
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        res.status(401).json({ error: 'Authorization header with Bearer token required' });
+        return;
+      }
+
+      if (!redirect) {
+        res.status(400).json({ error: 'Missing redirect' });
+        return;
+      }
+
+      const token = authHeader.substring(7);
+
+      let payload;
+      try {
+        const result = await jwtVerify(token, JWT_SECRET, {
+          issuer: 'gruenerator-api',
+          audience: 'gruenerator-app',
+        });
+        payload = result.payload;
+      } catch {
+        res.status(401).json({ error: 'Invalid or expired token' });
+        return;
+      }
+
+      if (payload.token_use !== 'access' || !payload.sub) {
+        res.status(401).json({ error: 'Invalid token' });
+        return;
+      }
+
+      const code = randomBytes(32).toString('base64url');
+      const safeRedirect = sanitizeRedirect(redirect);
+
+      await storeBridgeCode(code, {
+        userId: payload.sub as string,
+        redirect: safeRedirect,
       });
-      payload = result.payload;
-    } catch {
-      res.status(401).json({ error: 'Invalid or expired token' });
-      return;
+
+      log.info('[SessionBridge] Bridge code created', {
+        userId: payload.sub,
+        redirect: safeRedirect,
+      });
+
+      res.json({ code });
+    } catch (error) {
+      log.error('[SessionBridge] Error creating bridge code:', error);
+      res.status(500).json({ error: 'Internal error' });
     }
-
-    if (payload.token_use !== 'access' || !payload.sub) {
-      res.status(401).json({ error: 'Invalid token' });
-      return;
-    }
-
-    const code = randomBytes(32).toString('base64url');
-    const safeRedirect = sanitizeRedirect(redirect);
-
-    await storeBridgeCode(code, {
-      userId: payload.sub as string,
-      redirect: safeRedirect,
-    });
-
-    log.info('[SessionBridge] Bridge code created', {
-      userId: payload.sub,
-      redirect: safeRedirect,
-    });
-
-    res.json({ code });
-  } catch (error) {
-    log.error('[SessionBridge] Error creating bridge code:', error);
-    res.status(500).json({ error: 'Internal error' });
   }
-});
+);
 
 /**
  * GET /auth/mobile/session-bridge

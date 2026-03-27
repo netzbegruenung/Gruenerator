@@ -37,7 +37,7 @@ function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunctio
     if (bypassToken && bypassToken === process.env.DEV_AUTH_BYPASS_TOKEN) {
       console.warn('[Auth] DEV AUTH BYPASS USED - Development only!');
       req.user = {
-        id: 'dev-user-123',
+        id: '00000000-0000-4000-a000-000000000001',
         email: BRAND.devEmail,
         display_name: 'Development User',
         avatar_robot_id: 1,

@@ -156,6 +156,7 @@ const config: Config = {
           position: 'left',
           items: [
             { to: '/docs/category/grünerieren', label: 'Grünerieren' },
+            { to: '/docs/monitor/intro', label: 'Themen-Monitor' },
             { to: '/docs/category/profil', label: 'Profil' },
             { to: '/docs/category/integrationen', label: 'Integrationen' },
           ],
@@ -226,6 +227,10 @@ const config: Config = {
             {
               label: 'Was kann ich fragen?',
               to: '/docs/integrationen/mcp-was-kann-ich-fragen',
+            },
+            {
+              label: 'Themen-Monitor',
+              to: '/docs/monitor/intro',
             },
           ],
         },

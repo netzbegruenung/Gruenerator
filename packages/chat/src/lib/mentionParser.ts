@@ -9,16 +9,26 @@ export interface MentionResult {
 
 export interface ParsedMentions {
   agentId: string;
+  agentMention?: string;
   notebookIds: string[];
   forcedTools: string[];
   documentIds: string[];
   textIds: string[];
   documentChatIds: string[];
   hasDocumentChat: boolean;
+  boardIds: string[];
+  docMentionIds: string[];
   cleanText: string;
 }
 
 const MENTION_RE = /(?:^|\s)([@/])(\S+)/g;
+
+function addUnique(seen: Set<string>, list: string[], id: string): void {
+  if (!seen.has(id)) {
+    seen.add(id);
+    list.push(id);
+  }
+}
 
 /**
  * Parse all @-mentions and /mentions in a message text.
@@ -35,15 +45,20 @@ const MENTION_RE = /(?:^|\s)([@/])(\S+)/g;
  */
 export function parseAllMentions(text: string): ParsedMentions {
   let agentId: string | null = null;
+  let agentMention: string | undefined;
   let hasDocumentChat = false;
   const notebookIds: string[] = [];
   const forcedTools: string[] = [];
   const documentIds: string[] = [];
   const textIds: string[] = [];
+  const boardIds: string[] = [];
+  const docMentionIds: string[] = [];
   const seenNotebooks = new Set<string>();
   const seenTools = new Set<string>();
   const seenDocuments = new Set<string>();
   const seenTexts = new Set<string>();
+  const seenBoards = new Set<string>();
+  const seenDocMentions = new Set<string>();
   const mentionSpans: [number, number][] = [];
 
   let match: RegExpExecArray | null;
@@ -59,15 +74,9 @@ export function parseAllMentions(text: string): ParsedMentions {
       const doc = resolveDocumentSlug(slug);
       if (doc) {
         if (doc.sourceType === 'text') {
-          if (!seenTexts.has(doc.documentId)) {
-            seenTexts.add(doc.documentId);
-            textIds.push(doc.documentId);
-          }
+          addUnique(seenTexts, textIds, doc.documentId);
         } else {
-          if (!seenDocuments.has(doc.documentId)) {
-            seenDocuments.add(doc.documentId);
-            documentIds.push(doc.documentId);
-          }
+          addUnique(seenDocuments, documentIds, doc.documentId);
         }
       }
       const triggerIndex = match.index + match[0].indexOf('@');
@@ -97,6 +106,7 @@ export function parseAllMentions(text: string): ParsedMentions {
       // /alias → always treat as agent (skill)
       if (mentionable.type === 'agent') {
         agentId = mentionable.identifier;
+        agentMention = mentionable.mention;
       }
       // If /alias resolves to a non-agent, ignore it (/ is only for skills)
     } else {
@@ -104,15 +114,22 @@ export function parseAllMentions(text: string): ParsedMentions {
       if (mentionable.type === 'agent') {
         // Backward compat: @agent still works for saved threads
         agentId = mentionable.identifier;
+        agentMention = mentionable.mention;
       } else if (mentionable.type === 'tool') {
-        if (!seenTools.has(mentionable.identifier)) {
-          seenTools.add(mentionable.identifier);
-          forcedTools.push(mentionable.identifier);
-        }
+        addUnique(seenTools, forcedTools, mentionable.identifier);
       } else if (mentionable.type === 'notebook') {
-        if (!seenNotebooks.has(mentionable.identifier)) {
-          seenNotebooks.add(mentionable.identifier);
-          notebookIds.push(mentionable.identifier);
+        addUnique(seenNotebooks, notebookIds, mentionable.identifier);
+      } else if (mentionable.type === 'board') {
+        if (mentionable.identifier === 'board-erstellen') {
+          addUnique(seenTools, forcedTools, mentionable.identifier);
+        } else {
+          addUnique(seenBoards, boardIds, mentionable.identifier);
+        }
+      } else if (mentionable.type === 'doc') {
+        if (mentionable.identifier === 'dokument-erstellen') {
+          addUnique(seenTools, forcedTools, mentionable.identifier);
+        } else {
+          addUnique(seenDocMentions, docMentionIds, mentionable.identifier);
         }
       }
     }
@@ -132,12 +149,15 @@ export function parseAllMentions(text: string): ParsedMentions {
 
   return {
     agentId: agentId ?? getDefaultAgent(),
+    agentMention,
     notebookIds,
     forcedTools,
     documentIds,
     textIds,
     documentChatIds: [],
     hasDocumentChat,
+    boardIds,
+    docMentionIds,
     cleanText,
   };
 }

@@ -53,12 +53,14 @@ import {
   streamAndAccumulate,
 } from './services/responseStreamingService.js';
 import { createSSEStream, getIntentMessage, PROGRESS_MESSAGES } from './services/sseHelpers.js';
+import { canAccessThread } from './services/threadAccessService.js';
 import {
   getUser,
   createThread,
   createMessage,
   touchThread,
   threadExists,
+  getThreadSettings,
 } from './services/threadPersistenceService.js';
 
 import type { ProcessedAttachmentMeta } from './services/attachmentProcessingService.js';
@@ -98,6 +100,9 @@ router.post('/stream', async (req, res) => {
       documentChatIds: rawDocumentChatIds,
       documentChatMode,
       defaultNotebookId: rawDefaultNotebookId,
+      boardIds: rawBoardIds,
+      docMentionIds: rawDocMentionIds,
+      customSystemPrompt: rawCustomSystemPrompt,
     } = req.body as {
       messages: UIMessage[];
       agentId?: string;
@@ -112,6 +117,9 @@ router.post('/stream', async (req, res) => {
       documentChatIds?: string[];
       documentChatMode?: boolean;
       defaultNotebookId?: string;
+      boardIds?: string[];
+      docMentionIds?: string[];
+      customSystemPrompt?: string;
     };
 
     // === Validate ===
@@ -189,14 +197,16 @@ router.post('/stream', async (req, res) => {
     }
 
     if (actualThreadId && lastUserMessage) {
-      // Validate thread exists before inserting (prevents FK violation on deleted threads)
-      if (!isNewThread && !(await threadExists(actualThreadId))) {
-        sse.send('error', { error: 'Thread not found' });
-        res.end();
-        return;
+      // Validate thread access before inserting (prevents FK violation + enforces sharing permissions)
+      if (!isNewThread) {
+        if (!(await canAccessThread(actualThreadId, userId))) {
+          sse.send('error', { error: 'Thread not found' });
+          res.end();
+          return;
+        }
       }
       const userText = extractTextContent(lastUserMessage.content);
-      await createMessage(actualThreadId, 'user', userText);
+      await createMessage(actualThreadId, 'user', userText, undefined, userId);
     }
 
     // === Process attachments ===
@@ -229,12 +239,29 @@ router.post('/stream', async (req, res) => {
       }
     }
 
+    // === Resolve custom system prompt + tools (thread-level > request body) ===
+    let resolvedCustomPrompt: string | undefined = rawCustomSystemPrompt;
+    let resolvedEnabledTools = enabledTools;
+
+    if (
+      actualThreadId &&
+      (resolvedCustomPrompt === undefined || resolvedEnabledTools === undefined)
+    ) {
+      const threadSettings = await getThreadSettings(actualThreadId);
+      if (resolvedCustomPrompt === undefined && threadSettings?.custom_system_prompt) {
+        resolvedCustomPrompt = threadSettings.custom_system_prompt;
+      }
+      if (resolvedEnabledTools === undefined && threadSettings?.custom_enabled_tools) {
+        resolvedEnabledTools = threadSettings.custom_enabled_tools as Record<string, boolean>;
+      }
+    }
+
     // === Initialize state ===
     const initialState = await initializeChatState({
       messages: validMessages,
       threadId: actualThreadId,
       agentId: agentId || 'gruenerator-universal',
-      enabledTools: enabledTools || {
+      enabledTools: resolvedEnabledTools || {
         search: true,
         web: true,
         person: true,
@@ -255,7 +282,10 @@ router.post('/stream', async (req, res) => {
         : docAttachments.length > 0 || documentChatMode
           ? []
           : undefined,
+      boardIds: rawBoardIds?.length ? rawBoardIds : undefined,
+      docMentionIds: rawDocMentionIds?.length ? rawDocMentionIds : undefined,
       userLocale: (user as any)?.locale || 'de-DE',
+      customSystemPrompt: resolvedCustomPrompt,
     });
 
     const userLocale = (user as any)?.locale || 'de-DE';
@@ -299,6 +329,85 @@ router.post('/stream', async (req, res) => {
       } catch (err) {
         log.warn(
           `[ChatGraph] Text context retrieval failed: ${err instanceof Error ? err.message : String(err)}`
+        );
+      }
+    }
+
+    // === Fetch board context (from @board mentions) ===
+    if (rawBoardIds?.length) {
+      try {
+        const { loadBoardState, formatBoardAsContext } =
+          await import('../../services/boards/BoardService.js');
+
+        const boardStates = await Promise.all(
+          rawBoardIds.map((boardId) =>
+            loadBoardState(boardId, userId).catch((err) => {
+              log.warn(
+                `[ChatGraph] Failed to load board ${boardId}: ${err instanceof Error ? err.message : String(err)}`
+              );
+              return null;
+            })
+          )
+        );
+
+        const boardContextParts = boardStates
+          .filter((s): s is NonNullable<typeof s> => s !== null)
+          .map((s) => {
+            log.info(
+              `[ChatGraph] Board context loaded: "${s.title}" (${s.fields.length} fields, ${s.rows.length} rows)`
+            );
+            return formatBoardAsContext(s);
+          });
+
+        if (boardContextParts.length > 0) {
+          initialState.boardContext = boardContextParts.join('\n\n');
+        }
+      } catch (importErr) {
+        log.warn(
+          `[ChatGraph] Board context services unavailable: ${importErr instanceof Error ? importErr.message : String(importErr)}`
+        );
+      }
+    }
+
+    // === Fetch collaborative document context (from @doc mentions) ===
+    if (rawDocMentionIds?.length) {
+      try {
+        const { getPostgresInstance } =
+          await import('../../database/services/PostgresService/PostgresService.js');
+        const dbInst = getPostgresInstance();
+
+        const docResults = await dbInst.query(
+          `SELECT id, title, content FROM collaborative_documents
+           WHERE id = ANY($1) AND is_deleted = false AND document_subtype != 'boards'
+           AND (created_by = $2 OR permissions ? $2::text OR is_public = true
+                OR id IN (SELECT gcs.content_id FROM group_content_shares gcs
+                          INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2
+                          WHERE gcs.content_type = 'collaborative_documents'))`,
+          [rawDocMentionIds, userId]
+        );
+
+        if (docResults.length > 0) {
+          const docParts = (
+            docResults as Array<{ id: string; title: string; content: string | null }>
+          )
+            .filter((d) => d.content)
+            .map((d) => {
+              const plainText = (d.content || '')
+                .replace(/<[^>]+>/g, '')
+                .replace(/&nbsp;/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+              log.info(`[ChatGraph] Doc context loaded: "${d.title}" (${plainText.length} chars)`);
+              return `### ${d.title}\n\n${plainText}`;
+            });
+
+          if (docParts.length > 0) {
+            initialState.documentMentionContext = docParts.join('\n\n---\n\n');
+          }
+        }
+      } catch (err) {
+        log.warn(
+          `[ChatGraph] Doc mention context failed: ${err instanceof Error ? err.message : String(err)}`
         );
       }
     }
@@ -364,6 +473,9 @@ router.post('/stream', async (req, res) => {
     } as ChatGraphState;
 
     let forcedTool = false;
+    log.info(
+      `[ChatGraph] forcedTools received: ${JSON.stringify(forcedTools)}, classifier intent: ${classifiedState.intent}`
+    );
     if (forcedTools && forcedTools.length > 0) {
       const TOOL_PRIORITY = [
         'image',
@@ -393,7 +505,13 @@ router.post('/stream', async (req, res) => {
     });
 
     // === HITL: Check if clarification is needed ===
-    if (classifiedState.needsClarification && !forcedTool && !initialState.attachmentContext) {
+    if (
+      classifiedState.needsClarification &&
+      !forcedTool &&
+      !initialState.attachmentContext &&
+      !initialState.boardContext &&
+      !initialState.documentMentionContext
+    ) {
       log.info(`[ChatGraph] Clarification needed: "${classifiedState.clarificationQuestion}"`);
 
       const stepId = `clarify_${Date.now()}`;
@@ -450,15 +568,176 @@ router.post('/stream', async (req, res) => {
       return;
     }
 
+    // === Handle @board-erstellen tool ===
+    if (forcedTools?.includes('board-erstellen')) {
+      sse.send('response_start', { message: 'Erstelle Board...' });
+
+      try {
+        const {
+          BOARD_GENERATION_PROMPT,
+          createBoardDocument,
+          parseBoardStructure,
+          postProcessBoardStructure,
+        } = await import('../../services/boards/BoardService.js');
+
+        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+
+        const boardGenResult = await aiWorkerPool.processRequest(
+          {
+            type: 'board_generation',
+            systemPrompt: BOARD_GENERATION_PROMPT,
+            messages: [{ role: 'user', content: lastUserText }],
+            options: { temperature: 0.7, max_tokens: 2000 },
+          },
+          req
+        );
+
+        const boardStructure =
+          boardGenResult.success && boardGenResult.content
+            ? parseBoardStructure(boardGenResult.content)
+            : null;
+
+        if (boardStructure) {
+          const { id: newBoardId, title: boardTitle } = await createBoardDocument(
+            boardStructure.title || 'Neues Board',
+            userId
+          );
+
+          const columnNames = boardStructure.statusOptions.map((c) => c.name).join(', ');
+          const cardCount = boardStructure.rows.length;
+
+          const responseText =
+            `Board **"${boardTitle}"** wurde erstellt!\n\n` +
+            `**Spalten:** ${columnNames}\n` +
+            `**Karten:** ${cardCount} Aufgaben\n\n` +
+            `[Board öffnen](/boards/${newBoardId})`;
+
+          for (let i = 0; i < responseText.length; i += 20) {
+            sse.send('text_delta', { text: responseText.slice(i, i + 20) });
+          }
+
+          const totalTimeMs = Date.now() - classifiedState.startTime;
+          sse.sendRaw('done', {
+            threadId: actualThreadId,
+            citations: [],
+            boardId: newBoardId,
+            boardGeneratedStructure: postProcessBoardStructure(boardStructure, userId),
+            metadata: {
+              intent: 'direct',
+              searchCount: 0,
+              totalTimeMs,
+              classificationTimeMs: classifiedState.classificationTimeMs,
+              searchTimeMs: 0,
+            },
+          });
+
+          if (actualThreadId) {
+            await createMessage(actualThreadId, 'assistant', responseText);
+            await touchThread(actualThreadId);
+          }
+
+          log.info(`[ChatGraph] Board created: "${boardTitle}" (${newBoardId})`);
+          sse.end();
+          return;
+        }
+      } catch (boardErr) {
+        log.error(
+          `[ChatGraph] Board creation failed: ${boardErr instanceof Error ? boardErr.message : String(boardErr)}`
+        );
+      }
+    }
+
+    // === Handle @dokument-erstellen tool ===
+    if (forcedTools?.includes('dokument-erstellen')) {
+      sse.send('response_start', { message: 'Erstelle Dokument...' });
+
+      try {
+        const { DOCUMENT_GENERATION_PROMPT, parseDocumentResponse, createDocumentWithContent } =
+          await import('../../services/docs/DocGenerationService.js');
+
+        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+
+        const docGenResult = await aiWorkerPool.processRequest(
+          {
+            type: 'doc_generation',
+            systemPrompt: DOCUMENT_GENERATION_PROMPT,
+            messages: [{ role: 'user', content: lastUserText }],
+            options: { temperature: 0.7, max_tokens: 4000 },
+          },
+          req
+        );
+
+        const generated =
+          docGenResult.success && docGenResult.content
+            ? parseDocumentResponse(docGenResult.content)
+            : { title: 'Neues Dokument', subtype: 'blank', content: '' };
+
+        const newDoc = await createDocumentWithContent(
+          generated.title,
+          generated.content,
+          generated.subtype,
+          userId
+        );
+
+        const newDocId = newDoc.id;
+        const docTitle = generated.title;
+
+        const responseText =
+          `Dokument **"${docTitle}"** wurde erstellt!\n\n` +
+          `**Typ:** ${generated.subtype}\n\n` +
+          `[Dokument öffnen](/document/${newDocId})`;
+
+        for (let i = 0; i < responseText.length; i += 20) {
+          sse.send('text_delta', { text: responseText.slice(i, i + 20) });
+        }
+
+        const totalTimeMs = Date.now() - classifiedState.startTime;
+        sse.sendRaw('done', {
+          threadId: actualThreadId,
+          citations: [],
+          documentId: newDocId,
+          metadata: {
+            intent: 'direct',
+            searchCount: 0,
+            totalTimeMs,
+            classificationTimeMs: classifiedState.classificationTimeMs,
+            searchTimeMs: 0,
+          },
+        });
+
+        if (actualThreadId) {
+          await createMessage(actualThreadId, 'assistant', responseText);
+          await touchThread(actualThreadId);
+        }
+
+        log.info(`[ChatGraph] Document created: "${docTitle}" (${newDocId})`);
+        sse.end();
+        return;
+      } catch (docErr) {
+        log.error(
+          `[ChatGraph] Document creation failed: ${docErr instanceof Error ? docErr.message : String(docErr)}`
+        );
+      }
+    }
+
     // === Stage 2: Search or Image Generation ===
     let finalState = classifiedState;
     let generatedImage: GeneratedImageResult | null = null;
 
+    log.info(
+      `[ChatGraph] Stage 2 — intent=${classifiedState.intent}, forcedTool=${forcedTool}, enabledTools.image=${enabledTools?.['image']}`
+    );
     if (classifiedState.intent === 'image') {
       const imageToolEnabled = forcedTool || enabledTools?.['image'] !== false;
+      log.info(
+        `[ChatGraph] Image branch — imageToolEnabled=${imageToolEnabled}, userId=${(classifiedState.agentConfig as any).userId}, BFL_KEY_SET=${!!process.env.BFL_API_KEY}`
+      );
       if (imageToolEnabled) {
         sse.send('image_start', { message: PROGRESS_MESSAGES.imageStart });
         const imageResult = await imageNode(classifiedState);
+        log.info(
+          `[ChatGraph] imageNode result — hasImage=${!!imageResult.generatedImage}, error=${imageResult.error || 'none'}, timeMs=${imageResult.imageTimeMs}`
+        );
         finalState = { ...classifiedState, ...imageResult } as ChatGraphState;
 
         if (finalState.generatedImage) {
@@ -606,7 +885,11 @@ router.post('/stream', async (req, res) => {
     sse.end();
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    log.error('[ChatGraph] Controller error:', errorMessage);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    log.error(`[ChatGraph] Controller error: ${errorMessage}`);
+    if (errorStack) log.error(`[ChatGraph] Stack: ${errorStack}`);
+    if (!(error instanceof Error))
+      log.error(`[ChatGraph] Raw error: ${JSON.stringify(error)?.slice(0, 500)}`);
     if (!sse.isEnded()) {
       sse.send('error', { error: PROGRESS_MESSAGES.internalError });
       sse.end();
@@ -773,7 +1056,9 @@ router.post('/resume', async (req, res) => {
     sse.end();
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    log.error('[ChatGraph:Resume] Controller error:', errorMessage);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    log.error(`[ChatGraph:Resume] Controller error: ${errorMessage}`);
+    if (errorStack) log.error(`[ChatGraph:Resume] Stack: ${errorStack}`);
     if (!sse.isEnded()) {
       sse.send('error', { error: PROGRESS_MESSAGES.internalError });
       sse.end();

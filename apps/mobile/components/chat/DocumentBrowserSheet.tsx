@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFileMentionData, registerDocumentSlug, documentToSlug } from '@gruenerator/chat';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Modal,
   View,
   Text,
   Pressable,
@@ -11,6 +10,8 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+
+import { BottomSheet } from '../common/BottomSheet';
 
 import {
   pickDocument,
@@ -122,13 +123,7 @@ export function DocumentBrowserSheet({
   const isLoading = loadingCollections || loadingContent;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onDismiss}>
-      <Pressable style={styles.backdrop} onPress={onDismiss}>
-        <View />
-      </Pressable>
-      <View
-        style={[styles.sheet, { backgroundColor: theme.background, borderColor: theme.border }]}
-      >
+    <BottomSheet visible={visible} onClose={onDismiss} maxHeight="80%">
         <View style={[styles.header, { borderBottomColor: theme.border }]}>
           {level.type === 'collection' ? (
             <Pressable
@@ -219,8 +214,7 @@ export function DocumentBrowserSheet({
             onSelect={(doc) => handleDocSelect(doc, level.id, level.name)}
           />
         )}
-      </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
@@ -416,16 +410,6 @@ function DocRow({
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-  },
-  sheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    maxHeight: '80%',
-    minHeight: 300,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 import express, { type Response, type Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 
+import { getSharedMediaService } from '../../services/sharedMediaService.js';
 import AssSubtitleService from '../../services/subtitler/assSubtitleService.js';
 import { processVideoAutomatically } from '../../services/subtitler/autoProcessingService.js';
 import { getCompressionStatus } from '../../services/subtitler/backgroundCompressionService.js';
@@ -24,7 +25,6 @@ import {
   processSubtitleSegments,
 } from '../../services/subtitler/downloadUtils.js';
 import { autoSaveProject } from '../../services/subtitler/projectSavingService.js';
-import { correctSubtitlesViaAI } from '../../services/subtitler/subtitleCorrectionService.js';
 import { calculateFontSizing } from '../../services/subtitler/subtitleSizingService.js';
 import { transcribeVideo } from '../../services/subtitler/transcriptionService.js';
 import {
@@ -500,26 +500,6 @@ router.post('/export', async (req: SubtitlerRequest, res: Response): Promise<voi
   }
 });
 
-// POST /correct-subtitles
-router.post('/correct-subtitles', async (req: SubtitlerRequest, res: Response): Promise<void> => {
-  const { segments } = req.body;
-  if (!segments?.length) {
-    res.status(400).json({ error: 'Keine Segmente' });
-    return;
-  }
-  try {
-    const pool = req.app.locals.aiWorkerPool;
-    if (!pool) {
-      res.status(500).json({ error: 'AI-Service nicht verfügbar' });
-      return;
-    }
-    const result = await correctSubtitlesViaAI(segments, pool);
-    res.json({ corrections: result.corrections, hasCorrections: result.hasCorrections });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
 // POST /export-segments
 router.post('/export-segments', async (req: SubtitlerRequest, res: Response): Promise<void> => {
   const { uploadId, projectId, segments, includeSubtitles, subtitleConfig } = req.body;
@@ -581,6 +561,12 @@ router.post('/process-auto', async (req: SubtitlerRequest, res: Response): Promi
     }
     const originalFilename = (await getOriginalFilename(uploadId)) || 'video.mp4';
 
+    await redisClient.set(
+      `auto:${uploadId}`,
+      JSON.stringify({ status: 'processing', stage: 1, stageProgress: 0, overallProgress: 0 }),
+      { EX: 3600 }
+    );
+
     res.status(202).json({ status: 'processing' });
 
     processVideoAutomatically(videoPath, uploadId, {
@@ -612,6 +598,20 @@ router.post('/process-auto', async (req: SubtitlerRequest, res: Response): Promi
             projectId = r.projectId;
           } catch {
             /* ignored */
+          }
+
+          if (projectId && result.outputPath) {
+            try {
+              const shareService = getSharedMediaService();
+              await shareService.createVideoShare(userId, {
+                videoPath: result.outputPath,
+                title: originalFilename.replace(/\.[^.]+$/, ''),
+                duration: result.duration || undefined,
+                projectId,
+              });
+            } catch (shareErr) {
+              log.warn(`Auto-share creation failed: ${(shareErr as Error).message}`);
+            }
           }
         }
         await redisClient.set(

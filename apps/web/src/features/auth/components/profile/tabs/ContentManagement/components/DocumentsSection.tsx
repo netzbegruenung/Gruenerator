@@ -1,3 +1,6 @@
+import { Button } from '@gruenerator/ui';
+import { useShareLinks, useSyncStatuses, useSetAutoSync } from '@gruenerator/wolke';
+import { useMutation } from '@tanstack/react-query';
 import {
   useState,
   useRef,
@@ -19,7 +22,6 @@ import {
   ProfileIconButton,
   ProfileActionButton,
 } from '../../../../../../../components/profile/actions/ProfileActionButton';
-import { Button } from '../../../../../../../components/ui/button';
 import { Card } from '../../../../../../../components/ui/card';
 import apiClient from '../../../../../../../components/utils/apiClient';
 import * as documentAndTextUtils from '../../../../../../../components/utils/documentAndTextUtils';
@@ -27,12 +29,9 @@ import { handleError } from '../../../../../../../components/utils/errorHandling
 import { useOptimizedAuth } from '../../../../../../../hooks/useAuth';
 import { useTabIndex } from '../../../../../../../hooks/useTabIndex';
 import { useDocumentsStore } from '../../../../../../../stores/documentsStore';
-import { useWolkeStore } from '../../../../../../../stores/wolkeStore';
-import { WolkeSyncManager } from '../../../../../../documents/components/WolkeSyncManager';
+import { useDocumentMode } from '../../../../../../documents/hooks/useDocumentMode';
 
 // Hooks
-import { useDocumentMode } from '../../../../../../documents/hooks/useDocumentMode';
-import { useWolkeSync } from '../../../../../../documents/hooks/useWolkeSync';
 // Removed useUserTexts import - now using combined fetch from documentsStore
 
 // Stores
@@ -52,7 +51,6 @@ interface DocumentsSectionProps {
   isActive: boolean;
   onSuccessMessage: (message: string) => void;
   onErrorMessage: (message: string) => void;
-  onShareToGroup?: (contentType: string, contentId: string, contentTitle: string) => void;
 }
 
 interface BulkDeleteResult {
@@ -116,7 +114,7 @@ MemoizedDocumentUpload.displayName = 'MemoizedDocumentUpload';
 const DOCUMENT_TYPES = documentAndTextUtils.DOCUMENT_TYPES;
 
 const DocumentsSection = memo(
-  ({ isActive, onSuccessMessage, onErrorMessage, onShareToGroup }: DocumentsSectionProps) => {
+  ({ isActive, onSuccessMessage, onErrorMessage }: DocumentsSectionProps) => {
     // Tab index configuration
     const tabIndex = useTabIndex('PROFILE_CONTENT_MANAGEMENT');
 
@@ -125,6 +123,22 @@ const DocumentsSection = memo(
 
     // Document mode management
     const { loading: modeLoading } = useDocumentMode();
+
+    const migrateTexts = useMutation({
+      mutationFn: async () => {
+        const res = await apiClient.post('/auth/saved-texts/migrate-all-to-docs');
+        return res.data as { converted: number; total: number };
+      },
+      onSuccess: (data) => {
+        if (data.converted > 0) {
+          onSuccessMessage(`${data.converted} Texte zu Dokumenten migriert`);
+          handleCombinedFetch();
+        } else {
+          onSuccessMessage('Keine neuen Texte zum Migrieren');
+        }
+      },
+      onError: () => onErrorMessage('Migration fehlgeschlagen'),
+    });
 
     // =====================================================================
     // DOCUMENTS-RELATED STATE AND FUNCTIONALITY
@@ -156,17 +170,10 @@ const DocumentsSection = memo(
       clearSearchResults,
     } = useDocumentsStore();
 
-    // Wolke store integration
-    const {
-      shareLinks: wolkeShareLinks,
-      isLoading: wolkeLoading,
-      error: wolkeError,
-      fetchShareLinks,
-      initialized: wolkeInitialized,
-    } = useWolkeStore();
-
-    // Wolke sync integration for delete all functionality
-    const { syncStatuses, setAutoSync } = useWolkeSync();
+    // Wolke TanStack Query hooks
+    const { error: wolkeError } = useShareLinks();
+    const { data: syncStatuses = [] } = useSyncStatuses();
+    const setAutoSyncMutation = useSetAutoSync();
 
     // Texts are now fetched through combined content - no separate hook needed
     // Text operations will need to be implemented in the store or as separate API calls
@@ -405,26 +412,30 @@ const DocumentsSection = memo(
             await handleBulkDeleteDocuments(allDocIds);
           }
 
-          // 2. Delete all texts
+          // 2. Delete all texts (parallel, skip per-item refetch)
           const allTextIds = texts.map((t: { id: string }) => t.id);
-          for (const textId of allTextIds) {
-            await handleTextDelete(textId);
+          if (allTextIds.length > 0) {
+            await Promise.all(
+              allTextIds.map((textId) => apiClient.delete(`/auth/saved-texts/${textId}`))
+            );
           }
 
-          // 3. Disable all Wolke auto-sync
-          if (syncStatuses && syncStatuses.length > 0) {
-            for (const status of syncStatuses) {
-              if (status.auto_sync_enabled) {
-                await setAutoSync(status.share_link_id, '', false);
-              }
-            }
+          // 3. Disable all Wolke auto-sync (parallel)
+          const autoSyncStatuses = syncStatuses.filter((s) => s.auto_sync_enabled);
+          if (autoSyncStatuses.length > 0) {
+            await Promise.all(
+              autoSyncStatuses.map((status) =>
+                setAutoSyncMutation.mutateAsync({
+                  shareLinkId: status.share_link_id,
+                  folderPath: '',
+                  enabled: false,
+                })
+              )
+            );
           }
 
           // 4. Refresh all data
           await handleCombinedFetch();
-          if (fetchShareLinks) {
-            await fetchShareLinks();
-          }
 
           onSuccessMessage(
             'Alle Inhalte wurden erfolgreich gelöscht und Wolke-Synchronisation deaktiviert.'
@@ -449,38 +460,11 @@ const DocumentsSection = memo(
         syncStatuses,
         handleBulkDeleteDocuments,
         handleTextDelete,
-        setAutoSync,
+        setAutoSyncMutation,
         handleCombinedFetch,
-        fetchShareLinks,
         onSuccessMessage,
         onErrorMessage,
       ]
-    );
-
-    // =====================================================================
-    // WOLKE SYNC FUNCTIONALITY
-    // =====================================================================
-
-    // Wolke sync handlers
-    const handleWolkeSyncComplete = useCallback(() => {
-      // Refresh documents after Wolke sync completes
-      fetchDocuments();
-      onSuccessMessage('Wolke-Synchronisation erfolgreich abgeschlossen.');
-    }, [fetchDocuments, onSuccessMessage]);
-
-    const handleRefreshWolkeShareLinks = useCallback(
-      async (forceRefresh = false) => {
-        try {
-          await fetchShareLinks();
-        } catch (error) {
-          console.error('[DocumentsSection] Error refreshing Wolke share links:', error);
-          onErrorMessage(
-            'Fehler beim Aktualisieren der Wolke-Verbindungen: ' +
-              (error instanceof Error ? error.message : String(error))
-          );
-        }
-      },
-      [fetchShareLinks, onErrorMessage]
     );
 
     // =====================================================================
@@ -500,8 +484,8 @@ const DocumentsSection = memo(
     // Handle Wolke errors
     useEffect(() => {
       if (wolkeError) {
-        console.error('[DocumentsSection] Fehler beim Laden der Wolke-Daten:', wolkeError);
-        onErrorMessage('Fehler beim Laden der Wolke-Verbindungen: ' + wolkeError);
+        const msg = wolkeError instanceof Error ? wolkeError.message : String(wolkeError);
+        onErrorMessage('Fehler beim Laden der Wolke-Verbindungen: ' + msg);
       }
     }, [wolkeError, onErrorMessage]);
 
@@ -512,12 +496,8 @@ const DocumentsSection = memo(
     useEffect(() => {
       if (isActive) {
         fetchCombinedRef.current?.();
-        // Also fetch Wolke share links when tab becomes active
-        if (!wolkeInitialized) {
-          handleRefreshWolkeShareLinks();
-        }
       }
-    }, [isActive, wolkeInitialized, handleRefreshWolkeShareLinks]);
+    }, [isActive]);
 
     // =====================================================================
     // RENDER METHODS
@@ -531,13 +511,6 @@ const DocumentsSection = memo(
           <div className="flex items-center justify-center py-xl" />
         ) : (
           <>
-            {/* Wolke Sync Manager Section - Hidden for now */}
-            {/* <WolkeSyncManager
-                        wolkeShareLinks={wolkeShareLinks}
-                        onRefreshShareLinks={handleRefreshWolkeShareLinks}
-                        onSyncComplete={handleWolkeSyncComplete}
-                    /> */}
-
             <DocumentOverview
               documents={
                 combinedItems as Array<{
@@ -562,12 +535,6 @@ const DocumentsSection = memo(
               }}
               onEdit={handleCombinedEdit}
               onRefreshDocument={handleDocumentRefresh}
-              onShare={(item: unknown) => {
-                const typedItem = item as CombinedItem;
-                if (onShareToGroup) {
-                  onShareToGroup(typedItem.itemType, typedItem.id, typedItem.title || '');
-                }
-              }}
               documentTypes={DOCUMENT_TYPES}
               emptyStateConfig={{
                 noDocuments: 'Keine Inhalte vorhanden.',
@@ -586,6 +553,14 @@ const DocumentsSection = memo(
               onClearRemoteSearch={clearSearchResults}
               headerActions={
                 <div className="flex gap-xs">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => migrateTexts.mutate()}
+                    disabled={migrateTexts.isPending || combinedLoading}
+                  >
+                    {migrateTexts.isPending ? 'Migriere...' : 'Texte → Dokumente'}
+                  </Button>
                   <ProfileIconButton
                     action="refresh"
                     onClick={handleCombinedFetch}

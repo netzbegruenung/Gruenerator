@@ -47,7 +47,17 @@ Für Personensuche mit Anreicherung → DIESES Tool.
     aktivitaetenLimit: z.number().default(30).describe('Max. Aktivitäten (Reden, Abstimmungen)'),
   },
 
-  async handler({ query, contentLimit = 15, drucksachenLimit = 20, aktivitaetenLimit = 30 }) {
+  async handler({
+    query,
+    contentLimit = 15,
+    drucksachenLimit = 20,
+    aktivitaetenLimit = 30,
+  }: {
+    query: string;
+    contentLimit?: number;
+    drucksachenLimit?: number;
+    aktivitaetenLimit?: number;
+  }) {
     try {
       const service = getEnrichedPersonSearch();
       const result = await service.search(query, {
@@ -57,11 +67,12 @@ Für Personensuche mit Anreicherung → DIESES Tool.
       });
 
       return result;
-    } catch (error) {
-      console.error('[PersonSearchTool] Error:', error.message);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[PersonSearchTool] Error:', message);
       return {
         error: true,
-        message: error.message,
+        message,
         isPersonQuery: false,
       };
     }

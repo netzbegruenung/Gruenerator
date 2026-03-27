@@ -13,6 +13,7 @@ import path from 'path';
 
 import express, { type Router, Request, type Response } from 'express';
 
+import NextcloudApiClient from '../../services/api-clients/nextcloudApiClient.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { getWolkeSyncService } from '../../services/sync/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -170,13 +171,17 @@ router.get(
         return;
       }
 
-      log.debug(`[GET /browse/:shareLinkId] Browsing files for share link ${shareLinkId}`);
+      const folderPath = (req.query.path as string) || '';
+      log.debug(`[GET /browse/:shareLinkId] Browsing files for share link ${shareLinkId}`, {
+        folderPath,
+      });
 
       // Get the share link
       const shareLink = await wolkeSyncService.getShareLink(userId, shareLinkId);
 
-      // List files in the folder
-      const files = await wolkeSyncService.listFolderContents(shareLink);
+      // List all files and folders (unfiltered, unlike listFolderContents which is for sync)
+      const client = new NextcloudApiClient(shareLink.share_link);
+      const files = await client.listFolder(folderPath || undefined);
 
       // Filter and enrich files with additional metadata for UI
       const enrichedFiles = files.map((file) => {

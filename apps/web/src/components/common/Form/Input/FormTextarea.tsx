@@ -6,11 +6,9 @@ import useDebounce from '../../../../components/hooks/useDebounce';
 import { COMBINED_DICTIONARY } from '../../../../hooks/useTextAutocomplete';
 import { useSimpleFormStore } from '../../../../stores/core/simpleFormStore';
 import { detectUrls } from '../../../../utils/urlDetection';
-import { useBaseFormContext } from '../BaseFormContext';
 
 import FormFieldWrapper from './FormFieldWrapper';
 import TextareaWithAutocomplete from './TextareaWithAutocomplete';
-import '../../../../assets/styles/components/form/form-inputs.css';
 
 interface FormTextareaProps {
   name: string;
@@ -29,7 +27,6 @@ interface FormTextareaProps {
   maxLength?: number;
   textareaProps?: Record<string, unknown>;
   labelProps?: Record<string, unknown>;
-  tabIndex?: number;
   enableUrlDetection?: boolean;
   onUrlsDetected?: (urls: string[]) => void;
   enableTextAutocomplete?: boolean;
@@ -37,6 +34,7 @@ interface FormTextareaProps {
   autocompleteMinChars?: number;
   autocompleteAddHashtag?: boolean;
   onChange?: (value: string) => void;
+  isStartMode?: boolean;
   [key: string]: unknown;
 }
 
@@ -65,7 +63,6 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
   maxLength,
   textareaProps = {},
   labelProps = {},
-  tabIndex,
   enableUrlDetection = false,
   onUrlsDetected,
   enableTextAutocomplete = false,
@@ -73,11 +70,10 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
   autocompleteMinChars = 3,
   autocompleteAddHashtag = true,
   onChange,
+  isStartMode = false,
   ...rest
 }) => {
-  // All hooks must be called unconditionally at the top
-  const { isStartMode: storeIsStartMode } = useBaseFormContext();
-  const minRows = storeIsStartMode ? 2 : minRowsProp;
+  const minRows = isStartMode ? 2 : minRowsProp;
 
   // Simple form store hooks - called unconditionally
   const rawValue = useSimpleFormStore((state) => state.fields[name]);
@@ -88,7 +84,7 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
   const textareaClassName = [
     'form-textarea',
     className,
-    storeIsStartMode && 'bg-transparent border-none text-[1.1rem] leading-[1.6] focus:outline-none',
+    isStartMode && 'bg-transparent border-none text-[1.1rem] leading-[1.6] focus:outline-none',
   ]
     .filter(Boolean)
     .join(' ');
@@ -164,7 +160,6 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
                 maxRows={maxRows}
                 maxLength={maxLength}
                 className={textareaClassName}
-                tabIndex={tabIndex}
                 textareaProps={textareaProps}
                 enableUrlDetection={enableUrlDetection}
                 onFieldValueChange={setFieldValue}
@@ -189,7 +184,6 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
                   maxRows={maxRows}
                   maxLength={maxLength}
                   className={`${textareaClassName} ${error ? 'error-input' : ''}`.trim()}
-                  tabIndex={tabIndex}
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
                     field.onChange(e);
 
@@ -233,7 +227,6 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
           maxLength={maxLength}
           className={textareaClassName}
           value={simpleFormValue}
-          tabIndex={tabIndex}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
             const newVal = e.target.value;
             setField(name, newVal);

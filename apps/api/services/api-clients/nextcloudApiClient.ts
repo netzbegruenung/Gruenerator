@@ -9,10 +9,19 @@ export interface ParsedShareLink {
   fullPath: string;
 }
 
+export type ConnectionErrorCode =
+  | 'invalid_link'
+  | 'not_found'
+  | 'forbidden'
+  | 'read_only'
+  | 'storage_full'
+  | 'unknown';
+
 export interface ConnectionTestResult {
   success: boolean;
   message: string;
   writable?: boolean;
+  errorCode?: ConnectionErrorCode;
 }
 
 export interface UploadFileResult {
@@ -135,7 +144,7 @@ class NextcloudApiClient {
     try {
       console.log('[NextcloudApiClient] Testing Nextcloud connection');
 
-      // Try to access the WebDAV root to test authentication
+      // Phase 1: PROPFIND to verify the link is valid and accessible
       const response = await this.axiosInstance.request({
         method: 'PROPFIND',
         url: this.webdavUrl,
@@ -154,18 +163,68 @@ class NextcloudApiClient {
                </propfind>`,
       });
 
-      if (response.status === 207 || response.status === 200) {
-        console.log('[NextcloudApiClient] Connection test successful');
+      if (response.status !== 207 && response.status !== 200) {
         return {
-          success: true,
-          message: 'Connection successful',
-          writable: true, // Assume writable for now, could be enhanced
+          success: false,
+          message: `Unexpected response: ${response.status}`,
+          errorCode: 'unknown',
         };
       }
 
+      // Phase 2: Write probe — upload a tiny test file to verify write access
+      const probeFilename = '.gruenerator-test';
+      const probeUrl = `${this.webdavUrl}/${probeFilename}`;
+      const probeContent = 'test';
+
+      try {
+        const putResponse = await this.axiosInstance.put(probeUrl, probeContent, {
+          headers: { 'Content-Type': 'text/plain' },
+        });
+
+        if (putResponse.status === 201 || putResponse.status === 204) {
+          // Clean up probe file
+          try {
+            await this.axiosInstance.delete(probeUrl);
+          } catch {
+            // Cleanup failure is non-critical
+          }
+
+          console.log('[NextcloudApiClient] Connection test successful (read + write)');
+          return {
+            success: true,
+            message: 'Connection successful',
+            writable: true,
+          };
+        }
+      } catch (putError) {
+        const putErr = putError as AxiosError;
+
+        if (putErr.response?.status === 403) {
+          console.log('[NextcloudApiClient] Share is read-only (PROPFIND ok, PUT 403)');
+          return {
+            success: false,
+            message: 'Share is read-only - change permission to "Kann bearbeiten"',
+            writable: false,
+            errorCode: 'read_only',
+          };
+        }
+
+        if (putErr.response?.status === 507) {
+          return {
+            success: false,
+            message: 'Insufficient storage space in Nextcloud',
+            writable: false,
+            errorCode: 'storage_full',
+          };
+        }
+      }
+
+      // PROPFIND succeeded but write probe had unexpected result — report as read-only
       return {
         success: false,
-        message: `Unexpected response: ${response.status}`,
+        message: 'Could not verify write access',
+        writable: false,
+        errorCode: 'read_only',
       };
     } catch (error) {
       const err = error as AxiosError;
@@ -175,22 +234,26 @@ class NextcloudApiClient {
         return {
           success: false,
           message: 'Authentication failed - invalid share token',
+          errorCode: 'invalid_link',
         };
       } else if (err.response?.status === 403) {
         return {
           success: false,
-          message: 'Access forbidden - share may not be active or writable',
+          message: 'Access forbidden - share may not be active',
+          errorCode: 'forbidden',
         };
       } else if (err.response?.status === 404) {
         return {
           success: false,
           message: 'Share not found - check the share link',
+          errorCode: 'not_found',
         };
       }
 
       return {
         success: false,
         message: err.message || 'Connection test failed',
+        errorCode: 'unknown',
       };
     }
   }
@@ -198,6 +261,57 @@ class NextcloudApiClient {
   /**
    * Upload a file to the Nextcloud share
    */
+  async uploadFileStream(
+    filePath: string,
+    filename: string,
+    folderPath?: string
+  ): Promise<UploadFileResult> {
+    const fs = await import('fs');
+    try {
+      const safeFilename = this.sanitizeFilename(filename);
+      let uploadUrl = this.webdavUrl;
+      if (folderPath) {
+        const encodedPath = folderPath
+          .split('/')
+          .filter(Boolean)
+          .map((segment) => encodeURIComponent(segment))
+          .join('/');
+        uploadUrl = `${this.webdavUrl}/${encodedPath}`;
+      }
+      uploadUrl = `${uploadUrl}/${encodeURIComponent(safeFilename)}`;
+
+      const stat = fs.statSync(filePath);
+      const stream = fs.createReadStream(filePath);
+
+      const response = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${this.shareToken}:`).toString('base64')}`,
+          'Content-Type': 'application/octet-stream',
+          'Content-Length': String(stat.size),
+        },
+        body: stream as unknown as BodyInit,
+        // @ts-expect-error -- Node fetch supports duplex streaming
+        duplex: 'half',
+      });
+
+      if (response.ok || response.status === 201 || response.status === 204) {
+        return { success: true, message: 'File uploaded successfully via stream' };
+      }
+
+      const errorText = await response.text();
+      console.error('[NextcloudApiClient] Stream upload failed', {
+        status: response.status,
+        errorText: errorText.substring(0, 200),
+      });
+      return { success: false, message: `Upload failed: ${response.status}` };
+    } catch (error) {
+      const err = error as Error;
+      console.error('[NextcloudApiClient] Stream upload error', { error: err.message });
+      return { success: false, message: err.message };
+    }
+  }
+
   async uploadFile(
     content: string | Buffer,
     filename: string,
@@ -313,6 +427,49 @@ class NextcloudApiClient {
       }
 
       throw new Error(err.message || 'File upload failed');
+    }
+  }
+
+  /**
+   * Ensure a folder exists in the share, creating it via MKCOL if needed.
+   * Returns true if the folder exists (created or already existed).
+   */
+  async ensureFolder(folderPath: string): Promise<boolean> {
+    const encodedPath = folderPath
+      .split('/')
+      .filter(Boolean)
+      .map((segment) => encodeURIComponent(segment))
+      .join('/');
+    const folderUrl = `${this.webdavUrl}/${encodedPath}`;
+
+    try {
+      // Check if it exists (PROPFIND)
+      await this.axiosInstance.request({
+        method: 'PROPFIND',
+        url: folderUrl,
+        headers: { Depth: '0' },
+      });
+      return true;
+    } catch {
+      // Doesn't exist, try to create
+    }
+
+    try {
+      await this.axiosInstance.request({
+        method: 'MKCOL',
+        url: folderUrl,
+      });
+      console.log('[NextcloudApiClient] Created folder', { folderPath });
+      return true;
+    } catch (error) {
+      const err = error as AxiosError;
+      // 405 = already exists (race condition), treat as success
+      if (err.response?.status === 405) return true;
+      console.error('[NextcloudApiClient] Failed to create folder', {
+        folderPath,
+        status: err.response?.status,
+      });
+      return false;
     }
   }
 

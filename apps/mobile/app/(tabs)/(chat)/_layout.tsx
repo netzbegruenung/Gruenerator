@@ -1,4 +1,4 @@
-import { AssistantProvider } from '@assistant-ui/react-native';
+import { AssistantRuntimeProvider } from '@assistant-ui/react-native';
 import { Drawer } from 'expo-router/drawer';
 import { useColorScheme } from 'react-native';
 
@@ -13,7 +13,7 @@ export default function ChatLayout() {
   const runtime = useChatDrawerRuntime();
 
   return (
-    <AssistantProvider runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime}>
       <ThreadSync />
       <Drawer
         drawerContent={(props) => <ThreadListDrawer {...props} theme={theme} />}
@@ -26,6 +26,6 @@ export default function ChatLayout() {
       >
         <Drawer.Screen name="index" options={{ title: 'Chat' }} />
       </Drawer>
-    </AssistantProvider>
+    </AssistantRuntimeProvider>
   );
 }

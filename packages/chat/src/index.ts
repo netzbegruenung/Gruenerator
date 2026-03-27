@@ -1,3 +1,14 @@
+// Unified Message Metadata
+export { type ChatMessageMetadata } from './types/messageMetadata';
+
+// Extra Actions Context
+export {
+  ExtraActionsProvider,
+  useExtraActions,
+  type ExtraAction,
+  type ExtraActionFactory,
+} from './context/ExtraActionsContext';
+
 // Context & API Client
 export {
   chatFetch,
@@ -26,6 +37,8 @@ export {
 } from './runtime/GrueneratorModelAdapter';
 export {
   createGrueneratorThreadListAdapter,
+  getThreadType,
+  getNotebookCollectionId,
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';
 
@@ -43,7 +56,12 @@ export {
   type NotebookMessageMetadata,
   type NotebookAdapterCallbacks,
 } from './runtime/NotebookModelAdapter';
-export { NotebookComposer, type SourceFilterConfig } from './components/notebook/NotebookComposer';
+export {
+  NotebookComposer,
+  type SourceFilterConfig,
+  type CategoryFilterConfig,
+} from './components/notebook/NotebookComposer';
+export { type CategoryFilterField } from './components/notebook/CategoryFilterDropdown';
 
 // Thread Components
 export { GrueneratorThread } from './components/thread/GrueneratorThread';
@@ -51,6 +69,8 @@ export { GrueneratorComposer } from './components/thread/GrueneratorComposer';
 export { FileMentionPopover } from './components/thread/FileMentionPopover';
 export { DocumentChatPicker } from './components/thread/DocumentChatPicker';
 export { SkillPopover } from './components/thread/SkillPopover';
+export { SkillLibraryModal } from './components/skills/SkillLibraryModal';
+export { useSkillFavoritesStore } from './stores/skillFavoritesStore';
 export { PlusMenu } from './components/thread/PlusMenu';
 export { UserMessage } from './components/thread/UserMessage';
 export { AssistantMessage } from './components/thread/AssistantMessage';
@@ -73,6 +93,8 @@ export { CitationBadge } from './components/message-parts/CitationPopover';
 export { Citation as CitationCard } from './components/tool-ui/citation/ProjectCitation';
 export { GeneratedImageDisplay } from './components/message-parts/GeneratedImageDisplay';
 export { MessageActions } from './components/message-parts/MessageActions';
+export { MessageTTSButton } from './components/message-parts/MessageTTSButton';
+export { useMessageTTS, type TTSState } from './hooks/useMessageTTS';
 
 // Citation Context
 export {
@@ -84,19 +106,25 @@ export {
   type FetchFullTextFn,
 } from './context/CitationContext';
 
+// Citation Panel (chunk-level navigation)
+export {
+  CitationPanelProvider,
+  useCitationPanel,
+  type CitationPanelTarget,
+} from './context/CitationPanelContext';
+export { CitationSidePanel } from './components/message-parts/CitationSidePanel';
+
 // Layout & UI Components
 export { ChatLayout } from './components/ChatLayout';
-export { ChatOverview, type NotebookLink } from './components/ChatOverview';
+export { ChatOverview, SwitchToThreadOnSend, type NotebookLink } from './components/ChatOverview';
 export { ChatSidebar } from './components/ChatSidebar';
 export { ChatThreadList } from './components/ChatThreadList';
-export { ModelSelector } from './components/ModelSelector';
 export { ToolToggles } from './components/ToolToggles';
 export { MarkdownContent } from './components/MarkdownContent';
 export { ToolCallUI } from './components/ToolCallUI';
 export { grueneratorToolkit } from './components/tool-ui/GrueneratorToolUIs';
 export { ThemeProvider, useTheme } from './components/ThemeProvider';
-export { Dropdown, DropdownItem, ToggleSwitch } from './components/ui/Dropdown';
-export { TooltipProvider } from './components/ui/tooltip';
+export { TooltipProvider } from '@gruenerator/ui';
 
 // Tool UI Schemas
 export { safeParseSerializableCitation } from './components/tool-ui/citation/schema';
@@ -146,6 +174,8 @@ export {
   type ToolKey,
   type ModelOption,
   type ProviderOption,
+  type ThreadMode,
+  type SearchMode,
 } from './stores/chatStore';
 
 export { useDocumentChatStore } from './stores/documentChatStore';
@@ -163,6 +193,15 @@ export { computeMentionInsertion, type MentionInsertionResult } from './lib/ment
 // File mention data hook
 export { useFileMentionData } from './hooks/useFileMentionData';
 
+// Citation Utils
+export { mapRawCitationsToChat, resolveCitations } from './lib/citationUtils';
+
+// SSE Parsing
+export { parseSSELine, type SSECurrentEvent, type SSEParseResult } from './lib/sseParser';
+
+// URL Utilities
+export { extractDomain, getFaviconUrl, getHostname, faviconFromHostname } from './lib/urlUtils';
+
 // Lib
 export { cn } from './lib/utils';
 export { chatSuggestions } from './lib/suggestions';
@@ -170,8 +209,10 @@ export {
   agentsList,
   getDefaultAgent,
   resolveAgentMention,
+  SKILL_CATEGORY_LABELS,
   type AgentConfig,
   type AgentListItem,
+  type SkillCategory,
 } from './lib/agents';
 export {
   parseMention,
@@ -186,18 +227,25 @@ export {
   agentMentionables,
   notebookMentionables,
   documentMentionables,
-  allMentionables,
   getAllMentionables,
   setCustomAgents,
   getCustomAgentMentionables,
   customAgentToMentionable,
+  setBoardMentionables,
+  getBoardMentionables,
+  boardToolMentionables,
+  setDocMentionables,
+  getDocMentionables,
   toolMentionables,
   filterMentionablesByCategory,
   type Mentionable,
   type MentionableType,
   type MentionableCategory,
   type CustomAgentMentionable,
+  type BoardMentionable,
+  type DocMentionable,
 } from './lib/mentionables';
+export { INTENT_TO_TOOL, DEEP_TOOL_MAP } from './lib/toolMappings';
 export {
   registerDocumentSlug,
   resolveDocumentSlug,

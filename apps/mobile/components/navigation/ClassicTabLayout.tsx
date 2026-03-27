@@ -14,7 +14,7 @@ export function ClassicTabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: colors.primary[600],
-        tabBarInactiveTintColor: theme.textSecondary,
+        tabBarInactiveTintColor: colorScheme === 'dark' ? colors.grey[300] : theme.textSecondary,
         tabBarStyle: {
           backgroundColor: theme.background,
           borderTopColor: theme.border,
@@ -40,16 +40,7 @@ export function ClassicTabLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="(texte)"
-        options={{
-          title: 'Texte',
-          headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="document-text" size={size} color={color} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="(chat)" options={{ href: null, headerShown: false }} />
       <Tabs.Screen
         name="(media)"
         options={{
@@ -59,20 +50,23 @@ export function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
-        name="(tools)"
+        name="(docs)"
         options={{
-          title: 'Tools',
-          headerShown: false,
-          tabBarIcon: ({ color, size }) => <Ionicons name="construct" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="(chat)"
-        options={{
-          title: 'Chat',
+          title: 'Docs',
           headerShown: false,
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubble-ellipses" size={size} color={color} />
+            <Ionicons name="document-text" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen name="(desk)" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen
+        name="(recherche)"
+        options={{
+          title: 'Recherche',
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="search" size={size} color={color} />
           ),
         }}
       />

@@ -1,7 +1,6 @@
-import * as Switch from '@radix-ui/react-switch';
+import { Switch, cn } from '@gruenerator/ui';
 
 import type { JSX } from 'react';
-import '../../assets/styles/components/ui/RequiredFieldToggle.css';
 
 interface RequiredFieldToggleProps {
   checked?: boolean;
@@ -25,17 +24,30 @@ const RequiredFieldToggle = ({
   };
 
   return (
-    <div className={`required-field-toggle ${disabled ? 'disabled' : ''}`}>
-      <Switch.Root
-        className="required-switch"
+    <div
+      className={cn(
+        'inline-flex items-center gap-xs py-xxs',
+        disabled && 'opacity-50 cursor-not-allowed'
+      )}
+    >
+      <Switch
+        size="sm"
+        className="data-[state=checked]:bg-secondary-600"
         checked={checked}
         onCheckedChange={handleToggle}
         disabled={disabled}
         aria-label={label}
-      >
-        <Switch.Thumb className="required-switch-thumb" />
-      </Switch.Root>
-      {showLabel && <span className="required-switch-label">{label}</span>}
+      />
+      {showLabel && (
+        <span
+          className={cn(
+            'text-[0.85rem] text-foreground font-medium select-none whitespace-nowrap',
+            disabled && 'text-disabled'
+          )}
+        >
+          {label}
+        </span>
+      )}
     </div>
   );
 };

@@ -9,13 +9,27 @@ const LOG_LEVELS = {
   INFO: 1,
   WARN: 2,
   ERROR: 3,
-};
+} as const;
 
 // Current log level (can be set via environment)
-const currentLevel = LOG_LEVELS[process.env.LOG_LEVEL?.toUpperCase()] ?? LOG_LEVELS.INFO;
+type LogLevelKey = keyof typeof LOG_LEVELS;
+const envLevel = process.env.LOG_LEVEL?.toUpperCase() as LogLevelKey | undefined;
+const currentLevel = envLevel && envLevel in LOG_LEVELS ? LOG_LEVELS[envLevel] : LOG_LEVELS.INFO;
 
 // Request statistics
-const stats = {
+const stats: {
+  totalRequests: number;
+  searchRequests: number;
+  cacheHits: number;
+  cacheMisses: number;
+  errors: number;
+  avgResponseTimeMs: number;
+  responseTimes: number[];
+  startTime: number;
+  lastRequestTime: number | null;
+  requestsByCollection: Record<string, number>;
+  requestsBySearchMode: Record<string, number>;
+} = {
   totalRequests: 0,
   searchRequests: 0,
   cacheHits: 0,
@@ -105,11 +119,11 @@ export function error(category: string, message: string, data: unknown = null) {
  * Log a search request
  */
 export function logSearch(
-  query,
-  collection,
-  searchMode,
-  resultCount,
-  responseTimeMs,
+  query: string,
+  collection: string,
+  searchMode: string,
+  resultCount: number,
+  responseTimeMs: number,
   cached = false
 ) {
   stats.totalRequests++;

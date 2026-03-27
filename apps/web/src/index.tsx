@@ -48,13 +48,7 @@ root.render(
 
 // Register Service Worker for illustration caching (production only)
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  registerServiceWorker()
-    .then((registration) => {
-      if (registration) {
-        console.log('[App] Illustration cache service worker registered');
-      }
-    })
-    .catch((err) => {
-      console.error('[App] Service Worker registration failed:', err);
-    });
+  registerServiceWorker().catch((err) => {
+    console.error('[App] Service Worker registration failed:', err);
+  });
 }

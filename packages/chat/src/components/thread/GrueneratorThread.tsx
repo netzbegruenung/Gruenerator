@@ -1,35 +1,49 @@
 'use client';
 
 import { useMemo } from 'react';
-import { ThreadPrimitive, SelectionToolbarPrimitive, useThread } from '@assistant-ui/react';
+import { ThreadPrimitive, SelectionToolbarPrimitive } from '@assistant-ui/react';
+import { useAuiState } from '@assistant-ui/store';
 import { QuoteIcon } from 'lucide-react';
-import { ModelSelector } from '../ModelSelector';
+import { useCollaborators, PresenceAvatars, TypingIndicator } from '@gruenerator/collab';
 import { WelcomeScreen } from './WelcomeScreen';
 import { UserMessage } from './UserMessage';
 import { AssistantMessage } from './AssistantMessage';
 import { GrueneratorComposer } from './GrueneratorComposer';
 import { AutoMessageSender } from './AutoMessageSender';
+import { useChatCollaborationContext } from '../../context/ChatCollaborationContext';
 
-export function GrueneratorThread() {
-  const thread = useThread();
+interface GrueneratorThreadProps {
+  onNavigate?: (path: string) => void;
+  firstName?: string | null;
+}
+
+export function GrueneratorThread({ onNavigate, firstName }: GrueneratorThreadProps = {}) {
+  const isRunning = useAuiState((s) => s.thread.isRunning);
   const messageComponents = useMemo(() => ({ UserMessage, AssistantMessage }), []);
+  const collab = useChatCollaborationContext();
+  const collaborators = useCollaborators(collab?.provider ?? null);
 
   return (
     <ThreadPrimitive.Root className="relative flex h-full min-h-0 flex-col bg-background">
       <AutoMessageSender />
-      <div className="floating-controls-wrapper hidden md:flex">
-        <div className="floating-controls-left">
-          <ModelSelector />
-        </div>
-      </div>
 
-      <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto scrollbar-thin">
+      {collaborators.length > 0 && (
+        <div className="absolute top-3 left-3 z-10 pointer-events-auto">
+          <PresenceAvatars collaborators={collaborators} compact />
+        </div>
+      )}
+
+      <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto overflow-x-hidden scrollbar-thin">
         <div className="flex flex-grow flex-col gap-6 px-4 pt-8 pb-4">
           <ThreadPrimitive.Empty>
             <WelcomeScreen />
           </ThreadPrimitive.Empty>
 
           <ThreadPrimitive.Messages components={messageComponents} />
+
+          {collab && collab.typingUsers.length > 0 && (
+            <TypingIndicator names={collab.typingUsers} />
+          )}
         </div>
       </ThreadPrimitive.Viewport>
 
@@ -40,7 +54,7 @@ export function GrueneratorThread() {
         </SelectionToolbarPrimitive.Quote>
       </SelectionToolbarPrimitive.Root>
 
-      <GrueneratorComposer isRunning={thread.isRunning} />
+      <GrueneratorComposer isRunning={isRunning} onNavigate={onNavigate} firstName={firstName} />
     </ThreadPrimitive.Root>
   );
 }

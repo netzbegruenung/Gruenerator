@@ -20,7 +20,6 @@ const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
 const router: Router = express.Router();
 
-// Load system templates for vorlagen matching
 let systemTemplates: any[] = [];
 try {
   const apiRoot = process.cwd();
@@ -46,11 +45,6 @@ router.get(
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
-
-      if (!groupId) {
-        res.status(400).json({ success: false, message: 'Gruppen-ID ist erforderlich.' });
-        return;
-      }
 
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
 
@@ -140,17 +134,16 @@ router.get(
   }
 );
 
-// Valid content types for sharing
-const validContentTypes = [
+const VALID_CONTENT_TYPES = new Set([
   'documents',
   'custom_generators',
   'notebook_collections',
   'user_documents',
   'database',
   'collaborative_documents',
-];
+  'system_notebooks',
+]);
 
-// Map content type to actual table name
 const tableNameMap: Record<string, string> = {
   database: 'user_templates',
   template: 'user_templates',
@@ -181,8 +174,7 @@ router.post(
         return;
       }
 
-      // Validate content type
-      if (!validContentTypes.includes(contentType)) {
+      if (!VALID_CONTENT_TYPES.has(contentType)) {
         res.status(400).json({
           success: false,
           message: 'Ungültiger Content-Type.',
@@ -192,54 +184,55 @@ router.post(
 
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
 
-      // Verify user owns the content
-      const tableName = tableNameMap[contentType] || contentType;
-      const ownerColumn = contentType === 'collaborative_documents' ? 'created_by' : 'user_id';
+      // System notebooks are globally available — skip ownership check
+      if (contentType !== 'system_notebooks') {
+        const tableName = tableNameMap[contentType] || contentType;
+        const ownerColumn = contentType === 'collaborative_documents' ? 'created_by' : 'user_id';
 
-      // Build ownership query based on content type
-      let ownershipSQL = `SELECT ${ownerColumn} FROM ${tableName} WHERE id = $1`;
-      const ownershipParams: any[] = [contentId];
+        // Build ownership query based on content type
+        let ownershipSQL = `SELECT ${ownerColumn} FROM ${tableName} WHERE id = $1`;
+        const ownershipParams: any[] = [contentId];
 
-      // For user_templates table (templates), also filter by type = 'template'
-      if (tableName === 'user_templates') {
-        ownershipSQL += ` AND type = $2`;
-        ownershipParams.push('template');
-      }
+        // For user_templates table (templates), also filter by type = 'template'
+        if (tableName === 'user_templates') {
+          ownershipSQL += ` AND type = $2`;
+          ownershipParams.push('template');
+        }
 
-      // For collaborative_documents, also filter out deleted
-      if (contentType === 'collaborative_documents') {
-        ownershipSQL += ` AND is_deleted = false`;
-      }
+        // For collaborative_documents, also filter out deleted
+        if (contentType === 'collaborative_documents') {
+          ownershipSQL += ` AND is_deleted = false`;
+        }
 
-      const contentOwnership = await postgres.queryOne(ownershipSQL, ownershipParams, {
-        table: tableName,
-      });
-
-      if (!contentOwnership) {
-        log.error(
-          '[User Groups /groups/:groupId/share POST] Content ownership verification failed:',
-          {
-            contentType,
-            contentId,
-            userId,
-          }
-        );
-        res.status(404).json({
-          success: false,
-          message: 'Inhalt nicht gefunden.',
+        const contentOwnership = await postgres.queryOne(ownershipSQL, ownershipParams, {
+          table: tableName,
         });
-        return;
+
+        if (!contentOwnership) {
+          log.error(
+            '[User Groups /groups/:groupId/share POST] Content ownership verification failed:',
+            {
+              contentType,
+              contentId,
+              userId,
+            }
+          );
+          res.status(404).json({
+            success: false,
+            message: 'Inhalt nicht gefunden.',
+          });
+          return;
+        }
+
+        if (contentOwnership[ownerColumn] !== userId) {
+          res.status(403).json({
+            success: false,
+            message: 'Du bist nicht Besitzer*in dieses Inhalts.',
+          });
+          return;
+        }
       }
 
-      if (contentOwnership[ownerColumn] !== userId) {
-        res.status(403).json({
-          success: false,
-          message: 'Du bist nicht Besitzer*in dieses Inhalts.',
-        });
-        return;
-      }
-
-      // Check if content is already shared with this group via junction table
       const existingShare = await postgres.queryOne(
         'SELECT id FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',
         [contentType, contentId, groupId],
@@ -254,14 +247,12 @@ router.post(
         return;
       }
 
-      // Set default permissions if not provided
       const sharePermissions = permissions || {
         read: true,
         write: false,
         collaborative: false,
       };
 
-      // Share content using junction table
       log.debug('[User Groups /share] Inserting share record:', {
         contentType,
         contentId,
@@ -276,6 +267,34 @@ router.post(
       );
 
       log.debug('[User Groups /share] Share record inserted successfully');
+
+      const CONTENT_LABELS: Record<string, string> = {
+        documents: 'ein Dokument',
+        custom_generators: 'einen Grünerator',
+        notebook_collections: 'ein Notizbuch',
+        user_documents: 'einen Text',
+        collaborative_documents: 'ein Dokument',
+        database: 'einen Datenbank-Eintrag',
+        system_notebooks: 'ein Notizbuch',
+      };
+      import('../../../services/notifications/index.js')
+        .then(({ notifyGroupMembers }) => {
+          const groupInfo = postgres.queryOne('SELECT name FROM groups WHERE id = $1', [groupId], {
+            table: 'groups',
+          });
+          return groupInfo.then((g: any) =>
+            notifyGroupMembers({
+              groupId,
+              excludeUserId: userId,
+              type: 'group_content_shared',
+              title: 'Neuer Inhalt',
+              body: `${req.user?.display_name || 'Jemand'} hat ${CONTENT_LABELS[contentType] || 'etwas'} in „${g?.name || 'deiner Gruppe'}" geteilt`,
+              actionUrl: `/gruppen/${groupId}`,
+              metadata: { contentType, contentId },
+            })
+          );
+        })
+        .catch(() => {});
 
       res.json({
         success: true,
@@ -374,23 +393,7 @@ router.get(
       const { groupId } = req.params;
       const userId = req.user!.id;
 
-      if (!groupId) {
-        res.status(400).json({
-          success: false,
-          message: 'Gruppen-ID ist erforderlich.',
-        });
-        return;
-      }
-
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
-
-      // Fetch group knowledge entries
-      const groupKnowledge =
-        (await postgres.query(
-          'SELECT id, title, content, created_by, created_at, updated_at FROM group_knowledge WHERE group_id = $1 ORDER BY created_at ASC',
-          [groupId],
-          { table: 'group_knowledge' }
-        )) || [];
 
       // Fetch shared content with user profile information
       const sharedContent =
@@ -427,6 +430,7 @@ router.get(
         user_documents: [],
         database: [],
         collaborative_documents: [],
+        system_notebooks: [],
       };
 
       sharedContent.forEach((share: any) => {
@@ -435,147 +439,153 @@ router.get(
         }
       });
 
-      // Fetch actual content details for each type using SQL queries
-      const contentResults: Array<{ type: string; result: { data: any[] }; shares: any[] }> = [];
+      // Fetch actual content details for all types in parallel
+      type ContentResult = { type: string; result: { data: any[] }; shares: any[] };
+      const fetchPromises: Promise<ContentResult | null>[] = [];
 
-      // Documents
       if (contentByType.documents.length > 0) {
-        const documentIds = contentByType.documents.map((s: any) => s.content_id);
-        const documentsData =
-          (await postgres.query(
-            `SELECT id, title, filename, file_size, status, created_at, updated_at, user_id FROM documents WHERE id = ANY($1)`,
-            [documentIds],
-            { table: 'documents' }
-          )) || [];
-        contentResults.push({
-          type: 'documents',
-          result: { data: documentsData },
-          shares: contentByType.documents,
-        });
-      }
-
-      // Custom Generators
-      if (contentByType.custom_generators.length > 0) {
-        const generatorIds = contentByType.custom_generators.map((s: any) => s.content_id);
-        const generatorsData =
-          (await postgres.query(
-            `SELECT id, name, title, description, created_at, updated_at, user_id FROM custom_generators WHERE id = ANY($1)`,
-            [generatorIds],
-            { table: 'custom_generators' }
-          )) || [];
-        contentResults.push({
-          type: 'custom_generators',
-          result: { data: generatorsData },
-          shares: contentByType.custom_generators,
-        });
-      }
-
-      // Notebook Collections
-      if (contentByType.notebook_collections.length > 0) {
-        const notebookIds = contentByType.notebook_collections.map((s: any) => s.content_id);
-        const notebooksData =
-          (await postgres.query(
-            `SELECT id, name, description, view_count, created_at, updated_at, user_id FROM notebook_collections WHERE id = ANY($1)`,
-            [notebookIds],
-            { table: 'notebook_collections' }
-          )) || [];
-        contentResults.push({
-          type: 'notebook_collections',
-          result: { data: notebooksData },
-          shares: contentByType.notebook_collections,
-        });
-      }
-
-      // User Documents (Texts)
-      if (contentByType.user_documents.length > 0) {
-        const textIds = contentByType.user_documents.map((s: any) => s.content_id);
-        const rawTextsData =
-          (await postgres.query(
-            `SELECT id, title, document_type, content, created_at, updated_at, user_id FROM user_documents WHERE id = ANY($1)`,
-            [textIds],
-            { table: 'user_documents' }
-          )) || [];
-
-        // Transform data to include computed word_count and character_count
-        const textsData = rawTextsData.map((item: any) => {
-          let plainText = item.content || '';
-          let prev = '';
-          while (prev !== plainText) {
-            prev = plainText;
-            plainText = plainText.replace(/<[^>]*>/g, '');
-          }
-          plainText = plainText.trim();
-          const wordCount = plainText.split(/\s+/).filter((word: string) => word.length > 0).length;
-          const characterCount = plainText.length;
-
-          return {
-            ...item,
-            word_count: wordCount,
-            character_count: characterCount,
-          };
-        });
-
-        contentResults.push({
-          type: 'user_documents',
-          result: { data: textsData },
-          shares: contentByType.user_documents,
-        });
-      }
-
-      // Templates (User Content)
-      if (contentByType.database.length > 0) {
-        const templateIds = contentByType.database.map((s: any) => s.content_id);
-        log.debug('[User Groups /content] Fetching templates:', { templateIds });
-
-        const templatesData =
-          (await postgres.query(
-            `SELECT id, title, description, external_url, thumbnail_url, metadata, created_at, updated_at, user_id FROM user_templates WHERE id = ANY($1) AND type = 'template'`,
-            [templateIds],
-            { table: 'user_templates' }
-          )) || [];
-
-        log.debug('[User Groups /content] Templates fetched:', {
-          requestedCount: templateIds.length,
-          foundCount: templatesData.length,
-          foundIds: templatesData.map((t: any) => t.id),
-        });
-
-        contentResults.push({
-          type: 'database',
-          result: { data: templatesData },
-          shares: contentByType.database,
-        });
-      } else {
-        log.debug(
-          '[User Groups /content] No database/template shares found in group_content_shares'
+        const ids = contentByType.documents.map((s: any) => s.content_id);
+        fetchPromises.push(
+          postgres
+            .query(
+              'SELECT id, title, filename, file_size, status, created_at, updated_at, user_id FROM documents WHERE id = ANY($1)',
+              [ids],
+              { table: 'documents' }
+            )
+            .then((data: any) => ({
+              type: 'documents',
+              result: { data: data || [] },
+              shares: contentByType.documents,
+            }))
         );
       }
 
-      // Collaborative Documents
-      if (contentByType.collaborative_documents.length > 0) {
-        const collabDocIds = contentByType.collaborative_documents.map((s: any) => s.content_id);
-        const collabDocsData =
-          (await postgres.query(
-            `SELECT id, title, document_subtype, created_by, created_at, updated_at FROM collaborative_documents WHERE id = ANY($1) AND is_deleted = false`,
-            [collabDocIds],
-            { table: 'collaborative_documents' }
-          )) || [];
-        contentResults.push({
-          type: 'collaborative_documents',
-          result: { data: collabDocsData },
-          shares: contentByType.collaborative_documents,
-        });
+      if (contentByType.custom_generators.length > 0) {
+        const ids = contentByType.custom_generators.map((s: any) => s.content_id);
+        fetchPromises.push(
+          postgres
+            .query(
+              'SELECT id, name, title, description, created_at, updated_at, user_id FROM custom_generators WHERE id = ANY($1)',
+              [ids],
+              { table: 'custom_generators' }
+            )
+            .then((data: any) => ({
+              type: 'custom_generators',
+              result: { data: data || [] },
+              shares: contentByType.custom_generators,
+            }))
+        );
       }
+
+      if (contentByType.notebook_collections.length > 0) {
+        const ids = contentByType.notebook_collections.map((s: any) => s.content_id);
+        fetchPromises.push(
+          postgres
+            .query(
+              'SELECT id, name, description, view_count, created_at, updated_at, user_id FROM notebook_collections WHERE id = ANY($1)',
+              [ids],
+              { table: 'notebook_collections' }
+            )
+            .then((data: any) => ({
+              type: 'notebook_collections',
+              result: { data: data || [] },
+              shares: contentByType.notebook_collections,
+            }))
+        );
+      }
+
+      // System Notebooks (no DB lookup needed — frontend resolves display from config)
+      if (contentByType.system_notebooks.length > 0) {
+        const systemNotebooksData = contentByType.system_notebooks.map((s: any) => ({
+          id: s.content_id,
+          system: true,
+        }));
+        fetchPromises.push(
+          Promise.resolve({
+            type: 'system_notebooks',
+            result: { data: systemNotebooksData },
+            shares: contentByType.system_notebooks,
+          })
+        );
+      }
+
+      if (contentByType.user_documents.length > 0) {
+        const ids = contentByType.user_documents.map((s: any) => s.content_id);
+        fetchPromises.push(
+          postgres
+            .query(
+              'SELECT id, title, document_type, content, created_at, updated_at, user_id FROM user_documents WHERE id = ANY($1)',
+              [ids],
+              { table: 'user_documents' }
+            )
+            .then((rawData: any) => {
+              const textsData = (rawData || []).map((item: any) => {
+                let plainText = item.content || '';
+                let prev = '';
+                while (prev !== plainText) {
+                  prev = plainText;
+                  plainText = plainText.replace(/<[^>]*>/g, '');
+                }
+                plainText = plainText.trim();
+                const wordCount = plainText
+                  .split(/\s+/)
+                  .filter((word: string) => word.length > 0).length;
+                return { ...item, word_count: wordCount, character_count: plainText.length };
+              });
+              return {
+                type: 'user_documents',
+                result: { data: textsData },
+                shares: contentByType.user_documents,
+              };
+            })
+        );
+      }
+
+      if (contentByType.database.length > 0) {
+        const ids = contentByType.database.map((s: any) => s.content_id);
+        fetchPromises.push(
+          postgres
+            .query(
+              "SELECT id, title, description, external_url, thumbnail_url, metadata, created_at, updated_at, user_id FROM user_templates WHERE id = ANY($1) AND type = 'template'",
+              [ids],
+              { table: 'user_templates' }
+            )
+            .then((data: any) => ({
+              type: 'database',
+              result: { data: data || [] },
+              shares: contentByType.database,
+            }))
+        );
+      }
+
+      if (contentByType.collaborative_documents.length > 0) {
+        const ids = contentByType.collaborative_documents.map((s: any) => s.content_id);
+        fetchPromises.push(
+          postgres
+            .query(
+              'SELECT id, title, document_subtype, created_by, created_at, updated_at FROM collaborative_documents WHERE id = ANY($1) AND is_deleted = false',
+              [ids],
+              { table: 'collaborative_documents' }
+            )
+            .then((data: any) => ({
+              type: 'collaborative_documents',
+              result: { data: data || [] },
+              shares: contentByType.collaborative_documents,
+            }))
+        );
+      }
+
+      const contentResults = (await Promise.all(fetchPromises)).filter(Boolean) as ContentResult[];
 
       // Process and format results
       const groupContent: Record<string, any[]> = {
-        knowledge: groupKnowledge,
         documents: [],
         generators: [],
         notebooks: [],
         texts: [],
         templates: [],
         collaborative_documents: [],
+        system_notebooks: [],
       };
 
       contentResults.forEach(({ type, result, shares }) => {
@@ -610,6 +620,7 @@ router.get(
           user_documents: 'texts',
           database: 'templates',
           collaborative_documents: 'collaborative_documents',
+          system_notebooks: 'system_notebooks',
         };
 
         groupContent[keyMap[type]] = items;
@@ -662,7 +673,7 @@ router.put(
       }
 
       // Validate content type
-      if (!validContentTypes.includes(contentType)) {
+      if (!VALID_CONTENT_TYPES.has(contentType)) {
         res.status(400).json({
           success: false,
           message: 'Ungültiger Content-Type.',
@@ -746,7 +757,7 @@ router.delete(
       }
 
       // Validate content type - include database for templates
-      if (!validContentTypes.includes(contentType)) {
+      if (!VALID_CONTENT_TYPES.has(contentType)) {
         res.status(400).json({
           success: false,
           message: 'Ungültiger Content-Type.',

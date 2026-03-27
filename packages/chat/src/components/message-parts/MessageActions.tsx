@@ -3,6 +3,8 @@
 import { memo, useState } from 'react';
 import { Copy, Check, Download, FileEdit, Loader2 } from 'lucide-react';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
+import { useExtraActions } from '../../context/ExtraActionsContext';
+import { MessageTTSButton } from './MessageTTSButton';
 import type { ChatMessage } from '../../hooks/useChatGraphStream';
 
 interface MessageActionsProps {
@@ -10,10 +12,15 @@ interface MessageActionsProps {
   metadata?: ChatMessage['metadata'];
 }
 
-export const MessageActions = memo(function MessageActions({ content, metadata }: MessageActionsProps) {
+export const MessageActions = memo(function MessageActions({
+  content,
+  metadata,
+}: MessageActionsProps) {
+  const extraActions = useExtraActions();
   const [copied, setCopied] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isCreatingDoc, setIsCreatingDoc] = useState(false);
+  const [linkedDocId, setLinkedDocId] = useState<string | null>(null);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content);
@@ -65,7 +72,23 @@ export const MessageActions = memo(function MessageActions({ content, metadata }
     setIsCreatingDoc(true);
 
     try {
-      const { fetch: configFetch, endpoints, getDocsUrl } = useChatConfigStore.getState();
+      const {
+        onEditInDocs,
+        fetch: configFetch,
+        endpoints,
+        getDocsUrl,
+      } = useChatConfigStore.getState();
+
+      if (onEditInDocs) {
+        const docId = await onEditInDocs(content, undefined, linkedDocId ?? undefined);
+        if (docId && !linkedDocId) setLinkedDocId(docId);
+        return;
+      }
+
+      if (linkedDocId) {
+        window.open(`${getDocsUrl()}/document/${linkedDocId}`, '_blank');
+        return;
+      }
 
       const htmlContent = content
         .split('\n\n')
@@ -77,7 +100,6 @@ export const MessageActions = memo(function MessageActions({ content, metadata }
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: htmlContent,
-          title: `Chat-Antwort – ${new Date().toLocaleDateString('de-DE')}`,
           documentType: 'chat-response',
         }),
       });
@@ -86,6 +108,7 @@ export const MessageActions = memo(function MessageActions({ content, metadata }
 
       const data = await response.json();
       if (data.documentId) {
+        setLinkedDocId(data.documentId);
         window.open(`${getDocsUrl()}/document/${data.documentId}`, '_blank');
       }
     } catch (error) {
@@ -104,6 +127,7 @@ export const MessageActions = memo(function MessageActions({ content, metadata }
       >
         {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
       </button>
+      <MessageTTSButton content={content} />
       <button
         onClick={handleExportDocx}
         disabled={isExporting}
@@ -128,6 +152,18 @@ export const MessageActions = memo(function MessageActions({ content, metadata }
           <FileEdit className="h-4 w-4" />
         )}
       </button>
+      {extraActions?.map((action) => (
+        <button
+          key={action.id}
+          onClick={action.onClick}
+          disabled={action.disabled || action.loading}
+          className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground disabled:opacity-50"
+          aria-label={action.label}
+          title={action.label}
+        >
+          {action.loading ? <Loader2 className="h-4 w-4 animate-spin" /> : action.icon}
+        </button>
+      ))}
     </div>
   );
 });

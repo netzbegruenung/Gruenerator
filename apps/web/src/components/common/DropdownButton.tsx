@@ -1,12 +1,11 @@
 import { type JSX, useState, useRef, useEffect, useCallback, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { HiChevronDown, HiGlobe } from 'react-icons/hi';
-import { Link } from 'react-router-dom';
 
 import { NotebookIcon } from '../../config/icons';
+import { cn } from '../../utils/cn';
 
 import GrueneratorGPTIcon from './GrueneratorGPTIcon';
-import '../../assets/styles/components/ui/dropdown-button.css';
 
 interface DropdownButtonProps {
   onCreateNotebook?: () => void;
@@ -145,12 +144,37 @@ const DropdownButton = ({
     }
   }, [isOpen, updatePosition, handleClose]);
 
+  const buttonClasses = cn(
+    'button flex items-center gap-sm w-full no-underline',
+    variant === 'content' && [
+      'justify-between bg-secondary-600 text-white border border-secondary-600 min-w-[180px]',
+      'hover:not-disabled:bg-secondary-700 hover:not-disabled:border-secondary-700 hover:not-disabled:-translate-y-px',
+    ],
+    variant === 'navigation' && [
+      'justify-start px-lg py-xs bg-background border border-grey-200 dark:border-grey-700 rounded-[20px]',
+      'text-[0.9rem] font-medium leading-[1.3] text-foreground transition-all duration-200',
+      'hover:not-disabled:bg-background-alt hover:not-disabled:border-accent hover:not-disabled:text-accent',
+    ],
+    variant !== 'content' &&
+      variant !== 'navigation' && [
+        'justify-between bg-transparent text-foreground border border-grey-200 dark:border-grey-700',
+      ]
+  );
+
+  const chevronClasses = cn(
+    'text-[0.8rem] ml-sm transition-transform duration-150 ease-in-out',
+    variant === 'content'
+      ? 'text-white/80 group-hover:text-white'
+      : 'text-grey-400 group-hover:text-foreground',
+    isOpen && 'rotate-180'
+  );
+
   // Single option: render simple button that directly creates
   if (isSingleOption) {
     return (
-      <div className={`dropdown-button-container ${variant}-variant`}>
+      <div className="relative w-full">
         <button
-          className="button dropdown-button single-option"
+          className={cn(buttonClasses, 'single-option')}
           onClick={() => onCreateCustomGenerator && onCreateCustomGenerator()}
           aria-label="Neuen Custom Grünerator erstellen"
         >
@@ -163,27 +187,31 @@ const DropdownButton = ({
   // Multiple options: render dropdown
   return (
     <div
-      className={`dropdown-button-container ${variant}-variant`}
+      className="group relative w-full"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
       <button
         ref={triggerRef}
-        className="button dropdown-button"
+        className={cn('group', buttonClasses)}
         onClick={handleToggle}
         aria-label="Neu erstellen"
         aria-expanded={isOpen}
         aria-haspopup="menu"
       >
         <span>Neu erstellen</span>
-        <HiChevronDown className={`dropdown-chevron ${isOpen ? 'open' : ''}`} />
+        <HiChevronDown className={chevronClasses} />
       </button>
 
       {isOpen &&
         createPortal(
           <div
             ref={dropdownRef}
-            className="dropdown-button-content"
+            className={cn(
+              'bg-background border border-grey-200 dark:border-grey-700 rounded-lg shadow-card-floating',
+              'min-w-[180px] overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150',
+              'md:min-w-[180px] max-md:min-w-[160px]'
+            )}
             style={style}
             onClick={(e: React.MouseEvent) => e.stopPropagation()}
             onMouseEnter={handleMouseEnter}
@@ -191,7 +219,13 @@ const DropdownButton = ({
             role="menu"
           >
             <button
-              className="dropdown-button-option"
+              className={cn(
+                'flex items-center gap-sm p-sm w-full text-left text-sm text-foreground',
+                'bg-transparent border-none rounded-xs cursor-pointer mb-0.5 last:mb-0',
+                'transition-colors duration-150 hover:bg-hover-alt',
+                '[&>svg]:text-[16px] [&>svg]:text-grey-400 [&>svg]:transition-colors [&>svg]:duration-150',
+                'hover:[&>svg]:text-foreground'
+              )}
               onClick={() => {
                 onCreateCustomGenerator?.();
                 handleClose();
@@ -205,7 +239,13 @@ const DropdownButton = ({
 
             {showNotebook && (
               <button
-                className="dropdown-button-option"
+                className={cn(
+                  'flex items-center gap-sm p-sm w-full text-left text-sm text-foreground',
+                  'bg-transparent border-none rounded-xs cursor-pointer mb-0.5 last:mb-0',
+                  'transition-colors duration-150 hover:bg-hover-alt',
+                  '[&>svg]:text-[16px] [&>svg]:text-grey-400 [&>svg]:transition-colors [&>svg]:duration-150',
+                  'hover:[&>svg]:text-foreground'
+                )}
                 onClick={() => {
                   onCreateNotebook?.();
                   handleClose();
@@ -220,7 +260,13 @@ const DropdownButton = ({
 
             {showSite && (
               <button
-                className="dropdown-button-option"
+                className={cn(
+                  'flex items-center gap-sm p-sm w-full text-left text-sm text-foreground',
+                  'bg-transparent border-none rounded-xs cursor-pointer mb-0.5 last:mb-0',
+                  'transition-colors duration-150 hover:bg-hover-alt',
+                  '[&>svg]:text-[16px] [&>svg]:text-grey-400 [&>svg]:transition-colors [&>svg]:duration-150',
+                  'hover:[&>svg]:text-foreground'
+                )}
                 onClick={() => {
                   onCreateSite?.();
                   handleClose();

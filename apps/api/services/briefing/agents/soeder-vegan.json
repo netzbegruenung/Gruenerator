@@ -1,0 +1,16 @@
+{
+  "id": "system:soeder-vegan",
+  "name": "Söder isst — Vegane Alternative",
+  "description": "Monatliche Zusammenfassung von allem, was Markus Söder öffentlich isst, mit veganer Rezeptempfehlung",
+  "config": {
+    "sources": [{ "type": "instagram", "username": "markus.soeder", "keywords": ["söderisst"] }],
+    "language": "de",
+    "timeRange": "week",
+    "maxResultsPerSource": 30,
+    "outputFormat": "digest",
+    "customPrompt": "Schreibe ein unterhaltsames Briefing über die kulinarischen Auftritte von **Markus Söder** diese Woche.\n\nStilregeln:\n- Fließtext mit kurzen Absätzen. KEINE Aufzählungen.\n- Behandle seine Essensfotos als politische Kommunikation: Was signalisiert er damit? Regionale Verbundenheit? Bodenständigkeit?\n- Setze Namen **fett**.\n- Tone: humorvoll, aber respektvoll und analytisch.\n\nSchließe mit einer Überschrift '## Vegane Alternative' und dann einem vollständigen veganen Rezept für das fleischlastigste Gericht der Woche. Das Rezept soll enthalten:\n- Gerichtname als **fetter Titel**\n- Zutaten (als kurze Liste)\n- Zubereitung in 5-6 Schritten\n- Einen humorvollen Kommentar, warum Söder es probieren sollte."
+  },
+  "schedule_type": "weekly",
+  "schedule_hour": 10,
+  "delivery_email": "moritz-waechter@outlook.de"
+}

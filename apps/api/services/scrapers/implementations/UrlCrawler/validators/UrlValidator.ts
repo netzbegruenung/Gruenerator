@@ -1,14 +1,66 @@
 /**
  * URL Validator
- * Validates and sanitizes URLs for crawling
+ * Validates and sanitizes URLs for crawling.
+ * Includes robots.txt checking to respect publisher crawl policies.
  */
 
+import { createRequire } from 'module';
 import { URL } from 'url';
+
+const require = createRequire(import.meta.url);
+const robotsParser = require('robots-parser') as (
+  url: string,
+  content: string
+) => { isAllowed(url: string, ua?: string): boolean | undefined };
 
 import type { ValidationResult } from '../types.js';
 
 const MAX_URL_LENGTH = 8192;
 const MAX_SANITIZATION_ITERATIONS = 20;
+const ROBOTS_CACHE_TTL = 60 * 60 * 1000;
+const ROBOTS_FETCH_TIMEOUT = 3000;
+const BOT_USER_AGENT = 'Gruenerator/1.0';
+
+type RobotsChecker = { isAllowed(url: string, ua?: string): boolean | undefined };
+const robotsCache = new Map<string, { checker: RobotsChecker | null; expiry: number }>();
+
+async function isAllowedByRobotsTxt(url: string): Promise<boolean> {
+  try {
+    const parsed = new URL(url);
+    const origin = parsed.origin;
+
+    const cached = robotsCache.get(origin);
+    if (cached && cached.expiry > Date.now()) {
+      return cached.checker ? (cached.checker.isAllowed(url, BOT_USER_AGENT) ?? true) : true;
+    }
+
+    const robotsUrl = `${origin}/robots.txt`;
+    const resp = await fetch(robotsUrl, {
+      signal: AbortSignal.timeout(ROBOTS_FETCH_TIMEOUT),
+      headers: { 'User-Agent': BOT_USER_AGENT },
+    });
+
+    let checker: RobotsChecker | null = null;
+    if (resp.ok) {
+      const text = await resp.text();
+      checker = robotsParser(robotsUrl, text);
+    }
+
+    robotsCache.set(origin, { checker, expiry: Date.now() + ROBOTS_CACHE_TTL });
+
+    // Clean old entries periodically
+    if (robotsCache.size > 200) {
+      const now = Date.now();
+      for (const [key, val] of robotsCache) {
+        if (val.expiry < now) robotsCache.delete(key);
+      }
+    }
+
+    return checker ? (checker.isAllowed(url, BOT_USER_AGENT) ?? true) : true;
+  } catch {
+    return true;
+  }
+}
 
 function countChar(str: string, char: string): number {
   let count = 0;
@@ -19,9 +71,6 @@ function countChar(str: string, char: string): number {
 }
 
 export class UrlValidator {
-  /**
-   * Validates if a URL is valid and accessible
-   */
   static async validateUrl(url: string): Promise<ValidationResult> {
     if (!url || url.length > MAX_URL_LENGTH) {
       return { isValid: false, error: 'URL is empty or too long' };
@@ -53,6 +102,14 @@ export class UrlValidator {
         }
       }
 
+      const allowed = await isAllowedByRobotsTxt(url);
+      if (!allowed) {
+        return {
+          isValid: false,
+          error: 'Diese URL erlaubt kein automatisches Lesen (robots.txt).',
+        };
+      }
+
       return { isValid: true };
     } catch {
       return {
@@ -62,10 +119,6 @@ export class UrlValidator {
     }
   }
 
-  /**
-   * Sanitizes a URL by removing common extraction artifacts
-   * Handles cases where URLs are extracted from text with surrounding punctuation
-   */
   static sanitizeUrl(url: string): string {
     if (!url) return url;
 

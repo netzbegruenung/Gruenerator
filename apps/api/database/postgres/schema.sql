@@ -86,13 +86,15 @@ CREATE TABLE IF NOT EXISTS profiles (
     nextcloud_share_links JSONB DEFAULT '[]',
     document_mode TEXT DEFAULT 'manual',
     user_defaults JSONB DEFAULT '{}',
-    docs BOOLEAN DEFAULT FALSE
+    docs BOOLEAN DEFAULT FALSE,
+    boards BOOLEAN DEFAULT FALSE
 );
 
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS sites_enabled BOOLEAN DEFAULT TRUE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS scanner BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS prompts BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS docs BOOLEAN DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS boards BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bundestag_api_enabled BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS memory_enabled BOOLEAN DEFAULT FALSE;
 
@@ -144,7 +146,9 @@ CREATE TABLE IF NOT EXISTS groups (
     is_active BOOLEAN DEFAULT TRUE,
     group_type TEXT DEFAULT 'standard',
     settings JSONB DEFAULT '{}',
-    wolke_share_links JSONB DEFAULT '[]'
+    wolke_share_links JSONB DEFAULT '[]',
+    avatar_url TEXT,
+    links JSONB DEFAULT '[]'
 );
 
 CREATE TABLE IF NOT EXISTS group_memberships (
@@ -162,7 +166,7 @@ CREATE TABLE IF NOT EXISTS group_content_shares (
     group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
     shared_by_user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     content_type TEXT NOT NULL,
-    content_id UUID NOT NULL,
+    content_id TEXT NOT NULL,
     permissions JSONB DEFAULT '{}',
     shared_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -178,16 +182,6 @@ CREATE TABLE IF NOT EXISTS group_instructions (
     UNIQUE(group_id)
 );
 
-CREATE TABLE IF NOT EXISTS group_knowledge (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
-    title TEXT NOT NULL,
-    content TEXT NOT NULL,
-    tags JSONB,
-    created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-);
 
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -498,7 +492,7 @@ CREATE TABLE IF NOT EXISTS user_templates (
     status TEXT DEFAULT 'published',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT valid_template_status CHECK (status IN ('published', 'draft', 'archived', 'private', 'public', 'enabled', 'active'))
+    CONSTRAINT valid_template_status CHECK (status IN ('published', 'draft', 'archived', 'private', 'public', 'enabled', 'active', 'pending_review', 'rejected'))
 );
 
 CREATE TABLE IF NOT EXISTS template_likes (
@@ -587,6 +581,7 @@ CREATE TABLE IF NOT EXISTS subtitler_projects (
     style_preference TEXT DEFAULT 'standard',
     height_preference TEXT DEFAULT 'standard',
     mode_preference TEXT DEFAULT 'manual',
+    style_settings JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     last_edited_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -622,7 +617,7 @@ CREATE TABLE IF NOT EXISTS shared_media (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
     share_token VARCHAR(32) UNIQUE NOT NULL,
-    media_type VARCHAR(10) NOT NULL CHECK (media_type IN ('video', 'image')),
+    media_type VARCHAR(10) NOT NULL CHECK (media_type IN ('video', 'image', 'transfer')),
     title TEXT,
     file_path TEXT,
     file_name TEXT,
@@ -649,11 +644,20 @@ ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS template_visibility TEXT DEFAU
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS template_use_count INTEGER DEFAULT 0;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS template_creator_name TEXT;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS original_template_id UUID REFERENCES shared_media(id);
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS wolke_share_link_id TEXT;
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS wolke_file_path TEXT;
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS password_hash TEXT;
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS transfer_files JSONB DEFAULT '[]';
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS transfer_message TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_shared_media_expires
+  ON shared_media(expires_at) WHERE media_type = 'transfer' AND expires_at IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS shared_media_downloads (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     shared_media_id UUID REFERENCES shared_media(id) ON DELETE CASCADE,
-    downloader_email TEXT NOT NULL,
+    downloader_email TEXT,
     downloaded_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     ip_address TEXT
 );
@@ -771,7 +775,6 @@ CREATE INDEX IF NOT EXISTS idx_group_content_shares_shared_by ON group_content_s
 CREATE INDEX IF NOT EXISTS idx_group_instructions_group_id ON group_instructions(group_id);
 CREATE INDEX IF NOT EXISTS idx_group_instructions_is_active ON group_instructions(is_active);
 CREATE INDEX IF NOT EXISTS idx_group_instructions_group_active ON group_instructions(group_id, is_active);
-CREATE INDEX IF NOT EXISTS idx_group_knowledge_group_id ON group_knowledge(group_id);
 
 -- Documents indexes
 CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id);
@@ -916,10 +919,6 @@ CREATE TRIGGER update_group_instructions_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_group_knowledge_updated_at
-    BEFORE UPDATE ON group_knowledge
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
 
 -- Documents triggers
 CREATE TRIGGER update_documents_updated_at
@@ -1023,6 +1022,9 @@ CREATE TABLE IF NOT EXISTS chat_threads (
     status VARCHAR(20) DEFAULT 'regular',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    -- Collaborative sharing (mirrors collaborative_documents pattern)
+    permissions JSONB DEFAULT '{}',
+    is_public BOOLEAN DEFAULT false,
     -- Auto-compaction fields for managing long conversations
     compaction_summary TEXT,
     compacted_up_to_message_id UUID,
@@ -1036,6 +1038,17 @@ ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS compaction_updated_at TIMESTAM
 
 -- Add status column for archive support
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'regular';
+
+-- Thread type: 'chat' (default) or 'search' (Perplexity-style search sessions)
+ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS thread_type VARCHAR(20) DEFAULT 'chat';
+
+-- Custom chat: per-thread system prompt override and tool configuration
+ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS custom_system_prompt TEXT DEFAULT NULL;
+ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS custom_enabled_tools JSONB DEFAULT NULL;
+ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS notebook_collection_id VARCHAR(255);
+ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS notebook_collection_ids JSONB;
+CREATE INDEX IF NOT EXISTS idx_chat_threads_type ON chat_threads(user_id, thread_type, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_threads_notebook_collection ON chat_threads(notebook_collection_id) WHERE notebook_collection_id IS NOT NULL;
 
 -- Add foreign key for compacted_up_to_message_id (deferred to avoid circular dependency during creation)
 DO $$
@@ -1056,6 +1069,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     thread_id UUID REFERENCES chat_threads(id) ON DELETE CASCADE,
     role VARCHAR(20) NOT NULL CHECK (role IN ('user', 'assistant', 'system', 'tool')),
+    user_id UUID REFERENCES profiles(id),
     content TEXT,
     tool_calls JSONB,
     tool_results JSONB,
@@ -1068,6 +1082,7 @@ CREATE INDEX IF NOT EXISTS idx_chat_threads_updated_at ON chat_threads(updated_a
 CREATE INDEX IF NOT EXISTS idx_chat_threads_user_updated ON chat_threads(user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_chat_threads_compaction ON chat_threads(id) WHERE compaction_summary IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_chat_threads_status ON chat_threads(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_chat_threads_permissions ON chat_threads USING gin (permissions);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_id ON chat_messages(thread_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_created ON chat_messages(thread_id, created_at);
@@ -1127,3 +1142,136 @@ CREATE INDEX IF NOT EXISTS idx_mem0_history_user ON mem0_memory_history(user_id)
 CREATE INDEX IF NOT EXISTS idx_mem0_history_memory ON mem0_memory_history(memory_id);
 CREATE INDEX IF NOT EXISTS idx_mem0_history_created ON mem0_memory_history(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_mem0_history_operation ON mem0_memory_history(operation);
+
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- SECTION: BRIEFING AGENTS
+-- Autonomous scheduled agents that collect data and send email briefings
+-- ════════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS briefing_agents (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+
+    name TEXT NOT NULL,
+    description TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+
+    config JSONB NOT NULL DEFAULT '{}',
+
+    schedule_type VARCHAR(20) NOT NULL DEFAULT 'daily'
+        CHECK (schedule_type IN ('hourly', 'daily', 'weekly')),
+    schedule_hour INTEGER DEFAULT 8 CHECK (schedule_hour BETWEEN 0 AND 23),
+    schedule_timezone TEXT DEFAULT 'Europe/Berlin',
+
+    delivery_email TEXT,
+
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    last_executed_at TIMESTAMPTZ,
+    execution_count INTEGER DEFAULT 0,
+    consecutive_empty_count INTEGER DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_briefing_agents_user ON briefing_agents(user_id);
+CREATE INDEX IF NOT EXISTS idx_briefing_agents_due ON briefing_agents(is_active, schedule_type, last_executed_at);
+
+CREATE TRIGGER update_briefing_agents_updated_at
+    BEFORE UPDATE ON briefing_agents
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TABLE IF NOT EXISTS briefing_executions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    agent_id UUID NOT NULL REFERENCES briefing_agents(id) ON DELETE CASCADE,
+
+    status VARCHAR(20) NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'running', 'completed', 'failed', 'empty')),
+
+    results_count INTEGER DEFAULT 0,
+    results_summary TEXT,
+    results_raw JSONB,
+
+    started_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMPTZ,
+    duration_ms INTEGER,
+    error_message TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_briefing_executions_agent ON briefing_executions(agent_id, started_at DESC);
+
+-- ============================================================================
+-- Section: In-App Notifications
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT,
+    metadata JSONB DEFAULT '{}',
+    action_url TEXT,
+    group_key TEXT,
+    is_read BOOLEAN DEFAULT FALSE,
+    read_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
+    ON notifications (user_id, created_at DESC)
+    WHERE is_read = FALSE;
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_created
+    ON notifications (user_id, created_at DESC);
+
+-- ============================================================================
+-- Section: Monitor Snapshots (Themen-Monitor)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS monitor_snapshots (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    total_articles INT NOT NULL,
+    sources TEXT[] NOT NULL,
+    topic_scores JSONB NOT NULL,
+    articles JSONB NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_monitor_snapshots_created ON monitor_snapshots(created_at DESC);
+
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- SECTION: PRESENTATIONS
+-- Collaborative presentation editor (Presenton-based slide system)
+-- ════════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS collaborative_presentations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL DEFAULT 'Neue Präsentation',
+  user_id TEXT NOT NULL,
+  language TEXT DEFAULT 'de',
+  theme JSONB DEFAULT '{}',
+  template TEXT DEFAULT 'general',
+  permissions JSONB DEFAULT '{}',
+  is_public BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS presentation_slides (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  presentation_id UUID NOT NULL REFERENCES collaborative_presentations(id) ON DELETE CASCADE,
+  index INTEGER NOT NULL,
+  layout_group TEXT NOT NULL DEFAULT 'general',
+  layout TEXT NOT NULL,
+  content JSONB NOT NULL DEFAULT '{}',
+  speaker_note TEXT,
+  properties JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_presentations_user_id ON collaborative_presentations(user_id);
+CREATE INDEX IF NOT EXISTS idx_presentations_updated_at ON collaborative_presentations(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_presentation_slides_presentation_id ON presentation_slides(presentation_id);
+CREATE INDEX IF NOT EXISTS idx_presentation_slides_order ON presentation_slides(presentation_id, index);

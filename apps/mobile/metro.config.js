@@ -1,5 +1,4 @@
 const { getDefaultConfig } = require('expo/metro-config');
-const { withSentryConfig } = require('@sentry/react-native/metro');
 const path = require('path');
 
 const projectRoot = __dirname;
@@ -10,8 +9,10 @@ const config = getDefaultConfig(projectRoot);
 // Ensure projectRoot is absolute (getDefaultConfig may return '.' which breaks in monorepos)
 config.projectRoot = projectRoot;
 
-// Watch specific folders in the monorepo (not root to avoid resolution issues)
+// Extend default watchFolders (which includes all workspaces) with monorepo packages.
+// NOTE: Must spread defaults — replacing them breaks 'use dom' component path resolution.
 config.watchFolders = [
+  ...(config.watchFolders || []),
   path.resolve(monorepoRoot, 'packages'),
   path.resolve(monorepoRoot, 'node_modules'),
 ];
@@ -37,6 +38,28 @@ config.resolver.unstable_conditionNames = ['require', 'react-native'];
 
 // Custom resolver for various edge cases
 config.resolver.resolveRequest = (context, moduleName, platform) => {
+  // Fix 'use dom' component resolution in monorepo.
+  // The DOM transformer generates a relative path from node_modules/expo/dom/entry.js
+  // to the component, but miscounts directory levels in a pnpm monorepo.
+  // The generated path has one extra '..' — fix by resolving against projectRoot.
+  if (
+    moduleName.includes('apps/mobile/components/') &&
+    context.originModulePath?.includes('node_modules/expo/dom/')
+  ) {
+    const componentRelative = moduleName.replace(/^\.\/[./]*/, '');
+    const absolutePath = path.resolve(monorepoRoot, componentRelative);
+    return { type: 'sourceFile', filePath: absolutePath };
+  }
+
+  // Shim isomorphic-webcrypto — its RN entry crashes in Android WebView
+  // by writing to read-only navigator.userAgent getter
+  if (moduleName === 'isomorphic-webcrypto' || moduleName.startsWith('isomorphic-webcrypto/')) {
+    return {
+      type: 'sourceFile',
+      filePath: path.resolve(projectRoot, 'shims/isomorphic-webcrypto.js'),
+    };
+  }
+
   // Handle entities/lib/maps/entities.json - markdown-it needs this but entities package
   // doesn't export it. Resolve directly to the file.
   if (moduleName === 'entities/lib/maps/entities.json') {
@@ -60,7 +83,11 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   return context.resolveRequest(context, moduleName, platform);
 };
 
-// Ensure Metro can resolve packages hoisted to monorepo root
-config.resolver.disableHierarchicalLookup = true;
+// NOTE: Do NOT set disableHierarchicalLookup=true — it breaks 'use dom' components
+// because expo's internal module resolution needs to walk up from
+// node_modules/expo/ to find sibling packages at the monorepo root.
 
-module.exports = withSentryConfig(config);
+// NOTE: Do NOT wrap with withSentryConfig() — it breaks 'use dom' components.
+// Sentry's resolver wrapper drops the 4th parameter (oldMetroModuleName) when calling
+// context.resolveRequest(), which breaks Expo's DOM path calculation.
+module.exports = config;

@@ -7,6 +7,10 @@ import express, { type Router, type Response, type NextFunction } from 'express'
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
+import {
+  urlCrawlerService,
+  UrlValidator,
+} from '../../../services/scrapers/implementations/UrlCrawler/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import type { AuthRequest } from '../types.js';
@@ -33,6 +37,106 @@ router.use((req: AuthRequest, _res: Response, next: NextFunction) => {
   log.info(`[User Templates] ${req.method} ${req.originalUrl} - User ID: ${req.user?.id}`);
   next();
 });
+
+// === URL PREVIEW / CRAWL ENDPOINT ===
+
+router.post(
+  '/user-templates/from-url',
+  ensureAuthenticated as any,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const { url, preview, title, description, metadata } = req.body;
+
+      if (!url || typeof url !== 'string') {
+        res.status(400).json({ success: false, message: 'URL ist erforderlich.' });
+        return;
+      }
+
+      const validation = await UrlValidator.validateUrl(url);
+      if (!validation.isValid) {
+        res.status(400).json({ success: false, message: validation.error || 'Ungültige URL.' });
+        return;
+      }
+
+      const crawlResult = await urlCrawlerService.crawlUrl(url, {
+        enhancedMetadata: true,
+        metadataOnly: true,
+        timeout: 15000,
+      });
+
+      if (!crawlResult.success || !crawlResult.data) {
+        res.status(400).json({
+          success: false,
+          message: crawlResult.error || 'Seite konnte nicht geladen werden.',
+        });
+        return;
+      }
+
+      const crawled = crawlResult.data;
+
+      // Preview mode: return extracted metadata without saving
+      if (preview) {
+        res.json({
+          success: true,
+          preview: {
+            title: crawled.title || null,
+            description: crawled.description || null,
+            thumbnail_url: crawled.previewImage || null,
+            dimensions: crawled.dimensions || null,
+            categories: crawled.categories || [],
+            final_url: crawled.canonical || url,
+          },
+        });
+        return;
+      }
+
+      // Save mode: create template from crawled data
+      const userId = req.user!.id;
+      const postgres = getPostgresInstance();
+      await postgres.ensureInitialized();
+
+      const descriptionTags = extractTagsFromDescription(description);
+      const mergedTags = [...new Set(descriptionTags)];
+
+      const templateData = {
+        user_id: userId,
+        type: 'template',
+        title: (title || crawled.title || 'Vorlage').trim(),
+        description: (description || crawled.description || '').trim() || null,
+        template_type: 'canva',
+        external_url: crawled.canonical || url,
+        thumbnail_url: crawled.previewImage || null,
+        images: JSON.stringify(crawled.previewImage ? [{ url: crawled.previewImage }] : []),
+        categories: JSON.stringify([]),
+        tags: JSON.stringify(mergedTags),
+        content_data: JSON.stringify({}),
+        metadata: JSON.stringify({
+          ...(metadata || {}),
+          crawled_from: url,
+          dimensions: crawled.dimensions || null,
+        }),
+        is_private: false,
+        is_example: false,
+        status: 'pending_review',
+      };
+
+      const newTemplate = await postgres.insert('user_templates', templateData);
+
+      res.status(201).json({
+        success: true,
+        data: { id: newTemplate.id },
+        message: 'Vorlage wurde eingereicht und wird geprüft.',
+      });
+    } catch (error) {
+      const err = error as Error;
+      log.error('[User Templates /from-url] Error:', err);
+      res.status(500).json({
+        success: false,
+        message: 'Fehler beim Verarbeiten der URL.',
+      });
+    }
+  }
+);
 
 // === USER TEMPLATES MANAGEMENT ENDPOINTS ===
 
@@ -144,43 +248,10 @@ router.post(
         metadata: JSON.stringify(metadata || {}),
         is_private: is_private !== false,
         is_example: false,
-        status: 'published',
+        status: is_private !== false ? 'draft' : 'pending_review',
       };
 
-      // Insert template with retry logic for status constraint issues
-      let newTemplate: any;
-      let insertError: Error | null = null;
-      const statusFallbacks = ['published', 'private', 'public', 'enabled', 'active'];
-
-      for (const statusValue of statusFallbacks) {
-        try {
-          const templateDataWithStatus = { ...templateData, status: statusValue };
-          newTemplate = await postgres.insert('user_templates', templateDataWithStatus);
-
-          insertError = null;
-          log.debug(`[User Templates] Successfully created template with status: ${statusValue}`);
-          break;
-        } catch (error) {
-          insertError = error as Error;
-          log.debug(`[User Templates] Failed with status '${statusValue}':`, insertError.message);
-
-          if (
-            insertError.message.includes('valid_template_status') ||
-            insertError.message.includes('status')
-          ) {
-            log.debug(`[User Templates] Status '${statusValue}' not allowed, trying next...`);
-            continue;
-          }
-          throw insertError;
-        }
-      }
-
-      if (insertError) {
-        log.error('[User Templates /user-templates POST] All status values failed:', insertError);
-        throw new Error(
-          'Template konnte nicht erstellt werden. Datenbankkonflikt bei Status-Feld.'
-        );
-      }
+      const newTemplate = await postgres.insert('user_templates', templateData);
 
       // Format response
       const formattedTemplate = {
@@ -205,7 +276,9 @@ router.post(
       res.status(201).json({
         success: true,
         data: formattedTemplate,
-        message: 'Vorlage wurde erfolgreich erstellt.',
+        message: newTemplate.is_private
+          ? 'Vorlage wurde erstellt.'
+          : 'Vorlage wurde eingereicht und wird geprüft.',
       });
     } catch (error) {
       const err = error as Error;

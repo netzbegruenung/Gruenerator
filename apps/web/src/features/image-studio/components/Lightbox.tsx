@@ -2,7 +2,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import React from 'react';
 
 import type { TemplateResultLightboxProps } from '../types/templateResultTypes';
-import './Lightbox.css';
 
 export const Lightbox: React.FC<TemplateResultLightboxProps> = ({
   isOpen,
@@ -15,15 +14,15 @@ export const Lightbox: React.FC<TemplateResultLightboxProps> = ({
   return (
     <AnimatePresence>
       <motion.div
-        className="image-lightbox-overlay"
+        className="fixed inset-0 bg-black/90 flex items-center justify-center z-[300] cursor-zoom-out"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
       >
-        <div className="image-lightbox-content">
+        <div className="relative max-w-[95vw] max-h-[95vh]">
           <button
-            className="image-lightbox-close"
+            className="absolute -top-10 right-0 bg-transparent border-none text-white text-[32px] cursor-pointer p-sm leading-none"
             onClick={onClose}
             aria-label="Lightbox schließen"
           >
@@ -32,7 +31,7 @@ export const Lightbox: React.FC<TemplateResultLightboxProps> = ({
           <img
             src={imageSrc}
             alt={altText || 'Vergrößertes Bild'}
-            className="image-lightbox-image"
+            className="max-w-[95vw] max-h-[95vh] object-contain rounded-md"
           />
         </div>
       </motion.div>

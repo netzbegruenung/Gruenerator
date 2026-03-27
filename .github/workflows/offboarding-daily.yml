@@ -1,0 +1,137 @@
+name: Daily Offboarding
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # Daily at 2 AM UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Preview without processing'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: offboarding
+  cancel-in-progress: false
+
+jobs:
+  offboard:
+    name: Run Offboarding
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      API_URL: ${{ vars.OFFBOARDING_API_URL || 'https://gruenerator.eu' }}
+    steps:
+      - name: Check offboarding config
+        run: |
+          echo "Checking offboarding service at $API_URL..."
+          STATUS=$(curl -sf "$API_URL/api/internal/offboarding/status" \
+            -H "x-admin-token: ${{ secrets.ADMIN_TOKEN }}" || echo '{"status":"unreachable"}')
+          echo "$STATUS" | jq .
+
+          if echo "$STATUS" | jq -e '.status == "error"' > /dev/null 2>&1; then
+            echo "::error::Offboarding service configuration error"
+            exit 1
+          fi
+          if echo "$STATUS" | jq -e '.status == "unreachable"' > /dev/null 2>&1; then
+            echo "::error::Offboarding service unreachable at $API_URL"
+            exit 1
+          fi
+
+      - name: Run offboarding
+        id: offboard
+        continue-on-error: true
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "Running dry-run..."
+            RESULT=$(curl -sf -X POST "$API_URL/api/internal/offboarding/dry-run" \
+              -H "x-admin-token: ${{ secrets.ADMIN_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -d '{"limit": 50}')
+          else
+            echo "Running offboarding..."
+            RESULT=$(curl -sf -X POST "$API_URL/api/internal/offboarding/run-sync" \
+              -H "x-admin-token: ${{ secrets.ADMIN_TOKEN }}" \
+              --max-time 1800)
+          fi
+
+          echo "$RESULT" | jq .
+          echo "result<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$RESULT" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Generate summary
+        if: always()
+        run: |
+          RESULT='${{ steps.offboard.outputs.result }}'
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          if [ -z "$RESULT" ] || [ "$RESULT" = "" ]; then
+            {
+              echo "## :x: Offboarding — No Result"
+              echo ""
+              echo "The offboarding service did not return a result. Check the [workflow logs]($RUN_URL)."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            COUNT=$(echo "$RESULT" | jq -r '.results | length')
+            WOULD_PROCESS=$(echo "$RESULT" | jq -r '[.results[] | select(.action == "would_be_processed")] | length')
+            NOT_FOUND=$(echo "$RESULT" | jq -r '[.results[] | select(.action == "not_found")] | length')
+
+            {
+              echo "## :mag: Offboarding Dry Run"
+              echo ""
+              echo "**Date:** $(date -u '+%d.%m.%Y %H:%M UTC')"
+              echo "**Run:** [${{ github.run_id }}]($RUN_URL)"
+              echo ""
+              echo "| Metric | Count |"
+              echo "|--------|------:|"
+              echo "| Users checked | $COUNT |"
+              echo "| Would be processed | $WOULD_PROCESS |"
+              echo "| Not found in DB | $NOT_FOUND |"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            SUCCESS=$(echo "$RESULT" | jq -r '.success')
+            PROCESSED=$(echo "$RESULT" | jq -r '.processed')
+            DELETED=$(echo "$RESULT" | jq -r '.deleted')
+            ANONYMIZED=$(echo "$RESULT" | jq -r '.anonymized')
+            NOT_FOUND=$(echo "$RESULT" | jq -r '.notFound')
+            FAILED=$(echo "$RESULT" | jq -r '.failed')
+            RETRIES=$(echo "$RESULT" | jq -r '.retriesProcessed')
+            DURATION=$(echo "$RESULT" | jq -r '.durationMs')
+            DURATION_S=$(( DURATION / 1000 ))
+
+            if [ "$SUCCESS" = "true" ] && [ "$FAILED" = "0" ]; then
+              ICON=":white_check_mark:"
+            elif [ "$SUCCESS" = "true" ]; then
+              ICON=":warning:"
+            else
+              ICON=":x:"
+            fi
+
+            {
+              echo "## $ICON Offboarding Report"
+              echo ""
+              echo "**Date:** $(date -u '+%d.%m.%Y %H:%M UTC')"
+              echo "**Duration:** ${DURATION_S}s"
+              echo "**Run:** [${{ github.run_id }}]($RUN_URL)"
+              echo ""
+              echo "| Metric | Count |"
+              echo "|--------|------:|"
+              echo "| Processed | $PROCESSED |"
+              echo "| Deleted | $DELETED |"
+              echo "| Anonymized | $ANONYMIZED |"
+              echo "| Not found | $NOT_FOUND |"
+              echo "| Failed | $FAILED |"
+              echo "| Retries processed | $RETRIES |"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Fail if offboarding had errors
+        if: steps.offboard.outcome == 'failure'
+        run: exit 1

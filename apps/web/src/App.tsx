@@ -29,7 +29,7 @@ const PopupNutzungsbedingungen = lazy(
 );
 const PopupWartung = lazy(() => import('./components/Popups/popup_wartung'));
 // const CustomGrueneratorenPopup = lazy(() => import('./components/Popups/popup_custom_grueneratoren'));
-const PopupAustriaLaunch = lazy(() => import('./components/Popups/popup_austria_launch'));
+// const PopupAustriaLaunch = lazy(() => import('./components/Popups/popup_austria_launch'));
 
 // QueryClient Instanz erstellen
 const queryClient = new QueryClient({
@@ -166,14 +166,14 @@ function App() {
           <RouteLogger />
           <SuspenseWrapper>
             <PopupNutzungsbedingungen />
-            <PopupAustriaLaunch />
+            {/* <PopupAustriaLaunch /> */}
             <div id="aria-live-region" aria-live="polite" className="sr-only" />
 
             <Routes>
               {/* Legacy redirect: /generator/:slug -> /gruenerator/:slug */}
               <Route path="/generator/:slug" element={<LegacyGeneratorRedirect />} />
               {/* Standard-Routen */}
-              {routes.standard.map(({ path }) => (
+              {routes.standard.map(({ path, layoutMode }) => (
                 <Route
                   key={path}
                   path={path}
@@ -182,13 +182,14 @@ function App() {
                       path={path}
                       darkMode={darkMode}
                       toggleDarkMode={toggleDarkMode}
+                      layoutMode={layoutMode}
                     />
                   }
                 />
               ))}
 
               {/* Spezielle Routen */}
-              {routes.special.map(({ path }) => (
+              {routes.special.map(({ path, layoutMode }) => (
                 <Route
                   key={path}
                   path={path}
@@ -197,29 +198,12 @@ function App() {
                       path={path}
                       darkMode={darkMode}
                       toggleDarkMode={toggleDarkMode}
+                      layoutMode={layoutMode}
                       isSpecial
                     />
                   }
                 />
               ))}
-
-              {/* No-Header-Footer Routen */}
-              {routes.noHeaderFooter.map(({ path }) => {
-                return (
-                  <Route
-                    key={path}
-                    path={path}
-                    element={
-                      <RouteComponent
-                        path={path}
-                        darkMode={darkMode}
-                        toggleDarkMode={toggleDarkMode}
-                        showHeaderFooter={false}
-                      />
-                    }
-                  />
-                );
-              })}
             </Routes>
           </SuspenseWrapper>
         </Router>

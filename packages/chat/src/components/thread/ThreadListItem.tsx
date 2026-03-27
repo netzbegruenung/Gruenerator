@@ -1,16 +1,27 @@
 'use client';
 
-import { type MouseEvent, useCallback } from 'react';
+import { type MouseEvent, useCallback, useState } from 'react';
 import {
   ThreadListItemPrimitive,
   ThreadListItemMorePrimitive,
   useThreadListItem,
   useAui,
 } from '@assistant-ui/react';
-import { MessageSquare, MoreVertical, Pencil, Archive, Trash2, BookOpen } from 'lucide-react';
+import {
+  MessageSquare,
+  MoreVertical,
+  Pencil,
+  Archive,
+  Trash2,
+  BookOpen,
+  Share2,
+  Search,
+} from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAgentStore } from '../../stores/chatStore';
 import { useExternalThread } from '../../context/ExternalThreadContext';
+import { getThreadType, getNotebookCollectionId } from '../../runtime/GrueneratorThreadListAdapter';
+import { ShareThreadDialog } from './ShareThreadDialog';
 
 function useSafeThreadAction(action: 'delete' | 'switchTo' | 'archive' | 'unarchive') {
   const aui = useAui();
@@ -57,17 +68,45 @@ function ExternalThreadItem() {
   );
 }
 
+function ThreadTypeIcon({ remoteId }: { remoteId: string | undefined }) {
+  const threadType = remoteId ? getThreadType(remoteId) : 'chat';
+  switch (threadType) {
+    case 'search':
+      return <Search className="h-4 w-4 flex-shrink-0" />;
+    case 'notebook':
+      return <BookOpen className="h-4 w-4 flex-shrink-0" />;
+    default:
+      return <MessageSquare className="h-4 w-4 flex-shrink-0" />;
+  }
+}
+
 export function GrueneratorThreadListItem() {
-  const { externalId } = useThreadListItem();
+  const { externalId, remoteId } = useThreadListItem();
   const baseSwitchTo = useSafeThreadAction('switchTo');
   const handleArchive = useSafeThreadAction('archive');
   const handleDelete = useSafeThreadAction('delete');
+  const [shareOpen, setShareOpen] = useState(false);
+  const ctx = useExternalThread();
   const handleSwitch = useCallback(
     (e: MouseEvent) => {
+      // Notebook threads navigate to the notebook page instead of opening in chat
+      if (remoteId) {
+        const threadType = getThreadType(remoteId);
+        if (threadType === 'notebook') {
+          const collectionId = getNotebookCollectionId(remoteId);
+          if (collectionId && ctx?.onClick) {
+            const path = collectionId.endsWith('-system')
+              ? `/gruene-${collectionId.replace('-system', '')}?thread=${remoteId}`
+              : `/notebook/${collectionId}?thread=${remoteId}`;
+            ctx.onClick(path);
+            return;
+          }
+        }
+      }
       useAgentStore.getState().setChatViewMode('thread');
       baseSwitchTo(e);
     },
-    [baseSwitchTo]
+    [baseSwitchTo, remoteId, ctx]
   );
 
   if (externalId) {
@@ -75,55 +114,66 @@ export function GrueneratorThreadListItem() {
   }
 
   return (
-    <ThreadListItemPrimitive.Root
-      className={cn(
-        'group flex w-full items-center gap-2 rounded-lg px-3 py-2 transition-colors',
-        'hover:bg-primary/5',
-        'data-[active]:bg-primary/10 data-[active]:text-primary'
-      )}
-    >
-      <ThreadListItemPrimitive.Trigger
-        onClick={handleSwitch}
-        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+    <>
+      <ThreadListItemPrimitive.Root
+        className={cn(
+          'group flex w-full items-center gap-2 rounded-lg px-3 py-2 transition-colors',
+          'hover:bg-primary/5',
+          'data-[active]:bg-primary/10 data-[active]:text-primary'
+        )}
       >
-        <MessageSquare className="h-4 w-4 flex-shrink-0" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm">
-            <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
-          </p>
-        </div>
-      </ThreadListItemPrimitive.Trigger>
-
-      <ThreadListItemMorePrimitive.Root>
-        <ThreadListItemMorePrimitive.Trigger
-          className="flex h-6 w-6 items-center justify-center rounded opacity-0 transition-opacity hover:bg-primary/10 group-hover:opacity-100"
-          aria-label="Mehr Optionen"
+        <ThreadListItemPrimitive.Trigger
+          onClick={handleSwitch}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
         >
-          <MoreVertical className="h-3.5 w-3.5" />
-        </ThreadListItemMorePrimitive.Trigger>
-        <ThreadListItemMorePrimitive.Content className="z-50 min-w-[10rem] rounded-xl border border-border bg-background p-1 shadow-lg">
-          <ThreadListItemMorePrimitive.Item className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground">
-            <Pencil className="h-3.5 w-3.5" />
-            Umbenennen
-          </ThreadListItemMorePrimitive.Item>
-          <ThreadListItemMorePrimitive.Separator className="my-1 h-px bg-border" />
-          <ThreadListItemPrimitive.Archive
-            onClick={handleArchive}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+          <ThreadTypeIcon remoteId={remoteId} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm">
+              <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
+            </p>
+          </div>
+        </ThreadListItemPrimitive.Trigger>
+
+        <ThreadListItemMorePrimitive.Root>
+          <ThreadListItemMorePrimitive.Trigger
+            className="flex h-6 w-6 items-center justify-center rounded opacity-0 transition-opacity hover:bg-primary/10 group-hover:opacity-100"
+            aria-label="Mehr Optionen"
           >
-            <Archive className="h-3.5 w-3.5" />
-            Archivieren
-          </ThreadListItemPrimitive.Archive>
-          <ThreadListItemPrimitive.Delete
-            onClick={handleDelete}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-red-500/10 hover:text-red-500"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Löschen
-          </ThreadListItemPrimitive.Delete>
-        </ThreadListItemMorePrimitive.Content>
-      </ThreadListItemMorePrimitive.Root>
-    </ThreadListItemPrimitive.Root>
+            <MoreVertical className="h-3.5 w-3.5" />
+          </ThreadListItemMorePrimitive.Trigger>
+          <ThreadListItemMorePrimitive.Content className="z-50 min-w-[10rem] rounded-xl border border-border bg-background p-1 shadow-lg">
+            <ThreadListItemMorePrimitive.Item className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground">
+              <Pencil className="h-3.5 w-3.5" />
+              Umbenennen
+            </ThreadListItemMorePrimitive.Item>
+            <ThreadListItemMorePrimitive.Item
+              onClick={() => setShareOpen(true)}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              Teilen
+            </ThreadListItemMorePrimitive.Item>
+            <ThreadListItemMorePrimitive.Separator className="my-1 h-px bg-border" />
+            <ThreadListItemPrimitive.Archive
+              onClick={handleArchive}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+            >
+              <Archive className="h-3.5 w-3.5" />
+              Archivieren
+            </ThreadListItemPrimitive.Archive>
+            <ThreadListItemPrimitive.Delete
+              onClick={handleDelete}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Löschen
+            </ThreadListItemPrimitive.Delete>
+          </ThreadListItemMorePrimitive.Content>
+        </ThreadListItemMorePrimitive.Root>
+      </ThreadListItemPrimitive.Root>
+
+      <ShareThreadDialog threadId={remoteId ?? null} open={shareOpen} onOpenChange={setShareOpen} />
+    </>
   );
 }
 
@@ -177,7 +227,7 @@ export function GrueneratorArchivedThreadListItem() {
           <ThreadListItemMorePrimitive.Separator className="my-1 h-px bg-border" />
           <ThreadListItemPrimitive.Delete
             onClick={handleDelete}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-red-500/10 hover:text-red-500"
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-destructive/10 hover:text-destructive"
           >
             <Trash2 className="h-3.5 w-3.5" />
             Endgültig löschen

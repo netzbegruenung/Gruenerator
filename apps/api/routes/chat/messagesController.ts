@@ -7,6 +7,8 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { canAccessThread } from './services/threadAccessService.js';
+
 import type { Thread, Message } from './agents/types.js';
 import type { UserProfile } from '../../services/user/types.js';
 import type express from 'express';
@@ -32,24 +34,17 @@ router.get('/', async (req, res) => {
 
     const postgres = getPostgresInstance();
 
-    const threads = await postgres.query(
-      `SELECT id, user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
-      [threadId]
-    );
-
-    if (threads.length === 0) {
+    if (!(await canAccessThread(threadId, user.id))) {
       return res.status(404).json({ error: 'Thread not found' });
     }
 
-    if (threads[0].user_id !== user.id) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-
     const messages = await postgres.query(
-      `SELECT id, thread_id, role, content, tool_calls, tool_results, created_at
-       FROM chat_messages
-       WHERE thread_id = $1
-       ORDER BY created_at ASC`,
+      `SELECT cm.id, cm.thread_id, cm.role, cm.content, cm.tool_calls, cm.tool_results, cm.user_id, cm.created_at,
+              p.display_name as sender_name
+       FROM chat_messages cm
+       LEFT JOIN profiles p ON cm.user_id = p.id
+       WHERE cm.thread_id = $1
+       ORDER BY cm.created_at ASC`,
       [threadId]
     );
 
@@ -178,7 +173,10 @@ router.get('/', async (req, res) => {
         createdAt: msg.created_at,
         parts: parts.length > 0 ? parts : undefined,
         toolInvocations,
-        metadata,
+        metadata: {
+          ...metadata,
+          ...(msg.user_id ? { senderId: msg.user_id, senderName: msg.sender_name || null } : {}),
+        },
       };
     });
 
@@ -204,17 +202,14 @@ router.delete('/', async (req, res) => {
 
     const postgres = getPostgresInstance();
 
-    const threads = await postgres.query(
-      `SELECT id, user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
-      [threadId]
-    );
-
-    if (threads.length === 0) {
+    const thread = await postgres.query('SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1', [
+      threadId,
+    ]);
+    if ((thread as { user_id: string }[]).length === 0) {
       return res.status(404).json({ error: 'Thread not found' });
     }
-
-    if (threads[0].user_id !== user.id) {
-      return res.status(403).json({ error: 'Forbidden' });
+    if ((thread as { user_id: string }[])[0].user_id !== user.id) {
+      return res.status(403).json({ error: 'Only thread owner can delete messages' });
     }
 
     await postgres.query(`DELETE FROM chat_messages WHERE thread_id = $1`, [threadId]);

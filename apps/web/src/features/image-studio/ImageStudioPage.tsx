@@ -27,9 +27,6 @@ import {
 
 // Import extracted components and types
 
-import './image-studio-shared.css';
-import '../../assets/styles/components/form/form-inputs.css';
-
 const ImageStudioPageContent: React.FC = () => {
   const { category: urlCategory, type: urlType } = useParams();
   const [searchParams] = useSearchParams();
@@ -106,12 +103,12 @@ const ImageStudioPageContent: React.FC = () => {
     };
 
     if (isKiSubcategory(urlType)) {
-      // URL: /image-studio/ki/create or /image-studio/ki/edit
+      // URL: /studio/ki/create or /studio/ki/edit
       if (!category || !subcategory || subcategory !== urlType) {
         setCategory(urlCategory, urlType);
       }
     } else if (urlType) {
-      // URL: /image-studio/ki/green-edit (actual type)
+      // URL: /studio/ki/green-edit (actual type)
       const mappedType =
         (urlType in URL_TYPE_MAP ? URL_TYPE_MAP[urlType as UrlTypeMapKey] : urlType) || urlType;
       // Only set type if not navigating back (currentStep !== TYPE_SELECT prevents race condition)
@@ -125,7 +122,7 @@ const ImageStudioPageContent: React.FC = () => {
         setType(mappedType);
       }
     } else if (!category) {
-      // URL: /image-studio/templates or /image-studio/ki (without subcategory)
+      // URL: /studio/templates or /studio/ki (without subcategory)
       setCategory(urlCategory);
     }
   }, [
@@ -234,12 +231,12 @@ const ImageStudioPageContent: React.FC = () => {
   const handleBack = useCallback(() => {
     if (currentStep === FORM_STEPS.TYPE_SELECT) {
       setCategory(null, null);
-      navigate(isImagineRoute ? '/imagine' : '/image-studio');
+      navigate(isImagineRoute ? '/imagine' : '/studio');
     } else if (currentStep === FORM_STEPS.IMAGE_UPLOAD) {
       if (isImagineRoute) {
         navigate('/imagine');
       } else {
-        navigate(`/image-studio/${category}${subcategory ? `/${subcategory}` : ''}`);
+        navigate(`/studio/${category}${subcategory ? `/${subcategory}` : ''}`);
       }
       goBack();
     } else if (currentStep === FORM_STEPS.INPUT) {
@@ -248,7 +245,7 @@ const ImageStudioPageContent: React.FC = () => {
         if (isImagineRoute) {
           navigate('/imagine');
         } else {
-          navigate(`/image-studio/${category}${subcategory ? `/${subcategory}` : ''}`);
+          navigate(`/studio/${category}${subcategory ? `/${subcategory}` : ''}`);
         }
       }
       goBack();
@@ -516,7 +513,7 @@ const ImageStudioPageContent: React.FC = () => {
         <div className="bg-background-alt border border-grey-200 dark:border-grey-700 rounded-md p-lg shadow-card-elevated overflow-hidden transition-all">
           <h2>Fehler beim Laden der Vorlage</h2>
           <p>{cloneError}</p>
-          <Button onClick={() => navigate('/image-studio')} text="Zurück" icon={<HiArrowLeft />} />
+          <Button onClick={() => navigate('/studio')} text="Zurück" icon={<HiArrowLeft />} />
         </div>
       </div>
     );

@@ -56,7 +56,6 @@ const OptionIcon = memo<OptionIconProps>(({ icon: Icon, iconType, size = 16, con
 
       case 'knowledge':
       case 'wissen':
-      case 'group_knowledge':
         return <FaBrain className={iconClass} size={size} />;
 
       case 'document':

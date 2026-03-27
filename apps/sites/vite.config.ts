@@ -22,9 +22,8 @@ export default defineConfig({
     sourcemap: 'hidden',
     outDir: 'dist',
     emptyOutDir: true,
-    minify: 'esbuild',
     cssMinify: true,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
         entryFileNames: 'assets/[name].[hash].js',
         chunkFileNames: 'assets/[name].[hash].js',

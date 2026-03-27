@@ -7,11 +7,10 @@ type TimestampGranularity = 'segment';
 
 /**
  * Voxtral model variants:
- * - voxtral-mini-transcribe-latest: Optimized for pure transcription (fastest, cheapest)
- * - voxtral-mini-latest: Mini (3B) — transcription + understanding + function calling
+ * - voxtral-mini-latest (→ voxtral-mini-2602): Transcription + understanding + function calling
  * - voxtral-small-latest: Small (24B) — highest quality understanding + translation
  */
-const VOXTRAL_TRANSCRIBE_MODEL = 'voxtral-mini-transcribe-latest';
+const VOXTRAL_TRANSCRIBE_MODEL = 'voxtral-mini-latest';
 const VOXTRAL_STREAM_MODEL = 'voxtral-mini-latest';
 const VOXTRAL_CHAT_MODEL = 'voxtral-small-latest';
 
@@ -27,6 +26,7 @@ interface TranscriptionSegment {
   start: number;
   end: number;
   text: string;
+  speakerId?: string | null;
 }
 
 interface TranscriptionResult {
@@ -72,7 +72,22 @@ class MistralVoiceService {
         contextBias: contextBias || undefined,
       });
 
-      log.debug('[Mistral Voice] Transcription response received:', transcriptionResponse);
+      const resp = transcriptionResponse as any;
+      log.debug('[Mistral Voice] Response keys:', Object.keys(resp));
+      log.debug(
+        '[Mistral Voice] Has segments:',
+        !!resp.segments,
+        'count:',
+        resp.segments?.length ?? 0
+      );
+      if (resp.segments?.[0]) {
+        log.debug('[Mistral Voice] First segment keys:', Object.keys(resp.segments[0]));
+        log.debug(
+          '[Mistral Voice] First segment sample:',
+          JSON.stringify(resp.segments[0]).slice(0, 300)
+        );
+      }
+      log.debug('[Mistral Voice] Text sample:', resp.text?.slice(0, 200));
       return this._formatResponse(transcriptionResponse as MistralTranscriptionResponse, options);
     } catch (error) {
       const err = error as Error & { response?: { data?: unknown; status?: number } };
@@ -179,9 +194,35 @@ class MistralVoiceService {
       hasTimestamps: false,
     };
 
+    log.debug(
+      '[Mistral Voice] _formatResponse: segments?',
+      !!segments,
+      'isArray?',
+      Array.isArray(segments),
+      'count:',
+      segments?.length ?? 0
+    );
     if (segments && Array.isArray(segments)) {
       result.segments = segments;
       result.hasTimestamps = true;
+
+      const speakerIds = segments.map((s) => (s as any).speakerId ?? (s as any).speaker_id ?? null);
+      const hasSpeakers = speakerIds.some(Boolean);
+      log.debug('[Mistral Voice] Speaker IDs sample:', speakerIds.slice(0, 5));
+      log.debug('[Mistral Voice] hasSpeakers:', hasSpeakers);
+
+      if (hasSpeakers) {
+        result.text = segments
+          .map((s) => {
+            const id = (s as any).speakerId ?? (s as any).speaker_id;
+            return id ? `[${id}] ${s.text.trim()}` : s.text.trim();
+          })
+          .join('\n');
+        log.debug(
+          '[Mistral Voice] Built diarized text, first 200 chars:',
+          result.text.slice(0, 200)
+        );
+      }
     }
 
     if (options.removeTimestamps && result.hasTimestamps) {

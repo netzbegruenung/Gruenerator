@@ -1,3 +1,4 @@
+import { Button } from '@gruenerator/ui';
 import React, { useState, useEffect, useCallback } from 'react';
 import { FaInstagram } from 'react-icons/fa';
 import QRCode from 'react-qr-code';
@@ -9,8 +10,6 @@ import apiClient from '../../../components/utils/apiClient';
 import { buildUrl } from '../../../config/domains';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { canShare, shareContent, copyToClipboard } from '../../../utils/shareUtils';
-import '../styles/SharedVideoPage.css';
-import '../../../assets/styles/components/ui/button.css';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -224,109 +223,118 @@ const SharedVideoPage = () => {
     });
   };
 
+  const CenteredState = ({ children }: { children: React.ReactNode }) => (
+    <div className="flex min-h-screen items-center justify-center bg-background p-lg">
+      <div className="flex max-w-[500px] flex-col items-center gap-md text-center">{children}</div>
+    </div>
+  );
+
   if (loading) {
     return (
-      <div className="shared-video-page">
-        <div className="shared-video-container">
-          <div className="shared-video-loading">
-            <Spinner size="large" />
-            <p>Video wird geladen...</p>
-          </div>
-        </div>
-      </div>
+      <CenteredState>
+        <Spinner size="large" />
+        <p className="text-foreground">Video wird geladen...</p>
+      </CenteredState>
     );
   }
 
   if (expired) {
     return (
-      <div className="shared-video-page">
-        <div className="shared-video-container">
-          <div className="shared-video-expired">
-            <svg
-              width="64"
-              height="64"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12,6 12,12 16,14" />
-            </svg>
-            <h2>Link abgelaufen</h2>
-            <p>Dieser Download-Link ist nicht mehr gültig. Bitte fordere einen neuen Link an.</p>
-          </div>
-        </div>
-      </div>
+      <CenteredState>
+        <svg
+          className="text-grey-400"
+          width="64"
+          height="64"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12,6 12,12 16,14" />
+        </svg>
+        <h2 className="text-xl font-semibold text-foreground-heading">Link abgelaufen</h2>
+        <p className="text-foreground">
+          Dieser Download-Link ist nicht mehr gültig. Bitte fordere einen neuen Link an.
+        </p>
+      </CenteredState>
     );
   }
 
   if (error) {
     return (
-      <div className="shared-video-page">
-        <div className="shared-video-container">
-          <div className="shared-video-error">
-            <svg
-              width="64"
-              height="64"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <line x1="15" y1="9" x2="9" y2="15" />
-              <line x1="9" y1="9" x2="15" y2="15" />
-            </svg>
-            <h2>Fehler</h2>
-            <p>{error}</p>
-          </div>
-        </div>
-      </div>
+      <CenteredState>
+        <svg
+          className="text-red-500"
+          width="64"
+          height="64"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <line x1="15" y1="9" x2="9" y2="15" />
+          <line x1="9" y1="9" x2="15" y2="15" />
+        </svg>
+        <h2 className="text-xl font-semibold text-foreground-heading">Fehler</h2>
+        <p className="text-foreground">{error}</p>
+      </CenteredState>
     );
   }
 
   if (isRendering) {
     return (
-      <div className="shared-video-page">
-        <div className="shared-video-container">
-          <div className="shared-video-rendering">
-            <Spinner size="large" />
-            <h2>Video wird gerendert...</h2>
-            <p>Das Video wird gerade vorbereitet. Dies kann einige Minuten dauern.</p>
-            <p className="rendering-hint">Diese Seite aktualisiert sich automatisch.</p>
-          </div>
-        </div>
-      </div>
+      <CenteredState>
+        <Spinner size="large" />
+        <h2 className="text-xl font-semibold text-foreground-heading">Video wird gerendert...</h2>
+        <p className="text-foreground">
+          Das Video wird gerade vorbereitet. Dies kann einige Minuten dauern.
+        </p>
+        <p className="text-sm text-grey-400">Diese Seite aktualisiert sich automatisch.</p>
+      </CenteredState>
     );
   }
 
   return (
-    <div className="shared-video-page">
-      <div className="shared-video-card">
+    <div className="flex min-h-screen items-center justify-center bg-background p-lg">
+      <div className="relative w-full max-w-[900px] overflow-hidden rounded-xl border border-grey-200 bg-background shadow-lg dark:border-grey-700 dark:bg-background-alt">
         <button
-          className="shared-video-qr"
+          className="absolute right-md top-md z-10 rounded-lg bg-white/90 p-xs shadow-sm backdrop-blur-sm transition-transform hover:scale-105"
           onClick={handleShare}
           title={copied ? 'Link kopiert!' : 'Klicken zum Teilen'}
         >
           <QRCode value={window.location.href} size={64} level="M" />
-          {copied && <span className="shared-video-qr-copied">Kopiert!</span>}
+          {copied && (
+            <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-primary-500/90 text-xs font-medium text-white">
+              Kopiert!
+            </span>
+          )}
         </button>
-        <div className="shared-video-left">
-          <video controls preload="metadata" playsInline>
-            <source src={`${baseURL}/subtitler/share/${shareToken}/preview`} type="video/mp4" />
-            Dein Browser unterstützt keine Video-Wiedergabe.
-          </video>
-        </div>
 
-        <div className="shared-video-right">
-          <div className="shared-video-content">
-            <p className="shared-by-message">
-              <strong>{shareData?.sharerName || 'Jemand'}</strong> hat ein Reel mit dir geteilt
+        <div className="flex flex-col md:flex-row">
+          <div className="flex-1 bg-black">
+            <video
+              className="block aspect-[9/16] w-full object-contain md:max-h-[70vh]"
+              controls
+              preload="metadata"
+              playsInline
+            >
+              <source src={`${baseURL}/subtitler/share/${shareToken}/preview`} type="video/mp4" />
+              Dein Browser unterstützt keine Video-Wiedergabe.
+            </video>
+          </div>
+
+          <div className="flex flex-1 flex-col justify-center gap-md p-lg">
+            <p className="text-sm text-grey-500">
+              <strong className="text-foreground">{shareData?.sharerName || 'Jemand'}</strong> hat
+              ein Reel mit dir geteilt
             </p>
-            <h1>{shareData?.title || 'Geteiltes Video'}</h1>
+            <h1 className="text-2xl font-bold text-foreground-heading">
+              {shareData?.title || 'Geteiltes Video'}
+            </h1>
 
-            <div className="shared-video-download">
+            <div className="flex flex-col gap-sm">
               {!isAuthenticated ? (
                 <LoginRequired
                   variant="inline"
@@ -334,7 +342,7 @@ const SharedVideoPage = () => {
                   message="Melde dich an, um dieses Video herunterzuladen."
                 />
               ) : downloadSuccess ? (
-                <div className="download-success-inline">
+                <div className="flex items-center gap-sm text-primary-600">
                   <svg
                     width="24"
                     height="24"
@@ -346,49 +354,49 @@ const SharedVideoPage = () => {
                     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                     <polyline points="22,4 12,14.01 9,11.01" />
                   </svg>
-                  <span>Download gestartet!</span>
+                  <span className="font-medium">Download gestartet!</span>
                 </div>
               ) : (
                 <>
-                  <div className="shared-video-buttons">
-                    <button
-                      className="btn-primary"
-                      onClick={handleDownload}
-                      disabled={isDownloading}
-                    >
+                  <div className="flex flex-wrap gap-sm max-md:flex-col">
+                    <Button onClick={handleDownload} disabled={isDownloading}>
                       {isDownloading ? 'Wird geladen...' : 'Video herunterladen'}
-                    </button>
-                    <button className="btn-primary" onClick={handleShare}>
+                    </Button>
+                    <Button variant="outline" onClick={handleShare}>
                       {copied ? 'Link kopiert!' : 'Link teilen'}
-                    </button>
+                    </Button>
                     {canNativeShare && (
-                      <button
-                        className="btn-primary"
+                      <Button
                         onClick={handleShareToInstagram}
                         disabled={isSharing}
                         title="Auf Instagram posten"
                       >
                         {isSharing ? <Spinner size="small" white /> : <FaInstagram />}
                         Posten
-                      </button>
+                      </Button>
                     )}
                   </div>
 
-                  {downloadError && <div className="download-error">{downloadError}</div>}
+                  {downloadError && <p className="text-sm text-red-600">{downloadError}</p>}
                 </>
               )}
 
               {shareData?.expiresAt && (
-                <p className="expiration-info">
+                <p className="text-xs text-grey-400">
                   Gültig bis {formatExpiration(shareData.expiresAt)}
                 </p>
               )}
             </div>
 
-            <div className="shared-video-footer">
-              <p>
+            <div className="border-t border-grey-200 pt-md dark:border-grey-700">
+              <p className="text-sm text-grey-500">
                 Willst du auch solche Videos erstellen? Mit dem{' '}
-                <a href={buildUrl('/subtitler')} target="_blank" rel="noopener noreferrer">
+                <a
+                  href={buildUrl('/subtitler')}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-primary-600 hover:underline"
+                >
                   Grünerator
                 </a>{' '}
                 kannst du Reels mit automatischen Untertiteln und grünem Design erstellen!

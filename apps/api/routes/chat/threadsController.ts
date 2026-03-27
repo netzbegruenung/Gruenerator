@@ -8,15 +8,16 @@ import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
-import type { Thread, ThreadWithLastMessage } from './agents/types.js';
-import type { UserProfile } from '../../services/user/types.js';
-import type express from 'express';
+import {
+  getUser,
+  getThreadSettings,
+  updateThreadSettings,
+} from './services/threadPersistenceService.js';
+
+import type { ThreadWithLastMessage } from './agents/types.js';
 
 const log = createLogger('ThreadsController');
 const router = createAuthenticatedRouter();
-
-const getUser = (req: express.Request): UserProfile | undefined =>
-  (req as any).user as UserProfile | undefined;
 
 router.get('/', async (req, res) => {
   try {
@@ -28,51 +29,67 @@ router.get('/', async (req, res) => {
     const statusFilter = (req.query.status as string) || undefined;
     const postgres = getPostgresInstance();
 
-    const params: unknown[] = [user.id];
+    const params: unknown[] = [user.id, user.id];
     let statusClause = '';
     if (statusFilter) {
-      statusClause = ' AND COALESCE(status, $2) = $2';
+      statusClause = ' AND COALESCE(status, $3) = $3';
       params.push(statusFilter);
     }
 
-    const threads = await postgres.query(
-      `SELECT id, user_id, agent_id, title, created_at, updated_at, COALESCE(status, 'regular') as status
-       FROM chat_threads
-       WHERE user_id = $1${statusClause}
-       ORDER BY updated_at DESC`,
+    const rows = await postgres.query(
+      `SELECT t.id, t.user_id, t.agent_id, t.title, t.created_at, t.updated_at,
+              COALESCE(t.status, 'regular') as status, COALESCE(t.thread_type, 'chat') as thread_type,
+              t.notebook_collection_id,
+              CASE
+                WHEN t.user_id::text = $1 THEN 'owner'
+                WHEN t.permissions ? $2 THEN 'shared'
+                ELSE 'group'
+              END as access_type,
+              m.content as last_msg_content, m.role as last_msg_role, m.created_at as last_msg_created_at
+       FROM chat_threads t
+       LEFT JOIN LATERAL (
+         SELECT content, role, created_at
+         FROM chat_messages
+         WHERE thread_id = t.id
+         ORDER BY created_at DESC
+         LIMIT 1
+       ) m ON true
+       WHERE (
+         t.user_id::text = $1
+         OR t.permissions ? $2
+         OR t.is_public = true
+         OR t.id IN (
+           SELECT gcs.content_id::uuid FROM group_content_shares gcs
+           INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id::text = $1
+           WHERE gcs.content_type = 'chat_threads'
+         )
+       )${statusClause}
+       ORDER BY t.updated_at DESC`,
       params
     );
 
-    const threadsWithLastMessage: ThreadWithLastMessage[] = await Promise.all(
-      threads.map(async (thread) => {
-        const messages = await postgres.query(
-          `SELECT content, role, created_at
-           FROM chat_messages
-           WHERE thread_id = $1
-           ORDER BY created_at DESC
-           LIMIT 1`,
-          [thread.id]
-        );
-
-        const lastMsg = messages[0] as
-          | { content: string; role: string; created_at: Date }
-          | undefined;
-        return {
-          id: thread.id as string,
-          userId: thread.user_id as string,
-          agentId: thread.agent_id as string,
-          title: thread.title as string,
-          status: (thread.status as string) || 'regular',
-          createdAt: thread.created_at as Date,
-          updatedAt: thread.updated_at as Date,
-          user_id: thread.user_id as string,
-          agent_id: thread.agent_id as string,
-          created_at: thread.created_at as Date,
-          updated_at: thread.updated_at as Date,
-          lastMessage: lastMsg || null,
-        };
-      })
-    );
+    const threadsWithLastMessage: ThreadWithLastMessage[] = rows.map((row) => ({
+      id: row.id as string,
+      userId: row.user_id as string,
+      agentId: row.agent_id as string,
+      title: row.title as string,
+      status: (row.status as string) || 'regular',
+      threadType: (row.thread_type as string) || 'chat',
+      notebookCollectionId: (row.notebook_collection_id as string) || null,
+      createdAt: row.created_at as Date,
+      updatedAt: row.updated_at as Date,
+      user_id: row.user_id as string,
+      agent_id: row.agent_id as string,
+      created_at: row.created_at as Date,
+      updated_at: row.updated_at as Date,
+      lastMessage: row.last_msg_content
+        ? {
+            content: row.last_msg_content as string,
+            role: row.last_msg_role as string,
+            created_at: row.last_msg_created_at as Date,
+          }
+        : null,
+    }));
 
     res.json(threadsWithLastMessage);
   } catch (error) {
@@ -88,14 +105,14 @@ router.post('/', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { title, agentId } = req.body;
+    const { title, agentId, threadType } = req.body;
 
     const postgres = getPostgresInstance();
     const result = await postgres.query(
-      `INSERT INTO chat_threads (user_id, agent_id, title)
-       VALUES ($1, $2, $3)
-       RETURNING id, user_id, agent_id, title, created_at, updated_at`,
-      [user.id, agentId || 'gruenerator-universal', title || null]
+      `INSERT INTO chat_threads (user_id, agent_id, title, thread_type)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, user_id, agent_id, title, created_at, updated_at, COALESCE(thread_type, 'chat') as thread_type`,
+      [user.id, agentId || 'gruenerator-universal', title || null, threadType || 'chat']
     );
 
     const thread = result[0];
@@ -225,6 +242,62 @@ router.delete('/', async (req, res) => {
   } catch (error) {
     log.error('Error deleting thread:', error);
     res.status(500).json({ error: 'Failed to delete thread' });
+  }
+});
+
+router.get('/:threadId/settings', async (req, res) => {
+  try {
+    const user = getUser(req);
+    if (!user?.id) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { threadId } = req.params;
+
+    const postgres = getPostgresInstance();
+    const threads = await postgres.query(`SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1`, [
+      threadId,
+    ]);
+    if (threads.length === 0) return res.status(404).json({ error: 'Thread not found' });
+    if (threads[0].user_id !== user.id) return res.status(403).json({ error: 'Forbidden' });
+
+    const settings = await getThreadSettings(threadId);
+    res.json({
+      customSystemPrompt: settings?.custom_system_prompt || null,
+      customEnabledTools: settings?.custom_enabled_tools || null,
+    });
+  } catch (error) {
+    log.error('Error fetching thread settings:', error);
+    res.status(500).json({ error: 'Failed to fetch thread settings' });
+  }
+});
+
+router.patch('/:threadId/settings', async (req, res) => {
+  try {
+    const user = getUser(req);
+    if (!user?.id) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { threadId } = req.params;
+    const { customSystemPrompt, customEnabledTools } = req.body as {
+      customSystemPrompt?: string | null;
+      customEnabledTools?: Record<string, boolean> | null;
+    };
+
+    const updated = await updateThreadSettings(threadId, user.id, {
+      customSystemPrompt,
+      customEnabledTools,
+    });
+
+    if (!updated) {
+      return res.status(404).json({ error: 'Thread not found or forbidden' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    log.error('Error updating thread settings:', error);
+    res.status(500).json({ error: 'Failed to update thread settings' });
   }
 });
 

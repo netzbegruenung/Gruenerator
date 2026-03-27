@@ -7,12 +7,11 @@ apps/mobile/ios/
 apps/docs-expo/android/
 apps/docs-expo/ios/
 
-# Other apps not needed for mobile build
+# Other apps not needed for EAS builds (mobile / docs-expo)
 apps/web/
 apps/api/
 apps/docs/
 apps/docs-desktop/
-apps/docs-expo/
 apps/desktop/
 apps/sites/
 apps/gruen-o-mat/

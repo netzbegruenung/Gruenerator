@@ -35,9 +35,7 @@ const mistralClient = new Mistral({
   apiKey: apiKey,
 });
 
-console.log(
-  `[Mistral Client] Initialized with API key: ${apiKey ? `${apiKey.substring(0, 8)}...` : 'not provided'}`
-);
+console.log(`[Mistral Client] Initialized${apiKey ? '' : ' (API key not provided)'}`);
 
 process.on('exit', () => {
   if (connectionMetrics.attempts > 0) {

@@ -5,6 +5,7 @@
 
 import express, { type Router } from 'express';
 
+import textConversionRouter from './textConversion.js';
 import userGalleryRouter from './userGallery.js';
 import userInstructionsRouter from './userInstructions.js';
 import userLibraryRouter from './userLibrary.js';
@@ -15,8 +16,9 @@ const router: Router = express.Router();
 router.use(userInstructionsRouter);
 router.use(userLibraryRouter);
 router.use(userGalleryRouter);
+router.use(textConversionRouter);
 
 export default router;
 
 // Also export individual routers for flexibility
-export { userInstructionsRouter, userLibraryRouter, userGalleryRouter };
+export { userInstructionsRouter, userLibraryRouter, userGalleryRouter, textConversionRouter };

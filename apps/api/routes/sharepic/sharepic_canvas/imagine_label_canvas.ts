@@ -37,8 +37,8 @@ async function addKiLabel(imageBuffer: Buffer): Promise<Buffer> {
 
   ctx.drawImage(img, 0, 0, width, height);
 
-  const baseFontSize = Math.min(width, height) * 0.022;
-  const fontSize = Math.max(12, Math.min(24, Math.round(baseFontSize)));
+  const baseFontSize = Math.min(width, height) * 0.025;
+  const fontSize = Math.max(12, Math.min(48, Math.round(baseFontSize)));
   const fontFamily = '600 ' + fontSize + 'px PTSans-Bold';
 
   ctx.font = fontFamily;

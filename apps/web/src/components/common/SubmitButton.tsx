@@ -1,7 +1,9 @@
+import { buttonVariants } from '@gruenerator/ui';
 import { type JSX, useState, useEffect, useRef, MouseEvent, type ReactNode } from 'react';
 
+import { cn } from '../../utils/cn';
+
 import Spinner from './Spinner';
-import '../../assets/styles/components/ui/button.css';
 
 interface SubmitButtonProps {
   onClick?: (event: React.MouseEvent) => void;
@@ -14,7 +16,6 @@ interface SubmitButtonProps {
   type?: 'button' | 'submit' | 'reset';
   statusMessage?: string;
   showStatus?: boolean;
-  tabIndex?: number;
   imageLimitInfo?: {
     count?: number;
     limit?: number;
@@ -37,7 +38,6 @@ const SubmitButton = ({
   type = 'submit',
   statusMessage,
   showStatus = false,
-  tabIndex,
   imageLimitInfo,
   iconOnly = false,
   disabled,
@@ -116,11 +116,17 @@ const SubmitButton = ({
     <button
       type={isStreamingActive ? 'button' : type}
       onClick={handleClick}
-      className={`btn-primary ${className} ${loading && !isStreaming ? 'btn-loading' : ''} ${internalSuccess ? 'btn-success' : ''} ${iconOnly && !isStreaming ? 'btn-icon-only' : ''} ${isStreamingActive ? 'btn-streaming' : ''}`}
+      className={cn(
+        buttonVariants({ variant: 'brand', size: 'brand' }),
+        loading && !isStreaming && 'opacity-85 cursor-wait',
+        internalSuccess && 'bg-[#28a745]',
+        isStreamingActive &&
+          'min-w-40 hover:not-disabled:bg-[#d32f2f] hover:not-disabled:shadow-[0_4px_12px_rgba(211,47,47,0.25)]',
+        className
+      )}
       aria-busy={loading || isStreaming}
       aria-label={isStreamingActive ? 'Abbrechen' : ariaLabel || text}
       disabled={loading && !isStreaming}
-      tabIndex={tabIndex}
     >
       {isStreamingActive ? (
         <>
@@ -130,7 +136,7 @@ const SubmitButton = ({
       ) : (
         <>
           {loading && <Spinner size="small" white />}
-          {icon && !loading && <span className="btn-icon">{icon}</span>}
+          {icon && !loading && <span className="flex items-center size-4 shrink-0">{icon}</span>}
           {!iconOnly && <span>{getDisplayText()}</span>}
         </>
       )}

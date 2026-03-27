@@ -92,11 +92,37 @@ async function getVideoMetadata(videoPath: string): Promise<VideoMetadata> {
   });
 }
 
-async function extractAudio(videoPath: string, outputPath: string): Promise<string> {
+function getDuration(videoPath: string): Promise<number | null> {
+  return new Promise((resolve) => {
+    ffmpeg.ffprobe(videoPath, (err: Error | null, metadata?: FFprobeMetadata) => {
+      if (err || !metadata?.format?.duration) {
+        resolve(null);
+        return;
+      }
+      const duration = parseFloat(metadata.format.duration);
+      resolve(isNaN(duration) ? null : duration);
+    });
+  });
+}
+
+interface ExtractAudioOptions {
+  onProgress?: (percent: number, timemark: string) => void;
+}
+
+async function extractAudio(
+  videoPath: string,
+  outputPath: string,
+  options?: ExtractAudioOptions
+): Promise<string> {
   log.debug('Starte Audio-Extraktion:', { inputPath: videoPath, outputPath });
 
   if (!fs.existsSync(videoPath)) {
     throw new Error(`Video-Datei nicht gefunden: ${videoPath}`);
+  }
+
+  const duration = await getDuration(videoPath);
+  if (duration) {
+    log.debug(`Video-Dauer: ${duration.toFixed(1)}s`);
   }
 
   return new Promise((resolve, reject) => {
@@ -113,12 +139,24 @@ async function extractAudio(videoPath: string, outputPath: string): Promise<stri
       '-y',
     ]);
 
+    if (duration) {
+      command.setDuration(duration);
+    }
+
     command.on('start', (commandLine: string) => {
       log.debug('FFmpeg Befehl:', commandLine);
     });
 
-    command.on('progress', (progress: { percent?: number }) => {
-      log.debug('Fortschritt:', (progress.percent?.toFixed(1) || '0') + '%');
+    command.on('progress', (progress: { percent?: number; timemark?: string }) => {
+      const percent =
+        progress.percent != null && progress.percent > 0 ? Math.round(progress.percent) : 0;
+      const timemark = progress.timemark ?? '';
+      if (percent > 0) {
+        log.debug('Fortschritt:', percent + '%');
+      } else if (timemark) {
+        log.debug('Fortschritt:', timemark);
+      }
+      options?.onProgress?.(percent, timemark);
     });
 
     command

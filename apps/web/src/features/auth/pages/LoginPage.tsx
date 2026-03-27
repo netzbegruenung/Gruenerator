@@ -4,9 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useInstantAuth } from '../../../hooks/useAuth';
 import { getIntendedRedirect, isMobileAppContext } from '../../../utils/authRedirect';
-
-// Login Feature CSS - Loaded only when this feature is accessed
-import '../../../assets/styles/features/auth/login-page.css';
+import { cn } from '../../../utils/cn';
 
 // Auth Backend URL from environment variable or fallback to relative path
 const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -26,7 +24,7 @@ const PAGE_NAMES: Record<string, string> = {
   search: 'Suche',
   documents: 'Dokumente',
   notebook: 'Fragen & Antworten',
-  generators: 'Generatoren',
+  generators: 'Grüneratoren',
   you: 'Grüne Ideen für dich',
   imagine: 'Grünerator Imagine',
 };
@@ -101,9 +99,11 @@ const LoginPage = ({
   const getHeaderContent = () => {
     if (mode === 'required') {
       return (
-        <div className="auth-header auth-header--required">
-          <h1 className="gradient-title">{displayPageName}</h1>
-          <p className="auth-subtitle">
+        <div className="text-center mb-lg lg:text-left lg:mb-xl">
+          <h1 className="gradient-title text-center text-[1.75rem] font-bold mb-sm lg:text-left lg:text-[2.2rem] lg:mb-md">
+            {displayPageName}
+          </h1>
+          <p className="text-foreground text-base leading-normal mb-sm opacity-90 lg:text-[1.1rem] lg:leading-relaxed">
             {customMessage ||
               (isMobileApp
                 ? `Melde dich an, um ${displayPageName || 'die App'} zu nutzen`
@@ -116,8 +116,10 @@ const LoginPage = ({
     }
 
     return (
-      <div className="auth-header">
-        <h1 className="gradient-title">{isMobileApp ? 'Willkommen!' : 'Willkommen zurück!'}</h1>
+      <div className="text-center mb-lg lg:text-left lg:mb-xl">
+        <h1 className="gradient-title text-center text-[2rem] font-bold mb-sm md:text-[2.2rem] lg:text-left lg:text-[2.5rem] lg:mb-md">
+          {isMobileApp ? 'Willkommen!' : 'Willkommen zurück!'}
+        </h1>
       </div>
     );
   };
@@ -132,8 +134,10 @@ const LoginPage = ({
       />
 
       {isAuthenticating && (
-        <div className="auth-status-message">
-          <p>{isMobileApp ? 'Zurück zur App...' : 'Weiterleitung zum Login...'}</p>
+        <div className="bg-background-alt border border-grey-200 dark:border-grey-700 rounded-sm p-md mb-md text-center">
+          <p className="m-0 text-foreground font-medium">
+            {isMobileApp ? 'Zurück zur App...' : 'Weiterleitung zum Login...'}
+          </p>
         </div>
       )}
     </>
@@ -141,34 +145,78 @@ const LoginPage = ({
 
   if (mode === 'required') {
     return (
-      <div className="auth-modal-overlay">
-        <div className="auth-modal-backdrop" onClick={handleClose} />
-        <div className="auth-container auth-container--modal">
-          <button className="auth-modal-close" onClick={handleClose} aria-label="Login schließen">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-lg animate-in fade-in duration-200 max-[480px]:p-md">
+        <div className="absolute inset-0 bg-black/60" onClick={handleClose} />
+        <div
+          className={cn(
+            'relative z-[1] w-full max-w-[450px] max-h-[90vh] overflow-y-auto',
+            'bg-background border border-grey-200 dark:border-grey-700 rounded-sm',
+            'shadow-xl animate-in slide-in-from-bottom-5 fade-in duration-300',
+            'lg:w-auto lg:min-w-[700px] lg:max-w-[95vw]',
+            'max-[480px]:max-h-[95vh] max-[480px]:p-md'
+          )}
+        >
+          <button
+            className={cn(
+              'absolute top-md right-md z-10 w-9 h-9',
+              'bg-background-alt border border-grey-200 dark:border-grey-700 rounded-full',
+              'cursor-pointer flex items-center justify-center',
+              'text-2xl leading-none text-foreground',
+              'transition-all duration-200 ease-out',
+              'hover:bg-grey-100 dark:hover:bg-grey-800 hover:scale-105',
+              'focus:outline-2 focus:outline-primary-500 focus:outline-offset-2',
+              'active:scale-95'
+            )}
+            onClick={handleClose}
+            aria-label="Login schließen"
+          >
             ×
           </button>
-          <div className="auth-content-wrapper">
-            <div className="auth-content-left">
+          <div className="block lg:flex lg:gap-xl lg:items-start">
+            <div
+              className={cn(
+                'w-full p-0 border-none bg-transparent',
+                'lg:flex-[0_0_40%] lg:border-r lg:border-grey-200 lg:dark:border-grey-700',
+                'lg:bg-background lg:rounded-sm lg:p-xl lg:relative'
+              )}
+            >
               {getHeaderContent()}
 
-              {successMessage && <div className="auth-success-message">{successMessage}</div>}
+              {successMessage && (
+                <div className="bg-primary-50 dark:bg-primary-900/20 border-l-4 border-primary-500 p-md mb-md rounded-sm">
+                  {successMessage}
+                </div>
+              )}
 
-              <div className="auth-legal auth-legal--desktop">
-                <p>
+              <div className="hidden lg:block mt-lg text-center lg:text-left border-t border-grey-200 dark:border-grey-700 pt-md">
+                <p className="m-0 text-foreground opacity-80 text-[0.85rem] leading-normal lg:text-[0.9rem]">
                   Mit der Anmeldung stimmst du unseren{' '}
-                  <Link to="/datenschutz">Nutzungsbedingungen und der Datenschutzerklärung</Link>{' '}
+                  <Link
+                    to="/datenschutz"
+                    className="text-primary-500 no-underline font-medium transition-colors duration-200 hover:text-primary-600 hover:underline"
+                  >
+                    Nutzungsbedingungen und der Datenschutzerklärung
+                  </Link>{' '}
                   zu.
                 </p>
               </div>
             </div>
 
-            <div className="auth-content-right">{loginProviders}</div>
+            <div className="w-full p-0 bg-transparent lg:flex-1 lg:pl-md lg:bg-background lg:rounded-sm lg:p-xl">
+              {loginProviders}
+            </div>
           </div>
 
-          <div className="auth-legal auth-legal--mobile">
-            <p>
+          <div className="block lg:hidden mt-lg text-center border-t border-grey-200 dark:border-grey-700 pt-md">
+            <p className="m-0 text-foreground opacity-80 text-[0.85rem] leading-normal">
               Mit der Anmeldung stimmst du unseren{' '}
-              <Link to="/datenschutz">Nutzungsbedingungen und der Datenschutzerklärung</Link> zu.
+              <Link
+                to="/datenschutz"
+                className="text-primary-500 no-underline font-medium transition-colors duration-200 hover:text-primary-600 hover:underline"
+              >
+                Nutzungsbedingungen und der Datenschutzerklärung
+              </Link>{' '}
+              zu.
             </p>
           </div>
         </div>
@@ -177,28 +225,60 @@ const LoginPage = ({
   }
 
   return (
-    <div className="auth-container">
-      <div className="auth-content-wrapper">
-        <div className="auth-content-left">
+    <div
+      className={cn(
+        'max-w-[450px] mx-auto p-lg px-md mt-[50px] mb-[50px]',
+        'bg-background rounded-md shadow-lg',
+        'max-[480px]:p-md max-[480px]:px-sm max-[480px]:max-w-full max-[480px]:shadow-none max-[480px]:rounded-none max-[480px]:mt-0',
+        'md:max-w-[600px] md:p-lg',
+        'lg:max-w-[900px] lg:p-xl'
+      )}
+    >
+      <div className="block lg:flex lg:gap-xl lg:items-start">
+        <div
+          className={cn(
+            'w-full p-0 border-none bg-transparent',
+            'lg:flex-[0_0_40%] lg:pr-xl lg:border-r lg:border-grey-200 lg:dark:border-grey-700',
+            'lg:bg-background lg:rounded-sm lg:p-xl lg:relative'
+          )}
+        >
           {getHeaderContent()}
 
-          {successMessage && <div className="auth-success-message">{successMessage}</div>}
+          {successMessage && (
+            <div className="bg-primary-50 dark:bg-primary-900/20 border-l-4 border-primary-500 p-md mb-md rounded-sm">
+              {successMessage}
+            </div>
+          )}
 
-          <div className="auth-legal auth-legal--desktop">
-            <p>
+          <div className="hidden lg:block mt-lg text-center lg:text-left border-t border-grey-200 dark:border-grey-700 pt-md">
+            <p className="m-0 text-foreground opacity-80 text-[0.85rem] leading-normal lg:text-[0.9rem]">
               Mit der Anmeldung stimmst du unseren{' '}
-              <Link to="/datenschutz">Nutzungsbedingungen und der Datenschutzerklärung</Link> zu.
+              <Link
+                to="/datenschutz"
+                className="text-primary-500 no-underline font-medium transition-colors duration-200 hover:text-primary-600 hover:underline"
+              >
+                Nutzungsbedingungen und der Datenschutzerklärung
+              </Link>{' '}
+              zu.
             </p>
           </div>
         </div>
 
-        <div className="auth-content-right">{loginProviders}</div>
+        <div className="w-full p-0 bg-transparent lg:flex-1 lg:pl-md lg:bg-background lg:rounded-sm lg:p-xl">
+          {loginProviders}
+        </div>
       </div>
 
-      <div className="auth-legal auth-legal--mobile">
-        <p>
+      <div className="block lg:hidden mt-lg text-center border-t border-grey-200 dark:border-grey-700 pt-md">
+        <p className="m-0 text-foreground opacity-80 text-[0.85rem] leading-normal">
           Mit der Anmeldung stimmst du unseren{' '}
-          <Link to="/datenschutz">Nutzungsbedingungen und der Datenschutzerklärung</Link> zu.
+          <Link
+            to="/datenschutz"
+            className="text-primary-500 no-underline font-medium transition-colors duration-200 hover:text-primary-600 hover:underline"
+          >
+            Nutzungsbedingungen und der Datenschutzerklärung
+          </Link>{' '}
+          zu.
         </p>
       </div>
     </div>

@@ -2,6 +2,7 @@ import {
   lazy,
   Suspense,
   useCallback,
+  useMemo,
   memo,
   type ComponentType,
   type ReactNode,
@@ -242,83 +243,90 @@ const EnhancedSelect = forwardRef<EnhancedSelectRef, EnhancedSelectProps>(
       [enableIcons]
     );
 
-    // Merge custom components
-    const components = {
-      ...customComponents,
-      Placeholder: CustomPlaceholder,
-      MultiValueLabel: CustomMultiValueLabel,
-    };
+    // Merge custom components — memoized to prevent react-select internal re-renders
+    const components = useMemo(
+      () => ({
+        ...customComponents,
+        Placeholder: CustomPlaceholder,
+        MultiValueLabel: CustomMultiValueLabel,
+      }),
+      [customComponents, CustomPlaceholder, CustomMultiValueLabel]
+    );
 
-    // Enhanced styles for multi-value chips
-    const enhancedStyles: StylesConfig<
-      EnhancedSelectOption,
-      boolean,
-      GroupBase<EnhancedSelectOption>
-    > = {
-      multiValue: (base, state) => {
-        const isSpecialMode =
-          (state.data as EnhancedSelectOption)?.metadata?.isSpecialMode || false;
-        if (isSpecialMode) {
-          return {
-            ...base,
-            backgroundColor: 'rgba(135, 206, 250, 0.15)',
-            border: '1px solid var(--himmel)',
-            borderRadius: 'var(--card-border-radius-small)',
-          };
-        }
-        return base;
-      },
-      multiValueLabel: (base, state) => {
-        const isSpecialMode =
-          (state.data as EnhancedSelectOption)?.metadata?.isSpecialMode || false;
-        if (isSpecialMode) {
-          return {
-            ...base,
-            color: 'var(--himmel-dark, var(--font-color))',
-            fontWeight: 600,
-          };
-        }
-        return base;
-      },
-    };
+    // Enhanced styles for multi-value chips — memoized (static, no deps)
+    const enhancedStyles = useMemo<
+      StylesConfig<EnhancedSelectOption, boolean, GroupBase<EnhancedSelectOption>>
+    >(
+      () => ({
+        multiValue: (base, state) => {
+          const isSpecialMode =
+            (state.data as EnhancedSelectOption)?.metadata?.isSpecialMode || false;
+          if (isSpecialMode) {
+            return {
+              ...base,
+              backgroundColor: 'rgba(135, 206, 250, 0.15)',
+              border: '1px solid var(--interactive-accent-color)',
+              borderRadius: 'var(--card-border-radius-small)',
+            };
+          }
+          return base;
+        },
+        multiValueLabel: (base, state) => {
+          const isSpecialMode =
+            (state.data as EnhancedSelectOption)?.metadata?.isSpecialMode || false;
+          if (isSpecialMode) {
+            return {
+              ...base,
+              color: 'var(--font-color)',
+              fontWeight: 600,
+            };
+          }
+          return base;
+        },
+      }),
+      []
+    );
 
     const SelectComponent = isCreatable ? CreatableSelect : Select;
 
-    // Merge enhanced styles with user-provided styles
-    const mergedStyles: StylesConfig<
-      EnhancedSelectOption,
-      boolean,
-      GroupBase<EnhancedSelectOption>
-    > = {
-      ...enhancedStyles,
-      ...customStyles,
-      // Merge functions for overlapping style keys
-      ...(customStyles
-        ? Object.keys(customStyles).reduce<Record<string, unknown>>((acc, key) => {
-            const styleKey = key as keyof StylesConfig<
-              EnhancedSelectOption,
-              boolean,
-              GroupBase<EnhancedSelectOption>
-            >;
-            const enhancedStyleFn = enhancedStyles[styleKey];
-            const customStyleFn = customStyles[styleKey];
-            if (
-              enhancedStyleFn &&
-              typeof enhancedStyleFn === 'function' &&
-              typeof customStyleFn === 'function'
-            ) {
-              acc[key] = (base: unknown, state: unknown) => {
-                const enhancedStyle = (enhancedStyleFn as (b: unknown, s: unknown) => unknown)(
-                  base,
-                  state
-                );
-                return (customStyleFn as (b: unknown, s: unknown) => unknown)(enhancedStyle, state);
-              };
-            }
-            return acc;
-          }, {})
-        : {}),
-    };
+    // Merge enhanced styles with user-provided styles — memoized to prevent Emotion recalculation
+    const mergedStyles = useMemo<
+      StylesConfig<EnhancedSelectOption, boolean, GroupBase<EnhancedSelectOption>>
+    >(
+      () => ({
+        ...enhancedStyles,
+        ...customStyles,
+        ...(customStyles
+          ? Object.keys(customStyles).reduce<Record<string, unknown>>((acc, key) => {
+              const styleKey = key as keyof StylesConfig<
+                EnhancedSelectOption,
+                boolean,
+                GroupBase<EnhancedSelectOption>
+              >;
+              const enhancedStyleFn = enhancedStyles[styleKey];
+              const customStyleFn = customStyles[styleKey];
+              if (
+                enhancedStyleFn &&
+                typeof enhancedStyleFn === 'function' &&
+                typeof customStyleFn === 'function'
+              ) {
+                acc[key] = (base: unknown, state: unknown) => {
+                  const enhancedStyle = (enhancedStyleFn as (b: unknown, s: unknown) => unknown)(
+                    base,
+                    state
+                  );
+                  return (customStyleFn as (b: unknown, s: unknown) => unknown)(
+                    enhancedStyle,
+                    state
+                  );
+                };
+              }
+              return acc;
+            }, {})
+          : {}),
+      }),
+      [enhancedStyles, customStyles]
+    );
 
     const selectElement = (
       <Suspense fallback={<div>Loading...</div>}>

@@ -42,21 +42,17 @@ router.post(
       OffboardingService.validateConfig();
 
       const service = new OffboardingService();
-      const startTime = new Date();
 
       res.status(202).json({
         message: 'Offboarding process started',
-        startTime: startTime.toISOString(),
+        startTime: new Date().toISOString(),
         status: 'running',
       });
 
-      const success = await service.runOffboarding();
-
-      const endTime = new Date();
-      const duration = endTime.getTime() - startTime.getTime();
+      const result = await service.runOffboarding();
 
       log.debug(
-        `Offboarding process completed in ${duration}ms with status: ${success ? 'success' : 'failed'}`
+        `Offboarding process completed in ${result.durationMs}ms: ${result.processed} processed`
       );
     } catch (error) {
       const err = error as Error;
@@ -68,6 +64,34 @@ router.post(
           message: err.message,
         });
       }
+    }
+  }
+);
+
+/**
+ * POST /internal/offboarding/run-sync
+ * Trigger offboarding and wait for completion. Returns anonymized counts only.
+ * Used by GitHub Actions daily cron for protocol/summary.
+ */
+router.post(
+  '/run-sync',
+  requireAdmin as any,
+  async (req: AdminRequest, res: Response): Promise<void> => {
+    try {
+      OffboardingService.validateConfig();
+
+      const service = new OffboardingService();
+      const result = await service.runOffboarding();
+
+      res.json(result);
+    } catch (error) {
+      const err = error as Error;
+      log.error('Offboarding sync run failed:', err.message);
+
+      res.status(500).json({
+        success: false,
+        error: err.message,
+      });
     }
   }
 );

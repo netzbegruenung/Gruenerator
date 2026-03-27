@@ -1,3 +1,4 @@
+import { Button } from '@gruenerator/ui';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
@@ -6,7 +7,6 @@ import apiClient from '../../../components/utils/apiClient';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useGroups } from '../hooks/useGroups';
 
-import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 const JoinGroupPage = () => {
@@ -14,7 +14,9 @@ const JoinGroupPage = () => {
   const navigate = useNavigate();
   const { user: supabaseUser, loading: isLoading, isAuthResolved } = useOptimizedAuth();
   const [groupName, setGroupName] = useState('');
-  const [status, setStatus] = useState('loading');
+  const [status, setStatus] = useState<
+    'loading' | 'ready' | 'already_member' | 'success' | 'error'
+  >('loading');
 
   const { joinGroup, isJoiningGroup, isJoinGroupError, joinGroupError, isJoinGroupSuccess } =
     useGroups({ isActive: true });
@@ -60,8 +62,9 @@ const JoinGroupPage = () => {
     if (!joinToken || !supabaseUser) return;
 
     joinGroup(joinToken, {
-      onSuccess: (result: { alreadyMember?: boolean }) => {
-        if (result.alreadyMember) {
+      onSuccess: (result) => {
+        const { alreadyMember } = result as { alreadyMember?: boolean };
+        if (alreadyMember) {
           setStatus('already_member');
         } else {
           setStatus('success');

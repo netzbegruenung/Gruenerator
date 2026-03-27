@@ -130,7 +130,13 @@
     
     --interactive-accent-color: var(--secondary-600);
     --font-color-disabled: var(--grey-400);
+    --font-color-secondary: var(--grey-500);
+    --font-color-muted: var(--grey-400);
     --border-color-disabled: var(--grey-200);
+    --border-color: var(--grey-200);
+    --success-color: var(--klee);
+    --button-primary-color: var(--white);
+    --button-border-radius: 8px;
 
     /* Scrollbar variables */
     --scrollbar-track-color: var(--background-color-alt);
@@ -199,7 +205,11 @@
 
     --interactive-accent-color: var(--white);
     --font-color-disabled: var(--grey-500);
+    --font-color-secondary: var(--grey-400);
+    --font-color-muted: var(--grey-500);
     --border-color-disabled: var(--grey-600);
+    --border-color: var(--grey-700);
+    --button-primary-color: var(--white);
 
     /* Scrollbar variables for dark theme */
     --scrollbar-track-color: var(--background-color-alt);
@@ -241,7 +251,11 @@
 
         --interactive-accent-color: var(--white);
         --font-color-disabled: var(--grey-500);
+        --font-color-secondary: var(--grey-400);
+        --font-color-muted: var(--grey-500);
         --border-color-disabled: var(--grey-600);
+        --border-color: var(--grey-700);
+        --button-primary-color: var(--white);
 
         /* Scrollbar variables for prefers-color-scheme: dark */
         --scrollbar-track-color: var(--background-color-alt);

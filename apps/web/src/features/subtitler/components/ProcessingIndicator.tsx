@@ -1,8 +1,8 @@
+import { Button } from '@gruenerator/ui';
 import React from 'react';
 import { FaTimes } from 'react-icons/fa';
 
 import Spinner from '../../../components/common/Spinner';
-import '../styles/ProcessingIndicator.css';
 
 interface ProcessingIndicatorProps {
   onCancel?: () => void;
@@ -11,34 +11,38 @@ interface ProcessingIndicatorProps {
 
 const ProcessingIndicator: React.FC<ProcessingIndicatorProps> = ({ onCancel, error }) => {
   return (
-    <div className="processing-indicator">
-      <div className="processing-container">
-        <div className="processing-content">
+    <div className="flex items-center justify-center min-h-[300px]">
+      <div className="flex flex-col items-center gap-lg text-center max-w-[400px]">
+        <div className="flex flex-col items-center gap-md">
           {error ? (
             <>
-              <div className="processing-icon-container error">
-                <FaTimes className="processing-icon error-icon" />
+              <div className="flex size-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                <FaTimes className="size-6 text-red-600" />
               </div>
-              <div className="processing-text">
-                <h3>Fehler bei der Verarbeitung</h3>
-                <p>{error}</p>
+              <div className="space-y-xs">
+                <h3 className="text-lg font-semibold text-foreground-heading">
+                  Fehler bei der Verarbeitung
+                </h3>
+                <p className="text-foreground">{error}</p>
               </div>
             </>
           ) : (
             <>
               <Spinner size="large" />
-              <div className="processing-text">
-                <h3>Video wird verarbeitet...</h3>
-                <p>Der Grünerator erstellt jetzt deine Untertitel</p>
+              <div className="space-y-xs">
+                <h3 className="text-lg font-semibold text-foreground-heading">
+                  Video wird verarbeitet...
+                </h3>
+                <p className="text-foreground">Der Grünerator erstellt jetzt deine Untertitel</p>
               </div>
             </>
           )}
         </div>
 
         {onCancel && (
-          <button className="btn-secondary cancel-btn" onClick={onCancel}>
+          <Button variant="outline" onClick={onCancel}>
             Verarbeitung abbrechen
-          </button>
+          </Button>
         )}
       </div>
     </div>

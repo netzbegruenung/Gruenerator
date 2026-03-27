@@ -158,13 +158,6 @@ export interface GroupInstructionsUpdateBody {
   instructions: string;
 }
 
-export interface GroupKnowledgeBody {
-  title: string;
-  content: string;
-  knowledge_type?: string;
-  tags?: string[];
-}
-
 export interface GroupContentShareBody {
   contentType:
     | 'documents'

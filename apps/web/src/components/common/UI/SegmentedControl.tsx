@@ -1,5 +1,6 @@
 import { type JSX, useCallback } from 'react';
-import '../../../assets/styles/components/ui/SegmentedControl.css';
+
+import { cn } from '../../../utils/cn';
 
 // Define step interface
 interface SegmentedStep {
@@ -39,26 +40,45 @@ const SegmentedControl = ({
   );
 
   return (
-    // New wrapper to include the label and apply frame styles
-    <div className={`segmented-control-wrapper ${disabled ? 'disabled' : ''}`}>
-      {label && <span className="segmented-control-label">{label}</span>}
+    <div
+      className={cn(
+        'flex flex-row items-center gap-md [border:1px_solid] border-grey-200 dark:border-grey-700 rounded-lg p-sm bg-background w-full box-border',
+        disabled && 'opacity-70'
+      )}
+    >
+      {label && (
+        <span className="text-[0.85rem] font-medium text-foreground whitespace-nowrap shrink-0">
+          {label}
+        </span>
+      )}
       <div
-        className={`segmented-control-container ${disabled ? 'disabled' : ''}`}
-        role="group" // Using "group" for simplicity, could use "radiogroup" with more aria attributes
+        className={cn(
+          'inline-flex rounded-md overflow-hidden grow box-border border border-grey-200 dark:border-grey-700',
+          disabled && 'opacity-70'
+        )}
+        role="group"
         aria-label={ariaLabel}
       >
-        {steps.map((step) => {
+        {steps.map((step, index) => {
           const isActive = step.value === currentValue;
           const isDisabled = step.disabled || disabled;
+          const isLast = index === steps.length - 1;
           return (
             <button
               key={step.value}
-              type="button" // Important for forms
-              className={`segmented-control-button ${isActive ? 'active' : ''} ${isDisabled ? 'disabled' : ''}`}
+              type="button"
+              className={cn(
+                'grow basis-0 py-2.5 px-4 border-none bg-background text-foreground text-[0.9rem] cursor-pointer text-center whitespace-nowrap transition-all duration-200',
+                !isLast && 'border-r border-r-grey-200 dark:border-r-grey-700',
+                !isActive && !isDisabled && 'hover:bg-background-alt',
+                isActive &&
+                  'bg-[var(--primary,#4CAF50)] text-white font-medium shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)]',
+                isDisabled && 'cursor-not-allowed',
+                'focus-visible:outline-2 focus-visible:outline-[var(--interactive-accent-color)] focus-visible:outline-offset-[-1px] focus-visible:z-[1] focus-visible:relative'
+              )}
               onClick={() => handleClick(step.value, step.disabled)}
               disabled={isDisabled}
-              aria-pressed={isActive} // Indicates the pressed state for assistive technologies
-              // aria-label={step.label} // Optionally, if label text is not descriptive enough
+              aria-pressed={isActive}
             >
               {step.label}
             </button>

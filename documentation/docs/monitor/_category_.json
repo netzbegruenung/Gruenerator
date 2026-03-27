@@ -1,0 +1,8 @@
+{
+  "label": "Themen-Monitor",
+  "position": 5,
+  "link": {
+    "type": "doc",
+    "id": "monitor/intro"
+  }
+}

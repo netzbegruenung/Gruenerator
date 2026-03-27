@@ -26,6 +26,9 @@ COPY services/mcp ./services/mcp
 
 # Compile shared package (MCP imports @gruenerator/shared at runtime)
 RUN pnpm --filter @gruenerator/shared build
+# Redirect shared exports from .ts source to compiled .js/.d.ts so MCP's
+# stricter tsconfig doesn't type-check shared source (skipLibCheck applies to .d.ts)
+RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' /app/packages/shared/package.json
 
 # Compile MCP server
 WORKDIR /app/services/mcp

@@ -14,7 +14,6 @@ Zur Einführung in Funktionen, Datenschutz und Open‑Source‑Grundlagen siehe 
 - Eigene Daten im Grünerator: Eure Inhalte, Positionen und Beschlüsse fließen direkt in die KI‑gestützten Antworten ein.
 - Sicherer, dauerhafter, kostenfreier Zugang für Basismitglieder.
 - Priorisierte Weiterentwicklung zugunsten der kommunalen Arbeit und Ehrenamtlichen.
-- Aufnahme von Nicht-Grünen-Mitgliedern (soon)
 
 ## Wer kann ein Notebook erwerben?
 
@@ -23,11 +22,11 @@ Zur Einführung in Funktionen, Datenschutz und Open‑Source‑Grundlagen siehe 
 
 ## Preise für Landesverbände (pro Notebook / Jahr)
 
-**Groß (≥ 20.000): 6.000 €**
+**Groß (≥ 20.000): 7.000 €**
 
 - Baden‑Württemberg, Bayern, Nordrhein‑Westfalen
 
-**Mittel (10.000–19.999): 3.000 €**
+**Mittel (10.000–19.999): 3.500 €**
 
 - Berlin, Hessen, Niedersachsen
 

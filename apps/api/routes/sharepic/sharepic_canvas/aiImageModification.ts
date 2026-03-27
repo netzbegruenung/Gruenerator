@@ -1,19 +1,12 @@
-import { createRequire } from 'module';
-
-import Anthropic from '@anthropic-ai/sdk';
+import { generateText } from 'ai';
 import { Router, type Request, type Response } from 'express';
 
+import { getModel } from '../../../services/ai/providers.js';
+import { extractJsonObject } from '../../../utils/jsonParser.js';
 import { createLogger } from '../../../utils/logger.js';
 
-const require = createRequire(import.meta.url);
 const log = createLogger('aiImageModifica');
 const router: Router = Router();
-
-require('dotenv').config({ quiet: true });
-
-const anthropic = new Anthropic({
-  apiKey: process.env.CLAUDE_API_KEY,
-});
 
 interface ColorPair {
   background: string;
@@ -213,30 +206,22 @@ async function generateImageModification(
   `;
 
   try {
-    const response = await anthropic.messages.create({
-      model: 'claude-3-haiku-20240307',
-      max_tokens: 2000,
-      temperature: 0.2,
+    const result = await generateText({
+      model: getModel('mistral', 'mistral-small-latest'),
       system:
         'Du bist ein erfahrener Bildbearbeiter. Deine Aufgabe ist es, Benutzeranweisungen in konkrete Bildmodifikationsparameter umzuwandeln. Gib nur das resultierende JSON-Objekt zurück.',
-      messages: [{ role: 'user', content: prompt }],
+      prompt,
+      maxOutputTokens: 2000,
+      temperature: 0.2,
     });
 
-    if (!response.content || !Array.isArray(response.content)) {
-      throw new Error('Unexpected response format from Claude API');
+    log.debug('[AI Image Modification API] Processed text content:', result.text);
+
+    const parsed = extractJsonObject<Partial<DreizeilenParams>>(result.text);
+    if (!parsed) {
+      throw new Error('Failed to parse JSON from AI response');
     }
-
-    const textContent = response.content
-      .map((item) => {
-        if ('text' in item) {
-          return item.text;
-        }
-        return '';
-      })
-      .join('');
-    log.debug('[AI Image Modification API] Processed text content:', textContent);
-
-    return JSON.parse(textContent) as Partial<DreizeilenParams>;
+    return parsed;
   } catch (error) {
     log.error('[AI Image Modification API] Error generating image modification:', error);
     throw error;

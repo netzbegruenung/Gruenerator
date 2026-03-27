@@ -151,11 +151,16 @@ const TextsSection = memo(
     }, [textsQuery, onErrorMessage]);
 
     // Memoized delete handler
-    const handleDelete = useCallback((textId: string) => deleteText(textId), [deleteText]);
+    const handleDelete = useCallback(
+      async (textId: string, _item: DocumentItem): Promise<void> => {
+        await deleteText(textId);
+      },
+      [deleteText]
+    );
 
     // Memoized bulk delete handler wrapper
     const handleBulkDelete = useCallback(
-      async (ids: string[]) => {
+      async (ids: string[]): Promise<void> => {
         await handleBulkDeleteTexts(ids);
       },
       [handleBulkDeleteTexts]

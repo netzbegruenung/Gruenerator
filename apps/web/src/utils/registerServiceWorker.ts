@@ -18,7 +18,6 @@ export interface ServiceWorkerStatus {
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   // Only register in production and if Service Worker is supported
   if (import.meta.env.DEV || !('serviceWorker' in navigator)) {
-    console.log('[SW] Service Worker not available or in development mode');
     return null;
   }
 
@@ -26,8 +25,6 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
     const registration = await navigator.serviceWorker.register('/sw-illustration-cache.js', {
       scope: '/',
     });
-
-    console.log('[SW] Service Worker registered successfully:', registration.scope);
 
     // Handle updates
     registration.addEventListener('updatefound', () => {
@@ -37,8 +34,6 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
       newWorker.addEventListener('statechange', () => {
         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
           // New Service Worker available, notify user
-          console.log('[SW] New version available! Refresh to update.');
-
           // Show a notification to the user — reload happens via controllerchange
           if (window.confirm('Eine neue Version ist verfügbar. Möchtest du aktualisieren?')) {
             newWorker.postMessage({ type: 'SKIP_WAITING' });
@@ -52,7 +47,6 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (isReloading) return;
       isReloading = true;
-      console.log('[SW] Controller changed, reloading...');
       window.location.reload();
     });
 
@@ -74,7 +68,6 @@ export async function unregisterServiceWorker(): Promise<boolean> {
   try {
     const registration = await navigator.serviceWorker.ready;
     const unregistered = await registration.unregister();
-    console.log('[SW] Service Worker unregistered:', unregistered);
     return unregistered;
   } catch (error) {
     console.error('[SW] Unregistration failed:', error);

@@ -4,7 +4,8 @@ import { useDesktopTabsStore } from '../../../stores/desktopTabsStore';
 
 import NewTabButton from './NewTabButton';
 import Tab from './Tab';
-import './desktop-tabs.css';
+
+const appRegionNoDrag = { WebkitAppRegion: 'no-drag' } as React.CSSProperties;
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -23,7 +24,7 @@ class TabBarErrorBoundary extends Component<{ children: ReactNode }, ErrorBounda
 
   render() {
     if (this.state.hasError) {
-      return <div className="tab-bar-container" style={{ flex: 1 }} />;
+      return <div className="tab-bar-container flex-1 flex items-end h-full min-w-0 overflow-hidden mr-3 gap-1" style={{ ...appRegionNoDrag, flex: 1 }} />;
     }
     return this.props.children;
   }
@@ -82,9 +83,19 @@ const TabBarContent: React.FC = () => {
   }, []);
 
   return (
-    <div className="tab-bar-container" ref={containerRef} role="tablist" aria-label="Offene Tabs">
-      <div className="tab-bar-scroll" ref={scrollRef} onWheel={handleWheel}>
-        <div className="tab-bar-inner">
+    <div
+      className="tab-bar-container flex-1 flex items-end h-full min-w-0 overflow-hidden mr-3 gap-1"
+      style={appRegionNoDrag}
+      ref={containerRef}
+      role="tablist"
+      aria-label="Offene Tabs"
+    >
+      <div
+        className="flex-1 flex items-end h-full overflow-x-auto overflow-y-hidden p-0 scrollbar-none"
+        ref={scrollRef}
+        onWheel={handleWheel}
+      >
+        <div className="flex items-end h-full gap-1">
           {tabs.map((tab, index) => (
             <Tab
               key={tab.id}

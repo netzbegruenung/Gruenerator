@@ -10,22 +10,9 @@
    Base Layout
    ======================================== */
 
-/* Prevent content-wrapper from forcing scroll when scanner is shown */
-.content-wrapper:has(.scanner-page) {
-  min-height: 0 !important;
-  margin-bottom: 0;
-  height: calc(100dvh - var(--safe-area-top, 0px));
-  overflow-y: auto;
-}
-
 /* Hide header chrome when results are showing to maximise content space */
 .scanner-layout:has(.scanner-results-state) .scanner-page-header,
 .scanner-layout:has(.scanner-results-state) .scanner-result-meta {
-  display: none;
-}
-
-/* Prevent footer from adding height on scanner page */
-.app-content:has(.scanner-page) .footer {
   display: none;
 }
 

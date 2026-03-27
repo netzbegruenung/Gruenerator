@@ -1,3 +1,5 @@
+import * as Notifications from 'expo-notifications';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 
 import { initializeApiClient } from '../services/api';
@@ -31,6 +33,19 @@ export function useAppInitialization() {
 
     initialize();
   }, [loadPreferences]);
+
+  // Handle notification taps → deep link navigation
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as Record<string, unknown>;
+      if (data?.action_url && typeof data.action_url === 'string') {
+        try {
+          router.push(data.action_url as never);
+        } catch {}
+      }
+    });
+    return () => subscription.remove();
+  }, []);
 
   return { isInitialized };
 }

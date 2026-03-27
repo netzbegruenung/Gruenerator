@@ -1,9 +1,11 @@
+import { Button } from '@gruenerator/ui';
 import { type JSX, useState, useRef, useMemo, useCallback, useEffect, ReactNode } from 'react';
 import { type IconType } from 'react-icons';
 import { FaInstagram, FaFacebook, FaTwitter, FaLinkedin } from 'react-icons/fa';
 import { HiX, HiCheck, HiDownload } from 'react-icons/hi';
 import { IoShareOutline, IoCopyOutline } from 'react-icons/io5';
 
+import { cn } from '../../utils/cn';
 import {
   canShareFiles,
   shareImageFile,
@@ -17,8 +19,11 @@ import {
 } from '../../utils/shareUtils';
 
 type SharePlatform = 'instagram' | 'facebook' | 'twitter' | 'linkedin';
-import '../../assets/styles/components/ui/button.css';
-import '../../assets/styles/components/common/sharepic-share-modal.css';
+
+const actionRow =
+  'flex gap-md w-full mb-md mt-md max-md:flex-wrap max-md:gap-3 [&>.button-wrapper]:flex-1 max-md:[&>.button-wrapper]:basis-full max-md:[&>.button-wrapper:nth-child(n+2)]:basis-[calc(50%-0.375rem)]';
+const btnRow =
+  'inline-flex items-center justify-center gap-1.5 px-5 py-2.5 border-none rounded-[5px] bg-secondary-600 text-white cursor-pointer text-base no-underline transition-all duration-200 hover:bg-secondary-700';
 
 const PLATFORM_ICONS: Record<SharePlatform, IconType> = {
   instagram: FaInstagram,
@@ -221,53 +226,76 @@ const SharepicShareModal = ({
   const hasPlatforms = availablePlatforms.length > 0;
 
   return (
-    <div className="sharepic-share-overlay" onClick={handleOverlayClick}>
+    <div
+      className="fixed inset-0 bg-black/70 flex justify-center items-center z-[1100] backdrop-blur-[5px] p-md box-border"
+      onClick={handleOverlayClick}
+    >
       <div
-        className="sharepic-share-modal"
+        className="bg-background rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.2)] max-w-[800px] w-full max-h-[90vh] overflow-y-auto animate-[sharepicModalFadeIn_0.25s_ease-out] max-sm:max-w-full max-sm:mx-sm max-sm:max-h-[calc(100vh-var(--spacing-large))] max-sm:rounded-xl max-md:max-w-[95%]"
         ref={modalRef}
         onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
-        <div className="sharepic-share-header">
-          <div className="sharepic-share-title">
-            <IoShareOutline className="sharepic-share-icon" />
-            <h4>Auf Social Media teilen</h4>
+        <div className="flex justify-between items-center px-lg py-md border-b border-grey-200 dark:border-grey-700">
+          <div className="flex items-center gap-sm">
+            <IoShareOutline className="text-[1.25rem] text-primary-600" />
+            <h4 className="m-0 text-[1.1rem] font-semibold text-foreground-heading">
+              Auf Social Media teilen
+            </h4>
           </div>
-          <button className="sharepic-share-close" onClick={onClose} aria-label="Schließen">
+          <button
+            className="bg-transparent border-none cursor-pointer p-xs rounded-lg text-grey-400 transition-all duration-200 flex items-center justify-center hover:bg-background-alt hover:text-foreground [&_svg]:text-[1.25rem]"
+            onClick={onClose}
+            aria-label="Schließen"
+          >
             <HiX />
           </button>
         </div>
 
-        <div className="sharepic-share-content">
+        <div className="p-lg grid grid-cols-2 gap-lg items-start max-md:grid-cols-1 max-sm:p-md max-sm:gap-md">
           {sharepicData?.image && (
-            <div className="sharepic-share-image-section">
-              <div className="sharepic-share-image-container">
-                <img src={sharepicData.image} alt="Sharepic" className="sharepic-share-preview" />
+            <div className="sticky top-lg max-md:relative max-md:top-0">
+              <div className="flex justify-center">
+                <img
+                  src={sharepicData.image}
+                  alt="Sharepic"
+                  className="max-w-full max-h-[350px] object-contain rounded-xl shadow-md max-md:max-h-[250px] max-sm:max-h-[180px]"
+                />
               </div>
             </div>
           )}
 
-          <div className="sharepic-share-right-section">
-            {shareError && <div className="sharepic-share-error">{shareError}</div>}
+          <div className="flex flex-col gap-md">
+            {shareError && (
+              <div className="text-[#D32F2F] text-[0.85rem] text-center p-sm bg-[rgba(220,38,38,0.1)] rounded-lg col-span-full">
+                {shareError}
+              </div>
+            )}
 
             {hasPlatforms ? (
-              <div className="sharepic-share-platforms">
+              <div className="flex flex-col gap-md">
                 {availablePlatforms.map((platformId) => {
                   const Icon = PLATFORM_ICONS[platformId as SharePlatform];
                   const platformText = platformTexts[platformId as SharePlatform];
                   const color = PLATFORM_COLORS[platformId as SharePlatform];
 
                   return (
-                    <div key={platformId} className="sharepic-platform-card">
-                      <div className="sharepic-platform-header" style={{ borderLeftColor: color }}>
-                        {Icon && <Icon className="sharepic-platform-icon" style={{ color }} />}
-                        <span className="sharepic-platform-name">
+                    <div
+                      key={platformId}
+                      className="bg-background-alt rounded-xl overflow-hidden border border-grey-200 dark:border-grey-700"
+                    >
+                      <div
+                        className="flex items-center gap-sm px-md py-sm border-l-[3px] bg-background"
+                        style={{ borderLeftColor: color }}
+                      >
+                        {Icon && <Icon className="text-[1.1rem]" style={{ color }} />}
+                        <span className="font-semibold text-[0.95rem] text-foreground-heading">
                           {getPlatformDisplayName(platformId)}
                         </span>
                       </div>
 
                       {(platformText || socialContent) && (
-                        <div className="sharepic-platform-text">
-                          <div className="sharepic-platform-text-preview">
+                        <div className="px-md py-sm border-t border-grey-200 dark:border-grey-700">
+                          <div className="text-[0.85rem] text-grey-400 leading-[1.4] whitespace-pre-wrap break-words max-sm:text-[0.8rem]">
                             {(() => {
                               const text = platformText || socialContent || '';
                               return text.length > 150 ? text.substring(0, 150) + '...' : text;
@@ -276,11 +304,16 @@ const SharepicShareModal = ({
                         </div>
                       )}
 
-                      <div className="action-buttons three-buttons sharepic-action-row">
+                      <div
+                        className={cn(
+                          actionRow,
+                          'px-md py-sm mb-0 max-sm:flex-col max-sm:gap-xs [&_.button-wrapper]:flex-1 [&_.button-wrapper]:min-w-0 max-sm:[&_.button-wrapper]:flex-none max-sm:[&_.button-wrapper]:w-full [&_button]:w-full [&_button]:whitespace-nowrap [&_button]:text-[0.85rem] [&_button]:h-10 [&_button]:rounded-[var(--button-border-radius,7px)]'
+                        )}
+                      >
                         {(platformText || socialContent) && (
-                          <div className="button-wrapper">
+                          <div className="flex items-center flex-1">
                             <button
-                              className="copy-button"
+                              className={btnRow}
                               onClick={() => handleCopyText(platformId)}
                               disabled={isSharing}
                             >
@@ -296,9 +329,9 @@ const SharepicShareModal = ({
                             </button>
                           </div>
                         )}
-                        <div className="button-wrapper">
+                        <div className="flex items-center flex-1">
                           <button
-                            className="copy-button"
+                            className={btnRow}
                             onClick={() => handleShareToPlatform(platformId)}
                             disabled={isSharing}
                           >
@@ -320,9 +353,9 @@ const SharepicShareModal = ({
                             )}
                           </button>
                         </div>
-                        <div className="button-wrapper">
+                        <div className="flex items-center flex-1">
                           <button
-                            className="download-button"
+                            className={cn(btnRow)}
                             onClick={() => handleDownloadImage(platformId)}
                             disabled={isSharing}
                           >
@@ -343,12 +376,19 @@ const SharepicShareModal = ({
                 })}
               </div>
             ) : (
-              <div className="sharepic-share-fallback">
-                <p>Teile dein Sharepic auf Social Media:</p>
-                <div className="action-buttons three-buttons sharepic-action-row">
+              <div className="flex flex-col gap-sm">
+                <p className="text-grey-400 m-0 text-center">
+                  Teile dein Sharepic auf Social Media:
+                </p>
+                <div
+                  className={cn(
+                    actionRow,
+                    'p-0 max-sm:flex-col max-sm:gap-xs max-sm:[&_.button-wrapper]:flex-none max-sm:[&_.button-wrapper]:w-full [&_button]:w-full [&_button]:whitespace-nowrap [&_button]:text-[0.85rem] [&_button]:h-10 [&_button]:rounded-[var(--button-border-radius,7px)]'
+                  )}
+                >
                   {socialContent && (
-                    <div className="button-wrapper">
-                      <button className="copy-button" onClick={() => handleCopyText('default')}>
+                    <div className="flex items-center flex-1">
+                      <button className={btnRow} onClick={() => handleCopyText('default')}>
                         {copySuccess === 'text-default' ? (
                           <>
                             <HiCheck /> Kopiert!
@@ -361,9 +401,10 @@ const SharepicShareModal = ({
                       </button>
                     </div>
                   )}
-                  <div className="button-wrapper">
-                    <button
-                      className="btn-primary"
+                  <div className="flex items-center flex-1">
+                    <Button
+                      variant="brand"
+                      size="brand"
                       onClick={() => handleShareToPlatform('instagram')}
                       disabled={isSharing}
                     >
@@ -376,11 +417,11 @@ const SharepicShareModal = ({
                           <FaInstagram /> Bild kopieren
                         </>
                       )}
-                    </button>
+                    </Button>
                   </div>
-                  <div className="button-wrapper">
+                  <div className="flex items-center flex-1">
                     <button
-                      className="download-button"
+                      className={btnRow}
                       onClick={() => handleDownloadImage('sharepic')}
                       disabled={isSharing}
                     >
@@ -391,7 +432,7 @@ const SharepicShareModal = ({
               </div>
             )}
 
-            <p className="sharepic-share-hint">
+            <p className="text-center text-grey-400 text-[0.85rem] p-sm bg-background-alt rounded-lg mt-auto">
               {isMobileDevice()
                 ? 'Tipp: Nach dem Teilen den kopierten Text in die Bildunterschrift einfügen.'
                 : 'Tipp: Kopiere zuerst den Text, dann klicke auf die Plattform. Das Bild kannst du separat herunterladen und hochladen.'}

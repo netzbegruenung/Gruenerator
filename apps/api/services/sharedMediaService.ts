@@ -467,6 +467,8 @@ class SharedMediaService {
                        sm.file_path, sm.file_name, sm.thumbnail_path, sm.file_size, sm.mime_type,
                        sm.duration, sm.project_id, sm.image_type, sm.image_metadata,
                        sm.status, sm.download_count, sm.view_count, sm.created_at,
+                       sm.wolke_share_link_id, sm.wolke_file_path,
+                       sm.expires_at, sm.password_hash, sm.transfer_files, sm.transfer_message,
                        COALESCE(p.first_name, p.display_name, 'Jemand') as sharer_name
                 FROM shared_media sm
                 LEFT JOIN profiles p ON sm.user_id = p.id
@@ -525,27 +527,36 @@ class SharedMediaService {
     }
   }
 
-  async recordDownload(shareToken: string, email: string, ipAddress: string): Promise<boolean> {
+  async recordDownload(
+    shareToken: string,
+    email: string | null,
+    ipAddress: string,
+    shareId?: string
+  ): Promise<boolean> {
     await this.ensureInitialized();
 
     try {
-      const share = await this.getShareByToken(shareToken);
-      if (!share) {
-        throw new Error('Share not found');
+      let id = shareId;
+      if (!id) {
+        const share = await this.getShareByToken(shareToken);
+        if (!share) {
+          throw new Error('Share not found');
+        }
+        id = share.id;
       }
 
       const insertQuery = `
                 INSERT INTO shared_media_downloads (shared_media_id, downloader_email, ip_address)
                 VALUES ($1, $2, $3)
             `;
-      await this.postgres!.query(insertQuery, [share.id, email, ipAddress]);
+      await this.postgres!.query(insertQuery, [id, email, ipAddress]);
 
       const updateQuery = `
                 UPDATE shared_media
                 SET download_count = download_count + 1
                 WHERE id = $1
             `;
-      await this.postgres!.query(updateQuery, [share.id]);
+      await this.postgres!.query(updateQuery, [id]);
 
       console.log(`[SharedMediaService] Recorded download for ${shareToken} by ${email}`);
 

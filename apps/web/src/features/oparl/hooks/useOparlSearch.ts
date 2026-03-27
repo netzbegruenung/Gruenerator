@@ -28,7 +28,7 @@ export const useOparlSearch = () => {
 
       try {
         const result = await searchPapers(query.trim(), {
-          city: options.city || selectedCity,
+          city: options.city ?? selectedCity ?? undefined,
           limit: options.limit || 10,
         });
 

@@ -3,25 +3,34 @@
  * Extracts the existing scanner logic into a separate tab component
  */
 
+import { FeatureToggle } from '@gruenerator/ui';
 import { motion, AnimatePresence } from 'motion/react';
 import { lazy, Suspense, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { HiX } from 'react-icons/hi';
 import {
   PiCamera,
+  PiCheckSquare,
+  PiKanban,
   PiListChecks,
+  PiNotePencil,
   PiNotepad,
   PiScan,
+  PiShieldCheck,
   PiTextAa,
   PiUploadSimple,
   PiX,
 } from 'react-icons/pi';
 
-import DisplaySection from '../../../components/common/Form/BaseForm/DisplaySection';
-import useResponsive from '../../../components/common/Form/hooks/useResponsive';
+import DisplaySection from '../../../components/common/ContentDisplay/DisplaySection';
 import SubmitButton from '../../../components/common/SubmitButton';
 import apiClient from '../../../components/utils/apiClient';
+import { useContentActions } from '../../../hooks/useContentActions';
+import useResponsive from '../../../hooks/useResponsive';
 import { useAuthStore } from '../../../stores/authStore';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
+import { cn } from '../../../utils/cn';
+
+const DocsEditorModal = lazy(() => import('../../../components/common/DocsEditorModal'));
 import { uploadZoneVariants, AnimatedUploadIcon, AnimatedFileIcon } from '../ScannerAnimations';
 
 const CameraScanner = lazy(() => import('../CameraScanner'));
@@ -79,9 +88,10 @@ const getTransformPresets = (partyName: string) => [
 
 interface ScannerTabProps {
   onProcessingChange?: (isProcessing: boolean) => void;
+  onResultsChange?: (hasResults: boolean) => void;
 }
 
-const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
+const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [scannerState, setScannerState] = useState<ScannerState>('upload');
   const [error, setError] = useState<string | null>(null);
@@ -89,6 +99,7 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isTransforming, setIsTransforming] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
+  const [usePrivateOcr, setUsePrivateOcr] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
   const { isMobileView } = useResponsive(768);
@@ -100,6 +111,26 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
   const setGeneratedText = useGeneratedTextStore((state) => state.setGeneratedText);
   const setTextWithHistory = useGeneratedTextStore((state) => state.setTextWithHistory);
   const clearGeneratedText = useGeneratedTextStore((state) => state.clearGeneratedText);
+
+  const getContent = useCallback(() => {
+    const stored = useGeneratedTextStore.getState().getGeneratedText(COMPONENT_NAME);
+    if (typeof stored === 'string') return stored;
+    if (stored && typeof stored === 'object' && 'content' in stored)
+      return String(stored.content ?? '');
+    return result?.text || '';
+  }, [result]);
+  const getTitle = useCallback(
+    () => (selectedFiles.length === 1 ? selectedFiles[0].name.replace(/\.[^.]+$/, '') : 'Scanner'),
+    [selectedFiles]
+  );
+  const {
+    handleOpenInDocs,
+    handleCreateTodoList,
+    handleCreateBoard,
+    actionLoading,
+    editorModal,
+    closeEditorModal,
+  } = useContentActions({ getContent, getTitle });
 
   const handleTransform = useCallback(
     async (instruction: string) => {
@@ -131,7 +162,8 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
 
   useEffect(() => {
     onProcessingChange?.(scannerState === 'processing');
-  }, [scannerState, onProcessingChange]);
+    onResultsChange?.(scannerState === 'success');
+  }, [scannerState, onProcessingChange, onResultsChange]);
 
   const validateFile = (file: File): string | null => {
     const ext = '.' + file.name.split('.').pop()?.toLowerCase();
@@ -256,7 +288,8 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await apiClient.post('/scanner/extract', formData, {
+        const url = usePrivateOcr ? '/scanner/extract?provider=docling' : '/scanner/extract';
+        const response = await apiClient.post(url, formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
@@ -309,13 +342,19 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
   const hasResult = scannerState === 'success' && result;
 
   return (
-    <div className={`scanner-tab-content ${isDragOver ? 'drag-over' : ''}`}>
+    <div
+      className={cn(
+        'mx-auto w-full max-w-[640px] flex-1 content-center px-md py-lg',
+        'has-[.scanner-results]:max-w-[840px]',
+        isDragOver && 'drag-over'
+      )}
+    >
       <input
         ref={fileInputRef}
         type="file"
         accept={ALLOWED_EXTENSIONS.join(',')}
         onChange={handleInputChange}
-        className="scanner-file-input"
+        className="hidden"
         aria-label="Dateien auswählen"
         multiple
       />
@@ -331,27 +370,27 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
             transition={{ duration: 0.2 }}
           >
             {isMobileView ? (
-              <div className="scanner-mobile-actions">
+              <div className="flex justify-center gap-md px-6 py-12">
                 <button
-                  className="scanner-mobile-action-btn"
+                  className="flex h-[140px] w-[140px] flex-col items-center justify-center gap-sm rounded-lg border border-grey-200 bg-background text-foreground transition-[border-color,background] duration-200 [-webkit-tap-highlight-color:transparent] active:border-primary active:bg-primary-50 dark:border-grey-700 dark:active:bg-primary-900"
                   onClick={() => setShowCamera(true)}
                   type="button"
                 >
                   <PiCamera size={36} />
-                  <span className="scanner-mobile-action-label">Kamera</span>
+                  <span className="text-[0.9375rem] font-medium">Kamera</span>
                 </button>
                 <button
-                  className="scanner-mobile-action-btn"
+                  className="flex h-[140px] w-[140px] flex-col items-center justify-center gap-sm rounded-lg border border-grey-200 bg-background text-foreground transition-[border-color,background] duration-200 [-webkit-tap-highlight-color:transparent] active:border-primary active:bg-primary-50 dark:border-grey-700 dark:active:bg-primary-900"
                   onClick={handleUploadClick}
                   type="button"
                 >
                   <PiUploadSimple size={36} />
-                  <span className="scanner-mobile-action-label">Dateien</span>
+                  <span className="text-[0.9375rem] font-medium">Dateien</span>
                 </button>
               </div>
             ) : (
               <motion.div
-                className={`scanner-upload-zone ${isDragOver ? 'drag-over' : ''}`}
+                className="relative cursor-pointer rounded-[20px] border-none bg-transparent px-12 py-16 text-center focus:outline-none focus-visible:rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary max-md:rounded-2xl max-md:px-8 max-md:py-12 max-[480px]:rounded-xl max-[480px]:px-6 max-[480px]:py-10"
                 variants={uploadZoneVariants}
                 initial="idle"
                 whileHover="hover"
@@ -365,7 +404,7 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
                   }
                 }}
               >
-                <div className="scanner-upload-content">
+                <div className="flex flex-col items-center gap-sm">
                   <AnimatedUploadIcon isDragOver={isDragOver} hasFile={false} />
                 </div>
               </motion.div>
@@ -381,18 +420,25 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="scanner-ready-state"
+            className="flex flex-col gap-lg"
           >
-            <div className="scanner-file-list">
+            <div className="flex flex-col gap-sm">
               {selectedFiles.map((file, index) => (
-                <div key={`${file.name}-${index}`} className="scanner-selected-file">
+                <div
+                  key={`${file.name}-${index}`}
+                  className="flex items-center gap-md rounded-lg border border-grey-200 bg-background p-md dark:border-grey-700 max-md:px-md max-md:py-sm"
+                >
                   <AnimatedFileIcon isVisible />
-                  <div className="scanner-file-info">
-                    <span className="scanner-file-name">{file.name}</span>
-                    <span className="scanner-file-size">{formatFileSize(file.size)}</span>
+                  <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
+                    <span className="max-w-full truncate text-base font-semibold text-foreground">
+                      {file.name}
+                    </span>
+                    <span className="text-[0.8125rem] font-normal uppercase tracking-[0.02em] text-grey-400">
+                      {formatFileSize(file.size)}
+                    </span>
                   </div>
                   <button
-                    className="scanner-clear-btn"
+                    className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-grey-400 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     onClick={() => handleRemoveFile(index)}
                     aria-label={`${file.name} entfernen`}
                   >
@@ -402,20 +448,34 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
               ))}
             </div>
 
-            <div className="scanner-file-list-actions">
+            <div className="flex justify-center">
               {isMobileView && (
                 <button
-                  className="scanner-add-more-btn"
+                  className="cursor-pointer rounded-md border-none bg-none px-sm py-xs text-sm font-medium text-primary transition-colors duration-200 hover:bg-primary-50 dark:hover:bg-primary-900"
                   onClick={() => setShowCamera(true)}
                   type="button"
                 >
                   <PiCamera size={16} /> Foto aufnehmen
                 </button>
               )}
-              <button className="scanner-add-more-btn" onClick={handleUploadClick} type="button">
-                + Weitere Dateien
+              <button
+                className="flex size-9 cursor-pointer items-center justify-center rounded-full border border-grey-200 bg-transparent text-lg text-foreground transition-colors duration-200 hover:border-secondary-600 hover:text-secondary-600 dark:border-grey-700 dark:hover:border-secondary-600"
+                onClick={handleUploadClick}
+                type="button"
+                aria-label="Weitere Dateien hinzufügen"
+              >
+                +
               </button>
             </div>
+
+            <FeatureToggle
+              isActive={usePrivateOcr}
+              onToggle={setUsePrivateOcr}
+              label="Privat verarbeiten"
+              icon={PiShieldCheck}
+              description="Dokumente werden direkt auf dem Grünerator-Server verarbeitet, ohne Daten an externe Dienste zu senden. Handschriftliche Texte werden in diesem Modus nicht erkannt."
+              noBorder
+            />
 
             <SubmitButton
               text={
@@ -426,7 +486,7 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
               loading={false}
               icon={<PiScan />}
               onClick={handleExtract}
-              className="scanner-extract-btn"
+              className="w-full"
               type="button"
             />
           </motion.div>
@@ -439,9 +499,9 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="scanner-processing-state"
+            className="flex items-center justify-center px-xl py-2xl max-md:px-md max-md:py-xl"
           >
-            <p className="scanner-processing-text">Text wird extrahiert...</p>
+            <p className="m-0 text-base text-grey-500">Text wird extrahiert...</p>
           </motion.div>
         )}
 
@@ -452,26 +512,28 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="scanner-results-state"
+            className="scanner-results flex w-full flex-col gap-md"
           >
-            <div className="scanner-result-meta">
+            <div className="flex items-center gap-sm py-sm">
               {selectedFiles.length > 1 && (
                 <>
-                  <span className="scanner-meta-item">{selectedFiles.length} Dateien</span>
-                  <span className="scanner-meta-divider">·</span>
+                  <span className="text-[0.8125rem] font-medium uppercase tracking-[0.04em] text-grey-500">
+                    {selectedFiles.length} Dateien
+                  </span>
+                  <span className="text-xs text-grey-400">·</span>
                 </>
               )}
-              <span className="scanner-meta-item">
+              <span className="text-[0.8125rem] font-medium uppercase tracking-[0.04em] text-grey-500">
                 {result.pageCount} Seite{result.pageCount !== 1 ? 'n' : ''}
               </span>
-              <span className="scanner-meta-divider">·</span>
-              <span className="scanner-meta-item">
+              <span className="text-xs text-grey-400">·</span>
+              <span className="text-[0.8125rem] font-medium uppercase tracking-[0.04em] text-grey-500">
                 {result.text.length.toLocaleString()} Zeichen
               </span>
             </div>
 
-            <div className="scanner-results-layout">
-              <div className="scanner-results-main">
+            <div className="grid grid-cols-[1fr_auto] items-start gap-md max-md:grid-cols-1">
+              <div className="min-w-0">
                 <DisplaySection
                   title={
                     selectedFiles.length === 1
@@ -485,14 +547,30 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
                   showRedoControls={true}
                   showResetButton={true}
                   onReset={handleClearFile}
+                  customExportOptions={[
+                    {
+                      id: 'todo-list',
+                      label: 'Aufgabenliste erstellen',
+                      icon: <PiCheckSquare size={16} />,
+                      onClick: handleCreateTodoList,
+                      disabled: !!actionLoading,
+                    },
+                    {
+                      id: 'board',
+                      label: 'Board erstellen',
+                      icon: <PiKanban size={16} />,
+                      onClick: handleCreateBoard,
+                      disabled: !!actionLoading,
+                    },
+                  ]}
                 />
               </div>
 
-              <div className="scanner-transform-panel">
+              <div className="sticky top-md flex flex-col gap-sm max-md:static max-md:flex-row max-md:flex-wrap">
                 {transformPresets.map((preset) => (
                   <button
                     key={preset.id}
-                    className="scanner-transform-btn"
+                    className="flex cursor-pointer items-center gap-sm whitespace-nowrap rounded-md border border-grey-200 bg-background px-md py-sm text-sm text-foreground transition-[border-color,background] duration-200 hover:border-primary hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-grey-700 dark:hover:bg-primary-900"
                     onClick={() => handleTransform(preset.instruction)}
                     disabled={isTransforming}
                   >
@@ -515,7 +593,7 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
             exit={{ opacity: 0, y: -10 }}
             role="alert"
             aria-live="assertive"
-            className="form-error-message scanner-error"
+            className="form-error-message m-0 rounded-lg"
           >
             <span className="error-message-text">{error}</span>
             <button
@@ -537,15 +615,26 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
       {showCamera && (
         <Suspense
           fallback={
-            <div className="scanner-camera-overlay">
-              <div className="scanner-camera-loading">
-                <div className="scanner-camera-spinner" />
-                <p>Kamera wird geladen...</p>
+            <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black">
+              <div className="flex flex-col items-center gap-md text-white">
+                <div className="size-10 animate-spin rounded-full border-[3px] border-white/20 border-t-white" />
+                <p className="m-0 text-base opacity-80">Kamera wird geladen...</p>
               </div>
             </div>
           }
         >
           <CameraScanner onCapture={handleCameraCapture} onClose={() => setShowCamera(false)} />
+        </Suspense>
+      )}
+
+      {editorModal && (
+        <Suspense fallback={null}>
+          <DocsEditorModal
+            documentId={editorModal.documentId}
+            initialContent={editorModal.initialContent}
+            title={editorModal.title}
+            onClose={closeEditorModal}
+          />
         </Suspense>
       )}
     </div>

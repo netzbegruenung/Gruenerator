@@ -48,9 +48,11 @@ export interface NotebookListProps {
   onEdit: (id: string) => void;
   onDelete: (id: string) => Promise<void>;
   onShare: (id: string) => void;
+  onShareToGroup?: (id: string, name: string) => void;
   onView: (id: string) => void;
   loading?: boolean;
   processingCollectionIds?: Set<string>;
+  compact?: boolean;
 }
 
 /**
@@ -61,9 +63,11 @@ export interface NotebookCollectionInput {
   description?: string;
   custom_prompt?: string;
   selectionMode?: 'documents' | 'wolke' | 'mixed';
-  documents?: string[];
+  documents?: (string | number)[];
   wolkeShareLinks?: string[];
   labels?: string[];
+  auto_sync?: boolean;
+  remove_missing_on_sync?: boolean;
 }
 
 /**

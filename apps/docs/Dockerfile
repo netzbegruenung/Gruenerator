@@ -17,6 +17,11 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc tsconfig.base.json .
 # Copy only package.json files first for dependency caching
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/docs/package.json ./packages/docs/
+COPY packages/collab/package.json ./packages/collab/
+COPY packages/ui/package.json ./packages/ui/
+COPY packages/voice/package.json ./packages/voice/
+COPY packages/wolke/package.json ./packages/wolke/
+COPY packages/slides/package.json ./packages/slides/
 COPY apps/docs/package.json ./apps/docs/
 
 # Install only docs and its transitive workspace deps
@@ -26,6 +31,11 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 # Copy source files (including web for CSS imports)
 COPY packages/shared ./packages/shared
 COPY packages/docs ./packages/docs
+COPY packages/collab ./packages/collab
+COPY packages/ui ./packages/ui
+COPY packages/voice ./packages/voice
+COPY packages/wolke ./packages/wolke
+COPY packages/slides ./packages/slides
 COPY apps/web/src/assets/styles ./apps/web/src/assets/styles
 COPY apps/web/src/assets/fonts ./apps/web/src/assets/fonts
 COPY apps/docs ./apps/docs
@@ -65,6 +75,11 @@ COPY --chown=gruenerator:gruenerator pnpm-lock.yaml pnpm-workspace.yaml package.
 # Copy only package.json files for production install
 COPY --chown=gruenerator:gruenerator packages/shared/package.json ./packages/shared/
 COPY --chown=gruenerator:gruenerator packages/docs/package.json ./packages/docs/
+COPY --chown=gruenerator:gruenerator packages/collab/package.json ./packages/collab/
+COPY --chown=gruenerator:gruenerator packages/ui/package.json ./packages/ui/
+COPY --chown=gruenerator:gruenerator packages/voice/package.json ./packages/voice/
+COPY --chown=gruenerator:gruenerator packages/wolke/package.json ./packages/wolke/
+COPY --chown=gruenerator:gruenerator packages/slides/package.json ./packages/slides/
 COPY --chown=gruenerator:gruenerator apps/docs/package.json ./apps/docs/
 
 # Switch to non-root user BEFORE install — files are created with correct ownership,

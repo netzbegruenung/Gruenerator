@@ -1,8 +1,4 @@
-import {
-  useLocalRuntime,
-  type LocalRuntimeOptions,
-  type ThreadHistoryAdapter,
-} from '@assistant-ui/react-native';
+import { useLocalRuntime, type LocalRuntimeOptions } from '@assistant-ui/react-native';
 import {
   createGrueneratorModelAdapter,
   useAgentStore,
@@ -15,7 +11,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/shallow';
 
 interface MobileChatRuntimeOptions {
-  adapters?: { history?: ThreadHistoryAdapter };
+  adapters?: LocalRuntimeOptions['adapters'];
 }
 
 export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {

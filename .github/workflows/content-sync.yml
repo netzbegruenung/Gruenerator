@@ -2,11 +2,12 @@ name: Content Sync
 
 on:
   schedule:
-    - cron: '0 3 * * *' # Daily at 3 AM UTC
+    - cron: '0 4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20 * * *' # Hourly 06-22 CET → landesverbaende only
+    - cron: '0 2 * * *' # Daily 03:00 CET → all sources
   workflow_dispatch:
     inputs:
       source:
-        description: 'Source group (empty = all). Options: landesverbaende, gruenblog, gruene-at, kommunalwiki, boell-stiftung, satzungen'
+        description: 'Source group (empty = all). Options: landesverbaende, gruenblog, gruene-at, kommunalwiki, boell-stiftung, bundestag, social-media'
         required: false
         type: string
       dry_run:
@@ -19,39 +20,64 @@ on:
         default: false
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: content-sync
+  group: content-sync-${{ github.event.schedule || 'manual' }}
   cancel-in-progress: false
 
 jobs:
-  sync:
-    name: Sync Content
+  # ─── Determine execution strategy ──────────────────────────────
+  setup:
+    name: Setup
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      use_matrix: ${{ steps.set-matrix.outputs.use_matrix }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - id: set-matrix
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+          SOURCE: ${{ inputs.source }}
+        run: |
+          if [ -n "$SOURCE" ]; then
+            # Manual single-source run
+            echo 'use_matrix=false' >> $GITHUB_OUTPUT
+            echo "matrix={\"source\":[\"$SOURCE\"]}" >> $GITHUB_OUTPUT
+          elif [ "$SCHEDULE" = "0 2 * * *" ] || [ -z "$SCHEDULE" ]; then
+            # Daily 3 AM CET or manual dispatch (no source) → all sources
+            echo 'use_matrix=true' >> $GITHUB_OUTPUT
+            echo 'matrix={"source":["landesverbaende","gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag","social-media"]}' >> $GITHUB_OUTPUT
+          else
+            # Hourly schedule → landesverbaende only
+            echo 'use_matrix=false' >> $GITHUB_OUTPUT
+            echo 'matrix={"source":["landesverbaende"]}' >> $GITHUB_OUTPUT
+          fi
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+  # ─── Matrix: one job per source group ──────────────────────────
+  sync:
+    name: Sync ${{ matrix.source }}
+    needs: setup
+    if: needs.setup.outputs.use_matrix == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile --filter @gruenerator/api...
 
       - name: Run content sync
         id: sync
         continue-on-error: true
         run: |
-          ARGS=""
-          if [ -n "${{ inputs.source }}" ]; then ARGS="$ARGS --source ${{ inputs.source }}"; fi
+          ARGS="--source ${{ matrix.source }} --no-email"
           if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
           if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
           echo "Running: npx tsx apps/api/update-all-content.ts $ARGS"
@@ -59,7 +85,55 @@ jobs:
         env:
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
+          QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          BREVO_SMTP_HOST: ${{ secrets.BREVO_SMTP_HOST }}
+          BREVO_SMTP_PORT: ${{ secrets.BREVO_SMTP_PORT }}
+          BREVO_SMTP_USER: ${{ secrets.BREVO_SMTP_USER }}
+          BREVO_SMTP_PASS: ${{ secrets.BREVO_SMTP_PASS }}
+          EMAIL_FROM: ${{ vars.EMAIL_FROM || 'Grünerator <info@gruenerator.eu>' }}
+          SYNC_SUMMARY_PATH: ${{ github.workspace }}/sync-summary.json
+
+      - name: Upload summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sync-summary-${{ matrix.source }}
+          path: sync-summary.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Fail if sync had errors
+        if: steps.sync.outcome == 'failure'
+        run: exit 1
+
+  # ─── Aggregate matrix results ──────────────────────────────────
+  aggregate:
+    name: Aggregate & Report
+    needs: [setup, sync]
+    if: always() && needs.setup.outputs.use_matrix == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile --filter @gruenerator/api...
+
+      - name: Download all summaries
+        uses: actions/download-artifact@v4
+        with:
+          path: summaries/
+          pattern: sync-summary-*
+          merge-multiple: true
+
+      - name: Aggregate summaries
+        run: npx tsx apps/api/aggregate-sync-summaries.ts --dir summaries/
+        env:
           BREVO_SMTP_HOST: ${{ secrets.BREVO_SMTP_HOST }}
           BREVO_SMTP_PORT: ${{ secrets.BREVO_SMTP_PORT }}
           BREVO_SMTP_USER: ${{ secrets.BREVO_SMTP_USER }}
@@ -91,6 +165,7 @@ jobs:
           STORED=$(jq -r '.totals.stored' "$SUMMARY_FILE")
           UPDATED=$(jq -r '.totals.updated' "$SUMMARY_FILE")
           SKIPPED=$(jq -r '.totals.skipped' "$SUMMARY_FILE")
+          FETCH_ERRORS=$(jq -r '.totals.fetchErrors // 0' "$SUMMARY_FILE")
           ERRORS=$(jq -r '.totals.errors' "$SUMMARY_FILE")
           DURATION=$(jq -r '.totalDuration' "$SUMMARY_FILE")
 
@@ -124,14 +199,15 @@ jobs:
             echo "| New documents | $STORED |"
             echo "| Updated | $UPDATED |"
             echo "| Skipped (unchanged) | $SKIPPED |"
-            echo "| Errors | $ERRORS |"
+            if [ "$FETCH_ERRORS" -gt 0 ]; then echo "| Unreachable pages | $FETCH_ERRORS |"; fi
+            if [ "$ERRORS" -gt 0 ]; then echo "| **Errors** | **$ERRORS** |"; fi
             echo ""
             echo "### Per Source"
             echo ""
-            echo "| Source | Status | New | Updated | Skipped | Errors | Duration |"
-            echo "|--------|--------|----:|--------:|--------:|-------:|---------:|"
+            echo "| Source | Status | New | Updated | Skipped | Unreachable | Errors | Duration |"
+            echo "|--------|--------|----:|--------:|--------:|------------:|-------:|---------:|"
 
-            jq -r '.sources[] | "| \(.name) | \(if .status == "success" then "✅" else "❌" end) | \(.stored) | \(.updated) | \(.skipped) | \(.errors) | \(.duration)s |"' "$SUMMARY_FILE"
+            jq -r '.sources[] | "| \(.name) | \(if .status == "success" then "✅" else "❌" end) | \(.stored) | \(.updated) | \(.skipped) | \(.fetchErrors // 0) | \(.errors) | \(.duration)s |"' "$SUMMARY_FILE"
 
             echo ""
 
@@ -153,6 +229,109 @@ jobs:
               echo ""
             fi
           } >> $GITHUB_STEP_SUMMARY
+
+      - name: Update content stats page
+        if: always()
+        run: npx tsx apps/api/generate-content-stats.ts
+        env:
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
+          QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
+
+      - name: Commit stats page
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
+          git diff --cached --quiet || git commit -m "docs: update content stats [skip ci]" && git push
+
+  # ─── Single-source run (no matrix overhead) ────────────────────
+  sync-single:
+    name: Sync ${{ inputs.source }}
+    needs: setup
+    if: needs.setup.outputs.use_matrix == 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile --filter @gruenerator/api...
+
+      - name: Run content sync
+        id: sync
+        continue-on-error: true
+        run: |
+          ARGS="--source ${{ inputs.source }}"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
+          echo "Running: npx tsx apps/api/update-all-content.ts $ARGS"
+          npx tsx apps/api/update-all-content.ts $ARGS
+        env:
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
+          QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          BREVO_SMTP_HOST: ${{ secrets.BREVO_SMTP_HOST }}
+          BREVO_SMTP_PORT: ${{ secrets.BREVO_SMTP_PORT }}
+          BREVO_SMTP_USER: ${{ secrets.BREVO_SMTP_USER }}
+          BREVO_SMTP_PASS: ${{ secrets.BREVO_SMTP_PASS }}
+          EMAIL_FROM: ${{ vars.EMAIL_FROM || 'Grünerator <info@gruenerator.eu>' }}
+          CONTENT_SYNC_EMAIL: ${{ vars.CONTENT_SYNC_EMAIL }}
+          SYNC_SUMMARY_PATH: ${{ github.workspace }}/sync-summary.json
+
+      - name: Generate job summary
+        if: always()
+        run: |
+          SUMMARY_FILE="${{ github.workspace }}/sync-summary.json"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          if [ ! -f "$SUMMARY_FILE" ]; then
+            echo "## ❌ Content Sync — No Summary" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The sync script did not produce a summary file. Check the [workflow logs]($RUN_URL)." >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
+          TIMESTAMP=$(jq -r '.timestamp' "$SUMMARY_FILE")
+          DRY_RUN=$(jq -r '.dryRun' "$SUMMARY_FILE")
+          STORED=$(jq -r '.totals.stored' "$SUMMARY_FILE")
+          ERRORS=$(jq -r '.totals.errors' "$SUMMARY_FILE")
+          DURATION=$(jq -r '.totalDuration' "$SUMMARY_FILE")
+
+          if [ "$ERRORS" -gt 0 ]; then STATUS_ICON="⚠️"; else STATUS_ICON="✅"; fi
+          if [ "$DRY_RUN" = "true" ]; then TITLE="$STATUS_ICON ${{ inputs.source }} — Dry Run"; else TITLE="$STATUS_ICON ${{ inputs.source }}"; fi
+
+          {
+            echo "## $TITLE"
+            echo ""
+            echo "**Date:** $(date -d "$TIMESTAMP" '+%d.%m.%Y %H:%M UTC' 2>/dev/null || echo "$TIMESTAMP")"
+            echo "**Duration:** ${DURATION}s | **New:** +${STORED} | **Errors:** ${ERRORS}"
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Update content stats page
+        if: always()
+        run: npx tsx apps/api/generate-content-stats.ts
+        env:
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
+          QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
+
+      - name: Commit stats page
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
+          git diff --cached --quiet || git commit -m "docs: update content stats [skip ci]" && git push
 
       - name: Fail if sync had errors
         if: steps.sync.outcome == 'failure'

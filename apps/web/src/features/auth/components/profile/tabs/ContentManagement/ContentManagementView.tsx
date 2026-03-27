@@ -1,24 +1,7 @@
 import { motion } from 'motion/react';
-import React, { useState, useCallback, memo, useMemo } from 'react';
+import React, { memo } from 'react';
 
-// Common components
-import ShareToGroupModal from '../../../../../../components/common/ShareToGroupModal';
-
-// Content section
 import DocumentsSection from './components/DocumentsSection';
-
-type ShareableContentType =
-  | 'documents'
-  | 'custom_generators'
-  | 'notebook_collections'
-  | 'user_documents'
-  | 'database';
-
-interface ShareContent {
-  type: ShareableContentType;
-  id: string;
-  title: string;
-}
 
 interface ContentManagementViewProps {
   isActive: boolean;
@@ -26,7 +9,6 @@ interface ContentManagementViewProps {
   onErrorMessage: (message: string) => void;
 }
 
-// Static animation config moved outside component
 const MOTION_CONFIG = {
   initial: { opacity: 0 },
   animate: { opacity: 1 },
@@ -39,51 +21,6 @@ const ContentManagementView = memo(
     onSuccessMessage,
     onErrorMessage,
   }: ContentManagementViewProps): React.ReactElement => {
-    // Modal state for sharing
-    const [showShareModal, setShowShareModal] = useState(false);
-    const [shareContent, setShareContent] = useState<ShareContent | null>(null);
-
-    // Share functionality
-    const handleShareToGroup = useCallback(
-      async (contentType: ShareableContentType, contentId: string, contentTitle: string) => {
-        setShareContent({
-          type: contentType,
-          id: contentId,
-          title: contentTitle,
-        });
-        setShowShareModal(true);
-      },
-      []
-    );
-
-    const handleCloseShareModal = useCallback(() => {
-      setShowShareModal(false);
-      setShareContent(null);
-    }, []);
-
-    const handleShareSuccess = useCallback(
-      (message: string) => {
-        onSuccessMessage(message);
-        handleCloseShareModal();
-      },
-      [onSuccessMessage, handleCloseShareModal]
-    );
-
-    const handleShareError = useCallback(
-      (error: string) => {
-        onErrorMessage(error);
-      },
-      [onErrorMessage]
-    );
-
-    // Memoized callback for DocumentsSection to prevent inline function recreation
-    const handleDocumentShareToGroup = useCallback(
-      (contentType: string, contentId: string, contentTitle: string) => {
-        void handleShareToGroup(contentType as ShareableContentType, contentId, contentTitle);
-      },
-      [handleShareToGroup]
-    );
-
     return (
       <motion.div
         className="flex flex-col gap-lg"
@@ -91,24 +28,18 @@ const ContentManagementView = memo(
         animate={MOTION_CONFIG.animate}
         transition={MOTION_CONFIG.transition}
       >
+        <div className="rounded-lg border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20 p-md">
+          <p className="text-sm text-yellow-800 dark:text-yellow-300 m-0">
+            Diese Seite wird bald entfernt. Deine gespeicherten Texte findest du jetzt unter{' '}
+            <a href="/recherche" className="font-medium underline hover:no-underline">Recherche</a>.
+            Hochgeladene Dokumente kannst du hier noch bis Juni 2026 herunterladen.
+          </p>
+        </div>
         <DocumentsSection
           isActive={isActive}
           onSuccessMessage={onSuccessMessage}
           onErrorMessage={onErrorMessage}
-          onShareToGroup={handleDocumentShareToGroup}
         />
-
-        {showShareModal && shareContent && (
-          <ShareToGroupModal
-            isOpen={showShareModal}
-            onClose={handleCloseShareModal}
-            contentType={shareContent.type}
-            contentId={shareContent.id}
-            contentTitle={shareContent.title}
-            onSuccess={handleShareSuccess}
-            onError={handleShareError}
-          />
-        )}
       </motion.div>
     );
   }

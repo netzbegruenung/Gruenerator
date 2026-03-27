@@ -1,437 +1,142 @@
-import { type JSX, useState, useMemo, useCallback } from 'react';
-import { FaFileWord } from 'react-icons/fa';
+/**
+ * SearchPage — Dedicated /suche page
+ *
+ * Follows the same overview → thread pattern as ChatPage but with
+ * search-specific content. Uses the shared GrueneratorChatProvider
+ * (already mounted by GlobalChatProvider in PageLayout) with
+ * threadMode='search' so the adapter routes to /api/search-graph/stream.
+ */
 
-import ActionButtons from '../../../components/common/ActionButtons';
-import { CitationModal, CitationSourcesDisplay } from '../../../components/common/Citation';
-import ContentRenderer from '../../../components/common/Form/BaseForm/ContentRenderer';
+import {
+  ThreadPrimitive,
+  useAssistantRuntime,
+  useComposerRuntime,
+  useThread,
+} from '@assistant-ui/react';
+import { GrueneratorComposer, GrueneratorThread, useAgentStore } from '@gruenerator/chat';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
-import ErrorBoundary from '../../../components/ErrorBoundary';
-import { formatExportContent } from '../../../components/utils/exportUtils';
-import { useExportStore } from '../../../stores/core/exportStore';
-import useSearch from '../hooks/useSearch';
+import { useFirstName } from '../../../hooks/useFirstName';
 
-import SearchBar from './SearchBar';
+import { cn } from '@/utils/cn';
 
-// Search Feature CSS - Loaded only when this feature is accessed
-import '../styles/SearchPage.css';
-import '../styles/SearchResults.css';
-
-const exampleQuestions = [
-  {
-    icon: '🌍',
-    text: 'Was macht die Grüne Fraktion für den Klimaschutz?',
-  },
-  {
-    icon: '🏘️',
-    text: 'Grüne Position zum Mietendeckel',
-  },
-  {
-    icon: '🚲',
-    text: 'Fahrradinfrastruktur in Deutschland',
-  },
+const SEARCH_EXAMPLES = [
+  { label: '🚲 Verkehrswende in Kommunen', text: 'Verkehrswende in Kommunen Beispiele' },
+  { label: '🌍 Klimaschutz für Kommunen', text: 'Klimaschutz für Kommunen Ideen' },
+  { label: '⚡ Energiewende aktuell', text: 'Aktuelle Entwicklungen Energiewende Deutschland' },
 ];
 
-interface ExampleQuestionsProps {
-  onQuestionClick: (text: string) => void;
-}
+function SearchExampleSuggestions() {
+  const composerRuntime = useComposerRuntime();
 
-const ExampleQuestions = ({ onQuestionClick }: ExampleQuestionsProps): JSX.Element => (
-  <div className="example-questions">
-    {exampleQuestions.map((question, index) => (
-      <button
-        key={index}
-        className="example-question"
-        onClick={() => onQuestionClick(question.text)}
-      >
-        <span>{question.icon}</span>
-        <span>{question.text}</span>
-      </button>
-    ))}
-  </div>
-);
-
-interface SourceListSource {
-  url: string;
-  title?: string;
-  content_snippets?: string;
-}
-
-interface SourceListRecommendation {
-  title: string;
-  summary: string;
-}
-
-interface SourceListProps {
-  sources: SourceListSource[];
-  title: string;
-  recommendations?: SourceListRecommendation[];
-}
-
-const extractMainDomain = (url: string) => {
-  try {
-    const domain = new URL(url).hostname;
-    return domain.replace(/^www\./, '');
-  } catch {
-    return url;
-  }
-};
-
-const SourceList = ({ sources, title, recommendations = [] }: SourceListProps) => (
-  <div className="sources-container">
-    <h2>{title}</h2>
-    <div className="sources-list">
-      {sources.map((source, index) => {
-        const recommendation = source.title
-          ? recommendations.find((r) => r.title === source.title)
-          : undefined;
-        const hasSnippets = source.content_snippets && source.content_snippets.trim().length > 0;
-
-        return (
-          <a
-            key={index}
-            href={source.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="source-item"
-          >
-            <h3>{source.title || 'Unbenannte Quelle'}</h3>
-            {recommendation && (
-              <div className="source-recommendation">
-                <p className="source-summary">{recommendation.summary}</p>
-              </div>
-            )}
-            {hasSnippets && source.content_snippets && (
-              <div className="source-content-snippets">
-                <p className="content-preview">
-                  {source.content_snippets.length > 200
-                    ? `${source.content_snippets.substring(0, 200)}...`
-                    : source.content_snippets}
-                </p>
-              </div>
-            )}
-            <span className="source-url">{extractMainDomain(source.url)}</span>
-          </a>
-        );
-      })}
-    </div>
-  </div>
-);
-
-const SearchPage = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchMode, setSearchMode] = useState('web');
-  const generateNotebookDOCX = useExportStore((state) => state.generateNotebookDOCX);
-  const {
-    results,
-    usedSources,
-    analysis,
-    loading,
-    error,
-    search,
-    deepSearch,
-    webSearch,
-    webResults,
-    dossier,
-    categorizedSources,
-    sourceRecommendations = [],
-    citations = [],
-    citationSources = [],
-    streamingText,
-    isStreaming,
-    progress,
-    abort,
-  } = useSearch();
-
-  const hasCitations = citations.length > 0;
-
-  const handleWebSearchDOCXExport = useCallback(async () => {
-    if (!hasCitations || !webResults?.summary?.text) return;
-    await generateNotebookDOCX(
-      webResults.summary.text,
-      'Web-Suche Zusammenfassung',
-      citations,
-      citationSources
-    );
-  }, [hasCitations, webResults, citations, citationSources, generateNotebookDOCX]);
-
-  const handleDeepResearchDOCXExport = useCallback(async () => {
-    if (!hasCitations || !dossier) return;
-    await generateNotebookDOCX(dossier, 'Recherche-Dossier', citations, citationSources);
-  }, [hasCitations, dossier, citations, citationSources, generateNotebookDOCX]);
-
-  const webSearchExportOptions = useMemo(() => {
-    if (!hasCitations) return [];
-    return [
-      {
-        id: 'web-search-docx',
-        label: 'Word mit Quellen',
-        subtitle: 'Inkl. Quellenangaben',
-        icon: <FaFileWord size={16} />,
-        onClick: handleWebSearchDOCXExport,
-      },
-    ];
-  }, [hasCitations, handleWebSearchDOCXExport]);
-
-  const deepResearchExportOptions = useMemo(() => {
-    if (!hasCitations) return [];
-    return [
-      {
-        id: 'deep-research-docx',
-        label: 'Word mit Quellen',
-        subtitle: 'Inkl. Quellenangaben',
-        icon: <FaFileWord size={16} />,
-        onClick: handleDeepResearchDOCXExport,
-      },
-    ];
-  }, [hasCitations, handleDeepResearchDOCXExport]);
-
-  const handleSearch = (query?: string) => {
-    if (!query) return;
-    if (searchMode === 'deep') {
-      deepSearch(query);
-    } else {
-      webSearch(query);
-    }
-  };
-
-  const toggleDeepResearch = () => {
-    setSearchMode((prev) => (prev === 'deep' ? 'web' : 'deep'));
-  };
-
-  // Berechne die nicht verwendeten Quellen
-  const unusedSources = results.filter(
-    (result) => !usedSources.some((used) => used.url === result.url)
+  const handleClick = useCallback(
+    (e: React.MouseEvent, text: string) => {
+      e.preventDefault();
+      e.stopPropagation();
+      composerRuntime.setText(text);
+    },
+    [composerRuntime]
   );
 
   return (
-    <ErrorBoundary>
-      <CitationModal />
-      <div className="search-page-container">
-        <div className="search-header">
-          <h1>Grünerator Suche</h1>
-          <p className="search-subtitle">KI-Suche des Grünerators</p>
-        </div>
-
-        <SearchBar
-          onSearch={handleSearch}
-          loading={loading}
-          value={searchQuery}
-          onChange={setSearchQuery}
-          placeholder={
-            searchMode === 'deep'
-              ? 'Thema für umfassende Recherche eingeben...'
-              : 'Web-Suchbegriff eingeben...'
-          }
-          onDeepResearchToggle={toggleDeepResearch}
-          isDeepResearchActive={searchMode === 'deep'}
-          isStreaming={isStreaming}
-          onAbort={abort}
-        />
-
-        {isStreaming && progress.message && (
-          <div className="deep-search-progress">
-            <p>{progress.message}</p>
-          </div>
-        )}
-
-        {isStreaming && streamingText && (
-          <div className="analysis-container">
-            <div className="analysis-content">
-              <h2>{searchMode === 'deep' ? 'Forschungsdossier' : 'AI-Zusammenfassung'}</h2>
-              <ContentRenderer
-                value={streamingText}
-                useMarkdown={true}
-                componentName={
-                  searchMode === 'deep' ? 'deep-research-dossier' : 'web-search-summary'
-                }
-              />
-            </div>
-          </div>
-        )}
-
-        {error && <div className="search-error">{error}</div>}
-
-        {/* Web Search Results */}
-        {!isStreaming && webResults && searchMode === 'web' && (
-          <div className="web-search-container">
-            {webResults.summary && (
-              <div className="analysis-container">
-                <div className="analysis-actions">
-                  <ActionButtons
-                    generatedContent={webResults.summary.text}
-                    onEdit={() => {}}
-                    isEditing={false}
-                    allowEditing={false}
-                    hideEditButton={true}
-                    showExport={true}
-                    customExportOptions={webSearchExportOptions}
-                  />
-                </div>
-                <div className="analysis-content">
-                  <h2>🤖 AI-Zusammenfassung</h2>
-                  <ContentRenderer
-                    value={webResults.summary.text}
-                    useMarkdown={true}
-                    componentName="web-search-summary"
-                  />
-                </div>
-
-                {searchMode === 'web' && citations.length > 0 && (
-                  <div className="citation-sources-section">
-                    <CitationSourcesDisplay
-                      sources={
-                        citationSources as unknown as Array<{
-                          url?: string;
-                          title?: string;
-                          [key: string]: unknown;
-                        }>
-                      }
-                      citations={
-                        citations as unknown as Array<{ id: string; [key: string]: unknown }>
-                      }
-                      linkConfig={{ type: 'none' }}
-                      title="🔗 Quellen der Zusammenfassung"
-                      className="search-citation-sources"
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="web-search-results">
-              {webResults.results && webResults.results.length > 0 && (
-                <div className="sources-section">
-                  <SourceList
-                    sources={webResults.results.map((result) => ({
-                      url: result.url,
-                      title: result.title,
-                      content_snippets: result.snippet || '',
-                    }))}
-                    title={`🌐 Web-Suchergebnisse (${webResults.resultCount})`}
-                  />
-                </div>
-              )}
-
-              {webResults.suggestions && webResults.suggestions.length > 0 && (
-                <div className="web-search-suggestions">
-                  <h3>💡 Suchvorschläge</h3>
-                  <div className="suggestions-list">
-                    {webResults.suggestions.map((suggestion, index) => (
-                      <button
-                        key={index}
-                        className="suggestion-item"
-                        onClick={() => handleSearch(suggestion)}
-                      >
-                        {suggestion}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Deep Research Results */}
-        {!isStreaming && dossier && searchMode === 'deep' && (
-          <>
-            <div className="dossier-container">
-              <div className="analysis-actions">
-                <ActionButtons
-                  generatedContent={dossier}
-                  onEdit={() => {}}
-                  isEditing={false}
-                  allowEditing={false}
-                  hideEditButton={true}
-                  showExport={true}
-                  customExportOptions={deepResearchExportOptions}
-                />
-              </div>
-              <div className="dossier-content">
-                <ContentRenderer
-                  value={dossier}
-                  useMarkdown={true}
-                  componentName="deep-research-dossier"
-                />
-              </div>
-
-              {searchMode === 'deep' && citations.length > 0 && (
-                <div className="citation-sources-section">
-                  <CitationSourcesDisplay
-                    sources={
-                      citationSources as unknown as Array<{
-                        url?: string;
-                        title?: string;
-                        [key: string]: unknown;
-                      }>
-                    }
-                    citations={
-                      citations as unknown as Array<{ id: string; [key: string]: unknown }>
-                    }
-                    linkConfig={{ type: 'none' }}
-                    title="🔗 Quellen des Dossiers"
-                    className="search-citation-sources"
-                  />
-                </div>
-              )}
-            </div>
-
-            {categorizedSources && Object.keys(categorizedSources).length > 0 && (
-              <div className="categorized-sources-section">
-                <h2>Quellen nach Themenbereichen</h2>
-                {Object.entries(categorizedSources).map(([category, sources]) => (
-                  <SourceList
-                    key={category}
-                    sources={sources}
-                    title={category}
-                    recommendations={sourceRecommendations}
-                  />
-                ))}
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Standard Search Results */}
-        {analysis && searchMode === 'standard' && (
-          <>
-            <div className="analysis-container">
-              <div className="analysis-actions">
-                <ActionButtons
-                  generatedContent={analysis}
-                  onEdit={() => {}}
-                  isEditing={false}
-                  allowEditing={false}
-                  hideEditButton={true}
-                  showExport={true}
-                />
-              </div>
-              <div className="analysis-content" dangerouslySetInnerHTML={{ __html: analysis }} />
-            </div>
-
-            <div className="sources-section">
-              {usedSources.length > 0 && (
-                <SourceList
-                  sources={usedSources}
-                  title="Verwendete Quellen"
-                  recommendations={sourceRecommendations}
-                />
-              )}
-
-              {unusedSources.length > 0 && (
-                <SourceList
-                  sources={unusedSources}
-                  title="Ergänzende Informationen"
-                  recommendations={sourceRecommendations}
-                />
-              )}
-            </div>
-          </>
-        )}
-      </div>
-    </ErrorBoundary>
+    <div className="ml-2.5 flex flex-wrap items-center gap-2.5">
+      {SEARCH_EXAMPLES.map((prompt) => (
+        <button
+          type="button"
+          key={prompt.label}
+          onClick={(e) => handleClick(e, prompt.text)}
+          className={cn(
+            'rounded-full border border-secondary-500 px-2.5 py-1 text-xs text-foreground-muted transition-all',
+            'hover:border-secondary-600 hover:bg-secondary-500/10 hover:text-foreground'
+          )}
+        >
+          {prompt.label}
+        </button>
+      ))}
+    </div>
   );
-};
+}
+
+/**
+ * Switches to thread view when a message starts running.
+ * Local version that uses a callback instead of the shared chatViewMode store.
+ */
+function SwitchToThread({ onSwitch }: { onSwitch: () => void }) {
+  const thread = useThread();
+  const hasNavigated = useRef(false);
+
+  useEffect(() => {
+    if (thread.isRunning && !hasNavigated.current) {
+      hasNavigated.current = true;
+      onSwitch();
+    }
+    if (!thread.isRunning) {
+      hasNavigated.current = false;
+    }
+  }, [thread.isRunning, onSwitch]);
+
+  return null;
+}
+
+/** Composer layout overrides — same pattern as ChatOverview */
+const COMPOSER_ROOT_CLASS = cn(
+  'w-full max-w-3xl shrink-0',
+  '[&>div]:px-0',
+  '[&_div:has(>.input-tools-button)]:flex-wrap',
+  '[&_textarea]:order-first [&_textarea]:w-full [&_textarea]:min-h-[72px] [&_textarea]:text-base [&_textarea]:pl-4',
+  '[&_.input-tools-button]:order-2',
+  '[&_.input-tools-button~div]:order-3',
+  '[&_textarea~button]:order-4 [&_textarea~button]:ml-auto',
+  '[&>div>p.text-center]:hidden'
+);
+
+function SearchPage() {
+  const navigate = useNavigate();
+  const firstName = useFirstName();
+  const [isThreadView, setIsThreadView] = useState(false);
+  const assistantRuntime = useAssistantRuntime();
+
+  useEffect(() => {
+    useAgentStore.getState().setThreadMode('search');
+    assistantRuntime.switchToNewThread();
+  }, [assistantRuntime]);
+
+  const handleSwitchToThread = useCallback(() => {
+    setIsThreadView(true);
+  }, []);
+
+  if (isThreadView) {
+    return <GrueneratorThread onNavigate={navigate} firstName={firstName} />;
+  }
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center bg-background px-4">
+      <div className="w-full max-w-3xl">
+        <h1 className="mb-2 text-3xl font-semibold text-foreground-heading md:text-4xl">
+          Grünerator Suche
+        </h1>
+        <p className="mb-6 text-sm text-foreground-muted">
+          KI-gestützte Recherche in Grünen Quellen und dem Web
+        </p>
+      </div>
+
+      <ThreadPrimitive.Root className={COMPOSER_ROOT_CLASS}>
+        <SwitchToThread onSwitch={handleSwitchToThread} />
+        <GrueneratorComposer
+          toolbarExtra={<SearchExampleSuggestions />}
+          onNavigate={navigate}
+          firstName={firstName}
+        />
+      </ThreadPrimitive.Root>
+
+      <p className="mt-4 w-full max-w-3xl text-center text-xs text-foreground-muted">
+        KI-Systeme können Fakten falsch interpretieren. Bitte prüfe die Quellen.
+      </p>
+    </div>
+  );
+}
 
 export default withAuthRequired(SearchPage, {
   title: 'Suche',

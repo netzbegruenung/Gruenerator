@@ -44,12 +44,10 @@ export interface TTSChunk {
 export interface TTSDoneEvent {
   chunks: number;
   durationMs: number;
-  generationMs: number;
 }
 
 export interface VoiceAgentConfig {
   apiBaseUrl: string;
   fetchFn?: typeof fetch;
-  ttsVoiceId?: number;
-  ttsCfgScale?: number;
+  ttsVoiceId?: string;
 }

@@ -1,9 +1,23 @@
-import { useAgentStore } from '@gruenerator/chat';
-import { type JSX, useState, useCallback, useEffect, type ReactNode } from 'react';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+} from '@gruenerator/ui';
+import {
+  useShareLinks,
+  useUploadToWolke,
+  parseShareLink,
+  type ShareLink,
+} from '@gruenerator/wolke';
+import { type JSX, useState, useEffect, type ReactNode } from 'react';
 import { CiMemoPad } from 'react-icons/ci';
-import { FaCloud } from 'react-icons/fa';
 import { FaFileWord, FaFilePdf } from 'react-icons/fa6';
-import { HiRefresh, HiSave, HiOutlineDocumentText } from 'react-icons/hi';
+import { HiRefresh, HiOutlineDocumentText } from 'react-icons/hi';
 import {
   IoDownloadOutline,
   IoShareSocialSharp,
@@ -16,23 +30,12 @@ import {
 } from 'react-icons/io5';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-} from '../../components/ui/dropdown-menu';
 import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
 import { useLazyAuth } from '../../hooks/useAuth';
 import { useBetaFeatures } from '../../hooks/useBetaFeatures';
 import { awaitDeferredTitle } from '../../hooks/useDeferredTitle';
 import { useExportStore } from '../../stores/core/exportStore';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
-import { NextcloudShareManager, type ShareLink } from '../../utils/nextcloudShareManager';
 import { canShare, shareContent } from '../../utils/shareUtils';
 import useApiSubmit from '../hooks/useApiSubmit';
 import apiClient from '../utils/apiClient';
@@ -49,7 +52,6 @@ const extractPlainText = extractPlainTextJs as unknown as (content: unknown) => 
 const extractFormattedText = extractFormattedTextJs as unknown as (
   content: unknown
 ) => Promise<string>;
-import '../../assets/styles/components/actions/exportToDocument.css';
 
 interface ExportDropdownProps {
   content: string;
@@ -89,9 +91,6 @@ const ExportDropdown = ({
   onEditInDocsInline,
   editInDocsInlineLoading = false,
 }: ExportDropdownProps): JSX.Element | null => {
-  const [shareLinks, setShareLinks] = useState<ShareLink[]>([]);
-  const [selectedShareLinkId, setSelectedShareLinkId] = useState<string>('');
-  const [loadingShareLinks, setLoadingShareLinks] = useState<boolean>(false);
   const [uploadingToWolke, setUploadingToWolke] = useState<boolean>(false);
   const [saveIcon, setSaveIcon] = useState<string>('save');
   const [exportIcon, setExportIcon] = useState<string>('share');
@@ -104,6 +103,10 @@ const ExportDropdown = ({
   const [urlCopied, setUrlCopied] = useState<boolean>(false);
 
   const { isAuthenticated } = useLazyAuth();
+  // Wolke export is currently disabled — don't fetch share links until re-enabled
+  const { data: shareLinks = [] } = useShareLinks(undefined, undefined, { enabled: false });
+  const uploadToWolkeMutation = useUploadToWolke();
+  const activeShareLinks = shareLinks.filter((link) => link.is_active);
   const location = useLocation();
   const navigate = useNavigate();
   const { getBetaFeatureState } = useBetaFeatures();
@@ -115,26 +118,6 @@ const ExportDropdown = ({
   const { isGenerating, generateDOCX, generatePDF } = useExportStore();
 
   const isMobileView = window.innerWidth <= 768;
-
-  // Load share links when dropdown opens
-  const loadShareLinks = useCallback(async () => {
-    if (!isAuthenticated) return;
-
-    setLoadingShareLinks(true);
-    try {
-      const links = await NextcloudShareManager.getShareLinks();
-      const activeLinks = links.filter((link) => link.is_active);
-      setShareLinks(activeLinks);
-      if (activeLinks.length > 0 && !selectedShareLinkId) {
-        setSelectedShareLinkId(activeLinks[0].id);
-      }
-    } catch (error) {
-      console.error('Failed to load share links:', error);
-      setShareLinks([]);
-    } finally {
-      setLoadingShareLinks(false);
-    }
-  }, [isAuthenticated, selectedShareLinkId]);
 
   // Check native share capability on mount
   useEffect(() => {
@@ -295,7 +278,7 @@ const ExportDropdown = ({
     }
   };
 
-  const handleDOCXDownload = useCallback(async () => {
+  const handleDOCXDownload = async () => {
     try {
       const freshTitle = await getFreshTitle();
       const formattedContent = await extractFormattedText(content);
@@ -305,9 +288,9 @@ const ExportDropdown = ({
       const errorMessage = error instanceof Error ? error.message : String(error);
       alert('DOCX Download fehlgeschlagen: ' + errorMessage);
     }
-  }, [generateDOCX, content, title]);
+  };
 
-  const handlePDFDownload = useCallback(async () => {
+  const handlePDFDownload = async () => {
     try {
       const freshTitle = await getFreshTitle();
       const formattedContent = await extractFormattedText(content);
@@ -317,23 +300,16 @@ const ExportDropdown = ({
       const errorMessage = error instanceof Error ? error.message : String(error);
       alert('PDF Download fehlgeschlagen: ' + errorMessage);
     }
-  }, [generatePDF, content, title]);
+  };
 
   const handleWolkeClick = async () => {
     if (!isAuthenticated) return;
 
-    // Load sharelinks if not already loaded
-    if (shareLinks.length === 0 && !loadingShareLinks) {
-      await loadShareLinks();
-    }
-
-    // If only one sharelink, upload directly
-    if (shareLinks.length === 1 && shareLinks[0]) {
-      await handleWolkeUpload(shareLinks[0].id);
-    } else if (shareLinks.length > 1) {
+    if (activeShareLinks.length === 1 && activeShareLinks[0]) {
+      await handleWolkeUpload(activeShareLinks[0].id);
+    } else if (activeShareLinks.length > 1) {
       // TODO: Show sub-menu for multiple sharelinks when Wolke is re-enabled
     } else {
-      // Show setup modal for configuring first Wolke connection
       setShowWolkeSetupModal(true);
     }
   };
@@ -364,7 +340,11 @@ const ExportDropdown = ({
       reader.onloadend = async () => {
         const base64Content = (reader.result as string).split(',')[1];
 
-        const result = await NextcloudShareManager.upload(shareLinkId, base64Content, filename);
+        const result = await uploadToWolkeMutation.mutateAsync({
+          shareLinkId,
+          content: base64Content,
+          filename,
+        });
 
         if (result.success) {
           setExportIcon('checkmark');
@@ -413,6 +393,7 @@ const ExportDropdown = ({
       const titleLine = freshTitle ? `**${freshTitle}**\n\n` : '';
       const reviewMessage = `Bitte überprüfe den folgenden Text und gib mir konstruktives Feedback:\n\n${titleLine}---\n${plainContent}\n---`;
 
+      const { useAgentStore } = await import('@gruenerator/chat');
       useAgentStore.getState().setPendingMessage(reviewMessage);
       navigate('/chat');
     } catch (err) {
@@ -420,19 +401,14 @@ const ExportDropdown = ({
     }
   };
 
-  const handleWolkeSetup = async (shareLink: string, label: string) => {
-    const parsed = NextcloudShareManager.parseShareLink(shareLink);
+  const handleWolkeSetup = async (shareLinkUrl: string, label: string) => {
+    const parsed = parseShareLink(shareLinkUrl);
     if (!parsed) throw new Error('Ungültiger Wolke-Share-Link');
-    await NextcloudShareManager.saveShareLink(shareLink, label, parsed.baseUrl, parsed.shareToken);
-    // Reload share links after successful setup
-    await loadShareLinks();
-    // Close modal and proceed with upload if we now have links
-    setShowWolkeSetupModal(false);
 
-    // Small delay to ensure state updates, then retry the upload
-    setTimeout(() => {
-      handleWolkeClick();
-    }, 100);
+    const { addShareLink } = await import('../../features/wolke/lib/wolkeApi');
+    await addShareLink(shareLinkUrl, label);
+
+    setShowWolkeSetupModal(false);
   };
 
   if (!content) {
@@ -467,11 +443,7 @@ const ExportDropdown = ({
 
       {/* More options menu (3-dot) */}
       {showMoreMenu && (
-        <DropdownMenu
-          onOpenChange={(open) => {
-            if (open && isAuthenticated) loadShareLinks();
-          }}
-        >
+        <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               className={className}
@@ -514,7 +486,7 @@ const ExportDropdown = ({
                 {onEditInDocs && hasDocsAccess && (
                   <DropdownMenuItem onSelect={handleEditInDocsClick} disabled={editInDocsLoading}>
                     <HiOutlineDocumentText />
-                    {editInDocsLoading ? 'Exportiere...' : 'In Docs exportieren'}
+                    {editInDocsLoading ? 'Öffne Editor...' : 'In Docs bearbeiten'}
                   </DropdownMenuItem>
                 )}
 
@@ -591,25 +563,41 @@ const ExportDropdown = ({
       {/* Textbegrünung Paste Popup */}
       {showPastePopup && (
         <div
-          className="modal"
+          className="fixed inset-0 bg-black/50 flex justify-center items-center z-[9999] p-8 max-md:p-4"
           role="dialog"
           aria-labelledby="export-modal-title"
           onClick={() => setShowPastePopup(false)}
         >
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <button className="close-button" onClick={() => setShowPastePopup(false)}>
+          <div
+            className="relative bg-background-alt p-10 rounded-2xl max-w-[600px] w-full shadow-[0_8px_32px_rgba(0,0,0,0.1)] max-md:p-7 max-md:rounded-xl max-[360px]:p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="absolute top-4 right-4 bg-transparent border-none cursor-pointer text-foreground-heading p-2 transition-opacity hover:opacity-70"
+              onClick={() => setShowPastePopup(false)}
+            >
               <IoCloseOutline size={24} />
             </button>
-            <h2 id="export-modal-title">Mit Textbegrünung freigeben</h2>
-            <p>
+            <h2
+              id="export-modal-title"
+              className="text-foreground-heading m-0 mb-6 text-[1.75em] text-center max-md:text-[1.4em] max-[360px]:text-[1.2em]"
+            >
+              Mit Textbegrünung freigeben
+            </h2>
+            <p className="my-3 leading-relaxed text-foreground text-[1.1em] max-md:text-base max-[360px]:text-[0.9em]">
               {copySucceeded
                 ? 'Text wurde in Zwischenablage kopiert! Öffne dein Dokument und füge ihn mit Strg+V ein.'
                 : 'Öffne das Textbegrünung-Dokument und füge deinen Text dort ein.'}
             </p>
             {padURL && (
               <>
-                <div className="url-container">
-                  <input type="text" value={padURL} readOnly className="url-input" />
+                <div className="flex my-4 bg-background rounded-lg p-1 border border-[var(--hellgrau)]">
+                  <input
+                    type="text"
+                    value={padURL}
+                    readOnly
+                    className="grow py-3 px-4 border-none bg-transparent text-foreground text-[0.9em] max-[360px]:p-2.5"
+                  />
                   <button
                     onClick={() => {
                       navigator.clipboard
@@ -620,13 +608,16 @@ const ExportDropdown = ({
                         })
                         .catch((err) => console.error('Fehler beim Kopieren:', err));
                     }}
-                    className={`copy-docs-link-button ${urlCopied ? 'copied' : ''}`}
+                    className={`py-2 px-4 border-none rounded-md cursor-pointer bg-transparent text-foreground transition-all flex items-center gap-2 relative hover:opacity-70 max-[360px]:p-2.5 ${urlCopied ? 'text-[var(--primary)]' : ''}`}
                   >
                     {urlCopied ? <IoCheckmarkOutline size={20} /> : <IoCopyOutline size={20} />}
                   </button>
                 </div>
-                <div className="button-group">
-                  <button onClick={handleCopyText} className="export-action-button">
+                <div className="flex gap-4 mt-4 max-md:flex-col max-md:gap-2">
+                  <button
+                    onClick={handleCopyText}
+                    className="flex-1 w-full py-3.5 border-none rounded-lg text-base cursor-pointer bg-[var(--secondary)] text-white transition-all flex items-center justify-center gap-2 disabled:bg-[var(--hellgrau)] disabled:cursor-not-allowed"
+                  >
                     {textCopyIcon} Text kopieren
                   </button>
                   <button
@@ -634,7 +625,7 @@ const ExportDropdown = ({
                       window.open(padURL, '_blank');
                       setShowPastePopup(false);
                     }}
-                    className="open-button"
+                    className="flex-1 w-full py-3.5 border-none rounded-lg text-base cursor-pointer bg-[var(--secondary)] text-white transition-all flex items-center justify-center gap-2 max-[360px]:p-2.5"
                   >
                     <IoOpenOutline size={20} /> Link öffnen
                   </button>

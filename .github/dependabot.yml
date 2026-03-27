@@ -342,59 +342,6 @@ updates:
         update-types: ['version-update:semver-major']
 
   # =============================================================================
-  # DOCS EXPO - Mobile docs app (apps/docs-expo)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/apps/docs-expo'
-    schedule:
-      interval: 'weekly'
-      day: 'thursday'
-      time: '06:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'docs-expo'
-    groups:
-      expo:
-        patterns:
-          - 'expo'
-          - 'expo-*'
-      all-minor-patch:
-        update-types:
-          - 'minor'
-          - 'patch'
-        exclude-patterns:
-          - 'expo'
-          - 'expo-*'
-    ignore:
-      - dependency-name: 'expo'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'react-native'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'react'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # VIDEO - Remotion video app (apps/video)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/apps/video'
-    schedule:
-      interval: 'weekly'
-      day: 'friday'
-      time: '05:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'video'
-    groups:
-      all-dependencies:
-        patterns:
-          - '*'
-
-  # =============================================================================
   # SHARED PACKAGE (packages/shared)
   # =============================================================================
   - package-ecosystem: 'npm'
@@ -674,6 +621,180 @@ updates:
           - 'patch'
         exclude-patterns:
           - 'tauri*'
+
+  # =============================================================================
+  # VOXTRAL - Self-hosted transcription service (Python)
+  # =============================================================================
+  - package-ecosystem: 'pip'
+    directory: '/services/voxtral'
+    schedule:
+      interval: 'weekly'
+      day: 'saturday'
+      time: '05:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'voxtral'
+    groups:
+      ml-deps:
+        patterns:
+          - 'torch'
+          - 'transformers'
+          - 'mistral-common'
+      server-deps:
+        patterns:
+          - 'fastapi'
+          - 'uvicorn'
+          - 'python-multipart'
+
+  # =============================================================================
+  # WORDPRESS (apps/wordpress)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/apps/wordpress'
+    schedule:
+      interval: 'weekly'
+      day: 'friday'
+      time: '15:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'wordpress'
+    groups:
+      all-dependencies:
+        patterns:
+          - '*'
+
+  # =============================================================================
+  # CANVAS EDITOR PACKAGE (packages/canvas-editor)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/packages/canvas-editor'
+    schedule:
+      interval: 'weekly'
+      day: 'friday'
+      time: '15:30'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'canvas-editor'
+    groups:
+      all-dependencies:
+        patterns:
+          - '*'
+    ignore:
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+
+  # =============================================================================
+  # COLLAB PACKAGE (packages/collab)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/packages/collab'
+    schedule:
+      interval: 'weekly'
+      day: 'friday'
+      time: '16:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'collab'
+    groups:
+      all-dependencies:
+        patterns:
+          - '*'
+    ignore:
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+
+  # =============================================================================
+  # UI PACKAGE (packages/ui)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/packages/ui'
+    schedule:
+      interval: 'weekly'
+      day: 'friday'
+      time: '16:30'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'ui'
+    groups:
+      all-dependencies:
+        patterns:
+          - '*'
+    ignore:
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+
+  # =============================================================================
+  # VOICE PACKAGE (packages/voice)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/packages/voice'
+    schedule:
+      interval: 'weekly'
+      day: 'friday'
+      time: '17:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'voice'
+    groups:
+      all-dependencies:
+        patterns:
+          - '*'
+    ignore:
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+
+  # =============================================================================
+  # WOLKE PACKAGE (packages/wolke)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/packages/wolke'
+    schedule:
+      interval: 'weekly'
+      day: 'friday'
+      time: '17:30'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'wolke'
+    groups:
+      all-dependencies:
+        patterns:
+          - '*'
+    ignore:
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+
+  # =============================================================================
+  # SITES DESIGN PACKAGE (packages/sites-design)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/packages/sites-design'
+    schedule:
+      interval: 'weekly'
+      day: 'friday'
+      time: '18:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'sites-design'
+    groups:
+      all-dependencies:
+        patterns:
+          - '*'
 
   # =============================================================================
   # GITHUB ACTIONS - CI/CD workflows (DAILY for security)

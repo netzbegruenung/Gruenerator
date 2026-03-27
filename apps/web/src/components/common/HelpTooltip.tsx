@@ -8,7 +8,8 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { HiQuestionMarkCircle } from 'react-icons/hi';
-import '../../assets/styles/components/ui/tooltip.css';
+
+import { cn } from '../../utils/cn';
 
 export interface HelpTooltipProps {
   children: ReactNode;
@@ -72,10 +73,10 @@ const HelpTooltip = ({ children, className = '' }: HelpTooltipProps) => {
   }, [isVisible, updatePosition]);
 
   return (
-    <div className={`help-tooltip-container ${className}`}>
+    <div className={cn('relative inline-flex items-center', className)}>
       <button
         ref={triggerRef}
-        className="help-tooltip-trigger"
+        className="inline-flex items-center justify-center bg-transparent border-none cursor-pointer p-0 text-foreground opacity-60 hover:opacity-100 transition-opacity"
         onMouseEnter={() => setIsVisible(true)}
         onMouseLeave={() => setIsVisible(false)}
         onClick={(e: React.MouseEvent) => {
@@ -89,8 +90,12 @@ const HelpTooltip = ({ children, className = '' }: HelpTooltipProps) => {
       </button>
       {isVisible &&
         createPortal(
-          <div ref={tooltipRef} className="help-tooltip-content" style={style}>
-            <div className="help-tooltip-arrow" />
+          <div
+            ref={tooltipRef}
+            className="z-[9999] bg-[var(--dunkelgruen)] text-white rounded px-3 py-2 text-sm -translate-x-1/2 max-w-[300px] shadow-lg"
+            style={style}
+          >
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full w-0 h-0 border-x-[6px] border-x-transparent border-b-[6px] border-b-[var(--dunkelgruen)]" />
             {children}
           </div>,
           document.body

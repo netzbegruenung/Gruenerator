@@ -18,6 +18,7 @@ import { generatePointId } from '../../../utils/validation/index.js';
 import { smartChunkDocument } from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { BaseScraper } from '../base/BaseScraper.js';
+import { batchProcess } from '../utils/batchFetch.js';
 import { extractMainContent, extractDate } from '../utils/contentExtractor.js';
 import {
   extractTitle,
@@ -175,7 +176,7 @@ export class BoellStiftungScraper extends BaseScraper {
     });
 
     this.baseUrl = 'https://www.boell.de';
-    this.crawlDelay = 1000;
+    this.crawlDelay = 300;
     this.batchSize = 10;
     this.maxDepth = 2;
     this.timeout = 30000;
@@ -712,29 +713,43 @@ export class BoellStiftungScraper extends BaseScraper {
       const urls = await this.discoverFromTopicPages();
       result.totalUrls = urls.length;
 
-      const urlsToProcess = maxArticles ? urls.slice(0, maxArticles) : urls;
-
-      for (let i = 0; i < urlsToProcess.length; i++) {
-        const url = urlsToProcess[i];
-
-        if (this.visitedUrls.has(url)) {
-          continue;
-        }
+      const urlsToProcess = (maxArticles ? urls.slice(0, maxArticles) : urls).filter((url) => {
+        if (this.visitedUrls.has(url)) return false;
         this.visitedUrls.add(url);
-
         if (this.#isExcludedUrl(url)) {
           result.skipped++;
           result.skipReasons.excluded.count++;
+          return false;
+        }
+        return true;
+      });
+
+      this.log(`Prefetching ${urlsToProcess.length} pages (concurrency: 3)...`);
+      const fetched = await batchProcess(urlsToProcess, (url) => this.#fetchPage(url), {
+        concurrency: 3,
+        delayMs: this.crawlDelay,
+      });
+
+      for (let i = 0; i < fetched.length; i++) {
+        const entry = fetched[i];
+        const url = entry.item;
+
+        if ('error' in entry) {
+          result.errors++;
+          result.skipReasons.fetch_error.count++;
+          if (result.skipReasons.fetch_error.examples.length < 5) {
+            result.skipReasons.fetch_error.examples.push(url);
+          }
+          continue;
+        }
+
+        const html = entry.result;
+        if (!html) {
+          result.skipped++;
           continue;
         }
 
         try {
-          const html = await this.#fetchPage(url);
-          if (!html) {
-            result.skipped++;
-            continue;
-          }
-
           const content = this.#extractContent(html, url);
 
           if (!forceUpdate) {
@@ -762,7 +777,7 @@ export class BoellStiftungScraper extends BaseScraper {
             }
             result.totalVectors += processResult.vectors || 0;
             this.log(
-              `✓ [${i + 1}/${urlsToProcess.length}] "${content.title?.substring(0, 50)}" (${processResult.chunks} chunks)`
+              `[${i + 1}/${fetched.length}] "${content.title?.substring(0, 50)}" (${processResult.chunks} chunks)`
             );
           } else {
             result.skipped++;
@@ -777,21 +792,15 @@ export class BoellStiftungScraper extends BaseScraper {
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.error(`[BoellStiftung] ✗ Error ${url}: ${errorMessage}`);
+          console.error(`[BoellStiftung] Error processing ${url}: ${errorMessage}`);
           result.errors++;
-          result.skipReasons.fetch_error.count++;
-          if (result.skipReasons.fetch_error.examples.length < 5) {
-            result.skipReasons.fetch_error.examples.push(url);
-          }
         }
 
-        if (i % 10 === 0 && i > 0) {
+        if (i % 50 === 0 && i > 0) {
           this.log(
             `Progress: ${result.stored} stored, ${result.updated} updated, ${result.skipped} skipped`
           );
         }
-
-        await this.delay(this.crawlDelay);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

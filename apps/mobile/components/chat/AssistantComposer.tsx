@@ -1,24 +1,8 @@
-import {
-  ComposerRoot,
-  ComposerSend,
-  ComposerCancel,
-  ComposerAttachments,
-  useThreadIsRunning,
-  useAui,
-} from '@assistant-ui/react-native';
+import { useAui, useAuiState, ComposerPrimitive } from '@assistant-ui/react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { detectMention, computeMentionInsertion, type Mentionable } from '@gruenerator/chat';
 import { useCallback, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  Modal,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import { View, TextInput, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 
 import {
   pickDocument,
@@ -28,6 +12,7 @@ import {
 import { colors, spacing, borderRadius } from '../../theme';
 
 import { ComposerAttachmentUI } from './AttachmentUI';
+import { ComposerActionSheet } from './ComposerActionSheet';
 import { MentionSuggestions } from './MentionSuggestions';
 
 import type { Theme } from '../../theme/colors';
@@ -53,14 +38,14 @@ export function AssistantComposer({
   onOpenDocBrowser,
   inputRef: externalInputRef,
 }: Props) {
-  const isRunning = useThreadIsRunning();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
   const aui = useAui();
   const internalInputRef = useRef<TextInput>(null);
   const inputRef = externalInputRef ?? internalInputRef;
   const textRef = useRef('');
   const selectionRef = useRef(0);
   const [mention, setMention] = useState<MentionState | null>(null);
-  const [plusMenuVisible, setPlusMenuVisible] = useState(false);
+  const [actionSheetVisible, setActionSheetVisible] = useState(false);
 
   const onChangeText = useCallback(
     (value: string) => {
@@ -113,48 +98,21 @@ export function AssistantComposer({
   /* eslint-enable react-hooks/preserve-manual-memoization */
 
   const handlePickFile = useCallback(async () => {
-    console.log('[Attachment] Step 1: picking document...');
     const doc = await pickDocument();
-    if (!doc) {
-      console.log('[Attachment] Cancelled');
-      return;
-    }
-    console.log('[Attachment] Step 2: picked', doc.name, doc.mimeType, doc.size);
-    if (!validatePickedDocument(doc)) {
-      console.log('[Attachment] Validation failed');
-      return;
-    }
+    if (!doc) return;
+    if (!validatePickedDocument(doc)) return;
 
     try {
-      console.log('[Attachment] Step 3: converting to CreateAttachment...');
       const attachment = await pickedDocumentToAttachment(doc);
-      console.log('[Attachment] Step 4: converted', {
-        name: attachment.name,
-        type: attachment.type,
-        contentLength: attachment.content?.length,
-      });
-
-      console.log('[Attachment] Step 5: calling addAttachment...');
       await aui.composer().addAttachment(attachment);
-      console.log('[Attachment] Step 6: done.');
     } catch (err) {
-      console.error('[Attachment] ERROR:', err);
       const msg = err instanceof Error ? err.message : 'Fehler beim Anhängen';
       Alert.alert('Anhang fehlgeschlagen', msg);
     }
   }, [aui]);
 
-  const handlePlusMenuAction = useCallback(
-    (action: 'file' | 'doc') => {
-      setPlusMenuVisible(false);
-      if (action === 'file') handlePickFile();
-      else onOpenDocBrowser?.();
-    },
-    [handlePickFile, onOpenDocBrowser]
-  );
-
   return (
-    <ComposerRoot
+    <ComposerPrimitive.Root
       style={[styles.root, { backgroundColor: theme.background, paddingBottom: bottomInset }]}
     >
       {mention?.visible && (
@@ -168,12 +126,16 @@ export function AssistantComposer({
         />
       )}
       <View style={styles.attachmentsRow}>
-        <ComposerAttachments components={{ Attachment: ComposerAttachmentUI }} />
+        <ComposerPrimitive.Attachments components={{ Attachment: ComposerAttachmentUI }} />
       </View>
       <View
         style={[styles.inputRow, { backgroundColor: theme.surface }, styles.inputRowWithActions]}
       >
-        <Pressable onPress={() => setPlusMenuVisible(true)} style={styles.actionButton} hitSlop={8}>
+        <Pressable
+          onPress={() => setActionSheetVisible(true)}
+          style={styles.actionButton}
+          hitSlop={8}
+        >
           <Ionicons name="add-circle-outline" size={22} color={theme.textSecondary} />
         </Pressable>
         <TextInput
@@ -186,11 +148,11 @@ export function AssistantComposer({
           onSelectionChange={onSelectionChange}
         />
         {isRunning ? (
-          <ComposerCancel style={styles.cancelButton}>
+          <ComposerPrimitive.Cancel style={styles.cancelButton}>
             <ActivityIndicator size="small" color={colors.error[500]} />
-          </ComposerCancel>
+          </ComposerPrimitive.Cancel>
         ) : (
-          <ComposerSend
+          <ComposerPrimitive.Send
             style={styles.sendButton}
             onPressIn={() => {
               inputRef.current?.clear();
@@ -199,39 +161,16 @@ export function AssistantComposer({
             }}
           >
             <Ionicons name="send" size={16} color={colors.white} />
-          </ComposerSend>
+          </ComposerPrimitive.Send>
         )}
       </View>
-      <Modal
-        visible={plusMenuVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPlusMenuVisible(false)}
-      >
-        <Pressable style={styles.sheetOverlay} onPress={() => setPlusMenuVisible(false)}>
-          <View style={[styles.sheetContainer, { backgroundColor: theme.surface }]}>
-            <Pressable style={styles.sheetOption} onPress={() => handlePlusMenuAction('file')}>
-              <Ionicons name="document-outline" size={22} color={theme.text} />
-              <Text style={[styles.sheetOptionText, { color: theme.text }]}>Datei anhängen</Text>
-            </Pressable>
-            {onOpenDocBrowser && (
-              <Pressable style={styles.sheetOption} onPress={() => handlePlusMenuAction('doc')}>
-                <Ionicons name="search-outline" size={22} color={theme.text} />
-                <Text style={[styles.sheetOptionText, { color: theme.text }]}>Dokument suchen</Text>
-              </Pressable>
-            )}
-            <Pressable
-              style={[styles.sheetOption, styles.sheetCancel]}
-              onPress={() => setPlusMenuVisible(false)}
-            >
-              <Text style={[styles.sheetOptionText, { color: theme.textSecondary }]}>
-                Abbrechen
-              </Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Modal>
-    </ComposerRoot>
+      <ComposerActionSheet
+        visible={actionSheetVisible}
+        onClose={() => setActionSheetVisible(false)}
+        onPickFile={handlePickFile}
+        onOpenDocBrowser={onOpenDocBrowser}
+      />
+    </ComposerPrimitive.Root>
   );
 }
 
@@ -285,33 +224,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: spacing.xsmall,
-  },
-  sheetOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  sheetContainer: {
-    borderTopLeftRadius: borderRadius.large,
-    borderTopRightRadius: borderRadius.large,
-    paddingTop: spacing.small,
-    paddingBottom: spacing.xlarge,
-    paddingHorizontal: spacing.medium,
-  },
-  sheetOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: spacing.small,
-    gap: spacing.small,
-  },
-  sheetCancel: {
-    justifyContent: 'center',
-    marginTop: spacing.xsmall,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(128,128,128,0.3)',
-  },
-  sheetOptionText: {
-    fontSize: 16,
   },
 });
