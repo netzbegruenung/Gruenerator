@@ -434,7 +434,12 @@ function resolveLineColor(color: string, element: HTMLElement) {
   context.fillRect(0, 0, 1, 1);
   const pixel = context.getImageData(0, 0, 1, 1).data;
 
-  return new Float32Array([pixel[0] / 255, pixel[1] / 255, pixel[2] / 255, pixel[3] / 255]);
+  return new Float32Array([
+    (pixel[0] ?? 0) / 255,
+    (pixel[1] ?? 0) / 255,
+    (pixel[2] ?? 0) / 255,
+    (pixel[3] ?? 0) / 255,
+  ]);
 }
 
 function createFallbackGridStyle(cellSize: number, lineColor: string): CSSProperties {

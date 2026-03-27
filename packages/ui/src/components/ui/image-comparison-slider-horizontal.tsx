@@ -34,7 +34,9 @@ export function ImageComparisonSlider({
     if (!isDragging) return;
 
     const onMouseMove = (e: MouseEvent) => handleMove(e.clientX);
-    const onTouchMove = (e: TouchEvent) => handleMove(e.touches[0].clientX);
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches[0]) handleMove(e.touches[0].clientX);
+    };
     const onEnd = () => setIsDragging(false);
 
     document.addEventListener('mousemove', onMouseMove);
