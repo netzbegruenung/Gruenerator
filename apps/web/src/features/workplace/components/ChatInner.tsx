@@ -32,8 +32,11 @@ function NavigateToChatOnSend() {
 const ChatInner: React.FC = memo(() => {
   const navigate = useNavigate();
   const firstName = useFirstName();
+  const threadRuntime = useThreadRuntime({ optional: true });
 
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
+
+  if (!threadRuntime) return null;
 
   return (
     <ThreadPrimitive.Root
