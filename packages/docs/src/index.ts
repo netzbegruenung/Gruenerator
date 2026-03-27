@@ -29,7 +29,6 @@ export { ShareModal } from './components/permissions/ShareModal';
 export { ErrorBoundary } from './components/common/ErrorBoundary';
 
 // Hooks
-export { useCollaboration } from './hooks/useCollaboration';
 export { useCollaborators, type CollaborationUser } from '@gruenerator/collab';
 export { useDocumentChat, type ChatMessage } from './hooks/useDocumentChat';
 export { useBlockNoteComments } from './hooks/useBlockNoteComments';

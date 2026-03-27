@@ -1,8 +1,8 @@
 import { DOCXExporter, docxDefaultSchemaMappings } from '@blocknote/xl-docx-exporter';
+import { useCollaboration } from '@gruenerator/collab';
 import {
   DocsProvider,
   useDocumentStore,
-  useCollaboration,
   useDocumentChat,
   BlockNoteEditor as BlockNoteEditorComponent,
   ChatSidebar,
@@ -14,6 +14,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { FiDownload, FiExternalLink, FiMessageSquare, FiUsers } from 'react-icons/fi';
 import { useParams } from 'react-router-dom';
 
+import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useAuthStore } from '../../stores/authStore';
 
 import { webAppDocsAdapter } from './docsAdapter';
@@ -44,9 +45,11 @@ function EditorContent() {
     ? { id: String(user.id), display_name: user.display_name, email: user.email }
     : null;
 
+  const collabConfig = useCollaborationConfig();
   const { ydoc, provider, isConnected, isSynced } = useCollaboration({
     documentId: id || '',
     user: collaborationUser,
+    config: collabConfig,
   });
   const { messages, sendMessage, getLocalUser, setTyping, typingUsers } = useDocumentChat({
     ydoc,

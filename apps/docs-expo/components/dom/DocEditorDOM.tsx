@@ -6,11 +6,12 @@ import '@blocknote/mantine/style.css';
 import '@blocknote/mantine/src/blocknoteStyles.css';
 import '@blocknote/xl-ai/style.css';
 import '@gruenerator/docs/styles';
+import { useCollaboration, type CollaborationConfig } from '@gruenerator/collab';
 import {
   DocsProvider,
   BlockNoteEditor,
-  useCollaboration,
   useDocumentChat,
+  useDocsAdapter,
   type DocsAdapter,
 } from '@gruenerator/docs';
 import { MantineProvider } from '@mantine/core';
@@ -262,9 +263,19 @@ function EditorContent({
     () => ({ id: userId, display_name: userName, email: userEmail }),
     [userId, userName, userEmail]
   );
+  const adapter = useDocsAdapter();
+  const collabConfig: CollaborationConfig = useMemo(
+    () => ({
+      url: adapter.getHocuspocusUrl(),
+      getToken: () => adapter.getHocuspocusToken(),
+      getWebSocketPolyfill: adapter.getWebSocketPolyfill,
+    }),
+    [adapter]
+  );
   const { ydoc, provider, isConnected, isSynced } = useCollaboration({
     documentId,
     user,
+    config: collabConfig,
   });
   const { messages, sendMessage, getLocalUser, setTyping, typingUsers } = useDocumentChat({
     ydoc,

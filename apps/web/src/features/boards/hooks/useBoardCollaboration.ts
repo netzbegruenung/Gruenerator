@@ -1,10 +1,12 @@
-import { useCollaboration } from '@gruenerator/docs';
+import { useCollaboration } from '@gruenerator/collab';
 import { useMemo } from 'react';
 
+import { useCollaborationConfig } from '../../../hooks/useCollaborationConfig';
 import { useAuthStore } from '../../../stores/authStore';
 
 export const useBoardCollaboration = (boardId: string) => {
   const user = useAuthStore((s) => s.user);
+  const config = useCollaborationConfig();
 
   const collaborationUser = useMemo(
     () =>
@@ -15,5 +17,6 @@ export const useBoardCollaboration = (boardId: string) => {
   return useCollaboration({
     documentId: boardId,
     user: collaborationUser,
+    config,
   });
 };

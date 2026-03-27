@@ -1,5 +1,5 @@
+import { useCollaboration, type CollaborationConfig } from '@gruenerator/collab';
 import {
-  useCollaboration,
   useDocumentChat,
   BlockNoteEditor as BlockNoteEditorComponent,
   useDocsAdapter,
@@ -152,9 +152,18 @@ export const EditorPage = () => {
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const commentsPortalRef = useRef<HTMLDivElement>(null);
   const [commentsPortalTarget, setCommentsPortalTarget] = useState<HTMLElement | null>(null);
+  const collabConfig: CollaborationConfig = useMemo(
+    () => ({
+      url: adapter.getHocuspocusUrl(),
+      getToken: () => adapter.getHocuspocusToken(),
+      getWebSocketPolyfill: adapter.getWebSocketPolyfill,
+    }),
+    [adapter]
+  );
   const { ydoc, provider, isConnected, isSynced } = useCollaboration({
     documentId: id || '',
     user: isGuest ? null : user,
+    config: collabConfig,
     isGuest,
     guestId: guestIdentity?.guestId,
     guestName: guestIdentity?.guestName,

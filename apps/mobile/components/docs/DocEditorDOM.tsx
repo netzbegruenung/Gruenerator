@@ -1,11 +1,12 @@
 'use dom';
 
 import '@gruenerator/docs/styles';
+import { useCollaboration, type CollaborationConfig } from '@gruenerator/collab';
 import {
   DocsProvider,
   BlockNoteEditor,
-  useCollaboration,
   useDocumentChat,
+  useDocsAdapter,
   type DocsAdapter,
 } from '@gruenerator/docs';
 import { type DOMProps } from 'expo/dom';
@@ -260,9 +261,19 @@ function EditorContent({
     () => ({ id: userId, display_name: userName, email: userEmail }),
     [userId, userName, userEmail]
   );
+  const adapter = useDocsAdapter();
+  const collabConfig: CollaborationConfig = useMemo(
+    () => ({
+      url: adapter.getHocuspocusUrl(),
+      getToken: () => adapter.getHocuspocusToken(),
+      getWebSocketPolyfill: adapter.getWebSocketPolyfill,
+    }),
+    [adapter]
+  );
   const { ydoc, provider, isConnected, isSynced } = useCollaboration({
     documentId,
     user,
+    config: collabConfig,
   });
   const { messages, sendMessage, getLocalUser, setTyping, typingUsers } = useDocumentChat({
     ydoc,

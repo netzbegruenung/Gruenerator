@@ -1,16 +1,15 @@
-import { DocsProvider, useCollaboration } from '@gruenerator/docs';
+import { useCollaboration } from '@gruenerator/collab';
+import { DocsProvider } from '@gruenerator/docs';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
-import { MantineProvider } from '@mantine/core';
 import { marked } from 'marked';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { webAppDocsAdapter } from '../../features/docs/docsAdapter';
 import { useLazyAuth } from '../../hooks/useAuth';
+import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 
 import { cn } from '@/utils/cn';
-
-import '@mantine/core/styles.css';
 
 const BlockNoteEditor = lazy(() =>
   import('@gruenerator/docs').then((m) => ({ default: m.BlockNoteEditor }))
@@ -44,9 +43,11 @@ const DocsEditorContent = ({
     [user]
   );
 
+  const collabConfig = useCollaborationConfig();
   const { ydoc, provider, isConnected, isSynced } = useCollaboration({
     documentId,
     user: collabUser,
+    config: collabConfig,
   });
 
   useEffect(() => {
@@ -138,14 +139,12 @@ const DocsEditorModal = ({ documentId, initialContent, title, onClose }: DocsEdi
         )}
       >
         <DocsProvider adapter={webAppDocsAdapter}>
-          <MantineProvider>
-            <DocsEditorContent
-              documentId={documentId}
-              initialContent={initialContent}
-              title={title}
-              onClose={handleClose}
-            />
-          </MantineProvider>
+          <DocsEditorContent
+            documentId={documentId}
+            initialContent={initialContent}
+            title={title}
+            onClose={handleClose}
+          />
         </DocsProvider>
       </div>
     </div>,
