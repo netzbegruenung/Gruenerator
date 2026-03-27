@@ -1,4 +1,10 @@
-import { type ThreadMessageLike } from '@assistant-ui/react';
+import {
+  type ThreadMessageLike,
+  type ThreadMessage,
+  type ThreadHistoryAdapter,
+} from '@assistant-ui/react';
+
+export type { ThreadHistoryAdapter };
 
 import { type ChatApiClient } from '../context/ChatContext';
 
@@ -27,21 +33,11 @@ export interface LoadedMessage {
   };
 }
 
-export interface ThreadHistoryAdapter {
-  load(): Promise<{
-    messages: Array<{
-      parentId: string | null;
-      message: { id: string; [key: string]: unknown };
-    }>;
-  }>;
-  append(): Promise<void>;
-}
-
 export function createThreadHistoryAdapter(
   remoteId: string,
   apiClient: ChatApiClient,
   convertFn: (msgs: LoadedMessage[]) => ThreadMessageLike[],
-  transformFn: (msg: ThreadMessageLike) => { id: string; [key: string]: unknown }
+  transformFn: (msg: ThreadMessageLike) => ThreadMessage
 ): ThreadHistoryAdapter {
   return {
     async load() {

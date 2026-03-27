@@ -20,6 +20,7 @@ export type ChatMessageMetadata = {
   generatedImage?: GeneratedImage;
   streamMetadata?: StreamMetadata;
   threadId?: string;
+  followUpSuggestions?: string[];
   // Notebook specific
   rawCitations?: RawCitation[];
   sources?: Source[];
