@@ -51,7 +51,7 @@ const upload = multer({
 // POST /:groupId/avatar — Upload group avatar (admin-only)
 // ============================================================================
 router.post(
-  '/:groupId/avatar',
+  '/groups/:groupId/avatar',
   ensureAuthenticated,
   upload.single('avatar'),
   async (req: AuthRequest<{ groupId: string }>, res: Response) => {
@@ -113,7 +113,7 @@ router.post(
 // GET /:groupId/avatar — Serve group avatar
 // ============================================================================
 router.get(
-  '/:groupId/avatar',
+  '/groups/:groupId/avatar',
   ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string }>, res: Response) => {
     try {
@@ -160,7 +160,7 @@ router.get(
 // DELETE /:groupId/avatar — Remove group avatar (admin-only)
 // ============================================================================
 router.delete(
-  '/:groupId/avatar',
+  '/groups/:groupId/avatar',
   ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string }>, res: Response) => {
     try {
