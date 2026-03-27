@@ -1,19 +1,11 @@
-import {
-  DocsProvider,
-  useCollaboration,
-  useDocumentStore,
-  createDocsApiClient,
-} from '@gruenerator/docs';
-import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
+import { useDocumentStore, createDocsApiClient } from '@gruenerator/docs';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@gruenerator/ui';
-import { MantineProvider } from '@mantine/core';
 import { XIcon } from 'lucide-react';
-import { marked } from 'marked';
 import { motion, AnimatePresence } from 'motion/react';
 import React, {
   lazy,
@@ -26,7 +18,6 @@ import React, {
   useState,
 } from 'react';
 import { FaFileWord, FaFilePdf } from 'react-icons/fa6';
-import { FiDownload, FiExternalLink } from 'react-icons/fi';
 import { HiOutlinePencil } from 'react-icons/hi';
 import {
   IoDownloadOutline,
@@ -44,7 +35,6 @@ import ContentRenderer from '../../../components/common/ContentDisplay/ContentRe
 import EnrichmentSourcesDisplay from '../../../components/common/EnrichmentSourcesDisplay';
 import { copyFormattedContent } from '../../../components/utils/commonFunctions';
 import { extractFormattedText as extractFormattedTextJs } from '../../../components/utils/contentExtractor';
-import { useLazyAuth } from '../../../hooks/useAuth';
 import { useDeferredTitle, awaitDeferredTitle } from '../../../hooks/useDeferredTitle';
 import { useExportStore } from '../../../stores/core/exportStore';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
@@ -52,15 +42,10 @@ import { canShare, shareContent } from '../../../utils/shareUtils';
 import { webAppDocsAdapter } from '../../docs/docsAdapter';
 
 import type { ContentMetadata } from '@/types/baseform';
-import type { BlockNoteEditor as BlockNoteEditorCore } from '@blocknote/core';
 
 import { cn } from '@/utils/cn';
 
-import '@mantine/core/styles.css';
-
-const BlockNoteEditor = lazy(() =>
-  import('@gruenerator/docs').then((m) => ({ default: m.BlockNoteEditor }))
-);
+const LazyInlineEditor = lazy(() => import('./InlineEditor'));
 
 const extractFormattedText = extractFormattedTextJs as unknown as (
   content: unknown
@@ -71,7 +56,6 @@ interface ExtendedContent {
   text?: string;
   social?: { content?: string };
   sharepic?: unknown;
-  metadata?: Record<string, unknown>;
 }
 
 interface EditorState {
@@ -86,7 +70,6 @@ interface TextResultScreenProps {
   componentName: string;
   title?: string;
   useMarkdown?: boolean | null;
-  onRegenerate?: () => void | Promise<void>;
 }
 
 const actionBtnClass =
@@ -95,180 +78,12 @@ const actionBtnClass =
 const closeBtnClass =
   'flex items-center justify-center size-9 rounded-md transition-colors bg-transparent border-none cursor-pointer text-grey-500 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800';
 
-const SYNC_TIMEOUT_MS = 8000;
-
-const InlineEditor = memo(
-  ({ editorState, onBack }: { editorState: EditorState; onBack: () => void }) => {
-    const { user } = useLazyAuth();
-    const [syncTimedOut, setSyncTimedOut] = useState(false);
-    const [editor, setEditor] = useState<BlockNoteEditorCore | null>(null);
-    const [showExportMenu, setShowExportMenu] = useState(false);
-    const exportMenuRef = useRef<HTMLDivElement>(null);
-    const { updateDocument } = useDocumentStore();
-    const docsApi = useMemo(() => createDocsApiClient(webAppDocsAdapter), []);
-
-    const collabUser = useMemo(
-      () => (user ? { id: user.id, display_name: user.display_name, email: user.email } : null),
-      [user]
-    );
-
-    const { ydoc, provider, isConnected, isSynced } = useCollaboration({
-      documentId: editorState.documentId,
-      user: collabUser,
-    });
-
-    useEffect(() => {
-      if (!provider || isSynced || syncTimedOut) return;
-      const timer = setTimeout(() => setSyncTimedOut(true), SYNC_TIMEOUT_MS);
-      return () => clearTimeout(timer);
-    }, [provider, isSynced, syncTimedOut]);
-
-    useEffect(() => {
-      if (!showExportMenu) return;
-      const handleClickOutside = (e: MouseEvent) => {
-        if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
-          setShowExportMenu(false);
-        }
-      };
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [showExportMenu]);
-
-    const htmlContent = useMemo(() => {
-      if (!editorState.initialContent) return undefined;
-      if (editorState.initialContent.trim().startsWith('<')) return editorState.initialContent;
-      return marked.parse(editorState.initialContent, { async: false }) as string;
-    }, [editorState.initialContent]);
-
-    const connectionStatus: 'connected' | 'syncing' | 'disconnected' = !isConnected
-      ? 'disconnected'
-      : isSynced
-        ? 'connected'
-        : 'syncing';
-
-    const handleTitleChange = useCallback(
-      (newTitle: string) => {
-        void updateDocument(docsApi, editorState.documentId, { title: newTitle });
-      },
-      [updateDocument, docsApi, editorState.documentId]
-    );
-
-    const handleEditorReady = useCallback((editorInstance: BlockNoteEditorCore) => {
-      setEditor(editorInstance);
-    }, []);
-
-    const handleExportDOCX = useCallback(async () => {
-      if (!editor) return;
-      try {
-        const { DOCXExporter, docxDefaultSchemaMappings } =
-          await import('@blocknote/xl-docx-exporter');
-        const exporter = new DOCXExporter(editor.schema, docxDefaultSchemaMappings);
-        const blob = await exporter.toBlob(editor.document);
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${editorState.title || 'Dokument'}.docx`;
-        link.click();
-        window.URL.revokeObjectURL(url);
-        setShowExportMenu(false);
-      } catch (error) {
-        console.error('[InlineEditor] DOCX export failed:', error);
-      }
-    }, [editor, editorState.title]);
-
-    const docsUrl = `https://docs.gruenerator.eu/document/${editorState.documentId}`;
-
-    const isReady = provider && (isSynced || syncTimedOut);
-
-    const rightActions = (
-      <>
-        <div ref={exportMenuRef} className="dropdown-container">
-          <button
-            className="glass-btn"
-            onClick={() => setShowExportMenu(!showExportMenu)}
-            aria-label="Exportieren"
-          >
-            <FiDownload />
-          </button>
-          {showExportMenu && (
-            <div className="dropdown-menu">
-              <button className="dropdown-item" onClick={() => void handleExportDOCX()}>
-                <FiDownload />
-                Als Word (.docx)
-              </button>
-            </div>
-          )}
-        </div>
-        <span className="glass-divider" />
-        <a
-          href={docsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="glass-btn"
-          aria-label="In Docs öffnen"
-        >
-          <FiExternalLink />
-        </a>
-      </>
-    );
-
-    return (
-      <div className="flex flex-col h-full">
-        <EditorTopBar
-          title={editorState.title}
-          connectionStatus={connectionStatus}
-          onBack={onBack}
-          onTitleChange={handleTitleChange}
-          editable
-          rightActions={rightActions}
-        />
-        <div className="flex-1 overflow-y-auto px-md py-lg bg-grey-50 dark:bg-grey-900">
-          <div className="max-w-[780px] mx-auto w-full">
-            {!isReady ? (
-              <div className="flex items-center justify-center h-[200px] text-grey-500 text-sm">
-                Verbinde mit Server...
-              </div>
-            ) : (
-              <Suspense
-                fallback={
-                  <div className="flex items-center justify-center h-[200px] text-grey-500 text-sm">
-                    Lädt Editor...
-                  </div>
-                }
-              >
-                <BlockNoteEditor
-                  documentId={editorState.documentId}
-                  initialContent={htmlContent}
-                  ydoc={ydoc}
-                  provider={provider}
-                  isSynced={isSynced || syncTimedOut}
-                  showComments={false}
-                  onEditorReady={handleEditorReady}
-                />
-              </Suspense>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-);
-InlineEditor.displayName = 'InlineEditor';
-
 const TextResultScreen: React.FC<TextResultScreenProps> = memo(
-  ({
-    isOpen,
-    onClose,
-    componentName,
-    title = 'Generierter Text',
-    useMarkdown = true,
-    onRegenerate: _onRegenerate,
-  }) => {
+  ({ isOpen, onClose, componentName, title = 'Generierter Text', useMarkdown = true }) => {
     const scrollRef = useRef<HTMLElement>(null);
     const navigate = useNavigate();
     const [copyDone, setCopyDone] = useState(false);
     const [editorState, setEditorState] = useState<EditorState | null>(null);
-    const [showEditor, setShowEditor] = useState(false);
     const [editLoading, setEditLoading] = useState(false);
 
     const storeContent = useGeneratedTextStore(
@@ -299,7 +114,7 @@ const TextResultScreen: React.FC<TextResultScreenProps> = memo(
 
     const currentExportable = getExportableString(storeContent);
     const showNativeShare = useMemo(() => canShare(), []);
-    const isEditing = showEditor && editorState !== null;
+    const isEditing = editorState !== null && !editLoading;
 
     const getFreshTitle = useCallback(async (): Promise<string> => {
       await awaitDeferredTitle(componentName);
@@ -338,10 +153,7 @@ const TextResultScreen: React.FC<TextResultScreenProps> = memo(
     }, [currentExportable, getFreshTitle, generatePDF]);
 
     const handleEdit = useCallback(async () => {
-      if (editorState) {
-        setShowEditor(true);
-        return;
-      }
+      if (editorState) return;
       if (!currentExportable || editLoading) return;
       setEditLoading(true);
       try {
@@ -352,7 +164,6 @@ const TextResultScreen: React.FC<TextResultScreenProps> = memo(
           initialContent: currentExportable,
           title: docTitle,
         });
-        setShowEditor(true);
       } catch (error) {
         console.error('[TextResultScreen] Failed to create document:', error);
       } finally {
@@ -361,7 +172,7 @@ const TextResultScreen: React.FC<TextResultScreenProps> = memo(
     }, [editorState, currentExportable, editLoading, getFreshTitle, createDocument, docsApiClient]);
 
     const handleExitEdit = useCallback(() => {
-      setShowEditor(false);
+      setEditorState(null);
     }, []);
 
     const handleDiscussInChat = useCallback(async () => {
@@ -382,7 +193,7 @@ const TextResultScreen: React.FC<TextResultScreenProps> = memo(
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Escape') {
           if (isEditing) {
-            setShowEditor(false);
+            setEditorState(null);
           } else {
             onClose();
           }
@@ -431,11 +242,19 @@ const TextResultScreen: React.FC<TextResultScreenProps> = memo(
             transition={{ duration: 0.25, ease: 'easeOut' }}
           >
             {isEditing ? (
-              <DocsProvider adapter={webAppDocsAdapter}>
-                <MantineProvider>
-                  <InlineEditor editorState={editorState} onBack={handleExitEdit} />
-                </MantineProvider>
-              </DocsProvider>
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center h-full text-grey-500 text-sm">
+                    Lädt Editor...
+                  </div>
+                }
+              >
+                <LazyInlineEditor
+                  editorState={editorState}
+                  onBack={handleExitEdit}
+                  docsApiClient={docsApiClient}
+                />
+              </Suspense>
             ) : (
               <>
                 <header className="shrink-0 border-b border-grey-200 dark:border-grey-700 bg-background-pure relative">

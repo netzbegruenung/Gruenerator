@@ -104,6 +104,8 @@ const PresseSocialInner: React.FC<PresseSocialInnerProps> = memo(({ def }) => {
       setStoreIsLoading(false);
     }
   }, [setup.features, submitHandler, setGeneratedText, setStoreIsLoading, setActiveComponent, def]);
+  const handleCloseResult = useCallback(() => setShowResult(false), []);
+
   const isLoading = submitHandler.loading || submission.loading;
   const error =
     submitHandler.error?.message || (submission.error ? String(submission.error) : null);
@@ -144,9 +146,8 @@ const PresseSocialInner: React.FC<PresseSocialInnerProps> = memo(({ def }) => {
       <GeneratorOutput
         componentName={def.componentName}
         isOpen={showResult}
-        onClose={() => setShowResult(false)}
+        onClose={handleCloseResult}
         useMarkdown={def.useMarkdown}
-        onRegenerate={onSubmit}
       />
     </>
   );

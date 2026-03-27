@@ -27,7 +27,6 @@ const GeneratorInner: React.FC<GeneratorInnerProps> = memo(({ def }) => {
     searchQueryFields: def.searchQueryFields,
   });
 
-  // Keep refs for values only needed at submit time — prevents onSubmit from changing on every keystroke
   const promptRef = useRef(gen.prompt);
   promptRef.current = gen.prompt;
   const modeStateRef = useRef(modeState);
@@ -42,6 +41,8 @@ const GeneratorInner: React.FC<GeneratorInnerProps> = memo(({ def }) => {
     void gen.submit(extraFields);
     setShowResult(true);
   }, [def, gen.submit]);
+
+  const handleCloseResult = useCallback(() => setShowResult(false), []);
 
   const toolbar = useMemo(
     () => (
@@ -81,9 +82,8 @@ const GeneratorInner: React.FC<GeneratorInnerProps> = memo(({ def }) => {
       <GeneratorOutput
         componentName={def.componentName}
         isOpen={showResult}
-        onClose={() => setShowResult(false)}
+        onClose={handleCloseResult}
         useMarkdown={def.useMarkdown}
-        onRegenerate={onSubmit}
       />
     </>
   );
