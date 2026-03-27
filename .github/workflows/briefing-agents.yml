@@ -1,5 +1,8 @@
 name: Briefing Agents
 
+permissions:
+  contents: read
+
 on:
   schedule:
     - cron: '0 * * * *' # Every hour
