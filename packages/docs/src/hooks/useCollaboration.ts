@@ -56,6 +56,7 @@ export const useCollaboration = ({
         name: documentId,
         document: ydoc,
         token: token ?? undefined,
+        connect: false,
         maxAttempts: 15,
         delay: 3000,
         ...(WebSocketPolyfill ? { WebSocketPolyfill } : {}),
@@ -106,6 +107,8 @@ export const useCollaboration = ({
         isConnected: false,
         isSynced: false,
       });
+
+      provider.connect();
     };
 
     initProvider();
