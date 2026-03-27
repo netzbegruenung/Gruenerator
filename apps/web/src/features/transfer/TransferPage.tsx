@@ -37,7 +37,7 @@ const TransferPageHeader = () => (
         </span>
       ))}
       <span className="inline-block whitespace-nowrap rounded-2xl border border-grey-300 bg-transparent px-3 py-1 text-xs font-medium tracking-[0.02em] text-foreground dark:border-grey-600">
-        bis 100 MB
+        bis 2 GB
       </span>
     </div>
   </div>

@@ -266,6 +266,76 @@ class TransferService {
       message: options?.message,
     });
   }
+
+  /**
+   * Stream-based upload for large files (up to 2GB).
+   * Reads from a temp file path instead of holding the buffer in memory.
+   */
+  async uploadAndCreateTransferStream(
+    userId: string,
+    filePath: string,
+    originalFilename: string,
+    mimeType: string,
+    fileSize: number,
+    wolkeShareLinkId: string,
+    folderPath?: string,
+    options?: TransferOptions
+  ): Promise<{ shareToken: string; id: string }> {
+    const shareLinks = await NextcloudShareManager.getShareLinks(userId);
+    const wolkeLink = shareLinks.find(
+      (link: NextcloudShareLink) => link.id === wolkeShareLinkId && link.is_active
+    );
+
+    if (!wolkeLink) {
+      throw new Error('Wolke-Verbindung nicht gefunden oder deaktiviert');
+    }
+
+    const timestamp = Date.now();
+    const ext = originalFilename.includes('.') ? '.' + originalFilename.split('.').pop() : '';
+    const baseName = originalFilename.includes('.')
+      ? originalFilename.substring(0, originalFilename.lastIndexOf('.'))
+      : originalFilename;
+    const safeFilename = `${baseName}_${timestamp}${ext}`;
+
+    const targetFolder = folderPath || TRANSFER_FOLDER;
+
+    const client = new NextcloudApiClient(wolkeLink.share_link);
+
+    await client.ensureFolder(targetFolder);
+
+    const uploadResult = await client.uploadFileStream(filePath, safeFilename, targetFolder);
+
+    if (!uploadResult.success) {
+      throw new Error(uploadResult.message || 'Upload zu Wolke fehlgeschlagen');
+    }
+
+    const wolkeFilePath = targetFolder ? `${targetFolder}/${safeFilename}` : safeFilename;
+
+    let passwordHash: string | undefined;
+    if (options?.password) {
+      const salt = crypto.randomBytes(16).toString('hex');
+      const hash = crypto.scryptSync(options.password, salt, 64).toString('hex');
+      passwordHash = `${salt}:${hash}`;
+    }
+
+    let expiresAt: Date | undefined;
+    if (options?.expiresInDays && options.expiresInDays > 0) {
+      expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + options.expiresInDays);
+    }
+
+    return this.createTransfer({
+      userId,
+      fileName: originalFilename,
+      fileSize,
+      mimeType,
+      wolkeShareLinkId,
+      wolkeFilePath,
+      passwordHash,
+      expiresAt,
+      message: options?.message,
+    });
+  }
 }
 
 export const transferService = new TransferService();
