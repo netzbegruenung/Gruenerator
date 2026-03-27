@@ -87,8 +87,8 @@ export function useNativeTTS() {
   const player = useAudioPlayer(null);
 
   const fetchFn = useChatConfigStore((s) => s.fetch);
-  const streamEndpoint = useChatConfigStore((s) => s.endpoints.stream);
-  const apiBaseUrl = streamEndpoint.replace('/api/chat-graph/stream', '');
+  const chatStreamEndpoint = useChatConfigStore((s) => s.endpoints.chatStream);
+  const apiBaseUrl = chatStreamEndpoint.replace('/api/chat-graph/stream', '');
 
   const play = useCallback(
     async (text: string) => {
@@ -113,7 +113,8 @@ export function useNativeTTS() {
         if (controller.signal.aborted) break;
 
         try {
-          const response = await fetchFn(`${apiBaseUrl}/api/voice/tts/stream`, {
+          const url = `${apiBaseUrl}/api/voice/tts/stream`;
+          const response = await fetchFn(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: sentence, language: 'de' }),
@@ -124,20 +125,19 @@ export function useNativeTTS() {
 
           const responseText = await response.text();
           for (const line of responseText.split('\n')) {
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.slice(6));
-                if (data.audio) allChunks.push(data as TTSChunk);
-              } catch {
-                /* ignore malformed SSE lines */
-              }
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.error) break;
+              if (data.audio) allChunks.push(data as TTSChunk);
+            } catch {
+              /* ignore malformed SSE lines */
             }
           }
         } catch (err) {
           if ((err as Error).name !== 'AbortError') break;
         }
       }
-
       if (controller.signal.aborted || allChunks.length === 0) {
         setState('idle');
         return;
