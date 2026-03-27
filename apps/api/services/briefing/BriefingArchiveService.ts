@@ -71,7 +71,7 @@ export async function archiveBriefing(
     const sourcesTable = items
       .map(
         (item, i) =>
-          `${i + 1}. [${item.title.slice(0, 80).replace(/\|/g, '\\|')}](${item.url}) — ${item.source}`
+          `${i + 1}. [${item.title.slice(0, 80).replace(/\|/g, '\\|').replace(/[[\]]/g, '\\$&')}](${item.url.replace(/[()]/g, (c) => `%${c.charCodeAt(0).toString(16)}`)}) — ${item.source.replace(/[[\]|]/g, '\\$&')}`
       )
       .join('\n');
 

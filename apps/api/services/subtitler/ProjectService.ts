@@ -216,8 +216,20 @@ export class SubtitlerProjectService {
       const projectDir = path.join(PROJECT_STORAGE_PATH, userId, projectId);
       await fs.mkdir(projectDir, { recursive: true });
 
+      if (!/^[a-zA-Z0-9_-]+$/.test(uploadId)) {
+        throw new Error('Invalid uploadId format');
+      }
       const tusVideoPath = path.join(__dirname, '../../uploads/tus-temp', uploadId);
       const sourceVideoPath = videoSourcePath || tusVideoPath;
+
+      const allowedDirs = [
+        path.resolve(__dirname, '../../uploads/tus-temp'),
+        path.resolve(PROJECT_STORAGE_PATH),
+      ];
+      const resolvedSource = path.resolve(sourceVideoPath);
+      if (!allowedDirs.some((dir) => resolvedSource.startsWith(dir + path.sep))) {
+        throw new Error('Video source path outside allowed directory');
+      }
       const targetVideoPath = path.join(projectDir, 'video.mp4');
       const thumbnailPath = path.join(projectDir, 'thumbnail.jpg');
       const relativeVideoPath = `${userId}/${projectId}/video.mp4`;

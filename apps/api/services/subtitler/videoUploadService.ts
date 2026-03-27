@@ -5,6 +5,7 @@
  */
 
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 
 import { createLogger } from '../../utils/logger.js';
@@ -115,6 +116,12 @@ async function extractAudio(
   options?: ExtractAudioOptions
 ): Promise<string> {
   log.debug('Starte Audio-Extraktion:', { inputPath: videoPath, outputPath });
+
+  const allowedDirs = [path.resolve(__dirname, '../../uploads'), path.resolve(os.tmpdir())];
+  const resolvedVideoPath = path.resolve(videoPath);
+  if (!allowedDirs.some((dir) => resolvedVideoPath.startsWith(dir + path.sep))) {
+    throw new Error('Video path outside allowed directory');
+  }
 
   if (!fs.existsSync(videoPath)) {
     throw new Error(`Video-Datei nicht gefunden: ${videoPath}`);
