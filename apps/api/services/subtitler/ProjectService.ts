@@ -296,6 +296,7 @@ export class SubtitlerProjectService {
         'subtitles',
         'style_preference',
         'height_preference',
+        'style_settings',
         'status',
       ];
       const updateData: Record<string, any> = {};
