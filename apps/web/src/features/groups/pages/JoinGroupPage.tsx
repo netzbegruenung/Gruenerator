@@ -1,4 +1,4 @@
-import { Button } from '@gruenerator/ui';
+import { Button, Card, CardHeader, CardTitle, CardContent } from '@gruenerator/ui';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
@@ -6,8 +6,6 @@ import Spinner from '../../../components/common/Spinner';
 import apiClient from '../../../components/utils/apiClient';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useGroups } from '../hooks/useGroups';
-
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 const JoinGroupPage = () => {
   const { joinToken } = useParams();

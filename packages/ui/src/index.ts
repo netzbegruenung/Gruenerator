@@ -206,3 +206,34 @@ export { SettingsTagInput, type SettingsTagInputProps } from './components/setti
 export { CardActionsMenu, type CardActionsMenuProps } from './components/card-actions';
 export { VideoCard, type VideoCardProps } from './components/video-card';
 export { Slider } from './components/slider';
+export { Toggle, toggleVariants } from './components/toggle';
+export { ToggleGroup, ToggleGroupItem } from './components/toggle-group';
+export { Collapsible, CollapsibleTrigger, CollapsibleContent } from './components/collapsible';
+export {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuCheckboxItem,
+  ContextMenuRadioItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+  ContextMenuGroup,
+  ContextMenuPortal,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuRadioGroup,
+} from './components/context-menu';
+export {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableCaption,
+} from './components/table';
+export { Calendar, CalendarDayButton } from './components/calendar';

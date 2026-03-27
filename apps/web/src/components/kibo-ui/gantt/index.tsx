@@ -43,13 +43,13 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Card } from '@/components/ui/card';
 import {
+  Card,
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
-} from '@/components/ui/context-menu';
+} from '@gruenerator/ui';
 import { cn } from '@/utils/cn';
 
 const draggingAtom = atom(false);
