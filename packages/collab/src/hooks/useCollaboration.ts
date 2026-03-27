@@ -21,7 +21,12 @@ interface CollaborationState {
 
 export interface UseCollaborationOptions {
   documentId: string;
-  user: { id: string; display_name?: string; email?: string } | null;
+  user: {
+    id: string;
+    display_name?: string;
+    email?: string;
+    avatar_robot_id?: number | null;
+  } | null;
   config: CollaborationConfig;
   isGuest?: boolean;
   guestId?: string;
@@ -64,12 +69,13 @@ export const useCollaboration = ({
         name: documentId,
         document: ydoc,
         token: token ?? undefined,
-        connect: false,
-        maxAttempts: 15,
-        delay: 3000,
         ...(WebSocketPolyfill ? { WebSocketPolyfill } : {}),
         ...(isGuest && guestId ? { parameters: { guestId, guestName: guestName || 'Gast' } } : {}),
-      });
+      } as Parameters<typeof HocuspocusProvider>[0]);
+
+      // Immediately disconnect to prevent the auto-connect race condition.
+      // We reconnect explicitly after event listeners are set up.
+      provider.disconnect();
 
       if (ignore) {
         provider.destroy();
@@ -84,6 +90,7 @@ export const useCollaboration = ({
             id: user!.id,
             name: user!.display_name || user!.email || 'Anonymous',
             color: generateUserColor(),
+            ...(user!.avatar_robot_id ? { avatarRobotId: user!.avatar_robot_id } : {}),
           };
 
       provider.awareness?.setLocalStateField('user', awarenessUser);
