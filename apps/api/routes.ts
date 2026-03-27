@@ -348,7 +348,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/claude_wahlprogramm', aiGenerationLimiter, wahlprogrammRouter);
   app.use('/api/claude_universal', aiGenerationLimiter, universalRouter);
   app.use('/api/texte/smart', aiGenerationLimiter, smartTexteRouter);
-  app.use('/api/texte/playground', requireAuth, playgroundRouter);
+  app.use('/api/texte/playground', requireAuth, aiGenerationLimiter, playgroundRouter);
   app.use('/api/generate-content-title', aiGenerationLimiter, contentTitleRouter);
   app.use('/api/claude_gruene_jugend', aiGenerationLimiter, claudeGrueneJugendRoute);
   app.use('/api/claude_gruenerator_ask', aiGenerationLimiter, claudeGrueneratorAskRoute);
@@ -365,14 +365,14 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/share', shareRouter);
   app.use('/api/transfer', standardMutationLimiter, transferRouter);
   app.use('/api/mem0', requireAuth, mem0Router);
-  app.use('/api/email', requireAuth, emailRouter);
-  app.use('/api/auth/init', authInitRouter);
-  app.use('/api/recent-activity', recentActivityRouter);
+  app.use('/api/email', requireAuth, standardMutationLimiter, emailRouter);
+  app.use('/api/auth/init', publicReadLimiter, authInitRouter);
+  app.use('/api/recent-activity', publicReadLimiter, recentActivityRouter);
   app.use('/api/notifications', requireAuth, notificationsRouter);
   app.use('/api/media', requireAuth, mediaRouter);
   app.use('/api/docs/public', publicDocRouter);
-  app.use('/api/docs', requireAuth, docsRouter);
-  app.use('/api/presentations', requireAuth, presentationsRouter);
+  app.use('/api/docs', requireAuth, standardMutationLimiter, docsRouter);
+  app.use('/api/presentations', requireAuth, standardMutationLimiter, presentationsRouter);
   app.use('/api/boards/public', publicBoardRouter);
   app.use('/api/boards', requireAuth, boardsRouter);
   app.use('/api/users', requireAuth, usersRouter);

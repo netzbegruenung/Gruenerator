@@ -32,12 +32,12 @@ interface PolitProResponse {
 
 const PARTY_NAME_MAP: Record<string, string> = {
   'CDU/CSU': 'CDU/CSU',
-  'AfD': 'AfD',
-  'SPD': 'SPD',
-  'Grüne': 'GRÜNE',
-  'Linke': 'DIE LINKE',
-  'BSW': 'BSW',
-  'FDP': 'FDP',
+  AfD: 'AfD',
+  SPD: 'SPD',
+  Grüne: 'GRÜNE',
+  Linke: 'DIE LINKE',
+  BSW: 'BSW',
+  FDP: 'FDP',
 };
 
 async function fetchPolitPro(parliament: string, year: number): Promise<PolitProResponse | null> {
@@ -110,7 +110,7 @@ export interface PolitProPollData extends PollData {
 function toExtendedPollData(
   data: PolitProResponse,
   parliament: string,
-  institutePolls?: PollResult[],
+  institutePolls?: PollResult[]
 ): PolitProPollData {
   const base = toPollData(data, parliament);
 
@@ -121,7 +121,9 @@ function toExtendedPollData(
   }
 
   const useInstitutePolls = institutePolls && institutePolls.length > 0;
-  log.info(`[toExtendedPollData] Branch: ${useInstitutePolls ? `institutePolls (${institutePolls!.length})` : `base.polls (${base.polls.length})`}`);
+  log.info(
+    `[toExtendedPollData] Branch: ${useInstitutePolls ? `institutePolls (${institutePolls!.length})` : `base.polls (${base.polls.length})`}`
+  );
 
   return {
     ...base,
@@ -160,7 +162,9 @@ async function scrapeInstitutePolls(parliament: string): Promise<PollResult[]> {
     log.info(`[scrapeInstitutePolls] Found ${pollListItems.length} .poll-list-item elements`);
 
     if (pollListItems.length === 0) {
-      log.warn(`[scrapeInstitutePolls] No .poll-list-item elements found — HTML snippet (first 500 chars): ${html.slice(0, 500)}`);
+      log.warn(
+        `[scrapeInstitutePolls] No .poll-list-item elements found — HTML snippet (first 500 chars): ${html.slice(0, 500)}`
+      );
     }
 
     const polls: PollResult[] = [];
@@ -171,23 +175,36 @@ async function scrapeInstitutePolls(parliament: string): Promise<PollResult[]> {
       if (!institute) return;
 
       const parties: Record<string, number | null> = {};
-      $(el).find('.horizontal-parties-list-item').each((_, partyEl) => {
-        const name = $(partyEl).attr('title');
-        const val = $(partyEl).find('.list-horizontal-value').text().trim();
-        if (name && val) {
-          const partyName = PARTY_NAME_MAP[name] || name;
-          parties[partyName] = parseFloat(val) || null;
-        }
-      });
+      $(el)
+        .find('.horizontal-parties-list-item')
+        .each((_, partyEl) => {
+          const name = $(partyEl).attr('title');
+          const val = $(partyEl).find('.list-horizontal-value').text().trim();
+          if (name && val) {
+            const partyName = PARTY_NAME_MAP[name] || name;
+            parties[partyName] = parseFloat(val) || null;
+          }
+        });
 
       polls.push({ institute, date, parties });
     });
 
     log.info(`[scrapeInstitutePolls] Parsed ${polls.length} institute polls for ${parliament}`);
     if (polls.length > 0) {
-      log.info(`[scrapeInstitutePolls] First 2 polls:`, polls.slice(0, 2).map((p) => ({ institute: p.institute, date: p.date, partyCount: Object.keys(p.parties).length })));
+      log.info(
+        `[scrapeInstitutePolls] First 2 polls:`,
+        polls
+          .slice(0, 2)
+          .map((p) => ({
+            institute: p.institute,
+            date: p.date,
+            partyCount: Object.keys(p.parties).length,
+          }))
+      );
     } else {
-      log.warn(`[scrapeInstitutePolls] 0 institute polls parsed despite ${pollListItems.length} DOM elements`);
+      log.warn(
+        `[scrapeInstitutePolls] 0 institute polls parsed despite ${pollListItems.length} DOM elements`
+      );
     }
     return polls;
   } catch (error) {
@@ -197,15 +214,22 @@ async function scrapeInstitutePolls(parliament: string): Promise<PollResult[]> {
 }
 
 export async function getPolitProPolls(
-  parliament = 'deutschland',
+  parliament = 'deutschland'
 ): Promise<PolitProPollData | null> {
+  if (!VALID_PARLIAMENT_IDS.has(parliament)) {
+    log.warn(`[getPolitProPolls] Invalid parliament ID: ${parliament}`);
+    return null;
+  }
+
   const cacheKey = `monitor:politpro:${parliament}`;
 
   try {
     const cached = await redisClient.get(cacheKey);
     if (cached) {
       const parsed = JSON.parse(cached) as PolitProPollData;
-      log.info(`[getPolitProPolls] Cache hit (${parliament}): ${parsed.polls.length} polls, first poll date: ${parsed.polls[0]?.date ?? 'none'}, institute: ${parsed.polls[0]?.institute ?? 'none'}`);
+      log.info(
+        `[getPolitProPolls] Cache hit (${parliament}): ${parsed.polls.length} polls, first poll date: ${parsed.polls[0]?.date ?? 'none'}, institute: ${parsed.polls[0]?.institute ?? 'none'}`
+      );
       return parsed;
     }
   } catch {
@@ -221,13 +245,15 @@ export async function getPolitProPolls(
 
   log.info(`[getPolitProPolls] Institute polls found: ${institutePolls.length} for ${parliament}`);
   if (institutePolls.length === 0) {
-    log.warn(`[getPolitProPolls] No institute polls scraped — will fall back to API interpolated data`);
+    log.warn(
+      `[getPolitProPolls] No institute polls scraped — will fall back to API interpolated data`
+    );
   }
 
   const result = toExtendedPollData(data, parliament, institutePolls);
 
   log.info(
-    `[getPolitProPolls] Final result (${parliament}): ${result.polls.length} polls, ${Object.keys(result.average).length} parties`,
+    `[getPolitProPolls] Final result (${parliament}): ${result.polls.length} polls, ${Object.keys(result.average).length} parties`
   );
 
   try {
@@ -259,3 +285,5 @@ export const POLITPRO_PARLIAMENTS = [
   { id: 'schleswig-holstein', name: 'Schleswig-Holstein' },
   { id: 'thueringen', name: 'Thüringen' },
 ] as const;
+
+const VALID_PARLIAMENT_IDS: Set<string> = new Set(POLITPRO_PARLIAMENTS.map((p) => p.id));

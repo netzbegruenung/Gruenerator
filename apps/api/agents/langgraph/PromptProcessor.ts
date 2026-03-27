@@ -199,8 +199,16 @@ export function loadPromptConfig(type: string): PromptConfig {
     return configCache.get(type)!;
   }
 
+  if (!/^[a-z0-9_-]+$/i.test(type)) {
+    throw new Error(`Invalid prompt config type: ${type}`);
+  }
+
   try {
-    const configPath = path.join(__dirname, '../../prompts', `${type}.json`);
+    const promptsDir = path.resolve(__dirname, '../../prompts');
+    const configPath = path.resolve(promptsDir, `${type}.json`);
+    if (!configPath.startsWith(promptsDir + path.sep)) {
+      throw new Error(`Invalid prompt config type: ${type}`);
+    }
     const configData = fs.readFileSync(configPath, 'utf8');
     const config = JSON.parse(configData) as PromptConfig;
     configCache.set(type, config);

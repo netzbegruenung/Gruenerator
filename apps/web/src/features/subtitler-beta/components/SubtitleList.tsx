@@ -29,7 +29,7 @@ interface SubtitleListProps {
   isPlaying?: boolean;
   onSeek?: (time: number) => void;
   onPlayPause?: () => void;
-  videoPlayerRef?: RefObject<BetaVideoPlayerRef>;
+  videoPlayerRef?: RefObject<BetaVideoPlayerRef | null>;
 }
 
 export function SubtitleList({ className, videoPlayerRef }: SubtitleListProps) {
