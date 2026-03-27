@@ -44,6 +44,7 @@
     "@sentry/react-native": "~7.11.0",
     "axios": "^1.13.6",
     "expo": "~55.0.8",
+    "expo-audio": "~55.0.9",
     "expo-auth-session": "~55.0.9",
     "expo-blur": "~55.0.10",
     "expo-build-properties": "~55.0.10",
