@@ -48,7 +48,14 @@
     <link rel="canonical" href="https://www.gruenerator.de" />
     
     <!-- React Scan (dev only) - highlights unnecessary re-renders -->
-    <script crossOrigin="anonymous" src="//unpkg.com/react-scan/dist/auto.global.js"></script>
+    <script>
+      if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+        var s = document.createElement('script');
+        s.src = '//unpkg.com/react-scan/dist/auto.global.js';
+        s.crossOrigin = 'anonymous';
+        document.currentScript.after(s);
+      }
+    </script>
 
     <!-- Konfigurationsdatei -->
     <script src="/config.js"></script>
