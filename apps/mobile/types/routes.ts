@@ -14,6 +14,7 @@ export type AppRoute =
   | '/start'
   | '/profile'
   // Media routes
+  | '/(tabs)/(media)'
   | '/(tabs)/(media)/reel'
   | '/(tabs)/(media)/image-studio'
   // Desk routes

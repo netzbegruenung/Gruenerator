@@ -16,11 +16,17 @@ interface BottomSheetProps {
   visible: boolean;
   onClose: () => void;
   children: ReactNode;
-  maxHeight?: string;
+  maxHeight?: `${number}%` | number;
   keyboardAvoiding?: boolean;
 }
 
-export function BottomSheet({ visible, onClose, children, maxHeight = '85%', keyboardAvoiding }: BottomSheetProps) {
+export function BottomSheet({
+  visible,
+  onClose,
+  children,
+  maxHeight = '85%',
+  keyboardAvoiding,
+}: BottomSheetProps) {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';

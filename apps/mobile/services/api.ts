@@ -47,13 +47,14 @@ export function initializeApiClient(): void {
     getAuthToken: async () => {
       return secureStorage.getToken();
     },
-    onUnauthorized: async () => {
+    onUnauthorized: async (): Promise<boolean> => {
       const refreshed = await tryRefreshToken();
       if (!refreshed) {
-        console.log('[API] Token refresh failed - clearing auth state');
         await secureStorage.clearAll();
         useAuthStore.getState().clearAuth();
+        return false;
       }
+      return true;
     },
     timeout: 120000,
   });
