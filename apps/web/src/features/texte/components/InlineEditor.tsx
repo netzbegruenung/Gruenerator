@@ -1,9 +1,5 @@
-import {
-  DocsProvider,
-  useCollaboration,
-  useDocumentStore,
-  type createDocsApiClient,
-} from '@gruenerator/docs';
+import { useCollaboration } from '@gruenerator/collab';
+import { DocsProvider, useDocumentStore, type createDocsApiClient } from '@gruenerator/docs';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
 import {
   DropdownMenu,
@@ -11,18 +7,16 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@gruenerator/ui';
-import { MantineProvider } from '@mantine/core';
 import { marked } from 'marked';
 import React, { lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { FaFileWord } from 'react-icons/fa6';
 import { FiDownload, FiExternalLink } from 'react-icons/fi';
 
 import { useLazyAuth } from '../../../hooks/useAuth';
+import { useCollaborationConfig } from '../../../hooks/useCollaborationConfig';
 import { webAppDocsAdapter } from '../../docs/docsAdapter';
 
 import type { BlockNoteEditor as BlockNoteEditorCore } from '@blocknote/core';
-
-import '@mantine/core/styles.css';
 
 const BlockNoteEditor = lazy(() =>
   import('@gruenerator/docs').then((m) => ({ default: m.BlockNoteEditor }))
@@ -53,9 +47,11 @@ const InlineEditorContent = memo(({ editorState, onBack, docsApiClient }: Inline
     [user]
   );
 
+  const collabConfig = useCollaborationConfig();
   const { ydoc, provider, isConnected, isSynced } = useCollaboration({
     documentId: editorState.documentId,
     user: collabUser,
+    config: collabConfig,
   });
 
   useEffect(() => {
@@ -175,9 +171,7 @@ InlineEditorContent.displayName = 'InlineEditorContent';
 
 const InlineEditor = memo((props: InlineEditorProps) => (
   <DocsProvider adapter={webAppDocsAdapter}>
-    <MantineProvider>
-      <InlineEditorContent {...props} />
-    </MantineProvider>
+    <InlineEditorContent {...props} />
   </DocsProvider>
 ));
 InlineEditor.displayName = 'InlineEditor';
