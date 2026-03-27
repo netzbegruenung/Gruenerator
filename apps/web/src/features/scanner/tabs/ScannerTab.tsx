@@ -88,9 +88,10 @@ const getTransformPresets = (partyName: string) => [
 
 interface ScannerTabProps {
   onProcessingChange?: (isProcessing: boolean) => void;
+  onResultsChange?: (hasResults: boolean) => void;
 }
 
-const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
+const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [scannerState, setScannerState] = useState<ScannerState>('upload');
   const [error, setError] = useState<string | null>(null);
@@ -161,7 +162,8 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
 
   useEffect(() => {
     onProcessingChange?.(scannerState === 'processing');
-  }, [scannerState, onProcessingChange]);
+    onResultsChange?.(scannerState === 'success');
+  }, [scannerState, onProcessingChange, onResultsChange]);
 
   const validateFile = (file: File): string | null => {
     const ext = '.' + file.name.split('.').pop()?.toLowerCase();
@@ -342,8 +344,8 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
   return (
     <div
       className={cn(
-        'scanner-tab-content mx-auto w-full max-w-[640px] flex-1 content-center px-md py-lg',
-        'has-[.scanner-results-state]:max-w-[840px]',
+        'mx-auto w-full max-w-[640px] flex-1 content-center px-md py-lg',
+        'has-[.scanner-results]:max-w-[840px]',
         isDragOver && 'drag-over'
       )}
     >
@@ -510,9 +512,9 @@ const ScannerTab = ({ onProcessingChange }: ScannerTabProps) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="scanner-results-state flex w-full flex-col gap-md"
+            className="scanner-results flex w-full flex-col gap-md"
           >
-            <div className="scanner-result-meta flex items-center gap-sm py-sm">
+            <div className="flex items-center gap-sm py-sm">
               {selectedFiles.length > 1 && (
                 <>
                   <span className="text-[0.8125rem] font-medium uppercase tracking-[0.04em] text-grey-500">

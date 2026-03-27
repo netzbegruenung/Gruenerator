@@ -1,4 +1,4 @@
-import { type JSX, Suspense, useEffect } from 'react';
+import { type JSX, Suspense } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { routes } from '../../config/routes';
@@ -6,12 +6,14 @@ import PageLayout from '../common/Layout/PageLayout';
 import AppProviders from '../common/Providers/AppProviders';
 import { type PreloadableComponent, useRouteCache } from '../hooks/useRouteCache';
 
+import type { LayoutMode } from '../../config/routes';
+
 interface RouteComponentProps {
   path: string;
   darkMode: boolean;
   toggleDarkMode: () => void;
   isSpecial?: boolean;
-  showHeaderFooter?: boolean;
+  layoutMode?: LayoutMode;
 }
 
 interface RouteConfig {
@@ -26,22 +28,13 @@ const RouteComponent = ({
   darkMode,
   toggleDarkMode,
   isSpecial = false,
-  showHeaderFooter = true,
+  layoutMode,
 }: RouteComponentProps): JSX.Element | null => {
   const location = useLocation();
 
-  // Route debugging effect removed to reduce console noise
-
-  // Finde die passende Route
-  let route: RouteConfig | undefined;
-  if (!showHeaderFooter) {
-    route = (routes.noHeaderFooter as RouteConfig[]).find((r) => r.path === path);
-    // No-Header-Footer Route found
-  } else {
-    route = isSpecial
-      ? (routes.special as RouteConfig[]).find((r) => r.path === path)
-      : (routes.standard as RouteConfig[]).find((r) => r.path === path);
-  }
+  const route = isSpecial
+    ? (routes.special as RouteConfig[]).find((r) => r.path === path)
+    : (routes.standard as RouteConfig[]).find((r) => r.path === path);
 
   // Call hook unconditionally (Rules of Hooks)
   const CachedComponent = useRouteCache(
@@ -68,11 +61,7 @@ const RouteComponent = ({
       withSharepic={route.withSharepic}
       withForm={route.withForm}
     >
-      <PageLayout
-        darkMode={darkMode}
-        toggleDarkMode={toggleDarkMode}
-        showHeaderFooter={showHeaderFooter}
-      >
+      <PageLayout darkMode={darkMode} toggleDarkMode={toggleDarkMode} layoutMode={layoutMode}>
         <Suspense fallback={<div />}>
           <ComponentToRender key={path} darkMode={darkMode} />
         </Suspense>

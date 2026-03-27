@@ -3,18 +3,14 @@
  */
 
 import { Particles } from '@gruenerator/ui';
+import { useState } from 'react';
 
 import ScannerTab from './tabs/ScannerTab';
-
-// Keep CSS import for parent-targeting rules that can't be expressed in Tailwind:
-// .content-wrapper:has(.scanner-page), .app-content:has(.scanner-page) .footer,
-// .scanner-layout:has(.scanner-results-state) hiding rules
-import '../../assets/styles/pages/scanner.css';
 
 const FILE_TYPE_BADGES = ['PDF', 'Bilder', 'DOCX', 'PPTX'] as const;
 
 const ScannerPageHeader = () => (
-  <div className="scanner-page-header flex w-full flex-col items-center gap-xs pb-lg text-center">
+  <div className="flex w-full flex-col items-center gap-xs pb-lg text-center">
     <h1 className="m-0 text-[2.2rem] font-semibold text-foreground max-md:text-[1.8rem] max-[480px]:text-[1.5rem]">
       Scanner
     </h1>
@@ -38,8 +34,10 @@ const ScannerPageHeader = () => (
 );
 
 const ScannerPage = () => {
+  const [hasResults, setHasResults] = useState(false);
+
   return (
-    <div className="scanner-page relative h-full w-full overflow-clip">
+    <div className="relative h-full w-full overflow-clip">
       <Particles
         className="absolute inset-0 h-full w-full"
         quantity={80}
@@ -48,9 +46,9 @@ const ScannerPage = () => {
         staticity={40}
         ease={60}
       />
-      <div className="scanner-layout relative z-[1] flex h-full min-h-0 flex-col justify-start overflow-x-clip">
-        <ScannerPageHeader />
-        <ScannerTab />
+      <div className="relative z-[1] flex h-full min-h-0 flex-col justify-start overflow-x-clip">
+        {!hasResults && <ScannerPageHeader />}
+        <ScannerTab onResultsChange={setHasResults} />
       </div>
     </div>
   );
