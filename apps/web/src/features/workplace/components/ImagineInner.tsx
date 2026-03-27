@@ -23,7 +23,7 @@ const ImagineInner: React.FC = memo(() => {
     if (!trimmed || loading) return;
 
     try {
-      const payload: Record<string, unknown> = { purePrompt: trimmed };
+      const payload: Record<string, unknown> = { prompt: trimmed };
       if (modeState.variant) payload.variant = modeState.variant;
       const result = await submitForm(payload);
       const base64 = (result as { image?: { base64?: string } })?.image?.base64;

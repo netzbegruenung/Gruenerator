@@ -1,6 +1,7 @@
 import { Button, UploadZone } from '@gruenerator/ui';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { PiVideoCamera } from 'react-icons/pi';
+import { useSearchParams } from 'react-router-dom';
 import * as tus from 'tus-js-client';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
@@ -102,6 +103,45 @@ const SubtitlerPage = (): React.ReactElement => {
   const { status: exportStatus, exportToken, resetExport } = useSubtitlerExportStore();
 
   const { user } = useAuthStore();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Deep-link: load project from ?project=<id> query param
+  const deepLinkLoadedRef = useRef(false);
+  useEffect(() => {
+    const projectId = searchParams.get('project');
+    if (!projectId || !user?.id || deepLinkLoadedRef.current) return;
+    deepLinkLoadedRef.current = true;
+
+    apiClient
+      .get(`/subtitler/projects/${projectId}`)
+      .then((res) => {
+        const project = res.data?.project;
+        if (!project) return;
+
+        setLoadedProject(project);
+        if (project.subtitles) setSubtitles(project.subtitles);
+        if (project.upload_id) {
+          setUploadInfo({
+            uploadId: project.upload_id,
+            metadata: project.video_metadata ?? undefined,
+            name: project.video_filename ?? undefined,
+            size: project.video_size ?? undefined,
+            isFromProject: true,
+          });
+        }
+        if (project.style_preference)
+          setStylePreference(project.style_preference as StylePreference);
+        if (project.height_preference)
+          setHeightPreference(project.height_preference as HeightPreference);
+        setStep('edit');
+        setSearchParams({}, { replace: true });
+      })
+      .catch((err) => {
+        console.error('[SubtitlerPage] Failed to load project from deep link:', err);
+        setError('Projekt konnte nicht geladen werden.');
+        setSearchParams({}, { replace: true });
+      });
+  }, [searchParams, user?.id, setSearchParams]);
 
   // Browser history navigation - push state when step changes
   const isInitialMount = useRef(true);

@@ -181,7 +181,7 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
 
   return (
     <div className="flex justify-center">
-      <div className="flex w-full max-w-[600px] flex-col items-center p-xl text-center">
+      <div className="flex w-full max-w-[800px] flex-col items-center p-xl">
         <div className="flex w-full flex-col items-center gap-md">
           {showSpinner ? (
             <>
@@ -204,9 +204,15 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
               <p className="text-foreground">{exportError}</p>
             </>
           ) : (
-            <>
+            <div
+              className={
+                videoUrl
+                  ? 'flex w-full gap-xl max-lg:flex-col max-lg:items-center'
+                  : 'flex w-full flex-col items-center'
+              }
+            >
               {videoUrl && (
-                <div className="flex justify-center overflow-hidden rounded-lg">
+                <div className="flex shrink-0 justify-center overflow-hidden rounded-lg">
                   <video
                     className="block aspect-[9/16] max-h-[60vh] rounded-lg object-contain max-md:max-h-[40vh]"
                     controls
@@ -214,9 +220,16 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
                   />
                 </div>
               )}
-              <div className="flex w-full flex-col items-center gap-md">
+              <div
+                className={`flex w-full flex-col gap-md ${videoUrl ? 'justify-center max-lg:items-center max-lg:text-center' : 'items-center'}`}
+              >
                 {!videoUrl && (
                   <div className="flex size-20 items-center justify-center rounded-full bg-primary-500">
+                    <AnimatedCheckmark />
+                  </div>
+                )}
+                {videoUrl && (
+                  <div className="flex size-16 items-center justify-center rounded-full bg-primary-500 max-lg:size-20">
                     <AnimatedCheckmark />
                   </div>
                 )}
@@ -227,61 +240,71 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
                   Dein Video wurde erfolgreich mit Untertiteln versehen.
                 </p>
 
-                <div className="flex flex-wrap justify-center gap-sm max-md:w-full max-md:flex-col">
+                <div className="flex flex-wrap gap-md max-lg:justify-center">
                   {videoUrl && (
-                    <Button onClick={handleDownload}>
+                    <Button
+                      variant="brand"
+                      size="brand-icon"
+                      onClick={handleDownload}
+                      title="Herunterladen"
+                    >
                       <FaDownload />
-                      Herunterladen
+                    </Button>
+                  )}
+                  <Button
+                    variant="brand-outline"
+                    size="brand-icon"
+                    onClick={onEditAgain}
+                    title="Bearbeiten"
+                  >
+                    <FaEdit />
+                  </Button>
+                  {(exportStore.projectId || projectId) && (
+                    <Button
+                      variant="brand-outline"
+                      size="brand-icon"
+                      onClick={() => setShowShareModal(true)}
+                      title="Video Teilen"
+                    >
+                      <FaShareAlt />
                     </Button>
                   )}
                   {videoUrl && canNativeShare && (
                     <Button
+                      variant="brand-outline"
+                      size="brand-icon"
                       onClick={handleShareToInstagram}
                       disabled={isSharing}
                       title="Auf Instagram posten"
                     >
-                      {isSharing ? <Spinner size="small" white /> : <FaInstagram />}
-                      Posten
+                      {isSharing ? <Spinner size="small" /> : <FaInstagram />}
                     </Button>
                   )}
-                  <Button onClick={onEditAgain}>
-                    <FaEdit />
-                    Bearbeiten
-                  </Button>
-                  {(exportStore.projectId || projectId) && (
-                    <Button onClick={() => setShowShareModal(true)}>
-                      <FaShareAlt />
-                      Video Teilen
-                    </Button>
-                  )}
-                </div>
-
-                <div className="flex justify-center gap-sm">
                   <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={onReset}
-                    title="Neues Video verarbeiten"
-                  >
-                    <FaPlus />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
+                    variant="brand-outline"
+                    size="brand-icon"
                     onClick={onGenerateSocialText}
                     disabled={isGeneratingSocialText || !!socialText}
                     title="Beitragstext erstellen"
                   >
                     {isGeneratingSocialText ? <Spinner size="small" /> : <FaFileAlt />}
                   </Button>
+                  <Button
+                    variant="brand-ghost"
+                    size="brand-icon"
+                    onClick={onReset}
+                    title="Neues Video"
+                  >
+                    <FaPlus />
+                  </Button>
                 </div>
               </div>
-            </>
+            </div>
           )}
         </div>
 
         {socialText && (
-          <div className="mt-lg w-full rounded-lg bg-background-alt p-lg text-left dark:bg-background max-md:bg-transparent max-md:p-0 max-md:pt-lg">
+          <div className="mt-lg w-full rounded-lg bg-background-alt p-lg text-left dark:bg-background max-lg:bg-transparent max-lg:p-0 max-lg:pt-lg">
             <h3 className="mb-sm text-base font-semibold text-foreground-heading">
               Dein Instagram Reel Text:
             </h3>

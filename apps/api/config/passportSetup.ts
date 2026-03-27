@@ -11,6 +11,23 @@ import type { Request } from 'express';
 
 const log = createLogger('Passport');
 
+const USER_CACHE_TTL_MS = 5_000;
+const userCache = new Map<string, { user: any; expiresAt: number }>();
+
+function getCachedUser(id: string): any | null {
+  const entry = userCache.get(id);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    userCache.delete(id);
+    return null;
+  }
+  return entry.user;
+}
+
+function setCachedUser(id: string, user: any): void {
+  userCache.set(id, { user, expiresAt: Date.now() + USER_CACHE_TTL_MS });
+}
+
 /**
  * Fallback user object when profile sync fails
  */
@@ -181,7 +198,11 @@ passport.deserializeUser(async (userData: any, done) => {
     }
 
     if (typeof userData === 'object' && userData.id) {
-      const userToReturn = await getUserById(userData.id);
+      const cached = getCachedUser(userData.id);
+      const userToReturn = cached || (await getUserById(userData.id));
+      if (userToReturn && !cached) {
+        setCachedUser(userData.id, userToReturn);
+      }
       if (userToReturn) {
         // Preserve session data that might have been updated
         if (userData.id_token) {

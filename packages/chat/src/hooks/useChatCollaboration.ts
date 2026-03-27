@@ -54,6 +54,8 @@ export function useChatCollaboration(threadId: string | null, user: ChatCollabor
       url,
       name: `chat-${threadId}`,
       document: ydoc,
+      maxAttempts: 5,
+      quiet: true,
     });
 
     providerRef.current = p;

@@ -1,4 +1,3 @@
-import { getShareUrl } from '@gruenerator/shared';
 import {
   CardActionsMenu,
   CardGrid,
@@ -11,7 +10,7 @@ import {
   Skeleton,
 } from '@gruenerator/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import React, { memo, useCallback, useMemo } from 'react';
+import React, { memo, useCallback } from 'react';
 import { FaImage, FaVideo } from 'react-icons/fa';
 import { HiOutlineDocumentText } from 'react-icons/hi';
 import {
@@ -28,26 +27,11 @@ import apiClient from '../../../components/utils/apiClient';
 import { getIcon } from '../../../config/icons';
 import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
 import { useBoards } from '../../boards/hooks/useBoards';
-import { getBoardType } from '../../boards/types';
-import useRecentDocs from '../hooks/useRecentDocs';
-
-import type { Share } from '@gruenerator/shared';
 
 const DocsIcon = getIcon('navigation', 'docs');
 const BoardIcon = getIcon('navigation', 'boards');
 
 const dateFormat: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
-
-const SUBTYPE_EMOJI: Record<string, string> = {
-  blank: '📄',
-  antrag: '📋',
-  pressemitteilung: '📰',
-  protokoll: '📝',
-  notizen: '💡',
-  redaktionsplan: '📅',
-  checkliste: '☑️',
-  einladung: '✉️',
-};
 
 type RecentItemType = 'doc' | 'board' | 'image' | 'video';
 
@@ -61,9 +45,9 @@ interface RecentItem {
   boardType?: 'kanban' | 'whiteboard';
   thumbnailUrl?: string;
   duration?: number;
-  shareToken?: string;
   creatorName?: string;
   accessType?: string;
+  deleteEndpoint?: string;
 }
 
 const formatDuration = (seconds?: number): string => {
@@ -73,13 +57,9 @@ const formatDuration = (seconds?: number): string => {
   return `${mins}:${String(secs).padStart(2, '0')}`;
 };
 
-const fetchShares = async (type: string): Promise<Share[]> => {
-  try {
-    const res = await apiClient.get('/share/my', { params: { type } });
-    return res.data?.shares ?? [];
-  } catch {
-    return [];
-  }
+const fetchRecentActivity = async (): Promise<RecentItem[]> => {
+  const res = await apiClient.get('/recent-activity', { params: { limit: 12 } });
+  return res.data?.items ?? [];
 };
 
 const FALLBACK_TITLES: Record<RecentItemType, string> = {
@@ -125,7 +105,6 @@ const RecentItemCard = memo(
         to={item.href}
         className="group relative flex flex-col bg-background border border-grey-200 dark:border-grey-700 rounded-md overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-grey-300 dark:hover:border-grey-600 no-underline"
       >
-        {/* Preview area */}
         {item.type === 'doc' && (
           <div className="flex items-center justify-center bg-white dark:bg-grey-800 aspect-[4/3] text-4xl select-none">
             {item.emoji ?? '📄'}
@@ -164,7 +143,6 @@ const RecentItemCard = memo(
           </div>
         )}
 
-        {/* Actions menu */}
         <div
           className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
           onClick={(e) => e.preventDefault()}
@@ -178,7 +156,6 @@ const RecentItemCard = memo(
           </CardActionsMenu>
         </div>
 
-        {/* Footer */}
         <div className="border-t border-grey-100 dark:border-grey-700 px-sm py-sm">
           <div className="flex items-center gap-xs min-w-0">
             {TypeIcon && <TypeIcon className="text-sm text-secondary-600 shrink-0" />}
@@ -209,30 +186,22 @@ const RecentlyCreatedSection: React.FC<RecentlyCreatedSectionProps> = memo(
     const navigate = useNavigate();
     const queryClient = useQueryClient();
 
-    const { docs, isLoading: docsLoading } = useRecentDocs(10, showDocs);
-    const {
-      boards,
-      isLoading: boardsLoading,
-      createBoard,
-      deleteBoard,
-    } = useBoards({
-      enabled: showBoards,
-    });
-
-    const { data: images = [], isLoading: imagesLoading } = useQuery({
-      queryKey: ['shares', 'image'],
-      queryFn: () => fetchShares('image'),
+    const { data: allItems = [], isLoading } = useQuery({
+      queryKey: ['recent-activity'],
+      queryFn: fetchRecentActivity,
       staleTime: 30_000,
     });
 
-    const { data: videos = [], isLoading: videosLoading } = useQuery({
-      queryKey: ['shares', 'video'],
-      queryFn: () => fetchShares('video'),
-      staleTime: 30_000,
-    });
+    const items = allItems
+      .filter((item) => {
+        if (item.type === 'doc' && !showDocs) return false;
+        if (item.type === 'board' && !showBoards) return false;
+        if (item.type === 'video') return false;
+        return true;
+      })
+      .slice(0, 10);
 
-    const isLoading =
-      (showDocs && docsLoading) || (showBoards && boardsLoading) || imagesLoading || videosLoading;
+    const { createBoard, deleteBoard } = useBoards({ enabled: showBoards });
 
     const createEmptyDoc = useMutation({
       mutationFn: async () => {
@@ -240,66 +209,9 @@ const RecentlyCreatedSection: React.FC<RecentlyCreatedSectionProps> = memo(
         return res.data as { id: string };
       },
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['workplace-recent-docs'] });
+        queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
       },
     });
-
-    const items = useMemo(() => {
-      const unified: RecentItem[] = [];
-
-      docs.forEach((doc) => {
-        unified.push({
-          id: doc.id,
-          title: doc.title,
-          date: doc.updated_at,
-          type: 'doc',
-          emoji: SUBTYPE_EMOJI[doc.document_subtype ?? 'blank'] ?? '📄',
-          creatorName: doc.creator_name,
-          accessType: doc.access_type,
-          href: `/docs/${doc.id}`,
-        });
-      });
-
-      boards.forEach((board) => {
-        unified.push({
-          id: board.id,
-          title: board.title,
-          date: board.updated_at,
-          type: 'board',
-          boardType: getBoardType(board),
-          creatorName: board.creator_name,
-          href: `/boards/${board.id}`,
-        });
-      });
-
-      images.forEach((share) => {
-        unified.push({
-          id: share.shareToken,
-          title: share.title,
-          date: share.createdAt,
-          type: 'image',
-          thumbnailUrl: share.thumbnailUrl || getShareUrl(share.shareToken, 'thumbnail'),
-          shareToken: share.shareToken,
-          href: '/studio/gallery',
-        });
-      });
-
-      videos.forEach((share) => {
-        unified.push({
-          id: share.shareToken,
-          title: share.title,
-          date: share.createdAt,
-          type: 'video',
-          thumbnailUrl: share.thumbnailUrl || getShareUrl(share.shareToken, 'thumbnail'),
-          duration: share.duration,
-          shareToken: share.shareToken,
-          href: `/shared/${share.shareToken}`,
-        });
-      });
-
-      unified.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      return unified.slice(0, 9);
-    }, [docs, boards, images, videos]);
 
     const handleDelete = useCallback(
       (item: RecentItem) => {
@@ -312,36 +224,25 @@ const RecentlyCreatedSection: React.FC<RecentlyCreatedSectionProps> = memo(
 
         if (!window.confirm(messages[item.type])) return;
 
-        switch (item.type) {
-          case 'doc':
-            apiClient.delete(`/docs/${item.id}`).then(() => {
-              queryClient.invalidateQueries({ queryKey: ['workplace-recent-docs'] });
-            });
-            break;
-          case 'board':
-            deleteBoard.mutateAsync(item.id);
-            break;
-          case 'image':
-          case 'video':
-            apiClient.delete(`/share/${item.shareToken}`).then(() => {
-              queryClient.invalidateQueries({ queryKey: ['shares', item.type] });
-            });
-            break;
+        if (item.type === 'board') {
+          deleteBoard.mutateAsync(item.id).then(() => {
+            queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+          });
+          return;
+        }
+
+        if (item.deleteEndpoint) {
+          const endpoint = item.deleteEndpoint.replace(/^\/api/, '');
+          apiClient.delete(endpoint).then(() => {
+            queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+          });
         }
       },
       [deleteBoard, queryClient]
     );
 
     const handleShare = useCallback((item: RecentItem) => {
-      if (item.shareToken) {
-        navigator.clipboard.writeText(getShareUrl(item.shareToken));
-      } else {
-        const url =
-          item.type === 'board'
-            ? `${window.location.origin}/boards/${item.id}`
-            : `${window.location.origin}/docs/${item.id}`;
-        navigator.clipboard.writeText(url);
-      }
+      navigator.clipboard.writeText(`${window.location.origin}${item.href}`);
     }, []);
 
     const handleCreateDoc = useCallback(() => {
@@ -411,8 +312,8 @@ const RecentlyCreatedSection: React.FC<RecentlyCreatedSectionProps> = memo(
         />
 
         {isLoading ? (
-          <CardGrid columns="3">
-            {Array.from({ length: 6 }, (_, i) => (
+          <CardGrid columns="5">
+            {Array.from({ length: 5 }, (_, i) => (
               <div
                 key={i}
                 className="rounded-md border border-grey-200 dark:border-grey-700 overflow-hidden"
@@ -430,7 +331,7 @@ const RecentlyCreatedSection: React.FC<RecentlyCreatedSectionProps> = memo(
             Noch keine Inhalte vorhanden.
           </p>
         ) : (
-          <CardGrid columns="3">
+          <CardGrid columns="5">
             {items.map((item) => (
               <RecentItemCard
                 key={`${item.type}-${item.id}`}

@@ -561,6 +561,12 @@ router.post('/process-auto', async (req: SubtitlerRequest, res: Response): Promi
     }
     const originalFilename = (await getOriginalFilename(uploadId)) || 'video.mp4';
 
+    await redisClient.set(
+      `auto:${uploadId}`,
+      JSON.stringify({ status: 'processing', stage: 1, stageProgress: 0, overallProgress: 0 }),
+      { EX: 3600 }
+    );
+
     res.status(202).json({ status: 'processing' });
 
     processVideoAutomatically(videoPath, uploadId, {
