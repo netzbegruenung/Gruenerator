@@ -42,7 +42,7 @@ const SettingsDropdown: React.FC<SettingsDropdownProps> = React.memo(
         : label
       : (config.options.find((o) => selected.has(o.id))?.label ?? label);
 
-    const firstSelectedOption = config.options.find((o) => selected.has(o.id));
+    const selectedOptions = config.options.filter((o) => selected.has(o.id));
     const hasIcons = config.options.some((o) => o.icon);
 
     return (
@@ -57,10 +57,16 @@ const SettingsDropdown: React.FC<SettingsDropdownProps> = React.memo(
               className
             )}
           >
-            {hasIcons && firstSelectedOption?.icon && (
-              <span className="shrink-0 [&_svg]:size-3.5">{firstSelectedOption.icon}</span>
+            {hasIcons && selectedOptions.length > 0 && (
+              <span className="flex items-center gap-0.5 shrink-0 sm:hidden [&_svg]:size-3.5">
+                {selectedOptions.map((o) => (
+                  <span key={o.id}>{o.icon}</span>
+                ))}
+              </span>
             )}
-            <span className={cn(hasIcons && 'max-sm:hidden')}>{selectedLabel}</span>
+            <span className={cn(hasIcons && selectedCount > 0 && 'hidden sm:inline')}>
+              {selectedLabel}
+            </span>
             <ChevronDown className={cn('size-3 transition-transform', open && 'rotate-180')} />
           </button>
         </PopoverTrigger>

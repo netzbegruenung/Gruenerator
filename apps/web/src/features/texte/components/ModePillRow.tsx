@@ -60,8 +60,7 @@ const ModePillRow: React.FC<ModePillRowProps> = memo(({ mode, onModeChange }) =>
             onClick={() => onModeChange(resolveGroupMode(group.id))}
             className={cn(pillBase, active ? pillActive : pillInactive)}
           >
-            {group.icon && <span className="shrink-0 [&_svg]:size-3.5">{group.icon}</span>}
-            <span className="max-sm:hidden">{group.label}</span>
+            {group.label}
           </button>
         );
       })}
