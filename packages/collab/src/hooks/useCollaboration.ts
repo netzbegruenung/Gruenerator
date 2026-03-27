@@ -71,7 +71,7 @@ export const useCollaboration = ({
         token: token ?? undefined,
         ...(WebSocketPolyfill ? { WebSocketPolyfill } : {}),
         ...(isGuest && guestId ? { parameters: { guestId, guestName: guestName || 'Gast' } } : {}),
-      } as Parameters<typeof HocuspocusProvider>[0]);
+      } as ConstructorParameters<typeof HocuspocusProvider>[0]);
 
       // Immediately disconnect to prevent the auto-connect race condition.
       // We reconnect explicitly after event listeners are set up.
