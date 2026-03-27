@@ -11,6 +11,10 @@ import SidebarToggle from '../../layout/SidebarToggle';
 
 import { GlobalBridges } from './GlobalBridges';
 
+import type { LayoutMode } from '../../../config/routes';
+
+import { cn } from '@/utils/cn';
+
 const Footer = lazy(() => import('../../layout/Footer/Footer'));
 
 const DesktopTitlebar = lazy(() => import('../../layout/DesktopTitlebar/DesktopTitlebar'));
@@ -22,14 +26,14 @@ interface PageLayoutProps {
   children: ReactNode;
   darkMode: boolean;
   toggleDarkMode: () => void;
-  showHeaderFooter?: boolean;
+  layoutMode?: LayoutMode;
 }
 
 const PageLayout = ({
   children,
   darkMode,
   toggleDarkMode,
-  showHeaderFooter = true,
+  layoutMode = 'default',
 }: PageLayoutProps): JSX.Element => {
   const [showFooter, setShowFooter] = useState(false);
   const sidebarOpen = useSidebarStore((state) => state.isOpen);
@@ -58,8 +62,8 @@ const PageLayout = ({
     [tabs, activeTabId, createTab, navigate]
   );
 
-  if (!showHeaderFooter) {
-    return <main className="content-wrapper no-header-footer">{children}</main>;
+  if (layoutMode === 'noChrome') {
+    return <main className="min-h-dvh">{children}</main>;
   }
 
   const isDesktop = isDesktopApp();
@@ -75,7 +79,9 @@ const PageLayout = ({
         </Suspense>
         <div className="desktop-content-area">
           <Sidebar isDesktop={true} onNavigate={handleDesktopNavigation} />
-          <main className="content-wrapper desktop-main">{children}</main>
+          <main className="ml-14 min-h-[calc(100vh-var(--titlebar-height))] flex-1 flex flex-col items-center transition-[margin-left] duration-200">
+            {children}
+          </main>
         </div>
       </div>
     );
@@ -88,6 +94,20 @@ const PageLayout = ({
   ]
     .filter(Boolean)
     .join(' ');
+
+  const mainClasses = cn(
+    'relative flex-1',
+    layoutMode === 'fullscreen' && 'mt-0 min-h-0 overflow-hidden',
+    layoutMode === 'immersive' && 'mt-0 min-h-0 overflow-y-auto',
+    layoutMode === 'default' && 'mt-lg'
+  );
+
+  const appContentClasses = cn(
+    'app-content',
+    (layoutMode === 'fullscreen' || layoutMode === 'immersive') && 'flex flex-col h-dvh pt-12'
+  );
+
+  const showPageFooter = showFooter && isHomePage && layoutMode === 'default';
 
   return (
     <GlobalChatProvider>
@@ -102,9 +122,9 @@ const PageLayout = ({
           </div>
         </header>
         <Sidebar />
-        <div className="app-content">
-          <main className="content-wrapper">{children}</main>
-          {showFooter && isHomePage && (
+        <div className={appContentClasses}>
+          <main className={mainClasses}>{children}</main>
+          {showPageFooter && (
             <Suspense fallback={<div style={{ height: '80px' }} />}>
               <Footer />
             </Suspense>

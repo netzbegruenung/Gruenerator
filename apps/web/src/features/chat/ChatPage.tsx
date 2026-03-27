@@ -49,7 +49,7 @@ function ChatPage() {
   }
 
   return (
-    <div className="chat-page-root flex min-h-0 bg-background">
+    <div className="flex min-h-0 h-full bg-background">
       <main className="flex min-h-0 flex-1 flex-col pt-4 md:pt-0">
         {chatViewMode === 'overview' ? (
           <ChatOverview

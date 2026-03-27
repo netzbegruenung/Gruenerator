@@ -306,7 +306,7 @@ const NotebookPageContent = ({
     >
       <CitationPanelProvider>
         <ExtraActionsProvider factory={extraActionsFactory}>
-          <div className="notebook-page-root flex min-h-0 flex-col">
+          <div className="flex min-h-0 h-full flex-col">
             <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
               <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
                 <ThreadPrimitive.Empty>
