@@ -1,4 +1,5 @@
 export { AnimatedCircularProgressBar } from './components/animated-circular-progress-bar';
+export { RetroGrid } from './components/retro-grid';
 export { ImageComparisonSlider } from './components/ui/image-comparison-slider-horizontal';
 export { cn } from './lib/cn';
 export { useIsMobile } from './hooks/use-mobile';
@@ -197,3 +198,5 @@ export {
 export { SettingsDropdown, type SettingsDropdownProps } from './components/settings-dropdown';
 export { SettingsTagInput, type SettingsTagInputProps } from './components/settings-tag-input';
 export { CardActionsMenu, type CardActionsMenuProps } from './components/card-actions';
+export { VideoCard, type VideoCardProps } from './components/video-card';
+export { Slider } from './components/slider';
