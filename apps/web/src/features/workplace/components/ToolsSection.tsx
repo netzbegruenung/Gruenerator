@@ -40,6 +40,30 @@ const ALL_TOOLS: ToolItem[] = [
     icon: getIcon('navigation', 'transkription')!,
     betaFeature: 'scanner',
   },
+  {
+    id: 'vorlagen',
+    title: 'Vorlagen',
+    path: '/datenbank/vorlagen',
+    icon: getIcon('navigation', 'vorlagen')!,
+  },
+  {
+    id: 'recherche',
+    title: 'Datenbank durchsuchen',
+    path: '/recherche',
+    icon: getIcon('navigation', 'datenbank')!,
+  },
+  {
+    id: 'transfer',
+    title: 'Transfer',
+    path: '/transfer',
+    icon: getIcon('actions', 'upload')!,
+  },
+  {
+    id: 'apps',
+    title: 'Mit ChatGPT & co verbinden',
+    path: '/apps',
+    icon: getIcon('actions', 'link')!,
+  },
 ];
 
 const ToolIcon = memo(({ tool }: { tool: ToolItem }) => {
@@ -63,21 +87,35 @@ const ToolIcon = memo(({ tool }: { tool: ToolItem }) => {
 });
 ToolIcon.displayName = 'ToolIcon';
 
+const CREATE_GROUP_TOOL: ToolItem = {
+  id: 'gruppe-erstellen',
+  title: 'Gruppe erstellen',
+  path: '/gruppen',
+  icon: getIcon('navigation', 'gruppen')!,
+};
+
 const ToolsSection = React.memo(
-  ({ canAccessBetaFeature }: { canAccessBetaFeature: (feature: string) => boolean }) => {
-    const visibleTools = useMemo(
-      () => ALL_TOOLS.filter((tool) => !tool.betaFeature || canAccessBetaFeature(tool.betaFeature)),
-      [canAccessBetaFeature]
-    );
+  ({
+    canAccessBetaFeature,
+    showCreateGroup,
+  }: {
+    canAccessBetaFeature: (feature: string) => boolean;
+    showCreateGroup?: boolean;
+  }) => {
+    const visibleTools = useMemo(() => {
+      const tools = ALL_TOOLS.filter(
+        (tool) => !tool.betaFeature || canAccessBetaFeature(tool.betaFeature)
+      );
+      if (showCreateGroup) tools.push(CREATE_GROUP_TOOL);
+      return tools;
+    }, [canAccessBetaFeature, showCreateGroup]);
 
     return (
-      <section className="mb-xl">
-        <div className="flex justify-center gap-xl flex-wrap py-sm">
-          {visibleTools.map((tool) => (
-            <ToolIcon key={tool.id} tool={tool} />
-          ))}
-        </div>
-      </section>
+      <div className="flex gap-xl flex-wrap py-sm">
+        {visibleTools.map((tool) => (
+          <ToolIcon key={tool.id} tool={tool} />
+        ))}
+      </div>
     );
   }
 );

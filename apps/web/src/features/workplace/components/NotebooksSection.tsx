@@ -10,7 +10,7 @@ import { SYSTEM_NOTEBOOKS, getOrderedNotebooks } from '../../notebook/config/not
 import type { ToolEntry } from '../../../components/common/ToolGrid';
 import type { NotebookCollection } from '../../../types/notebook';
 
-const INITIAL_COUNT = 3;
+const INITIAL_COUNT = 5;
 
 const NotebooksSection: React.FC = memo(() => {
   const navigate = useNavigate();
@@ -90,7 +90,7 @@ const NotebooksSection: React.FC = memo(() => {
       />
       <ToolGrid
         tools={allTools}
-        columns={3}
+        columns={5}
         compact
         showFavourites
         onShare={handleShare}

@@ -3,41 +3,20 @@ import { useState } from 'react';
 
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../components/common/PageContainer';
-import ToolGrid from '../../components/common/ToolGrid';
 import ErrorBoundary from '../../components/ErrorBoundary';
-import { getIcon } from '../../config/icons';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import useBetaFeatures from '../../hooks/useBetaFeatures';
 import { useFirstName } from '../../hooks/useFirstName';
+import { useGroups } from '../groups/hooks/useGroups';
 import { DEFAULT_MODE } from '../texte/modes';
 
 import CreatorSection from './components/CreatorSection';
 import GroupsSection from './components/GroupsSection';
 import NotebooksSection from './components/NotebooksSection';
 import RecentlyCreatedSection from './components/RecentlyCreatedSection';
+import ReelsSection from './components/ReelsSection';
 import TextsSection from './components/TextsSection';
 import ToolsSection from './components/ToolsSection';
-
-import type { ToolEntry } from '../../components/common/ToolGrid';
-
-const BOTTOM_TOOLS: ToolEntry[] = [
-  {
-    id: 'vorlagen',
-    title: 'Vorlagen',
-    description: 'Sharepic-Vorlagen erstellen und bearbeiten.',
-    path: '/datenbank/vorlagen',
-    icon: getIcon('navigation', 'vorlagen'),
-    tags: ['Sharepics', 'Design'],
-  },
-  {
-    id: 'recherche',
-    title: 'Recherche',
-    description: 'Websuche und Quellenrecherche mit KI-Unterstützung.',
-    path: '/recherche',
-    icon: getIcon('navigation', 'suche'),
-    tags: ['Suche', 'Quellen'],
-  },
-];
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -53,6 +32,8 @@ const WorkplacePage = () => {
   const firstName = useFirstName();
 
   const [mode, setMode] = useState(DEFAULT_MODE);
+  const { userGroups } = useGroups({ isActive: true });
+  const hasGroups = (userGroups?.length ?? 0) > 0;
 
   return (
     <ErrorBoundary>
@@ -70,21 +51,21 @@ const WorkplacePage = () => {
           <CreatorSection mode={mode} onModeChange={setMode} />
         </div>
 
-        <ToolsSection canAccessBetaFeature={canAccessBetaFeature} />
-
         <RecentlyCreatedSection
           showDocs={canAccessBetaFeature('docs')}
           showBoards={canAccessBetaFeature('boards')}
         />
 
+        <ReelsSection />
+
         <TextsSection />
 
-        <GroupsSection />
+        {hasGroups && <GroupsSection />}
         <NotebooksSection />
 
         <section className="mb-xl">
           <SectionHeader title="Weitere Tools" />
-          <ToolGrid tools={BOTTOM_TOOLS} columns={2} />
+          <ToolsSection canAccessBetaFeature={canAccessBetaFeature} showCreateGroup={!hasGroups} />
         </section>
       </PageContainer>
     </ErrorBoundary>
