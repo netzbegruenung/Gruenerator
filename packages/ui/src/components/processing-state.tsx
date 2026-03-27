@@ -6,8 +6,8 @@ import { StepBreadcrumb, type StepBreadcrumbStep } from './step-breadcrumb';
 export interface ProcessingStateProps {
   progress: number;
   label: string;
-  steps: StepBreadcrumbStep[];
-  activeStepIndex: number;
+  steps?: StepBreadcrumbStep[];
+  activeStepIndex?: number;
   footer?: ReactNode;
   className?: string;
 }
@@ -32,7 +32,9 @@ export function ProcessingState({
       />
       <div className="flex flex-col items-center gap-xs">
         <p className="text-sm font-medium text-foreground">{label}</p>
-        <StepBreadcrumb steps={steps} activeIndex={activeStepIndex} />
+        {steps && steps.length > 0 && (
+          <StepBreadcrumb steps={steps} activeIndex={activeStepIndex ?? 0} />
+        )}
       </div>
       {footer}
     </div>
