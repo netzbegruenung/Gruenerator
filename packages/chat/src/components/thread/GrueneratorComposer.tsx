@@ -271,7 +271,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
 
   return (
     <div className="px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] sm:pb-[max(1rem,env(safe-area-inset-bottom))]">
-      <ComposerPrimitive.Root className="composer-root relative mx-auto flex w-full max-w-3xl flex-col rounded-3xl border border-border bg-surface shadow-sm transition-shadow focus-within:shadow-md focus-within:border-primary/30">
+      <ComposerPrimitive.Root className="composer-root relative mx-auto flex w-full max-w-3xl flex-col rounded-3xl border border-border bg-white shadow-lg transition-shadow focus-within:shadow-xl focus-within:border-primary/30 dark:bg-surface dark:shadow-sm dark:focus-within:shadow-md">
         <ComposerPrimitive.Quote className="mx-4 mt-4 flex items-start gap-2 rounded-r-lg border-l-4 border-primary/40 bg-primary/5 px-3 py-2 text-sm">
           <ComposerPrimitive.QuoteText className="line-clamp-2 flex-1 italic text-foreground-muted" />
           <ComposerPrimitive.QuoteDismiss className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-foreground-muted hover:text-foreground">

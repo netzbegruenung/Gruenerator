@@ -1,4 +1,4 @@
-import { type ThreadMessageLike } from '@assistant-ui/react-native';
+import { type ThreadMessageLike, type ThreadMessage } from '@assistant-ui/react-native';
 import {
   fromThreadMessageLike,
   getAutoStatus,
@@ -88,10 +88,7 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
   });
 }
 
-export function transformMessageLike(msg: ThreadMessageLike): {
-  id: string;
-  [key: string]: unknown;
-} {
+export function transformMessageLike(msg: ThreadMessageLike): ThreadMessage {
   return fromThreadMessageLike(
     msg,
     generateId(),
