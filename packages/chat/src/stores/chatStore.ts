@@ -34,6 +34,9 @@ export type ModelId = 'mistral' | 'litellm';
 
 export type ToolKey = 'search' | 'web' | 'examples' | 'research';
 
+export type ThreadMode = 'chat' | 'notebook' | 'search' | 'eigener';
+export type SearchMode = 'web' | 'deep';
+
 export interface ModelOption {
   id: ModelId;
   name: string;
@@ -84,6 +87,11 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
   },
 ];
 
+interface ThreadSettings {
+  customSystemPrompt: string | null;
+  customEnabledTools: Record<string, boolean> | null;
+}
+
 interface AgentState {
   selectedAgentId: string | null;
   selectedProvider: Provider;
@@ -97,7 +105,14 @@ interface AgentState {
   messageCount: number;
   needsCompaction: boolean;
   pendingMessage: string | null;
+  pendingDraft: string | null;
+  pendingInitialAssistantMessage: string | null;
   chatViewMode: 'overview' | 'thread';
+  threadMode: ThreadMode;
+  searchMode: SearchMode;
+  customSystemPrompt: string | null;
+  customEnabledTools: Record<string, boolean> | null;
+  mentionablesActivated: boolean;
   setSelectedAgent: (agentId: string | null) => void;
   setSelectedProvider: (provider: Provider) => void;
   setSelectedModel: (model: ModelId) => void;
@@ -107,11 +122,20 @@ interface AgentState {
   toggleDeepAgent: () => void;
   setSelectedNotebook: (notebookId: string) => void;
   setPendingMessage: (message: string | null) => void;
+  setPendingDraft: (draft: string | null) => void;
+  setPendingInitialAssistantMessage: (message: string | null) => void;
   setChatViewMode: (mode: 'overview' | 'thread') => void;
+  setThreadMode: (mode: ThreadMode) => void;
+  setSearchMode: (mode: SearchMode) => void;
   setCompactionState: (state: CompactionState) => void;
   loadCompactionState: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   triggerCompaction: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   incrementMessageCount: () => void;
+  setCustomSystemPrompt: (prompt: string | null) => void;
+  setCustomEnabledTools: (tools: Record<string, boolean> | null) => void;
+  loadThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
+  saveThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
+  activateMentionables: () => void;
 }
 
 const DEFAULT_ENABLED_TOOLS: Record<ToolKey, boolean> = {
@@ -142,7 +166,14 @@ export const useAgentStore = create<AgentState>()(
       messageCount: 0,
       needsCompaction: false,
       pendingMessage: null,
+      pendingDraft: null,
+      pendingInitialAssistantMessage: null,
       chatViewMode: 'overview' as const,
+      threadMode: 'chat' as ThreadMode,
+      searchMode: 'web' as SearchMode,
+      customSystemPrompt: null,
+      customEnabledTools: null,
+      mentionablesActivated: false,
 
       setSelectedAgent: (agentId) => set({ selectedAgentId: agentId }),
 
@@ -155,13 +186,15 @@ export const useAgentStore = create<AgentState>()(
         }
       },
 
-      setCurrentThread: (threadId) =>
+      setCurrentThread: (threadId) => {
+        if (useAgentStore.getState().currentThreadId === threadId) return;
         set({
           currentThreadId: threadId,
           compactionState: { ...DEFAULT_COMPACTION_STATE },
           messageCount: 0,
           needsCompaction: false,
-        }),
+        });
+      },
 
       toggleTool: (tool) =>
         set((state) => ({
@@ -187,7 +220,16 @@ export const useAgentStore = create<AgentState>()(
 
       setPendingMessage: (message) => set({ pendingMessage: message }),
 
+      setPendingDraft: (draft) => set({ pendingDraft: draft }),
+
+      setPendingInitialAssistantMessage: (message) =>
+        set({ pendingInitialAssistantMessage: message }),
+
       setChatViewMode: (mode) => set({ chatViewMode: mode }),
+
+      setThreadMode: (mode) => set({ threadMode: mode }),
+
+      setSearchMode: (mode) => set({ searchMode: mode }),
 
       setCompactionState: (state) => set({ compactionState: state }),
 
@@ -237,6 +279,50 @@ export const useAgentStore = create<AgentState>()(
           messageCount: state.messageCount + 1,
           needsCompaction: state.messageCount + 1 >= 50 && !state.compactionState.summary,
         })),
+
+      setCustomSystemPrompt: (prompt) => set({ customSystemPrompt: prompt }),
+
+      setCustomEnabledTools: (tools) => set({ customEnabledTools: tools }),
+
+      loadThreadSettings: async (threadId: string, apiClient: ChatApiClient) => {
+        try {
+          const response = await apiClient.get<ThreadSettings>(
+            `/api/chat-service/threads/${threadId}/settings`
+          );
+          if (useAgentStore.getState().currentThreadId !== threadId) return;
+          set({
+            customSystemPrompt: response.customSystemPrompt ?? null,
+            customEnabledTools: response.customEnabledTools ?? null,
+          });
+        } catch {
+          // Thread may not exist yet
+        }
+        const state = useAgentStore.getState();
+        if (
+          state.currentThreadId === threadId &&
+          state.threadMode === 'eigener' &&
+          !state.customSystemPrompt
+        ) {
+          set({ threadMode: 'chat' });
+        }
+      },
+
+      saveThreadSettings: async (threadId: string, apiClient: ChatApiClient) => {
+        const state = useAgentStore.getState();
+        try {
+          await apiClient.patch<{ success: boolean }>(
+            `/api/chat-service/threads/${threadId}/settings`,
+            {
+              customSystemPrompt: state.customSystemPrompt,
+              customEnabledTools: state.customEnabledTools,
+            }
+          );
+        } catch (error) {
+          console.error('Failed to save thread settings:', error);
+        }
+      },
+
+      activateMentionables: () => set({ mentionablesActivated: true }),
     }),
     {
       name: 'gruenerator-chat-store',
@@ -253,7 +339,7 @@ export const useAgentStore = create<AgentState>()(
           removeItem: (key: string) => mem.delete(key),
         };
       }),
-      version: 2,
+      version: 4,
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
           const old = persisted.selectedModel;
@@ -269,6 +355,10 @@ export const useAgentStore = create<AgentState>()(
         if (version < 2) {
           persisted.selectedNotebookId = persisted.selectedNotebookId || 'gruenerator-notebook';
         }
+        if (version < 3) {
+          persisted.threadMode = persisted.threadMode || 'chat';
+          persisted.searchMode = persisted.searchMode || 'web';
+        }
         return persisted;
       },
       partialize: (state) => ({
@@ -279,6 +369,8 @@ export const useAgentStore = create<AgentState>()(
         enabledTools: state.enabledTools,
         useDeepAgent: state.useDeepAgent,
         selectedNotebookId: state.selectedNotebookId,
+        threadMode: state.threadMode,
+        searchMode: state.searchMode,
       }),
     }
   )

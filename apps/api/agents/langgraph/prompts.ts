@@ -86,87 +86,88 @@ export function buildPlannerPromptGeneral(): PromptConfig {
  * Grundsatz-specific draft prompt (NotebookLM-Style, German)
  * Builds comprehensive, well-structured dossier prompts
  */
+function buildDraftPrompt(collectionName: string, isPolitical: boolean): PromptConfig {
+  const domain = isPolitical ? 'politische Dokumentenanalyse' : 'Dokumentenanalyse';
+  const rules = [
+    `Du bist ein Experte für ${domain}. Schreibe ein umfassendes, gut strukturiertes Dossier im NotebookLM-Stil. Stütze dich dabei AUSSCHLIESSLICH auf die bereitgestellten Quellen.`,
+    `Sammlung: ${collectionName}.`,
+    '',
+    '## ANTWORT-STRUKTUR:',
+    '',
+    '### 1. Einleitung (1-2 Sätze)',
+    '- Beginne mit einer kontextualisierenden Einleitung: "Die Quellen enthalten [umfangreiche/detaillierte/grundlegende] Informationen zu [Thema]..."',
+    '- Nenne kurz die wichtigsten thematischen Schwerpunkte',
+    '',
+    '### 2. Hauptteil (thematisch gruppiert)',
+    '- Strukturiere nach INHALTLICHEN Themen, nicht nach Dokumenten',
+    '- Verwende aussagekräftige Überschriften (## Überschrift)',
+    '- Jeder Abschnitt sollte:',
+    '  - Mit einem verbindenden Satz beginnen, der den Kontext setzt',
+    '  - Fakten in FLIESSTEXT integrieren, nicht nur Bullet-Listen',
+    '  - Mehrere Quellen SYNTHESIEREN, nicht nur auflisten',
+    '  - Zitate [1][2] direkt nach relevanten Aussagen setzen',
+    '',
+    '### 3. Synthese/Fazit (bei komplexen Themen)',
+    '- Bei umfangreichen Antworten: Schließe mit einer synthesierenden Zusammenfassung',
+    '- Das Fazit MUSS sich auf Informationen aus den Quellen stützen — keine eigenen Schlussfolgerungen',
+    '',
+    '## STIL-REGELN:',
+    '- Schreibe in FLIESSTEXT mit Struktur, KEINE reinen Bullet-Listen',
+    '- Verbinde Informationen aus verschiedenen Quellen zu kohärenten Aussagen',
+    '- Erkläre auf Basis der Quellen, WARUM etwas wichtig ist, nicht nur WAS gesagt wird',
+    '- Bei Widersprüchen in Quellen: Benenne sie transparent',
+    '',
+    '## QUELLENTREUE:',
+    '- Verwende AUSSCHLIESSLICH Informationen aus den bereitgestellten Quellen.',
+    '- JEDE Faktenaussage MUSS mit mindestens einer Quellenangabe [n] belegt werden.',
+    '- Sätze OHNE Quellenangabe sind NUR für Einleitungen, Übergänge und Zusammenfassungen erlaubt.',
+    '- Falls die Quellen zu einem Aspekt der Frage KEINE Informationen enthalten: Sage dies offen, statt Informationen zu ergänzen.',
+    '- Erfinde KEINE Fakten, Zahlen oder Zusammenhänge, die nicht in den Quellen stehen.',
+    '',
+    '## ZITATIONS-PROTOKOLL:',
+    '- Verwende eckige Klammern: [1], [2], [3]. Keine [0].',
+    '- Nur IDs aus der Referenz-Map verwenden. Keine erfinden.',
+    '- KEINE Blockzitate (>) - die UI zeigt Quellen separat.',
+    '- Setze [n] NACH dem Satzzeichen (Punkt, Komma): "...Aussage.[1]" NICHT "...Aussage[1]."',
+    '- Bei mehreren Quellen für eine Aussage: "statement.[1][3][5]"',
+    '- JEDE Faktenaussage braucht mindestens eine Quellenangabe — auch bei Synthese mehrerer Quellen.',
+    '',
+    '## VERBOTEN:',
+    '- Antworten ohne Zitate',
+    '- Code-Blöcke oder Backticks um die Antwort',
+    '- Finale "Quellen"-Sektion (wird von UI generiert)',
+    '- Reine Auflistungen ohne verbindende Sätze',
+    '- Informationen aus eigenem Wissen, die nicht in den Quellen belegt sind',
+    '- Faktenaussagen ohne Quellenangabe',
+  ].join('\n');
+  return { system: rules };
+}
+
 export function buildDraftPromptGrundsatz(
   collectionName: string = 'Grüne Grundsatzprogramme'
 ): PromptConfig {
-  const rules = [
-    'Du bist ein Experte für politische Dokumentenanalyse. Schreibe ein umfassendes, gut strukturiertes Dossier im NotebookLM-Stil.',
-    `Sammlung: ${collectionName}.`,
-    '',
-    '## ANTWORT-STRUKTUR:',
-    '',
-    '### 1. Einleitung (1-2 Sätze)',
-    '- Beginne mit einer kontextualisierenden Einleitung: "Die Quellen enthalten [umfangreiche/detaillierte/grundlegende] Informationen zu [Thema]..."',
-    '- Nenne kurz die wichtigsten thematischen Schwerpunkte',
-    '',
-    '### 2. Hauptteil (thematisch gruppiert)',
-    '- Strukturiere nach INHALTLICHEN Themen, nicht nach Dokumenten',
-    '- Verwende aussagekräftige Überschriften (## Überschrift)',
-    '- Jeder Abschnitt sollte:',
-    '  - Mit einem verbindenden Satz beginnen, der den Kontext setzt',
-    '  - Fakten in FLIESSTEXT integrieren, nicht nur Bullet-Listen',
-    '  - Mehrere Quellen SYNTHESIEREN, nicht nur auflisten',
-    '  - Zitate [1][2] direkt nach relevanten Aussagen setzen',
-    '',
-    '### 3. Synthese/Fazit (bei komplexen Themen)',
-    '- Bei umfangreichen Antworten: Schließe mit einer synthesierenden Zusammenfassung',
-    '- Optional: Verwende eine Analogie oder Metapher zur Veranschaulichung',
-    '',
-    '## STIL-REGELN:',
-    '- Schreibe in FLIESSTEXT mit Struktur, KEINE reinen Bullet-Listen',
-    '- Verbinde Informationen aus verschiedenen Quellen zu kohärenten Aussagen',
-    '- Erkläre WARUM etwas wichtig ist, nicht nur WAS gesagt wird',
-    '- Bei Widersprüchen in Quellen: Benenne sie transparent',
-    '',
-    '## ZITATIONS-PROTOKOLL:',
-    '- Verwende eckige Klammern: [1], [2], [3]. Keine [0].',
-    '- Nur IDs aus der Referenz-Map verwenden. Keine erfinden.',
-    '- KEINE Blockzitate (>) - die UI zeigt Quellen separat.',
-    '- Setze [n] NACH dem Satzzeichen (Punkt, Komma): "...Aussage.[1]" NICHT "...Aussage[1]."',
-    '- Bei mehreren Quellen für eine Aussage: "statement.[1][3][5]"',
-    '',
-    '## VERBOTEN:',
-    '- Antworten ohne Zitate',
-    '- Code-Blöcke oder Backticks um die Antwort',
-    '- Finale "Quellen"-Sektion (wird von UI generiert)',
-    '- Reine Auflistungen ohne verbindende Sätze',
-  ].join('\n');
-  return { system: rules };
+  return buildDraftPrompt(collectionName, true);
 }
 
-/**
- * General draft prompt (collection-agnostic, NotebookLM-Style, German)
- * Builds comprehensive, well-structured dossier prompts for any collection
- */
 export function buildDraftPromptGeneral(collectionName: string = 'Ihre Sammlung'): PromptConfig {
+  return buildDraftPrompt(collectionName, false);
+}
+
+function buildConcisePrompt(collectionName: string, isPolitical: boolean): PromptConfig {
+  const domain = isPolitical ? 'politische Dokumentenanalyse' : 'Dokumentenanalyse';
   const rules = [
-    'Du bist ein Experte für Dokumentenanalyse. Schreibe ein umfassendes, gut strukturiertes Dossier im NotebookLM-Stil.',
+    `Du bist ein Experte für ${domain}. Beantworte die Frage AUSSCHLIESSLICH basierend auf den Quellen. Schreibe eine präzise, kompakte Antwort.`,
     `Sammlung: ${collectionName}.`,
     '',
     '## ANTWORT-STRUKTUR:',
-    '',
-    '### 1. Einleitung (1-2 Sätze)',
-    '- Beginne mit einer kontextualisierenden Einleitung: "Die Quellen enthalten [umfangreiche/detaillierte/grundlegende] Informationen zu [Thema]..."',
-    '- Nenne kurz die wichtigsten thematischen Schwerpunkte',
-    '',
-    '### 2. Hauptteil (thematisch gruppiert)',
+    '- Maximal 3-4 Absätze',
     '- Strukturiere nach INHALTLICHEN Themen, nicht nach Dokumenten',
-    '- Verwende aussagekräftige Überschriften (## Überschrift)',
-    '- Jeder Abschnitt sollte:',
-    '  - Mit einem verbindenden Satz beginnen, der den Kontext setzt',
-    '  - Fakten in FLIESSTEXT integrieren, nicht nur Bullet-Listen',
-    '  - Mehrere Quellen SYNTHESIEREN, nicht nur auflisten',
-    '  - Zitate [1][2] direkt nach relevanten Aussagen setzen',
+    '- Fakten in FLIESSTEXT integrieren, Mehrere Quellen SYNTHESIEREN',
+    '- Zitate [1][2] direkt nach relevanten Aussagen setzen',
     '',
-    '### 3. Synthese/Fazit (bei komplexen Themen)',
-    '- Bei umfangreichen Antworten: Schließe mit einer synthesierenden Zusammenfassung',
-    '- Optional: Verwende eine Analogie oder Metapher zur Veranschaulichung',
-    '',
-    '## STIL-REGELN:',
-    '- Schreibe in FLIESSTEXT mit Struktur, KEINE reinen Bullet-Listen',
-    '- Verbinde Informationen aus verschiedenen Quellen zu kohärenten Aussagen',
-    '- Erkläre WARUM etwas wichtig ist, nicht nur WAS gesagt wird',
-    '- Bei Widersprüchen in Quellen: Benenne sie transparent',
+    '## QUELLENTREUE:',
+    '- JEDE Faktenaussage MUSS quellenbelegt sein [n]. Sätze ohne Quellenangabe NUR für Einleitungen und Übergänge.',
+    '- Falls Quellen nicht ausreichen: Sage dies offen, statt Informationen zu ergänzen.',
     '',
     '## ZITATIONS-PROTOKOLL:',
     '- Verwende eckige Klammern: [1], [2], [3]. Keine [0].',
@@ -180,74 +181,20 @@ export function buildDraftPromptGeneral(collectionName: string = 'Ihre Sammlung'
     '- Code-Blöcke oder Backticks um die Antwort',
     '- Finale "Quellen"-Sektion (wird von UI generiert)',
     '- Reine Auflistungen ohne verbindende Sätze',
+    '- Informationen aus eigenem Wissen',
+    '- Faktenaussagen ohne Quellenangabe',
   ].join('\n');
   return { system: rules };
 }
 
-/**
- * Concise Grundsatz-specific prompt (with citations)
- * Keeps full citation protocol but constrains response length.
- * Used by notebook fast mode for system collections.
- */
 export function buildConcisePromptGrundsatz(
   collectionName: string = 'Grüne Grundsatzprogramme'
 ): PromptConfig {
-  const rules = [
-    'Du bist ein Experte für politische Dokumentenanalyse. Beantworte die Frage basierend auf den Quellen. Schreibe eine präzise, kompakte Antwort.',
-    `Sammlung: ${collectionName}.`,
-    '',
-    '## ANTWORT-STRUKTUR:',
-    '- Maximal 3-4 Absätze',
-    '- Strukturiere nach INHALTLICHEN Themen, nicht nach Dokumenten',
-    '- Fakten in FLIESSTEXT integrieren, Mehrere Quellen SYNTHESIEREN',
-    '- Zitate [1][2] direkt nach relevanten Aussagen setzen',
-    '',
-    '## ZITATIONS-PROTOKOLL:',
-    '- Verwende eckige Klammern: [1], [2], [3]. Keine [0].',
-    '- Nur IDs aus der Referenz-Map verwenden. Keine erfinden.',
-    '- KEINE Blockzitate (>) - die UI zeigt Quellen separat.',
-    '- Setze [n] NACH dem Satzzeichen (Punkt, Komma): "...Aussage.[1]" NICHT "...Aussage[1]."',
-    '- Bei mehreren Quellen für eine Aussage: "statement.[1][3][5]"',
-    '',
-    '## VERBOTEN:',
-    '- Antworten ohne Zitate',
-    '- Code-Blöcke oder Backticks um die Antwort',
-    '- Finale "Quellen"-Sektion (wird von UI generiert)',
-    '- Reine Auflistungen ohne verbindende Sätze',
-  ].join('\n');
-  return { system: rules };
+  return buildConcisePrompt(collectionName, true);
 }
 
-/**
- * Concise general prompt (with citations)
- * Keeps full citation protocol but constrains response length.
- * Used by notebook fast mode for user collections.
- */
 export function buildConcisePromptGeneral(collectionName: string = 'Ihre Sammlung'): PromptConfig {
-  const rules = [
-    'Du bist ein Experte für Dokumentenanalyse. Beantworte die Frage basierend auf den Quellen. Schreibe eine präzise, kompakte Antwort.',
-    `Sammlung: ${collectionName}.`,
-    '',
-    '## ANTWORT-STRUKTUR:',
-    '- Maximal 3-4 Absätze',
-    '- Strukturiere nach INHALTLICHEN Themen, nicht nach Dokumenten',
-    '- Fakten in FLIESSTEXT integrieren, Mehrere Quellen SYNTHESIEREN',
-    '- Zitate [1][2] direkt nach relevanten Aussagen setzen',
-    '',
-    '## ZITATIONS-PROTOKOLL:',
-    '- Verwende eckige Klammern: [1], [2], [3]. Keine [0].',
-    '- Nur IDs aus der Referenz-Map verwenden. Keine erfinden.',
-    '- KEINE Blockzitate (>) - die UI zeigt Quellen separat.',
-    '- Setze [n] NACH dem Satzzeichen (Punkt, Komma): "...Aussage.[1]" NICHT "...Aussage[1]."',
-    '- Bei mehreren Quellen für eine Aussage: "statement.[1][3][5]"',
-    '',
-    '## VERBOTEN:',
-    '- Antworten ohne Zitate',
-    '- Code-Blöcke oder Backticks um die Antwort',
-    '- Finale "Quellen"-Sektion (wird von UI generiert)',
-    '- Reine Auflistungen ohne verbindende Sätze',
-  ].join('\n');
-  return { system: rules };
+  return buildConcisePrompt(collectionName, false);
 }
 
 /**
@@ -256,7 +203,7 @@ export function buildConcisePromptGeneral(collectionName: string = 'Ihre Sammlun
  */
 export function buildFastModePrompt(collectionName: string = 'Dokumente'): PromptConfig {
   const rules = [
-    'Du bist ein Experte für Dokumentenanalyse. Beantworte die Frage basierend auf den bereitgestellten Informationen.',
+    'Du bist ein Experte für Dokumentenanalyse. Beantworte die Frage AUSSCHLIESSLICH basierend auf den bereitgestellten Informationen. Füge KEINE Informationen aus eigenem Wissen hinzu.',
     `Sammlung: ${collectionName}.`,
     '',
     '## ANTWORT-REGELN:',
@@ -269,6 +216,7 @@ export function buildFastModePrompt(collectionName: string = 'Dokumente'): Promp
     '- Zitationsmarker wie [1], [2] etc.',
     '- Code-Blöcke oder Backticks',
     '- Quellenangaben am Ende',
+    '- Informationen, die nicht aus dem bereitgestellten Kontext stammen',
   ].join('\n');
   return { system: rules };
 }

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import '../../assets/styles/components/gallery-layout.css';
+
+import { cn } from '@/utils/cn';
 
 interface IndexPageProps {
   title?: string;
@@ -25,34 +26,52 @@ const IndexPage = ({
   ...props
 }: IndexPageProps) => {
   return (
-    <div className={`container with-header gallery-layout ${className}`} {...props}>
-      <div className="gallery-header">
-        {title && <h1>{title}</h1>}
-        {description && <p className="gallery-description">{description}</p>}
-        {headerContent && <div className="gallery-header-content">{headerContent}</div>}
+    <div
+      className={cn(
+        'mx-auto mt-[60px] max-w-[1200px] flex-col px-lg box-border md:mt-0 md:px-md md:py-lg',
+        className
+      )}
+      {...props}
+    >
+      <div className="text-center">
+        {title && (
+          <h1 className="mb-4 text-[2.5rem] font-semibold text-foreground-heading md:text-[1.75rem]">
+            {title}
+          </h1>
+        )}
+        {description && (
+          <p className="mx-auto mb-xl max-w-[800px] text-center text-[1.1rem] leading-relaxed text-foreground">
+            {description}
+          </p>
+        )}
+        {headerContent && <div>{headerContent}</div>}
       </div>
 
-      <div className="gallery-content">
+      <div>
         {loading && (
-          <div className="gallery-loading">
+          <div className="flex flex-col items-center justify-center py-xl">
             <div className="spinner" />
             <p>Lädt...</p>
           </div>
         )}
 
         {error && (
-          <div className="gallery-error">
+          <div className="py-md text-center text-red-600">
             <p>Fehler: {error}</p>
           </div>
         )}
 
         {!loading && !error && !children && (
-          <div className="gallery-empty">
+          <div className="py-md text-center text-foreground">
             <p>{emptyMessage}</p>
           </div>
         )}
 
-        {!loading && !error && children && <div className="gallery-grid">{children}</div>}
+        {!loading && !error && children && (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-2xl max-lg:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] max-md:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] max-md:gap-4">
+            {children}
+          </div>
+        )}
       </div>
     </div>
   );

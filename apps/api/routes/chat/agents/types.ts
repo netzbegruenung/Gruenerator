@@ -34,7 +34,7 @@ export interface AgentConfig {
   tags: string[];
   model: string;
   defaultModel?: string;
-  provider: 'mistral' | 'anthropic' | 'litellm';
+  provider: 'mistral' | 'anthropic' | 'litellm' | 'regolo';
   params: {
     max_tokens: number;
     temperature: number;

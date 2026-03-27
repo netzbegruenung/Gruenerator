@@ -130,7 +130,7 @@ export async function getBatchChunkContext(
   // Fetch context for each document
   const promises = Array.from(byDocument.entries()).map(async ([docId, docPoints]) => {
     // Use the first point as the center
-    const centerPoint = docPoints[0];
+    const centerPoint = docPoints[0]!;
     const context = await getChunkWithContext(client, collection, centerPoint, options);
     results.set(docId, context);
   });

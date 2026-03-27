@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/react';
 import React, { type ReactNode, type ErrorInfo } from 'react';
 
-import '../assets/styles/components/error-boundary.css';
+import { cn } from '@/utils/cn';
 
 // Extended Error interface for server errors with additional metadata
 interface ServerError extends Error {
@@ -179,13 +179,13 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       const errorMessage = this.getErrorMessage();
 
       return (
-        <div className="error-boundary">
-          <h1>{errorMessage.title}</h1>
-          <p>{errorMessage.message}</p>
+        <div className="p-lg border border-grey-200 dark:border-grey-700 rounded-xs bg-background-alt mx-auto my-lg max-w-[800px] text-center font-sans text-foreground">
+          <h1 className="text-foreground-heading text-[2em] mb-md">{errorMessage.title}</h1>
+          <p className="mb-md leading-relaxed">{errorMessage.message}</p>
 
           {/* Zeige Fehler-ID und Zeitstempel an, wenn vorhanden */}
           {errorMessage.errorId && (
-            <p className="error-id">
+            <p className="text-[0.9em] text-foreground mb-md p-xs bg-background border border-dashed border-grey-300 dark:border-grey-600 inline-block">
               Fehler-ID: {errorMessage.errorId}
               {errorMessage.timestamp && ` (${new Date(errorMessage.timestamp).toLocaleString()})`}
               {errorMessage.errorCode && ` | Code: ${errorMessage.errorCode}`}
@@ -194,14 +194,20 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
           )}
 
           {errorMessage.details && (
-            <details>
-              <summary>Technische Details</summary>
+            <details className="my-lg text-left bg-background p-md rounded-xs">
+              <summary className="cursor-pointer font-bold mb-sm text-primary-600">
+                Technische Details
+              </summary>
               <p>{errorMessage.details}</p>
-              {this.state.errorInfo && <pre>{this.state.errorInfo.componentStack}</pre>}
+              {this.state.errorInfo && (
+                <pre className="whitespace-pre-wrap break-words bg-background-alt p-md rounded-xs border border-grey-200 dark:border-grey-700 max-h-[200px] overflow-y-auto text-[0.85em] text-foreground">
+                  {this.state.errorInfo.componentStack}
+                </pre>
+              )}
             </details>
           )}
 
-          <div className="error-actions">
+          <div className="mt-lg flex gap-md justify-center flex-wrap">
             {this.props.fallback ? (
               typeof this.props.fallback === 'function' ? (
                 this.props.fallback(this.state.error, this.state.errorInfo)
@@ -210,13 +216,26 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
               )
             ) : (
               <>
-                <button onClick={() => window.location.reload()}>Seite neu laden</button>
-                <a href="/" className="button">
+                <button
+                  onClick={() => window.location.reload()}
+                  className="bg-primary-600 text-white px-sm py-sm border-none rounded-xs cursor-pointer text-base no-underline transition-all duration-200 hover:bg-primary-700"
+                >
+                  Seite neu laden
+                </button>
+                <a
+                  href="/"
+                  className="bg-primary-600 text-white px-sm py-sm border-none rounded-xs cursor-pointer text-base no-underline transition-all duration-200 hover:bg-primary-700"
+                >
                   Zur Startseite
                 </a>
                 <button
                   onClick={this.copyErrorText}
-                  className={`copy-button ${this.state.copied ? 'copied' : ''}`}
+                  className={cn(
+                    'inline-flex items-center justify-center gap-2 px-sm py-sm border-none rounded-xs cursor-pointer text-base no-underline transition-all duration-200',
+                    this.state.copied
+                      ? 'bg-primary-600 text-white hover:bg-primary-700'
+                      : 'bg-secondary-600 text-white hover:bg-secondary-700'
+                  )}
                 >
                   {this.state.copied ? 'Kopiert!' : 'Fehlertext kopieren'}
                 </button>

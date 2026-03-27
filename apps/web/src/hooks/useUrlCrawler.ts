@@ -59,10 +59,10 @@ export const useUrlCrawler = (initialUrls: string[] = []) => {
 
       try {
         console.log(`[useUrlCrawler] Sending crawl request to /crawl-url for: ${url}`);
-        const response = await processText('/crawl-url', {
+        const response = (await processText('/crawl-url', {
           url,
           usePrivacyMode,
-        });
+        })) as { success: boolean; attachment: CrawledAttachment; error?: string };
 
         if (response.success) {
           processedUrlsRef.current.add(url);

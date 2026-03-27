@@ -100,6 +100,7 @@ router.get('/:id/permissions', async (req: Request<{ id: string }>, res: Respons
     const permissionsList = profilesResult.map((profile) => {
       const odId = profile.id;
       return {
+        type: 'user' as const,
         user_id: profile.id,
         display_name: profile.display_name,
         email: profile.email,
@@ -110,7 +111,33 @@ router.get('/:id/permissions', async (req: Request<{ id: string }>, res: Respons
       };
     });
 
-    return res.json(permissionsList);
+    // Fetch groups shared with this document
+    const groupShares = (await db.query(
+      `SELECT gcs.group_id, g.name AS group_name,
+              gcs.permissions, gcs.shared_at,
+              (SELECT COUNT(*)::int FROM group_memberships WHERE group_id = gcs.group_id) AS member_count
+       FROM group_content_shares gcs
+       JOIN groups g ON g.id = gcs.group_id
+       WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $1`,
+      [id]
+    )) as Array<{
+      group_id: string;
+      group_name: string;
+      permissions: { read?: boolean; write?: boolean };
+      shared_at: string;
+      member_count: number;
+    }>;
+
+    const groupEntries = groupShares.map((gs) => ({
+      type: 'group' as const,
+      group_id: gs.group_id,
+      group_name: gs.group_name,
+      permission_level: gs.permissions?.write ? 'editor' : 'viewer',
+      shared_at: gs.shared_at,
+      member_count: gs.member_count,
+    }));
+
+    return res.json([...permissionsList, ...groupEntries]);
   } catch (error: any) {
     console.error('[Docs] Error listing permissions:', error);
     return res.status(500).json({ error: 'Failed to list permissions', details: error.message });
@@ -161,7 +188,7 @@ router.post('/:id/permissions', async (req: Request<{ id: string }>, res: Respon
     }
 
     const recipientProfile = (await db.query(
-      'SELECT id, display_name, email FROM profiles WHERE id = $1',
+      'SELECT id, display_name, email, user_defaults FROM profiles WHERE id = $1',
       [user_id]
     )) as ProfileRow[];
     if (recipientProfile.length === 0) {
@@ -180,7 +207,7 @@ router.post('/:id/permissions', async (req: Request<{ id: string }>, res: Respon
       [JSON.stringify(permissions), id]
     );
 
-    // Fire-and-forget: send share notification email
+    // Fire-and-forget: send share notification email (respects recipient's preferences)
     const recipient = recipientProfile[0];
     if (recipient.email) {
       const senderProfile = (await db.query('SELECT display_name FROM profiles WHERE id = $1', [
@@ -188,17 +215,41 @@ router.post('/:id/permissions', async (req: Request<{ id: string }>, res: Respon
       ])) as ProfileRow[];
       const senderName = senderProfile[0]?.display_name || 'Jemand';
 
+      const docTitle = (document.title as string) || 'Unbenanntes Dokument';
+
+      // Fire-and-forget: in-app notification
+      import('../../services/notifications/index.js')
+        .then(({ createNotification }) =>
+          createNotification({
+            userId: user_id,
+            type: 'document_shared',
+            title: `${senderName} hat ein Dokument mit dir geteilt`,
+            body: docTitle,
+            metadata: { documentId: id, senderName, permissionLevel: permission_level },
+            actionUrl: `/docs/${id}`,
+            groupKey: `doc:${id}:shared`,
+          })
+        )
+        .catch(() => {});
+
+      // Fire-and-forget: email notification (respects recipient's preferences)
       import('../../services/email/index.js')
-        .then(({ sendDocumentShareEmail }) =>
-          sendDocumentShareEmail({
+        .then(async ({ sendDocumentShareEmail, shouldSendNotification }) => {
+          const shouldSend = await shouldSendNotification(
+            user_id,
+            'document_shared',
+            recipient as any
+          );
+          if (!shouldSend) return;
+          return sendDocumentShareEmail({
             recipientEmail: recipient.email!,
             recipientName: recipient.display_name || 'Kolleg*in',
             senderName,
             documentId: id,
-            documentTitle: (document.title as string) || 'Unbenanntes Dokument',
+            documentTitle: docTitle,
             permissionLevel: permission_level,
-          })
-        )
+          });
+        })
         .catch(() => {});
     }
 
@@ -239,9 +290,9 @@ router.put(
       }
 
       const docResult = (await db.query(
-        'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false',
+        'SELECT created_by, permissions, title FROM collaborative_documents WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false',
         [id, DOCS_SUBTYPES]
-      )) as DocumentWithPermissions[];
+      )) as (DocumentWithPermissions & { title?: string })[];
 
       if (docResult.length === 0) {
         return res.status(404).json({ error: 'Document not found' });
@@ -274,6 +325,25 @@ router.put(
         [JSON.stringify(permissions), id]
       );
 
+      const LEVEL_LABELS: Record<string, string> = {
+        owner: 'Eigentümer*in',
+        editor: 'Bearbeiter*in',
+        viewer: 'Leser*in',
+        comment: 'Kommentator*in',
+      };
+      import('../../services/notifications/index.js')
+        .then(({ createNotification }) =>
+          createNotification({
+            userId: targetUserId,
+            type: 'document_permission_changed',
+            title: 'Berechtigung geändert',
+            body: `Deine Berechtigung für „${document.title || 'Dokument'}" ist jetzt ${LEVEL_LABELS[permission_level] || permission_level}`,
+            actionUrl: `/docs/${id}`,
+            metadata: { documentId: id, permissionLevel: permission_level },
+          })
+        )
+        .catch(() => {});
+
       return res.json({
         message: 'Permission updated successfully',
         user_id: targetUserId,
@@ -303,9 +373,9 @@ router.delete(
       }
 
       const docResult = (await db.query(
-        'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false',
+        'SELECT created_by, permissions, title FROM collaborative_documents WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false',
         [id, DOCS_SUBTYPES]
-      )) as DocumentWithPermissions[];
+      )) as (DocumentWithPermissions & { title?: string })[];
 
       if (docResult.length === 0) {
         return res.status(404).json({ error: 'Document not found' });
@@ -338,6 +408,18 @@ router.delete(
         'UPDATE collaborative_documents SET permissions = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
         [JSON.stringify(permissions), id]
       );
+
+      import('../../services/notifications/index.js')
+        .then(({ createNotification }) =>
+          createNotification({
+            userId: targetUserId,
+            type: 'document_access_revoked',
+            title: 'Zugriff entfernt',
+            body: `Dein Zugriff auf „${document.title || 'Dokument'}" wurde entfernt`,
+            metadata: { documentId: id },
+          })
+        )
+        .catch(() => {});
 
       return res.json({ message: 'Permission revoked successfully' });
     } catch (error: any) {

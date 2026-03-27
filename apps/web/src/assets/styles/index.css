@@ -20,15 +20,12 @@
 
 @import url('./layout.css') layer(legacy);
 
-@import url('./components/layout/footer.css') layer(legacy);
+@import url('./components/citation-remaining.css') layer(legacy);
+/* footer.css: migrated to Tailwind in Footer.tsx */
 @import url('./components/layout/sidebar.css') layer(legacy);
 
-@import url('./components/ui/button.css') layer(legacy);
 @import url('./components/profile/profile-action-buttons.css') layer(legacy);
 
-@import url('./components/ui/quote-form.css') layer(legacy);
-@import url('./components/ui/LogLevelSelector.css') layer(legacy);
-@import url('./components/help-tooltip.css') layer(legacy);
 @import url('./components/common/auto-save-indicator.css') layer(legacy);
 @import url('./components/ui/form-select-modern.css') layer(legacy);
 @import url('./components/ui/forms.css') layer(legacy);
@@ -37,13 +34,9 @@
 @import url('./components/form/form-image-select.css') layer(legacy);
 
 @import url('./components/baseform/baseform-legacy.css') layer(legacy);
-@import url('./components/actions/advanced-editing.css') layer(legacy);
-@import url('./components/actions/linksave.css') layer(legacy);
-@import url('./components/actions/collection-actions.css') layer(legacy);
 
 @import url('./features/auth/profile-cards.css') layer(legacy);
 
-@import url('./pages/homepage.css') layer(legacy);
 @import url('./pages/notfound.css') layer(legacy);
 @import url('./pages/Impressum_datenschutz.css') layer(legacy);
 
@@ -63,6 +56,7 @@
  */
 @source "../../**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/chat/src/**/*.{js,ts,jsx,tsx}";
+@source "../../../../../packages/ui/src/**/*.{js,ts,jsx,tsx}";
 
 /*
  * Tailwind Theme Configuration
@@ -154,11 +148,12 @@
   --spacing-xl: var(--spacing-xlarge);
   --spacing-2xl: var(--spacing-xxlarge);
 
-  /* Shadows */
-  --shadow-sm: var(--shadow-sm);
-  --shadow-md: var(--shadow-md);
-  --shadow-lg: var(--shadow-lg);
-  --shadow-xl: var(--shadow-xl);
+  /* Shadows — inlined to avoid circular var() references */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 6px 16px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.15);
 
   /* Card Shadows */
   --shadow-card-subtle: var(--card-shadow-subtle);
@@ -291,6 +286,7 @@
   --animate-streaming-cursor: streaming-cursor-blink 0.8s step-end infinite;
   --animate-bounce-gentle: bounce-gentle 0.5s ease infinite alternate;
   --animate-spin-slow: spin-slow 2s linear infinite;
+  --animate-ripple: ripple 2s ease calc(var(--i, 0) * 0.2s) infinite;
   --animate-breathe: breathe 1.5s ease-in-out infinite;
 
   /* Canvas Editor Animations */
@@ -408,6 +404,18 @@
   50% { transform: scale(1.08); }
 }
 
+@keyframes ripple {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(0.9); }
+}
+
+@keyframes equalizer {
+  0%, 100% { transform: scaleY(0.3); }
+  25% { transform: scaleY(1); }
+  50% { transform: scaleY(0.5); }
+  75% { transform: scaleY(0.8); }
+}
+
 /* ── Canvas Editor Keyframe Animations ── */
 
 @keyframes slideDownFade {
@@ -457,4 +465,77 @@
 @keyframes flyout-enter {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── ProgressBar lightsaber glow animation ── */
+@keyframes lightsaber-glow {
+  0%, 100% {
+    box-shadow:
+      0 -2px 8px var(--primary),
+      0 -4px 16px var(--primary),
+      0 -6px 24px rgba(0, 85, 56, 0.4),
+      inset 0 0 4px rgba(255, 255, 255, 0.3);
+  }
+  50% {
+    box-shadow:
+      0 -3px 12px var(--primary),
+      0 -6px 20px var(--primary),
+      0 -9px 28px rgba(0, 85, 56, 0.6),
+      inset 0 0 6px rgba(255, 255, 255, 0.4);
+  }
+}
+
+/* ── FilterPopover fade-in animation ── */
+@keyframes filterPopoverFadeIn {
+  from { opacity: 0; transform: translateY(-8px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── SharepicShareModal fade-in animation ── */
+@keyframes sharepicModalFadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ── MediaLibrary skeleton loading animation ── */
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── FirstRunWizard animations ── */
+@keyframes wizardFadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes wizardFadeOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-20px); }
+}
+
+@keyframes logoFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes checkmarkPop {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes checkmarkDraw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* ── ImageGallery animations ── */
+@keyframes galleryFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes galleryShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }

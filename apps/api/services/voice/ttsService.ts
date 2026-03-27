@@ -1,82 +1,65 @@
-import {
-  KugelAudio,
-  createWavFile,
-  type Voice as SDKVoice,
-  type Model as SDKModel,
-} from 'kugelaudio';
+import { CompleteAcceptEnum } from '@mistralai/mistralai/sdk/speech';
 
 import { createLogger } from '../../utils/logger.js';
+import mistralClient from '../../workers/mistralClient.js';
 
 const log = createLogger('tts');
 
+const DEFAULT_MODEL = 'voxtral-mini-tts-2603';
+const DEFAULT_VOICE_ID =
+  process.env.VOXTRAL_DEFAULT_VOICE_ID || 'c69964a6-ab8b-4f8a-9465-ec0925096ec8'; // Paul - Neutral
+const VOXTRAL_SAMPLE_RATE = 24000;
+
 interface TTSOptions {
   modelId?: string;
-  voiceId?: number;
-  cfgScale?: number;
+  voiceId?: string;
+  refAudio?: string;
   language?: string;
 }
 
 interface TTSStreamCallbacks {
   onChunk?: (chunk: { audio: string; index: number; sampleRate: number }) => void;
-  onDone?: (stats: { chunks: number; durationMs: number; generationMs: number }) => void;
+  onDone?: (stats: { chunks: number; durationMs: number }) => void;
   onError?: (error: Error) => void;
 }
 
-type Voice = SDKVoice;
-type Model = SDKModel;
+interface Voice {
+  id: string;
+  name: string;
+  languages?: string[];
+  gender?: string;
+}
 
-const DEFAULT_MODEL = 'kugel-1-turbo';
-const DEFAULT_LANGUAGE = 'de';
-const DEFAULT_CFG_SCALE = 2.0;
+interface Model {
+  id: string;
+  name: string;
+}
 
 class TTSService {
-  private client: KugelAudio | null = null;
-
-  private getClient(): KugelAudio {
-    if (!this.client) {
-      const apiKey = process.env.KUGELAUDIO_API_KEY;
-      if (!apiKey) {
-        throw new Error('KUGELAUDIO_API_KEY is not configured');
-      }
-      this.client = new KugelAudio({ apiKey });
-      log.info('[TTS] KugelAudio client initialized');
-    }
-    return this.client;
-  }
-
   async generateSpeech(text: string, options: TTSOptions = {}): Promise<Buffer> {
-    const client = this.getClient();
-    const {
-      modelId = DEFAULT_MODEL,
-      voiceId,
-      cfgScale = DEFAULT_CFG_SCALE,
-      language = DEFAULT_LANGUAGE,
-    } = options;
+    const { modelId = DEFAULT_MODEL, voiceId, refAudio } = options;
+    const effectiveVoiceId = voiceId || (!refAudio ? DEFAULT_VOICE_ID : undefined);
 
     log.debug('[TTS] Generating speech', {
       textLength: text.length,
       modelId,
-      voiceId,
-      language,
+      voiceId: effectiveVoiceId,
     });
 
-    const audio = await client.tts.generate({
-      text,
-      modelId,
-      voiceId,
-      cfgScale,
-      language,
+    const response = await mistralClient.audio.speech.complete({
+      model: modelId,
+      input: text,
+      ...(effectiveVoiceId ? { voiceId: effectiveVoiceId } : {}),
+      ...(refAudio ? { refAudio } : {}),
+      responseFormat: 'wav',
     });
 
-    const wavBytes = createWavFile(audio.audio, audio.sampleRate);
+    const audioData = (response as { audioData: string }).audioData;
+    const wavBuffer = Buffer.from(audioData, 'base64');
 
-    log.debug('[TTS] Speech generated', {
-      durationMs: audio.durationMs,
-      generationMs: audio.generationMs,
-      sampleRate: audio.sampleRate,
-    });
+    log.debug('[TTS] Speech generated', { wavSize: wavBuffer.length });
 
-    return Buffer.from(wavBytes);
+    return wavBuffer;
   }
 
   async streamSpeech(
@@ -84,67 +67,72 @@ class TTSService {
     options: TTSOptions = {},
     callbacks: TTSStreamCallbacks = {}
   ): Promise<void> {
-    const client = this.getClient();
-    const {
-      modelId = DEFAULT_MODEL,
-      voiceId,
-      cfgScale = DEFAULT_CFG_SCALE,
-      language = DEFAULT_LANGUAGE,
-    } = options;
-
-    if (!client.tts.isConnected()) {
-      await client.tts.connect();
-    }
+    const { modelId = DEFAULT_MODEL, voiceId, refAudio } = options;
+    const effectiveVoiceId = voiceId || (!refAudio ? DEFAULT_VOICE_ID : undefined);
 
     log.debug('[TTS] Starting speech stream', {
       textLength: text.length,
       modelId,
-      voiceId,
-      language,
+      voiceId: effectiveVoiceId,
     });
 
-    await client.tts.stream(
-      { text, modelId, voiceId, cfgScale, language },
-      {
-        onChunk: (chunk) => {
+    const startTime = Date.now();
+    let chunkIndex = 0;
+
+    try {
+      const stream = await mistralClient.audio.speech.complete(
+        {
+          model: modelId,
+          input: text,
+          ...(effectiveVoiceId ? { voiceId: effectiveVoiceId } : {}),
+          ...(refAudio ? { refAudio } : {}),
+          stream: true,
+          responseFormat: 'pcm',
+        },
+        { acceptHeaderOverride: CompleteAcceptEnum.textEventStream }
+      );
+
+      for await (const event of stream as AsyncIterable<{
+        event: string;
+        data: { type: string; audioData?: string };
+      }>) {
+        if (event.data.type === 'speech.audio.delta' && event.data.audioData) {
           callbacks.onChunk?.({
-            audio: chunk.audio,
-            index: chunk.index,
-            sampleRate: chunk.sampleRate,
+            audio: event.data.audioData,
+            index: chunkIndex++,
+            sampleRate: VOXTRAL_SAMPLE_RATE,
           });
-        },
-        onFinal: (stats) => {
-          log.debug('[TTS] Stream completed', {
-            chunks: stats.chunks,
-            durationMs: stats.durationMs,
-            generationMs: stats.generationMs,
-          });
-          callbacks.onDone?.({
-            chunks: stats.chunks,
-            durationMs: stats.durationMs,
-            generationMs: stats.generationMs,
-          });
-        },
-        onError: (error) => {
-          log.error('[TTS] Stream error:', error);
-          callbacks.onError?.(error);
-        },
+        } else if (event.data.type === 'speech.audio.done') {
+          const durationMs = Date.now() - startTime;
+          log.debug('[TTS] Stream completed', { chunks: chunkIndex, durationMs });
+          callbacks.onDone?.({ chunks: chunkIndex, durationMs });
+        }
       }
-    );
+    } catch (error) {
+      log.error('[TTS] Stream error:', error);
+      callbacks.onError?.(error instanceof Error ? error : new Error(String(error)));
+    }
   }
 
-  async listVoices(language?: string): Promise<Voice[]> {
-    const client = this.getClient();
-    log.debug('[TTS] Listing voices', { language });
-    const voices = await client.voices.list({ language });
-    return voices as Voice[];
+  async listVoices(_language?: string): Promise<Voice[]> {
+    log.debug('[TTS] Listing voices');
+    const response = await mistralClient.audio.voices.list();
+    const voices =
+      (
+        response as {
+          items?: Array<{ id: string; name: string; languages?: string[]; gender?: string }>;
+        }
+      ).items ?? [];
+    return voices.map((v) => ({
+      id: v.id,
+      name: v.name,
+      languages: v.languages,
+      gender: v.gender,
+    }));
   }
 
   async listModels(): Promise<Model[]> {
-    const client = this.getClient();
-    log.debug('[TTS] Listing models');
-    const models = await client.models.list();
-    return models as Model[];
+    return [{ id: DEFAULT_MODEL, name: 'Voxtral Mini TTS' }];
   }
 }
 

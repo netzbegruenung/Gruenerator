@@ -25,7 +25,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const sessionId = `sharepic-edit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const sessionId = `sharepic-edit-${Date.now()}-${crypto.randomUUID().slice(0, 9)}`;
 
     const sessionData: EditSessionData = {
       imageData,

@@ -17,7 +17,8 @@ export interface GeneratorSetupConfig {
     | 'rede'
     | 'buergeranfragen'
     | 'leichte_sprache'
-    | 'gruenejugend';
+    | 'gruenejugend'
+    | 'custom_generator';
 
   /**
    * Component name for generated text storage
@@ -175,6 +176,7 @@ export function isValidInstructionType(
       'buergeranfragen',
       'leichte_sprache',
       'gruenejugend',
+      'custom_generator',
     ].includes(value)
   );
 }

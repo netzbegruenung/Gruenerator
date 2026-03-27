@@ -47,7 +47,7 @@
   width: 16px;
   height: 16px;
   flex-shrink: 0;
-  color: var(--himmel);
+  color: var(--interactive-accent-color);
 }
 
 /* Value container (wraps input and selected values) */
@@ -115,7 +115,7 @@
 }
 
 .react-select__multi-value__label-wrapper.special-mode .react-select__multi-value__icon {
-  color: var(--himmel);
+  color: var(--interactive-accent-color);
 }
 
 .react-select__multi-value__remove {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { IoCopyOutline, IoCheckmarkOutline } from 'react-icons/io5';
 
+import { cn } from '../../utils/cn';
 import { copyFormattedContent } from '../utils/commonFunctions';
 
 export type CopyButtonVariant = 'default' | 'icon';
@@ -53,7 +54,11 @@ const CopyButton = ({
     return (
       <button
         onClick={handleCopy}
-        className={`action-button copy-button ${className} ${isCopied ? 'copied' : ''}`}
+        className={cn(
+          'inline-flex items-center justify-center gap-2 px-5 py-2.5 border-none rounded-[5px] bg-secondary-600 text-white cursor-pointer text-base no-underline transition-all duration-200 hover:bg-secondary-700',
+          className,
+          isCopied && 'bg-primary-600 text-white'
+        )}
         aria-label={isCopied ? 'Kopiert!' : 'In die Zwischenablage kopieren'}
         {...(!isMobileView && {
           'data-tooltip-id': 'action-tooltip',
@@ -68,7 +73,12 @@ const CopyButton = ({
   return (
     <button
       onClick={handleCopy}
-      className={`copy-button ${compact ? 'copy-button-compact' : ''} ${isCopied ? 'copied' : ''} ${className}`}
+      className={cn(
+        'inline-flex items-center justify-center gap-2 px-5 py-2.5 border-none rounded-[5px] bg-secondary-600 text-white cursor-pointer text-base no-underline transition-all duration-200 hover:bg-secondary-700',
+        compact && 'p-2 w-9 h-9 rounded bg-transparent text-primary-600 border border-primary-600',
+        isCopied && compact && 'bg-primary-600 text-white',
+        className
+      )}
       aria-label={isCopied ? 'Kopiert!' : 'In die Zwischenablage kopieren'}
       title={isCopied ? 'Kopiert!' : 'In die Zwischenablage kopieren'}
     >

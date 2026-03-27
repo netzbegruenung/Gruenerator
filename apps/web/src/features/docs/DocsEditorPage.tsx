@@ -1,20 +1,8 @@
-import { MantineProvider } from '@mantine/core';
-import { useEffect, useState, useRef, useCallback } from 'react';
-import { FiDownload, FiMessageSquare, FiUsers } from 'react-icons/fi';
-import { useParams } from 'react-router-dom';
-
-import '@mantine/core/styles.css';
-import { useAuthStore } from '../../stores/authStore';
-
-import { webAppDocsAdapter } from './docsAdapter';
-
-import type { BlockNoteEditor } from '@blocknote/core';
-
 import { DOCXExporter, docxDefaultSchemaMappings } from '@blocknote/xl-docx-exporter';
+import { useCollaboration } from '@gruenerator/collab';
 import {
   DocsProvider,
   useDocumentStore,
-  useCollaboration,
   useDocumentChat,
   BlockNoteEditor as BlockNoteEditorComponent,
   ChatSidebar,
@@ -22,6 +10,17 @@ import {
   createDocsApiClient,
   ErrorBoundary,
 } from '@gruenerator/docs';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { FiDownload, FiExternalLink, FiMessageSquare, FiUsers } from 'react-icons/fi';
+import { useParams } from 'react-router-dom';
+
+import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
+import { useAuthStore } from '../../stores/authStore';
+
+import { webAppDocsAdapter } from './docsAdapter';
+
+import type { BlockNoteEditor } from '@blocknote/core';
+
 import '@gruenerator/docs/styles';
 
 function EditorContent() {
@@ -46,11 +45,17 @@ function EditorContent() {
     ? { id: String(user.id), display_name: user.display_name, email: user.email }
     : null;
 
+  const collabConfig = useCollaborationConfig();
   const { ydoc, provider, isConnected, isSynced } = useCollaboration({
     documentId: id || '',
     user: collaborationUser,
+    config: collabConfig,
   });
-  const { messages, sendMessage, getLocalUser } = useDocumentChat({ ydoc, provider, isSynced });
+  const { messages, sendMessage, getLocalUser, setTyping, typingUsers } = useDocumentChat({
+    ydoc,
+    provider,
+    isSynced,
+  });
 
   const handleEditorReady = useCallback((editorInstance: BlockNoteEditor) => {
     setEditor(editorInstance);
@@ -158,6 +163,8 @@ function EditorContent() {
             currentUserId={localUser?.id ?? null}
             onSend={sendMessage}
             isConnected={isConnected}
+            typingUsers={typingUsers}
+            onTypingChange={setTyping}
           />
         )}
       </div>
@@ -182,6 +189,16 @@ function EditorContent() {
             </div>
           )}
         </div>
+        <span className="glass-divider" />
+        <a
+          href={`https://docs.gruenerator.eu/document/${id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="glass-btn"
+          aria-label="In Docs öffnen"
+        >
+          <FiExternalLink />
+        </a>
       </div>
 
       <div className="floating-panel floating-panel--bottom">
@@ -206,12 +223,10 @@ function EditorContent() {
 
 export default function DocsEditorPage() {
   return (
-    <MantineProvider>
-      <DocsProvider adapter={webAppDocsAdapter}>
-        <ErrorBoundary>
-          <EditorContent />
-        </ErrorBoundary>
-      </DocsProvider>
-    </MantineProvider>
+    <DocsProvider adapter={webAppDocsAdapter}>
+      <ErrorBoundary>
+        <EditorContent />
+      </ErrorBoundary>
+    </DocsProvider>
   );
 }

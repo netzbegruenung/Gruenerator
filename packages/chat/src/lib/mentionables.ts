@@ -1,6 +1,20 @@
+import {
+  PiMagnifyingGlass,
+  PiBooks,
+  PiBank,
+  PiCompass,
+  PiMapPin,
+  PiTree,
+  PiGlobe,
+  PiBuildings,
+  PiFlag,
+  PiScales,
+  PiLightbulb,
+  PiNewspaper,
+} from 'react-icons/pi';
 import { agentsList, type AgentListItem } from './agents';
 
-export type MentionableType = 'agent' | 'notebook' | 'tool' | 'document';
+export type MentionableType = 'agent' | 'notebook' | 'tool' | 'document' | 'board' | 'doc';
 export type MentionableCategory = 'skill' | 'function';
 
 export interface Mentionable {
@@ -14,6 +28,10 @@ export interface Mentionable {
   backgroundColor: string;
   mention: string;
   contextPrefix?: string;
+  skillCategory?: import('./agents').SkillCategory;
+  promptTemplate?: string;
+  isSystemDefault?: boolean;
+  icon?: React.ComponentType<{ className?: string }>;
 }
 
 export interface CustomAgentMentionable {
@@ -35,6 +53,9 @@ export function agentToMentionable(agent: AgentListItem): Mentionable {
     backgroundColor: agent.backgroundColor,
     mention: agent.mention,
     contextPrefix: agent.contextPrefix,
+    skillCategory: agent.skillCategory,
+    promptTemplate: agent.promptTemplate,
+    isSystemDefault: agent.isSystemDefault,
   };
 }
 
@@ -74,6 +95,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Alle Quellen',
     description: 'Durchsucht mehrere Quellen parallel',
     avatar: '🔍',
+    icon: PiMagnifyingGlass,
     backgroundColor: '#316049',
     mention: 'alle',
   },
@@ -85,6 +107,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grundsatzprogramm',
     description: 'Grundsatzprogramme von Bündnis 90/Die Grünen',
     avatar: '📗',
+    icon: PiBooks,
     backgroundColor: '#316049',
     mention: 'grundsatz',
   },
@@ -96,6 +119,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Bundestagsfraktion',
     description: 'Inhalte von gruene-bundestag.de',
     avatar: '🏛️',
+    icon: PiBank,
     backgroundColor: '#316049',
     mention: 'bundestag',
   },
@@ -107,6 +131,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Hamburg',
     description: 'Beschlüsse und Presse der Grünen Hamburg',
     avatar: '⚓',
+    icon: PiCompass,
     backgroundColor: '#316049',
     mention: 'hamburg',
   },
@@ -118,6 +143,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Schleswig-Holstein',
     description: 'Wahlprogramm Schleswig-Holstein',
     avatar: '🌊',
+    icon: PiMapPin,
     backgroundColor: '#316049',
     mention: 'sh',
   },
@@ -129,6 +155,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Thüringen',
     description: 'Beschlüsse und Wahlprogramme Thüringen',
     avatar: '🏔️',
+    icon: PiTree,
     backgroundColor: '#316049',
     mention: 'thüringen',
   },
@@ -140,6 +167,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Österreich',
     description: 'Programme von Die Grünen Österreich',
     avatar: '🇦🇹',
+    icon: PiGlobe,
     backgroundColor: '#88B04B',
     mention: 'at',
   },
@@ -151,6 +179,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Bayern',
     description: 'Regierungsprogramm Bayern',
     avatar: '🦁',
+    icon: PiMapPin,
     backgroundColor: '#316049',
     mention: 'bayern',
   },
@@ -162,6 +191,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Berlin',
     description: 'Pressemitteilungen und Beschlüsse Berlin',
     avatar: '🐻',
+    icon: PiBuildings,
     backgroundColor: '#316049',
     mention: 'berlin',
   },
@@ -173,8 +203,21 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Mecklenburg-Vorpommern',
     description: 'Presse und Parteitagsbeschlüsse MV',
     avatar: '🦅',
+    icon: PiFlag,
     backgroundColor: '#316049',
     mention: 'mv',
+  },
+  {
+    type: 'notebook',
+    category: 'function',
+    trigger: '@',
+    identifier: 'brandenburg-notebook',
+    title: 'Grüne Brandenburg',
+    description: 'Presse, Beschlüsse und Wahlprogramme Brandenburg',
+    avatar: '🦅',
+    icon: PiTree,
+    backgroundColor: '#316049',
+    mention: 'brandenburg',
   },
   {
     type: 'notebook',
@@ -184,6 +227,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'KommunalWiki',
     description: 'Fachwissen zur Kommunalpolitik',
     avatar: '📚',
+    icon: PiScales,
     backgroundColor: '#316049',
     mention: 'kommunalwiki',
   },
@@ -195,6 +239,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Heinrich-Böll-Stiftung',
     description: 'Analysen und Dossiers der Böll-Stiftung',
     avatar: '📖',
+    icon: PiLightbulb,
     backgroundColor: '#316049',
     mention: 'böll',
   },
@@ -206,6 +251,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grünblog',
     description: 'Onlinemagazin der Grünen',
     avatar: '📰',
+    icon: PiNewspaper,
     backgroundColor: '#316049',
     mention: 'gruenblog',
   },
@@ -291,6 +337,88 @@ export const toolMentionables: Mentionable[] = [
   },
 ];
 
+export interface BoardMentionable {
+  id: string;
+  title: string;
+  slug: string;
+}
+
+export const boardToolMentionables: Mentionable[] = [
+  {
+    type: 'board',
+    category: 'function',
+    trigger: '@',
+    identifier: 'board-erstellen',
+    title: 'Board erstellen',
+    description: 'Erstellt ein Board aus dem Chatverlauf',
+    avatar: '✨',
+    backgroundColor: '#7C3AED',
+    mention: 'board-erstellen',
+  },
+];
+
+let dynamicBoardMentionables: Mentionable[] = [];
+
+export function setBoardMentionables(boards: BoardMentionable[]): void {
+  dynamicBoardMentionables = boards.map((b) => ({
+    type: 'board' as const,
+    category: 'function' as const,
+    trigger: '@' as const,
+    identifier: b.id,
+    title: b.title,
+    description: `Board: ${b.title}`,
+    avatar: '📋',
+    backgroundColor: '#316049',
+    mention: b.slug,
+  }));
+  rebuildMentionableMap();
+}
+
+export function getBoardMentionables(): Mentionable[] {
+  return [...boardToolMentionables, ...dynamicBoardMentionables];
+}
+
+export const docToolMentionables: Mentionable[] = [
+  {
+    type: 'doc',
+    category: 'function',
+    trigger: '@',
+    identifier: 'dokument-erstellen',
+    title: 'Dokument erstellen',
+    description: 'Erstellt ein Dokument aus dem Chatverlauf',
+    avatar: '📝',
+    backgroundColor: '#0891B2',
+    mention: 'dokument-erstellen',
+  },
+];
+
+export interface DocMentionable {
+  id: string;
+  title: string;
+  slug: string;
+}
+
+let dynamicDocMentionables: Mentionable[] = [];
+
+export function setDocMentionables(docs: DocMentionable[]): void {
+  dynamicDocMentionables = docs.map((d) => ({
+    type: 'doc' as const,
+    category: 'function' as const,
+    trigger: '@' as const,
+    identifier: d.id,
+    title: d.title,
+    description: d.title,
+    avatar: '📝',
+    backgroundColor: '#0891B2',
+    mention: d.slug,
+  }));
+  rebuildMentionableMap();
+}
+
+export function getDocMentionables(): Mentionable[] {
+  return [...docToolMentionables, ...dynamicDocMentionables];
+}
+
 export const documentMentionables: Mentionable[] = [
   {
     type: 'document',
@@ -311,42 +439,35 @@ export function getAllMentionables(): Mentionable[] {
     ...customAgentMentionables,
     ...notebookMentionables,
     ...toolMentionables,
+    ...boardToolMentionables,
+    ...dynamicBoardMentionables,
+    ...docToolMentionables,
+    ...dynamicDocMentionables,
     ...documentMentionables,
   ];
 }
-
-export const allMentionables: Mentionable[] = [
-  ...agentMentionables,
-  ...notebookMentionables,
-  ...toolMentionables,
-  ...documentMentionables,
-];
 
 const mentionableMap = new Map<string, Mentionable>();
 
 function rebuildMentionableMap(): void {
   mentionableMap.clear();
-  for (const m of agentMentionables) {
-    mentionableMap.set(m.mention.toLowerCase(), m);
-  }
-  for (const m of customAgentMentionables) {
-    if (!mentionableMap.has(m.mention.toLowerCase())) {
-      mentionableMap.set(m.mention.toLowerCase(), m);
-    }
-  }
-  for (const m of notebookMentionables) {
-    if (!mentionableMap.has(m.mention.toLowerCase())) {
-      mentionableMap.set(m.mention.toLowerCase(), m);
-    }
-  }
-  for (const m of toolMentionables) {
-    if (!mentionableMap.has(m.mention.toLowerCase())) {
-      mentionableMap.set(m.mention.toLowerCase(), m);
-    }
-  }
-  for (const m of documentMentionables) {
-    if (!mentionableMap.has(m.mention.toLowerCase())) {
-      mentionableMap.set(m.mention.toLowerCase(), m);
+  const orderedSources = [
+    agentMentionables,
+    customAgentMentionables,
+    notebookMentionables,
+    toolMentionables,
+    boardToolMentionables,
+    dynamicBoardMentionables,
+    docToolMentionables,
+    dynamicDocMentionables,
+    documentMentionables,
+  ];
+  for (const source of orderedSources) {
+    for (const m of source) {
+      const key = m.mention.toLowerCase();
+      if (!mentionableMap.has(key)) {
+        mentionableMap.set(key, m);
+      }
     }
   }
 }
@@ -363,14 +484,20 @@ export function filterMentionables(query: string): {
   customAgents: Mentionable[];
   notebooks: Mentionable[];
   tools: Mentionable[];
+  boards: Mentionable[];
+  docs: Mentionable[];
   documents: Mentionable[];
 } {
+  const allBoards = [...boardToolMentionables, ...dynamicBoardMentionables];
+  const allDocs = [...docToolMentionables, ...dynamicDocMentionables];
   if (!query) {
     return {
       agents: agentMentionables,
       customAgents: customAgentMentionables,
       notebooks: notebookMentionables,
       tools: toolMentionables,
+      boards: allBoards,
+      docs: allDocs,
       documents: documentMentionables,
     };
   }
@@ -385,6 +512,8 @@ export function filterMentionables(query: string): {
     customAgents: customAgentMentionables.filter(matchFn),
     notebooks: notebookMentionables.filter(matchFn),
     tools: toolMentionables.filter(matchFn),
+    boards: 'board'.startsWith(q) || q.startsWith('board') ? allBoards : allBoards.filter(matchFn),
+    docs: 'dok'.startsWith(q) || q.startsWith('dok') ? allDocs : allDocs.filter(matchFn),
     documents: documentMentionables.filter(matchFn),
   };
 }
@@ -397,5 +526,5 @@ export function filterMentionablesByCategory(
   if (category === 'skill') {
     return [...all.agents, ...all.customAgents];
   }
-  return [...all.tools, ...all.documents, ...all.notebooks];
+  return [...all.tools, ...all.boards, ...all.docs, ...all.documents, ...all.notebooks];
 }

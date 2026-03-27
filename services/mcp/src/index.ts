@@ -24,8 +24,11 @@ import {
   readServerInfoResource,
 } from './resources/collections.ts';
 import { getSystemPromptResource } from './resources/system-prompt.ts';
+import { askTool } from './tools/ask.ts';
+import { compareTool } from './tools/compare.ts';
 import { examplesSearchTool } from './tools/examples-search.ts';
 import { filtersTool } from './tools/filters.ts';
+import { notebookAskTool } from './tools/notebook-ask.ts';
 // DISABLED: Person search removed — DIP API integration non-functional
 // import { personSearchTool } from './tools/person-search.ts';
 import { searchTool, cacheStatsTool } from './tools/search.ts';
@@ -39,7 +42,7 @@ try {
   validateConfig();
   console.log('[Config] Validation successful');
 } catch (err) {
-  console.error(`[Config] ERROR: ${err.message}`);
+  console.error(`[Config] ERROR: ${err instanceof Error ? err.message : String(err)}`);
   console.error('[Config] Required: QDRANT_URL, QDRANT_API_KEY, MISTRAL_API_KEY');
   process.exit(1);
 }
@@ -58,15 +61,37 @@ app.use(
 console.log('[Boot] Express configured');
 
 // Helper: Base URL ermitteln
-function getBaseUrl(req) {
+function getBaseUrl(req: express.Request): string {
   return config.server.publicUrl || `${req.protocol}://${req.get('host')}`;
 }
 
 // Session-Verwaltung
-const transports = {};
+const transports: Record<string, StreamableHTTPServerTransport> = {};
+
+function wrapToolHandler(
+  label: string,
+  handler: (params: Record<string, unknown>) => Promise<Record<string, unknown>>
+) {
+  return async (params: Record<string, unknown>) => {
+    try {
+      const result = await handler(params);
+      return {
+        content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+        isError: !!result.error,
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      error(label, `${label} failed: ${message}`);
+      return {
+        content: [{ type: 'text' as const, text: JSON.stringify({ error: true, message }) }],
+        isError: true,
+      };
+    }
+  };
+}
 
 // MCP Server Factory
-function createMcpServer(baseUrl) {
+function createMcpServer(baseUrl: string) {
   const server = new McpServer({
     name: 'gruenerator-mcp',
     version: '1.0.0',
@@ -140,7 +165,7 @@ function createMcpServer(baseUrl) {
       const startTime = Date.now();
 
       try {
-        const result = await searchTool.handler({
+        const result = (await searchTool.handler({
           query,
           country,
           collection,
@@ -148,7 +173,7 @@ function createMcpServer(baseUrl) {
           limit,
           filters,
           useCache,
-        });
+        })) as Record<string, unknown>;
         const responseTime = Date.now() - startTime;
 
         // Log the search
@@ -156,9 +181,9 @@ function createMcpServer(baseUrl) {
           query,
           collection || `country:${country}`,
           searchMode,
-          result.resultsCount || 0,
+          (result.resultsCount as number) || 0,
           responseTime,
-          result.cached || false
+          (result.cached as boolean) || false
         );
 
         return {
@@ -171,12 +196,13 @@ function createMcpServer(baseUrl) {
           isError: !!result.error,
         };
       } catch (err) {
-        error('Search', `Search failed: ${err.message}`);
+        const message = err instanceof Error ? err.message : String(err);
+        error('Search', `Search failed: ${message}`);
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({ error: true, message: err.message }),
+              text: JSON.stringify({ error: true, message }),
             },
           ],
           isError: true,
@@ -212,31 +238,11 @@ function createMcpServer(baseUrl) {
   });
 
   // Filters Tool
-  server.tool(filtersTool.name, filtersTool.inputSchema, async ({ collection }) => {
-    try {
-      const result = await filtersTool.handler({ collection });
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
-        isError: !!result.error,
-      };
-    } catch (err) {
-      error('Filters', `Filter fetch failed: ${err.message}`);
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({ error: true, message: err.message }),
-          },
-        ],
-        isError: true,
-      };
-    }
-  });
+  server.tool(
+    filtersTool.name,
+    filtersTool.inputSchema,
+    wrapToolHandler('Filters', (params) => filtersTool.handler(params as { collection: string }))
+  );
 
   // === MCP PROMPTS ===
   registerAgentPrompts(server);
@@ -247,36 +253,54 @@ function createMcpServer(baseUrl) {
   // });
 
   // Examples Search Tool
-  server.tool(examplesSearchTool.name, examplesSearchTool.inputSchema, async (params) => {
-    try {
-      const result = await examplesSearchTool.handler(params);
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
-        isError: !!result.error,
-      };
-    } catch (err) {
-      error('ExamplesSearch', `Examples search failed: ${err.message}`);
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({
-              error: true,
-              message: err.message,
-              resultsCount: 0,
-              examples: [],
-            }),
-          },
-        ],
-        isError: true,
-      };
-    }
+  server.tool(
+    examplesSearchTool.name,
+    examplesSearchTool.inputSchema,
+    wrapToolHandler('ExamplesSearch', (params) =>
+      examplesSearchTool.handler(params as Parameters<typeof examplesSearchTool.handler>[0])
+    )
+  );
+
+  // Ask Tool (QA with answer synthesis) — custom handler for logging
+  server.tool(askTool.name, askTool.inputSchema, async (params) => {
+    const { question, country, collection } = params as {
+      question: string;
+      country: string;
+      collection?: string;
+    };
+    const startTime = Date.now();
+    const wrapped = wrapToolHandler('Ask', (p) =>
+      askTool.handler(p as Parameters<typeof askTool.handler>[0])
+    );
+    const result = await wrapped(params as Record<string, unknown>);
+    logSearch(
+      question || '',
+      collection || `ask:${country || 'unknown'}`,
+      'ask',
+      1,
+      Date.now() - startTime,
+      false
+    );
+    return result;
   });
+
+  // Notebook Ask Tool (proxy to main API)
+  server.tool(
+    notebookAskTool.name,
+    notebookAskTool.inputSchema,
+    wrapToolHandler('NotebookAsk', (params) =>
+      notebookAskTool.handler(params as Parameters<typeof notebookAskTool.handler>[0])
+    )
+  );
+
+  // Compare Tool (cross-source comparison)
+  server.tool(
+    compareTool.name,
+    compareTool.inputSchema,
+    wrapToolHandler('Compare', (params) =>
+      compareTool.handler(params as Parameters<typeof compareTool.handler>[0])
+    )
+  );
 
   return server;
 }
@@ -362,6 +386,21 @@ app.get('/.well-known/mcp.json', (req, res) => {
       {
         name: 'gruenerator_examples_search',
         description: 'Sucht nach Social-Media-Beispielen der Grünen (Instagram, Facebook)',
+        annotations: { readOnlyHint: true, idempotentHint: true },
+      },
+      {
+        name: 'gruenerator_ask',
+        description: 'Beantwortet Fragen mit KI-generierter Antwort und Quellenangaben',
+        annotations: { readOnlyHint: true, idempotentHint: true },
+      },
+      {
+        name: 'gruenerator_notebook_ask',
+        description: 'Beantwortet Fragen zu Notebook-Sammlungen via öffentlichem Token',
+        annotations: { readOnlyHint: true, idempotentHint: true },
+      },
+      {
+        name: 'gruenerator_compare',
+        description: 'Vergleicht Suchergebnisse aus verschiedenen Quellen nebeneinander',
         annotations: { readOnlyHint: true, idempotentHint: true },
       },
     ],
@@ -463,6 +502,22 @@ app.get('/info', (req, res) => {
         countries: ['DE', 'AT'],
         annotations: { readOnlyHint: true, idempotentHint: true },
       },
+      {
+        name: 'gruenerator_ask',
+        description: 'KI-generierte Antwort mit Quellenangaben [1][2]',
+        modes: ['detailed', 'fast'],
+        annotations: { readOnlyHint: true, idempotentHint: true },
+      },
+      {
+        name: 'gruenerator_notebook_ask',
+        description: 'Notebook-Sammlungen abfragen via öffentlichem Sharing-Token',
+        annotations: { readOnlyHint: true, idempotentHint: true },
+      },
+      {
+        name: 'gruenerator_compare',
+        description: 'Vergleicht Suchergebnisse aus 2-3 Quellen nebeneinander',
+        annotations: { readOnlyHint: true, idempotentHint: true },
+      },
     ],
     resources: [
       {
@@ -497,25 +552,26 @@ app.get('/info', (req, res) => {
 app.post('/mcp', async (req, res) => {
   const sessionIdHeader = req.headers['mcp-session-id'];
   const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
-  let transport;
+  let transport: StreamableHTTPServerTransport | undefined;
 
   if (sessionId && transports[sessionId]) {
     transport = transports[sessionId];
   } else if (!sessionId && isInitializeRequest(req.body)) {
-    transport = new StreamableHTTPServerTransport({
+    const newTransport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
-      onsessioninitialized: (id) => {
-        transports[id] = transport;
+      onsessioninitialized: (id: string) => {
+        transports[id] = newTransport;
         info('Session', `New session: ${id}`);
       },
-      onsessionclosed: (id) => {
+      onsessionclosed: (id: string) => {
         delete transports[id];
         info('Session', `Session closed: ${id}`);
       },
     });
+    transport = newTransport;
 
     transport.onclose = () => {
-      if (transport.sessionId) {
+      if (transport?.sessionId) {
         delete transports[transport.sessionId];
       }
     };

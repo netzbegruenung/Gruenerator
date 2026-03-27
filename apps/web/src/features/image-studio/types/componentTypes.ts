@@ -14,6 +14,7 @@ export interface StartOption {
   isComingSoon?: boolean;
   isEarlyAccess?: boolean;
   directType?: string;
+  path?: string;
 }
 
 export interface FormErrors {

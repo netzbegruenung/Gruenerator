@@ -23,7 +23,6 @@ export function useTTSStream(config: VoiceAgentConfig) {
           body: JSON.stringify({
             text,
             voiceId: config.ttsVoiceId,
-            cfgScale: config.ttsCfgScale ?? 2.0,
             language: 'de',
           }),
           signal: controller.signal,
@@ -57,6 +56,10 @@ export function useTTSStream(config: VoiceAgentConfig) {
               const jsonStr = line.slice(6);
               try {
                 const data = JSON.parse(jsonStr);
+                if (data.error) {
+                  callbacks.onError(data.error);
+                  return;
+                }
                 if (data.audio) {
                   callbacks.onChunk(data as TTSChunk);
                 }
@@ -73,7 +76,7 @@ export function useTTSStream(config: VoiceAgentConfig) {
         callbacks.onError((err as Error).message);
       }
     },
-    [config.apiBaseUrl, config.ttsVoiceId, config.ttsCfgScale, fetchFn]
+    [config.apiBaseUrl, config.ttsVoiceId, fetchFn]
   );
 
   const abort = useCallback(() => {

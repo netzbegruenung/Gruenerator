@@ -369,11 +369,11 @@ export const useAuth = (options: AuthOptions = {}) => {
         return {
           isAuthenticated: true,
           user: {
-            id: 'dev-user-123',
+            id: '00000000-0000-4000-a000-000000000001',
             email: 'dev@gruenerator.de',
             display_name: 'Test User',
             avatar_robot_id: 1,
-            beta_features: {},
+            beta_features: { workplace: true },
             user_defaults: {},
             locale: 'de-DE',
             igel_modus: false,
@@ -455,24 +455,22 @@ export const useAuth = (options: AuthOptions = {}) => {
             supabaseSession: authData.supabaseSession as any,
           });
 
-          // Prefetch groups if user doesn't already have groups loaded
-          if (!authData.user.groups) {
-            queryClient.prefetchQuery({
-              queryKey: ['userGroups', authData.user.id],
-              queryFn: async () => {
-                try {
-                  const response = await apiClient.get('/auth/groups', {
-                    skipAuthRedirect: true,
-                  });
-                  return response.data.groups || [];
-                } catch (error: unknown) {
-                  console.warn('[useAuth] Groups prefetch failed:', error);
-                  return [];
-                }
-              },
-              staleTime: 2 * 60 * 1000, // 2 minutes
+          // Consolidated init: single request seeds all query caches
+          const userId = (authData.user as Record<string, unknown>).id as string;
+          apiClient
+            .get('/auth/init', { skipAuthRedirect: true })
+            .then((response) => {
+              const { groups, savedTexts, notebookCollections, recentActivity } =
+                response.data as Record<string, unknown[]>;
+              if (groups) queryClient.setQueryData(['userGroups', userId], groups);
+              if (savedTexts) queryClient.setQueryData(['userTexts', userId], savedTexts);
+              if (notebookCollections)
+                queryClient.setQueryData(['notebookCollections', userId], notebookCollections);
+              if (recentActivity) queryClient.setQueryData(['recent-activity'], recentActivity);
+            })
+            .catch((error: unknown) => {
+              console.warn('[useAuth] Init prefetch failed, falling back:', error);
             });
-          }
         }
 
         if (authData.supabaseSession) {

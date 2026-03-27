@@ -43,28 +43,37 @@ const CameraScanner = ({ onCapture, onClose }: CameraScannerProps) => {
   }, [onCapture]);
 
   return (
-    <div className="scanner-camera-overlay">
-      <button className="scanner-camera-close-btn" onClick={onClose} aria-label="Kamera schließen">
+    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black">
+      <button
+        className="absolute right-4 top-[max(16px,env(safe-area-inset-top,16px))] z-10 flex size-11 cursor-pointer items-center justify-center rounded-full border-none bg-black/50 text-white [-webkit-tap-highlight-color:transparent]"
+        onClick={onClose}
+        aria-label="Kamera schließen"
+      >
         <PiX size={28} />
       </button>
 
       {cameraState === 'loading' && (
-        <div className="scanner-camera-loading">
-          <div className="scanner-camera-spinner" />
-          <p>Kamera wird gestartet...</p>
+        <div className="flex flex-col items-center gap-md text-white">
+          <div className="size-10 animate-spin rounded-full border-[3px] border-white/20 border-t-white" />
+          <p className="m-0 text-base opacity-80">Kamera wird gestartet...</p>
         </div>
       )}
 
       {cameraState === 'no-camera' && (
-        <div className="scanner-camera-loading">
-          <p>Kein Kamerazugriff möglich. Bitte erlaube den Zugriff in den Browser-Einstellungen.</p>
-          <button className="scanner-camera-fallback-btn" onClick={onClose}>
+        <div className="flex flex-col items-center gap-md text-white">
+          <p className="m-0 text-base opacity-80">
+            Kein Kamerazugriff möglich. Bitte erlaube den Zugriff in den Browser-Einstellungen.
+          </p>
+          <button
+            className="cursor-pointer rounded-md border border-white/30 bg-white/15 px-lg py-sm text-[0.9375rem] text-white"
+            onClick={onClose}
+          >
             Schließen
           </button>
         </div>
       )}
 
-      <div className="scanner-camera-viewfinder">
+      <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
         <Webcam
           ref={webcamRef}
           audio={false}
@@ -77,14 +86,14 @@ const CameraScanner = ({ onCapture, onClose }: CameraScannerProps) => {
           }}
           onUserMedia={handleUserMedia}
           onUserMediaError={handleUserMediaError}
-          className="scanner-camera-video"
+          className="h-full w-full object-cover"
         />
       </div>
 
       {cameraState === 'ready' && (
-        <div className="scanner-camera-controls">
+        <div className="absolute bottom-[max(32px,env(safe-area-inset-bottom,32px))] left-0 right-0 z-10 flex justify-center">
           <button
-            className="scanner-camera-capture-btn"
+            className="flex size-[72px] cursor-pointer items-center justify-center rounded-full border-4 border-white/50 bg-white text-primary shadow-[0_4px_20px_rgba(0,0,0,0.3)] transition-transform duration-150 [-webkit-tap-highlight-color:transparent] active:scale-90"
             onClick={handleCapture}
             aria-label="Foto aufnehmen"
           >

@@ -60,6 +60,20 @@ on:
         required: false
         default: 'false'
         type: boolean
+      build_voxtral:
+        description: 'Build voxtral image only'
+        required: false
+        default: 'false'
+        type: boolean
+      build_nlp:
+        description: 'Build NLP image only'
+        required: false
+        default: 'false'
+        type: boolean
+permissions:
+  contents: read
+  packages: write
+
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/gruenerator
@@ -76,6 +90,8 @@ jobs:
       mcp: ${{ steps.filter.outputs.mcp }}
       doku: ${{ steps.filter.outputs.doku }}
       gruen-o-mat: ${{ steps.filter.outputs.gruen-o-mat }}
+      voxtral: ${{ steps.filter.outputs.voxtral }}
+      nlp: ${{ steps.filter.outputs.nlp }}
       shared: ${{ steps.filter.outputs.shared }}
     steps:
       - uses: actions/checkout@v4
@@ -95,6 +111,11 @@ jobs:
               - 'packages/shared/**'
               - 'packages/docs/**'
               - 'packages/chat/**'
+              - 'packages/voice/**'
+              - 'packages/canvas-editor/**'
+              - 'packages/ui/**'
+              - 'packages/collab/**'
+              - 'packages/wolke/**'
             api:
               - 'apps/api/**'
               - 'packages/shared/**'
@@ -106,6 +127,10 @@ jobs:
               - 'apps/docs/**'
               - 'packages/shared/**'
               - 'packages/docs/**'
+              - 'packages/collab/**'
+              - 'packages/ui/**'
+              - 'packages/wolke/**'
+              - 'packages/slides/**'
             hocuspocus:
               - 'services/hocuspocus/**'
             mcp:
@@ -114,6 +139,14 @@ jobs:
             gruen-o-mat:
               - 'apps/gruen-o-mat/**'
               - 'packages/chat/**'
+              - 'packages/voice/**'
+              - 'packages/shared/**'
+              - 'packages/ui/**'
+              - 'packages/collab/**'
+            voxtral:
+              - 'services/voxtral/**'
+            nlp:
+              - 'services/nlp/**'
             doku:
               - 'documentation/**'
   build-web:
@@ -128,6 +161,12 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -177,6 +216,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -220,6 +265,12 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -269,6 +320,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -312,6 +369,12 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -357,6 +420,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -401,6 +470,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -432,6 +507,106 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-gruen-o-mat:buildcache
           cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-gruen-o-mat:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
 
+  build-voxtral:
+    needs: detect-changes
+    if: >
+      needs.detect-changes.outputs.voxtral == 'true' ||
+      github.event.inputs.force_all == 'true' ||
+      github.event.inputs.build_voxtral == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}-voxtral
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/voxtral
+          file: services/voxtral/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-voxtral:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-voxtral:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
+
+  build-nlp:
+    needs: detect-changes
+    if: >
+      needs.detect-changes.outputs.nlp == 'true' ||
+      github.event.inputs.force_all == 'true' ||
+      github.event.inputs.build_nlp == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}-nlp
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/nlp
+          file: services/nlp/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-nlp:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-nlp:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
+
   build-doku:
     needs: detect-changes
     if: >
@@ -444,6 +619,12 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -486,6 +667,8 @@ jobs:
         build-hocuspocus,
         build-mcp,
         build-gruen-o-mat,
+        build-voxtral,
+        build-nlp,
         build-doku,
       ]
     if: always()
@@ -505,4 +688,6 @@ jobs:
           echo "| hocuspocus | ${{ needs.build-hocuspocus.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| mcp | ${{ needs.build-mcp.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| gruen-o-mat | ${{ needs.build-gruen-o-mat.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| voxtral | ${{ needs.build-voxtral.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| nlp | ${{ needs.build-nlp.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| doku | ${{ needs.build-doku.result }} |" >> $GITHUB_STEP_SUMMARY

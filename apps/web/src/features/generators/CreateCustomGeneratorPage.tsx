@@ -1,14 +1,14 @@
+import { Card, CardContent, CardHeader, CardTitle } from '@gruenerator/ui';
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useForm } from 'react-hook-form';
 
-import FormSection from '../../components/common/Form/BaseForm/FormSection';
-import { BaseFormProvider } from '../../components/common/Form/BaseFormContext';
 import FormInput from '../../components/common/Form/Input/FormInput';
 import FormTextarea from '../../components/common/Form/Input/FormTextarea';
+import SubmitButton from '../../components/common/SubmitButton';
 import useApiSubmit from '../../components/hooks/useApiSubmit';
 import { ProfileIconButton } from '../../components/profile/actions/ProfileActionButton';
 import { useOptimizedAuth } from '../../hooks/useAuth';
-import { profileApiService } from '../auth/services/profileApiService';
+import { type CustomGenerator, profileApiService } from '../auth/services/profileApiService';
 
 import FieldEditorAssistant from './components/FieldEditorAssistant';
 import GeneratorCreationSuccessScreen from './components/GeneratorCreationSuccessScreen';
@@ -32,22 +32,12 @@ interface AIGeneratedConfig {
   contact_email?: string;
 }
 
-interface GeneratorListItem {
-  id: string;
-  name?: string;
-  title?: string;
-  slug: string;
-  description?: string;
-  owner_first_name?: string;
-  owner_last_name?: string;
-}
-
 interface CreateCustomGeneratorPageProps {
   onCompleted?: (data?: { name: string; slug: string }) => void;
   onCancel?: () => void;
-  generators?: GeneratorListItem[];
-  savedGenerators?: GeneratorListItem[];
-  onSelectGenerator?: (generator: GeneratorListItem) => void;
+  generators?: CustomGenerator[];
+  savedGenerators?: CustomGenerator[];
+  onSelectGenerator?: (generator: CustomGenerator) => void;
   onDeleteGenerator?: () => void;
   onGeneratorUpdated?: () => void;
 }
@@ -350,7 +340,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = memo
       resetAISuccess();
     }, [reset, resetAISuccess]);
 
-    // Render current step content for BaseForm
+    // Render current step content
     const renderCurrentStep = () => {
       switch (currentStep) {
         case STEPS.BASICS:
@@ -621,32 +611,59 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = memo
       );
     }
 
-    // Otherwise, render the FormSection with the current step
+    // Otherwise, render the card form with the current step
+    const showBackButton = currentStep > STEPS.BASICS && !isEditingField;
+    const nextButtonText = currentStep === STEPS.REVIEW ? 'Speichern' : 'Weiter';
+
     return (
-      <BaseFormProvider value={{ isStartMode: false, hasContent: false }}>
-        <FormSection
-          title={helpContent?.title || 'Neuen Custom Grünerator erstellen'}
-          onSubmit={handleNext}
-          onBack={handleBack}
-          isFormVisible={true}
-          isMultiStep={true}
-          showBackButton={currentStep > STEPS.BASICS && !isEditingField}
-          nextButtonText={currentStep === STEPS.REVIEW ? 'Speichern' : 'Weiter'}
-          useModernForm={true}
-          formControl={{
-            control: control as unknown as Control<Record<string, unknown>>,
-            setValue: setValue as unknown as (name: string, value: unknown) => void,
-            getValues: getValues as unknown as () => Record<string, unknown>,
-            formState: { errors, isDirty: false, isValid: true },
-          }}
-          defaultValues={INITIAL_GENERATOR_FORM_DATA as unknown as Record<string, unknown>}
-          hideExtrasSection={true}
-          showSubmitButtonInInputSection={true}
-          loading={isGeneratingWithAI}
-        >
-          {renderCurrentStep()}
-        </FormSection>
-      </BaseFormProvider>
+      <div className="@container/form-section relative">
+        <div className="form-section flex flex-col min-h-[400px] bg-[var(--card-background)] text-foreground max-md:min-h-[300px] max-md:mt-md xl:min-h-[450px]">
+          <Card className="overflow-hidden shadow-card-elevated transition-all duration-250 flex flex-col rounded-md forced-colors:border-[ButtonText] forced-colors:bg-[ButtonFace]">
+            <CardHeader className="flex-row justify-between items-center border-b border-grey-200 dark:border-grey-700 py-md px-xl max-md:px-md max-md:py-md">
+              <CardTitle className="text-[1.4em]">
+                {helpContent?.title || 'Neuen Custom Grünerator erstellen'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col p-lg max-md:p-md max-[480px]:p-sm">
+              <form
+                onSubmit={(e: React.FormEvent) => {
+                  e.preventDefault();
+                  handleNext();
+                }}
+                className="flex flex-col h-full"
+              >
+                <div className="flex-[2] min-w-0 min-h-0">
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <div className="flex-1 mb-lg min-h-0 form-content">{renderCurrentStep()}</div>
+                    <div className="flex gap-md justify-end items-center pt-md border-t border-grey-200 dark:border-grey-700 mt-auto max-md:flex-col max-md:gap-sm">
+                      {showBackButton && (
+                        <button
+                          type="button"
+                          onClick={handleBack}
+                          className="bg-transparent border-2 border-[var(--interactive-accent-color)] text-[var(--interactive-accent-color)] px-lg py-sm rounded-sm text-[0.9em] cursor-pointer transition-all duration-250 hover:bg-[var(--interactive-accent-color)] hover:text-background-pure focus:outline-2 focus:outline-[var(--interactive-accent-color)] focus:outline-offset-2 max-md:w-full max-md:text-center"
+                        >
+                          Zurück
+                        </button>
+                      )}
+                      <SubmitButton
+                        onClick={(e: React.MouseEvent) => {
+                          e.preventDefault();
+                          handleNext();
+                        }}
+                        loading={isGeneratingWithAI}
+                        text={nextButtonText}
+                        className="form-inputs__submit-button button-primary"
+                        ariaLabel={nextButtonText}
+                        type="submit"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     );
   }
 );

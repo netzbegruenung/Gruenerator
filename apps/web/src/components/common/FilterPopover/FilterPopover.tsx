@@ -2,7 +2,7 @@ import { type JSX, useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 import useClickOutside from '../../../hooks/useClickOutside';
-import './FilterPopover.css';
+import { cn } from '../../../utils/cn';
 
 interface FilterPopoverProps {
   isOpen: boolean;
@@ -28,7 +28,7 @@ const FilterPopover = ({
   useEffect(() => {
     if (isOpen && anchorRef?.current) {
       const rect = anchorRef.current.getBoundingClientRect();
-      const popoverWidth = 280; // From CSS min-width
+      const popoverWidth = 280; // min-width
 
       // Position below the button with some gap
       const top = rect.bottom + 8;
@@ -66,7 +66,14 @@ const FilterPopover = ({
   const popoverContent = (
     <div
       ref={popoverRef}
-      className={`filter-popover ${className}`}
+      className={cn(
+        'fixed bg-background-alt border border-grey-200 dark:border-grey-700',
+        'rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.3)]',
+        'z-[1000] min-w-[280px] max-w-[400px] max-h-[80vh] overflow-y-auto',
+        'animate-[filterPopoverFadeIn_0.2s_ease-out]',
+        'max-md:bottom-5 max-md:left-5 max-md:right-5 max-md:top-auto max-md:min-w-0 max-md:max-w-none max-md:max-h-[60vh]',
+        className
+      )}
       style={{
         top: `${position.top}px`,
         left: `${position.left}px`,
@@ -76,12 +83,17 @@ const FilterPopover = ({
       aria-modal="true"
       tabIndex={-1}
     >
-      <div className="filter-popover-header">
-        <h3 id="filter-popover-title" className="filter-popover-title">
+      <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-grey-200 dark:border-grey-700">
+        <h3 id="filter-popover-title" className="m-0 text-base font-semibold text-foreground-heading">
           {title}
         </h3>
         <button
-          className="filter-popover-close"
+          className={cn(
+            'bg-transparent border-none text-xl text-foreground cursor-pointer',
+            'p-1 -m-1 rounded-sm transition-colors duration-200',
+            'flex items-center justify-center size-7',
+            'hover:bg-hover-alt focus:outline-2 focus:outline-primary-600 focus:outline-offset-2'
+          )}
           onClick={onClose}
           aria-label="Filter schließen"
           type="button"
@@ -90,7 +102,7 @@ const FilterPopover = ({
         </button>
       </div>
 
-      <div className="filter-popover-body">{children}</div>
+      <div className="px-5 pt-4 pb-5">{children}</div>
     </div>
   );
 

@@ -78,7 +78,9 @@ export const prepareDataForCanvas = (
   }
 
   const colorScheme =
-    modificationData.colorScheme ?? formData.colorScheme ?? (DEFAULT_COLORS as ColorSchemeItem[]);
+    modificationData.colorScheme ??
+    formData.colorScheme ??
+    ([...DEFAULT_COLORS] as ColorSchemeItem[]);
 
   if (type === 'quote') {
     formDataToSend.append('background_color', colorScheme[0].background);

@@ -3,6 +3,7 @@
  * Handles sharing of images and videos with public links
  */
 
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
@@ -11,6 +12,7 @@ import rateLimit from 'express-rate-limit';
 import sharp from 'sharp';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { transferService } from '../../services/transferService.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -74,7 +76,12 @@ interface SharedMediaService {
   getUserShareCount(userId: string): Promise<number>;
   getShareByToken(shareToken: string): Promise<SharedMediaRow | null>;
   recordView(shareToken: string): Promise<void>;
-  recordDownload(shareToken: string, email: string, ip: string): Promise<void>;
+  recordDownload(
+    shareToken: string,
+    email: string | null,
+    ip: string,
+    shareId?: string
+  ): Promise<void>;
   deleteShare(userId: string, shareToken: string): Promise<void>;
   finalizeVideoShare(shareToken: string, videoPath: string): Promise<void>;
   markShareFailed(shareToken: string): Promise<void>;
@@ -216,6 +223,13 @@ interface ShareInfoResponse {
     sharerName?: string;
     status: string;
     createdAt: Date;
+    fileName?: string | null;
+    fileSize?: number | null;
+    mimeType?: string | null;
+    isPasswordProtected?: boolean;
+    expiresAt?: Date | null;
+    transferMessage?: string | null;
+    transferFiles?: Array<{ name: string; size: number; mimeType: string }> | null;
     duration?: number | null;
     imageType?: string | null;
     dimensions?: {
@@ -792,7 +806,33 @@ router.get(
         },
       };
 
-      if (share.media_type === 'video') {
+      if (share.media_type === 'transfer') {
+        // Check expiry for transfers
+        if (share.expires_at && new Date(share.expires_at) < new Date()) {
+          return res.status(410).json({
+            success: false,
+            error: 'Dieser Transfer-Link ist abgelaufen.',
+          });
+        }
+
+        response.share!.fileName = share.file_name;
+        response.share!.fileSize = share.file_size;
+        response.share!.mimeType = share.mime_type;
+        response.share!.isPasswordProtected = !!share.password_hash;
+        response.share!.expiresAt = share.expires_at ?? null;
+        response.share!.transferMessage = share.transfer_message ?? null;
+
+        const files = share.transfer_files;
+        if (Array.isArray(files) && files.length > 0) {
+          response.share!.transferFiles = files.map(
+            (f: { name: string; size: number; mimeType: string }) => ({
+              name: f.name,
+              size: f.size,
+              mimeType: f.mimeType,
+            })
+          );
+        }
+      } else if (share.media_type === 'video') {
         response.share!.duration = share.duration;
       } else {
         const metadata =
@@ -1077,8 +1117,95 @@ router.get('/:shareToken/preview', async (req: Request<ShareTokenParams>, res: R
   }
 });
 
+/**
+ * GET /:shareToken/download
+ * Transfer downloads are public (no auth). Image/video downloads require auth.
+ */
 router.get(
   '/:shareToken/download',
+  async (
+    req: Request<ShareTokenParams>,
+    res: Response,
+    next: express.NextFunction
+  ): Promise<void> => {
+    try {
+      const { shareToken } = req.params;
+      const service = await getSharedMediaService();
+      const share = await service.getShareByToken(shareToken as string);
+
+      if (!share) {
+        res.status(404).json({ success: false, error: 'Geteiltes Medium nicht gefunden' });
+        return;
+      }
+
+      if (share.media_type === 'transfer') {
+        if (share.expires_at && new Date(share.expires_at) < new Date()) {
+          res.status(410).json({ success: false, error: 'Dieser Transfer-Link ist abgelaufen.' });
+          return;
+        }
+
+        // scrypt format: "salt:hash"
+        const password =
+          (req.query.password as string) || (req.headers['x-transfer-password'] as string);
+        if (share.password_hash) {
+          if (!password) {
+            res.status(401).json({ success: false, error: 'Passwort erforderlich.' });
+            return;
+          }
+          const [salt, storedHash] = share.password_hash.split(':');
+          if (!salt || !storedHash) {
+            res.status(500).json({ success: false, error: 'Ungültiger Passwort-Hash.' });
+            return;
+          }
+          const derivedKey = crypto.scryptSync(password, salt, 64).toString('hex');
+          const passwordValid = crypto.timingSafeEqual(
+            Buffer.from(derivedKey, 'hex'),
+            Buffer.from(storedHash, 'hex')
+          );
+          if (!passwordValid) {
+            res.status(403).json({ success: false, error: 'Falsches Passwort.' });
+            return;
+          }
+        }
+
+        const ipAddress = req.ip || (req as any).connection?.remoteAddress || 'unknown';
+        await service.recordDownload(shareToken as string, null, ipAddress, share.id);
+
+        try {
+          const result = await transferService.proxyDownloadWithRecord(share);
+
+          res.setHeader(
+            'Content-Type',
+            result.mimeType || share.mime_type || 'application/octet-stream'
+          );
+          res.setHeader('Content-Length', result.size);
+          res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="${encodeURIComponent(result.fileName)}"`
+          );
+
+          log.info(`Transfer download: ${(shareToken as string).substring(0, 8)} (public)`);
+          res.send(result.buffer);
+        } catch (proxyErr) {
+          const err = proxyErr as Error;
+          log.error('Transfer proxy download failed', { error: err.message });
+          if (!res.headersSent) {
+            res.status(502).json({ success: false, error: 'Download von Wolke fehlgeschlagen.' });
+          }
+        }
+        return;
+      }
+
+      // Image/video downloads: require auth — pass share to avoid re-fetch
+      (req as any)._share = share;
+      next();
+    } catch (error) {
+      log.error('Failed to process download:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ success: false, error: 'Fehler beim Download' });
+      }
+    }
+  },
   requireAuth,
   async (req: Request<ShareTokenParams> & AuthenticatedRequest, res: Response): Promise<void> => {
     try {
@@ -1087,13 +1214,12 @@ router.get(
       const userEmail = req.user!.email || 'authenticated-user';
 
       const service = await getSharedMediaService();
-      const share = await service.getShareByToken(shareToken);
+      const share =
+        ((req as any)._share as SharedMediaRow | undefined) ??
+        (await service.getShareByToken(shareToken as string));
 
       if (!share) {
-        res.status(404).json({
-          success: false,
-          error: 'Geteiltes Medium nicht gefunden',
-        });
+        res.status(404).json({ success: false, error: 'Geteiltes Medium nicht gefunden' });
         return;
       }
 
@@ -1107,23 +1233,17 @@ router.get(
       }
 
       if (share.status === 'failed') {
-        res.status(500).json({
-          success: false,
-          error: 'Verarbeitung fehlgeschlagen',
-        });
+        res.status(500).json({ success: false, error: 'Verarbeitung fehlgeschlagen' });
         return;
       }
 
       if (!share.file_path) {
-        res.status(404).json({
-          success: false,
-          error: 'Datei nicht verfügbar',
-        });
+        res.status(404).json({ success: false, error: 'Datei nicht verfügbar' });
         return;
       }
 
       const ipAddress = req.ip || (req as any).connection?.remoteAddress || 'unknown';
-      await service.recordDownload(shareToken, userEmail, ipAddress);
+      await service.recordDownload(shareToken as string, userEmail, ipAddress);
 
       const mediaPath = service.getMediaFilePath(share.file_path);
 
@@ -1160,19 +1280,13 @@ router.get(
 
         return;
       } catch {
-        res.status(404).json({
-          success: false,
-          error: 'Datei nicht gefunden',
-        });
+        res.status(404).json({ success: false, error: 'Datei nicht gefunden' });
         return;
       }
     } catch (error) {
       log.error('Failed to download share:', error);
       if (!res.headersSent) {
-        res.status(500).json({
-          success: false,
-          error: 'Fehler beim Download',
-        });
+        res.status(500).json({ success: false, error: 'Fehler beim Download' });
       }
       return;
     }

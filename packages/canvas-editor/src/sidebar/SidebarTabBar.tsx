@@ -1,5 +1,6 @@
 import { useState, useEffect, memo, useCallback } from 'react';
 import { FaCheck } from 'react-icons/fa';
+import { useMediaQuery } from '@gruenerator/shared/hooks';
 
 import { useAutoSaveStore } from '../stores/useAutoSaveStore';
 
@@ -86,18 +87,8 @@ export const SidebarTabBar = memo(function SidebarTabBar({
   horizontal = false,
 }: SidebarTabBarProps) {
   const autoSaveStatus = useAutoSaveStore((s) => s.autoSaveStatus);
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== 'undefined' && window.innerWidth < 900
-  );
+  const isMobile = useMediaQuery('(max-width: 899px)');
   const [showSaved, setShowSaved] = useState(false);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 900);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   useEffect(() => {
     if (autoSaveStatus === 'saved') {
@@ -130,7 +121,7 @@ export const SidebarTabBar = memo(function SidebarTabBar({
   return (
     <div
       className={cn(
-        'sidebar-tab-bar flex flex-col items-center gap-sm shrink-0 w-16 h-full bg-background shadow-[4px_0_12px_rgba(0,0,0,0.08)] pt-[var(--header-height,48px)] pb-md',
+        'sidebar-tab-bar flex flex-col items-center justify-center gap-sm shrink-0 w-16 h-full bg-background shadow-[4px_0_12px_rgba(0,0,0,0.08)]',
         isHorizontal && 'flex-row'
       )}
     >

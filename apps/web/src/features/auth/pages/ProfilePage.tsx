@@ -4,32 +4,26 @@ import { useNavigate, useParams } from 'react-router-dom';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import Spinner from '../../../components/common/Spinner';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { PROFILE_MENU_ITEMS } from '../components/profile/ProfileMenu';
 
-import '../../../assets/styles/features/auth/auth.css';
-import '../../../assets/styles/components/auth/avatar-selection.css';
-
 const ProfileInfoTab = lazy(() => import('../components/profile/ProfileInfoTab'));
-const GroupsManagementTab = lazy(() => import('../components/profile/tabs/GroupsManagement'));
 const ContentManagementTab = lazy(() => import('../components/profile/tabs/ContentManagement'));
+const WolkeManagementTab = lazy(() => import('../components/profile/tabs/WolkeManagement'));
 
-type TabMapping = Record<string, string>;
+const TAB_MAPPING: Record<string, string> = PROFILE_MENU_ITEMS.reduce<Record<string, string>>(
+  (acc, item) => {
+    const urlPath = item.path.replace('/profile/', '') || 'profil';
+    acc[urlPath === '' ? 'profil' : urlPath] = item.key;
+    return acc;
+  },
+  {}
+);
 
 const ProfilePage = () => {
   const navigate = useNavigate();
   const { tab, subtab, subsubtab } = useParams();
 
   const { user, isLoggingOut, deleteAccount, canManageAccount } = useOptimizedAuth();
-
-  const { shouldShowTab, canAccessBetaFeature } = useBetaFeatures();
-
-  // Generate TAB_MAPPING from PROFILE_MENU_ITEMS
-  const TAB_MAPPING: TabMapping = PROFILE_MENU_ITEMS.reduce<TabMapping>((acc, item) => {
-    const urlPath = item.path.replace('/profile/', '') || 'profil';
-    acc[urlPath === '' ? 'profil' : urlPath] = item.key;
-    return acc;
-  }, {});
 
   // Get active tab from URL path
   const activeTab = tab ? TAB_MAPPING[tab] || 'profile' : 'profile';
@@ -45,6 +39,11 @@ const ProfilePage = () => {
       return;
     }
 
+    if (tab === 'gruppen') {
+      navigate('/gruppen', { replace: true });
+      return;
+    }
+
     if (tab === 'grueneratoren') {
       navigate('/texte?tab=eigene', { replace: true });
       return;
@@ -55,11 +54,16 @@ const ProfilePage = () => {
       return;
     }
 
+    if (tab === 'benachrichtigungen') {
+      navigate('/profile', { replace: true });
+      return;
+    }
+
     if (tab && !TAB_MAPPING[tab]) {
       navigate('/profile', { replace: true });
       return;
     }
-  }, [tab, subtab, subsubtab, navigate, TAB_MAPPING, canAccessBetaFeature]);
+  }, [tab, subtab, subsubtab, navigate]);
 
   // Message timeout handling
   useEffect(() => {
@@ -149,11 +153,11 @@ const ProfilePage = () => {
             />
           )}
 
-          {activeTab === 'gruppen' && shouldShowTab('groups') && (
-            <GroupsManagementTab
+          {activeTab === 'wolke' && (
+            <WolkeManagementTab
               onSuccessMessage={handleSuccessMessage}
               onErrorMessage={handleErrorMessage}
-              isActive={activeTab === 'gruppen'}
+              isActive={activeTab === 'wolke'}
             />
           )}
         </Suspense>

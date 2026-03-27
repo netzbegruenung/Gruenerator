@@ -4,6 +4,7 @@
  */
 
 import express, { type Router, type Response, type NextFunction } from 'express';
+import rateLimit from 'express-rate-limit';
 
 import passport from '../../config/passportSetup.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
@@ -129,8 +130,20 @@ router.get('/test', (_req: AuthRequest, res: Response): void => {
 // Login Flow
 // ============================================================================
 
+const loginLimiter =
+  process.env.DISABLE_RATE_LIMITS === 'true'
+    ? (_req: AuthRequest, _res: Response, next: NextFunction) => next()
+    : rateLimit({
+        windowMs: 15 * 60 * 1000,
+        max: 30,
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: { error: 'Too many login attempts, please try again later.' },
+      });
+
 router.get(
   '/login',
+  loginLimiter,
   checkSessionHealth,
   async (req: AuthSessionRequest, res: Response, next: NextFunction): Promise<void> => {
     const source = req.query.source as string | undefined;
@@ -220,6 +233,7 @@ router.get(
 
 router.get(
   '/callback',
+  loginLimiter,
   passport.authenticate('oidc', {
     failureRedirect: '/auth/error',
     failureMessage: true,
@@ -391,8 +405,10 @@ router.get('/status-test', (req: AuthRequest, res: Response): void => {
 // ============================================================================
 
 router.get('/error', (req: AuthSessionRequest, res: Response): void => {
-  const errorCode = req.query.message || 'unknown_error';
-  const correlationId = req.query.correlationId || 'N/A';
+  const htmlEscape = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const errorCode = htmlEscape(String(req.query.message || 'unknown_error'));
+  const correlationId = htmlEscape(String(req.query.correlationId || 'N/A'));
   const retry = req.query.retry === 'true';
   const keycloakError = req.session?.messages?.slice(-1)[0];
   if (req.session?.messages) delete req.session.messages;

@@ -31,8 +31,10 @@ function convertToThreadMessages(messages: NotebookChatMessage[]): ThreadMessage
 
     const custom: Record<string, unknown> = {};
     if (msg.resultData) {
-      custom.citations = msg.resultData.citations || [];
-      custom.chatCitations = msg.resultData.chatCitations || [];
+      // Backward compat: old stored messages have chatCitations, new ones have citations (mapped)
+      const chatCitations = msg.resultData.chatCitations || [];
+      custom.citations = chatCitations.length > 0 ? chatCitations : [];
+      custom.rawCitations = msg.resultData.citations || [];
       custom.sources = msg.resultData.sources || [];
       custom.additionalSources = msg.resultData.additionalSources || [];
       custom.linkConfig = msg.resultData.linkConfig;
@@ -42,9 +44,9 @@ function convertToThreadMessages(messages: NotebookChatMessage[]): ThreadMessage
         custom.sourcesByCollection = msg.resultData.sourcesByCollection;
       }
       console.debug(
-        '[Notebook] Restoring message: citations=%d, chatCitations=%d',
+        '[Notebook] Restoring message: citations=%d, rawCitations=%d',
         (custom.citations as unknown[])?.length ?? 0,
-        (custom.chatCitations as unknown[])?.length ?? 0
+        (custom.rawCitations as unknown[])?.length ?? 0
       );
     }
 
@@ -129,8 +131,8 @@ export function useNotebookChatBridge({
         resultData: {
           resultId,
           question: metadata.question,
-          citations: metadata.citations,
-          chatCitations: metadata.chatCitations as unknown as Array<Record<string, unknown>>,
+          citations: metadata.rawCitations,
+          chatCitations: metadata.citations as unknown as Array<Record<string, unknown>>,
           sources: metadata.sources,
           additionalSources: metadata.additionalSources as Array<Record<string, unknown>>,
           linkConfig: metadata.linkConfig,
@@ -144,7 +146,7 @@ export function useNotebookChatBridge({
       setGeneratedText(resultId, answerText);
       setGeneratedTextMetadata(resultId, {
         sources: metadata.sources,
-        citations: metadata.citations,
+        citations: metadata.rawCitations,
         additionalSources: metadata.additionalSources,
         ...(isMulti &&
           metadata.sourcesByCollection && {

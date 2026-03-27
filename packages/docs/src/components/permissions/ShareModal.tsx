@@ -1,12 +1,13 @@
 import { getAvatarDisplayProps, getRobotAvatarPath } from '@gruenerator/shared/avatar';
-import { Alert, Badge, Button, Group, Loader, Select, Stack, Text } from '@mantine/core';
+import { Alert, AlertDescription, Badge, Button } from '@gruenerator/ui';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 
 import { useDocsAdapter, createDocsApiClient } from '../../context/DocsContext';
 import { GroupShareSection } from './GroupShareSection';
 import './ShareModal.css';
 
-interface Collaborator {
+interface UserCollaborator {
+  type?: 'user';
   user_id: string;
   display_name: string;
   email: string;
@@ -17,6 +18,17 @@ interface Collaborator {
   granted_by?: string;
 }
 
+interface GroupCollaborator {
+  type: 'group';
+  group_id: string;
+  group_name: string;
+  permission_level: 'editor' | 'viewer';
+  shared_at: string;
+  member_count: number;
+}
+
+type Collaborator = UserCollaborator | GroupCollaborator;
+
 interface ShareSettings {
   is_public: boolean;
   share_permission: 'viewer' | 'editor';
@@ -25,6 +37,7 @@ interface ShareSettings {
 
 interface ShareModalProps {
   documentId: string;
+  documentTitle?: string;
   onClose: () => void;
 }
 
@@ -48,9 +61,10 @@ const SHARE_MODE_OPTIONS: { value: ShareMode; label: string; description: string
   },
 ];
 
-export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
+export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalProps) => {
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
+  const userDisplayName = adapter.getCurrentUserDisplayName?.() ?? null;
 
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [shareSettings, setShareSettings] = useState<ShareSettings>({
@@ -61,6 +75,7 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [directShareSuccess, setDirectShareSuccess] = useState(false);
   const [isChangingMode, setIsChangingMode] = useState(false);
   const [hasGroups, setHasGroups] = useState(false);
 
@@ -105,6 +120,29 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
     } catch (err) {
       console.error('Failed to copy link:', err);
       setError('Fehler beim Kopieren des Links');
+    }
+  };
+
+  const directShare = async () => {
+    const shareUrl = `${window.location.origin}/document/${documentId}`;
+    const title = documentTitle || 'Dokument';
+    const message = userDisplayName
+      ? `${userDisplayName} möchte „${title}" mit dir teilen:\n${shareUrl}`
+      : shareUrl;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text: message });
+      } else {
+        await navigator.clipboard.writeText(message);
+        setDirectShareSuccess(true);
+        setTimeout(() => setDirectShareSuccess(false), 2000);
+      }
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        console.error('Failed to share:', err);
+        setError('Fehler beim Teilen');
+      }
     }
   };
 
@@ -155,6 +193,27 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
     }
   };
 
+  const handleUpdateGroupPermission = async (groupId: string, newLevel: 'editor' | 'viewer') => {
+    try {
+      await apiClient.put(`/docs/${documentId}/groups/${groupId}`, { permission_level: newLevel });
+      await fetchCollaborators();
+    } catch (err) {
+      console.error('Failed to update group permission:', err);
+      setError('Fehler beim Aktualisieren der Gruppen-Berechtigung');
+    }
+  };
+
+  const handleRemoveGroup = async (groupId: string) => {
+    if (!window.confirm('Gruppe wirklich entfernen?')) return;
+    try {
+      await apiClient.delete(`/docs/${documentId}/groups/${groupId}`);
+      await fetchCollaborators();
+    } catch (err) {
+      console.error('Failed to remove group:', err);
+      setError('Fehler beim Entfernen der Gruppe');
+    }
+  };
+
   const handleRevokePermission = async (userId: string) => {
     if (!window.confirm('Berechtigung wirklich entziehen?')) {
       return;
@@ -193,57 +252,64 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
 
   const showLinkSection = shareSettings.share_mode !== 'private';
 
+  const shareModeOptions = useMemo(
+    () => [
+      ...(hasGroups ? [{ value: 'private', label: 'Privat' }] : []),
+      { value: 'authenticated', label: 'Mit Anmeldung' },
+      { value: 'public', label: 'Öffentlich' },
+    ],
+    [hasGroups]
+  );
+
   return (
     <div className="share-modal-overlay" onClick={onClose}>
       <div className="share-modal-panel" onClick={(e) => e.stopPropagation()}>
         <div className="share-modal-header">
-          <Text size="lg" fw={600}>
-            Dokument teilen
-          </Text>
+          <span className="text-lg font-semibold">Dokument teilen</span>
           <button onClick={onClose} className="close-button">
             ×
           </button>
         </div>
 
         {error && (
-          <Alert color="red" variant="light" style={{ borderRadius: 0 }}>
-            {error}
+          <Alert variant="destructive" className="rounded-none">
+            <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
         <div className="share-link-section">
           <div className="share-link-row">
-            <Select
-              label="Zugriffsmodus"
-              value={shareSettings.share_mode}
-              onChange={(val) => val && changeShareMode(val as ShareMode)}
-              data={[
-                ...(hasGroups ? [{ value: 'private', label: 'Privat' }] : []),
-                { value: 'authenticated', label: 'Mit Anmeldung' },
-                { value: 'public', label: 'Öffentlich' },
-              ]}
-              disabled={isChangingMode}
-              allowDeselect={false}
-              comboboxProps={{ zIndex: 1100 }}
-              style={{ flex: '1 1 160px', minWidth: 0 }}
-            />
+            <div className="flex flex-col" style={{ flex: '1 1 160px', minWidth: 0 }}>
+              <label className="mb-1 text-sm font-medium">Zugriffsmodus</label>
+              <select
+                className="h-9 rounded-md border border-grey-300 bg-background px-3 text-sm outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 dark:border-grey-600 dark:bg-grey-800"
+                value={shareSettings.share_mode}
+                onChange={(e) => changeShareMode(e.target.value as ShareMode)}
+                disabled={isChangingMode}
+              >
+                {shareModeOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             {showLinkSection && (
-              <Select
-                value={shareSettings.share_permission}
-                onChange={(val) => val && updateSharePermission(val as 'viewer' | 'editor')}
-                data={[
-                  { value: 'editor', label: 'Kann bearbeiten' },
-                  { value: 'viewer', label: 'Kann ansehen' },
-                ]}
-                allowDeselect={false}
-                comboboxProps={{ zIndex: 1100 }}
-                style={{ flex: '0 0 auto', alignSelf: 'flex-end' }}
-              />
+              <div className="flex flex-col self-end" style={{ flex: '0 0 auto' }}>
+                <select
+                  className="h-9 rounded-md border border-grey-300 bg-background px-3 text-sm outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 dark:border-grey-600 dark:bg-grey-800"
+                  value={shareSettings.share_permission}
+                  onChange={(e) => updateSharePermission(e.target.value as 'viewer' | 'editor')}
+                >
+                  <option value="editor">Kann bearbeiten</option>
+                  <option value="viewer">Kann ansehen</option>
+                </select>
+              </div>
             )}
           </div>
-          <Text size="xs" c="dimmed" mt={4}>
+          <span className="mt-1 text-xs text-grey-500 dark:text-grey-400">
             {SHARE_MODE_OPTIONS.find((o) => o.value === shareSettings.share_mode)?.description}
-          </Text>
+          </span>
         </div>
 
         <GroupShareSection
@@ -253,108 +319,144 @@ export const ShareModal = ({ documentId, onClose }: ShareModalProps) => {
         />
 
         <div className="collaborators-section">
-          <Text size="md" fw={600} mb="sm">
-            Personen mit Zugriff
-          </Text>
+          <p className="mb-3 text-base font-semibold">Zugriff</p>
           {isLoading ? (
-            <Group justify="center" py="xl">
-              <Loader size="sm" />
-            </Group>
+            <div className="flex justify-center py-6">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-grey-300 border-t-primary-600" />
+            </div>
           ) : collaborators.length === 0 ? (
-            <Text c="dimmed" ta="center" py="xl">
-              Noch keine Mitarbeiter
-            </Text>
+            <p className="py-6 text-center text-grey-500 dark:text-grey-400">
+              Noch niemand eingeladen
+            </p>
           ) : (
-            <Stack gap="sm">
-              {collaborators.map((collaborator) => (
-                <Group
-                  key={collaborator.user_id}
-                  justify="space-between"
-                  wrap="nowrap"
-                  className="collaborator-item"
-                >
-                  <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-                    {(() => {
-                      const avatar = getAvatarDisplayProps(collaborator);
-                      return avatar.type === 'robot' ? (
-                        <img
-                          src={getRobotAvatarPath(avatar.robotId!)}
-                          alt={avatar.alt}
-                          className="collaborator-avatar"
-                        />
-                      ) : (
-                        <div className="collaborator-avatar collaborator-avatar-initials">
-                          {avatar.initials}
+            <div className="flex flex-col gap-3">
+              {collaborators.map((collaborator) => {
+                if (collaborator.type === 'group') {
+                  return (
+                    <div
+                      key={`group-${collaborator.group_id}`}
+                      className="collaborator-item flex flex-nowrap items-center justify-between"
+                    >
+                      <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-3">
+                        <div
+                          className="collaborator-avatar collaborator-avatar-initials"
+                          style={{ fontSize: '0.7rem' }}
+                        >
+                          👥
                         </div>
-                      );
-                    })()}
-                    <div style={{ minWidth: 0 }}>
-                      <Text size="sm" fw={500} truncate>
-                        {collaborator.display_name}
-                      </Text>
-                      <Text size="xs" c="dimmed" truncate>
-                        {collaborator.email}
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        Hinzugefügt am {formatDate(collaborator.granted_at)}
-                      </Text>
-                    </div>
-                  </Group>
-                  <Group gap="xs" wrap="nowrap">
-                    {collaborator.permission_level === 'owner' ? (
-                      <Badge variant="filled" color="var(--primary-600)" size="md">
-                        {getPermissionLabel(collaborator.permission_level)}
-                      </Badge>
-                    ) : (
-                      <>
-                        <Select
-                          size="xs"
+                        <div className="min-w-0">
+                          <span className="block truncate text-sm font-medium">
+                            {collaborator.group_name}
+                          </span>
+                          <span className="block text-xs text-grey-500 dark:text-grey-400">
+                            Gruppe · {collaborator.member_count}{' '}
+                            {collaborator.member_count === 1 ? 'Mitglied' : 'Mitglieder'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-nowrap items-center gap-2">
+                        <select
+                          className="h-7 w-[150px] rounded-md border border-grey-300 bg-background px-2 text-xs outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 dark:border-grey-600 dark:bg-grey-800"
                           value={collaborator.permission_level}
-                          onChange={(val) =>
-                            val &&
-                            handleUpdatePermission(
-                              collaborator.user_id,
-                              val as 'owner' | 'editor' | 'viewer'
+                          onChange={(e) =>
+                            handleUpdateGroupPermission(
+                              collaborator.group_id,
+                              e.target.value as 'editor' | 'viewer'
                             )
                           }
-                          data={[
-                            { value: 'editor', label: 'Bearbeiter*in' },
-                            { value: 'viewer', label: 'Betrachter*in' },
-                          ]}
-                          allowDeselect={false}
-                          comboboxProps={{ zIndex: 1100 }}
-                          style={{ width: 150 }}
-                        />
+                        >
+                          <option value="editor">Bearbeiter*in</option>
+                          <option value="viewer">Betrachter*in</option>
+                        </select>
                         <Button
-                          variant="default"
+                          variant="outline"
                           size="xs"
-                          color="red"
-                          onClick={() => handleRevokePermission(collaborator.user_id)}
+                          onClick={() => handleRemoveGroup(collaborator.group_id)}
                         >
                           Entfernen
                         </Button>
-                      </>
-                    )}
-                  </Group>
-                </Group>
-              ))}
-            </Stack>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div
+                    key={collaborator.user_id}
+                    className="collaborator-item flex flex-nowrap items-center justify-between"
+                  >
+                    <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-3">
+                      {(() => {
+                        const avatar = getAvatarDisplayProps(collaborator);
+                        return avatar.type === 'robot' ? (
+                          <img
+                            src={getRobotAvatarPath(avatar.robotId!)}
+                            alt={avatar.alt}
+                            className="collaborator-avatar"
+                          />
+                        ) : (
+                          <div className="collaborator-avatar collaborator-avatar-initials">
+                            {avatar.initials}
+                          </div>
+                        );
+                      })()}
+                      <div className="min-w-0">
+                        <span className="block truncate text-sm font-medium">
+                          {collaborator.display_name}
+                        </span>
+                        <span className="block truncate text-xs text-grey-500 dark:text-grey-400">
+                          {collaborator.email}
+                        </span>
+                        <span className="block text-xs text-grey-500 dark:text-grey-400">
+                          Hinzugefügt am {formatDate(collaborator.granted_at)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-nowrap items-center gap-2">
+                      {collaborator.permission_level === 'owner' ? (
+                        <Badge>{getPermissionLabel(collaborator.permission_level)}</Badge>
+                      ) : (
+                        <>
+                          <select
+                            className="h-7 w-[150px] rounded-md border border-grey-300 bg-background px-2 text-xs outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 dark:border-grey-600 dark:bg-grey-800"
+                            value={collaborator.permission_level}
+                            onChange={(e) =>
+                              handleUpdatePermission(
+                                collaborator.user_id,
+                                e.target.value as 'owner' | 'editor' | 'viewer'
+                              )
+                            }
+                          >
+                            <option value="editor">Bearbeiter*in</option>
+                            <option value="viewer">Betrachter*in</option>
+                          </select>
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            onClick={() => handleRevokePermission(collaborator.user_id)}
+                          >
+                            Entfernen
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
 
         <div className="share-modal-footer">
-          {showLinkSection && (
-            <Button
-              variant="outline"
-              size="xs"
-              radius="xl"
-              color="var(--primary-600)"
-              onClick={copyShareLink}
-            >
-              {copySuccess ? '✓ Kopiert' : 'Link kopieren'}
+          <Button variant="outline" size="xs" className="rounded-full" onClick={copyShareLink}>
+            {copySuccess ? '✓ Kopiert' : 'Link kopieren'}
+          </Button>
+          {userDisplayName && (
+            <Button size="xs" className="rounded-full" onClick={directShare}>
+              {directShareSuccess ? '✓ Kopiert' : 'Direkt teilen'}
             </Button>
           )}
-          <Button ml="auto" color="var(--primary-600)" onClick={onClose}>
+          <Button className="ml-auto" onClick={onClose}>
             Fertig
           </Button>
         </div>

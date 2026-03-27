@@ -421,10 +421,8 @@ router.get(
         }
       }
 
-      // System templates first, then system files
-      // TEMPORARILY DISABLED: User vorlagen hidden from public gallery until likes/ranking feature is complete
-      // const vorlagen = [...filteredSystemTemplates, ...filteredSystemFiles, ...userVorlagen];
-      const vorlagen = [...filteredSystemTemplates, ...filteredSystemFiles];
+      // System templates first, then system files, then approved user vorlagen
+      const vorlagen = [...filteredSystemTemplates, ...filteredSystemFiles, ...userVorlagen];
 
       res.json({ success: true, vorlagen });
     } catch (error) {

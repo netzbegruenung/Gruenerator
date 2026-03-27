@@ -5,7 +5,8 @@
  * Uses ChatAdapter for platform-agnostic API communication.
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
+import { parseSSELine } from '../lib/sseParser';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import type { ProcessedFile } from '../lib/fileUtils';
 
@@ -127,29 +128,6 @@ export interface UseChatGraphStreamReturn {
   abort: () => void;
 }
 
-function parseSSELine(
-  line: string,
-  currentEvent: { type: string }
-): { event?: string; data?: unknown } {
-  if (line.startsWith('event: ')) {
-    currentEvent.type = line.slice(7).trim();
-    return {};
-  }
-
-  if (line.startsWith('data: ')) {
-    try {
-      const data = JSON.parse(line.slice(6));
-      const event = currentEvent.type;
-      currentEvent.type = '';
-      return { event, data };
-    } catch {
-      return {};
-    }
-  }
-
-  return {};
-}
-
 export function useChatGraphStream(
   options: UseChatGraphStreamOptions = {}
 ): UseChatGraphStreamReturn {
@@ -170,9 +148,7 @@ export function useChatGraphStream(
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const messagesRef = useRef(messages);
-  useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
+  messagesRef.current = messages;
 
   const abort = useCallback(() => {
     if (abortControllerRef.current) {

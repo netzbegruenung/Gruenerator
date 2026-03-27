@@ -6,11 +6,9 @@ import {
   type InitialPageDef,
 } from '@gruenerator/canvas-editor';
 import { motion } from 'motion/react';
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 
-import { CanvasMobilePanel } from '../components/CanvasMobilePanel';
-import { CanvasMobileSubsectionBar } from '../components/CanvasMobileSubsectionBar';
-import { CanvasMobileTabBar } from '../components/CanvasMobileTabBar';
+import useSidebarStore from '../../../stores/sidebarStore';
 import { slideVariants } from '../components/StepFlow';
 import { IMAGE_STUDIO_TYPES } from '../utils/typeConfig';
 
@@ -32,13 +30,135 @@ interface SloganAlternative {
 
 type CanvasState = Record<string, unknown>;
 
+interface CanvasBlockConfig {
+  canvasType: string;
+  requiresImage?: boolean;
+  optionalImage?: boolean;
+  fields: string[];
+  alternativesMode: 'quote-strings' | 'full-objects' | 'dreizeilen-filter';
+  hasStateChange?: boolean;
+  hasInitialPages?: boolean;
+}
+
+const CANVAS_BLOCK_CONFIGS: Record<string, CanvasBlockConfig> = {
+  [IMAGE_STUDIO_TYPES.ZITAT_PURE]: {
+    canvasType: 'zitat-pure',
+    fields: ['quote', 'name'],
+    alternativesMode: 'quote-strings',
+  },
+  [IMAGE_STUDIO_TYPES.ZITAT]: {
+    canvasType: 'zitat',
+    requiresImage: true,
+    fields: ['quote', 'name'],
+    alternativesMode: 'quote-strings',
+  },
+  [IMAGE_STUDIO_TYPES.INFO]: {
+    canvasType: 'info',
+    fields: ['header', 'body'],
+    alternativesMode: 'full-objects',
+  },
+  [IMAGE_STUDIO_TYPES.VERANSTALTUNG]: {
+    canvasType: 'veranstaltung',
+    requiresImage: true,
+    fields: ['eventTitle', 'beschreibung', 'weekday', 'date', 'time', 'locationName', 'address'],
+    alternativesMode: 'full-objects',
+  },
+  [IMAGE_STUDIO_TYPES.DREIZEILEN]: {
+    canvasType: 'dreizeilen',
+    optionalImage: true,
+    fields: ['line1', 'line2', 'line3'],
+    alternativesMode: 'dreizeilen-filter',
+  },
+  [IMAGE_STUDIO_TYPES.SIMPLE]: {
+    canvasType: 'simple',
+    requiresImage: true,
+    fields: ['headline', 'subtext'],
+    alternativesMode: 'full-objects',
+    hasStateChange: true,
+  },
+  [IMAGE_STUDIO_TYPES.FREEFORM]: {
+    canvasType: 'freeform',
+    fields: [],
+    alternativesMode: 'full-objects',
+  },
+  [IMAGE_STUDIO_TYPES.SLIDER]: {
+    canvasType: 'slider',
+    fields: ['label', 'headline', 'subtext'],
+    alternativesMode: 'full-objects',
+    hasInitialPages: true,
+  },
+};
+
+function buildInitialState(
+  config: CanvasBlockConfig,
+  getFieldValue: (name: string) => unknown,
+  sloganAlternatives: SloganAlternative[]
+): Record<string, unknown> {
+  const state: Record<string, unknown> = {};
+  for (const field of config.fields) {
+    state[field] = getFieldValue(field) || '';
+  }
+  switch (config.alternativesMode) {
+    case 'quote-strings':
+      state.alternatives = sloganAlternatives.map((alt) => alt.quote || '');
+      break;
+    case 'dreizeilen-filter':
+      state.alternatives = sloganAlternatives.filter(
+        (alt): alt is DreizeilenAlternative =>
+          alt.line1 !== undefined && alt.line2 !== undefined && alt.line3 !== undefined
+      );
+      break;
+    case 'full-objects':
+      state.alternatives = sloganAlternatives;
+      break;
+  }
+  return state;
+}
+
+function buildSliderPages(
+  getFieldValue: (name: string) => unknown,
+  sloganAlternatives: SloganAlternative[]
+): InitialPageDef[] | undefined {
+  if (sloganAlternatives.length === 0) return undefined;
+  return [
+    {
+      configId: 'slider' as CanvasConfigId,
+      state: {
+        label: getFieldValue('label') || '',
+        headline: getFieldValue('headline') || '',
+        subtext: getFieldValue('subtext') || '',
+        slideVariant: 'cover',
+      },
+    },
+    ...sloganAlternatives.slice(1).map(
+      (alt, index): InitialPageDef => ({
+        configId: 'slider' as CanvasConfigId,
+        state: {
+          label: alt.label || 'Wusstest du?',
+          headline: alt.headline || '',
+          subtext: alt.subtext || '',
+          slideVariant: index < sloganAlternatives.length - 2 ? 'content' : 'last',
+        },
+      })
+    ),
+  ];
+}
+
+function getImageSrc(
+  config: CanvasBlockConfig,
+  uploadedImageUrl: string | null
+): string | undefined {
+  if (config.requiresImage) return uploadedImageUrl!;
+  if (config.optionalImage) return uploadedImageUrl ?? undefined;
+  return undefined;
+}
+
 export interface CanvasEditStepProps {
   typeConfig: CanvasEditTypeConfig | undefined;
   uploadedImageUrl: string | null;
   sloganAlternatives: SloganAlternative[];
   getFieldValue: (name: string) => unknown;
   handleCanvasExport: (base64: string) => void;
-  handleCanvasSave: (base64: string) => void;
   handleBack: () => void;
   transparentImage: string | null;
   currentStepId: string;
@@ -53,7 +173,6 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
   sloganAlternatives,
   getFieldValue,
   handleCanvasExport,
-  handleCanvasSave,
   handleBack,
   transparentImage,
   currentStepId,
@@ -61,15 +180,14 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
   onHeadlineChange,
   onSubtextChange,
 }) => {
-  const [isDesktopViewport, setIsDesktopViewport] = useState(
-    typeof window !== 'undefined' && window.innerWidth >= 900
-  );
-
   useEffect(() => {
-    const handleResize = () => setIsDesktopViewport(window.innerWidth >= 900);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    useSidebarStore.getState().requestHideSidebar('canvas');
+    return () => {
+      useSidebarStore.getState().releaseHideSidebar('canvas');
+    };
   }, []);
+
+  const config = typeConfig?.id ? CANVAS_BLOCK_CONFIGS[typeConfig.id] : null;
 
   return (
     <>
@@ -92,7 +210,7 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
         </motion.div>
       )}
 
-      {typeConfig?.id === IMAGE_STUDIO_TYPES.ZITAT_PURE && (
+      {config && !(config.requiresImage && !uploadedImageUrl) && (
         <motion.div
           key={currentStepId}
           custom={direction}
@@ -104,248 +222,27 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
           className="typeform-field typeform-field--canvas-edit"
         >
           <ControllableCanvasWrapper
-            externalSidebar={true}
-            externalMobileMode={!isDesktopViewport}
-            type="zitat-pure"
-            initialState={{
-              quote: getFieldValue('quote') || '',
-              name: getFieldValue('name') || '',
-              alternatives: sloganAlternatives.map((alt: { quote?: string }) => alt.quote || ''),
-            }}
+            externalSidebar={false}
+            type={config.canvasType}
+            initialState={buildInitialState(config, getFieldValue, sloganAlternatives)}
+            imageSrc={getImageSrc(config, uploadedImageUrl)}
             onExport={handleCanvasExport}
             onCancel={handleBack}
-          />
-        </motion.div>
-      )}
-
-      {typeConfig?.id === IMAGE_STUDIO_TYPES.ZITAT && uploadedImageUrl && (
-        <motion.div
-          key={currentStepId}
-          custom={direction}
-          variants={slideVariants}
-          initial="enter"
-          animate="center"
-          exit="exit"
-          transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="typeform-field typeform-field--canvas-edit"
-        >
-          <ControllableCanvasWrapper
-            externalSidebar={true}
-            externalMobileMode={!isDesktopViewport}
-            type="zitat"
-            initialState={{
-              quote: getFieldValue('quote') || '',
-              name: getFieldValue('name') || '',
-              alternatives: sloganAlternatives.map((alt: { quote?: string }) => alt.quote || ''),
-            }}
-            imageSrc={uploadedImageUrl}
-            onExport={handleCanvasExport}
-            onCancel={handleBack}
-          />
-        </motion.div>
-      )}
-
-      {typeConfig?.id === IMAGE_STUDIO_TYPES.INFO && (
-        <motion.div
-          key={currentStepId}
-          custom={direction}
-          variants={slideVariants}
-          initial="enter"
-          animate="center"
-          exit="exit"
-          transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="typeform-field typeform-field--canvas-edit"
-        >
-          <ControllableCanvasWrapper
-            externalSidebar={true}
-            externalMobileMode={!isDesktopViewport}
-            type="info"
-            initialState={{
-              header: getFieldValue('header') || '',
-              body: getFieldValue('body') || '',
-              alternatives: sloganAlternatives,
-            }}
-            onExport={handleCanvasExport}
-            onCancel={handleBack}
-          />
-        </motion.div>
-      )}
-
-      {typeConfig?.id === IMAGE_STUDIO_TYPES.VERANSTALTUNG && uploadedImageUrl && (
-        <motion.div
-          key={currentStepId}
-          custom={direction}
-          variants={slideVariants}
-          initial="enter"
-          animate="center"
-          exit="exit"
-          transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="typeform-field typeform-field--canvas-edit"
-        >
-          <ControllableCanvasWrapper
-            externalSidebar={true}
-            externalMobileMode={!isDesktopViewport}
-            type="veranstaltung"
-            initialState={{
-              eventTitle: getFieldValue('eventTitle') || '',
-              beschreibung: getFieldValue('beschreibung') || '',
-              weekday: getFieldValue('weekday') || '',
-              date: getFieldValue('date') || '',
-              time: getFieldValue('time') || '',
-              locationName: getFieldValue('locationName') || '',
-              address: getFieldValue('address') || '',
-              alternatives: sloganAlternatives,
-            }}
-            imageSrc={uploadedImageUrl}
-            onExport={handleCanvasExport}
-            onCancel={handleBack}
-          />
-        </motion.div>
-      )}
-
-      {typeConfig?.id === IMAGE_STUDIO_TYPES.DREIZEILEN && (
-        <motion.div
-          key={currentStepId}
-          custom={direction}
-          variants={slideVariants}
-          initial="enter"
-          animate="center"
-          exit="exit"
-          transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="typeform-field typeform-field--canvas-edit"
-        >
-          <ControllableCanvasWrapper
-            externalSidebar={true}
-            externalMobileMode={!isDesktopViewport}
-            type="dreizeilen"
-            initialState={{
-              line1: getFieldValue('line1') || '',
-              line2: getFieldValue('line2') || '',
-              line3: getFieldValue('line3') || '',
-              alternatives: sloganAlternatives.filter(
-                (alt): alt is DreizeilenAlternative =>
-                  alt.line1 !== undefined && alt.line2 !== undefined && alt.line3 !== undefined
-              ),
-            }}
-            imageSrc={uploadedImageUrl ?? undefined}
-            onExport={handleCanvasExport}
-            onCancel={handleBack}
-          />
-        </motion.div>
-      )}
-
-      {typeConfig?.id === IMAGE_STUDIO_TYPES.SIMPLE && uploadedImageUrl && (
-        <motion.div
-          key={currentStepId}
-          custom={direction}
-          variants={slideVariants}
-          initial="enter"
-          animate="center"
-          exit="exit"
-          transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="typeform-field typeform-field--canvas-edit"
-        >
-          <ControllableCanvasWrapper
-            externalSidebar={true}
-            externalMobileMode={!isDesktopViewport}
-            type="simple"
-            initialState={{
-              headline: getFieldValue('headline') || '',
-              subtext: getFieldValue('subtext') || '',
-              alternatives: sloganAlternatives,
-            }}
-            imageSrc={uploadedImageUrl}
-            onExport={handleCanvasExport}
-            onCancel={handleBack}
-            onStateChange={(state: CanvasState) => {
-              if (typeof state.headline === 'string') onHeadlineChange?.(state.headline);
-              if (typeof state.subtext === 'string') onSubtextChange?.(state.subtext);
-            }}
-          />
-        </motion.div>
-      )}
-
-      {typeConfig?.id === IMAGE_STUDIO_TYPES.FREEFORM && (
-        <motion.div
-          key={currentStepId}
-          custom={direction}
-          variants={slideVariants}
-          initial="enter"
-          animate="center"
-          exit="exit"
-          transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="typeform-field typeform-field--canvas-edit"
-        >
-          <ControllableCanvasWrapper
-            externalSidebar={true}
-            externalMobileMode={!isDesktopViewport}
-            type="freeform"
-            initialState={{}}
-            onExport={handleCanvasExport}
-            onCancel={handleBack}
-          />
-        </motion.div>
-      )}
-
-      {typeConfig?.id === IMAGE_STUDIO_TYPES.SLIDER && (
-        <motion.div
-          key={currentStepId}
-          custom={direction}
-          variants={slideVariants}
-          initial="enter"
-          animate="center"
-          exit="exit"
-          transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="typeform-field typeform-field--canvas-edit"
-        >
-          <ControllableCanvasWrapper
-            externalSidebar={true}
-            externalMobileMode={!isDesktopViewport}
-            type="slider"
-            initialState={{
-              label: getFieldValue('label') || '',
-              headline: getFieldValue('headline') || '',
-              subtext: getFieldValue('subtext') || '',
-              alternatives: sloganAlternatives,
-            }}
-            onExport={handleCanvasExport}
-            onCancel={handleBack}
+            onStateChange={
+              config.hasStateChange
+                ? (state: CanvasState) => {
+                    if (typeof state.headline === 'string') onHeadlineChange?.(state.headline);
+                    if (typeof state.subtext === 'string') onSubtextChange?.(state.subtext);
+                  }
+                : undefined
+            }
             initialPages={
-              sloganAlternatives.length > 0
-                ? [
-                    {
-                      configId: 'slider' as CanvasConfigId,
-                      state: {
-                        label: getFieldValue('label') || '',
-                        headline: getFieldValue('headline') || '',
-                        subtext: getFieldValue('subtext') || '',
-                        slideVariant: 'cover',
-                      },
-                    },
-                    ...sloganAlternatives.slice(1).map(
-                      (alt, index): InitialPageDef => ({
-                        configId: 'slider' as CanvasConfigId,
-                        state: {
-                          label: alt.label || 'Wusstest du?',
-                          headline: alt.headline || '',
-                          subtext: alt.subtext || '',
-                          slideVariant: index < sloganAlternatives.length - 2 ? 'content' : 'last',
-                        },
-                      })
-                    ),
-                  ]
+              config.hasInitialPages
+                ? buildSliderPages(getFieldValue, sloganAlternatives)
                 : undefined
             }
           />
         </motion.div>
-      )}
-
-      {!isDesktopViewport && (
-        <>
-          <CanvasMobilePanel />
-          <CanvasMobileSubsectionBar />
-          <CanvasMobileTabBar />
-        </>
       )}
     </>
   );

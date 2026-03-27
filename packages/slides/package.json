@@ -1,0 +1,41 @@
+{
+  "name": "@gruenerator/slides",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "require": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./layouts": {
+      "import": "./src/components/layouts/index.tsx",
+      "require": "./src/components/layouts/index.tsx",
+      "types": "./src/components/layouts/index.tsx"
+    },
+    "./styles": "./src/styles/slides.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@gruenerator/collab": "workspace:*",
+    "@gruenerator/ui": "workspace:*",
+    "recharts": "^2.15.4",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "@gruenerator/shared": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zustand": "^5.0.0"
+  }
+}

@@ -123,10 +123,19 @@ export class Mem0Service {
 
       log.info(`[Mem0] Adding memories for user ${userId} from ${messages.length} messages`);
 
-      const response: SearchResult = await this.memory.add(messages, {
-        userId,
-        metadata: metadata as Record<string, any>,
-      });
+      let response: SearchResult;
+      try {
+        response = await this.memory.add(messages, {
+          userId,
+          metadata: metadata as Record<string, any>,
+        });
+      } catch (addError: any) {
+        if (addError?.name === 'ZodError') {
+          log.debug(`[Mem0] Zod parse error in mem0ai SDK (non-fatal), skipping memory extraction`);
+          return [];
+        }
+        throw addError;
+      }
 
       const addedMemories: Mem0Memory[] = [];
 

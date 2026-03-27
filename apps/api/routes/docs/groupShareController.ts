@@ -135,9 +135,9 @@ router.post('/:id/groups', async (req: Request, res: Response) => {
     }
 
     const doc = (await db.query(
-      'SELECT created_by FROM collaborative_documents WHERE id = $1 AND is_deleted = false',
+      'SELECT created_by, title FROM collaborative_documents WHERE id = $1 AND is_deleted = false',
       [id]
-    )) as { created_by: string }[];
+    )) as { created_by: string; title?: string }[];
 
     if (doc.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
@@ -176,6 +176,21 @@ router.post('/:id/groups', async (req: Request, res: Response) => {
        VALUES ('collaborative_documents', $1, $2, $3, $4)`,
       [id, group_id, userId, JSON.stringify(permissions)]
     );
+
+    // Notify group members
+    import('../../services/notifications/index.js')
+      .then(({ notifyGroupMembers }) =>
+        notifyGroupMembers({
+          groupId: group_id,
+          excludeUserId: userId,
+          type: 'group_content_shared',
+          title: 'Dokument geteilt',
+          body: `${req.user?.display_name || 'Jemand'} hat „${doc[0].title || 'ein Dokument'}" geteilt`,
+          actionUrl: `/docs/${id}`,
+          metadata: { documentId: id, groupId: group_id },
+        })
+      )
+      .catch(() => {});
 
     return res.status(201).json({ message: 'Document shared with group successfully' });
   } catch (error: any) {

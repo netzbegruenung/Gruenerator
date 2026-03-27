@@ -106,23 +106,24 @@ export class UrlCrawler {
         options.enhancedMetadata
       );
 
-      // Validate extracted content with better error messages
-      if (!contentData.content || contentData.content.trim().length === 0) {
-        throw new Error(
-          'No content could be extracted from the page. The page might be empty or require JavaScript.'
-        );
-      }
-
-      if (contentData.content.trim().length < 50) {
-        console.warn(
-          `[UrlCrawler] Low content extraction for ${url}: ${contentData.wordCount} words, source: ${contentData.contentSource}`
-        );
-
-        // Allow very short content but warn about it
-        if (contentData.wordCount < 10) {
+      // Skip content validation for metadata-only crawls (e.g. Canva template preview)
+      if (!options.metadataOnly) {
+        if (!contentData.content || contentData.content.trim().length === 0) {
           throw new Error(
-            `Insufficient content extracted: only ${contentData.wordCount} words found. The page might require JavaScript or have restricted access.`
+            'No content could be extracted from the page. The page might be empty or require JavaScript.'
           );
+        }
+
+        if (contentData.content.trim().length < 50) {
+          console.warn(
+            `[UrlCrawler] Low content extraction for ${url}: ${contentData.wordCount} words, source: ${contentData.contentSource}`
+          );
+
+          if (contentData.wordCount < 10) {
+            throw new Error(
+              `Insufficient content extracted: only ${contentData.wordCount} words found. The page might require JavaScript or have restricted access.`
+            );
+          }
         }
       }
 

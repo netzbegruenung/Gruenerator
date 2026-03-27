@@ -5,11 +5,8 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
 
-    "strict": false,
-    "noImplicitAny": false,
-    "strictNullChecks": false,
-    "noUncheckedIndexedAccess": false,
-    "noPropertyAccessFromIndexSignature": false,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
 
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,

@@ -25,6 +25,11 @@ interface BetaFeaturesActions {
 
 type BetaFeaturesStore = BetaFeaturesState & BetaFeaturesActions;
 
+// Feature groups: a single toggle controls multiple backend features
+export const FEATURE_GROUPS: Record<string, string[]> = {
+  workplace: ['groups', 'docs', 'scanner', 'boards'],
+};
+
 // Normalize backend keys to frontend camelCase keys
 const normalizeBetaFeatures = (features: Record<string, unknown> = {}): BetaFeatures => {
   const keyMap: Record<string, string> = {
@@ -41,6 +46,8 @@ const normalizeBetaFeatures = (features: Record<string, unknown> = {}): BetaFeat
     labor_enabled: 'labor',
     scanner: 'scanner',
     docs: 'docs',
+    boards: 'boards',
+    memory_enabled: 'memories',
   };
 
   const normalized: BetaFeatures = {};
@@ -48,6 +55,12 @@ const normalizeBetaFeatures = (features: Record<string, unknown> = {}): BetaFeat
     const mappedKey = keyMap[key] || key;
     normalized[mappedKey] = !!value;
   }
+
+  // Derive group parent keys from children
+  for (const [groupKey, children] of Object.entries(FEATURE_GROUPS)) {
+    normalized[groupKey] = children.every((child) => !!normalized[child]);
+  }
+
   return normalized;
 };
 
@@ -91,29 +104,38 @@ export const useBetaFeaturesStore = create<BetaFeaturesStore>()(
       },
 
       // Optimistic toggle with rollback on error
+      // If featureKey is a group parent, toggles all child features on the backend
       toggle: async (featureKey: string, enabled: boolean) => {
         const previous = get().betaFeatures;
+        const childKeys = FEATURE_GROUPS[featureKey];
+
+        // Build optimistic state
         const optimistic = { ...previous, [featureKey]: !!enabled };
+        if (childKeys) {
+          for (const child of childKeys) {
+            optimistic[child] = !!enabled;
+          }
+        }
         set({ betaFeatures: optimistic, isUpdating: true, error: null });
 
         try {
-          const response = await apiClient.patch(
-            '/auth/profile/beta-features',
-            {
-              feature: featureKey,
-              enabled: !!enabled,
-            },
-            {
-              skipAuthRedirect: true,
-            }
+          // For group keys, send a PATCH for each child feature
+          const keysToToggle = childKeys ?? [featureKey];
+          await Promise.all(
+            keysToToggle.map((key) =>
+              apiClient.patch(
+                '/auth/profile/beta-features',
+                { feature: key, enabled: !!enabled },
+                { skipAuthRedirect: true }
+              )
+            )
           );
-          const result = response.data;
 
-          if (!result?.success) {
-            throw new Error(result?.message || 'Beta Feature Update fehlgeschlagen');
-          }
-
-          const confirmed = normalizeBetaFeatures(result?.betaFeatures || {});
+          // Re-fetch to get consistent state after all writes
+          const response = await apiClient.get('/auth/profile/beta-features', {
+            skipAuthRedirect: true,
+          });
+          const confirmed = normalizeBetaFeatures(response.data?.betaFeatures || {});
           set({
             betaFeatures: confirmed,
             isUpdating: false,

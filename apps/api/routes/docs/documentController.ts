@@ -1,8 +1,16 @@
 import { Router, type Request, type Response } from 'express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import {
+  DOCUMENT_GENERATION_PROMPT,
+  parseDocumentResponse,
+  createDocumentWithContent,
+} from '../../services/docs/DocGenerationService.js';
+import { createLogger } from '../../utils/logger.js';
 
 import { DOCS_SUBTYPES } from './constants.js';
+
+const log = createLogger('DocsGenerate');
 
 /**
  * Permission entry for a user on a document
@@ -84,6 +92,56 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 /**
+ * @route   POST /api/docs/generate
+ * @desc    Generate a document using AI based on a description
+ * @access  Private
+ */
+router.post('/generate', async (req: Request, res: Response) => {
+  try {
+    const { description } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    if (!description || typeof description !== 'string' || description.trim().length < 3) {
+      return res.status(400).json({ error: 'Description is required (min 3 characters)' });
+    }
+
+    log.info(`Generating document for user ${userId}: "${description.trim().slice(0, 80)}"`);
+
+    const aiResult = await req.app.locals.aiWorkerPool.processRequest(
+      {
+        type: 'doc_generation',
+        systemPrompt: DOCUMENT_GENERATION_PROMPT,
+        messages: [{ role: 'user', content: description.trim() }],
+        options: { temperature: 0.7, max_tokens: 4000 },
+      },
+      req
+    );
+
+    const generated =
+      aiResult.success && aiResult.content
+        ? parseDocumentResponse(aiResult.content)
+        : { title: 'Neues Dokument', subtype: 'blank', content: '' };
+
+    const document = await createDocumentWithContent(
+      generated.title,
+      generated.content,
+      generated.subtype,
+      userId
+    );
+
+    log.info(`Document created: ${document.id}, subtype: ${generated.subtype}`);
+    return res.status(201).json(document);
+  } catch (error: any) {
+    console.error('[Docs] Error generating document:', error);
+    return res.status(500).json({ error: 'Failed to generate document', details: error.message });
+  }
+});
+
+/**
  * @route   GET /api/docs
  * @desc    List all documents user has access to
  * @access  Private
@@ -96,6 +154,12 @@ router.get('/', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
+    const limitParam = Number(req.query.limit);
+    const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 200) : null;
+
+    const params: unknown[] = [userId, userId, DOCS_SUBTYPES];
+    const limitClause = limit ? `LIMIT $${params.push(limit)}` : '';
+
     const result = (await db.query(
       `SELECT
         cd.*,
@@ -103,9 +167,9 @@ router.get('/', async (req: Request, res: Response) => {
         le.display_name as last_editor_name,
         CASE
           WHEN cd.created_by = $1 THEN 'owner'
-          WHEN cd.permissions ? $1::text THEN 'direct'
+          WHEN cd.permissions ? $2 THEN 'direct'
           WHEN cd.id IN (
-            SELECT gcs.content_id
+            SELECT gcs.content_id::uuid
             FROM group_content_shares gcs
             INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
             WHERE gcs.content_type = 'collaborative_documents'
@@ -115,20 +179,21 @@ router.get('/', async (req: Request, res: Response) => {
        LEFT JOIN profiles p ON cd.created_by = p.id
        LEFT JOIN profiles le ON cd.last_edited_by = le.id
        WHERE
-        cd.document_subtype = ANY($2::text[])
+        cd.document_subtype = ANY($3::text[])
         AND cd.is_deleted = false
         AND (
           cd.created_by = $1
           OR cd.permissions ? $1::text
           OR cd.id IN (
-            SELECT gcs.content_id
+            SELECT gcs.content_id::uuid
             FROM group_content_shares gcs
             INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
             WHERE gcs.content_type = 'collaborative_documents'
           )
         )
-       ORDER BY cd.updated_at DESC`,
-      [userId, DOCS_SUBTYPES]
+       ORDER BY cd.updated_at DESC
+       ${limitClause}`,
+      params
     )) as CollaborativeDocument[];
 
     return res.json(result);

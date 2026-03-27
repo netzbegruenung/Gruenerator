@@ -1,9 +1,7 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { HiX } from 'react-icons/hi';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@gruenerator/ui';
+import React, { useState, useCallback } from 'react';
 
 import { useTagAutocomplete } from '../TemplateModal';
-import '../TemplateModal/template-modal.css';
 
 interface TemplateData {
   id?: string;
@@ -40,35 +38,20 @@ const EditTemplateModal = ({
   onSave,
   template,
 }: EditTemplateModalProps) => {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [externalUrl, setExternalUrl] = useState('');
-  const [thumbnailUrl, setThumbnailUrl] = useState('');
-  const [isPrivate, setIsPrivate] = useState(false);
+  const [title, setTitle] = useState(template?.title || '');
+  const [description, setDescription] = useState(template?.description || '');
+  const [externalUrl, setExternalUrl] = useState(
+    template?.external_url || template?.canva_url || ''
+  );
+  const [thumbnailUrl, setThumbnailUrl] = useState(
+    template?.thumbnail_url || template?.preview_image_url || ''
+  );
+  const [isPrivate, setIsPrivate] = useState(template?.is_private !== false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const tagAutocomplete = useTagAutocomplete(description, setDescription);
-
-  useEffect(() => {
-    if (isOpen && template) {
-      setTitle(template.title || '');
-      setDescription(template.description || '');
-      setExternalUrl(template.external_url || template.canva_url || '');
-      setThumbnailUrl(template.thumbnail_url || template.preview_image_url || '');
-      setIsPrivate(template.is_private !== false);
-      setSubmitError(null);
-      tagAutocomplete.reset();
-    }
-  }, [isOpen, template]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setSubmitError(null);
-      tagAutocomplete.reset();
-    }
-  }, [isOpen]);
 
   const handleSubmit = useCallback(async (): Promise<void> => {
     if (!title.trim()) {
@@ -98,57 +81,25 @@ const EditTemplateModal = ({
     }
   }, [template, title, description, externalUrl, isPrivate, onSave, onSuccess, onClose]);
 
-  const handleBackdropClick = useCallback(
-    (e: React.MouseEvent) => {
-      if (e.target === e.currentTarget) {
-        onClose();
-      }
-    },
-    [onClose]
-  );
-
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    },
-    [onClose]
-  );
-
-  useEffect(() => {
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden';
-    }
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
-    };
-  }, [isOpen, handleKeyDown]);
-
-  if (!isOpen || !template) return null;
+  if (!template) return null;
 
   const canSubmit = title.trim().length > 0;
 
-  const modalContent = (
-    <div className="template-modal-backdrop" onClick={handleBackdropClick}>
-      <div
-        className="template-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="template-modal-title"
-      >
-        <div className="template-modal-header">
-          <h2 id="template-modal-title">Vorlage bearbeiten</h2>
-          <button className="template-modal-close" onClick={onClose} aria-label="Schließen">
-            <HiX />
-          </button>
+  const fieldClass =
+    'mb-md [&_label]:block [&_label]:mb-xs [&_label]:text-[0.875rem] [&_label]:font-medium [&_label]:text-foreground [&_input]:w-full [&_input]:py-sm [&_input]:px-md [&_input]:border [&_input]:border-grey-200 [&_input]:dark:border-grey-700 [&_input]:rounded-lg [&_input]:text-base [&_input]:text-foreground [&_input]:bg-background [&_input]:transition-colors [&_input]:duration-200 [&_input]:focus:outline-none [&_input]:focus:border-[var(--primary)] [&_textarea]:w-full [&_textarea]:py-sm [&_textarea]:px-md [&_textarea]:border [&_textarea]:border-grey-200 [&_textarea]:dark:border-grey-700 [&_textarea]:rounded-lg [&_textarea]:text-base [&_textarea]:text-foreground [&_textarea]:bg-background [&_textarea]:transition-colors [&_textarea]:duration-200 [&_textarea]:focus:outline-none [&_textarea]:focus:border-[var(--primary)] [&_textarea]:resize-y [&_textarea]:min-h-[60px]';
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-[550px] min-[900px]:max-w-[750px] max-md:max-w-none max-md:max-h-none max-md:h-full max-md:rounded-none max-h-[85vh] flex flex-col overflow-hidden p-0">
+        <div className="flex items-center justify-between py-md px-lg border-b border-grey-200 dark:border-grey-700">
+          <DialogHeader>
+            <DialogTitle className="text-[1.25rem]">Vorlage bearbeiten</DialogTitle>
+          </DialogHeader>
         </div>
 
-        <div className="template-modal-body">
+        <div className="flex-1 overflow-y-auto p-lg">
           {thumbnailUrl && (
-            <div className="template-modal-preview-image template-modal-preview-image--large">
+            <div className="w-full max-h-[200px] h-auto flex items-center justify-center mb-md [&_img]:max-w-full [&_img]:max-h-[200px] [&_img]:w-auto [&_img]:h-auto [&_img]:object-contain">
               <img
                 src={thumbnailUrl}
                 alt="Vorschau"
@@ -159,7 +110,7 @@ const EditTemplateModal = ({
             </div>
           )}
 
-          <div className="template-modal-field">
+          <div className={fieldClass}>
             <label htmlFor="edit-title">Titel *</label>
             <input
               id="edit-title"
@@ -171,15 +122,13 @@ const EditTemplateModal = ({
             />
           </div>
 
-          <div className="template-modal-field">
+          <div className={fieldClass}>
             <label htmlFor="edit-description">Beschreibung</label>
-            <div className="template-modal-textarea-wrapper">
+            <div className="relative">
               {tagAutocomplete.suggestionSuffix && (
-                <div className="template-modal-ghost-text">
-                  <span className="template-modal-ghost-prefix">{tagAutocomplete.ghostPrefix}</span>
-                  <span className="template-modal-ghost-suffix">
-                    {tagAutocomplete.suggestionSuffix}
-                  </span>
+                <div className="absolute inset-0 py-sm px-md text-base font-[inherit] leading-normal pointer-events-none whitespace-pre-wrap break-words overflow-hidden border border-transparent rounded-lg">
+                  <span className="invisible">{tagAutocomplete.ghostPrefix}</span>
+                  <span className="text-grey-400">{tagAutocomplete.suggestionSuffix}</span>
                 </div>
               )}
               <textarea
@@ -191,11 +140,12 @@ const EditTemplateModal = ({
                 placeholder="Beschreibung der Vorlage..."
                 rows={3}
                 disabled={isSubmitting}
+                className="bg-transparent relative z-[1]"
               />
             </div>
           </div>
 
-          <div className="template-modal-field">
+          <div className={fieldClass}>
             <label htmlFor="edit-url">URL</label>
             <input
               id="edit-url"
@@ -207,7 +157,7 @@ const EditTemplateModal = ({
             />
           </div>
 
-          <div className="template-modal-field template-modal-checkbox">
+          <div className="mb-md [&_label]:flex [&_label]:items-center [&_label]:gap-sm [&_label]:cursor-pointer [&_input[type=checkbox]]:w-auto [&_input[type=checkbox]]:cursor-pointer [&_span]:font-normal">
             <label>
               <input
                 type="checkbox"
@@ -221,10 +171,12 @@ const EditTemplateModal = ({
             </label>
           </div>
 
-          {submitError && <p className="template-modal-error">{submitError}</p>}
+          {submitError && (
+            <p className="text-[var(--error-red)] text-[0.875rem] mt-xs mb-0">{submitError}</p>
+          )}
         </div>
 
-        <div className="template-modal-footer">
+        <div className="flex items-center justify-end gap-sm py-md px-lg border-t border-grey-200 dark:border-grey-700">
           <button className="pabtn pabtn--m pabtn--ghost" onClick={onClose} disabled={isSubmitting}>
             Abbrechen
           </button>
@@ -236,11 +188,9 @@ const EditTemplateModal = ({
             {isSubmitting ? 'Wird gespeichert...' : 'Speichern'}
           </button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
-
-  return createPortal(modalContent, document.body);
 };
 
 export default EditTemplateModal;

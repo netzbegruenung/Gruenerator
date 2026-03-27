@@ -12,5 +12,5 @@ export interface AvatarProfile {
 }
 
 export const ROBOT_ID_MIN = 1;
-export const ROBOT_ID_MAX = 9;
+export const ROBOT_ID_MAX = 10;
 export const DEFAULT_ROBOT_ID = 1;

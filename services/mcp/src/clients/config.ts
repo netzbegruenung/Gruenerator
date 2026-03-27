@@ -13,7 +13,7 @@ export const clientConfigTool = {
       ),
   },
 
-  handler({ client }, baseUrl) {
+  handler({ client }: { client: string }, baseUrl: string) {
     const configs = {
       claude: {
         description: 'Füge dies zu deiner claude_desktop_config.json hinzu',
@@ -72,7 +72,7 @@ export const clientConfigTool = {
       },
     };
 
-    const clientConfig = configs[client];
+    const clientConfig = configs[client as keyof typeof configs];
 
     return {
       client,

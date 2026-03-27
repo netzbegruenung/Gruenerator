@@ -24,6 +24,7 @@ export interface ContentPath {
   paginationPattern?: string;
   maxPages?: number;
   isPdfArchive?: boolean;
+  processUndatedPdfs?: boolean; // When true, process PDFs without detectable dates instead of skipping them (default: false)
   paginationOffset?: number; // Offset for page number in pagination (default: 0). Use -1 for Drupal 0-indexed pagination.
   paginationLinkSelector?: string; // Optional: CSS selector for pagination links. When set, follows "next" links from HTML instead of constructing URLs (needed for Typo3 cHash).
   sitemapUrls?: string[]; // Optional: fetch URLs from sitemaps instead of pagination
@@ -50,6 +51,7 @@ export interface LandesverbandSource {
   excludePatterns: string[];
   qdrantCollection?: string; // Optional: custom collection name (default: landesverbaende_documents)
   maxAgeYears?: number; // Optional: max age of content in years (default: 10)
+  notificationEmail?: string; // Optional: email to notify when new articles are indexed
 }
 
 export interface LandesverbaendeConfig {
@@ -346,6 +348,69 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         '.png',
       ],
     },
+    {
+      id: 'berlin-fraktion-presse',
+      name: 'Grüne Fraktion Berlin Presse',
+      shortName: 'BE-F',
+      type: 'fraktion',
+      baseUrl: 'https://gruene-fraktion.berlin',
+      cms: 'wordpress',
+      maxAgeYears: 5,
+      contentPaths: [
+        {
+          type: 'presse',
+          path: '/pressemitteilungen/',
+          listSelector: 'article a[href*="/pressemitteilungen/"]',
+          paginationPattern: '/page/{page}/',
+          maxPages: 120,
+        },
+      ],
+      contentSelectors: {
+        title: ['h1.entry-title', 'h1.wp-block-heading', 'h1', 'meta[property="og:title"]'],
+        date: [
+          'time[datetime]',
+          '.entry-date',
+          '.post-date',
+          'meta[property="article:published_time"]',
+        ],
+        content: ['.entry-content', '.wp-block-paragraph', 'article .content', 'main article'],
+        categories: ['a[rel="category tag"]', '.post-categories a', 'a[href*="/category/"]'],
+        author: ['.author-name', '.byline'],
+      },
+      excludePatterns: ['/tag/', '/author/', '/wp-content/', '/wp-admin/', '#', 'javascript:'],
+    },
+    {
+      id: 'berlin-fraktion-beschluesse',
+      name: 'Grüne Fraktion Berlin Beschlüsse',
+      shortName: 'BE-F',
+      type: 'fraktion',
+      baseUrl: 'https://gruene-fraktion.berlin',
+      cms: 'wordpress',
+      maxAgeYears: 5,
+      contentPaths: [
+        {
+          type: 'beschluss',
+          path: '/beschluesse/',
+          listSelector: 'ul.dlm-downloads a[href*="/download/"]',
+          isPdfArchive: true,
+          processUndatedPdfs: true,
+          maxPages: 1,
+        },
+      ],
+      contentSelectors: {
+        title: ['h1.entry-title', 'h1.wp-block-heading', 'h1', 'meta[property="og:title"]'],
+        date: [
+          'time[datetime]',
+          '.entry-date',
+          '.post-date',
+          'meta[property="article:published_time"]',
+        ],
+        content: ['.entry-content', '.wp-block-paragraph', 'article .content', 'main article'],
+        categories: ['a[rel="category tag"]', '.post-categories a', 'a[href*="/category/"]'],
+        author: ['.author-name', '.byline'],
+      },
+      excludePatterns: ['/tag/', '/author/', '/wp-content/', '/wp-admin/', '#', 'javascript:'],
+    },
 
     // ═══════════════════════════════════════════════════════════════════
     // THÜRINGEN
@@ -426,6 +491,113 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         author: ['.author', '.field--name-uid'],
       },
       excludePatterns: ['/sites/default/files/', '/modules/', '/themes/', '#', 'javascript:'],
+    },
+
+    // ═══════════════════════════════════════════════════════════════════
+    // BRANDENBURG
+    // ═══════════════════════════════════════════════════════════════════
+    {
+      id: 'brandenburg-lv',
+      name: 'Grüne Brandenburg',
+      shortName: 'BB',
+      type: 'landesverband',
+      baseUrl: 'https://gruene-brandenburg.de',
+      cms: 'wordpress',
+      maxAgeYears: 5,
+      contentPaths: [
+        {
+          type: 'presse',
+          path: '/',
+          listSelector: 'article a[href], h2 a, h3 a, .wp-block-heading a',
+          sitemapUrls: ['https://gruene-brandenburg.de/wp-sitemap-posts-post-1.xml'],
+        },
+        {
+          type: 'beschluss',
+          path: '/beschluesse/',
+          listSelector: 'a[href$=".pdf"]',
+          isPdfArchive: true,
+          maxPages: 1,
+        },
+        {
+          type: 'wahlprogramm',
+          path: '/wahlprogramme/',
+          listSelector: 'a[href*="LTW2024"], a[href*="BRANDENBURG_VOR_ORT"]',
+          isPdfArchive: true,
+          maxPages: 1,
+        },
+      ],
+      contentSelectors: {
+        title: ['h1', 'h1.wp-block-heading', '.entry-title', 'meta[property="og:title"]'],
+        date: ['time[datetime]', '.entry-date', 'meta[property="article:published_time"]'],
+        content: ['.entry-content', '.wp-block-post-content', 'article .content', 'main article'],
+        categories: ['a[rel="category tag"]', '.category-links a', '.post-categories a'],
+        author: ['.author-name', '.byline', '.entry-author'],
+      },
+      excludePatterns: ['/tag/', '/author/', '/wp-admin/', '#', 'javascript:'],
+    },
+    {
+      id: 'brandenburg-archive-presse',
+      name: 'Grüne Brandenburg Archiv Presse',
+      shortName: 'BB',
+      type: 'landesverband',
+      baseUrl: 'https://archiv.gruene-brandenburg.de',
+      cms: 'typo3',
+      maxAgeYears: 5,
+      contentPaths: [
+        {
+          type: 'presse',
+          path: '/startseite',
+          listSelector: 'a[href*="/single-news/"]',
+          paginationPattern: '/seite-{page}',
+          paginationOffset: -1,
+          maxPages: 15,
+        },
+      ],
+      contentSelectors: {
+        title: ['h1', '.news-single h2', 'meta[property="og:title"]'],
+        date: [
+          'time[datetime]',
+          'time',
+          '.date',
+          '.news-date',
+          'meta[property="article:published_time"]',
+        ],
+        content: ['.news-text', '.bodytext', 'article', 'main .content'],
+        categories: ['.news-category', '.tags a', 'a[href*="/themen/"]'],
+        author: ['.author', '.byline'],
+      },
+      excludePatterns: ['/fileadmin/', '/typo3/', '#', 'javascript:', '.pdf', '.jpg', '.png'],
+    },
+    {
+      id: 'brandenburg-archive-beschluesse',
+      name: 'Grüne Brandenburg Archiv Beschlüsse',
+      shortName: 'BB',
+      type: 'landesverband',
+      baseUrl: 'https://archiv.gruene-brandenburg.de',
+      cms: 'typo3',
+      maxAgeYears: 5,
+      contentPaths: [
+        {
+          type: 'beschluss',
+          path: '/beschluesse',
+          listSelector: 'a[href*="/beschluesse/"], a[href$=".pdf"]',
+          maxPages: 1,
+        },
+      ],
+      contentSelectors: {
+        title: ['h1', '.news-single h2', 'meta[property="og:title"]'],
+        date: [
+          'time[datetime]',
+          'time',
+          '.date',
+          '.news-date',
+          'meta[property="article:published_time"]',
+        ],
+        content: ['.news-text', '.bodytext', 'article', 'main .content'],
+        categories: ['.news-category', '.tags a'],
+        author: ['.author', '.byline'],
+      },
+      excludePatterns: ['/fileadmin/', '/typo3/', '#', 'javascript:', '.jpg', '.png'],
     },
   ],
 };

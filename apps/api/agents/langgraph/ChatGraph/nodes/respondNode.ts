@@ -29,7 +29,7 @@ const ATTACHMENT_LIMITS = {
  * Keeps the introduction (60%) and conclusion (40%) for better context.
  * Documents typically have important info at the start and end.
  */
-function truncateDocument(
+export function truncateDocument(
   text: string,
   limit: number = ATTACHMENT_LIMITS.PER_DOCUMENT_CHARS
 ): string {
@@ -310,6 +310,42 @@ Nutze diese Zusammenfassung als Grundlage für deine Antwort.`;
 }
 
 /**
+ * Format board context (from @board mentions).
+ * Injects the board's columns and cards as structured text.
+ */
+function formatBoardContext(boardContext: string | null): string {
+  if (!boardContext) return '';
+
+  return `
+
+## BOARD-KONTEXT
+
+Der Nutzer hat ein Board referenziert. Hier ist der aktuelle Stand:
+
+${boardContext}
+
+---
+Beantworte Fragen zum Board basierend auf dessen Inhalt (Spalten, Karten, Status).`;
+}
+
+/**
+ * Format collaborative document context (from @doc mentions).
+ * Injects the document's text content for AI reference.
+ */
+function formatDocumentMentionContext(documentMentionContext: string | null): string {
+  if (!documentMentionContext) return '';
+
+  return `
+
+## REFERENZIERTE DOKUMENTE (vom Nutzer ausgewählt)
+
+${documentMentionContext}
+
+---
+Beantworte Fragen basierend auf dem Inhalt dieser Dokumente.`;
+}
+
+/**
  * Format memory context from mem0 cross-thread memories.
  * These are persistent facts and preferences about the user.
  */
@@ -354,12 +390,22 @@ Der Nutzer ist in Österreich. Beachte:
  * Build the complete system message with agent role and search context.
  */
 export async function buildSystemMessage(state: ChatGraphState): Promise<string> {
-  const { agentConfig, intent, threadAttachments, memoryContext, summaryContext } = state;
+  const {
+    agentConfig,
+    intent,
+    threadAttachments,
+    memoryContext,
+    summaryContext,
+    boardContext,
+    documentMentionContext,
+  } = state;
   const searchContext = await formatSearchContext(state);
   const attachmentContext = formatAttachmentContext(state);
   const summaryContextFormatted = formatSummaryContext(summaryContext);
   const threadAttachmentsContext = formatThreadAttachmentsContext(threadAttachments);
   const memoryContextFormatted = formatMemoryContext(memoryContext);
+  const boardContextFormatted = formatBoardContext(boardContext);
+  const docMentionContextFormatted = formatDocumentMentionContext(documentMentionContext);
   const localeContext = formatLocaleContext(state.userLocale);
 
   const isDocumentChatMode = state.documentChatIds?.length > 0;
@@ -373,12 +419,20 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
 
   const hasSources = state.searchResults.length > 0 && intent !== 'direct';
   const sourceCount = state.searchResults.filter((r) => r.url).length;
-  const citationInstruction = hasSources
-    ? `
+  const isPolishedContent = !!state.contentType;
+
+  let citationInstruction = '';
+  if (hasSources && isPolishedContent) {
+    citationInstruction = `
+5. Verwende die Suchergebnisse als Faktengrundlage, aber setze KEINE Inline-Quellenverweise [1], [2] etc. in den Text.
+6. Der Text soll als fertiges, professionelles Dokument lesbar sein. Die Quellen werden separat angezeigt.
+7. Erfinde KEINE Fakten — stütze dich auf die bereitgestellten Quellen.`;
+  } else if (hasSources) {
+    citationInstruction = `
 5. Du hast genau ${sourceCount} Quelle(n). Verwende NUR [1] bis [${sourceCount}] als Quellenverweise. Höhere Nummern existieren NICHT.
 6. Setze die Referenz direkt nach der Aussage, z.B.: "Die Grünen fordern ein Tempolimit [1]."
-7. Erfinde KEINE zusätzlichen Quellen oder Quellenverweise über [${sourceCount}] hinaus.`
-    : '';
+7. Erfinde KEINE zusätzlichen Quellen oder Quellenverweise über [${sourceCount}] hinaus.`;
+  }
 
   const today = new Date().toLocaleDateString('de-DE', {
     weekday: 'long',
@@ -386,6 +440,12 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
     month: 'long',
     year: 'numeric',
   });
+
+  // Custom system prompt: replaces the entire agent prompt when set
+  if (state.customSystemPrompt) {
+    return `${state.customSystemPrompt}
+Heutiges Datum: ${today}${localeContext}${memoryContextFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${attachmentContext}${summaryContextFormatted}${searchContext}${hasSources ? `\n${citationInstruction}` : ''}`;
+  }
 
   // Use a neutral, non-partisan system role for document summaries
   const NEUTRAL_SUMMARY_ROLE =
@@ -396,14 +456,15 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   const systemRole = localizePlaceholders(rawSystemRole, (state.userLocale as Locale) || 'de-DE');
 
   return `${systemRole}
-Heutiges Datum: ${today}${localeContext}${intentGuidance}${memoryContextFormatted}${threadAttachmentsContext}${attachmentContext}${summaryContextFormatted}${searchContext}
+Heutiges Datum: ${today}${localeContext}${intentGuidance}${memoryContextFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${attachmentContext}${summaryContextFormatted}${searchContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo
 2. Kurze, präzise Antworten (max 3-4 Absätze für einfache Fragen)
 3. Antworte auf Deutsch
 4. Erfinde keine Fakten oder Quellennamen
-5. Erstelle KEINE Quellenliste/Quellenverzeichnis am Ende — Quellen werden automatisch in der Oberfläche angezeigt${citationInstruction}`;
+5. Erstelle KEINE Quellenliste/Quellenverzeichnis am Ende — Quellen werden automatisch in der Oberfläche angezeigt
+6. Kompakte Formatierung: Maximal eine Leerzeile zwischen Absätzen. Keine doppelten Leerzeilen, keine horizontalen Trennlinien (---)${citationInstruction}`;
 }
 
 /**

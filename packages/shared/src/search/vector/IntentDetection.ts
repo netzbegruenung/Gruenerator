@@ -164,7 +164,7 @@ export function getContentPreferences(intentType: string): {
   preferredTypes: string[];
   boost: Record<string, number>;
 } {
-  return INTENT_CONTENT_PREFERENCES[intentType] || INTENT_CONTENT_PREFERENCES.general;
+  return INTENT_CONTENT_PREFERENCES[intentType] ?? INTENT_CONTENT_PREFERENCES.general!;
 }
 
 /**

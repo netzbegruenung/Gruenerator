@@ -149,7 +149,10 @@ export interface ChatGraphInput {
   documentIds?: string[];
   textIds?: string[];
   documentChatIds?: string[];
+  boardIds?: string[];
+  docMentionIds?: string[];
   userLocale?: UserLocale;
+  customSystemPrompt?: string;
 }
 
 /**
@@ -186,6 +189,17 @@ export interface ChatGraphState {
   // Document chat scoping (from @dokumentchat multi-select)
   documentChatIds: string[];
 
+  // Board context (from @board mentions)
+  boardIds: string[];
+  boardContext: string | null;
+
+  // Collaborative document context (from @doc mentions)
+  docMentionIds: string[];
+  documentMentionContext: string | null;
+
+  // Custom system prompt (replaces entire agent system prompt when set)
+  customSystemPrompt: string | null;
+
   // Memory context (from mem0 cross-thread memory)
   memoryContext: string | null;
   memoryRetrieveTimeMs: number;
@@ -196,6 +210,7 @@ export interface ChatGraphState {
   searchQuery: string | null;
   subQueries: string[] | null;
   reasoning: string;
+  contentType: string | null;
   hasTemporal: boolean;
   complexity: 'simple' | 'moderate' | 'complex';
 
@@ -280,6 +295,7 @@ export interface ClassificationResult {
   subQueries?: string[] | null;
   filters?: SubcategoryFilters | null;
   reasoning: string;
+  contentType?: string | null;
   needsClarification?: boolean;
   clarificationQuestion?: string;
   clarificationOptions?: string[];

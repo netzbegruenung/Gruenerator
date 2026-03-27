@@ -1,8 +1,7 @@
-import { useState, useMemo } from 'react';
+import { PreviewImage as BasePreviewImage } from '@gruenerator/ui';
+import { useMemo } from 'react';
 
 import { lqipMap } from '../utils/lqipMap';
-
-import './PreviewImage.css';
 
 interface PreviewImageProps {
   src: string;
@@ -30,48 +29,18 @@ const PreviewImage: React.FC<PreviewImageProps> = ({
   width,
   height,
 }) => {
-  const [loaded, setLoaded] = useState(false);
-  const lqip = useMemo(() => getLqip(src, fallbackSrc), [src, fallbackSrc]);
-  const isWebp = src.endsWith('.webp');
+  const placeholder = useMemo(() => getLqip(src, fallbackSrc), [src, fallbackSrc]);
 
   return (
-    <div
-      className={`preview-image-wrapper ${loaded ? 'preview-image-wrapper--loaded' : ''}`}
-      style={
-        lqip
-          ? {
-              backgroundImage: `url(${lqip})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            }
-          : undefined
-      }
-    >
-      {isWebp && fallbackSrc ? (
-        <picture>
-          <source srcSet={src} type="image/webp" />
-          <img
-            src={fallbackSrc}
-            alt={alt}
-            className={className}
-            loading="lazy"
-            width={width}
-            height={height}
-            onLoad={() => setLoaded(true)}
-          />
-        </picture>
-      ) : (
-        <img
-          src={src}
-          alt={alt}
-          className={className}
-          loading="lazy"
-          width={width}
-          height={height}
-          onLoad={() => setLoaded(true)}
-        />
-      )}
-    </div>
+    <BasePreviewImage
+      src={src}
+      fallbackSrc={fallbackSrc}
+      alt={alt}
+      placeholder={placeholder}
+      className={className}
+      width={width}
+      height={height}
+    />
   );
 };
 

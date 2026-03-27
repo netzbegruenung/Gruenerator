@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useCallback } from 'react';
+import { memo, useRef, useState, useCallback } from 'react';
 import { ComposerPrimitive, useComposerRuntime } from '@assistant-ui/react';
 import { useAuiState } from '@assistant-ui/store';
 import { ArrowUp, Mic, Square, X } from 'lucide-react';
@@ -21,6 +21,13 @@ import type { DocumentMention } from '../../lib/documentMentionables';
 interface GrueneratorComposerProps {
   isRunning?: boolean;
   toolbarExtra?: React.ReactNode;
+  onNavigate?: (path: string) => void;
+  firstName?: string | null;
+  placeholder?: string;
+  disclaimer?: string;
+  showMentions?: boolean;
+  showPlusMenu?: boolean;
+  showToolToggles?: boolean;
 }
 
 function SendButton() {
@@ -96,7 +103,17 @@ const INITIAL_MENTION_STATE: MentionState = {
   mentionStart: -1,
 };
 
-export function GrueneratorComposer({ isRunning, toolbarExtra }: GrueneratorComposerProps) {
+export const GrueneratorComposer = memo(function GrueneratorComposer({
+  isRunning,
+  toolbarExtra,
+  onNavigate,
+  firstName,
+  placeholder = 'Nachricht schreiben...',
+  disclaimer = 'Grünerator kann Fehler machen. Wichtige Infos bitte prüfen.',
+  showMentions = true,
+  showPlusMenu = true,
+  showToolToggles = true,
+}: GrueneratorComposerProps) {
   const composerRuntime = useComposerRuntime();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadRef = useRef<HTMLButtonElement>(null);
@@ -253,9 +270,9 @@ export function GrueneratorComposer({ isRunning, toolbarExtra }: GrueneratorComp
   }, []);
 
   return (
-    <div className="px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-      <ComposerPrimitive.Root className="relative mx-auto flex w-full max-w-3xl flex-col rounded-3xl border border-border bg-surface">
-        <ComposerPrimitive.Quote className="mx-3 mt-3 flex items-start gap-2 rounded-r-lg border-l-4 border-primary/40 bg-primary/5 px-3 py-2 text-sm">
+    <div className="px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] sm:pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <ComposerPrimitive.Root className="composer-root relative mx-auto flex w-full max-w-3xl flex-col rounded-3xl border border-border bg-white shadow-lg transition-shadow focus-within:shadow-xl focus-within:border-primary/30 dark:bg-surface dark:shadow-sm dark:focus-within:shadow-md">
+        <ComposerPrimitive.Quote className="mx-4 mt-4 flex items-start gap-2 rounded-r-lg border-l-4 border-primary/40 bg-primary/5 px-3 py-2 text-sm">
           <ComposerPrimitive.QuoteText className="line-clamp-2 flex-1 italic text-foreground-muted" />
           <ComposerPrimitive.QuoteDismiss className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-foreground-muted hover:text-foreground">
             <X className="h-3 w-3" />
@@ -264,59 +281,63 @@ export function GrueneratorComposer({ isRunning, toolbarExtra }: GrueneratorComp
 
         <ComposerAttachments />
 
-        {mention.mode === 'datei' ? (
-          <FileMentionPopover
-            visible={mention.visible}
-            onSelect={handleDocumentSelect}
-            onDismiss={dismissPopover}
-          />
-        ) : mention.mode === 'skills' ? (
-          <SkillPopover
-            query={mention.query}
-            visible={mention.visible}
-            onSelect={handleSelect}
-            onDismiss={dismissPopover}
-            selectedIndex={mention.selectedIndex}
-            anchorRect={mention.anchorRect}
-          />
-        ) : (
-          <MentionPopover
-            query={mention.query}
-            visible={mention.visible}
-            onSelect={handleSelect}
-            onDismiss={dismissPopover}
-            selectedIndex={mention.selectedIndex}
-            anchorRect={mention.anchorRect}
-          />
-        )}
+        {showMentions &&
+          (mention.mode === 'datei' ? (
+            <FileMentionPopover
+              visible={mention.visible}
+              onSelect={handleDocumentSelect}
+              onDismiss={dismissPopover}
+            />
+          ) : mention.mode === 'skills' ? (
+            <SkillPopover
+              query={mention.query}
+              visible={mention.visible}
+              onSelect={handleSelect}
+              onDismiss={dismissPopover}
+              selectedIndex={mention.selectedIndex}
+              anchorRect={mention.anchorRect}
+            />
+          ) : (
+            <MentionPopover
+              query={mention.query}
+              visible={mention.visible}
+              onSelect={handleSelect}
+              onDismiss={dismissPopover}
+              selectedIndex={mention.selectedIndex}
+              anchorRect={mention.anchorRect}
+            />
+          ))}
 
-        <div className="flex items-center">
-          <div className="input-tools-button flex items-center gap-1">
+        <ComposerPrimitive.Input
+          ref={textareaRef}
+          autoFocus={
+            typeof window !== 'undefined' && !window.matchMedia('(pointer: coarse)').matches
+          }
+          placeholder={placeholder}
+          className="min-h-[3rem] max-h-40 w-full flex-grow resize-none bg-transparent px-5 pt-4 pb-2 text-foreground outline-none placeholder:text-foreground-muted/60"
+          onChange={showMentions ? handleChange : undefined}
+          onKeyDown={showMentions ? handleKeyDown : undefined}
+        />
+
+        <div className="flex items-center justify-between px-2 pb-2">
+          <div className="flex items-center gap-0.5">
             <ComposerPrimitive.AddAttachment asChild>
               <button ref={uploadRef} className="hidden" aria-hidden="true" />
             </ComposerPrimitive.AddAttachment>
-            <PlusMenu
-              onInsertMention={handleSelect}
-              onOpenFileBrowser={handlePlusMenuOpenFileBrowser}
-              onUploadFile={handlePlusMenuUpload}
-            />
-            <ToolToggles />
+            {showPlusMenu && (
+              <PlusMenu
+                onInsertMention={handleSelect}
+                onOpenFileBrowser={handlePlusMenuOpenFileBrowser}
+                onUploadFile={handlePlusMenuUpload}
+              />
+            )}
+            {showToolToggles && <ToolToggles onNavigate={onNavigate} firstName={firstName} />}
+            {toolbarExtra}
           </div>
-          {toolbarExtra}
-          <ComposerPrimitive.Input
-            ref={textareaRef}
-            autoFocus
-            placeholder="Nachricht schreiben"
-            className="h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 pl-2 text-foreground outline-none placeholder:text-foreground-muted"
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-          />
           <ComposerButtons isRunning={isRunning} />
         </div>
       </ComposerPrimitive.Root>
-      <p className="mt-2 text-center text-xs text-foreground-muted">
-        Grünerator kann Fehler machen. Wichtige Infos bitte prüfen.
-      </p>
+      <p className="mt-1 hidden text-center text-xs text-foreground-muted sm:block">{disclaimer}</p>
     </div>
   );
-}
+});

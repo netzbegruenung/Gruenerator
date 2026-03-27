@@ -28,7 +28,6 @@ const LiveSubtitlePreview: React.FC<LiveSubtitlePreviewProps> = ({
   heightPreference = 'tief',
   subtitlePreference = 'manual',
 }) => {
-  // Get user locale for Austria-specific styling
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
 
@@ -46,7 +45,6 @@ const LiveSubtitlePreview: React.FC<LiveSubtitlePreviewProps> = ({
   }, [videoMetadata, editableSubtitles, subtitlePreference, stylePreference]);
 
   const getStyleForPreference = useMemo((): React.CSSProperties => {
-    // Base styles - use GrueneType as default, Montserrat for Austrian users
     const baseStyles: React.CSSProperties = {
       fontFamily: isAustrian
         ? "'Montserrat', Arial, sans-serif"
@@ -82,14 +80,12 @@ const LiveSubtitlePreview: React.FC<LiveSubtitlePreviewProps> = ({
       case 'tanne':
         return {
           ...baseStyles,
-          // Use Austrian Green (#6baa25) for Austrian users, German Green (#005538) for German users
           backgroundColor: isAustrian ? '#6baa25' : '#005538',
           textShadow: 'none',
           padding: '0.2em 0.4em',
           borderRadius: '0.1em',
         };
 
-      // Grüne Jugend styles with GJFontRegular
       case 'gj_clean':
         return {
           ...baseStyles,
@@ -117,7 +113,7 @@ const LiveSubtitlePreview: React.FC<LiveSubtitlePreviewProps> = ({
           ...baseStyles,
           fontFamily: "'GJFontRegular', Arial, sans-serif",
           fontWeight: 'normal',
-          backgroundColor: '#9f88ff', // Lavendel color
+          backgroundColor: '#9f88ff',
           color: '#ffffff',
           textShadow: 'none',
           padding: '0.2em 0.4em',
@@ -129,8 +125,8 @@ const LiveSubtitlePreview: React.FC<LiveSubtitlePreviewProps> = ({
           ...baseStyles,
           fontFamily: "'GJFontRegular', Arial, sans-serif",
           fontWeight: 'normal',
-          backgroundColor: '#c7ff7a', // Light green color
-          color: '#000000', // Black text for contrast on light background
+          backgroundColor: '#c7ff7a',
+          color: '#000000',
           textShadow: 'none',
           padding: '0.2em 0.4em',
           borderRadius: '0.1em',
@@ -155,13 +151,10 @@ const LiveSubtitlePreview: React.FC<LiveSubtitlePreviewProps> = ({
 
   const { fontSize, marginL, marginR } = calculatedStyles;
 
-  // Detect mobile devices
   const isMobile = window.innerWidth <= 768;
 
-  // Fixed positioning matching backend: standard = 33% from bottom, tief = 20% from bottom
   const relativeMarginV = heightPreference === 'tief' ? 20 : 33;
 
-  // Mobile-optimized font size calculation
   let relativeFontSize;
   if (isMobile) {
     relativeFontSize = Math.min(3.5, Math.max(2, (fontSize / videoMetadata.height) * 8));
@@ -186,15 +179,14 @@ const LiveSubtitlePreview: React.FC<LiveSubtitlePreviewProps> = ({
     fontSize: `${relativeFontSize}vw`,
   };
 
-  // Mobile specific adjustments
   if (isMobile) {
     textStyles.fontSize = 'clamp(14px, 3vw, 18px)';
     textStyles.lineHeight = '1.1';
   }
 
   return (
-    <div className="live-subtitle-preview" style={containerStyles}>
-      <div className="live-subtitle-text" style={textStyles}>
+    <div className="pointer-events-none" style={containerStyles}>
+      <div className="antialiased" style={textStyles}>
         {activeSegment.text}
       </div>
     </div>

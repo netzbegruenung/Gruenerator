@@ -375,7 +375,7 @@ export async function setExperimentalSession(
   try {
     // Generate session ID if not provided
     const sessionId =
-      sessionData.sessionId || `exp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      sessionData.sessionId || `exp_${Date.now()}_${crypto.randomUUID().slice(0, 9)}`;
 
     // Add timestamps if not present
     const now = Date.now();

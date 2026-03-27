@@ -21,9 +21,10 @@ export function computeMentionInsertion(
   const after = mentionStart >= 0 ? currentText.slice(caretPosition) : '';
   const prefix = before.length > 0 && !before.endsWith(' ') && mentionStart < 0 ? ' ' : '';
   const ctxSuffix = mentionable.contextPrefix ? `${mentionable.contextPrefix} ` : '';
-  const newText = `${before}${prefix}${trigger}${mentionable.mention} ${ctxSuffix}${after}`;
+  const tmpl = mentionable.promptTemplate ?? '';
+  const newText = `${before}${prefix}${trigger}${mentionable.mention} ${ctxSuffix}${tmpl}${after}`;
   const cursorPosition =
-    before.length + prefix.length + mentionable.mention.length + 2 + ctxSuffix.length;
+    before.length + prefix.length + mentionable.mention.length + 2 + ctxSuffix.length + tmpl.length;
 
   return { newText, cursorPosition };
 }

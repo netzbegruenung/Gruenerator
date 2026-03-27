@@ -1,18 +1,13 @@
-import {
-  ThreadRoot,
-  ThreadMessages,
-  ThreadEmpty,
-  useAui,
-  type ThreadMessage,
-} from '@assistant-ui/react-native';
+import { ThreadPrimitive, useAui } from '@assistant-ui/react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { chatSuggestions } from '@gruenerator/chat';
-import { memo, useCallback, useRef, useState } from 'react';
-import { View, Text, type TextInput, Pressable, StyleSheet, useColorScheme } from 'react-native';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { View, Text, type TextInput, StyleSheet } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+import { useTheme } from '../../hooks/useTheme';
+import { spacing, borderRadius } from '../../theme';
 
 import { AssistantComposer } from './AssistantComposer';
 import { DocumentBrowserSheet } from './DocumentBrowserSheet';
@@ -25,8 +20,6 @@ interface Props {
 }
 
 const EmptyState = memo(function EmptyState({ theme }: { theme: Theme }) {
-  const aui = useAui();
-
   return (
     <View style={styles.emptyContainer}>
       <Ionicons name="chatbubble-ellipses-outline" size={48} color={theme.textSecondary} />
@@ -36,14 +29,15 @@ const EmptyState = memo(function EmptyState({ theme }: { theme: Theme }) {
       </Text>
       <View style={styles.suggestionsGrid}>
         {chatSuggestions.map((s, i) => (
-          <Pressable
+          <ThreadPrimitive.Suggestion
             key={i}
-            onPress={() => aui.composer().setText(s.prompt)}
+            prompt={s.prompt}
+            send={false}
             style={[styles.suggestionChip, { borderColor: theme.border }]}
           >
             <Text style={[styles.suggestionTitle, { color: theme.text }]}>{s.title}</Text>
             <Text style={[styles.suggestionLabel, { color: theme.textSecondary }]}>{s.label}</Text>
-          </Pressable>
+          </ThreadPrimitive.Suggestion>
         ))}
       </View>
     </View>
@@ -53,17 +47,14 @@ const EmptyState = memo(function EmptyState({ theme }: { theme: Theme }) {
 const messagesContentStyle = { paddingTop: spacing.small };
 
 export const AssistantThread = memo(function AssistantThread({ theme: themeProp }: Props) {
-  const colorScheme = useColorScheme();
-  const theme: Theme = themeProp ?? (colorScheme === 'dark' ? darkTheme : lightTheme);
+  const resolvedTheme = useTheme();
+  const theme: Theme = themeProp ?? resolvedTheme;
   const insets = useSafeAreaInsets();
   const aui = useAui();
   const composerInputRef = useRef<TextInput>(null);
   const [docBrowserVisible, setDocBrowserVisible] = useState(false);
 
-  const renderMessage = useCallback(
-    ({ message }: { message: ThreadMessage }) => <MessageBubble theme={theme} message={message} />,
-    [theme]
-  );
+  const messageComponents = useMemo(() => ({ Message: MessageBubble }), []);
 
   const handleOpenDocBrowser = useCallback(() => setDocBrowserVisible(true), []);
 
@@ -82,12 +73,12 @@ export const AssistantThread = memo(function AssistantThread({ theme: themeProp 
 
   return (
     <KeyboardAvoidingView behavior="padding" style={styles.container}>
-      <ThreadRoot style={[styles.container, { backgroundColor: theme.background }]}>
-        <ThreadEmpty>
+      <ThreadPrimitive.Root style={[styles.container, { backgroundColor: theme.background }]}>
+        <ThreadPrimitive.Empty>
           <EmptyState theme={theme} />
-        </ThreadEmpty>
-        <ThreadMessages
-          renderMessage={renderMessage}
+        </ThreadPrimitive.Empty>
+        <ThreadPrimitive.Messages
+          components={messageComponents}
           contentContainerStyle={messagesContentStyle}
           keyboardDismissMode="interactive"
         />
@@ -103,7 +94,7 @@ export const AssistantThread = memo(function AssistantThread({ theme: themeProp 
           onSelect={handleDocumentSelect}
           onDismiss={() => setDocBrowserVisible(false)}
         />
-      </ThreadRoot>
+      </ThreadPrimitive.Root>
     </KeyboardAvoidingView>
   );
 });

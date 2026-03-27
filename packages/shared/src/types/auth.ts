@@ -53,7 +53,7 @@ export type AuthStore = AuthState & AuthActions;
 export interface ApiConfig {
   baseURL: string;
   getAuthToken?: () => Promise<string | null>;
-  onUnauthorized?: () => void;
+  onUnauthorized?: () => void | Promise<boolean>;
 }
 
 /**

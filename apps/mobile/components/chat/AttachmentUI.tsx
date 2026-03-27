@@ -1,4 +1,4 @@
-import { useAuiState, AttachmentRemove } from '@assistant-ui/react-native';
+import { useAuiState, AttachmentPrimitive } from '@assistant-ui/react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { View, Text, StyleSheet } from 'react-native';
@@ -33,11 +33,11 @@ export function ComposerAttachmentUI() {
       <Text style={styles.composerName} numberOfLines={1}>
         {name}
       </Text>
-      <AttachmentRemove style={styles.removeHitArea} hitSlop={8}>
+      <AttachmentPrimitive.Remove style={styles.removeHitArea} hitSlop={8}>
         <View style={styles.removeCircle}>
           <Ionicons name="close" size={10} color={colors.white} />
         </View>
-      </AttachmentRemove>
+      </AttachmentPrimitive.Remove>
     </View>
   );
 }

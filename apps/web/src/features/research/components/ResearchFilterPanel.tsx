@@ -1,11 +1,9 @@
+import { Badge, Button, Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { useState } from 'react';
 import { HiAdjustmentsHorizontal, HiCheck, HiChevronDown } from 'react-icons/hi2';
 
 import { type ActiveFilters, type FilterFieldConfig } from '../useResearchFilters';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/utils/cn';
 
 interface ResearchFilterPanelProps {

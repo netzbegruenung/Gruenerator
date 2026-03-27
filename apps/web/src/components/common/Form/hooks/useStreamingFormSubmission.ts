@@ -62,9 +62,10 @@ const useStreamingFormSubmission = (
     }
   }, [isStreaming, streamingText, componentName, setGeneratedText]);
 
-  // Read generated content from store
-  const generatedContent =
-    useGeneratedTextStore((state) => state.getGeneratedText(componentName)) || '';
+  // Read generated content from store — narrow selector: only re-renders when THIS component's content changes
+  const generatedContent = useGeneratedTextStore(
+    (state) => state.generatedTexts[componentName] ?? ''
+  ) as string | Record<string, unknown>;
 
   const handleGeneratedContentChange = useCallback(
     (content: string) => {

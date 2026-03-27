@@ -1,17 +1,16 @@
-import React, { useState } from 'react';
-import { FaChevronDown, FaChevronUp, FaFolder, FaUsers } from 'react-icons/fa';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-
-import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
-
-import type { IconType } from 'react-icons';
-
 import {
   DropdownMenuItem,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@gruenerator/ui';
+import React, { useState } from 'react';
+import { FaChevronDown, FaChevronUp, FaCloud, FaFolder, FaUsers } from 'react-icons/fa';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+
+import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
+
+import type { IconType } from 'react-icons';
 
 interface MenuItem {
   key: string;
@@ -38,12 +37,13 @@ const PROFILE_MENU_ITEMS: MenuItem[] = [
   {
     key: 'gruppen',
     label: 'Gruppen',
-    path: '/profile/gruppen',
+    path: '/gruppen',
     betaFeature: 'groups',
     icon: FaUsers,
     hasSubmenu: true,
   },
   { key: 'inhalte', label: 'Dateien', path: '/profile/inhalte', icon: FaFolder },
+  { key: 'wolke', label: 'Wolke', path: '/profile/wolke', icon: FaCloud },
 ];
 
 const ProfileMenu = ({
@@ -86,7 +86,7 @@ const ProfileMenu = ({
           if (hasGroups) {
             return (
               <DropdownMenuSub key={item.key}>
-                <DropdownMenuSubTrigger className="gap-2">
+                <DropdownMenuSubTrigger className="gap-sm py-2">
                   <item.icon className="text-base opacity-80" />
                   {item.label}
                 </DropdownMenuSubTrigger>
@@ -97,7 +97,7 @@ const ProfileMenu = ({
                   {groups.map((group) => (
                     <DropdownMenuItem
                       key={group.id}
-                      onSelect={() => void navigate(`/profile/gruppen?group=${group.id}`)}
+                      onSelect={() => void navigate(`/gruppen/${group.id}`)}
                     >
                       {group.name}
                     </DropdownMenuItem>
@@ -110,7 +110,7 @@ const ProfileMenu = ({
           return (
             <DropdownMenuItem
               key={item.key}
-              className="gap-2 cursor-pointer"
+              className="gap-sm py-2 cursor-pointer"
               onSelect={() => void navigate(item.path)}
             >
               <item.icon className="text-base opacity-80" />
@@ -157,7 +157,7 @@ const ProfileMenu = ({
                   {groups.map((group) => (
                     <Link
                       key={group.id}
-                      to={`/profile/gruppen?group=${group.id}`}
+                      to={`/gruppen/${group.id}`}
                       className="profile-menu-submenu-item"
                       onClick={handleClick}
                     >

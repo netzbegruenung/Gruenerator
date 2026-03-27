@@ -1,0 +1,38 @@
+/*
+ * Slide presentation styles
+ * CSS variables for Presenton-compatible theming
+ */
+
+:root {
+  /* Default Green Party theme */
+  --slide-primary-color: #005538;
+  --slide-primary-text: #ffffff;
+  --slide-background-color: #ffffff;
+  --slide-background-text: #111827;
+  --slide-card-color: #f9fafb;
+  --slide-stroke: #e5e7eb;
+  --slide-heading-font-family: 'Inter', 'Poppins', sans-serif;
+}
+
+/*
+ * Map our CSS variables to Presenton's expected variable names.
+ * This bridge allows ported layouts to work without modification.
+ */
+.slide-container {
+  --primary-color: var(--slide-primary-color);
+  --primary-text: var(--slide-primary-text);
+  --background-color: var(--slide-background-color);
+  --background-text: var(--slide-background-text);
+  --card-color: var(--slide-card-color);
+  --stroke: var(--slide-stroke);
+  --heading-font-family: var(--slide-heading-font-family);
+}
+
+[data-theme='dark'] .slide-container {
+  --slide-primary-color: #46962b;
+  --slide-primary-text: #ffffff;
+  --slide-background-color: #1f2937;
+  --slide-background-text: #f3f4f6;
+  --slide-card-color: #374151;
+  --slide-stroke: #4b5563;
+}

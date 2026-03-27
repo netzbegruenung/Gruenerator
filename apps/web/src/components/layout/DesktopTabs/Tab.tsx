@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { cn } from '../../../utils/cn';
 import { useDesktopTabsStore, type Tab as TabType } from '../../../stores/desktopTabsStore';
 
 interface TabProps {
@@ -61,7 +62,12 @@ const Tab: React.FC<TabProps> = ({
   return (
     <div
       ref={tabRef}
-      className={`desktop-tab ${isActive ? 'active' : ''} ${isDragging ? 'dragging' : ''} ${tab.isDirty ? 'dirty' : ''}`}
+      className={cn(
+        'desktop-tab group flex items-center gap-2 h-9 min-w-[80px] max-w-[280px] w-[200px] px-3 pl-3.5 bg-transparent border-none rounded-[10px] cursor-pointer transition-all duration-[0.18s] ease-in-out relative select-none shrink',
+        'hover:bg-grey-100 dark:hover:bg-grey-800',
+        isActive && 'bg-background dark:bg-grey-900 rounded-b-none -mb-px pb-px',
+        isDragging && 'opacity-60 scale-[0.98]',
+      )}
       role="tab"
       aria-selected={isActive}
       tabIndex={isActive ? 0 : -1}
@@ -76,17 +82,34 @@ const Tab: React.FC<TabProps> = ({
       onDrop={(e) => onDrop(e, index)}
       onDragEnd={onDragEnd}
     >
-      {tab.isLoading && <span className="tab-loading-indicator" />}
-
-      {tab.isDirty && !tab.isLoading && (
-        <span className="tab-dirty-indicator" aria-label="Ungespeicherte Änderungen" />
+      {tab.isLoading && (
+        <span className="w-3.5 h-3.5 border-2 border-grey-200 dark:border-grey-700 border-t-primary-500 dark:border-t-primary-400 rounded-full animate-spin shrink-0" />
       )}
 
-      <span className="tab-title">{tab.title}</span>
+      {tab.isDirty && !tab.isLoading && (
+        <span
+          className="w-2 h-2 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 shrink-0 shadow-[0_0_0_2px_var(--background-color)] dark:shadow-[0_0_0_2px_var(--grey-900)]"
+          aria-label="Ungespeicherte Änderungen"
+        />
+      )}
+
+      <span
+        className={cn(
+          'flex-1 text-[13px] font-medium text-grey-600 dark:text-grey-400 whitespace-nowrap overflow-hidden text-ellipsis min-w-0 tracking-[-0.01em]',
+          isActive && 'text-foreground dark:text-grey-100 font-semibold'
+        )}
+      >
+        {tab.title}
+      </span>
 
       {tabs.length > 1 && (
         <button
-          className="tab-close-btn"
+          className={cn(
+            'flex items-center justify-center w-5 h-5 border-none bg-transparent rounded-md cursor-pointer opacity-0 transition-all duration-150 ease-in-out text-grey-400 dark:text-grey-500 shrink-0 p-0 -ml-1',
+            'hover:bg-grey-200 hover:text-grey-700 dark:hover:bg-grey-700 dark:hover:text-grey-200 active:scale-[0.92]',
+            'group-hover:opacity-100',
+            (isActive) && 'opacity-100'
+          )}
           onClick={handleClose}
           aria-label={`Tab "${tab.title}" schließen`}
         >

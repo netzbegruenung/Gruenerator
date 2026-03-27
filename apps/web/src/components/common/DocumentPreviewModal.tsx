@@ -6,7 +6,6 @@ import { formatDate } from '../utils/documentOverviewUtils';
 import { Markdown } from './Markdown';
 
 import '../../assets/styles/pages/AntragDetailPage.css';
-import '../../assets/styles/common/markdown-styles.css';
 
 interface DocumentItem {
   title?: string;

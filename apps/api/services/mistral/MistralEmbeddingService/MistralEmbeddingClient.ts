@@ -1,3 +1,4 @@
+import { parallelLimit } from '../../../utils/parallelLimit.js';
 import mistralClient from '../../../workers/mistralClient.js';
 
 export interface MistralEmbeddingOptions {
@@ -12,9 +13,14 @@ export interface RetryableError extends Error {
 
 export class MistralEmbeddingClient {
   private model: string;
+  private maxConcurrentBatches: number;
 
   constructor({ model = 'mistral-embed' }: MistralEmbeddingOptions = {}) {
     this.model = model;
+    this.maxConcurrentBatches = Math.max(
+      1,
+      parseInt(process.env.MISTRAL_EMBEDDING_CONCURRENCY || '3', 10)
+    );
   }
 
   // Mistral API rejects individual texts exceeding 8192 tokens.
@@ -58,70 +64,28 @@ export class MistralEmbeddingClient {
       `[MistralEmbeddingClient] Splitting ${texts.length} texts into ${batches.length} batches`
     );
 
-    const allEmbeddings: number[][] = [];
+    // Process batches concurrently with stagger to avoid API burst
+    const STAGGER_MS = 100;
 
-    for (let i = 0; i < batches.length; i++) {
-      const batch = batches[i];
+    const tasks = batches.map((batch, i) => async () => {
+      // Stagger by batch index to spread initial launches
+      if (i > 0) {
+        await new Promise((r) => setTimeout(r, STAGGER_MS * i));
+      }
+
       console.log(
         `[MistralEmbeddingClient] Processing batch ${i + 1}/${batches.length} (${batch.length} texts)`
       );
 
       try {
-        const batchEmbeddings = await this.processSingleBatch(batch);
-        allEmbeddings.push(...batchEmbeddings);
+        return await this.processSingleBatch(batch);
       } catch (error) {
-        const err = error as Error;
-        console.error(`[MistralEmbeddingClient] Batch ${i + 1} failed:`, err.message);
-
-        // If batch still fails, try processing texts individually
-        if (batch.length > 1) {
-          console.log(
-            `[MistralEmbeddingClient] Falling back to individual processing for batch ${i + 1}`
-          );
-          for (const text of batch) {
-            try {
-              const embedding = await this.generateEmbedding(text);
-              allEmbeddings.push(embedding);
-            } catch (individualError) {
-              const indErr = individualError as Error;
-              // If a single text exceeds token limit even after truncation, skip it
-              // with a zero vector rather than aborting the entire document
-              if (
-                indErr.message.includes('exceeding max') ||
-                indErr.message.includes('too many tokens')
-              ) {
-                console.warn(
-                  `[MistralEmbeddingClient] Skipping oversized text (${text.length} chars) — using zero vector`
-                );
-                // Generate a zero vector with the correct dimension (1024 for mistral-embed)
-                allEmbeddings.push(new Array(1024).fill(0));
-              } else {
-                console.error(`[MistralEmbeddingClient] Individual text failed:`, indErr.message);
-                throw new Error(`Failed to generate embedding for text: ${indErr.message}`);
-              }
-            }
-          }
-        } else {
-          // Single-text batch failed — check if it's an oversized text error
-          const errMsg = (error as Error).message || '';
-          if (errMsg.includes('exceeding max') || errMsg.includes('too many tokens')) {
-            console.warn(
-              `[MistralEmbeddingClient] Skipping oversized text (${batch[0].length} chars) — using zero vector`
-            );
-            allEmbeddings.push(new Array(1024).fill(0));
-          } else {
-            throw error;
-          }
-        }
+        return await this.processBatchFallback(batch, i, error as Error);
       }
+    });
 
-      // Add small delay between batches to avoid rate limiting
-      if (i < batches.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-    }
-
-    return allEmbeddings;
+    const results = await parallelLimit(tasks, this.maxConcurrentBatches);
+    return results.flat();
   }
 
   private async processSingleBatch(texts: string[]): Promise<number[][]> {
@@ -137,6 +101,50 @@ export class MistralEmbeddingClient {
         throw new Error('Embedding batch size mismatch');
       return arr.map((d) => d.embedding as number[]);
     }, 'processSingleBatch');
+  }
+
+  private async processBatchFallback(
+    batch: string[],
+    batchIndex: number,
+    error: Error
+  ): Promise<number[][]> {
+    console.error(`[MistralEmbeddingClient] Batch ${batchIndex + 1} failed:`, error.message);
+
+    if (batch.length > 1) {
+      console.log(
+        `[MistralEmbeddingClient] Falling back to individual processing for batch ${batchIndex + 1}`
+      );
+      const results: number[][] = [];
+      for (const text of batch) {
+        try {
+          results.push(await this.generateEmbedding(text));
+        } catch (individualError) {
+          const indErr = individualError as Error;
+          if (
+            indErr.message.includes('exceeding max') ||
+            indErr.message.includes('too many tokens')
+          ) {
+            console.warn(
+              `[MistralEmbeddingClient] Skipping oversized text (${text.length} chars) — using zero vector`
+            );
+            results.push(new Array(1024).fill(0));
+          } else {
+            console.error(`[MistralEmbeddingClient] Individual text failed:`, indErr.message);
+            throw new Error(`Failed to generate embedding for text: ${indErr.message}`);
+          }
+        }
+      }
+      return results;
+    }
+
+    const errMsg = error.message || '';
+    if (errMsg.includes('exceeding max') || errMsg.includes('too many tokens')) {
+      console.warn(
+        `[MistralEmbeddingClient] Skipping oversized text (${batch[0].length} chars) — using zero vector`
+      );
+      return [new Array(1024).fill(0)];
+    }
+    throw error;
   }
 
   estimateTokens(text: string): number {

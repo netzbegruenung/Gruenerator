@@ -72,4 +72,8 @@ export const COLLECTION_MAP: Record<string, CollectionMapping> = {
     qdrantCollection: 'landesverbaende_documents',
     systemId: 'mecklenburg-vorpommern-system',
   },
+  brandenburg: {
+    qdrantCollection: 'landesverbaende_documents',
+    systemId: 'brandenburg-system',
+  },
 };

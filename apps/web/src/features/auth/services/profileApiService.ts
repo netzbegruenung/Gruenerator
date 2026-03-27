@@ -1,9 +1,12 @@
-import apiClient from '../../../components/utils/apiClient';
 import {
   getRobotAvatarPath,
   validateRobotId,
   getRobotAvatarAlt,
-} from '../../groups/utils/avatarUtils';
+  shouldShowRobotAvatar,
+  getInitials,
+} from '@gruenerator/shared/avatar';
+
+import apiClient from '../../../components/utils/apiClient';
 
 export interface Profile {
   avatar_robot_id?: string | number;
@@ -41,7 +44,6 @@ export interface AnweisungenWissen {
 }
 
 export interface GroupAnweisungenWissen extends AnweisungenWissen {
-  customPrompt?: string;
   groupInfo?: {
     [key: string]: unknown;
   };
@@ -52,7 +54,6 @@ export interface GroupAnweisungenWissen extends AnweisungenWissen {
     isAdmin?: boolean;
   };
   joinToken?: string;
-  instructionsEnabled?: boolean;
 }
 
 export interface InstructionsStatusResponse {
@@ -62,14 +63,8 @@ export interface InstructionsStatusResponse {
 }
 
 export interface AnweisungenSaveData {
-  customPrompt?: string;
-  instructionsEnabled?: boolean;
   presseabbinder?: string;
   knowledge?: KnowledgeEntry[];
-  _groupMembership?: {
-    isAdmin: boolean;
-    role?: string;
-  };
 }
 
 export interface AnweisungenSaveResponse {
@@ -80,33 +75,22 @@ export interface AnweisungenSaveResponse {
 }
 
 // === Q&A COLLECTION TYPES ===
-export interface QACollectionData {
-  name: string;
-  description?: string;
-  custom_prompt?: string;
-  selectionMode?: 'documents' | 'wolke';
-  documents?: (string | number)[];
-  wolkeShareLinks?: string[];
-  auto_sync?: boolean;
-  remove_missing_on_sync?: boolean;
-}
-
-export interface QACollection extends QACollectionData {
-  id: string | number;
-}
-
-export interface QACollectionResponse {
-  success: boolean;
-  message?: string;
-  collection?: QACollection;
-  collections?: QACollection[];
-  [key: string]: unknown;
-}
+import type { NotebookCollection, NotebookCollectionInput } from '../../../types/notebook';
 
 // === CUSTOM GENERATOR TYPES ===
 export interface CustomGeneratorData {
   name: string;
   prompt?: string;
+  title?: string;
+  slug?: string;
+  description?: string;
+  contact_email?: string;
+  form_schema?: Record<string, unknown>;
+  usage_count?: number;
+  created_at?: string;
+  owner_first_name?: string;
+  owner_last_name?: string;
+  owner_email?: string;
   [key: string]: unknown;
 }
 
@@ -196,7 +180,7 @@ export interface MemoryResponse {
 export interface ProfileBundle {
   profile: Profile;
   anweisungenWissen: AnweisungenWissen | null;
-  notebookCollections: QACollection[] | null;
+  notebookCollections: NotebookCollection[] | null;
   customGenerators: CustomGenerator[] | null;
   userTexts: SavedText[] | null;
   userTemplates: UserTemplate[] | null;
@@ -338,158 +322,43 @@ export const profileApiService = {
   },
 
   // === ANWEISUNGEN & WISSEN ===
-  async getAnweisungenWissen(
-    context: 'user' | 'group' = 'user',
-    groupId: string | null = null
-  ): Promise<AnweisungenWissen | GroupAnweisungenWissen> {
-    if (context === 'group' && groupId) {
-      // Group endpoint - fetch group details which includes instructions and knowledge
-      const response = await apiClient.get(`/auth/groups/${groupId}/details`);
-      const data = response.data;
+  async getAnweisungenWissen(): Promise<AnweisungenWissen> {
+    const response = await apiClient.get('/auth/anweisungen-wissen');
+    const json = response.data;
 
-      if (!data.success) {
-        throw new Error(data.message || 'Failed to fetch group details');
-      }
-
-      // Transform group data to match expected format (only customPrompt for groups)
-      return {
-        customPrompt: data.instructions.custom_prompt || '',
-        knowledge: data.knowledge || [],
-        // Additional group data
-        groupInfo: data.group,
-        userRole: data.membership.role,
-        isAdmin: data.membership.isAdmin,
-        membership: data.membership,
-        joinToken: data.group?.join_token || data.joinToken,
-        instructionsEnabled: data.instructions.instructions_enabled || false,
-      };
-    } else {
-      // Individual user endpoint (existing logic)
-      const response = await apiClient.get('/auth/anweisungen-wissen');
-      const json = response.data;
-
-      return {
-        presseabbinder: json.presseabbinder || '',
-        knowledge: json.knowledge || [],
-      };
-    }
+    return {
+      presseabbinder: json.presseabbinder || '',
+      knowledge: json.knowledge || [],
+    };
   },
 
-  async saveAnweisungenWissen(
-    data: AnweisungenSaveData,
-    context: 'user' | 'group' = 'user',
-    groupId: string | null = null
-  ): Promise<AnweisungenSaveResponse> {
+  async saveAnweisungenWissen(data: AnweisungenSaveData): Promise<AnweisungenSaveResponse> {
     const cleanedKnowledge = (data.knowledge || []).map((entry: KnowledgeEntry) => ({
       id: typeof entry.id === 'string' && entry.id.startsWith('new-') ? undefined : entry.id,
       title: entry.title,
       content: entry.content,
     }));
 
-    if (context === 'group' && groupId) {
-      // Check if user has permission to edit group content before making API calls
-      // This prevents 403 errors for non-admin group members
-      if (data._groupMembership && !data._groupMembership.isAdmin) {
-        console.log(
-          '[saveAnweisungenWissen] User is not admin, skipping group save to prevent 403 errors'
-        );
-        return {
-          success: true,
-          message: 'Nur Gruppenadministratoren können Gruppeninhalte bearbeiten.',
-          skipSave: true,
-        };
-      }
-      // Group endpoint - save instructions and knowledge separately
-      const promises = [];
+    const payload = {
+      presseabbinder: data.presseabbinder,
+      knowledge: cleanedKnowledge,
+    };
 
-      // Save unified instruction
-      const instructionsPayload = {
-        custom_prompt: data.customPrompt,
-        instructions_enabled: true,
-      };
-
-      const instructionsPromise = apiClient
-        .put(`/auth/groups/${groupId}/instructions`, instructionsPayload)
-        .then((response) => {
-          const respData = response.data;
-          if (!respData.success) {
-            throw new Error(respData.message || 'Failed to update instructions');
-          }
-          return respData;
-        });
-
-      promises.push(instructionsPromise);
-
-      // Handle knowledge entries - implement proper create/update operations
-      if (cleanedKnowledge && cleanedKnowledge.length > 0) {
-        const knowledgePromises = cleanedKnowledge.map(async (entry: KnowledgeEntry) => {
-          // Determine if this is a new entry or an update
-          const isNewEntry =
-            !entry.id || (typeof entry.id === 'string' && entry.id.startsWith('new-'));
-
-          if (isNewEntry) {
-            // Create new knowledge entry
-            const response = await apiClient.post(`/auth/groups/${groupId}/knowledge`, {
-              title: entry.title || 'Untitled',
-              content: entry.content || '',
-            });
-            return response.data;
-          } else {
-            // Update existing knowledge entry
-            const response = await apiClient.put(`/auth/groups/${groupId}/knowledge/${entry.id}`, {
-              title: entry.title || 'Untitled',
-              content: entry.content || '',
-            });
-            return response.data;
-          }
-        });
-
-        // Wait for all knowledge operations to complete
-        const knowledgeResults = await Promise.all(knowledgePromises);
-
-        // Check if any knowledge operations failed
-        const failedKnowledge = knowledgeResults.filter((result) => !result.success);
-        if (failedKnowledge.length > 0) {
-          throw new Error(`Failed to save ${failedKnowledge.length} knowledge entries`);
-        }
-      }
-
-      const results = await Promise.all(promises);
-      return results[0];
-    } else {
-      // Individual user endpoint
-      const payload = {
-        presseabbinder: data.presseabbinder,
-        knowledge: cleanedKnowledge,
-      };
-
-      const response = await apiClient.put('/auth/anweisungen-wissen', payload);
-      return response.data;
-    }
+    const response = await apiClient.put('/auth/anweisungen-wissen', payload);
+    return response.data;
   },
 
-  async deleteKnowledgeEntry(
-    entryId: string | number,
-    context: 'user' | 'group' = 'user',
-    groupId: string | null = null
-  ): Promise<void | string | number> {
+  async deleteKnowledgeEntry(entryId: string | number): Promise<void | string | number> {
     if (typeof entryId === 'string' && entryId.startsWith('new-')) {
       return;
     }
 
-    let url;
-    if (context === 'group' && groupId) {
-      url = `/auth/groups/${groupId}/knowledge/${entryId}`;
-    } else {
-      url = `/auth/anweisungen-wissen/${entryId}`;
-    }
-
-    await apiClient.delete(url);
+    await apiClient.delete(`/auth/anweisungen-wissen/${entryId}`);
     return entryId;
   },
 
   // === Q&A COLLECTIONS ===
-  async getNotebookCollections(): Promise<QACollection[]> {
+  async getNotebookCollections(): Promise<NotebookCollection[]> {
     const response = await apiClient.get('/auth/notebook-collections');
     const json = response.data;
 
@@ -500,7 +369,7 @@ export const profileApiService = {
     return json.collections || [];
   },
 
-  async createQACollection(collectionData: QACollectionData): Promise<QACollection> {
+  async createQACollection(collectionData: NotebookCollectionInput): Promise<NotebookCollection> {
     const selectionMode = collectionData.selectionMode || 'documents';
     const body = {
       name: collectionData.name,
@@ -530,8 +399,8 @@ export const profileApiService = {
 
   async updateQACollection(
     collectionId: string | number,
-    collectionData: QACollectionData
-  ): Promise<QACollectionResponse> {
+    collectionData: NotebookCollectionInput
+  ): Promise<{ success: boolean; message?: string }> {
     const selectionMode = collectionData.selectionMode || 'documents';
     const body = {
       name: collectionData.name,
@@ -559,7 +428,9 @@ export const profileApiService = {
     return json;
   },
 
-  async syncQACollection(collectionId: string | number): Promise<QACollectionResponse> {
+  async syncQACollection(
+    collectionId: string | number
+  ): Promise<{ success: boolean; message?: string }> {
     const response = await apiClient.post(`/auth/notebook-collections/${collectionId}/sync`);
     const json = response.data;
 
@@ -574,7 +445,9 @@ export const profileApiService = {
     return json;
   },
 
-  async deleteQACollection(collectionId: string | number): Promise<QACollectionResponse> {
+  async deleteQACollection(
+    collectionId: string | number
+  ): Promise<{ success: boolean; message?: string }> {
     const response = await apiClient.delete(`/auth/notebook-collections/${collectionId}`);
     const json = response.data;
 
@@ -659,6 +532,17 @@ export const profileApiService = {
     }
 
     return data.data || [];
+  },
+
+  async getText(textId: string | number): Promise<SavedText> {
+    const response = await apiClient.get(`/auth/saved-texts/${textId}`);
+    const data = response.data;
+
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to fetch text');
+    }
+
+    return data.data;
   },
 
   async updateTextTitle(textId: string | number, newTitle: string): Promise<SavedTextResponse> {
@@ -828,41 +712,9 @@ export const profileApiService = {
 };
 
 // === AVATAR UTILITIES ===
-/**
- * Get initials from display name or email
- * @param {string} displayName - Full display name
- * @param {string} mail - Email address
- * @returns {string} Initials (2 characters)
- */
-export const getInitials = (displayName: string | undefined, mail: string | undefined): string => {
-  if (displayName && displayName.trim()) {
-    const nameParts = displayName.trim().split(/\s+/);
-    if (nameParts.length >= 2) {
-      return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
-    } else {
-      return displayName.substring(0, 2).toUpperCase();
-    }
-  } else if (mail) {
-    return mail.substring(0, 2).toUpperCase();
-  }
-  return 'U'; // Default fallback
-};
 
-/**
- * Determines whether to show a robot avatar or initials
- * @param {number|string} avatarRobotId - The robot avatar ID
- * @returns {boolean} True if robot avatar should be shown
- */
-export const shouldShowRobotAvatar = (avatarRobotId: unknown): boolean => {
-  const id = Number(avatarRobotId);
-  return !isNaN(id) && id >= 1 && id <= 9;
-};
+export { getInitials, shouldShowRobotAvatar };
 
-/**
- * Gets the avatar display properties (robot or initials)
- * @param {object} profile - User profile object
- * @returns {object} Avatar display properties
- */
 export const getAvatarDisplayProps = (profile: Profile | null): AvatarDisplay => {
   const { avatar_robot_id, display_name, email } = profile || {};
 

@@ -29,8 +29,15 @@ import type { SubcategoryFilters } from '../../../../config/systemCollectionsCon
 import type { AgentConfig } from '../../../../routes/chat/agents/types.js';
 import type { ChatGraphState, SearchResult, SearchSource, Citation } from '../types.js';
 
-// Re-export for backward compatibility
-export { COLLECTION_LABELS, buildCitations };
+// Re-export for backward compatibility and reuse by SearchGraph
+export {
+  COLLECTION_LABELS,
+  buildCitations,
+  CONTENT_TYPE_LABELS,
+  deriveCitationTitle,
+  extractDomain,
+  resolveCollectionName,
+};
 
 const log = createLogger('ChatGraph:Search');
 
@@ -69,7 +76,7 @@ export function getSupplementaryCollectionsForLocale(locale: string | undefined)
  * Execute document search across collections (extracted from case 'search').
  * Searches all sub-queries across all specified collections in parallel.
  */
-async function executeDocumentSearchParallel(
+export async function executeDocumentSearchParallel(
   query: string,
   subQueries: string[] | null,
   notebookCollectionIds: string[],
@@ -146,7 +153,10 @@ async function executeDocumentSearchParallel(
 /**
  * Execute web search with query expansion and crawling (extracted from case 'web').
  */
-async function executeWebSearchParallel(query: string, aiWorkerPool: any): Promise<SearchResult[]> {
+export async function executeWebSearchParallel(
+  query: string,
+  aiWorkerPool: any
+): Promise<SearchResult[]> {
   let allWebQueries = [query];
   try {
     const expanded = await expandQuery(query, aiWorkerPool);
@@ -196,7 +206,7 @@ async function executeWebSearchParallel(query: string, aiWorkerPool: any): Promi
  * Merge results from multiple search sources, deduplicating by URL.
  * Returns top results sorted by relevance for the reranker.
  */
-function mergeSearchResults(...resultSets: SearchResult[][]): SearchResult[] {
+export function mergeSearchResults(...resultSets: SearchResult[][]): SearchResult[] {
   const seenUrls = new Set<string>();
   const merged: SearchResult[] = [];
 

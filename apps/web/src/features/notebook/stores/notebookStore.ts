@@ -31,6 +31,9 @@ interface NotebookState {
   error: string | null;
   selectedCollection: NotebookCollection | null;
 
+  // Document selection state (per collection → selected document IDs)
+  selectedDocumentIds: Record<string, string[]>;
+
   // Filter state
   filterValuesCache: FilterValuesCache; // { [collectionId]: { [field]: { label, values } } }
   activeFilters: ActiveFilters; // { [collectionId]: { [field]: [value1, value2, ...] } }
@@ -62,6 +65,7 @@ interface NotebookState {
     }
   ) => Promise<void>;
   deleteQACollection: (collectionId: string) => Promise<void>;
+  removeDocumentFromCollection: (collectionId: string, documentId: string) => Promise<void>;
   getQACollection: (collectionId: string) => NotebookCollection | undefined;
   setSelectedCollection: (collection: NotebookCollection | null) => void;
   clearError: () => void;
@@ -74,6 +78,10 @@ interface NotebookState {
     mixed: number;
     empty: number;
   };
+  initDocumentSelection: (collectionId: string, documentIds: string[]) => void;
+  setSelectedDocumentIds: (collectionId: string, ids: string[]) => void;
+  toggleDocumentSelection: (collectionId: string, documentId: string) => void;
+  getSelectedDocumentIds: (collectionId: string) => string[];
   fetchFilterValues: (collectionId: string) => Promise<Record<string, FilterFieldConfig> | null>;
   setActiveFilter: (
     collectionId: string | undefined,
@@ -99,6 +107,9 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
   loading: false,
   error: null,
   selectedCollection: null,
+
+  // Document selection state
+  selectedDocumentIds: {},
 
   // Filter state
   filterValuesCache: {},
@@ -347,6 +358,85 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
     return stats;
   },
 
+  // ─── Document Selection Actions ──────────────────────────────────────────
+
+  initDocumentSelection: (collectionId, documentIds) => {
+    const { selectedDocumentIds } = get();
+    if (!selectedDocumentIds[collectionId]) {
+      set((state) => ({
+        selectedDocumentIds: {
+          ...state.selectedDocumentIds,
+          [collectionId]: documentIds,
+        },
+      }));
+    }
+  },
+
+  setSelectedDocumentIds: (collectionId, ids) => {
+    set((state) => ({
+      selectedDocumentIds: {
+        ...state.selectedDocumentIds,
+        [collectionId]: ids,
+      },
+    }));
+  },
+
+  toggleDocumentSelection: (collectionId, documentId) => {
+    set((state) => {
+      const current = state.selectedDocumentIds[collectionId] || [];
+      const isSelected = current.includes(documentId);
+      return {
+        selectedDocumentIds: {
+          ...state.selectedDocumentIds,
+          [collectionId]: isSelected
+            ? current.filter((id) => id !== documentId)
+            : [...current, documentId],
+        },
+      };
+    });
+  },
+
+  getSelectedDocumentIds: (collectionId) => {
+    const { selectedDocumentIds } = get();
+    return selectedDocumentIds[collectionId] || [];
+  },
+
+  // ─── Document Management Actions ───────────────────────────────────────
+
+  removeDocumentFromCollection: async (collectionId, documentId) => {
+    try {
+      const response = await apiClient.delete(
+        `/auth/notebook-collections/${collectionId}/documents/${documentId}`
+      );
+      const data = response.data;
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to remove document');
+      }
+
+      set((state) => ({
+        qaCollections: state.qaCollections.map((c) => {
+          if (c.id !== collectionId) return c;
+          return {
+            ...c,
+            documents: (c.documents || []).filter((d) => d.id !== documentId),
+            document_count: Math.max(0, (c.document_count || 0) - 1),
+          };
+        }),
+        selectedDocumentIds: {
+          ...state.selectedDocumentIds,
+          [collectionId]: (state.selectedDocumentIds[collectionId] || []).filter(
+            (id) => id !== documentId
+          ),
+        },
+      }));
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error removing document from collection:', error);
+      set({ error: errorMessage });
+      throw error;
+    }
+  },
+
   // ─── Filter Actions ────────────────────────────────────────────────────
 
   fetchFilterValues: async (collectionId) => {
@@ -539,6 +629,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
       loading: false,
       error: null,
       selectedCollection: null,
+      selectedDocumentIds: {},
       filterValuesCache: {},
       activeFilters: {},
       loadingFilters: {},

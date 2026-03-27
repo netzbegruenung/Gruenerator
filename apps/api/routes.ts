@@ -7,6 +7,8 @@ import rateLimit from 'express-rate-limit';
 
 import authMiddleware from './middleware/authMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
+import authInitRouter from './routes/auth/initController.js';
+import { briefingRouter, briefingInternalRouter } from './routes/briefing/index.js';
 import etherpadRoute from './routes/etherpad/etherpadController.js';
 import exportDocumentsRouter from './routes/exports/index.js';
 import imagineCreateRoute from './routes/flux/imagineCreate.js';
@@ -17,6 +19,8 @@ import {
 } from './routes/image/index.js';
 import { offboardingRouter, databaseTestRouter, rateLimitRouter } from './routes/internal/index.js';
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
+import { monitorRouter, monitorInternalRouter } from './routes/monitor/index.js';
+import notificationsRouter from './routes/notifications/index.js';
 import { oparlRouter } from './routes/oparl/index.js';
 import protokollRouter from './routes/protokoll/index.js';
 import { releasesRouter } from './routes/releases/index.js';
@@ -26,6 +30,7 @@ import {
   searchController as searchRouter,
   webSearchController as webSearchRouter,
 } from './routes/search/index.js';
+import searchGraphRouter from './routes/search/searchGraphController.js';
 import shareRouter from './routes/share/shareController.js';
 import editSessionRouter from './routes/sharepic/editSession.js';
 import promptRoute from './routes/sharepic/promptRoute.js';
@@ -65,6 +70,7 @@ import {
 import { recentValuesRouter } from './routes/user/index.js';
 import ttsRouter from './routes/voice/ttsController.js';
 import voiceRouter from './routes/voice/voiceController.js';
+import recentActivityRouter from './routes/workplace/recentActivityController.js';
 import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
 import * as tusServiceModule from './services/subtitler/tusService.js';
 import { createLogger } from './utils/logger.js';
@@ -95,6 +101,16 @@ const standardMutationLimiter = isRateLimitDisabled
   : rateLimit({
       windowMs: 15 * 60 * 1000,
       max: 200,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'Too many requests, please try again later.' },
+    });
+
+const publicReadLimiter = isRateLimitDisabled
+  ? (_req: Request, _res: Response, next: NextFunction) => next()
+  : rateLimit({
+      windowMs: 60 * 60 * 1000, // 1 hour
+      max: 500, // soft — prevents scraping, allows normal use
       standardHeaders: true,
       legacyHeaders: false,
       message: { error: 'Too many requests, please try again later.' },
@@ -178,6 +194,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: chatServiceRouter } = await import('./routes/chat/index.js');
   const { default: chatGraphRouter } = await import('./routes/chat/chatGraphController.js');
   const { default: chatDeepRouter } = await import('./routes/chat/chatDeepController.js'); // @experimental — DeepAgent, not production-ready
+  const { default: threadSharingRouter } = await import('./routes/chat/threadSharingController.js');
   const { default: gruenOMatRouter } = await import('./routes/gruenomat/gruenOMatController.js');
   const { default: mediaRouter } = await import('./routes/media/mediaController.js');
   const { sitesController: sitesRouter, publicController: publicSiteRouter } =
@@ -186,25 +203,31 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: fluxImageEditingRoute } = await import('./routes/flux/imageEditing.js');
   const { default: unsplashRouter } = await import('./routes/unsplash/unsplashRoutes.js');
   const { default: docsRouter } = await import('./routes/docs/index.js');
+  const { default: presentationsRouter } = await import('./routes/presentations/index.js');
   const { default: publicDocRouter } = await import('./routes/docs/publicDocController.js');
+  const { default: boardsRouter } = await import('./routes/boards/boardsController.js');
+  const { default: publicBoardRouter } = await import('./routes/boards/publicBoardController.js');
   const { default: usersRouter } = await import('./routes/users/userController.js');
   const { default: smartTexteRouter } = await import('./routes/texte/smart.js');
+  const { default: playgroundRouter } = await import('./routes/texte/playground.js');
   const { default: contentTitleRouter } = await import('./routes/texte/contentTitleRoute.js');
   const { default: mem0Router } = await import('./routes/mem0/mem0Controller.js');
   const { default: emailRouter } = await import('./routes/email/emailController.js');
   const { default: videoRouter } = await import('./routes/video/index.js');
+  const { default: transferRouter } = await import('./routes/transfer/transferController.js');
 
-  // Auth routes - combined TypeScript router
+  // Auth routes — authLimiter applied inside authCore.ts to login/callback only
   app.use('/api/auth', authRouter);
   app.use('/api/auth/notebook-collections', notebookCollectionsRouter);
   app.use('/api/auth/notebook', notebookInteractionRouter);
-  app.use('/api/documents', documentsRouter);
-  app.use('/api/oparl', oparlRouter);
-  app.use('/api/crawl-url', crawlUrlRouter);
-  app.use('/api/recent-values', recentValuesRouter);
+  // Public read endpoints — soft limiter prevents scraping
+  app.use('/api/documents', publicReadLimiter, documentsRouter);
+  app.use('/api/oparl', publicReadLimiter, oparlRouter);
+  app.use('/api/crawl-url', requireAuth, standardMutationLimiter, crawlUrlRouter);
+  app.use('/api/recent-values', publicReadLimiter, recentValuesRouter);
   app.use('/api/antraege', requireAuth, antraegeRouter);
-  app.use('/api/scanner', scannerRouter);
-  app.use('/api/protokoll', protokollRouter);
+  app.use('/api/scanner', publicReadLimiter, scannerRouter);
+  app.use('/api/protokoll', publicReadLimiter, protokollRouter);
 
   app.use('/api/claude_social', aiGenerationLimiter, claudeSocialRoute);
   app.use('/api/claude_alttext', aiGenerationLimiter, claudeAlttextRoute);
@@ -215,6 +238,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/claude_text_improver', aiGenerationLimiter, claudeTextImproverRoute);
   app.use('/api/chat', aiGenerationLimiter, grueneratorChatRoute);
   app.use('/api/chat-service', standardMutationLimiter, chatServiceRouter);
+  app.use('/api/chat-service/threads', standardMutationLimiter, threadSharingRouter);
   app.use('/api/chat-graph', aiGenerationLimiter, chatGraphRouter);
   app.use('/api/chat-deep', aiGenerationLimiter, chatDeepRouter); // @experimental — DeepAgent route, not production-ready
   app.use('/api/gruen-o-mat', gruenOMatRouter);
@@ -324,6 +348,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/claude_wahlprogramm', aiGenerationLimiter, wahlprogrammRouter);
   app.use('/api/claude_universal', aiGenerationLimiter, universalRouter);
   app.use('/api/texte/smart', aiGenerationLimiter, smartTexteRouter);
+  app.use('/api/texte/playground', requireAuth, playgroundRouter);
   app.use('/api/generate-content-title', aiGenerationLimiter, contentTitleRouter);
   app.use('/api/claude_gruene_jugend', aiGenerationLimiter, claudeGrueneJugendRoute);
   app.use('/api/claude_gruenerator_ask', aiGenerationLimiter, claudeGrueneratorAskRoute);
@@ -338,16 +363,24 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/subtitler/projects', subtitlerProjectRouter);
   app.use('/api/subtitler/share', subtitlerShareRouter);
   app.use('/api/share', shareRouter);
+  app.use('/api/transfer', standardMutationLimiter, transferRouter);
   app.use('/api/mem0', requireAuth, mem0Router);
   app.use('/api/email', requireAuth, emailRouter);
+  app.use('/api/auth/init', authInitRouter);
+  app.use('/api/recent-activity', recentActivityRouter);
+  app.use('/api/notifications', requireAuth, notificationsRouter);
   app.use('/api/media', requireAuth, mediaRouter);
   app.use('/api/docs/public', publicDocRouter);
   app.use('/api/docs', requireAuth, docsRouter);
+  app.use('/api/presentations', requireAuth, presentationsRouter);
+  app.use('/api/boards/public', publicBoardRouter);
+  app.use('/api/boards', requireAuth, boardsRouter);
   app.use('/api/users', requireAuth, usersRouter);
   app.use('/api/voice', voiceRouter);
   app.use('/api/voice/tts', requireAuth, ttsRouter);
   app.use('/api/search', searchRouter);
   app.use('/api/analyze', searchRouter);
+  app.use('/api/search-graph', requireAuth, searchGraphRouter);
   app.use('/api/image-picker', imagePickerRoute);
   app.use('/api/unsplash', unsplashRouter);
   app.use('/api/web-search', webSearchRouter);
@@ -362,7 +395,7 @@ export async function setupRoutes(app: Application): Promise<void> {
     );
     next();
   });
-  app.use('/api/releases', releasesRouter);
+  app.use('/api/releases', publicReadLimiter, releasesRouter);
   app.use('/api/exports', exportDocumentsRouter);
   app.use('/api/markdown', markdownRouter);
   app.use('/api/database', databaseTestRouter);
@@ -371,6 +404,10 @@ export async function setupRoutes(app: Application): Promise<void> {
     app.use('/api/internal', snapshottingRouter);
   }
   app.use('/api/internal/offboarding', offboardingRouter);
+  app.use('/api/internal/briefing', briefingInternalRouter);
+  app.use('/api/internal/monitor', monitorInternalRouter);
+  app.use('/api/briefing', requireAuth, briefingRouter);
+  app.use('/api/monitor', requireAuth, monitorRouter);
 
   app.get('/api/internal/route-stats', async (req: Request, res: Response): Promise<void> => {
     try {

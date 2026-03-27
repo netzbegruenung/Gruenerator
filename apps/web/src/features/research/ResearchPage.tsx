@@ -1,3 +1,17 @@
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  CardGrid,
+  StatusBanner,
+} from '@gruenerator/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { HiArrowsUpDown, HiBarsArrowDown, HiCog6Tooth, HiRectangleStack } from 'react-icons/hi2';
 import { IoSearch } from 'react-icons/io5';
@@ -6,23 +20,12 @@ import IndexCard from '../../components/common/IndexCard';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import SearchBar from '../search/components/SearchBar';
-import '../../assets/styles/components/gallery-layout.css';
 
 import ActiveFilterChips from './components/ActiveFilterChips';
 import ResearchFilterPanel from './components/ResearchFilterPanel';
 import { useResearch, type ResearchResult } from './useResearch';
 import { useResearchFilters, type SearchMode, type SortOption } from './useResearchFilters';
 
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/utils/cn';
 
 const MODE_OPTIONS: { value: SearchMode; label: string }[] = [
@@ -185,10 +188,14 @@ function ResearchPage() {
 
   return (
     <ErrorBoundary>
-      <div className="gallery-layout">
-        <div className="gallery-header">
-          <h1>Recherche</h1>
-          <p>(Fast) alle grünen Dokumente und Programme an einem Ort durchsuchbar.</p>
+      <div className="mx-auto mt-[60px] max-w-[1200px] flex-col px-lg box-border max-md:mt-0 max-md:px-md max-md:py-lg">
+        <div className="text-center">
+          <h1 className="mb-4 text-[2.5rem] font-semibold text-foreground-heading max-md:text-[1.75rem]">
+            Recherche
+          </h1>
+          <p className="mx-auto mb-xl max-w-[800px] text-center text-[1.1rem] leading-relaxed text-foreground">
+            (Fast) alle grünen Dokumente und Programme an einem Ort durchsuchbar.
+          </p>
         </div>
 
         <div className="mb-xl">
@@ -353,9 +360,9 @@ function ResearchPage() {
         )}
 
         {error && (
-          <div className="mb-lg rounded-md border border-red-200 bg-red-50 p-md text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+          <StatusBanner variant="error" className="mb-lg">
             {error}
-          </div>
+          </StatusBanner>
         )}
 
         {metadata && (
@@ -368,14 +375,14 @@ function ResearchPage() {
         )}
 
         {results.length > 0 && (
-          <div className="gallery-grid">
+          <CardGrid columns="auto" gap="2xl" className="max-md:gap-4">
             {results.map((result, i) => (
               <IndexCard
                 key={`${result.document_id}-${result.collection_id ?? i}`}
                 {...resultToCardProps(result)}
               />
             ))}
-          </div>
+          </CardGrid>
         )}
 
         {hasSearched && !isLoading && results.length === 0 && !error && (

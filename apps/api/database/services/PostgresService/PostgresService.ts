@@ -368,11 +368,11 @@ export class PostgresService {
     }
   }
 
-  async query(
+  async query<T = Record<string, unknown>>(
     sql: string,
     params: unknown[] = [],
     _options: QueryOptions = {}
-  ): Promise<Record<string, unknown>[]> {
+  ): Promise<T[]> {
     try {
       await this.ensureInitialized();
     } catch (initError) {
@@ -404,12 +404,12 @@ export class PostgresService {
     }
   }
 
-  async queryOne(
+  async queryOne<T = Record<string, unknown>>(
     sql: string,
     params: unknown[] = [],
     options: QueryOptions = {}
-  ): Promise<Record<string, unknown> | null> {
-    const results = await this.query(sql, params, options);
+  ): Promise<T | null> {
+    const results = await this.query<T>(sql, params, options);
     return results.length > 0 ? results[0] : null;
   }
 

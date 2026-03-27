@@ -33,19 +33,19 @@ export function useTemplateClone(): TemplateCloneResult {
         const { share } = cloneResponse.data;
 
         const routeMap: Record<string, string> = {
-          dreizeilen: '/image-studio/templates/dreizeilen',
-          zitat: '/image-studio/templates/zitat',
-          'zitat-pure': '/image-studio/templates/zitat-pure',
-          info: '/image-studio/templates/info',
-          headline: '/image-studio/templates/headline',
-          Dreizeilen: '/image-studio/templates/dreizeilen',
-          Zitat: '/image-studio/templates/zitat',
-          Zitat_Pure: '/image-studio/templates/zitat-pure',
-          Info: '/image-studio/templates/info',
-          Headline: '/image-studio/templates/headline',
+          dreizeilen: '/studio/templates/dreizeilen',
+          zitat: '/studio/templates/zitat',
+          'zitat-pure': '/studio/templates/zitat-pure',
+          info: '/studio/templates/info',
+          headline: '/studio/templates/headline',
+          Dreizeilen: '/studio/templates/dreizeilen',
+          Zitat: '/studio/templates/zitat',
+          Zitat_Pure: '/studio/templates/zitat-pure',
+          Info: '/studio/templates/info',
+          Headline: '/studio/templates/headline',
         };
 
-        const route = routeMap[template.image_type] || '/image-studio/templates';
+        const route = routeMap[template.image_type] || '/studio/templates';
         const normalizedType = template.image_type?.toLowerCase().replace('_', '-');
 
         navigate(route, {

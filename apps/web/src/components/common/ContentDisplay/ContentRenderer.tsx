@@ -1,0 +1,401 @@
+import React, { type ReactNode } from 'react';
+
+import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
+import { CitationBadge } from '../Citation';
+import {
+  isMarkdownContent,
+  normalizeLineBreaks,
+  removeGruenTitleTags,
+  stripWrappingCodeFence,
+} from '../Form/utils/contentUtils';
+import ImageDisplay, { type SharepicDataItem } from '../ImageDisplay';
+import { Markdown } from '../Markdown';
+
+import type { ContentRendererProps, GeneratedContent } from '@/types/baseform';
+
+import { cn } from '@/utils/cn';
+
+interface Citation {
+  index: string | number;
+  url?: string;
+  title?: string;
+  [key: string]: unknown;
+}
+
+interface MixedContent {
+  sharepic?: unknown | unknown[];
+  social?: { content?: string };
+  content?: string;
+  onEditSharepic?: () => void;
+  inlineSharepicEditEnabled?: boolean;
+  editMode?: string;
+  showEditButton?: boolean;
+  sharepicTitle?: string | string[];
+  sharepicDownloadText?: string | string[];
+  sharepicDownloadFilename?: string | string[];
+  enableKiLabel?: boolean | boolean[];
+  enableCanvaEdit?: boolean | boolean[];
+  canvaTemplateUrl?: string | string[];
+  onSharepicUpdate?: (() => void) | (() => void)[];
+  selectedPlatforms?: string[];
+}
+
+const enhanceTextWithCitations = (text: string, citations: Citation[]): ReactNode => {
+  if (!text || !citations || citations.length === 0) return text;
+
+  const parts = text.split(/(\[\d+\])/g);
+  const elements: ReactNode[] = [];
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    const match = part.match(/\[(\d+)\]/);
+
+    if (match) {
+      const citationIndex = match[1];
+      const citation = citations.find(
+        (c) => String(c.index) === citationIndex || c.index === parseInt(citationIndex, 10)
+      );
+
+      elements.push(
+        <CitationBadge
+          key={`citation-${i}-${citationIndex}`}
+          citationIndex={citationIndex}
+          citation={citation}
+        />
+      );
+    } else if (part) {
+      elements.push(part);
+    }
+  }
+
+  return elements;
+};
+
+const ContentRenderer: React.FC<ContentRendererProps> = ({
+  value,
+  generatedContent,
+  useMarkdown = null,
+  componentName = 'default',
+  helpContent,
+  onEditModeToggle,
+}) => {
+  const getGeneratedTextMetadata = useGeneratedTextStore((state) => state.getGeneratedTextMetadata);
+  const isStoreStreaming = useGeneratedTextStore((state) => state.isStreaming);
+
+  let processedGeneratedContent: GeneratedContent | undefined = generatedContent;
+
+  // Parse JSON string if store returned stringified mixed content
+  if (typeof processedGeneratedContent === 'string') {
+    const trimmed = processedGeneratedContent.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed && typeof parsed === 'object') {
+          processedGeneratedContent = parsed;
+
+          const storedMetadata = getGeneratedTextMetadata(componentName) as Record<
+            string,
+            unknown
+          > | null;
+          if (storedMetadata && typeof storedMetadata.onEditSharepic === 'function') {
+            (processedGeneratedContent as unknown as Record<string, unknown>).onEditSharepic =
+              storedMetadata.onEditSharepic;
+          }
+        }
+      } catch {
+        // Not valid JSON, use as-is
+      }
+    }
+  }
+
+  if (
+    processedGeneratedContent &&
+    typeof processedGeneratedContent === 'object' &&
+    'content' in processedGeneratedContent &&
+    'success' in processedGeneratedContent
+  ) {
+    processedGeneratedContent = (processedGeneratedContent as { content: string }).content;
+  }
+
+  const isMixedContent =
+    processedGeneratedContent &&
+    typeof processedGeneratedContent === 'object' &&
+    ('sharepic' in processedGeneratedContent || 'selectedPlatforms' in processedGeneratedContent);
+
+  const mixedContent = processedGeneratedContent as MixedContent | undefined;
+
+  const rawContent =
+    isMixedContent && mixedContent
+      ? mixedContent.content || ''
+      : value || processedGeneratedContent || '';
+
+  const contentToRender =
+    typeof rawContent === 'string'
+      ? normalizeLineBreaks(stripWrappingCodeFence(removeGruenTitleTags(rawContent)))
+      : rawContent;
+
+  const metadata = getGeneratedTextMetadata(componentName) as { citations?: Citation[] } | null;
+  const citations: Citation[] = metadata?.citations || [];
+
+  if (isMixedContent && mixedContent) {
+    const sharepicItems = Array.isArray(mixedContent.sharepic)
+      ? mixedContent.sharepic.filter(Boolean)
+      : mixedContent.sharepic
+        ? [mixedContent.sharepic]
+        : [];
+
+    const hasTextContent = typeof contentToRender === 'string' && contentToRender.trim().length > 0;
+
+    return (
+      <div className="flex-1 flex flex-col min-h-0 [overflow-anchor:none]">
+        {hasTextContent && (
+          <div>
+            <div className="content-display markdown-content">
+              <Markdown>{contentToRender as string}</Markdown>
+            </div>
+          </div>
+        )}
+
+        {sharepicItems.length > 0 && (
+          <div>
+            {sharepicItems.length > 1 ? (
+              <ImageDisplay
+                key="multiple-sharepics"
+                sharepicData={sharepicItems as SharepicDataItem[]}
+                onEdit={mixedContent.onEditSharepic}
+                onEditModeToggle={onEditModeToggle}
+                editMode={mixedContent.inlineSharepicEditEnabled ? 'inline' : mixedContent.editMode}
+                showEditButton={mixedContent.showEditButton !== false}
+                title={(mixedContent.sharepicTitle as string) || 'Generierte Sharepics'}
+                downloadButtonText={mixedContent.sharepicDownloadText as string}
+                downloadFilename={
+                  (mixedContent.sharepicDownloadFilename as string) || 'sharepic.png'
+                }
+                enableKiLabel={mixedContent.enableKiLabel as boolean}
+                enableCanvaEdit={mixedContent.enableCanvaEdit as boolean}
+                canvaTemplateUrl={mixedContent.canvaTemplateUrl as string}
+                onSharepicUpdate={mixedContent.onSharepicUpdate as () => void}
+                socialContent={mixedContent.social?.content || mixedContent.content || ''}
+                selectedPlatforms={mixedContent.selectedPlatforms}
+              />
+            ) : (
+              sharepicItems.map((sharepicData, index) => {
+                const sharepicTitle = Array.isArray(mixedContent.sharepicTitle)
+                  ? mixedContent.sharepicTitle[index]
+                  : mixedContent.sharepicTitle;
+                const downloadButtonText = Array.isArray(mixedContent.sharepicDownloadText)
+                  ? mixedContent.sharepicDownloadText[index]
+                  : mixedContent.sharepicDownloadText;
+                const downloadFilename = Array.isArray(mixedContent.sharepicDownloadFilename)
+                  ? mixedContent.sharepicDownloadFilename[index]
+                  : mixedContent.sharepicDownloadFilename;
+                const enableKiLabel = Array.isArray(mixedContent.enableKiLabel)
+                  ? mixedContent.enableKiLabel[index]
+                  : mixedContent.enableKiLabel;
+                const onSharepicUpdate = Array.isArray(mixedContent.onSharepicUpdate)
+                  ? mixedContent.onSharepicUpdate[index]
+                  : mixedContent.onSharepicUpdate;
+                const enableCanvaEdit = Array.isArray(mixedContent.enableCanvaEdit)
+                  ? mixedContent.enableCanvaEdit[index]
+                  : mixedContent.enableCanvaEdit;
+                const canvaTemplateUrl = Array.isArray(mixedContent.canvaTemplateUrl)
+                  ? mixedContent.canvaTemplateUrl[index]
+                  : mixedContent.canvaTemplateUrl;
+
+                return (
+                  <ImageDisplay
+                    key={
+                      (sharepicData as { id?: string; type?: string }).id ||
+                      `${(sharepicData as { type?: string }).type || 'sharepic'}-${index}`
+                    }
+                    sharepicData={sharepicData}
+                    onEdit={mixedContent.onEditSharepic}
+                    onEditModeToggle={onEditModeToggle}
+                    editMode={
+                      mixedContent.inlineSharepicEditEnabled ? 'inline' : mixedContent.editMode
+                    }
+                    showEditButton={mixedContent.showEditButton !== false}
+                    title={sharepicTitle}
+                    downloadButtonText={downloadButtonText}
+                    downloadFilename={downloadFilename}
+                    enableKiLabel={enableKiLabel}
+                    enableCanvaEdit={enableCanvaEdit}
+                    canvaTemplateUrl={canvaTemplateUrl}
+                    onSharepicUpdate={onSharepicUpdate}
+                    socialContent={mixedContent.social?.content || mixedContent.content || ''}
+                    selectedPlatforms={mixedContent.selectedPlatforms}
+                  />
+                );
+              })
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (!contentToRender) {
+    return null;
+  }
+
+  if (React.isValidElement(processedGeneratedContent)) {
+    return processedGeneratedContent;
+  }
+
+  const shouldUseMarkdown =
+    useMarkdown !== null ? useMarkdown : isMarkdownContent(contentToRender as string);
+
+  // All text content now renders as Markdown
+  if (typeof contentToRender === 'string') {
+    return (
+      <div
+        className={cn(
+          'flex-1 flex flex-col min-h-0 [overflow-anchor:none]',
+          isStoreStreaming && 'is-streaming'
+        )}
+      >
+        <div className="content-display markdown-content">
+          <Markdown>{contentToRender}</Markdown>
+        </div>
+      </div>
+    );
+  }
+
+  const createCitationComponents = (citations: Citation[]) => {
+    const processCitationText = (text: unknown): ReactNode => {
+      if (typeof text !== 'string' || !text.includes('[cite:')) {
+        return text as ReactNode;
+      }
+
+      const markerPattern = /(\[cite:\d+\])/g;
+      const parts = text.split(markerPattern);
+      const elements: ReactNode[] = [];
+
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        const match = part.match(/\[cite:(\d+)\]/);
+
+        if (match) {
+          const citationIndex = match[1];
+          const citation = citations.find(
+            (c) => String(c.index) === citationIndex || c.index === parseInt(citationIndex, 10)
+          );
+
+          elements.push(
+            <CitationBadge
+              key={`citation-${i}-${citationIndex}`}
+              citationIndex={citationIndex}
+              citation={citation}
+            />
+          );
+        } else if (part) {
+          elements.push(part);
+        }
+      }
+
+      return <>{elements}</>;
+    };
+
+    return {
+      text: ({ children }: { children: ReactNode }) => processCitationText(children),
+      p: ({ children }: { children: ReactNode }) => {
+        const hasMarkers = React.Children.toArray(children).some(
+          (child) => typeof child === 'string' && child.includes('[cite:')
+        );
+
+        if (hasMarkers) {
+          return (
+            <p>
+              {React.Children.map(children, (child) =>
+                typeof child === 'string' ? processCitationText(child) : child
+              )}
+            </p>
+          );
+        }
+
+        return <p>{children}</p>;
+      },
+      li: ({ children }: { children: ReactNode }) => {
+        const hasMarkers = React.Children.toArray(children).some(
+          (child) => typeof child === 'string' && child.includes('[cite:')
+        );
+
+        if (hasMarkers) {
+          return (
+            <li>
+              {React.Children.map(children, (child) =>
+                typeof child === 'string' ? processCitationText(child) : child
+              )}
+            </li>
+          );
+        }
+
+        return <li>{children}</li>;
+      },
+    };
+  };
+
+  if (shouldUseMarkdown) {
+    const hasCitationMarkers = /\[cite:\d+\]/.test(contentToRender as string);
+
+    if (hasCitationMarkers && citations.length > 0) {
+      const customComponents = createCitationComponents(citations);
+
+      return (
+        <div
+          className={cn(
+            'flex-1 flex flex-col min-h-0 [overflow-anchor:none]',
+            isStoreStreaming && 'is-streaming'
+          )}
+        >
+          <div className="content-display markdown-content">
+            <Markdown components={customComponents as Record<string, unknown>}>
+              {contentToRender as string}
+            </Markdown>
+          </div>
+        </div>
+      );
+    } else {
+      return (
+        <div
+          className={cn(
+            'flex-1 flex flex-col min-h-0 [overflow-anchor:none]',
+            isStoreStreaming && 'is-streaming'
+          )}
+        >
+          <div className="content-display markdown-content">
+            <Markdown>{contentToRender as string}</Markdown>
+          </div>
+        </div>
+      );
+    }
+  } else {
+    const contentString =
+      typeof contentToRender === 'string' ? contentToRender : JSON.stringify(contentToRender);
+    let enhancedContent: ReactNode = contentString;
+    if (citations.length > 0) {
+      enhancedContent = enhanceTextWithCitations(contentString, citations);
+    }
+
+    return (
+      <div
+        className={cn(
+          'flex-1 flex flex-col min-h-0 [overflow-anchor:none]',
+          isStoreStreaming && 'is-streaming'
+        )}
+      >
+        <div className="content-display">
+          {typeof enhancedContent === 'string' ? (
+            <div dangerouslySetInnerHTML={{ __html: enhancedContent }} />
+          ) : (
+            enhancedContent
+          )}
+        </div>
+      </div>
+    );
+  }
+};
+
+ContentRenderer.displayName = 'ContentRenderer';
+
+export default ContentRenderer;

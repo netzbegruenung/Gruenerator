@@ -1,3 +1,4 @@
+import { Button } from '@gruenerator/ui';
 import React, { useState, useCallback, memo, useEffect } from 'react';
 
 import { TextAreaInput } from '../../components/common/Form/Input';
@@ -6,9 +7,6 @@ import RequiredFieldToggle from '../../components/common/RequiredFieldToggle';
 import { usePromptMutations } from './usePromptsData';
 
 import type { CustomPrompt } from './types';
-import '../../assets/styles/components/form/form-inputs.css';
-import '../../assets/styles/components/ui/button.css';
-import './prompts.css';
 
 interface CreatePromptFormProps {
   editingPrompt?: CustomPrompt | null;
@@ -69,8 +67,15 @@ const CreatePromptForm: React.FC<CreatePromptFormProps> = memo(
     );
 
     return (
-      <form onSubmit={handleSubmit} className="prompt-form-simple">
-        {error && <div className="prompt-form-error">{error}</div>}
+      <form
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-sm w-full max-w-[600px] mx-auto [&_.form-field-wrapper]:mb-0"
+      >
+        {error && (
+          <div className="px-md py-sm bg-[var(--background-red-light)] text-[var(--error-red)] rounded-md text-sm">
+            {error}
+          </div>
+        )}
 
         <TextAreaInput
           id="prompt-textarea"
@@ -80,23 +85,29 @@ const CreatePromptForm: React.FC<CreatePromptFormProps> = memo(
           rows={6}
         />
 
-        <div className="prompt-form-footer">
+        <div className="flex items-center justify-between gap-md max-md:flex-col max-md:items-stretch">
           <RequiredFieldToggle checked={isPublic} onChange={setIsPublic} label="Öffentlich" />
 
-          <div className="prompt-form-actions">
+          <div className="flex gap-sm max-md:w-full [&_button]:max-md:flex-1">
             {onCancel && (
-              <button
+              <Button
                 type="button"
-                className="btn-secondary"
+                variant="brand-outline"
+                size="brand"
                 onClick={onCancel}
                 disabled={isLoading}
               >
                 Abbrechen
-              </button>
+              </Button>
             )}
-            <button type="submit" className="btn-primary" disabled={isLoading || !prompt.trim()}>
+            <Button
+              variant="brand"
+              size="brand"
+              type="submit"
+              disabled={isLoading || !prompt.trim()}
+            >
               {isLoading ? 'Speichert...' : 'Speichern'}
-            </button>
+            </Button>
           </div>
         </div>
       </form>

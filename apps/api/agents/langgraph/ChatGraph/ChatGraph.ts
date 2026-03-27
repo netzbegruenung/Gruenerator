@@ -105,6 +105,27 @@ const ChatStateAnnotation = Annotation.Root({
     reducer: (x, y) => y ?? x ?? [],
   }),
 
+  // Board context (from @board mentions)
+  boardIds: Annotation<string[]>({
+    reducer: (x, y) => y ?? x ?? [],
+  }),
+  boardContext: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
+  }),
+
+  // Collaborative document context (from @doc mentions)
+  docMentionIds: Annotation<string[]>({
+    reducer: (x, y) => y ?? x ?? [],
+  }),
+  documentMentionContext: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
+  }),
+
+  // Custom system prompt (replaces entire agent system prompt when set)
+  customSystemPrompt: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
+  }),
+
   // Memory context (from mem0 cross-thread memory)
   memoryContext: Annotation<string | null>({
     reducer: (x, y) => y ?? x,
@@ -134,6 +155,9 @@ const ChatStateAnnotation = Annotation.Root({
   }),
   complexity: Annotation<'simple' | 'moderate' | 'complex'>({
     reducer: (x, y) => y ?? x ?? 'moderate',
+  }),
+  contentType: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
   }),
 
   // Clarification (HITL interrupt)
@@ -454,6 +478,17 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     // Document chat scoping (from @dokumentchat multi-select)
     documentChatIds: input.documentChatIds || [],
 
+    // Board context (from @board mentions, populated by controller)
+    boardIds: input.boardIds || [],
+    boardContext: null,
+
+    // Collaborative document context (from @doc mentions, populated by controller)
+    docMentionIds: input.docMentionIds || [],
+    documentMentionContext: null,
+
+    // Custom system prompt (from thread or user settings)
+    customSystemPrompt: input.customSystemPrompt || null,
+
     // Memory context (will be set by controller before graph execution)
     memoryContext: null,
     memoryRetrieveTimeMs: 0,
@@ -466,6 +501,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     reasoning: '',
     hasTemporal: false,
     complexity: 'moderate' as const,
+    contentType: null,
     needsClarification: false,
     clarificationQuestion: null,
     clarificationOptions: null,

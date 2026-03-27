@@ -1,63 +1,8 @@
 /**
  * Type guard validators for runtime type checking
- *
- * Replaces unsafe type assertions (e.g., `as CorrectionResponse`) with
- * proper runtime validation. Critical for SubtitleEditor.tsx line 663.
  */
 
-import type {
-  CorrectionResponse,
-  CorrectionItem,
-  VideoMetadata,
-  SubtitleSegment,
-  LoadedProject,
-} from '../types';
-
-/**
- * Type guard for CorrectionResponse
- *
- * Validates API response structure before type assertion.
- * Replaces unsafe `as CorrectionResponse` in SubtitleEditor.tsx line 663.
- *
- * @param data - Unknown data from API
- * @returns true if data matches CorrectionResponse interface
- */
-export function isCorrectionResponse(data: unknown): data is CorrectionResponse {
-  if (!data || typeof data !== 'object') {
-    return false;
-  }
-
-  const response = data as Record<string, unknown>;
-
-  // Check required boolean field
-  if (typeof response.hasCorrections !== 'boolean') {
-    return false;
-  }
-
-  // Check corrections array
-  if (!Array.isArray(response.corrections)) {
-    return false;
-  }
-
-  // Validate each correction item
-  return response.corrections.every((item: unknown) => isCorrectionItem(item));
-}
-
-/**
- * Type guard for CorrectionItem
- *
- * @param data - Unknown data
- * @returns true if data matches CorrectionItem interface
- */
-export function isCorrectionItem(data: unknown): data is CorrectionItem {
-  if (!data || typeof data !== 'object') {
-    return false;
-  }
-
-  const item = data as Record<string, unknown>;
-
-  return typeof item.id === 'number' && typeof item.corrected === 'string';
-}
+import type { VideoMetadata, SubtitleSegment, LoadedProject } from '../types';
 
 /**
  * Type guard for VideoMetadata
@@ -180,27 +125,6 @@ export function isLoadedProject(data: unknown): data is LoadedProject {
   }
 
   return true;
-}
-
-/**
- * Assert correction response or throw
- *
- * Helper function for cleaner error handling.
- * Use this instead of unsafe type assertions.
- *
- * @param data - Unknown data from API
- * @param context - Context string for error message
- * @returns Validated CorrectionResponse
- * @throws Error if validation fails
- */
-export function assertCorrectionResponse(
-  data: unknown,
-  context = 'API response'
-): CorrectionResponse {
-  if (!isCorrectionResponse(data)) {
-    throw new Error(`Invalid correction response format in ${context}`);
-  }
-  return data;
 }
 
 /**

@@ -1,5 +1,4 @@
 import { motion, type Variants } from 'motion/react';
-import '../../../assets/styles/components/ui/TypingIndicator.css';
 
 const TypingIndicator = () => {
   const createDotVariants = (delay: number): Variants => ({
@@ -20,24 +19,24 @@ const TypingIndicator = () => {
   });
 
   return (
-    <div className="typing-indicator">
+    <div className="flex items-center py-2.5">
       <motion.span
         variants={createDotVariants(0)}
         initial="initial"
         animate="animate"
-        className="typing-dot"
+        className="w-2 h-2 bg-[var(--ai-message-text-color)] rounded-full inline-block mx-0.5"
       />
       <motion.span
         variants={createDotVariants(0.2)}
         initial="initial"
         animate="animate"
-        className="typing-dot"
+        className="w-2 h-2 bg-[var(--ai-message-text-color)] rounded-full inline-block mx-0.5"
       />
       <motion.span
         variants={createDotVariants(0.4)}
         initial="initial"
         animate="animate"
-        className="typing-dot"
+        className="w-2 h-2 bg-[var(--ai-message-text-color)] rounded-full inline-block mx-0.5"
       />
     </div>
   );

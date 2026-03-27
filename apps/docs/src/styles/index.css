@@ -8,6 +8,146 @@
 /* Import animations */
 @import './_keyframe-animations.scss';
 
+/* ── Tailwind CSS ── */
+@import "tailwindcss";
+
+/* Dark mode variant matching app's data-theme attribute */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* Source paths for Tailwind class detection */
+@source "../../**/*.{js,ts,jsx,tsx}";
+@source "../../../../packages/docs/src/**/*.{js,ts,jsx,tsx}";
+@source "../../../../packages/ui/src/**/*.{js,ts,jsx,tsx}";
+@source "../../../../packages/wolke/src/**/*.{js,ts,jsx,tsx}";
+
+/* Scan @blocknote/shadcn for its utility classes */
+@source "../../../../node_modules/@blocknote/shadcn";
+
+/* BlockNote shadcn border compatibility */
+@layer base {
+  .bn-shadcn * {
+    @apply border-border outline-ring/50;
+  }
+}
+
+/* ── Tailwind Theme (subset of apps/web theme tokens) ── */
+@theme {
+  /* Primary Color System */
+  --color-primary-50: var(--primary-50);
+  --color-primary-100: var(--primary-100);
+  --color-primary-200: var(--primary-200);
+  --color-primary-300: var(--primary-300);
+  --color-primary-400: var(--primary-400);
+  --color-primary-500: var(--primary-500);
+  --color-primary-600: var(--primary-600);
+  --color-primary-700: var(--primary-700);
+  --color-primary-800: var(--primary-800);
+  --color-primary-900: var(--primary-900);
+  --color-primary-950: var(--primary-950);
+
+  /* Secondary Color System */
+  --color-secondary-50: var(--secondary-50);
+  --color-secondary-100: var(--secondary-100);
+  --color-secondary-200: var(--secondary-200);
+  --color-secondary-300: var(--secondary-300);
+  --color-secondary-400: var(--secondary-400);
+  --color-secondary-500: var(--secondary-500);
+  --color-secondary-600: var(--secondary-600);
+  --color-secondary-700: var(--secondary-700);
+  --color-secondary-800: var(--secondary-800);
+  --color-secondary-900: var(--secondary-900);
+  --color-secondary-950: var(--secondary-950);
+
+  /* Grey Color System */
+  --color-grey-50: var(--grey-50);
+  --color-grey-100: var(--grey-100);
+  --color-grey-200: var(--grey-200);
+  --color-grey-300: var(--grey-300);
+  --color-grey-400: var(--grey-400);
+  --color-grey-500: var(--grey-500);
+  --color-grey-600: var(--grey-600);
+  --color-grey-700: var(--grey-700);
+  --color-grey-800: var(--grey-800);
+  --color-grey-900: var(--grey-900);
+  --color-grey-950: var(--grey-950);
+
+  /* Semantic Colors - Theme-aware */
+  --color-background: var(--background-color);
+  --color-background-pure: var(--background-color-pure);
+  --color-background-alt: var(--background-color-alt);
+  --color-foreground: var(--font-color);
+  --color-foreground-heading: var(--font-color-h);
+  --color-link: var(--link-color);
+  --color-error: var(--error-red);
+  --color-disabled: var(--font-color-disabled);
+
+  /* Button Colors */
+  --color-button-bg: var(--button-background-color);
+  --color-button-text: var(--button-text-color);
+  --color-button-hover: var(--button-hover-color);
+
+  /* Form Input Colors */
+  --color-input-bg: var(--input-background);
+  --color-input-text: var(--input-text-color);
+
+  /* Spacing System */
+  --spacing-xxs: var(--spacing-xxsmall);
+  --spacing-xs: var(--spacing-xsmall);
+  --spacing-sm: var(--spacing-small);
+  --spacing-md: var(--spacing-medium);
+  --spacing-lg: var(--spacing-large);
+  --spacing-xl: var(--spacing-xlarge);
+  --spacing-2xl: var(--spacing-xxlarge);
+
+  /* Shadows */
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+
+  /* Border Radius */
+  --radius-sm: var(--card-border-radius-small);
+  --radius-md: var(--card-border-radius-medium);
+  --radius-lg: var(--card-border-radius-large);
+
+  /* Standard shadcn semantic tokens (required by @blocknote/shadcn) */
+  --color-border: var(--grey-200);
+  --color-ring: var(--primary-500);
+  --color-primary: var(--primary-500);
+  --color-primary-foreground: #ffffff;
+  --color-secondary: var(--secondary-500);
+  --color-secondary-foreground: #ffffff;
+  --color-accent: var(--secondary-100);
+  --color-accent-foreground: var(--font-color);
+  --color-muted: var(--grey-100);
+  --color-muted-foreground: var(--grey-500);
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #ffffff;
+  --color-popover: var(--background-color-pure);
+  --color-popover-foreground: var(--font-color);
+  --color-card: var(--background-color-pure);
+  --color-card-foreground: var(--font-color);
+  --color-input: var(--grey-200);
+
+  /* Hover */
+  --color-hover-alt: var(--hover-color-alt);
+}
+
+/* Dark mode overrides for shadcn tokens */
+[data-theme='dark'] {
+  --color-border: var(--grey-700);
+  --color-ring: #56a17e;
+  --color-accent: var(--grey-800);
+  --color-accent-foreground: var(--grey-100);
+  --color-muted: var(--grey-800);
+  --color-muted-foreground: var(--grey-400);
+  --color-destructive: #f87171;
+  --color-popover: var(--grey-900);
+  --color-popover-foreground: var(--grey-100);
+  --color-card: var(--grey-900);
+  --color-card-foreground: var(--grey-100);
+  --color-input: var(--grey-700);
+}
+
 /* ─────────────────────────────────────────────
    Docs-specific semantic variables
    (supplements variables.css which lacks these)
@@ -27,13 +167,6 @@
     --border-color: var(--grey-700);
     --font-color-secondary: var(--grey-400);
   }
-}
-
-/* Reset and base styles */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
 html, body {

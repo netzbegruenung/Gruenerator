@@ -1,10 +1,15 @@
+import { useAuthStore } from '../../stores/authStore';
 import { buildLoginUrl } from '../../utils/authRedirect';
 import { isDesktopApp } from '../../utils/platform';
 
 import type { DocsAdapter } from '@gruenerator/docs';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-const HOCUSPOCUS_URL = import.meta.env.VITE_HOCUSPOCUS_URL || 'ws://localhost:1240';
+const HOCUSPOCUS_URL =
+  import.meta.env.VITE_HOCUSPOCUS_URL ||
+  (window.location.protocol === 'https:'
+    ? `wss://${window.location.host}/ws`
+    : 'ws://localhost:1240');
 
 async function getPlatformToken(): Promise<string | null> {
   if (isDesktopApp()) {
@@ -52,4 +57,6 @@ export const webAppDocsAdapter: DocsAdapter = {
   navigateToHome: () => {
     window.location.href = '/docs';
   },
+
+  getCurrentUserDisplayName: () => useAuthStore.getState().user?.display_name ?? null,
 };

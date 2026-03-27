@@ -25,7 +25,14 @@ import { createChatApiClient } from '../context/ChatContext';
 import { useAgentStore } from '../stores/chatStore';
 import { useChatConfigStore, type ChatConfig } from '../stores/chatConfigStore';
 import { getDefaultAgent } from '../lib/agents';
-import { setCustomAgents, type CustomAgentMentionable } from '../lib/mentionables';
+import {
+  setCustomAgents,
+  setBoardMentionables,
+  setDocMentionables,
+  type CustomAgentMentionable,
+} from '../lib/mentionables';
+import { useChatCollaboration } from '../hooks/useChatCollaboration';
+import { ChatCollaborationProvider } from '../context/ChatCollaborationContext';
 import { VoxtralDictationAdapter } from '@gruenerator/voice';
 import {
   createGrueneratorModelAdapter,
@@ -49,6 +56,7 @@ import type {
 interface GrueneratorChatProviderProps {
   children: ReactNode;
   userId?: string;
+  userName?: string;
   config?: ChatConfig;
   getExternalThreads?: () => ExternalThreadEntry[];
   onExternalThreadClick?: (externalId: string) => void;
@@ -73,15 +81,12 @@ interface LoadedMessage {
     searchResults?: SearchResult[];
     generatedImage?: GeneratedImage;
     toolCalls?: PersistedToolCall[];
+    senderId?: string;
+    senderName?: string | null;
   };
 }
 
-const INTENT_TO_TOOL: Record<string, string> = {
-  search: 'gruenerator_search',
-  web: 'web_search',
-  research: 'research',
-  examples: 'gruenerator_examples_search',
-};
+import { INTENT_TO_TOOL } from '../lib/toolMappings';
 
 function extractContent(content: unknown): string {
   if (typeof content !== 'string') return '';
@@ -146,6 +151,10 @@ function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMessageLik
     contentParts.push({ type: 'text' as const, text: textContent });
 
     const custom: Record<string, unknown> = {};
+    if (m.metadata?.senderId) {
+      custom.senderId = m.metadata.senderId;
+      custom.senderName = m.metadata.senderName ?? null;
+    }
     if (m.metadata?.citations) custom.citations = m.metadata.citations;
     if (m.metadata?.generatedImage) custom.generatedImage = m.metadata.generatedImage;
     if (m.metadata?.intent)
@@ -194,8 +203,22 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
             const msgs = await apiClient.get<LoadedMessage[]>(
               `${endpoints.messages}?threadId=${remoteId}`
             );
-            const converted = convertToThreadMessageLike(msgs);
+            let converted = convertToThreadMessageLike(msgs);
+
+            const initialMsg = useAgentStore.getState().pendingInitialAssistantMessage;
+            if (converted.length === 0 && initialMsg) {
+              converted = [
+                {
+                  role: 'assistant' as const,
+                  content: [{ type: 'text' as const, text: initialMsg }],
+                  id: `initial_${remoteId}`,
+                },
+              ];
+              useAgentStore.getState().setPendingInitialAssistantMessage(null);
+            }
+
             loadCompactionState(remoteId, apiClient);
+            useAgentStore.getState().loadThreadSettings(remoteId, apiClient);
             return ExportedMessageRepository.fromArray(converted);
           } catch (error) {
             console.error('Error loading messages:', error);
@@ -225,16 +248,29 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
 }
 
 function useGrueneratorThreadRuntime() {
-  const { selectedAgentId, selectedModel, enabledTools, useDeepAgent, selectedNotebookId } =
-    useAgentStore(
-      useShallow((s) => ({
-        selectedAgentId: s.selectedAgentId,
-        selectedModel: s.selectedModel,
-        enabledTools: s.enabledTools,
-        useDeepAgent: s.useDeepAgent,
-        selectedNotebookId: s.selectedNotebookId,
-      }))
-    );
+  const {
+    selectedAgentId,
+    selectedModel,
+    enabledTools,
+    useDeepAgent,
+    selectedNotebookId,
+    threadMode,
+    searchMode,
+    customSystemPrompt,
+    customEnabledTools,
+  } = useAgentStore(
+    useShallow((s) => ({
+      selectedAgentId: s.selectedAgentId,
+      selectedModel: s.selectedModel,
+      enabledTools: s.enabledTools,
+      useDeepAgent: s.useDeepAgent,
+      selectedNotebookId: s.selectedNotebookId,
+      threadMode: s.threadMode,
+      searchMode: s.searchMode,
+      customSystemPrompt: s.customSystemPrompt,
+      customEnabledTools: s.customEnabledTools,
+    }))
+  );
   const incrementMessageCount = useAgentStore((s) => s.incrementMessageCount);
   const needsCompaction = useAgentStore((s) => s.needsCompaction);
   const compactionState = useAgentStore((s) => s.compactionState);
@@ -248,8 +284,22 @@ function useGrueneratorThreadRuntime() {
       threadId: useAgentStore.getState().currentThreadId,
       useDeepAgent,
       selectedNotebookId,
+      threadMode,
+      searchMode,
+      customSystemPrompt,
+      customEnabledTools,
     }),
-    [selectedAgentId, selectedModel, enabledTools, useDeepAgent, selectedNotebookId]
+    [
+      selectedAgentId,
+      selectedModel,
+      enabledTools,
+      useDeepAgent,
+      selectedNotebookId,
+      threadMode,
+      searchMode,
+      customSystemPrompt,
+      customEnabledTools,
+    ]
   );
 
   const onThreadCreated = useCallback((newThreadId: string) => {
@@ -271,12 +321,6 @@ function useGrueneratorThreadRuntime() {
   const onComplete = useCallback(
     (_metadata: StreamMetadata) => {
       const tid = useAgentStore.getState().currentThreadId;
-      console.debug(
-        '[ChatProvider] onComplete fired — threadId=',
-        tid,
-        'needsCompaction=',
-        needsCompactionRef.current
-      );
       if (tid) {
         incrementMessageCount();
         incrementMessageCount();
@@ -289,15 +333,10 @@ function useGrueneratorThreadRuntime() {
     [incrementMessageCount, triggerCompaction, runtimeApiClient]
   );
 
-  const prevAdapterRef = useRef<string>('');
-  const modelAdapter = useMemo(() => {
-    const id = `adapter_${Date.now()}`;
-    console.debug(
-      `[ChatProvider] Creating modelAdapter (${id}) — prev was (${prevAdapterRef.current})`
-    );
-    prevAdapterRef.current = id;
-    return createGrueneratorModelAdapter(getConfig, { onThreadCreated, onComplete });
-  }, [getConfig, onThreadCreated, onComplete]);
+  const modelAdapter = useMemo(
+    () => createGrueneratorModelAdapter(getConfig, { onThreadCreated, onComplete }),
+    [getConfig, onThreadCreated, onComplete]
+  );
 
   const dictationAdapter = useMemo(() => new VoxtralDictationAdapter(), []);
 
@@ -329,7 +368,6 @@ function ThreadTitleEffect() {
         const state = aui.threadListItem().getState();
         if (!state.title) {
           titleTriggeredRef.current = currentThreadId;
-          console.log('[TitleGen] Triggering generateTitle via aui for', currentThreadId);
           aui.threadListItem().generateTitle();
         }
       } catch (err: unknown) {
@@ -344,6 +382,7 @@ function ThreadTitleEffect() {
 export function GrueneratorChatProvider({
   children,
   userId,
+  userName,
   config,
   getExternalThreads,
   onExternalThreadClick,
@@ -378,6 +417,7 @@ export function GrueneratorChatProvider({
   return (
     <GrueneratorChatRuntimeProvider
       userId={userId}
+      userName={userName}
       getExternalThreads={getExternalThreads}
       onExternalThreadClick={onExternalThreadClick}
       activePath={activePath}
@@ -387,15 +427,33 @@ export function GrueneratorChatProvider({
   );
 }
 
+function ChatCollaborationBridge({
+  userId,
+  userName,
+  children,
+}: {
+  userId: string;
+  userName?: string;
+  children: ReactNode;
+}) {
+  const threadId = useAgentStore((s) => s.currentThreadId);
+  const user = useMemo(() => ({ id: userId, name: userName || userId }), [userId, userName]);
+  const collab = useChatCollaboration(threadId, user);
+
+  return <ChatCollaborationProvider value={collab}>{children}</ChatCollaborationProvider>;
+}
+
 function GrueneratorChatRuntimeProvider({
   children,
   userId,
+  userName,
   getExternalThreads,
   onExternalThreadClick,
   activePath,
 }: {
   children: ReactNode;
   userId: string;
+  userName?: string;
   getExternalThreads?: () => ExternalThreadEntry[];
   onExternalThreadClick?: (externalId: string) => void;
   activePath?: string;
@@ -407,8 +465,30 @@ function GrueneratorChatRuntimeProvider({
     [fetchFn, onUnauthorized]
   );
 
-  // Load user's custom prompts for @mention support
+  // Auto-activate mentionables on chat-related routes
+  const mentionablesActivated = useAgentStore((s) => s.mentionablesActivated);
   useEffect(() => {
+    if (mentionablesActivated) return;
+    const isChatRoute =
+      activePath?.startsWith('/chat') ||
+      activePath?.startsWith('/gruene-') ||
+      activePath?.startsWith('/kommunalwiki') ||
+      activePath?.startsWith('/boell-stiftung') ||
+      activePath?.startsWith('/gruenblog') ||
+      activePath?.startsWith('/notebook') ||
+      activePath?.startsWith('/gruenerator-notebook') ||
+      activePath?.startsWith('/suche') ||
+      activePath?.startsWith('/ask') ||
+      activePath?.startsWith('/gruen-o-mat');
+    if (isChatRoute) {
+      useAgentStore.getState().activateMentionables();
+    }
+  }, [activePath, mentionablesActivated]);
+
+  // Load @mention data (custom agents, boards, docs) — deferred until chat is used
+  useEffect(() => {
+    if (!mentionablesActivated) return;
+
     const loadCustomAgents = async () => {
       try {
         const [ownPrompts, savedPrompts] = await Promise.all([
@@ -431,7 +511,63 @@ function GrueneratorChatRuntimeProvider({
       }
     };
     loadCustomAgents();
-  }, [providerApiClient, userId]);
+
+    const loadBoards = async () => {
+      try {
+        const boards =
+          await providerApiClient.get<Array<{ id: string; title: string }>>('/api/boards');
+        if (Array.isArray(boards)) {
+          setBoardMentionables(
+            boards.map((b) => ({
+              id: b.id,
+              title: b.title,
+              slug: b.title
+                .toLowerCase()
+                .replace(/[äÄ]/g, 'ae')
+                .replace(/[öÖ]/g, 'oe')
+                .replace(/[üÜ]/g, 'ue')
+                .replace(/ß/g, 'ss')
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-|-$/g, ''),
+            }))
+          );
+        }
+      } catch {
+        // Silently ignore — boards in @mention are optional
+      }
+    };
+    loadBoards();
+
+    const loadDocs = async () => {
+      try {
+        const docs =
+          await providerApiClient.get<
+            Array<{ id: string; title: string; document_subtype?: string }>
+          >('/api/docs');
+        if (Array.isArray(docs)) {
+          setDocMentionables(
+            docs
+              .filter((d) => d.document_subtype !== 'boards')
+              .map((d) => ({
+                id: d.id,
+                title: d.title,
+                slug: d.title
+                  .toLowerCase()
+                  .replace(/[äÄ]/g, 'ae')
+                  .replace(/[öÖ]/g, 'oe')
+                  .replace(/[üÜ]/g, 'ue')
+                  .replace(/ß/g, 'ss')
+                  .replace(/[^a-z0-9]+/g, '-')
+                  .replace(/^-|-$/g, ''),
+              }))
+          );
+        }
+      } catch {
+        // Silently ignore — docs in @mention are optional
+      }
+    };
+    loadDocs();
+  }, [providerApiClient, userId, mentionablesActivated]);
 
   const getExternalThreadsRef = useRef(getExternalThreads);
   useEffect(() => {
@@ -472,7 +608,9 @@ function GrueneratorChatRuntimeProvider({
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
       <ExternalThreadProvider value={externalCtx}>
         <ThreadTitleEffect />
-        {children}
+        <ChatCollaborationBridge userId={userId} userName={userName}>
+          {children}
+        </ChatCollaborationBridge>
       </ExternalThreadProvider>
     </AssistantRuntimeProvider>
   );

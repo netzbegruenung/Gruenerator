@@ -22,6 +22,7 @@ export interface SubtitlerProject {
   style_preference: string;
   height_preference: string;
   mode_preference: string;
+  style_settings: Record<string, any>;
   created_at: Date | string;
   updated_at: Date | string;
   last_edited_at: Date | string;
@@ -75,6 +76,8 @@ export interface UpdateProjectData {
   stylePreference?: string;
   height_preference?: string;
   heightPreference?: string;
+  style_settings?: Record<string, any>;
+  styleSettings?: Record<string, any>;
   status?: string;
 }
 

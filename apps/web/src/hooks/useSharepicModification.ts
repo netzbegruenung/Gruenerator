@@ -1,4 +1,3 @@
-import { debounce } from 'lodash';
 import { useState, useCallback, useMemo } from 'react';
 
 import apiClient from '../components/utils/apiClient';
@@ -203,7 +202,15 @@ const useSharepicModification = (): UseSharepicModificationReturn => {
   };
 
   // Create debounced version for UI responsiveness
-  const debouncedModifySharepic = useMemo(() => debounce(modifySharepic, 300), [modifySharepic]);
+  const debouncedModifySharepic = useMemo(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const debounced = (...args: Parameters<typeof modifySharepic>) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => modifySharepic(...args), 300);
+    };
+    debounced.cancel = () => clearTimeout(timer);
+    return debounced;
+  }, [modifySharepic]);
 
   // Clear error state
   const clearError = useCallback(() => {

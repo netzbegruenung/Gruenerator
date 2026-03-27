@@ -71,6 +71,7 @@ export default defineConfig(({ command }) => ({
       '@gruenerator/shared': path.resolve(__dirname, '../../packages/shared/src'),
       '@gruenerator/chat': path.resolve(__dirname, '../../packages/chat/src'),
     },
+    dedupe: ['d3-path'],
   },
   optimizeDeps: {
     include: [
@@ -86,11 +87,14 @@ export default defineConfig(({ command }) => ({
       'prop-types',
       '@mdxeditor/editor',
       '@assistant-ui/react',
+      'recharts',
     ],
-    exclude: ['motion', 'lodash', 'browser-image-compression', '@imgly/background-removal'],
-    esbuildOptions: {
-      target: 'es2022',
-      treeShaking: true,
+    exclude: ['motion', 'browser-image-compression', '@imgly/background-removal'],
+    rolldownOptions: {
+      transform: {
+        define: {},
+      },
+      treeshake: true,
     },
   },
   build: {
@@ -103,15 +107,10 @@ export default defineConfig(({ command }) => ({
     outDir: 'build',
     reportCompressedSize: false,
     modulePreload: { polyfill: true },
-    minify: 'esbuild',
     cssMinify: true,
     emptyOutDir: true,
-    rollupOptions: {
+    rolldownOptions: {
       treeshake: true,
-      cache: false,
-      maxParallelFileOps: 1,
-      perf: false,
-      shimMissingExports: false,
       output: {
         entryFileNames: 'assets/js/[name].[hash].js',
         chunkFileNames: 'assets/js/[name].[hash].js',
@@ -132,21 +131,80 @@ export default defineConfig(({ command }) => ({
           }
           return 'assets/[name].[hash][extname]';
         },
-        manualChunks: {
-          // Core framework vendors
-          'core-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'state-vendor': ['@tanstack/react-query', 'zustand'],
-          'ui-vendor': ['react-tooltip', 'react-hook-form', 'react-dropzone'],
-          'utils-vendor': ['lodash', 'uuid', 'dompurify'],
-          'motion-vendor': ['motion'],
-
-          // NEW: Additional vendor chunks for better code splitting
-          'shared-vendor': ['@gruenerator/shared'],
-          'canvas-vendor': ['konva', 'react-konva', 'use-image'],
-          'ai-vendor': ['onnxruntime-web', '@imgly/background-removal'],
-          'editor-vendor': ['@mdxeditor/editor', 'marked', 'react-markdown'],
-          'chat-vendor': ['@assistant-ui/react', 'lucide-react'],
-        },
+      },
+      codeSplitting: {
+        groups: [
+          {
+            name: 'core-vendor',
+            test: /node_modules[\\/](react|react-dom|react-router)/,
+            priority: 20,
+          },
+          {
+            name: 'state-vendor',
+            test: /node_modules[\\/](@tanstack[\\/]react-query|zustand)/,
+            priority: 10,
+          },
+          {
+            name: 'ui-vendor',
+            test: /node_modules[\\/](react-tooltip|react-hook-form|react-dropzone)/,
+            priority: 10,
+          },
+          {
+            name: 'utils-vendor',
+            test: /node_modules[\\/](uuid|dompurify)/,
+            priority: 10,
+          },
+          {
+            name: 'motion-vendor',
+            test: /node_modules[\\/]motion/,
+            priority: 10,
+          },
+          {
+            name: 'canvas-vendor',
+            test: /node_modules[\\/](konva|react-konva|use-image)/,
+            priority: 10,
+          },
+          {
+            name: 'ai-vendor',
+            test: /node_modules[\\/](onnxruntime-web|@imgly[\\/]background-removal)/,
+            priority: 10,
+          },
+          {
+            name: 'editor-vendor',
+            test: /node_modules[\\/](@mdxeditor[\\/]editor|marked|react-markdown)/,
+            priority: 10,
+          },
+          {
+            name: 'chat-vendor',
+            test: /node_modules[\\/](@assistant-ui[\\/]react|lucide-react)/,
+            priority: 10,
+          },
+          {
+            name: 'shared-pkg',
+            test: /packages[\\/]shared[\\/]src/,
+            priority: 5,
+          },
+          {
+            name: 'canvas-editor-pkg',
+            test: /packages[\\/]canvas-editor[\\/]src/,
+            priority: 5,
+          },
+          {
+            name: 'chat-pkg',
+            test: /packages[\\/]chat[\\/]src/,
+            priority: 5,
+          },
+          {
+            name: 'docs-pkg',
+            test: /packages[\\/]docs[\\/]src/,
+            priority: 5,
+          },
+          {
+            name: 'collab-pkg',
+            test: /packages[\\/]collab[\\/]src/,
+            priority: 5,
+          },
+        ],
       },
     },
   },

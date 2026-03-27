@@ -1,3 +1,6 @@
+# Inspiration / reference repos
+inspiration/
+
 # Dependencies
 node_modules
 package-lock.json
@@ -26,6 +29,9 @@ mcp.json
 
 # UUID files (auto-generated)
 *.uuid
+
+# Google Play service account keys
+google-service-account.json
 
 # Logs
 npm-debug.log*
@@ -88,12 +94,11 @@ AGENTS.md
 # Scripts directory (root only)
 /scripts/
 
-# Documentation (local development)
-docs/
-!apps/api/docs/
-!apps/api/routes/docs/
-!apps/docs/
-!apps/web/src/features/docs/
+# Security alerts (local reference, auto-generated)
+SECURITY-ALERTS.md
+
+# Documentation (local development, root-level only)
+/docs/
 !packages/docs/
 !documentation/docs/
 

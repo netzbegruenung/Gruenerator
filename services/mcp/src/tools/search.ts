@@ -22,13 +22,80 @@ import {
 } from '../utils/cache.ts';
 import { type Country } from '../utils/localization.ts';
 
+type SearchMode = 'hybrid' | 'vector' | 'text';
+
 interface SearchResult {
   score: number;
-  title: unknown;
-  url?: unknown;
-  text: unknown;
-  searchMethod?: unknown;
-  [key: string]: unknown;
+  title: string;
+  url: string | null;
+  text: string;
+  searchMethod?: string;
+  documentId?: string;
+  qualityScore?: number;
+  payload?: Record<string, unknown>;
+}
+
+function truncateAtSentence(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  const truncated = text.substring(0, maxLength);
+  const lastSentenceEnd = Math.max(
+    truncated.lastIndexOf('. '),
+    truncated.lastIndexOf('! '),
+    truncated.lastIndexOf('? '),
+    truncated.lastIndexOf('.\n')
+  );
+  if (lastSentenceEnd > maxLength * 0.5) {
+    return truncated.substring(0, lastSentenceEnd + 1);
+  }
+  const lastSpace = truncated.lastIndexOf(' ');
+  return (lastSpace > maxLength * 0.7 ? truncated.substring(0, lastSpace) : truncated) + '…';
+}
+
+function extractPayloadMetadata(result: SearchResult): {
+  category: string | null;
+  contentType: string | null;
+  date: string | null;
+} {
+  const payload = result.payload;
+  const metadata = payload?.metadata as Record<string, unknown> | undefined;
+  return {
+    category: (payload?.primary_category ?? metadata?.primary_category ?? null) as string | null,
+    contentType: (payload?.content_type ?? metadata?.content_type ?? null) as string | null,
+    date: (payload?.date ?? payload?.published_date ?? metadata?.date ?? null) as string | null,
+  };
+}
+
+function formatResult(
+  r: SearchResult,
+  index: number,
+  searchMode: SearchMode,
+  sourceCollection?: string
+) {
+  const { category, contentType, date } = extractPayloadMetadata(r);
+  const base: Record<string, unknown> = {
+    rank: index + 1,
+    relevance: `${Math.round(r.score * 100)}%`,
+    score: Math.round(r.score * 1000) / 1000,
+    source: r.title,
+    url: r.url,
+    excerpt: truncateAtSentence(r.text || '', 800),
+    searchMethod: r.searchMethod || searchMode,
+  };
+  if (r.documentId) base.documentId = r.documentId;
+  if (category) base.category = category;
+  if (contentType) base.contentType = contentType;
+  if (date) base.date = date;
+  if (sourceCollection) base.sourceCollection = sourceCollection;
+  return base;
+}
+
+function buildDocumentGroups(results: Array<Record<string, unknown>>): Record<string, number> {
+  const groups: Record<string, number> = {};
+  for (const r of results) {
+    const title = String(r.source || 'Unbekannt');
+    groups[title] = (groups[title] || 0) + 1;
+  }
+  return groups;
 }
 
 async function searchSingleCollection({
@@ -42,7 +109,7 @@ async function searchSingleCollection({
 }: {
   collectionKey: string;
   query: string;
-  searchMode: string;
+  searchMode: SearchMode;
   limit: number;
   filters: Record<string, string> | null;
   useCache: boolean;
@@ -60,21 +127,24 @@ async function searchSingleCollection({
   if (searchMode === 'text') {
     results = await textSearchCollection(collectionConfig.name, query, limit, qdrantFilter);
     metadata.searchType = 'text';
-  } else if (searchMode === 'hybrid') {
-    const embedding = sharedEmbedding!;
-    const hybridResult = await hybridSearchCollection(
-      collectionConfig.name,
-      embedding,
-      query,
-      limit,
-      { filter: qdrantFilter }
-    );
-    results = hybridResult.results;
-    metadata = { searchType: 'hybrid', ...hybridResult.metadata };
   } else {
-    const embedding = sharedEmbedding!;
-    results = await searchCollection(collectionConfig.name, embedding, limit, qdrantFilter);
-    metadata.searchType = 'vector';
+    if (!sharedEmbedding) {
+      throw new Error(`Embedding required for searchMode "${searchMode}" but not provided`);
+    }
+    if (searchMode === 'hybrid') {
+      const hybridResult = await hybridSearchCollection(
+        collectionConfig.name,
+        sharedEmbedding,
+        query,
+        limit,
+        { filter: qdrantFilter }
+      );
+      results = hybridResult.results;
+      metadata = { searchType: 'hybrid', ...hybridResult.metadata };
+    } else {
+      results = await searchCollection(collectionConfig.name, sharedEmbedding, limit, qdrantFilter);
+      metadata.searchType = 'vector';
+    }
   }
 
   return { results: results || [], collectionKey, metadata };
@@ -224,7 +294,7 @@ export const searchTool = {
     query: string;
     country: Country;
     collection?: string;
-    searchMode?: string;
+    searchMode?: SearchMode;
     limit?: number;
     filters?: Record<string, string> | null;
     useCache?: boolean;
@@ -283,19 +353,19 @@ async function searchSingleCollectionWithCache({
   query: string;
   country: Country;
   collectionKey: string;
-  searchMode: string;
+  searchMode: SearchMode;
   limit: number;
   filters: Record<string, string> | null;
   useCache: boolean;
 }) {
-  const collectionConfig = config.collections[collectionKey];
+  const collectionConfig = config.collections[collectionKey]!;
 
   try {
     if (useCache) {
       const cachedResults = getCachedSearch(collectionKey, query, searchMode, filters);
-      if (cachedResults) {
+      if (cachedResults && typeof cachedResults === 'object') {
         console.error(`[Search] Cache hit for "${query.substring(0, 30)}..."`);
-        return { ...cachedResults, cached: true };
+        return { ...(cachedResults as Record<string, unknown>), cached: true };
       }
     }
 
@@ -342,6 +412,7 @@ async function searchSingleCollectionWithCache({
       };
     }
 
+    const formattedResults = results.map((r, i) => formatResult(r, i, searchMode));
     const response = {
       collection: collectionConfig.displayName,
       description: collectionConfig.description,
@@ -349,17 +420,8 @@ async function searchSingleCollectionWithCache({
       query,
       searchMode,
       resultsCount: results.length,
-      results: results.map((r, i) => {
-        const text = String(r.text || '');
-        return {
-          rank: i + 1,
-          relevance: `${Math.round(r.score * 100)}%`,
-          source: r.title,
-          url: r.url || null,
-          excerpt: text.length > 800 ? text.substring(0, 800) + '...' : text,
-          searchMethod: r.searchMethod || searchMode,
-        };
-      }),
+      results: formattedResults,
+      documentGroups: buildDocumentGroups(formattedResults),
       metadata,
       filters: filters || null,
       cached: false,
@@ -370,11 +432,12 @@ async function searchSingleCollectionWithCache({
     }
 
     return response;
-  } catch (error) {
-    console.error('[Search] Fehler:', error.message);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[Search] Fehler:', message);
     return {
       error: true,
-      message: `Suchfehler: ${error.message}`,
+      message: `Suchfehler: ${message}`,
     };
   }
 }
@@ -389,7 +452,7 @@ async function searchMultipleCollections({
 }: {
   query: string;
   country: Country;
-  searchMode: string;
+  searchMode: SearchMode;
   limit: number;
   filters: Record<string, string> | null;
   useCache: boolean;
@@ -406,9 +469,9 @@ async function searchMultipleCollections({
   const cacheKey = `country:${country}`;
   if (useCache) {
     const cachedResults = getCachedSearch(cacheKey, query, searchMode, filters);
-    if (cachedResults) {
+    if (cachedResults && typeof cachedResults === 'object') {
       console.error(`[Search] Cache hit for country search "${query.substring(0, 30)}..."`);
-      return { ...cachedResults, cached: true };
+      return { ...(cachedResults as Record<string, unknown>), cached: true };
     }
   }
 
@@ -483,24 +546,17 @@ async function searchMultipleCollections({
       };
     }
 
+    const formattedResults = topResults.map((r, i) =>
+      formatResult(r, i, searchMode, r.sourceCollection)
+    );
     const response = {
       country,
       collectionsSearched,
       query,
       searchMode,
       resultsCount: topResults.length,
-      results: topResults.map((r, i) => {
-        const text = String(r.text || '');
-        return {
-          rank: i + 1,
-          relevance: `${Math.round(r.score * 100)}%`,
-          source: r.title,
-          url: r.url || null,
-          excerpt: text.length > 800 ? text.substring(0, 800) + '...' : text,
-          searchMethod: r.searchMethod || searchMode,
-          sourceCollection: r.sourceCollection,
-        };
-      }),
+      results: formattedResults,
+      documentGroups: buildDocumentGroups(formattedResults),
       metadata: {
         searchType: searchMode,
         multiCollection: true,
@@ -515,11 +571,12 @@ async function searchMultipleCollections({
     }
 
     return response;
-  } catch (error) {
-    console.error('[Search] Multi-collection search error:', error.message);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[Search] Multi-collection search error:', message);
     return {
       error: true,
-      message: `Suchfehler: ${error.message}`,
+      message: `Suchfehler: ${message}`,
     };
   }
 }

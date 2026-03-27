@@ -1,7 +1,7 @@
-import { type Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { useAuthStore } from '@gruenerator/shared/stores';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   StyleSheet,
@@ -232,6 +232,17 @@ function EinstellungenSection() {
           {user?.locale === 'de-AT' ? 'Österreich' : 'Deutschland'}
         </Text>
       </View>
+
+      <Pressable
+        style={[styles.settingsRow, { borderBottomColor: theme.border }]}
+        onPress={() => router.push('/(fullscreen)/notification-settings' as Href)}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xsmall }}>
+          <Ionicons name="notifications-outline" size={16} color={theme.textSecondary} />
+          <Text style={[styles.settingsLabel, { color: theme.textSecondary }]}>Benachrichtigungen</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
+      </Pressable>
 
       {user?.igel_modus && (
         <View style={[styles.settingsRow, { borderBottomColor: theme.border }]}>

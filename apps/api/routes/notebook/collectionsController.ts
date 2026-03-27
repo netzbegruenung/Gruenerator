@@ -665,6 +665,41 @@ router.delete(
 );
 
 /**
+ * DELETE /api/notebook-collections/:id/documents/:documentId
+ * Remove a single document from a collection
+ */
+router.delete(
+  '/:id/documents/:documentId',
+  requireAuth,
+  async (req: AuthenticatedRequest<{ id: string; documentId: string }>, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const collectionId = req.params.id;
+      const { documentId } = req.params;
+
+      const collection = await notebookHelper.getNotebookCollection(collectionId);
+      if (!collection || collection.user_id !== userId) {
+        return res.status(404).json({ success: false, message: 'Notebook collection not found' });
+      }
+
+      await notebookHelper.removeDocumentsFromCollection(collectionId, [documentId]);
+
+      log.debug(
+        `[Notebook Collections] Removed document ${documentId} from collection ${collectionId}`
+      );
+
+      return res.json({
+        success: true,
+        message: 'Document removed from collection',
+      });
+    } catch (error) {
+      log.error('[Notebook Collections] Error removing document:', error);
+      return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  }
+);
+
+/**
  * DELETE /api/notebook-collections/bulk
  * Bulk delete Notebook collections
  */

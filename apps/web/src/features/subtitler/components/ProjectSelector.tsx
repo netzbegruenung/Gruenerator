@@ -1,3 +1,4 @@
+import { Button } from '@gruenerator/ui';
 import React, { useState, useCallback } from 'react';
 import { FaPlus, FaTrash, FaClock, FaVideo, FaShare, FaUpload } from 'react-icons/fa';
 import * as tus from 'tus-js-client';
@@ -6,14 +7,9 @@ import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import Spinner from '../../../components/common/Spinner';
 import apiClient from '../../../components/utils/apiClient';
 import useDragDropFiles, { VIDEO_ACCEPT } from '../../../hooks/useDragDropFiles';
-import '../styles/ProjectSelector.css';
-import '../../../assets/styles/components/ui/button.css';
+import { getVideoMetadata, TUS_UPLOAD_ENDPOINT, type VideoMetadata } from '../utils/videoUtils';
 
-interface VideoMetadata {
-  duration?: number;
-  width?: number;
-  height?: number;
-}
+import { cn } from '@/utils/cn';
 
 interface Project {
   id: string;
@@ -60,20 +56,19 @@ const formatFileSize = (bytes: number | string | undefined): string => {
 
 const isDevelopment = import.meta.env.VITE_APP_ENV === 'development';
 const baseURL = isDevelopment ? 'http://localhost:3001/api' : `${window.location.origin}/api`;
-const TUS_UPLOAD_ENDPOINT = `${apiClient.defaults.baseURL}/subtitler/upload`;
 
 const SkeletonCard = () => (
-  <div className="skeleton-card">
-    <div className="skeleton-thumbnail" />
-    <div className="skeleton-info">
-      <div className="skeleton-title" />
-      <div className="skeleton-meta" />
+  <div className="overflow-hidden rounded-xl border border-grey-200 bg-background shadow-sm dark:border-grey-700 dark:bg-background-alt">
+    <div className="aspect-[9/16] animate-pulse bg-gradient-to-r from-grey-200 via-grey-100 to-grey-200 dark:from-grey-800 dark:via-grey-700 dark:to-grey-800" />
+    <div className="space-y-sm p-md">
+      <div className="h-5 w-[70%] animate-pulse rounded bg-grey-200 dark:bg-grey-700" />
+      <div className="h-4 w-[50%] animate-pulse rounded bg-grey-200 dark:bg-grey-700" />
     </div>
   </div>
 );
 
 const SkeletonGrid = () => (
-  <div className="skeleton-grid">
+  <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-md">
     {[1, 2, 3].map((i) => (
       <SkeletonCard key={i} />
     ))}
@@ -126,21 +121,29 @@ const ProjectCard = ({ project, onSelect, onDelete, onShare, isLoading }: Projec
 
   return (
     <div
-      className={`project-card ${confirmDelete ? 'deleting' : ''} ${isLoading ? 'loading' : ''}`}
+      className={cn(
+        'group relative cursor-pointer overflow-hidden rounded-xl border border-grey-200 bg-background shadow-sm transition-all',
+        'hover:-translate-y-0.5 hover:shadow-lg dark:border-grey-700 dark:bg-background-alt',
+        confirmDelete && 'pointer-events-none',
+        isLoading && 'pointer-events-none opacity-70'
+      )}
       onClick={() => !confirmDelete && !isLoading && onSelect(project.id)}
       onKeyDown={handleKeyDown}
       tabIndex={0}
       role="button"
       aria-label={`Projekt ${project.title} öffnen`}
     >
-      <div className="project-thumbnail">
+      <div className="relative aspect-[9/16] w-full overflow-hidden bg-background-alt">
         {project.thumbnail_path ? (
           <img
             src={`${baseURL}/subtitler/projects/${project.id}/thumbnail`}
             alt={project.title}
             loading="lazy"
             crossOrigin="use-credentials"
-            className={imageLoaded ? 'loaded' : 'loading'}
+            className={cn(
+              'h-full w-full object-cover transition-opacity',
+              imageLoaded ? 'opacity-100' : 'opacity-0'
+            )}
             onLoad={() => setImageLoaded(true)}
             onError={(e) => {
               const target = e.target as HTMLImageElement;
@@ -151,87 +154,88 @@ const ProjectCard = ({ project, onSelect, onDelete, onShare, isLoading }: Projec
           />
         ) : null}
         <div
-          className="project-thumbnail-placeholder"
+          className="flex h-full items-center justify-center text-3xl text-grey-400"
           style={{ display: project.thumbnail_path ? 'none' : 'flex' }}
         >
           <FaVideo />
         </div>
-        <span className="project-duration">{formatDuration(project.video_metadata?.duration)}</span>
-      </div>
-
-      <div className="project-info">
-        <h3 className="project-title">{project.title}</h3>
-        <div className="project-meta">
-          <span className="project-date">
-            <FaClock />
-            {formatDate(project.last_edited_at)}
-          </span>
-          <span className="project-size">{formatFileSize(project.video_size)}</span>
+        <div className="absolute inset-x-0 bottom-0 z-[2] bg-gradient-to-t from-black/80 via-black/40 to-transparent px-xs pb-xs pt-xl">
+          <h3 className="truncate text-xs font-semibold text-white drop-shadow-sm">
+            {project.title}
+          </h3>
+          <div className="mt-xxs flex flex-wrap items-center gap-x-sm text-[10px] text-white/70">
+            <span className="flex items-center gap-xxs">
+              <FaClock className="text-[9px]" />
+              {formatDate(project.last_edited_at)}
+            </span>
+            <span>{formatDuration(project.video_metadata?.duration)}</span>
+            <span>{formatFileSize(project.video_size)}</span>
+          </div>
         </div>
       </div>
 
-      <div className="project-actions">
+      <div className="absolute right-xs top-xs z-[3] flex gap-xxs">
         <button
-          className="project-share-btn"
+          className={cn(
+            'flex size-8 items-center justify-center rounded-full border-none bg-black/50 text-white backdrop-blur-sm transition-all',
+            'opacity-0 -translate-y-1 group-hover:translate-y-0 group-hover:opacity-100',
+            'max-md:translate-y-0 max-md:opacity-100',
+            'hover:bg-black/70'
+          )}
           onClick={handleShareClick}
           title="Projekt teilen"
           aria-label="Projekt teilen"
         >
-          <FaShare />
+          <FaShare className="text-xs" />
         </button>
         <button
-          className="project-delete-btn"
+          className={cn(
+            'flex size-8 items-center justify-center rounded-full border-none bg-black/50 text-white backdrop-blur-sm transition-all',
+            'opacity-0 -translate-y-1 group-hover:translate-y-0 group-hover:opacity-100',
+            'max-md:translate-y-0 max-md:opacity-100',
+            'hover:bg-red-600/80'
+          )}
           onClick={handleDeleteClick}
           onKeyDown={handleDeleteKeyDown}
           title="Projekt löschen"
           aria-label="Projekt löschen"
         >
-          <FaTrash />
+          <FaTrash className="text-xs" />
         </button>
       </div>
 
       {confirmDelete && (
         <div
-          className="delete-confirm-overlay"
+          className="absolute inset-0 z-10 flex animate-in fade-in flex-col items-center justify-center gap-md rounded-xl bg-red-600/95"
           role="alertdialog"
           aria-labelledby="delete-confirm-text"
         >
-          <p id="delete-confirm-text">Projekt löschen?</p>
-          <div className="delete-confirm-actions">
-            <button className="delete-confirm-btn" onClick={handleConfirmDelete} autoFocus>
+          <p id="delete-confirm-text" className="text-sm font-medium text-white">
+            Projekt löschen?
+          </p>
+          <div className="flex gap-sm">
+            <Button variant="destructive" size="sm" onClick={handleConfirmDelete} autoFocus>
               Ja
-            </button>
-            <button className="delete-cancel-btn" onClick={handleCancelDelete}>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCancelDelete}
+              className="border-white/50 text-white hover:bg-white/20"
+            >
               Nein
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
       {isLoading && (
-        <div className="project-loading-overlay">
+        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-black/40">
           <Spinner size="medium" />
         </div>
       )}
     </div>
   );
-};
-
-const getVideoMetadata = (file: File): Promise<VideoMetadata> => {
-  return new Promise((resolve) => {
-    const video = document.createElement('video');
-    video.preload = 'metadata';
-    video.onloadedmetadata = () => {
-      const metadata: VideoMetadata = {
-        duration: video.duration,
-        width: video.videoWidth,
-        height: video.videoHeight,
-      };
-      resolve(metadata);
-      URL.revokeObjectURL(video.src);
-    };
-    video.src = URL.createObjectURL(file);
-  });
 };
 
 interface UploadData {
@@ -395,7 +399,7 @@ const ProjectSelector = ({
   );
 
   return (
-    <div className="project-selector" {...getRootProps()}>
+    <div className="flex flex-col gap-md" {...getRootProps()}>
       <input {...getInputProps()} />
       <input
         ref={fileInputRef}
@@ -405,20 +409,25 @@ const ProjectSelector = ({
         onChange={handleFileInputChange}
       />
 
-      <div className="project-selector-header">
-        <h1 className="project-selector-title">Grünerator Reel-Studio</h1>
-        <button className="btn-primary new-project-btn" onClick={handleNewProjectClick}>
+      <div className="flex items-center justify-between">
+        <h1 className="text-[2rem] font-semibold text-foreground-heading max-md:text-2xl">
+          Grünerator Reel-Studio
+        </h1>
+        <Button onClick={handleNewProjectClick}>
           <FaPlus /> Neues Projekt
-        </button>
+        </Button>
       </div>
 
       {(error || uploadError) && (
-        <div className="project-selector-error" role="alert">
-          {error || uploadError}
+        <div
+          className="flex items-center justify-between gap-md rounded-lg border border-red-600 bg-red-50 p-md text-red-600 dark:bg-grey-800"
+          role="alert"
+        >
+          <span>{error || uploadError}</span>
           {uploadError && (
-            <button className="error-dismiss-btn" onClick={() => setUploadError(null)}>
+            <Button variant="ghost" size="sm" onClick={() => setUploadError(null)}>
               Schließen
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -426,7 +435,7 @@ const ProjectSelector = ({
       {isLoading ? (
         <SkeletonGrid />
       ) : projects.length > 0 ? (
-        <div className="project-grid">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-md">
           {projects.map((project) => (
             <ProjectCard
               key={project.id}
@@ -439,44 +448,55 @@ const ProjectSelector = ({
           ))}
         </div>
       ) : (
-        <div className="empty-state">
-          <FaVideo className="empty-state-icon" />
-          <h2 className="empty-state-title">Noch keine Projekte</h2>
-          <p className="empty-state-text">Klicke auf "Neues Projekt" um zu starten</p>
+        <div className="flex min-h-[300px] grow flex-col items-center justify-center px-lg py-2xl text-center">
+          <FaVideo className="mb-md text-4xl text-grey-300" />
+          <h2 className="text-lg font-semibold text-foreground-heading">Noch keine Projekte</h2>
+          <p className="mt-xs text-foreground">
+            Klicke auf &quot;Neues Projekt&quot; um zu starten
+          </p>
         </div>
       )}
 
-      <p className="project-limit-info">
+      <p className="text-center text-xs text-grey-400">
         Maximal 20 Projekte werden gespeichert. Ältere Projekte werden automatisch gelöscht.
       </p>
 
       {(isDragActive || isUploading) && (
-        <div className="upload-overlay">
-          <div className="upload-overlay-content">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="w-[90%] max-w-[400px] rounded-xl border-2 border-dashed border-primary-500 bg-background p-2xl text-center shadow-xl dark:bg-background-alt">
             {isUploading ? (
               <>
-                <div className="upload-progress-wrapper">
-                  <div className="upload-progress-bar">
-                    <div className="upload-progress-fill" style={{ width: `${uploadProgress}%` }} />
+                <div className="flex items-center gap-sm">
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-background-alt">
+                    <div
+                      className="h-full rounded-full bg-primary-500 transition-[width] duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
                   </div>
-                  <span className="upload-progress-text">{uploadProgress}%</span>
+                  <span className="min-w-[3ch] text-sm font-medium tabular-nums">
+                    {uploadProgress}%
+                  </span>
                 </div>
-                <p className="upload-status">Video wird hochgeladen...</p>
-                <button
-                  className="btn-secondary upload-cancel-btn"
+                <p className="mt-sm text-sm text-foreground">Video wird hochgeladen...</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-md"
                   onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
                     handleCancelUpload();
                   }}
                 >
                   Abbrechen
-                </button>
+                </Button>
               </>
             ) : (
               <>
-                <FaUpload className="upload-overlay-icon" />
-                <h3 className="upload-overlay-title">Video hier ablegen</h3>
-                <p className="upload-overlay-hint">MP4, MOV, AVI, MKV • Max. 500MB</p>
+                <FaUpload className="mx-auto mb-md text-4xl text-primary-500" />
+                <h3 className="text-lg font-semibold text-foreground-heading">
+                  Video hier ablegen
+                </h3>
+                <p className="mt-xs text-sm text-grey-500">MP4, MOV, AVI, MKV &bull; Max. 500MB</p>
               </>
             )}
           </div>

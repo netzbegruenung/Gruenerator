@@ -4,6 +4,7 @@ import type {
   ChatModelRunResult,
 } from '@assistant-ui/react';
 import { type ChatProgress, type Citation as ChatCitation } from '../hooks/useChatGraphStream';
+import { parseSSELine } from '../lib/sseParser';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
 function normalizeCiteMarkers(text: string): string {
@@ -35,6 +36,10 @@ export interface NotebookAdapterConfig {
   extraParams?: Record<string, unknown>;
   mode?: 'fast' | 'deep';
   endpoint?: string;
+  documentIds?: string[];
+  threadId?: string | null;
+  provider?: string;
+  model?: string;
 }
 
 export interface Citation {
@@ -68,8 +73,8 @@ export interface LinkConfig {
 }
 
 export interface NotebookMessageMetadata {
-  citations: Citation[];
-  chatCitations: ChatCitation[];
+  citations: ChatCitation[];
+  rawCitations: Citation[];
   sources: Source[];
   additionalSources: unknown[];
   linkConfig: LinkConfig;
@@ -78,6 +83,8 @@ export interface NotebookMessageMetadata {
   answerText: string;
   sourcesByCollection?: Record<string, unknown>;
   progress?: ChatProgress;
+  /** @deprecated Use `citations` (ChatCitation[]) instead */
+  chatCitations?: ChatCitation[];
   [key: string]: unknown;
 }
 
@@ -92,29 +99,7 @@ interface StreamCompletionData {
 
 export interface NotebookAdapterCallbacks {
   onComplete?: (metadata: NotebookMessageMetadata) => void;
-}
-
-function parseSSELine(
-  line: string,
-  currentEvent: { type: string }
-): { event?: string; data?: unknown } {
-  if (line.startsWith('event: ')) {
-    currentEvent.type = line.slice(7).trim();
-    return {};
-  }
-
-  if (line.startsWith('data: ')) {
-    try {
-      const data = JSON.parse(line.slice(6));
-      const event = currentEvent.type;
-      currentEvent.type = '';
-      return { event, data };
-    } catch {
-      return {};
-    }
-  }
-
-  return {};
+  onThreadCreated?: (threadId: string) => void;
 }
 
 export function createNotebookModelAdapter(
@@ -151,6 +136,10 @@ export function createNotebookModelAdapter(
         ...(config.filters && { filters: config.filters }),
         locale: config.locale,
         ...(config.mode && { mode: config.mode }),
+        ...(config.documentIds?.length && { documentIds: config.documentIds }),
+        ...(config.threadId && { threadId: config.threadId }),
+        ...(config.provider && { provider: config.provider }),
+        ...(config.model && { model: config.model }),
         ...config.extraParams,
       };
 
@@ -209,6 +198,13 @@ export function createNotebookModelAdapter(
             if (!event || !data) continue;
 
             switch (event) {
+              case 'thread_created': {
+                const { threadId } = data as { threadId: string };
+                console.debug('[Notebook] Thread created:', threadId);
+                callbacks.onThreadCreated?.(threadId);
+                break;
+              }
+
               case 'search_start': {
                 const { message } = data as { message: string };
                 console.debug(
@@ -340,13 +336,14 @@ export function createNotebookModelAdapter(
 
         const chatCitations = mapToChatCitations(citations);
         console.debug(
-          '[Notebook] Completion: %d citations, %d chatCitations, answer length: %d',
+          '[Notebook] Completion: %d rawCitations, %d citations, answer length: %d',
           citations.length,
           chatCitations.length,
           completionData.answer.length
         );
         const metadata: NotebookMessageMetadata = {
-          citations,
+          citations: chatCitations,
+          rawCitations: citations,
           chatCitations,
           sources,
           additionalSources,

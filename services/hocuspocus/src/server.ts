@@ -72,6 +72,12 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
 
     async onLoadDocument(data) {
       const { documentName, document } = data;
+
+      if (documentName.startsWith('chat-') || documentName.startsWith('group-presence-')) {
+        log.debug(`[Load] Skipping persistence for awareness-only room: ${documentName}`);
+        return;
+      }
+
       log.debug(`[Load] Loading document: ${documentName}`);
 
       try {
@@ -94,6 +100,11 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
 
     async onStoreDocument(data) {
       const { documentName, document } = data;
+
+      if (documentName.startsWith('chat-') || documentName.startsWith('group-presence-')) {
+        return;
+      }
+
       const state = Y.encodeStateAsUpdate(document);
       log.debug(`[Store] Storing document: ${documentName}`);
 

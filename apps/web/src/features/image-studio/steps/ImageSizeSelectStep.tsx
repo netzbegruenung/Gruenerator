@@ -13,8 +13,8 @@ import { HiArrowLeft, HiArrowRight } from 'react-icons/hi';
 
 import Button from '../../../components/common/SubmitButton';
 import useImageStudioStore from '../../../stores/imageStudioStore';
+import { cn } from '../../../utils/cn';
 import { slideVariants } from '../components/StepFlow';
-import './ImageSizeSelectStep.css';
 
 interface ImageSizeSelectStepProps {
   onNext: () => void;
@@ -115,34 +115,54 @@ const ImageSizeSelectStep: React.FC<ImageSizeSelectStepProps> = ({
       animate="center"
       exit="exit"
       transition={{ type: 'tween', ease: 'easeOut', duration: 0.3 }}
-      className="typeform-step"
+      className="flex flex-col w-full"
     >
-      <div className="typeform-step__content image-size-select-content">
+      <div className="flex flex-col items-center w-full">
         {/* Title and subtitle are rendered by TemplateStudioFlow header */}
-        <div className="image-size-grid">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-md w-full my-lg max-[768px]:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] max-[768px]:gap-sm max-[480px]:grid-cols-2">
           {IMAGE_SIZES.map((size) => {
             const Icon = size.icon;
+            const isSelected =
+              selectedImageSize?.width === size.width && selectedImageSize?.height === size.height;
             return (
               <button
                 key={`${size.width}x${size.height}`}
-                className={`image-size-card ${
-                  selectedImageSize?.width === size.width &&
-                  selectedImageSize?.height === size.height
-                    ? 'image-size-card--selected'
-                    : ''
-                }`}
+                className={cn(
+                  'bg-[var(--card-background)] border-2 border-[var(--border-subtle)] rounded-md p-lg cursor-pointer transition-all duration-200 flex flex-col items-center gap-md min-h-[180px]',
+                  'hover:border-primary-600 hover:translate-y-[-2px] hover:shadow-lg',
+                  'disabled:cursor-not-allowed disabled:opacity-60',
+                  'max-[768px]:p-md max-[768px]:min-h-[160px] max-[480px]:p-sm max-[480px]:min-h-[140px]',
+                  isSelected && 'border-primary-600 bg-background-alt shadow-md'
+                )}
                 onClick={() => handleSizeSelect(size)}
                 disabled={loading}
               >
-                <div className="image-size-card__icon-container">
-                  <Icon className="image-size-card__icon" style={{ color: size.color }} />
+                <div className="flex items-center justify-center flex-1 w-full">
+                  <Icon
+                    className="text-[48px] transition-transform duration-200 group-hover:scale-110 max-[768px]:text-[40px] max-[480px]:text-[36px]"
+                    style={{ color: size.color }}
+                  />
                 </div>
-                <div className="image-size-card__info">
-                  <div className="image-size-card__label">{size.label}</div>
-                  <div className="image-size-card__dimensions">
+                <div className="flex flex-col gap-xxs text-center w-full">
+                  <div className="font-semibold text-foreground text-sm leading-snug">
+                    {size.label}
+                  </div>
+                  <div
+                    className={cn(
+                      'text-xs font-medium',
+                      isSelected ? 'text-foreground' : 'text-grey-400'
+                    )}
+                  >
                     {size.width} × {size.height}
                   </div>
-                  <div className="image-size-card__platform">{size.platform}</div>
+                  <div
+                    className={cn(
+                      'text-[var(--font-size-xxs)] font-medium uppercase tracking-wider mt-xxs',
+                      isSelected ? 'text-foreground' : 'text-grey-400'
+                    )}
+                  >
+                    {size.platform}
+                  </div>
                 </div>
               </button>
             );
@@ -162,7 +182,7 @@ const ImageSizeSelectStep: React.FC<ImageSizeSelectStepProps> = ({
           </p>
         )}
 
-        <div className="typeform-step__actions">
+        <div className="flex justify-center gap-md mt-lg">
           <Button onClick={onBack} text="Zurück" icon={<HiArrowLeft />} disabled={loading} />
           <Button
             onClick={handleNext}

@@ -38,7 +38,7 @@ export async function getCollectionResources() {
         metadata: {
           collectionId: key,
           qdrantCollection: col.name,
-          error: err.message,
+          error: err instanceof Error ? err.message : String(err),
         },
       });
     }
@@ -50,13 +50,13 @@ export async function getCollectionResources() {
 /**
  * Get a specific collection resource by URI
  */
-export async function getCollectionResource(uri) {
+export async function getCollectionResource(uri: string) {
   const match = uri.match(/^gruenerator:\/\/collections\/([\w-]+)$/);
   if (!match) {
     return null;
   }
 
-  const collectionKey = match[1];
+  const collectionKey = match[1]!;
   const col = config.collections[collectionKey];
 
   if (!col) {
@@ -88,11 +88,14 @@ export async function getCollectionResource(uri) {
               },
               searchModes: ['hybrid', 'vector', 'text'],
               filterableFields: col.filterableFields
-                ? Object.entries(col.filterableFields).map(([field, cfg]) => ({
-                    field,
-                    label: cfg.label,
-                    type: cfg.type,
-                  }))
+                ? Object.entries(col.filterableFields).map(([field, cfg]) => {
+                    const fieldCfg = cfg as { label: string; type: string };
+                    return {
+                      field,
+                      label: fieldCfg.label,
+                      type: fieldCfg.type,
+                    };
+                  })
                 : [],
               features: [
                 'Hybrid-Suche (Vector + Text)',
@@ -122,7 +125,7 @@ export async function getCollectionResource(uri) {
           mimeType: 'application/json',
           text: JSON.stringify(
             {
-              error: err.message,
+              error: err instanceof Error ? err.message : String(err),
               collection: collectionKey,
             },
             null,

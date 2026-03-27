@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, useCallback, memo } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+  useSyncExternalStore,
+  memo,
+} from 'react';
 import { createPortal } from 'react-dom';
 import {
   BlockNoteEditor as BlockNoteEditorCore,
@@ -11,7 +19,6 @@ import { CommentsExtension } from '@blocknote/core/comments';
 import { de } from '@blocknote/core/locales';
 import {
   useCreateBlockNote,
-  ExperimentalMobileFormattingToolbarController,
   FormattingToolbar,
   FormattingToolbarController,
   SuggestionMenuController,
@@ -21,7 +28,7 @@ import {
   ThreadsSidebar,
 } from '@blocknote/react';
 import { filterSuggestionItems } from '@blocknote/core/extensions';
-import { BlockNoteView } from '@blocknote/mantine';
+import { BlockNoteView } from '@blocknote/shadcn';
 import {
   AIExtension,
   AIMenuController,
@@ -31,7 +38,7 @@ import {
 import { de as aiDe } from '@blocknote/xl-ai/locales';
 import { DefaultChatTransport } from 'ai';
 import '@blocknote/core/fonts/inter.css';
-import '@blocknote/mantine/style.css';
+import '@blocknote/shadcn/style.css';
 import '@blocknote/xl-ai/style.css';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
@@ -45,6 +52,7 @@ import { useResolveUsers } from '../../hooks/useResolveUsers';
 import { useMentionUsers } from '../../hooks/useMentionUsers';
 import { useDocsAdapter } from '../../context/DocsContext';
 import { useIsTouchDevice } from '../../hooks/useIsTouchDevice';
+import { useEditorPreferencesStore } from '../../stores/editorPreferencesStore';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { Mention } from './Mention';
 import './BlockNoteEditor.css';
@@ -60,12 +68,28 @@ export interface BlockNoteEditorProps {
   provider?: HocuspocusProvider | null;
   isSynced?: boolean;
   onEditorReady?: (editor: BlockNoteEditorCore) => void;
+  useStaticFormattingToolbar?: boolean;
+  hideFormattingToolbar?: boolean;
 }
 
 interface CollaborationUser {
   id: string;
   name: string;
   color: string;
+}
+
+function subscribeToTheme(callback: () => void) {
+  const observer = new MutationObserver(callback);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  return () => observer.disconnect();
+}
+
+function getThemeSnapshot(): 'light' | 'dark' {
+  return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+}
+
+function useDocumentTheme(): 'light' | 'dark' {
+  return useSyncExternalStore(subscribeToTheme, getThemeSnapshot);
 }
 
 const EDITOR_DOM_ATTRIBUTES = {
@@ -142,10 +166,15 @@ const BlockNoteEditorInner = ({
   provider,
   isSynced = false,
   onEditorReady,
+  useStaticFormattingToolbar = false,
+  hideFormattingToolbar = false,
 }: BlockNoteEditorProps) => {
   const { setEditor: setEditorInStore, removeEditor } = useEditorStore();
   const adapter = useDocsAdapter();
   const isTouchDevice = useIsTouchDevice();
+  const toolbarMode = useEditorPreferencesStore((s) => s.toolbarMode);
+  const theme = useDocumentTheme();
+  const staticToolbar = useStaticFormattingToolbar || isTouchDevice || toolbarMode === 'fixed';
   const getMentionMenuItems = useMentionUsers(provider ?? null);
   const hasInitialized = useRef(false);
   const [isReady, setIsReady] = useState(false);
@@ -293,19 +322,15 @@ const BlockNoteEditorInner = ({
   }
 
   return (
-    <div className="blocknote-wrapper">
+    <div className={`blocknote-wrapper${staticToolbar ? ' blocknote-static-toolbar' : ''}`}>
       <ErrorBoundary>
-        <BlockNoteView editor={editor} theme="light" formattingToolbar={false} slashMenu={false}>
+        <BlockNoteView editor={editor} theme={theme} formattingToolbar={false} slashMenu={false}>
           <AIMenuController />
-          {isTouchDevice ? (
-            <ExperimentalMobileFormattingToolbarController
-              formattingToolbar={() => (
-                <FormattingToolbar>
-                  {getFormattingToolbarItems()}
-                  <AIToolbarButton />
-                </FormattingToolbar>
-              )}
-            />
+          {hideFormattingToolbar ? null : staticToolbar ? (
+            <FormattingToolbar>
+              {getFormattingToolbarItems()}
+              {!isTouchDevice && <AIToolbarButton />}
+            </FormattingToolbar>
           ) : (
             <FormattingToolbarController
               formattingToolbar={() => (

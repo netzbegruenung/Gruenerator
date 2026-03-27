@@ -1,3 +1,4 @@
+import fs from 'fs';
 import { createServer } from 'http';
 import path from 'path';
 
@@ -90,6 +91,86 @@ app.use('/assets', (_req, res) => {
 });
 app.use('/fonts', (_req, res) => {
   res.status(404).end();
+});
+
+// OG meta tag injection for social crawler link previews
+const DOCS_BASE_URL = process.env.DOCS_BASE_URL || 'https://docs.gruenerator.eu';
+const CRAWLER_UA =
+  /facebookexternalhit|Twitterbot|Slackbot|LinkedInBot|Discordbot|WhatsApp|TelegramBot|Applebot/i;
+const DOC_ROUTE = /^\/document\/([a-f0-9-]+)$/i;
+
+let indexHtmlTemplate = '';
+try {
+  indexHtmlTemplate = fs.readFileSync(path.join(DIST_PATH, 'index.html'), 'utf-8');
+} catch {
+  console.warn(
+    '[Docs] Could not pre-read index.html for OG injection — will fall back to sendFile'
+  );
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+app.get('/document/:id', async (req, res, next) => {
+  const ua = req.headers['user-agent'] || '';
+  if (!CRAWLER_UA.test(ua) || !indexHtmlTemplate) {
+    return next();
+  }
+
+  const match = DOC_ROUTE.exec(req.path);
+  if (!match) return next();
+  const docId = match[1];
+
+  try {
+    const ogRes = await fetch(`${API_TARGET}/api/docs/public/${docId}/og`);
+    if (!ogRes.ok) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      return res.send(indexHtmlTemplate);
+    }
+
+    const og = (await ogRes.json()) as {
+      title: string;
+      preview_text: string | null;
+      document_subtype: string;
+      share_mode: string;
+    };
+
+    const title = escapeHtml(og.title || 'Grünerator Docs');
+    const description = escapeHtml(og.preview_text || 'Kollaborativer Dokumenteneditor');
+    const url = `${DOCS_BASE_URL}/document/${docId}`;
+    const image = `${DOCS_BASE_URL}/images/og-preview.svg`;
+
+    const ogTags = `
+    <meta property="og:title" content="${title}" />
+    <meta property="og:description" content="${description}" />
+    <meta property="og:image" content="${image}" />
+    <meta property="og:url" content="${url}" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Grünerator Docs" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${title}" />
+    <meta name="twitter:description" content="${description}" />
+    <meta name="twitter:image" content="${image}" />`;
+
+    const html = indexHtmlTemplate
+      .replace(/<meta property="og:[^>]+>\s*/g, '')
+      .replace(/<meta name="twitter:[^>]+>\s*/g, '')
+      .replace('</head>', `${ogTags}\n  </head>`)
+      .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`);
+
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.send(html);
+  } catch (err) {
+    console.error('[Docs] OG injection failed:', err);
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    return res.send(indexHtmlTemplate);
+  }
 });
 
 // SPA fallback - send all non-matched requests to index.html

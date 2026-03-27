@@ -26,6 +26,7 @@ export interface SystemPromptContext {
   userInstructions?: string;
   conversationSummary?: string;
   userLocale?: string;
+  customSystemPrompt?: string;
 }
 
 /**
@@ -452,4 +453,4 @@ const RESPONSE_RULES = `## ANTWORT-REGELN
 4. Erfinde keine Fakten oder Quellennamen
 5. Wenn der Gesprächsverlauf bereits genug Kontext enthält, antworte direkt OHNE Tool-Aufruf
 6. Erstelle KEINE Quellenliste am Ende — Quellen werden automatisch angezeigt
-7. Verwende KEINE horizontalen Trennlinien (---) in deinen Antworten`;
+7. Kompakte Formatierung: Maximal eine Leerzeile zwischen Absätzen. Keine doppelten Leerzeilen, keine horizontalen Trennlinien (---)`;

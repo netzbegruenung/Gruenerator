@@ -197,6 +197,8 @@ class ProfileService {
         prompts: 'prompts',
         scanner: 'scanner',
         docs: 'docs',
+        boards: 'boards',
+        memories: 'memory_enabled',
       };
 
       if (featureColumnMap[feature]) {
@@ -219,8 +221,17 @@ class ProfileService {
    */
   async updateAvatar(userId: string, avatarRobotId: number): Promise<UserProfile> {
     try {
-      if (!avatarRobotId || avatarRobotId < 1 || avatarRobotId > 9) {
-        throw new Error('Avatar Robot ID must be between 1 and 9');
+      if (!avatarRobotId || avatarRobotId < 1 || avatarRobotId > 10) {
+        throw new Error('Avatar Robot ID must be between 1 and 10');
+      }
+
+      if (avatarRobotId === 10) {
+        const { NextcloudShareManager } =
+          await import('../../utils/integrations/nextcloud/shareManager.js');
+        const shareLinks = await NextcloudShareManager.getShareLinks(userId);
+        if (!shareLinks || shareLinks.length === 0) {
+          throw new Error('Avatar 10 (Wolki) requires an active Wolke connection');
+        }
       }
 
       const result = await this.updateProfile(userId, { avatar_robot_id: avatarRobotId });
@@ -277,6 +288,10 @@ class ProfileService {
     try {
       if (!generator || !key) {
         throw new Error('Generator and key are required');
+      }
+      const FORBIDDEN_KEYS = ['__proto__', 'constructor', 'prototype'];
+      if (FORBIDDEN_KEYS.includes(generator) || FORBIDDEN_KEYS.includes(key)) {
+        throw new Error('Invalid generator or key name');
       }
 
       const currentProfile = await this.getProfileById(userId);
@@ -451,6 +466,8 @@ class ProfileService {
       prompts: profile.prompts || false,
       scanner: profile.scanner || false,
       docs: profile.docs || false,
+      boards: profile.boards || false,
+      memories: profile.memory_enabled ?? true,
     };
 
     return {
@@ -487,6 +504,7 @@ class ProfileService {
       videoEditor: 'video_editor',
       prompts: 'prompts',
       scanner: 'scanner',
+      memories: 'memory_enabled',
     };
 
     Object.entries(featureMap).forEach(([key, column]) => {

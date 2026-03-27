@@ -1,23 +1,14 @@
+import { Button } from '@gruenerator/ui';
 import React, { useCallback, lazy, Suspense, memo, useMemo } from 'react';
 
-import { EarlyAccessBanner } from '../../../components/common/EarlyAccessBanner';
 import Icon from '../../../components/common/Icon';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useCustomGeneratorsData, useSavedGenerators } from '../../auth/hooks/useProfileData';
+import { type CustomGenerator } from '../../auth/services/profileApiService';
 
 const CreateCustomGeneratorPage = lazy(() => import('../../generators/CreateCustomGeneratorPage'));
 
-type EigeneTabProps = Record<string, never>;
-
-interface GeneratorListItem {
-  id: string;
-  name?: string;
-  title?: string;
-  slug: string;
-  description?: string;
-  owner_first_name?: string;
-  owner_last_name?: string;
-}
+type EigeneTabProps = Record<never, never>;
 
 interface LoginPromptProps {
   onLogin: () => void;
@@ -33,9 +24,9 @@ const LoginPrompt: React.FC<LoginPromptProps> = memo(({ onLogin }) => (
     <p className="m-0 text-grey-500 max-w-[400px] leading-relaxed">
       Melde dich an, um deine eigenen Grüneratoren und Agenten zu erstellen.
     </p>
-    <button onClick={onLogin} className="btn-primary">
+    <Button variant="brand" size="brand" onClick={onLogin}>
       Anmelden
-    </button>
+    </Button>
   </div>
 ));
 
@@ -60,19 +51,13 @@ const EigeneTab: React.FC<EigeneTabProps> = memo(() => {
     isActive: true,
   });
 
-  const generators = useMemo(
-    () => (generatorsQuery.data || []) as GeneratorListItem[],
-    [generatorsQuery.data]
-  );
+  const generators = useMemo(() => generatorsQuery.data || [], [generatorsQuery.data]);
 
-  const savedGenerators = useMemo(
-    () => (savedQuery.data || []) as GeneratorListItem[],
-    [savedQuery.data]
-  );
+  const savedGenerators = useMemo(() => savedQuery.data || [], [savedQuery.data]);
 
   const isLoading = authLoading || generatorsQuery.isLoading || savedQuery.isLoading;
 
-  const handleSelectGenerator = useCallback((generator: GeneratorListItem) => {
+  const handleSelectGenerator = useCallback((generator: CustomGenerator) => {
     window.open(`/gruenerator/${generator.slug}`, '_blank');
   }, []);
 
@@ -98,8 +83,6 @@ const EigeneTab: React.FC<EigeneTabProps> = memo(() => {
 
   return (
     <div className="w-full text-center">
-      <EarlyAccessBanner />
-
       <Suspense fallback={<LoadingSpinner />}>
         <CreateCustomGeneratorPage
           onCompleted={handleCreateCompleted}

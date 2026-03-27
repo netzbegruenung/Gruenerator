@@ -1,5 +1,13 @@
-import { Menu, ActionIcon } from '@mantine/core';
-import { useEffect, useMemo, useState } from 'react';
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@gruenerator/ui';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FiPlus,
   FiFile,
@@ -14,6 +22,7 @@ import { useDocumentStore } from '../../stores/documentStore';
 import { useDocsAdapter, createDocsApiClient } from '../../context/DocsContext';
 import { templates, type TemplateType, getTemplateContent } from '../../lib/templates';
 import { ShareModal } from '../permissions/ShareModal';
+import { AIDocumentCreator } from './AIDocumentCreator';
 import { TemplateCarousel } from './TemplateCarousel';
 import { TemplatePicker } from './TemplatePicker';
 import './DocumentList.css';
@@ -22,20 +31,24 @@ interface DocumentListProps {
   searchQuery?: string;
 }
 
-export const DocumentList = ({ searchQuery }: DocumentListProps) => {
+export const DocumentList = memo(({ searchQuery }: DocumentListProps) => {
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
-  const {
-    documents,
-    isLoading,
-    error,
-    fetchDocuments,
-    createDocument,
-    deleteDocument,
-    updateDocument,
-  } = useDocumentStore();
+
+  // Data selectors — only re-render when these values change
+  const documents = useDocumentStore((s) => s.documents);
+  const isLoading = useDocumentStore((s) => s.isLoading);
+  const isGenerating = useDocumentStore((s) => s.isGenerating);
+  const error = useDocumentStore((s) => s.error);
+
+  // Action selectors — referentially stable
+  const fetchDocuments = useDocumentStore((s) => s.fetchDocuments);
+  const createDocument = useDocumentStore((s) => s.createDocument);
+  const generateDocument = useDocumentStore((s) => s.generateDocument);
+  const deleteDocument = useDocumentStore((s) => s.deleteDocument);
+  const updateDocument = useDocumentStore((s) => s.updateDocument);
   const [showGallery, setShowGallery] = useState(false);
-  const [shareDocumentId, setShareDocumentId] = useState<string | null>(null);
+  const [shareDoc, setShareDoc] = useState<{ id: string; title: string } | null>(null);
 
   const filteredDocuments = useMemo(() => {
     if (!searchQuery?.trim()) return documents;
@@ -47,17 +60,34 @@ export const DocumentList = ({ searchQuery }: DocumentListProps) => {
     fetchDocuments(apiClient);
   }, [fetchDocuments, apiClient]);
 
-  const handleTemplateSelect = async (templateType: TemplateType) => {
-    setShowGallery(false);
-    try {
-      const template = templates.find((t) => t.id === templateType);
-      const title = template?.defaultTitle || 'Neues Dokument';
-      const newDoc = await createDocument(apiClient, title, null, templateType);
-      adapter.navigateToDocument(newDoc.id);
-    } catch (error) {
-      console.error('Failed to create document:', error);
-    }
-  };
+  const handleTemplateSelect = useCallback(
+    async (templateType: TemplateType) => {
+      setShowGallery(false);
+      try {
+        const template = templates.find((t) => t.id === templateType);
+        const title = template?.defaultTitle || 'Neues Dokument';
+        const newDoc = await createDocument(apiClient, title, null, templateType);
+        adapter.navigateToDocument(newDoc.id);
+      } catch (error) {
+        console.error('Failed to create document:', error);
+      }
+    },
+    [createDocument, apiClient, adapter]
+  );
+
+  const handleAIGenerate = useCallback(
+    async (description: string) => {
+      try {
+        const newDoc = await generateDocument(apiClient, description);
+        adapter.navigateToDocument(newDoc.id);
+      } catch (error) {
+        console.error('Failed to generate document:', error);
+      }
+    },
+    [generateDocument, apiClient, adapter]
+  );
+
+  const handleShowGallery = useCallback(() => setShowGallery(true), []);
 
   const handleDeleteDocument = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -105,11 +135,12 @@ export const DocumentList = ({ searchQuery }: DocumentListProps) => {
 
   return (
     <div className="document-list">
-      {/* Desktop: full template carousel */}
+      {/* Desktop: AI creator + template carousel */}
       <div className="desktop-only-templates">
+        {/* <AIDocumentCreator onGenerate={handleAIGenerate} isLoading={isGenerating} /> */}
         <TemplateCarousel
           onTemplateSelect={handleTemplateSelect}
-          onShowGallery={() => setShowGallery(true)}
+          onShowGallery={handleShowGallery}
         />
       </div>
 
@@ -156,44 +187,46 @@ export const DocumentList = ({ searchQuery }: DocumentListProps) => {
                       <span className="document-card-emoji">{emoji}</span>
                       {doc.title}
                     </h3>
-                    <Menu position="bottom-end" shadow="md" withinPortal>
-                      <Menu.Target>
-                        <ActionIcon
-                          variant="subtle"
-                          color="gray"
-                          size="sm"
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
                           className="document-card-menu"
                           onClick={(e: React.MouseEvent) => e.stopPropagation()}
                           aria-label="Dokumentoptionen"
                         >
                           <FiMoreVertical size={16} />
-                        </ActionIcon>
-                      </Menu.Target>
-                      <Menu.Dropdown onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-                        <Menu.Item
-                          leftSection={<FiEdit2 size={14} />}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                      >
+                        <DropdownMenuItem
                           onClick={(e: React.MouseEvent) => handleRenameDocument(doc, e)}
                         >
+                          <FiEdit2 size={14} />
                           Umbenennen
-                        </Menu.Item>
-                        <Menu.Item
-                          leftSection={<FiShare2 size={14} />}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();
-                            setShareDocumentId(doc.id);
+                            setShareDoc({ id: doc.id, title: doc.title });
                           }}
                         >
+                          <FiShare2 size={14} />
                           Teilen
-                        </Menu.Item>
-                        <Menu.Item
-                          leftSection={<FiTrash2 size={14} />}
-                          color="red"
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          variant="destructive"
                           onClick={(e: React.MouseEvent) => handleDeleteDocument(doc.id, e)}
                         >
+                          <FiTrash2 size={14} />
                           Löschen
-                        </Menu.Item>
-                      </Menu.Dropdown>
-                    </Menu>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                   <div className="document-card-meta">
                     <span>
@@ -218,41 +251,44 @@ export const DocumentList = ({ searchQuery }: DocumentListProps) => {
 
       {/* Mobile: floating action button */}
       <div className="mobile-fab-container">
-        <Menu position="top-end" shadow="lg" withArrow offset={8}>
-          <Menu.Target>
-            <ActionIcon
-              size={52}
-              radius="xl"
-              variant="filled"
-              className="mobile-fab"
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              size="lg"
+              className="mobile-fab h-[52px] w-[52px] rounded-full bg-[#5F8575] hover:bg-[#5F8575]/90"
               aria-label="Neues Dokument erstellen"
-              style={{ backgroundColor: '#5F8575' }}
             >
               <FiPlus size={24} />
-            </ActionIcon>
-          </Menu.Target>
-          <Menu.Dropdown>
-            <Menu.Label>Neues Dokument</Menu.Label>
-            <Menu.Item
-              leftSection={<FiFile size={16} />}
-              onClick={() => handleTemplateSelect('blank')}
-            >
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" side="top" sideOffset={8}>
+            <DropdownMenuLabel>Neues Dokument</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => handleTemplateSelect('blank')}>
+              <FiFile size={16} />
               Leeres Dokument
-            </Menu.Item>
-            <Menu.Item leftSection={<FiGrid size={16} />} onClick={() => setShowGallery(true)}>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setShowGallery(true)}>
+              <FiGrid size={16} />
               Aus Vorlage...
-            </Menu.Item>
-          </Menu.Dropdown>
-        </Menu>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {showGallery && (
         <TemplatePicker onSelect={handleTemplateSelect} onClose={() => setShowGallery(false)} />
       )}
 
-      {shareDocumentId && (
-        <ShareModal documentId={shareDocumentId} onClose={() => setShareDocumentId(null)} />
+      {shareDoc && (
+        <ShareModal
+          documentId={shareDoc.id}
+          documentTitle={shareDoc.title}
+          onClose={() => setShareDoc(null)}
+        />
       )}
     </div>
   );
-};
+});
+
+DocumentList.displayName = 'DocumentList';

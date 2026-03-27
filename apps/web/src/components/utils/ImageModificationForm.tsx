@@ -1,12 +1,9 @@
 import { type JSX, useState } from 'react';
 import { FaChevronLeft, FaChevronRight, FaChevronUp, FaChevronDown, FaCog } from 'react-icons/fa';
 
-import { SHAREPIC_GENERATOR, IMAGE_MODIFICATION } from './constants';
+import { cn } from '../../utils/cn';
 
-import '../../assets/styles/components/controls/font-size-control.css';
-import '../../assets/styles/components/controls/color-scheme-control.css';
-import '../../assets/styles/components/controls/credit-control.css';
-import '../../assets/styles/components/actions/advanced-editing.css';
+import { SHAREPIC_GENERATOR, IMAGE_MODIFICATION } from './constants';
 
 export interface FontSizeControlProps {
   fontSize?: number;
@@ -78,6 +75,11 @@ interface ImageModificationFormProps {
   onControlChange: (name: string, value: unknown) => void;
 }
 
+const sliderClass =
+  'flex-1 min-w-[80px] h-1.5 rounded-sm bg-grey-300 appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[var(--interactive-accent-color)] [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[var(--interactive-accent-color)] [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-none';
+
+const fontSizeValueClass = 'min-w-[45px] text-foreground text-[0.85em]';
+
 export const FontSizeControl = ({
   fontSize = 90,
   onControlChange,
@@ -93,26 +95,40 @@ export const FontSizeControl = ({
   const effectiveMax = isQuoteType ? 80 : 110;
 
   return (
-    <div className="font-size-control">
-      <div className="font-size-buttons">
+    <div className="m-0">
+      <div className="flex items-center gap-3 max-md:flex-wrap">
         {options.map((option) => (
           <button
             key={option.label}
             onClick={() => onControlChange('fontSize', option.value)}
-            className={fontSize === option.value ? 'active' : ''}
+            className={cn(
+              'flex-1 py-3 px-3 rounded border border-[var(--border-color)] text-foreground bg-[var(--card-background)] cursor-pointer transition-all duration-200',
+              'hover:bg-background-alt hover:border-[var(--interactive-accent-color)]',
+              fontSize === option.value &&
+                'bg-[var(--interactive-accent-color)] border-[var(--interactive-accent-color)] text-white',
+              'max-md:flex-[1_1_calc(50%-0.375rem)] max-md:py-2 max-md:text-[0.9em]'
+            )}
           >
             {option.label}
           </button>
         ))}
         <button
-          className={showSlider ? 'active' : ''}
+          className={cn(
+            'flex-1 py-3 px-3 rounded border border-[var(--border-color)] text-foreground bg-[var(--card-background)] cursor-pointer transition-all duration-200',
+            'hover:bg-background-alt hover:border-[var(--interactive-accent-color)]',
+            showSlider &&
+              'bg-[var(--interactive-accent-color)] border-[var(--interactive-accent-color)] text-white',
+            'max-md:flex-[1_1_calc(50%-0.375rem)] max-md:py-2 max-md:text-[0.9em]'
+          )}
           onClick={() => setShowSlider(!showSlider)}
           title="Freie Schriftgröße"
           type="button"
         >
           <FaCog />
         </button>
-        <span className="font-size-value">{fontSize}px</span>
+        <span className="min-w-[50px] text-right text-[0.85em] text-foreground opacity-80">
+          {fontSize}px
+        </span>
         {showSlider && (
           <input
             type="range"
@@ -122,7 +138,7 @@ export const FontSizeControl = ({
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               onControlChange('fontSize', parseInt(e.target.value, 10))
             }
-            className="font-size-slider"
+            className={sliderClass}
           />
         )}
       </div>
@@ -141,7 +157,7 @@ export const FreeFontSizeControl = ({
   const effectiveMax = isQuoteType ? 80 : max;
 
   return (
-    <div className="free-font-size-control">
+    <div className="flex items-center gap-3">
       <input
         type="range"
         min={effectiveMin}
@@ -150,9 +166,9 @@ export const FreeFontSizeControl = ({
         onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
           onControlChange('fontSize', parseInt(e.target.value, 10))
         }
-        className="font-size-slider"
+        className={sliderClass}
       />
-      <span className="font-size-value">{fontSize}px</span>
+      <span className={fontSizeValueClass}>{fontSize}px</span>
     </div>
   );
 };
@@ -170,11 +186,11 @@ export const GroupedFontSizeControl = ({
   const max = 130;
 
   return (
-    <div className="grouped-font-size-control">
+    <div className="flex flex-col gap-md">
       {groups.map(({ key, label }) => (
-        <div key={key} className="grouped-font-size-control__group">
-          <label className="grouped-font-size-control__label">{label}</label>
-          <div className="grouped-font-size-control__slider-row">
+        <div key={key} className="flex flex-col gap-xs">
+          <label className="text-[0.9em] text-foreground font-medium">{label}</label>
+          <div className="flex items-center gap-sm">
             <input
               type="range"
               min={min}
@@ -183,9 +199,11 @@ export const GroupedFontSizeControl = ({
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 onControlChange(key, parseInt(e.target.value, 10))
               }
-              className="font-size-slider"
+              className={cn(sliderClass, 'flex-1')}
             />
-            <span className="font-size-value">{fontSizes[key] || 100}%</span>
+            <span className="min-w-[50px] text-right text-foreground text-[0.85em]">
+              {fontSizes[key] || 100}%
+            </span>
           </div>
         </div>
       ))}
@@ -222,9 +240,9 @@ export const InputWithFontSize = ({
   };
 
   return (
-    <div className="input-with-fontsize">
-      <label className="input-with-fontsize__label">{label}</label>
-      <div className="input-with-fontsize__row">
+    <div className="flex flex-col gap-xs">
+      <label className="text-[0.85em] text-foreground font-medium opacity-90">{label}</label>
+      <div className="flex items-center gap-sm max-sm:flex-wrap">
         <input
           type={type}
           name={name}
@@ -232,7 +250,7 @@ export const InputWithFontSize = ({
           onChange={handleTextChange}
           placeholder={placeholder}
           disabled={disabled}
-          className="input-with-fontsize__input"
+          className="flex-1 min-w-0 p-sm border border-[var(--border-color)] rounded-[var(--card-border-radius-small)] bg-[var(--card-background)] text-foreground text-[0.95em] focus:outline-none focus:border-[var(--interactive-accent-color)] disabled:opacity-60 disabled:cursor-not-allowed max-sm:w-full max-sm:flex-none"
         />
         <input
           type="range"
@@ -241,9 +259,11 @@ export const InputWithFontSize = ({
           value={currentPx}
           onChange={handleSliderChange}
           disabled={disabled}
-          className="input-with-fontsize__slider"
+          className="w-[70px] h-1.5 rounded-sm bg-grey-300 appearance-none cursor-pointer shrink-0 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[var(--interactive-accent-color)] [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[var(--interactive-accent-color)] [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-none disabled:opacity-50 disabled:cursor-not-allowed max-sm:flex-1 max-sm:min-w-[60px]"
         />
-        <span className="input-with-fontsize__value">{currentPx}px</span>
+        <span className="min-w-[42px] text-[0.8em] text-foreground text-right font-mono shrink-0">
+          {currentPx}px
+        </span>
       </div>
     </div>
   );
@@ -267,13 +287,17 @@ export const BalkenOffsetControl = ({
     onControlChange('balkenOffset', newOffset);
   };
 
+  const arrowBtnClass =
+    'bg-transparent border-2 border-[var(--border-color)] text-foreground rounded-[var(--card-border-radius-small)] p-2 cursor-pointer transition-all duration-200 flex items-center justify-center w-8 h-8 hover:bg-[var(--interactive-accent-color)] hover:border-[var(--interactive-accent-color)] hover:text-white max-md:w-7 max-md:h-7 max-md:p-1.5';
+
   return (
-    <div className="balken-offset-control">
+    <div className="flex flex-col gap-3">
       {Array.isArray(balkenOffset) &&
         balkenOffset.map((offset, index) => (
-          <div key={index} className="balken-offset-control-item">
-            <div className="balken-offset-buttons">
+          <div key={index} className="flex items-center justify-center">
+            <div className="flex items-center gap-3 p-1 rounded">
               <button
+                className={arrowBtnClass}
                 onClick={(e: React.MouseEvent) => {
                   console.log('Left button clicked for index:', index); // Debugging
                   e.preventDefault();
@@ -283,8 +307,11 @@ export const BalkenOffsetControl = ({
               >
                 <FaChevronLeft />
               </button>
-              <span>{offset}px</span>
+              <span className="min-w-[50px] text-center text-foreground font-mono text-[0.9em] max-md:min-w-[40px] max-md:text-[0.8em]">
+                {offset}px
+              </span>
               <button
+                className={arrowBtnClass}
                 onClick={(e: React.MouseEvent) => {
                   console.log('Right button clicked for index:', index); // Debugging
                   e.preventDefault();
@@ -317,32 +344,43 @@ export const ColorSchemeControl = ({
   };
 
   return (
-    <div className="color-scheme-control">
-      <div className="color-scheme-presets">
+    <div className="w-full mt-2">
+      <div className="flex gap-2 flex-wrap mb-4">
         {IMAGE_MODIFICATION.COLOR_SCHEMES.map((scheme, index) => (
           <button
             key={index}
-            className={`color-scheme-preset ${JSON.stringify(colorScheme) === JSON.stringify(scheme.colors) ? 'active' : ''}`}
+            className={cn(
+              'cursor-pointer bg-none border-2 border-transparent rounded-md p-0.5 transition-all duration-200',
+              'hover:border-[var(--klee)]',
+              JSON.stringify(colorScheme) === JSON.stringify(scheme.colors) &&
+                'border-[var(--interactive-accent-color)]'
+            )}
             onClick={() => onControlChange('colorScheme', scheme.colors)}
             aria-label={`${scheme.name} auswählen`}
             type="button"
           >
-            <img src={scheme.imageSrc} alt={scheme.name} />
+            <img
+              src={scheme.imageSrc}
+              alt={scheme.name}
+              className="w-[50px] h-auto rounded block"
+            />
           </button>
         ))}
       </div>
-      <div className="color-scheme-inputs">
+      <div className="flex flex-col gap-3">
         {colorScheme.map((line, idx) => (
-          <div key={idx} className="color-scheme-line">
-            <span className="color-scheme-line__label">Zeile {idx + 1}</span>
-            <label className="color-input-wrapper">
+          <div key={idx} className="flex items-center gap-4">
+            <span className="min-w-[55px] text-[0.85em] text-foreground font-medium">
+              Zeile {idx + 1}
+            </span>
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="color"
                 value={line.background}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   handleColorChange(idx, e.target.value)
                 }
-                className="color-input"
+                className="w-8 h-8 p-0 border-2 border-[var(--border-color)] rounded-md cursor-pointer bg-none hover:border-[var(--interactive-accent-color)] [&::-webkit-color-swatch-wrapper]:p-0.5 [&::-webkit-color-swatch]:rounded-sm [&::-webkit-color-swatch]:border-none [&::-moz-color-swatch]:rounded-sm [&::-moz-color-swatch]:border-none"
               />
             </label>
           </div>
@@ -380,24 +418,41 @@ const CrossControlBase = ({
     onOffsetChange(newOffset);
   };
 
+  const crossBtnClass =
+    'bg-transparent border-2 border-[var(--border-color)] text-foreground rounded-[var(--card-border-radius-small)] p-2 cursor-pointer transition-all duration-200 flex items-center justify-center w-9 h-9 hover:bg-[var(--interactive-accent-color)] hover:border-[var(--interactive-accent-color)] hover:text-white max-md:w-8 max-md:h-8';
+
   return (
-    <div className="cross-control">
-      <h4>{title}</h4>
-      <p>{description}</p>
-      <div className="cross-grid">
-        <button onClick={() => handleMove('up')} className="cross-button up">
+    <div className="flex flex-col gap-3">
+      <h4 className="text-foreground m-0 mb-sm text-base font-semibold">{title}</h4>
+      <p className="text-foreground m-0 mb-sm text-[0.9em] opacity-80">{description}</p>
+      <div className="grid grid-cols-3 grid-rows-3 gap-2 w-fit mx-auto">
+        <button
+          onClick={() => handleMove('up')}
+          className={cn(crossBtnClass, 'col-start-2 row-start-1')}
+        >
           <FaChevronUp />
         </button>
-        <button onClick={() => handleMove('left')} className="cross-button left">
+        <button
+          onClick={() => handleMove('left')}
+          className={cn(crossBtnClass, 'col-start-1 row-start-2')}
+        >
           <FaChevronLeft />
         </button>
-        <div className="offset-display">
-          <span className="offset-value">{`${offset[0]},${offset[1]}`}</span>
+        <div className="col-start-2 row-start-2 flex items-center justify-center bg-background-alt [border:var(--border-subtle)] rounded-[var(--card-border-radius-small)] w-9 h-9 max-md:w-8 max-md:h-8">
+          <span className="text-foreground text-[0.8em] max-md:text-[0.75em] font-mono text-center whitespace-nowrap">
+            {`${offset[0]},${offset[1]}`}
+          </span>
         </div>
-        <button onClick={() => handleMove('right')} className="cross-button right">
+        <button
+          onClick={() => handleMove('right')}
+          className={cn(crossBtnClass, 'col-start-3 row-start-2')}
+        >
           <FaChevronRight />
         </button>
-        <button onClick={() => handleMove('down')} className="cross-button down">
+        <button
+          onClick={() => handleMove('down')}
+          className={cn(crossBtnClass, 'col-start-2 row-start-3')}
+        >
           <FaChevronDown />
         </button>
       </div>
@@ -432,7 +487,7 @@ export const SonnenblumenControl = ({
 );
 
 export const CreditControl = ({ credit, onControlChange }: CreditControlProps): JSX.Element => (
-  <div className="credit-control">
+  <div className="mt-xs">
     <input
       type="text"
       id="credit"
@@ -441,6 +496,7 @@ export const CreditControl = ({ credit, onControlChange }: CreditControlProps): 
         onControlChange('credit', e.target.value)
       }
       placeholder="www.gruene-musterdorf.de"
+      className="w-full py-2 px-3 border border-[var(--border-color)] rounded bg-[var(--card-background)] text-foreground text-[0.9em] transition-colors duration-200 focus:outline-none focus:border-[var(--interactive-accent-color)] placeholder:text-foreground placeholder:opacity-50 max-md:py-2 max-md:px-2 max-md:text-[0.9em]"
     />
   </div>
 );
@@ -472,26 +528,36 @@ const ImageModificationForm = ({
   };
 
   return (
-    <div className="image-modification-form">
+    <div className="bg-background-alt rounded-[var(--card-border-radius-small)] p-lg mt-lg w-full max-md:p-4">
       <FontSizeControl fontSize={fontSize} onControlChange={onControlChange} />
       <BalkenOffsetControl balkenOffset={balkenOffset} onControlChange={onControlChange} />
       <ColorSchemeControl colorScheme={colorScheme} onControlChange={onControlChange} />
-      <div className="offset-controls-group">
-        <h3>{IMAGE_MODIFICATION.LABELS.OFFSET_CONTROLS_TITLE}</h3>
-        <p>{IMAGE_MODIFICATION.LABELS.OFFSET_CONTROLS_DESCRIPTION}</p>
-        <div className="offset-controls-content">
-          <BalkenGruppeControl
-            offset={balkenGruppenOffset}
-            onOffsetChange={handleBalkenGruppeOffsetChange}
-          />
-          <SonnenblumenControl
-            offset={sunflowerOffset}
-            onOffsetChange={handleSunflowerOffsetChange}
-          />
+      <div className="mt-6">
+        <h3 className="text-foreground-heading m-0 mb-lg text-[1.1em] font-semibold">
+          {IMAGE_MODIFICATION.LABELS.OFFSET_CONTROLS_TITLE}
+        </h3>
+        <p className="text-foreground m-0 mb-sm text-[0.9em] opacity-80">
+          {IMAGE_MODIFICATION.LABELS.OFFSET_CONTROLS_DESCRIPTION}
+        </p>
+        <div className="grid grid-cols-3 gap-6 w-full mt-6 max-lg:grid-cols-2 max-lg:[&>:last-child]:col-span-full max-lg:[&>:last-child]:max-w-[400px] max-lg:[&>:last-child]:mx-auto max-md:grid-cols-1 max-md:gap-4 max-md:[&>:last-child]:col-auto max-md:[&>:last-child]:max-w-none max-md:[&>:last-child]:mx-0">
+          <div className="bg-[var(--card-background)] [border:var(--border-subtle)] rounded-[var(--card-border-radius-small)] p-md max-md:p-3">
+            <BalkenGruppeControl
+              offset={balkenGruppenOffset}
+              onOffsetChange={handleBalkenGruppeOffsetChange}
+            />
+          </div>
+          <div className="bg-[var(--card-background)] [border:var(--border-subtle)] rounded-[var(--card-border-radius-small)] p-md max-md:p-3">
+            <SonnenblumenControl
+              offset={sunflowerOffset}
+              onOffsetChange={handleSunflowerOffsetChange}
+            />
+          </div>
         </div>
       </div>
-      <div className="credit-control-section">
-        <h4>Bildnachweis / Credit</h4>
+      <div className="mt-md pt-sm border-t border-t-[var(--border-color)]">
+        <h4 className="m-0 mb-xs text-[0.9rem] font-semibold text-foreground-heading">
+          Bildnachweis / Credit
+        </h4>
         <CreditControl credit={credit} onControlChange={onControlChange} />
       </div>
     </div>

@@ -32,6 +32,7 @@ export interface CrawlOptions {
   enhancedMetadata?: boolean;
   headless?: boolean;
   userAgent?: string;
+  metadataOnly?: boolean;
 }
 
 /**

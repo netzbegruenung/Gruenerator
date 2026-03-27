@@ -10,6 +10,8 @@ export interface ChatConfig {
     chatStream?: string;
     chatResume?: string;
     deepStream?: string;
+    searchStream?: string;
+    notebookStream?: string;
     messages?: string;
     threads?: string;
     summarize?: string;
@@ -18,12 +20,20 @@ export interface ChatConfig {
   };
   /** Base URL for the Docs app. Auto-detected from hostname if not set. */
   docsBaseUrl?: string;
+  /** Opens content in an inline docs editor instead of a new tab. Returns documentId for reuse. */
+  onEditInDocs?: (
+    content: string,
+    title?: string,
+    existingDocId?: string
+  ) => Promise<string | void>;
 }
 
 export interface ResolvedEndpoints {
   chatStream: string;
   chatResume: string;
   deepStream: string;
+  searchStream: string;
+  notebookStream: string;
   messages: string;
   threads: string;
   summarize: string;
@@ -41,12 +51,19 @@ interface ResolvedChatConfig {
 interface ChatConfigStore extends ResolvedChatConfig {
   configure: (config?: ChatConfig) => void;
   getDocsUrl: () => string;
+  onEditInDocs?: (
+    content: string,
+    title?: string,
+    existingDocId?: string
+  ) => Promise<string | void>;
 }
 
 const DEFAULT_ENDPOINTS: ResolvedEndpoints = {
   chatStream: '/api/chat-graph/stream',
   chatResume: '/api/chat-graph/resume',
   deepStream: '/api/chat-deep/stream',
+  searchStream: '/api/search-graph/stream',
+  notebookStream: '/api/chat-service/notebook/stream',
   messages: '/api/chat-service/messages',
   threads: '/api/chat-service/threads',
   summarize: '/api/chat-service/summarize',
@@ -92,6 +109,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
   onUnauthorized: defaultOnUnauthorized,
   endpoints: DEFAULT_ENDPOINTS,
   docsBaseUrl: undefined,
+  onEditInDocs: undefined,
 
   configure: (config?: ChatConfig) => {
     set({
@@ -99,6 +117,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       onUnauthorized: config?.onUnauthorized ?? defaultOnUnauthorized,
       endpoints: { ...DEFAULT_ENDPOINTS, ...config?.endpoints },
       docsBaseUrl: config?.docsBaseUrl,
+      onEditInDocs: config?.onEditInDocs,
     });
   },
 

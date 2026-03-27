@@ -5,9 +5,20 @@ import useSharepicGeneration from '../../../../hooks/useSharepicGeneration';
 import { usePRWorkflow } from '../../../pr-agent/hooks/usePRWorkflow';
 
 import type { FeatureState } from '../../../../hooks/useGeneratorSetup';
-import type { PressemitteilungFormData } from '../components/PressemitteilungForm';
-import type { SharepicFormData } from '../components/SharepicForm';
-import type { SocialMediaFormData } from '../components/SocialMediaForm';
+
+interface SocialMediaFormData {
+  inhalt: string;
+}
+
+interface PressemitteilungFormData {
+  zitatgeber: string;
+}
+
+interface SharepicFormData {
+  sharepicType: string;
+  zitatAuthor: string;
+  uploadedImage: string | null;
+}
 
 /**
  * Combined form data from all child forms

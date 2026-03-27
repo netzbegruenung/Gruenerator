@@ -136,6 +136,44 @@ export async function uploadDocumentToChat(doc: PickedDocument): Promise<Uploade
 }
 
 /**
+ * Upload a file to disk only (no OCR/vectorization).
+ * POSTs multipart/form-data to /documents/upload-only.
+ * Used for notebook collection creation — processing is deferred.
+ */
+export async function uploadDocumentOnly(doc: PickedDocument): Promise<UploadedDocument | null> {
+  try {
+    const apiClient = getGlobalApiClient();
+    const formData = new FormData();
+
+    formData.append('document', {
+      uri: doc.uri,
+      name: doc.name,
+      type: doc.mimeType,
+    } as unknown as Blob);
+
+    formData.append('title', doc.name);
+
+    const response = await apiClient.post('/documents/upload-only', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
+    });
+
+    if (response.data.success) {
+      return {
+        id: response.data.data.id,
+        title: response.data.data.title || doc.name,
+      };
+    }
+
+    throw new Error(response.data.message || 'Upload fehlgeschlagen');
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Fehler beim Hochladen';
+    Alert.alert('Upload fehlgeschlagen', message);
+    return null;
+  }
+}
+
+/**
  * Convert a picked document into a CreateAttachment for the AUI composer.
  * Reads the file to base64 and constructs the content parts.
  */

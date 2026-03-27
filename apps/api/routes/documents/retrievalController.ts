@@ -13,6 +13,7 @@
 
 import express, { type Router, type Response } from 'express';
 
+import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -278,6 +279,61 @@ router.get(
       res.status(500).json({
         success: false,
         message: (error as Error).message || 'Failed to get document content',
+      });
+    }
+  }
+);
+
+/**
+ * GET /:id/chunks - Get individual document chunks for chunk-level navigation.
+ * Supports user documents and system collection documents via ?collectionId= param.
+ */
+router.get(
+  '/:id/chunks',
+  async (req: DocumentRequest<{ id: string }>, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const collectionId = req.query.collectionId as string | undefined;
+      const systemConfig = collectionId ? getSystemCollectionConfig(collectionId) : null;
+
+      let documentTitle = 'Dokument';
+
+      if (!systemConfig) {
+        const document = await postgresDocumentService.getDocumentById(id, userId);
+        if (!document) {
+          res.status(404).json({ success: false, message: 'Document not found or access denied' });
+          return;
+        }
+        documentTitle = document.title;
+      }
+
+      const result = await documentSearchService.getDocumentChunks(
+        userId,
+        id,
+        systemConfig ? { qdrantCollection: systemConfig.qdrantCollection } : undefined
+      );
+      if (!result.success) {
+        res.status(404).json({ success: false, message: result.error || 'No chunks found' });
+        return;
+      }
+      res.json({
+        success: true,
+        document_id: id,
+        document_title: documentTitle,
+        chunk_count: result.chunkCount,
+        chunks: result.chunks,
+      });
+    } catch (error) {
+      log.error('[GET /:id/chunks] Error:', error);
+      res.status(500).json({
+        success: false,
+        message: (error as Error).message || 'Failed to get document chunks',
       });
     }
   }

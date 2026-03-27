@@ -13,7 +13,7 @@ import { pipeline } from 'stream/promises';
 import { Router, type Response } from 'express';
 
 import { type AuthenticatedRequest } from '../../middleware/types.js';
-import { transcribeWithGladia } from '../../services/subtitler/gladiaService.js';
+import { transcribeWithProvider } from '../../services/subtitler/transcriptionService.js';
 import { createLogger } from '../../utils/logger.js';
 import { safeFetch } from '../../utils/validation/urlSecurity.js';
 
@@ -82,10 +82,10 @@ router.post('/transcribe', async (req: AuthenticatedRequest, res: Response): Pro
     tempPath = await downloadToTempFile(url);
     log.debug(`Downloaded to temp file: ${tempPath}`);
 
-    const result = await transcribeWithGladia(tempPath, true);
+    const result = await transcribeWithProvider(tempPath, true);
 
-    // Transform Gladia response → video editor format
-    // Gladia returns { text, words: [{ word, start, end }] } where start/end are in seconds
+    // Transform response → video editor format
+    // Provider returns { text, words: [{ word, start, end }] } where start/end are in seconds
     // Video editor expects { results: { main: { words: [{ word, start, end }] } } }
     const words = (result.words || []).map((w) => ({
       word: w.word,

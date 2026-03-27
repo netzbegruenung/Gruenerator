@@ -6,7 +6,7 @@
  *
  * Flags:
  *   --source <id>      Run only one source group (landesverbaende, gruenblog,
- *                       gruene-at, kommunalwiki, boell-stiftung, satzungen)
+ *                       gruene-at, kommunalwiki, boell-stiftung)
  *   --force            Force re-process even if already stored
  *   --dry-run          Preview without storing (only supported by landesverbaende)
  *   --concurrency <n>  Max parallel source groups (default: 2)
@@ -20,24 +20,28 @@
  * Run: npx tsx apps/api/update-all-content.ts
  */
 
+import { Mistral } from '@mistralai/mistralai';
+
 import { sendContentSyncEmail } from './services/email/emailService.js';
 import { boellStiftungScraperService } from './services/scrapers/implementations/BoellStiftungScraper.js';
+import { bundestagScraperService } from './services/scrapers/implementations/BundestagScraper/index.js';
 import { gruenblogScraperService } from './services/scrapers/implementations/GruenblogScraper.js';
 import { grueneAtScraperService } from './services/scrapers/implementations/GrueneAtScraper.js';
 import { kommunalwikiScraper } from './services/scrapers/implementations/KommunalwikiScraper.js';
 import { landesverbandScraperService } from './services/scrapers/implementations/LandesverbandScraper/index.js';
-import { satzungenScraperService } from './services/scrapers/implementations/SatzungenScraper.js';
+import { scrapeAndIndexSocialMedia } from './services/scrapers/implementations/SocialMediaExamplesScraper.js';
 
 interface CliArgs {
   source?: string;
   force: boolean;
   dryRun: boolean;
   concurrency: number;
+  noEmail: boolean;
 }
 
 function parseArgs(): CliArgs {
   const args = process.argv.slice(2);
-  const result: CliArgs = { force: false, dryRun: false, concurrency: 2 };
+  const result: CliArgs = { force: false, dryRun: false, concurrency: 2, noEmail: false };
 
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
@@ -53,27 +57,21 @@ function parseArgs(): CliArgs {
       case '--concurrency':
         result.concurrency = Math.max(1, parseInt(args[++i], 10) || 2);
         break;
+      case '--no-email':
+        result.noEmail = true;
+        break;
     }
   }
 
   return result;
 }
 
-interface SourceGroupResult {
-  id: string;
-  name: string;
-  stored: number;
-  updated: number;
-  skipped: number;
-  errors: number;
-  duration: number;
-  status: 'success' | 'failed';
-  error?: string;
-}
+import { type SourceGroupResult, type SyncSummary } from './types/syncTypes.js';
 
 interface SourceGroup {
   id: string;
   name: string;
+  timeoutMs?: number;
   run: (args: CliArgs) => Promise<Omit<SourceGroupResult, 'id' | 'name' | 'duration' | 'status'>>;
 }
 
@@ -91,7 +89,8 @@ const SOURCE_GROUPS: SourceGroup[] = [
         stored: result.stored,
         updated: result.updated,
         skipped: result.skipped,
-        errors: result.errors,
+        fetchErrors: result.errors,
+        errors: 0,
       };
     },
   },
@@ -103,27 +102,32 @@ const SOURCE_GROUPS: SourceGroup[] = [
       const result = await gruenblogScraperService.fullCrawl({
         forceUpdate: args.force,
       });
+      const fetchErrors = result.skipReasons?.fetch_error?.count ?? 0;
       return {
         stored: result.stored,
         updated: result.updated,
         skipped: result.skipped,
-        errors: result.errors,
+        fetchErrors,
+        errors: Math.max(0, result.errors - fetchErrors),
       };
     },
   },
   {
     id: 'gruene-at',
     name: 'Gruene Oesterreich (gruene.at)',
+    timeoutMs: 45 * 60 * 1000,
     async run(args) {
       await grueneAtScraperService.init();
       const result = await grueneAtScraperService.fullCrawl({
         forceUpdate: args.force,
       });
+      const fetchErrors = result.skipReasons?.fetch_error?.count ?? 0;
       return {
         stored: result.stored,
         updated: result.updated,
         skipped: result.skipped,
-        errors: result.errors,
+        fetchErrors,
+        errors: Math.max(0, result.errors - fetchErrors),
       };
     },
   },
@@ -139,38 +143,61 @@ const SOURCE_GROUPS: SourceGroup[] = [
         stored: result.stored,
         updated: result.updated,
         skipped: result.skipped,
-        errors: result.errors,
+        fetchErrors: result.errors,
+        errors: 0,
       };
     },
   },
   {
     id: 'boell-stiftung',
     name: 'Heinrich-Boell-Stiftung',
+    timeoutMs: 45 * 60 * 1000,
     async run(args) {
       await boellStiftungScraperService.init();
       const result = await boellStiftungScraperService.fullCrawl({
         forceUpdate: args.force,
       });
+      const fetchErrors = result.skipReasons?.fetch_error?.count ?? 0;
       return {
         stored: result.stored,
         updated: result.updated,
         skipped: result.skipped,
-        errors: result.errors,
+        fetchErrors,
+        errors: Math.max(0, result.errors - fetchErrors),
       };
     },
   },
   {
-    id: 'satzungen',
-    name: 'Satzungen',
+    id: 'bundestag',
+    name: 'Grüne Bundestagsfraktion (gruene-bundestag.de)',
+    timeoutMs: 20 * 60 * 1000,
     async run(args) {
-      await satzungenScraperService.init();
-      const result = await satzungenScraperService.fullCrawl({
+      await bundestagScraperService.init();
+      const result = await bundestagScraperService.scrapeAllSources({
         forceUpdate: args.force,
       });
       return {
         stored: result.stored,
         updated: result.updated,
         skipped: result.skipped,
+        fetchErrors: 0,
+        errors: result.errors,
+      };
+    },
+  },
+  {
+    id: 'social-media',
+    name: 'Social Media Examples (Instagram + Facebook)',
+    timeoutMs: 30 * 60 * 1000,
+    async run(args) {
+      const result = await scrapeAndIndexSocialMedia({
+        forceUpdate: args.force,
+      });
+      return {
+        stored: result.stored,
+        updated: result.updated,
+        skipped: result.skipped,
+        fetchErrors: result.fetchErrors,
         errors: result.errors,
       };
     },
@@ -180,35 +207,89 @@ const SOURCE_GROUPS: SourceGroup[] = [
 const VALID_SOURCE_IDS = SOURCE_GROUPS.map((g) => g.id);
 
 /**
- * Run async tasks with limited concurrency.
+ * Preflight check: verify that required infrastructure (Mistral API, Qdrant) is reachable
+ * before spending 20+ minutes crawling pages that can never be stored.
  */
-async function parallelLimit<T>(tasks: (() => Promise<T>)[], limit: number): Promise<T[]> {
-  const results: T[] = new Array(tasks.length);
-  let nextIndex = 0;
+async function preflight(): Promise<void> {
+  const errors: string[] = [];
 
-  async function runNext(): Promise<void> {
-    while (nextIndex < tasks.length) {
-      const index = nextIndex++;
-      results[index] = await tasks[index]();
+  // Check MISTRAL_API_KEY
+  const mistralKey = process.env.MISTRAL_API_KEY;
+  if (!mistralKey || mistralKey.trim() === '') {
+    errors.push('MISTRAL_API_KEY is not set — embeddings will fail');
+  } else {
+    try {
+      const client = new Mistral({ apiKey: mistralKey });
+      const resp = await client.models.list();
+      if (!resp?.data?.length) {
+        errors.push('Mistral API returned no models — key may be invalid');
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push(`Mistral API unreachable: ${msg}`);
     }
   }
 
-  const workers = Array.from({ length: Math.min(limit, tasks.length) }, () => runNext());
-  await Promise.all(workers);
-  return results;
+  // Check QDRANT_URL + QDRANT_API_KEY
+  const qdrantUrl = process.env.QDRANT_URL;
+  const qdrantKey = process.env.QDRANT_API_KEY;
+  if (!qdrantUrl || qdrantUrl.trim() === '') {
+    errors.push('QDRANT_URL is not set — vector storage will fail');
+  } else if (!qdrantKey || qdrantKey.trim() === '') {
+    errors.push('QDRANT_API_KEY is not set — vector storage will fail');
+  } else {
+    try {
+      const healthUrl = qdrantUrl.replace(/\/+$/, '') + '/healthz';
+      const headers: Record<string, string> = { 'api-key': qdrantKey };
+      const basicUser = process.env.QDRANT_BASIC_AUTH_USERNAME;
+      const basicPass = process.env.QDRANT_BASIC_AUTH_PASSWORD;
+      if (basicUser && basicPass) {
+        headers['Authorization'] =
+          `Basic ${Buffer.from(`${basicUser}:${basicPass}`).toString('base64')}`;
+      }
+      const resp = await fetch(healthUrl, {
+        headers,
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!resp.ok) {
+        errors.push(`Qdrant health check returned HTTP ${resp.status}`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push(`Qdrant unreachable at ${qdrantUrl}: ${msg}`);
+    }
+  }
+
+  if (errors.length > 0) {
+    console.error('\n========================================');
+    console.error('  PREFLIGHT CHECK FAILED');
+    console.error('========================================');
+    for (const e of errors) {
+      console.error(`  ✗ ${e}`);
+    }
+    console.error('========================================');
+    console.error('Aborting sync — fix the issues above and retry.\n');
+    process.exit(1);
+  }
+
+  console.log('Preflight: Mistral API ✓, Qdrant ✓\n');
 }
+
+import { parallelLimit } from './utils/parallelLimit.js';
 
 /**
  * Run a source group with timeout and error handling.
  */
 async function runSourceGroup(group: SourceGroup, args: CliArgs): Promise<SourceGroupResult> {
   const startTime = Date.now();
-  const TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+  const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+  const timeoutMs = group.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const timeoutMinutes = Math.round(timeoutMs / 60_000);
 
   try {
     const resultPromise = group.run(args);
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`Timeout after 30 minutes`)), TIMEOUT_MS)
+      setTimeout(() => reject(new Error(`Timeout after ${timeoutMinutes} minutes`)), timeoutMs)
     );
 
     const result = await Promise.race([resultPromise, timeoutPromise]);
@@ -232,6 +313,7 @@ async function runSourceGroup(group: SourceGroup, args: CliArgs): Promise<Source
       stored: 0,
       updated: 0,
       skipped: 0,
+      fetchErrors: 0,
       errors: 1,
       duration,
       status: 'failed',
@@ -243,26 +325,13 @@ async function runSourceGroup(group: SourceGroup, args: CliArgs): Promise<Source
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-interface SyncSummary {
-  timestamp: string;
-  dryRun: boolean;
-  force: boolean;
-  sources: SourceGroupResult[];
-  totals: {
-    sources: number;
-    succeeded: number;
-    failed: number;
-    stored: number;
-    updated: number;
-    skipped: number;
-    errors: number;
-  };
-  totalDuration: number;
-}
-
 async function main() {
   const args = parseArgs();
   const syncStart = Date.now();
+
+  if (!args.dryRun) {
+    await preflight();
+  }
 
   // Resolve which groups to run
   let groups = SOURCE_GROUPS;
@@ -291,7 +360,7 @@ async function main() {
 
     if (result.status === 'success') {
       console.log(
-        `  [DONE] ${group.name}: New ${result.stored} | Updated ${result.updated} | Skipped ${result.skipped} | Errors ${result.errors} (${result.duration}s)`
+        `  [DONE] ${group.name}: New ${result.stored} | Updated ${result.updated} | Skipped ${result.skipped} | Unreachable ${result.fetchErrors ?? 0} | Errors ${result.errors} (${result.duration}s)`
       );
     }
 
@@ -306,9 +375,10 @@ async function main() {
       stored: acc.stored + r.stored,
       updated: acc.updated + r.updated,
       skipped: acc.skipped + r.skipped,
+      fetchErrors: acc.fetchErrors + (r.fetchErrors ?? 0),
       errors: acc.errors + r.errors,
     }),
-    { stored: 0, updated: 0, skipped: 0, errors: 0 }
+    { stored: 0, updated: 0, skipped: 0, fetchErrors: 0, errors: 0 }
   );
 
   const failed = results.filter((r) => r.status === 'failed');
@@ -321,7 +391,8 @@ async function main() {
   console.log(`  New:        ${totals.stored}`);
   console.log(`  Updated:    ${totals.updated}`);
   console.log(`  Skipped:    ${totals.skipped}`);
-  console.log(`  Errors:     ${totals.errors}`);
+  if (totals.fetchErrors > 0) console.log(`  Unreachable:${totals.fetchErrors}`);
+  if (totals.errors > 0) console.log(`  Errors:     ${totals.errors}`);
   console.log('========================================\n');
 
   if (totals.stored > 0) {
@@ -353,6 +424,7 @@ async function main() {
       stored: totals.stored,
       updated: totals.updated,
       skipped: totals.skipped,
+      fetchErrors: totals.fetchErrors,
       errors: totals.errors,
     },
     totalDuration: Math.round((Date.now() - syncStart) / 1000),
@@ -365,7 +437,7 @@ async function main() {
 
   // Send email notification via existing Brevo SMTP (never crash on email failure)
   const emailTo = process.env.CONTENT_SYNC_EMAIL;
-  if (emailTo) {
+  if (emailTo && !args.noEmail) {
     try {
       const runId = process.env.GITHUB_RUN_ID;
       const repo = process.env.GITHUB_REPOSITORY;
@@ -391,7 +463,7 @@ async function main() {
     }
   }
 
-  process.exit(totals.errors > 0 || failed.length > 0 ? 1 : 0);
+  process.exit(failed.length > 0 ? 1 : 0);
 }
 
 main().catch((err) => {

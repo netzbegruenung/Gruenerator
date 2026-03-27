@@ -10,6 +10,7 @@ export interface BetaFeatures {
   youBetaEnabled?: boolean;
   igelModeEnabled?: boolean;
   isAustrian?: boolean;
+  workplace?: boolean;
 }
 
 // Menu item type definition
@@ -22,6 +23,7 @@ export interface MenuItemType {
   hasSubmenu?: boolean;
   items?: MenuItemType[];
   badge?: BadgeType;
+  activePaths?: string[];
 }
 
 // Menu section type definition
@@ -43,53 +45,14 @@ export type DirectMenuItemsResult = Record<string, MenuItemType>;
 
 // Direkte Menüpunkte ohne Dropdown
 export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuItemsResult => {
-  const items: DirectMenuItemsResult = {
-    texte: {
-      id: 'texte',
-      path: '/texte',
-      title: 'Texte',
-      description: 'Anträge, Presse & Social Media, Universal',
-      icon: getIcon('navigation', 'texte'),
-    },
-    reel: {
-      id: 'reel',
-      path: '/reel',
-      title: 'Reel',
-      description: 'Untertitel für Social Media Videos',
-      icon: getIcon('navigation', 'reel'),
-    },
-    // TEMPORARILY HIDDEN - Image Studio menu item
-    // imageStudio: {
-    //   id: 'image-studio',
-    //   path: '/image-studio',
-    //   title: 'Bilder',
-    //   description: 'Sharepics & KI-Bildgenerierung',
-    //   icon: getIcon('navigation', 'sharepic'),
-    //   badge: 'early-access'
-    // },
-    imagine: {
-      id: 'imagine',
-      path: '/imagine',
-      title: 'Imagine',
-      description: 'KI-Bildgenerierung',
-      icon: getIcon('navigation', 'sharepic'),
-    },
-    tools: {
-      id: 'tools',
-      path: '/tools',
-      title: 'Tools',
-      description: 'Suche, Notebooks, Datenbank & mehr',
-      icon: getIcon('navigation', 'tools'),
-    },
-  };
+  const items: DirectMenuItemsResult = {};
 
-  items.chat = {
-    id: 'chat',
-    path: '/chat',
-    title: 'Chat',
-    description: 'KI-Chat',
-    icon: getIcon('navigation', 'messenger'),
-    badge: 'beta',
+  items.startseite = {
+    id: 'startseite',
+    path: '/',
+    title: 'Startseite',
+    description: 'Erstellen, Dokumente & Medien',
+    icon: getIcon('navigation', 'home'),
   };
 
   return items;

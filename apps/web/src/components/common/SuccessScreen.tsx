@@ -1,7 +1,6 @@
 import AnimatedCheckmark from './AnimatedCheckmark';
 
 import type { ReactNode } from 'react';
-import '../../assets/styles/components/ui/success-screen.css';
 
 export interface SuccessScreenProps {
   title?: string;
@@ -11,13 +10,17 @@ export interface SuccessScreenProps {
 
 const SuccessScreen = ({ title, message, children }: SuccessScreenProps) => {
   return (
-    <div className="success-screen-container">
-      <div className="success-icon">
+    <div className="flex flex-col items-center border border-[var(--klee)] rounded-lg p-lg mx-auto my-lg max-w-[600px] text-center bg-[rgba(var(--klee-rgb),0.1)]">
+      <div className="text-[2.5rem] text-[var(--klee)] mb-md">
         <AnimatedCheckmark />
       </div>
-      {title && <h3 className="success-title">{title}</h3>}
-      {message && <div className="success-message-content">{message}</div>}
-      {children && <div className="success-actions">{children}</div>}
+      {title && <h3 className="text-foreground-heading mb-sm font-semibold">{title}</h3>}
+      {message && (
+        <div className="text-foreground mb-lg whitespace-pre-wrap break-words w-full bg-background p-md rounded-md [border:var(--border-subtle)]">
+          {message}
+        </div>
+      )}
+      {children && <div className="flex justify-center gap-md mt-md">{children}</div>}
     </div>
   );
 };
