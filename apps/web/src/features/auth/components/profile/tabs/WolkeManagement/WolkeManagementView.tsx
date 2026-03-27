@@ -45,7 +45,7 @@ const TopClouds = memo(() => (
       viewBox="0 0 1000 100"
       className="w-full h-full"
       style={{ pointerEvents: 'auto' }}
-      preserveAspectRatio="none"
+      preserveAspectRatio="xMidYMid meet"
       aria-hidden
     >
       <g className="fill-grey-200/40 dark:fill-grey-700/20">
@@ -81,7 +81,7 @@ const BottomClouds = memo(() => (
       viewBox="0 0 1000 100"
       className="w-full h-full"
       style={{ pointerEvents: 'auto' }}
-      preserveAspectRatio="none"
+      preserveAspectRatio="xMidYMid meet"
       aria-hidden
     >
       <g className="fill-grey-200/40 dark:fill-grey-700/20">
