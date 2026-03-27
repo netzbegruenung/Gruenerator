@@ -261,6 +261,57 @@ class NextcloudApiClient {
   /**
    * Upload a file to the Nextcloud share
    */
+  async uploadFileStream(
+    filePath: string,
+    filename: string,
+    folderPath?: string
+  ): Promise<UploadFileResult> {
+    const fs = await import('fs');
+    try {
+      const safeFilename = this.sanitizeFilename(filename);
+      let uploadUrl = this.webdavUrl;
+      if (folderPath) {
+        const encodedPath = folderPath
+          .split('/')
+          .filter(Boolean)
+          .map((segment) => encodeURIComponent(segment))
+          .join('/');
+        uploadUrl = `${this.webdavUrl}/${encodedPath}`;
+      }
+      uploadUrl = `${uploadUrl}/${encodeURIComponent(safeFilename)}`;
+
+      const stat = fs.statSync(filePath);
+      const stream = fs.createReadStream(filePath);
+
+      const response = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${this.shareToken}:`).toString('base64')}`,
+          'Content-Type': 'application/octet-stream',
+          'Content-Length': String(stat.size),
+        },
+        body: stream as unknown as BodyInit,
+        // @ts-expect-error -- Node fetch supports duplex streaming
+        duplex: 'half',
+      });
+
+      if (response.ok || response.status === 201 || response.status === 204) {
+        return { success: true, message: 'File uploaded successfully via stream' };
+      }
+
+      const errorText = await response.text();
+      console.error('[NextcloudApiClient] Stream upload failed', {
+        status: response.status,
+        errorText: errorText.substring(0, 200),
+      });
+      return { success: false, message: `Upload failed: ${response.status}` };
+    } catch (error) {
+      const err = error as Error;
+      console.error('[NextcloudApiClient] Stream upload error', { error: err.message });
+      return { success: false, message: err.message };
+    }
+  }
+
   async uploadFile(
     content: string | Buffer,
     filename: string,

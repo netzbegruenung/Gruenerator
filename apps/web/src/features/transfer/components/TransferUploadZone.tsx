@@ -33,12 +33,12 @@ export default function TransferUploadZone({ onFilesSelected, disabled }: Transf
     <UploadZone
       onFilesSelected={onFilesSelected}
       accept={TRANSFER_ACCEPT}
-      maxSizeMB={100}
+      maxSizeMB={2048}
       multiple
       disabled={disabled}
       icon={<PiUploadSimple className="size-8" />}
       title="Dateien auswählen oder hierher ziehen"
-      subtitle="PDF, Office, Bilder, Videos, Audio, ZIP — bis 100 MB"
+      subtitle="PDF, Office, Bilder, Videos, Audio, ZIP — bis 2 GB"
     />
   );
 }

@@ -1,3 +1,7 @@
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+
 import { Router, type Request, type Response } from 'express';
 import multer from 'multer';
 
@@ -8,10 +12,21 @@ import { createLogger } from '../../utils/logger.js';
 const log = createLogger('transfer');
 const router: Router = Router();
 
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
+
+const diskStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    const dir = path.join(os.tmpdir(), 'gruenerator-transfer');
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (_req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
+});
 
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: diskStorage,
   limits: { fileSize: MAX_FILE_SIZE },
 });
 
@@ -22,13 +37,15 @@ interface MulterRequest extends Request {
 /**
  * POST /api/transfer/upload
  * Upload file to Wolke and create a transfer share link.
- * Info + download are handled by the shared /api/share/:token routes.
+ * Uses disk storage + streaming to handle files up to 2GB.
  */
 router.post(
   '/upload',
   requireAuth,
   upload.single('file'),
   async (req: MulterRequest, res: Response): Promise<void> => {
+    const tempPath = req.file?.path;
+
     try {
       const userId = req.user?.id;
       if (!userId) {
@@ -54,7 +71,7 @@ router.post(
         return;
       }
 
-      const { originalname, buffer, mimetype, size } = req.file;
+      const { originalname, mimetype, size, path: filePath } = req.file;
 
       log.info('Transfer upload started', {
         userId,
@@ -63,11 +80,12 @@ router.post(
         mimetype,
       });
 
-      const result = await transferService.uploadAndCreateTransfer(
+      const result = await transferService.uploadAndCreateTransferStream(
         userId,
-        buffer,
+        filePath,
         originalname,
         mimetype,
+        size,
         shareLinkId,
         folderPath as string | undefined,
         {
@@ -100,6 +118,10 @@ router.post(
       }
 
       res.status(500).json({ error: 'Upload fehlgeschlagen. Bitte versuche es erneut.' });
+    } finally {
+      if (tempPath) {
+        fs.unlink(tempPath, () => {});
+      }
     }
   }
 );
