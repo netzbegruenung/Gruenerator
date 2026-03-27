@@ -419,12 +419,20 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
 
   const hasSources = state.searchResults.length > 0 && intent !== 'direct';
   const sourceCount = state.searchResults.filter((r) => r.url).length;
-  const citationInstruction = hasSources
-    ? `
+  const isPolishedContent = !!state.contentType;
+
+  let citationInstruction = '';
+  if (hasSources && isPolishedContent) {
+    citationInstruction = `
+5. Verwende die Suchergebnisse als Faktengrundlage, aber setze KEINE Inline-Quellenverweise [1], [2] etc. in den Text.
+6. Der Text soll als fertiges, professionelles Dokument lesbar sein. Die Quellen werden separat angezeigt.
+7. Erfinde KEINE Fakten — stütze dich auf die bereitgestellten Quellen.`;
+  } else if (hasSources) {
+    citationInstruction = `
 5. Du hast genau ${sourceCount} Quelle(n). Verwende NUR [1] bis [${sourceCount}] als Quellenverweise. Höhere Nummern existieren NICHT.
 6. Setze die Referenz direkt nach der Aussage, z.B.: "Die Grünen fordern ein Tempolimit [1]."
-7. Erfinde KEINE zusätzlichen Quellen oder Quellenverweise über [${sourceCount}] hinaus.`
-    : '';
+7. Erfinde KEINE zusätzlichen Quellen oder Quellenverweise über [${sourceCount}] hinaus.`;
+  }
 
   const today = new Date().toLocaleDateString('de-DE', {
     weekday: 'long',
@@ -455,7 +463,8 @@ Heutiges Datum: ${today}${localeContext}${intentGuidance}${memoryContextFormatte
 2. Kurze, präzise Antworten (max 3-4 Absätze für einfache Fragen)
 3. Antworte auf Deutsch
 4. Erfinde keine Fakten oder Quellennamen
-5. Erstelle KEINE Quellenliste/Quellenverzeichnis am Ende — Quellen werden automatisch in der Oberfläche angezeigt${citationInstruction}`;
+5. Erstelle KEINE Quellenliste/Quellenverzeichnis am Ende — Quellen werden automatisch in der Oberfläche angezeigt
+6. Kompakte Formatierung: Maximal eine Leerzeile zwischen Absätzen. Keine doppelten Leerzeilen, keine horizontalen Trennlinien (---)${citationInstruction}`;
 }
 
 /**

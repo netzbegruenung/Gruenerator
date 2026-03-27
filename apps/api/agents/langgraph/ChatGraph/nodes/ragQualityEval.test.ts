@@ -238,6 +238,7 @@ async function evaluateBudgetAllocation() {
     searchQuery: 'Klimapolitik der Grünen',
     subQueries: null,
     reasoning: 'test',
+    contentType: null,
     hasTemporal: false,
     complexity: 'moderate',
     needsClarification: false,

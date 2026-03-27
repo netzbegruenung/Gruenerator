@@ -298,6 +298,22 @@ interface HeuristicResult extends ClassificationResult {
  */
 const HEURISTIC_CONFIDENCE_THRESHOLD = 0.85;
 
+const CONTENT_TYPE_PATTERNS: Array<{ pattern: RegExp; type: string }> = [
+  { pattern: /\b(pressemitteilung|pressemeldung|pm)\b/i, type: 'pressemitteilung' },
+  { pattern: /\b(artikel|beitrag|blogpost)\b/i, type: 'artikel' },
+  { pattern: /\b(rede|ansprache|statement)\b/i, type: 'rede' },
+  { pattern: /\b(argumentation|argumente)\b/i, type: 'argumentation' },
+  { pattern: /\b(tweet|post)\b/i, type: 'tweet' },
+  { pattern: /\b(slogan|motto|claim)\b/i, type: 'slogan' },
+];
+
+function detectContentType(query: string): string | null {
+  for (const { pattern, type } of CONTENT_TYPE_PATTERNS) {
+    if (pattern.test(query)) return type;
+  }
+  return null;
+}
+
 /**
  * Heuristic classification with confidence scoring.
  * Returns both the classification and a confidence score (0-1).
@@ -426,6 +442,7 @@ function heuristicClassify(userContent: string): HeuristicResult {
       intent: 'research',
       searchQuery: userContent,
       reasoning: 'Fact-based content type with topic detected',
+      contentType: detectContentType(q),
       confidence: 0.75,
     };
   }
@@ -439,6 +456,7 @@ function heuristicClassify(userContent: string): HeuristicResult {
       intent: 'direct',
       searchQuery: null,
       reasoning: 'Creative task without research need',
+      contentType: detectContentType(q),
       confidence: 0.72,
     };
   }
@@ -703,6 +721,7 @@ function parseClassifierResponse(content: string, userContent: string): Classifi
         searchSources,
         filters,
         reasoning: (parsed.reasoning || 'LLM classification') + suffix,
+        contentType: parsed.contentType || null,
       };
 
       if (parsed.needsClarification && parsed.clarificationQuestion) {
@@ -1246,6 +1265,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
       subQueries: classification.subQueries || null,
       detectedFilters: classification.filters || null,
       reasoning: classification.reasoning,
+      contentType: classification.contentType || null,
       hasTemporal: temporal.hasTemporal,
       complexity,
       classificationTimeMs,

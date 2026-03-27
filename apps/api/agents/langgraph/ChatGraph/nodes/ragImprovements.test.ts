@@ -196,6 +196,7 @@ async function testExpandedContextWindow() {
     searchQuery: 'test query',
     subQueries: null,
     reasoning: 'test',
+    contentType: null,
     hasTemporal: false,
     complexity: 'moderate',
     needsClarification: false,
