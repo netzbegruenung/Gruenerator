@@ -14,8 +14,6 @@ function mapBackendStage(backendStage: number): number {
   return 1;
 }
 
-const STEPS = [{ label: 'Untertitel' }, { label: 'Fertigstellung' }];
-
 export interface AutoProcessingResult {
   outputPath: string;
   duration: number;
@@ -138,10 +136,6 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
     );
   }
 
-  const stepsWithSuffix = STEPS.map((step, i) =>
-    i === 1 && activeStepIndex === 1 ? { ...step, suffix: `${Math.round(overallProgress)}%` } : step
-  );
-
   const label =
     activeStepIndex === 0
       ? 'Untertitel werden generiert...'
@@ -154,8 +148,6 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
       <ProcessingState
         progress={overallProgress}
         label={label}
-        steps={stepsWithSuffix}
-        activeStepIndex={activeStepIndex}
         footer={
           <AnimatePresence>
             {status === 'complete' && (
