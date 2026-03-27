@@ -210,6 +210,7 @@ export interface ChatGraphState {
   searchQuery: string | null;
   subQueries: string[] | null;
   reasoning: string;
+  contentType: string | null;
   hasTemporal: boolean;
   complexity: 'simple' | 'moderate' | 'complex';
 
@@ -294,6 +295,7 @@ export interface ClassificationResult {
   subQueries?: string[] | null;
   filters?: SubcategoryFilters | null;
   reasoning: string;
+  contentType?: string | null;
   needsClarification?: boolean;
   clarificationQuestion?: string;
   clarificationOptions?: string[];
