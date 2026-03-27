@@ -12,7 +12,7 @@ export interface ScrapeConfig {
 }
 
 export interface SourceConfig {
-  type: 'web' | 'twitter' | 'instagram' | 'rss' | 'documents' | 'scrape';
+  type: 'web' | 'twitter' | 'instagram' | 'facebook' | 'rss' | 'documents' | 'scrape';
   query?: string;
   domains?: string[];
   username?: string;
