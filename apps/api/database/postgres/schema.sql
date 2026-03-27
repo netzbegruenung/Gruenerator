@@ -581,6 +581,7 @@ CREATE TABLE IF NOT EXISTS subtitler_projects (
     style_preference TEXT DEFAULT 'standard',
     height_preference TEXT DEFAULT 'standard',
     mode_preference TEXT DEFAULT 'manual',
+    style_settings JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     last_edited_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,

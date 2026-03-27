@@ -27,6 +27,8 @@ export interface ExportRequestBody {
   projectId?: string | null;
   userId?: string | null;
   textOverlays?: TextOverlay[];
+  fontSizeOverride?: number;
+  bottomOffsetOverride?: number;
 }
 
 export interface ExportSegmentsRequestBody {
