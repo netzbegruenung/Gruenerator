@@ -1,4 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
+import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { useState, useEffect, useMemo, type ReactNode } from 'react';
 import { FiSearch, FiUserX } from 'react-icons/fi';
@@ -91,7 +92,7 @@ export function MemberPicker({ groupId, onSelect, children }: MemberPickerProps)
                 className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 transition-colors bg-transparent border-none cursor-pointer"
               >
                 <img
-                  src={`/images/profileimages/${member.avatar_robot_id || 1}.svg`}
+                  src={getRobotAvatarPath(member.avatar_robot_id || 1)}
                   alt=""
                   className="w-6 h-6 rounded-full shrink-0"
                 />

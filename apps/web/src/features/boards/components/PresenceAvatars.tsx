@@ -1,3 +1,4 @@
+import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import { memo } from 'react';
 
 import type { CollaborationUser } from '@gruenerator/collab';
@@ -18,11 +19,15 @@ export const PresenceAvatars = memo(function PresenceAvatars({
       {collaborators.slice(0, MAX_VISIBLE).map((user) => (
         <div
           key={user.id}
-          className="w-7 h-7 rounded-full border-2 border-background flex items-center justify-center text-xs font-medium text-white"
+          className="w-7 h-7 rounded-full border-2 border-background flex items-center justify-center text-xs font-medium text-white overflow-hidden"
           style={{ backgroundColor: user.color }}
           title={user.name}
         >
-          {user.name.charAt(0).toUpperCase()}
+          {user.avatarRobotId ? (
+            <img src={getRobotAvatarPath(user.avatarRobotId)} alt="" className="w-full h-full" />
+          ) : (
+            user.name.charAt(0).toUpperCase()
+          )}
         </div>
       ))}
       {collaborators.length > MAX_VISIBLE && (

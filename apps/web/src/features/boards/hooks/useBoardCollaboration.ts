@@ -10,8 +10,15 @@ export const useBoardCollaboration = (boardId: string) => {
 
   const collaborationUser = useMemo(
     () =>
-      user ? { id: String(user.id), display_name: user.display_name, email: user.email } : null,
-    [user?.id, user?.display_name, user?.email]
+      user
+        ? {
+            id: String(user.id),
+            display_name: user.display_name,
+            email: user.email,
+            avatar_robot_id: user.avatar_robot_id,
+          }
+        : null,
+    [user?.id, user?.display_name, user?.email, user?.avatar_robot_id]
   );
 
   return useCollaboration({
