@@ -120,7 +120,11 @@ router.post(
       res.status(500).json({ error: 'Upload fehlgeschlagen. Bitte versuche es erneut.' });
     } finally {
       if (tempPath) {
-        fs.unlink(tempPath, () => {});
+        const expectedDir = path.resolve(os.tmpdir(), 'gruenerator-transfer');
+        const resolvedTemp = path.resolve(tempPath);
+        if (resolvedTemp.startsWith(expectedDir + path.sep)) {
+          fs.unlink(tempPath, () => {});
+        }
       }
     }
   }

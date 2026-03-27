@@ -81,7 +81,13 @@ async function fetchSavedTexts(userId: string): Promise<any[]> {
     );
 
     return (data || []).map((item: any) => {
-      const plainText = (item.content || '').replace(/<[^>]*>/g, '').trim();
+      let plainText = item.content || '';
+      let prev: string;
+      do {
+        prev = plainText;
+        plainText = plainText.replace(/<[^>]*>/g, '');
+      } while (plainText !== prev);
+      plainText = plainText.trim();
       const wordCount = plainText.split(/\s+/).filter((w: string) => w.length > 0).length;
       return {
         id: item.document_id,

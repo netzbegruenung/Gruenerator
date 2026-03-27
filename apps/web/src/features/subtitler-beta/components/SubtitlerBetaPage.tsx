@@ -337,6 +337,4 @@ function SubtitlerBetaPageInner() {
   );
 }
 
-export default withAuthRequired(SubtitlerBetaPageInner, {
-  redirectTo: '/login',
-});
+export default withAuthRequired(SubtitlerBetaPageInner);
