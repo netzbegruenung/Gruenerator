@@ -1,5 +1,15 @@
 import { useAgentStore } from '@gruenerator/chat';
-import { Badge, Button, Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
+import {
+  Badge,
+  Button,
+  Calendar,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Sheet,
+  SheetContent,
+  SheetTitle,
+} from '@gruenerator/ui';
 import { memo, useState, useEffect, useCallback, useMemo } from 'react';
 import {
   FiCheck,
@@ -18,8 +28,6 @@ import { LABEL_COLORS } from '../utils/boardDefaults';
 import type { Row, Field, SelectOption, CellValue, LinkedDoc } from '../types';
 
 import { CollabDocPicker } from '@/components/common/CollabDocPicker';
-import { Calendar } from '@/components/ui/calendar';
-import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 
 const COMMON_EMOJI = [
   '📋',

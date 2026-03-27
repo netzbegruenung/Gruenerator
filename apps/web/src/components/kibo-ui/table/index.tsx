@@ -4,6 +4,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  TableBody as TableBodyRaw,
+  TableCell as TableCellRaw,
+  TableHeader as TableHeaderRaw,
+  TableHead as TableHeadRaw,
+  Table as TableRaw,
+  TableRow as TableRowRaw,
 } from '@gruenerator/ui';
 import {
   flexRender,
@@ -27,14 +33,6 @@ import type {
 } from '@tanstack/react-table';
 import type { HTMLAttributes, ReactNode } from 'react';
 
-import {
-  TableBody as TableBodyRaw,
-  TableCell as TableCellRaw,
-  TableHeader as TableHeaderRaw,
-  TableHead as TableHeadRaw,
-  Table as TableRaw,
-  TableRow as TableRowRaw,
-} from '@/components/ui/table';
 import { cn } from '@/utils/cn';
 
 export type { ColumnDef } from '@tanstack/react-table';

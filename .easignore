@@ -15,11 +15,15 @@ apps/docs-desktop/
 apps/desktop/
 apps/sites/
 apps/gruen-o-mat/
+apps/wordpress/
 
-# Root-level services not needed for mobile build (leading / = root only)
+# Services not needed
 /services/
 
-# Documentation (154 MB, not needed for mobile)
+# Reference repos (1.4 GB of cloned repos)
+/inspiration/
+
+# Documentation
 /documentation/
 
 # Playwright, docs, tooling
@@ -42,6 +46,7 @@ apps/gruen-o-mat/
 *.jar
 *.md
 !README.md
+/*.png
 
 # Git
 .git/
