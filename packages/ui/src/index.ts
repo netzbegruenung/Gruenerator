@@ -3,6 +3,12 @@ export { RetroGrid } from './components/retro-grid';
 export { ImageComparisonSlider } from './components/ui/image-comparison-slider-horizontal';
 export { cn } from './lib/cn';
 export { useIsMobile } from './hooks/use-mobile';
+export {
+  ResponsiveMenu,
+  ResponsiveMenuSection,
+  ResponsiveMenuItem,
+  ResponsiveMenuToggle,
+} from './components/responsive-menu';
 export { useAutoAdvance } from './hooks/use-auto-advance';
 export { DotIndicators } from './components/dot-indicators';
 export { DocumentCard, type DocumentCardProps } from './components/document-card';

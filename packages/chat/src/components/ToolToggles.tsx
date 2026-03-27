@@ -14,17 +14,18 @@ import {
   Settings,
 } from 'lucide-react';
 import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
   DropdownMenuItem,
   DropdownMenuCheckboxItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
+  ResponsiveMenu,
+  ResponsiveMenuSection,
+  ResponsiveMenuItem,
+  ResponsiveMenuToggle,
 } from '@gruenerator/ui';
 import { cn, composerToolbarButtonClass } from '../lib/utils';
 import { MODEL_ICONS } from '../lib/modelIcons';
@@ -78,6 +79,7 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
   const setThreadMode = useAgentStore((s) => s.setThreadMode);
   const setSelectedNotebook = useAgentStore((s) => s.setSelectedNotebook);
   const [shareOpen, setShareOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const hasCustomPrompt = !!customSystemPrompt;
 
@@ -95,10 +97,224 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
     setThreadMode(value as ThreadMode);
   };
 
+  const desktopContent = (
+    <>
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger>
+          <ActiveModeIcon className="h-3.5 w-3.5" />
+          Modus
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent>
+          <DropdownMenuRadioGroup value={threadMode} onValueChange={handleModeChange}>
+            {MODE_CONFIG.map(({ mode, label, Icon }) => (
+              <DropdownMenuRadioItem key={mode} value={mode}>
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+              </DropdownMenuRadioItem>
+            ))}
+            <DropdownMenuRadioItem value="eigener" disabled={!hasCustomPrompt} className="pr-1">
+              <Settings className="h-3.5 w-3.5" />
+              <span className="flex-1">Eigener Chat</span>
+              {onNavigate && (
+                <button
+                  type="button"
+                  className="ml-1 rounded p-0.5 text-foreground-muted hover:text-foreground hover:bg-hover-overlay transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNavigate('/chat/settings');
+                  }}
+                  aria-label="Eigenen Chat bearbeiten"
+                >
+                  <Settings className="h-3 w-3" />
+                </button>
+              )}
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+
+          {!hasCustomPrompt && (
+            <>
+              <DropdownMenuSeparator />
+              <div className="px-2 py-1.5">
+                <p className="text-[11px] text-foreground-muted">Noch nicht konfiguriert.</p>
+                {onNavigate && (
+                  <button
+                    type="button"
+                    className="mt-1 flex items-center gap-1 text-[11px] font-medium text-primary-600 hover:text-primary-500 transition-colors"
+                    onClick={() => onNavigate('/chat/settings')}
+                  >
+                    <Settings className="h-3 w-3" />
+                    Jetzt einrichten
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+
+          {threadMode === 'notebook' && (
+            <>
+              <DropdownMenuSeparator />
+              <div className="px-2 py-1">
+                <select
+                  value={selectedNotebookId}
+                  onChange={(e) => setSelectedNotebook(e.target.value)}
+                  className="w-full rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] text-foreground"
+                >
+                  {notebookMentionables.map((nb) => (
+                    <option key={nb.identifier} value={nb.identifier}>
+                      {nb.avatar} {nb.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger>
+          <Wrench className="h-3.5 w-3.5" />
+          Werkzeuge
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent>
+          {TOOL_CONFIG.map(({ key, label, Icon }) => (
+            <DropdownMenuCheckboxItem
+              key={key}
+              checked={enabledTools[key]}
+              onCheckedChange={() => toggleTool(key)}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger>
+          <CurrentIcon className="h-3.5 w-3.5" />
+          Modell
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent>
+          <DropdownMenuRadioGroup
+            value={selectedModel}
+            onValueChange={(v) => setSelectedModel(v as typeof selectedModel)}
+          >
+            {MODEL_OPTIONS.map((model) => {
+              const Icon = MODEL_ICONS[model.icon];
+              return (
+                <DropdownMenuRadioItem key={model.id} value={model.id}>
+                  <Icon className="h-3.5 w-3.5" />
+                  {model.name}
+                </DropdownMenuRadioItem>
+              );
+            })}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+
+      {threadId && (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => setShareOpen(true)}>
+            <Share2 className="h-3.5 w-3.5" />
+            Teilen
+          </DropdownMenuItem>
+        </>
+      )}
+    </>
+  );
+
+  const mobileContent = (
+    <>
+      <ResponsiveMenuSection title="Modus">
+        {MODE_CONFIG.map(({ mode, label, Icon }) => (
+          <ResponsiveMenuItem
+            key={mode}
+            icon={<Icon />}
+            active={threadMode === mode}
+            onClick={() => handleModeChange(mode)}
+          >
+            {label}
+          </ResponsiveMenuItem>
+        ))}
+        <ResponsiveMenuItem
+          icon={<Settings />}
+          active={threadMode === 'eigener'}
+          disabled={!hasCustomPrompt}
+          onClick={() => handleModeChange('eigener')}
+        >
+          {eigenerBadgeLabel}
+        </ResponsiveMenuItem>
+
+        {threadMode === 'notebook' && (
+          <div className="mt-2 px-3">
+            <select
+              value={selectedNotebookId}
+              onChange={(e) => setSelectedNotebook(e.target.value)}
+              className="w-full rounded-lg border border-grey-200 dark:border-grey-700 bg-background px-2.5 py-2 text-sm text-foreground"
+            >
+              {notebookMentionables.map((nb) => (
+                <option key={nb.identifier} value={nb.identifier}>
+                  {nb.avatar} {nb.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </ResponsiveMenuSection>
+
+      <ResponsiveMenuSection title="Werkzeuge">
+        {TOOL_CONFIG.map(({ key, label, Icon }) => (
+          <ResponsiveMenuToggle
+            key={key}
+            icon={<Icon />}
+            label={label}
+            checked={enabledTools[key]}
+            onCheckedChange={() => toggleTool(key)}
+          />
+        ))}
+      </ResponsiveMenuSection>
+
+      <ResponsiveMenuSection title="Modell">
+        {MODEL_OPTIONS.map((model) => {
+          const Icon = MODEL_ICONS[model.icon];
+          return (
+            <ResponsiveMenuItem
+              key={model.id}
+              icon={<Icon />}
+              active={selectedModel === model.id}
+              onClick={() => setSelectedModel(model.id as typeof selectedModel)}
+            >
+              {model.name}
+            </ResponsiveMenuItem>
+          );
+        })}
+      </ResponsiveMenuSection>
+
+      {threadId && (
+        <ResponsiveMenuSection title="Teilen">
+          <ResponsiveMenuItem
+            icon={<Share2 />}
+            onClick={() => {
+              setMenuOpen(false);
+              setShareOpen(true);
+            }}
+          >
+            Unterhaltung teilen
+          </ResponsiveMenuItem>
+        </ResponsiveMenuSection>
+      )}
+    </>
+  );
+
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+      <ResponsiveMenu
+        open={menuOpen}
+        onOpenChange={setMenuOpen}
+        sheetTitle="Einstellungen"
+        trigger={
           <button type="button" className={composerToolbarButtonClass}>
             <Wrench className="h-4 w-4" />
             {threadMode !== 'chat' && (
@@ -109,134 +325,10 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
               </span>
             )}
           </button>
-        </DropdownMenuTrigger>
-
-        <DropdownMenuContent side="top" align="start" className="w-48">
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-              <ActiveModeIcon className="h-3.5 w-3.5" />
-              Modus
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
-              <DropdownMenuRadioGroup value={threadMode} onValueChange={handleModeChange}>
-                {MODE_CONFIG.map(({ mode, label, Icon }) => (
-                  <DropdownMenuRadioItem key={mode} value={mode}>
-                    <Icon className="h-3.5 w-3.5" />
-                    {label}
-                  </DropdownMenuRadioItem>
-                ))}
-                <DropdownMenuRadioItem value="eigener" disabled={!hasCustomPrompt} className="pr-1">
-                  <Settings className="h-3.5 w-3.5" />
-                  <span className="flex-1">Eigener Chat</span>
-                  {onNavigate && (
-                    <button
-                      type="button"
-                      className="ml-1 rounded p-0.5 text-foreground-muted hover:text-foreground hover:bg-hover-overlay transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onNavigate('/chat/settings');
-                      }}
-                      aria-label="Eigenen Chat bearbeiten"
-                    >
-                      <Settings className="h-3 w-3" />
-                    </button>
-                  )}
-                </DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-
-              {!hasCustomPrompt && (
-                <>
-                  <DropdownMenuSeparator />
-                  <div className="px-2 py-1.5">
-                    <p className="text-[11px] text-foreground-muted">Noch nicht konfiguriert.</p>
-                    {onNavigate && (
-                      <button
-                        type="button"
-                        className="mt-1 flex items-center gap-1 text-[11px] font-medium text-primary-600 hover:text-primary-500 transition-colors"
-                        onClick={() => onNavigate('/chat/settings')}
-                      >
-                        <Settings className="h-3 w-3" />
-                        Jetzt einrichten
-                      </button>
-                    )}
-                  </div>
-                </>
-              )}
-
-              {threadMode === 'notebook' && (
-                <>
-                  <DropdownMenuSeparator />
-                  <div className="px-2 py-1">
-                    <select
-                      value={selectedNotebookId}
-                      onChange={(e) => setSelectedNotebook(e.target.value)}
-                      className="w-full rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] text-foreground"
-                    >
-                      {notebookMentionables.map((nb) => (
-                        <option key={nb.identifier} value={nb.identifier}>
-                          {nb.avatar} {nb.title}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </>
-              )}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-              <Wrench className="h-3.5 w-3.5" />
-              Werkzeuge
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
-              {TOOL_CONFIG.map(({ key, label, Icon }) => (
-                <DropdownMenuCheckboxItem
-                  key={key}
-                  checked={enabledTools[key]}
-                  onCheckedChange={() => toggleTool(key)}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {label}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-              <CurrentIcon className="h-3.5 w-3.5" />
-              Modell
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
-              <DropdownMenuRadioGroup
-                value={selectedModel}
-                onValueChange={(v) => setSelectedModel(v as typeof selectedModel)}
-              >
-                {MODEL_OPTIONS.map((model) => {
-                  const Icon = MODEL_ICONS[model.icon];
-                  return (
-                    <DropdownMenuRadioItem key={model.id} value={model.id}>
-                      <Icon className="h-3.5 w-3.5" />
-                      {model.name}
-                    </DropdownMenuRadioItem>
-                  );
-                })}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-
-          {threadId && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setShareOpen(true)}>
-                <Share2 className="h-3.5 w-3.5" />
-                Teilen
-              </DropdownMenuItem>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+        }
+        desktopContent={desktopContent}
+        mobileContent={mobileContent}
+      />
 
       <ShareThreadDialog threadId={threadId} open={shareOpen} onOpenChange={setShareOpen} />
     </>
