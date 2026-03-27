@@ -1062,12 +1062,6 @@ importers:
       '@imgly/background-removal':
         specifier: ^1.7.0
         version: 1.7.0(onnxruntime-web@1.24.3)
-      '@mantine/core':
-        specifier: ^8.3.18
-        version: 8.3.18(@mantine/hooks@8.3.18(react@19.2.4))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@mantine/hooks':
-        specifier: ^8.3.18
-        version: 8.3.18(react@19.2.4)
       '@phosphor-icons/react':
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -1505,6 +1499,9 @@ importers:
       react:
         specifier: 19.2.4
         version: 19.2.4
+      yjs:
+        specifier: ^13.6.30
+        version: 13.6.30
     devDependencies:
       '@types/react':
         specifier: ^19.2.14
