@@ -115,32 +115,14 @@ export function AssistantComposer({
   /* eslint-enable react-hooks/preserve-manual-memoization */
 
   const handlePickFile = useCallback(async () => {
-    console.log('[Attachment] Step 1: picking document...');
     const doc = await pickDocument();
-    if (!doc) {
-      console.log('[Attachment] Cancelled');
-      return;
-    }
-    console.log('[Attachment] Step 2: picked', doc.name, doc.mimeType, doc.size);
-    if (!validatePickedDocument(doc)) {
-      console.log('[Attachment] Validation failed');
-      return;
-    }
+    if (!doc) return;
+    if (!validatePickedDocument(doc)) return;
 
     try {
-      console.log('[Attachment] Step 3: converting to CreateAttachment...');
       const attachment = await pickedDocumentToAttachment(doc);
-      console.log('[Attachment] Step 4: converted', {
-        name: attachment.name,
-        type: attachment.type,
-        contentLength: attachment.content?.length,
-      });
-
-      console.log('[Attachment] Step 5: calling addAttachment...');
       await aui.composer().addAttachment(attachment);
-      console.log('[Attachment] Step 6: done.');
     } catch (err) {
-      console.error('[Attachment] ERROR:', err);
       const msg = err instanceof Error ? err.message : 'Fehler beim Anhängen';
       Alert.alert('Anhang fehlgeschlagen', msg);
     }
@@ -179,7 +161,11 @@ export function AssistantComposer({
           <Ionicons name="add-circle-outline" size={22} color={theme.textSecondary} />
         </Pressable>
         {showSettings && (
-          <Pressable onPress={() => setSettingsVisible(true)} style={styles.actionButton} hitSlop={8}>
+          <Pressable
+            onPress={() => setSettingsVisible(true)}
+            style={styles.actionButton}
+            hitSlop={8}
+          >
             <Ionicons name="options-outline" size={20} color={theme.textSecondary} />
           </Pressable>
         )}
@@ -239,10 +225,7 @@ export function AssistantComposer({
         </Pressable>
       </Modal>
       {showSettings && (
-        <ChatSettingsSheet
-          visible={settingsVisible}
-          onDismiss={() => setSettingsVisible(false)}
-        />
+        <ChatSettingsSheet visible={settingsVisible} onDismiss={() => setSettingsVisible(false)} />
       )}
     </ComposerPrimitive.Root>
   );

@@ -12,6 +12,10 @@ type SearchMode = 'web' | 'deep';
 export function useSearchRuntime(searchMode: SearchMode) {
   const getConfig = useCallback(
     (): GrueneratorAdapterConfig => ({
+      agentId: null,
+      modelId: 'mistral',
+      enabledTools: { search: true, web: true, examples: false, research: false },
+      threadId: null,
       threadMode: 'search',
       searchMode,
     }),

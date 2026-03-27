@@ -1,12 +1,25 @@
 import {
   MessagePrimitive,
+  ThreadPrimitive,
+  ActionBarPrimitive,
+  BranchPickerPrimitive,
   useAuiState,
 } from '@assistant-ui/react-native';
-import { memo, useCallback, useMemo, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Markdown from 'react-native-markdown-display';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+  withDelay,
+} from 'react-native-reanimated';
 
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+import { useTheme } from '../../hooks/useTheme';
+import { colors, spacing, borderRadius } from '../../theme';
 
 import { MessageAttachmentUI } from './AttachmentUI';
 import { CitationsFooter } from './CitationsFooter';
@@ -15,11 +28,6 @@ import { ToolCallProgress } from './ToolCallProgress';
 
 import type { Theme } from '../../theme/colors';
 import type { ChatMessageMetadata } from '@gruenerator/chat';
-
-function useResolvedTheme(): Theme {
-  const colorScheme = useColorScheme();
-  return colorScheme === 'dark' ? darkTheme : lightTheme;
-}
 
 export const UserMessageComponent = memo(function UserMessageComponent() {
   return (
@@ -34,8 +42,122 @@ export const UserMessageComponent = memo(function UserMessageComponent() {
   );
 });
 
+function TypingDot({ delay, color }: { delay: number; color: string }) {
+  const opacity = useSharedValue(0.3);
+
+  useEffect(() => {
+    opacity.value = withDelay(
+      delay,
+      withRepeat(
+        withSequence(withTiming(1, { duration: 400 }), withTiming(0.3, { duration: 400 })),
+        -1
+      )
+    );
+  }, [delay, opacity]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    backgroundColor: color,
+  }));
+
+  return <Animated.View style={[styles.typingDot, animatedStyle]} />;
+}
+
+function TypingIndicator() {
+  const theme = useTheme();
+  return (
+    <View style={styles.typingContainer}>
+      <TypingDot delay={0} color={theme.textSecondary} />
+      <TypingDot delay={150} color={theme.textSecondary} />
+      <TypingDot delay={300} color={theme.textSecondary} />
+    </View>
+  );
+}
+
+const ReasoningBlock = memo(function ReasoningBlock({
+  part,
+  theme,
+}: {
+  part: { text: string };
+  theme: Theme;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  if (!part.text) return null;
+
+  return (
+    <View style={[styles.reasoningContainer, { borderColor: theme.border }]}>
+      <Pressable style={styles.reasoningTrigger} onPress={() => setExpanded(!expanded)}>
+        <Ionicons name="bulb-outline" size={14} color={colors.primary[500]} />
+        <Text style={[styles.reasoningLabel, { color: theme.textSecondary }]}>Gedankengang</Text>
+        <Ionicons
+          name={expanded ? 'chevron-up' : 'chevron-down'}
+          size={14}
+          color={theme.textSecondary}
+        />
+      </Pressable>
+      {expanded && (
+        <Text style={[styles.reasoningText, { color: theme.textSecondary }]}>{part.text}</Text>
+      )}
+    </View>
+  );
+});
+
+const BranchPicker = memo(function BranchPicker({ theme }: { theme: Theme }) {
+  const branchCount = useAuiState((s) => s.message.branchCount);
+  if (branchCount <= 1) return null;
+
+  return (
+    <View style={[styles.branchPicker, { borderColor: theme.border }]}>
+      <BranchPickerPrimitive.Previous style={styles.branchButton}>
+        <Ionicons name="chevron-back" size={14} color={theme.textSecondary} />
+      </BranchPickerPrimitive.Previous>
+      <View style={styles.branchLabel}>
+        <BranchPickerPrimitive.Number style={[styles.branchText, { color: theme.textSecondary }]} />
+        <Text style={[styles.branchText, { color: theme.textSecondary }]}>/</Text>
+        <BranchPickerPrimitive.Count style={[styles.branchText, { color: theme.textSecondary }]} />
+      </View>
+      <BranchPickerPrimitive.Next style={styles.branchButton}>
+        <Ionicons name="chevron-forward" size={14} color={theme.textSecondary} />
+      </BranchPickerPrimitive.Next>
+    </View>
+  );
+});
+
+const AssistantActionBar = memo(function AssistantActionBar({
+  theme,
+  onLongPress,
+}: {
+  theme: Theme;
+  onLongPress: () => void;
+}) {
+  return (
+    <View style={styles.actionBar}>
+      <ActionBarPrimitive.Copy copiedDuration={2000}>
+        {({ isCopied }) => (
+          <View style={[styles.actionButton, { backgroundColor: theme.surface }]}>
+            <Ionicons
+              name={isCopied ? 'checkmark' : 'copy-outline'}
+              size={14}
+              color={isCopied ? colors.primary[500] : theme.textSecondary}
+            />
+          </View>
+        )}
+      </ActionBarPrimitive.Copy>
+      <ActionBarPrimitive.Reload style={[styles.actionButton, { backgroundColor: theme.surface }]}>
+        <Ionicons name="refresh-outline" size={14} color={theme.textSecondary} />
+      </ActionBarPrimitive.Reload>
+      <Pressable
+        onPress={onLongPress}
+        style={[styles.actionButton, { backgroundColor: theme.surface }]}
+      >
+        <Ionicons name="ellipsis-horizontal" size={14} color={theme.textSecondary} />
+      </Pressable>
+    </View>
+  );
+});
+
 export const AssistantMessageComponent = memo(function AssistantMessageComponent() {
-  const theme = useResolvedTheme();
+  const theme = useTheme();
   const message = useAuiState((s) => s.message);
   const metadata = ((message.metadata as Record<string, unknown>)?.custom ??
     {}) as ChatMessageMetadata;
@@ -51,18 +173,19 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
       .join('');
   }, [message.content]);
 
-  const handleLongPress = useCallback(() => {
+  const handleOpenActions = useCallback(() => {
     if (messageText) setActionsVisible(true);
   }, [messageText]);
 
   return (
     <>
       <MessagePrimitive.Root style={[styles.messageRow, styles.assistantRow]}>
-        <Pressable onLongPress={handleLongPress}>
+        <Pressable onLongPress={handleOpenActions}>
           <View style={[styles.bubble, styles.assistantBubble, { backgroundColor: theme.surface }]}>
             <MessagePrimitive.Content
               renderText={({ part }) => <Markdown style={markdownStyles}>{part.text}</Markdown>}
               renderToolCall={({ part }) => <ToolCallProgress part={part} theme={theme} />}
+              renderReasoning={({ part }) => <ReasoningBlock part={part} theme={theme} />}
               renderSource={() => <></>}
             />
             {citations && citations.length > 0 && (
@@ -70,13 +193,57 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
             )}
           </View>
         </Pressable>
+        <BranchPicker theme={theme} />
+        <AssistantActionBar theme={theme} onLongPress={handleOpenActions} />
       </MessagePrimitive.Root>
       <MessageActionsSheet
         visible={actionsVisible}
         onClose={() => setActionsVisible(false)}
-        message={messageText ? { role: 'assistant', text: messageText, metadata: metadata as Record<string, unknown> } : null}
+        message={
+          messageText
+            ? {
+                role: 'assistant',
+                text: messageText,
+                metadata: metadata as Record<string, unknown>,
+              }
+            : null
+        }
       />
     </>
+  );
+});
+
+const FollowUpSuggestions = memo(function FollowUpSuggestions() {
+  const theme = useTheme();
+  const message = useAuiState((s) => s.message);
+  const isLast = useAuiState((s) => s.message.isLast);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+
+  if (!isLast || isRunning) return null;
+
+  const metadata = ((message.metadata as Record<string, unknown>)?.custom ??
+    {}) as ChatMessageMetadata;
+  const suggestions = metadata.followUpSuggestions;
+  if (!suggestions || suggestions.length === 0) return null;
+
+  return (
+    <View style={styles.followUpContainer}>
+      {suggestions.map((prompt, i) => (
+        <ThreadPrimitive.Suggestion
+          key={i}
+          prompt={prompt}
+          send
+          style={[
+            styles.followUpChip,
+            { borderColor: theme.border, backgroundColor: theme.surface },
+          ]}
+        >
+          <Text style={[styles.followUpText, { color: theme.text }]} numberOfLines={2}>
+            {prompt}
+          </Text>
+        </ThreadPrimitive.Suggestion>
+      ))}
+    </View>
   );
 });
 
@@ -88,6 +255,7 @@ export const MessageBubble = memo(function MessageBubble() {
       </MessagePrimitive.If>
       <MessagePrimitive.If assistant>
         <AssistantMessageComponent />
+        <FollowUpSuggestions />
       </MessagePrimitive.If>
     </>
   );
@@ -184,5 +352,75 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 15,
     lineHeight: 22,
+  },
+  actionBar: {
+    flexDirection: 'row',
+    gap: spacing.xxsmall,
+    marginTop: spacing.xxsmall,
+  },
+  actionButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  branchPicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.xxsmall,
+  },
+  branchButton: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  branchLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  branchText: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  reasoningContainer: {
+    marginBottom: spacing.xsmall,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: borderRadius.medium,
+    overflow: 'hidden',
+  },
+  reasoningTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxsmall,
+    paddingHorizontal: spacing.small,
+    paddingVertical: spacing.xsmall,
+  },
+  reasoningLabel: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  reasoningText: {
+    fontSize: 13,
+    lineHeight: 18,
+    paddingHorizontal: spacing.small,
+    paddingBottom: spacing.small,
+  },
+  followUpContainer: {
+    paddingHorizontal: spacing.medium,
+    marginTop: spacing.xsmall,
+    marginBottom: spacing.small,
+    gap: spacing.xxsmall,
+  },
+  followUpChip: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: borderRadius.large,
+    paddingHorizontal: spacing.small,
+    paddingVertical: spacing.xsmall,
+  },
+  followUpText: {
+    fontSize: 13,
   },
 });

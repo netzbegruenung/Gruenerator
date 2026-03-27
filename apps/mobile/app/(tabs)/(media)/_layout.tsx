@@ -18,7 +18,7 @@ export default function MediaLayout() {
       <Stack.Screen name="index" options={{ title: 'Medien', headerShown: false }} />
       <Stack.Screen name="reel" options={{ title: 'Reel' }} />
       <Stack.Screen name="image-studio" options={{ title: 'Image Studio', headerShown: false }} />
-      <Stack.Screen name="vorlagen" options={{ href: null }} />
+      <Stack.Screen name="vorlagen" options={{ headerShown: false }} />
     </Stack>
   );
 }

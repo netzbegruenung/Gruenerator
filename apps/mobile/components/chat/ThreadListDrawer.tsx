@@ -7,10 +7,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAgentStore, type Mentionable } from '@gruenerator/chat';
 import { type ReactElement, memo, useCallback, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, useColorScheme, Alert } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+import { useTheme } from '../../hooks/useTheme';
+import { colors, spacing, borderRadius } from '../../theme';
 
 import { NewChatSheet } from './NewChatSheet';
 
@@ -77,8 +78,8 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({
   navigation,
   theme: themeProp,
 }: Props) {
-  const colorScheme = useColorScheme();
-  const theme = themeProp ?? (colorScheme === 'dark' ? darkTheme : lightTheme);
+  const resolvedTheme = useTheme();
+  const theme = themeProp ?? resolvedTheme;
   const insets = useSafeAreaInsets();
   const [sheetVisible, setSheetVisible] = useState(false);
   const aui = useAui();
@@ -94,9 +95,9 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({
   }, [aui, navigation]);
 
   const handleSelectNotebook = useCallback(
-    (_notebookId: string) => {
+    (notebookId: string) => {
       setSheetVisible(false);
-      // TODO: set notebook ID on agent store, then switch to new thread
+      useAgentStore.getState().setSelectedNotebook(notebookId);
       aui.threads().switchToNewThread();
       navigation.closeDrawer();
     },

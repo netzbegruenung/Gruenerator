@@ -1,4 +1,4 @@
-import { AssistantRuntimeProvider } from '@assistant-ui/react-native';
+import { AssistantRuntimeProvider, type LocalRuntimeOptions } from '@assistant-ui/react-native';
 import {
   useAgentStore,
   createThreadHistoryAdapter,
@@ -31,10 +31,7 @@ function ThreadSetup({ threadId }: { threadId?: string | null }) {
   return null;
 }
 
-export function MobileChatProvider({
-  children,
-  threadId,
-}: MobileChatProviderProps) {
+export function MobileChatProvider({ children, threadId }: MobileChatProviderProps) {
   const configuredRef = useRef<boolean>(null);
   if (configuredRef.current == null) {
     configureMobileChat();
@@ -44,7 +41,12 @@ export function MobileChatProvider({
   const historyAdapter = useMemo(() => {
     if (!threadId || threadId === 'new') return undefined;
     const apiClient = getMobileChatApiClient();
-    return createThreadHistoryAdapter(threadId, apiClient, convertToThreadMessageLike, transformMessageLike);
+    return createThreadHistoryAdapter(
+      threadId,
+      apiClient,
+      convertToThreadMessageLike,
+      transformMessageLike
+    );
   }, [threadId]);
 
   const runtime = useMobileChatRuntime(

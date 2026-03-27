@@ -8,6 +8,7 @@ import {
   useDocumentChat,
   type DocsAdapter,
 } from '@gruenerator/docs';
+import { type DOMProps } from 'expo/dom';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 // --- Base64 <-> ArrayBuffer helpers for the WebSocket bridge ---
@@ -229,7 +230,7 @@ interface DocEditorDOMProps {
   wsClose?: () => Promise<void>;
   pendingAction: { type: string; [key: string]: unknown } | null;
   actionCounter: number;
-  dom?: import('expo/dom').DOMProps;
+  dom?: DOMProps;
 }
 
 function EditorContent({
@@ -293,7 +294,9 @@ function EditorContent({
     const editor = editorRef.current as Record<string, unknown> | null;
     if (!editor || !onActiveStylesChangeRef.current) return;
 
-    const onSelectionChange = (editor as { onSelectionChange: (cb: (e: unknown) => void) => () => void }).onSelectionChange(() => {
+    const onSelectionChange = (
+      editor as { onSelectionChange: (cb: (e: unknown) => void) => () => void }
+    ).onSelectionChange(() => {
       const ed = editorRef.current as {
         getActiveStyles: () => Record<string, boolean | string>;
         getTextCursorPosition: () => { block: { type: string; props: Record<string, unknown> } };
@@ -304,12 +307,14 @@ function EditorContent({
         const styles = ed.getActiveStyles();
         const cursor = ed.getTextCursorPosition();
         const selectedText = ed.getSelectedText();
-        onActiveStylesChangeRef.current!(JSON.stringify({
-          hasSelection: selectedText.length > 0,
-          ...styles,
-          blockType: cursor?.block?.type || 'paragraph',
-          blockProps: cursor?.block?.props || {},
-        }));
+        onActiveStylesChangeRef.current!(
+          JSON.stringify({
+            hasSelection: selectedText.length > 0,
+            ...styles,
+            blockType: cursor?.block?.type || 'paragraph',
+            blockProps: cursor?.block?.props || {},
+          })
+        );
       } catch {
         // editor not ready
       }
@@ -395,32 +400,36 @@ function EditorContent({
   }, [colorScheme]);
 
   return (
-    <div style={{
+    <div
+      style={{
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
         minHeight: '100vh',
         overflow: 'hidden',
-      }}>
-        <div style={{
+      }}
+    >
+      <div
+        style={{
           flex: 1,
           overflow: 'auto',
           WebkitOverflowScrolling: 'touch',
           paddingInline: 8,
-        }}>
-          <BlockNoteEditor
-            documentId={documentId}
-            ydoc={ydoc}
-            provider={provider}
-            isSynced={isSynced}
-            editable={isSynced}
-            showComments={false}
-            useStaticFormattingToolbar={false}
-            hideFormattingToolbar={true}
-            onEditorReady={handleEditorReady}
-          />
-        </div>
+        }}
+      >
+        <BlockNoteEditor
+          documentId={documentId}
+          ydoc={ydoc}
+          provider={provider}
+          isSynced={isSynced}
+          editable={isSynced}
+          showComments={false}
+          useStaticFormattingToolbar={false}
+          hideFormattingToolbar={true}
+          onEditorReady={handleEditorReady}
+        />
       </div>
+    </div>
   );
 }
 
@@ -461,7 +470,7 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
       );
     },
     // Only recreate when actual values change, not function wrapper identity
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
     [props.authToken, props.apiBaseUrl, props.hocuspocusUrl, hasWsBridge]
   );
 
@@ -479,13 +488,25 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
       window.dispatchEvent(new CustomEvent('set-typing', { detail: { isTyping } }));
     } else if (props.pendingAction.type === 'format') {
       const style = (props.pendingAction as { type: string; style: string }).style;
-      window.dispatchEvent(new CustomEvent('format-action', { detail: { action: 'toggleStyle', style } }));
+      window.dispatchEvent(
+        new CustomEvent('format-action', { detail: { action: 'toggleStyle', style } })
+      );
     } else if (props.pendingAction.type === 'setBlockType') {
-      const { blockType, props: blockProps } = props.pendingAction as { type: string; blockType: string; props?: Record<string, unknown> };
-      window.dispatchEvent(new CustomEvent('format-action', { detail: { action: 'setBlockType', blockType, props: blockProps } }));
+      const { blockType, props: blockProps } = props.pendingAction as {
+        type: string;
+        blockType: string;
+        props?: Record<string, unknown>;
+      };
+      window.dispatchEvent(
+        new CustomEvent('format-action', {
+          detail: { action: 'setBlockType', blockType, props: blockProps },
+        })
+      );
     } else if (props.pendingAction.type === 'setAlignment') {
       const alignment = (props.pendingAction as { type: string; alignment: string }).alignment;
-      window.dispatchEvent(new CustomEvent('format-action', { detail: { action: 'setAlignment', alignment } }));
+      window.dispatchEvent(
+        new CustomEvent('format-action', { detail: { action: 'setAlignment', alignment } })
+      );
     }
   }, [props.pendingAction, props.actionCounter]);
 
@@ -510,7 +531,11 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
   );
 
   const handleActiveStylesChange = useCallback(
-    (stylesJson: string) => props.onActiveStylesChange?.(stylesJson),
+    async (stylesJson: string) => {
+      if (props.onActiveStylesChange) {
+        await props.onActiveStylesChange(stylesJson);
+      }
+    },
     [props.onActiveStylesChange]
   );
 
