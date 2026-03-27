@@ -249,18 +249,18 @@ export const CardDetailPanel = memo(function CardDetailPanel({
         className="sm:max-w-[28rem] p-0 flex flex-col"
         showCloseButton={false}
       >
-        <div className="flex items-center justify-between border-b border-grey-200 dark:border-grey-700 px-6 py-3">
+        <div className="flex items-center justify-between border-b border-grey-200 dark:border-grey-700 px-4 py-3 sm:px-6">
           <SheetTitle className="text-sm font-medium text-grey-500">Karte bearbeiten</SheetTitle>
           <button
             onClick={() => onOpenChange(false)}
-            className="flex items-center justify-center w-7 h-7 rounded-md text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
+            className="flex items-center justify-center w-10 h-10 sm:w-7 sm:h-7 rounded-md text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
           >
             <span className="text-lg leading-none">&times;</span>
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          <div className="px-6 pt-6 pb-2">
+          <div className="px-4 pt-6 pb-2 sm:px-6">
             <div className="flex items-start gap-2">
               <EmojiPicker
                 value={row.icon}
@@ -288,7 +288,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
             </div>
           </div>
 
-          <div className="px-6 pb-6">
+          <div className="px-4 pb-6 sm:px-6">
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -299,7 +299,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
             />
           </div>
 
-          <div className="border-t border-grey-200 dark:border-grey-700 px-6 py-4 space-y-4">
+          <div className="border-t border-grey-200 dark:border-grey-700 px-4 py-4 space-y-4 sm:px-6">
             {/* Labels */}
             <div className="flex flex-row">
               <p className="w-24 shrink-0 text-sm font-medium text-grey-500 dark:text-grey-100 pt-1.5">
@@ -339,14 +339,14 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                       }
                     }}
                     placeholder="Neues Label..."
-                    className="flex-1 rounded-md border border-grey-200 dark:border-grey-700 bg-transparent px-2 py-1.5 text-sm outline-none focus:border-primary-500 placeholder:text-grey-400 dark:placeholder:text-grey-300"
+                    className="flex-1 rounded-md border border-grey-200 dark:border-grey-700 bg-transparent px-2 py-2.5 sm:py-1.5 text-sm outline-none focus:border-primary-500 placeholder:text-grey-400 dark:placeholder:text-grey-300"
                   />
-                  <div className="flex gap-1">
+                  <div className="flex gap-2 sm:gap-1">
                     {LABEL_COLORS.slice(0, 5).map((color) => (
                       <button
                         key={color}
                         onClick={() => setSelectedLabelColor(color)}
-                        className="w-5 h-5 rounded-full border-none cursor-pointer transition-transform hover:scale-110"
+                        className="w-7 h-7 sm:w-5 sm:h-5 rounded-full border-none cursor-pointer transition-transform hover:scale-110"
                         style={{
                           backgroundColor: color,
                           outline: selectedLabelColor === color ? '2px solid currentColor' : 'none',
@@ -370,7 +370,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                   <PopoverTrigger asChild>
                     <button
                       data-empty={!dueDate}
-                      className="flex items-center gap-2 rounded-md border border-grey-200 dark:border-grey-700 bg-transparent px-2 py-1.5 text-sm outline-none hover:border-primary-500 transition-colors cursor-pointer data-[empty=true]:text-grey-400 dark:data-[empty=true]:text-grey-300"
+                      className="flex items-center gap-2 rounded-md border border-grey-200 dark:border-grey-700 bg-transparent px-2 py-2.5 sm:py-1.5 text-sm outline-none hover:border-primary-500 transition-colors cursor-pointer data-[empty=true]:text-grey-400 dark:data-[empty=true]:text-grey-300"
                     >
                       <FiCalendar size={13} />
                       {dueDate
@@ -403,7 +403,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                             setDueDate('');
                             onUpdateCell(row.id, FIELD_IDS.DUE_DATE, null);
                           }}
-                          className="text-xs text-red-500 hover:text-red-600 bg-transparent border-none cursor-pointer"
+                          className="text-xs text-red-500 hover:text-red-600 bg-transparent border-none cursor-pointer py-2 sm:py-0"
                         >
                           Datum entfernen
                         </button>
@@ -433,7 +433,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                         </a>
                         <button
                           onClick={() => removeLinkedDoc(doc.id)}
-                          className="opacity-0 group-hover:opacity-100 text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer transition-opacity text-xs"
+                          className="sm:opacity-0 sm:group-hover:opacity-100 text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer transition-opacity text-xs p-2 sm:p-0"
                           title="Entfernen"
                         >
                           &times;
@@ -443,7 +443,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                   </div>
                 )}
                 <CollabDocPicker onSelect={addLinkedDoc} excludeIds={linkedDocs.map((d) => d.id)}>
-                  <button className="flex items-center gap-1.5 text-xs text-grey-400 dark:text-grey-300 hover:text-primary-600 bg-transparent border-none cursor-pointer transition-colors">
+                  <button className="flex items-center gap-1.5 text-xs text-grey-400 dark:text-grey-300 hover:text-primary-600 bg-transparent border-none cursor-pointer transition-colors py-2 sm:py-0">
                     <FiPlus size={12} />
                     Verknüpfen
                   </button>
@@ -453,11 +453,12 @@ export const CardDetailPanel = memo(function CardDetailPanel({
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-t border-grey-200 dark:border-grey-700 px-6 py-3">
+        <div className="flex items-center justify-between border-t border-grey-200 dark:border-grey-700 px-4 py-3 sm:px-6">
           <div className="flex gap-1">
             <Button
               variant="ghost"
               size="icon-sm"
+              className="size-11 sm:size-8"
               onClick={() => {
                 onDelete(row.id);
                 onOpenChange(false);
@@ -469,13 +470,14 @@ export const CardDetailPanel = memo(function CardDetailPanel({
             <Button
               variant="ghost"
               size="icon-sm"
+              className="size-11 sm:size-8"
               onClick={handleDiscussInChat}
               title="Im Chat besprechen"
             >
               <FiMessageSquare size={15} />
             </Button>
           </div>
-          <Button size="sm" onClick={handleSave}>
+          <Button size="sm" className="h-11 sm:h-8" onClick={handleSave}>
             <FiCheck className="mr-1.5" size={13} />
             Speichern
           </Button>
