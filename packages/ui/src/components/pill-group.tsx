@@ -82,7 +82,7 @@ export function PillGroup({
               className={cn(pillBase, isActive ? pillActive : pillInactive)}
             >
               {option.icon && <span className="shrink-0 [&_svg]:size-3.5">{option.icon}</span>}
-              {option.label}
+              <span className={cn(option.icon && 'max-sm:hidden')}>{option.label}</span>
             </button>
           );
         })}

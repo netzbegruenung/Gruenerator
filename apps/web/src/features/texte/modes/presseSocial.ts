@@ -1,3 +1,7 @@
+import { Newspaper, Lightbulb, Video } from 'lucide-react';
+import { createElement } from 'react';
+import { PiInstagramLogo, PiFacebookLogo, PiXLogo, PiLinkedinLogo } from 'react-icons/pi';
+
 import type { ModeDefinition } from './types';
 
 export const presseSocialMode: ModeDefinition = {
@@ -16,13 +20,13 @@ export const presseSocialMode: ModeDefinition = {
       key: 'platforms',
       label: 'Formate',
       options: [
-        { id: 'pressemitteilung', label: 'Pressemitteilung' },
-        { id: 'instagram', label: 'Instagram' },
-        { id: 'facebook', label: 'Facebook' },
-        { id: 'twitter', label: 'X/Bsky/Mastodon' },
-        { id: 'linkedin', label: 'LinkedIn' },
-        { id: 'actionIdeas', label: 'Aktionsideen' },
-        { id: 'reelScript', label: 'Reel-Skript' },
+        { id: 'pressemitteilung', label: 'Pressemitteilung', icon: createElement(Newspaper) },
+        { id: 'instagram', label: 'Instagram', icon: createElement(PiInstagramLogo) },
+        { id: 'facebook', label: 'Facebook', icon: createElement(PiFacebookLogo) },
+        { id: 'twitter', label: 'X/Bsky/Mastodon', icon: createElement(PiXLogo) },
+        { id: 'linkedin', label: 'LinkedIn', icon: createElement(PiLinkedinLogo) },
+        { id: 'actionIdeas', label: 'Aktionsideen', icon: createElement(Lightbulb) },
+        { id: 'reelScript', label: 'Reel-Skript', icon: createElement(Video) },
       ],
       multiple: true,
     },
