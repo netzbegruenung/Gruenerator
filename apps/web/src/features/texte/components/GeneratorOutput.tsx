@@ -1,4 +1,4 @@
-import React, { memo, useCallback } from 'react';
+import React, { memo } from 'react';
 
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 
@@ -10,18 +10,10 @@ export interface GeneratorOutputProps {
   onClose: () => void;
   title?: string;
   useMarkdown?: boolean | null;
-  onRegenerate?: () => void | Promise<void>;
 }
 
 const GeneratorOutput: React.FC<GeneratorOutputProps> = memo(
-  ({
-    componentName,
-    isOpen,
-    onClose,
-    title = 'Generierter Text',
-    useMarkdown = true,
-    onRegenerate,
-  }) => {
+  ({ componentName, isOpen, onClose, title = 'Generierter Text', useMarkdown = true }) => {
     const hasContent = useGeneratedTextStore((state) => {
       const content = state.generatedTexts[componentName];
       if (!content) return false;
@@ -38,7 +30,6 @@ const GeneratorOutput: React.FC<GeneratorOutputProps> = memo(
         componentName={componentName}
         title={title}
         useMarkdown={useMarkdown}
-        onRegenerate={onRegenerate}
       />
     );
   }
