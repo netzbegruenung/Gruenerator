@@ -16,10 +16,11 @@ export interface AIPromptInputProps {
   placeholder?: string;
   isLoading?: boolean;
   disabled?: boolean;
+  /** Example pills rendered inline in the toolbar row when the input is empty */
   examples?: AIPromptInputExample[];
   /** Renders inside the input border, bottom-left (e.g. FeatureIcons, dropdowns) */
   toolbar?: ReactNode;
-  /** Renders outside the input border (e.g. example pills) */
+  /** Renders outside the input border */
   footer?: ReactNode;
   error?: string | null;
   rows?: number;
@@ -125,6 +126,7 @@ export const AIPromptInput = React.memo(function AIPromptInput({
   );
 
   const isEmpty = value.trim().length < 3;
+  const showInlineExamples = isEmpty && !isLoading && examples && examples.length > 0;
 
   return (
     <div className={cn('w-full max-w-[680px] mx-auto', className)}>
@@ -148,7 +150,21 @@ export const AIPromptInput = React.memo(function AIPromptInput({
         </div>
 
         <div className="flex items-center gap-1.5 px-3 pb-2.5">
-          <div className="flex-1 flex items-center gap-1 min-w-0">{toolbar}</div>
+          <div className="flex-1 flex items-center gap-1 flex-wrap min-w-0">
+            {toolbar}
+            {showInlineExamples &&
+              examples.map((example) => (
+                <button
+                  key={example.label}
+                  type="button"
+                  onClick={() => onChange(example.text)}
+                  disabled={disabled}
+                  className={pillClass}
+                >
+                  {example.label}
+                </button>
+              ))}
+          </div>
           <ActionButton
             isEmpty={isEmpty}
             isDictating={isDictating}
@@ -161,23 +177,8 @@ export const AIPromptInput = React.memo(function AIPromptInput({
 
       {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
 
-      {(footer || (examples && examples.length > 0)) && (
-        <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
-          {footer}
-          {examples &&
-            examples.length > 0 &&
-            examples.map((example) => (
-              <button
-                key={example.label}
-                type="button"
-                onClick={() => onChange(example.text)}
-                disabled={disabled || isLoading}
-                className={pillClass}
-              >
-                {example.label}
-              </button>
-            ))}
-        </div>
+      {footer && (
+        <div className="flex flex-wrap items-center justify-center gap-2 mt-4">{footer}</div>
       )}
     </div>
   );
