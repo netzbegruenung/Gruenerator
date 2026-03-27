@@ -1,5 +1,6 @@
 import { Button } from '@gruenerator/ui';
 import { useShareLinks, useSyncStatuses, useSetAutoSync } from '@gruenerator/wolke';
+import { useMutation } from '@tanstack/react-query';
 import {
   useState,
   useRef,
@@ -122,6 +123,22 @@ const DocumentsSection = memo(
 
     // Document mode management
     const { loading: modeLoading } = useDocumentMode();
+
+    const migrateTexts = useMutation({
+      mutationFn: async () => {
+        const res = await apiClient.post('/auth/saved-texts/migrate-all-to-docs');
+        return res.data as { converted: number; total: number };
+      },
+      onSuccess: (data) => {
+        if (data.converted > 0) {
+          onSuccessMessage(`${data.converted} Texte zu Dokumenten migriert`);
+          handleCombinedFetch();
+        } else {
+          onSuccessMessage('Keine neuen Texte zum Migrieren');
+        }
+      },
+      onError: () => onErrorMessage('Migration fehlgeschlagen'),
+    });
 
     // =====================================================================
     // DOCUMENTS-RELATED STATE AND FUNCTIONALITY
@@ -536,6 +553,14 @@ const DocumentsSection = memo(
               onClearRemoteSearch={clearSearchResults}
               headerActions={
                 <div className="flex gap-xs">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => migrateTexts.mutate()}
+                    disabled={migrateTexts.isPending || combinedLoading}
+                  >
+                    {migrateTexts.isPending ? 'Migriere...' : 'Texte → Dokumente'}
+                  </Button>
                   <ProfileIconButton
                     action="refresh"
                     onClick={handleCombinedFetch}
