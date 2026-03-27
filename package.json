@@ -31,7 +31,13 @@
       "@types/minimatch": "5.1.2",
       "serialize-javascript": ">=7.0.4",
       "webpack-dev-server": ">=5.2.3",
-      "@tootallnate/once": ">=2.0.0"
+      "@tootallnate/once": ">=2.0.0",
+      "loader-utils": ">=2.0.5",
+      "dompurify": ">=3.2.7",
+      "mermaid": ">=10.9.4",
+      "srvx": ">=0.11.13",
+      "file-type": ">=20.6.0",
+      "nanoid": ">=5.0.9"
     }
   },
   "workspaces": [
