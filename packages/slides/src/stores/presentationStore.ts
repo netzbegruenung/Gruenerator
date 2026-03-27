@@ -52,8 +52,11 @@ const initialState: PresentationState = {
  * Set a nested value in an object using a dot-separated path.
  * E.g., setNestedValue(obj, 'content.title', 'Hello') sets obj.content.title = 'Hello'
  */
+const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
 function setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): void {
   const keys = path.split('.');
+  if (keys.some((k) => FORBIDDEN_KEYS.has(k))) return;
   let current: Record<string, unknown> = obj;
   for (let i = 0; i < keys.length - 1; i++) {
     const key = keys[i]!;

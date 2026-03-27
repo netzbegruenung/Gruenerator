@@ -142,7 +142,7 @@ app.get('/document/:id', async (req, res, next) => {
 
     const title = escapeHtml(og.title || 'Grünerator Docs');
     const description = escapeHtml(og.preview_text || 'Kollaborativer Dokumenteneditor');
-    const url = `${DOCS_BASE_URL}/document/${docId}`;
+    const url = `${DOCS_BASE_URL}/document/${encodeURIComponent(docId!)}`;
     const image = `${DOCS_BASE_URL}/images/og-preview.svg`;
 
     const ogTags = `

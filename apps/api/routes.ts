@@ -217,15 +217,15 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: transferRouter } = await import('./routes/transfer/transferController.js');
 
   // Auth routes — authLimiter applied inside authCore.ts to login/callback only
-  app.use('/api/auth', authRouter);
-  app.use('/api/auth/notebook-collections', notebookCollectionsRouter);
-  app.use('/api/auth/notebook', notebookInteractionRouter);
+  app.use('/api/auth', standardMutationLimiter, authRouter);
+  app.use('/api/auth/notebook-collections', standardMutationLimiter, notebookCollectionsRouter);
+  app.use('/api/auth/notebook', standardMutationLimiter, notebookInteractionRouter);
   // Public read endpoints — soft limiter prevents scraping
   app.use('/api/documents', publicReadLimiter, documentsRouter);
   app.use('/api/oparl', publicReadLimiter, oparlRouter);
   app.use('/api/crawl-url', requireAuth, standardMutationLimiter, crawlUrlRouter);
   app.use('/api/recent-values', publicReadLimiter, recentValuesRouter);
-  app.use('/api/antraege', requireAuth, antraegeRouter);
+  app.use('/api/antraege', requireAuth, standardMutationLimiter, antraegeRouter);
   app.use('/api/scanner', publicReadLimiter, scannerRouter);
   app.use('/api/protokoll', publicReadLimiter, protokollRouter);
 
@@ -352,39 +352,39 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/generate-content-title', aiGenerationLimiter, contentTitleRouter);
   app.use('/api/claude_gruene_jugend', aiGenerationLimiter, claudeGrueneJugendRoute);
   app.use('/api/claude_gruenerator_ask', aiGenerationLimiter, claudeGrueneratorAskRoute);
-  app.use('/api/custom_generator', customGeneratorRoute);
-  app.use('/api/auth/custom_generator', customGeneratorRoute);
-  app.use('/api/generate_generator_config', generatorConfiguratorRoute);
-  app.use('/api/custom_prompt', customPromptRoute);
-  app.use('/api/auth/custom_prompt', customPromptRoute);
+  app.use('/api/custom_generator', aiGenerationLimiter, customGeneratorRoute);
+  app.use('/api/auth/custom_generator', aiGenerationLimiter, customGeneratorRoute);
+  app.use('/api/generate_generator_config', aiGenerationLimiter, generatorConfiguratorRoute);
+  app.use('/api/custom_prompt', aiGenerationLimiter, customPromptRoute);
+  app.use('/api/auth/custom_prompt', aiGenerationLimiter, customPromptRoute);
   app.use('/api/claude/generate-short-subtitles', aiGenerationLimiter, claudeSubtitlesRoute);
   app.use('/api/subtitler', standardMutationLimiter, subtitlerRouter);
   app.use('/api/subtitler', standardMutationLimiter, subtitlerSocialRouter);
-  app.use('/api/subtitler/projects', subtitlerProjectRouter);
-  app.use('/api/subtitler/share', subtitlerShareRouter);
-  app.use('/api/share', shareRouter);
+  app.use('/api/subtitler/projects', requireAuth, standardMutationLimiter, subtitlerProjectRouter);
+  app.use('/api/subtitler/share', publicReadLimiter, subtitlerShareRouter);
+  app.use('/api/share', publicReadLimiter, shareRouter);
   app.use('/api/transfer', standardMutationLimiter, transferRouter);
-  app.use('/api/mem0', requireAuth, mem0Router);
+  app.use('/api/mem0', requireAuth, standardMutationLimiter, mem0Router);
   app.use('/api/email', requireAuth, standardMutationLimiter, emailRouter);
   app.use('/api/auth/init', publicReadLimiter, authInitRouter);
   app.use('/api/recent-activity', publicReadLimiter, recentActivityRouter);
-  app.use('/api/notifications', requireAuth, notificationsRouter);
-  app.use('/api/media', requireAuth, mediaRouter);
-  app.use('/api/docs/public', publicDocRouter);
+  app.use('/api/notifications', requireAuth, publicReadLimiter, notificationsRouter);
+  app.use('/api/media', requireAuth, standardMutationLimiter, mediaRouter);
+  app.use('/api/docs/public', publicReadLimiter, publicDocRouter);
   app.use('/api/docs', requireAuth, standardMutationLimiter, docsRouter);
   app.use('/api/presentations', requireAuth, standardMutationLimiter, presentationsRouter);
-  app.use('/api/boards/public', publicBoardRouter);
-  app.use('/api/boards', requireAuth, boardsRouter);
-  app.use('/api/users', requireAuth, usersRouter);
-  app.use('/api/voice', voiceRouter);
-  app.use('/api/voice/tts', requireAuth, ttsRouter);
-  app.use('/api/search', searchRouter);
-  app.use('/api/analyze', searchRouter);
-  app.use('/api/search-graph', requireAuth, searchGraphRouter);
-  app.use('/api/image-picker', imagePickerRoute);
-  app.use('/api/unsplash', unsplashRouter);
-  app.use('/api/web-search', webSearchRouter);
-  app.use('/api/research', requireAuth, researchRouter);
+  app.use('/api/boards/public', publicReadLimiter, publicBoardRouter);
+  app.use('/api/boards', requireAuth, standardMutationLimiter, boardsRouter);
+  app.use('/api/users', requireAuth, publicReadLimiter, usersRouter);
+  app.use('/api/voice', publicReadLimiter, voiceRouter);
+  app.use('/api/voice/tts', requireAuth, standardMutationLimiter, ttsRouter);
+  app.use('/api/search', publicReadLimiter, searchRouter);
+  app.use('/api/analyze', publicReadLimiter, searchRouter);
+  app.use('/api/search-graph', requireAuth, standardMutationLimiter, searchGraphRouter);
+  app.use('/api/image-picker', publicReadLimiter, imagePickerRoute);
+  app.use('/api/unsplash', publicReadLimiter, unsplashRouter);
+  app.use('/api/web-search', publicReadLimiter, webSearchRouter);
+  app.use('/api/research', requireAuth, standardMutationLimiter, researchRouter);
   app.use('/api/image-generation', aiGenerationLimiter, imageGenerationRouter);
   app.use('/api/rate-limit', rateLimitRouter);
 
@@ -396,8 +396,8 @@ export async function setupRoutes(app: Application): Promise<void> {
     next();
   });
   app.use('/api/releases', publicReadLimiter, releasesRouter);
-  app.use('/api/exports', exportDocumentsRouter);
-  app.use('/api/markdown', markdownRouter);
+  app.use('/api/exports', requireAuth, standardMutationLimiter, exportDocumentsRouter);
+  app.use('/api/markdown', publicReadLimiter, markdownRouter);
   app.use('/api/database', databaseTestRouter);
 
   if (snapshottingRouter) {
@@ -406,8 +406,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/internal/offboarding', offboardingRouter);
   app.use('/api/internal/briefing', briefingInternalRouter);
   app.use('/api/internal/monitor', monitorInternalRouter);
-  app.use('/api/briefing', requireAuth, briefingRouter);
-  app.use('/api/monitor', requireAuth, monitorRouter);
+  app.use('/api/briefing', requireAuth, standardMutationLimiter, briefingRouter);
+  app.use('/api/monitor', requireAuth, publicReadLimiter, monitorRouter);
 
   app.get('/api/internal/route-stats', async (req: Request, res: Response): Promise<void> => {
     try {
@@ -423,8 +423,8 @@ export async function setupRoutes(app: Application): Promise<void> {
     }
   });
 
-  app.use('/api/video', requireAuth, videoRouter);
-  app.use('/api/nextcloud', nextcloudApiRouter);
+  app.use('/api/video', requireAuth, standardMutationLimiter, videoRouter);
+  app.use('/api/nextcloud', requireAuth, standardMutationLimiter, nextcloudApiRouter);
   app.use('/api/sites/generate-from-flyer', aiGenerationLimiter, flyerController);
   app.use('/api/sites', standardMutationLimiter, sitesRouter);
   app.use('/api/flux/green-edit', aiGenerationLimiter, fluxImageEditingRoute);

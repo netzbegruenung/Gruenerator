@@ -30,10 +30,15 @@ export interface PollData {
 const PARTY_ROW_NAMES = ['CDU/CSU', 'AfD', 'SPD', 'GRÜNE', 'DIE LINKE', 'BSW', 'FDP', 'Sonstige'];
 
 function parsePercentage(text: string): number | null {
-  const cleaned = text
-    .replace(/&ndash;/g, '')
-    .replace(/&[a-z]+;/g, '')
-    .replace(/<[^>]+>/g, '')
+  let cleaned = text;
+  let prev: string;
+  do {
+    prev = cleaned;
+    cleaned = cleaned.replace(/<[^>]+>/g, '');
+  } while (cleaned !== prev);
+  cleaned = cleaned
+    .replace(/&[a-zA-Z]+;/g, '')
+    .replace(/&#x?[0-9a-fA-F]+;/g, '')
     .replace(/[^0-9,.]/g, '')
     .replace(',', '.');
   const num = parseFloat(cleaned);
@@ -41,10 +46,15 @@ function parsePercentage(text: string): number | null {
 }
 
 function stripHtml(text: string): string {
-  return text
-    .replace(/<[^>]+>/g, '')
-    .replace(/&\w+;/g, '')
-    .replace(/&#\d+;/g, '')
+  let result = text;
+  let prev: string;
+  do {
+    prev = result;
+    result = result.replace(/<[^>]+>/g, '');
+  } while (result !== prev);
+  return result
+    .replace(/&[a-zA-Z]+;/g, '')
+    .replace(/&#x?[0-9a-fA-F]+;/g, '')
     .trim();
 }
 

@@ -392,9 +392,15 @@ router.post('/stream', async (req, res) => {
           )
             .filter((d) => d.content)
             .map((d) => {
-              const plainText = (d.content || '')
-                .replace(/<[^>]+>/g, '')
-                .replace(/&nbsp;/g, ' ')
+              let plainText = d.content || '';
+              let prevText: string;
+              do {
+                prevText = plainText;
+                plainText = plainText.replace(/<[^>]+>/g, '');
+              } while (plainText !== prevText);
+              plainText = plainText
+                .replace(/&[a-zA-Z]+;/g, ' ')
+                .replace(/&#x?[0-9a-fA-F]+;/g, ' ')
                 .replace(/\s+/g, ' ')
                 .trim();
               log.info(`[ChatGraph] Doc context loaded: "${d.title}" (${plainText.length} chars)`);
@@ -829,7 +835,9 @@ router.post('/stream', async (req, res) => {
     sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
 
     const systemMessage = await buildSystemMessage(finalState);
-    const { model: aiModel } = resolveModel(finalState.agentConfig, modelId);
+    const { model: aiModel } = resolveModel(finalState.agentConfig, modelId, {
+      hasImages: imageAttachments.length > 0,
+    });
 
     const prunedValidMessages = pruneMessages(validMessages);
     const finalSystemMessage = actualThreadId
@@ -1014,7 +1022,10 @@ router.post('/resume', async (req, res) => {
     sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
 
     const systemMessage = await buildSystemMessage(finalState);
-    const { model: aiModel } = resolveModel(finalState.agentConfig, modelId);
+    const resumeImageAttachments = requestContext.imageAttachments || [];
+    const { model: aiModel } = resolveModel(finalState.agentConfig, modelId, {
+      hasImages: resumeImageAttachments.length > 0,
+    });
 
     const validMessages = requestContext.validMessages as any[];
     const prunedValidMessages = pruneMessages(validMessages);

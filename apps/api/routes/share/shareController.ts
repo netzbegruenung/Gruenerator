@@ -1145,8 +1145,7 @@ router.get(
         }
 
         // scrypt format: "salt:hash"
-        const password =
-          (req.query.password as string) || (req.headers['x-transfer-password'] as string);
+        const password = req.headers['x-transfer-password'] as string;
         if (share.password_hash) {
           if (!password) {
             res.status(401).json({ success: false, error: 'Passwort erforderlich.' });
