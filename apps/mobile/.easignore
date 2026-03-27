@@ -7,29 +7,28 @@ apps/mobile/ios/
 apps/docs-expo/android/
 apps/docs-expo/ios/
 
-# Other apps not needed for mobile build
+# Other apps not needed for EAS builds (mobile / docs-expo)
 apps/web/
 apps/api/
 apps/docs/
 apps/docs-desktop/
-apps/docs-expo/
 apps/desktop/
 apps/sites/
 apps/gruen-o-mat/
 apps/wordpress/
 
 # Services not needed
-services/
+/services/
 
-# Reference repos (1.4 GB)
-inspiration/
+# Reference repos (1.4 GB of cloned repos)
+/inspiration/
 
 # Documentation
-documentation/
+/documentation/
 
 # Playwright, docs, tooling
-.playwright-mcp/
-docs/
+/.playwright-mcp/
+/docs/
 
 # Dev/build artifacts
 **/.expo/
@@ -47,9 +46,7 @@ docs/
 *.jar
 *.md
 !README.md
-*.png
-!apps/mobile/**/*.png
-board-current.png
+/*.png
 
 # Git
 .git/
