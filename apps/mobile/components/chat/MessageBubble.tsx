@@ -18,6 +18,7 @@ import Animated, {
   withDelay,
 } from 'react-native-reanimated';
 
+import { useNativeTTS } from '../../hooks/useNativeTTS';
 import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing, borderRadius } from '../../theme';
 
@@ -32,7 +33,7 @@ import type { ChatMessageMetadata } from '@gruenerator/chat';
 export const UserMessageComponent = memo(function UserMessageComponent() {
   return (
     <MessagePrimitive.Root style={[styles.messageRow, styles.userRow]}>
-      <View style={[styles.bubble, styles.userBubble]}>
+      <View style={[styles.bubble, styles.userBubbleWidth, styles.userBubble]}>
         <MessagePrimitive.Attachments components={{ Attachment: MessageAttachmentUI }} />
         <MessagePrimitive.Content
           renderText={({ part }) => <Text style={styles.userText}>{part.text}</Text>}
@@ -125,11 +126,23 @@ const BranchPicker = memo(function BranchPicker({ theme }: { theme: Theme }) {
 
 const AssistantActionBar = memo(function AssistantActionBar({
   theme,
+  messageText,
   onLongPress,
 }: {
   theme: Theme;
+  messageText: string;
   onLongPress: () => void;
 }) {
+  const { state: ttsState, play, stop } = useNativeTTS();
+
+  const handleTTS = useCallback(() => {
+    if (ttsState === 'playing') {
+      stop();
+    } else if (messageText) {
+      play(messageText);
+    }
+  }, [ttsState, messageText, play, stop]);
+
   return (
     <View style={styles.actionBar}>
       <ActionBarPrimitive.Copy copiedDuration={2000}>
@@ -143,6 +156,16 @@ const AssistantActionBar = memo(function AssistantActionBar({
           </View>
         )}
       </ActionBarPrimitive.Copy>
+      <Pressable
+        onPress={handleTTS}
+        style={[styles.actionButton, { backgroundColor: theme.surface }]}
+      >
+        <Ionicons
+          name={ttsState === 'playing' ? 'stop' : 'volume-medium-outline'}
+          size={14}
+          color={ttsState === 'playing' ? colors.primary[500] : theme.textSecondary}
+        />
+      </Pressable>
       <ActionBarPrimitive.Reload style={[styles.actionButton, { backgroundColor: theme.surface }]}>
         <Ionicons name="refresh-outline" size={14} color={theme.textSecondary} />
       </ActionBarPrimitive.Reload>
@@ -156,6 +179,27 @@ const AssistantActionBar = memo(function AssistantActionBar({
   );
 });
 
+function AssistantTextPart(props: { text: string }) {
+  const theme = useTheme();
+  const markdownStyles = useMemo(() => getMarkdownStyles(theme), [theme]);
+  return <Markdown style={markdownStyles}>{props.text}</Markdown>;
+}
+
+function AssistantToolCallPart(props: {
+  toolCallId: string;
+  toolName: string;
+  args: Record<string, unknown>;
+  result?: unknown;
+}) {
+  const theme = useTheme();
+  return <ToolCallProgress part={props} theme={theme} />;
+}
+
+function AssistantReasoningPart(props: { text: string }) {
+  const theme = useTheme();
+  return <ReasoningBlock part={props} theme={theme} />;
+}
+
 export const AssistantMessageComponent = memo(function AssistantMessageComponent() {
   const theme = useTheme();
   const message = useAuiState((s) => s.message);
@@ -163,8 +207,6 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
     {}) as ChatMessageMetadata;
   const citations = metadata.citations;
   const [actionsVisible, setActionsVisible] = useState(false);
-
-  const markdownStyles = useMemo(() => getMarkdownStyles(theme), [theme]);
 
   const messageText = useMemo(() => {
     return message.content
@@ -177,24 +219,33 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
     if (messageText) setActionsVisible(true);
   }, [messageText]);
 
+  const partsComponents = useMemo(
+    () => ({
+      Text: AssistantTextPart,
+      tools: { Fallback: AssistantToolCallPart },
+      Reasoning: AssistantReasoningPart,
+      Empty: TypingIndicator,
+    }),
+    []
+  );
+
   return (
     <>
       <MessagePrimitive.Root style={[styles.messageRow, styles.assistantRow]}>
         <Pressable onLongPress={handleOpenActions}>
           <View style={[styles.bubble, styles.assistantBubble, { backgroundColor: theme.surface }]}>
-            <MessagePrimitive.Content
-              renderText={({ part }) => <Markdown style={markdownStyles}>{part.text}</Markdown>}
-              renderToolCall={({ part }) => <ToolCallProgress part={part} theme={theme} />}
-              renderReasoning={({ part }) => <ReasoningBlock part={part} theme={theme} />}
-              renderSource={() => <></>}
-            />
+            <MessagePrimitive.Parts components={partsComponents} />
             {citations && citations.length > 0 && (
               <CitationsFooter citations={citations} theme={theme} />
             )}
           </View>
         </Pressable>
         <BranchPicker theme={theme} />
-        <AssistantActionBar theme={theme} onLongPress={handleOpenActions} />
+        <AssistantActionBar
+          theme={theme}
+          messageText={messageText}
+          onLongPress={handleOpenActions}
+        />
       </MessagePrimitive.Root>
       <MessageActionsSheet
         visible={actionsVisible}
@@ -336,10 +387,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   bubble: {
-    maxWidth: '85%',
     paddingHorizontal: spacing.medium,
     paddingVertical: spacing.small,
     borderRadius: borderRadius.large,
+  },
+  userBubbleWidth: {
+    maxWidth: '85%',
   },
   userBubble: {
     backgroundColor: colors.primary[600],
@@ -422,5 +475,16 @@ const styles = StyleSheet.create({
   },
   followUpText: {
     fontSize: 13,
+  },
+  typingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: spacing.xsmall,
+  },
+  typingDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
 });
