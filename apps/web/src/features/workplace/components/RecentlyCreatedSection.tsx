@@ -251,6 +251,7 @@ const RecentlyCreatedSection: React.FC<RecentlyCreatedSectionProps> = memo(
         if (item.type === 'doc' && !showDocs) return false;
         if (item.type === 'board' && !showBoards) return false;
         if (item.type === 'video') return false;
+        if (item.type === 'text') return false;
         return true;
       })
       .slice(0, 10);
