@@ -8,7 +8,7 @@ const cardGridVariants = cva('grid', {
       '1': 'grid-cols-1',
       '2': 'grid-cols-2 max-sm:grid-cols-1',
       '3': 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
-      '5': 'grid-cols-5 max-lg:grid-cols-4 max-md:grid-cols-3 max-sm:grid-cols-2',
+      '5': 'grid-cols-5 max-lg:grid-cols-4 max-md:grid-cols-3 max-sm:grid-cols-1',
       auto: 'grid-cols-[repeat(auto-fill,minmax(300px,1fr))] max-lg:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] max-md:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]',
     },
     gap: {

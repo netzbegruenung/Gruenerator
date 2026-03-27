@@ -1,5 +1,6 @@
 import type { GeneratorSetupConfig } from '../../../hooks/useGeneratorSetup';
 import type { AIPromptInputExample, SettingConfig } from '@gruenerator/ui';
+import type { ReactNode } from 'react';
 
 export type ModeState = Record<string, string | string[]>;
 
@@ -52,5 +53,6 @@ export interface ModeDefinition {
 export interface ModeGroupEntry {
   id: string;
   label: string;
+  icon?: ReactNode;
   submodes?: string[];
 }
