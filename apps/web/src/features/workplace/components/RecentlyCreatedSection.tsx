@@ -105,18 +105,20 @@ const RecentItemCard = memo(
     item,
     onDelete,
     onShare,
+    onConvertText,
   }: {
     item: RecentItem;
     onDelete: (item: RecentItem) => void;
     onShare: (item: RecentItem) => void;
+    onConvertText?: (textId: string) => void;
   }) => {
     const TypeIcon = TYPE_ICONS[item.type];
 
-    return (
-      <Link
-        to={item.href}
-        className="group relative flex flex-col bg-background border border-grey-200 dark:border-grey-700 rounded-md overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-grey-300 dark:hover:border-grey-600 no-underline"
-      >
+    const cardClass =
+      'group relative flex flex-col bg-background border border-grey-200 dark:border-grey-700 rounded-md overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-grey-300 dark:hover:border-grey-600 no-underline';
+
+    const cardContent = (
+      <>
         {item.type === 'doc' && (
           <div className="flex items-center justify-center bg-white dark:bg-grey-800 aspect-[4/3] text-4xl select-none">
             {item.emoji ?? '📄'}
@@ -197,6 +199,31 @@ const RecentItemCard = memo(
             {new Date(item.date).toLocaleDateString('de-DE', dateFormat)}
           </p>
         </div>
+      </>
+    );
+
+    if (item.type === 'text' && onConvertText) {
+      return (
+        <div
+          role="button"
+          tabIndex={0}
+          className={cardClass}
+          onClick={() => onConvertText(item.id)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onConvertText(item.id);
+            }
+          }}
+        >
+          {cardContent}
+        </div>
+      );
+    }
+
+    return (
+      <Link to={item.href} className={cardClass}>
+        {cardContent}
       </Link>
     );
   }
@@ -240,6 +267,20 @@ const RecentlyCreatedSection: React.FC<RecentlyCreatedSectionProps> = memo(
       },
     });
 
+    const handleConvertText = useCallback(
+      async (textId: string) => {
+        try {
+          const res = await apiClient.post(`/auth/saved-texts/${textId}/convert-to-doc`);
+          const { documentId } = res.data as { documentId: string };
+          navigate(`/docs/${documentId}`);
+        } catch {
+          // fallback to old editor
+          navigate(`/texte/texteditor?textId=${textId}`);
+        }
+      },
+      [navigate]
+    );
+
     const handleDelete = useCallback(
       (item: RecentItem) => {
         const messages: Record<RecentItemType, string> = {
@@ -247,6 +288,7 @@ const RecentlyCreatedSection: React.FC<RecentlyCreatedSectionProps> = memo(
           board: 'Board wirklich löschen?',
           image: 'Bild wirklich löschen?',
           video: 'Video wirklich löschen?',
+          text: 'Text wirklich löschen?',
         };
 
         if (!window.confirm(messages[item.type])) return;
@@ -365,6 +407,7 @@ const RecentlyCreatedSection: React.FC<RecentlyCreatedSectionProps> = memo(
                 item={item}
                 onDelete={handleDelete}
                 onShare={handleShare}
+                onConvertText={handleConvertText}
               />
             ))}
           </CardGrid>
