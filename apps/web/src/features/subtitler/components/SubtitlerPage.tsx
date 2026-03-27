@@ -120,15 +120,14 @@ const SubtitlerPage = (): React.ReactElement => {
 
         setLoadedProject(project);
         if (project.subtitles) setSubtitles(project.subtitles);
-        if (project.upload_id) {
-          setUploadInfo({
-            uploadId: project.upload_id,
-            metadata: project.video_metadata ?? undefined,
-            name: project.video_filename ?? undefined,
-            size: project.video_size ?? undefined,
-            isFromProject: true,
-          });
-        }
+        setUploadInfo({
+          uploadId: project.id,
+          metadata: project.video_metadata ?? undefined,
+          name: project.video_filename ?? undefined,
+          size: project.video_size ?? undefined,
+          isFromProject: true,
+          videoUrl: `/api/subtitler/projects/${project.id}/video`,
+        });
         if (project.style_preference)
           setStylePreference(project.style_preference as StylePreference);
         if (project.height_preference)
