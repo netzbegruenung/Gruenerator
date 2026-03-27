@@ -130,6 +130,7 @@ jobs:
               - 'packages/collab/**'
               - 'packages/ui/**'
               - 'packages/wolke/**'
+              - 'packages/slides/**'
             hocuspocus:
               - 'services/hocuspocus/**'
             mcp:
