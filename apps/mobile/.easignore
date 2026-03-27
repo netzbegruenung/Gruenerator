@@ -16,16 +16,20 @@ apps/docs-expo/
 apps/desktop/
 apps/sites/
 apps/gruen-o-mat/
+apps/wordpress/
 
 # Services not needed
-/services/
+services/
 
-# Documentation (154 MB, not needed)
-/documentation/
+# Reference repos (1.4 GB)
+inspiration/
+
+# Documentation
+documentation/
 
 # Playwright, docs, tooling
-/.playwright-mcp/
-/docs/
+.playwright-mcp/
+docs/
 
 # Dev/build artifacts
 **/.expo/
@@ -43,6 +47,9 @@ apps/gruen-o-mat/
 *.jar
 *.md
 !README.md
+*.png
+!apps/mobile/**/*.png
+board-current.png
 
 # Git
 .git/
