@@ -15,14 +15,8 @@ interface ToolItem {
 
 const ALL_TOOLS: ToolItem[] = [
   {
-    id: 'vorlagen',
-    title: 'Vorlagen',
-    path: '/datenbank/vorlagen',
-    icon: getIcon('navigation', 'vorlagen')!,
-  },
-  {
     id: 'gruen-veraendern',
-    title: 'Bild begrünen',
+    title: 'Bild mit KI begrünen',
     path: '/studio/ki/green-edit',
     icon: getIcon('navigation', 'imagine')!,
   },
@@ -33,21 +27,15 @@ const ALL_TOOLS: ToolItem[] = [
     icon: getIcon('navigation', 'reel')!,
   },
   {
-    id: 'recherche',
-    title: 'Recherche',
-    path: '/recherche',
-    icon: getIcon('navigation', 'suche')!,
-  },
-  {
     id: 'scanner',
-    title: 'Seite scannen',
+    title: 'Text digitalisieren',
     path: '/scanner',
     icon: getIcon('navigation', 'scanner')!,
     betaFeature: 'scanner',
   },
   {
     id: 'transkription',
-    title: 'Audio transkribieren',
+    title: 'Audio mit KI transkribieren',
     path: '/transkription',
     icon: getIcon('navigation', 'transkription')!,
     betaFeature: 'scanner',
