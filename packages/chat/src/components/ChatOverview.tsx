@@ -85,8 +85,9 @@ export function ChatOverview({
   const [showAllNotebooks, setShowAllNotebooks] = useState(false);
 
   useEffect(() => {
-    const { pendingMessage, pendingDraft } = useAgentStore.getState();
-    if (pendingMessage || pendingDraft) {
+    const { pendingMessage, pendingDraft, pendingInitialAssistantMessage } =
+      useAgentStore.getState();
+    if (pendingMessage || pendingDraft || pendingInitialAssistantMessage) {
       useAgentStore.getState().setChatViewMode('thread');
       return;
     }

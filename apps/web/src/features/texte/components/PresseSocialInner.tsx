@@ -1,5 +1,7 @@
+import { useAgentStore } from '@gruenerator/chat';
 import { AIPromptInput } from '@gruenerator/ui';
-import React, { memo, useCallback, useMemo, useRef, useState, type MutableRefObject } from 'react';
+import React, { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import useFormAttachments from '../../../components/common/Form/hooks/useFormAttachments';
 import useStreamingFormSubmission from '../../../components/common/Form/hooks/useStreamingFormSubmission';
@@ -13,7 +15,6 @@ import {
   type PresseSocialFormData,
 } from '../presse/hooks/usePresseSocialSubmit';
 
-import GeneratorOutput from './GeneratorOutput';
 import ModeExtraFields from './ModeExtraFields';
 import ModeToolbar from './ModeToolbar';
 
@@ -27,7 +28,7 @@ interface PresseSocialInnerProps {
 const PresseSocialInner: React.FC<PresseSocialInnerProps> = memo(({ def }) => {
   const { state: modeState, updateField } = useModeState(def.id);
   const [prompt, setPrompt] = useState('');
-  const [showResult, setShowResult] = useState(false);
+  const navigate = useNavigate();
 
   const setActiveComponent = useGeneratorSelectionStore((s) => s.setActiveComponent);
   const activatedRef = useRef(false);
@@ -54,7 +55,7 @@ const PresseSocialInner: React.FC<PresseSocialInnerProps> = memo(({ def }) => {
     externalSubmitForm: submission.submitForm,
   });
 
-  const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
+  const { setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
   const promptRef = useRef(prompt);
   promptRef.current = prompt;
@@ -89,22 +90,19 @@ const PresseSocialInner: React.FC<PresseSocialInnerProps> = memo(({ def }) => {
         : await submitHandler.submitStandard(formData);
 
       if (result?.social) {
-        const serializableContent = {
-          content: result.social.content || '',
-          metadata: result.social.metadata || {},
-          selectedPlatforms: filteredPlatforms,
-          ...(result.sharepic ? { sharepic: result.sharepic } : {}),
-        };
-        setGeneratedText(def.componentName, serializableContent, serializableContent.metadata);
-        setShowResult(true);
+        const generatedContent = result.social.content || '';
+        if (generatedContent) {
+          useAgentStore.getState().setPendingInitialAssistantMessage(generatedContent);
+          navigate('/chat');
+          return;
+        }
       }
     } catch (error) {
       console.error('[PresseSocial] Submit error:', error);
     } finally {
       setStoreIsLoading(false);
     }
-  }, [setup.features, submitHandler, setGeneratedText, setStoreIsLoading, setActiveComponent, def]);
-  const handleCloseResult = useCallback(() => setShowResult(false), []);
+  }, [setup.features, submitHandler, setStoreIsLoading, setActiveComponent, def, navigate]);
 
   const isLoading = submitHandler.loading || submission.loading;
   const error =
@@ -142,12 +140,6 @@ const PresseSocialInner: React.FC<PresseSocialInnerProps> = memo(({ def }) => {
         error={error}
         placeholder={def.placeholder}
         toolbar={toolbar}
-      />
-      <GeneratorOutput
-        componentName={def.componentName}
-        isOpen={showResult}
-        onClose={handleCloseResult}
-        useMarkdown={def.useMarkdown}
       />
     </>
   );

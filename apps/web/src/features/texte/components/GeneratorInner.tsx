@@ -1,10 +1,12 @@
+import { useAgentStore } from '@gruenerator/chat';
 import { AIPromptInput } from '@gruenerator/ui';
-import React, { memo, useCallback, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 
+import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGenerator } from '../hooks/useGenerator';
 import { useModeState } from '../hooks/useModeState';
 
-import GeneratorOutput from './GeneratorOutput';
 import ModeExtraFields from './ModeExtraFields';
 import ModeToolbar from './ModeToolbar';
 
@@ -16,7 +18,7 @@ interface GeneratorInnerProps {
 }
 
 const GeneratorInner: React.FC<GeneratorInnerProps> = memo(({ def }) => {
-  const [showResult, setShowResult] = useState(false);
+  const navigate = useNavigate();
   const { state: modeState, updateField } = useModeState(def.id, def);
 
   const gen = useGenerator({
@@ -32,17 +34,21 @@ const GeneratorInner: React.FC<GeneratorInnerProps> = memo(({ def }) => {
   const modeStateRef = useRef(modeState);
   modeStateRef.current = modeState;
 
-  const onSubmit = useCallback(() => {
+  const onSubmit = useCallback(async () => {
     const extraFields = def.buildSubmitFields
       ? def.buildSubmitFields(promptRef.current, modeStateRef.current)
       : def.promptField && def.promptField !== 'inhalt'
         ? { [def.promptField]: promptRef.current }
         : {};
-    void gen.submit(extraFields);
-    setShowResult(true);
-  }, [def, gen.submit]);
+    await gen.submit(extraFields);
 
-  const handleCloseResult = useCallback(() => setShowResult(false), []);
+    const content = useGeneratedTextStore.getState().generatedTexts[def.componentName];
+    const generatedText = getExportableString(content);
+    if (generatedText) {
+      useAgentStore.getState().setPendingInitialAssistantMessage(generatedText);
+      navigate('/chat');
+    }
+  }, [def, gen.submit, navigate]);
 
   const toolbar = useMemo(
     () => (
@@ -79,15 +85,18 @@ const GeneratorInner: React.FC<GeneratorInnerProps> = memo(({ def }) => {
         examples={def.examples}
         toolbar={toolbar}
       />
-      <GeneratorOutput
-        componentName={def.componentName}
-        isOpen={showResult}
-        onClose={handleCloseResult}
-        useMarkdown={def.useMarkdown}
-      />
     </>
   );
 });
+
+function getExportableString(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (typeof content === 'object' && content !== null) {
+    const ext = content as { social?: { content?: string }; content?: string };
+    return ext.social?.content || ext.content || '';
+  }
+  return '';
+}
 
 GeneratorInner.displayName = 'GeneratorInner';
 
