@@ -1,22 +1,8 @@
-import {
-  useAui,
-  useAuiState,
-  ComposerPrimitive,
-  AttachmentPrimitive,
-} from '@assistant-ui/react-native';
+import { useAui, useAuiState, ComposerPrimitive } from '@assistant-ui/react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { detectMention, computeMentionInsertion, type Mentionable } from '@gruenerator/chat';
 import { useCallback, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  Modal,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import { View, TextInput, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 
 import {
   pickDocument,
@@ -26,7 +12,7 @@ import {
 import { colors, spacing, borderRadius } from '../../theme';
 
 import { ComposerAttachmentUI } from './AttachmentUI';
-import { ChatSettingsSheet } from './ChatSettingsSheet';
+import { ComposerActionSheet } from './ComposerActionSheet';
 import { MentionSuggestions } from './MentionSuggestions';
 
 import type { Theme } from '../../theme/colors';
@@ -44,7 +30,6 @@ interface Props {
   bottomInset?: number;
   onOpenDocBrowser?: () => void;
   inputRef?: React.RefObject<TextInput | null>;
-  showSettings?: boolean;
 }
 
 export function AssistantComposer({
@@ -52,7 +37,6 @@ export function AssistantComposer({
   bottomInset = 0,
   onOpenDocBrowser,
   inputRef: externalInputRef,
-  showSettings = true,
 }: Props) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const aui = useAui();
@@ -61,8 +45,7 @@ export function AssistantComposer({
   const textRef = useRef('');
   const selectionRef = useRef(0);
   const [mention, setMention] = useState<MentionState | null>(null);
-  const [plusMenuVisible, setPlusMenuVisible] = useState(false);
-  const [settingsVisible, setSettingsVisible] = useState(false);
+  const [actionSheetVisible, setActionSheetVisible] = useState(false);
 
   const onChangeText = useCallback(
     (value: string) => {
@@ -128,15 +111,6 @@ export function AssistantComposer({
     }
   }, [aui]);
 
-  const handlePlusMenuAction = useCallback(
-    (action: 'file' | 'doc') => {
-      setPlusMenuVisible(false);
-      if (action === 'file') handlePickFile();
-      else onOpenDocBrowser?.();
-    },
-    [handlePickFile, onOpenDocBrowser]
-  );
-
   return (
     <ComposerPrimitive.Root
       style={[styles.root, { backgroundColor: theme.background, paddingBottom: bottomInset }]}
@@ -157,18 +131,13 @@ export function AssistantComposer({
       <View
         style={[styles.inputRow, { backgroundColor: theme.surface }, styles.inputRowWithActions]}
       >
-        <Pressable onPress={() => setPlusMenuVisible(true)} style={styles.actionButton} hitSlop={8}>
+        <Pressable
+          onPress={() => setActionSheetVisible(true)}
+          style={styles.actionButton}
+          hitSlop={8}
+        >
           <Ionicons name="add-circle-outline" size={22} color={theme.textSecondary} />
         </Pressable>
-        {showSettings && (
-          <Pressable
-            onPress={() => setSettingsVisible(true)}
-            style={styles.actionButton}
-            hitSlop={8}
-          >
-            <Ionicons name="options-outline" size={20} color={theme.textSecondary} />
-          </Pressable>
-        )}
         <TextInput
           ref={inputRef}
           style={[styles.input, { color: theme.text }]}
@@ -195,38 +164,12 @@ export function AssistantComposer({
           </ComposerPrimitive.Send>
         )}
       </View>
-      <Modal
-        visible={plusMenuVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPlusMenuVisible(false)}
-      >
-        <Pressable style={styles.sheetOverlay} onPress={() => setPlusMenuVisible(false)}>
-          <View style={[styles.sheetContainer, { backgroundColor: theme.surface }]}>
-            <Pressable style={styles.sheetOption} onPress={() => handlePlusMenuAction('file')}>
-              <Ionicons name="document-outline" size={22} color={theme.text} />
-              <Text style={[styles.sheetOptionText, { color: theme.text }]}>Datei anhängen</Text>
-            </Pressable>
-            {onOpenDocBrowser && (
-              <Pressable style={styles.sheetOption} onPress={() => handlePlusMenuAction('doc')}>
-                <Ionicons name="search-outline" size={22} color={theme.text} />
-                <Text style={[styles.sheetOptionText, { color: theme.text }]}>Dokument suchen</Text>
-              </Pressable>
-            )}
-            <Pressable
-              style={[styles.sheetOption, styles.sheetCancel]}
-              onPress={() => setPlusMenuVisible(false)}
-            >
-              <Text style={[styles.sheetOptionText, { color: theme.textSecondary }]}>
-                Abbrechen
-              </Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Modal>
-      {showSettings && (
-        <ChatSettingsSheet visible={settingsVisible} onDismiss={() => setSettingsVisible(false)} />
-      )}
+      <ComposerActionSheet
+        visible={actionSheetVisible}
+        onClose={() => setActionSheetVisible(false)}
+        onPickFile={handlePickFile}
+        onOpenDocBrowser={onOpenDocBrowser}
+      />
     </ComposerPrimitive.Root>
   );
 }
@@ -281,33 +224,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: spacing.xsmall,
-  },
-  sheetOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  sheetContainer: {
-    borderTopLeftRadius: borderRadius.large,
-    borderTopRightRadius: borderRadius.large,
-    paddingTop: spacing.small,
-    paddingBottom: spacing.xlarge,
-    paddingHorizontal: spacing.medium,
-  },
-  sheetOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: spacing.small,
-    gap: spacing.small,
-  },
-  sheetCancel: {
-    justifyContent: 'center',
-    marginTop: spacing.xsmall,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(128,128,128,0.3)',
-  },
-  sheetOptionText: {
-    fontSize: 16,
   },
 });
