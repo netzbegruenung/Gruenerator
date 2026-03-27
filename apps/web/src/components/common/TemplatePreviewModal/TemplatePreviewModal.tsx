@@ -40,7 +40,7 @@ interface TemplateMetadata {
 }
 
 interface Template {
-  id?: string;
+  id?: string | number;
   content_data?: TemplateContentData;
   metadata?: TemplateMetadata;
   external_url?: string;

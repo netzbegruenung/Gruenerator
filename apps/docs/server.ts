@@ -127,7 +127,7 @@ app.get('/document/:id', async (req, res, next) => {
   const docId = match[1];
 
   try {
-    const ogRes = await fetch(`${API_TARGET}/api/docs/public/${docId}/og`);
+    const ogRes = await fetch(`${API_TARGET}/api/docs/public/${encodeURIComponent(docId!)}/og`);
     if (!ogRes.ok) {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
       return res.send(indexHtmlTemplate);

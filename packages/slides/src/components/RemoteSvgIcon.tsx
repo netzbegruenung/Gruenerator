@@ -133,7 +133,7 @@ export function useRemoteSvgIcon(url?: string, options: RemoteSvgOptions = {}) {
         return;
       }
       // non-svg extensions fallback
-      if (/\.(png|jpe?g|gif|webp)(\?.*)?$/i.test(url)) {
+      if (/\.(png|jpe?g|gif|webp)(?:\?|$)/i.test(url)) {
         const stroke = options.strokeColor || 'currentColor';
         const fill = options.fillColor ?? 'none';
         const cls = options.className ? ` class=\"${options.className}\"` : '';

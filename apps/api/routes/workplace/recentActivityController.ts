@@ -246,7 +246,13 @@ export async function fetchRecentTexts(
 
   return rows.map((row: any) => {
     const rawContent = typeof row.content === 'string' ? row.content : '';
-    const stripped = rawContent.replace(/<[^>]*>/g, '').slice(0, 500);
+    let stripped = rawContent;
+    let prev: string;
+    do {
+      prev = stripped;
+      stripped = stripped.replace(/<[^>]*>/g, '');
+    } while (stripped !== prev);
+    stripped = stripped.slice(0, 500);
 
     return {
       id: row.id,
