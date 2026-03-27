@@ -11,7 +11,14 @@ export function AutoMessageSender() {
   const setPendingMessage = useAgentStore((s) => s.setPendingMessage);
   const pendingDraft = useAgentStore((s) => s.pendingDraft);
   const setPendingDraft = useAgentStore((s) => s.setPendingDraft);
+  const pendingInitialAssistantMessage = useAgentStore((s) => s.pendingInitialAssistantMessage);
   const processingRef = useRef(false);
+
+  useEffect(() => {
+    if (!pendingInitialAssistantMessage || processingRef.current) return;
+    processingRef.current = true;
+    assistantRuntime.switchToNewThread();
+  }, [pendingInitialAssistantMessage, assistantRuntime]);
 
   useEffect(() => {
     if (processingRef.current) return;

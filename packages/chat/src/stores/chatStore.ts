@@ -106,6 +106,7 @@ interface AgentState {
   needsCompaction: boolean;
   pendingMessage: string | null;
   pendingDraft: string | null;
+  pendingInitialAssistantMessage: string | null;
   chatViewMode: 'overview' | 'thread';
   threadMode: ThreadMode;
   searchMode: SearchMode;
@@ -122,6 +123,7 @@ interface AgentState {
   setSelectedNotebook: (notebookId: string) => void;
   setPendingMessage: (message: string | null) => void;
   setPendingDraft: (draft: string | null) => void;
+  setPendingInitialAssistantMessage: (message: string | null) => void;
   setChatViewMode: (mode: 'overview' | 'thread') => void;
   setThreadMode: (mode: ThreadMode) => void;
   setSearchMode: (mode: SearchMode) => void;
@@ -165,6 +167,7 @@ export const useAgentStore = create<AgentState>()(
       needsCompaction: false,
       pendingMessage: null,
       pendingDraft: null,
+      pendingInitialAssistantMessage: null,
       chatViewMode: 'overview' as const,
       threadMode: 'chat' as ThreadMode,
       searchMode: 'web' as SearchMode,
@@ -218,6 +221,9 @@ export const useAgentStore = create<AgentState>()(
       setPendingMessage: (message) => set({ pendingMessage: message }),
 
       setPendingDraft: (draft) => set({ pendingDraft: draft }),
+
+      setPendingInitialAssistantMessage: (message) =>
+        set({ pendingInitialAssistantMessage: message }),
 
       setChatViewMode: (mode) => set({ chatViewMode: mode }),
 

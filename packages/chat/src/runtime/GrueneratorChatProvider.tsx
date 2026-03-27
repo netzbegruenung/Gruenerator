@@ -203,7 +203,20 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
             const msgs = await apiClient.get<LoadedMessage[]>(
               `${endpoints.messages}?threadId=${remoteId}`
             );
-            const converted = convertToThreadMessageLike(msgs);
+            let converted = convertToThreadMessageLike(msgs);
+
+            const initialMsg = useAgentStore.getState().pendingInitialAssistantMessage;
+            if (converted.length === 0 && initialMsg) {
+              converted = [
+                {
+                  role: 'assistant' as const,
+                  content: [{ type: 'text' as const, text: initialMsg }],
+                  id: `initial_${remoteId}`,
+                },
+              ];
+              useAgentStore.getState().setPendingInitialAssistantMessage(null);
+            }
+
             loadCompactionState(remoteId, apiClient);
             useAgentStore.getState().loadThreadSettings(remoteId, apiClient);
             return ExportedMessageRepository.fromArray(converted);
