@@ -183,7 +183,7 @@ router.get('/', async (req: Request, res: Response) => {
         AND cd.is_deleted = false
         AND (
           cd.created_by = $1
-          OR cd.permissions ? $2
+          OR cd.permissions ? $1::text
           OR cd.id IN (
             SELECT gcs.content_id::uuid
             FROM group_content_shares gcs
