@@ -10,6 +10,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
+  Separator,
   Skeleton,
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
@@ -29,7 +30,6 @@ import withAuthRequired from '../../components/common/LoginRequired/withAuthRequ
 import PageContainer from '../../components/common/PageContainer';
 import ToolGrid from '../../components/common/ToolGrid';
 import ErrorBoundary from '../../components/ErrorBoundary';
-import { Separator } from '../../components/ui/separator';
 import apiClient from '../../components/utils/apiClient';
 import { getIcon, NotebookIcon } from '../../config/icons';
 import { useGroups, type GroupSummary } from '../../features/groups/hooks/useGroups';

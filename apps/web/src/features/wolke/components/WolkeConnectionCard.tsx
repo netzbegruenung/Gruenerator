@@ -1,4 +1,10 @@
-import { Badge, Button } from '@gruenerator/ui';
+import {
+  Badge,
+  Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@gruenerator/ui';
 import {
   useDeleteShareLink,
   useTestConnection,
@@ -12,7 +18,6 @@ import { FiChevronDown, FiExternalLink, FiTrash2, FiWifi } from 'react-icons/fi'
 
 import WolkeFolderBrowser from './WolkeFolderBrowser';
 
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/utils/cn';
 
 interface WolkeConnectionCardProps {

@@ -1,4 +1,4 @@
-import { Button } from '@gruenerator/ui';
+import { Button, Card } from '@gruenerator/ui';
 import { useShareLinks, useSyncStatuses, useSetAutoSync } from '@gruenerator/wolke';
 import { useMutation } from '@tanstack/react-query';
 import {
@@ -22,7 +22,6 @@ import {
   ProfileIconButton,
   ProfileActionButton,
 } from '../../../../../../../components/profile/actions/ProfileActionButton';
-import { Card } from '../../../../../../../components/ui/card';
 import apiClient from '../../../../../../../components/utils/apiClient';
 import * as documentAndTextUtils from '../../../../../../../components/utils/documentAndTextUtils';
 import { handleError } from '../../../../../../../components/utils/errorHandling';
