@@ -92,7 +92,8 @@
       "expo-image",
       "expo-sharing",
       "expo-web-browser",
-      "@sentry/react-native"
+      "@sentry/react-native",
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true
