@@ -79,7 +79,7 @@ const TextCard = React.memo(
               {text.title || 'Ohne Titel'}
             </span>
             <div
-              className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              className="shrink-0 max-sm:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
               onClick={(e) => e.stopPropagation()}
             >
               <DropdownMenu>

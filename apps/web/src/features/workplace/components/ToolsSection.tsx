@@ -111,7 +111,7 @@ const ToolsSection = React.memo(
     }, [canAccessBetaFeature, showCreateGroup]);
 
     return (
-      <div className="flex gap-xl flex-wrap py-sm">
+      <div className="flex gap-xl flex-wrap p-md bg-background-pure dark:bg-transparent rounded-lg shadow-sm dark:shadow-none">
         {visibleTools.map((tool) => (
           <ToolIcon key={tool.id} tool={tool} />
         ))}

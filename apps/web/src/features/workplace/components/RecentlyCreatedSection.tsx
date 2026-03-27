@@ -170,7 +170,7 @@ const RecentItemCard = memo(
         )}
 
         <div
-          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+          className="absolute top-1 right-1 max-sm:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
           onClick={(e) => e.preventDefault()}
         >
           <CardActionsMenu
