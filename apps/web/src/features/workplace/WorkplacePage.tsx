@@ -15,7 +15,6 @@ import GroupsSection from './components/GroupsSection';
 import NotebooksSection from './components/NotebooksSection';
 import RecentlyCreatedSection from './components/RecentlyCreatedSection';
 import ReelsSection from './components/ReelsSection';
-import TextsSection from './components/TextsSection';
 import ToolsSection from './components/ToolsSection';
 
 function getGreeting(): string {
@@ -57,8 +56,6 @@ const WorkplacePage = () => {
         />
 
         <ReelsSection />
-
-        <TextsSection />
 
         {hasGroups && <GroupsSection />}
         <NotebooksSection />

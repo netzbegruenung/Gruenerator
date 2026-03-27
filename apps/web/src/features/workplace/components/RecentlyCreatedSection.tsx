@@ -33,7 +33,7 @@ const BoardIcon = getIcon('navigation', 'boards');
 
 const dateFormat: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
 
-type RecentItemType = 'doc' | 'board' | 'image' | 'video';
+type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'text';
 
 interface RecentItem {
   id: string;
@@ -48,6 +48,8 @@ interface RecentItem {
   creatorName?: string;
   accessType?: string;
   deleteEndpoint?: string;
+  content?: string;
+  documentType?: string;
 }
 
 const formatDuration = (seconds?: number): string => {
@@ -67,6 +69,7 @@ const FALLBACK_TITLES: Record<RecentItemType, string> = {
   board: 'Unbenanntes Board',
   image: 'Ohne Titel',
   video: 'Ohne Titel',
+  text: 'Ohne Titel',
 };
 
 const TYPE_ICONS: Record<RecentItemType, React.ComponentType<{ className?: string }> | null> = {
@@ -74,6 +77,15 @@ const TYPE_ICONS: Record<RecentItemType, React.ComponentType<{ className?: strin
   board: BoardIcon ?? null,
   image: FaImage,
   video: FaVideo,
+  text: HiOutlineDocumentText,
+};
+
+const TEXT_TYPE_LABELS: Record<string, string> = {
+  text: 'Text',
+  antrag: 'Antrag',
+  social: 'Social',
+  press: 'Presse',
+  universal: 'Universal',
 };
 
 const FavouriteMenuItem = memo(({ id }: { id: string }) => {
@@ -117,6 +129,18 @@ const RecentItemCard = memo(
             ) : (
               <PiKanban className="text-2xl text-secondary-600" />
             )}
+          </div>
+        )}
+        {item.type === 'text' && (
+          <div className="relative bg-white dark:bg-grey-800 aspect-[4/3] overflow-hidden">
+            {item.content ? (
+              <div className="w-[600px] origin-top-left scale-[0.25] p-8 pointer-events-none select-none text-foreground font-sans leading-relaxed">
+                <p className="text-base whitespace-pre-line">{item.content}</p>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full text-4xl select-none">📝</div>
+            )}
+            <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-b from-transparent to-white dark:to-grey-800 pointer-events-none" />
           </div>
         )}
         {(item.type === 'image' || item.type === 'video') && (
@@ -164,6 +188,9 @@ const RecentItemCard = memo(
             </span>
           </div>
           <p className="text-xs text-grey-400 mt-0.5 m-0 truncate">
+            {item.type === 'text' && item.documentType && TEXT_TYPE_LABELS[item.documentType]
+              ? `${TEXT_TYPE_LABELS[item.documentType]} · `
+              : ''}
             {item.accessType && item.accessType !== 'owner' && item.creatorName
               ? `Von ${item.creatorName} · `
               : ''}
@@ -196,7 +223,6 @@ const RecentlyCreatedSection: React.FC<RecentlyCreatedSectionProps> = memo(
       .filter((item) => {
         if (item.type === 'doc' && !showDocs) return false;
         if (item.type === 'board' && !showBoards) return false;
-        if (item.type === 'video') return false;
         return true;
       })
       .slice(0, 10);
