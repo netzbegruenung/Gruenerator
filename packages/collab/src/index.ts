@@ -1,3 +1,8 @@
+export {
+  useCollaboration,
+  type CollaborationConfig,
+  type UseCollaborationOptions,
+} from './hooks/useCollaboration';
 export { useCollaborators } from './hooks/useCollaborators';
 export { useAwarenessState } from './hooks/useAwarenessState';
 export { PresenceAvatars } from './components/PresenceAvatars';
