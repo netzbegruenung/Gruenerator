@@ -1,4 +1,4 @@
-import { Button, FileCard, Particles } from '@gruenerator/ui';
+import { Button, FileCard, RetroGrid } from '@gruenerator/ui';
 import { useShareLinks, useWolkePreferencesStore } from '@gruenerator/wolke';
 import { useCallback, useState } from 'react';
 import { PiCheck, PiCopy, PiFile, PiPlus, PiShareNetwork, PiUploadSimple } from 'react-icons/pi';
@@ -159,13 +159,13 @@ const TransferPage = () => {
 
   return (
     <div className="transfer-page relative h-full w-full overflow-clip">
-      <Particles
+      <RetroGrid
         className="absolute inset-0 h-full w-full"
-        quantity={80}
-        color="#5F8575"
-        size={0.6}
-        staticity={40}
-        ease={60}
+        angle={65}
+        cellSize={60}
+        opacity={0.3}
+        lightLineColor="#5F8575"
+        darkLineColor="#5F8575"
       />
       <div className="relative z-[1] flex h-full min-h-0 flex-col items-center justify-start overflow-y-auto overflow-x-clip px-md py-lg">
         <TransferPageHeader />

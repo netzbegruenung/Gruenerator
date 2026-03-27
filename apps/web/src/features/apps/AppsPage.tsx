@@ -480,21 +480,22 @@ const AppsPage = () => {
       <h1 className="mb-2 text-center text-2xl font-bold text-foreground-heading">
         Apps & Connect
       </h1>
+      <p className="text-center text-sm text-grey-500">Bald verfügbar.</p>
+
+      {/* TODO: Re-enable apps content
       <p className="mb-10 text-center text-sm text-grey-500">
         Desktop-App herunterladen oder den Grünerator mit ChatGPT & co verwenden.
       </p>
 
-      {/* Desktop App Section */}
       <section className="flex w-full flex-col items-center">
         <h2 className="mb-6 text-lg font-bold text-foreground-heading">Desktop-App</h2>
         {renderDesktopContent()}
       </section>
 
-      {/* Divider */}
       <hr className="my-12 w-full max-w-[40rem] border-grey-200 dark:border-grey-700" />
 
-      {/* Connect Section */}
       <ConnectSection />
+      */}
     </div>
   );
 };

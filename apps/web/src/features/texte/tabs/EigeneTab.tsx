@@ -1,7 +1,6 @@
 import { Button } from '@gruenerator/ui';
 import React, { useCallback, lazy, Suspense, memo, useMemo } from 'react';
 
-import { EarlyAccessBanner } from '../../../components/common/EarlyAccessBanner';
 import Icon from '../../../components/common/Icon';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useCustomGeneratorsData, useSavedGenerators } from '../../auth/hooks/useProfileData';
@@ -84,8 +83,6 @@ const EigeneTab: React.FC<EigeneTabProps> = memo(() => {
 
   return (
     <div className="w-full text-center">
-      <EarlyAccessBanner />
-
       <Suspense fallback={<LoadingSpinner />}>
         <CreateCustomGeneratorPage
           onCompleted={handleCreateCompleted}

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import apiClient from '../../../components/utils/apiClient';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
@@ -61,6 +62,8 @@ const GroupDetailSection = memo(
 
     const data = rawData as GroupData | undefined;
 
+    const navigate = useNavigate();
+
     const { deleteGroup, isDeletingGroup, updateGroupName, updateGroupInfo, isUpdatingGroupName } =
       useGroups({ isActive: true });
 
@@ -120,11 +123,11 @@ const GroupDetailSection = memo(
       onSuccessMessage('');
       onErrorMessage('');
       deleteGroup(groupId, {
-        onSuccess: () => onSuccessMessage('Gruppe erfolgreich gelöscht!'),
+        onSuccess: () => navigate('/'),
         onError: (error: Error) =>
           onErrorMessage(`Fehler beim Löschen der Gruppe: ${error.message}`),
       });
-    }, [groupId, data?.isAdmin, deleteGroup, onSuccessMessage, onErrorMessage]);
+    }, [groupId, data?.isAdmin, deleteGroup, navigate, onErrorMessage]);
 
     const startEditingName = useCallback(() => {
       if (data?.isAdmin) {
