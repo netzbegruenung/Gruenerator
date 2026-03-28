@@ -64,14 +64,20 @@ export const useProfile = (userId?: string) => {
     queryKey: QUERY_KEYS.profile(actualUserId),
     queryFn: profileApiService.getProfile,
     enabled: !!actualUserId,
-    staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
-    gcTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
+    staleTime: 15 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
     retry: (failureCount: number) => failureCount < 2,
-    // Prevent automatic refetch that could interfere with avatar updates
     refetchInterval: false,
+    placeholderData: user
+      ? {
+          avatar_robot_id: user.avatar_robot_id,
+          display_name: user.display_name || user.name,
+          email: user.email,
+        }
+      : undefined,
   });
 
   // Sync React Query data with profileStore

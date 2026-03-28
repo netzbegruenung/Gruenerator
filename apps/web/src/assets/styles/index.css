@@ -57,6 +57,38 @@
 @source "../../../../../packages/chat/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/ui/src/**/*.{js,ts,jsx,tsx}";
 
+/* ── CSS-only tooltip (zero JS, replaces Radix Tooltip for static labels) ── */
+@layer components {
+  .css-tooltip {
+    position: relative;
+  }
+  .css-tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: -2rem;
+    left: 50%;
+    transform: translateX(-50%) scale(0.95);
+    white-space: nowrap;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.7rem;
+    line-height: 1;
+    background: var(--foreground-heading);
+    color: var(--background-color);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s, transform 0.15s;
+    z-index: 50;
+  }
+  .css-tooltip:hover::after {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  .css-tooltip:active::after {
+    opacity: 0;
+  }
+}
+
 /*
  * Tailwind Theme Configuration
  * Maps existing CSS variables to Tailwind's theme system.
