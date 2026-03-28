@@ -264,14 +264,6 @@ const RecentReelCard = memo(
             />
           </div>
         }
-        footer={
-          <div className="flex items-center gap-xs min-w-0">
-            <FaVideo className="text-sm text-secondary-600 shrink-0" />
-            <span className="text-sm font-medium text-foreground-heading truncate">
-              {item.title || FALLBACK_TITLES.video}
-            </span>
-          </div>
-        }
       />
     );
   }
