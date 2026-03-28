@@ -39,7 +39,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { key: 'gruppen', label: 'Gruppen', path: '/gruppen', icon: FaUsers, betaFeature: 'groups' },
-  { key: 'chat-settings', label: 'Eigener Chat', path: '/chat/settings', icon: HiChat },
+  { key: 'dein-gruenerator', label: 'Dein Grünerator', path: '/dein-gruenerator', icon: HiChat },
   { key: 'inhalte', label: 'Dateien', path: '/profile/inhalte', icon: FaFolder },
   { key: 'wolke', label: 'Wolke', path: '/profile/wolke', icon: FaCloud },
   { key: 'einstellungen', label: 'Einstellungen', path: '/profile', icon: HiCog },

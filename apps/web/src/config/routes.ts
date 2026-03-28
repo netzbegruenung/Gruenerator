@@ -47,6 +47,7 @@ const TexteRedirectToDeskComponent: FC<Record<string, unknown>> = () =>
 const TexteRedirectToDesk = lazy(() => Promise.resolve({ default: TexteRedirectToDeskComponent }));
 const VorlagenGallery = lazy(() => import('../components/common/Gallery'));
 const AdminDashboardPage = lazy(() => import('../features/admin/AdminDashboardPage'));
+const GrueneApiTestPage = lazy(() => import('../features/admin/GrueneApiTestPage'));
 const PlaygroundPage = lazy(() => import('../features/playground/PlaygroundPage'));
 const CustomGeneratorPage = lazy(() => import('../features/generators/CustomGeneratorPage'));
 const CreateCustomGeneratorPage = lazy(
@@ -305,6 +306,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/briefing/:agentId/archiv', component: BriefingArchivePage },
   { path: '/briefing/:agentId/archiv/:filename', component: BriefingArticlePage },
   { path: '/admin', component: AdminDashboardPage },
+  { path: '/admin/gruene-api', component: GrueneApiTestPage },
   { path: '/playground', component: PlaygroundPage },
   { path: '/datenbank/vorlagen', component: GrueneratorenBundle.VorlagenListe },
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
@@ -396,7 +398,11 @@ const standardRoutes: RouteConfig[] = [
   { path: '/join-group/:joinToken', component: JoinGroupPage },
   // Q&A Chat Routen
   { path: '/notebook/:id', component: GrueneratorenBundle.NotebookChat, layoutMode: 'fullscreen' },
-  { path: '/chat/settings', component: ChatSettingsPage },
+  { path: '/dein-gruenerator', component: ChatSettingsPage },
+  {
+    path: '/chat/settings',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/dein-gruenerator') })),
+  },
   { path: '/chat', component: GrueneratorenBundle.Chat, layoutMode: 'fullscreen' },
   { path: '/voice', component: VoiceAgentPage, layoutMode: 'noChrome' },
   // Apps & Connect Page
