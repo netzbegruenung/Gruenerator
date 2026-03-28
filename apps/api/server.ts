@@ -269,13 +269,9 @@ async function startWorker(): Promise<void> {
     log.warn(`ProfileService init failed: ${err.message}`);
   }
 
-  // TUS Upload Handler — registered before compression and session middleware.
-  // @tus/server v2 uses srvx internally, which calls res.end(resolve) with a
-  // Promise resolver function. express-session's monkey-patched end() treats
-  // that function as data to write, causing a TypeError in compression's
-  // write(). Placing TUS routes here lets them use the raw, unwrapped response
-  // methods. TUS uploads are binary streams that don't benefit from compression
-  // and authenticate via upload ID, so no session middleware is needed.
+  // TUS Upload Handler — registered before compression middleware.
+  // TUS uploads are binary streams that don't benefit from compression
+  // and authenticate via upload ID.
   const tusUploadPath = '/api/subtitler/upload';
   app.all(tusUploadPath, (req: Request, res: Response) => {
     tusServer.handle(req, res);

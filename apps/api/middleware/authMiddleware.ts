@@ -6,7 +6,7 @@
 import { fromNodeHeaders } from 'better-auth/node';
 import { type Response, type NextFunction } from 'express';
 
-import { auth } from '../config/betterAuth.js';
+import { auth, type BetterAuthUser } from '../config/betterAuth.js';
 import { BRAND } from '../utils/domainUtils.js';
 
 import { type AuthenticatedRequest } from './types.js';
@@ -16,10 +16,9 @@ async function requireAuth(
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  // SECURITY: Fail-fast if dev bypass is enabled in production
   if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEV_AUTH_BYPASS === 'true') {
     console.error(
-      '[CRITICAL SECURITY ALERT] Dev auth bypass is enabled in PRODUCTION environment - this is a critical security vulnerability!'
+      '[CRITICAL SECURITY ALERT] Dev auth bypass is enabled in PRODUCTION environment!'
     );
     res.status(500).json({
       error: 'Critical security misconfiguration detected',
@@ -28,7 +27,6 @@ async function requireAuth(
     return;
   }
 
-  // Development-only auth bypass (requires explicit token)
   if (
     process.env.NODE_ENV === 'development' &&
     process.env.ALLOW_DEV_AUTH_BYPASS === 'true' &&
@@ -64,13 +62,12 @@ async function requireAuth(
     }
   }
 
-  // Better Auth session (cookie or bearer token)
   try {
     const session = await auth.api.getSession({
       headers: fromNodeHeaders(req.headers),
     });
     if (session?.user) {
-      req.user = session.user as any;
+      req.user = toBetterAuthUser(session.user);
       return next();
     }
   } catch {
@@ -98,6 +95,38 @@ function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFuncti
     return;
   }
   return next();
+}
+
+function toBetterAuthUser(user: BetterAuthUser): Express.User {
+  return {
+    id: user.id,
+    email: user.email,
+    display_name: user.name,
+    avatar_robot_id: user.avatar_robot_id ?? 1,
+    chat_color: user.chat_color ?? undefined,
+    beta_features: {},
+    user_defaults: {},
+    locale: (user.locale as 'de-DE' | 'de-AT') ?? 'de-DE',
+    keycloak_id: user.keycloak_id ?? undefined,
+    username: user.username ?? undefined,
+    groups_enabled: user.groups_enabled ?? false,
+    custom_generators: user.custom_generators ?? false,
+    database_access: user.database_access ?? false,
+    collab: user.collab ?? false,
+    notebook: user.notebook ?? false,
+    sharepic: user.sharepic ?? false,
+    anweisungen: user.anweisungen ?? false,
+    labor_enabled: user.labor_enabled ?? false,
+    sites_enabled: user.sites_enabled ?? true,
+    chat: user.chat ?? false,
+    interactive_antrag_enabled: user.interactive_antrag_enabled ?? true,
+    vorlagen: user.vorlagen ?? false,
+    video_editor: user.video_editor ?? false,
+    bundestag_api_enabled: user.bundestag_api_enabled ?? false,
+    memory_enabled: user.memory_enabled ?? false,
+    created_at: user.createdAt,
+    updated_at: user.updatedAt,
+  };
 }
 
 export { requireAuth, requireAdmin };

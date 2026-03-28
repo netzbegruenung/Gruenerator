@@ -212,10 +212,7 @@ export async function processGraphRequestStreaming(
       try {
         const { redisClient } = await import('../../utils/redis/index.js');
         const privacyCounter = new PrivacyCounter(redisClient);
-        const userId =
-          (req as any).user?.id ||
-          (req as any).session?.passport?.user?.id ||
-          (req as any).sessionID;
+        const userId = (req as any).user?.id;
         if (userId) {
           const privacyProvider = await privacyCounter.getProviderForUser(userId);
           effectiveProvider = privacyProvider as any;
@@ -353,7 +350,7 @@ export async function processGraphRequestStreaming(
 
     // Log successful generation
     logGeneration({
-      userId: (req as any).user?.id || (req as any).session?.passport?.user?.id || null,
+      userId: (req as any).user?.id || null,
       generationType: routeType,
       platform: requestData.platforms?.[0] || null,
       tokensUsed: null,
@@ -430,7 +427,7 @@ export async function processGraphRequestStreaming(
     log.error(`[streaming] Error processing ${routeType}:`, errorMessage);
 
     logGeneration({
-      userId: (req as any).user?.id || (req as any).session?.passport?.user?.id || null,
+      userId: (req as any).user?.id || null,
       generationType: routeType,
       platform: req.body?.platforms?.[0] || null,
       tokensUsed: null,

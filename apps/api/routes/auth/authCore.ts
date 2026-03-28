@@ -7,7 +7,7 @@
 import { fromNodeHeaders } from 'better-auth/node';
 import express, { type Router, type Response, type NextFunction } from 'express';
 
-import { auth } from '../../config/betterAuth.js';
+import { auth, type BetterAuthUser } from '../../config/betterAuth.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import * as chatMemory from '../../services/chat/ChatMemoryService.js';
 import { createLogger } from '../../utils/logger.js';
@@ -46,11 +46,11 @@ router.get('/status', async (req: AuthRequest, res: Response): Promise<void> => 
     });
 
     if (session?.user) {
-      const userWithLocale = {
-        ...session.user,
-        locale: (session.user as any).locale || 'de-DE',
-      };
-      res.json({ isAuthenticated: true, user: userWithLocale });
+      const user = session.user as BetterAuthUser;
+      res.json({
+        isAuthenticated: true,
+        user: { ...user, locale: user.locale || 'de-DE' },
+      });
       return;
     }
   } catch {
@@ -148,14 +148,14 @@ router.post('/logout', async (req: AuthRequest, res: Response): Promise<void> =>
   let keycloakBackgroundLogoutUrl: string | null = null;
   if (req.user?.id) {
     try {
-      const accounts = await auth.api.listUserAccounts({
-        headers: fromNodeHeaders(req.headers),
-      });
-      const keycloakAccount = (accounts as any)?.find?.((a: any) =>
-        a.providerId?.startsWith('keycloak-')
+      const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
+      const db = getPostgresInstance();
+      const rows = await db.query<{ id_token: string }>(
+        `SELECT id_token FROM ba_accounts WHERE user_id = $1 AND provider_id LIKE 'keycloak-%' AND id_token IS NOT NULL LIMIT 1`,
+        [req.user.id]
       );
-      if (keycloakAccount?.idToken) {
-        keycloakBackgroundLogoutUrl = `${keycloakLogoutUrl}?id_token_hint=${keycloakAccount.idToken}`;
+      if (rows[0]?.id_token) {
+        keycloakBackgroundLogoutUrl = `${keycloakLogoutUrl}?id_token_hint=${rows[0].id_token}`;
       }
     } catch {
       // Account lookup may fail — proceed without SSO logout
