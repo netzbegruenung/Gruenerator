@@ -31,6 +31,7 @@ const CardActionsMenu: React.FC<CardActionsMenuProps> = React.memo(
     className,
     children,
   }) => {
+    const [mounted, setMounted] = useState(false);
     const [open, setOpen] = useState(false);
 
     if (!onShare && !onDelete && !children) return null;
@@ -41,17 +42,17 @@ const CardActionsMenu: React.FC<CardActionsMenuProps> = React.memo(
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >
-        <DropdownMenu open={open} onOpenChange={setOpen}>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="flex items-center justify-center size-7 rounded-full text-grey-400 hover:text-foreground transition-colors cursor-pointer border-none bg-transparent"
-              aria-label="Aktionen"
-            >
-              <HiDotsVertical size={14} />
-            </button>
-          </DropdownMenuTrigger>
-          {open && (
+        {mounted ? (
+          <DropdownMenu open={open} onOpenChange={setOpen}>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center justify-center size-7 rounded-full text-grey-400 hover:text-foreground transition-colors cursor-pointer border-none bg-transparent"
+                aria-label="Aktionen"
+              >
+                <HiDotsVertical size={14} />
+              </button>
+            </DropdownMenuTrigger>
             <DropdownMenuContent align={align}>
               {children}
               {onShare && (
@@ -70,8 +71,20 @@ const CardActionsMenu: React.FC<CardActionsMenuProps> = React.memo(
                 </>
               )}
             </DropdownMenuContent>
-          )}
-        </DropdownMenu>
+          </DropdownMenu>
+        ) : (
+          <button
+            type="button"
+            className="flex items-center justify-center size-7 rounded-full text-grey-400 hover:text-foreground transition-colors cursor-pointer border-none bg-transparent"
+            aria-label="Aktionen"
+            onClick={() => {
+              setMounted(true);
+              setOpen(true);
+            }}
+          >
+            <HiDotsVertical size={14} />
+          </button>
+        )}
       </div>
     );
   }
