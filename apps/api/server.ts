@@ -14,17 +14,14 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import compression from 'compression';
-import { RedisStore } from 'connect-redis';
 import cors from 'cors';
 import express, { type Express, type Request, type Response, type NextFunction } from 'express';
-import session from 'express-session';
 import helmet from 'helmet';
 import { isHttpError } from 'http-errors';
 import morgan from 'morgan';
 import multer from 'multer';
 
 import { createCorsOptions } from './config/cors.js';
-import passport from './config/passportSetup.js';
 import { getServerConfig } from './config/serverConfig.js';
 import { Sentry } from './lib/sentry.js';
 
@@ -366,36 +363,9 @@ async function startWorker(): Promise<void> {
     log.error('Redis connection failed, sessions may not persist');
   }
 
-  // Better Auth handler (must be before express.json/session middleware)
+  // Better Auth handler (must be before express.json middleware)
   const { betterAuthHandler } = await import('./routes/auth/betterAuthHandler.js');
   app.all('/api/auth/v2/*splat', betterAuthHandler);
-
-  // Session configuration
-  const sessionSecret = process.env.SESSION_SECRET || 'temporary-fallback-secret-for-mobile-only';
-  if (!process.env.SESSION_SECRET) {
-    log.warn('SESSION_SECRET not set - using temporary fallback');
-  }
-
-  app.use(
-    session({
-      store: new RedisStore({ client: redisClient }),
-      secret: sessionSecret,
-      resave: false,
-      saveUninitialized: true,
-      name: 'gruenerator.sid',
-      cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-        sameSite: 'lax',
-        domain: undefined,
-        path: '/',
-      },
-    })
-  );
-
-  // Passport middleware
-  app.use(passport.initialize());
 
   // Logging middleware (only for errors)
   app.use(

@@ -4,39 +4,28 @@
 
 import * as express from 'express';
 
-import passport from '../../config/passportSetup.js';
-import { ensureProfile } from '../../middleware/ensureProfileMiddleware.js';
-import jwtAuthMiddleware from '../../middleware/jwtAuthMiddleware.js';
+import { requireAuth } from '../../middleware/authMiddleware.js';
 
 import type { Router, RequestHandler } from 'express';
 
 /**
  * Factory function to create an Express router with authentication middleware
- * Tries JWT bearer auth first (mobile/desktop), falls back to session auth (web)
- * @returns Express router with dual authentication
+ * Uses Better Auth session validation (cookie or bearer token)
  */
 export function createAuthenticatedRouter(): Router {
   const router = express.Router();
-
-  router.use(jwtAuthMiddleware);
-  router.use(passport.session());
-  router.use(ensureProfile as any);
-
+  router.use(requireAuth);
   return router;
 }
 
 /**
  * Factory function to create an Express router with authentication AND authorization
- * For routes that require specific user permissions
- * @param requireAuthMiddleware - Optional middleware for additional authorization checks
- * @returns Express router with authentication and authorization
  */
 export function createAuthorizedRouter(
   requireAuthMiddleware: RequestHandler | null = null
 ): Router {
   const router = createAuthenticatedRouter();
 
-  // Add additional authorization middleware if provided
   if (requireAuthMiddleware) {
     router.use(requireAuthMiddleware);
   }
