@@ -14,22 +14,21 @@ interface SmartInputOption {
 interface SmartInputProps {
   value: string;
   onValueChange: (value: string) => void;
+  onSelect?: (option: SmartInputOption) => void;
   options: SmartInputOption[];
   placeholder?: string;
-  emptyMessage?: string;
   className?: string;
   autoFocus?: boolean;
-  onSubmit?: () => void;
 }
 
 function SmartInput({
   value,
   onValueChange,
+  onSelect,
   options,
   placeholder = 'Suchen...',
   className,
   autoFocus,
-  onSubmit,
 }: SmartInputProps) {
   const [open, setOpen] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -48,11 +47,10 @@ function SmartInput({
       if (option) {
         onValueChange(option.label);
         setOpen(false);
-        inputRef.current?.focus();
-        if (onSubmit) onSubmit();
+        if (onSelect) onSelect(option);
       }
     },
-    [options, onValueChange, onSubmit]
+    [options, onValueChange, onSelect]
   );
 
   return (
@@ -69,10 +67,6 @@ function SmartInput({
             }}
             onFocus={() => setOpen(true)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && onSubmit) {
-                e.preventDefault();
-                onSubmit();
-              }
               if (e.key === 'Escape') setOpen(false);
             }}
             placeholder={placeholder}
