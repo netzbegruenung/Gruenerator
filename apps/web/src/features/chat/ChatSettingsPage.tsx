@@ -7,6 +7,8 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
+  SmartInput,
+  type SmartInputOption,
 } from '@gruenerator/ui';
 import { useState, useCallback, useMemo, memo } from 'react';
 import { HiOutlineArrowLeft, HiOutlineTrash, HiPlus } from 'react-icons/hi2';
@@ -261,6 +263,16 @@ function ChatSettingsPage() {
   const rollenMap = isAustrian ? AT_ROLLEN : DE_ROLLEN;
   const bundeslaender = isAustrian ? AT_BUNDESLAENDER : DE_BUNDESLAENDER;
 
+  const bundeslandOptions: SmartInputOption[] = useMemo(
+    () =>
+      bundeslaender.map((bl) => ({
+        value: bl.label,
+        label: bl.label,
+        description: bl.notebookId ? '● Notebook' : undefined,
+      })),
+    [bundeslaender]
+  );
+
   const [roles, setRoles] = useState<UserRole[]>(
     () => getDefault<UserRole[]>('profile', 'roles') || []
   );
@@ -270,6 +282,7 @@ function ChatSettingsPage() {
   const [wizardStep, setWizardStep] = useState<WizardStep>('ebene');
   const [wizEbene, setWizEbene] = useState<string | null>(null);
   const [wizBundesland, setWizBundesland] = useState<string | null>(null);
+  const [wizBundeslandQuery, setWizBundeslandQuery] = useState('');
   const [wizGliederung, setWizGliederung] = useState('');
   const [wizRolle, setWizRolle] = useState<string | null>(null);
   const [wizCustomRolle, setWizCustomRolle] = useState('');
@@ -288,6 +301,7 @@ function ChatSettingsPage() {
     setWizardStep('ebene');
     setWizEbene(null);
     setWizBundesland(null);
+    setWizBundeslandQuery('');
     setWizGliederung('');
     setWizRolle(null);
     setWizCustomRolle('');
@@ -302,6 +316,7 @@ function ChatSettingsPage() {
   const handleWizEbene = useCallback((ebene: string) => {
     setWizEbene(ebene);
     setWizBundesland(null);
+    setWizBundeslandQuery('');
     setWizGliederung('');
     setWizRolle(null);
     setWizCustomRolle('');
@@ -316,6 +331,7 @@ function ChatSettingsPage() {
   const handleWizBundesland = useCallback(
     (bundesland: string) => {
       setWizBundesland(bundesland);
+      setWizBundeslandQuery(bundesland);
       if (wizEbene && NEEDS_LOCAL_NAME.has(wizEbene)) {
         setWizardStep('gliederung');
       } else {
@@ -501,25 +517,20 @@ function ChatSettingsPage() {
                 <h2 className="text-lg font-semibold text-foreground-heading">
                   In welchem Bundesland?
                 </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-sm">
-                  {bundeslaender.map((bl) => (
-                    <button
-                      key={bl.label}
-                      type="button"
-                      onClick={() => handleWizBundesland(bl.label)}
-                      className={`rounded-md px-md py-sm text-sm text-left transition-colors ${
-                        wizBundesland === bl.label
-                          ? 'bg-primary-500/10 text-primary-700 dark:text-primary-400'
-                          : 'hover:bg-background-alt text-foreground'
-                      }`}
-                    >
-                      {bl.label}
-                      {bl.notebookId && (
-                        <span className="ml-1 text-[10px] text-secondary-600">●</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
+                <SmartInput
+                  value={wizBundeslandQuery}
+                  onValueChange={(v) => setWizBundeslandQuery(v)}
+                  options={bundeslandOptions}
+                  placeholder="Bundesland eingeben..."
+                  emptyMessage="Kein Bundesland gefunden"
+                  autoFocus
+                  onSubmit={() => {
+                    const match = bundeslaender.find(
+                      (bl) => bl.label.toLowerCase() === wizBundeslandQuery.toLowerCase()
+                    );
+                    if (match) handleWizBundesland(match.label);
+                  }}
+                />
               </>
             ) : wizardStep === 'gliederung' ? (
               <>

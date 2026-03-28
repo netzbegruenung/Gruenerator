@@ -168,6 +168,7 @@ export {
   type StepProps,
 } from './components/multi-step-form';
 export { SelectCard, type SelectCardProps } from './components/select-card';
+export { SmartInput, type SmartInputOption, type SmartInputProps } from './components/smart-input';
 export { Toaster } from './components/sonner';
 export {
   NotificationBell,
