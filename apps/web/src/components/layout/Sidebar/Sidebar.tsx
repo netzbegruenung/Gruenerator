@@ -44,7 +44,7 @@ function NavTooltip({
 }: {
   label: string;
   collapsed: boolean;
-  children: JSX.Element;
+  children: React.ReactElement;
 }) {
   if (!collapsed) return children;
   return (

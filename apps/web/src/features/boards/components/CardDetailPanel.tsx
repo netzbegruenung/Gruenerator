@@ -1,4 +1,5 @@
 import { useAgentStore } from '@gruenerator/chat';
+import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import {
   Badge,
   Button,
@@ -19,15 +20,42 @@ import {
   FiMessageSquare,
   FiFileText,
   FiPlus,
+  FiUser,
+  FiSend,
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
 import { FIELD_IDS } from '../types';
 import { LABEL_COLORS } from '../utils/boardDefaults';
 
-import type { Row, Field, SelectOption, CellValue, LinkedDoc } from '../types';
+import { MemberPicker } from './MemberPicker';
+
+import type {
+  Row,
+  Field,
+  SelectOption,
+  CellValue,
+  LinkedDoc,
+  CardAssignee,
+  CardComment,
+} from '../types';
 
 import { CollabDocPicker } from '@/components/common/CollabDocPicker';
+import { cn } from '@/utils/cn';
+
+function formatCommentDate(isoString: string): string {
+  const date = new Date(isoString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60_000);
+  if (diffMin < 1) return 'gerade eben';
+  if (diffMin < 60) return `vor ${diffMin} Min.`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `vor ${diffH} Std.`;
+  const diffD = Math.floor(diffH / 24);
+  if (diffD < 7) return `vor ${diffD} ${diffD === 1 ? 'Tag' : 'Tagen'}`;
+  return date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' });
+}
 
 const COMMON_EMOJI = [
   '📋',
@@ -110,6 +138,11 @@ interface CardDetailPanelProps {
   onDelete: (rowId: string) => void;
   onUpdateField: (fieldId: string, updates: Partial<Field>) => void;
   groupId?: string;
+  currentUserId?: string;
+  currentUserName?: string;
+  currentUserAvatarRobotId?: number;
+  onPrevCard?: () => void;
+  onNextCard?: () => void;
 }
 
 export const CardDetailPanel = memo(function CardDetailPanel({
@@ -121,6 +154,12 @@ export const CardDetailPanel = memo(function CardDetailPanel({
   onUpdateRow,
   onDelete,
   onUpdateField,
+  groupId,
+  currentUserId = '',
+  currentUserName = '',
+  currentUserAvatarRobotId = 1,
+  onPrevCard,
+  onNextCard,
 }: CardDetailPanelProps) {
   const navigate = useNavigate();
 
@@ -131,12 +170,34 @@ export const CardDetailPanel = memo(function CardDetailPanel({
   const [linkedDocs, setLinkedDocs] = useState<LinkedDoc[]>([]);
   const [newLabelText, setNewLabelText] = useState('');
   const [selectedLabelColor, setSelectedLabelColor] = useState(LABEL_COLORS[0]);
+  const [assignee, setAssignee] = useState<CardAssignee | null>(null);
+  const [comments, setComments] = useState<CardComment[]>([]);
+  const [commentText, setCommentText] = useState('');
 
   const labelsField = useMemo(() => fields.find((f) => f.id === FIELD_IDS.LABELS), [fields]);
   const labelOptions = useMemo(
     () => (labelsField?.typeOptions.options ?? []) as SelectOption[],
     [labelsField]
   );
+
+  // Keyboard navigation: ArrowLeft → prev card, ArrowRight → next card
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable)
+        return;
+      if (e.key === 'ArrowLeft' && onPrevCard) {
+        e.preventDefault();
+        onPrevCard();
+      } else if (e.key === 'ArrowRight' && onNextCard) {
+        e.preventDefault();
+        onNextCard();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open, onPrevCard, onNextCard]);
 
   // Sync local state from row when panel opens or row changes
   const rowId = row?.id;
@@ -152,6 +213,20 @@ export const CardDetailPanel = memo(function CardDetailPanel({
     } catch {
       setLinkedDocs([]);
     }
+    try {
+      const raw = row.cells[FIELD_IDS.ASSIGNEE] as string;
+      setAssignee(raw ? JSON.parse(raw) : null);
+    } catch {
+      const raw = row.cells[FIELD_IDS.ASSIGNEE] as string;
+      setAssignee(raw ? { id: '', name: raw, avatarRobotId: 1 } : null);
+    }
+    try {
+      const raw = row.cells[FIELD_IDS.COMMENTS];
+      setComments(typeof raw === 'string' && raw ? JSON.parse(raw) : []);
+    } catch {
+      setComments([]);
+    }
+    setCommentText('');
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally sync only on row change or panel open
   }, [rowId, open]);
 
@@ -227,6 +302,53 @@ export const CardDetailPanel = memo(function CardDetailPanel({
     [row, linkedDocs, onUpdateCell]
   );
 
+  const handleAssigneeChange = useCallback(
+    (newAssignee: CardAssignee | null) => {
+      if (!row) return;
+      setAssignee(newAssignee);
+      onUpdateCell(row.id, FIELD_IDS.ASSIGNEE, newAssignee ? JSON.stringify(newAssignee) : '');
+    },
+    [row, onUpdateCell]
+  );
+
+  const addComment = useCallback(() => {
+    if (!row) return;
+    const trimmed = commentText.trim();
+    if (!trimmed) return;
+    const updated = [
+      ...comments,
+      {
+        id: `comment-${Date.now()}`,
+        text: trimmed,
+        authorId: currentUserId,
+        authorName: currentUserName,
+        authorAvatarRobotId: currentUserAvatarRobotId,
+        createdAt: new Date().toISOString(),
+      },
+    ];
+    setComments(updated);
+    onUpdateCell(row.id, FIELD_IDS.COMMENTS, JSON.stringify(updated));
+    setCommentText('');
+  }, [
+    row,
+    comments,
+    commentText,
+    currentUserId,
+    currentUserName,
+    currentUserAvatarRobotId,
+    onUpdateCell,
+  ]);
+
+  const deleteComment = useCallback(
+    (commentId: string) => {
+      if (!row) return;
+      const updated = comments.filter((c) => c.id !== commentId);
+      setComments(updated);
+      onUpdateCell(row.id, FIELD_IDS.COMMENTS, JSON.stringify(updated));
+    },
+    [row, comments, onUpdateCell]
+  );
+
   const handleDiscussInChat = useCallback(() => {
     if (!row) return;
     let text = `Ich möchte diese Aufgabe besprechen:\n\n**${title}**`;
@@ -257,6 +379,9 @@ export const CardDetailPanel = memo(function CardDetailPanel({
         className="sm:max-w-[28rem] p-0 flex flex-col"
         showCloseButton={false}
       >
+        {row.coverColor && (
+          <div className="h-2 shrink-0" style={{ backgroundColor: row.coverColor }} />
+        )}
         <div className="flex items-center justify-between border-b border-grey-200 dark:border-grey-700 px-4 py-3 sm:px-6">
           <SheetTitle className="text-sm font-medium text-grey-500">Karte bearbeiten</SheetTitle>
           <button
@@ -293,6 +418,28 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                   target.style.height = `${target.scrollHeight}px`;
                 }}
               />
+            </div>
+          </div>
+
+          <div className="px-4 sm:px-6 pb-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-grey-400 mr-1">Cover</span>
+              {LABEL_COLORS.map((color) => (
+                <button
+                  key={color}
+                  onClick={() =>
+                    onUpdateRow(row.id, {
+                      coverColor: row.coverColor === color ? undefined : color,
+                    })
+                  }
+                  className={cn(
+                    'w-5 h-3 rounded-sm border-none cursor-pointer transition-transform hover:scale-125',
+                    row.coverColor === color && 'ring-2 ring-primary-500 ring-offset-1'
+                  )}
+                  style={{ backgroundColor: color }}
+                  title={row.coverColor === color ? 'Cover entfernen' : 'Cover setzen'}
+                />
+              ))}
             </div>
           </div>
 
@@ -367,6 +514,43 @@ export const CardDetailPanel = memo(function CardDetailPanel({
               </div>
             </div>
 
+            {/* Assignee */}
+            <div className="flex flex-row">
+              <p className="w-24 shrink-0 text-sm font-medium text-grey-500 dark:text-grey-100 pt-1.5">
+                <FiUser className="inline mr-1.5" size={13} />
+                Zuständig
+              </p>
+              <div className="flex-1">
+                {assignee && (
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <img
+                      src={getRobotAvatarPath(assignee.avatarRobotId ?? 1)}
+                      alt=""
+                      className="w-6 h-6 rounded-full shrink-0"
+                    />
+                    <span className="text-sm text-foreground truncate">{assignee.name}</span>
+                    <button
+                      onClick={() => handleAssigneeChange(null)}
+                      className="text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer text-xs p-2 sm:p-0 ml-auto"
+                      title="Zuweisung entfernen"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                )}
+                {groupId ? (
+                  <MemberPicker groupId={groupId} onSelect={handleAssigneeChange}>
+                    <button className="flex items-center gap-1.5 text-xs text-grey-400 dark:text-grey-300 hover:text-primary-600 bg-transparent border-none cursor-pointer transition-colors py-2 sm:py-0">
+                      <FiPlus size={12} />
+                      {assignee ? 'Ändern' : 'Person zuweisen'}
+                    </button>
+                  </MemberPicker>
+                ) : (
+                  <span className="text-xs text-grey-400">Gruppe erforderlich</span>
+                )}
+              </div>
+            </div>
+
             {/* Due date */}
             <div className="flex flex-row">
               <p className="w-24 shrink-0 text-sm font-medium text-grey-500 dark:text-grey-100 pt-1.5">
@@ -419,6 +603,9 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                     )}
                   </PopoverContent>
                 </Popover>
+                {dueDate && new Date(dueDate) < new Date(new Date().toDateString()) && (
+                  <p className="text-xs text-red-500 mt-1 m-0">Überfällig</p>
+                )}
               </div>
             </div>
 
@@ -456,6 +643,84 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                     Verknüpfen
                   </button>
                 </CollabDocPicker>
+              </div>
+            </div>
+          </div>
+
+          {/* Comments */}
+          <div className="border-t border-grey-200 dark:border-grey-700 px-4 py-4 sm:px-6">
+            <p className="text-sm font-medium text-grey-500 dark:text-grey-100 mb-3">
+              <FiMessageSquare className="inline mr-1.5" size={13} />
+              Kommentare
+              {comments.length > 0 && (
+                <span className="text-grey-400 font-normal ml-1">({comments.length})</span>
+              )}
+            </p>
+
+            {comments.length > 0 && (
+              <div className="flex flex-col gap-3 mb-3">
+                {comments.map((comment) => (
+                  <div key={comment.id} className="flex gap-2 group">
+                    <img
+                      src={getRobotAvatarPath(comment.authorAvatarRobotId ?? 1)}
+                      alt=""
+                      className="w-6 h-6 rounded-full shrink-0 mt-0.5"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-xs font-medium text-foreground">
+                          {comment.authorName}
+                        </span>
+                        <span className="text-[10px] text-grey-400">
+                          {formatCommentDate(comment.createdAt)}
+                        </span>
+                        {comment.authorId === currentUserId && (
+                          <button
+                            onClick={() => deleteComment(comment.id)}
+                            className="sm:opacity-0 sm:group-hover:opacity-100 text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer text-[10px] transition-opacity ml-auto p-1 sm:p-0"
+                            title="Löschen"
+                          >
+                            &times;
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-sm text-foreground m-0 mt-0.5 leading-relaxed whitespace-pre-wrap break-words">
+                        {comment.text}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <img
+                src={getRobotAvatarPath(currentUserAvatarRobotId)}
+                alt=""
+                className="w-6 h-6 rounded-full shrink-0 mt-1"
+              />
+              <div className="flex-1 flex flex-col gap-1.5">
+                <textarea
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                      e.preventDefault();
+                      addComment();
+                    }
+                  }}
+                  rows={2}
+                  className="w-full rounded-lg border border-grey-200 dark:border-grey-700 bg-transparent px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none text-foreground placeholder:text-grey-400"
+                  placeholder="Kommentar schreiben..."
+                />
+                {commentText.trim() && (
+                  <div className="flex justify-end">
+                    <Button size="sm" className="h-7 text-xs" onClick={addComment}>
+                      <FiSend className="mr-1" size={11} />
+                      Senden
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
