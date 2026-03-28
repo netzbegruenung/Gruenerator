@@ -12,7 +12,7 @@ import {
   type ErrorState,
   type SetErrorFn,
 } from '../../../../../../../components/utils/errorHandling';
-import { useOptimizedAuth } from '../../../../../../../hooks/useAuth';
+import { useAuthStore } from '../../../../../../../stores/authStore';
 import { useUserTexts } from '../../../../../hooks/useProfileData';
 
 // Utils
@@ -61,7 +61,7 @@ const TextsSection = memo(
     onShareToGroup,
   }: TextsSectionProps): React.ReactElement => {
     // Auth state - only destructure what's needed
-    const { isAuthenticated } = useOptimizedAuth();
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
     // =====================================================================
     // TEXTS-RELATED STATE AND FUNCTIONALITY

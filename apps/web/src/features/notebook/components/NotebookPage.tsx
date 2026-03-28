@@ -23,7 +23,6 @@ import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { CitationModal } from '../../../components/common/Citation';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../../components/ErrorBoundary';
-import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useAuthStore } from '../../../stores/authStore';
 import { useExportStore } from '../../../stores/core/exportStore';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
@@ -363,7 +362,7 @@ export const createNotebookPage = (configId: string) => {
 
 const DynamicNotebookPage = () => {
   const { id } = useParams<{ id: string }>();
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
   const {
     getQACollection,
     fetchQACollections,

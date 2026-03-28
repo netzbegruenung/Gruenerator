@@ -4,7 +4,7 @@ import { HiArrowLeft, HiCog } from 'react-icons/hi';
 
 import { TypeformWizard } from '../../../components/common/Form';
 import Button from '../../../components/common/SubmitButton';
-import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { useAuthStore } from '../../../stores/authStore';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import ConfigDrivenFields from '../components/ConfigDrivenFields';
 import { getTypeConfig, getTemplateFieldConfig, IMAGE_STUDIO_TYPES } from '../utils/typeConfig';
@@ -34,7 +34,7 @@ const TemplateInputStep: React.FC<TemplateInputStepProps> = ({
 }) => {
   const { type, thema, name, handleChange } = useImageStudioStore();
 
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Prefill name with user's full name for ZITAT types

@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Controller, type Control } from 'react-hook-form';
 
-import { useLazyAuth } from '../../../hooks/useAuth';
 import { useRecentValues } from '../../../hooks/useRecentValues';
+import { useAuthStore } from '../../../stores/authStore';
 import EnhancedSelect from '../EnhancedSelect/EnhancedSelect';
 
 import { FormInput } from './Input';
@@ -65,7 +65,7 @@ const SmartInput: React.FC<SmartInputProps> = ({
   disabled = false,
   ...inputProps
 }) => {
-  const { isAuthenticated } = useLazyAuth();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   const { recentValues, isLoading, saveRecentValue, hasRecentValue } = useRecentValues(fieldType, {
     limit: maxRecentValues,

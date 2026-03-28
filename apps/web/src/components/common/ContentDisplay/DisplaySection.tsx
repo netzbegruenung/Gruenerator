@@ -2,9 +2,9 @@ import { useDocumentStore, createDocsApiClient } from '@gruenerator/docs';
 import React, { forwardRef, lazy, Suspense, type ReactNode, useMemo } from 'react';
 
 import { webAppDocsAdapter } from '../../../features/docs/docsAdapter';
-import { useLazyAuth } from '../../../hooks/useAuth';
 import { useDeferredTitle, awaitDeferredTitle } from '../../../hooks/useDeferredTitle';
 import { useSaveToLibrary } from '../../../hooks/useSaveToLibrary';
+import { useAuthStore } from '../../../stores/authStore';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { getDocsUrl } from '../../../utils/docsUrl';
 import useApiSubmit from '../../hooks/useApiSubmit';
@@ -109,7 +109,7 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
     },
     ref
   ) => {
-    const { user } = useLazyAuth();
+    const user = useAuthStore((s) => s.user);
     const storeGeneratedText = useGeneratedTextStore(
       (state) => state.generatedTexts[componentName] || ''
     );

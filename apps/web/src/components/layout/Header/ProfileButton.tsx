@@ -18,8 +18,8 @@ import {
   useUnreadCount,
   useMarkAllAsRead,
 } from '../../../features/notifications/hooks/useNotifications';
-import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
+import { useAuthStore } from '../../../stores/authStore';
 
 import type { AvatarDisplay, Profile } from '../../../features/auth/services/profileApiService';
 import type { User } from '../../../stores/authStore';
@@ -85,7 +85,8 @@ interface ProfileDropdownContentProps {
 }
 
 const ProfileDropdownContent = memo(({ user, unreadCount }: ProfileDropdownContentProps) => {
-  const { logout, isLoggingOut } = useOptimizedAuth();
+  const logout = useAuthStore((s) => s.logout);
+  const isLoggingOut = useAuthStore((s) => s.isLoggingOut);
   const navigate = useNavigate();
   const location = useLocation();
   const { shouldShowTab } = useBetaFeatures();
@@ -174,7 +175,9 @@ const ProfileDropdownContent = memo(({ user, unreadCount }: ProfileDropdownConte
 ProfileDropdownContent.displayName = 'ProfileDropdownContent';
 
 const ProfileButton = () => {
-  const { user, loading, setLoginIntent } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
+  const loading = useAuthStore((s) => s.isLoading);
+  const setLoginIntent = useAuthStore((s) => s.setLoginIntent);
   const [open, setOpen] = useState(false);
 
   const { data: unreadCount = 0 } = useUnreadCount();
