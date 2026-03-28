@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { useAuthStore } from '../../../stores/authStore';
 
 import LoginRequired from './LoginRequired';
 
@@ -11,26 +11,20 @@ interface AuthRequiredOptions {
 }
 
 /**
- * Higher-order component that wraps a component with authentication requirements
- * @param {React.Component} Component - The component to protect
- * @param {Object} options - Configuration options
- * @returns {React.Component} Protected component
+ * Higher-order component that wraps a component with authentication requirements.
+ * Uses direct Zustand selectors instead of useOptimizedAuth to avoid subscribing
+ * to the full auth query (which causes re-renders on any auth state change).
  */
 const withAuthRequired = <P extends Record<string, unknown>>(
   Component: React.ComponentType<P>,
   options: AuthRequiredOptions = {}
 ) => {
-  const {
-    title, // Optional: will auto-generate from route if not provided
-    message, // Optional: will use standard message if not provided
-    fallback,
-  } = options;
+  const { title, message, fallback } = options;
 
   return function AuthRequiredComponent(props: P) {
-    const { user, isAuthenticated } = useOptimizedAuth();
+    const user = useAuthStore((s) => s.user);
 
-    // Show login required if not authenticated
-    if (!isAuthenticated || !user) {
+    if (!user) {
       return (
         <>
           <div className="protected-content-blur">
@@ -41,7 +35,6 @@ const withAuthRequired = <P extends Record<string, unknown>>(
       );
     }
 
-    // User is authenticated, render the component
     return <Component {...props} user={user} />;
   };
 };
