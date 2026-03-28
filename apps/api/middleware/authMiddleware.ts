@@ -3,8 +3,10 @@
  * Supports both JWT tokens (mobile) and Express sessions (web)
  */
 
+import { fromNodeHeaders } from 'better-auth/node';
 import { type Response, type NextFunction } from 'express';
 
+import { auth } from '../config/betterAuth.js';
 import { BRAND } from '../utils/domainUtils.js';
 
 import jwtAuthMiddleware from './jwtAuthMiddleware.js';
@@ -64,7 +66,25 @@ function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunctio
     }
   }
 
-  jwtAuthMiddleware(req as any, res, (jwtError?: any) => {
+  jwtAuthMiddleware(req as any, res, async (jwtError?: any) => {
+    // Try Better Auth session before falling back to Passport
+    if (!req.user) {
+      try {
+        const session = await auth.api.getSession({
+          headers: fromNodeHeaders(req.headers),
+        });
+        if (session?.user) {
+          req.user = session.user as any;
+          if (typeof req.isAuthenticated !== 'function') {
+            (req as any).isAuthenticated = () => true;
+          }
+          return next();
+        }
+      } catch {
+        // Better Auth session check failed, continue to Passport fallback
+      }
+    }
+
     if (!req.user && req.session?.passport?.user) {
       try {
         req.user = req.session.passport.user;

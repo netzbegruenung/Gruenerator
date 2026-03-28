@@ -366,6 +366,10 @@ async function startWorker(): Promise<void> {
     log.error('Redis connection failed, sessions may not persist');
   }
 
+  // Better Auth handler (must be before express.json/session middleware)
+  const { betterAuthHandler } = await import('./routes/auth/betterAuthHandler.js');
+  app.all('/api/auth/v2/*splat', betterAuthHandler);
+
   // Session configuration
   const sessionSecret = process.env.SESSION_SECRET || 'temporary-fallback-secret-for-mobile-only';
   if (!process.env.SESSION_SECRET) {
