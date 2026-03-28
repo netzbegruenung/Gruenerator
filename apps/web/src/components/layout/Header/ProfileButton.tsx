@@ -168,7 +168,7 @@ const ProfileDropdownContent = memo(({ user, unreadCount }: ProfileDropdownConte
         </LiteTooltip>
       </div>
 
-      <NotificationList unreadCount={unreadCount} />
+      {unreadCount > 0 && <NotificationList unreadCount={unreadCount} />}
     </>
   );
 });
