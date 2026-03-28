@@ -61,7 +61,6 @@ export const auth = betterAuth({
       document_mode: { type: 'string', required: false, defaultValue: 'manual' },
       avatar_robot_id: { type: 'number', required: false, defaultValue: 1 },
       profile_image: { type: 'number', required: false, defaultValue: 1 },
-      igel_modus: { type: 'boolean', required: false, defaultValue: false },
       is_admin: { type: 'boolean', required: false, defaultValue: false },
       deutschlandmodus: { type: 'boolean', required: false, defaultValue: false },
       groups_enabled: { type: 'boolean', required: false, defaultValue: false },
@@ -163,3 +162,5 @@ export const auth = betterAuth({
 });
 
 export type BetterAuthType = typeof auth;
+export type BetterAuthSession = typeof auth.$Infer.Session;
+export type BetterAuthUser = typeof auth.$Infer.Session.user;

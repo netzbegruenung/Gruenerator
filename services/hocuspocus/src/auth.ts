@@ -440,45 +440,25 @@ export class AuthService {
     }
 
     const cookies = parseCookie(cookieHeader);
-    const sessionCookie = cookies['gruenerator.sid'];
+    const sessionToken = cookies['ba.session_token'];
 
-    if (!sessionCookie) {
+    if (!sessionToken) {
       return { authenticated: false, reason: 'No session cookie found' };
     }
 
-    const sessionId = sessionCookie.startsWith('s:')
-      ? sessionCookie.substring(2).split('.')[0]
-      : sessionCookie;
+    log.info(`[Auth-Cookie] Looking up Better Auth session`);
 
-    if (!sessionId) {
-      return { authenticated: false, reason: 'Invalid session cookie format' };
-    }
+    const result = await this.db(
+      `SELECT user_id FROM ba_sessions WHERE token = $1 AND expires_at > NOW()`,
+      [sessionToken]
+    );
 
-    const sessionKey = `sess:${sessionId}`;
-    log.info(`[Auth-Cookie] Looking up session: ${sessionKey.substring(0, 15)}...`);
-
-    if (!this.redis.isReady) {
-      log.error(`[Auth-Cookie] FAILED: Redis client not ready`);
-      return { authenticated: false, reason: 'Session store unavailable' };
-    }
-
-    const sessionString = await this.redis.get(sessionKey);
-
-    if (!sessionString) {
+    if (result.length === 0) {
       log.warn(`[Auth-Cookie] Session not found or expired`);
       return { authenticated: false, reason: 'Session not found or expired' };
     }
 
-    const sessionData = JSON.parse(
-      typeof sessionString === 'string' ? sessionString : JSON.stringify(sessionString)
-    );
-
-    const userId = sessionData?.passport?.user?.id || sessionData?.passport?.user;
-
-    if (!userId) {
-      log.warn(`[Auth-Cookie] User not authenticated in session`);
-      return { authenticated: false, reason: 'User not authenticated in session' };
-    }
+    const userId = result[0].user_id as string;
 
     log.info(`[Auth-Cookie] User ID from session: ${userId}`);
     return this.checkRoomAccess(documentName, userId);

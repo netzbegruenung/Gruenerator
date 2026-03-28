@@ -35,7 +35,7 @@ const router: Router = express.Router();
 
 router.get(
   '/profile',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const profileService = getProfileService();
@@ -87,7 +87,7 @@ router.get(
 
 router.put(
   '/profile',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const profileService = getProfileService();
@@ -148,7 +148,7 @@ router.put(
 
 router.patch(
   '/profile/avatar',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const profileService = getProfileService();
@@ -183,7 +183,7 @@ router.patch(
 
 router.get(
   '/profile/beta-features',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const profileService = getProfileService();
@@ -213,7 +213,7 @@ router.get(
 
 router.patch(
   '/profile/beta-features',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const profileService = getProfileService();
@@ -244,7 +244,6 @@ router.patch(
         'website',
         'vorlagen',
         'videoEditor',
-        'igel_modus',
         'prompts',
         'scanner',
         'docs',
@@ -297,7 +296,7 @@ router.patch(
 
 router.patch(
   '/profile/message-color',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const profileService = getProfileService();
@@ -331,7 +330,7 @@ router.patch(
 
 router.get(
   '/profile/user-defaults',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const profileService = getProfileService();
@@ -367,7 +366,7 @@ router.get(
 
 router.patch(
   '/profile/user-defaults',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const profileService = getProfileService();
@@ -413,7 +412,7 @@ router.patch(
 
 router.get(
   '/profile/notification-preferences',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { getPreferencesForUser, getDefaultPreferences } =
@@ -435,7 +434,7 @@ router.get(
 
 router.patch(
   '/profile/notification-preferences',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { category, channels } = req.body as {
@@ -524,59 +523,12 @@ router.patch(
 );
 
 // ============================================================================
-// Igel-Modus (Grüne Jugend)
-// ============================================================================
-
-router.patch(
-  '/profile/igel-modus',
-  ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    try {
-      const profileService = getProfileService();
-      const { igel_modus } = req.body as { igel_modus: boolean };
-
-      if (typeof igel_modus !== 'boolean') {
-        res.status(400).json({
-          success: false,
-          message: 'Igel-Modus Status ist erforderlich.',
-        });
-        return;
-      }
-
-      await profileService.updateBetaFeatures(req.user!.id, 'igel_modus', igel_modus);
-
-      log.debug(
-        `[Igel Modus Change] User ${req.user!.id}: igel_modus ${igel_modus ? 'ENABLED' : 'DISABLED'}`
-      );
-
-      const updatedProfile = await profileService.getProfileById(req.user!.id);
-      if (req.user && updatedProfile) {
-        profileService.updateUserSession(req.user, updatedProfile, 'igel_modus', igel_modus);
-      }
-
-      res.json({
-        success: true,
-        igelModus: igel_modus,
-        message: `Igel-Modus ${igel_modus ? 'aktiviert' : 'deaktiviert'}! Du bist ${igel_modus ? 'jetzt' : 'nicht mehr'} Mitglied der Grünen Jugend.`,
-      });
-    } catch (error) {
-      const err = error as Error;
-      log.error('[User Profile /profile/igel-modus PATCH] Error:', err);
-      res.status(500).json({
-        success: false,
-        message: err.message || 'Fehler beim Aktualisieren des Igel-Modus.',
-      });
-    }
-  }
-);
-
-// ============================================================================
 // Account Deletion
 // ============================================================================
 
 router.delete(
   '/delete-account',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
