@@ -254,8 +254,6 @@ router.patch(
         'labor',
         'sites',
         'interactiveAntrag',
-        'autoSaveGenerated',
-        'autoDocumentSearch',
         'website',
         'vorlagen',
         'videoEditor',

@@ -88,7 +88,6 @@ export async function processGraphRequestStreaming(
       selectedDocumentIds,
       selectedTextIds,
       searchQuery,
-      useAutomaticSearch,
       useNotebookEnrich,
     } = requestData;
 
@@ -170,7 +169,6 @@ export async function processGraphRequestStreaming(
         selectedDocumentIds: selectedDocumentIds || [],
         selectedTextIds: selectedTextIds || [],
         searchQuery: searchQuery || null,
-        useAutomaticSearch: useAutomaticSearch || false,
         examples: [],
         provider,
         aiWorkerPool: (req as any).app.locals.aiWorkerPool,
@@ -402,8 +400,6 @@ export async function processGraphRequestStreaming(
       docQnAUsed: enrichedState.enrichmentMetadata?.enableDocQnA || false,
       vectorSearchUsed: (selectedDocumentIds && selectedDocumentIds.length > 0) || false,
       webSearchUsed: (enrichedState.enrichmentMetadata?.webSearchSources?.length ?? 0) > 0,
-      autoSearchUsed: enrichedState.enrichmentMetadata?.autoSearchUsed || false,
-      autoSelectedDocuments: enrichedState.enrichmentMetadata?.autoSelectedDocuments || [],
       notebookEnrichUsed: enrichedState.enrichmentMetadata?.notebookEnrichUsed || false,
       sources: [
         ...(enrichedState.enrichmentMetadata?.urlsProcessed || []).map((url: string) => ({
@@ -415,12 +411,6 @@ export async function processGraphRequestStreaming(
           type: 'websearch',
           title: source.title || source.url,
           url: source.url,
-        })),
-        ...(enrichedState.enrichmentMetadata?.autoSelectedDocuments || []).map((doc: any) => ({
-          type: 'auto-document',
-          title: doc.title,
-          filename: doc.filename,
-          relevance: doc.relevance_percent,
         })),
       ],
     };
