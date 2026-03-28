@@ -9,9 +9,9 @@ import React, {
   type FormEvent,
 } from 'react';
 
-import { useOptimizedAuth } from '../../../../../../hooks/useAuth';
 import { useAutosave } from '../../../../../../hooks/useAutosave';
 import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
+import { useAuthStore } from '../../../../../../stores/authStore';
 import { useProfileStore } from '../../../../../../stores/profileStore';
 import { useProfile } from '../../../../hooks/useProfileData';
 import {
@@ -50,7 +50,7 @@ const ProfileInfoTabContainer = ({
   deleteAccount,
   canManageAccount,
 }: ProfileInfoTabContainerProps) => {
-  const { user: authUser } = useOptimizedAuth();
+  const authUser = useAuthStore((s) => s.user);
   const user = userProp || authUser;
 
   // ALL HOOKS MUST BE CALLED BEFORE ANY EARLY RETURNS
