@@ -1,4 +1,10 @@
-import { Badge, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@gruenerator/ui';
+import {
+  Badge,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  LiteTooltip,
+} from '@gruenerator/ui';
 import { LogOut } from 'lucide-react';
 import { memo, useState } from 'react';
 import { FaCloud, FaFolder, FaUserCircle, FaUsers } from 'react-icons/fa';
@@ -90,7 +96,7 @@ const ProfileDropdownContent = memo(({ user, unreadCount }: ProfileDropdownConte
   const avatarRobotId = profile?.avatar_robot_id ?? null;
 
   const avatarProps = getAvatarDisplayProps({
-    avatar_robot_id: avatarRobotId,
+    ...(avatarRobotId != null && { avatar_robot_id: avatarRobotId }),
     display_name: displayName,
     email: user.email,
   });
@@ -123,41 +129,42 @@ const ProfileDropdownContent = memo(({ user, unreadCount }: ProfileDropdownConte
               ? location.pathname === '/profile'
               : location.pathname.startsWith(item.path);
           return (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => navigate(item.path)}
-              className={cn(
-                'flex items-center justify-center size-9 rounded-lg transition-colors',
-                isActive
-                  ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400'
-                  : 'text-grey-500 hover:bg-background-alt hover:text-foreground'
-              )}
-              aria-label={item.label}
-              title={item.label}
-            >
-              <item.icon className="size-4" />
-            </button>
+            <LiteTooltip key={item.key} label={item.label}>
+              <button
+                type="button"
+                onClick={() => navigate(item.path)}
+                className={cn(
+                  'flex items-center justify-center size-9 rounded-lg transition-colors',
+                  isActive
+                    ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400'
+                    : 'text-grey-500 hover:bg-background-alt hover:text-foreground'
+                )}
+                aria-label={item.label}
+              >
+                <item.icon className="size-4" />
+              </button>
+            </LiteTooltip>
           );
         })}
         <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-xxs" />
-        <button
-          type="button"
-          onClick={() => {
-            if (!isLoggingOut) void logout();
-          }}
-          disabled={isLoggingOut}
-          className={cn(
-            'flex items-center justify-center size-9 rounded-lg transition-colors',
-            isLoggingOut
-              ? 'opacity-50 cursor-not-allowed text-grey-400'
-              : 'text-grey-500 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600'
-          )}
-          aria-label={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
-          title={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
-        >
-          <LogOut className="size-4" />
-        </button>
+        <LiteTooltip label={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}>
+          <button
+            type="button"
+            onClick={() => {
+              if (!isLoggingOut) void logout();
+            }}
+            disabled={isLoggingOut}
+            className={cn(
+              'flex items-center justify-center size-9 rounded-lg transition-colors',
+              isLoggingOut
+                ? 'opacity-50 cursor-not-allowed text-grey-400'
+                : 'text-grey-500 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600'
+            )}
+            aria-label={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
+          >
+            <LogOut className="size-4" />
+          </button>
+        </LiteTooltip>
       </div>
 
       <NotificationList unreadCount={unreadCount} />
@@ -178,7 +185,7 @@ const ProfileButton = () => {
   const displayName = profile?.display_name || '';
 
   const avatarProps = getAvatarDisplayProps({
-    avatar_robot_id: avatarRobotId,
+    ...(avatarRobotId != null && { avatar_robot_id: avatarRobotId }),
     display_name: displayName,
     email: user?.email,
   });
