@@ -7,11 +7,9 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import useBetaFeatures from '../../hooks/useBetaFeatures';
 import { useFirstName } from '../../hooks/useFirstName';
-import { useGroups } from '../groups/hooks/useGroups';
 import { DEFAULT_MODE } from '../texte/modes';
 
 import CreatorSection from './components/CreatorSection';
-import GroupsSection from './components/GroupsSection';
 import NotebooksSection from './components/NotebooksSection';
 import RecentlyCreatedSection from './components/RecentlyCreatedSection';
 import ReelsSection from './components/ReelsSection';
@@ -31,8 +29,6 @@ const WorkplacePage = () => {
   const firstName = useFirstName();
 
   const [mode, setMode] = useState(DEFAULT_MODE);
-  const { userGroups } = useGroups({ isActive: true });
-  const hasGroups = (userGroups?.length ?? 0) > 0;
 
   return (
     <ErrorBoundary>
@@ -57,12 +53,11 @@ const WorkplacePage = () => {
 
         <ReelsSection />
 
-        {hasGroups && <GroupsSection />}
         <NotebooksSection />
 
         <section className="mb-xl">
           <SectionHeader title="Weitere Tools" />
-          <ToolsSection canAccessBetaFeature={canAccessBetaFeature} showCreateGroup={!hasGroups} />
+          <ToolsSection canAccessBetaFeature={canAccessBetaFeature} />
         </section>
       </PageContainer>
     </ErrorBoundary>
