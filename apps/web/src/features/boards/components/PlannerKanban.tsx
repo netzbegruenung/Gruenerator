@@ -1,5 +1,6 @@
 import { memo, useState, useCallback, useMemo } from 'react';
 import { FiPlus } from 'react-icons/fi';
+import { useShallow } from 'zustand/react/shallow';
 
 import { BoardAwarenessProvider } from '../context/BoardAwarenessContext';
 import { useBoardAwareness } from '../hooks/useBoardAwareness';
@@ -23,6 +24,7 @@ import {
   KanbanCards,
   KanbanCard,
 } from '@/components/kibo-ui/kanban';
+import { useAuthStore } from '@/stores/authStore';
 
 // Adapter: kibo-ui Kanban expects items with `id`, `name`, `column` + Record<string, unknown>
 type KanbanItem = {
@@ -164,6 +166,12 @@ export function PlannerKanban({
   groupId,
   provider,
 }: PlannerKanbanProps) {
+  const { userName, userAvatarRobotId } = useAuthStore(
+    useShallow((s) => ({
+      userName: s.user?.display_name ?? '',
+      userAvatarRobotId: Number(s.user?.avatar_robot_id) || 1,
+    }))
+  );
   const [selectedRow, setSelectedRow] = useState<Row | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const {
@@ -183,15 +191,15 @@ export function PlannerKanban({
 
   const hiddenGroupIds = useMemo(
     () => new Set(activeView?.hiddenGroupIds ?? []),
-    [activeView?.hiddenGroupIds],
+    [activeView?.hiddenGroupIds]
   );
   const visibleGroups = useMemo(
     () => groups.filter((g) => !hiddenGroupIds.has(g.groupId)),
-    [groups, hiddenGroupIds],
+    [groups, hiddenGroupIds]
   );
   const hiddenGroups = useMemo(
     () => groups.filter((g) => hiddenGroupIds.has(g.groupId)),
-    [groups, hiddenGroupIds],
+    [groups, hiddenGroupIds]
   );
 
   const kanbanItems = useMemo(() => rowsToKanbanItems(visibleGroups), [visibleGroups]);
@@ -213,6 +221,26 @@ export function PlannerKanban({
     },
     [broadcastActivity]
   );
+
+  const allRows = useMemo(() => kanbanItems.map((item) => item.row), [kanbanItems]);
+
+  const handlePrevCard = useCallback(() => {
+    if (!selectedRow) return;
+    const idx = allRows.findIndex((r) => r.id === selectedRow.id);
+    if (idx <= 0) return;
+    const prev = allRows[idx - 1];
+    setSelectedRow(prev);
+    broadcastActivity({ selectedCardId: prev.id });
+  }, [selectedRow, allRows, broadcastActivity]);
+
+  const handleNextCard = useCallback(() => {
+    if (!selectedRow) return;
+    const idx = allRows.findIndex((r) => r.id === selectedRow.id);
+    if (idx < 0 || idx >= allRows.length - 1) return;
+    const next = allRows[idx + 1];
+    setSelectedRow(next);
+    broadcastActivity({ selectedCardId: next.id });
+  }, [selectedRow, allRows, broadcastActivity]);
 
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
@@ -259,6 +287,7 @@ export function PlannerKanban({
           [FIELD_IDS.LABELS]: [],
           [FIELD_IDS.ASSIGNEE]: '',
           [FIELD_IDS.LINKED_DOCS]: '[]',
+          [FIELD_IDS.COMMENTS]: '[]',
         },
         createdBy: currentUserId,
         createdAt: new Date().toISOString(),
@@ -301,7 +330,7 @@ export function PlannerKanban({
       const current = activeView.hiddenGroupIds ?? [];
       onUpdateView(activeView.id, { hiddenGroupIds: [...current, groupId] });
     },
-    [activeView, onUpdateView],
+    [activeView, onUpdateView]
   );
 
   const handleShowGroup = useCallback(
@@ -310,7 +339,7 @@ export function PlannerKanban({
       const current = activeView.hiddenGroupIds ?? [];
       onUpdateView(activeView.id, { hiddenGroupIds: current.filter((id) => id !== groupId) });
     },
-    [activeView, onUpdateView],
+    [activeView, onUpdateView]
   );
 
   const handleShowAllGroups = useCallback(() => {
@@ -395,7 +424,10 @@ export function PlannerKanban({
                       className="flex items-center gap-1.5 px-2 py-1 text-[10px] text-grey-400 hover:text-foreground bg-transparent border border-dashed border-grey-200 dark:border-grey-700 rounded cursor-pointer transition-colors whitespace-nowrap"
                     >
                       {g.groupColor !== 'transparent' && (
-                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: g.groupColor }} />
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: g.groupColor }}
+                        />
                       )}
                       {g.groupName}
                     </button>
@@ -435,6 +467,11 @@ export function PlannerKanban({
         onDelete={deleteRow}
         onUpdateField={updateField}
         groupId={groupId}
+        currentUserId={currentUserId}
+        currentUserName={userName}
+        currentUserAvatarRobotId={userAvatarRobotId}
+        onPrevCard={handlePrevCard}
+        onNextCard={handleNextCard}
       />
     </BoardAwarenessProvider>
   );
