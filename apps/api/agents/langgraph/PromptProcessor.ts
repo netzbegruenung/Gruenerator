@@ -788,7 +788,7 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
       console.error(`[promptProcessor] AI Worker error for ${routeType}:`, result.error);
       // Log failed generation
       logGeneration({
-        userId: req.user?.id || req.session?.passport?.user?.id || null,
+        userId: req.user?.id || null,
         generationType: routeType,
         platform: requestData.platforms?.[0] || null,
         tokensUsed: null,
@@ -799,7 +799,7 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
 
     // Log successful generation (fire-and-forget)
     logGeneration({
-      userId: req.user?.id || req.session?.passport?.user?.id || null,
+      userId: req.user?.id || null,
       generationType: routeType,
       platform: requestData.platforms?.[0] || null,
       tokensUsed: result.usage?.total_tokens || null,

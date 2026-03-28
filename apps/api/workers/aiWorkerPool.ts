@@ -170,7 +170,7 @@ class AIWorkerPool {
 
     if (data.usePrivacyMode && this.privacyCounter && req) {
       try {
-        const userId = req.user?.id || req.sessionID;
+        const userId = req.user?.id;
 
         if (userId) {
           const privacyProvider = await this.privacyCounter.getProviderForUser(userId);
