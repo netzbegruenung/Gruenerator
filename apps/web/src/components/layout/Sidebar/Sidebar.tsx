@@ -5,7 +5,6 @@ import {
   SheetTitle,
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
   useIsMobile,
 } from '@gruenerator/ui';
@@ -37,6 +36,24 @@ import '../../../assets/styles/components/layout/sidebar.css';
 interface SidebarProps {
   isDesktop?: boolean;
   onNavigate?: (path: string, title: string) => void;
+}
+
+function NavTooltip({
+  label,
+  collapsed,
+  children,
+}: {
+  label: string;
+  collapsed: boolean;
+  children: JSX.Element;
+}) {
+  if (!collapsed) return children;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="right">{label}</TooltipContent>
+    </Tooltip>
+  );
 }
 
 const menuLinkClass = (active: boolean, disabled?: boolean) =>
@@ -221,31 +238,26 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
                   )}
                 </span>
               ) : isDesktop ? (
-                <Tooltip key={item.id}>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() =>
-                        item.id === 'chat'
-                          ? handleChatClick()
-                          : handleLinkClick(item.path!, item.title)
-                      }
-                      className={menuLinkClass(isActive(item.path!, item.activePaths))}
-                      aria-current={isActive(item.path!, item.activePaths) ? 'page' : undefined}
-                      type="button"
-                    >
-                      {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
-                      <span className={titleClass}>{item.title}</span>
-                      {item.badge && (
-                        <span className={badgeClass}>
-                          <StatusBadge type={item.badge} variant="sidebar" />
-                        </span>
-                      )}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" hidden={sidebarExpanded}>
-                    {item.title}
-                  </TooltipContent>
-                </Tooltip>
+                <NavTooltip key={item.id} label={item.title} collapsed={!sidebarExpanded}>
+                  <button
+                    onClick={() =>
+                      item.id === 'chat'
+                        ? handleChatClick()
+                        : handleLinkClick(item.path!, item.title)
+                    }
+                    className={menuLinkClass(isActive(item.path!, item.activePaths))}
+                    aria-current={isActive(item.path!, item.activePaths) ? 'page' : undefined}
+                    type="button"
+                  >
+                    {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
+                    <span className={titleClass}>{item.title}</span>
+                    {item.badge && (
+                      <span className={badgeClass}>
+                        <StatusBadge type={item.badge} variant="sidebar" />
+                      </span>
+                    )}
+                  </button>
+                </NavTooltip>
               ) : (
                 <Link
                   key={item.id}
@@ -271,17 +283,12 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         {/* New Chat */}
         <div className="flex flex-col gap-0.5 p-0 mt-xs">
           {isDesktop ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button onClick={handleChatClick} className={menuLinkClass(false)} type="button">
-                  <PiPlus aria-hidden="true" className={iconClass} />
-                  <span className={titleClass}>Neuer Chat</span>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right" hidden={sidebarExpanded}>
-                Neuer Chat
-              </TooltipContent>
-            </Tooltip>
+            <NavTooltip label="Neuer Chat" collapsed={!sidebarExpanded}>
+              <button onClick={handleChatClick} className={menuLinkClass(false)} type="button">
+                <PiPlus aria-hidden="true" className={iconClass} />
+                <span className={titleClass}>Neuer Chat</span>
+              </button>
+            </NavTooltip>
           ) : (
             <button
               onClick={() => {
@@ -335,20 +342,18 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
       {/* Footer - pushed to bottom */}
       <div className="mt-auto px-2 py-xs shrink-0 flex items-center">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              className="flex items-center justify-center w-10 h-10 p-0 ml-2 border-none bg-transparent rounded-full cursor-pointer text-foreground-heading hover:bg-hover-alt transition-colors shrink-0 [&_svg]:text-[1.4rem] [&_svg]:shrink-0 [&_svg]:w-6"
-              onClick={toggleDarkMode}
-              aria-label={darkMode ? 'Zum hellen Modus wechseln' : 'Zum dunklen Modus wechseln'}
-            >
-              {darkMode ? <PiMoon aria-hidden="true" /> : <PiSun aria-hidden="true" />}
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right" hidden={sidebarExpanded}>
-            {darkMode ? 'Heller Modus' : 'Dunkler Modus'}
-          </TooltipContent>
-        </Tooltip>
+        <NavTooltip
+          label={darkMode ? 'Heller Modus' : 'Dunkler Modus'}
+          collapsed={!sidebarExpanded}
+        >
+          <button
+            className="flex items-center justify-center w-10 h-10 p-0 ml-2 border-none bg-transparent rounded-full cursor-pointer text-foreground-heading hover:bg-hover-alt transition-colors shrink-0 [&_svg]:text-[1.4rem] [&_svg]:shrink-0 [&_svg]:w-6"
+            onClick={toggleDarkMode}
+            aria-label={darkMode ? 'Zum hellen Modus wechseln' : 'Zum dunklen Modus wechseln'}
+          >
+            {darkMode ? <PiMoon aria-hidden="true" /> : <PiSun aria-hidden="true" />}
+          </button>
+        </NavTooltip>
         {!isDesktop &&
           sidebarExpanded &&
           footerLinks.map((item) => (
@@ -368,7 +373,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   );
 
   return (
-    <TooltipProvider delayDuration={300}>
+    <>
       {/* Mobile: Sheet overlay */}
       {isMobile && !isDesktop && (
         <Sheet open={isOpen} onOpenChange={(open) => (open ? undefined : close())}>
@@ -404,7 +409,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           {sidebarInner}
         </aside>
       )}
-    </TooltipProvider>
+    </>
   );
 };
 
@@ -466,21 +471,16 @@ function SidebarFavourites({
         );
 
         return isDesktop ? (
-          <Tooltip key={item.id}>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => onLinkClick(item.path, item.title)}
-                className={cn(menuLinkClass(isActive(item.path)), 'group')}
-                aria-current={isActive(item.path) ? 'page' : undefined}
-                type="button"
-              >
-                {content}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right" hidden={expanded}>
-              {item.title}
-            </TooltipContent>
-          </Tooltip>
+          <NavTooltip key={item.id} label={item.title} collapsed={!expanded}>
+            <button
+              onClick={() => onLinkClick(item.path, item.title)}
+              className={cn(menuLinkClass(isActive(item.path)), 'group')}
+              aria-current={isActive(item.path) ? 'page' : undefined}
+              type="button"
+            >
+              {content}
+            </button>
+          </NavTooltip>
         ) : (
           <Link
             key={item.id}
