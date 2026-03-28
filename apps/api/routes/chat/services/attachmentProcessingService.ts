@@ -141,7 +141,8 @@ export function injectImageAttachments(
     for (const img of imageAttachments) {
       multimodalContent.push({
         type: 'image',
-        image: `data:${img.type};base64,${img.data}`,
+        image: Buffer.from(img.data, 'base64'),
+        mimeType: img.type,
       });
     }
 
