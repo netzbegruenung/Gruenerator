@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
   SectionHeader,
   Skeleton,
+  VideoCard,
 } from '@gruenerator/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { memo, useCallback } from 'react';
@@ -230,6 +231,53 @@ const RecentItemCard = memo(
 );
 RecentItemCard.displayName = 'RecentItemCard';
 
+const RecentReelCard = memo(
+  ({
+    item,
+    onDelete,
+    onShare,
+  }: {
+    item: RecentItem;
+    onDelete: (item: RecentItem) => void;
+    onShare: (item: RecentItem) => void;
+  }) => {
+    const navigate = useNavigate();
+    const videoId = item.href.includes('project=') ? item.href.split('project=')[1] : item.id;
+
+    return (
+      <VideoCard
+        src={`/api/subtitler/projects/${videoId}/video`}
+        poster={item.thumbnailUrl}
+        title={item.title || FALLBACK_TITLES.video}
+        duration={item.duration}
+        aspect="square"
+        onClick={() => navigate(item.href)}
+        overlay={
+          <div
+            className="absolute top-1 right-1 max-sm:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CardActionsMenu
+              onShare={() => onShare(item)}
+              onDelete={() => onDelete(item)}
+              className="[&_button]:bg-white/80 dark:[&_button]:bg-grey-800/80 [&_button]:backdrop-blur-sm"
+            />
+          </div>
+        }
+        footer={
+          <div className="flex items-center gap-xs min-w-0">
+            <FaVideo className="text-sm text-secondary-600 shrink-0" />
+            <span className="text-sm font-medium text-foreground-heading truncate">
+              {item.title || FALLBACK_TITLES.video}
+            </span>
+          </div>
+        }
+      />
+    );
+  }
+);
+RecentReelCard.displayName = 'RecentReelCard';
+
 interface RecentlyCreatedSectionProps {
   showDocs: boolean;
   showBoards: boolean;
@@ -250,7 +298,6 @@ const RecentlyCreatedSection: React.FC<RecentlyCreatedSectionProps> = memo(
       .filter((item) => {
         if (item.type === 'doc' && !showDocs) return false;
         if (item.type === 'board' && !showBoards) return false;
-        if (item.type === 'video') return false;
         if (item.type === 'text') return false;
         return true;
       })
@@ -402,15 +449,24 @@ const RecentlyCreatedSection: React.FC<RecentlyCreatedSectionProps> = memo(
           </p>
         ) : (
           <CardGrid columns="5">
-            {items.map((item) => (
-              <RecentItemCard
-                key={`${item.type}-${item.id}`}
-                item={item}
-                onDelete={handleDelete}
-                onShare={handleShare}
-                onConvertText={handleConvertText}
-              />
-            ))}
+            {items.map((item) =>
+              item.type === 'video' ? (
+                <RecentReelCard
+                  key={`${item.type}-${item.id}`}
+                  item={item}
+                  onDelete={handleDelete}
+                  onShare={handleShare}
+                />
+              ) : (
+                <RecentItemCard
+                  key={`${item.type}-${item.id}`}
+                  item={item}
+                  onDelete={handleDelete}
+                  onShare={handleShare}
+                  onConvertText={handleConvertText}
+                />
+              )
+            )}
           </CardGrid>
         )}
       </section>
