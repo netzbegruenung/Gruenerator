@@ -2,6 +2,8 @@ import * as React from 'react';
 
 import { cn } from '../lib/cn';
 
+type VideoCardAspect = '9/16' | 'square';
+
 interface VideoCardProps extends Omit<React.ComponentProps<'div'>, 'children'> {
   src: string;
   poster?: string;
@@ -9,12 +11,18 @@ interface VideoCardProps extends Omit<React.ComponentProps<'div'>, 'children'> {
   duration?: number;
   footer?: React.ReactNode;
   overlay?: React.ReactNode;
+  aspect?: VideoCardAspect;
 }
 
 const formatDuration = (seconds: number): string => {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${String(secs).padStart(2, '0')}`;
+};
+
+const aspectClasses: Record<VideoCardAspect, string> = {
+  '9/16': 'aspect-[9/16]',
+  square: 'aspect-square',
 };
 
 function VideoCard({
@@ -24,6 +32,7 @@ function VideoCard({
   duration,
   footer,
   overlay,
+  aspect = '9/16',
   className,
   ...props
 }: VideoCardProps) {
@@ -70,7 +79,7 @@ function VideoCard({
       onMouseLeave={handleMouseLeave}
       {...props}
     >
-      <div className="relative aspect-[9/16] overflow-hidden">
+      <div className={cn('relative overflow-hidden', aspectClasses[aspect])}>
         <video
           ref={videoRef}
           muted
@@ -136,4 +145,4 @@ function VideoCard({
   );
 }
 
-export { VideoCard, type VideoCardProps };
+export { VideoCard, type VideoCardProps, type VideoCardAspect };
