@@ -30,7 +30,6 @@ import {
 } from 'react-icons/io5';
 import { useNavigate } from 'react-router-dom';
 
-import AutoSaveIndicator from '../../../components/common/AutoSaveIndicator';
 import ContentRenderer from '../../../components/common/ContentDisplay/ContentRenderer';
 import EnrichmentSourcesDisplay from '../../../components/common/EnrichmentSourcesDisplay';
 import { copyFormattedContent } from '../../../components/utils/commonFunctions';
@@ -329,8 +328,6 @@ const TextResultScreen: React.FC<TextResultScreenProps> = memo(
                         <span className="text-[11px] leading-none">Vor</span>
                       </button>
                     )}
-
-                    <AutoSaveIndicator componentName={componentName} />
                   </div>
                 </header>
 

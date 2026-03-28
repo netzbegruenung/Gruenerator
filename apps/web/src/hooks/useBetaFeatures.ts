@@ -67,18 +67,6 @@ const BETA_FEATURES_CONFIG: BetaFeatureConfig[] = [
     isAdminOnly: false,
     defaultEnabled: true,
   },
-  {
-    key: 'autoSaveGenerated',
-    label: 'Auto-Speichern generierter Texte',
-    isAdminOnly: false,
-    defaultEnabled: true,
-  },
-  {
-    key: 'autoDocumentSearch',
-    label: 'Automatische Dokumentensuche',
-    isAdminOnly: false,
-    defaultEnabled: false,
-  },
   { key: 'prompts', label: 'Eigene Prompts', isAdminOnly: false },
   { key: 'memories', label: 'Erinnerungen', isAdminOnly: false, defaultEnabled: true },
   // Profile-only settings (not shown in Labor tab)

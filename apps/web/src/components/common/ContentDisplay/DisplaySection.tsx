@@ -10,7 +10,6 @@ import { getDocsUrl } from '../../../utils/docsUrl';
 import useApiSubmit from '../../hooks/useApiSubmit';
 import { extractHTMLContent as extractHTMLContentJs } from '../../utils/contentExtractor';
 import ActionButtons from '../ActionButtons';
-import AutoSaveIndicator from '../AutoSaveIndicator';
 import EnrichmentSourcesDisplay from '../EnrichmentSourcesDisplay';
 
 import ContentRenderer from './ContentRenderer';
@@ -320,7 +319,6 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
       ) : (
         <div className="flex justify-end items-center min-h-[40px] transition-all 4xl:min-h-[48px]">
           {actionButtons}
-          <AutoSaveIndicator componentName={componentName} />
         </div>
       )
     ) : null;
