@@ -654,8 +654,7 @@ function ChatSettingsPage() {
                 </CardHeader>
                 <CardContent>
                   {roles.length === 0 ? (
-                    <div className="text-center py-lg">
-                      <p className="text-sm text-grey-500 mb-md">Noch keine Rollen definiert.</p>
+                    <div className="text-center py-md">
                       <Button variant="outline" onClick={startAddRole}>
                         <HiPlus className="size-4 mr-1" />
                         Erste Rolle hinzufügen

@@ -1,8 +1,7 @@
 import { Button } from '@gruenerator/ui';
 import { motion } from 'motion/react';
-import React, { useState, type FormEvent } from 'react';
+import React, { type FormEvent } from 'react';
 import { GiHedgehog } from 'react-icons/gi';
-import { HiOutlinePencil } from 'react-icons/hi';
 
 import TextInput from '../../../../../../components/common/Form/Input/TextInput';
 import Spinner from '../../../../../../components/common/Spinner';
@@ -51,11 +50,6 @@ interface ProfileViewProps {
   displayName: string;
   email: string;
   username: string;
-  customPrompt: string;
-  setCustomPrompt: (value: string) => void;
-  isPromptDirty: boolean;
-  isSavingPrompt: boolean;
-  onSaveCustomPrompt: () => void;
   errorProfile: string;
   isErrorProfileQuery: boolean;
   errorProfileQueryMessage: string | undefined;
@@ -83,11 +77,6 @@ const ProfileView = ({
   displayName,
   email,
   username,
-  customPrompt,
-  setCustomPrompt,
-  isPromptDirty,
-  isSavingPrompt,
-  onSaveCustomPrompt,
   errorProfile,
   isErrorProfileQuery,
   errorProfileQueryMessage,
@@ -106,7 +95,6 @@ const ProfileView = ({
   isBetaFeaturesUpdating,
   onSuccessMessage,
 }: ProfileViewProps) => {
-  const [showPromptEditor, setShowPromptEditor] = useState(false);
   const { locale, updateLocale } = useAuthStore();
 
   const handleLocaleChange = (newLocale: SupportedLocale) => {
@@ -218,65 +206,6 @@ const ProfileView = ({
             <GiHedgehog size={20} />
           </button>
         </div>
-      </div>
-
-      {/* Personal instructions */}
-      <div className="flex flex-col">
-        <div className="flex items-center gap-sm mb-sm">
-          <HiOutlinePencil className="size-5 text-primary-500" />
-          <span className="text-sm font-medium text-foreground">Persönliche Anweisungen</span>
-          <div className="flex-1" />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-grey-500 hover:text-foreground"
-            onClick={() => setShowPromptEditor(!showPromptEditor)}
-          >
-            {showPromptEditor ? 'Schließen' : 'Bearbeiten'}
-          </Button>
-        </div>
-
-        {!showPromptEditor && customPrompt ? (
-          <p className="text-sm text-grey-500 line-clamp-2">{customPrompt}</p>
-        ) : !showPromptEditor ? (
-          <p className="text-sm text-grey-400">
-            Anweisungen für alle Text-Generierungen, z.B. Schreibstil oder Infos zu deinem
-            Wahlkreis.
-          </p>
-        ) : null}
-
-        {showPromptEditor && (
-          <div className="flex flex-col gap-sm rounded-lg bg-background-alt p-md mt-sm">
-            <textarea
-              id="customPrompt"
-              value={customPrompt}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                setCustomPrompt(e.target.value)
-              }
-              placeholder="z.B. dein Schreibstil oder Infos zu dir und deinem Wahlkreis..."
-              className="w-full rounded-md border border-grey-300 bg-input-bg p-sm text-sm text-foreground resize-vertical placeholder:text-grey-400 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 dark:border-grey-600"
-              rows={4}
-              maxLength={2000}
-              disabled={isLoading}
-            />
-            <div className="flex items-center justify-between">
-              {customPrompt.length > 1500 ? (
-                <div className="text-xs text-grey-400">{customPrompt.length}/2000</div>
-              ) : (
-                <div />
-              )}
-              {isPromptDirty && (
-                <Button
-                  size="sm"
-                  onClick={onSaveCustomPrompt}
-                  disabled={isSavingPrompt || isLoading}
-                >
-                  {isSavingPrompt ? 'Speichert…' : 'Speichern'}
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Experimental Features */}
