@@ -239,7 +239,7 @@ const ProfileButton = () => {
           )}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[320px] p-0" sideOffset={8}>
+      <DropdownMenuContent align="end" className="w-[320px] p-0 overflow-visible" sideOffset={8}>
         {open && user && <ProfileDropdownContent user={user} unreadCount={unreadCount} />}
       </DropdownMenuContent>
     </DropdownMenu>
