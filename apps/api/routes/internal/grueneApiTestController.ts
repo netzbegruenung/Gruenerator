@@ -50,7 +50,7 @@ router.get('/test', async (_req: Request, res: Response) => {
   const results: Record<string, any> = {};
 
   // Test all interesting endpoints
-  const endpoints = [
+  const endpoints: Array<{ key: string; path: string; params?: Record<string, string> }> = [
     { key: 'divisions_BV', path: '/v1/divisions', params: { level: 'BV', limit: '5' } },
     { key: 'divisions_LV', path: '/v1/divisions', params: { level: 'LV', limit: '20' } },
     { key: 'divisions_KV_sample', path: '/v1/divisions', params: { level: 'KV', limit: '5' } },
