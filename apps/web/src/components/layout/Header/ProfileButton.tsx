@@ -129,19 +129,18 @@ const ProfileDropdownContent = memo(({ user, unreadCount }: ProfileDropdownConte
               type="button"
               onClick={() => navigate(item.path)}
               className={cn(
-                'flex items-center justify-center size-9 rounded-lg transition-colors',
+                'flex flex-col items-center justify-center gap-0.5 rounded-lg px-2 py-1.5 transition-colors min-w-0',
                 isActive
                   ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400'
                   : 'text-grey-500 hover:bg-background-alt hover:text-foreground'
               )}
-              aria-label={item.label}
-              title={item.label}
             >
               <item.icon className="size-4" />
+              <span className="text-[0.6rem] leading-none truncate max-w-14">{item.label}</span>
             </button>
           );
         })}
-        <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-xxs" />
+        <div className="w-px h-8 bg-grey-200 dark:bg-grey-700 mx-xxs" />
         <button
           type="button"
           onClick={() => {
@@ -149,15 +148,14 @@ const ProfileDropdownContent = memo(({ user, unreadCount }: ProfileDropdownConte
           }}
           disabled={isLoggingOut}
           className={cn(
-            'flex items-center justify-center size-9 rounded-lg transition-colors',
+            'flex flex-col items-center justify-center gap-0.5 rounded-lg px-2 py-1.5 transition-colors min-w-0',
             isLoggingOut
               ? 'opacity-50 cursor-not-allowed text-grey-400'
               : 'text-grey-500 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600'
           )}
-          aria-label={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
-          title={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
         >
           <LogOut className="size-4" />
+          <span className="text-[0.6rem] leading-none">{isLoggingOut ? 'Lädt…' : 'Abmelden'}</span>
         </button>
       </div>
 
