@@ -27,7 +27,6 @@ function SmartInput({
   onValueChange,
   options,
   placeholder = 'Suchen...',
-  emptyMessage = 'Keine Ergebnisse',
   className,
   autoFocus,
   onSubmit,
@@ -49,6 +48,7 @@ function SmartInput({
       if (option) {
         onValueChange(option.label);
         setOpen(false);
+        inputRef.current?.focus();
         if (onSubmit) onSubmit();
       }
     },
@@ -59,27 +59,27 @@ function SmartInput({
     <Popover open={open && filtered.length > 0} onOpenChange={setOpen}>
       <PopoverAnchor asChild>
         <div className={cn('relative', className)}>
-          <CommandPrimitive shouldFilter={false}>
-            <CommandPrimitive.Input
-              ref={inputRef}
-              value={value}
-              onValueChange={(v) => {
-                onValueChange(v);
-                if (!open) setOpen(true);
-              }}
-              onFocus={() => setOpen(true)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && onSubmit) {
-                  e.preventDefault();
-                  onSubmit();
-                }
-                if (e.key === 'Escape') setOpen(false);
-              }}
-              placeholder={placeholder}
-              autoFocus={autoFocus}
-              className="w-full rounded-lg border border-grey-200 bg-input-bg px-md py-sm text-sm text-foreground placeholder:text-grey-400 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 dark:border-grey-700"
-            />
-          </CommandPrimitive>
+          <input
+            ref={inputRef}
+            type="text"
+            value={value}
+            onChange={(e) => {
+              onValueChange(e.target.value);
+              if (!open) setOpen(true);
+            }}
+            onFocus={() => setOpen(true)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && onSubmit) {
+                e.preventDefault();
+                onSubmit();
+              }
+              if (e.key === 'Escape') setOpen(false);
+            }}
+            placeholder={placeholder}
+            autoFocus={autoFocus}
+            autoComplete="off"
+            className="w-full rounded-lg border border-grey-200 bg-input-bg px-md py-sm text-sm text-foreground placeholder:text-grey-400 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 dark:border-grey-700"
+          />
         </div>
       </PopoverAnchor>
 
@@ -92,35 +92,29 @@ function SmartInput({
       >
         <CommandPrimitive shouldFilter={false}>
           <CommandPrimitive.List className="max-h-[200px] overflow-y-auto">
-            {filtered.length === 0 ? (
-              <CommandPrimitive.Empty className="px-md py-sm text-sm text-grey-500">
-                {emptyMessage}
-              </CommandPrimitive.Empty>
-            ) : (
-              <CommandPrimitive.Group>
-                {filtered.map((option) => (
-                  <CommandPrimitive.Item
-                    key={option.value}
-                    value={option.value}
-                    onSelect={handleSelect}
-                    className="flex items-center gap-sm px-md py-sm text-sm cursor-pointer transition-colors data-[selected=true]:bg-background-alt"
-                  >
-                    <Check
-                      className={cn(
-                        'h-3.5 w-3.5 shrink-0',
-                        value === option.label ? 'opacity-100' : 'opacity-0'
-                      )}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <span className="text-foreground">{option.label}</span>
-                      {option.description && (
-                        <span className="ml-1.5 text-xs text-grey-400">{option.description}</span>
-                      )}
-                    </div>
-                  </CommandPrimitive.Item>
-                ))}
-              </CommandPrimitive.Group>
-            )}
+            <CommandPrimitive.Group>
+              {filtered.map((option) => (
+                <CommandPrimitive.Item
+                  key={option.value}
+                  value={option.value}
+                  onSelect={handleSelect}
+                  className="flex items-center gap-sm px-md py-sm text-sm cursor-pointer transition-colors data-[selected=true]:bg-background-alt"
+                >
+                  <Check
+                    className={cn(
+                      'h-3.5 w-3.5 shrink-0',
+                      value === option.label ? 'opacity-100' : 'opacity-0'
+                    )}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-foreground">{option.label}</span>
+                    {option.description && (
+                      <span className="ml-1.5 text-xs text-grey-400">{option.description}</span>
+                    )}
+                  </div>
+                </CommandPrimitive.Item>
+              ))}
+            </CommandPrimitive.Group>
           </CommandPrimitive.List>
         </CommandPrimitive>
       </PopoverContent>
