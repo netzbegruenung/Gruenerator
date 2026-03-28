@@ -10,7 +10,12 @@
 import { streamText } from 'ai';
 
 import { createLogger } from '../../../utils/logger.js';
-import { getModel, getModelConfig } from '../agents/providers.js';
+import {
+  getModel,
+  getModelConfig,
+  VISION_MODEL,
+  VISION_CAPABLE_MODELS,
+} from '../agents/providers.js';
 
 import { sanitizeContentPartsForModel, stripEmptyAssistantMessages } from './messageHelpers.js';
 import { PROGRESS_MESSAGES } from './sseHelpers.js';
@@ -29,7 +34,11 @@ interface ModelResolution {
 /**
  * Resolve which AI model to use: user selection overrides agent default.
  */
-export function resolveModel(agentConfig: any, modelId?: string): ModelResolution {
+export function resolveModel(
+  agentConfig: any,
+  modelId?: string,
+  options?: { hasImages?: boolean }
+): ModelResolution {
   let modelProvider = agentConfig.provider;
   let modelName = agentConfig.model;
 
@@ -42,6 +51,14 @@ export function resolveModel(agentConfig: any, modelId?: string): ModelResolutio
     } else {
       log.warn(`[ChatGraph] Unknown model ID "${modelId}", using agent default`);
     }
+  }
+
+  if (options?.hasImages && !VISION_CAPABLE_MODELS.has(modelName)) {
+    log.info(
+      `[ChatGraph] Images present but "${modelName}" lacks vision — switching to ${VISION_MODEL.provider}/${VISION_MODEL.model}`
+    );
+    modelProvider = VISION_MODEL.provider;
+    modelName = VISION_MODEL.model;
   }
 
   return {

@@ -170,3 +170,4 @@ services/comfyui/
 # Video editor (local-only, not tracked yet)
 apps/video/
 
+.expo/

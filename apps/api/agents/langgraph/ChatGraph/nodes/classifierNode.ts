@@ -1003,6 +1003,25 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
       };
     }
 
+    // If image attachments are present, force direct intent —
+    // the vision model will interpret the image directly in the respond step.
+    const hasImageAttachments = state.imageAttachments && state.imageAttachments.length > 0;
+    if (hasImageAttachments) {
+      log.info(
+        `[Classifier] Image attachment detected (${state.imageAttachments.length} images), forcing direct intent`
+      );
+      return {
+        intent: 'direct',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: 'Image attachment present — vision model will interpret the image',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
     // If documents are mentioned, force search intent with LLM query optimization
     if (hasDocuments && userContent.length > 0) {
       log.info(
