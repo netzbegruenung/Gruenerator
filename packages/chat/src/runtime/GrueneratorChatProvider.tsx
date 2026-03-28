@@ -359,10 +359,6 @@ function ThreadTitleEffect() {
   const titleTriggeredRef = useRef<string | null>(null);
 
   useEffect(() => {
-    titleTriggeredRef.current = null;
-  }, [currentThreadId]);
-
-  useEffect(() => {
     if (messageCount >= 2 && currentThreadId && titleTriggeredRef.current !== currentThreadId) {
       try {
         const state = aui.threadListItem().getState();
@@ -572,9 +568,7 @@ function GrueneratorChatRuntimeProvider({
   }, [providerApiClient, userId, mentionablesActivated]);
 
   const getExternalThreadsRef = useRef(getExternalThreads);
-  useEffect(() => {
-    getExternalThreadsRef.current = getExternalThreads;
-  });
+  getExternalThreadsRef.current = getExternalThreads;
 
   const threadListAdapter = useMemo(() => {
     const base = createGrueneratorThreadListAdapter(providerApiClient, getDefaultAgent(), {
