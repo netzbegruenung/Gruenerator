@@ -24,10 +24,6 @@ interface GeneratedTextStoreState {
   historyIndex: Record<string, number>;
   maxHistorySize: number;
 
-  // Auto-save status tracking
-  autoSaveStatus: Record<string, 'idle' | 'saving' | 'saved' | 'error' | 'session_expired'>;
-  lastAutoSaveTime: Record<string, number | null>;
-
   // Getters
   getGeneratedText: (componentName: string) => StoredContent;
   getGeneratedTextMetadata: (componentName: string) => unknown | null;
@@ -47,17 +43,6 @@ interface GeneratedTextStoreState {
   setIsLoading: (loading: boolean) => void;
   setIsStreaming: (streaming: boolean) => void;
   setQuillInstance: (componentName: string, instance: unknown) => void;
-
-  // Auto-save status setters
-  setAutoSaveStatus: (
-    componentName: string,
-    status: 'idle' | 'saving' | 'saved' | 'error' | 'session_expired'
-  ) => void;
-  setLastAutoSaveTime: (componentName: string, time: number) => void;
-  getAutoSaveStatus: (
-    componentName: string
-  ) => 'idle' | 'saving' | 'saved' | 'error' | 'session_expired';
-  getLastAutoSaveTime: (componentName: string) => number | null;
 
   // Actions
   clearGeneratedText: (componentName: string) => void;
@@ -85,10 +70,6 @@ const useGeneratedTextStore = create<GeneratedTextStoreState>((set, get) => ({
   history: {}, // { componentName: [state0, state1, ...currentState] } - all states including current
   historyIndex: {}, // { componentName: currentIndex } - 0-based index pointing to current position
   maxHistorySize: 50, // Configurable history limit
-
-  // Auto-save status tracking
-  autoSaveStatus: {},
-  lastAutoSaveTime: {},
 
   // Get generated text for a specific component
   // Returns content as-is (string or object) to preserve structure
@@ -403,33 +384,6 @@ const useGeneratedTextStore = create<GeneratedTextStoreState>((set, get) => ({
         [componentName]: 0,
       },
     })),
-
-  // Auto-save status management
-  setAutoSaveStatus: (componentName, status) =>
-    set((state) => ({
-      autoSaveStatus: {
-        ...state.autoSaveStatus,
-        [componentName]: status,
-      },
-    })),
-
-  setLastAutoSaveTime: (componentName, time) =>
-    set((state) => ({
-      lastAutoSaveTime: {
-        ...state.lastAutoSaveTime,
-        [componentName]: time,
-      },
-    })),
-
-  getAutoSaveStatus: (componentName) => {
-    const state = get();
-    return state.autoSaveStatus[componentName] || 'idle';
-  },
-
-  getLastAutoSaveTime: (componentName) => {
-    const state = get();
-    return state.lastAutoSaveTime[componentName] || null;
-  },
 }));
 
 export default useGeneratedTextStore;

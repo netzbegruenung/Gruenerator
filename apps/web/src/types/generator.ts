@@ -38,7 +38,6 @@ export interface GeneratorSelectionState {
   usePrivacyMode: boolean;
   useProMode: boolean;
   useUltraMode: boolean;
-  useAutomaticSearch: boolean;
 }
 
 export interface FeatureState {
@@ -46,7 +45,6 @@ export interface FeatureState {
   usePrivacyMode: boolean;
   useProMode: boolean;
   useUltraMode: boolean;
-  useAutomaticSearch: boolean;
   useBedrock: boolean;
 }
 

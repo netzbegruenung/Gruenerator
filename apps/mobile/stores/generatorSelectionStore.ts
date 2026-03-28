@@ -17,7 +17,6 @@ interface GeneratorSelectionState {
   usePrivacyMode: boolean;
   useProMode: boolean;
   useUltraMode: boolean;
-  useAutomaticSearch: boolean;
   selectedDocumentIds: string[];
   selectedTextIds: string[];
   attachedFiles: AttachedFile[];
@@ -30,7 +29,6 @@ interface GeneratorSelectionActions {
   togglePrivacyMode: () => void;
   toggleProMode: () => void;
   toggleUltraMode: () => void;
-  toggleAutomaticSearch: () => void;
   setAIMode: (mode: AIMode) => void;
   getCurrentAIMode: () => AIMode;
   toggleDocumentSelection: (documentId: string) => void;
@@ -50,7 +48,6 @@ interface FeatureState {
   usePrivacyMode: boolean;
   useProMode: boolean;
   useUltraMode: boolean;
-  useAutomaticSearch: boolean;
   selectedDocumentIds: string[];
   selectedTextIds: string[];
   attachedFiles: AttachedFile[];
@@ -63,7 +60,6 @@ const initialState: GeneratorSelectionState = {
   usePrivacyMode: false,
   useProMode: false,
   useUltraMode: false,
-  useAutomaticSearch: false,
   selectedDocumentIds: [],
   selectedTextIds: [],
   attachedFiles: [],
@@ -107,15 +103,6 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
         }
       }),
 
-    toggleAutomaticSearch: () =>
-      set((state) => {
-        state.useAutomaticSearch = !state.useAutomaticSearch;
-        if (state.useAutomaticSearch) {
-          state.selectedDocumentIds = [];
-          state.selectedTextIds = [];
-        }
-      }),
-
     setAIMode: (mode: AIMode) =>
       set((state) => {
         state.usePrivacyMode = mode === 'privacy';
@@ -139,9 +126,6 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
         } else {
           state.selectedDocumentIds.push(documentId);
         }
-        if (state.useAutomaticSearch) {
-          state.useAutomaticSearch = false;
-        }
       }),
 
     toggleTextSelection: (textId: string) =>
@@ -152,17 +136,11 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
         } else {
           state.selectedTextIds.push(textId);
         }
-        if (state.useAutomaticSearch) {
-          state.useAutomaticSearch = false;
-        }
       }),
 
     addAttachedFile: (file: AttachedFile) =>
       set((state) => {
         state.attachedFiles.push(file);
-        if (state.useAutomaticSearch) {
-          state.useAutomaticSearch = false;
-        }
       }),
 
     removeAttachedFile: (fileId: string) =>
@@ -192,7 +170,6 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
         usePrivacyMode: state.usePrivacyMode,
         useProMode: state.useProMode,
         useUltraMode: state.useUltraMode,
-        useAutomaticSearch: state.useAutomaticSearch,
         selectedDocumentIds: state.selectedDocumentIds,
         selectedTextIds: state.selectedTextIds,
         attachedFiles: state.attachedFiles,

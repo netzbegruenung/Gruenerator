@@ -52,7 +52,6 @@ interface FeatureState {
   usePrivacyMode: boolean;
   useProMode: boolean;
   useUltraMode: boolean;
-  useAutomaticSearch: boolean;
   useBedrock: boolean;
   useNotebookEnrich: boolean;
   useAgentMode: boolean;
@@ -82,7 +81,6 @@ interface GeneratorSelectionState {
   usePrivacyMode: boolean;
   useProMode: boolean;
   useUltraMode: boolean;
-  useAutomaticSearch: boolean;
   useNotebookEnrich: boolean;
   useAgentMode: boolean;
 }
@@ -116,8 +114,6 @@ interface GeneratorSelectionActions {
   togglePrivacyMode: () => void;
   toggleProMode: () => void;
   toggleUltraMode: () => void;
-  setAutomaticSearch: (enabled: boolean) => void;
-  toggleAutomaticSearch: () => void;
   setNotebookEnrich: (enabled: boolean) => void;
   toggleNotebookEnrich: () => void;
   setAgentMode: (enabled: boolean) => void;
@@ -151,7 +147,6 @@ const initialState: GeneratorSelectionState = {
   usePrivacyMode: false,
   useProMode: false,
   useUltraMode: false,
-  useAutomaticSearch: false,
   useNotebookEnrich: false,
   useAgentMode: false,
 };
@@ -392,28 +387,6 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
         }
       }),
 
-    setAutomaticSearch: (enabled) =>
-      set((state) => {
-        state.useAutomaticSearch = enabled;
-        if (enabled) {
-          state.selectedDocumentIds = [];
-          state.selectedTextIds = [];
-        }
-      }),
-
-    toggleAutomaticSearch: () => {
-      const currentState = get();
-      const newValue = !currentState.useAutomaticSearch;
-
-      set((state) => {
-        state.useAutomaticSearch = newValue;
-        if (newValue) {
-          state.selectedDocumentIds = [];
-          state.selectedTextIds = [];
-        }
-      });
-    },
-
     setNotebookEnrich: (enabled) =>
       set((state) => {
         state.useNotebookEnrich = enabled;
@@ -441,7 +414,6 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
         usePrivacyMode: state.usePrivacyMode,
         useProMode: state.useProMode,
         useUltraMode: state.useUltraMode,
-        useAutomaticSearch: state.useAutomaticSearch,
         useBedrock: state.useUltraMode,
         useNotebookEnrich: state.useNotebookEnrich,
         useAgentMode: state.useAgentMode,
@@ -454,7 +426,6 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
         state.usePrivacyMode = false;
         state.useProMode = false;
         state.useUltraMode = false;
-        state.useAutomaticSearch = false;
         state.useNotebookEnrich = false;
         state.useAgentMode = false;
       }),

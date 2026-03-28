@@ -26,7 +26,6 @@
 
 @import url('./components/profile/profile-action-buttons.css') layer(legacy);
 
-@import url('./components/common/auto-save-indicator.css') layer(legacy);
 @import url('./components/ui/form-select-modern.css') layer(legacy);
 @import url('./components/ui/forms.css') layer(legacy);
 @import url('./components/form/form-inputs.css') layer(legacy);

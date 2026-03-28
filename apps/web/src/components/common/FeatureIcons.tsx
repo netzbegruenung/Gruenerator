@@ -21,7 +21,6 @@ import React, { type JSX, useState, useRef, useMemo, useCallback } from 'react';
 import {
   HiGlobeAlt,
   HiPaperClip,
-  HiLightningBolt,
   HiPlusCircle,
   HiClipboardList,
   HiAnnotation,
@@ -196,8 +195,6 @@ const ContentSelectorDialog = React.memo(function ContentSelectorDialog({
     isLoadingTexts,
     isLoadingDocuments,
     uiConfig,
-    useAutomaticSearch,
-    toggleAutomaticSearch,
   } = useGeneratorSelectionStore(
     useShallow((state) => ({
       availableTexts: state.availableTexts,
@@ -209,8 +206,6 @@ const ContentSelectorDialog = React.memo(function ContentSelectorDialog({
       isLoadingTexts: state.isLoadingTexts,
       isLoadingDocuments: state.isLoadingDocuments,
       uiConfig: state.uiConfig,
-      useAutomaticSearch: state.useAutomaticSearch,
-      toggleAutomaticSearch: state.toggleAutomaticSearch,
     }))
   );
 
@@ -223,11 +218,6 @@ const ContentSelectorDialog = React.memo(function ContentSelectorDialog({
 
   const isLoading = isLoadingTexts || isLoadingDocuments;
 
-  const handleAutoToggle = () => {
-    toggleAutomaticSearch();
-    onOpenChange(false);
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[80vh] flex-col sm:max-w-[28rem]">
@@ -236,24 +226,6 @@ const ContentSelectorDialog = React.memo(function ContentSelectorDialog({
         </DialogHeader>
 
         <div className="-mx-6 min-h-0 flex-1 overflow-y-auto px-6">
-          <div className="mb-sm">
-            <button
-              type="button"
-              className={cn(
-                'flex w-full items-center gap-sm rounded-md px-md py-sm text-left transition-colors hover:bg-hover-alt',
-                useAutomaticSearch && 'bg-secondary-100 dark:bg-secondary-100/25'
-              )}
-              onClick={handleAutoToggle}
-            >
-              <HiLightningBolt className="shrink-0 text-xl opacity-70 text-[var(--interactive-accent-color)]" />
-              <div className="min-w-0 flex-1">
-                <span className="block font-medium">Automatische Suche</span>
-                <span className="block text-sm opacity-60">KI wählt relevante Inhalte</span>
-              </div>
-              {useAutomaticSearch && <HiCheck className="shrink-0 text-xl text-primary-500" />}
-            </button>
-          </div>
-
           {completedDocuments.length > 0 && (
             <div className="mb-sm">
               <div className="px-sm py-xs text-xs font-semibold uppercase tracking-wider opacity-50">
@@ -368,7 +340,6 @@ const FeatureIcons = ({
     useWebSearch,
     usePrivacyMode,
     useProMode,
-    useAutomaticSearch,
     useAgentMode,
     selectedDocumentIds,
     selectedTextIds,
@@ -379,7 +350,6 @@ const FeatureIcons = ({
       useWebSearch: state.useWebSearch,
       usePrivacyMode: state.usePrivacyMode,
       useProMode: state.useProMode,
-      useAutomaticSearch: state.useAutomaticSearch,
       useAgentMode: state.useAgentMode,
       selectedDocumentIds: state.selectedDocumentIds,
       selectedTextIds: state.selectedTextIds,
@@ -621,29 +591,23 @@ const FeatureIcons = ({
                     size="icon"
                     className={cn(
                       'size-9 sm:size-10 text-grey-600 dark:text-grey-400 hover:bg-secondary-50 dark:hover:bg-secondary-700 transition-colors duration-150',
-                      (totalContentCount > 0 || useAutomaticSearch) &&
+                      totalContentCount > 0 &&
                         'bg-secondary-100 dark:bg-secondary-700 text-primary-500'
                     )}
                     aria-label="Inhalt"
                     type="button"
                     disabled={isValidatingFiles}
                   >
-                    {useAutomaticSearch ? (
-                      <HiLightningBolt className="size-5 sm:size-6" />
-                    ) : (
-                      <HiPaperClip className="size-5 sm:size-6" />
-                    )}
+                    <HiPaperClip className="size-5 sm:size-6" />
                   </Button>
                 </PopoverTrigger>
               </TooltipTrigger>
               <TooltipContent>
                 {isValidatingFiles
                   ? 'Prüfe...'
-                  : useAutomaticSearch
-                    ? 'Auto'
-                    : totalContentCount > 0
-                      ? `${totalContentCount} Inhalt(e)`
-                      : 'Inhalt'}
+                  : totalContentCount > 0
+                    ? `${totalContentCount} Inhalt(e)`
+                    : 'Inhalt'}
               </TooltipContent>
             </Tooltip>
             <PopoverContent align="center" className="w-72">
