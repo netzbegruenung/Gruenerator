@@ -21,6 +21,7 @@ import {
 } from './databaseOperations.js';
 import {
   extractTextWithDocling as extractDocling,
+  extractBase64WithDocling as extractBase64Docling,
   isDoclingAvailable as checkDocling,
 } from './doclingIntegration.js';
 import {
@@ -309,8 +310,7 @@ export class OCRService {
    * Extract text from any base64-encoded attachment.
    * Routes by MIME type:
    * - text/plain → direct UTF-8 decode
-   * - application/pdf → PDF.js extraction
-   * - everything else (DOCX, PPTX, ODT) → Mistral OCR via data URI
+   * - all documents → Docling (primary) → Mistral OCR (fallback) → PDF.js (PDF-only last resort)
    */
   async extractTextFromBase64(
     base64Data: string,
@@ -328,11 +328,38 @@ export class OCRService {
       };
     }
 
-    if (mimeType === 'application/pdf') {
-      return this.extractTextFromBase64PDF(base64Data, filename);
+    // Try Docling first — self-hosted, no token cost
+    const doclingReady = await checkDocling();
+    if (doclingReady) {
+      try {
+        console.log(`[OCRService] Using Docling for base64 attachment: ${filename} (${mimeType})`);
+        return await extractBase64Docling(base64Data, filename);
+      } catch (doclingError) {
+        console.warn(
+          `[OCRService] Docling base64 failed for ${filename}, falling back to Mistral OCR:`,
+          (doclingError as Error).message
+        );
+      }
+    } else {
+      console.log(
+        `[OCRService] Docling unavailable, using Mistral OCR for: ${filename} (${mimeType})`
+      );
     }
 
-    return extractBase64WithMistralOCR(base64Data, filename, mimeType);
+    // Fallback: Mistral OCR
+    try {
+      return await extractBase64WithMistralOCR(base64Data, filename, mimeType);
+    } catch (mistralError) {
+      // Last resort for PDFs: PDF.js (basic text extraction, no OCR)
+      if (mimeType === 'application/pdf') {
+        console.warn(
+          `[OCRService] Mistral OCR failed for ${filename}, trying PDF.js as last resort:`,
+          (mistralError as Error).message
+        );
+        return this.extractTextFromBase64PDF(base64Data, filename);
+      }
+      throw mistralError;
+    }
   }
 
   /**
