@@ -17,7 +17,12 @@ import {
   pickerController as imagePickerRoute,
   generationController as imageGenerationRouter,
 } from './routes/image/index.js';
-import { offboardingRouter, databaseTestRouter, rateLimitRouter } from './routes/internal/index.js';
+import {
+  offboardingRouter,
+  databaseTestRouter,
+  rateLimitRouter,
+  grueneApiTestRouter,
+} from './routes/internal/index.js';
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
 import { monitorRouter, monitorInternalRouter } from './routes/monitor/index.js';
 import notificationsRouter from './routes/notifications/index.js';
@@ -404,6 +409,7 @@ export async function setupRoutes(app: Application): Promise<void> {
     app.use('/api/internal', snapshottingRouter);
   }
   app.use('/api/internal/offboarding', offboardingRouter);
+  app.use('/api/internal/gruene-api', grueneApiTestRouter);
   app.use('/api/internal/briefing', briefingInternalRouter);
   app.use('/api/internal/monitor', monitorInternalRouter);
   app.use('/api/briefing', requireAuth, standardMutationLimiter, briefingRouter);
