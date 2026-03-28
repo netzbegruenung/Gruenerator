@@ -34,17 +34,6 @@ export function detectContentType(routePath: string, formData: FormData = {}): C
     return platforms[0] || 'social';
   }
 
-  if (routePath.includes('gruene_jugend')) {
-    const platforms = formData.platforms || [];
-    if (platforms.includes('instagram')) return 'gruene_jugend_instagram';
-    if (platforms.includes('twitter')) return 'gruene_jugend_twitter';
-    if (platforms.includes('tiktok')) return 'gruene_jugend_tiktok';
-    if (platforms.includes('messenger')) return 'gruene_jugend_messenger';
-    if (platforms.includes('reelScript')) return 'gruene_jugend_reelScript';
-    if (platforms.includes('actionIdeas')) return 'gruene_jugend_actionIdeas';
-    return platforms[0] ? `gruene_jugend_${platforms[0]}` : 'gruene_jugend_instagram';
-  }
-
   if (routePath.includes('claude_universal')) {
     const textForm = formData.textForm;
     if (textForm && typeof textForm === 'string') {

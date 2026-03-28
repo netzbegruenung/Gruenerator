@@ -158,13 +158,6 @@ const USE_CASES: UseCaseData[] = [
     label: 'Zur Websuche',
   },
   {
-    icon: { category: 'navigation', name: 'gruene-jugend' },
-    title: 'Grüne Jugend',
-    description: 'Tools und Vorlagen speziell für die Grüne Jugend.',
-    link: '/gruene-jugend',
-    label: 'Zum Grüne Jugend Grünerator',
-  },
-  {
     icon: { category: 'actions', name: 'lock' },
     title: 'Sicherheit',
     description:

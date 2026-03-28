@@ -69,15 +69,6 @@ export const agentsList: AgentListItem[] = [
     promptTemplate: 'Beantworte folgende Anfrage: ',
   },
   {
-    identifier: 'gruenerator-gruene-jugend',
-    title: 'Grüne Jugend',
-    description: 'Aktivistischer Content',
-    avatar: '✊',
-    backgroundColor: '#46962b',
-    mention: 'jugend',
-    skillCategory: 'sonstiges',
-  },
-  {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
     title: 'Pressemitteilung',
     description: 'Pressemitteilungen verfassen',

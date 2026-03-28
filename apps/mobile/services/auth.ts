@@ -81,10 +81,6 @@ export function configureAuthStore(): void {
     updateLocaleApi: async (locale: 'de-DE' | 'de-AT') => {
       await apiClient.put(API_ENDPOINTS.AUTH_PROFILE_LOCALE, { locale });
     },
-
-    updateIgelModusApi: async (enabled: boolean) => {
-      await apiClient.patch(API_ENDPOINTS.AUTH_PROFILE_IGEL, { igel_modus: enabled });
-    },
   });
 }
 

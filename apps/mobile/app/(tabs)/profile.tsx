@@ -239,17 +239,12 @@ function EinstellungenSection() {
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xsmall }}>
           <Ionicons name="notifications-outline" size={16} color={theme.textSecondary} />
-          <Text style={[styles.settingsLabel, { color: theme.textSecondary }]}>Benachrichtigungen</Text>
+          <Text style={[styles.settingsLabel, { color: theme.textSecondary }]}>
+            Benachrichtigungen
+          </Text>
         </View>
         <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
       </Pressable>
-
-      {user?.igel_modus && (
-        <View style={[styles.settingsRow, { borderBottomColor: theme.border }]}>
-          <Text style={[styles.settingsLabel, { color: theme.textSecondary }]}>Igel-Modus</Text>
-          <Text style={[styles.settingsValue, { color: colors.primary[600] }]}>Aktiv</Text>
-        </View>
-      )}
     </ScrollView>
   );
 }

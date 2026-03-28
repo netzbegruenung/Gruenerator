@@ -141,7 +141,6 @@ const ExportDropdown = ({
     if (path.includes('antrag')) return 'antrag-generator';
     if (path.includes('universal') || path.includes('rede') || path.includes('wahlprogramm'))
       return 'universal-text';
-    if (path.includes('gruene-jugend')) return 'gruene-jugend';
     if (path.includes('gruene-notebook')) return 'ask-grundsatz';
     if (path.includes('ask')) return 'ask';
 
@@ -180,8 +179,6 @@ const ExportDropdown = ({
       path.includes('wahlprogramm')
     ) {
       fallbacks.push('universal-text', 'universal', 'rede', 'wahlprogramm');
-    } else if (path.includes('gruene-jugend')) {
-      fallbacks.push('gruene-jugend', 'gruene_jugend');
     } else if (path.includes('gruene-notebook')) {
       fallbacks.push('ask-grundsatz', 'ask');
     } else if (path.includes('ask')) {

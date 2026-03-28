@@ -44,9 +44,6 @@ export class SubtitleStylingService {
     if (subtitlePreference === 'manual') {
       fontSize = Math.floor(fontSize * 1.2); // +20% for manual mode
     }
-    if (stylePreference?.startsWith('gj_')) {
-      fontSize = Math.floor(fontSize * 0.7); // -30% for GJ styles
-    }
     if (stylePreference?.startsWith('at_')) {
       fontSize = Math.floor(fontSize * 0.85); // -15% for AT styles
     }

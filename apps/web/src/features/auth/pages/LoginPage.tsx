@@ -14,7 +14,6 @@ const PAGE_NAMES: Record<string, string> = {
   sharepic: 'Sharepic Grünerator',
   universal: 'Universal Generator',
   presse: 'Presse Generator',
-  'gruene-jugend': 'Grüne Jugend Generator',
   subtitler: 'Untertitel Generator',
   voice: 'Sprach-zu-Text',
   chat: 'KI-Chat',

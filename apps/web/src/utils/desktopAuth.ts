@@ -41,7 +41,6 @@ export interface DesktopUser {
   display_name?: string;
   avatar_robot_id?: number;
   keycloak_id?: string | null;
-  igel_modus?: boolean;
   locale?: string;
   beta_features?: Record<string, boolean>;
   user_defaults?: Record<string, Record<string, unknown>>;

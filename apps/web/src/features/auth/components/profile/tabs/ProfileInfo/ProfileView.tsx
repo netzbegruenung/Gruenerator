@@ -1,7 +1,6 @@
 import { Button } from '@gruenerator/ui';
 import { motion } from 'motion/react';
 import React, { type FormEvent } from 'react';
-import { GiHedgehog } from 'react-icons/gi';
 
 import TextInput from '../../../../../../components/common/Form/Input/TextInput';
 import Spinner from '../../../../../../components/common/Spinner';
@@ -50,6 +49,11 @@ interface ProfileViewProps {
   displayName: string;
   email: string;
   username: string;
+  customPrompt: string;
+  setCustomPrompt: (value: string) => void;
+  isPromptDirty: boolean;
+  isSavingPrompt: boolean;
+  onSaveCustomPrompt: () => void;
   errorProfile: string;
   isErrorProfileQuery: boolean;
   errorProfileQueryMessage: string | undefined;
@@ -63,8 +67,6 @@ interface ProfileViewProps {
   deleteAccountError: string;
   isDeletingAccount: boolean;
   onDeleteAccountSubmit: (e: FormEvent<HTMLFormElement>) => void;
-  igelActive: boolean;
-  onToggleIgelModus: (checked: boolean) => void;
   isBetaFeaturesUpdating: boolean;
   onSuccessMessage: (message: string) => void;
 }
@@ -77,6 +79,11 @@ const ProfileView = ({
   displayName,
   email,
   username,
+  customPrompt,
+  setCustomPrompt,
+  isPromptDirty,
+  isSavingPrompt,
+  onSaveCustomPrompt,
   errorProfile,
   isErrorProfileQuery,
   errorProfileQueryMessage,
@@ -90,8 +97,6 @@ const ProfileView = ({
   deleteAccountError,
   isDeletingAccount,
   onDeleteAccountSubmit,
-  igelActive,
-  onToggleIgelModus,
   isBetaFeaturesUpdating,
   onSuccessMessage,
 }: ProfileViewProps) => {
@@ -189,30 +194,12 @@ const ProfileView = ({
               🇦🇹
             </button>
           </div>
-          <button
-            type="button"
-            className={cn(
-              'flex items-center justify-center size-8 rounded-md transition-all',
-              igelActive
-                ? 'opacity-100 text-primary-500 bg-primary-500/10'
-                : 'opacity-40 text-foreground hover:opacity-70',
-              'disabled:cursor-not-allowed disabled:opacity-30'
-            )}
-            onClick={() => onToggleIgelModus(!igelActive)}
-            aria-label="Igel-Modus"
-            title={igelActive ? 'Igel-Modus deaktivieren' : 'Igel-Modus aktivieren'}
-            disabled={isBetaFeaturesUpdating}
-          >
-            <GiHedgehog size={20} />
-          </button>
         </div>
       </div>
 
       {/* Experimental Features */}
       <SettingsSection
         isActive={true}
-        igelActive={igelActive}
-        onToggleIgelModus={onToggleIgelModus}
         isBetaFeaturesUpdating={isBetaFeaturesUpdating}
         onSuccessMessage={onSuccessMessage}
         onErrorMessage={() => {}}

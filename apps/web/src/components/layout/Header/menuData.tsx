@@ -8,7 +8,6 @@ import type { IconType } from 'react-icons';
 export interface BetaFeatures {
   databaseBetaEnabled?: boolean;
   youBetaEnabled?: boolean;
-  igelModeEnabled?: boolean;
   isAustrian?: boolean;
   workplace?: boolean;
 }

@@ -37,9 +37,6 @@ export const DOCUMENT_TYPE_MAP: Record<string, string> = {
   notebook: 'text',
   ask: 'text',
   'ask-grundsatz': 'text',
-
-  // Youth generators
-  'gruene-jugend': 'gruene_jugend',
 };
 
 /**

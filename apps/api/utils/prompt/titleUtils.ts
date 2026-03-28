@@ -37,10 +37,6 @@ export function generateSmartTitle(
     case 'universal':
       return `${formData.textForm || 'Text'}: ${formData.thema || 'Unbenannt'}`;
     default:
-      if (contentType.startsWith('gruene_jugend_')) {
-        const platform = contentType.replace('gruene_jugend_', '');
-        return `Grüne Jugend ${platform}: ${formData.thema || 'Unbenannt'}`;
-      }
       return `${contentType}: ${formData.thema || formData.idee || 'Unbenannt'}`;
   }
 }

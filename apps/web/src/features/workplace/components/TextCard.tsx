@@ -27,7 +27,6 @@ const TEXT_TYPE_LABELS: Record<string, string> = {
   social: 'Social',
   press: 'Presse',
   universal: 'Universal',
-  gruene_jugend: 'Grüne Jugend',
 };
 
 const TextCard = React.memo(
