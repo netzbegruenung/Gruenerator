@@ -4,6 +4,7 @@ import { genericOAuth } from 'better-auth/plugins/generic-oauth';
 import pg from 'pg';
 
 import { loadConfig } from '../database/services/PostgresService/config.js';
+import { mobileTokenExchange } from '../plugins/mobileTokenExchange.js';
 import { redisClient } from '../utils/redis/client.js';
 
 const KC_BASE = process.env.KEYCLOAK_BASE_URL || 'https://user.netzbegruenung.de';
@@ -157,6 +158,7 @@ export const auth = betterAuth({
       ],
     }),
     bearer(),
+    mobileTokenExchange(),
   ],
 });
 
