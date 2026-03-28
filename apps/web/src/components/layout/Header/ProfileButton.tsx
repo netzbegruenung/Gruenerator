@@ -1,10 +1,4 @@
-import {
-  Badge,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-  LiteTooltip,
-} from '@gruenerator/ui';
+import { Badge, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@gruenerator/ui';
 import { LogOut } from 'lucide-react';
 import { memo, useState } from 'react';
 import { FaCloud, FaFolder, FaUserCircle, FaUsers } from 'react-icons/fa';
@@ -130,42 +124,41 @@ const ProfileDropdownContent = memo(({ user, unreadCount }: ProfileDropdownConte
               ? location.pathname === '/profile'
               : location.pathname.startsWith(item.path);
           return (
-            <LiteTooltip key={item.key} label={item.label}>
-              <button
-                type="button"
-                onClick={() => navigate(item.path)}
-                className={cn(
-                  'flex items-center justify-center size-9 rounded-lg transition-colors',
-                  isActive
-                    ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400'
-                    : 'text-grey-500 hover:bg-background-alt hover:text-foreground'
-                )}
-                aria-label={item.label}
-              >
-                <item.icon className="size-4" />
-              </button>
-            </LiteTooltip>
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => navigate(item.path)}
+              className={cn(
+                'css-tooltip flex items-center justify-center size-9 rounded-lg transition-colors',
+                isActive
+                  ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400'
+                  : 'text-grey-500 hover:bg-background-alt hover:text-foreground'
+              )}
+              aria-label={item.label}
+              data-tooltip={item.label}
+            >
+              <item.icon className="size-4" />
+            </button>
           );
         })}
         <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-xxs" />
-        <LiteTooltip label={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}>
-          <button
-            type="button"
-            onClick={() => {
-              if (!isLoggingOut) void logout();
-            }}
-            disabled={isLoggingOut}
-            className={cn(
-              'flex items-center justify-center size-9 rounded-lg transition-colors',
-              isLoggingOut
-                ? 'opacity-50 cursor-not-allowed text-grey-400'
-                : 'text-grey-500 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600'
-            )}
-            aria-label={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
-          >
-            <LogOut className="size-4" />
-          </button>
-        </LiteTooltip>
+        <button
+          type="button"
+          onClick={() => {
+            if (!isLoggingOut) void logout();
+          }}
+          disabled={isLoggingOut}
+          className={cn(
+            'css-tooltip flex items-center justify-center size-9 rounded-lg transition-colors',
+            isLoggingOut
+              ? 'opacity-50 cursor-not-allowed text-grey-400'
+              : 'text-grey-500 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600'
+          )}
+          aria-label={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
+          data-tooltip={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
+        >
+          <LogOut className="size-4" />
+        </button>
       </div>
 
       {unreadCount > 0 && <NotificationList unreadCount={unreadCount} />}
