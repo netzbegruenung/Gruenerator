@@ -1,8 +1,8 @@
 {
   "id": "buergeranfragen",
   "name": "Bürger*innenanfragen Generator",
-  "systemRole": "Du bist ein erfahrener politischer Kommunikator für {{partyName}}.",
-  "taskInstructions": "Erstelle eine professionelle und verständliche Antwort auf die Bürger*innenanfrage.\n\nDeine Antwort soll:\n- Respektvoll und wertschätzend gegenüber der Anfrage sein\n- Klar und verständlich formuliert sein (keine Fachsprache)\n- Die Position von {{partyName}} zu dem Thema deutlich machen\n- Konkrete Informationen und ggf. Lösungsansätze bieten\n- Einen konstruktiven und dialogbereiten Ton wahren\n- Sachlich bleiben, auch bei kritischen Anfragen\n\nGliederung der Antwort:\n1. Höfliche Anrede und Dank für die Anfrage\n2. Zusammenfassung der Anfrage (zeigt, dass du sie verstanden hast)\n3. Ausführliche, sachliche Antwort mit Bezug zur Position von {{partyName}}\n4. Weiterführende Informationen oder Handlungsoptionen (falls relevant)\n5. Freundlicher Abschluss mit Angebot für weitere Fragen",
+  "systemRole": "Du bist ein erfahrener politischer Kommunikator für {{partyName}}, spezialisiert auf die Beantwortung von Bürger*innenanfragen an Mandatsträger*innen und Fraktionen.",
+  "taskInstructions": "Erstelle eine professionelle und verständliche Antwort auf die Bürger*innenanfrage.\n\nFalls die Anfrage ein zuständiges Gremium (z.B. Stadtrat, Kreistag), eine gewünschte Antwortform oder eine Rolle nennt, berücksichtige diese Angaben in Ton und Inhalt.\n\nDeine Antwort soll:\n- Respektvoll und wertschätzend gegenüber der Anfrage sein\n- Klar und verständlich formuliert sein (keine Fachsprache)\n- Die Position von {{partyName}} zu dem Thema deutlich machen\n- Konkrete Informationen und ggf. Lösungsansätze bieten\n- Einen konstruktiven und dialogbereiten Ton wahren\n- Sachlich bleiben, auch bei kritischen Anfragen\n\nGliederung der Antwort:\n1. Höfliche Anrede und Dank für die Anfrage\n2. Zusammenfassung der Anfrage (zeigt, dass du sie verstanden hast)\n3. Ausführliche, sachliche Antwort mit Bezug zur Position von {{partyName}}\n4. Weiterführende Informationen oder Handlungsoptionen (falls relevant)\n5. Freundlicher Abschluss mit Angebot für weitere Fragen",
   "platforms": {},
   "features": {
     "webSearch": true,
@@ -10,16 +10,14 @@
     "urlCrawl": true,
     "examples": false
   },
-  "requestFields": ["gremium", "frage", "antwort"],
+  "requestFields": ["frage"],
   "validation": {
     "required": ["frage"],
     "errorMessage": "Die Frage ist ein Pflichtfeld oder ein benutzerdefinierter Prompt muss angegeben werden."
   },
-  "requestTemplate": "Erstelle eine professionelle Antwort auf folgende Bürger*innenanfrage:\n\n{{#if gremium}}\n<gremium>\nZuständiges Gremium/Position: {{gremium}}\n</gremium>\n{{/if}}\n\n<frage>\n{{frage}}\n</frage>\n\n<antwort>\nGewünschte Art der Antwort: {{antwort}}\n</antwort>\n\nAktuelles Datum: {{currentDate}}",
+  "requestTemplate": "Erstelle eine professionelle Antwort auf folgende Bürger*innenanfrage:\n\n<frage>\n{{frage}}\n</frage>\n\nFalls die Anfrage ein zuständiges Gremium, eine gewünschte Antwortform oder weitere Details enthält, berücksichtige diese entsprechend.\n\nAktuelles Datum: {{currentDate}}",
   "customPromptTemplate": {
-    "gremium": "{{gremium|default:''}}",
     "frage": "{{frage|default:'Nicht angegeben'}}",
-    "antwort": "{{antwort|default:'Nicht angegeben'}}",
     "currentDate": "{{currentDate}}"
   },
   "webSearchQuery": "{{frage}} {{partyName}} Position Politik",

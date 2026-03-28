@@ -6,7 +6,7 @@ export const redeMode: ModeDefinition = {
   instructionType: 'rede',
   componentName: 'universal-text-rede',
   defaultMode: 'privacy',
-  searchQueryFields: ['thema', 'rolle'],
+  searchQueryFields: ['thema'],
   placeholder: 'Beschreibe das Thema oder den Anlass deiner Rede...',
   useMarkdown: true,
   promptField: 'thema',
@@ -23,20 +23,10 @@ export const redeMode: ModeDefinition = {
       multiple: false,
     },
   ],
-  extraFields: [
-    {
-      key: 'rolle',
-      type: 'input',
-      placeholder: 'z.B. Fraktionsvorsitzende*r, Kreisverbandssprecher*in...',
-    },
-  ],
   defaults: {
     redezeit: '3',
-    rolle: '',
   },
-  buildSubmitFields: (prompt, state) => ({
-    thema: prompt,
-    rolle: state.rolle,
+  buildSubmitFields: (_prompt, state) => ({
     redezeit: state.redezeit,
   }),
 };
