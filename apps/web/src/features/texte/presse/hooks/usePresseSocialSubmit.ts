@@ -1,166 +1,46 @@
 import { useCallback } from 'react';
 
 import useApiSubmit from '../../../../components/hooks/useApiSubmit';
-import useSharepicGeneration from '../../../../hooks/useSharepicGeneration';
-import { usePRWorkflow } from '../../../pr-agent/hooks/usePRWorkflow';
 
 import type { FeatureState } from '../../../../hooks/useGeneratorSetup';
-
-interface SocialMediaFormData {
-  inhalt: string;
-}
-
-interface PressemitteilungFormData {
-  zitatgeber: string;
-}
-
-interface SharepicFormData {
-  sharepicType: string;
-  zitatAuthor: string;
-  uploadedImage: string | null;
-}
 
 /**
  * Combined form data from all child forms
  */
-export interface PresseSocialFormData
-  extends SocialMediaFormData, Partial<PressemitteilungFormData>, Partial<SharepicFormData> {
-  /**
-   * Selected platforms for generation
-   */
+export interface PresseSocialFormData {
+  inhalt: string;
   platforms: string[];
+  zitatgeber?: string;
 }
 
-/**
- * Configuration for submission hook
- */
 interface SubmissionConfig {
-  /**
-   * Feature state flags
-   */
   features: FeatureState;
-
-  /**
-   * Selected document IDs
-   */
   selectedDocumentIds: readonly string[];
-
-  /**
-   * Selected text IDs
-   */
   selectedTextIds: readonly string[];
-
-  /**
-   * File attachments and crawled URLs
-   */
   attachments: readonly unknown[];
-
-  /**
-   * Whether user can use sharepic feature
-   */
-  canUseSharepic: boolean;
-
-  /**
-   * External submit function (e.g. streaming submit from useBaseForm).
-   * When provided, replaces the internal useApiSubmit for social text generation.
-   */
   externalSubmitForm?: (formData: Record<string, unknown>) => Promise<Record<string, unknown>>;
 }
 
-/**
- * Result from parallel generation
- */
 interface GenerationResult {
-  sharepic?: unknown[];
   social?: {
     content: string;
     metadata?: Record<string, unknown>;
   };
 }
 
-/**
- * Return value from submission hook
- */
 interface SubmitReturn {
-  /**
-   * Submit handler for "automatisch" PR-Paket workflow
-   * Returns strategy for approval
-   */
-  submitPRWorkflow: (
-    formData: PresseSocialFormData
-  ) => Promise<{ success: boolean; workflow_id: string; content: string; error?: string } | null>;
-
-  /**
-   * Submit handler for standard social media generation
-   * Executes sharepic and social content in parallel
-   */
   submitStandard: (formData: PresseSocialFormData) => Promise<GenerationResult | null>;
-
-  /**
-   * Submit handler for Agent Mode
-   * Research → Strategy → Platform Generation
-   */
   submitAgentMode: (formData: PresseSocialFormData) => Promise<GenerationResult | null>;
-
-  /**
-   * Generate production content after PR approval
-   */
-  generateProduction: (
-    workflowId: string,
-    platforms: string[]
-  ) => Promise<{
-    content: Record<string, string>;
-    metadata: Record<string, unknown>;
-    sharepics: unknown[];
-  } | null>;
-
-  /**
-   * Whether any generation is in progress
-   */
   loading: boolean;
-
-  /**
-   * Error from generation
-   */
   error: { message: string } | null;
-
-  /**
-   * PR workflow state
-   */
-  prWorkflow: ReturnType<typeof usePRWorkflow>;
 }
 
 /**
- * Custom hook for PresseSocial submission logic
+ * Custom hook for PresseSocial submission logic.
  *
- * Consolidates all submission handlers:
- * - PR-Paket workflow (automatisch mode)
- * - Parallel sharepic + social generation
- * - Production content generation after approval
- *
- * Extracted from PresseSocialGenerator for separation of concerns.
- *
- * @example
- * ```typescript
- * const submit = usePresseSocialSubmit({
- *   features,
- *   customPrompt,
- *   selectedDocumentIds,
- *   selectedTextIds,
- *   attachments,
- *   canUseSharepic
- * });
- *
- * const handleSubmit = async (formData: PresseSocialFormData) => {
- *   if (formData.platforms.includes('automatisch')) {
- *     const result = await submit.submitPRWorkflow(formData);
- *     // Handle approval UI
- *   } else {
- *     const result = await submit.submitStandard(formData);
- *     // Handle generated content
- *   }
- * };
- * ```
+ * Handles two submission paths:
+ * - Standard: direct social media content generation
+ * - Agent Mode: research → strategy → platform generation
  */
 export function usePresseSocialSubmit(config: SubmissionConfig): SubmitReturn {
   const internalApi = useApiSubmit('/claude_social');
@@ -168,53 +48,13 @@ export function usePresseSocialSubmit(config: SubmissionConfig): SubmitReturn {
   const socialSubmitForm = config.externalSubmitForm || internalApi.submitForm;
   const socialLoading = config.externalSubmitForm ? false : internalApi.loading;
   const socialError = config.externalSubmitForm ? null : internalApi.error;
-  const { generateSharepic, loading: sharepicLoading } = useSharepicGeneration();
-  const prWorkflow = usePRWorkflow();
 
-  /**
-   * Submit PR-Paket workflow
-   * Phase 1: Generate strategy for approval
-   */
-  const submitPRWorkflow = useCallback(
-    async (
-      formData: PresseSocialFormData
-    ): Promise<{
-      success: boolean;
-      workflow_id: string;
-      content: string;
-      error?: string;
-    } | null> => {
-      try {
-        const result = await prWorkflow.generateStrategy({
-          inhalt: formData.inhalt,
-          useWebSearchTool: config.features.useWebSearchTool,
-          selectedDocumentIds: Array.from(config.selectedDocumentIds),
-          selectedTextIds: Array.from(config.selectedTextIds),
-        });
-
-        return result as { success: boolean; workflow_id: string; content: string; error?: string };
-      } catch (error) {
-        console.error('[usePresseSocialSubmit] PR workflow failed:', error);
-        return null;
-      }
-    },
-    [prWorkflow, config.features, config.selectedDocumentIds, config.selectedTextIds]
-  );
-
-  /**
-   * Submit standard social media generation
-   * Executes sharepic and social content in PARALLEL
-   */
   const submitStandard = useCallback(
     async (formData: PresseSocialFormData): Promise<GenerationResult | null> => {
       try {
-        const hasSharepic = config.canUseSharepic && formData.platforms.includes('sharepic');
-        const otherPlatforms = formData.platforms.filter((p: string) => p !== 'sharepic');
-
-        // Build submission data
         const submissionData = {
           inhalt: formData.inhalt,
-          platforms: otherPlatforms,
+          platforms: formData.platforms,
           zitatgeber: formData.zitatgeber || '',
           ...config.features,
           attachments: config.attachments,
@@ -223,106 +63,8 @@ export function usePresseSocialSubmit(config: SubmissionConfig): SubmitReturn {
           searchQuery: buildSearchQuery(formData),
         };
 
-        const combinedResults: GenerationResult = {};
-        const generationPromises: Promise<{
-          type: string;
-          result?: unknown;
-          error?: unknown;
-        }>[] = [];
-
-        // Prepare sharepic generation promise
-        if (hasSharepic) {
-          type SharepicType =
-            | 'default'
-            | 'quote'
-            | 'quote_pure'
-            | 'info'
-            | 'headline'
-            | 'dreizeilen';
-
-          generationPromises.push(
-            generateSharepic(
-              formData.inhalt,
-              '', // details merged into inhalt
-              formData.uploadedImage ? (formData.uploadedImage as unknown as Blob) : null,
-              (formData.sharepicType || 'default') as SharepicType,
-              formData.zitatAuthor || '',
-              null,
-              config.attachments as Array<{ type: string; data: string }>,
-              config.features.usePrivacyMode,
-              null,
-              config.features.useBedrock
-            )
-              .then((result) => ({ type: 'sharepic' as const, result }))
-              .catch((error) => ({ type: 'sharepic' as const, error }))
-          );
-        }
-
-        // Prepare social generation promise
-        if (otherPlatforms.length > 0) {
-          generationPromises.push(
-            socialSubmitForm(submissionData)
-              .then((result) => ({ type: 'social', result }))
-              .catch((error) => ({ type: 'social', error }))
-          );
-        }
-
-        // Execute all generations in parallel
-        const results = await Promise.all(generationPromises);
-
-        // Process results
-        for (const outcome of results) {
-          if (outcome.type === 'sharepic' && !outcome.error && outcome.result) {
-            interface SharepicEntry {
-              id?: string;
-              createdAt?: string;
-              [key: string]: unknown;
-            }
-
-            const sharepicResult = outcome.result as SharepicEntry | SharepicEntry[];
-            let newSharepicEntries: SharepicEntry[];
-
-            if (Array.isArray(sharepicResult)) {
-              newSharepicEntries = sharepicResult.map((sharepic: SharepicEntry) => ({
-                ...sharepic,
-                id: sharepic.id || `sharepic-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-                createdAt: sharepic.createdAt || new Date().toISOString(),
-              }));
-            } else {
-              newSharepicEntries = [
-                {
-                  ...sharepicResult,
-                  id: `sharepic-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-                  createdAt: new Date().toISOString(),
-                },
-              ];
-            }
-
-            combinedResults.sharepic = newSharepicEntries;
-          } else if (outcome.type === 'sharepic' && outcome.error) {
-            console.error('[usePresseSocialSubmit] Sharepic generation failed:', outcome.error);
-          }
-
-          if (outcome.type === 'social' && !outcome.error && outcome.result) {
-            const response = outcome.result as
-              | { content?: string; metadata?: Record<string, unknown> }
-              | string;
-            const content =
-              typeof response === 'string'
-                ? response
-                : (response as { content?: string }).content || '';
-            const metadata =
-              typeof response === 'object' && response !== null
-                ? (response as { metadata?: Record<string, unknown> }).metadata || {}
-                : {};
-
-            combinedResults.social = { content, metadata };
-          } else if (outcome.type === 'social' && outcome.error) {
-            console.error('[usePresseSocialSubmit] Social generation failed:', outcome.error);
-          }
-        }
-
-        return combinedResults;
+        const result = await socialSubmitForm(submissionData);
+        return parseSocialResult(result);
       } catch (error) {
         console.error('[usePresseSocialSubmit] Standard submission failed:', error);
         return null;
@@ -330,8 +72,6 @@ export function usePresseSocialSubmit(config: SubmissionConfig): SubmitReturn {
     },
     [
       socialSubmitForm,
-      generateSharepic,
-      config.canUseSharepic,
       config.features,
       config.attachments,
       config.selectedDocumentIds,
@@ -339,19 +79,14 @@ export function usePresseSocialSubmit(config: SubmissionConfig): SubmitReturn {
     ]
   );
 
-  /**
-   * Submit Agent Mode: Research → Strategy → Generate
-   */
   const submitAgentMode = useCallback(
     async (formData: PresseSocialFormData): Promise<GenerationResult | null> => {
       try {
-        const platforms = formData.platforms.filter((p: string) => p !== 'sharepic');
-
-        if (platforms.length === 0) return null;
+        if (formData.platforms.length === 0) return null;
 
         const submissionData = {
           inhalt: formData.inhalt,
-          platforms,
+          platforms: formData.platforms,
           zitatgeber: formData.zitatgeber || '',
           ...config.features,
           attachments: config.attachments,
@@ -362,20 +97,7 @@ export function usePresseSocialSubmit(config: SubmissionConfig): SubmitReturn {
         };
 
         const result = await agentApi.submitForm(submissionData);
-
-        const response = result as
-          | { content?: string; metadata?: Record<string, unknown> }
-          | string;
-        const content =
-          typeof response === 'string'
-            ? response
-            : (response as { content?: string }).content || '';
-        const metadata =
-          typeof response === 'object' && response !== null
-            ? (response as { metadata?: Record<string, unknown> }).metadata || {}
-            : {};
-
-        return { social: { content, metadata } };
+        return parseSocialResult(result);
       } catch (error) {
         console.error('[usePresseSocialSubmit] Agent mode failed:', error);
         return null;
@@ -390,48 +112,28 @@ export function usePresseSocialSubmit(config: SubmissionConfig): SubmitReturn {
     ]
   );
 
-  /**
-   * Generate production content after PR approval
-   * Phase 2: Generate platform-specific content
-   */
-  const generateProduction = useCallback(
-    async (workflowId: string, platforms: string[]) => {
-      try {
-        const result = await prWorkflow.generateProduction(workflowId, platforms);
-        return result;
-      } catch (error) {
-        console.error('[usePresseSocialSubmit] Production generation failed:', error);
-        return null;
-      }
-    },
-    [prWorkflow]
-  );
-
   return {
-    submitPRWorkflow,
     submitStandard,
     submitAgentMode,
-    generateProduction,
-    loading:
-      socialLoading ||
-      agentApi.loading ||
-      sharepicLoading ||
-      prWorkflow.state.status === 'generating_strategy',
-    error:
-      (socialError as unknown as { message: string } | null) ||
-      (prWorkflow.state.error ? { message: prWorkflow.state.error } : null),
-    prWorkflow,
+    loading: socialLoading || agentApi.loading,
+    error: socialError as unknown as { message: string } | null,
   };
 }
 
-/**
- * Helper: Build search query from form data
- */
+function parseSocialResult(result: unknown): GenerationResult {
+  const response = result as { content?: string; metadata?: Record<string, unknown> } | string;
+  const content =
+    typeof response === 'string' ? response : (response as { content?: string }).content || '';
+  const metadata =
+    typeof response === 'object' && response !== null
+      ? (response as { metadata?: Record<string, unknown> }).metadata || {}
+      : {};
+  return { social: { content, metadata } };
+}
+
 function buildSearchQuery(formData: PresseSocialFormData): string {
   const queryParts: string[] = [];
-
   if (formData.inhalt) queryParts.push(formData.inhalt);
   if (formData.zitatgeber) queryParts.push(formData.zitatgeber);
-
   return queryParts.filter((part) => part && part.trim()).join(' ');
 }

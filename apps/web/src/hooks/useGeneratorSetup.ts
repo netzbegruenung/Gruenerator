@@ -34,8 +34,6 @@ export interface FeatureState {
   readonly useWebSearchTool: boolean;
   readonly usePrivacyMode: boolean;
   readonly useProMode: boolean;
-  readonly useUltraMode: boolean;
-  readonly useBedrock: boolean;
   readonly useAgentMode: boolean;
 }
 
@@ -114,7 +112,6 @@ export function useGeneratorSetup(config: GeneratorSetupConfig): GeneratorSetupR
     useWebSearch,
     usePrivacyMode,
     useProMode,
-    useUltraMode,
     useAgentMode,
   } = useGeneratorSelectionStore(
     useShallow((state) => ({
@@ -123,7 +120,6 @@ export function useGeneratorSetup(config: GeneratorSetupConfig): GeneratorSetupR
       useWebSearch: state.useWebSearch,
       usePrivacyMode: state.usePrivacyMode,
       useProMode: state.useProMode,
-      useUltraMode: state.useUltraMode,
       useAgentMode: state.useAgentMode,
     }))
   );
@@ -133,8 +129,6 @@ export function useGeneratorSetup(config: GeneratorSetupConfig): GeneratorSetupR
     useWebSearchTool: useWebSearch,
     usePrivacyMode,
     useProMode,
-    useUltraMode,
-    useBedrock: useUltraMode,
     useAgentMode,
   };
 
