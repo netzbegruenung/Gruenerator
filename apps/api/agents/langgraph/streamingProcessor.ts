@@ -361,10 +361,10 @@ export async function processGraphRequestStreaming(
     });
 
     // Cache edit context in Redis
-    if ((req as any).session?.id) {
+    if (req.user?.id) {
       try {
         const { redisClient } = await import('../../utils/redis/index.js');
-        const contextCacheKey = `edit_context:${(req as any).session.id}:${routeType}`;
+        const contextCacheKey = `edit_context:${req.user.id}:${routeType}`;
         const contextData = {
           originalRequest: requestData,
           enrichedState: {
