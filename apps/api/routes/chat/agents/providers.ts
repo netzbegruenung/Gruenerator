@@ -134,6 +134,11 @@ export function getModel(provider: AgentConfig['provider'], modelId: string): La
       return model;
     }
     case 'regolo': {
+      if (!process.env.REGOLO_API_KEY) {
+        console.log(`[providers] REGOLO_API_KEY not set, falling back to Mistral: ${modelId}`);
+        const mistral = getMistralProvider();
+        return mistral(modelId);
+      }
       const regoloDefault = process.env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
       console.log(`[providers] Creating Regolo model: ${modelId || regoloDefault}`);
       const regolo = getRegoloProvider();
