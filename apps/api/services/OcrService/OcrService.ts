@@ -23,7 +23,10 @@ import {
   extractTextWithDocling as extractDocling,
   isDoclingAvailable as checkDocling,
 } from './doclingIntegration.js';
-import { extractTextWithMistralOCR as extractMistral } from './mistralIntegration.js';
+import {
+  extractTextWithMistralOCR as extractMistral,
+  extractBase64WithMistralOCR,
+} from './mistralIntegration.js';
 import {
   getPdfJs as loadPdfJs,
   openPdfDocument as openPdf,
@@ -300,6 +303,36 @@ export class OCRService {
     filename: string = 'unknown.pdf'
   ): Promise<ExtractionResult> {
     return await extractBase64(base64Data, filename, this.getPdfJs.bind(this));
+  }
+
+  /**
+   * Extract text from any base64-encoded attachment.
+   * Routes by MIME type:
+   * - text/plain → direct UTF-8 decode
+   * - application/pdf → PDF.js extraction
+   * - everything else (DOCX, PPTX, ODT) → Mistral OCR via data URI
+   */
+  async extractTextFromBase64(
+    base64Data: string,
+    filename: string,
+    mimeType: string
+  ): Promise<ExtractionResult> {
+    if (mimeType === 'text/plain') {
+      const text = Buffer.from(base64Data, 'base64').toString('utf-8');
+      return {
+        text,
+        pageCount: 1,
+        method: 'direct',
+        confidence: 1.0,
+        stats: { pages: 1, successfulPages: 1, method: 'utf8-decode' },
+      };
+    }
+
+    if (mimeType === 'application/pdf') {
+      return this.extractTextFromBase64PDF(base64Data, filename);
+    }
+
+    return extractBase64WithMistralOCR(base64Data, filename, mimeType);
   }
 
   /**

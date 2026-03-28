@@ -65,7 +65,11 @@ export async function processAttachments(
       log.info(`[${requestId}] Added image attachment: ${attachment.name}`);
     } else {
       try {
-        const result = await ocrService.extractTextFromBase64PDF(attachment.data, attachment.name);
+        const result = await ocrService.extractTextFromBase64(
+          attachment.data,
+          attachment.name,
+          attachment.type
+        );
 
         if (result.text && result.text.length > 0) {
           documentTexts.push(`### ${attachment.name}\n\n${result.text}`);

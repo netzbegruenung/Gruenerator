@@ -265,6 +265,25 @@ Beantworte Fragen zu den Dokumenten basierend auf deren Inhalt.`;
 }
 
 /**
+ * Format image attachment context for the system message.
+ * Instructs the model to acknowledge and describe the attached images.
+ */
+function formatImageContext(state: ChatGraphState): string {
+  if (!state.imageAttachments || state.imageAttachments.length === 0) {
+    return '';
+  }
+
+  const count = state.imageAttachments.length;
+  const names = state.imageAttachments.map((img) => img.name).join(', ');
+
+  return `
+
+## ANGEHÄNGTE BILDER
+
+Der Nutzer hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). Die Bilder sind in der Nachricht sichtbar. Beziehe dich auf den Bildinhalt in deiner Antwort.`;
+}
+
+/**
  * Format thread attachments (from previous messages) as context.
  * Only includes document summaries, not full text (for token efficiency).
  */
@@ -401,6 +420,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   } = state;
   const searchContext = await formatSearchContext(state);
   const attachmentContext = formatAttachmentContext(state);
+  const imageContext = formatImageContext(state);
   const summaryContextFormatted = formatSummaryContext(summaryContext);
   const threadAttachmentsContext = formatThreadAttachmentsContext(threadAttachments);
   const memoryContextFormatted = formatMemoryContext(memoryContext);
@@ -444,7 +464,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   // Custom system prompt: replaces the entire agent prompt when set
   if (state.customSystemPrompt) {
     return `${state.customSystemPrompt}
-Heutiges Datum: ${today}${localeContext}${memoryContextFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${attachmentContext}${summaryContextFormatted}${searchContext}${hasSources ? `\n${citationInstruction}` : ''}`;
+Heutiges Datum: ${today}${localeContext}${memoryContextFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}${hasSources ? `\n${citationInstruction}` : ''}`;
   }
 
   // Use a neutral, non-partisan system role for document summaries
@@ -456,7 +476,7 @@ Heutiges Datum: ${today}${localeContext}${memoryContextFormatted}${boardContextF
   const systemRole = localizePlaceholders(rawSystemRole, (state.userLocale as Locale) || 'de-DE');
 
   return `${systemRole}
-Heutiges Datum: ${today}${localeContext}${intentGuidance}${memoryContextFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${attachmentContext}${summaryContextFormatted}${searchContext}
+Heutiges Datum: ${today}${localeContext}${intentGuidance}${memoryContextFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo
