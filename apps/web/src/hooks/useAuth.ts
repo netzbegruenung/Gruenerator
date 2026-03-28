@@ -553,7 +553,7 @@ export const useAuth = (options: AuthOptions = {}) => {
         setLoginIntent: () => {},
         session: null,
         supabase: null,
-        canManageAccount: () => false,
+        canManageAccount: (): boolean => false,
       };
     }
 

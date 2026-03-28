@@ -4,7 +4,6 @@ import { useState } from 'react';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
-import { useOptimizedAuth } from '../../hooks/useAuth';
 import useBetaFeatures from '../../hooks/useBetaFeatures';
 import { useFirstName } from '../../hooks/useFirstName';
 import { DEFAULT_MODE } from '../texte/modes';
@@ -24,7 +23,6 @@ function getGreeting(): string {
 }
 
 const WorkplacePage = () => {
-  useOptimizedAuth();
   const { canAccessBetaFeature } = useBetaFeatures();
   const firstName = useFirstName();
 

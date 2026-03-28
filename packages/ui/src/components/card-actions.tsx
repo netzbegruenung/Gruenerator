@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { HiDotsVertical, HiOutlineTrash, HiShare } from 'react-icons/hi';
 
 import { cn } from '../lib/cn';
@@ -31,6 +31,8 @@ const CardActionsMenu: React.FC<CardActionsMenuProps> = React.memo(
     className,
     children,
   }) => {
+    const [open, setOpen] = useState(false);
+
     if (!onShare && !onDelete && !children) return null;
 
     return (
@@ -39,7 +41,7 @@ const CardActionsMenu: React.FC<CardActionsMenuProps> = React.memo(
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >
-        <DropdownMenu>
+        <DropdownMenu open={open} onOpenChange={setOpen}>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
@@ -49,24 +51,26 @@ const CardActionsMenu: React.FC<CardActionsMenuProps> = React.memo(
               <HiDotsVertical size={14} />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align={align}>
-            {children}
-            {onShare && (
-              <DropdownMenuItem onClick={onShare}>
-                <HiShare />
-                {shareLabel}
-              </DropdownMenuItem>
-            )}
-            {onDelete && (
-              <>
-                {(onShare || children) && <DropdownMenuSeparator />}
-                <DropdownMenuItem variant="destructive" onClick={onDelete}>
-                  <HiOutlineTrash />
-                  {deleteLabel}
+          {open && (
+            <DropdownMenuContent align={align}>
+              {children}
+              {onShare && (
+                <DropdownMenuItem onClick={onShare}>
+                  <HiShare />
+                  {shareLabel}
                 </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
+              )}
+              {onDelete && (
+                <>
+                  {(onShare || children) && <DropdownMenuSeparator />}
+                  <DropdownMenuItem variant="destructive" onClick={onDelete}>
+                    <HiOutlineTrash />
+                    {deleteLabel}
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          )}
         </DropdownMenu>
       </div>
     );

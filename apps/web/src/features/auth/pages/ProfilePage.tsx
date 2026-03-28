@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
+import PageContainer from '../../../components/common/PageContainer';
 import Spinner from '../../../components/common/Spinner';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { PROFILE_MENU_ITEMS } from '../components/profile/ProfileMenu';
@@ -92,17 +93,17 @@ const ProfilePage = () => {
 
   if (isLoggingOut) {
     return (
-      <div className="w-full mx-auto max-w-screen-2xl px-md py-lg">
+      <PageContainer>
         <div className="flex flex-col items-center justify-center min-h-[50vh] gap-md">
           <h1>Abmelden...</h1>
           <Spinner size="large" />
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="w-full mx-auto max-w-screen-2xl px-md py-lg">
+    <PageContainer>
       {(successMessage || errorMessage) && (
         <div className="mb-md">
           {successMessage && (
@@ -162,7 +163,7 @@ const ProfilePage = () => {
           )}
         </Suspense>
       </div>
-    </div>
+    </PageContainer>
   );
 };
 
