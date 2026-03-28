@@ -8,6 +8,8 @@ export interface LoginProvider {
   id: LoginProviderId;
   /** Value sent as `?source=` to the auth endpoint */
   source: string;
+  /** Better Auth genericOAuth provider ID */
+  betterAuthProviderId: string;
   title: string;
   description: string;
   /** CSS class applied to the button for provider-specific hover colors */
@@ -23,6 +25,7 @@ export const LOGIN_PROVIDERS: LoginProvider[] = [
   {
     id: 'gruenes-netz',
     source: 'gruenes-netz-login',
+    betterAuthProviderId: 'keycloak-gruenes-netz',
     title: 'Grünes Netz Login',
     description: 'Mit deinem Grünes Netz Account anmelden',
     className: 'gruenes-netz',
@@ -33,6 +36,7 @@ export const LOGIN_PROVIDERS: LoginProvider[] = [
   {
     id: 'gruene-oesterreich',
     source: 'gruene-oesterreich-login',
+    betterAuthProviderId: 'keycloak-gruene-at',
     title: 'Die Grünen – Die Grüne Alternative',
     description: 'Mit deinem Groupware Account (Zimbra) anmelden',
     className: 'gruene-oesterreich',
@@ -43,6 +47,7 @@ export const LOGIN_PROVIDERS: LoginProvider[] = [
   {
     id: 'netzbegruenung',
     source: 'netzbegruenung-login',
+    betterAuthProviderId: 'keycloak-netzbegruenung',
     title: 'Netzbegrünung Login',
     description: 'Mit deinem Netzbegrünung Account anmelden',
     className: 'netzbegruenung',
@@ -53,6 +58,7 @@ export const LOGIN_PROVIDERS: LoginProvider[] = [
   {
     id: 'gruenerator',
     source: 'gruenerator-login',
+    betterAuthProviderId: 'keycloak-gruenerator',
     title: 'Grünerator Login',
     description: 'Für Mitarbeitende von Abgeordneten und Geschäftsstellen',
     className: 'gruenerator',
@@ -62,6 +68,7 @@ export const LOGIN_PROVIDERS: LoginProvider[] = [
   },
 ];
 
+/** @deprecated Use signInWithProvider() for Better Auth flow */
 export function buildProviderAuthUrl(
   provider: LoginProvider,
   redirectTo?: string,
@@ -76,4 +83,33 @@ export function buildProviderAuthUrl(
     params.set('origin', origin);
   }
   return `${apiBaseUrl}/auth/login?${params.toString()}`;
+}
+
+/**
+ * Initiate Better Auth OAuth sign-in.
+ * POSTs to /api/auth/v2/sign-in/oauth2, gets { url }, and redirects.
+ */
+export async function signInWithProvider(
+  provider: LoginProvider,
+  callbackURL: string,
+  apiBaseUrl = '/api'
+): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/auth/v2/sign-in/oauth2`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({
+      providerId: provider.betterAuthProviderId,
+      callbackURL,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OAuth sign-in failed: ${response.status}`);
+  }
+
+  const data = (await response.json()) as { url: string; redirect: boolean };
+  if (data.url) {
+    window.location.href = data.url;
+  }
 }

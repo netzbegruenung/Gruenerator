@@ -1,6 +1,7 @@
 export {
   LOGIN_PROVIDERS,
   buildProviderAuthUrl,
+  signInWithProvider,
   type LoginProvider,
   type LoginProviderId,
 } from './loginProviders';
