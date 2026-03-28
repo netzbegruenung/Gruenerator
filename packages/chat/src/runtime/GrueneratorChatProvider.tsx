@@ -437,8 +437,10 @@ function ChatCollaborationBridge({
   children: ReactNode;
 }) {
   const threadId = useAgentStore((s) => s.currentThreadId);
+  const chatViewMode = useAgentStore((s) => s.chatViewMode);
+  const activeThreadId = chatViewMode === 'thread' ? threadId : null;
   const user = useMemo(() => ({ id: userId, name: userName || userId }), [userId, userName]);
-  const collab = useChatCollaboration(threadId, user);
+  const collab = useChatCollaboration(activeThreadId, user);
 
   return <ChatCollaborationProvider value={collab}>{children}</ChatCollaborationProvider>;
 }
