@@ -35,7 +35,6 @@ const normalizeBetaFeatures = (features: Record<string, unknown> = {}): BetaFeat
   const keyMap: Record<string, string> = {
     groups_enabled: 'groups',
     database_access: 'database',
-    igel_modus: 'igel_modus',
     collab: 'collab',
     notebook: 'notebook',
     sharepic: 'sharepic',

@@ -30,15 +30,7 @@ export interface VideoMetadata {
 /**
  * Available subtitle style preferences
  */
-export type StylePreference =
-  | 'standard'
-  | 'clean'
-  | 'shadow'
-  | 'tanne'
-  | 'gj_clean'
-  | 'gj_shadow'
-  | 'gj_lavendel'
-  | 'gj_hellgruen';
+export type StylePreference = 'standard' | 'clean' | 'shadow' | 'tanne';
 
 /**
  * Subtitle vertical position preferences

@@ -100,7 +100,6 @@ class RequestEnricher {
       social: 'Social Media',
       universal: 'Universal',
       press: 'Pressemitteilung',
-      gruene_jugend: 'Grüne Jugend',
       text: 'Allgemeiner Text',
     };
 

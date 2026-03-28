@@ -13,8 +13,6 @@ interface SettingsSectionProps {
   isActive: boolean;
   onSuccessMessage: (message: string) => void;
   onErrorMessage: (message: string) => void;
-  igelActive: boolean;
-  onToggleIgelModus: (checked: boolean) => void;
   isBetaFeaturesUpdating: boolean;
 }
 
@@ -67,14 +65,7 @@ const BETA_VIEWS = {
 };
 
 const SettingsSection: React.FC<SettingsSectionProps> = memo(
-  ({
-    isActive,
-    onSuccessMessage,
-    onErrorMessage,
-    igelActive,
-    onToggleIgelModus,
-    isBetaFeaturesUpdating,
-  }) => {
+  ({ isActive, onSuccessMessage, onErrorMessage, isBetaFeaturesUpdating }) => {
     const { getBetaFeatureState, updateUserBetaFeatures, availableFeatures, isAdmin } =
       useBetaFeatures();
 

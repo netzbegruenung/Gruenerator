@@ -6,10 +6,7 @@
 import { extractAntragParams } from './extractors/AntragExtractor.js';
 import { extractImagineParams } from './extractors/ImagineExtractor.js';
 import { extractSharepicParams } from './extractors/SharepicExtractor.js';
-import {
-  extractSocialParams,
-  extractGrueneJugendParams,
-} from './extractors/SocialMediaExtractor.js';
+import { extractSocialParams } from './extractors/SocialMediaExtractor.js';
 import {
   extractUniversalParams,
   extractLeichteSpracheParams,
@@ -64,9 +61,6 @@ export async function extractParameters(
     case 'kleine_anfrage':
     case 'grosse_anfrage':
       return extractAntragParams(message, context, baseParams);
-
-    case 'gruene_jugend':
-      return extractGrueneJugendParams(message, context, baseParams);
 
     case 'leichte_sprache':
       return extractLeichteSpracheParams(message, context, baseParams);

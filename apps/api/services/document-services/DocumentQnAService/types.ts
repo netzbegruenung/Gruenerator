@@ -12,7 +12,6 @@ export type AgentType =
   | 'antrag'
   | 'zitat'
   | 'leichte_sprache'
-  | 'gruene_jugend'
   | 'universal';
 
 /**

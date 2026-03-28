@@ -7,7 +7,6 @@ export interface User {
   display_name?: string;
   avatar_robot_id?: string;
   locale?: 'de-DE' | 'de-AT';
-  igel_modus?: boolean;
   user_metadata?: {
     chat_color?: string;
     [key: string]: unknown;
@@ -25,7 +24,6 @@ export interface AuthState {
   error: string | null;
   isLoggingOut: boolean;
   selectedMessageColor: string;
-  igelModus: boolean;
   locale: 'de-DE' | 'de-AT';
 }
 
@@ -42,7 +40,6 @@ export interface AuthActions {
   updateAvatar: (avatarRobotId: string) => Promise<User>;
   updateMessageColor: (color: string) => Promise<void>;
   updateLocale: (locale: 'de-DE' | 'de-AT') => Promise<void>;
-  updateIgelModus: (enabled: boolean) => Promise<void>;
 }
 
 export type AuthStore = AuthState & AuthActions;
@@ -66,6 +63,5 @@ export const DEFAULT_AUTH_STATE: AuthState = {
   error: null,
   isLoggingOut: false,
   selectedMessageColor: '#008939', // Default Klee
-  igelModus: false,
   locale: 'de-DE',
 };

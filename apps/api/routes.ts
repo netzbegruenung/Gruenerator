@@ -67,7 +67,6 @@ import {
   buergeranfragenRouter,
   textAdjustmentRouter as claudeTextAdjustmentRoute,
   textImproverRouter as claudeTextImproverRoute,
-  grueneJugendRouter as claudeGrueneJugendRoute,
   subtitlesRouter as claudeSubtitlesRoute,
   leichteSpracheRouter as leichteSpracheRoute,
 } from './routes/texte/index.js';
@@ -353,7 +352,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/texte/smart', aiGenerationLimiter, smartTexteRouter);
   app.use('/api/texte/playground', requireAuth, aiGenerationLimiter, playgroundRouter);
   app.use('/api/generate-content-title', aiGenerationLimiter, contentTitleRouter);
-  app.use('/api/claude_gruene_jugend', aiGenerationLimiter, claudeGrueneJugendRoute);
   app.use('/api/claude_gruenerator_ask', aiGenerationLimiter, claudeGrueneratorAskRoute);
   app.use('/api/custom_generator', aiGenerationLimiter, customGeneratorRoute);
   app.use('/api/auth/custom_generator', aiGenerationLimiter, customGeneratorRoute);

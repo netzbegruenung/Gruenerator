@@ -57,7 +57,6 @@ CREATE TABLE IF NOT EXISTS profiles (
     last_login TIMESTAMPTZ,
     email TEXT,
     custom_prompt TEXT,
-    igel_modus BOOLEAN DEFAULT FALSE,
     beta_features JSONB DEFAULT '{}',
     presseabbinder TEXT,
     custom_antrag_gliederung TEXT,
