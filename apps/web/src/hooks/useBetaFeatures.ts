@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 
 import { useBetaFeaturesStore, FEATURE_GROUPS } from '../stores/betaFeaturesStore';
 
@@ -164,31 +164,37 @@ export const useBetaFeatures = (_options: UseBetaFeaturesOptions = {}): UseBetaF
     [toggle]
   );
 
-  return {
-    // Data
-    betaFeatures,
-    isLoading: !isHydrated,
-    isError: !!error,
-    error,
-
-    // Helper functions
-    getBetaFeatureState,
-    canAccessBetaFeature,
-    shouldShowTab,
-    availableFeatures,
-    getAvailableFeatures,
-
-    // Actions
-    updateUserBetaFeatures,
-
-    // Admin status
-    isAdmin,
-    adminOnlyFeatures: ADMIN_ONLY_FEATURES,
-
-    // Mutation state
-    isUpdating,
-    updateError: error,
-  };
+  return useMemo(
+    () => ({
+      betaFeatures,
+      isLoading: !isHydrated,
+      isError: !!error,
+      error,
+      getBetaFeatureState,
+      canAccessBetaFeature,
+      shouldShowTab,
+      availableFeatures,
+      getAvailableFeatures,
+      updateUserBetaFeatures,
+      isAdmin,
+      adminOnlyFeatures: ADMIN_ONLY_FEATURES,
+      isUpdating,
+      updateError: error,
+    }),
+    [
+      betaFeatures,
+      isHydrated,
+      error,
+      getBetaFeatureState,
+      canAccessBetaFeature,
+      shouldShowTab,
+      availableFeatures,
+      getAvailableFeatures,
+      updateUserBetaFeatures,
+      isAdmin,
+      isUpdating,
+    ]
+  );
 };
 
 export default useBetaFeatures;
