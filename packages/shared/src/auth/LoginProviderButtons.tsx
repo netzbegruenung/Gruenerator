@@ -2,7 +2,7 @@ import { type JSX } from 'react';
 
 import {
   LOGIN_PROVIDERS,
-  buildProviderAuthUrl,
+  signInWithProvider,
   type LoginProvider,
   type LoginProviderId,
 } from './loginProviders';
@@ -41,13 +41,14 @@ export function LoginProviders({
       if (result === false) return;
     }
 
-    const origin = typeof window !== 'undefined' ? window.location.origin : undefined;
-    const authUrl = buildProviderAuthUrl(provider, redirectTo, apiBaseUrl, origin);
+    const callbackURL = redirectTo || '/profile';
 
     if (onLogin) {
-      onLogin(provider, authUrl);
+      onLogin(provider, callbackURL);
     } else {
-      window.location.href = authUrl;
+      signInWithProvider(provider, callbackURL, apiBaseUrl).catch((err) => {
+        console.error('[LoginProviders] Sign-in failed:', err);
+      });
     }
   };
 
