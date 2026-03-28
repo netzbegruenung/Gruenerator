@@ -520,16 +520,10 @@ function ChatSettingsPage() {
                 <SmartInput
                   value={wizBundeslandQuery}
                   onValueChange={(v) => setWizBundeslandQuery(v)}
+                  onSelect={(option) => handleWizBundesland(option.label)}
                   options={bundeslandOptions}
                   placeholder="Bundesland eingeben..."
-                  emptyMessage="Kein Bundesland gefunden"
                   autoFocus
-                  onSubmit={() => {
-                    const match = bundeslaender.find(
-                      (bl) => bl.label.toLowerCase() === wizBundeslandQuery.toLowerCase()
-                    );
-                    if (match) handleWizBundesland(match.label);
-                  }}
                 />
               </>
             ) : wizardStep === 'gliederung' ? (
