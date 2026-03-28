@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import apiClient from '../components/utils/apiClient';
 import { useAuthStore, type AuthStore } from '../stores/authStore';
@@ -460,13 +460,14 @@ export const useAuth = (options: AuthOptions = {}) => {
           apiClient
             .get('/auth/init', { skipAuthRedirect: true })
             .then((response) => {
-              const { groups, savedTexts, notebookCollections, recentActivity } =
+              const { groups, savedTexts, notebookCollections, recentActivity, profile } =
                 response.data as Record<string, unknown[]>;
               if (groups) queryClient.setQueryData(['userGroups', userId], groups);
               if (savedTexts) queryClient.setQueryData(['userTexts', userId], savedTexts);
               if (notebookCollections)
                 queryClient.setQueryData(['notebookCollections', userId], notebookCollections);
               if (recentActivity) queryClient.setQueryData(['recent-activity'], recentActivity);
+              if (profile) queryClient.setQueryData(['profileData', userId], profile);
             })
             .catch((error: unknown) => {
               console.warn('[useAuth] Init prefetch failed, falling back:', error);
@@ -520,72 +521,95 @@ export const useAuth = (options: AuthOptions = {}) => {
     await updateMessageColor(newColor);
   };
 
-  // Skip all auth logic for public pages - return after all hooks have been called
-  if (skipAuth) {
+  const isInitialLoad = useMemo(
+    () => !hasCachedData && (isChecking || (isQueryLoading && !authData)),
+    [hasCachedData, isChecking, isQueryLoading, authData]
+  );
+
+  return useMemo(() => {
+    if (skipAuth) {
+      return {
+        user: null,
+        isAuthenticated: false,
+        loading: false,
+        error: null,
+        isLoggingOut: false,
+        isAuthResolved: true,
+        isInitialLoad: false,
+        hasCachedData: false,
+        selectedMessageColor: '#008939',
+        igelModus: false,
+        login,
+        logout: () => {},
+        updateUserMessageColor: async () => {},
+        setIgelModus: async () => false,
+        register: () => {},
+        deleteAccount: async () => ({ success: false, message: '' }),
+        sendPasswordResetEmail: async () => ({ success: false, message: '' }),
+        updatePassword: () => {},
+        updateProfile: async () => ({}),
+        updateAvatar: async () => ({}),
+        refetchAuth: () => {},
+        setLoginIntent: () => {},
+        session: null,
+        supabase: null,
+        canManageAccount: () => false,
+      };
+    }
+
     return {
-      user: null,
-      isAuthenticated: false,
-      loading: false,
-      error: null,
-      isLoggingOut: false,
-      isAuthResolved: true,
-      isInitialLoad: false,
-      hasCachedData: false,
-      selectedMessageColor: '#008939',
-      igelModus: false,
+      user,
+      isAuthenticated,
+      loading: isCombinedLoading,
+      error,
+      isLoggingOut,
+      isAuthResolved,
+      isInitialLoad,
+      hasCachedData,
+      selectedMessageColor,
+      igelModus,
       login,
-      logout: () => {},
-      updateUserMessageColor: async () => {},
-      setIgelModus: async () => false,
-      register: () => {},
-      deleteAccount: async () => ({ success: false, message: '' }),
-      sendPasswordResetEmail: async () => ({ success: false, message: '' }),
-      updatePassword: () => {},
-      updateProfile: async () => ({}),
-      updateAvatar: async () => ({}),
-      refetchAuth: () => {},
-      setLoginIntent: () => {},
+      logout,
+      setLoginIntent,
+      updateUserMessageColor,
+      setIgelModus,
+      register,
+      deleteAccount,
+      sendPasswordResetEmail,
+      updatePassword,
+      updateProfile,
+      updateAvatar,
+      refetchAuth,
       session: null,
       supabase: null,
-      canManageAccount: () => false,
+      canManageAccount,
     };
-  }
-
-  return {
+  }, [
+    skipAuth,
     user,
     isAuthenticated,
-    loading: isCombinedLoading,
+    isCombinedLoading,
     error,
     isLoggingOut,
-
-    // Enhanced loading states
     isAuthResolved,
-    isInitialLoad: !hasCachedData && (isChecking || (isQueryLoading && !authData)),
-    hasCachedData, // New: indicates if using cached data
+    isInitialLoad,
+    hasCachedData,
     selectedMessageColor,
     igelModus,
-
     login,
     logout,
     setLoginIntent,
-
     updateUserMessageColor,
     setIgelModus,
-
     register,
     deleteAccount,
     sendPasswordResetEmail,
     updatePassword,
     updateProfile,
     updateAvatar,
-
     refetchAuth,
-
-    // Legacy compatibility
-    session: useAuthStore.getState().supabaseSession,
-    supabase: null,
     canManageAccount,
-  };
+  ]);
 };
 
 /**
