@@ -807,10 +807,10 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
     });
 
     // Cache enriched context for future edit requests
-    if (req.session?.id) {
+    if (req.user?.id) {
       try {
         const { redisClient } = await import('../../utils/redis/index.js');
-        const contextCacheKey = `edit_context:${req.session.id}:${routeType}`;
+        const contextCacheKey = `edit_context:${req.user.id}:${routeType}`;
 
         const contextData = {
           originalRequest: requestData,
