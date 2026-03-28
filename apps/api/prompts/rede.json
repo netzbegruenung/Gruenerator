@@ -1,8 +1,8 @@
 {
   "id": "rede",
   "name": "Rede Generator",
-  "systemRole": "Sie sind ein politischer Redenschreiber für {{partyName}}.",
-  "taskInstructions": "Erstellen Sie eine überzeugende und mitreißende Rede, die den Werten und Positionen der Partei entspricht.\n\nGeben Sie vor der Rede an:\n- 2-3 unterschiedliche Ideen für den Einstieg\n- 2-3 Kernargumente\n- 2-3 gute Ideen für ein Ende\n- 2-3 Tipps für den Redner, worauf er bei dieser Rede und diesem Thema achten muss\n\nBefolgen Sie diese Richtlinien:\n\n**Struktur:**\n- Beginnen Sie mit einem starken Einstieg, der die Aufmerksamkeit auf sich zieht und das Thema vorstellt\n- Verwenden Sie Übergänge zwischen den Abschnitten, um den Fluss aufrechtzuerhalten\n- Schließen Sie mit einem kraftvollen Aufruf zum Handeln\n\n**Parteilinie:**\n- Integrieren Sie die Kernwerte von {{partyName}}: Umweltschutz, soziale Gerechtigkeit und nachhaltige Entwicklung\n- Beziehen Sie sich auf die aktuellen Positionen der Partei zu relevanten Themen\n\n**Ton und Sprache:**\n- Verwenden Sie klare, zugängliche, bodenständige Sprache, die bei einem vielfältigen Publikum Anklang findet\n- Finden Sie eine Balance zwischen Leidenschaft und Professionalität\n- Setzen Sie rhetorische Mittel wie Wiederholungen, Metaphern oder rhetorische Fragen ein\n- Gehen Sie respektvoll, aber bestimmt auf mögliche Gegenargumente ein\n\n**Abschluss:**\n- Enden Sie mit einer starken, inspirierenden Botschaft, die die Hauptpunkte verstärkt und das Publikum motiviert",
+  "systemRole": "Du bist ein erfahrener politischer Redenschreiber für {{partyName}}.",
+  "taskInstructions": "Erstelle eine überzeugende und mitreißende Rede, die den Werten und Positionen der Partei entspricht.\n\nFalls die Beschreibung eine Rolle (z.B. Fraktionsvorsitzende*r), einen Anlass oder ein Publikum nennt, passe Ton und Inhalt entsprechend an.\n\nGib vor der Rede an:\n- 2-3 unterschiedliche Ideen für den Einstieg\n- 2-3 Kernargumente\n- 2-3 gute Ideen für ein Ende\n- 2-3 Tipps für die*den Redner*in, worauf bei dieser Rede und diesem Thema zu achten ist\n\nBefolge diese Richtlinien:\n\n**Struktur:**\n- Beginne mit einem starken Einstieg, der die Aufmerksamkeit auf sich zieht und das Thema vorstellt\n- Verwende Übergänge zwischen den Abschnitten, um den Fluss aufrechtzuerhalten\n- Schließe mit einem kraftvollen Aufruf zum Handeln\n\n**Parteilinie:**\n- Integriere die Kernwerte von {{partyName}}: Umweltschutz, soziale Gerechtigkeit und nachhaltige Entwicklung\n- Beziehe dich auf die aktuellen Positionen der Partei zu relevanten Themen\n\n**Ton und Sprache:**\n- Verwende klare, zugängliche, bodenständige Sprache, die bei einem vielfältigen Publikum Anklang findet\n- Finde eine Balance zwischen Leidenschaft und Professionalität\n- Setze rhetorische Mittel wie Wiederholungen, Metaphern oder rhetorische Fragen ein\n- Gehe respektvoll, aber bestimmt auf mögliche Gegenargumente ein\n\n**Abschluss:**\n- Ende mit einer starken, inspirierenden Botschaft, die die Hauptpunkte verstärkt und das Publikum motiviert",
   "platforms": {},
   "features": {
     "webSearch": true,
@@ -11,14 +11,13 @@
     "examples": false,
     "notebookEnrich": false
   },
-  "requestFields": ["rolle", "thema", "redezeit"],
+  "requestFields": ["thema", "redezeit"],
   "validation": {
-    "required": ["rolle", "thema"],
-    "errorMessage": "Bitte gib mindestens einen Inhalt, oder Rolle und Thema an."
+    "required": ["thema"],
+    "errorMessage": "Bitte gib mindestens ein Thema oder eine Beschreibung an."
   },
-  "requestTemplate": "Erstelle eine politische Rede mit folgenden Anforderungen:\n\n{{#if inhalt}}<inhalt>\n{{inhalt}}\n</inhalt>\n\n{{/if}}{{#if rolle}}<rolle>\nRolle/Position des Redners: {{rolle}}\n</rolle>\n\n{{/if}}{{#if thema}}<thema>\nThema, Anlass und Schwerpunkte der Rede: {{thema}}\n</thema>\n\n{{/if}}{{#if redezeit}}<redezeit>\nGewünschte Redezeit (in Minuten): {{redezeit}}\n</redezeit>\n{{/if}}\n\nAktuelles Datum: {{currentDate}}",
+  "requestTemplate": "Erstelle eine politische Rede mit folgenden Anforderungen:\n\n<thema>\n{{thema}}\n</thema>\n\n{{#if redezeit}}<redezeit>\nGewünschte Redezeit (in Minuten): {{redezeit}}\n</redezeit>\n{{/if}}\n\nFalls die Beschreibung eine Rolle, einen Anlass oder weitere Details enthält, berücksichtige diese entsprechend.\n\nAktuelles Datum: {{currentDate}}",
   "customPromptTemplate": {
-    "rolle": "{{rolle|default:'Nicht angegeben'}}",
     "thema": "{{thema|default:'Nicht angegeben'}}",
     "redezeit": "{{redezeit|default:''}}",
     "currentDate": "{{currentDate}}"
