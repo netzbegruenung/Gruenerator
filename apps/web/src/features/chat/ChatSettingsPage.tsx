@@ -1,4 +1,3 @@
-import { useAgentStore } from '@gruenerator/chat';
 import {
   Button,
   SelectCard,
@@ -8,11 +7,11 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  Badge,
 } from '@gruenerator/ui';
-import { useState, useCallback, useMemo, useRef, memo } from 'react';
-import { HiOutlineArrowLeft } from 'react-icons/hi2';
+import { useState, useCallback, useMemo, memo } from 'react';
+import { HiOutlineArrowLeft, HiOutlineTrash, HiPlus } from 'react-icons/hi2';
 
+import apiClient from '../../components/utils/apiClient';
 import { useAuthStore } from '../../stores/authStore';
 import { useUserDefaultsStore } from '../../stores/userDefaultsStore';
 
@@ -22,7 +21,15 @@ import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired
 import PageContainer from '@/components/common/PageContainer';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
-type Ebene = string;
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface UserRole {
+  ebene: string;
+  rolle: string;
+  bundesland?: string;
+  gliederung?: string;
+  abgeordnete?: string;
+}
 
 interface EbeneConfig {
   id: string;
@@ -34,6 +41,8 @@ interface BundeslandConfig {
   label: string;
   notebookId?: string;
 }
+
+// ─── Config Data ─────────────────────────────────────────────────────────────
 
 const DE_EBENEN: EbeneConfig[] = [
   { id: 'europa', label: 'Europa', icon: '🇪🇺' },
@@ -148,6 +157,34 @@ function needsAbgeordneteName(rolle: string) {
   );
 }
 
+// ─── Prompt Generation ───────────────────────────────────────────────────────
+
+function generateProfilePrompt(roles: UserRole[], freetext: string, isAustrian: boolean): string {
+  if (roles.length === 0 && !freetext.trim()) return '';
+
+  const partyName = isAustrian ? 'Die Grünen – Die Grüne Alternative' : 'Bündnis 90/Die Grünen';
+
+  if (roles.length === 0) return freetext.trim();
+
+  const roleLines = roles.map((r) => {
+    const parts = [r.rolle];
+    if (r.gliederung) parts.push(r.gliederung);
+    if (r.bundesland) parts.push(r.bundesland);
+    if (r.abgeordnete) parts.push(`(${r.abgeordnete})`);
+    return `- ${parts.join(', ')}`;
+  });
+
+  let prompt = `Du unterstützt eine*n Mitarbeiter*in von ${partyName} mit folgenden Rollen:\n\n${roleLines.join('\n')}\n\nPasse deine Antworten an die jeweils relevante Rolle an. Berücksichtige die Zuständigkeiten und die Ebene bei Stil, Detailtiefe und Zielgruppe.`;
+
+  if (freetext.trim()) {
+    prompt += `\n\n${freetext.trim()}`;
+  }
+
+  return prompt;
+}
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
 const MdBSuggestions = memo(function MdBSuggestions({
   query,
   onSelect,
@@ -175,225 +212,211 @@ const MdBSuggestions = memo(function MdBSuggestions({
   );
 });
 
+function RoleCard({
+  role,
+  ebenen,
+  onDelete,
+}: {
+  role: UserRole;
+  ebenen: EbeneConfig[];
+  onDelete: () => void;
+}) {
+  const ebene = ebenen.find((e) => e.id === role.ebene);
+  const subtitle = [role.gliederung, role.bundesland].filter(Boolean).join(' · ');
+
+  return (
+    <div className="group flex items-center gap-sm bg-background border border-grey-200 dark:border-grey-700 rounded-md px-md py-md transition-colors">
+      <span className="text-lg shrink-0">{ebene?.icon || '📌'}</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-foreground-heading m-0 truncate">{role.rolle}</p>
+        {subtitle && <p className="text-xs text-grey-500 m-0 truncate">{subtitle}</p>}
+        {role.abgeordnete && (
+          <p className="text-xs text-grey-400 m-0 truncate">{role.abgeordnete}</p>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={onDelete}
+        className="shrink-0 p-1 text-grey-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 max-sm:opacity-100"
+        aria-label="Rolle entfernen"
+      >
+        <HiOutlineTrash className="size-4" />
+      </button>
+    </div>
+  );
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
+
+type WizardStep = 'ebene' | 'bundesland' | 'gliederung' | 'rolle';
+
 function ChatSettingsPage() {
-  const threadId = useAgentStore((s) => s.currentThreadId);
-  const customSystemPrompt = useAgentStore((s) => s.customSystemPrompt);
-  const setCustomSystemPrompt = useAgentStore((s) => s.setCustomSystemPrompt);
   const locale = useAuthStore((s) => s.locale);
   const isAustrian = locale === 'de-AT';
   const getDefault = useUserDefaultsStore((s) => s.getDefault);
   const setDefault = useUserDefaultsStore((s) => s.setDefault);
 
   const ebenen = isAustrian ? AT_EBENEN : DE_EBENEN;
-  const rollen = isAustrian ? AT_ROLLEN : DE_ROLLEN;
+  const rollenMap = isAustrian ? AT_ROLLEN : DE_ROLLEN;
   const bundeslaender = isAustrian ? AT_BUNDESLAENDER : DE_BUNDESLAENDER;
 
-  const [promptText, setPromptText] = useState(customSystemPrompt || '');
+  // Saved roles + freetext
+  const [roles, setRoles] = useState<UserRole[]>(
+    () => getDefault<UserRole[]>('profile', 'roles') || []
+  );
+  const [freetext, setFreetext] = useState(
+    () => getDefault<string>('profile', 'instructions') || ''
+  );
+
+  // Wizard state for adding a new role
+  const [addingRole, setAddingRole] = useState(false);
+  const [wizardStep, setWizardStep] = useState<WizardStep>('ebene');
+  const [wizEbene, setWizEbene] = useState<string | null>(null);
+  const [wizBundesland, setWizBundesland] = useState<string | null>(null);
+  const [wizGliederung, setWizGliederung] = useState('');
+  const [wizRolle, setWizRolle] = useState<string | null>(null);
+  const [wizCustomRolle, setWizCustomRolle] = useState('');
+  const [wizAbgeordnete, setWizAbgeordnete] = useState('');
+
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [showWizard, setShowWizard] = useState(!customSystemPrompt);
 
-  type WizardStep = 'ebene' | 'bundesland' | 'gliederung' | 'rolle';
-  const [step, setStep] = useState<WizardStep>('ebene');
-  const [selectedEbene, setSelectedEbene] = useState<Ebene | null>(
-    () => getDefault<string>('profile', 'ebene') || null
+  // ─── Wizard handlers ─────────────────────────────────────────────────────
+
+  const startAddRole = useCallback(() => {
+    setAddingRole(true);
+    setWizardStep('ebene');
+    setWizEbene(null);
+    setWizBundesland(null);
+    setWizGliederung('');
+    setWizRolle(null);
+    setWizCustomRolle('');
+    setWizAbgeordnete('');
+  }, []);
+
+  const cancelAddRole = useCallback(() => {
+    setAddingRole(false);
+  }, []);
+
+  const handleWizEbene = useCallback((ebene: string) => {
+    setWizEbene(ebene);
+    setWizBundesland(null);
+    setWizGliederung('');
+    setWizRolle(null);
+    setWizCustomRolle('');
+    setWizAbgeordnete('');
+    if (NEEDS_BUNDESLAND.has(ebene)) {
+      setWizardStep('bundesland');
+    } else {
+      setWizardStep('rolle');
+    }
+  }, []);
+
+  const handleWizBundesland = useCallback(
+    (bundesland: string) => {
+      setWizBundesland(bundesland);
+      if (wizEbene && NEEDS_LOCAL_NAME.has(wizEbene)) {
+        setWizardStep('gliederung');
+      } else {
+        setWizardStep('rolle');
+      }
+    },
+    [wizEbene]
   );
-  const [selectedBundesland, setSelectedBundesland] = useState<string | null>(
-    () => getDefault<string>('profile', 'bundesland') || null
-  );
-  const [selectedRolle, setSelectedRolle] = useState<string | null>(
-    () => getDefault<string>('profile', 'rolle') || null
-  );
-  const [customRolle, setCustomRolle] = useState('');
-  const [localGroupName, setLocalGroupName] = useState(
-    () => getDefault<string>('profile', 'gliederung') || ''
-  );
-  const [abgeordneteName, setAbgeordneteName] = useState(
-    () => getDefault<string>('profile', 'abgeordnete') || ''
-  );
-  const [generating, setGenerating] = useState(false);
+
+  const handleWizGliederungSubmit = useCallback(() => {
+    if (wizGliederung.trim()) setWizardStep('rolle');
+  }, [wizGliederung]);
+
+  const handleWizStepBack = useCallback(() => {
+    if (wizardStep === 'rolle') {
+      if (wizEbene && NEEDS_LOCAL_NAME.has(wizEbene)) setWizardStep('gliederung');
+      else if (wizEbene && NEEDS_BUNDESLAND.has(wizEbene)) setWizardStep('bundesland');
+      else setWizardStep('ebene');
+    } else if (wizardStep === 'gliederung') {
+      setWizardStep('bundesland');
+    } else if (wizardStep === 'bundesland') {
+      setWizardStep('ebene');
+    }
+  }, [wizardStep, wizEbene]);
+
+  const handleWizSelectRolle = useCallback((rolle: string) => {
+    setWizRolle(rolle);
+    setWizAbgeordnete('');
+  }, []);
+
+  const handleWizCustomRolleSubmit = useCallback(() => {
+    if (wizCustomRolle.trim()) handleWizSelectRolle(wizCustomRolle.trim());
+  }, [wizCustomRolle, handleWizSelectRolle]);
+
+  const canAddRole = useMemo(() => {
+    if (!wizRolle) return false;
+    if (wizRolle === 'custom' && !wizCustomRolle.trim()) return false;
+    if (needsAbgeordneteName(wizRolle) && !wizAbgeordnete.trim()) return false;
+    return true;
+  }, [wizRolle, wizCustomRolle, wizAbgeordnete]);
+
+  const handleAddRole = useCallback(() => {
+    if (!canAddRole || !wizEbene) return;
+
+    const newRole: UserRole = {
+      ebene: wizEbene,
+      rolle: wizRolle === 'custom' ? wizCustomRolle.trim() : wizRolle!,
+    };
+    if (wizBundesland) newRole.bundesland = wizBundesland;
+    if (wizGliederung.trim()) newRole.gliederung = wizGliederung.trim();
+    if (wizAbgeordnete.trim()) newRole.abgeordnete = wizAbgeordnete.trim();
+
+    setRoles((prev) => [...prev, newRole]);
+    setAddingRole(false);
+  }, [
+    canAddRole,
+    wizEbene,
+    wizRolle,
+    wizCustomRolle,
+    wizBundesland,
+    wizGliederung,
+    wizAbgeordnete,
+  ]);
+
+  const handleDeleteRole = useCallback((index: number) => {
+    setRoles((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  // ─── Save ─────────────────────────────────────────────────────────────────
 
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      const newPrompt = promptText.trim() || null;
+      // Save structured roles
+      void setDefault('profile', 'roles', roles);
+      void setDefault('profile', 'instructions', freetext);
 
-      setCustomSystemPrompt(newPrompt);
+      // Generate and save prompt to profiles.custom_prompt
+      const prompt = generateProfilePrompt(roles, freetext, isAustrian);
+      await apiClient.put('/auth/profile', { custom_prompt: prompt || null });
 
-      if (newPrompt) {
-        useAgentStore.getState().setThreadMode('eigener');
-      }
-
-      if (selectedBundesland) {
-        const bl = bundeslaender.find((b) => b.label === selectedBundesland);
-        if (bl?.notebookId) {
-          useAgentStore.getState().setSelectedNotebook(bl.notebookId);
-        }
-      }
-
-      if (threadId) {
-        const res = await fetch(`/api/chat-service/threads/${threadId}/settings`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ customSystemPrompt: newPrompt }),
-        });
-        if (!res.ok && res.status !== 404) {
-          throw new Error(`Save failed: ${res.status}`);
-        }
-      }
-
-      setShowWizard(false);
-      setSuccessMessage('Einstellungen gespeichert');
-      if (successTimerRef.current) clearTimeout(successTimerRef.current);
-      successTimerRef.current = setTimeout(() => setSuccessMessage(null), 3000);
+      setSuccessMessage('Profil gespeichert');
+      setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
-      console.error('Failed to save chat settings:', error);
-      setSuccessMessage(null);
+      console.error('Failed to save profile:', error);
     } finally {
       setSaving(false);
     }
-  }, [promptText, threadId, selectedBundesland, bundeslaender, setCustomSystemPrompt]);
+  }, [roles, freetext, isAustrian, setDefault]);
 
-  const handleSelectEbene = useCallback((ebene: string) => {
-    setSelectedEbene(ebene);
-    setSelectedBundesland(null);
-    setSelectedRolle(null);
-    setCustomRolle('');
-    setAbgeordneteName('');
-    setLocalGroupName('');
-    if (NEEDS_BUNDESLAND.has(ebene)) {
-      setStep('bundesland');
-    } else {
-      setStep('rolle');
-    }
-  }, []);
+  // ─── Render ────────────────────────────────────────────────────────────────
 
-  const handleSelectBundesland = useCallback(
-    (bundesland: string) => {
-      setSelectedBundesland(bundesland);
-      if (selectedEbene && NEEDS_LOCAL_NAME.has(selectedEbene)) {
-        setStep('gliederung');
-      } else {
-        setStep('rolle');
-      }
-    },
-    [selectedEbene]
+  const renderWizardBack = (
+    <button
+      type="button"
+      onClick={handleWizStepBack}
+      className="inline-flex items-center gap-xs text-sm text-grey-500 hover:text-foreground transition-colors self-start"
+    >
+      <HiOutlineArrowLeft className="size-4" />
+      Zurück
+    </button>
   );
-
-  const handleLocalNameSubmit = useCallback(() => {
-    if (localGroupName.trim()) setStep('rolle');
-  }, [localGroupName]);
-
-  const handleStepBack = useCallback(() => {
-    if (step === 'rolle') {
-      if (selectedEbene && NEEDS_LOCAL_NAME.has(selectedEbene)) setStep('gliederung');
-      else if (selectedEbene && NEEDS_BUNDESLAND.has(selectedEbene)) setStep('bundesland');
-      else setStep('ebene');
-    } else if (step === 'gliederung') {
-      setStep('bundesland');
-    } else if (step === 'bundesland') {
-      setStep('ebene');
-    }
-  }, [step, selectedEbene]);
-
-  const handleGeneratePrompt = useCallback(async () => {
-    const ebeneLabel = selectedEbene ? ebenen.find((e) => e.id === selectedEbene)?.label || '' : '';
-    const rolle = selectedRolle === 'custom' ? customRolle : selectedRolle || '';
-
-    // Persist profile fields individually
-    if (selectedEbene) void setDefault('profile', 'ebene', selectedEbene);
-    if (rolle) void setDefault('profile', 'rolle', rolle);
-    if (selectedBundesland) void setDefault('profile', 'bundesland', selectedBundesland);
-    if (localGroupName.trim()) void setDefault('profile', 'gliederung', localGroupName.trim());
-    if (abgeordneteName.trim()) void setDefault('profile', 'abgeordnete', abgeordneteName.trim());
-
-    setGenerating(true);
-
-    const lines = [`Ebene: ${ebeneLabel}`, `Rolle: ${rolle}`];
-    if (selectedBundesland) lines.push(`Bundesland: ${selectedBundesland}`);
-    if (localGroupName.trim()) lines.push(`${ebeneLabel}: ${localGroupName.trim()}`);
-    if (abgeordneteName.trim()) lines.push(`Abgeordnete*r: ${abgeordneteName.trim()}`);
-    if (isAustrian) lines.push('Land: Österreich (Die Grünen – Die Grüne Alternative)');
-
-    try {
-      const response = await fetch('/api/chat-service/generate-system-prompt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ description: lines.join('\n') }),
-      });
-      if (!response.ok) throw new Error('Generation failed');
-      const data = await response.json();
-      if (data.systemPrompt) {
-        setPromptText(data.systemPrompt);
-        setShowWizard(false);
-      }
-    } catch (error) {
-      console.error('Failed to generate system prompt:', error);
-    } finally {
-      setGenerating(false);
-    }
-  }, [
-    selectedEbene,
-    selectedRolle,
-    customRolle,
-    selectedBundesland,
-    localGroupName,
-    abgeordneteName,
-    isAustrian,
-    ebenen,
-    setDefault,
-  ]);
-
-  const handleSelectRolle = useCallback((rolle: string) => {
-    setSelectedRolle(rolle);
-    setAbgeordneteName('');
-    if (!needsAbgeordneteName(rolle)) {
-      // Directly trigger prompt generation — no more steps
-      setSelectedRolle(rolle);
-    }
-  }, []);
-
-  const handleCustomRolleSubmit = useCallback(() => {
-    if (customRolle.trim()) handleSelectRolle(customRolle.trim());
-  }, [customRolle, handleSelectRolle]);
-
-  const resetWizard = useCallback(() => {
-    setShowWizard(true);
-    setPromptText('');
-    setStep('ebene');
-    setSelectedEbene(null);
-    setSelectedBundesland(null);
-    setSelectedRolle(null);
-    setCustomRolle('');
-    setAbgeordneteName('');
-    setLocalGroupName('');
-  }, []);
-
-  const hasChanges = useMemo(
-    () => promptText !== (customSystemPrompt || ''),
-    [promptText, customSystemPrompt]
-  );
-
-  const profileSummary = useMemo(
-    () =>
-      [
-        selectedEbene && ebenen.find((e) => e.id === selectedEbene)?.label,
-        selectedBundesland,
-        localGroupName || null,
-        selectedRolle && selectedRolle !== 'custom' ? selectedRolle : customRolle || null,
-      ].filter(Boolean) as string[],
-    [selectedEbene, selectedBundesland, localGroupName, selectedRolle, customRolle, ebenen]
-  );
-
-  const canGenerate = useMemo(() => {
-    if (!selectedRolle) return false;
-    if (selectedRolle === 'custom' && !customRolle.trim()) return false;
-    if (needsAbgeordneteName(selectedRolle || '') && !abgeordneteName.trim()) return false;
-    return true;
-  }, [selectedRolle, customRolle, abgeordneteName]);
 
   return (
     <ErrorBoundary>
@@ -409,39 +432,34 @@ function ChatSettingsPage() {
             </div>
           )}
 
-          {showWizard ? (
-            generating ? (
-              <div className="flex flex-col items-center gap-md py-2xl">
-                <div className="size-8 animate-spin rounded-full border-2 border-grey-300 border-t-primary-500" />
-                <p className="text-sm text-grey-500">System-Prompt wird generiert…</p>
-              </div>
-            ) : step === 'ebene' ? (
+          {addingRole ? (
+            // ─── Add Role Wizard ───────────────────────────────────────────
+            wizardStep === 'ebene' ? (
               <>
-                <h2 className="text-lg font-semibold text-foreground-heading">
-                  Auf welcher Ebene bist du aktiv?
-                </h2>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-foreground-heading m-0">
+                    Rolle hinzufügen
+                  </h2>
+                  <Button variant="ghost" size="sm" onClick={cancelAddRole}>
+                    Abbrechen
+                  </Button>
+                </div>
+                <p className="text-sm text-grey-500 -mt-md">Auf welcher Ebene bist du aktiv?</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
                   {ebenen.map((e) => (
                     <SelectCard
                       key={e.id}
                       icon={e.icon}
                       label={e.label}
-                      selected={selectedEbene === e.id}
-                      onClick={() => handleSelectEbene(e.id)}
+                      selected={wizEbene === e.id}
+                      onClick={() => handleWizEbene(e.id)}
                     />
                   ))}
                 </div>
               </>
-            ) : step === 'bundesland' ? (
+            ) : wizardStep === 'bundesland' ? (
               <>
-                <button
-                  type="button"
-                  onClick={handleStepBack}
-                  className="inline-flex items-center gap-xs text-sm text-grey-500 hover:text-foreground transition-colors self-start"
-                >
-                  <HiOutlineArrowLeft className="size-4" />
-                  Zurück
-                </button>
+                {renderWizardBack}
                 <h2 className="text-lg font-semibold text-foreground-heading">
                   In welchem Bundesland?
                 </h2>
@@ -450,9 +468,9 @@ function ChatSettingsPage() {
                     <button
                       key={bl.label}
                       type="button"
-                      onClick={() => handleSelectBundesland(bl.label)}
+                      onClick={() => handleWizBundesland(bl.label)}
                       className={`rounded-md px-md py-sm text-sm text-left transition-colors ${
-                        selectedBundesland === bl.label
+                        wizBundesland === bl.label
                           ? 'bg-primary-500/10 text-primary-700 dark:text-primary-400'
                           : 'hover:bg-background-alt text-foreground'
                       }`}
@@ -465,34 +483,27 @@ function ChatSettingsPage() {
                   ))}
                 </div>
               </>
-            ) : step === 'gliederung' ? (
+            ) : wizardStep === 'gliederung' ? (
               <>
-                <button
-                  type="button"
-                  onClick={handleStepBack}
-                  className="inline-flex items-center gap-xs text-sm text-grey-500 hover:text-foreground transition-colors self-start"
-                >
-                  <HiOutlineArrowLeft className="size-4" />
-                  Zurück
-                </button>
+                {renderWizardBack}
                 <h2 className="text-lg font-semibold text-foreground-heading">
-                  {LOCAL_NAME_LABELS[selectedEbene || ''] || 'Name deiner Gliederung'}
+                  {LOCAL_NAME_LABELS[wizEbene || ''] || 'Name deiner Gliederung'}
                 </h2>
-                <p className="text-sm text-grey-500 -mt-md">{selectedBundesland}</p>
+                <p className="text-sm text-grey-500 -mt-md">{wizBundesland}</p>
                 <div className="flex gap-sm">
                   <Input
-                    value={localGroupName}
-                    onChange={(e) => setLocalGroupName(e.target.value)}
-                    placeholder={LOCAL_NAME_PLACEHOLDERS[selectedEbene || ''] || ''}
+                    value={wizGliederung}
+                    onChange={(e) => setWizGliederung(e.target.value)}
+                    placeholder={LOCAL_NAME_PLACEHOLDERS[wizEbene || ''] || ''}
                     className="flex-1"
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleLocalNameSubmit();
+                      if (e.key === 'Enter') handleWizGliederungSubmit();
                     }}
                     autoFocus
                   />
                   <Button
-                    onClick={handleLocalNameSubmit}
-                    disabled={!localGroupName.trim()}
+                    onClick={handleWizGliederungSubmit}
+                    disabled={!wizGliederung.trim()}
                     size="sm"
                   >
                     Weiter
@@ -501,154 +512,136 @@ function ChatSettingsPage() {
               </>
             ) : (
               <>
-                <button
-                  type="button"
-                  onClick={handleStepBack}
-                  className="inline-flex items-center gap-xs text-sm text-grey-500 hover:text-foreground transition-colors self-start"
-                >
-                  <HiOutlineArrowLeft className="size-4" />
-                  Zurück
-                </button>
-
+                {renderWizardBack}
                 <h2 className="text-lg font-semibold text-foreground-heading">
                   Was ist deine Rolle?
                 </h2>
-                {selectedEbene && (
+                {wizEbene && (
                   <p className="text-sm text-grey-500 -mt-md">
-                    Auf {ebenen.find((e) => e.id === selectedEbene)?.label}-Ebene
-                    {selectedBundesland ? ` · ${selectedBundesland}` : ''}
-                    {localGroupName ? ` · ${localGroupName}` : ''}
+                    {ebenen.find((e) => e.id === wizEbene)?.label}
+                    {wizBundesland ? ` · ${wizBundesland}` : ''}
+                    {wizGliederung ? ` · ${wizGliederung}` : ''}
                   </p>
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
-                  {selectedEbene &&
-                    (rollen[selectedEbene] || []).map((rolle) => (
+                  {wizEbene &&
+                    (rollenMap[wizEbene] || []).map((rolle) => (
                       <SelectCard
                         key={rolle}
                         label={rolle}
-                        selected={selectedRolle === rolle}
-                        onClick={() => handleSelectRolle(rolle)}
+                        selected={wizRolle === rolle}
+                        onClick={() => handleWizSelectRolle(rolle)}
                       />
                     ))}
                   <SelectCard
                     label="Sonstige"
                     description="Eigene Rolle eingeben"
-                    selected={selectedRolle === 'custom'}
-                    onClick={() => setSelectedRolle('custom')}
+                    selected={wizRolle === 'custom'}
+                    onClick={() => setWizRolle('custom')}
                   />
                 </div>
 
-                {selectedRolle === 'custom' && (
-                  <div className="mt-md flex gap-sm">
+                {wizRolle === 'custom' && (
+                  <div className="flex gap-sm">
                     <Input
-                      value={customRolle}
-                      onChange={(e) => setCustomRolle(e.target.value)}
+                      value={wizCustomRolle}
+                      onChange={(e) => setWizCustomRolle(e.target.value)}
                       placeholder="z.B. Fraktionsgeschäftsführer*in"
                       className="flex-1"
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleCustomRolleSubmit();
+                        if (e.key === 'Enter') handleWizCustomRolleSubmit();
                       }}
                     />
                   </div>
                 )}
 
-                {selectedRolle &&
-                  selectedRolle !== 'custom' &&
-                  needsAbgeordneteName(selectedRolle) && (
-                    <div className="mt-md">
-                      <p className="mb-sm text-xs text-grey-500">
-                        Für welche*n Abgeordnete*n arbeitest du?
-                      </p>
-                      <div className="relative flex gap-sm">
-                        <div className="relative flex-1">
-                          <Input
-                            value={abgeordneteName}
-                            onChange={(e) => setAbgeordneteName(e.target.value)}
-                            placeholder={isAustrian ? 'z.B. Sigrid Maurer' : 'z.B. Lisa Badum'}
-                            className="w-full"
-                            autoComplete="off"
-                          />
-                          {!isAustrian && (
-                            <MdBSuggestions query={abgeordneteName} onSelect={setAbgeordneteName} />
-                          )}
-                        </div>
-                      </div>
+                {wizRolle && wizRolle !== 'custom' && needsAbgeordneteName(wizRolle) && (
+                  <div>
+                    <p className="mb-sm text-xs text-grey-500">
+                      Für welche*n Abgeordnete*n arbeitest du?
+                    </p>
+                    <div className="relative">
+                      <Input
+                        value={wizAbgeordnete}
+                        onChange={(e) => setWizAbgeordnete(e.target.value)}
+                        placeholder={isAustrian ? 'z.B. Sigrid Maurer' : 'z.B. Lisa Badum'}
+                        autoComplete="off"
+                      />
+                      {!isAustrian && (
+                        <MdBSuggestions query={wizAbgeordnete} onSelect={setWizAbgeordnete} />
+                      )}
                     </div>
-                  )}
-
-                {canGenerate && (
-                  <div className="mt-md">
-                    <Button onClick={handleGeneratePrompt}>Assistenten erstellen</Button>
                   </div>
                 )}
+
+                {canAddRole && <Button onClick={handleAddRole}>Rolle hinzufügen</Button>}
               </>
             )
           ) : (
+            // ─── Role List + Freetext ──────────────────────────────────────
             <>
-              {profileSummary.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle>Profil</CardTitle>
-                      <Button variant="ghost" size="sm" onClick={resetWizard}>
-                        Ändern
-                      </Button>
-                    </div>
-                    <CardDescription>Dein gewähltes Profil für den Assistenten</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-sm">
-                      {profileSummary.map((label) => (
-                        <Badge key={label} variant="secondary" className="text-sm px-md py-xs">
-                          {label}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle>System-Prompt</CardTitle>
-                    <Button variant="ghost" size="sm" onClick={resetWizard}>
-                      Neu erstellen
+                    <CardTitle>Deine Rollen</CardTitle>
+                    <Button variant="ghost" size="sm" onClick={startAddRole}>
+                      <HiPlus className="size-4 mr-1" />
+                      Rolle hinzufügen
                     </Button>
                   </div>
                   <CardDescription>
-                    Der Prompt bestimmt das Verhalten deines Assistenten
+                    Definiere deine Rollen — der Grünerator passt sich automatisch an.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {roles.length === 0 ? (
+                    <div className="text-center py-lg">
+                      <p className="text-sm text-grey-500 mb-md">Noch keine Rollen definiert.</p>
+                      <Button variant="outline" onClick={startAddRole}>
+                        <HiPlus className="size-4 mr-1" />
+                        Erste Rolle hinzufügen
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-sm">
+                      {roles.map((role, i) => (
+                        <RoleCard
+                          key={`${role.ebene}-${role.rolle}-${i}`}
+                          role={role}
+                          ebenen={ebenen}
+                          onDelete={() => handleDeleteRole(i)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Zusätzliche Anweisungen</CardTitle>
+                  <CardDescription>
+                    Optionale Hinweise für alle KI-generierten Texte
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <textarea
-                    value={promptText}
-                    onChange={(e) => setPromptText(e.target.value)}
+                    value={freetext}
+                    onChange={(e) => setFreetext(e.target.value)}
                     className="w-full rounded-lg border border-grey-200 bg-input-bg p-md text-sm leading-relaxed text-foreground resize-vertical placeholder:text-grey-400 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 dark:border-grey-700"
-                    rows={16}
-                    placeholder="System-Prompt eingeben oder über den Wizard erstellen…"
+                    rows={4}
+                    placeholder="z.B. Schreibe immer in einfacher Sprache. Verwende kurze Sätze."
                   />
                 </CardContent>
               </Card>
-            </>
-          )}
 
-          {hasChanges && (
-            <div className="flex items-center gap-md justify-end pb-lg">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setPromptText(customSystemPrompt || '');
-                  if (!customSystemPrompt) resetWizard();
-                }}
-              >
-                Verwerfen
-              </Button>
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? 'Speichert…' : 'Speichern'}
-              </Button>
-            </div>
+              <div className="flex justify-end pb-lg">
+                <Button onClick={handleSave} disabled={saving}>
+                  {saving ? 'Speichert…' : 'Speichern'}
+                </Button>
+              </div>
+            </>
           )}
         </div>
       </PageContainer>
