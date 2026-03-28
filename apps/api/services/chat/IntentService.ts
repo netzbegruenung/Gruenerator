@@ -39,9 +39,6 @@ const documentQnAService = new DocumentQnAService(redisClient, mistralClient);
 const CONFIG = {
   LOW_CONFIDENCE_THRESHOLD: 0.3,
   MULTI_INTENT_TIMEOUT: 30000,
-  MIN_DETAILS_LENGTH: 10,
-  MAX_DETAILS_LENGTH: 200,
-  MAX_FALLBACK_LENGTH: 300,
 };
 
 /**
@@ -95,47 +92,6 @@ interface MultiIntentResult {
   error?: string;
   confidence: number;
   processingIndex: number;
-}
-
-/**
- * Build search query from user message for automatic document research
- */
-function buildAutoSearchQuery(message: string, extractedParams: any, intent: Intent): string {
-  // Priority 1: Use extracted thema if meaningful
-  if (
-    extractedParams.thema &&
-    extractedParams.thema !== 'Grüne Politik' &&
-    extractedParams.thema !== 'Politisches Thema'
-  ) {
-    return extractedParams.thema;
-  }
-
-  // Priority 2: Use extracted idee (for antrag agents)
-  if (extractedParams.idee) {
-    return extractedParams.idee;
-  }
-
-  // Priority 3: Use details if focused
-  if (
-    extractedParams.details &&
-    extractedParams.details.length > CONFIG.MIN_DETAILS_LENGTH &&
-    extractedParams.details.length < CONFIG.MAX_DETAILS_LENGTH
-  ) {
-    return extractedParams.details;
-  }
-
-  // Priority 4: Clean the message - remove common command phrases
-  const cleanedMessage = message
-    .replace(/(?:erstelle|mache|schreibe|generiere)\s+(?:mir|uns|einen?|eine?|das|die|der)/gi, '')
-    .replace(/(?:bitte|danke|könntest du|kannst du)/gi, '')
-    .replace(/(?:post|beitrag|pressemitteilung|antrag|zitat|sharepic)/gi, '')
-    .replace(/(?:für|über|zum thema|bezüglich)/gi, '')
-    .trim();
-
-  return cleanedMessage.length > CONFIG.MIN_DETAILS_LENGTH &&
-    cleanedMessage.length < CONFIG.MAX_FALLBACK_LENGTH
-    ? cleanedMessage
-    : cleanedMessage.substring(0, CONFIG.MAX_FALLBACK_LENGTH);
 }
 
 /**
@@ -550,13 +506,6 @@ export async function processSingleIntentRequest(
     }
   }
 
-  // Determine if auto-search should be enabled
-  const enableAutoSearch = requestType !== 'conversation';
-
-  const autoSearchQuery = enableAutoSearch
-    ? buildAutoSearchQuery(baseContext.originalMessage, extractedParams, intent)
-    : null;
-
   // Update request body for single intent processing
   Object.assign(
     req.body,
@@ -566,11 +515,7 @@ export async function processSingleIntentRequest(
       agent: intent.agent,
       documentKnowledge: documentKnowledge,
     },
-    baseContext,
-    {
-      useAutomaticSearch: enableAutoSearch,
-      searchQuery: autoSearchQuery,
-    }
+    baseContext
   );
 
   const routeType = intent.route || intent.agent;
@@ -623,11 +568,6 @@ async function processIntentAsync(
     }
   }
 
-  const enableAutoSearch = requestType !== 'conversation';
-  const autoSearchQuery = enableAutoSearch
-    ? buildAutoSearchQuery(baseContext.originalMessage, extractedParams, intent)
-    : null;
-
   const intentReq: any = {
     ...req,
     app: req.app,
@@ -639,8 +579,6 @@ async function processIntentAsync(
       agent: intent.agent,
       documentKnowledge: documentKnowledge,
       ...baseContext,
-      useAutomaticSearch: enableAutoSearch,
-      searchQuery: autoSearchQuery,
     },
     startTime: Date.now(),
   };
