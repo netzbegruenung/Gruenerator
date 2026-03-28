@@ -79,7 +79,7 @@ const ToolIcon = memo(({ tool }: { tool: ToolItem }) => {
       <div className="flex items-center justify-center size-16 rounded-full bg-background-pure dark:bg-grey-700 text-secondary-600 dark:text-grey-200 transition-all duration-200 group-hover:bg-grey-50 dark:group-hover:bg-grey-600 group-hover:scale-105 shadow-md dark:shadow-none">
         <Icon className="text-2xl" />
       </div>
-      <span className="text-sm text-foreground text-center leading-tight max-w-20 line-clamp-2">
+      <span className="text-sm text-foreground text-center leading-tight max-w-24">
         {tool.title}
       </span>
     </button>

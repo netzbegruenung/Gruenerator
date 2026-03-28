@@ -51,7 +51,7 @@ const WorkplacePage = () => {
           showBoards={canAccessBetaFeature('boards')}
         />
 
-        <ReelsSection />
+        {/* <ReelsSection /> */}
 
         <NotebooksSection />
 
