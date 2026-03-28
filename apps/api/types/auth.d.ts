@@ -12,18 +12,6 @@ export interface User {
   updated_at?: Date;
 }
 
-export interface SessionData {
-  passport?: {
-    user?: User;
-  };
-  preferredSource?: string;
-  returnTo?: string;
-  codeVerifier?: string;
-  state?: string;
-  originalUrl?: string;
-}
-
 export interface AuthenticatedRequest {
   user: User;
-  isAuthenticated: () => boolean;
 }

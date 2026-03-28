@@ -1,8 +1,6 @@
 import type { AIWorkerPool } from './workers';
 import type { Request, Response, NextFunction } from 'express';
-import type { Session, SessionData } from 'express-session';
 
-// Define UserProfile shape directly here to avoid circular imports in declaration merging
 interface UserProfileShape {
   id: string;
   keycloak_id?: string;
@@ -14,7 +12,6 @@ interface UserProfileShape {
   beta_features: Record<string, boolean>;
   user_defaults: Record<string, Record<string, unknown>>;
   locale?: 'de-DE' | 'de-AT';
-  igel_modus: boolean;
   groups_enabled: boolean;
   custom_generators: boolean;
   database_access: boolean;
@@ -35,19 +32,6 @@ interface UserProfileShape {
   last_login?: Date | string;
 }
 
-declare module 'express-session' {
-  interface SessionData {
-    passport?: {
-      user?: UserProfileShape;
-    };
-    preferredSource?: string;
-    returnTo?: string;
-    codeVerifier?: string;
-    state?: string;
-    originalUrl?: string;
-  }
-}
-
 declare global {
   namespace Express {
     // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -55,7 +39,6 @@ declare global {
 
     interface Request {
       user?: User;
-      session: Session & SessionData;
       subdomain?: string;
       siteData?: {
         id: string;

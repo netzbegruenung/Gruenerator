@@ -44,7 +44,6 @@ async function requireAuth(
         avatar_robot_id: 1,
         beta_features: {},
         user_defaults: {},
-        igel_modus: false,
         groups_enabled: false,
         custom_generators: false,
         database_access: false,
@@ -72,9 +71,6 @@ async function requireAuth(
     });
     if (session?.user) {
       req.user = session.user as any;
-      if (typeof req.isAuthenticated !== 'function') {
-        (req as any).isAuthenticated = () => true;
-      }
       return next();
     }
   } catch {
@@ -97,7 +93,7 @@ async function requireAuth(
 }
 
 function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  if (!req.isAuthenticated || !req.isAuthenticated()) {
+  if (!req.user) {
     requireAuth(req, res, next);
     return;
   }
