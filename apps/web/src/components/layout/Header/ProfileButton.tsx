@@ -1,12 +1,4 @@
-import {
-  Badge,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@gruenerator/ui';
+import { Badge, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@gruenerator/ui';
 import { LogOut } from 'lucide-react';
 import { memo, useState } from 'react';
 import { FaCloud, FaFolder, FaUserCircle, FaUsers } from 'react-icons/fa';
@@ -92,10 +84,10 @@ const ProfileDropdownContent = memo(({ user, unreadCount }: ProfileDropdownConte
   const location = useLocation();
   const { shouldShowTab } = useBetaFeatures();
 
-  const { data: profile } = useProfile(user.id) as { data: Profile | undefined };
+  const { data: profile } = useProfile(user.id);
 
   const displayName = profile?.display_name || '';
-  const avatarRobotId = profile?.avatar_robot_id ?? 1;
+  const avatarRobotId = profile?.avatar_robot_id ?? null;
 
   const avatarProps = getAvatarDisplayProps({
     avatar_robot_id: avatarRobotId,
@@ -131,52 +123,41 @@ const ProfileDropdownContent = memo(({ user, unreadCount }: ProfileDropdownConte
               ? location.pathname === '/profile'
               : location.pathname.startsWith(item.path);
           return (
-            <Tooltip key={item.key}>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => navigate(item.path)}
-                  className={cn(
-                    'flex items-center justify-center size-9 rounded-lg transition-colors',
-                    isActive
-                      ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400'
-                      : 'text-grey-500 hover:bg-background-alt hover:text-foreground'
-                  )}
-                  aria-label={item.label}
-                >
-                  <item.icon className="size-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="text-xs">
-                {item.label}
-              </TooltipContent>
-            </Tooltip>
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => navigate(item.path)}
+              className={cn(
+                'flex items-center justify-center size-9 rounded-lg transition-colors',
+                isActive
+                  ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400'
+                  : 'text-grey-500 hover:bg-background-alt hover:text-foreground'
+              )}
+              aria-label={item.label}
+              title={item.label}
+            >
+              <item.icon className="size-4" />
+            </button>
           );
         })}
         <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-xxs" />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onClick={() => {
-                if (!isLoggingOut) void logout();
-              }}
-              disabled={isLoggingOut}
-              className={cn(
-                'flex items-center justify-center size-9 rounded-lg transition-colors',
-                isLoggingOut
-                  ? 'opacity-50 cursor-not-allowed text-grey-400'
-                  : 'text-grey-500 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600'
-              )}
-              aria-label={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
-            >
-              <LogOut className="size-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-xs">
-            {isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
-          </TooltipContent>
-        </Tooltip>
+        <button
+          type="button"
+          onClick={() => {
+            if (!isLoggingOut) void logout();
+          }}
+          disabled={isLoggingOut}
+          className={cn(
+            'flex items-center justify-center size-9 rounded-lg transition-colors',
+            isLoggingOut
+              ? 'opacity-50 cursor-not-allowed text-grey-400'
+              : 'text-grey-500 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600'
+          )}
+          aria-label={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
+          title={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
+        >
+          <LogOut className="size-4" />
+        </button>
       </div>
 
       <NotificationList unreadCount={unreadCount} />
@@ -186,14 +167,14 @@ const ProfileDropdownContent = memo(({ user, unreadCount }: ProfileDropdownConte
 ProfileDropdownContent.displayName = 'ProfileDropdownContent';
 
 const ProfileButton = () => {
-  const { user, loading, isInitialLoad, setLoginIntent } = useOptimizedAuth();
+  const { user, loading, setLoginIntent } = useOptimizedAuth();
   const [open, setOpen] = useState(false);
 
   const { data: unreadCount = 0 } = useUnreadCount();
   const markAllAsRead = useMarkAllAsRead();
 
-  const { data: profile } = useProfile(user?.id) as { data: Profile | undefined };
-  const avatarRobotId = profile?.avatar_robot_id ?? 1;
+  const { data: profile, isPlaceholderData } = useProfile(user?.id);
+  const avatarRobotId = profile?.avatar_robot_id ?? null;
   const displayName = profile?.display_name || '';
 
   const avatarProps = getAvatarDisplayProps({
@@ -240,7 +221,11 @@ const ProfileButton = () => {
           className="relative flex items-center justify-center size-[38px] rounded-full border border-grey-200 dark:border-grey-700 bg-background hover:border-primary-500 hover:bg-hover-alt transition-colors"
           aria-label="Profil-Menü öffnen"
         >
-          {renderAvatar(avatarProps, 'sm', isInitialLoad)}
+          {avatarRobotId == null && !displayName ? (
+            <div className="size-full rounded-full bg-grey-200 dark:bg-grey-700 animate-pulse" />
+          ) : (
+            renderAvatar(avatarProps, 'sm', isPlaceholderData)
+          )}
           {unreadCount > 0 && (
             <Badge
               variant="destructive"
@@ -258,4 +243,4 @@ const ProfileButton = () => {
   );
 };
 
-export default ProfileButton;
+export default memo(ProfileButton);
