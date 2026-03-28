@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ThreadPrimitive, useAssistantRuntime, useComposerRuntime } from '@assistant-ui/react';
 import { useAuiState } from '@assistant-ui/store';
 import { useAgentStore } from '../stores/chatStore';
+import { useUserProfileStore, type UserRole } from '../stores/userProfileStore';
 import { cn } from '../lib/utils';
 import { GrueneratorComposer } from './thread/GrueneratorComposer';
 
@@ -71,6 +72,7 @@ interface ChatOverviewProps {
   notebooks?: NotebookLink[];
   onNavigate?: (path: string) => void;
   onSelectNotebook?: (notebookId: string) => void;
+  onSelectRole?: (role: UserRole) => void;
 }
 
 const INITIAL_NOTEBOOK_COUNT = 3;
@@ -80,9 +82,11 @@ export function ChatOverview({
   notebooks,
   onNavigate,
   onSelectNotebook,
+  onSelectRole,
 }: ChatOverviewProps) {
   const assistantRuntime = useAssistantRuntime();
   const [showAllNotebooks, setShowAllNotebooks] = useState(false);
+  const roles = useUserProfileStore((s) => s.roles);
 
   useEffect(() => {
     const { pendingMessage, pendingDraft, pendingInitialAssistantMessage } =
@@ -103,6 +107,27 @@ export function ChatOverview({
         <p className="mb-6 text-sm text-foreground-muted">
           Stelle eine Frage, lade eine Datei hoch oder erwähne eine Quelle mit @
         </p>
+
+        {roles.length > 0 && onSelectRole && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {roles.map((role, i) => (
+              <button
+                key={`${role.ebene}-${role.rolle}-${i}`}
+                type="button"
+                onClick={() => onSelectRole(role)}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-full border border-grey-200 dark:border-grey-700 bg-background px-3 py-1.5 text-xs transition-all',
+                  'hover:border-primary-500 hover:bg-primary-500/5 hover:text-primary-700 dark:hover:text-primary-400'
+                )}
+              >
+                <span className="font-medium">{role.rolle}</span>
+                {role.gliederung && (
+                  <span className="text-foreground-muted">· {role.gliederung}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <ThreadPrimitive.Root

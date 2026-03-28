@@ -31,6 +31,7 @@ import { cn, composerToolbarButtonClass } from '../lib/utils';
 import { MODEL_ICONS } from '../lib/modelIcons';
 import { useShallow } from 'zustand/shallow';
 import { useAgentStore, MODEL_OPTIONS, type ThreadMode, type ToolKey } from '../stores/chatStore';
+import { useUserProfileStore } from '../stores/userProfileStore';
 import { notebookMentionables } from '../lib/mentionables';
 import { ShareThreadDialog } from './thread/ShareThreadDialog';
 
@@ -81,7 +82,9 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
   const [shareOpen, setShareOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const roles = useUserProfileStore((s) => s.roles);
   const hasCustomPrompt = !!customSystemPrompt;
+  const hasRoles = roles.length > 0;
 
   const current = MODEL_OPTIONS.find((m) => m.id === selectedModel) ?? MODEL_OPTIONS[0];
   const CurrentIcon = MODEL_ICONS[current.icon];
@@ -90,11 +93,28 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
       ? Settings
       : (MODE_CONFIG.find((m) => m.mode === threadMode)?.Icon ?? MessageSquare);
 
-  const eigenerBadgeLabel = firstName ? `${firstName}s Chat` : 'Eigener';
+  const setCustomSystemPrompt = useAgentStore((s) => s.setCustomSystemPrompt);
+
+  const activeRoleName =
+    threadMode === 'eigener' && hasRoles
+      ? roles.find((r) => r.systemPrompt === customSystemPrompt)?.rolle
+      : null;
+  const eigenerBadgeLabel = activeRoleName || (firstName ? `${firstName}s Chat` : 'Eigener');
 
   const handleModeChange = (value: string) => {
-    if (value === 'eigener' && !hasCustomPrompt) return;
-    setThreadMode(value as ThreadMode);
+    if (value === 'eigener' && !hasCustomPrompt && !hasRoles) return;
+    if (value.startsWith('role:')) {
+      const roleIndex = parseInt(value.slice(5), 10);
+      const role = roles[roleIndex];
+      if (role?.systemPrompt) {
+        setCustomSystemPrompt(role.systemPrompt);
+        setThreadMode('eigener');
+      }
+      return;
+    }
+    if (value !== 'eigener') {
+      setThreadMode(value as ThreadMode);
+    }
   };
 
   const desktopContent = (
@@ -105,47 +125,47 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
           Modus
         </DropdownMenuSubTrigger>
         <DropdownMenuSubContent>
-          <DropdownMenuRadioGroup value={threadMode} onValueChange={handleModeChange}>
+          <DropdownMenuRadioGroup
+            value={
+              threadMode === 'eigener' && hasRoles
+                ? `role:${roles.findIndex((r) => r.systemPrompt === customSystemPrompt)}`
+                : threadMode
+            }
+            onValueChange={handleModeChange}
+          >
             {MODE_CONFIG.map(({ mode, label, Icon }) => (
               <DropdownMenuRadioItem key={mode} value={mode}>
                 <Icon className="h-3.5 w-3.5" />
                 {label}
               </DropdownMenuRadioItem>
             ))}
-            <DropdownMenuRadioItem value="eigener" disabled={!hasCustomPrompt} className="pr-1">
-              <Settings className="h-3.5 w-3.5" />
-              <span className="flex-1">Eigener Chat</span>
-              {onNavigate && (
-                <button
-                  type="button"
-                  className="ml-1 rounded p-0.5 text-foreground-muted hover:text-foreground hover:bg-hover-overlay transition-colors"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onNavigate('/chat/settings');
-                  }}
-                  aria-label="Eigenen Chat bearbeiten"
-                >
-                  <Settings className="h-3 w-3" />
-                </button>
-              )}
-            </DropdownMenuRadioItem>
+            {hasRoles ? (
+              roles.map((role, i) => (
+                <DropdownMenuRadioItem key={`role-${i}`} value={`role:${i}`} className="pr-1">
+                  <Settings className="h-3.5 w-3.5" />
+                  <span className="flex-1 truncate">{role.rolle}</span>
+                </DropdownMenuRadioItem>
+              ))
+            ) : (
+              <DropdownMenuRadioItem value="eigener" disabled={!hasCustomPrompt} className="pr-1">
+                <Settings className="h-3.5 w-3.5" />
+                <span className="flex-1">Eigener Chat</span>
+              </DropdownMenuRadioItem>
+            )}
           </DropdownMenuRadioGroup>
 
-          {!hasCustomPrompt && (
+          {!hasRoles && !hasCustomPrompt && onNavigate && (
             <>
               <DropdownMenuSeparator />
               <div className="px-2 py-1.5">
-                <p className="text-[11px] text-foreground-muted">Noch nicht konfiguriert.</p>
-                {onNavigate && (
-                  <button
-                    type="button"
-                    className="mt-1 flex items-center gap-1 text-[11px] font-medium text-primary-600 hover:text-primary-500 transition-colors"
-                    onClick={() => onNavigate('/chat/settings')}
-                  >
-                    <Settings className="h-3 w-3" />
-                    Jetzt einrichten
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className="flex items-center gap-1 text-[11px] font-medium text-primary-600 hover:text-primary-500 transition-colors"
+                  onClick={() => onNavigate('/dein-gruenerator')}
+                >
+                  <Settings className="h-3 w-3" />
+                  Rollen einrichten
+                </button>
               </div>
             </>
           )}
@@ -238,14 +258,27 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
             {label}
           </ResponsiveMenuItem>
         ))}
-        <ResponsiveMenuItem
-          icon={<Settings />}
-          active={threadMode === 'eigener'}
-          disabled={!hasCustomPrompt}
-          onClick={() => handleModeChange('eigener')}
-        >
-          {eigenerBadgeLabel}
-        </ResponsiveMenuItem>
+        {hasRoles ? (
+          roles.map((role, i) => (
+            <ResponsiveMenuItem
+              key={`role-${i}`}
+              icon={<Settings />}
+              active={threadMode === 'eigener' && role.systemPrompt === customSystemPrompt}
+              onClick={() => handleModeChange(`role:${i}`)}
+            >
+              {role.rolle}
+            </ResponsiveMenuItem>
+          ))
+        ) : (
+          <ResponsiveMenuItem
+            icon={<Settings />}
+            active={threadMode === 'eigener'}
+            disabled={!hasCustomPrompt}
+            onClick={() => handleModeChange('eigener')}
+          >
+            {eigenerBadgeLabel}
+          </ResponsiveMenuItem>
+        )}
 
         {threadMode === 'notebook' && (
           <div className="mt-2 px-3">
@@ -318,7 +351,7 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
           <button type="button" className={composerToolbarButtonClass}>
             <Wrench className="h-4 w-4" />
             {threadMode !== 'chat' && (
-              <span className="rounded-full bg-primary-100 px-1.5 py-0.5 text-[10px] font-medium leading-none text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
+              <span className="rounded-full bg-primary-100 px-1.5 py-0.5 text-[10px] font-medium leading-none text-primary-700 dark:bg-primary-900/30 dark:text-primary-400 max-w-24 truncate">
                 {threadMode === 'eigener'
                   ? eigenerBadgeLabel
                   : MODE_CONFIG.find((m) => m.mode === threadMode)?.label}

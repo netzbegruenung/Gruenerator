@@ -3,9 +3,14 @@ import {
   type NotebookLink,
   GrueneratorThread,
   useAgentStore,
+  useUserProfileStore,
+  type UserRole,
 } from '@gruenerator/chat';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+
+import { useAuthStore } from '../../stores/authStore';
+import { useUserDefaultsStore } from '../../stores/userDefaultsStore';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import { SYSTEM_NOTEBOOKS } from '@/features/notebook/config/notebooksConfig';
@@ -22,6 +27,14 @@ function ChatPage() {
   const navigate = useNavigate();
   const chatViewMode = useAgentStore((s) => s.chatViewMode);
   const firstName = useFirstName();
+  const locale = useAuthStore((s) => s.locale);
+  const getDefault = useUserDefaultsStore((s) => s.getDefault);
+
+  // Hydrate the chat package's userProfileStore with roles from user defaults
+  useEffect(() => {
+    const roles = getDefault<UserRole[]>('profile', 'roles') || [];
+    useUserProfileStore.getState().hydrate({ roles, locale: locale || 'de-DE' });
+  }, [getDefault, locale]);
 
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
 
@@ -29,6 +42,15 @@ function ChatPage() {
     const store = useAgentStore.getState();
     store.setThreadMode('notebook');
     store.setSelectedNotebook(notebookId);
+    store.setChatViewMode('thread');
+  }, []);
+
+  const handleSelectRole = useCallback((role: UserRole) => {
+    const store = useAgentStore.getState();
+    if (role.systemPrompt) {
+      store.setCustomSystemPrompt(role.systemPrompt);
+    }
+    store.setThreadMode('eigener');
     store.setChatViewMode('thread');
   }, []);
 
@@ -57,6 +79,7 @@ function ChatPage() {
             notebooks={notebookLinks}
             onNavigate={handleNavigate}
             onSelectNotebook={handleSelectNotebook}
+            onSelectRole={handleSelectRole}
           />
         ) : (
           <GrueneratorThread onNavigate={handleNavigate} firstName={firstName} />
