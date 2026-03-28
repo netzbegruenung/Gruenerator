@@ -129,13 +129,13 @@ const ProfileDropdownContent = memo(({ user, unreadCount }: ProfileDropdownConte
               type="button"
               onClick={() => navigate(item.path)}
               className={cn(
-                'css-tooltip flex items-center justify-center size-9 rounded-lg transition-colors',
+                'flex items-center justify-center size-9 rounded-lg transition-colors',
                 isActive
                   ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400'
                   : 'text-grey-500 hover:bg-background-alt hover:text-foreground'
               )}
               aria-label={item.label}
-              data-tooltip={item.label}
+              title={item.label}
             >
               <item.icon className="size-4" />
             </button>
@@ -149,13 +149,13 @@ const ProfileDropdownContent = memo(({ user, unreadCount }: ProfileDropdownConte
           }}
           disabled={isLoggingOut}
           className={cn(
-            'css-tooltip flex items-center justify-center size-9 rounded-lg transition-colors',
+            'flex items-center justify-center size-9 rounded-lg transition-colors',
             isLoggingOut
               ? 'opacity-50 cursor-not-allowed text-grey-400'
               : 'text-grey-500 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600'
           )}
           aria-label={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
-          data-tooltip={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
+          title={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
         >
           <LogOut className="size-4" />
         </button>
@@ -239,7 +239,7 @@ const ProfileButton = () => {
           )}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[320px] p-0 overflow-visible" sideOffset={8}>
+      <DropdownMenuContent align="end" className="w-[320px] p-0" sideOffset={8}>
         {open && user && <ProfileDropdownContent user={user} unreadCount={unreadCount} />}
       </DropdownMenuContent>
     </DropdownMenu>
