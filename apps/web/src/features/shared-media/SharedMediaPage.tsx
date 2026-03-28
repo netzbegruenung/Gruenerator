@@ -8,7 +8,7 @@ import LoginRequired from '../../components/common/LoginRequired/LoginRequired';
 import Spinner from '../../components/common/Spinner';
 import apiClient from '../../components/utils/apiClient';
 import { buildUrl } from '../../config/domains';
-import { useOptimizedAuth } from '../../hooks/useAuth';
+import { useAuthStore } from '../../stores/authStore';
 import { cn } from '../../utils/cn';
 import { canShare, shareContent, copyToClipboard } from '../../utils/shareUtils';
 
@@ -36,7 +36,7 @@ interface ShareData extends Partial<TransferFields> {
 
 const SharedMediaPage = () => {
   const { shareToken } = useParams();
-  const { isAuthenticated } = useOptimizedAuth();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [shareData, setShareData] = useState<ShareData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);

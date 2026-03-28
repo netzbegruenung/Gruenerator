@@ -3,8 +3,8 @@ import { useState, useMemo, useCallback, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import PageContainer from '../../../components/common/PageContainer';
-import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { generateSharepicFromPrompt } from '../../../services/sharepicPromptService';
+import { useAuthStore } from '../../../stores/authStore';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { useFeaturedVorlagen, type FeaturedVorlage } from '../hooks/useFeaturedVorlagen';
 import { useRecentGalleryItems, type RecentGalleryItem } from '../hooks/useRecentGalleryItems';
@@ -64,7 +64,7 @@ const ImageStudioCategorySelector: React.FC = () => {
   const setCategory = useImageStudioStore((state) => state.setCategory);
   const loadFromAIGeneration = useImageStudioStore((state) => state.loadFromAIGeneration);
   const setType = useImageStudioStore((state) => state.setType);
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
 
   const [promptInput, setPromptInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);

@@ -6,7 +6,6 @@ import withAuthRequired from '../../components/common/LoginRequired/withAuthRequ
 import Spinner from '../../components/common/Spinner';
 import Button from '../../components/common/SubmitButton';
 import ErrorBoundary from '../../components/ErrorBoundary';
-import { useOptimizedAuth } from '../../hooks/useAuth';
 import useImageGenerationLimit from '../../hooks/useImageGenerationLimit';
 import useImageStudioStore from '../../stores/imageStudioStore';
 
@@ -83,9 +82,6 @@ const ImageStudioPageContent: React.FC = () => {
   const cloneInitiatedRef = useRef(false);
 
   const typeConfig = useMemo(() => getTypeConfig(type || ''), [type]);
-
-  // Get user locale from auth store (may be used for locale-specific features)
-  const { user: _user } = useOptimizedAuth();
 
   useEffect(() => {
     if (!urlCategory) return;

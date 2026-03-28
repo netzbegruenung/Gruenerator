@@ -1,7 +1,7 @@
 import { AnimatePresence } from 'motion/react';
 import React, { useEffect, useCallback, useState, useMemo } from 'react';
 
-import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { useAuthStore } from '../../../stores/authStore';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { useDraftAutoSave } from '../hooks/useDraftAutoSave';
 import { useStepFlow } from '../hooks/useStepFlow';
@@ -65,7 +65,7 @@ const StepFlow: React.FC<StepFlowProps> = ({
 }) => {
   const { handleChange, updateFormData, name, sloganAlternatives, uploadedImage } =
     useImageStudioStore();
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
 
   const {
     stepIndex,

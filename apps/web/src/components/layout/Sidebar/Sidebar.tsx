@@ -13,7 +13,6 @@ import { PiSun, PiMoon, PiHouse, PiX, PiStarFill, PiPlus } from 'react-icons/pi'
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { getFavouriteItemsById } from '../../../config/sidebarFavouritesConfig';
-import { useLazyAuth, useOptimizedAuth } from '../../../hooks/useAuth';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { useAuthStore } from '../../../stores/authStore';
 import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
@@ -72,8 +71,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   const { isOpen, close, open, toggle, forceExpanded } = useSidebarStore();
   const isMobile = useIsMobile();
 
-  useLazyAuth();
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
   const { getBetaFeatureState } = useBetaFeatures();
 
   const databaseBetaEnabled = useMemo(() => getBetaFeatureState('database'), [getBetaFeatureState]);

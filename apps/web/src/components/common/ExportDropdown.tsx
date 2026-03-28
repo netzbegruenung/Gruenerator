@@ -31,9 +31,9 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
-import { useLazyAuth } from '../../hooks/useAuth';
 import { useBetaFeatures } from '../../hooks/useBetaFeatures';
 import { awaitDeferredTitle } from '../../hooks/useDeferredTitle';
+import { useAuthStore } from '../../stores/authStore';
 import { useExportStore } from '../../stores/core/exportStore';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { canShare, shareContent } from '../../utils/shareUtils';
@@ -102,7 +102,7 @@ const ExportDropdown = ({
   const [padURL, setPadURL] = useState<string>('');
   const [urlCopied, setUrlCopied] = useState<boolean>(false);
 
-  const { isAuthenticated } = useLazyAuth();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   // Wolke export is currently disabled — don't fetch share links until re-enabled
   const { data: shareLinks = [] } = useShareLinks(undefined, undefined, { enabled: false });
   const uploadToWolkeMutation = useUploadToWolke();

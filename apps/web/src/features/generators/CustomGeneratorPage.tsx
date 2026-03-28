@@ -5,7 +5,7 @@ import { useParams } from 'react-router-dom';
 
 import ErrorBoundary from '../../components/ErrorBoundary';
 import apiClient from '../../components/utils/apiClient';
-import { useOptimizedAuth } from '../../hooks/useAuth';
+import { useAuthStore } from '../../stores/authStore';
 import { cn } from '../../utils/cn';
 import GeneratorInner from '../texte/components/GeneratorInner';
 
@@ -18,7 +18,7 @@ const QUERY_KEYS = {
 };
 
 function useCustomGenerator(slug: string | undefined) {
-  const { isAuthenticated } = useOptimizedAuth();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   return useQuery<GeneratorConfig>({
     queryKey: QUERY_KEYS.generator(slug),

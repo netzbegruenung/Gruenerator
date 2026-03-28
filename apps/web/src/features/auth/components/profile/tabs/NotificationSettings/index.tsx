@@ -1,6 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 
-import { useOptimizedAuth } from '../../../../../../hooks/useAuth';
+import { useAuthStore } from '../../../../../../stores/authStore';
 
 const NotificationSettingsView = lazy(() => import('./NotificationSettingsView'));
 
@@ -13,7 +13,7 @@ const NotificationSettingsTab = ({
   onSuccessMessage,
   onErrorMessage,
 }: NotificationSettingsTabProps): React.ReactElement => {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
 
   if (!user) {
     return <div className="profile-tab-loading" />;

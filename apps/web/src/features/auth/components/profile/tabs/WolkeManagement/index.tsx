@@ -1,6 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 
-import { useOptimizedAuth } from '../../../../../../hooks/useAuth';
+import { useAuthStore } from '../../../../../../stores/authStore';
 
 const WolkeManagementView = lazy(() => import('./WolkeManagementView'));
 
@@ -14,7 +14,7 @@ const WolkeManagementTabContainer = ({
   onSuccessMessage,
   onErrorMessage,
 }: WolkeManagementTabContainerProps): React.ReactElement => {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
 
   if (!user) {
     return <div className="profile-tab-loading" />;

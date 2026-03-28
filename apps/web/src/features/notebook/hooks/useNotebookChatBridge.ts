@@ -2,7 +2,7 @@ import { type ThreadMessageLike } from '@assistant-ui/react';
 import { type NotebookMessageMetadata } from '@gruenerator/chat';
 import { useMemo, useCallback, useEffect, useRef } from 'react';
 
-import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { useAuthStore } from '../../../stores/authStore';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useNotebookChatStore, type NotebookChatMessage } from '../stores/notebookChatStore';
 
@@ -65,7 +65,7 @@ export function useNotebookChatBridge({
   welcomeMessage,
   freshConversation,
 }: UseNotebookChatBridgeOptions) {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
   const { setGeneratedText, setGeneratedTextMetadata } = useGeneratedTextStore();
 
   const isMulti = collections.length > 1;

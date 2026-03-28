@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import apiClient from '../../../components/utils/apiClient';
-import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { useAuthStore } from '../../../stores/authStore';
 import { getNotebookById } from '../../notebook/config/notebooksConfig';
 import { useGroupPresence } from '../hooks/useGroupPresence';
 import { useGroups, useGroupAvatar, useGroupLinks, useGroupSharing } from '../hooks/useGroups';
@@ -19,7 +19,7 @@ interface GroupDetailSectionProps {
 
 const GroupDetailSection = memo(
   ({ groupId, onSuccessMessage, onErrorMessage }: GroupDetailSectionProps) => {
-    const { user } = useOptimizedAuth();
+    const user = useAuthStore((s) => s.user);
     const { onlineMembers } = useGroupPresence(
       groupId,
       user ? { id: user.id, name: user.display_name || user.email || 'User' } : null

@@ -7,7 +7,7 @@ import FormTextarea from '../../components/common/Form/Input/FormTextarea';
 import SubmitButton from '../../components/common/SubmitButton';
 import useApiSubmit from '../../components/hooks/useApiSubmit';
 import { ProfileIconButton } from '../../components/profile/actions/ProfileActionButton';
-import { useOptimizedAuth } from '../../hooks/useAuth';
+import { useAuthStore } from '../../stores/authStore';
 import { type CustomGenerator, profileApiService } from '../auth/services/profileApiService';
 
 import FieldEditorAssistant from './components/FieldEditorAssistant';
@@ -72,7 +72,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = memo
     const [isGeneratingWithAI, setIsGeneratingWithAI] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [completionData, setCompletionData] = useState<CompletionData | null>(null);
-    const { user } = useOptimizedAuth();
+    const user = useAuthStore((s) => s.user);
 
     // React Hook Form setup
     const {

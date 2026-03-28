@@ -15,7 +15,7 @@ import { Navigate } from 'react-router-dom';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
-import { useOptimizedAuth } from '../../hooks/useAuth';
+import { useAuthStore } from '../../stores/authStore';
 import { cn } from '../../utils/cn';
 
 import VorlagenReviewCard from './components/VorlagenReviewCard';
@@ -35,7 +35,7 @@ const TABS: { key: StatusTab; label: string }[] = [
 ];
 
 const AdminDashboardPage = () => {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
   const [activeTab, setActiveTab] = useState<StatusTab>('pending_review');
   const [rejectTarget, setRejectTarget] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');

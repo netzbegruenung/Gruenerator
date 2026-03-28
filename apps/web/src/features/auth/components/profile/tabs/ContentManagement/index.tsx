@@ -1,7 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 
 // Hooks
-import { useOptimizedAuth } from '../../../../../../hooks/useAuth';
+import { useAuthStore } from '../../../../../../stores/authStore';
 
 // Lazy-loaded components for performance
 const ContentManagementView = lazy(() => import('./ContentManagementView'));
@@ -24,7 +24,7 @@ const ContentManagementTabContainer = ({
   onSuccessMessage,
   onErrorMessage,
 }: ContentManagementTabContainerProps): React.ReactElement => {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
 
   // Early return for non-authenticated users
   if (!user) {
