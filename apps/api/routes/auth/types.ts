@@ -16,29 +16,7 @@ import type { ParamsDictionary } from 'express-serve-static-core';
  * Authenticated request with user attached
  */
 export interface AuthRequest<P = ParamsDictionary> extends Request<P> {
-  user?: UserProfile & {
-    _redirectTo?: string;
-    _originDomain?: string;
-    _profileSyncPending?: boolean;
-    _profileSyncError?: any;
-    id_token?: string;
-  };
-}
-
-/**
- * Request with session typing for auth flows
- */
-export interface AuthSessionRequest extends AuthRequest {
-  session: AuthRequest['session'] & {
-    redirectTo?: string;
-    preferredSource?: string;
-    isRegistration?: boolean;
-    originDomain?: string;
-    messages?: string[];
-    passport?: {
-      user?: UserProfile;
-    };
-  };
+  user?: UserProfile;
 }
 
 // ============================================================================
