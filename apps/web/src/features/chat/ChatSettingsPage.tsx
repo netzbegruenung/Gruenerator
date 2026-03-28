@@ -251,7 +251,7 @@ function RoleCard({
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-type WizardStep = 'ebene' | 'bundesland' | 'gliederung' | 'rolle';
+type WizardStep = 'ebene' | 'bundesland' | 'gliederung' | 'rolle' | 'instructions';
 
 function ChatSettingsPage() {
   const locale = useAuthStore((s) => s.locale);
@@ -346,7 +346,9 @@ function ChatSettingsPage() {
   }, [wizGliederung]);
 
   const handleWizStepBack = useCallback(() => {
-    if (wizardStep === 'rolle') {
+    if (wizardStep === 'instructions') {
+      setWizardStep('rolle');
+    } else if (wizardStep === 'rolle') {
       if (wizEbene && NEEDS_LOCAL_NAME.has(wizEbene)) setWizardStep('gliederung');
       else if (wizEbene && NEEDS_BUNDESLAND.has(wizEbene)) setWizardStep('bundesland');
       else setWizardStep('ebene');
@@ -553,7 +555,7 @@ function ChatSettingsPage() {
                   </Button>
                 </div>
               </>
-            ) : (
+            ) : wizardStep === 'rolle' ? (
               <>
                 {renderWizardBack}
                 <h2 className="text-lg font-semibold text-foreground-heading">
@@ -619,26 +621,41 @@ function ChatSettingsPage() {
                 )}
 
                 {canAddRole && (
-                  <>
-                    <div>
-                      <p className="mb-sm text-xs text-grey-500">
-                        Zusätzliche Anweisungen für diese Rolle (optional)
-                      </p>
-                      <textarea
-                        value={wizInstructions}
-                        onChange={(e) => setWizInstructions(e.target.value)}
-                        className="w-full rounded-lg border border-grey-200 bg-input-bg p-md text-sm leading-relaxed text-foreground resize-vertical placeholder:text-grey-400 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 dark:border-grey-700"
-                        rows={3}
-                        placeholder="z.B. Schreibe Pressemitteilungen immer mit Zitat des Fraktionsvorsitzenden."
-                      />
-                    </div>
-                    <Button onClick={handleAddRole} disabled={generating}>
-                      Rolle hinzufügen
-                    </Button>
-                  </>
+                  <Button onClick={() => setWizardStep('instructions')}>Weiter</Button>
                 )}
               </>
-            )
+            ) : wizardStep === 'instructions' ? (
+              <>
+                {renderWizardBack}
+                <h2 className="text-lg font-semibold text-foreground-heading">
+                  Zusätzliche Anweisungen
+                </h2>
+                <p className="text-sm text-grey-500 -mt-md">Optionale Hinweise für diese Rolle</p>
+                <textarea
+                  value={wizInstructions}
+                  onChange={(e) => setWizInstructions(e.target.value)}
+                  className="w-full rounded-lg border border-grey-200 bg-input-bg p-md text-sm leading-relaxed text-foreground resize-vertical placeholder:text-grey-400 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 dark:border-grey-700"
+                  rows={4}
+                  placeholder="z.B. Schreibe Pressemitteilungen immer mit Zitat des Fraktionsvorsitzenden."
+                  autoFocus
+                />
+                <div className="flex items-center gap-sm">
+                  <Button onClick={handleAddRole} disabled={generating}>
+                    Rolle hinzufügen
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setWizInstructions('');
+                      void handleAddRole();
+                    }}
+                    disabled={generating}
+                  >
+                    Überspringen
+                  </Button>
+                </div>
+              </>
+            ) : null
           ) : (
             // ─── Role List + Freetext ──────────────────────────────────────
             <>
