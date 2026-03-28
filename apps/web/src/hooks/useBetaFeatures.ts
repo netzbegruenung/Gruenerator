@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 
+import { useAuthStore } from '../stores/authStore';
 import { useBetaFeaturesStore, FEATURE_GROUPS } from '../stores/betaFeaturesStore';
-
-import { useOptimizedAuth } from './useAuth';
 
 // Types for beta features store
 interface BetaFeaturesState {
@@ -79,7 +78,8 @@ const ADMIN_ONLY_FEATURES = BETA_FEATURES_CONFIG.filter((f) => f.isAdminOnly).ma
 
 // Unified hook for managing beta features using Zustand store
 export const useBetaFeatures = (_options: UseBetaFeaturesOptions = {}): UseBetaFeaturesReturn => {
-  const { user } = useOptimizedAuth();
+  const userId = useAuthStore((s) => s.user?.id);
+  const isAdmin = useAuthStore((s) => s.user?.is_admin === true);
 
   // Split selectors to prevent unnecessary re-renders
   const betaFeatures = useBetaFeaturesStore((state: BetaFeaturesState) => state.betaFeatures);
@@ -92,14 +92,11 @@ export const useBetaFeatures = (_options: UseBetaFeaturesOptions = {}): UseBetaF
 
   // Ensure hydration when user changes - now includes hydrate in dependencies
   useEffect(() => {
-    if (!user?.id) return;
-    if (!isHydrated || storeUserId !== user.id) {
-      hydrate(user.id);
+    if (!userId) return;
+    if (!isHydrated || storeUserId !== userId) {
+      hydrate(userId);
     }
-  }, [user?.id, isHydrated, storeUserId, hydrate]);
-
-  // Memoize isAdmin to prevent unnecessary recalculations
-  const isAdmin = React.useMemo(() => user?.is_admin === true, [user?.is_admin]);
+  }, [userId, isHydrated, storeUserId, hydrate]);
 
   // Helper functions - memoized with stable dependencies
   const getBetaFeatureState = React.useCallback(
