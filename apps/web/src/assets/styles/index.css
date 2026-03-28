@@ -57,7 +57,7 @@
 @source "../../../../../packages/chat/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/ui/src/**/*.{js,ts,jsx,tsx}";
 
-/* ── CSS-only tooltip (zero JS, replaces Radix Tooltip for static labels) ── */
+/* ── CSS-only tooltip (zero JS, zero re-renders) ── */
 @layer components {
   .css-tooltip {
     position: relative;
@@ -65,9 +65,6 @@
   .css-tooltip::after {
     content: attr(data-tooltip);
     position: absolute;
-    bottom: -2rem;
-    left: 50%;
-    transform: translateX(-50%) scale(0.95);
     white-space: nowrap;
     padding: 0.25rem 0.5rem;
     border-radius: 0.375rem;
@@ -79,6 +76,10 @@
     opacity: 0;
     transition: opacity 0.15s, transform 0.15s;
     z-index: 50;
+    /* Default: bottom */
+    bottom: -2rem;
+    left: 50%;
+    transform: translateX(-50%) scale(0.95);
   }
   .css-tooltip:hover::after {
     opacity: 1;
@@ -86,6 +87,37 @@
   }
   .css-tooltip:active::after {
     opacity: 0;
+  }
+  /* Side: right */
+  .css-tooltip-right::after {
+    bottom: auto;
+    left: calc(100% + 0.5rem);
+    top: 50%;
+    transform: translateY(-50%) scale(0.95);
+  }
+  .css-tooltip-right:hover::after {
+    transform: translateY(-50%) scale(1);
+  }
+  /* Side: top */
+  .css-tooltip-top::after {
+    bottom: auto;
+    top: -2rem;
+    left: 50%;
+    transform: translateX(-50%) scale(0.95);
+  }
+  .css-tooltip-top:hover::after {
+    transform: translateX(-50%) scale(1);
+  }
+  /* Side: left */
+  .css-tooltip-left::after {
+    bottom: auto;
+    left: auto;
+    right: calc(100% + 0.5rem);
+    top: 50%;
+    transform: translateY(-50%) scale(0.95);
+  }
+  .css-tooltip-left:hover::after {
+    transform: translateY(-50%) scale(1);
   }
 }
 
