@@ -1,6 +1,6 @@
 /**
- * Authentication Middleware for Keycloak SSO
- * Supports both JWT tokens (mobile) and Express sessions (web)
+ * Authentication Middleware
+ * Uses Better Auth sessions (cookie or bearer token)
  */
 
 import { fromNodeHeaders } from 'better-auth/node';
@@ -9,17 +9,17 @@ import { type Response, type NextFunction } from 'express';
 import { auth } from '../config/betterAuth.js';
 import { BRAND } from '../utils/domainUtils.js';
 
-import jwtAuthMiddleware from './jwtAuthMiddleware.js';
 import { type AuthenticatedRequest } from './types.js';
 
-function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+async function requireAuth(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   // SECURITY: Fail-fast if dev bypass is enabled in production
   if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEV_AUTH_BYPASS === 'true') {
     console.error(
       '[CRITICAL SECURITY ALERT] Dev auth bypass is enabled in PRODUCTION environment - this is a critical security vulnerability!'
-    );
-    console.error(
-      '[CRITICAL SECURITY ALERT] Blocking all requests. Set ALLOW_DEV_AUTH_BYPASS=false immediately!'
     );
     res.status(500).json({
       error: 'Critical security misconfiguration detected',
@@ -37,7 +37,6 @@ function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunctio
     const bypassToken = req.headers['x-dev-auth-bypass'] || req.query.dev_auth_token;
 
     if (bypassToken && bypassToken === process.env.DEV_AUTH_BYPASS_TOKEN) {
-      console.warn('[Auth] DEV AUTH BYPASS USED - Development only!');
       req.user = {
         id: '00000000-0000-4000-a000-000000000001',
         email: BRAND.devEmail,
@@ -66,61 +65,41 @@ function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunctio
     }
   }
 
-  jwtAuthMiddleware(req as any, res, async (jwtError?: any) => {
-    // Try Better Auth session before falling back to Passport
-    if (!req.user) {
-      try {
-        const session = await auth.api.getSession({
-          headers: fromNodeHeaders(req.headers),
-        });
-        if (session?.user) {
-          req.user = session.user as any;
-          if (typeof req.isAuthenticated !== 'function') {
-            (req as any).isAuthenticated = () => true;
-          }
-          return next();
-        }
-      } catch {
-        // Better Auth session check failed, continue to Passport fallback
+  // Better Auth session (cookie or bearer token)
+  try {
+    const session = await auth.api.getSession({
+      headers: fromNodeHeaders(req.headers),
+    });
+    if (session?.user) {
+      req.user = session.user as any;
+      if (typeof req.isAuthenticated !== 'function') {
+        (req as any).isAuthenticated = () => true;
       }
-    }
-
-    if (!req.user && req.session?.passport?.user) {
-      try {
-        req.user = req.session.passport.user;
-        if (typeof req.isAuthenticated !== 'function') {
-          (req as any).isAuthenticated = () => true;
-        }
-      } catch (attachErr) {
-        // Continue to standard checks/logging
-      }
-    }
-
-    if (req.isAuthenticated && req.isAuthenticated()) {
       return next();
     }
+  } catch {
+    // Session check failed
+  }
 
-    // For API calls (JSON requests)
-    if (
-      req.headers['content-type'] === 'application/json' ||
-      req.headers.accept === 'application/json' ||
-      req.originalUrl.startsWith('/api/')
-    ) {
-      res.status(401).json({
-        error: 'Authentication required',
-        redirectUrl: '/auth/login',
-      });
-      return;
-    }
+  if (
+    req.headers['content-type'] === 'application/json' ||
+    req.headers.accept === 'application/json' ||
+    req.originalUrl.startsWith('/api/')
+  ) {
+    res.status(401).json({
+      error: 'Authentication required',
+      redirectUrl: '/auth/login',
+    });
+    return;
+  }
 
-    // For browser requests
-    res.redirect('/auth/login');
-  });
+  res.redirect('/auth/login');
 }
 
 function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   if (!req.isAuthenticated || !req.isAuthenticated()) {
-    return requireAuth(req, res, next);
+    requireAuth(req, res, next);
+    return;
   }
   return next();
 }

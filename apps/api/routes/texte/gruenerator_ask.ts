@@ -1,6 +1,5 @@
 import express, { type Router, type Request, type Response } from 'express';
 
-import passport from '../../config/passportSetup.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -70,7 +69,7 @@ interface FinalResponse {
   };
 }
 
-router.use(passport.session());
+router.use(authMiddlewareModule.requireAuth);
 
 router.post('/', ensureAuthenticated, async (req: Request, res: Response): Promise<void> => {
   try {

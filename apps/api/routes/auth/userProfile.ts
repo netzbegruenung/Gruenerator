@@ -3,8 +3,10 @@
  * Handles profile CRUD, beta features, user defaults, and account deletion
  */
 
+import { fromNodeHeaders } from 'better-auth/node';
 import express, { type Router, type Response } from 'express';
 
+import { auth } from '../../config/betterAuth.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
@@ -158,21 +160,6 @@ router.patch(
         req.user.avatar_robot_id = avatar_robot_id;
       }
 
-      if (req.session.passport && req.session.passport.user) {
-        req.session.passport.user.avatar_robot_id = avatar_robot_id;
-      }
-
-      req.session.save((err) => {
-        if (err) {
-          log.error('[User Profile /profile/avatar PATCH] Session save error:', err);
-        } else {
-          log.debug(
-            '[User Profile /profile/avatar PATCH] Session saved with avatar_robot_id:',
-            avatar_robot_id
-          );
-        }
-      });
-
       res.json({
         success: true,
         profile: data,
@@ -286,21 +273,6 @@ router.patch(
 
       if (req.user) {
         profileService.updateUserSession(req.user, updatedProfile, feature, enabled);
-
-        if (req.session.passport && req.session.passport.user) {
-          profileService.updateUserSession(
-            req.session.passport.user,
-            updatedProfile,
-            feature,
-            enabled
-          );
-        }
-
-        req.session.save((err) => {
-          if (err) {
-            log.error('[User Profile /profile/beta-features PATCH] Session save error:', err);
-          }
-        });
       }
 
       res.json({
@@ -580,21 +552,6 @@ router.patch(
       const updatedProfile = await profileService.getProfileById(req.user!.id);
       if (req.user && updatedProfile) {
         profileService.updateUserSession(req.user, updatedProfile, 'igel_modus', igel_modus);
-
-        if (req.session.passport && req.session.passport.user) {
-          profileService.updateUserSession(
-            req.session.passport.user,
-            updatedProfile,
-            'igel_modus',
-            igel_modus
-          );
-        }
-
-        req.session.save((err) => {
-          if (err) {
-            log.error('[User Profile /profile/igel-modus PATCH] Session save error:', err);
-          }
-        });
       }
 
       res.json({
@@ -702,24 +659,13 @@ router.delete(
       const deleteResult = await profileService.deleteProfile(userId);
       log.debug(`[User Delete] Profile deletion result for user ${userId}:`, deleteResult);
 
-      // Step 4: Logout and clear session/cookie
-      log.debug(`[User Delete] Step 4: Clearing session and cookies for user ${userId}`);
-      req.logout?.(() => {});
-      if (req.session) {
-        try {
-          await new Promise<void>((resolve) => req.session.destroy(() => resolve()));
-          log.debug(`[User Delete] Session destroyed for user ${userId}`);
-        } catch (e) {
-          const err = e as Error;
-          log.warn(`[User Delete] Session destruction warning for user ${userId}:`, err?.message);
-        }
+      // Step 4: Revoke Better Auth session
+      log.debug(`[User Delete] Step 4: Revoking sessions for user ${userId}`);
+      try {
+        await auth.api.signOut({ headers: fromNodeHeaders(req.headers) });
+      } catch {
+        // Session may already be gone after profile deletion cascade
       }
-      res.clearCookie('gruenerator.sid', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-      });
-      log.debug(`[User Delete] Cookies cleared for user ${userId}`);
 
       log.debug(`[User Delete] ✅ Account deletion completed successfully for user ${userId}`);
 

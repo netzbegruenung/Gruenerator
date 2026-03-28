@@ -26,7 +26,6 @@ import {
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
 import { monitorRouter, monitorInternalRouter } from './routes/monitor/index.js';
 import notificationsRouter from './routes/notifications/index.js';
-import { oparlRouter } from './routes/oparl/index.js';
 import protokollRouter from './routes/protokoll/index.js';
 import { releasesRouter } from './routes/releases/index.js';
 import researchRouter from './routes/research/researchController.js';
@@ -227,7 +226,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/auth/notebook', standardMutationLimiter, notebookInteractionRouter);
   // Public read endpoints — soft limiter prevents scraping
   app.use('/api/documents', publicReadLimiter, documentsRouter);
-  app.use('/api/oparl', publicReadLimiter, oparlRouter);
   app.use('/api/crawl-url', requireAuth, standardMutationLimiter, crawlUrlRouter);
   app.use('/api/recent-values', publicReadLimiter, recentValuesRouter);
   app.use('/api/antraege', requireAuth, standardMutationLimiter, antraegeRouter);
