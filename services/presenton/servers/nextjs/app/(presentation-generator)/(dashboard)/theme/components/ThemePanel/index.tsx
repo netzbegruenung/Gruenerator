@@ -1,37 +1,28 @@
-'use client'
+'use client';
 
-import React, { useState, useEffect, useRef } from 'react'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import {
-  Loader2,
-  SquarePen,
-  RefreshCcw,
-  ChevronRight,
-  Plus
-} from 'lucide-react'
-import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { Loader2, SquarePen, RefreshCcw, ChevronRight, Plus } from 'lucide-react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import React, { useState, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 
+import { ColorPickerComponent } from './ColorPickerComponent';
+import { FONT_OPTIONS, DEFAULT_THEMES } from './constants';
+import CustomTabEmpty from './CustomTabEmpty';
+import { FontCard } from './FontCard';
+import { StepIndicator } from './StepIndicator';
+import { ThemeCard } from './ThemeCard';
+import { type ThemeColors } from './types';
 
-import { ThemeColors } from './types'
-import { FONT_OPTIONS, DEFAULT_THEMES } from './constants'
-
-
-import { StepIndicator } from './StepIndicator'
-import { ColorPickerComponent } from './ColorPickerComponent'
-import { FontCard } from './FontCard'
-import { ThemeCard } from './ThemeCard'
-
-import { toast } from 'sonner'
-import { Theme, ThemeParams } from '@/app/(presentation-generator)/services/api/types'
-import { ImagesApi } from '@/app/(presentation-generator)/services/api/images'
-import { Input } from '@/components/ui/input'
-import { getTemplatesByTemplateName } from '@/app/presentation-templates'
-import { useSearchParams } from 'next/navigation'
-import CustomTabEmpty from './CustomTabEmpty'
-import ThemeApi from '@/app/(presentation-generator)/services/api/theme'
-import { useFontLoader } from '@/app/(presentation-generator)/hooks/useFontLoad'
-import Link from 'next/link'
+import { useFontLoader } from '@/app/(presentation-generator)/hooks/useFontLoad';
+import { ImagesApi } from '@/app/(presentation-generator)/services/api/images';
+import ThemeApi from '@/app/(presentation-generator)/services/api/theme';
+import { type Theme, type ThemeParams } from '@/app/(presentation-generator)/services/api/types';
+import { getTemplatesByTemplateName } from '@/app/presentation-templates';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 
 // Fallback theme used before defaults are loaded from API (unified Theme type)
 const FALLBACK_THEME: Theme = {
@@ -43,118 +34,121 @@ const FALLBACK_THEME: Theme = {
   logo_url: '',
   data: {
     colors: {
-      'primary': '#2563eb',
-      'background': '#ffffff',
-      'card': '#f8fafc',
-      'stroke': '#e5e7eb',
-      'primary_text': '#1e293b',
-      'background_text': '#475569',
-      'graph_0': '#2563eb',
-      'graph_1': '#1d4ed8',
-      'graph_2': '#1e40af',
-      'graph_3': '#1e40af',
-      'graph_4': '#1e40af',
-      'graph_5': '#1e40af',
-      'graph_6': '#1e40af',
-      'graph_7': '#1e40af',
-      'graph_8': '#1e40af',
-      'graph_9': '#1e40af',
+      primary: '#2563eb',
+      background: '#ffffff',
+      card: '#f8fafc',
+      stroke: '#e5e7eb',
+      primary_text: '#1e293b',
+      background_text: '#475569',
+      graph_0: '#2563eb',
+      graph_1: '#1d4ed8',
+      graph_2: '#1e40af',
+      graph_3: '#1e40af',
+      graph_4: '#1e40af',
+      graph_5: '#1e40af',
+      graph_6: '#1e40af',
+      graph_7: '#1e40af',
+      graph_8: '#1e40af',
+      graph_9: '#1e40af',
     },
     fonts: {
-      textFont: { name: 'Inter', url: 'https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap' },
+      textFont: {
+        name: 'Inter',
+        url: 'https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap',
+      },
     },
   },
-}
+};
 const ThemePanel: React.FC = () => {
-  const searchParams = useSearchParams()
+  const searchParams = useSearchParams();
 
+  const [selectedTheme, setSelectedTheme] = useState<Theme>(FALLBACK_THEME);
+  const [tab, setTab] = useState<'custom' | 'default'>('default');
 
-  const [selectedTheme, setSelectedTheme] = useState<Theme>(FALLBACK_THEME)
-  const [tab, setTab] = useState<'custom' | 'default'>('default')
+  const [customColors, setCustomColors] = useState<ThemeColors>(FALLBACK_THEME.data.colors);
+  const [customFonts, setCustomFonts] = useState<{ textFont: { name: string; url: string } }>(
+    FALLBACK_THEME.data.fonts
+  );
+  const [customBrandLogo, setCustomBrandLogo] = useState<string | null>(null);
+  const [customBrandLogoId, setCustomBrandLogoId] = useState<string | null>(null);
+  const [isLogoUploading, setIsLogoUploading] = useState<boolean>(false);
+  const [isFontUploading, setIsFontUploading] = useState<boolean>(false);
+  const [customThemes, setCustomThemes] = useState<Theme[]>([]);
+  const [defaultThemes, setDefaultThemes] = useState<Theme[]>([]);
+  const [showColorPicker, setShowColorPicker] = useState<string | null>(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [themeCompanyName, setThemeCompanyName] = useState('');
+  const [isNewTheme, setIsNewTheme] = useState(false);
+  const [userFonts, setUserFonts] = useState<{ fonts: { name: string; url: string }[] }>({
+    fonts: [],
+  });
 
-  const [customColors, setCustomColors] = useState<ThemeColors>(FALLBACK_THEME.data.colors)
-  const [customFonts, setCustomFonts] = useState<{ textFont: { name: string, url: string } }>(FALLBACK_THEME.data.fonts)
-  const [customBrandLogo, setCustomBrandLogo] = useState<string | null>(null)
-  const [customBrandLogoId, setCustomBrandLogoId] = useState<string | null>(null)
-  const [isLogoUploading, setIsLogoUploading] = useState<boolean>(false)
-  const [isFontUploading, setIsFontUploading] = useState<boolean>(false)
-  const [customThemes, setCustomThemes] = useState<Theme[]>([])
-  const [defaultThemes, setDefaultThemes] = useState<Theme[]>([])
-  const [showColorPicker, setShowColorPicker] = useState<string | null>(null)
-  const [isSheetOpen, setIsSheetOpen] = useState(false)
-  const [currentStep, setCurrentStep] = useState(1)
-  const [themeCompanyName, setThemeCompanyName] = useState('')
-  const [isNewTheme, setIsNewTheme] = useState(false)
-  const [userFonts, setUserFonts] = useState<{ fonts: { name: string, url: string }[] }>({ fonts: [] })
-
-  const previewContainerRef = useRef<HTMLDivElement>(null)
-  const slideContainerRef = useRef<HTMLDivElement>(null)
-  const [slideContainerWidth, setSlideContainerWidth] = useState<number>(0)
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+  const slideContainerRef = useRef<HTMLDivElement>(null);
+  const [slideContainerWidth, setSlideContainerWidth] = useState<number>(0);
 
   // Calculate scale dynamically based on container width
   const slideScale = () => {
-    const BASE_WIDTH = 1280
-    const SCROLLBAR_WIDTH = 8 // account for scrollbar
-    if (!slideContainerWidth) return 0.68 // fallback
-    const availableWidth = slideContainerWidth - SCROLLBAR_WIDTH
-    return availableWidth / BASE_WIDTH
-  }
+    const BASE_WIDTH = 1280;
+    const SCROLLBAR_WIDTH = 8; // account for scrollbar
+    if (!slideContainerWidth) return 0.68; // fallback
+    const availableWidth = slideContainerWidth - SCROLLBAR_WIDTH;
+    return availableWidth / BASE_WIDTH;
+  };
 
   useEffect(() => {
-    const el = slideContainerRef.current
-    if (!el) return
+    const el = slideContainerRef.current;
+    if (!el) return;
 
     const ro = new ResizeObserver(() => {
-      setSlideContainerWidth(el.clientWidth)
-    })
-    ro.observe(el)
-    setSlideContainerWidth(el.clientWidth)
+      setSlideContainerWidth(el.clientWidth);
+    });
+    ro.observe(el);
+    setSlideContainerWidth(el.clientWidth);
 
-    return () => ro.disconnect()
-  }, [isSheetOpen, slideContainerRef])
-
-
+    return () => ro.disconnect();
+  }, [isSheetOpen, slideContainerRef]);
 
   const handleCloseSheet = (open: boolean) => {
-    setIsSheetOpen(false)
+    setIsSheetOpen(false);
     if (!open) {
-      window.history.pushState({}, '', '/theme')
+      window.history.pushState({}, '', '/theme');
     }
-  }
+  };
 
   // Initialize theme on component mount
   useEffect(() => {
-    applyTheme(selectedTheme)
-  }, [])
+    applyTheme(selectedTheme);
+  }, []);
 
   // Load custom themes from API and built-in themes from local constants
   useEffect(() => {
-
     const loadCustomThemes = async () => {
       try {
-        const apiThemes = await ThemeApi.getThemes()
-        setCustomThemes(apiThemes)
-        const fonts = apiThemes.map(theme => theme.data.fonts.textFont)
+        const apiThemes = await ThemeApi.getThemes();
+        setCustomThemes(apiThemes);
+        const fonts = apiThemes.map((theme) => theme.data.fonts.textFont);
 
-        const fontMap = fonts.map(font => ({ name: font.name, url: font.url }))
-        fontMap.forEach(font => {
-          useFontLoader({ [font.name]: font.url })
-        })
+        const fontMap = fonts.map((font) => ({ name: font.name, url: font.url }));
+        fontMap.forEach((font) => {
+          useFontLoader({ [font.name]: font.url });
+        });
       } catch (error: any) {
-        console.error('Failed to load custom themes', error)
-        toast.error(error?.message || 'Failed to load custom themes')
+        console.error('Failed to load custom themes', error);
+        toast.error(error?.message || 'Failed to load custom themes');
       }
-    }
+    };
     const loadUserFonts = async () => {
       try {
-        const userFonts = await ThemeApi.getUserFonts()
-        setUserFonts(userFonts)
+        const userFonts = await ThemeApi.getUserFonts();
+        setUserFonts(userFonts);
       } catch (error: any) {
-        console.error('Failed to load user fonts', error)
-        toast.error(error?.message || 'Failed to load user fonts')
+        console.error('Failed to load user fonts', error);
+        toast.error(error?.message || 'Failed to load user fonts');
       }
-    }
-    loadUserFonts()
+    };
+    loadUserFonts();
     const loadDefaultThemes = () => {
       const localDefaults: Theme[] = DEFAULT_THEMES.map((theme) => ({
         ...theme,
@@ -162,25 +156,24 @@ const ThemePanel: React.FC = () => {
         logo: theme.logo ?? '',
         logo_url: theme.logo_url ?? '',
         company_name: theme.company_name ?? '',
-      }))
+      }));
 
-      setDefaultThemes(localDefaults)
+      setDefaultThemes(localDefaults);
 
       // If selected theme is still fallback, set first default
       if (localDefaults.length > 0 && selectedTheme.id === FALLBACK_THEME.id) {
-        const first = localDefaults[0]
-        setSelectedTheme(first)
-        setCustomColors(first.data.colors)
-        setCustomFonts(first.data.fonts)
-        setCustomBrandLogo(first.logo_url || null)
-        setCustomBrandLogoId((first as any).logo || '')
-        applyTheme(first)
+        const first = localDefaults[0];
+        setSelectedTheme(first);
+        setCustomColors(first.data.colors);
+        setCustomFonts(first.data.fonts);
+        setCustomBrandLogo(first.logo_url || null);
+        setCustomBrandLogoId((first as any).logo || '');
+        applyTheme(first);
       }
-    }
-    loadCustomThemes()
-    loadDefaultThemes()
-  }, [])
-
+    };
+    loadCustomThemes();
+    loadDefaultThemes();
+  }, []);
 
   useEffect(() => {
     const updatedTheme: Theme = {
@@ -192,24 +185,21 @@ const ThemePanel: React.FC = () => {
         colors: customColors,
         fonts: customFonts,
       },
-    }
-    applyTheme(updatedTheme)
-  }, [customColors, customFonts, customBrandLogo, selectedTheme])
+    };
+    applyTheme(updatedTheme);
+  }, [customColors, customFonts, customBrandLogo, selectedTheme]);
 
   // Reset custom values only when the selected theme ID changes
   useEffect(() => {
     if (selectedTheme) {
-      setCustomColors(selectedTheme.data.colors)
-      setCustomFonts(selectedTheme.data.fonts)
-      setCustomBrandLogo(selectedTheme.logo_url || '')
-      setCustomBrandLogoId((selectedTheme as any).logo || '')
-
+      setCustomColors(selectedTheme.data.colors);
+      setCustomFonts(selectedTheme.data.fonts);
+      setCustomBrandLogo(selectedTheme.logo_url || '');
+      setCustomBrandLogoId((selectedTheme as any).logo || '');
     }
-  }, [selectedTheme.id])
+  }, [selectedTheme.id]);
 
-
-
-  const template = getTemplatesByTemplateName('neo-general')
+  const template = getTemplatesByTemplateName('b90-gruene');
   const applyTheme = (theme: Theme) => {
     const cssVariables = {
       '--primary-color': theme.data.colors['primary'],
@@ -228,90 +218,99 @@ const ThemePanel: React.FC = () => {
       '--graph-7': theme.data.colors['graph_7'],
       '--graph-8': theme.data.colors['graph_8'],
       '--graph-9': theme.data.colors['graph_9'],
-    }
-
-
+    };
 
     // Apply theme to preview container
     if (slideContainerRef.current) {
-
       Object.entries(cssVariables).forEach(([key, value]) => {
-        slideContainerRef.current!.style.setProperty(key, value)
-      })
+        slideContainerRef.current!.style.setProperty(key, value);
+      });
 
       // Apply fonts to preview container
-      slideContainerRef.current!.style.setProperty('font-family', `"${theme.data.fonts.textFont.name}"`)
-      slideContainerRef.current!.style.setProperty('--heading-font-family', `"${theme.data.fonts.textFont.name}"`)
+      slideContainerRef.current!.style.setProperty(
+        'font-family',
+        `"${theme.data.fonts.textFont.name}"`
+      );
+      slideContainerRef.current!.style.setProperty(
+        '--heading-font-family',
+        `"${theme.data.fonts.textFont.name}"`
+      );
       // Load font
-      useFontLoader({ [theme.data.fonts.textFont.name]: theme.data.fonts.textFont.url })
+      useFontLoader({ [theme.data.fonts.textFont.name]: theme.data.fonts.textFont.url });
     }
-  }
+  };
 
   const handleThemeSelect = (theme: Theme) => {
-    setIsNewTheme(false)
-    setSelectedTheme(theme)
-    setCustomColors(theme.data.colors)
-    setCustomFonts(theme.data.fonts)
-    setCustomBrandLogo(theme.logo_url || '')
-    setIsSheetOpen(true)
-    setCurrentStep(1)
+    setIsNewTheme(false);
+    setSelectedTheme(theme);
+    setCustomColors(theme.data.colors);
+    setCustomFonts(theme.data.fonts);
+    setCustomBrandLogo(theme.logo_url || '');
+    setIsSheetOpen(true);
+    setCurrentStep(1);
 
-    setThemeCompanyName(theme.company_name || '')
-    applyTheme(theme)
-  }
+    setThemeCompanyName(theme.company_name || '');
+    applyTheme(theme);
+  };
 
   const handleColorChange = (colorKey: keyof ThemeColors, value: string) => {
-    let validValue = value
+    let validValue = value;
     if (value && !value.startsWith('#')) {
-      validValue = `#${value}`
+      validValue = `#${value}`;
     }
 
-    const newColors = { ...customColors, [colorKey]: validValue }
-    setCustomColors(newColors)
-  }
+    const newColors = { ...customColors, [colorKey]: validValue };
+    setCustomColors(newColors);
+  };
 
   const handleFontSelect = (fontName: string, url: string) => {
-    setCustomFonts({ textFont: { name: fontName, url: url } })
-  }
+    setCustomFonts({ textFont: { name: fontName, url: url } });
+  };
 
   const handleBrandLogoUpload = async (file: File) => {
     try {
-      setIsLogoUploading(true)
-      const uploaded = await ImagesApi.uploadImage(file)
-      setCustomBrandLogo(uploaded.path)
-      setCustomBrandLogoId(uploaded.id)
+      setIsLogoUploading(true);
+      const uploaded = await ImagesApi.uploadImage(file);
+      setCustomBrandLogo(uploaded.path);
+      setCustomBrandLogoId(uploaded.id);
     } catch (error: any) {
-      console.error('Failed to upload logo', error)
-      toast.error(error?.message || 'Failed to upload logo')
+      console.error('Failed to upload logo', error);
+      toast.error(error?.message || 'Failed to upload logo');
     } finally {
-      setIsLogoUploading(false)
+      setIsLogoUploading(false);
     }
-  }
+  };
 
-  const generateTheme = async ({ primary, background }: { primary?: string, background?: string }): Promise<ThemeColors> => {
-    const generatedTheme = await ThemeApi.generateTheme({ primary, background })
+  const generateTheme = async ({
+    primary,
+    background,
+  }: {
+    primary?: string;
+    background?: string;
+  }): Promise<ThemeColors> => {
+    const generatedTheme = await ThemeApi.generateTheme({ primary, background });
     return {
-      'primary': generatedTheme.primary,
-      'background': generatedTheme.background,
-      'card': generatedTheme.card,
-      'stroke': generatedTheme.stroke,
-      'primary_text': generatedTheme['primary_text'],
-      'background_text': generatedTheme['background_text'],
-      'graph_0': generatedTheme['graph_0'],
-      'graph_1': generatedTheme['graph_1'],
-      'graph_2': generatedTheme['graph_2'],
-      'graph_3': generatedTheme['graph_3'],
-      'graph_4': generatedTheme['graph_4'],
-      'graph_5': generatedTheme['graph_5'],
-      'graph_6': generatedTheme['graph_6'],
-      'graph_7': generatedTheme['graph_7'],
-      'graph_8': generatedTheme['graph_8'],
-      'graph_9': generatedTheme['graph_9'],
-    }
-  }
+      primary: generatedTheme.primary,
+      background: generatedTheme.background,
+      card: generatedTheme.card,
+      stroke: generatedTheme.stroke,
+      primary_text: generatedTheme['primary_text'],
+      background_text: generatedTheme['background_text'],
+      graph_0: generatedTheme['graph_0'],
+      graph_1: generatedTheme['graph_1'],
+      graph_2: generatedTheme['graph_2'],
+      graph_3: generatedTheme['graph_3'],
+      graph_4: generatedTheme['graph_4'],
+      graph_5: generatedTheme['graph_5'],
+      graph_6: generatedTheme['graph_6'],
+      graph_7: generatedTheme['graph_7'],
+      graph_8: generatedTheme['graph_8'],
+      graph_9: generatedTheme['graph_9'],
+    };
+  };
 
   const createNewCustomTheme = async () => {
-    setIsNewTheme(true)
+    setIsNewTheme(true);
     const newTheme: Theme = {
       id: `custom-${Date.now()}`,
       name: 'New Custom Theme',
@@ -322,59 +321,70 @@ const ThemePanel: React.FC = () => {
       company_name: '',
       data: {
         colors: {
-          'primary': '#0000c3',
-          'background': '#f1fff3',
-          'card': '#deece1',
-          'stroke': '#c8d5ca',
-          'primary_text': '#f1f1f1',
-          'background_text': '#030101',
-          'graph_0': '#7eeeff',
-          'graph_1': '#70e0ff',
-          'graph_2': '#58c7ff',
-          'graph_3': '#3cabff',
-          'graph_4': '#198fff',
-          'graph_5': '#0073ff',
-          'graph_6': '#0056ff',
-          'graph_7': '#0036ed',
-          'graph_8': '#0000d0',
-          'graph_9': '#0000b4',
+          primary: '#0000c3',
+          background: '#f1fff3',
+          card: '#deece1',
+          stroke: '#c8d5ca',
+          primary_text: '#f1f1f1',
+          background_text: '#030101',
+          graph_0: '#7eeeff',
+          graph_1: '#70e0ff',
+          graph_2: '#58c7ff',
+          graph_3: '#3cabff',
+          graph_4: '#198fff',
+          graph_5: '#0073ff',
+          graph_6: '#0056ff',
+          graph_7: '#0036ed',
+          graph_8: '#0000d0',
+          graph_9: '#0000b4',
         },
         fonts: {
-          textFont: { name: 'Inter', url: 'https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap' },
-        }
-      }
-    }
+          textFont: {
+            name: 'Inter',
+            url: 'https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap',
+          },
+        },
+      },
+    };
 
-    const generatedColors = await generateTheme({})
-
+    const generatedColors = await generateTheme({});
 
     const theme = {
       ...newTheme,
       data: {
         ...newTheme.data,
         colors: generatedColors,
+      },
+    };
+    setSelectedTheme(theme);
+    setCustomColors(theme.data.colors);
+    setCustomFonts(theme.data.fonts);
+    setCustomBrandLogo('');
+    setIsSheetOpen(true);
+    setCurrentStep(1);
 
-      }
-    }
-    setSelectedTheme(theme)
-    setCustomColors(theme.data.colors)
-    setCustomFonts(theme.data.fonts)
-    setCustomBrandLogo('')
-    setIsSheetOpen(true)
-    setCurrentStep(1)
+    setThemeCompanyName('');
+    applyTheme(theme);
+  };
 
-    setThemeCompanyName('')
-    applyTheme(theme)
-  }
-
-  const refeshTheme = async ({ primary, background }: { primary?: string, background?: string }) => {
-    const generatedTheme = await generateTheme({ primary, background })
-    setCustomColors(generatedTheme)
-  }
+  const refeshTheme = async ({
+    primary,
+    background,
+  }: {
+    primary?: string;
+    background?: string;
+  }) => {
+    const generatedTheme = await generateTheme({ primary, background });
+    setCustomColors(generatedTheme);
+  };
   const saveAsCustom = async () => {
     // If existing persisted custom theme, update via API (non-system and not a local draft)
-    if (selectedTheme.user && selectedTheme.user !== 'system' && !selectedTheme.id.startsWith('custom-')) {
-      ; (async () => {
+    if (
+      selectedTheme.user &&
+      selectedTheme.user !== 'system' &&
+      !selectedTheme.id.startsWith('custom-')
+    ) {
+      (async () => {
         try {
           const params: ThemeParams = {
             id: selectedTheme.id,
@@ -386,19 +396,19 @@ const ThemePanel: React.FC = () => {
             data: {
               colors: customColors,
               fonts: customFonts,
-            }
-          }
-          const updated = await ThemeApi.updateTheme(params)
-          setCustomThemes(customThemes.map(t => t.id === updated.id ? updated : t))
-          setSelectedTheme(updated)
-          setIsSheetOpen(false)
-          toast.success('Theme updated')
+            },
+          };
+          const updated = await ThemeApi.updateTheme(params);
+          setCustomThemes(customThemes.map((t) => (t.id === updated.id ? updated : t)));
+          setSelectedTheme(updated);
+          setIsSheetOpen(false);
+          toast.success('Theme updated');
         } catch (error: any) {
-          console.error('Failed to update theme', error)
-          toast.error(error?.message || 'Failed to update theme')
+          console.error('Failed to update theme', error);
+          toast.error(error?.message || 'Failed to update theme');
         }
-      })()
-      return
+      })();
+      return;
     }
     try {
       const params: ThemeParams = {
@@ -410,80 +420,88 @@ const ThemePanel: React.FC = () => {
         data: {
           colors: customColors,
           fonts: customFonts,
-        }
-      }
-      const created = await ThemeApi.createTheme(params)
-      setCustomThemes([...customThemes, created])
-      setSelectedTheme(created)
-      setIsSheetOpen(false)
+        },
+      };
+      const created = await ThemeApi.createTheme(params);
+      setCustomThemes([...customThemes, created]);
+      setSelectedTheme(created);
+      setIsSheetOpen(false);
 
-
-      window.history.pushState({}, '', '/theme')
-      toast.success('Theme saved')
+      window.history.pushState({}, '', '/theme');
+      toast.success('Theme saved');
     } catch (error: any) {
-      console.error('Failed to save theme', error)
-      toast.error(error?.message || 'Failed to save theme')
+      console.error('Failed to save theme', error);
+      toast.error(error?.message || 'Failed to save theme');
     }
-  }
+  };
 
   const handleClickOutside = () => {
-    setShowColorPicker(null)
-  }
+    setShowColorPicker(null);
+  };
   const handleDelete = async (themeId: string) => {
-    await ThemeApi.deleteTheme(themeId)
-    setCustomThemes(customThemes.filter(theme => theme.id !== themeId))
-    toast.success("Theme deleted successfully")
-  }
+    await ThemeApi.deleteTheme(themeId);
+    setCustomThemes(customThemes.filter((theme) => theme.id !== themeId));
+    toast.success('Theme deleted successfully');
+  };
   const handleCustomFontChange = async (fontFile: File) => {
     try {
-      setIsFontUploading(true)
-      const { name, url } = await ThemeApi.uploadFont(fontFile)
+      setIsFontUploading(true);
+      const { name, url } = await ThemeApi.uploadFont(fontFile);
       setCustomFonts({
         textFont: {
           name: name,
           url: url,
-        }
-      })
+        },
+      });
       // Add the newly uploaded font to userFonts if not already present
-      if (!userFonts.fonts.find(f => f.name === name)) {
-        setUserFonts(prev => ({
-          fonts: [...prev.fonts, { name, url }]
-        }))
+      if (!userFonts.fonts.find((f) => f.name === name)) {
+        setUserFonts((prev) => ({
+          fonts: [...prev.fonts, { name, url }],
+        }));
       }
-      toast.success(`Font "${name}" uploaded successfully`)
+      toast.success(`Font "${name}" uploaded successfully`);
     } catch (error: any) {
-      console.error('Failed to upload font', error)
-      toast.error(error?.message || 'Failed to upload font')
+      console.error('Failed to upload font', error);
+      toast.error(error?.message || 'Failed to upload font');
     } finally {
-      setIsFontUploading(false)
+      setIsFontUploading(false);
     }
-  }
+  };
   const renderColorStep = (step: number) => (
-    <div className=" overflow-y-auto hide-scrollbar h-[calc(90vh-200px)] pb-8"
+    <div
+      className=" overflow-y-auto hide-scrollbar h-[calc(90vh-200px)] pb-8"
       style={{
-        paddingInline: step === 1 ? '20px' : '10px'
+        paddingInline: step === 1 ? '20px' : '10px',
       }}
     >
       <Label className="flex text-xl font-medium text-[#191919] items-center gap-2 pb-5">
-
         {step === 1 ? 'Brand Colors' : 'Palette'}
-        <RefreshCcw onClick={() => refeshTheme(step === 1 ? {
-
-        } : {
-          primary: customColors['primary'],
-          background: customColors['background'],
-        })} className='w-5 h-5 text-[#808080] hover:text-[#191919] duration-300 transition-all cursor-pointer' />
+        <RefreshCcw
+          onClick={() =>
+            refeshTheme(
+              step === 1
+                ? {}
+                : {
+                    primary: customColors['primary'],
+                    background: customColors['background'],
+                  }
+            )
+          }
+          className="w-5 h-5 text-[#808080] hover:text-[#191919] duration-300 transition-all cursor-pointer"
+        />
       </Label>
       <div className="space-y-4">
-
-
         <div>
-
-          {step === 2 && <p className="text-xs text-[#4C4C4C] font-medium rounded-lg text-end pb-1.5">Brand Colors</p>}
-          <div className="space-y-4"
+          {step === 2 && (
+            <p className="text-xs text-[#4C4C4C] font-medium rounded-lg text-end pb-1.5">
+              Brand Colors
+            </p>
+          )}
+          <div
+            className="space-y-4"
             style={{
               padding: step === 2 ? '10px' : '0px',
-              backgroundColor: step === 2 ? '#F9FAFB' : 'transparent'
+              backgroundColor: step === 2 ? '#F9FAFB' : 'transparent',
             }}
           >
             <ColorPickerComponent
@@ -504,189 +522,191 @@ const ThemePanel: React.FC = () => {
             />
           </div>
         </div>
-        {step === 2 && <div>
-          <p className="text-xs text-[#4C4C4C] font-medium text-end pb-1.5">Text Colors</p>
-          <div className="space-y-4"
-            style={{
-              padding: step === 2 ? '10px' : '0px',
-              backgroundColor: step === 2 ? '#F9FAFB' : 'transparent'
-            }}
-          >
+        {step === 2 && (
+          <div>
+            <p className="text-xs text-[#4C4C4C] font-medium text-end pb-1.5">Text Colors</p>
+            <div
+              className="space-y-4"
+              style={{
+                padding: step === 2 ? '10px' : '0px',
+                backgroundColor: step === 2 ? '#F9FAFB' : 'transparent',
+              }}
+            >
+              <ColorPickerComponent
+                colorKey="background_text"
+                label="Background Text"
+                currentColor={customColors['background_text']}
+                onColorChange={handleColorChange}
+                showColorPicker={showColorPicker}
+                onShowColorPicker={setShowColorPicker}
+              />
+              <ColorPickerComponent
+                colorKey="primary_text"
+                label="Primary Text"
+                currentColor={customColors['primary_text']}
+                onColorChange={handleColorChange}
+                showColorPicker={showColorPicker}
+                onShowColorPicker={setShowColorPicker}
+              />
+            </div>
+          </div>
+        )}
+        {step === 2 && (
+          <div className="px-2.5">
             <ColorPickerComponent
-              colorKey="background_text"
-              label="Background Text"
-              currentColor={customColors['background_text']}
-              onColorChange={handleColorChange}
-              showColorPicker={showColorPicker}
-              onShowColorPicker={setShowColorPicker}
-            />
-            <ColorPickerComponent
-              colorKey="primary_text"
-              label="Primary Text"
-              currentColor={customColors['primary_text']}
+              colorKey="card"
+              label="Card Color"
+              currentColor={customColors['card']}
               onColorChange={handleColorChange}
               showColorPicker={showColorPicker}
               onShowColorPicker={setShowColorPicker}
             />
           </div>
-        </div>}
-        {step === 2 && <div className='px-2.5'>
-          <ColorPickerComponent
-            colorKey="card"
-            label="Card Color"
-            currentColor={customColors['card']}
-            onColorChange={handleColorChange}
-            showColorPicker={showColorPicker}
-            onShowColorPicker={setShowColorPicker}
-          />
-        </div>}
-        {step === 2 && <div>
-          <p className="text-xs text-[#4C4C4C] font-medium text-end pb-1.5">Graph/Chart Colors</p>
-          <div className="space-y-4"
-            style={{
-              padding: step === 2 ? '10px' : '0px',
-              backgroundColor: step === 2 ? '#F9FAFB' : 'transparent'
-            }}
-          >
-            <ColorPickerComponent
-              colorKey="graph_0"
-              label=""
-              currentColor={customColors['graph_0']}
-              onColorChange={handleColorChange}
-              showColorPicker={showColorPicker}
-              onShowColorPicker={setShowColorPicker}
-            />
-            <ColorPickerComponent
-              colorKey="graph_1"
-              label=""
-              currentColor={customColors['graph_1']}
-              onColorChange={handleColorChange}
-              showColorPicker={showColorPicker}
-              onShowColorPicker={setShowColorPicker}
-            />
-            <ColorPickerComponent
-              colorKey="graph_2"
-              label=""
-              currentColor={customColors['graph_2']}
-              onColorChange={handleColorChange}
-              showColorPicker={showColorPicker}
-              onShowColorPicker={setShowColorPicker}
-            />
-            <ColorPickerComponent
-              colorKey="graph_3"
-              label=""
-              currentColor={customColors['graph_3']}
-              onColorChange={handleColorChange}
-              showColorPicker={showColorPicker}
-              onShowColorPicker={setShowColorPicker}
-            />
-            <ColorPickerComponent
-              colorKey="graph_4"
-              label=""
-              currentColor={customColors['graph_4']}
-              onColorChange={handleColorChange}
-              showColorPicker={showColorPicker}
-              onShowColorPicker={setShowColorPicker}
-            />
-            <ColorPickerComponent
-              colorKey="graph_5"
-              label=""
-              currentColor={customColors['graph_5']}
-              onColorChange={handleColorChange}
-              showColorPicker={showColorPicker}
-              onShowColorPicker={setShowColorPicker}
-            />
-            <ColorPickerComponent
-              colorKey="graph_6"
-              label=""
-              currentColor={customColors['graph_6']}
-              onColorChange={handleColorChange}
-              showColorPicker={showColorPicker}
-              onShowColorPicker={setShowColorPicker}
-            />
-            <ColorPickerComponent
-              colorKey="graph_7"
-              label=""
-              currentColor={customColors['graph_7']}
-              onColorChange={handleColorChange}
-              showColorPicker={showColorPicker}
-              onShowColorPicker={setShowColorPicker}
-            />
-            <ColorPickerComponent
-              colorKey="graph_8"
-              label=""
-              currentColor={customColors['graph_8']}
-              onColorChange={handleColorChange}
-              showColorPicker={showColorPicker}
-              onShowColorPicker={setShowColorPicker}
-            />
-            <ColorPickerComponent
-              colorKey="graph_9"
-              label=""
-              currentColor={customColors['graph_9']}
-              onColorChange={handleColorChange}
-              showColorPicker={showColorPicker}
-              onShowColorPicker={setShowColorPicker}
-            />
-
+        )}
+        {step === 2 && (
+          <div>
+            <p className="text-xs text-[#4C4C4C] font-medium text-end pb-1.5">Graph/Chart Colors</p>
+            <div
+              className="space-y-4"
+              style={{
+                padding: step === 2 ? '10px' : '0px',
+                backgroundColor: step === 2 ? '#F9FAFB' : 'transparent',
+              }}
+            >
+              <ColorPickerComponent
+                colorKey="graph_0"
+                label=""
+                currentColor={customColors['graph_0']}
+                onColorChange={handleColorChange}
+                showColorPicker={showColorPicker}
+                onShowColorPicker={setShowColorPicker}
+              />
+              <ColorPickerComponent
+                colorKey="graph_1"
+                label=""
+                currentColor={customColors['graph_1']}
+                onColorChange={handleColorChange}
+                showColorPicker={showColorPicker}
+                onShowColorPicker={setShowColorPicker}
+              />
+              <ColorPickerComponent
+                colorKey="graph_2"
+                label=""
+                currentColor={customColors['graph_2']}
+                onColorChange={handleColorChange}
+                showColorPicker={showColorPicker}
+                onShowColorPicker={setShowColorPicker}
+              />
+              <ColorPickerComponent
+                colorKey="graph_3"
+                label=""
+                currentColor={customColors['graph_3']}
+                onColorChange={handleColorChange}
+                showColorPicker={showColorPicker}
+                onShowColorPicker={setShowColorPicker}
+              />
+              <ColorPickerComponent
+                colorKey="graph_4"
+                label=""
+                currentColor={customColors['graph_4']}
+                onColorChange={handleColorChange}
+                showColorPicker={showColorPicker}
+                onShowColorPicker={setShowColorPicker}
+              />
+              <ColorPickerComponent
+                colorKey="graph_5"
+                label=""
+                currentColor={customColors['graph_5']}
+                onColorChange={handleColorChange}
+                showColorPicker={showColorPicker}
+                onShowColorPicker={setShowColorPicker}
+              />
+              <ColorPickerComponent
+                colorKey="graph_6"
+                label=""
+                currentColor={customColors['graph_6']}
+                onColorChange={handleColorChange}
+                showColorPicker={showColorPicker}
+                onShowColorPicker={setShowColorPicker}
+              />
+              <ColorPickerComponent
+                colorKey="graph_7"
+                label=""
+                currentColor={customColors['graph_7']}
+                onColorChange={handleColorChange}
+                showColorPicker={showColorPicker}
+                onShowColorPicker={setShowColorPicker}
+              />
+              <ColorPickerComponent
+                colorKey="graph_8"
+                label=""
+                currentColor={customColors['graph_8']}
+                onColorChange={handleColorChange}
+                showColorPicker={showColorPicker}
+                onShowColorPicker={setShowColorPicker}
+              />
+              <ColorPickerComponent
+                colorKey="graph_9"
+                label=""
+                currentColor={customColors['graph_9']}
+                onColorChange={handleColorChange}
+                showColorPicker={showColorPicker}
+                onShowColorPicker={setShowColorPicker}
+              />
+            </div>
           </div>
-        </div>}
+        )}
       </div>
-
-
     </div>
-  )
+  );
 
   const renderFontStep = () => (
-    <div className="overflow-y-auto hide-scrollbar h-[calc(90vh-200px)] pb-8 space-y-5"
+    <div
+      className="overflow-y-auto hide-scrollbar h-[calc(90vh-200px)] pb-8 space-y-5"
       style={{
-        paddingInline: '10px'
+        paddingInline: '10px',
       }}
     >
       <Label className="flex text-xl font-medium text-[#191919] items-center gap-2 px-2.5">
         Typography
       </Label>
 
-
-
-
       {/* Upload Custom Font */}
       <div className="px-2.5">
-        <p className='text-xs text-[#4C4C4C] font-medium text-end pb-1.5'>Upload Custom Font</p>
+        <p className="text-xs text-[#4C4C4C] font-medium text-end pb-1.5">Upload Custom Font</p>
         <div
           className={`p-3 rounded-xl border-2 border-dashed transition-all duration-200 cursor-pointer group
-            ${isFontUploading
-              ? 'bg-[#F8F7FF] border-[#52907A]'
-              : 'bg-[#F9FAFB] border-[#E0E0E0] '
+            ${
+              isFontUploading ? 'bg-[#F8F7FF] border-[#52907A]' : 'bg-[#F9FAFB] border-[#E0E0E0] '
             }`}
           onClick={() => {
             if (!isFontUploading) {
-              document.getElementById('font-upload')?.click()
+              document.getElementById('font-upload')?.click();
             }
           }}
           role="button"
           tabIndex={0}
         >
           {isFontUploading ? (
-            <div className='flex items-center gap-3'>
-              <div className='w-10 h-10 rounded-lg bg-[#EBE9FE] flex items-center justify-center'>
-                <Loader2 className='w-5 h-5 text-[#52907A] animate-spin' />
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-[#EBE9FE] flex items-center justify-center">
+                <Loader2 className="w-5 h-5 text-[#52907A] animate-spin" />
               </div>
-              <div className='flex-1'>
-                <p className='text-sm font-medium text-[#52907A]'>Uploading font...</p>
-                <p className='text-xs text-[#888]'>Please wait</p>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-[#52907A]">Uploading font...</p>
+                <p className="text-xs text-[#888]">Please wait</p>
               </div>
             </div>
           ) : (
-            <div className='flex items-center gap-3'>
-              <div className='w-10 h-10 rounded-lg bg-[#EBE9FE] flex items-center justify-center group-hover:bg-[#DDD8FD] transition-colors'>
-                <Plus className='w-5 h-5 text-[#52907A]' />
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-[#EBE9FE] flex items-center justify-center group-hover:bg-[#DDD8FD] transition-colors">
+                <Plus className="w-5 h-5 text-[#52907A]" />
               </div>
-              <div className='flex-1'>
-                <p className='text-sm font-medium text-[#151515]'>Upload Font File</p>
-                <p className='text-xs text-[#888]'>.ttf, .otf, .woff, .woff2</p>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-[#151515]">Upload Font File</p>
+                <p className="text-xs text-[#888]">.ttf, .otf, .woff, .woff2</p>
               </div>
-              <ChevronRight className='w-4 h-4 text-[#999] group-hover:text-[#52907A] transition-colors' />
+              <ChevronRight className="w-4 h-4 text-[#999] group-hover:text-[#52907A] transition-colors" />
             </div>
           )}
         </div>
@@ -696,9 +716,9 @@ const ThemePanel: React.FC = () => {
           className="w-full h-full hidden"
           id="font-upload"
           onChange={async (e) => {
-            const file = e.target.files?.[0]
+            const file = e.target.files?.[0];
             if (file) {
-              await handleCustomFontChange(file)
+              await handleCustomFontChange(file);
             }
           }}
         />
@@ -707,8 +727,8 @@ const ThemePanel: React.FC = () => {
       {/* User's Uploaded Fonts */}
       {userFonts.fonts.length > 0 && (
         <div className="px-2.5">
-          <p className='text-xs text-[#4C4C4C] font-medium text-end pb-1.5'>Your Uploaded Fonts</p>
-          <div className='grid grid-cols-2 gap-2'>
+          <p className="text-xs text-[#4C4C4C] font-medium text-end pb-1.5">Your Uploaded Fonts</p>
+          <div className="grid grid-cols-2 gap-2">
             {userFonts.fonts?.map((font) => (
               <FontCard
                 key={font.name}
@@ -725,8 +745,8 @@ const ThemePanel: React.FC = () => {
       )}
 
       {/* Preset Fonts */}
-      <div className='px-2.5'>
-        <p className='text-xs text-[#4C4C4C] font-medium text-end pb-1.5'>Pre-Sets</p>
+      <div className="px-2.5">
+        <p className="text-xs text-[#4C4C4C] font-medium text-end pb-1.5">Pre-Sets</p>
         <div className="grid grid-cols-2 gap-2 overflow-y-auto custom_scrollbar">
           {FONT_OPTIONS.map((font) => (
             <FontCard
@@ -739,42 +759,33 @@ const ThemePanel: React.FC = () => {
         </div>
       </div>
     </div>
-  )
+  );
 
   const renderLogoStep = () => (
     <div className="space-y-4 px-5">
       <Label className="flex text-xl font-medium text-[#191919] items-center gap-2">
-
         Logo
         {/* <RefreshCcw className='w-5 h-5 text-[#808080] hover:text-[#191919] duration-300 transition-all cursor-pointer' /> */}
       </Label>
       <div className="space-y-2">
-        <Label className="flex text-base items-center gap-2">
-
-          Company Name
-        </Label>
+        <Label className="flex text-base items-center gap-2">Company Name</Label>
         <Input
           defaultValue={themeCompanyName}
           placeholder="Enter company name"
           onBlur={(e) => setThemeCompanyName(e.target.value)}
         />
       </div>
-      <Label className="flex text-base items-center gap-2">
+      <Label className="flex text-base items-center gap-2">Brand Logo</Label>
 
-        Brand Logo
-      </Label>
-
-      <div className="space-y-2 bg-[#F6F6F9] rounded-md p-1 cursor-pointer"
+      <div
+        className="space-y-2 bg-[#F6F6F9] rounded-md p-1 cursor-pointer"
         onClick={(e) => {
-
-          e.stopPropagation()
-          document.getElementById('logo-upload')?.click()
+          e.stopPropagation();
+          document.getElementById('logo-upload')?.click();
         }}
-
         role="button"
         tabIndex={0}
       >
-
         <div className="border-2 border-dashed  border-gray-300 rounded-lg p-6 text-center">
           {isLogoUploading ? (
             <div className="flex flex-col items-center justify-center py-6 text-gray-500">
@@ -792,9 +803,9 @@ const ThemePanel: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  setSelectedTheme({ ...selectedTheme, logo_url: '' })
-                  setCustomBrandLogo('')
-                  setCustomBrandLogoId('')
+                  setSelectedTheme({ ...selectedTheme, logo_url: '' });
+                  setCustomBrandLogo('');
+                  setCustomBrandLogoId('');
                 }}
               >
                 Remove Logo
@@ -802,9 +813,9 @@ const ThemePanel: React.FC = () => {
             </div>
           ) : (
             <>
-              <div className='w-[42px] h-[42px] mx-auto flex justify-center items-center rounded-full bg-[#EBE9FE]' >
-                <div className='w-[22px] h-[22px] rounded-full bg-[#52907A] flex items-center justify-center text-white'>
-                  <Plus className='w-3 h-3' />
+              <div className="w-[42px] h-[42px] mx-auto flex justify-center items-center rounded-full bg-[#EBE9FE]">
+                <div className="w-[22px] h-[22px] rounded-full bg-[#52907A] flex items-center justify-center text-white">
+                  <Plus className="w-3 h-3" />
                 </div>
               </div>
               <div className="mt-2">
@@ -818,36 +829,31 @@ const ThemePanel: React.FC = () => {
                   accept="image/png, image/jpeg, image/jpg"
                   className="hidden"
                   onChange={async (e) => {
-                    const file = e.target.files?.[0]
+                    const file = e.target.files?.[0];
                     if (file) {
-                      await handleBrandLogoUpload(file)
+                      await handleBrandLogoUpload(file);
                     }
                   }}
                 />
               </div>
-
             </>
           )}
         </div>
       </div>
     </div>
-  )
-
+  );
 
   // LOOK for new-theme in the url
   useEffect(() => {
-    const tab = searchParams.get('tab')
+    const tab = searchParams.get('tab');
     if (tab === 'new-theme') {
-      createNewCustomTheme()
-
+      createNewCustomTheme();
     }
-  }, [searchParams])
-
+  }, [searchParams]);
 
   return (
     <div className="space-y-6 px-6 font-syne">
-      <div className='py-[28px] flex justify-between'>
-
+      <div className="py-[28px] flex justify-between">
         <h3 className=" text-[28px]  tracking-[-0.84px] font-unbounded font-normal text-[#101828] flex items-center gap-2">
           Themes
         </h3>
@@ -856,39 +862,58 @@ const ThemePanel: React.FC = () => {
           className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-black text-sm font-semibold font-syne shadow-sm hover:shadow-md"
           aria-label="Create new theme"
           style={{
-            borderRadius: "48px",
-            background: "linear-gradient(270deg, #b6d4c8 2.4%, #c8ddd2 27.88%, #d4e8dc 69.23%, #e0f0e6 100%)",
+            borderRadius: '48px',
+            background:
+              'linear-gradient(270deg, #b6d4c8 2.4%, #c8ddd2 27.88%, #d4e8dc 69.23%, #e0f0e6 100%)',
           }}
         >
-
           <span className="hidden md:inline">New Theme</span>
           <span className="md:hidden">New</span>
           <ChevronRight className="w-4 h-4" />
         </Link>
       </div>
       {/* Tabs */}
-      <div className='p-1 rounded-[40px] bg-[#F7F6F9] w-fit border border-[#F4F4F4] flex items-center justify-center '>
-        <button className='px-5  py-2 text-xs font-medium text-[#3A3A3A] rounded-[70px]'
+      <div className="p-1 rounded-[40px] bg-[#F7F6F9] w-fit border border-[#F4F4F4] flex items-center justify-center ">
+        <button
+          className="px-5  py-2 text-xs font-medium text-[#3A3A3A] rounded-[70px]"
           onClick={() => setTab('custom')}
           style={{
-            background: tab === 'custom' ? 'linear-gradient(270deg, #b6d4c8 2.4%, #c8ddd2 27.88%, #d4e8dc 69.23%, #e0f0e6 100%)' : 'transparent'
+            background:
+              tab === 'custom'
+                ? 'linear-gradient(270deg, #b6d4c8 2.4%, #c8ddd2 27.88%, #d4e8dc 69.23%, #e0f0e6 100%)'
+                : 'transparent',
           }}
-        >Custom</button>
-        <svg xmlns="http://www.w3.org/2000/svg" className='mx-1' width="2" height="17" viewBox="0 0 2 17" fill="none">
+        >
+          Custom
+        </button>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="mx-1"
+          width="2"
+          height="17"
+          viewBox="0 0 2 17"
+          fill="none"
+        >
           <path d="M1 0V16.5" stroke="#EDECEC" strokeWidth="2" />
         </svg>
-        <button className='px-5  py-2 text-xs font-medium text-[#3A3A3A] rounded-[70px]'
+        <button
+          className="px-5  py-2 text-xs font-medium text-[#3A3A3A] rounded-[70px]"
           onClick={() => setTab('default')}
           style={{
-            background: tab === 'default' ? 'linear-gradient(270deg, #b6d4c8 2.4%, #c8ddd2 27.88%, #d4e8dc 69.23%, #e0f0e6 100%)' : 'transparent'
+            background:
+              tab === 'default'
+                ? 'linear-gradient(270deg, #b6d4c8 2.4%, #c8ddd2 27.88%, #d4e8dc 69.23%, #e0f0e6 100%)'
+                : 'transparent',
           }}
-        >Built-in</button>
+        >
+          Built-in
+        </button>
       </div>
       {/* Built-in Themes */}
 
-      {tab === 'default' && <div className="flex flex-wrap gap-6">
-        {
-          defaultThemes.map((theme) => (
+      {tab === 'default' && (
+        <div className="flex flex-wrap gap-6">
+          {defaultThemes.map((theme) => (
             <ThemeCard
               key={theme.id}
               theme={theme}
@@ -896,14 +921,11 @@ const ThemePanel: React.FC = () => {
               onSelect={handleThemeSelect}
               showDeleteButton={false}
             />
-          ))
-        }
-
-
-      </div>}
+          ))}
+        </div>
+      )}
       {/* Custom Themes Section */}
       {tab === 'custom' && customThemes.length > 0 && (
-
         <div className="flex flex-wrap gap-6">
           {customThemes.map((theme) => (
             <ThemeCard
@@ -914,92 +936,98 @@ const ThemePanel: React.FC = () => {
             />
           ))}
         </div>
-
       )}
 
-      {tab === 'custom' && customThemes.length === 0 && (
-        <CustomTabEmpty />
-      )}
+      {tab === 'custom' && customThemes.length === 0 && <CustomTabEmpty />}
 
       {/* Theme Editor Sheet */}
-      <Sheet open={isSheetOpen} onOpenChange={handleCloseSheet} >
-
-
-        <SheetContent side="bottom" className="h-[90vh] font-syne w-full p-0 [&>button]:hidden focus:outline-none" >
+      <Sheet open={isSheetOpen} onOpenChange={handleCloseSheet}>
+        <SheetContent
+          side="bottom"
+          className="h-[90vh] font-syne w-full p-0 [&>button]:hidden focus:outline-none"
+        >
           <div className="flex h-full">
             {/* Left side - Editor */}
-            <div
-              onClick={handleClickOutside}
-              className="min-w-[530px]   border-r border-[#EDEEEF]">
+            <div onClick={handleClickOutside} className="min-w-[530px]   border-r border-[#EDEEEF]">
               <div className="flex items-center justify-between px-5 rounded-md py-3 mx-2.5 my-2.5 bg-[#F6F6F9]  ">
-                <input id="theme-name" name="theme-name" className="text-lg font-semibold text-[#4C4D50] bg-transparent w-full outline-none border-none px-2  rounded" autoFocus={false} defaultValue={selectedTheme.name} onBlur={(e) => setSelectedTheme({ ...selectedTheme, name: e.target.value })}>
-
-                </input>
-                <SquarePen className='w-4 h-4  text-[#808080] hover:text-[#4C4D50] cursor-pointer' onClick={() => {
-                  document.getElementById('theme-name')?.focus()
-                }} />
+                <input
+                  id="theme-name"
+                  name="theme-name"
+                  className="text-lg font-semibold text-[#4C4D50] bg-transparent w-full outline-none border-none px-2  rounded"
+                  autoFocus={false}
+                  defaultValue={selectedTheme.name}
+                  onBlur={(e) => setSelectedTheme({ ...selectedTheme, name: e.target.value })}
+                ></input>
+                <SquarePen
+                  className="w-4 h-4  text-[#808080] hover:text-[#4C4D50] cursor-pointer"
+                  onClick={() => {
+                    document.getElementById('theme-name')?.focus();
+                  }}
+                />
               </div>
-              <div className='flex h-full   border-t border-[#EDEEEF] '>
+              <div className="flex h-full   border-t border-[#EDEEEF] ">
                 <StepIndicator currentStep={currentStep} />
-                <div className='pt-7  w-full  h-[calc(90vh-120px)] flex flex-col justify-between  '>
+                <div className="pt-7  w-full  h-[calc(90vh-120px)] flex flex-col justify-between  ">
                   {currentStep === 1 && renderColorStep(currentStep)}
                   {currentStep === 2 && renderColorStep(currentStep)}
                   {currentStep === 3 && renderFontStep()}
                   {currentStep === 4 && renderLogoStep()}
 
+                  <div className="border-t border-[#EDEEEF] py-6 ">
+                    <div className="flex justify-end px-5 gap-2">
+                      {currentStep > 1 && (
+                        <button
+                          className="px-3.5 py-2.5 bg-[#F7F6F9] rounded-[48px] text-xs font-semibold text-[#101323]"
+                          onClick={() => setCurrentStep(currentStep - 1)}
+                        >
+                          Back
+                        </button>
+                      )}
 
-                  <div className='border-t border-[#EDEEEF] py-6 '>
-                    <div className='flex justify-end px-5 gap-2'>
-                      {currentStep > 1 && <button
-
-                        className='px-3.5 py-2.5 bg-[#F7F6F9] rounded-[48px] text-xs font-semibold text-[#101323]'
-                        onClick={() => setCurrentStep(currentStep - 1)}
-                      >Back</button>}
-
-                      <button className='px-7 py-2.5 flex items-center gap-1 rounded-[48px] text-xs font-semibold text-[#101323] '
-
+                      <button
+                        className="px-7 py-2.5 flex items-center gap-1 rounded-[48px] text-xs font-semibold text-[#101323] "
                         onClick={() => {
                           if (currentStep === 4) {
-                            saveAsCustom()
-                          }
-                          else if (currentStep === 1) {
-                            setCurrentStep(currentStep + 1)
+                            saveAsCustom();
+                          } else if (currentStep === 1) {
+                            setCurrentStep(currentStep + 1);
                             if (isNewTheme) {
-
                               refeshTheme({
                                 primary: customColors['primary'],
                                 background: customColors['background'],
-                              })
+                              });
                             }
-                          }
-                          else {
-                            setCurrentStep(currentStep + 1)
+                          } else {
+                            setCurrentStep(currentStep + 1);
                           }
                         }}
                         style={{
-                          background: 'linear-gradient(270deg, #b6d4c8 2.4%, #c8ddd2 27.88%, #d4e8dc 69.23%, #e0f0e6 100%)'
+                          background:
+                            'linear-gradient(270deg, #b6d4c8 2.4%, #c8ddd2 27.88%, #d4e8dc 69.23%, #e0f0e6 100%)',
                         }}
                       >
-                        {currentStep === 1 ? 'Generate theme palette' : currentStep === 2 ? 'Continue to Fonts' : currentStep === 3 ? 'Continue to Design' : 'Save as Custom Theme'}
-                        <ChevronRight className='w-4 h-4' />
+                        {currentStep === 1
+                          ? 'Generate theme palette'
+                          : currentStep === 2
+                            ? 'Continue to Fonts'
+                            : currentStep === 3
+                              ? 'Continue to Design'
+                              : 'Save as Custom Theme'}
+                        <ChevronRight className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
                 </div>
-
-
               </div>
             </div>
-
-
-
 
             {/* Right side - Live Preview */}
             <div
               ref={(el) => {
                 // don't assign to .current to avoid readonly error; just apply when available
                 if (el) {
-                  (previewContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
+                  (previewContainerRef as React.MutableRefObject<HTMLDivElement | null>).current =
+                    el;
                   const updatedTheme: Theme = {
                     ...selectedTheme,
                     logo_url: customBrandLogo || selectedTheme.logo_url,
@@ -1008,59 +1036,54 @@ const ThemePanel: React.FC = () => {
                       colors: customColors,
                       fonts: customFonts,
                     },
-                  }
-                  applyTheme(updatedTheme)
-                  setSlideContainerWidth(slideContainerRef.current?.clientWidth || 0)
+                  };
+                  applyTheme(updatedTheme);
+                  setSlideContainerWidth(slideContainerRef.current?.clientWidth || 0);
                 }
               }}
               // ref={previewContainerRef}
-              className=" w-full p-3 bg-gray-50">
+              className=" w-full p-3 bg-gray-50"
+            >
               <div className="space-y-4">
                 <div
                   ref={slideContainerRef}
                   style={{ backgroundColor: 'var(--page-background-color)' }}
                   className="overflow-y-auto overflow-x-hidden custom_scrollbar space-y-4 h-[90vh] rounded-lg shadow-lg border bg-white"
                 >
-                  {template && template.map((layout) => {
-                    const {
-                      component: LayoutComponent,
-                      sampleData,
-
-                    } = layout;
-                    return (
-                      <div key={layout.layoutId}>
-                        <div
-                          className="relative w-full"
-                          style={{ height: `${720 * slideScale()}px` }}
-                        >
+                  {template &&
+                    template.map((layout) => {
+                      const { component: LayoutComponent, sampleData } = layout;
+                      return (
+                        <div key={layout.layoutId}>
                           <div
-                            className="absolute top-0 left-0 pointer-events-none"
-                            style={{
-                              width: 1280,
-                              height: 720,
-                              transformOrigin: "top left",
-                              transform: `scale(${slideScale()})`,
-                            }}
+                            className="relative w-full"
+                            style={{ height: `${720 * slideScale()}px` }}
                           >
-                            <LayoutComponent data={sampleData} />
+                            <div
+                              className="absolute top-0 left-0 pointer-events-none"
+                              style={{
+                                width: 1280,
+                                height: 720,
+                                transformOrigin: 'top left',
+                                transform: `scale(${slideScale()})`,
+                              }}
+                            >
+                              <LayoutComponent data={sampleData} />
+                            </div>
                           </div>
                         </div>
-
-                      </div>
-                    )
-                  })}
+                      );
+                    })}
                 </div>
               </div>
             </div>
           </div>
         </SheetContent>
       </Sheet>
-
-
     </div>
-  )
-}
+  );
+};
 
-export default ThemePanel
+export default ThemePanel;
 
 // No mapping helpers needed: using unified API Theme type everywhere

@@ -17,3 +17,6 @@ chroma
 container.db
 .next-build
 .cursor
+
+# Archived non-GRÜNE template layouts (kept locally for reference)
+servers/nextjs/app/presentation-templates/_archive
