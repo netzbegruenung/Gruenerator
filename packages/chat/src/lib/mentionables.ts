@@ -6,12 +6,12 @@ import {
   PiMapPin,
   PiTree,
   PiGlobe,
-  PiBuildings,
   PiFlag,
   PiScales,
   PiLightbulb,
   PiNewspaper,
 } from 'react-icons/pi';
+import { MdDiversity1 } from 'react-icons/md';
 import { agentsList, type AgentListItem } from './agents';
 
 export type MentionableType = 'agent' | 'notebook' | 'tool' | 'document' | 'board' | 'doc';
@@ -191,7 +191,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Berlin',
     description: 'Pressemitteilungen und Beschlüsse Berlin',
     avatar: '🐻',
-    icon: PiBuildings,
+    icon: MdDiversity1,
     backgroundColor: '#316049',
     mention: 'berlin',
   },
