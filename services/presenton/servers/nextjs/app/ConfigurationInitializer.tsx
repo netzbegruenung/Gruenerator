@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { setCanChangeKeys, setLLMConfig } from '@/store/slices/userConfig';
-import { hasValidLLMConfig } from '@/utils/storeHelpers';
 import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
+
+import { setCanChangeKeys, setLLMConfig } from '@/store/slices/userConfig';
+import { type LLMConfig } from '@/types/llm_config';
 import { checkIfSelectedOllamaModelIsPulled } from '@/utils/providerUtils';
-import { LLMConfig } from '@/types/llm_config';
+import { hasValidLLMConfig } from '@/utils/storeHelpers';
 
 export function ConfigurationInitializer({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch();
@@ -27,7 +28,7 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
         setIsLoading(false);
       }
     }, 500);
-  }
+  };
 
   const fetchUserConfigState = async () => {
     setIsLoading(true);
@@ -84,8 +85,7 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
         setIsLoading(false);
       }
     }
-  }
-
+  };
 
   const checkIfSelectedCustomModelIsAvailable = async (llmConfig: LLMConfig) => {
     try {
@@ -105,8 +105,7 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
       console.error('Error fetching custom models:', error);
       return false;
     }
-  }
-
+  };
 
   if (isLoading) {
     return (
@@ -117,10 +116,10 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
             <div className="mb-6">
               <img
                 src="/Logo.png"
-                alt="PresentOn"
+                alt="Grünerator Slides"
                 className="h-12 mx-auto mb-4 opacity-90"
               />
-              <div className="w-16 h-1 bg-gradient-to-r from-blue-500 to-green-600 mx-auto rounded-full"></div>
+              <div className="w-16 h-1 bg-gradient-to-r from-green-600 to-green-800 mx-auto rounded-full"></div>
             </div>
 
             {/* Loading Text */}
@@ -137,8 +136,14 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
             <div className="mt-6">
               <div className="flex space-x-1 justify-center">
                 <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                <div
+                  className="w-2 h-2 bg-green-500 rounded-full animate-pulse"
+                  style={{ animationDelay: '0.2s' }}
+                ></div>
+                <div
+                  className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"
+                  style={{ animationDelay: '0.4s' }}
+                ></div>
               </div>
             </div>
           </div>
