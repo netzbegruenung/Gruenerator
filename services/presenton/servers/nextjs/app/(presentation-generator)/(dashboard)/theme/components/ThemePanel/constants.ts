@@ -30,30 +30,65 @@ export const FONT_OPTIONS: any[] = [
 export const DEFAULT_THEMES: any[] = [
   {
     id: "gruenerator",
-    name: "Grünerator",
-    description: "Offizielles Design für Grünerator Slides",
+    name: "GRÜNE Grundlagendesign",
+    description: "Offizielles B90/GRÜNE Design 2025 — Sand-Hintergrund mit Parteigrün",
     logo: null,
     logo_url: null,
-    company_name: null,
+    company_name: "BÜNDNIS 90/DIE GRÜNEN",
 
     data: {
       colors: {
-        primary: "#316049",
-        background: "#FFFFFF",
-        card: "#F0F8F4",
-        stroke: "#D8F0E6",
+        primary: "#005538",
+        background: "#F5F1E9",
+        card: "#FFFFFF",
+        stroke: "#E5E0D6",
         primary_text: "#FFFFFF",
-        background_text: "#1A332A",
-        graph_0: "#316049",
-        graph_1: "#52907A",
-        graph_2: "#6A9583",
-        graph_3: "#5F8575",
+        background_text: "#000000",
+        graph_0: "#005538",
+        graph_1: "#316049",
+        graph_2: "#52907A",
+        graph_3: "#6A9583",
         graph_4: "#8AC9B0",
         graph_5: "#B1E0C9",
-        graph_6: "#285040",
+        graph_6: "#003D28",
         graph_7: "#6BAA91",
         graph_8: "#D8F0E6",
-        graph_9: "#1F3F33"
+        graph_9: "#1A332A"
+      },
+      fonts: {
+        textFont: {
+          name: "PT Sans",
+          url: "https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap"
+        }
+      }
+    }
+  },
+  {
+    id: "gruenerator-white",
+    name: "GRÜNE Weiß",
+    description: "Helles Design mit weißem Hintergrund und Parteigrün",
+    logo: null,
+    logo_url: null,
+    company_name: "BÜNDNIS 90/DIE GRÜNEN",
+
+    data: {
+      colors: {
+        primary: "#005538",
+        background: "#FFFFFF",
+        card: "#F5F1E9",
+        stroke: "#E5E0D6",
+        primary_text: "#FFFFFF",
+        background_text: "#000000",
+        graph_0: "#005538",
+        graph_1: "#316049",
+        graph_2: "#52907A",
+        graph_3: "#6A9583",
+        graph_4: "#8AC9B0",
+        graph_5: "#B1E0C9",
+        graph_6: "#003D28",
+        graph_7: "#6BAA91",
+        graph_8: "#D8F0E6",
+        graph_9: "#1A332A"
       },
       fonts: {
         textFont: {
@@ -65,30 +100,30 @@ export const DEFAULT_THEMES: any[] = [
   },
   {
     id: "gruenerator-dark",
-    name: "Grünerator Dunkel",
-    description: "Dunkles Design für Grünerator Slides",
+    name: "GRÜNE Dunkel",
+    description: "Dunkles Design mit Parteigrün auf dunklem Hintergrund",
     logo: null,
     logo_url: null,
-    company_name: null,
+    company_name: "BÜNDNIS 90/DIE GRÜNEN",
 
     data: {
       colors: {
-        primary: "#6A9583",
-        background: "#1A332A",
-        card: "#1F3F33",
-        stroke: "#285040",
-        primary_text: "#FFFFFF",
-        background_text: "#D8F0E6",
+        primary: "#8AC9B0",
+        background: "#002E1E",
+        card: "#003D28",
+        stroke: "#005538",
+        primary_text: "#000000",
+        background_text: "#F5F1E9",
         graph_0: "#8AC9B0",
         graph_1: "#6BAA91",
         graph_2: "#B1E0C9",
         graph_3: "#52907A",
         graph_4: "#D8F0E6",
         graph_5: "#6A9583",
-        graph_6: "#F0F8F4",
-        graph_7: "#5F8575",
-        graph_8: "#316049",
-        graph_9: "#285040"
+        graph_6: "#F5F1E9",
+        graph_7: "#316049",
+        graph_8: "#005538",
+        graph_9: "#003D28"
       },
       fonts: {
         textFont: {
