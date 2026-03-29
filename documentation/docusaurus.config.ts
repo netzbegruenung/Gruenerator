@@ -162,6 +162,11 @@ const config: Config = {
           ],
         },
         {
+          to: '/docs/webinare',
+          label: 'Webinare',
+          position: 'right',
+        },
+        {
           to: '/docs/category/newsletter-archiv',
           label: 'Newsletter',
           position: 'right',
