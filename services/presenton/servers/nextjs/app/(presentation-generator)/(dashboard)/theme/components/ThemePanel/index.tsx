@@ -53,8 +53,8 @@ const FALLBACK_THEME: Theme = {
     },
     fonts: {
       textFont: {
-        name: 'Inter',
-        url: 'https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap',
+        name: 'PT Sans',
+        url: '/fonts/PTSans-Regular.woff2',
       },
     },
   },
