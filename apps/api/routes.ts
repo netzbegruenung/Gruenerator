@@ -8,7 +8,6 @@ import rateLimit from 'express-rate-limit';
 import authMiddleware from './middleware/authMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
 import authInitRouter from './routes/auth/initController.js';
-import { briefingRouter, briefingInternalRouter } from './routes/briefing/index.js';
 import etherpadRoute from './routes/etherpad/etherpadController.js';
 import exportDocumentsRouter from './routes/exports/index.js';
 import imagineCreateRoute from './routes/flux/imagineCreate.js';
@@ -22,6 +21,7 @@ import {
   databaseTestRouter,
   rateLimitRouter,
   grueneApiTestRouter,
+  contentSyncRouter,
 } from './routes/internal/index.js';
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
 import { monitorRouter, monitorInternalRouter } from './routes/monitor/index.js';
@@ -406,9 +406,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   }
   app.use('/api/internal/offboarding', offboardingRouter);
   app.use('/api/internal/gruene-api', grueneApiTestRouter);
-  app.use('/api/internal/briefing', briefingInternalRouter);
   app.use('/api/internal/monitor', monitorInternalRouter);
-  app.use('/api/briefing', requireAuth, standardMutationLimiter, briefingRouter);
+  app.use('/api/internal/content-sync', contentSyncRouter);
   app.use('/api/monitor', requireAuth, publicReadLimiter, monitorRouter);
 
   app.get('/api/internal/route-stats', async (req: Request, res: Response): Promise<void> => {
