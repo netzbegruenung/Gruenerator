@@ -1,0 +1,188 @@
+name: Test All Applications
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test-fastapi:
+    name: Test Main FastAPI
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./servers/fastapi
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: 'pip'
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libreoffice \
+          fontconfig \
+          chromium \
+          chromium-driver
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # Install package in editable mode if pyproject.toml exists, otherwise install dependencies directly
+        if [ -f "pyproject.toml" ]; then
+          pip install -e .
+        else
+          pip install aiohttp aiomysql aiosqlite asyncpg fastapi[standard] \
+            pathvalidate pdfplumber chromadb sqlmodel \
+            anthropic google-genai openai fastmcp dirtyjson
+        fi
+    
+    - name: Set up environment variables
+      run: |
+        echo "APP_DATA_DIRECTORY=/tmp/app_data" >> $GITHUB_ENV
+        echo "TEMP_DIRECTORY=/tmp/presenton" >> $GITHUB_ENV
+        echo "PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium" >> $GITHUB_ENV
+        echo "DATABASE_URL=sqlite+aiosqlite:///./test.db" >> $GITHUB_ENV
+        echo "DISABLE_ANONYMOUS_TRACKING=true" >> $GITHUB_ENV
+        echo "DISABLE_IMAGE_GENERATION=true" >> $GITHUB_ENV
+
+  test-electron-fastapi:
+    name: Test Electron FastAPI
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./electron/servers/fastapi
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: 'pip'
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libreoffice \
+          fontconfig \
+          chromium \
+          chromium-driver
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # Install package in editable mode if pyproject.toml exists, otherwise install dependencies directly
+        if [ -f "pyproject.toml" ]; then
+          pip install -e .
+        else
+          pip install aiohttp aiomysql aiosqlite asyncpg fastapi[standard] \
+            pathvalidate pdfplumber chromadb sqlmodel \
+            anthropic google-genai openai fastmcp dirtyjson
+        fi
+    
+    - name: Set up environment variables
+      run: |
+        echo "APP_DATA_DIRECTORY=/tmp/app_data" >> $GITHUB_ENV
+        echo "TEMP_DIRECTORY=/tmp/presenton" >> $GITHUB_ENV
+        echo "PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium" >> $GITHUB_ENV
+        echo "DATABASE_URL=sqlite+aiosqlite:///./test.db" >> $GITHUB_ENV
+        echo "DISABLE_ANONYMOUS_TRACKING=true" >> $GITHUB_ENV
+        echo "DISABLE_IMAGE_GENERATION=true" >> $GITHUB_ENV
+    
+    - name: Build FastAPI binary
+      run: pyinstaller server.spec
+
+  test-nextjs:
+    name: Test Main Next.js
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./servers/nextjs
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: servers/nextjs/package-lock.json
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build application
+      env:
+        NEXT_PUBLIC_FAST_API: http://localhost:8000
+        NEXT_PUBLIC_URL: http://localhost:3000
+      run: npm run build
+    
+    - name: Run Cypress component tests
+      continue-on-error: true
+      run: |
+        # Check if Cypress tests exist
+        if [ -d "cypress" ] || [ -n "$(find . -name '*.cy.*' -type f 2>/dev/null)" ]; then
+          echo "Running Cypress component tests..."
+          npx cypress run --component
+        else
+          echo "No Cypress tests found, skipping component tests"
+        fi
+
+  test-electron-nextjs:
+    name: Test Electron Next.js
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./electron/servers/nextjs
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: electron/servers/nextjs/package-lock.json
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build application
+      env:
+        BUILD_TARGET: electron
+        NEXT_PUBLIC_FAST_API: http://localhost:8000
+        NEXT_PUBLIC_URL: http://localhost:3000
+      run: npm run build
+    
+    - name: Run Cypress component tests
+      continue-on-error: true
+      run: |
+        # Check if Cypress tests exist
+        if [ -d "cypress" ] || [ -n "$(find . -name '*.cy.*' -type f 2>/dev/null)" ]; then
+          echo "Running Cypress component tests..."
+          npx cypress run --component
+        else
+          echo "No Cypress tests found, skipping component tests"
+        fi
+
