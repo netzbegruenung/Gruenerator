@@ -239,20 +239,9 @@ const PublicBoardPage = lazy(() => import('../features/boards/PublicBoardPage'))
 const GruenOMatDemoPage = lazy(() => import('../features/gruen-o-mat/GruenOMatDemoPage'));
 const ResearchPage = lazy(() => import('../features/research/ResearchPage'));
 const MonitorPage = lazy(() => import('../features/monitor/MonitorPage'));
-const DocsListRedirect = lazy(() => Promise.resolve({ default: createRedirect('/desk') }));
-const DocsEditorPage = lazy(() =>
-  Promise.all([
-    import('../features/docs/DocsEditorPage'),
-    import('../components/common/BetaFeatureWrapper'),
-  ]).then(([docsModule, wrapperModule]) => ({
-    default: (props: Record<string, unknown>) =>
-      wrapperModule.default({
-        children: createElement(docsModule.default, props),
-        featureKey: 'docs',
-        fallbackPath: '/profile?tab=labor',
-      }),
-  }))
-);
+const DocsPage = lazy(() => import('../features/docs/DocsPage'));
+const DocsEditorPage = lazy(() => import('../features/docs/DocsEditorPage'));
+const DocsPresentationPage = lazy(() => import('../features/docs/DocsPresentationPage'));
 
 /**
  * Lazy loading für Grüneratoren Bundle
@@ -424,9 +413,10 @@ const standardRoutes: RouteConfig[] = [
     withForm: true,
   },
   // Pages Feature Routes
-  // Docs collaborative editor
-  { path: '/docs', component: DocsListRedirect },
-  { path: '/docs/:id', component: DocsEditorPage, layoutMode: 'noChrome' },
+  // Docs: overview, editor, and presentations
+  { path: '/docs', component: DocsPage },
+  { path: '/docs/presentation/:id', component: DocsPresentationPage, layoutMode: 'immersive' },
+  { path: '/docs/:id', component: DocsEditorPage, layoutMode: 'immersive' },
   { path: '/boards', component: BoardsListRedirect },
   { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome' },
   { path: '/boards/:id', component: BoardPage, layoutMode: 'noChrome' },
