@@ -98,6 +98,7 @@ export const DEFAULT_THEMES: any[] = [
       }
     }
   },
+  /* Non-Grünerator themes commented out
   {
     id: "edge-yellow",
     name: "Edge Yellow",
@@ -273,4 +274,5 @@ export const DEFAULT_THEMES: any[] = [
       }
     }
   }
+  Non-Grünerator themes end */
 ]
