@@ -4,7 +4,8 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
-import { getRecentInstagramPosts, isConfigured } from '../briefing/ApifyService.js';
+
+import { getRecentInstagramPosts, isConfigured } from './ApifyService.js';
 
 import type { CollectedMonitorItem } from './MonitorCollectorService.js';
 

@@ -1,9 +1,9 @@
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
-import { KNOWN_RSS_FEEDS } from '../briefing/BriefingConfigParser.js';
 
 import { scrapeBlueskyAccounts } from './BlueskyScraper.js';
 import { fetchArticlesFromEventRegistry, fetchGrueneArticles } from './EventRegistryService.js';
+import { KNOWN_RSS_FEEDS } from './rssFeeds.js';
 
 import type { MonitorLocale } from './types.js';
 
