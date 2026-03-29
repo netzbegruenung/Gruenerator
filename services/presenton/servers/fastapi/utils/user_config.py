@@ -28,6 +28,7 @@ from utils.get_env import (
     get_pixabay_api_key_env,
     get_extended_reasoning_env,
     get_web_grounding_env,
+    get_regolo_api_key_env,
     get_codex_access_token_env,
     get_codex_refresh_token_env,
     get_codex_token_expires_env,
@@ -56,6 +57,7 @@ from utils.set_env import (
     set_openai_api_key_env,
     set_openai_model_env,
     set_pexels_api_key_env,
+    set_regolo_api_key_env,
     set_image_provider_env,
     set_pixabay_api_key_env,
     set_tool_calls_env,
@@ -103,6 +105,7 @@ def get_user_config():
         ),
         PIXABAY_API_KEY=existing_config.PIXABAY_API_KEY or get_pixabay_api_key_env(),
         PEXELS_API_KEY=existing_config.PEXELS_API_KEY or get_pexels_api_key_env(),
+        REGOLO_API_KEY=existing_config.REGOLO_API_KEY or get_regolo_api_key_env(),
         COMFYUI_URL=existing_config.COMFYUI_URL or get_comfyui_url_env(),
         COMFYUI_WORKFLOW=existing_config.COMFYUI_WORKFLOW or get_comfyui_workflow_env(),
         DALL_E_3_QUALITY=existing_config.DALL_E_3_QUALITY or get_dall_e_3_quality_env(),
@@ -170,6 +173,8 @@ def update_env_with_user_config():
         set_pixabay_api_key_env(user_config.PIXABAY_API_KEY)
     if user_config.PEXELS_API_KEY:
         set_pexels_api_key_env(user_config.PEXELS_API_KEY)
+    if user_config.REGOLO_API_KEY:
+        set_regolo_api_key_env(user_config.REGOLO_API_KEY)
     if user_config.COMFYUI_URL:
         set_comfyui_url_env(user_config.COMFYUI_URL)
     if user_config.COMFYUI_WORKFLOW:

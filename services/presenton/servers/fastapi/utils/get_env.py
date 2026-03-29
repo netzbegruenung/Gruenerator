@@ -140,5 +140,9 @@ def get_codex_model_env():
     return os.getenv("CODEX_MODEL")
 
 
+def get_regolo_api_key_env():
+    return os.getenv("REGOLO_API_KEY")
+
+
 def get_migrate_database_on_startup_env():
     return os.getenv("MIGRATE_DATABASE_ON_STARTUP")

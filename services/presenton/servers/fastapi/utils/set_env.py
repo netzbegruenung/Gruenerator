@@ -89,6 +89,10 @@ def set_web_grounding_env(value):
     os.environ["WEB_GROUNDING"] = value
 
 
+def set_regolo_api_key_env(value):
+    os.environ["REGOLO_API_KEY"] = value
+
+
 def set_comfyui_url_env(value):
     os.environ["COMFYUI_URL"] = value
 

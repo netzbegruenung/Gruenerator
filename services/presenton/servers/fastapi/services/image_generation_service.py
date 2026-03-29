@@ -25,6 +25,7 @@ from utils.image_provider import (
     is_nanobanana_pro_selected,
     is_dalle3_selected,
     is_comfyui_selected,
+    is_gruenerator_selected,
 )
 import uuid
 
@@ -53,6 +54,8 @@ class ImageGenerationService:
             return self.generate_image_openai_gpt_image_1_5
         elif is_comfyui_selected():
             return self.generate_image_comfyui
+        elif is_gruenerator_selected():
+            return self.generate_image_gruenerator
         return None
 
     def is_stock_provider_selected(self):
@@ -140,6 +143,47 @@ class ImageGenerationService:
             "gpt-image-1.5",
             get_gpt_image_1_5_quality_env() or "medium",
         )
+
+    async def generate_image_gruenerator(
+        self, prompt: str, output_directory: str
+    ) -> str:
+        from utils.get_env import get_regolo_api_key_env
+
+        api_key = get_regolo_api_key_env()
+        if not api_key:
+            raise HTTPException(status_code=400, detail="REGOLO_API_KEY is not set")
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                "https://api.regolo.ai/v1/images/generations",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "Qwen-Image",
+                    "prompt": prompt,
+                    "n": 1,
+                    "size": "1024x1024",
+                    "response_format": "b64_json",
+                },
+            ) as response:
+                if response.status != 200:
+                    error_text = await response.text()
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Regolo image generation failed ({response.status}): {error_text}",
+                    )
+                data = await response.json()
+
+        b64_data = data.get("data", [{}])[0].get("b64_json")
+        if not b64_data:
+            raise HTTPException(status_code=500, detail="No image data in Regolo response")
+
+        image_path = os.path.join(output_directory, f"{uuid.uuid4()}.png")
+        with open(image_path, "wb") as f:
+            f.write(base64.b64decode(b64_data))
+        return image_path
 
     async def _generate_image_google(
         self, prompt: str, output_directory: str, model: str
