@@ -103,9 +103,10 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
     id: 'berlin-notebook',
     path: '/gruene-berlin',
     title: 'Berlin',
-    description: 'Durchsuchbar sind Pressemitteilungen und Beschlüsse der Grünen Berlin.',
+    description:
+      'Durchsuchbar sind Wahlprogramm 2026, Pressemitteilungen und Beschlüsse der Grünen Berlin.',
     meta: 'Archiv',
-    tags: ['Berlin', 'Beschlüsse', 'Presse'],
+    tags: ['Berlin', 'Wahlprogramm', 'Beschlüsse', 'Presse'],
     icon: MdDiversity1,
     order: 7,
     category: 'landesebene',

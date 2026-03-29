@@ -189,7 +189,7 @@ export const notebookMentionables: Mentionable[] = [
     trigger: '@',
     identifier: 'berlin-notebook',
     title: 'Grüne Berlin',
-    description: 'Pressemitteilungen und Beschlüsse Berlin',
+    description: 'Wahlprogramm 2026, Pressemitteilungen und Beschlüsse Berlin',
     avatar: '🐻',
     icon: MdDiversity1,
     backgroundColor: '#316049',
