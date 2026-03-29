@@ -20,6 +20,7 @@ import { landesverbandScraperService } from './services/scrapers/implementations
 const BERLIN_SOURCES = [
   'berlin-lv-presse',
   'berlin-lv-beschluesse',
+  'berlin-lv-wahlprogramm',
   'berlin-fraktion-presse',
   'berlin-fraktion-beschluesse',
 ];

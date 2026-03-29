@@ -287,10 +287,13 @@ export class LandesverbandScraper extends BaseScraper {
         }
       }
     } else {
-      // HTML article processing - use sitemap if available, otherwise pagination
+      // HTML article processing - use static URLs, sitemap, or pagination
       let articleLinks: string[];
 
-      if (contentPath.sitemapUrls && contentPath.sitemapUrls.length > 0) {
+      if (contentPath.staticUrls && contentPath.staticUrls.length > 0) {
+        this.log(`Using ${contentPath.staticUrls.length} static URLs for ${contentPath.type}`);
+        articleLinks = contentPath.staticUrls;
+      } else if (contentPath.sitemapUrls && contentPath.sitemapUrls.length > 0) {
         this.log(`Using sitemap extraction for ${contentPath.type}`);
         articleLinks = await this.linkExtractor.extractLinksFromSitemaps(
           contentPath.sitemapUrls,
