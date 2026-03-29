@@ -1,5 +1,6 @@
 import {
   Button,
+  cn,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -25,7 +26,6 @@ import { ShareModal } from '../permissions/ShareModal';
 import { AIDocumentCreator } from './AIDocumentCreator';
 import { TemplateCarousel } from './TemplateCarousel';
 import { TemplatePicker } from './TemplatePicker';
-import './DocumentList.css';
 
 interface DocumentListProps {
   searchQuery?: string;
@@ -126,17 +126,17 @@ export const DocumentList = memo(({ searchQuery }: DocumentListProps) => {
   };
 
   if (isLoading) {
-    return <div className="document-list-loading">Lädt...</div>;
+    return <div className="py-12 px-4 text-center text-grey-500 dark:text-grey-400">Lädt...</div>;
   }
 
   if (error) {
-    return <div className="document-list-error">{error}</div>;
+    return <div className="py-12 px-4 text-center text-red-600 dark:text-red-400">{error}</div>;
   }
 
   return (
-    <div className="document-list">
+    <div className="w-full">
       {/* Desktop: AI creator + template carousel */}
-      <div className="desktop-only-templates">
+      <div className="max-sm:hidden">
         {/* <AIDocumentCreator onGenerate={handleAIGenerate} isLoading={isGenerating} /> */}
         <TemplateCarousel
           onTemplateSelect={handleTemplateSelect}
@@ -145,13 +145,15 @@ export const DocumentList = memo(({ searchQuery }: DocumentListProps) => {
       </div>
 
       {documents.length === 0 ? (
-        <div className="document-list-empty">
+        <div className="py-12 px-4 text-center text-[0.9375rem] leading-relaxed text-grey-500 dark:text-grey-400">
           Noch keine Dokumente vorhanden. Erstelle dein erstes Dokument!
         </div>
       ) : filteredDocuments.length === 0 ? (
-        <div className="document-list-empty">Keine Dokumente gefunden.</div>
+        <div className="py-12 px-4 text-center text-[0.9375rem] leading-relaxed text-grey-500 dark:text-grey-400">
+          Keine Dokumente gefunden.
+        </div>
       ) : (
-        <div className="document-grid">
+        <div className="flex flex-col gap-sm sm:grid sm:grid-cols-2 sm:gap-md md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-lg lg:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]">
           {filteredDocuments.map((doc) => {
             const template = templates.find((t) => t.id === doc.document_subtype);
             const emoji = template?.icon || '📄';
@@ -165,26 +167,48 @@ export const DocumentList = memo(({ searchQuery }: DocumentListProps) => {
             return (
               <div
                 key={doc.id}
-                className="document-card"
+                className={cn(
+                  'group flex cursor-pointer flex-col items-stretch overflow-hidden rounded-lg border border-grey-200 bg-background-alt',
+                  'aspect-[4/5] transition-[box-shadow,border-color] duration-150 ease-out',
+                  'hover:shadow-sm hover:border-grey-300',
+                  'dark:border-grey-600 dark:hover:border-grey-500 dark:active:bg-grey-700',
+                  'md:transition-[transform,box-shadow,border-color] md:hover:-translate-y-0.5 md:hover:shadow-md',
+                  'max-sm:aspect-auto max-sm:max-h-[220px]'
+                )}
                 onClick={() => adapter.navigateToDocument(doc.id)}
               >
                 {previewHtml ? (
-                  <div className="document-card-preview document-card-preview-miniature">
+                  <div className="relative flex-1 overflow-hidden bg-background-alt dark:bg-grey-700">
                     <div
-                      className="document-card-preview-page"
+                      className={cn(
+                        'pointer-events-none w-[800px] origin-top-left scale-[0.3] select-none px-12 py-8',
+                        'font-[PT_Sans,Arial,sans-serif] leading-relaxed text-foreground',
+                        '[&_h1]:font-[Raleway,PT_Sans,Arial,sans-serif] [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:leading-tight [&_h1]:mb-3 [&_h1]:mt-0',
+                        '[&_h2]:font-[Raleway,PT_Sans,Arial,sans-serif] [&_h2]:text-[1.1rem] [&_h2]:font-semibold [&_h2]:leading-snug [&_h2]:mt-3.5 [&_h2]:mb-1.5',
+                        '[&_h3]:font-[Raleway,PT_Sans,Arial,sans-serif] [&_h3]:text-[0.95rem] [&_h3]:font-semibold [&_h3]:mt-2.5 [&_h3]:mb-1',
+                        '[&_p]:text-[0.8rem] [&_p]:mb-2 [&_p]:mt-0 [&_p]:leading-relaxed',
+                        '[&_ul]:text-[0.8rem] [&_ul]:mb-2 [&_ul]:pl-5 [&_ol]:text-[0.8rem] [&_ol]:mb-2 [&_ol]:pl-5',
+                        '[&_li]:mb-0.5',
+                        '[&_blockquote]:border-l-[3px] [&_blockquote]:border-grey-300 [&_blockquote]:my-2 [&_blockquote]:py-1 [&_blockquote]:px-3 [&_blockquote]:text-grey-500 dark:[&_blockquote]:border-grey-500',
+                        '[&_hr]:border-none [&_hr]:border-t [&_hr]:border-grey-200 [&_hr]:my-2.5 dark:[&_hr]:border-grey-600',
+                        '[&_strong]:font-semibold',
+                        '[&_em]:italic'
+                      )}
                       dangerouslySetInnerHTML={{ __html: previewHtml }}
                     />
+                    {/* Fade gradient overlay (replaces ::after pseudo-element) */}
+                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-b from-transparent to-white dark:to-grey-700" />
                   </div>
                 ) : (
-                  <div className="document-card-preview document-card-preview-empty">
+                  <div className="flex flex-1 items-center justify-center overflow-hidden text-[2rem] text-grey-400 dark:text-grey-500">
                     <span>{emoji}</span>
                   </div>
                 )}
 
-                <div className="document-card-footer">
-                  <div className="document-card-header">
-                    <h3 className="document-card-title">
-                      <span className="document-card-emoji">{emoji}</span>
+                <div className="mt-auto border-t border-grey-100 p-sm px-md dark:border-grey-600">
+                  <div className="flex items-center justify-between gap-sm">
+                    <h3 className="m-0 flex-1 truncate text-[0.8125rem] font-semibold text-foreground">
+                      <span className="mr-1">{emoji}</span>
                       {doc.title}
                     </h3>
                     <DropdownMenu>
@@ -192,7 +216,7 @@ export const DocumentList = memo(({ searchQuery }: DocumentListProps) => {
                         <Button
                           variant="ghost"
                           size="icon-xs"
-                          className="document-card-menu"
+                          className="shrink-0 opacity-0 transition-opacity duration-150 ease-out group-hover:opacity-100 max-sm:opacity-100"
                           onClick={(e: React.MouseEvent) => e.stopPropagation()}
                           aria-label="Dokumentoptionen"
                         >
@@ -228,7 +252,7 @@ export const DocumentList = memo(({ searchQuery }: DocumentListProps) => {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                  <div className="document-card-meta">
+                  <div className="mt-0.5 flex items-center gap-1 text-xs text-grey-500 dark:text-grey-400">
                     <span>
                       {new Date(doc.updated_at).toLocaleDateString('de-DE', {
                         day: '2-digit',
@@ -237,7 +261,7 @@ export const DocumentList = memo(({ searchQuery }: DocumentListProps) => {
                       })}
                     </span>
                     {doc.access_type && doc.access_type !== 'owner' && (
-                      <span className="document-card-sharing">
+                      <span className="truncate text-[0.6875rem] text-primary-600 dark:text-primary-400">
                         {doc.creator_name ? `Von ${doc.creator_name}` : 'Geteilt'}
                       </span>
                     )}
@@ -250,12 +274,12 @@ export const DocumentList = memo(({ searchQuery }: DocumentListProps) => {
       )}
 
       {/* Mobile: floating action button */}
-      <div className="mobile-fab-container">
+      <div className="hidden max-sm:fixed max-sm:bottom-5 max-sm:right-5 max-sm:z-[100] max-sm:block">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               size="lg"
-              className="mobile-fab h-[52px] w-[52px] rounded-full bg-[#5F8575] hover:bg-[#5F8575]/90"
+              className="h-[52px] w-[52px] rounded-full bg-[#5F8575] shadow-[0_4px_12px_rgba(0,0,0,0.15),0_2px_4px_rgba(0,0,0,0.1)] hover:bg-[#5F8575]/90"
               aria-label="Neues Dokument erstellen"
             >
               <FiPlus size={24} />
