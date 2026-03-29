@@ -29,7 +29,7 @@ overrides:
   serialize-javascript: '>=7.0.4'
   webpack-dev-server: '>=5.2.3'
   '@tootallnate/once': '>=2.0.0'
-  loader-utils: '>=2.0.5'
+  loader-utils: ^2.0.4
   dompurify: '>=3.2.7'
   mermaid: '>=10.9.4'
   srvx: '>=0.11.13'
@@ -1443,6 +1443,9 @@ importers:
       '@hocuspocus/provider':
         specifier: ^3.4.3
         version: 3.4.4(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)
+      '@tanstack/react-query':
+        specifier: ^5.0.0
+        version: 5.95.2(react@19.2.4)
       ai:
         specifier: ^6.0.141
         version: 6.0.141(zod@4.3.6)
@@ -11408,6 +11411,9 @@ packages:
     resolution: {integrity: sha512-QxD8cf2eVqJOOz63z6JIN9BzvVs/dlySa5HGSBH5xtR8dPteIRQnBxxKqkNTiT6jbDTF6jAfrd4oMcND9RGbQg==}
     engines: {node: '>=0.6'}
 
+  big.js@5.2.2:
+    resolution: {integrity: sha512-vyL2OymJxmarO8gxMr0mhChsO9QGwhynfuu4+MHTAW6czfq9humCB7rKpUjDd9YUiDPU4mzpyupFSvOClAwbmQ==}
+
   bignumber.js@9.3.1:
     resolution: {integrity: sha512-Ko0uX15oIUS7wJ3Rb30Fs6SkVbLmPBAKdlm7q9+ak9bbIeFf0MwuBsQV6z7+X768/cHsfg+WlysDWJcmthjsjQ==}
 
@@ -13009,6 +13015,10 @@ packages:
 
   emojilib@2.4.0:
     resolution: {integrity: sha512-5U0rVMU5Y2n2+ykNLQqMoqklN9ICBT/KsvC1Gz6vqHbz2AXXGkG+Pm5rMWk/8Vjrr/mY9985Hi8DYzn1F09Nyw==}
+
+  emojis-list@3.0.0:
+    resolution: {integrity: sha512-/kyM18EfinwXZbno9FyUGeFh87KC8HRQBQGildHZbEuRyWFOmv1U10o9BBp8XVZDVNNuQKyIGIu5ZYAAXJ0V2Q==}
+    engines: {node: '>= 4'}
 
   emoticon@4.1.0:
     resolution: {integrity: sha512-VWZfnxqwNcc51hIy/sbOdEem6D+cVtpPzEEtVAFdaas30+1dgkyaOQ4sQ6Bp0tOMqWO1v+HQfYaoodOkdhK6SQ==}
@@ -16133,9 +16143,9 @@ packages:
     resolution: {integrity: sha512-IWqP2SCPhyVFTBtRcgMHdzlf9ul25NwaFx4wCEH/KjAXuuHY4yNjvPXsBokp8jCB936PyWRaPKUNh8NvylLp2Q==}
     engines: {node: '>=6.11.5'}
 
-  loader-utils@3.3.1:
-    resolution: {integrity: sha512-FMJTLMXfCLMLfJxcX9PFqX5qD88Z5MRGaZCVzfuqeZSPsyiBzs+pahDQjbIWz2QIzPZz0NX9Zy4FX3lmK6YHIg==}
-    engines: {node: '>= 12.13.0'}
+  loader-utils@2.0.4:
+    resolution: {integrity: sha512-xXqpXoINfFhgua9xiqD8fPFHgkoq1mmmpE92WlDbm9rNRd/EbRb+Gqf908T2DMfuHjjJlksiK2RbHVOdD/MqSw==}
+    engines: {node: '>=8.9.0'}
 
   locate-path@2.0.0:
     resolution: {integrity: sha512-NCI2kiDkyR7VeEKm27Kda/iQHyKJe1Bu0FlTbYp3CqJu+9IFe9bLyAjMxf5ZDDbEg+iMPzB5zYyUTSm8wVTKmA==}
@@ -29882,7 +29892,7 @@ snapshots:
       core-js-pure: 3.49.0
       error-stack-parser: 2.1.4
       html-entities: 2.6.0
-      loader-utils: 3.3.1
+      loader-utils: 2.0.4
       react-refresh: 0.14.2
       schema-utils: 4.3.3
       source-map: 0.7.6
@@ -31558,7 +31568,7 @@ snapshots:
       '@rspack/core': 1.7.6(@swc/helpers@0.5.20)
       '@rspack/plugin-react-refresh': 1.6.1(react-refresh@0.18.0)
       esbuild: 0.25.0
-      loader-utils: 3.3.1
+      loader-utils: 2.0.4
       postcss: 8.5.1
       postcss-value-parser: 4.2.0
       react: 19.2.4
@@ -35420,6 +35430,8 @@ snapshots:
 
   big-integer@1.6.52: {}
 
+  big.js@5.2.2: {}
+
   bignumber.js@9.3.1: {}
 
   binary-extensions@2.3.0: {}
@@ -37222,6 +37234,8 @@ snapshots:
 
   emojilib@2.4.0: {}
 
+  emojis-list@3.0.0: {}
+
   emoticon@4.1.0: {}
 
   enabled@2.0.0: {}
@@ -38637,7 +38651,7 @@ snapshots:
 
   file-loader@6.2.0(webpack@5.105.4):
     dependencies:
-      loader-utils: 3.3.1
+      loader-utils: 2.0.4
       schema-utils: 3.3.0
       webpack: 5.105.4(webpack-cli@5.1.4)
 
@@ -41297,7 +41311,11 @@ snapshots:
 
   loader-runner@4.3.1: {}
 
-  loader-utils@3.3.1: {}
+  loader-utils@2.0.4:
+    dependencies:
+      big.js: 5.2.2
+      emojis-list: 3.0.0
+      json5: 2.2.3
 
   locate-path@2.0.0:
     dependencies:
@@ -43127,7 +43145,7 @@ snapshots:
 
   null-loader@4.0.1(webpack@5.105.4):
     dependencies:
-      loader-utils: 3.3.1
+      loader-utils: 2.0.4
       schema-utils: 3.3.0
       webpack: 5.105.4(webpack-cli@5.1.4)
 
@@ -47679,7 +47697,7 @@ snapshots:
 
   url-loader@4.1.1(file-loader@6.2.0(webpack@5.105.4))(webpack@5.105.4):
     dependencies:
-      loader-utils: 3.3.1
+      loader-utils: 2.0.4
       mime-types: 2.1.35
       schema-utils: 3.3.0
       webpack: 5.105.4(webpack-cli@5.1.4)
