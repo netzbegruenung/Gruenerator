@@ -22,6 +22,7 @@ WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY tsconfig.base.json tsconfig.strict-migration.json ./
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/slides/package.json ./packages/slides/
 COPY services/hocuspocus/package.json ./services/hocuspocus/
 COPY apps/api/package.json ./apps/api/
 
@@ -31,6 +32,7 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 
 # Copy source and compile
 COPY packages/shared ./packages/shared
+COPY packages/slides ./packages/slides
 COPY services/hocuspocus ./services/hocuspocus
 COPY apps/api ./apps/api
 
@@ -94,6 +96,7 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/pnpm-lock.yaml ./
 
 # Copy package.json files for workspace structure
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/package.json ./packages/shared/
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/slides/package.json ./packages/slides/
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/package.json ./services/hocuspocus/
 COPY --from=builder --chown=gruenerator:gruenerator /app/apps/api/package.json ./apps/api/
 

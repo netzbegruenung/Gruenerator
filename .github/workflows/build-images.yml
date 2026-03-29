@@ -119,6 +119,7 @@ jobs:
             api:
               - 'apps/api/**'
               - 'packages/shared/**'
+              - 'packages/slides/**'
             sites:
               - 'apps/sites/**'
               - 'packages/shared/**'
