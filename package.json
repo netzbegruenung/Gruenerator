@@ -33,7 +33,7 @@
       "serialize-javascript": ">=7.0.4",
       "webpack-dev-server": ">=5.2.3",
       "@tootallnate/once": ">=2.0.0",
-      "loader-utils": ">=2.0.5",
+      "loader-utils": "^2.0.4",
       "dompurify": ">=3.2.7",
       "mermaid": ">=10.9.4",
       "srvx": ">=0.11.13",
