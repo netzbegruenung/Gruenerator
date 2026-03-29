@@ -147,12 +147,19 @@ export const auth = betterAuth({
 
   trustedOrigins: [
     'gruenerator://',
-    ...(process.env.NODE_ENV === 'development' ? ['exp://', 'http://localhost:3000'] : []),
+    'https://slides.gruenerator.eu',
+    ...(process.env.NODE_ENV === 'development'
+      ? ['exp://', 'http://localhost:3000', 'http://localhost:5050']
+      : []),
   ],
 
   advanced: {
     cookiePrefix: 'ba',
     generateId: false,
+    crossSubDomainCookies: {
+      enabled: true,
+      domain: process.env.NODE_ENV === 'production' ? '.gruenerator.eu' : undefined,
+    },
   },
 
   plugins: [

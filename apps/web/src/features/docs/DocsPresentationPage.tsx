@@ -71,7 +71,7 @@ function PresentationPageInner() {
   }, [navigate]);
 
   const handleEdit = useCallback(() => {
-    const presenterUrl = import.meta.env.VITE_PRESENTON_URL || 'https://slides.gruenerator.com';
+    const presenterUrl = import.meta.env.VITE_PRESENTON_URL || 'https://slides.gruenerator.eu';
     window.open(`${presenterUrl}/presentation/${id}`, '_blank');
   }, [id]);
 
