@@ -6,39 +6,7 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Grünerator Slides — KI-Präsentationen",
-  description:
-    "Open-source AI presentation generator with custom layouts, multi-model support (OpenAI, Gemini, Ollama), and PDF/PPTX export. A free Gamma alternative.",
-  alternates: {
-    canonical: "https://presenton.ai/create",
-  },
-  keywords: [
-    "presentation generator",
-    "AI presentations",
-    "data visualization",
-    "automatic presentation maker",
-    "professional slides",
-    "data-driven presentations",
-    "document to presentation",
-    "presentation automation",
-    "smart presentation tool",
-    "business presentations",
-  ],
-  openGraph: {
-    title: "Create Data Presentation | PresentOn",
-    description:
-      "Open-source AI presentation generator with custom layouts, multi-model support (OpenAI, Gemini, Ollama), and PDF/PPTX export. A free Gamma alternative.",
-    type: "website",
-    url: "https://presenton.ai/create",
-    siteName: "PresentOn",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Create Data Presentation | PresentOn",
-    description:
-      "Open-source AI presentation generator with custom layouts, multi-model support (OpenAI, Gemini, Ollama), and PDF/PPTX export. A free Gamma alternative.",
-    site: "@presenton_ai",
-    creator: "@presenton_ai",
-  },
+  description: "KI-gestützte Präsentationen erstellen und bearbeiten.",
 };
 
 const page = () => {
@@ -47,9 +15,9 @@ const page = () => {
       <Header />
       <div className="flex flex-col items-center justify-center  mb-8">
         <h1 className="text-[64px] font-normal font-unbounded text-[#101323] ">
-          AI Presentation
+          KI-Präsentation
         </h1>
-        <p className="text-xl font-syne text-[#101323CC]">Choose a design, set preferences, and generate polished slides.</p>
+        <p className="text-xl font-syne text-[#101323CC]">Wähle ein Design, lege Einstellungen fest und erstelle professionelle Folien.</p>
       </div>
 
       <UploadPage />
