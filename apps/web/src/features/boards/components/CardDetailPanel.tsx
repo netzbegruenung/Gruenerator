@@ -21,41 +21,19 @@ import {
   FiFileText,
   FiPlus,
   FiUser,
-  FiSend,
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
 import { FIELD_IDS } from '../types';
 import { LABEL_COLORS } from '../utils/boardDefaults';
 
+import { CardComments } from './CardComments';
 import { MemberPicker } from './MemberPicker';
 
-import type {
-  Row,
-  Field,
-  SelectOption,
-  CellValue,
-  LinkedDoc,
-  CardAssignee,
-  CardComment,
-} from '../types';
+import type { Row, Field, SelectOption, CellValue, LinkedDoc, CardAssignee } from '../types';
 
 import { CollabDocPicker } from '@/components/common/CollabDocPicker';
 import { cn } from '@/utils/cn';
-
-function formatCommentDate(isoString: string): string {
-  const date = new Date(isoString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60_000);
-  if (diffMin < 1) return 'gerade eben';
-  if (diffMin < 60) return `vor ${diffMin} Min.`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `vor ${diffH} Std.`;
-  const diffD = Math.floor(diffH / 24);
-  if (diffD < 7) return `vor ${diffD} ${diffD === 1 ? 'Tag' : 'Tagen'}`;
-  return date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' });
-}
 
 const COMMON_EMOJI = [
   '📋',
@@ -171,8 +149,6 @@ export const CardDetailPanel = memo(function CardDetailPanel({
   const [newLabelText, setNewLabelText] = useState('');
   const [selectedLabelColor, setSelectedLabelColor] = useState(LABEL_COLORS[0]);
   const [assignee, setAssignee] = useState<CardAssignee | null>(null);
-  const [comments, setComments] = useState<CardComment[]>([]);
-  const [commentText, setCommentText] = useState('');
 
   const labelsField = useMemo(() => fields.find((f) => f.id === FIELD_IDS.LABELS), [fields]);
   const labelOptions = useMemo(
@@ -220,13 +196,6 @@ export const CardDetailPanel = memo(function CardDetailPanel({
       const raw = row.cells[FIELD_IDS.ASSIGNEE] as string;
       setAssignee(raw ? { id: '', name: raw, avatarRobotId: 1 } : null);
     }
-    try {
-      const raw = row.cells[FIELD_IDS.COMMENTS];
-      setComments(typeof raw === 'string' && raw ? JSON.parse(raw) : []);
-    } catch {
-      setComments([]);
-    }
-    setCommentText('');
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally sync only on row change or panel open
   }, [rowId, open]);
 
@@ -309,44 +278,6 @@ export const CardDetailPanel = memo(function CardDetailPanel({
       onUpdateCell(row.id, FIELD_IDS.ASSIGNEE, newAssignee ? JSON.stringify(newAssignee) : '');
     },
     [row, onUpdateCell]
-  );
-
-  const addComment = useCallback(() => {
-    if (!row) return;
-    const trimmed = commentText.trim();
-    if (!trimmed) return;
-    const updated = [
-      ...comments,
-      {
-        id: `comment-${Date.now()}`,
-        text: trimmed,
-        authorId: currentUserId,
-        authorName: currentUserName,
-        authorAvatarRobotId: currentUserAvatarRobotId,
-        createdAt: new Date().toISOString(),
-      },
-    ];
-    setComments(updated);
-    onUpdateCell(row.id, FIELD_IDS.COMMENTS, JSON.stringify(updated));
-    setCommentText('');
-  }, [
-    row,
-    comments,
-    commentText,
-    currentUserId,
-    currentUserName,
-    currentUserAvatarRobotId,
-    onUpdateCell,
-  ]);
-
-  const deleteComment = useCallback(
-    (commentId: string) => {
-      if (!row) return;
-      const updated = comments.filter((c) => c.id !== commentId);
-      setComments(updated);
-      onUpdateCell(row.id, FIELD_IDS.COMMENTS, JSON.stringify(updated));
-    },
-    [row, comments, onUpdateCell]
   );
 
   const handleDiscussInChat = useCallback(() => {
@@ -648,82 +579,15 @@ export const CardDetailPanel = memo(function CardDetailPanel({
           </div>
 
           {/* Comments */}
-          <div className="border-t border-grey-200 dark:border-grey-700 px-4 py-4 sm:px-6">
-            <p className="text-sm font-medium text-grey-500 dark:text-grey-100 mb-3">
-              <FiMessageSquare className="inline mr-1.5" size={13} />
-              Kommentare
-              {comments.length > 0 && (
-                <span className="text-grey-400 font-normal ml-1">({comments.length})</span>
-              )}
-            </p>
-
-            {comments.length > 0 && (
-              <div className="flex flex-col gap-3 mb-3">
-                {comments.map((comment) => (
-                  <div key={comment.id} className="flex gap-2 group">
-                    <img
-                      src={getRobotAvatarPath(comment.authorAvatarRobotId ?? 1)}
-                      alt=""
-                      className="w-6 h-6 rounded-full shrink-0 mt-0.5"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-xs font-medium text-foreground">
-                          {comment.authorName}
-                        </span>
-                        <span className="text-[10px] text-grey-400">
-                          {formatCommentDate(comment.createdAt)}
-                        </span>
-                        {comment.authorId === currentUserId && (
-                          <button
-                            onClick={() => deleteComment(comment.id)}
-                            className="sm:opacity-0 sm:group-hover:opacity-100 text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer text-[10px] transition-opacity ml-auto p-1 sm:p-0"
-                            title="Löschen"
-                          >
-                            &times;
-                          </button>
-                        )}
-                      </div>
-                      <p className="text-sm text-foreground m-0 mt-0.5 leading-relaxed whitespace-pre-wrap break-words">
-                        {comment.text}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <img
-                src={getRobotAvatarPath(currentUserAvatarRobotId)}
-                alt=""
-                className="w-6 h-6 rounded-full shrink-0 mt-1"
-              />
-              <div className="flex-1 flex flex-col gap-1.5">
-                <textarea
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                      e.preventDefault();
-                      addComment();
-                    }
-                  }}
-                  rows={2}
-                  className="w-full rounded-lg border border-grey-200 dark:border-grey-700 bg-transparent px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none text-foreground placeholder:text-grey-400"
-                  placeholder="Kommentar schreiben..."
-                />
-                {commentText.trim() && (
-                  <div className="flex justify-end">
-                    <Button size="sm" className="h-7 text-xs" onClick={addComment}>
-                      <FiSend className="mr-1" size={11} />
-                      Senden
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          {row && (
+            <CardComments
+              cardId={row.id}
+              groupId={groupId}
+              currentUserId={currentUserId}
+              currentUserName={currentUserName}
+              currentUserAvatarRobotId={currentUserAvatarRobotId}
+            />
+          )}
         </div>
 
         <div className="flex items-center justify-between border-t border-grey-200 dark:border-grey-700 px-4 py-3 sm:px-6">

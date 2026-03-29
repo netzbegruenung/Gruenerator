@@ -1,4 +1,15 @@
-import { Download, FileText, LayoutDashboard, Share2, Shield, UserPlus, Users } from 'lucide-react';
+import {
+  AtSign,
+  Download,
+  FileText,
+  LayoutDashboard,
+  MessageSquare,
+  Reply,
+  Share2,
+  Shield,
+  UserPlus,
+  Users,
+} from 'lucide-react';
 
 import { openLinkAction, type NotificationTypeConfig } from '../notificationConfig';
 
@@ -55,6 +66,27 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     icon: LayoutDashboard,
     group: 'board',
     actions: (ctx) => [openLinkAction('Board öffnen')(ctx)],
+  },
+  board_comment_added: {
+    label: 'Neue Kommentare',
+    description: 'Wenn jemand eine Karte kommentiert, an der du beteiligt bist',
+    icon: MessageSquare,
+    group: 'board',
+    actions: (ctx) => [openLinkAction('Karte öffnen')(ctx)],
+  },
+  board_comment_reply: {
+    label: 'Antworten auf Kommentare',
+    description: 'Wenn jemand auf deinen Kommentar antwortet',
+    icon: Reply,
+    group: 'board',
+    actions: (ctx) => [openLinkAction('Karte öffnen')(ctx)],
+  },
+  board_user_mentioned: {
+    label: 'Erwähnungen',
+    description: 'Wenn du in einem Kommentar erwähnt wirst',
+    icon: AtSign,
+    group: 'board',
+    actions: (ctx) => [openLinkAction('Karte öffnen')(ctx)],
   },
 
   group_activity: {

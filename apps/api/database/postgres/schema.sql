@@ -1274,3 +1274,44 @@ CREATE INDEX IF NOT EXISTS idx_presentations_user_id ON collaborative_presentati
 CREATE INDEX IF NOT EXISTS idx_presentations_updated_at ON collaborative_presentations(updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_presentation_slides_presentation_id ON presentation_slides(presentation_id);
 CREATE INDEX IF NOT EXISTS idx_presentation_slides_order ON presentation_slides(presentation_id, index);
+
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- SECTION: BOARD COMMENTS & REACTIONS
+-- Threaded comments on board cards with emoji reactions and @mentions
+-- ════════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS board_comments (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    board_id        UUID NOT NULL REFERENCES collaborative_documents(id) ON DELETE CASCADE,
+    card_id         TEXT NOT NULL,
+    parent_id       UUID REFERENCES board_comments(id) ON DELETE CASCADE,
+    user_id         UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    content         TEXT,
+    blocks          JSONB NOT NULL DEFAULT '[]'::jsonb,
+    mentioned_user_ids UUID[] DEFAULT '{}',
+    is_edited       BOOLEAN NOT NULL DEFAULT FALSE,
+    edited_at       TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS board_comment_reactions (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    comment_id      UUID NOT NULL REFERENCES board_comments(id) ON DELETE CASCADE,
+    user_id         UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    emoji           TEXT NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (comment_id, user_id, emoji)
+);
+
+CREATE TRIGGER set_board_comments_updated_at
+    BEFORE UPDATE ON board_comments
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE INDEX IF NOT EXISTS idx_board_comments_board_card ON board_comments(board_id, card_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_board_comments_parent ON board_comments(parent_id) WHERE parent_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_board_comments_user ON board_comments(user_id);
+CREATE INDEX IF NOT EXISTS idx_board_comments_mentioned ON board_comments USING gin(mentioned_user_ids) WHERE mentioned_user_ids != '{}';
+CREATE INDEX IF NOT EXISTS idx_board_comment_reactions_comment ON board_comment_reactions(comment_id);
