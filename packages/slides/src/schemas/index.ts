@@ -8,497 +8,497 @@ import * as z from 'zod/v4';
 import {
   Schema as GeneralIntroSchema,
   layoutId as GeneralIntroId,
-} from '../components/layouts/general/IntroSlideLayout';
+} from '../components/layouts/general/IntroSlideLayout.js';
 import {
   Schema as BasicInfoSchema,
   layoutId as BasicInfoId,
-} from '../components/layouts/general/BasicInfoSlideLayout';
+} from '../components/layouts/general/BasicInfoSlideLayout.js';
 import {
   Schema as BulletIconsOnlySchema,
   layoutId as BulletIconsOnlyId,
-} from '../components/layouts/general/BulletIconsOnlySlideLayout';
+} from '../components/layouts/general/BulletIconsOnlySlideLayout.js';
 import {
   Schema as BulletWithIconsSchema,
   layoutId as BulletWithIconsId,
-} from '../components/layouts/general/BulletWithIconsSlideLayout';
+} from '../components/layouts/general/BulletWithIconsSlideLayout.js';
 import {
   Schema as ChartWithBulletsSchema,
   layoutId as ChartWithBulletsId,
-} from '../components/layouts/general/ChartWithBulletsSlideLayout';
+} from '../components/layouts/general/ChartWithBulletsSlideLayout.js';
 import {
   Schema as MetricsSchema,
   layoutId as MetricsId,
-} from '../components/layouts/general/MetricsSlideLayout';
+} from '../components/layouts/general/MetricsSlideLayout.js';
 import {
   Schema as MetricsWithImageSchema,
   layoutId as MetricsWithImageId,
-} from '../components/layouts/general/MetricsWithImageSlideLayout';
+} from '../components/layouts/general/MetricsWithImageSlideLayout.js';
 import {
   Schema as NumberedBulletsSchema,
   layoutId as NumberedBulletsId,
-} from '../components/layouts/general/NumberedBulletsSlideLayout';
+} from '../components/layouts/general/NumberedBulletsSlideLayout.js';
 import {
   Schema as QuoteSchema,
   layoutId as QuoteId,
-} from '../components/layouts/general/QuoteSlideLayout';
+} from '../components/layouts/general/QuoteSlideLayout.js';
 import {
   Schema as TableInfoSchema,
   layoutId as TableInfoId,
-} from '../components/layouts/general/TableInfoSlideLayout';
+} from '../components/layouts/general/TableInfoSlideLayout.js';
 import {
   Schema as TableOfContentsSchema,
   layoutId as TableOfContentsId,
-} from '../components/layouts/general/TableOfContentsSlideLayout';
+} from '../components/layouts/general/TableOfContentsSlideLayout.js';
 import {
   Schema as TeamSchema,
   layoutId as TeamId,
-} from '../components/layouts/general/TeamSlideLayout';
+} from '../components/layouts/general/TeamSlideLayout.js';
 
 // ── Neo General ──────────────────────────────────────────────────────────────
 import {
   Schema as HeadlineTextWithBulletsAndStatsSchema,
   layoutId as HeadlineTextWithBulletsAndStatsId,
-} from '../components/layouts/neo-general/HeadlineTextWithBulletsAndStats';
+} from '../components/layouts/neo-general/HeadlineTextWithBulletsAndStats.js';
 import {
   Schema as HeadlineDescriptionWithImageSchema,
   layoutId as HeadlineDescriptionWithImageId,
-} from '../components/layouts/neo-general/HeadlineDescriptionWithImage';
+} from '../components/layouts/neo-general/HeadlineDescriptionWithImage.js';
 import {
   Schema as HeadlineDescriptionWithDoubleImageSchema,
   layoutId as HeadlineDescriptionWithDoubleImageId,
-} from '../components/layouts/neo-general/HeadlineDescriptionWithDoubleImage';
+} from '../components/layouts/neo-general/HeadlineDescriptionWithDoubleImage.js';
 import {
   Schema as IndexedThreeColumnListSchema,
   layoutId as IndexedThreeColumnListId,
-} from '../components/layouts/neo-general/IndexedThreeColumnList';
+} from '../components/layouts/neo-general/IndexedThreeColumnList.js';
 import {
   Schema as LayoutTextBlockWithMetricCardsSchema,
   layoutId as LayoutTextBlockWithMetricCardsId,
-} from '../components/layouts/neo-general/LayoutTextBlockWithMetricCards';
+} from '../components/layouts/neo-general/LayoutTextBlockWithMetricCards.js';
 import {
   Schema as LeftAlignQuotesSchema,
   layoutId as LeftAlignQuotesId,
-} from '../components/layouts/neo-general/LeftAlignQuote';
+} from '../components/layouts/neo-general/LeftAlignQuote.js';
 import {
   Schema as TitleDescriptionWithTableSchema,
   layoutId as TitleDescriptionWithTableId,
-} from '../components/layouts/neo-general/TitleDescriptionWithTable';
+} from '../components/layouts/neo-general/TitleDescriptionWithTable.js';
 import {
   Schema as ChallengeAndOutcomeWithOneStatSchema,
   layoutId as ChallengeAndOutcomeWithOneStatId,
-} from '../components/layouts/neo-general/ChallengeAndOutcomeWithOneStat';
+} from '../components/layouts/neo-general/ChallengeAndOutcomeWithOneStat.js';
 import {
   Schema as GridBasedEightMetricsSnapshotsSchema,
   layoutId as GridBasedEightMetricsSnapshotsId,
-} from '../components/layouts/neo-general/GridBasedEightMetricsSnapshots';
+} from '../components/layouts/neo-general/GridBasedEightMetricsSnapshots.js';
 import {
   Schema as TitleTopDescriptionFourTeamMembersGridSchema,
   layoutId as TitleTopDescriptionFourTeamMembersGridId,
-} from '../components/layouts/neo-general/TitleTopDescriptionFourTeamMembersGrid';
+} from '../components/layouts/neo-general/TitleTopDescriptionFourTeamMembersGrid.js';
 import {
   Schema as TitleThreeColumnRiskConstraintsSchema,
   layoutId as TitleThreeColumnRiskConstraintsId,
-} from '../components/layouts/neo-general/TitleThreeColumnRiskConstraints';
+} from '../components/layouts/neo-general/TitleThreeColumnRiskConstraints.js';
 import {
   Schema as ThankYouContactInfoFooterImageSlideSchema,
   layoutId as ThankYouContactInfoFooterImageSlideId,
-} from '../components/layouts/neo-general/ThankYouContactInfoFooterImageSlide';
+} from '../components/layouts/neo-general/ThankYouContactInfoFooterImageSlide.js';
 import {
   Schema as TimelineLayoutSchema,
   layoutId as TimelineLayoutId,
-} from '../components/layouts/neo-general/Timeline';
+} from '../components/layouts/neo-general/Timeline.js';
 import {
   Schema as TitleWithFullWidthChartSchema,
   layoutId as TitleWithFullWidthChartId,
-} from '../components/layouts/neo-general/TitleWithFullWidthChart';
+} from '../components/layouts/neo-general/TitleWithFullWidthChart.js';
 import {
   Schema as TitleMetricsWithChartSchema,
   layoutId as TitleMetricsWithChartId,
-} from '../components/layouts/neo-general/TitleMetricsWithChart';
+} from '../components/layouts/neo-general/TitleMetricsWithChart.js';
 import {
   Schema as TitleWithGridBasedHeadingAndDescriptionSchema,
   layoutId as TitleWithGridBasedHeadingAndDescriptionId,
-} from '../components/layouts/neo-general/TitleWithGridBasedHeadingAndDescription';
+} from '../components/layouts/neo-general/TitleWithGridBasedHeadingAndDescription.js';
 import {
   Schema as TextSplitWithEmphasisBlockSchema,
   layoutId as TextSplitWithEmphasisBlockId,
-} from '../components/layouts/neo-general/TextSplitWithEmphasisBlock';
+} from '../components/layouts/neo-general/TextSplitWithEmphasisBlock.js';
 import {
   Schema as BulletIconsOnlyNeoGeneralSchema,
   layoutId as BulletIconsOnlyNeoGeneralId,
-} from '../components/layouts/neo-general/BulletIconsOnlySlideLayout';
+} from '../components/layouts/neo-general/BulletIconsOnlySlideLayout.js';
 import {
   Schema as BulletWithIconsNeoGeneralSchema,
   layoutId as BulletWithIconsNeoGeneralId,
-} from '../components/layouts/neo-general/BulletWithIconsSlideLayout';
+} from '../components/layouts/neo-general/BulletWithIconsSlideLayout.js';
 import {
   Schema as ChartWithBulletsNeoGeneralSchema,
   layoutId as ChartWithBulletsNeoGeneralId,
-} from '../components/layouts/neo-general/ChartWithBulletsSlideLayout';
+} from '../components/layouts/neo-general/ChartWithBulletsSlideLayout.js';
 import {
   Schema as MetricsWithImageNeoGeneralSchema,
   layoutId as MetricsWithImageNeoGeneralId,
-} from '../components/layouts/neo-general/MetricsWithImageSlideLayout';
+} from '../components/layouts/neo-general/MetricsWithImageSlideLayout.js';
 import {
   Schema as NumberedBulletsNeoGeneralSchema,
   layoutId as NumberedBulletsNeoGeneralId,
-} from '../components/layouts/neo-general/NumberedBulletsSlideLayout';
+} from '../components/layouts/neo-general/NumberedBulletsSlideLayout.js';
 import {
   Schema as QuoteNeoGeneralSchema,
   layoutId as QuoteNeoGeneralId,
-} from '../components/layouts/neo-general/QuoteSlideLayout';
+} from '../components/layouts/neo-general/QuoteSlideLayout.js';
 import {
   Schema as TeamNeoGeneralSchema,
   layoutId as TeamNeoGeneralId,
-} from '../components/layouts/neo-general/TeamSlideLayout';
+} from '../components/layouts/neo-general/TeamSlideLayout.js';
 import {
   Schema as TableOfContentWithoutPageNumberSchema,
   layoutId as TableOfContentWithoutPageNumberId,
-} from '../components/layouts/neo-general/TableOfContentWithoutPageNumber';
+} from '../components/layouts/neo-general/TableOfContentWithoutPageNumber.js';
 import {
   Schema as TitleMetricValueMetricLabelFunnelStagesSchema,
   layoutId as TitleMetricValueMetricLabelFunnelStagesId,
-} from '../components/layouts/neo-general/TitleMetricValueMetricLabelFunnelStages';
+} from '../components/layouts/neo-general/TitleMetricValueMetricLabelFunnelStages.js';
 import {
   Schema as MultiChartGridSlideSchema,
   layoutId as MultiChartGridSlideId,
-} from '../components/layouts/neo-general/MultiChartGridSlideLayout';
+} from '../components/layouts/neo-general/MultiChartGridSlideLayout.js';
 import {
   Schema as TitleDescriptionMultiChartGridWithMetricsSchema,
   layoutId as TitleDescriptionMultiChartGridWithMetricsId,
-} from '../components/layouts/neo-general/TitleDescriptionMultiChartGridWithMetrics';
+} from '../components/layouts/neo-general/TitleDescriptionMultiChartGridWithMetrics.js';
 import {
   Schema as TitleDescriptionMultiChartGridWithBulletsSchema,
   layoutId as TitleDescriptionMultiChartGridWithBulletsId,
-} from '../components/layouts/neo-general/TitleDescriptionMultiChartGridWithBullets';
+} from '../components/layouts/neo-general/TitleDescriptionMultiChartGridWithBullets.js';
 
 // ── Modern ───────────────────────────────────────────────────────────────────
 import {
   Schema as ModernIntroSchema,
   layoutId as ModernIntroId,
-} from '../components/layouts/modern/IntroSlideLayout';
+} from '../components/layouts/modern/IntroSlideLayout.js';
 import {
   Schema as BulletsIconsGridSchema,
   layoutId as BulletsIconsGridId,
-} from '../components/layouts/modern/BulletsWithIconsDescriptionGrid';
+} from '../components/layouts/modern/BulletsWithIconsDescriptionGrid.js';
 import {
   Schema as ModernBulletIconsSchema,
   layoutId as ModernBulletIconsId,
-} from '../components/layouts/modern/BulletWithIconsSlideLayout';
+} from '../components/layouts/modern/BulletWithIconsSlideLayout.js';
 import {
   Schema as ChartTableDescSchema,
   layoutId as ChartTableDescId,
-} from '../components/layouts/modern/ChartOrTableWithDescription';
+} from '../components/layouts/modern/ChartOrTableWithDescription.js';
 import {
   Schema as ChartMetricsSchema,
   layoutId as ChartMetricsId,
-} from '../components/layouts/modern/ChartOrTableWithMetricsDescription';
+} from '../components/layouts/modern/ChartOrTableWithMetricsDescription.js';
 import {
   Schema as ImageDescSchema,
   layoutId as ImageDescId,
-} from '../components/layouts/modern/ImageAndDescriptionLayout';
+} from '../components/layouts/modern/ImageAndDescriptionLayout.js';
 import {
   Schema as ImageListDescSchema,
   layoutId as ImageListDescId,
-} from '../components/layouts/modern/ImageListWithDescriptionSlideLayout';
+} from '../components/layouts/modern/ImageListWithDescriptionSlideLayout.js';
 import {
   Schema as ImagesDescSchema,
   layoutId as ImagesDescId,
-} from '../components/layouts/modern/ImagesWithDescriptionLayout';
+} from '../components/layouts/modern/ImagesWithDescriptionLayout.js';
 import {
   Schema as MetricsDescSchema,
   layoutId as MetricsDescId,
-} from '../components/layouts/modern/MetricsWithDescription';
+} from '../components/layouts/modern/MetricsWithDescription.js';
 import {
   Schema as ModernTocSchema,
   layoutId as ModernTocId,
-} from '../components/layouts/modern/TableOfContentsLayout';
+} from '../components/layouts/modern/TableOfContentsLayout.js';
 
 // ── Neo Modern ───────────────────────────────────────────────────────────────
 import {
   Schema as TitleDescriptionBulletListModernSchema,
   layoutId as TitleDescriptionBulletListModernId,
-} from '../components/layouts/neo-modern/TitleDescriptionBulletList';
+} from '../components/layouts/neo-modern/TitleDescriptionBulletList.js';
 import {
   Schema as TitleDescriptionContactListSchema,
   layoutId as TitleDescriptionContactListId,
-} from '../components/layouts/neo-modern/TitleDescriptionContactList';
+} from '../components/layouts/neo-modern/TitleDescriptionContactList.js';
 import {
   Schema as TitleDescriptionDualMetricsGridSchema,
   layoutId as TitleDescriptionDualMetricsGridId,
-} from '../components/layouts/neo-modern/TitleDescriptionDualMetricsGrid';
+} from '../components/layouts/neo-modern/TitleDescriptionDualMetricsGrid.js';
 import {
   Schema as TitleDescriptionIconTimelineSchema,
   layoutId as TitleDescriptionIconTimelineId,
-} from '../components/layouts/neo-modern/TitleDescriptionIconTimeline';
+} from '../components/layouts/neo-modern/TitleDescriptionIconTimeline.js';
 import {
   Schema as TitleDescriptionImageRightModernSchema,
   layoutId as TitleDescriptionImageRightModernId,
-} from '../components/layouts/neo-modern/TitleDescriptionImageRight';
+} from '../components/layouts/neo-modern/TitleDescriptionImageRight.js';
 import {
   Schema as TitleDescriptionMetricsChartSchema,
   layoutId as TitleDescriptionMetricsChartId,
-} from '../components/layouts/neo-modern/TitleDescriptionMetricsChart';
+} from '../components/layouts/neo-modern/TitleDescriptionMetricsChart.js';
 import {
   Schema as TitleDescriptionMetricsImageSchema,
   layoutId as TitleDescriptionMetricsImageId,
-} from '../components/layouts/neo-modern/TitleDescriptionMetricsImage';
+} from '../components/layouts/neo-modern/TitleDescriptionMetricsImage.js';
 import {
   Schema as TitleDescriptionMetricsTableSchema,
   layoutId as TitleDescriptionMetricsTableId,
-} from '../components/layouts/neo-modern/TitleDescriptionTable';
+} from '../components/layouts/neo-modern/TitleDescriptionTable.js';
 import {
   Schema as TitleDualComparisonChartsSchema,
   layoutId as TitleDualComparisonChartsId,
-} from '../components/layouts/neo-modern/TitleDualComparisonCharts';
+} from '../components/layouts/neo-modern/TitleDualComparisonCharts.js';
 import {
   Schema as TitleDualComparisonCardsModernSchema,
   layoutId as TitleDualComparisonCardsModernId,
-} from '../components/layouts/neo-modern/TitleDualComparisonCards';
+} from '../components/layouts/neo-modern/TitleDualComparisonCards.js';
 import {
   Schema as TitleHorizontalAltenenatingTimelineSchema,
   layoutId as TitleHorizontalAltenenatingTimelineId,
-} from '../components/layouts/neo-modern/TitleHorizontalAlternatingTimeline';
+} from '../components/layouts/neo-modern/TitleHorizontalAlternatingTimeline.js';
 import {
   Schema as TitleKpiSnapshotGridSchema,
   layoutId as TitleKpiSnapshotGridId,
-} from '../components/layouts/neo-modern/TitleKpiSnapshotGrid';
+} from '../components/layouts/neo-modern/TitleKpiSnapshotGrid.js';
 import {
   Schema as TitleSubtitlesChartSchema,
   layoutId as TitleSubtitlesChartId,
-} from '../components/layouts/neo-modern/TitleSubtitlesChart';
+} from '../components/layouts/neo-modern/TitleSubtitlesChart.js';
 import {
   Schema as TitleTwoColumnNumberListSchema,
   layoutId as TitleTwoColumnNumberListId,
-} from '../components/layouts/neo-modern/TitleTwoColumnNumberedList';
+} from '../components/layouts/neo-modern/TitleTwoColumnNumberedList.js';
 import {
   Schema as TitleDescriptionMultiChartGridSchema,
   layoutId as TitleDescriptionMultiChartGridId,
-} from '../components/layouts/neo-modern/TitleDescriptionMultiChartGrid';
+} from '../components/layouts/neo-modern/TitleDescriptionMultiChartGrid.js';
 import {
   Schema as TitleDescriptionMultiChartGridWithMetricsModernSchema,
   layoutId as TitleDescriptionMultiChartGridWithMetricsModernId,
-} from '../components/layouts/neo-modern/TitleDescriptionMultiChartGridWithMetrics';
+} from '../components/layouts/neo-modern/TitleDescriptionMultiChartGridWithMetrics.js';
 import {
   Schema as TitleDescriptionMultiChartGridWithBulletsModernSchema,
   layoutId as TitleDescriptionMultiChartGridWithBulletsModernId,
-} from '../components/layouts/neo-modern/TitleDescriptionMultiChartGridWithBullets';
+} from '../components/layouts/neo-modern/TitleDescriptionMultiChartGridWithBullets.js';
 
 // ── Standard ─────────────────────────────────────────────────────────────────
 import {
   Schema as StandardIntroSchema,
   layoutId as StandardIntroId,
-} from '../components/layouts/standard/IntroSlideLayout';
+} from '../components/layouts/standard/IntroSlideLayout.js';
 import {
   Schema as ChartLeftSchema,
   layoutId as ChartLeftId,
-} from '../components/layouts/standard/ChartLeftTextRightLayout';
+} from '../components/layouts/standard/ChartLeftTextRightLayout.js';
 import {
   Schema as ContactSchema,
   layoutId as ContactId,
-} from '../components/layouts/standard/ContactLayout';
+} from '../components/layouts/standard/ContactLayout.js';
 import {
   Schema as HeadingBulletSchema,
   layoutId as HeadingBulletId,
-} from '../components/layouts/standard/HeadingBulletImageDescriptionLayout';
+} from '../components/layouts/standard/HeadingBulletImageDescriptionLayout.js';
 import {
   Schema as IconBulletSchema,
   layoutId as IconBulletId,
-} from '../components/layouts/standard/IconBulletDescriptionLayout';
+} from '../components/layouts/standard/IconBulletDescriptionLayout.js';
 import {
   Schema as IconImageSchema,
   layoutId as IconImageId,
-} from '../components/layouts/standard/IconImageDescriptionLayout';
+} from '../components/layouts/standard/IconImageDescriptionLayout.js';
 import {
   Schema as StdImageListSchema,
   layoutId as StdImageListId,
-} from '../components/layouts/standard/ImageListWithDescriptionLayout';
+} from '../components/layouts/standard/ImageListWithDescriptionLayout.js';
 import {
   Schema as MetricsDescLayoutSchema,
   layoutId as MetricsDescLayoutId,
-} from '../components/layouts/standard/MetricsDescriptionLayout';
+} from '../components/layouts/standard/MetricsDescriptionLayout.js';
 import {
   Schema as NumBulletImgSchema,
   layoutId as NumBulletImgId,
-} from '../components/layouts/standard/NumberedBulletSingleImageLayout';
+} from '../components/layouts/standard/NumberedBulletSingleImageLayout.js';
 import {
   Schema as StdTocSchema,
   layoutId as StdTocId,
-} from '../components/layouts/standard/TableOfContentsLayout';
+} from '../components/layouts/standard/TableOfContentsLayout.js';
 import {
   Schema as VisualMetricsSchema,
   layoutId as VisualMetricsId,
-} from '../components/layouts/standard/VisualMetricsSlideLayout';
+} from '../components/layouts/standard/VisualMetricsSlideLayout.js';
 
 // ── Neo Standard ─────────────────────────────────────────────────────────────
 import {
   Schema as TitleBadgeChartSchema,
   layoutId as TitleBadgeChartId,
-} from '../components/layouts/neo-standard/TitleBadgeChart';
+} from '../components/layouts/neo-standard/TitleBadgeChart.js';
 import {
   Schema as TitleDescriptionBulletListStandardSchema,
   layoutId as TitleDescriptionBulletListStandardId,
-} from '../components/layouts/neo-standard/TitleDescriptionBulletList';
+} from '../components/layouts/neo-standard/TitleDescriptionBulletList.js';
 import {
   Schema as TitleDescriptionContactCardsSchema,
   layoutId as TitleDescriptionContactCardsId,
-} from '../components/layouts/neo-standard/TitleDescriptionContactCards';
+} from '../components/layouts/neo-standard/TitleDescriptionContactCards.js';
 import {
   Schema as TitleDescriptionIconListSchema,
   layoutId as TitleDescriptionIconListId,
-} from '../components/layouts/neo-standard/TitleDescriptionIconList';
+} from '../components/layouts/neo-standard/TitleDescriptionIconList.js';
 import {
   Schema as TitleDescriptionImageRightSchema,
   layoutId as TitleDescriptionImageRightId,
-} from '../components/layouts/neo-standard/TitleDescriptionImageRight';
+} from '../components/layouts/neo-standard/TitleDescriptionImageRight.js';
 import {
   Schema as TitleDescriptionRadialCardsSchema,
   layoutId as TitleDescriptionRadialCardsId,
-} from '../components/layouts/neo-standard/TitleDescriptionRadialCards';
+} from '../components/layouts/neo-standard/TitleDescriptionRadialCards.js';
 import {
   Schema as TitleDescriptionTableSchema,
   layoutId as TitleDescriptionTableId,
-} from '../components/layouts/neo-standard/TitleDescriptionTable';
+} from '../components/layouts/neo-standard/TitleDescriptionTable.js';
 import {
   Schema as TitleDescriptionTimelineSchema,
   layoutId as TitleDescriptionTimelineId,
-} from '../components/layouts/neo-standard/TitleDescriptionTimeline';
+} from '../components/layouts/neo-standard/TitleDescriptionTimeline.js';
 import {
   Schema as TitleDualChartsComparisonSchema,
   layoutId as TitleDualChartsComparisonId,
-} from '../components/layouts/neo-standard/TitleDualChartsComparison';
+} from '../components/layouts/neo-standard/TitleDualChartsComparison.js';
 import {
   Schema as TitleDualComparisonCardsSchema,
   layoutId as TitleDualComparisonCardsId,
-} from '../components/layouts/neo-standard/TitleDualComparisonCards';
+} from '../components/layouts/neo-standard/TitleDualComparisonCards.js';
 import {
   Schema as TitleKpiGridSchema,
   layoutId as TitleKpiGridId,
-} from '../components/layouts/neo-standard/TitleKpiGrid';
+} from '../components/layouts/neo-standard/TitleKpiGrid.js';
 import {
   Schema as TitleMetricsChartSchema,
   layoutId as TitleMetricsChartId,
-} from '../components/layouts/neo-standard/TitleMetricsChart';
+} from '../components/layouts/neo-standard/TitleMetricsChart.js';
 import {
   Schema as TitleMetricsImageSchema,
   layoutId as TitleMetricsImageId,
-} from '../components/layouts/neo-standard/TitleMetricsImage';
+} from '../components/layouts/neo-standard/TitleMetricsImage.js';
 import {
   Schema as TitlePointsDonutGridSchema,
   layoutId as TitlePointsDonutGridId,
-} from '../components/layouts/neo-standard/TitlePointsDonutGrid';
+} from '../components/layouts/neo-standard/TitlePointsDonutGrid.js';
 import {
   Schema as TitleDescriptionMultiChartGridStandardSchema,
   layoutId as TitleDescriptionMultiChartGridStandardId,
-} from '../components/layouts/neo-standard/TitleDescriptionMultiChartGrid';
+} from '../components/layouts/neo-standard/TitleDescriptionMultiChartGrid.js';
 import {
   Schema as TitleDescriptionMultiChartGridWithMetricsStandardSchema,
   layoutId as TitleDescriptionMultiChartGridWithMetricsStandardId,
-} from '../components/layouts/neo-standard/TitleDescriptionMultiChartGridWithMetrics';
+} from '../components/layouts/neo-standard/TitleDescriptionMultiChartGridWithMetrics.js';
 import {
   Schema as TitleDescriptionMultiChartGridWithBulletsStandardSchema,
   layoutId as TitleDescriptionMultiChartGridWithBulletsStandardId,
-} from '../components/layouts/neo-standard/TitleDescriptionMultiChartGridWithBullets';
+} from '../components/layouts/neo-standard/TitleDescriptionMultiChartGridWithBullets.js';
 
 // ── Swift ────────────────────────────────────────────────────────────────────
 import {
   Schema as SwiftIntroSchema,
   layoutId as SwiftIntroId,
-} from '../components/layouts/swift/IntroSlideLayout';
+} from '../components/layouts/swift/IntroSlideLayout.js';
 import {
   Schema as BulletsIconsTitleSchema,
   layoutId as BulletsIconsTitleId,
-} from '../components/layouts/swift/BulletsWithIconsTitleDescription';
+} from '../components/layouts/swift/BulletsWithIconsTitleDescription.js';
 import {
   Schema as IconBulletListSchema,
   layoutId as IconBulletListId,
-} from '../components/layouts/swift/IconBulletListDescription';
+} from '../components/layouts/swift/IconBulletListDescription.js';
 import {
   Schema as ImageListSchema,
   layoutId as ImageListId,
-} from '../components/layouts/swift/ImageListDescription';
+} from '../components/layouts/swift/ImageListDescription.js';
 import {
   Schema as MetricsNumbersSchema,
   layoutId as MetricsNumbersId,
-} from '../components/layouts/swift/MetricsNumbers';
+} from '../components/layouts/swift/MetricsNumbers.js';
 import {
   Schema as SimpleBulletSchema,
   layoutId as SimpleBulletId,
-} from '../components/layouts/swift/SimpleBulletPointsLayout';
+} from '../components/layouts/swift/SimpleBulletPointsLayout.js';
 import {
   Schema as SwiftTocSchema,
   layoutId as SwiftTocId,
-} from '../components/layouts/swift/TableOfContents';
+} from '../components/layouts/swift/TableOfContents.js';
 import {
   Schema as TableChartSchema,
   layoutId as TableChartId,
-} from '../components/layouts/swift/TableorChart';
+} from '../components/layouts/swift/TableorChart.js';
 import {
   Schema as TimelineSchema,
   layoutId as TimelineId,
-} from '../components/layouts/swift/Timeline';
+} from '../components/layouts/swift/Timeline.js';
 
 // ── Neo Swift ────────────────────────────────────────────────────────────────
 import {
   Schema as TitleCenteredChartSchema,
   layoutId as TitleCenteredChartId,
-} from '../components/layouts/neo-swift/TitleCenteredChart';
+} from '../components/layouts/neo-swift/TitleCenteredChart.js';
 import {
   Schema as TitleChartMetricsSidebarSchema,
   layoutId as TitleChartMetricsSidebarId,
-} from '../components/layouts/neo-swift/TitleChartMetricsSidebar';
+} from '../components/layouts/neo-swift/TitleChartMetricsSidebar.js';
 import {
   Schema as TitleDescriptionBulletListSchema,
   layoutId as TitleDescriptionBulletListId,
-} from '../components/layouts/neo-swift/TitleDescriptionBulletList';
+} from '../components/layouts/neo-swift/TitleDescriptionBulletList.js';
 import {
   Schema as TitleDescriptionDataTableSchema,
   layoutId as TitleDescriptionDataTableId,
-} from '../components/layouts/neo-swift/TitleDescriptionDataTable';
+} from '../components/layouts/neo-swift/TitleDescriptionDataTable.js';
 import {
   Schema as TitleDescriptionImageRightSwiftSchema,
   layoutId as TitleDescriptionImageRightSwiftId,
-} from '../components/layouts/neo-swift/TitleDescriptionImageRight';
+} from '../components/layouts/neo-swift/TitleDescriptionImageRight.js';
 import {
   Schema as TitleDescriptionMetricsGridSchema,
   layoutId as TitleDescriptionMetricsGridId,
-} from '../components/layouts/neo-swift/TitleDescriptionMetricsGrid';
+} from '../components/layouts/neo-swift/TitleDescriptionMetricsGrid.js';
 import {
   Schema as TitleDescriptionMetricsGridImageSchema,
   layoutId as TitleDescriptionMetricsGridImageId,
-} from '../components/layouts/neo-swift/TitleDescriptionMetricsGridImage';
+} from '../components/layouts/neo-swift/TitleDescriptionMetricsGridImage.js';
 import {
   Schema as TitleDualComparisionBlockSchema,
   layoutId as TitleDualComparisionBlockId,
-} from '../components/layouts/neo-swift/TitleDualComparisonBlocks';
+} from '../components/layouts/neo-swift/TitleDualComparisonBlocks.js';
 import {
   Schema as TitleLabelDescriptionStatCardsSchema,
   layoutId as TitleLabelDescriptionStatCardsId,
-} from '../components/layouts/neo-swift/TitleLabelDescriptionStatCards';
+} from '../components/layouts/neo-swift/TitleLabelDescriptionStatCards.js';
 import {
   Schema as TitleSubtitleTeamMemberCardsSchema,
   layoutId as TitleSubtitleTeamMemberCardsId,
-} from '../components/layouts/neo-swift/TitleSubtitleTeamMemberCards';
+} from '../components/layouts/neo-swift/TitleSubtitleTeamMemberCards.js';
 import {
   Schema as TitleTaglineDescriptionNumberedStepsSchema,
   layoutId as TitleTaglineDescriptionNumberedStepsId,
-} from '../components/layouts/neo-swift/TitleTaglineDescriptionNumberedSteps';
+} from '../components/layouts/neo-swift/TitleTaglineDescriptionNumberedSteps.js';
 import {
   Schema as TitleThreeByThreeMetricsGridSchema,
   layoutId as TitleThreeByThreeMetricsGridId,
-} from '../components/layouts/neo-swift/TitleThreeByThreeMetricsGrid';
+} from '../components/layouts/neo-swift/TitleThreeByThreeMetricsGrid.js';
 import {
   Schema as TitleDescriptionSixChartsGridSchema,
   layoutId as TitleDescriptionSixChartsGridId,
-} from '../components/layouts/neo-swift/TitleDescriptionSixChartsGrid';
+} from '../components/layouts/neo-swift/TitleDescriptionSixChartsGrid.js';
 import {
   Schema as TitleDescriptionSixChartsFourMetricsSchema,
   layoutId as TitleDescriptionSixChartsFourMetricsId,
-} from '../components/layouts/neo-swift/TitleDescriptionSixChartsFourMetrics';
+} from '../components/layouts/neo-swift/TitleDescriptionSixChartsFourMetrics.js';
 import {
   Schema as TitleDescriptionFourChartsSixBulletsSchema,
   layoutId as TitleDescriptionFourChartsSixBulletsId,
-} from '../components/layouts/neo-swift/TitleDescriptionFourChartsSixBullets';
+} from '../components/layouts/neo-swift/TitleDescriptionFourChartsSixBullets.js';
 
 // ── Build the schema map ─────────────────────────────────────────────────────
 
