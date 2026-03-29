@@ -202,7 +202,7 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
                   <div className="border-b border-gray-100 px-4 py-3">
                     <p className="text-sm font-semibold text-gray-900">Folie aktualisieren</p>
                     <p className="mt-1 text-xs text-gray-500">
-                      Beschreiben Sie, wie diese Folie verbessert werden soll.
+                      Beschreibe, wie diese Folie verbessert werden soll.
                     </p>
                   </div>
                   <form
@@ -215,7 +215,7 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
                     <Textarea
                       id={`slide-${slide.index}-prompt`}
                       value={editPrompt}
-                      placeholder="Geben Sie Ihre Eingabe hier ein…"
+                      placeholder="Gib deine Eingabe hier ein…"
                       className="min-h-[110px] max-h-[180px] w-full resize-none rounded-xl border border-gray-200 p-3 text-sm focus-visible:ring-1 focus-visible:ring-[#316049]"
                       disabled={isUpdating}
                       onChange={(e) => setEditPrompt(e.target.value)}

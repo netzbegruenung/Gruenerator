@@ -13,35 +13,35 @@ const helpQuestions = [
     category: "Bilder",
     question: "Wie ändere ich ein Bild?",
     answer:
-      "Klicken Sie auf ein beliebiges Bild, um die Bild-Werkzeugleiste anzuzeigen. Sie sehen Optionen zum Bearbeiten, Positionieren und Anpassen der Bildgröße im Container. Mit der Option „Bearbeiten" können Sie das aktuelle Bild ersetzen oder ändern.",
+      "Klicke auf ein beliebiges Bild, um die Bild-Werkzeugleiste anzuzeigen. Du siehst Optionen zum Bearbeiten, Positionieren und Anpassen der Bildgröße im Container. Mit der Option „Bearbeiten" kannst du das aktuelle Bild ersetzen oder ändern.",
   },
   {
     id: 2,
     category: "Bilder",
     question: "Kann ich neue Bilder mit KI generieren?",
     answer:
-      "Ja! Klicken Sie auf ein beliebiges Bild und wählen Sie „Bearbeiten" in der Werkzeugleiste. Im Seitenpanel finden Sie den Tab „KI-Generierung". Geben Sie eine Beschreibung des gewünschten Bildes ein, und die KI erstellt ein Bild basierend auf Ihrer Beschreibung.",
+      "Ja! Klicke auf ein beliebiges Bild und wähle „Bearbeiten" in der Werkzeugleiste. Im Seitenpanel findest du den Tab „KI-Generierung". Gib eine Beschreibung des gewünschten Bildes ein, und die KI erstellt ein Bild basierend auf deiner Beschreibung.",
   },
   {
     id: 3,
     category: "Bilder",
     question: "Wie lade ich eigene Bilder hoch?",
     answer:
-      "Klicken Sie auf ein beliebiges Bild und wählen Sie „Bearbeiten" in der Werkzeugleiste. Klicken Sie im Seitenpanel oben auf den Tab „Hochladen". Dort können Sie Ihre Dateien durchsuchen und auswählen. Nach dem Hochladen können Sie das Bild in Ihr Design einfügen.",
+      "Klicke auf ein beliebiges Bild und wähle „Bearbeiten" in der Werkzeugleiste. Klicke im Seitenpanel oben auf den Tab „Hochladen". Dort kannst du deine Dateien durchsuchen und auswählen. Nach dem Hochladen kannst du das Bild in dein Design einfügen.",
   },
   {
     id: 11,
     category: "KI-Prompts",
     question: "Kann ich das Folienlayout per Eingabe ändern?",
     answer:
-      "Ja! Klicken Sie auf das Zauberstab-Symbol oben links auf jeder Folie. Es öffnet sich ein Eingabefeld. Beschreiben Sie Ihre Layout-Anforderungen und die KI passt das Folienlayout entsprechend an.",
+      "Ja! Klicke auf das Zauberstab-Symbol oben links auf jeder Folie. Es öffnet sich ein Eingabefeld. Beschreibe deine Layout-Anforderungen und die KI passt das Folienlayout entsprechend an.",
   },
   {
     id: 12,
     category: "KI-Prompts",
     question: "Kann ich das Folienbild per Eingabe ändern?",
     answer:
-      "Ja! Klicken Sie auf das Zauberstab-Symbol oben links auf jeder Folie. Es öffnet sich ein Eingabefeld. Beschreiben Sie das gewünschte Bild und die KI aktualisiert das Folienbild entsprechend.",
+      "Ja! Klicke auf das Zauberstab-Symbol oben links auf jeder Folie. Es öffnet sich ein Eingabefeld. Beschreibe das gewünschte Bild und die KI aktualisiert das Folienbild entsprechend.",
   },
 
   {
@@ -49,42 +49,42 @@ const helpQuestions = [
     category: "KI-Prompts",
     question: "Kann ich den Inhalt per Eingabe ändern?",
     answer:
-      "Ja! Klicken Sie auf das Zauberstab-Symbol oben links auf jeder Folie. Es öffnet sich ein Eingabefeld. Beschreiben Sie den gewünschten Inhalt und die KI aktualisiert Text und Inhalt der Folie entsprechend.",
+      "Ja! Klicke auf das Zauberstab-Symbol oben links auf jeder Folie. Es öffnet sich ein Eingabefeld. Beschreibe den gewünschten Inhalt und die KI aktualisiert Text und Inhalt der Folie entsprechend.",
   },
   {
     id: 4,
     category: "Text",
     question: "Wie kann ich Text formatieren und hervorheben?",
     answer:
-      "Markieren Sie einen beliebigen Text, um die Formatierungsleiste anzuzeigen. Sie haben Optionen für Fett, Kursiv, Unterstrichen, Durchgestrichen und mehr.",
+      "Markiere einen beliebigen Text, um die Formatierungsleiste anzuzeigen. Du hast Optionen für Fett, Kursiv, Unterstrichen, Durchgestrichen und mehr.",
   },
   {
     id: 5,
     category: "Symbole",
     question: "Wie ändere ich Symbole?",
     answer:
-      "Klicken Sie auf ein vorhandenes Symbol, um es zu ändern. Im Symbol-Auswahlfenster können Sie Symbole durchsuchen oder die Suchfunktion verwenden, um bestimmte Symbole zu finden. Es stehen Tausende von Symbolen in verschiedenen Stilen zur Verfügung.",
+      "Klicke auf ein vorhandenes Symbol, um es zu ändern. Im Symbol-Auswahlfenster kannst du Symbole durchsuchen oder die Suchfunktion verwenden, um bestimmte Symbole zu finden. Es stehen Tausende von Symbolen in verschiedenen Stilen zur Verfügung.",
   },
   {
     id: 16,
     category: "Layout",
     question: "Kann ich die Reihenfolge der Folien ändern?",
     answer:
-      "Natürlich! Im Seitenpanel können Sie die Folien per Drag-and-Drop an die gewünschte Position verschieben.",
+      "Natürlich! Im Seitenpanel kannst du die Folien per Drag-and-Drop an die gewünschte Position verschieben.",
   },
   {
     id: 15,
     category: "Layout",
     question: "Kann ich eine Folie zwischen anderen einfügen?",
     answer:
-      "Ja! Klicken Sie einfach auf das Plus-Symbol unterhalb jeder Folie. Es werden alle verfügbaren Layouts angezeigt, aus denen Sie das gewünschte auswählen können.",
+      "Ja! Klicke einfach auf das Plus-Symbol unterhalb jeder Folie. Es werden alle verfügbaren Layouts angezeigt, aus denen du das gewünschte auswählen kannst.",
   },
   {
     id: 6,
     category: "Layout",
     question: "Kann ich weitere Abschnitte zu meinen Folien hinzufügen?",
     answer:
-      "Auf jeden Fall! Bewegen Sie den Mauszeiger an den unteren Rand eines Textfelds oder Inhaltsblocks. Es erscheint ein „+"-Symbol. Klicken Sie darauf, um einen neuen Abschnitt unterhalb des aktuellen hinzuzufügen. Sie können auch das Einfügen-Menü nutzen, um bestimmte Abschnittstypen hinzuzufügen.",
+      "Auf jeden Fall! Bewege den Mauszeiger an den unteren Rand eines Textfelds oder Inhaltsblocks. Es erscheint ein „+"-Symbol. Klicke darauf, um einen neuen Abschnitt unterhalb des aktuellen hinzuzufügen. Du kannst auch das Einfügen-Menü nutzen, um bestimmte Abschnittstypen hinzuzufügen.",
   },
 
   {
@@ -92,7 +92,7 @@ const helpQuestions = [
     category: "Export",
     question: "Wie exportiere ich meine Präsentation?",
     answer:
-      "Klicken Sie auf die Schaltfläche „Exportieren" oben rechts im Menü. Sie können zwischen PDF und PowerPoint wählen.",
+      "Klicke auf die Schaltfläche „Exportieren" oben rechts im Menü. Du kannst zwischen PDF und PowerPoint wählen.",
   },
 ];
 
@@ -272,7 +272,7 @@ const Help = () => {
 
           {/* Footer */}
           <div className="bg-gray-50 px-6 py-3 border-t border-gray-200 text-xs text-gray-500 text-center">
-            Brauchen Sie weitere Hilfe?{" "}
+            Brauchst du weitere Hilfe?{" "}
             <a href="/contact" className="text-emerald-600 hover:underline">
               Support kontaktieren
             </a>
