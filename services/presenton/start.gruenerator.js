@@ -41,12 +41,18 @@ const setupUserConfigFromEnv = () => {
 
   const userConfig = {
     LLM: process.env.LLM || existingConfig.LLM || 'custom',
-    CUSTOM_LLM_URL: process.env.CUSTOM_LLM_URL || existingConfig.CUSTOM_LLM_URL,
-    CUSTOM_LLM_API_KEY: process.env.CUSTOM_LLM_API_KEY || existingConfig.CUSTOM_LLM_API_KEY,
-    CUSTOM_MODEL: process.env.CUSTOM_MODEL || existingConfig.CUSTOM_MODEL,
-    PEXELS_API_KEY: process.env.PEXELS_API_KEY || existingConfig.PEXELS_API_KEY,
-    PIXABAY_API_KEY: process.env.PIXABAY_API_KEY || existingConfig.PIXABAY_API_KEY,
-    IMAGE_PROVIDER: process.env.IMAGE_PROVIDER || existingConfig.IMAGE_PROVIDER || 'pexels',
+    CUSTOM_LLM_URL:
+      process.env.CUSTOM_LLM_URL ||
+      existingConfig.CUSTOM_LLM_URL ||
+      'https://litellm.netzbegruenung.verdigado.net/v1',
+    CUSTOM_LLM_API_KEY:
+      process.env.LITELLM_API_KEY ||
+      process.env.CUSTOM_LLM_API_KEY ||
+      existingConfig.CUSTOM_LLM_API_KEY,
+    CUSTOM_MODEL:
+      process.env.CUSTOM_MODEL || existingConfig.CUSTOM_MODEL || 'mistral/mistral-small-latest',
+    IMAGE_PROVIDER: process.env.IMAGE_PROVIDER || existingConfig.IMAGE_PROVIDER || 'gruenerator',
+    REGOLO_API_KEY: process.env.REGOLO_API_KEY || existingConfig.REGOLO_API_KEY,
     TOOL_CALLS: process.env.TOOL_CALLS || existingConfig.TOOL_CALLS,
     DISABLE_THINKING: process.env.DISABLE_THINKING || existingConfig.DISABLE_THINKING,
   };

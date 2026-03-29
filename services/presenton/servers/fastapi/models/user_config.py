@@ -32,6 +32,9 @@ class UserConfig(BaseModel):
     PEXELS_API_KEY: Optional[str] = None
     PIXABAY_API_KEY: Optional[str] = None
 
+    # Regolo (Grünerator image generation)
+    REGOLO_API_KEY: Optional[str] = None
+
     # ComfyUI
     COMFYUI_URL: Optional[str] = None
     COMFYUI_WORKFLOW: Optional[str] = None

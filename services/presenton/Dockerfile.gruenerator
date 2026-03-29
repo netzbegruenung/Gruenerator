@@ -39,6 +39,9 @@ ENV APP_DATA_DIRECTORY=/app_data
 ENV TEMP_DIRECTORY=/tmp/presenton
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV NODE_ENV=production
+ENV LLM=custom
+ENV IMAGE_PROVIDER=gruenerator
+ENV CAN_CHANGE_KEYS=false
 
 # Python dependencies — upstream deps + our additions (python-jose, httpx)
 # No docling/pytorch (saves ~1.5GB), no chromadb (saves ~500MB)
