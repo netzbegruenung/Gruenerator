@@ -54,6 +54,15 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
     icon: getIcon('navigation', 'home'),
   };
 
+  items.docs = {
+    id: 'docs',
+    path: '/docs',
+    title: 'Dokumente',
+    description: 'Dokumente & Präsentationen',
+    icon: getIcon('navigation', 'docs'),
+    activePaths: ['/docs'],
+  };
+
   return items;
 };
 
