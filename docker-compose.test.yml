@@ -128,6 +128,7 @@ services:
       - PEXELS_API_KEY=${PEXELS_API_KEY:-}
       - CAN_CHANGE_KEYS=false
       - MIGRATE_DATABASE_ON_STARTUP=false
+      - BETTER_AUTH_URL=http://api:3001
     volumes:
       - presenton-data:/app_data
     networks:
