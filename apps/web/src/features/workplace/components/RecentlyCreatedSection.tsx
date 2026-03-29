@@ -13,6 +13,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { memo, useCallback } from 'react';
 import { FaImage, FaVideo } from 'react-icons/fa';
+import { FiMonitor } from 'react-icons/fi';
 import { HiOutlineDocumentText } from 'react-icons/hi';
 import {
   PiImageSquare,
@@ -34,7 +35,7 @@ const BoardIcon = getIcon('navigation', 'boards');
 
 const dateFormat: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
 
-type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'text';
+type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'text' | 'presentation';
 
 interface RecentItem {
   id: string;
@@ -71,6 +72,7 @@ const FALLBACK_TITLES: Record<RecentItemType, string> = {
   image: 'Ohne Titel',
   video: 'Ohne Titel',
   text: 'Ohne Titel',
+  presentation: 'Neue Präsentation',
 };
 
 const TYPE_ICONS: Record<RecentItemType, React.ComponentType<{ className?: string }> | null> = {
@@ -79,6 +81,7 @@ const TYPE_ICONS: Record<RecentItemType, React.ComponentType<{ className?: strin
   image: FaImage,
   video: FaVideo,
   text: HiOutlineDocumentText,
+  presentation: FiMonitor,
 };
 
 const TEXT_TYPE_LABELS: Record<string, string> = {
@@ -132,6 +135,11 @@ const RecentItemCard = memo(
             ) : (
               <PiKanban className="text-2xl text-secondary-600" />
             )}
+          </div>
+        )}
+        {item.type === 'presentation' && (
+          <div className="flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/20 aspect-[4/3] select-none">
+            <FiMonitor className="text-2xl text-indigo-500 dark:text-indigo-400" />
           </div>
         )}
         {item.type === 'text' && (
@@ -329,6 +337,7 @@ const RecentlyCreatedSection: React.FC<RecentlyCreatedSectionProps> = memo(
           image: 'Bild wirklich löschen?',
           video: 'Video wirklich löschen?',
           text: 'Text wirklich löschen?',
+          presentation: 'Präsentation wirklich löschen?',
         };
 
         if (!window.confirm(messages[item.type])) return;
