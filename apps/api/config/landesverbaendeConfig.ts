@@ -29,6 +29,7 @@ export interface ContentPath {
   paginationLinkSelector?: string; // Optional: CSS selector for pagination links. When set, follows "next" links from HTML instead of constructing URLs (needed for Typo3 cHash).
   sitemapUrls?: string[]; // Optional: fetch URLs from sitemaps instead of pagination
   sitemapFilter?: string; // Optional: filter sitemap URLs (e.g., '/presse/')
+  staticUrls?: string[]; // Optional: fixed list of URLs to scrape directly (bypasses pagination and sitemap)
 }
 
 export interface ContentSelectors {
@@ -410,6 +411,48 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         author: ['.author-name', '.byline'],
       },
       excludePatterns: ['/tag/', '/author/', '/wp-content/', '/wp-admin/', '#', 'javascript:'],
+    },
+    {
+      id: 'berlin-lv-wahlprogramm',
+      name: 'Grüne Berlin Wahlprogramm',
+      shortName: 'BE',
+      type: 'landesverband',
+      baseUrl: 'https://gruene.berlin',
+      cms: 'typo3',
+      maxAgeYears: 5,
+      contentPaths: [
+        {
+          type: 'wahlprogramm',
+          path: '/news',
+          listSelector: 'h2 a[href], h3 a[href]',
+          staticUrls: [
+            'https://gruene.berlin/news/unser-wahlprogramm_3762',
+            'https://gruene.berlin/news/unser-wahlprogramm-1_3763',
+            'https://gruene.berlin/news/unser-wahlprogramm-kapitel-2_3764',
+            'https://gruene.berlin/news/unser-wahlprogramm-kapitel-3_3765',
+            'https://gruene.berlin/news/unser-wahlprogramm-kapitel-4_3766',
+            'https://gruene.berlin/news/unser-wahlprogramm-kapitel-5_3767',
+            'https://gruene.berlin/news/unser-wahlprogramm-kapitel-6_3768',
+          ],
+        },
+      ],
+      contentSelectors: {
+        title: ['h1', 'meta[property="og:title"]'],
+        date: ['time[datetime]', '.tx_xblog_pi1 .date', 'meta[property="article:published_time"]'],
+        content: ['.tx_xblog_pi1', '.bodytext', 'article', 'main .content'],
+        categories: ['.tx_xblog_pi1 .tags a', '.categories a'],
+        author: ['.author', '.byline'],
+      },
+      excludePatterns: [
+        '/fileadmin/',
+        '/typo3/',
+        'tx_xblog_pi1[catKey]',
+        '#',
+        'javascript:',
+        '.pdf',
+        '.jpg',
+        '.png',
+      ],
     },
 
     // ═══════════════════════════════════════════════════════════════════
