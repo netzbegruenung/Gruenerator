@@ -9,7 +9,7 @@ FROM node:20-slim AS nextjs-builder
 WORKDIR /build
 
 COPY servers/nextjs/package.json servers/nextjs/package-lock.json ./
-RUN npm ci --ignore-scripts
+RUN npm install --ignore-scripts
 
 COPY servers/nextjs/ ./
 RUN npm run build
