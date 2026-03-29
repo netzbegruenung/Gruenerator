@@ -20,7 +20,7 @@
   display: block;
   width: 16px;
   height: 16px;
-  background-color: blueviolet;
+  background-color: #005538;
   border-radius: 9999px;
   transition: transform 100ms;
   transform: translateX(2px);

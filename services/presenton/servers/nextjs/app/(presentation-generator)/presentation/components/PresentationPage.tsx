@@ -1,37 +1,37 @@
-"use client";
-import React, { useState } from "react";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store/store";
-import { Skeleton } from "@/components/ui/skeleton";
-import PresentationMode from "./PresentationMode";
-import SidePanel from "./SidePanel";
-import SlideContent from "./SlideContent";
-import { Button } from "@/components/ui/button";
-import { usePathname } from "next/navigation";
-import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
-import { AlertCircle } from "lucide-react";
+'use client';
+import { AlertCircle } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import React, { useState } from 'react';
+import { useSelector } from 'react-redux';
+
 import {
   usePresentationStreaming,
   usePresentationData,
   usePresentationNavigation,
   useAutoSave,
-} from "../hooks";
-import { PresentationPageProps } from "../types";
-import LoadingState from "./LoadingState";
+} from '../hooks';
+import { usePresentationUndoRedo } from '../hooks/PresentationUndoRedo';
+import { type PresentationPageProps } from '../types';
 
-import { usePresentationUndoRedo } from "../hooks/PresentationUndoRedo";
-import PresentationHeader from "./PresentationHeader";
+import LoadingState from './LoadingState';
+import PresentationHeader from './PresentationHeader';
+import PresentationMode from './PresentationMode';
+import SidePanel from './SidePanel';
+import SlideContent from './SlideContent';
 
-const PresentationPage: React.FC<PresentationPageProps> = ({
-  presentation_id,
-}) => {
+import { Button } from '@/components/ui/button';
+
+import { Skeleton } from '@/components/ui/skeleton';
+import { type RootState } from '@/store/store';
+import { trackEvent, MixpanelEvent } from '@/utils/mixpanel';
+
+const PresentationPage: React.FC<PresentationPageProps> = ({ presentation_id }) => {
   const pathname = usePathname();
   // State management
   const [loading, setLoading] = useState(true);
   const [selectedSlide, setSelectedSlide] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [error, setError] = useState(false);
-
 
   const { presentationData, isStreaming } = useSelector(
     (state: RootState) => state.presentationGeneration
@@ -44,11 +44,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
   });
 
   // Custom hooks
-  const { fetchUserSlides } = usePresentationData(
-    presentation_id,
-    setLoading,
-    setError
-  );
+  const { fetchUserSlides } = usePresentationData(presentation_id, setLoading, setError);
 
   const {
     isPresentMode,
@@ -57,21 +53,10 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
     toggleFullscreen,
     handlePresentExit,
     handleSlideChange,
-  } = usePresentationNavigation(
-    presentation_id,
-    selectedSlide,
-    setSelectedSlide,
-    setIsFullscreen
-  );
+  } = usePresentationNavigation(presentation_id, selectedSlide, setSelectedSlide, setIsFullscreen);
 
   // Initialize streaming
-  usePresentationStreaming(
-    presentation_id,
-    stream,
-    setLoading,
-    setError,
-    fetchUserSlides
-  );
+  usePresentationStreaming(presentation_id, stream, setLoading, setError, fetchUserSlides);
 
   usePresentationUndoRedo();
 
@@ -80,7 +65,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
   };
 
   // useEffect(() => {
-  //   if(!loading && !isStreaming && presentationData?.slides && presentationData?.slides.length > 0){  
+  //   if(!loading && !isStreaming && presentationData?.slides && presentationData?.slides.length > 0){
   //     const presentation_id = presentationData?.slides[0].layout.split(":")[0].split("custom-")[1];
   //   const fonts = getCustomTemplateFonts(presentation_id);
 
@@ -91,7 +76,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
   if (isPresentMode) {
     return (
       <PresentationMode
-        slides={presentationData?.slides!}
+        slides={presentationData?.slides ?? []}
         currentSlide={selectedSlide}
         isFullscreen={isFullscreen}
         onFullscreenToggle={toggleFullscreen}
@@ -110,10 +95,15 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
         >
           <AlertCircle className="w-16 h-16 mb-4 text-red-500" />
           <h2 className="text-xl font-semibold mb-2">Something went wrong</h2>
-          <p className="text-center mb-4">
-            We couldn't load your presentation. Please try again.
-          </p>
-          <Button onClick={() => { trackEvent(MixpanelEvent.PresentationPage_Refresh_Page_Button_Clicked, { pathname }); window.location.reload(); }}>Refresh Page</Button>
+          <p className="text-center mb-4">We couldn't load your presentation. Please try again.</p>
+          <Button
+            onClick={() => {
+              trackEvent(MixpanelEvent.PresentationPage_Refresh_Page_Button_Clicked, { pathname });
+              window.location.reload();
+            }}
+          >
+            Refresh Page
+          </Button>
         </div>
       </div>
     );
@@ -123,7 +113,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
     <div className="h-screen overflow-hidden font-syne ">
       <div
         style={{
-          background: "#ffffff",
+          background: '#ffffff',
         }}
         className="flex  gap-6 relative "
       >
@@ -133,25 +123,27 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
             onSlideClick={handleSlideClick}
             presentationId={presentation_id}
             loading={loading}
-
           />
         </div>
         <div className=" w-full h-[calc(100vh-20px)] hide-scrollbar pr-[25px] overflow-y-auto">
-          <PresentationHeader presentation_id={presentation_id} isPresentationSaving={isSaving} currentSlide={selectedSlide} />
+          <PresentationHeader
+            presentation_id={presentation_id}
+            isPresentationSaving={isSaving}
+            currentSlide={selectedSlide}
+          />
           <div
             id="presentation-slides-wrapper"
             style={{
-              background: "rgba(255, 255, 255, 0.10)",
-              boxShadow: "0 0 20.01px 0 rgba(122, 90, 248, 0.16) inset",
+              background: 'rgba(255, 255, 255, 0.10)',
+              boxShadow: '0 0 20.01px 0 rgba(0, 85, 56, 0.16) inset',
             }}
             className="p-6 rounded-[20px] flex flex-col items-center overflow-hidden justify-center  border border-[#EDECEC] "
           >
             <div className="w-full max-w-[1280px] h-full">
-
               {!presentationData ||
-                loading ||
-                !presentationData?.slides ||
-                presentationData?.slides.length === 0 ? (
+              loading ||
+              !presentationData?.slides ||
+              presentationData?.slides.length === 0 ? (
                 <div className="relative w-full h-[calc(100vh-120px)]   mx-auto">
                   <div className="">
                     {Array.from({ length: 2 }).map((_, index) => (

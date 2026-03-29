@@ -1,26 +1,21 @@
-import React, { useEffect, useState } from "react";
-import { Loader2, PlusIcon, Trash2, Pencil, Trash } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Textarea } from "@/components/ui/textarea";
-import { SendHorizontal } from "lucide-react";
-import { toast } from "sonner";
-import { PresentationGenerationApi } from "../../services/api/presentation-generation";
-import ToolTip from "@/components/ToolTip";
-import { RootState } from "@/store/store";
-import { useDispatch, useSelector } from "react-redux";
-import {
-  deletePresentationSlide,
-  updateSlide,
-} from "@/store/slices/presentationGeneration";
-import { usePathname } from "next/navigation";
-import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
-import { addToHistory } from "@/store/slices/undoRedoSlice";
-import { V1ContentRender } from "../../components/V1ContentRender";
-import NewSlide from "./NewSlide";
+import { Loader2, PlusIcon, Trash2, Pencil, Trash, SendHorizontal } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { toast } from 'sonner';
+
+import { V1ContentRender } from '../../components/V1ContentRender';
+import { PresentationGenerationApi } from '../../services/api/presentation-generation';
+
+import NewSlide from './NewSlide';
+
+import ToolTip from '@/components/ToolTip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Textarea } from '@/components/ui/textarea';
+import { deletePresentationSlide, updateSlide } from '@/store/slices/presentationGeneration';
+import { addToHistory } from '@/store/slices/undoRedoSlice';
+import { type RootState } from '@/store/store';
+import { trackEvent, MixpanelEvent } from '@/utils/mixpanel';
 
 interface SlideContentProps {
   slide: any;
@@ -34,7 +29,7 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
   const [showNewSlideSelection, setShowNewSlideSelection] = useState(false);
   const [isEditPopoverOpen, setIsEditPopoverOpen] = useState(false);
   const [isSpeakerPopoverOpen, setIsSpeakerPopoverOpen] = useState(false);
-  const [editPrompt, setEditPrompt] = useState("");
+  const [editPrompt, setEditPrompt] = useState('');
   const { presentationData, isStreaming } = useSelector(
     (state: RootState) => state.presentationGeneration
   );
@@ -45,7 +40,7 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
 
   const handleSubmit = async () => {
     if (!editPrompt.trim()) {
-      toast.error("Please enter a prompt before submitting");
+      toast.error('Please enter a prompt before submitting');
       return;
     }
     setIsUpdating(true);
@@ -53,20 +48,17 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
     try {
       trackEvent(MixpanelEvent.Slide_Update_From_Prompt_Button_Clicked, { pathname });
       trackEvent(MixpanelEvent.Slide_Edit_API_Call);
-      const response = await PresentationGenerationApi.editSlide(
-        slide.id,
-        editPrompt
-      );
+      const response = await PresentationGenerationApi.editSlide(slide.id, editPrompt);
 
       if (response) {
         dispatch(updateSlide({ index: slide.index, slide: response }));
-        toast.success("Slide updated successfully");
-        setEditPrompt("");
+        toast.success('Slide updated successfully');
+        setEditPrompt('');
       }
     } catch (error: any) {
-      console.error("Error in slide editing:", error);
-      toast.error("Error in slide editing.", {
-        description: error.message || "Error in slide editing.",
+      console.error('Error in slide editing:', error);
+      toast.error('Error in slide editing.', {
+        description: error.message || 'Error in slide editing.',
       });
     } finally {
       setIsUpdating(false);
@@ -78,16 +70,17 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
       trackEvent(MixpanelEvent.Slide_Delete_Slide_Button_Clicked, { pathname });
       trackEvent(MixpanelEvent.Slide_Delete_API_Call);
       // Add current state to past
-      dispatch(addToHistory({
-        slides: presentationData?.slides,
-        actionType: "DELETE_SLIDE"
-      }));
+      dispatch(
+        addToHistory({
+          slides: presentationData?.slides,
+          actionType: 'DELETE_SLIDE',
+        })
+      );
       dispatch(deletePresentationSlide(slide.index));
-
     } catch (error: any) {
-      console.error("Error deleting slide:", error);
-      toast.error("Error deleting slide.", {
-        description: error.message || "Error deleting slide.",
+      console.error('Error deleting slide:', error);
+      toast.error('Error deleting slide.', {
+        description: error.message || 'Error deleting slide.',
       });
     }
   };
@@ -106,25 +99,19 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
       );
       if (slideElement) {
         slideElement.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
+          behavior: 'smooth',
+          block: 'center',
         });
       }
     }
   }, [presentationData?.slides?.length, isStreaming]);
 
-
-
   useEffect(() => {
-
-    if (slide.layout.includes("custom")) {
-
-      const existingScript = document.querySelector(
-        'script[src*="tailwindcss.com"]'
-      );
+    if (slide.layout.includes('custom')) {
+      const existingScript = document.querySelector('script[src*="tailwindcss.com"]');
       if (!existingScript) {
-        const script = document.createElement("script");
-        script.src = "https://cdn.tailwindcss.com";
+        const script = document.createElement('script');
+        script.src = 'https://cdn.tailwindcss.com';
         script.async = true;
         document.head.appendChild(script);
       }
@@ -166,7 +153,7 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
           {showNewSlideSelection && (
             <NewSlide
               index={index}
-              templateID={`${slide.layout.split(":")[0]}`}
+              templateID={`${slide.layout.split(':')[0]}`}
               setShowNewSlideSelection={setShowNewSlideSelection}
               presentationId={presentationId}
             />
@@ -174,12 +161,13 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
 
           {!isStreaming && (
             <div
-              className={`absolute right-3 top-3 z-30 hidden md:flex flex-row items-center gap-2 rounded-[28px] border border-gray-200/80 bg-white/95 px-2.5 py-2 ${isEditPopoverOpen || isSpeakerPopoverOpen
-                ? "opacity-100 pointer-events-auto"
-                : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"
-                }`}
+              className={`absolute right-3 top-3 z-30 hidden md:flex flex-row items-center gap-2 rounded-[28px] border border-gray-200/80 bg-white/95 px-2.5 py-2 ${
+                isEditPopoverOpen || isSpeakerPopoverOpen
+                  ? 'opacity-100 pointer-events-auto'
+                  : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto'
+              }`}
               style={{
-                boxShadow: "0 2px 13.2px 0 rgba(0, 0, 0, 0.10)"
+                boxShadow: '0 2px 13.2px 0 rgba(0, 0, 0, 0.10)',
               }}
             >
               <Popover open={isEditPopoverOpen} onOpenChange={setIsEditPopoverOpen}>
@@ -225,9 +213,9 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
                     <button
                       disabled={isUpdating}
                       type="submit"
-                      className={`ml-auto flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#9034EA] to-[#316049] px-4 py-2 text-sm font-medium text-white transition-opacity ${isUpdating ? "cursor-not-allowed opacity-70" : "hover:opacity-90"}`}
+                      className={`ml-auto flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#9034EA] to-[#316049] px-4 py-2 text-sm font-medium text-white transition-opacity ${isUpdating ? 'cursor-not-allowed opacity-70' : 'hover:opacity-90'}`}
                     >
-                      {isUpdating ? "Wird aktualisiert…" : "Aktualisieren"}
+                      {isUpdating ? 'Wird aktualisiert…' : 'Aktualisieren'}
                       <SendHorizontal className="h-4 w-4" />
                     </button>
                   </form>
@@ -239,19 +227,44 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
                   <button
                     type="button"
                     style={{
-                      background: "linear-gradient(270deg, #b6d4c8 2.4%, #c8ddd2 27.88%, #d4e8dc 69.23%, #e0f0e6 100%)",
-
+                      background:
+                        'linear-gradient(270deg, #b6d4c8 2.4%, #c8ddd2 27.88%, #d4e8dc 69.23%, #e0f0e6 100%)',
                     }}
-                    className={`flex px-4 py-2.5 items-center justify-center rounded-full border font-syne ${slide?.speaker_note
-                      ? "border-violet-200 bg-violet-50 text-violet-700"
-                      : "border-gray-200 bg-white text-gray-600"
-                      }`}
+                    className={`flex px-4 py-2.5 items-center justify-center rounded-full border font-syne ${
+                      slide?.speaker_note
+                        ? 'border-green-200 bg-green-50 text-green-700'
+                        : 'border-gray-200 bg-white text-gray-600'
+                    }`}
                   >
                     <ToolTip content="Sprechernotizen bearbeiten">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
-                        <path d="M5.13334 11.6665V9.27482L6.24167 9.39149C6.56434 9.37356 6.86969 9.23977 7.1016 9.01472C7.33351 8.78966 7.4764 8.48847 7.50401 8.16649V4.84149C7.50787 4.0011 7.17774 3.1936 6.58624 2.59663C5.99473 1.99965 5.1903 1.6621 4.34992 1.65824C3.50954 1.65437 2.70204 1.9845 2.10506 2.57601C1.50809 3.16751 1.17054 3.97194 1.16667 4.81232C1.16667 6.44565 1.54934 6.59382 1.75001 7.46649C1.88562 7.99351 1.89143 8.54556 1.76692 9.07532L1.16667 11.6665" stroke="black" strokeWidth="1.16667" strokeLinecap="round" strokeLinejoin="round" />
-                        <path d="M11.55 10.3833C12.3701 9.56317 12.8309 8.45095 12.8312 7.29115C12.8316 6.13134 12.3714 5.01886 11.5518 4.19824" stroke="black" strokeWidth="1.16667" strokeLinecap="round" strokeLinejoin="round" />
-                        <path d="M9.91667 8.74974C10.1075 8.55893 10.2586 8.33217 10.3613 8.08258C10.464 7.83299 10.5161 7.56553 10.5148 7.29566C10.5134 7.02578 10.4586 6.75885 10.3534 6.51031C10.2482 6.26177 10.0948 6.03654 9.90208 5.84766" stroke="black" strokeWidth="1.16667" strokeLinecap="round" strokeLinejoin="round" />
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 14 14"
+                        fill="none"
+                      >
+                        <path
+                          d="M5.13334 11.6665V9.27482L6.24167 9.39149C6.56434 9.37356 6.86969 9.23977 7.1016 9.01472C7.33351 8.78966 7.4764 8.48847 7.50401 8.16649V4.84149C7.50787 4.0011 7.17774 3.1936 6.58624 2.59663C5.99473 1.99965 5.1903 1.6621 4.34992 1.65824C3.50954 1.65437 2.70204 1.9845 2.10506 2.57601C1.50809 3.16751 1.17054 3.97194 1.16667 4.81232C1.16667 6.44565 1.54934 6.59382 1.75001 7.46649C1.88562 7.99351 1.89143 8.54556 1.76692 9.07532L1.16667 11.6665"
+                          stroke="black"
+                          strokeWidth="1.16667"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M11.55 10.3833C12.3701 9.56317 12.8309 8.45095 12.8312 7.29115C12.8316 6.13134 12.3714 5.01886 11.5518 4.19824"
+                          stroke="black"
+                          strokeWidth="1.16667"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M9.91667 8.74974C10.1075 8.55893 10.2586 8.33217 10.3613 8.08258C10.464 7.83299 10.5161 7.56553 10.5148 7.29566C10.5134 7.02578 10.4586 6.75885 10.3534 6.51031C10.2482 6.26177 10.0948 6.03654 9.90208 5.84766"
+                          stroke="black"
+                          strokeWidth="1.16667"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     </ToolTip>
                   </button>
@@ -264,11 +277,10 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
                 >
                   <div className="border-b border-gray-100 px-4 py-3">
                     <p className="text-sm font-semibold text-gray-900">Sprechernotizen</p>
-
                   </div>
                   <div className="space-y-3 p-4">
                     <div className="max-h-[220px] min-h-[100px] overflow-auto whitespace-pre-wrap rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800">
-                      {slide?.speaker_note?.trim() || "Keine Sprechernotizen für diese Folie."}
+                      {slide?.speaker_note?.trim() || 'Keine Sprechernotizen für diese Folie.'}
                     </div>
                   </div>
                 </PopoverContent>
