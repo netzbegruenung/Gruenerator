@@ -96,7 +96,7 @@ const InlineEditorContent = memo(({ editorState, onBack, docsApiClient }: Inline
     window.URL.revokeObjectURL(url);
   }, [editor, editorState.title]);
 
-  const docsUrl = `https://docs.gruenerator.eu/document/${editorState.documentId}`;
+  const docsUrl = `/docs/${editorState.documentId}`;
   const isReady = provider && (isSynced || syncTimedOut);
 
   const rightActions = (

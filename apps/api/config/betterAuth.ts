@@ -92,6 +92,14 @@ export const auth = betterAuth({
 
   session: {
     modelName: 'ba_sessions',
+    fields: {
+      expiresAt: 'expires_at',
+      ipAddress: 'ip_address',
+      userAgent: 'user_agent',
+      userId: 'user_id',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+    },
     expiresIn: 30 * 24 * 60 * 60,
     updateAge: 24 * 60 * 60,
     storeSessionInDatabase: true,

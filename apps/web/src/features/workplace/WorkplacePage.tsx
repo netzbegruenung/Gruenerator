@@ -44,10 +44,7 @@ const WorkplacePage = () => {
           <CreatorSection mode={mode} onModeChange={setMode} />
         </div>
 
-        <RecentlyCreatedSection
-          showDocs={canAccessBetaFeature('docs')}
-          showBoards={canAccessBetaFeature('boards')}
-        />
+        <RecentlyCreatedSection showDocs showBoards={canAccessBetaFeature('boards')} />
 
         {/* <ReelsSection /> */}
 

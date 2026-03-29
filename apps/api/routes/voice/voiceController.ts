@@ -1,6 +1,10 @@
 /**
  * Voice Controller
- * Handles audio transcription and chat using Mistral Voxtral
+ * Handles audio transcription and chat.
+ *
+ * STT provider priority:
+ *   1. Regolo faster-whisper-large-v3 (EU-hosted, preferred)
+ *   2. Mistral Voxtral (fallback, also used for streaming & real-time)
  */
 
 import fs from 'fs';
@@ -183,12 +187,136 @@ const upload = multer({
 });
 
 // ============================================================================
+// STT Provider Selection
+// ============================================================================
+
+const REGOLO_BASE_URL = 'https://api.regolo.ai/v1';
+const WHISPER_MODEL = 'faster-whisper-large-v3';
+
+interface WhisperSegment {
+  start: number;
+  end: number;
+  text: string;
+  words?: Array<{ word: string; start: number; end: number }>;
+}
+
+interface WhisperVerboseResponse {
+  text: string;
+  segments?: WhisperSegment[];
+}
+
+function mimeTypeFromFilename(filename: string): string {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  const mimeMap: Record<string, string> = {
+    mp3: 'audio/mpeg',
+    wav: 'audio/wav',
+    m4a: 'audio/m4a',
+    aac: 'audio/aac',
+    ogg: 'audio/ogg',
+    webm: 'audio/webm',
+    flac: 'audio/flac',
+  };
+  return mimeMap[ext || ''] || 'audio/wav';
+}
+
+/**
+ * Transcribe audio buffer via Regolo faster-whisper (same endpoint as subtitler).
+ * Returns the same shape as mistralVoiceService.transcribeFromBuffer().
+ */
+async function transcribeWithRegoloWhisper(
+  audioBuffer: Buffer,
+  filename: string,
+  options: TranscriptionOptions = {}
+): Promise<TranscriptionResult> {
+  const apiKey = process.env.REGOLO_API_KEY;
+  if (!apiKey) throw new Error('REGOLO_API_KEY is not configured');
+
+  const { language = 'de', timestamp_granularities } = options;
+  const requestTimestamps = !!timestamp_granularities?.length;
+
+  log.debug(
+    `[Voice/Regolo] Transcribing ${filename} (${(audioBuffer.length / 1024 / 1024).toFixed(1)} MB)`
+  );
+
+  const blob = new Blob([new Uint8Array(audioBuffer)], { type: mimeTypeFromFilename(filename) });
+  const form = new FormData();
+  form.append('file', blob, filename);
+  form.append('model', WHISPER_MODEL);
+  form.append('language', language);
+
+  if (requestTimestamps) {
+    form.append('response_format', 'verbose_json');
+    form.append('timestamp_granularities[]', 'segment');
+  }
+
+  const response = await fetch(`${REGOLO_BASE_URL}/audio/transcriptions`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: form,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Regolo transcription failed (${response.status}): ${errorText}`);
+  }
+
+  const data = (await response.json()) as WhisperVerboseResponse;
+  log.debug(`[Voice/Regolo] Completed: ${data.text.length} chars`);
+
+  const result: TranscriptionResult = { text: data.text, hasTimestamps: false };
+
+  if (requestTimestamps && data.segments) {
+    result.segments = data.segments.map((s) => ({ start: s.start, end: s.end, text: s.text }));
+    result.hasTimestamps = true;
+  }
+
+  return result;
+}
+
+/**
+ * Transcribe using Regolo Whisper with Mistral Voxtral fallback.
+ * Diarize/contextBias require Voxtral (Whisper doesn't support them).
+ */
+async function transcribeBuffer(
+  audioBuffer: Buffer,
+  filename: string,
+  options: TranscriptionOptions = {}
+): Promise<TranscriptionResult> {
+  const needsVoxtral = options.diarize || options.contextBias?.length;
+
+  if (needsVoxtral) {
+    log.debug('[Voice] Using Voxtral (diarize/contextBias requested)');
+    return (await mistralVoiceService.transcribeFromBuffer(
+      audioBuffer,
+      filename,
+      options
+    )) as unknown as TranscriptionResult;
+  }
+
+  if (process.env.REGOLO_API_KEY) {
+    try {
+      return await transcribeWithRegoloWhisper(audioBuffer, filename, options);
+    } catch (error) {
+      log.warn(
+        `[Voice] Regolo Whisper failed, falling back to Voxtral: ${(error as Error).message}`
+      );
+    }
+  }
+
+  return (await mistralVoiceService.transcribeFromBuffer(
+    audioBuffer,
+    filename,
+    options
+  )) as unknown as TranscriptionResult;
+}
+
+// ============================================================================
 // Route Handlers
 // ============================================================================
 
 /**
  * POST /api/voice/transcribe
- * Transcribe audio file with Mistral Voxtral
+ * Transcribe audio file — prefers Regolo Whisper, falls back to Voxtral
  */
 router.post(
   '/transcribe',
@@ -228,11 +356,7 @@ router.post(
 
       log.debug('[Voice] Starting transcription for:', filename, 'Options:', options);
 
-      const result = (await mistralVoiceService.transcribeFromBuffer(
-        audioBuffer,
-        filename,
-        options
-      )) as unknown as TranscriptionResult;
+      const result = await transcribeBuffer(audioBuffer, filename, options);
 
       let speakerMap: Record<string, string> = {};
       if (options.diarize && result.text.includes('[speaker_')) {
@@ -321,11 +445,7 @@ router.post(
           diarize: diarize || undefined,
         };
 
-        const result = (await mistralVoiceService.transcribeFromBuffer(
-          audioBuffer,
-          filename,
-          options
-        )) as unknown as TranscriptionResult;
+        const result = await transcribeBuffer(audioBuffer, filename, options);
 
         let speakerMap: Record<string, string> = {};
         if (diarize && result.text.includes('[speaker_')) {
@@ -342,6 +462,7 @@ router.post(
           speakerMap,
         });
       } else {
+        // Streaming transcription — Voxtral only (Whisper has no streaming API)
         for await (const event of mistralVoiceService.transcribeFromBufferStream(
           audioBuffer,
           filename,
@@ -546,7 +667,9 @@ router.get('/formats', (_req: Request, res: Response<FormatsResponse>) => {
       supportedFormats: formats,
       maxFileSize: '500MB (video), 50MB (audio)',
       maxDuration: '~30 minutes for transcription, ~40 minutes for understanding',
-      provider: 'Mistral Voxtral (video converted via FFmpeg)',
+      provider: process.env.REGOLO_API_KEY
+        ? 'Regolo Whisper (Voxtral fallback, video converted via FFmpeg)'
+        : 'Mistral Voxtral (video converted via FFmpeg)',
     });
   } catch (error) {
     log.error('[Voice] Formats error:', error);
