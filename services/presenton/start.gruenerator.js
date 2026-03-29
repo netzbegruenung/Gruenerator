@@ -58,6 +58,14 @@ const setupUserConfigFromEnv = () => {
   };
 
   writeFileSync(userConfigPath, JSON.stringify(userConfig));
+
+  // Also set env vars directly — when CAN_CHANGE_KEYS=false, the middleware
+  // skips loading from userConfig.json, so FastAPI needs these in env.
+  for (const [key, value] of Object.entries(userConfig)) {
+    if (value != null) {
+      process.env[key] = String(value);
+    }
+  }
 };
 
 const startServers = async () => {
