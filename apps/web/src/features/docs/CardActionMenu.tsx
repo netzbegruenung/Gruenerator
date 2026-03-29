@@ -6,6 +6,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
+import { memo } from 'react';
 import { FiEdit2, FiMoreVertical, FiShare2, FiTrash2 } from 'react-icons/fi';
 
 interface CardActionMenuProps {
@@ -15,7 +16,12 @@ interface CardActionMenuProps {
   onShare?: (e: React.MouseEvent) => void;
 }
 
-export function CardActionMenu({ ariaLabel, onRename, onDelete, onShare }: CardActionMenuProps) {
+export const CardActionMenu = memo(function CardActionMenu({
+  ariaLabel,
+  onRename,
+  onDelete,
+  onShare,
+}: CardActionMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -48,4 +54,4 @@ export function CardActionMenu({ ariaLabel, onRename, onDelete, onShare }: CardA
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
+});

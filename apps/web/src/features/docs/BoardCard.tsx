@@ -1,23 +1,27 @@
 import { cn } from '@gruenerator/ui';
-import { memo } from 'react';
+import { memo, useCallback } from 'react';
 import { PiKanban, PiPencilLine } from 'react-icons/pi';
+import { useNavigate } from 'react-router-dom';
 
+import { formatRelativeDate } from '../../utils/dateFormatter';
 import { type Board, getBoardType } from '../boards/types';
 
 import { CardActionMenu } from './CardActionMenu';
 
 export const BoardCard = memo(function BoardCard({
   board,
-  onClick,
   onDelete,
   onRename,
 }: {
   board: Board;
-  onClick: () => void;
   onDelete: (id: string, e: React.MouseEvent) => void;
   onRename: (board: { id: string; title: string }, e: React.MouseEvent) => void;
 }) {
+  const navigate = useNavigate();
   const isWhiteboard = getBoardType(board) === 'whiteboard';
+  const handleClick = useCallback(() => {
+    navigate(`/boards/${board.id}`);
+  }, [navigate, board.id]);
 
   return (
     <div
@@ -29,7 +33,7 @@ export const BoardCard = memo(function BoardCard({
         'md:hover:-translate-y-0.5',
         'max-sm:aspect-[4/3]'
       )}
-      onClick={onClick}
+      onClick={handleClick}
     >
       <div className="flex flex-1 items-center justify-center pb-10 bg-secondary-50 dark:bg-secondary-900/20">
         {isWhiteboard ? (
@@ -44,13 +48,7 @@ export const BoardCard = memo(function BoardCard({
           <div className="min-w-0 flex-1">
             <h3 className="truncate text-xs font-semibold text-foreground">{board.title}</h3>
             <div className="mt-0.5 flex items-center gap-1 text-[10px] text-grey-500 dark:text-grey-400">
-              <span>
-                {new Date(board.updated_at).toLocaleDateString('de-DE', {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                })}
-              </span>
+              <span>{formatRelativeDate(board.updated_at)}</span>
               {board.creator_name && (
                 <>
                   <span>·</span>

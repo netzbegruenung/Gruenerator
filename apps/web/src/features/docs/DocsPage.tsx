@@ -20,14 +20,23 @@ import {
   AIPromptInput,
   Button,
   CardGrid,
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  ResponsiveMenu,
+  ResponsiveMenuSection,
+  ResponsiveMenuItem,
 } from '@gruenerator/ui';
-import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import {
+  lazy,
+  memo,
+  Suspense,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import {
   FiArrowLeft,
   FiCloud,
@@ -75,6 +84,111 @@ const SLIDE_EXAMPLES = [
     text: 'Quartalsbericht unserer Fraktion: Erfolge, Anträge und Ausblick',
   },
 ];
+
+const CreateNewMenu = memo(function CreateNewMenu({
+  onTemplateSelect,
+  onShowGallery,
+  onShowImportDialog,
+  onShowWolkeImport,
+  onShowGenerateSlides,
+  onCreateBoard,
+}: {
+  onTemplateSelect: (type: TemplateType) => void;
+  onShowGallery: () => void;
+  onShowImportDialog: () => void;
+  onShowWolkeImport: () => void;
+  onShowGenerateSlides: () => void;
+  onCreateBoard: (type: 'kanban' | 'whiteboard') => void;
+}) {
+  const desktopContent = (
+    <>
+      <DropdownMenuLabel>Dokument</DropdownMenuLabel>
+      <DropdownMenuItem onClick={() => onTemplateSelect('blank')}>
+        <FiFile size={16} />
+        Leeres Dokument
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={onShowGallery}>
+        <FiGrid size={16} />
+        Aus Vorlage…
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={onShowImportDialog}>
+        <FiUpload size={16} />
+        Datei importieren…
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={onShowWolkeImport}>
+        <FiCloud size={16} />
+        Aus Wolke importieren…
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuLabel>Präsentation</DropdownMenuLabel>
+      <DropdownMenuItem onClick={onShowGenerateSlides}>
+        <FiZap size={16} />
+        KI-Präsentation erstellen
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuLabel>Board</DropdownMenuLabel>
+      <DropdownMenuItem onClick={() => onCreateBoard('kanban')}>
+        <PiKanban size={16} />
+        Neues Board
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => onCreateBoard('whiteboard')}>
+        <PiPencilLine size={16} />
+        Neues Whiteboard
+      </DropdownMenuItem>
+    </>
+  );
+
+  const mobileContent = (
+    <>
+      <ResponsiveMenuSection title="Dokument">
+        <ResponsiveMenuItem icon={<FiFile size={16} />} onClick={() => onTemplateSelect('blank')}>
+          Leeres Dokument
+        </ResponsiveMenuItem>
+        <ResponsiveMenuItem icon={<FiGrid size={16} />} onClick={onShowGallery}>
+          Aus Vorlage…
+        </ResponsiveMenuItem>
+        <ResponsiveMenuItem icon={<FiUpload size={16} />} onClick={onShowImportDialog}>
+          Datei importieren…
+        </ResponsiveMenuItem>
+        <ResponsiveMenuItem icon={<FiCloud size={16} />} onClick={onShowWolkeImport}>
+          Aus Wolke importieren…
+        </ResponsiveMenuItem>
+      </ResponsiveMenuSection>
+      <ResponsiveMenuSection title="Präsentation">
+        <ResponsiveMenuItem icon={<FiZap size={16} />} onClick={onShowGenerateSlides}>
+          KI-Präsentation erstellen
+        </ResponsiveMenuItem>
+      </ResponsiveMenuSection>
+      <ResponsiveMenuSection title="Board">
+        <ResponsiveMenuItem icon={<PiKanban size={16} />} onClick={() => onCreateBoard('kanban')}>
+          Neues Board
+        </ResponsiveMenuItem>
+        <ResponsiveMenuItem
+          icon={<PiPencilLine size={16} />}
+          onClick={() => onCreateBoard('whiteboard')}
+        >
+          Neues Whiteboard
+        </ResponsiveMenuItem>
+      </ResponsiveMenuSection>
+    </>
+  );
+
+  return (
+    <ResponsiveMenu
+      trigger={
+        <Button>
+          <FiPlus size={16} />
+          Neu
+        </Button>
+      }
+      dropdownSide="bottom"
+      dropdownAlign="end"
+      sheetTitle="Neu erstellen"
+      desktopContent={desktopContent}
+      mobileContent={mobileContent}
+    />
+  );
+});
 
 type UnifiedItem =
   | {
@@ -255,72 +369,87 @@ function DocumentsContent() {
     [createDocumentMutation, adapter]
   );
 
-  const handleDeleteDoc = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (window.confirm('Dokument wirklich löschen?')) {
-      try {
-        await deleteDocumentMutation.mutateAsync(id);
-      } catch (err) {
-        console.error('Failed to delete document:', err);
+  const handleDeleteDoc = useCallback(
+    async (id: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (window.confirm('Dokument wirklich löschen?')) {
+        try {
+          await deleteDocumentMutation.mutateAsync(id);
+        } catch (err) {
+          console.error('Failed to delete document:', err);
+        }
       }
-    }
-  };
+    },
+    [deleteDocumentMutation]
+  );
 
-  const handleRenameDoc = async (doc: { id: string; title: string }, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const newTitle = window.prompt('Neuer Titel:', doc.title);
-    if (newTitle?.trim() && newTitle.trim() !== doc.title) {
-      try {
-        await updateDocumentMutation.mutateAsync({
-          id: doc.id,
-          updates: { title: newTitle.trim() },
-        });
-      } catch (err) {
-        console.error('Failed to rename document:', err);
+  const handleRenameDoc = useCallback(
+    async (doc: { id: string; title: string }, e: React.MouseEvent) => {
+      e.stopPropagation();
+      const newTitle = window.prompt('Neuer Titel:', doc.title);
+      if (newTitle?.trim() && newTitle.trim() !== doc.title) {
+        try {
+          await updateDocumentMutation.mutateAsync({
+            id: doc.id,
+            updates: { title: newTitle.trim() },
+          });
+        } catch (err) {
+          console.error('Failed to rename document:', err);
+        }
       }
-    }
-  };
+    },
+    [updateDocumentMutation]
+  );
 
-  const handleDeletePresentation = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (window.confirm('Präsentation wirklich löschen?')) {
-      try {
-        await storeDeletePresentation(slidesApiClient, id);
-      } catch (err) {
-        console.error('Failed to delete presentation:', err);
+  const handleDeletePresentation = useCallback(
+    async (id: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (window.confirm('Präsentation wirklich löschen?')) {
+        try {
+          await storeDeletePresentation(slidesApiClient, id);
+        } catch (err) {
+          console.error('Failed to delete presentation:', err);
+        }
       }
-    }
-  };
+    },
+    [storeDeletePresentation, slidesApiClient]
+  );
 
-  const handleRenamePresentation = async (
-    pres: { id: string; title: string },
-    e: React.MouseEvent
-  ) => {
-    e.stopPropagation();
-    const newTitle = window.prompt('Neuer Titel:', pres.title);
-    if (newTitle?.trim() && newTitle.trim() !== pres.title) {
-      try {
-        await storeUpdatePresentation(slidesApiClient, pres.id, { title: newTitle.trim() });
-      } catch (err) {
-        console.error('Failed to rename presentation:', err);
+  const handleRenamePresentation = useCallback(
+    async (pres: { id: string; title: string }, e: React.MouseEvent) => {
+      e.stopPropagation();
+      const newTitle = window.prompt('Neuer Titel:', pres.title);
+      if (newTitle?.trim() && newTitle.trim() !== pres.title) {
+        try {
+          await storeUpdatePresentation(slidesApiClient, pres.id, { title: newTitle.trim() });
+        } catch (err) {
+          console.error('Failed to rename presentation:', err);
+        }
       }
-    }
-  };
+    },
+    [storeUpdatePresentation, slidesApiClient]
+  );
 
-  const handleDeleteBoard = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (window.confirm('Board wirklich löschen?')) {
-      deleteBoard.mutate(id);
-    }
-  };
+  const handleDeleteBoard = useCallback(
+    (id: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (window.confirm('Board wirklich löschen?')) {
+        deleteBoard.mutate(id);
+      }
+    },
+    [deleteBoard]
+  );
 
-  const handleRenameBoard = async (board: { id: string; title: string }, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const newTitle = window.prompt('Neuer Titel:', board.title);
-    if (newTitle?.trim() && newTitle.trim() !== board.title) {
-      updateBoard.mutate({ id: board.id, title: newTitle.trim() });
-    }
-  };
+  const handleRenameBoard = useCallback(
+    (board: { id: string; title: string }, e: React.MouseEvent) => {
+      e.stopPropagation();
+      const newTitle = window.prompt('Neuer Titel:', board.title);
+      if (newTitle?.trim() && newTitle.trim() !== board.title) {
+        updateBoard.mutate({ id: board.id, title: newTitle.trim() });
+      }
+    },
+    [updateBoard]
+  );
 
   const handleCreateBoard = useCallback(
     (boardType: 'kanban' | 'whiteboard') => {
@@ -344,44 +473,6 @@ function DocumentsContent() {
       />
     );
   }
-
-  const createMenuContent = (
-    <>
-      <DropdownMenuLabel>Dokument</DropdownMenuLabel>
-      <DropdownMenuItem onClick={() => handleTemplateSelect('blank')}>
-        <FiFile size={16} />
-        Leeres Dokument
-      </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => setShowGallery(true)}>
-        <FiGrid size={16} />
-        Aus Vorlage…
-      </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => setShowImportDialog(true)}>
-        <FiUpload size={16} />
-        Datei importieren…
-      </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => setShowWolkeImport(true)}>
-        <FiCloud size={16} />
-        Aus Wolke importieren…
-      </DropdownMenuItem>
-      <DropdownMenuSeparator />
-      <DropdownMenuLabel>Präsentation</DropdownMenuLabel>
-      <DropdownMenuItem onClick={() => setShowGenerateSlides(true)}>
-        <FiZap size={16} />
-        KI-Präsentation erstellen
-      </DropdownMenuItem>
-      <DropdownMenuSeparator />
-      <DropdownMenuLabel>Board</DropdownMenuLabel>
-      <DropdownMenuItem onClick={() => handleCreateBoard('kanban')}>
-        <PiKanban size={16} />
-        Neues Board
-      </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => handleCreateBoard('whiteboard')}>
-        <PiPencilLine size={16} />
-        Neues Whiteboard
-      </DropdownMenuItem>
-    </>
-  );
 
   return (
     <>
@@ -415,15 +506,14 @@ function DocumentsContent() {
               )}
             </div>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button className="max-sm:hidden">
-                  <FiPlus size={16} />
-                  Neu
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">{createMenuContent}</DropdownMenuContent>
-            </DropdownMenu>
+            <CreateNewMenu
+              onTemplateSelect={handleTemplateSelect}
+              onShowGallery={() => setShowGallery(true)}
+              onShowImportDialog={() => setShowImportDialog(true)}
+              onShowWolkeImport={() => setShowWolkeImport(true)}
+              onShowGenerateSlides={() => setShowGenerateSlides(true)}
+              onCreateBoard={handleCreateBoard}
+            />
           </div>
         </div>
       </div>
@@ -472,7 +562,6 @@ function DocumentsContent() {
                   <PresentationCard
                     key={`pres-${item.data.id}`}
                     presentation={item.data}
-                    onClick={() => navigate(`/docs/presentation/${item.data.id}`)}
                     onDelete={handleDeletePresentation}
                     onRename={handleRenamePresentation}
                   />
@@ -481,7 +570,6 @@ function DocumentsContent() {
                 <BoardCard
                   key={`board-${item.data.id}`}
                   board={item.data}
-                  onClick={() => navigate(`/boards/${item.data.id}`)}
                   onDelete={handleDeleteBoard}
                   onRename={handleRenameBoard}
                 />
@@ -490,24 +578,6 @@ function DocumentsContent() {
           </div>
         )}
       </main>
-
-      {/* Mobile FAB */}
-      <div className="fixed bottom-5 right-5 z-[100] sm:hidden">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              size="lg"
-              className="h-[52px] w-[52px] rounded-full shadow-lg"
-              aria-label="Neu erstellen"
-            >
-              <FiPlus size={24} />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="top" sideOffset={8}>
-            {createMenuContent}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
 
       {showGallery && (
         <Suspense fallback={null}>
