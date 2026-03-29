@@ -120,8 +120,8 @@ const TeamSlideLayout: React.FC<TeamSlideLayoutProps> = ({ data: slideData }) =>
                 {/* Decorative Wave Pattern */}
                 <div className="absolute bottom-0 left-0 w-80 h-40 opacity-10 overflow-hidden">
                     <svg className="w-full h-full" viewBox="0 0 300 150" fill="none">
-                        <path d="M0 75C75 50 150 100 225 75C262.5 62.5 300 75 300 75V150H0V75Z" fill="var(--primary-color,#9333ea)" opacity="0.3" />
-                        <path d="M0 100C100 125 200 75 300 100V125C225 112.5 150 125 75 112.5L0 100Z" fill="var(--primary-color,#9333ea)" opacity="0.2" />
+                        <path d="M0 75C75 50 150 100 225 75C262.5 62.5 300 75 300 75V150H0V75Z" fill="var(--primary-color,#316049)" opacity="0.3" />
+                        <path d="M0 100C100 125 200 75 300 100V125C225 112.5 150 125 75 112.5L0 100Z" fill="var(--primary-color,#316049)" opacity="0.2" />
                     </svg>
                 </div>
 
@@ -135,7 +135,7 @@ const TeamSlideLayout: React.FC<TeamSlideLayoutProps> = ({ data: slideData }) =>
                         </h1>
 
                         {/* Purple accent line */}
-                        <div style={{ background: "var(--primary-color,#9333ea)" }} className="w-20 h-1 bg-purple-600"></div>
+                        <div style={{ background: "var(--primary-color,#316049)" }} className="w-20 h-1 bg-green-600"></div>
 
                         {/* Company Description */}
                         <p style={{ color: "var(--background-text,#4b5563)" }} className="text-base sm:text-lg text-gray-700 leading-relaxed">

@@ -148,14 +148,14 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
           <V1ContentRender slide={slide} isEditMode={true} theme={null} />
           {!showNewSlideSelection && (
             <div className="group-hover:opacity-100 hidden md:block opacity-0 transition-opacity my-4 duration-300">
-              <ToolTip content="Add new slide below">
+              <ToolTip content="Neue Folie darunter hinzufügen">
                 {!isStreaming && (
                   <div
                     onClick={() => {
                       trackEvent(MixpanelEvent.Slide_Add_New_Slide_Button_Clicked, { pathname });
                       setShowNewSlideSelection(true);
                     }}
-                    className="  bg-white shadow-md w-[80px] py-2 border hover:border-[#5141e5] duration-300  flex items-center justify-center rounded-lg cursor-pointer mx-auto"
+                    className="  bg-white shadow-md w-[80px] py-2 border hover:border-[#316049] duration-300  flex items-center justify-center rounded-lg cursor-pointer mx-auto"
                   >
                     <PlusIcon className="text-gray-500 text-base cursor-pointer" />
                   </div>
@@ -188,7 +188,7 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
                     type="button"
                     className="flex px-3.5 py-2.5 items-center justify-center rounded-full bg-[#F7F6F9] font-syne"
                   >
-                    <ToolTip content="Update slide using prompt">
+                    <ToolTip content="Folie mit Eingabe aktualisieren">
                       <Pencil className="h-4 w-4" />
                     </ToolTip>
                   </button>
@@ -200,9 +200,9 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
                   className="z-30 w-[340px] rounded-2xl border border-gray-200 bg-white p-0 shadow-2xl font-syne"
                 >
                   <div className="border-b border-gray-100 px-4 py-3">
-                    <p className="text-sm font-semibold text-gray-900">Update slide</p>
+                    <p className="text-sm font-semibold text-gray-900">Folie aktualisieren</p>
                     <p className="mt-1 text-xs text-gray-500">
-                      Describe how this slide should be improved.
+                      Beschreiben Sie, wie diese Folie verbessert werden soll.
                     </p>
                   </div>
                   <form
@@ -215,8 +215,8 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
                     <Textarea
                       id={`slide-${slide.index}-prompt`}
                       value={editPrompt}
-                      placeholder="Enter your prompt here..."
-                      className="min-h-[110px] max-h-[180px] w-full resize-none rounded-xl border border-gray-200 p-3 text-sm focus-visible:ring-1 focus-visible:ring-[#5141e5]"
+                      placeholder="Geben Sie Ihre Eingabe hier ein…"
+                      className="min-h-[110px] max-h-[180px] w-full resize-none rounded-xl border border-gray-200 p-3 text-sm focus-visible:ring-1 focus-visible:ring-[#316049]"
                       disabled={isUpdating}
                       onChange={(e) => setEditPrompt(e.target.value)}
                       rows={5}
@@ -225,9 +225,9 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
                     <button
                       disabled={isUpdating}
                       type="submit"
-                      className={`ml-auto flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#9034EA] to-[#5146E5] px-4 py-2 text-sm font-medium text-white transition-opacity ${isUpdating ? "cursor-not-allowed opacity-70" : "hover:opacity-90"}`}
+                      className={`ml-auto flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#9034EA] to-[#316049] px-4 py-2 text-sm font-medium text-white transition-opacity ${isUpdating ? "cursor-not-allowed opacity-70" : "hover:opacity-90"}`}
                     >
-                      {isUpdating ? "Updating..." : "Update"}
+                      {isUpdating ? "Wird aktualisiert…" : "Aktualisieren"}
                       <SendHorizontal className="h-4 w-4" />
                     </button>
                   </form>
@@ -239,7 +239,7 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
                   <button
                     type="button"
                     style={{
-                      background: "linear-gradient(270deg, #D5CAFC 2.4%, #E3D2EB 27.88%, #F4DCD3 69.23%, #FDE4C2 100%)",
+                      background: "linear-gradient(270deg, #b6d4c8 2.4%, #c8ddd2 27.88%, #d4e8dc 69.23%, #e0f0e6 100%)",
 
                     }}
                     className={`flex px-4 py-2.5 items-center justify-center rounded-full border font-syne ${slide?.speaker_note
@@ -247,7 +247,7 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
                       : "border-gray-200 bg-white text-gray-600"
                       }`}
                   >
-                    <ToolTip content="Edit speaker notes">
+                    <ToolTip content="Sprechernotizen bearbeiten">
                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
                         <path d="M5.13334 11.6665V9.27482L6.24167 9.39149C6.56434 9.37356 6.86969 9.23977 7.1016 9.01472C7.33351 8.78966 7.4764 8.48847 7.50401 8.16649V4.84149C7.50787 4.0011 7.17774 3.1936 6.58624 2.59663C5.99473 1.99965 5.1903 1.6621 4.34992 1.65824C3.50954 1.65437 2.70204 1.9845 2.10506 2.57601C1.50809 3.16751 1.17054 3.97194 1.16667 4.81232C1.16667 6.44565 1.54934 6.59382 1.75001 7.46649C1.88562 7.99351 1.89143 8.54556 1.76692 9.07532L1.16667 11.6665" stroke="black" strokeWidth="1.16667" strokeLinecap="round" strokeLinejoin="round" />
                         <path d="M11.55 10.3833C12.3701 9.56317 12.8309 8.45095 12.8312 7.29115C12.8316 6.13134 12.3714 5.01886 11.5518 4.19824" stroke="black" strokeWidth="1.16667" strokeLinecap="round" strokeLinejoin="round" />
@@ -263,12 +263,12 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
                   className="z-30 w-[340px] rounded-2xl border border-gray-200 bg-white p-0 shadow-2xl font-syne"
                 >
                   <div className="border-b border-gray-100 px-4 py-3">
-                    <p className="text-sm font-semibold text-gray-900">Speaker notes</p>
+                    <p className="text-sm font-semibold text-gray-900">Sprechernotizen</p>
 
                   </div>
                   <div className="space-y-3 p-4">
                     <div className="max-h-[220px] min-h-[100px] overflow-auto whitespace-pre-wrap rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800">
-                      {slide?.speaker_note?.trim() || "No speaker notes for this slide."}
+                      {slide?.speaker_note?.trim() || "Keine Sprechernotizen für diese Folie."}
                     </div>
                   </div>
                 </PopoverContent>
@@ -279,7 +279,7 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
                 onClick={onDeleteSlide}
                 className="flex px-4 py-2.5 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 font-syne"
               >
-                <ToolTip content="Delete slide">
+                <ToolTip content="Folie löschen">
                   <Trash className="h-4 w-4" />
                 </ToolTip>
               </button>

@@ -30,7 +30,7 @@ export function SortableSlide({ slide, index, selectedSlide, onSlideClick }: Sor
         transition,
         opacity: isDragging ? 0.5 : 1,
         backgroundColor: `var(--card-color, #ffffff)`,
-        borderColor: selectedSlide === index ? `#5141e5` : `var(--stroke, #e5e7eb)`
+        borderColor: selectedSlide === index ? `#316049` : `var(--stroke, #e5e7eb)`
     };
 
     const handleClick = (e: React.MouseEvent) => {

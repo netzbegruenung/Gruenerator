@@ -77,7 +77,7 @@ const HeadlineTextWithBulletsAndStatsLayout: React.FC<HeadlineTextWithBulletsAnd
                         <div className="w-[116.6px] h-[5.7px] mt-4"
 
                             style={{
-                                backgroundColor: 'var(--primary-color,#9234EB)'
+                                backgroundColor: 'var(--primary-color,#316049)'
                             }}
                         />
                     </div>
@@ -121,7 +121,7 @@ const HeadlineTextWithBulletsAndStatsLayout: React.FC<HeadlineTextWithBulletsAnd
                             <div className="flex items-center gap-[12px] mt-[10px]">
                                 <div className="w-[15.8px] h-[15.8px] rounded-full shrink-0"
                                     style={{
-                                        backgroundColor: 'var(--primary-color,#9134EB)'
+                                        backgroundColor: 'var(--primary-color,#316049)'
                                     }}
                                 />
                                 <span className="text-[17.4px] font-normal uppercase tracking-wide"

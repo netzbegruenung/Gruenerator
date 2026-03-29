@@ -34,57 +34,57 @@ export const SlideActions: React.FC<SlideActionsProps> = ({
           {slide.processed && slide.html && !isEditMode && !isHtmlEditMode && (
             <>
               <div>
-                <ToolTip content="Edit slide with AI">
+                <ToolTip content="Folie mit KI bearbeiten">
                   <button
                     onClick={onEditClick}
                     disabled={isProcessing || !slide.processed}
-                    className={`px-6 py-2 flex gap-2 text-sm items-center group-hover:scale-105 rounded-lg bg-[#5141e5] hover:shadow-md transition-all duration-300 cursor-pointer shadow-md ${
+                    className={`px-6 py-2 flex gap-2 text-sm items-center group-hover:scale-105 rounded-lg bg-[#316049] hover:shadow-md transition-all duration-300 cursor-pointer shadow-md ${
                       isProcessing || !slide.processed
                         ? "opacity-50 cursor-not-allowed"
                         : ""
                     }`}
                   >
                     <Edit className="w-4 sm:w-5 h-4 sm:h-5 text-white" />
-                    <span className="text-white">Edit Slide</span>
+                    <span className="text-white">Folie bearbeiten</span>
                   </button>
                 </ToolTip>
               </div>
               <div>
-                <ToolTip content="Edit HTML directly">
+                <ToolTip content="HTML direkt bearbeiten">
                   <button
                     onClick={onHtmlEditClick}
                     disabled={isProcessing || !slide.processed}
-                    className={`px-6 py-2 flex gap-2 text-sm items-center group-hover:scale-105 rounded-lg bg-purple-600 hover:bg-purple-700 hover:shadow-md transition-all duration-300 cursor-pointer shadow-md ${
+                    className={`px-6 py-2 flex gap-2 text-sm items-center group-hover:scale-105 rounded-lg bg-green-600 hover:bg-green-700 hover:shadow-md transition-all duration-300 cursor-pointer shadow-md ${
                       isProcessing || !slide.processed
                         ? "opacity-50 cursor-not-allowed"
                         : ""
                     }`}
                   >
                     <Code className="w-4 sm:w-5 h-4 sm:h-5 text-white" />
-                    <span className="text-white">Edit HTML</span>
+                    <span className="text-white">HTML bearbeiten</span>
                   </button>
                 </ToolTip>
               </div>
             </>
           )}
           <div>
-            <ToolTip content="Re-Design this slide">
+            <ToolTip content="Folie neu gestalten">
               <button
                 onClick={onRetry}
                 disabled={isProcessing || !slide.processed}
-                className={`px-6 py-2 flex gap-2 text-sm items-center group-hover:scale-105 rounded-lg bg-[#5141e5] hover:shadow-md transition-all duration-300 cursor-pointer shadow-md ${
+                className={`px-6 py-2 flex gap-2 text-sm items-center group-hover:scale-105 rounded-lg bg-[#316049] hover:shadow-md transition-all duration-300 cursor-pointer shadow-md ${
                   isProcessing || !slide.processed
                     ? "opacity-50 cursor-not-allowed"
                     : ""
                 }`}
               >
                 <Repeat2 className="w-4 sm:w-5 h-4 sm:h-5 text-white" />
-                <span className="text-white">Re-Construct</span>
+                <span className="text-white">Neu erstellen</span>
               </button>
             </ToolTip>
           </div>
           <div>
-            <ToolTip content="Delete Slide">
+            <ToolTip content="Folie löschen">
               <button
                 disabled={isProcessing}
                 onClick={onDelete}

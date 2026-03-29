@@ -60,7 +60,7 @@ const dynamicSlideLayout = ({ data }: { data: Partial<z.infer<typeof Schema>> })
                             {title}
                         </span>
                     </div>
-                    <div className="mt-[16px] w-[116.6px] h-[5.7px]" style={{ backgroundColor: 'var(--primary-color,#9234EB)' }}></div>
+                    <div className="mt-[16px] w-[116.6px] h-[5.7px]" style={{ backgroundColor: 'var(--primary-color,#316049)' }}></div>
                 </div>
 
                 {/* Description / Appreciation Message */}
@@ -75,7 +75,7 @@ const dynamicSlideLayout = ({ data }: { data: Partial<z.infer<typeof Schema>> })
                 {/* Contact Section */}
                 <div className="absolute right-[82px] top-[231.2px] w-[397.4px] flex flex-col items-end">
                     <div className="text-right min-h-[1.2em] mb-[15px]" style={{ lineHeight: '28.4px' }}>
-                        <span className="text-[28.4px] font-normal" style={{ color: 'var(--primary-color,#9234EB)' }}>
+                        <span className="text-[28.4px] font-normal" style={{ color: 'var(--primary-color,#316049)' }}>
                             {contactTitle}
                         </span>
                     </div>

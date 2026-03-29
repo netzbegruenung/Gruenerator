@@ -61,7 +61,7 @@ const dynamicSlideLayout: React.FC<{ data: Partial<z.infer<typeof Schema>> }> = 
                     <h1 className="text-[42.7px] font-bold leading-[1.1] tracking-[-2px] mb-4 whitespace-pre-line" style={{ color: 'var(--background-text,#101828)' }}>
                         {title || 'Funnel Performance'}
                     </h1>
-                    <div className="w-[116px] h-[6px]" style={{ backgroundColor: 'var(--primary-color,#9234EB)' }} />
+                    <div className="w-[116px] h-[6px]" style={{ backgroundColor: 'var(--primary-color,#316049)' }} />
                 </div>
                 <div className="flex flex-row justify-between h-full items-center">
                     <div className="basis-[35%] flex flex-col justify-between ">
@@ -81,7 +81,7 @@ const dynamicSlideLayout: React.FC<{ data: Partial<z.infer<typeof Schema>> }> = 
                         {funnelStages?.map((stage, index) => (
                             <div key={index} className="flex items-center">
                                 {/* Stage Title Pill */}
-                                <div className="flex-shrink-0 w-[127px] h-[60px] border-[1.3px] rounded-full flex items-center justify-center px-4  z-10 shadow-sm" style={{ borderColor: 'var(--primary-color,#9134EB)', backgroundColor: 'var(--card-color,#FFFFFF)' }}>
+                                <div className="flex-shrink-0 w-[127px] h-[60px] border-[1.3px] rounded-full flex items-center justify-center px-4  z-10 shadow-sm" style={{ borderColor: 'var(--primary-color,#316049)', backgroundColor: 'var(--card-color,#FFFFFF)' }}>
                                     <span className="text-[16px]   font-normal text-center leading-[1.2]"
                                         style={{ color: 'var(--background-text,#000000)' }}
                                     >
@@ -90,13 +90,13 @@ const dynamicSlideLayout: React.FC<{ data: Partial<z.infer<typeof Schema>> }> = 
                                 </div>
 
                                 {/* Connector Line Shape */}
-                                <div className="flex-shrink-0 w-[45px] h-[2.7px]" style={{ backgroundColor: 'var(--primary-color,#9134EB)' }} />
+                                <div className="flex-shrink-0 w-[45px] h-[2.7px]" style={{ backgroundColor: 'var(--primary-color,#316049)' }} />
 
                                 {/* Funnel Data Bar */}
                                 <div
                                     className="h-[94px] flex items-center px-8 justify-between text-white"
                                     style={{
-                                        backgroundColor: `var(--primary-color,#9134EB)`,
+                                        backgroundColor: `var(--primary-color,#316049)`,
                                         width: barWidths[index % barWidths.length],
                                         color: 'var(--primary-text,#FFFFFF)'
                                     }}

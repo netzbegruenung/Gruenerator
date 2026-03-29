@@ -54,7 +54,7 @@ export const SlideContentDisplay: React.FC<SlideContentDisplayProps> = ({
       <div className="relative">
         {slide.convertingToReact && (
           <div className="mb-4">
-            <p className="text-sm text-purple-700 font-medium mb-1">⚙️ Converting HTML to React...</p>
+            <p className="text-sm text-green-700 font-medium mb-1">⚙️ Converting HTML to React...</p>
             <Timer duration={90} />
           </div>
         )}

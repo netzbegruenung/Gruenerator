@@ -141,7 +141,7 @@ const SidePanel = ({
           className="w-full h-[calc(100vh-120px)]   hide-scrollbar overflow-hidden slide-theme "
         >
 
-          <p className="text-xl font-normal pb-3.5 text-[#000000]">Slides</p>
+          <p className="text-xl font-normal pb-3.5 text-[#000000]">Folien</p>
 
           <DndContext
             sensors={sensors}
@@ -155,7 +155,7 @@ const SidePanel = ({
                   <div
                     key={`${slide.id}-${index}`}
                     onClick={() => onSlideClick(index)}
-                    className={` cursor-pointer ring-2   rounded-[12px] transition-all duration-200 ${selectedSlide === index ? ' ring-[#5141e5]' : 'ring-gray-200'
+                    className={` cursor-pointer ring-2   rounded-[12px] transition-all duration-200 ${selectedSlide === index ? ' ring-[#316049]' : 'ring-gray-200'
                       }`}
                   >
                     <div className=" bg-white pointer-events-none  relative overflow-hidden aspect-video">
@@ -197,7 +197,7 @@ const SidePanel = ({
             className="pt-6 gap-2 flex flex-col py-2 duration-300 items-center justify-center rounded-lg cursor-pointer mx-auto"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span className="text-[11px] font-normal text-[#000000]">Add Slide</span>
+            <span className="text-[11px] font-normal text-[#000000]">Folie hinzufügen</span>
           </button>
         </div>
       </div>

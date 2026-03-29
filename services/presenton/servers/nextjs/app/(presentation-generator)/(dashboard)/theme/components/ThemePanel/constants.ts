@@ -1,6 +1,7 @@
 
 
 export const FONT_OPTIONS: any[] = [
+  { name: 'PT Sans', displayName: 'PT Sans', cssUrl: 'https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap' },
   { name: 'Inter', displayName: 'Inter', cssUrl: 'https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap' },
   { name: 'DM Sans', displayName: 'DM Sans', cssUrl: 'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap' },
   { name: 'Overpass', displayName: 'Overpass', cssUrl: 'https://fonts.googleapis.com/css2?family=Overpass:wght@100..900&display=swap' },
@@ -27,6 +28,76 @@ export const FONT_OPTIONS: any[] = [
 ]
 
 export const DEFAULT_THEMES: any[] = [
+  {
+    id: "gruenerator",
+    name: "Grünerator",
+    description: "Offizielles Design für Grünerator Slides",
+    logo: null,
+    logo_url: null,
+    company_name: null,
+
+    data: {
+      colors: {
+        primary: "#316049",
+        background: "#FFFFFF",
+        card: "#F0F8F4",
+        stroke: "#D8F0E6",
+        primary_text: "#FFFFFF",
+        background_text: "#1A332A",
+        graph_0: "#316049",
+        graph_1: "#52907A",
+        graph_2: "#6A9583",
+        graph_3: "#5F8575",
+        graph_4: "#8AC9B0",
+        graph_5: "#B1E0C9",
+        graph_6: "#285040",
+        graph_7: "#6BAA91",
+        graph_8: "#D8F0E6",
+        graph_9: "#1F3F33"
+      },
+      fonts: {
+        textFont: {
+          name: "PT Sans",
+          url: "https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap"
+        }
+      }
+    }
+  },
+  {
+    id: "gruenerator-dark",
+    name: "Grünerator Dunkel",
+    description: "Dunkles Design für Grünerator Slides",
+    logo: null,
+    logo_url: null,
+    company_name: null,
+
+    data: {
+      colors: {
+        primary: "#6A9583",
+        background: "#1A332A",
+        card: "#1F3F33",
+        stroke: "#285040",
+        primary_text: "#FFFFFF",
+        background_text: "#D8F0E6",
+        graph_0: "#8AC9B0",
+        graph_1: "#6BAA91",
+        graph_2: "#B1E0C9",
+        graph_3: "#52907A",
+        graph_4: "#D8F0E6",
+        graph_5: "#6A9583",
+        graph_6: "#F0F8F4",
+        graph_7: "#5F8575",
+        graph_8: "#316049",
+        graph_9: "#285040"
+      },
+      fonts: {
+        textFont: {
+          name: "PT Sans",
+          url: "https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap"
+        }
+      }
+    }
+  },
   {
     id: "edge-yellow",
     name: "Edge Yellow",

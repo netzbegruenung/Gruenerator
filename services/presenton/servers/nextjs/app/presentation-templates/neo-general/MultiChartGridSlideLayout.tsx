@@ -27,7 +27,7 @@ export const layoutName = 'Title Description With Multi-Chart Grid';
 export const layoutDescription = 'A flexible dashboard layout featuring a title section with description and 1-6 auto-arranged charts in a responsive grid. Supports bar (vertical, horizontal, grouped, stacked, clustered, diverging), line, area, pie, donut, and scatter charts.';
 
 // Color palettes
-const CHART_COLOR_PALETTES = ['#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899']
+const CHART_COLOR_PALETTES = ['#52907A', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899']
 
 // Chart type enum
 const ChartTypeEnum = z.enum([
@@ -580,7 +580,7 @@ const MultiChartGridSlideLayout: React.FC<MultiChartGridSlideLayoutProps> = ({ d
                 rel="stylesheet"
             />
             <div
-                className="w-full rounded-sm max-w-[1280px] shadow-lg max-h-[720px] aspect-video bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 relative z-20 mx-auto overflow-hidden"
+                className="w-full rounded-sm max-w-[1280px] shadow-lg max-h-[720px] aspect-video bg-gradient-to-br from-slate-50 via-white to-green-50/30 relative z-20 mx-auto overflow-hidden"
                 style={{
                     fontFamily: "var(--heading-font-family, 'Poppins')",
                     background: "var(--background-color, linear-gradient(135deg, #f8fafc 0%, #ffffff 50%, #eef2ff 100%))"
@@ -621,7 +621,7 @@ const MultiChartGridSlideLayout: React.FC<MultiChartGridSlideLayoutProps> = ({ d
                         </h1>
                         <div
                             className="w-16 h-1 rounded-full"
-                            style={{ backgroundColor: 'var(--primary-color, #8B5CF6)' }}
+                            style={{ backgroundColor: 'var(--primary-color, #52907A)' }}
                         />
                         <p
                             className="text-[16px] leading-relaxed mt-2"

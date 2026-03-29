@@ -117,8 +117,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 const CHART_COLORS = [
-    '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
-    '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#6366f1'
+    '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#52907A',
+    '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#6A9583'
 ];
 
 
@@ -126,7 +126,7 @@ const CHART_COLORS = [
 const ChartWithBulletsSlideLayout: React.FC<ChartWithBulletsSlideLayoutProps> = ({ data: slideData }) => {
     const chartData = slideData?.chartData?.data || [];
     const chartType = slideData?.chartData?.type;
-    const color = 'var(--background-text, #9333ea)';
+    const color = 'var(--background-text, #316049)';
     const xAxis = chartType === 'scatter' ? 'x' : 'name';
     const yAxis = chartType === 'scatter' ? 'y' : 'value';
     const showLegend = slideData?.showLegend || false;
@@ -315,12 +315,12 @@ const ChartWithBulletsSlideLayout: React.FC<ChartWithBulletsSlideLayoutProps> = 
                                 key={index}
                                 className="rounded-2xl p-6 text-white"
                                 style={{
-                                    backgroundColor: 'var(--primary-color,#9333ea)'
+                                    backgroundColor: 'var(--primary-color,#316049)'
                                 }}
                             >
                                 {/* Icon and Title */}
                                 <div className="flex items-center space-x-3 mb-3">
-                                    <div style={{ background: "var(--primary-color,#9333ea)" }} className="w-8 h-8 rounded-lg flex items-center justify-center">
+                                    <div style={{ background: "var(--primary-color,#316049)" }} className="w-8 h-8 rounded-lg flex items-center justify-center">
                                         <RemoteSvgIcon
                                             url={bullet.icon.__icon_url__}
                                             strokeColor={"currentColor"}

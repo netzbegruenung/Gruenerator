@@ -92,7 +92,7 @@ const IntroSlideLayout: React.FC<IntroSlideLayoutProps> = ({ data: slideData }) 
                         </h1>
 
                         {/* Purple accent line */}
-                        <div style={{ background: "var(--background-text,#9333ea)" }} className="w-20 h-1 bg-purple-600"></div>
+                        <div style={{ background: "var(--background-text,#316049)" }} className="w-20 h-1 bg-green-600"></div>
 
                         {/* Description */}
                         <p style={{ color: "var(--background-text,#4b5563)" }} className="text-base sm:text-lg text-gray-700 leading-relaxed">
@@ -108,7 +108,7 @@ const IntroSlideLayout: React.FC<IntroSlideLayoutProps> = ({ data: slideData }) 
                         >
                             <div className="flex items-center gap-4">
                                 {/* Custom Initials Icon */}
-                                <div style={{ background: "var(--primary-color,#9333ea)" }} className="w-10 h-10 lg:w-12 lg:h-12 bg-purple-600 rounded-full flex items-center justify-center">
+                                <div style={{ background: "var(--primary-color,#316049)" }} className="w-10 h-10 lg:w-12 lg:h-12 bg-green-600 rounded-full flex items-center justify-center">
                                     <span className="font-bold text-sm lg:text-base" style={{ color: "var(--primary-text,#FFFFFF)" }}>
                                         {presenterInitials}
                                     </span>

@@ -10,89 +10,89 @@ import React, { useState, useEffect, useRef } from "react";
 const helpQuestions = [
   {
     id: 1,
-    category: "Images",
-    question: "How do I change an image?",
+    category: "Bilder",
+    question: "Wie ändere ich ein Bild?",
     answer:
-      "Click on any image to reveal the image toolbar. You'll see options to Edit, Adjust position, and change how the image fits within its container. The Edit option allows you to replace or modify the current image.",
+      "Klicken Sie auf ein beliebiges Bild, um die Bild-Werkzeugleiste anzuzeigen. Sie sehen Optionen zum Bearbeiten, Positionieren und Anpassen der Bildgröße im Container. Mit der Option „Bearbeiten" können Sie das aktuelle Bild ersetzen oder ändern.",
   },
   {
     id: 2,
-    category: "Images",
-    question: "Can I generate new images with AI?",
+    category: "Bilder",
+    question: "Kann ich neue Bilder mit KI generieren?",
     answer:
-      "Yes! Click on any image and select the Edit option from the toolbar. In the side panel that appears, you'll find the AI Generate tab. Enter your prompt describing the image you want, and our AI will generate an image based on your description.",
+      "Ja! Klicken Sie auf ein beliebiges Bild und wählen Sie „Bearbeiten" in der Werkzeugleiste. Im Seitenpanel finden Sie den Tab „KI-Generierung". Geben Sie eine Beschreibung des gewünschten Bildes ein, und die KI erstellt ein Bild basierend auf Ihrer Beschreibung.",
   },
   {
     id: 3,
-    category: "Images",
-    question: "How do I upload my own images?",
+    category: "Bilder",
+    question: "Wie lade ich eigene Bilder hoch?",
     answer:
-      "Click on any image, then select Edit from the toolbar. In the side panel, click on the Upload tab at the top. You can browse your files to select one. Once uploaded, you can apply it to your design.",
+      "Klicken Sie auf ein beliebiges Bild und wählen Sie „Bearbeiten" in der Werkzeugleiste. Klicken Sie im Seitenpanel oben auf den Tab „Hochladen". Dort können Sie Ihre Dateien durchsuchen und auswählen. Nach dem Hochladen können Sie das Bild in Ihr Design einfügen.",
   },
   {
     id: 11,
-    category: "AI Prompts",
-    question: "Can I change slide layout through prompt?",
+    category: "KI-Prompts",
+    question: "Kann ich das Folienlayout per Eingabe ändern?",
     answer:
-      "Yes you can! Click on the WandSparkles icon on the top left of each slide and it will give you a prompt input box. Describe your layout requirements and the AI will change the slide layout accordingly.",
+      "Ja! Klicken Sie auf das Zauberstab-Symbol oben links auf jeder Folie. Es öffnet sich ein Eingabefeld. Beschreiben Sie Ihre Layout-Anforderungen und die KI passt das Folienlayout entsprechend an.",
   },
   {
     id: 12,
-    category: "AI Prompts",
-    question: "Can I change slide image through prompt?",
+    category: "KI-Prompts",
+    question: "Kann ich das Folienbild per Eingabe ändern?",
     answer:
-      "Yes you can! Click on the WandSparkles icon on the top left of each slide and it will give you a prompt input box. Describe the image you want and the AI will update the slide image based on your requirements.",
+      "Ja! Klicken Sie auf das Zauberstab-Symbol oben links auf jeder Folie. Es öffnet sich ein Eingabefeld. Beschreiben Sie das gewünschte Bild und die KI aktualisiert das Folienbild entsprechend.",
   },
 
   {
     id: 14,
-    category: "AI Prompts",
-    question: "Can I change content through prompt?",
+    category: "KI-Prompts",
+    question: "Kann ich den Inhalt per Eingabe ändern?",
     answer:
-      "Yes you can! Click on the WandSparkles icon on the top left of each slide and it will give you a prompt input box. Describe what content you want and the AI will update the slide's text and content based on your description.",
+      "Ja! Klicken Sie auf das Zauberstab-Symbol oben links auf jeder Folie. Es öffnet sich ein Eingabefeld. Beschreiben Sie den gewünschten Inhalt und die KI aktualisiert Text und Inhalt der Folie entsprechend.",
   },
   {
     id: 4,
     category: "Text",
-    question: "How can I format and highlight text?",
+    question: "Wie kann ich Text formatieren und hervorheben?",
     answer:
-      "Select any text to see the formatting toolbar appear. You'll have options for Bold, Italic, Underline, Strikethrough,and more.",
+      "Markieren Sie einen beliebigen Text, um die Formatierungsleiste anzuzeigen. Sie haben Optionen für Fett, Kursiv, Unterstrichen, Durchgestrichen und mehr.",
   },
   {
     id: 5,
-    category: "Icons",
-    question: "How do I change icons?",
+    category: "Symbole",
+    question: "Wie ändere ich Symbole?",
     answer:
-      "Click on any existing icon to modify it. In the icon selector panel, you can browse icos or use the search function to find specific icons. We offer thousands of icons in various styles.",
+      "Klicken Sie auf ein vorhandenes Symbol, um es zu ändern. Im Symbol-Auswahlfenster können Sie Symbole durchsuchen oder die Suchfunktion verwenden, um bestimmte Symbole zu finden. Es stehen Tausende von Symbolen in verschiedenen Stilen zur Verfügung.",
   },
   {
     id: 16,
     category: "Layout",
-    question: "Can I change the position of slide?",
+    question: "Kann ich die Reihenfolge der Folien ändern?",
     answer:
-      "Of course, On side panel you can drag the slide and place wherever you want.",
+      "Natürlich! Im Seitenpanel können Sie die Folien per Drag-and-Drop an die gewünschte Position verschieben.",
   },
   {
     id: 15,
     category: "Layout",
-    question: "Can I add new slide between the slide?",
+    question: "Kann ich eine Folie zwischen anderen einfügen?",
     answer:
-      "Yes you can just click on the plus icon below each slide.It will display the all the layouts and choose required one.",
+      "Ja! Klicken Sie einfach auf das Plus-Symbol unterhalb jeder Folie. Es werden alle verfügbaren Layouts angezeigt, aus denen Sie das gewünschte auswählen können.",
   },
   {
     id: 6,
     category: "Layout",
-    question: "Can I add more sections to my slides?",
+    question: "Kann ich weitere Abschnitte zu meinen Folien hinzufügen?",
     answer:
-      "Absolutely! Hover near the bottom of any text box or content block, and you'll see a + icon appear. Click this button to add a new section below the current one. You can also use the Insert menu to add specific section types.",
+      "Auf jeden Fall! Bewegen Sie den Mauszeiger an den unteren Rand eines Textfelds oder Inhaltsblocks. Es erscheint ein „+"-Symbol. Klicken Sie darauf, um einen neuen Abschnitt unterhalb des aktuellen hinzuzufügen. Sie können auch das Einfügen-Menü nutzen, um bestimmte Abschnittstypen hinzuzufügen.",
   },
 
   {
     id: 8,
     category: "Export",
-    question: "How do I download or export my presentation?",
+    question: "Wie exportiere ich meine Präsentation?",
     answer:
-      "Click the Export button in the top right menu. You can choose to download as PDF, PowerPoint.",
+      "Klicken Sie auf die Schaltfläche „Exportieren" oben rechts im Menü. Sie können zwischen PDF und PowerPoint wählen.",
   },
 ];
 
@@ -109,7 +109,7 @@ const Help = () => {
     const uniqueCategories = Array.from(
       new Set(helpQuestions.map((q) => q.category))
     );
-    setCategories(["All", ...uniqueCategories]);
+    setCategories(["Alle", ...uniqueCategories]);
   }, []);
 
   // Filter questions based on search query and selected category
@@ -117,7 +117,7 @@ const Help = () => {
     let results = helpQuestions;
 
     // Filter by category if not "All"
-    if (selectedCategory !== "All") {
+    if (selectedCategory !== "Alle") {
       results = results.filter((q) => q.category === selectedCategory);
     }
 
@@ -170,7 +170,7 @@ const Help = () => {
       <button
         onClick={handleOpenClose}
         className="help-button hidden fixed bottom-6 right-6 h-12 w-12 z-50 bg-emerald-600 hover:bg-emerald-700 rounded-full md:flex justify-center items-center cursor-pointer shadow-lg transition-all duration-300 hover:shadow-xl"
-        aria-label="Help Center"
+        aria-label="Hilfezentrum"
       >
         {isOpen ? (
           <X className="text-white h-5 w-5" />
@@ -187,7 +187,7 @@ const Help = () => {
         <div className="bg-white rounded-lg shadow-2xl border border-gray-200 overflow-hidden">
           {/* Header */}
           <div className="bg-emerald-600 text-white px-6 py-4 flex justify-between items-center">
-            <h2 className="text-lg font-medium">Help Center</h2>
+            <h2 className="text-lg font-medium">Hilfezentrum</h2>
             <button
               onClick={() => setIsOpen(false)}
               className="hover:bg-emerald-700 p-1 rounded"
@@ -201,7 +201,7 @@ const Help = () => {
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search help topics..."
+                placeholder="Hilfethemen suchen…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
@@ -256,15 +256,15 @@ const Help = () => {
               </Accordion>
             ) : (
               <div className="py-8 text-center text-gray-500">
-                <p>No results found for "{searchQuery}"</p>
+                <p>Keine Ergebnisse für „{searchQuery}"</p>
                 <button
                   onClick={() => {
                     setSearchQuery("");
-                    setSelectedCategory("All");
+                    setSelectedCategory("Alle");
                   }}
                   className="mt-2 text-emerald-600 hover:underline text-sm"
                 >
-                  Clear search
+                  Suche zurücksetzen
                 </button>
               </div>
             )}
@@ -272,9 +272,9 @@ const Help = () => {
 
           {/* Footer */}
           <div className="bg-gray-50 px-6 py-3 border-t border-gray-200 text-xs text-gray-500 text-center">
-            Still need help?{" "}
+            Brauchen Sie weitere Hilfe?{" "}
             <a href="/contact" className="text-emerald-600 hover:underline">
-              Contact Support
+              Support kontaktieren
             </a>
           </div>
         </div>

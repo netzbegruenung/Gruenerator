@@ -70,7 +70,7 @@ const HeadlineDescriptionWithImageLayout = ({ data }: { data: Partial<z.infer<ty
                         <div className="w-[116.6px] h-[5.7px]"
 
                             style={{
-                                backgroundColor: 'var(--primary-color,#9234EB)'
+                                backgroundColor: 'var(--primary-color,#316049)'
                             }}
                         />
 

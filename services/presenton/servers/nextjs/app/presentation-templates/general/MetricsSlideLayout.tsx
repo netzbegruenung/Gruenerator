@@ -105,17 +105,17 @@ const MetricsSlideLayout: React.FC<MetricsSlideLayoutProps> = ({ data: slideData
                 {/* Decorative Wave Patterns */}
                 <div className="absolute top-0 left-0 w-64 h-full opacity-10 overflow-hidden">
                     <svg className="w-full h-full" viewBox="0 0 200 400" fill="none">
-                        <path d="M0 100C50 150 100 50 150 100C175 125 200 100 200 100V0H0V100Z" fill="var(--primary-color,#9333ea)" opacity="0.3" />
-                        <path d="M0 200C75 250 125 150 200 200V150C150 175 100 150 50 175L0 200Z" fill="var(--primary-color,#9333ea)" opacity="0.2" />
-                        <path d="M0 300C100 350 150 250 200 300V250C125 275 75 250 25 275L0 300Z" fill="var(--primary-color,#9333ea)" opacity="0.1" />
+                        <path d="M0 100C50 150 100 50 150 100C175 125 200 100 200 100V0H0V100Z" fill="var(--primary-color,#316049)" opacity="0.3" />
+                        <path d="M0 200C75 250 125 150 200 200V150C150 175 100 150 50 175L0 200Z" fill="var(--primary-color,#316049)" opacity="0.2" />
+                        <path d="M0 300C100 350 150 250 200 300V250C125 275 75 250 25 275L0 300Z" fill="var(--primary-color,#316049)" opacity="0.1" />
                     </svg>
                 </div>
 
                 <div className="absolute top-0 right-0 w-64 h-full opacity-10 overflow-hidden transform scale-x-[-1]">
                     <svg className="w-full h-full" viewBox="0 0 200 400" fill="none">
-                        <path d="M0 100C50 150 100 50 150 100C175 125 200 100 200 100V0H0V100Z" fill="var(--primary-color,#9333ea)" opacity="0.3" />
-                        <path d="M0 200C75 250 125 150 200 200V150C150 175 100 150 50 175L0 200Z" fill="var(--primary-color,#9333ea)" opacity="0.2" />
-                        <path d="M0 300C100 350 150 250 200 300V250C125 275 75 250 25 275L0 300Z" fill="var(--primary-color,#9333ea)" opacity="0.1" />
+                        <path d="M0 100C50 150 100 50 150 100C175 125 200 100 200 100V0H0V100Z" fill="var(--primary-color,#316049)" opacity="0.3" />
+                        <path d="M0 200C75 250 125 150 200 200V150C150 175 100 150 50 175L0 200Z" fill="var(--primary-color,#316049)" opacity="0.2" />
+                        <path d="M0 300C100 350 150 250 200 300V250C125 275 75 250 25 275L0 300Z" fill="var(--primary-color,#316049)" opacity="0.1" />
                     </svg>
                 </div>
 
@@ -143,14 +143,14 @@ const MetricsSlideLayout: React.FC<MetricsSlideLayoutProps> = ({ data: slideData
                                         </div>
 
                                         {/* Large Metric Value */}
-                                        <div style={{ color: "var(--primary-color,#9333ea)" }} className="text-4xl sm:text-5xl lg:text-6xl font-bold text-purple-600">
+                                        <div style={{ color: "var(--primary-color,#316049)" }} className="text-4xl sm:text-5xl lg:text-6xl font-bold text-green-600">
                                             {metric.value}
                                         </div>
 
                                         {/* Description Box */}
                                         <div
-                                            className="bg-purple-50 rounded-lg p-4 lg:p-5 text-center mt-4"
-                                            style={{ background: "var(--primary-color,#9333ea)" }}
+                                            className="bg-green-50 rounded-lg p-4 lg:p-5 text-center mt-4"
+                                            style={{ background: "var(--primary-color,#316049)" }}
 
                                         >
                                             <p style={{ color: "var(--primary-text,#ffffff)" }} className="text-xs sm:text-sm text-gray-700 leading-relaxed">

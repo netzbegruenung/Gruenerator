@@ -73,7 +73,7 @@ const Timer = ({ duration }: TimerProps) => {
       >
         <div className="relative h-full rounded-full" style={{
           width: `${progress}%`,
-          backgroundImage: 'linear-gradient(90deg, #9034EA, #5146E5, #9034EA)',
+          backgroundImage: 'linear-gradient(90deg, #9034EA, #316049, #9034EA)',
           backgroundSize: '200% 100%',
           animation: 'gradient 2s linear infinite'
         }}>

@@ -110,7 +110,7 @@ const BulletWithIconsSlideLayout: React.FC<BulletWithIconsSlideLayoutProps> = ({
                                 <svg className="w-full h-full opacity-30" viewBox="0 0 200 200">
                                     <defs>
                                         <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                                            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="var(--primary-color,#9333ea)" strokeWidth="0.5" />
+                                            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="var(--primary-color,#316049)" strokeWidth="0.5" />
                                         </pattern>
                                     </defs>
                                     <rect width="100%" height="100%" fill="url(#grid)" />
@@ -129,7 +129,7 @@ const BulletWithIconsSlideLayout: React.FC<BulletWithIconsSlideLayoutProps> = ({
                             </div>
 
                             {/* Decorative Sparkle */}
-                            <div style={{ color: "var(--primary-color,#9333ea)" }} className="absolute top-20 right-8 text-purple-600">
+                            <div style={{ color: "var(--primary-color,#316049)" }} className="absolute top-20 right-8 text-green-600">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M12 0l3.09 6.26L22 9l-6.91 2.74L12 18l-3.09-6.26L2 9l6.91-2.74L12 0z" />
                                 </svg>
@@ -148,7 +148,7 @@ const BulletWithIconsSlideLayout: React.FC<BulletWithIconsSlideLayoutProps> = ({
                                 {bulletPoints.map((bullet, index) => (
                                     <div key={index} className="flex items-start space-x-4">
                                         {/* Icon */}
-                                        <div style={{ background: "var(--primary-color,#9333ea)" }} className="flex-shrink-0 w-12 h-12 rounded-lg shadow-md flex items-center justify-center">
+                                        <div style={{ background: "var(--primary-color,#316049)" }} className="flex-shrink-0 w-12 h-12 rounded-lg shadow-md flex items-center justify-center">
                                             <RemoteSvgIcon
                                                 url={bullet.icon.__icon_url__}
                                                 strokeColor={"currentColor"}
@@ -163,7 +163,7 @@ const BulletWithIconsSlideLayout: React.FC<BulletWithIconsSlideLayoutProps> = ({
                                             <h3 style={{ color: "var(--background-text,#111827)" }} className="text-xl font-semibold text-gray-900 mb-2">
                                                 {bullet.title}
                                             </h3>
-                                            <div style={{ background: "var(--primary-color,#9333ea)" }} className="w-12 h-0.5 bg-purple-600 mb-3"></div>
+                                            <div style={{ background: "var(--primary-color,#316049)" }} className="w-12 h-0.5 bg-green-600 mb-3"></div>
                                             <p style={{ color: "var(--background-text,#4b5563)" }} className="text-base text-gray-700 leading-relaxed">
                                                 {bullet.description}
                                             </p>

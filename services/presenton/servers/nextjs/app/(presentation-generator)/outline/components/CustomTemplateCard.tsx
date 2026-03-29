@@ -51,9 +51,9 @@ export const CustomTemplateCard = memo(({ template, onSelectTemplate, selectedTe
                         [...Array(Math.min(4, template.layoutCount))].map((_, index) => (
                             <div
                                 key={`${template.id}-loading-${index}`}
-                                className="relative bg-gradient-to-br from-purple-50 to-blue-50 border border-gray-200 overflow-hidden aspect-video rounded flex items-center justify-center"
+                                className="relative bg-gradient-to-br from-green-50 to-blue-50 border border-gray-200 overflow-hidden aspect-video rounded flex items-center justify-center"
                             >
-                                <Loader2 className="w-4 h-4 text-purple-300 animate-spin" />
+                                <Loader2 className="w-4 h-4 text-green-300 animate-spin" />
                             </div>
                         ))
                     ) : previewLayouts.length > 0 && (

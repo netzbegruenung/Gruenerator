@@ -12,10 +12,10 @@ export const EmptyState = () => {
                 </svg>
             </div>
             <h3 className="text-[#101828] text-lg font-roboto font-medium mb-1">
-                You don't have any presentations yet.
+                Sie haben noch keine Präsentationen.
             </h3>
             <p className="text-[#667085] text-base font-roboto">
-                Start creating the first one.
+                Erstellen Sie jetzt Ihre erste Präsentation.
             </p>
         </div>
     );

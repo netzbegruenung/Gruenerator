@@ -46,8 +46,8 @@ export const HtmlEditor: React.FC<HtmlEditorProps> = ({
       <SheetContent side="right" className="w-full sm:max-w-[860px] p-0">
         <SheetHeader className="px-6 py-4 border-b">
           <SheetTitle className="flex items-center justify-between w-full">
-            <span className="flex items-center gap-2 text-purple-800">
-              <Code className="w-5 h-5 text-purple-600" />
+            <span className="flex items-center gap-2 text-green-800">
+              <Code className="w-5 h-5 text-green-600" />
               HTML Editor
             </span>
            
@@ -82,7 +82,7 @@ export const HtmlEditor: React.FC<HtmlEditorProps> = ({
               </Button>
               <Button
                 onClick={handleSave}
-                className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700"
+                className="flex items-center gap-1 bg-green-600 hover:bg-green-700"
                 size="sm"
               >
                 <Save size={14} />

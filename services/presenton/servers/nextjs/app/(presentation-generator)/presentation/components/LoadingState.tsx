@@ -37,7 +37,7 @@ const LoadingState = () => {
 
                     <div className="w-full max-w-md">
                         <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-[#5141e5] rounded-full animate-progress" />
+                            <div className="h-full bg-[#316049] rounded-full animate-progress" />
                         </div>
                     </div>
                 </div>

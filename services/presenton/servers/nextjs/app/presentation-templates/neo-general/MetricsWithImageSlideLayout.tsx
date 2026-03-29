@@ -85,14 +85,14 @@ const MetricsWithImageSlideLayout: React.FC<MetricsWithImageSlideLayoutProps> = 
                 {/* Decorative Wave Patterns */}
                 <div className="absolute bottom-0 left-0 w-48 h-48 opacity-10 overflow-hidden">
                     <svg className="w-full h-full" viewBox="0 0 200 200" fill="none">
-                        <path d="M0 100C50 75 100 125 150 100C175 87.5 200 100 200 100V200H0V100Z" fill="#8b5cf6" opacity="0.4" />
-                        <path d="M0 150C75 175 125 125 200 150V175C150 162.5 100 175 50 162.5L0 150Z" fill="#8b5cf6" opacity="0.3" />
+                        <path d="M0 100C50 75 100 125 150 100C175 87.5 200 100 200 100V200H0V100Z" fill="#52907A" opacity="0.4" />
+                        <path d="M0 150C75 175 125 125 200 150V175C150 162.5 100 175 50 162.5L0 150Z" fill="#52907A" opacity="0.3" />
                     </svg>
                 </div>
 
                 <div className="absolute top-0 right-0 w-64 h-64 opacity-10 overflow-hidden">
                     <svg className="w-full h-full" viewBox="0 0 200 200" fill="none">
-                        <path d="M100 0C150 50 200 0 200 50C200 100 150 150 100 150C50 150 0 100 0 50C0 0 50 50 100 0Z" fill="#8b5cf6" opacity="0.2" />
+                        <path d="M100 0C150 50 200 0 200 50C200 100 150 150 100 150C50 150 0 100 0 50C0 0 50 50 100 0Z" fill="#52907A" opacity="0.2" />
                     </svg>
                 </div>
 
@@ -128,7 +128,7 @@ const MetricsWithImageSlideLayout: React.FC<MetricsWithImageSlideLayoutProps> = 
                                     <div style={{ color: "var(--background-text,#4b5563)" }} className="text-sm text-gray-600 font-medium">
                                         {metric.label}
                                     </div>
-                                    <div style={{ color: "var(--primary-color,#9333ea)" }} className="text-3xl sm:text-4xl lg:text-5xl font-bold text-purple-600">
+                                    <div style={{ color: "var(--primary-color,#316049)" }} className="text-3xl sm:text-4xl lg:text-5xl font-bold text-green-600">
                                         {metric.value}
                                     </div>
                                 </div>

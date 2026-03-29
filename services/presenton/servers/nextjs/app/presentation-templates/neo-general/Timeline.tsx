@@ -110,7 +110,7 @@ const dynamicSlideLayout: React.FC<{ data: Partial<z.infer<typeof Schema>> }> = 
                         {title}
                     </h1>
                     <div className=" w-[116.6px] mx-auto h-[5.7px] overflow-visible mt-4"
-                        style={{ backgroundColor: 'var(--primary-color,#9234EB)' }}
+                        style={{ backgroundColor: 'var(--primary-color,#316049)' }}
                     ></div>
                 </div>
 

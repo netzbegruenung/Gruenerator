@@ -85,7 +85,7 @@ const dynamicSlideLayout: React.FC<{ data: Partial<FormData> }> = ({ data }) => 
                         {title}
                     </h1>
                     <div className="w-[116.6px] h-[5.7px] "
-                        style={{ background: 'var(--primary-color, #9234EB)' }}
+                        style={{ background: 'var(--primary-color, #316049)' }}
                     />
                 </div>
                 {/* Main Content Area */}
@@ -164,7 +164,7 @@ const dynamicSlideLayout: React.FC<{ data: Partial<FormData> }> = ({ data }) => 
                             <div className="flex items-start gap-4">
                                 {metricIcon?.__icon_url__ && <div
                                     className="w-[56.7px] h-[56.7px] rounded-full flex items-center justify-center mt-4"
-                                    style={{ backgroundColor: 'var(--primary-color, #9134EB )' }}
+                                    style={{ backgroundColor: 'var(--primary-color, #316049 )' }}
                                 >
                                     <RemoteSvgIcon
                                         url={metricIcon?.__icon_url__}
