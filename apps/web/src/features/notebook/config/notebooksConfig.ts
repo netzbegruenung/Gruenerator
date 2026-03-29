@@ -1,3 +1,4 @@
+import { MdDiversity1 } from 'react-icons/md';
 import {
   PiMagnifyingGlass,
   PiBooks,
@@ -8,7 +9,6 @@ import {
   PiNewspaper,
   PiTree,
   PiFlag,
-  PiBuildings,
   PiLightbulb,
   PiScales,
 } from 'react-icons/pi';
@@ -106,7 +106,7 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
     description: 'Durchsuchbar sind Pressemitteilungen und Beschlüsse der Grünen Berlin.',
     meta: 'Archiv',
     tags: ['Berlin', 'Beschlüsse', 'Presse'],
-    icon: PiBuildings,
+    icon: MdDiversity1,
     order: 7,
     category: 'landesebene',
   },
