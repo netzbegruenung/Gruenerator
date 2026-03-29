@@ -115,6 +115,32 @@ services:
       retries: 3
       start_period: 120s
 
+  presenton:
+    image: gruenerator-presenton:test
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@host.docker.internal:5432/gruenerator
+      - LLM=custom
+      - CUSTOM_LLM_URL=http://host.docker.internal:4000/v1
+      - CUSTOM_LLM_API_KEY=${LITELLM_API_KEY:-}
+      - CUSTOM_MODEL=mistral/mistral-small-latest
+      - IMAGE_PROVIDER=pexels
+      - PEXELS_API_KEY=${PEXELS_API_KEY:-}
+      - CAN_CHANGE_KEYS=false
+      - MIGRATE_DATABASE_ON_STARTUP=false
+    volumes:
+      - presenton-data:/app_data
+    networks:
+      - gruenerator
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:80']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
   doku:
     image: gruenerator-doku:test
     restart: unless-stopped
@@ -147,6 +173,7 @@ services:
 volumes:
   api-uploads:
   api-logs:
+  presenton-data:
 
 networks:
   gruenerator:
