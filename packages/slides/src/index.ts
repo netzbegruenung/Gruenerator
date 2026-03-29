@@ -41,6 +41,9 @@ export {
 
 export { ImageSchema, IconSchema } from './components/layouts/defaultSchemes';
 
+// Schema-only exports (safe for backend — no React)
+export { getLayoutSchema, getAllLayoutIds, layoutSchemaMap } from './schemas/index';
+
 // Components — Editor
 export { SlideEditor } from './components/editor/SlideEditor';
 export { SlideCanvas, SlideCanvasAutoScale } from './components/editor/SlideCanvas';

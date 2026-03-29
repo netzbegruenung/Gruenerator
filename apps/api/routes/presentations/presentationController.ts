@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 
+import { runSlidesGraph } from '../../agents/langgraph/SlidesGraph/index.js';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
-import { generatePresentation } from '../../services/slides/SlideGenerationService.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('Presentations');
@@ -395,21 +395,46 @@ router.post('/generate', async (req: Request, res: Response) => {
     includeTableOfContents = false,
   } = req.body;
 
+  console.log('[slides-gen] POST /generate request body:', {
+    content: typeof content === 'string' ? content.slice(0, 200) : content,
+    contentType: typeof content,
+    tone,
+    verbosity,
+    nSlides,
+    language,
+    instructions,
+    includeTitleSlide,
+    includeTableOfContents,
+  });
+
   if (!content || typeof content !== 'string') {
+    console.error('[slides-gen] POST /generate rejected: content is missing or not a string', {
+      content,
+      contentType: typeof content,
+    });
     return res.status(400).json({ error: 'content ist erforderlich' });
   }
 
   try {
-    const generated = await generatePresentation({
-      content,
-      tone,
-      verbosity,
-      nSlides,
-      language,
-      instructions,
-      includeTitleSlide,
-      includeTableOfContents,
+    const result = await runSlidesGraph({
+      options: {
+        content,
+        tone,
+        verbosity,
+        nSlides,
+        language,
+        instructions,
+        includeTitleSlide,
+        includeTableOfContents,
+      },
     });
+
+    if (!result.success || result.slides.length === 0) {
+      log.error('SlidesGraph failed', { error: result.error, metadata: result.metadata });
+      return res.status(500).json({ error: result.error || 'Fehler bei der KI-Generierung' });
+    }
+
+    const generated = { title: result.title, slides: result.slides };
 
     // Create presentation in DB
     const permissions: PresentationPermissions = {
@@ -424,6 +449,14 @@ router.post('/generate', async (req: Request, res: Response) => {
     )) as PresentationRow[];
 
     const presentation = presResult[0]!;
+
+    console.log('[slides-graph] Storing presentation:', {
+      title: generated.title,
+      slideCount: generated.slides.length,
+      layouts: generated.slides.map((s) => s.layout),
+      presentationId: presentation.id,
+      ...result.metadata,
+    });
 
     // Insert slides
     for (let i = 0; i < generated.slides.length; i++) {
