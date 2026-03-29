@@ -78,7 +78,7 @@ const UploadPage = () => {
    */
   const validateConfiguration = (): boolean => {
     if (!config.language || !config.slides) {
-      toast.error("Bitte wählen Sie Folienanzahl und Sprache");
+      toast.error("Bitte wähle Folienanzahl und Sprache");
       return false;
     }
 

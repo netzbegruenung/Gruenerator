@@ -6,8 +6,8 @@ const ModeSelectStep = ({ setStep, setSelectedMode }: { setStep: (step: number) 
         <div className='max-w-[650px]'>
             <div className='mb-[70px]'>
 
-                <h2 className=’mb-4 text-black text-[26px] font-normal font-unbounded ‘>Richten Sie Ihren KI-Arbeitsbereich ein</h2>
-                <p className=’text-[#000000CC] text-xl font-normal font-syne’>Wählen Sie die KI für Ihre Präsentationserstellung.</p>
+                <h2 className='mb-4 text-black text-[26px] font-normal font-unbounded '>Richte deinen KI-Arbeitsbereich ein</h2>
+                <p className='text-[#000000CC] text-xl font-normal font-syne'>Wähle die KI für deine Präsentationserstellung.</p>
             </div>
             <div className='space-y-5'>
                 <div onClick={() => {
@@ -48,7 +48,7 @@ const ModeSelectStep = ({ setStep, setSelectedMode }: { setStep: (step: number) 
                                 <h3 className='text-black text-[18px] font-medium font-syne'>Mit Bildmodell erstellen</h3>
 
                             </div>
-                            <p className='text-[#999999] text-[14px] font-normal font-syne'>Präsentationen mit visuellen Layouts und Elementen erstellen.</p>
+                            <p className='text-[#999999] text-[14px] font-normal font-syne'>Präsentationen mit visuellen Layouts erstellen.</p>
                         </div>
                     </div>
                     <ChevronRight className='w-6 h-6 text-[#B3B3B3]' />

@@ -135,7 +135,7 @@ const PresentationHeader = ({
       console.error("Export failed:", error);
       toast.error("Fehler beim Exportieren!", {
         description:
-          "Beim Exportieren ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.",
+          "Beim Exportieren ist ein Fehler aufgetreten. Bitte versuche es erneut.",
       });
     } finally {
       setIsExporting(false);
@@ -176,7 +176,7 @@ const PresentationHeader = ({
       console.error(err);
       toast.error("Fehler beim Exportieren!", {
         description:
-          "Beim Exportieren ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.",
+          "Beim Exportieren ist ein Fehler aufgetreten. Bitte versuche es erneut.",
       });
     } finally {
       setIsExporting(false);
