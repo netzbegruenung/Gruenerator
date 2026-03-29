@@ -70,6 +70,11 @@ function PresentationPageInner() {
     navigate('/docs');
   }, [navigate]);
 
+  const handleEdit = useCallback(() => {
+    const presenterUrl = import.meta.env.VITE_PRESENTON_URL || 'https://slides.gruenerator.com';
+    window.open(`${presenterUrl}/presentation/${id}`, '_blank');
+  }, [id]);
+
   if (isLoading) {
     return <div className="min-h-screen" />;
   }
@@ -97,6 +102,7 @@ function PresentationPageInner() {
       onBack={handleBack}
       onTitleChange={handleTitleChange}
       onExport={handleExport}
+      onEdit={handleEdit}
     />
   );
 }

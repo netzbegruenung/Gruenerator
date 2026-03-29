@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.lifespan import app_lifespan
 from api.middlewares import UserConfigEnvUpdateMiddleware
+from api.keycloak_auth import KeycloakAuthMiddleware
 from api.v1.ppt.router import API_V1_PPT_ROUTER
 from api.v1.webhook.router import API_V1_WEBHOOK_ROUTER
 from api.v1.mock.router import API_V1_MOCK_ROUTER
@@ -15,7 +16,7 @@ app.include_router(API_V1_PPT_ROUTER)
 app.include_router(API_V1_WEBHOOK_ROUTER)
 app.include_router(API_V1_MOCK_ROUTER)
 
-# Middlewares
+# Middlewares (order matters: CORS first, then auth, then config)
 origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
@@ -25,4 +26,5 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.add_middleware(KeycloakAuthMiddleware)
 app.add_middleware(UserConfigEnvUpdateMiddleware)

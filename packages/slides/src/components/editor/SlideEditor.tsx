@@ -13,6 +13,7 @@ interface SlideEditorProps {
   onBack?: () => void;
   onTitleChange?: (title: string) => void;
   onExport?: (format: ExportFormat) => void;
+  onEdit?: () => void;
   isSaving?: boolean;
 }
 
@@ -26,6 +27,7 @@ export function SlideEditor({
   onBack,
   onTitleChange,
   onExport,
+  onEdit,
   isSaving = false,
 }: SlideEditorProps) {
   const { currentSlideIndex, setCurrentSlideIndex } = usePresentationStore();
@@ -150,6 +152,7 @@ export function SlideEditor({
         onExport={onExport}
         onPresent={handlePresent}
         onBack={onBack}
+        onEdit={onEdit}
         isSaving={isSaving}
         editable={editable}
         slideCount={presentation.slides.length}
