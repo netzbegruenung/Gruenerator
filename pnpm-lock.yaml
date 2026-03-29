@@ -109,13 +109,16 @@ importers:
         version: 3.0.48(zod@3.25.76)
       '@blocknote/xl-ai':
         specifier: ^0.47.3
-        version: 0.47.3(@floating-ui/dom@1.7.6)(@mantine/core@8.3.18(@mantine/hooks@8.3.18(react@19.2.4))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@mantine/hooks@8.3.18(react@19.2.4))(@mantine/utils@6.0.22(react@19.2.4))(@tiptap/pm@3.21.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)(zod@3.25.76)
+        version: 0.47.3(@mantine/core@8.3.18(@mantine/hooks@8.3.18(react@19.2.4))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@mantine/hooks@8.3.18(react@19.2.4))(@mantine/utils@6.0.22(react@19.2.4))(@tiptap/pm@3.21.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)(zod@3.25.76)
       '@gruenerator/hocuspocus':
         specifier: workspace:*
         version: link:../../services/hocuspocus
       '@gruenerator/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@gruenerator/slides':
+        specifier: workspace:*
+        version: link:../../packages/slides
       '@langchain/core':
         specifier: ^1.1.36
         version: 1.1.36(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.6.1(@opentelemetry/api@1.9.1))(openai@6.33.0(ws@8.20.0)(zod@3.25.76))(ws@8.20.0)
@@ -939,6 +942,9 @@ importers:
       '@gruenerator/docs':
         specifier: workspace:*
         version: link:../../packages/docs
+      '@gruenerator/slides':
+        specifier: workspace:*
+        version: link:../../packages/slides
       '@gruenerator/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -24491,17 +24497,17 @@ snapshots:
       - sugar-high
       - supports-color
 
-  '@blocknote/xl-ai@0.47.3(@floating-ui/dom@1.7.6)(@mantine/core@8.3.18(@mantine/hooks@8.3.18(react@19.2.4))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@mantine/hooks@8.3.18(react@19.2.4))(@mantine/utils@6.0.22(react@19.2.4))(@tiptap/pm@3.21.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)(zod@3.25.76)':
+  '@blocknote/xl-ai@0.47.3(@floating-ui/dom@1.7.6)(@mantine/core@8.3.18(@mantine/hooks@8.3.18(react@19.2.4))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@mantine/hooks@8.3.18(react@19.2.4))(@mantine/utils@6.0.22(react@19.2.4))(@tiptap/pm@3.21.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)(zod@4.3.6)':
     dependencies:
-      '@ai-sdk/provider-utils': 4.0.21(zod@3.25.76)
-      '@ai-sdk/react': 3.0.143(react@19.2.4)(zod@3.25.76)
+      '@ai-sdk/provider-utils': 4.0.21(zod@4.3.6)
+      '@ai-sdk/react': 3.0.143(react@19.2.4)(zod@4.3.6)
       '@blocknote/core': 0.47.3(@types/hast@3.0.4)
       '@blocknote/mantine': 0.47.3(@floating-ui/dom@1.7.6)(@mantine/core@8.3.18(@mantine/hooks@8.3.18(react@19.2.4))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@mantine/hooks@8.3.18(react@19.2.4))(@mantine/utils@6.0.22(react@19.2.4))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@blocknote/react': 0.47.3(@floating-ui/dom@1.7.6)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@floating-ui/react': 0.27.19(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@handlewithcare/prosemirror-suggest-changes': 0.1.8(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-transform@1.11.0)(prosemirror-view@1.41.7)
       '@tiptap/core': 3.21.0(@tiptap/pm@3.21.0)
-      ai: 6.0.141(zod@3.25.76)
+      ai: 6.0.141(zod@4.3.6)
       lodash.isequal: 4.5.0
       lodash.merge: 4.6.2
       prosemirror-changeset: 2.4.0
@@ -24535,17 +24541,17 @@ snapshots:
       - yjs
       - zod
 
-  '@blocknote/xl-ai@0.47.3(@floating-ui/dom@1.7.6)(@mantine/core@8.3.18(@mantine/hooks@8.3.18(react@19.2.4))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@mantine/hooks@8.3.18(react@19.2.4))(@mantine/utils@6.0.22(react@19.2.4))(@tiptap/pm@3.21.0)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)(zod@4.3.6)':
+  '@blocknote/xl-ai@0.47.3(@mantine/core@8.3.18(@mantine/hooks@8.3.18(react@19.2.4))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@mantine/hooks@8.3.18(react@19.2.4))(@mantine/utils@6.0.22(react@19.2.4))(@tiptap/pm@3.21.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)(zod@3.25.76)':
     dependencies:
-      '@ai-sdk/provider-utils': 4.0.21(zod@4.3.6)
-      '@ai-sdk/react': 3.0.143(react@19.2.4)(zod@4.3.6)
+      '@ai-sdk/provider-utils': 4.0.21(zod@3.25.76)
+      '@ai-sdk/react': 3.0.143(react@19.2.4)(zod@3.25.76)
       '@blocknote/core': 0.47.3(@types/hast@3.0.4)
       '@blocknote/mantine': 0.47.3(@floating-ui/dom@1.7.6)(@mantine/core@8.3.18(@mantine/hooks@8.3.18(react@19.2.4))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@mantine/hooks@8.3.18(react@19.2.4))(@mantine/utils@6.0.22(react@19.2.4))(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@blocknote/react': 0.47.3(@floating-ui/dom@1.7.6)(@types/hast@3.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@floating-ui/react': 0.27.19(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@handlewithcare/prosemirror-suggest-changes': 0.1.8(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-transform@1.11.0)(prosemirror-view@1.41.7)
       '@tiptap/core': 3.21.0(@tiptap/pm@3.21.0)
-      ai: 6.0.141(zod@4.3.6)
+      ai: 6.0.141(zod@3.25.76)
       lodash.isequal: 4.5.0
       lodash.merge: 4.6.2
       prosemirror-changeset: 2.4.0
@@ -31273,9 +31279,7 @@ snapshots:
       metro-runtime: 0.83.5
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
     optional: true
 
   '@react-native/normalize-colors@0.74.89':
@@ -35059,7 +35063,7 @@ snapshots:
 
   axios@1.13.6:
     dependencies:
-      follow-redirects: 1.15.11
+      follow-redirects: 1.15.11(debug@4.4.3)
       form-data: 4.0.5
       proxy-from-env: 1.1.0
     transitivePeerDependencies:
@@ -38796,8 +38800,6 @@ snapshots:
   flow-enums-runtime@0.0.6: {}
 
   fn.name@1.1.0: {}
-
-  follow-redirects@1.15.11: {}
 
   follow-redirects@1.15.11(debug@4.4.3):
     optionalDependencies:

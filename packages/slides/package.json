@@ -16,6 +16,10 @@
       "require": "./src/components/layouts/index.tsx",
       "types": "./src/components/layouts/index.tsx"
     },
+    "./schemas": {
+      "import": "./src/schemas/index.ts",
+      "types": "./src/schemas/index.ts"
+    },
     "./styles": "./src/styles/slides.css"
   },
   "scripts": {

@@ -50,6 +50,7 @@
     "@blocknote/xl-ai": "^0.47.3",
     "@gruenerator/hocuspocus": "workspace:*",
     "@gruenerator/shared": "workspace:*",
+    "@gruenerator/slides": "workspace:*",
     "@langchain/core": "^1.1.36",
     "@langchain/langgraph": "^1.2.6",
     "@langchain/mistralai": "^1.0.7",
