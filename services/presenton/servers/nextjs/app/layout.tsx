@@ -1,34 +1,28 @@
 import type { Metadata } from 'next';
 
-import { Syne, Unbounded } from 'next/font/google';
 import localFont from 'next/font/local';
 
 import './globals.css';
 import { Providers } from './providers';
 
-// Mixpanel tracking removed for Grünerator deployment
 import { Toaster } from '@/components/ui/sonner';
-const inter = localFont({
+
+const ptSans = localFont({
   src: [
-    {
-      path: './fonts/Inter.ttf',
-      weight: '400',
-      style: 'normal',
-    },
+    { path: '../public/fonts/PTSans-Regular.woff2', weight: '400', style: 'normal' },
+    { path: '../public/fonts/PTSans-Bold.woff2', weight: '700', style: 'normal' },
   ],
-  variable: '--font-inter',
+  variable: '--font-pt-sans',
 });
 
-const syne = Syne({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
-  variable: '--font-syne',
-});
-
-const unbounded = Unbounded({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
-  variable: '--font-unbounded',
+const raleway = localFont({
+  src: [
+    { path: '../public/fonts/Raleway-Regular.woff', weight: '400', style: 'normal' },
+    { path: '../public/fonts/Raleway-Medium.woff', weight: '500', style: 'normal' },
+    { path: '../public/fonts/Raleway-SemiBold.woff', weight: '600', style: 'normal' },
+    { path: '../public/fonts/Raleway-Bold.woff', weight: '700', style: 'normal' },
+  ],
+  variable: '--font-raleway',
 });
 
 export const metadata: Metadata = {
@@ -52,8 +46,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.variable} ${unbounded.variable} ${syne.variable} antialiased`}>
+    <html lang="de">
+      <body className={`${ptSans.variable} ${raleway.variable} antialiased`}>
         <Providers>{children}</Providers>
         <Toaster position="top-center" />
       </body>
