@@ -13,21 +13,21 @@ const helpQuestions = [
     category: "Bilder",
     question: "Wie ändere ich ein Bild?",
     answer:
-      "Klicke auf ein beliebiges Bild, um die Bild-Werkzeugleiste anzuzeigen. Du siehst Optionen zum Bearbeiten, Positionieren und Anpassen der Bildgröße im Container. Mit der Option „Bearbeiten" kannst du das aktuelle Bild ersetzen oder ändern.",
+      "Klicke auf ein beliebiges Bild, um die Bild-Werkzeugleiste anzuzeigen. Du siehst Optionen zum Bearbeiten, Positionieren und Anpassen der Bildgröße im Container. Mit der Option 'Bearbeiten' kannst du das aktuelle Bild ersetzen oder ändern.",
   },
   {
     id: 2,
     category: "Bilder",
     question: "Kann ich neue Bilder mit KI generieren?",
     answer:
-      "Ja! Klicke auf ein beliebiges Bild und wähle „Bearbeiten" in der Werkzeugleiste. Im Seitenpanel findest du den Tab „KI-Generierung". Gib eine Beschreibung des gewünschten Bildes ein, und die KI erstellt ein Bild basierend auf deiner Beschreibung.",
+      "Ja! Klicke auf ein beliebiges Bild und wähle 'Bearbeiten' in der Werkzeugleiste. Im Seitenpanel findest du den Tab 'KI-Generierung'. Gib eine Beschreibung des gewünschten Bildes ein, und die KI erstellt ein Bild basierend auf deiner Beschreibung.",
   },
   {
     id: 3,
     category: "Bilder",
     question: "Wie lade ich eigene Bilder hoch?",
     answer:
-      "Klicke auf ein beliebiges Bild und wähle „Bearbeiten" in der Werkzeugleiste. Klicke im Seitenpanel oben auf den Tab „Hochladen". Dort kannst du deine Dateien durchsuchen und auswählen. Nach dem Hochladen kannst du das Bild in dein Design einfügen.",
+      "Klicke auf ein beliebiges Bild und wähle 'Bearbeiten' in der Werkzeugleiste. Klicke im Seitenpanel oben auf den Tab 'Hochladen'. Dort kannst du deine Dateien durchsuchen und auswählen. Nach dem Hochladen kannst du das Bild in dein Design einfügen.",
   },
   {
     id: 11,
@@ -84,7 +84,7 @@ const helpQuestions = [
     category: "Layout",
     question: "Kann ich weitere Abschnitte zu meinen Folien hinzufügen?",
     answer:
-      "Auf jeden Fall! Bewege den Mauszeiger an den unteren Rand eines Textfelds oder Inhaltsblocks. Es erscheint ein „+"-Symbol. Klicke darauf, um einen neuen Abschnitt unterhalb des aktuellen hinzuzufügen. Du kannst auch das Einfügen-Menü nutzen, um bestimmte Abschnittstypen hinzuzufügen.",
+      "Auf jeden Fall! Bewege den Mauszeiger an den unteren Rand eines Textfelds oder Inhaltsblocks. Es erscheint ein "+"-Symbol. Klicke darauf, um einen neuen Abschnitt unterhalb des aktuellen hinzuzufügen. Du kannst auch das Einfügen-Menü nutzen, um bestimmte Abschnittstypen hinzuzufügen.",
   },
 
   {
@@ -92,7 +92,7 @@ const helpQuestions = [
     category: "Export",
     question: "Wie exportiere ich meine Präsentation?",
     answer:
-      "Klicke auf die Schaltfläche „Exportieren" oben rechts im Menü. Du kannst zwischen PDF und PowerPoint wählen.",
+      "Klicke auf die Schaltfläche 'Exportieren' oben rechts im Menü. Du kannst zwischen PDF und PowerPoint wählen.",
   },
 ];
 
@@ -256,7 +256,7 @@ const Help = () => {
               </Accordion>
             ) : (
               <div className="py-8 text-center text-gray-500">
-                <p>Keine Ergebnisse für „{searchQuery}"</p>
+                <p>Keine Ergebnisse für "{searchQuery}"</p>
                 <button
                   onClick={() => {
                     setSearchQuery("");
