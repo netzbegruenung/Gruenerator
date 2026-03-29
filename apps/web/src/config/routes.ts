@@ -73,6 +73,9 @@ const Datenschutz = lazy(
 );
 const Impressum = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Impressum'));
 const Support = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Support'));
+const Nutzungsbedingungen = lazy(
+  () => import('../components/pages/Impressum_Datenschutz_Terms/Nutzungsbedingungen')
+);
 const NotFound = lazy(() => import('../components/pages/NotFound'));
 const Search = lazy(() => import('../features/search/components/SearchPage'));
 const OparlPage = lazy(() => import('../features/oparl/pages/OparlPage'));
@@ -376,6 +379,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/datenschutz', component: Datenschutz },
   { path: '/impressum', component: Impressum },
   { path: '/support', component: Support },
+  { path: '/nutzungsbedingungen', component: Nutzungsbedingungen },
   // Auth-Routen (only components still used after Authentic integration)
   { path: '/login', component: LoginPage },
   { path: '/register', component: RegistrationPage },
