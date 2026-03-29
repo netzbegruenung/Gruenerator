@@ -209,6 +209,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: presentationsRouter } = await import('./routes/presentations/index.js');
   const { default: publicDocRouter } = await import('./routes/docs/publicDocController.js');
   const { default: boardsRouter } = await import('./routes/boards/boardsController.js');
+  const { default: boardCommentsRouter } =
+    await import('./routes/boards/boardCommentsController.js');
   const { default: publicBoardRouter } = await import('./routes/boards/publicBoardController.js');
   const { default: usersRouter } = await import('./routes/users/userController.js');
   const { default: smartTexteRouter } = await import('./routes/texte/smart.js');
@@ -376,6 +378,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/presentations', requireAuth, standardMutationLimiter, presentationsRouter);
   app.use('/api/boards/public', publicReadLimiter, publicBoardRouter);
   app.use('/api/boards', requireAuth, standardMutationLimiter, boardsRouter);
+  app.use('/api/board-comments', requireAuth, standardMutationLimiter, boardCommentsRouter);
   app.use('/api/users', requireAuth, publicReadLimiter, usersRouter);
   app.use('/api/voice', publicReadLimiter, voiceRouter);
   app.use('/api/voice/tts', requireAuth, standardMutationLimiter, ttsRouter);
