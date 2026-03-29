@@ -7,5 +7,6 @@ servers/fastapi/.venv
 
 servers/nextjs/node_modules
 servers/nextjs/.next
+servers/nextjs/app/presentation-templates/_archive
 
 container.db

@@ -48,6 +48,19 @@ pnpm --filter @gruenerator/desktop dev           # Tauri desktop dev
 - **`packages/shared`** — Shared stores (Zustand), hooks, API clients, and feature modules (sharepic, image-studio, subtitle-editor, media-library, search). Shared components in `src/components/`.
 - **`services/mcp`** — Model Context Protocol server (`https://mcp.gruenerator.eu`). See `CLAUDE-mcp.md` for endpoints, tools, and testing.
 - **`services/comfyui`** — ComfyUI workflows for local GPU image generation.
+- **`services/presenton`** — Presenton slide generator (Next.js + FastAPI). Templates in `servers/nextjs/app/presentation-templates/b90-gruene/`. Self-hosted fonts in `servers/nextjs/public/fonts/` (no Google Fonts — GDPR). Archived non-GRÜNE templates in `_archive/` (gitignored).
+
+### Presenton Local Dev
+
+**Always use `Dockerfile.gruenerator`** (not `Dockerfile` or `Dockerfile.dev`). The generic Dockerfiles install docling/pytorch (~2GB) which is unnecessary and extremely slow on WSL2.
+
+```bash
+cd services/presenton
+docker build -f Dockerfile.gruenerator -t presenton-gruenerator .
+docker run -d -p 5000:80 -v ./app_data:/app_data presenton-gruenerator
+```
+
+Preview templates at `http://localhost:5000/template-preview`.
 
 ### Data Stores
 
