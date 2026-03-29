@@ -1,12 +1,22 @@
 import asyncio
 import json
-import chromadb
-from chromadb.config import Settings
-from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
+
+try:
+    import chromadb
+    from chromadb.config import Settings
+    from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
+    CHROMADB_AVAILABLE = True
+except ImportError:
+    CHROMADB_AVAILABLE = False
 
 
 class IconFinderService:
     def __init__(self):
+        if not CHROMADB_AVAILABLE:
+            print("[IconFinderService] chromadb not installed, icon search disabled")
+            self.collection = None
+            return
+
         self.collection_name = "icons"
         self.client = chromadb.PersistentClient(
             path="chroma", settings=Settings(anonymized_telemetry=False)

@@ -40,24 +40,16 @@ ENV TEMP_DIRECTORY=/tmp/presenton
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV NODE_ENV=production
 
-# Python dependencies (no docling/pytorch, no ollama SDKs)
+# Python dependencies — upstream deps + our additions (python-jose, httpx)
+# No docling/pytorch (saves ~1.5GB), no chromadb (saves ~500MB)
 RUN pip install --no-cache-dir \
-    alembic \
-    aiohttp \
-    asyncpg \
-    "fastapi[standard]" \
-    pathvalidate \
-    pdfplumber \
-    sqlmodel \
-    anthropic \
-    google-genai \
-    openai \
-    dirtyjson \
-    python-jose[cryptography] \
-    httpx
+    alembic aiohttp aiomysql aiosqlite asyncpg \
+    "fastapi[standard]" pathvalidate pdfplumber sqlmodel \
+    anthropic google-genai openai dirtyjson python-pptx \
+    python-jose[cryptography] httpx psycopg2-binary
 
 # Copy built Next.js from builder stage
-COPY --from=nextjs-builder /build/.next /app/servers/nextjs/.next
+COPY --from=nextjs-builder /build/.next-build /app/servers/nextjs/.next-build
 COPY --from=nextjs-builder /build/node_modules /app/servers/nextjs/node_modules
 COPY --from=nextjs-builder /build/public /app/servers/nextjs/public
 COPY --from=nextjs-builder /build/package.json /app/servers/nextjs/package.json

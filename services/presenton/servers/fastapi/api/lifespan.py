@@ -22,5 +22,9 @@ async def app_lifespan(_: FastAPI):
     os.makedirs(get_app_data_directory_env(), exist_ok=True)
     await migrate_database_on_startup()
     await create_db_and_tables()
-    await check_llm_and_image_provider_api_or_model_availability()
+    try:
+        await check_llm_and_image_provider_api_or_model_availability()
+    except Exception as e:
+        print(f"[Presenton] LLM availability check failed (non-fatal): {e}")
+        print("[Presenton] AI features may not work until the LLM provider is reachable.")
     yield
