@@ -77,31 +77,7 @@ const Datenschutz = () => {
 
       <h2 id="nutzungsbedingungen">Nutzungsbedingungen</h2>
       <p>
-        Die von Dir getätigten Eingaben werden zur Bearbeitung an unseren Partner Mistral AI
-        weitergeleitet. Deine Daten werden dort nicht zum KI-Training genutzt und nicht dauerhaft
-        gespeichert. Mit dem Absenden Deiner Eingabe beachtest Du die{' '}
-        <a href="https://mistral.ai/terms/">Nutzungsbedingungen von Mistral AI</a>, die Deine Daten
-        empfangen und verarbeiten.
-      </p>
-      <p>
-        Bei Aktivierung des Reasoning-Modus im GRUENERATOR wird das erweiterte Magistral-Modell von
-        Mistral AI verwendet. Die Verarbeitung erfolgt weiterhin unter den gleichen
-        Datenschutzbedingungen wie im Kreativ-Modus. Du kannst für jede Anfrage individuell
-        entscheiden, welchen Modus Du nutzen möchtest.
-      </p>
-      <p>
-        <strong>Grünerator Imagine:</strong> Bei Nutzung der Bildbearbeitungsfunktion werden Deine
-        Bilder an Black Forest Labs weitergeleitet. Mit dem Upload stimmst Du der Verarbeitung gemäß
-        den <a href="https://blackforestlabs.ai/privacy-policy/">Datenschutzbestimmungen</a> und{' '}
-        <a href="https://blackforestlabs.ai/terms-of-service/">Nutzungsbedingungen</a> von Black
-        Forest Labs zu. Bitte lade keine Bilder hoch, die personenbezogene Daten Dritter enthalten,
-        für deren Verarbeitung Du keine Rechtsgrundlage hast.
-      </p>
-      <p>
-        <strong>Hinweis zu Bildinhalten:</strong> Bitte achte darauf, dass Du nur Bilder hochlädst,
-        für die Du die erforderlichen Rechte besitzt. Lade keine Bilder mit erkennbaren Personen
-        hoch, es sei denn, Du hast deren ausdrückliche Einwilligung. Bilder von Minderjährigen sind
-        generell nicht gestattet.
+        Es gelten unsere <a href="/nutzungsbedingungen">Nutzungsbedingungen</a>.
       </p>
 
       <h2>Datenschutzhinweise</h2>
