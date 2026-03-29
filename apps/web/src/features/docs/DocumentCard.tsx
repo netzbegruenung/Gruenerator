@@ -12,6 +12,8 @@ import {
   FiRadio,
 } from 'react-icons/fi';
 
+import { formatRelativeDate } from '../../utils/dateFormatter';
+
 import { CardActionMenu } from './CardActionMenu';
 
 const DOC_TYPE_STYLE: Record<
@@ -124,13 +126,7 @@ export const DocumentCard = memo(function DocumentCard({
           <div className="min-w-0 flex-1">
             <h3 className="truncate text-xs font-semibold text-foreground">{doc.title}</h3>
             <div className="mt-0.5 flex items-center gap-1 text-[10px] text-grey-500 dark:text-grey-400">
-              <span>
-                {new Date(doc.updated_at).toLocaleDateString('de-DE', {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                })}
-              </span>
+              <span>{formatRelativeDate(doc.updated_at)}</span>
               {doc.access_type && doc.access_type !== 'owner' && (
                 <>
                   <span>·</span>

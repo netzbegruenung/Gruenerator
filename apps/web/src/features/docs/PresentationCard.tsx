@@ -1,21 +1,27 @@
 import { type Presentation } from '@gruenerator/slides';
 import { cn } from '@gruenerator/ui';
-import { memo } from 'react';
+import { memo, useCallback } from 'react';
 import { FiMonitor } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
+
+import { formatRelativeDate } from '../../utils/dateFormatter';
 
 import { CardActionMenu } from './CardActionMenu';
 
 export const PresentationCard = memo(function PresentationCard({
   presentation,
-  onClick,
   onDelete,
   onRename,
 }: {
   presentation: Presentation;
-  onClick: () => void;
   onDelete: (id: string, e: React.MouseEvent) => void;
   onRename: (pres: { id: string; title: string }, e: React.MouseEvent) => void;
 }) {
+  const navigate = useNavigate();
+  const handleClick = useCallback(() => {
+    navigate(`/docs/presentation/${presentation.id}`);
+  }, [navigate, presentation.id]);
+
   return (
     <div
       className={cn(
@@ -26,7 +32,7 @@ export const PresentationCard = memo(function PresentationCard({
         'md:hover:-translate-y-0.5',
         'max-sm:aspect-[4/3]'
       )}
-      onClick={onClick}
+      onClick={handleClick}
     >
       <div className="flex flex-1 items-center justify-center pb-10 bg-indigo-50 dark:bg-indigo-900/20">
         <FiMonitor size={32} className="text-indigo-500 dark:text-indigo-400" />
@@ -37,11 +43,7 @@ export const PresentationCard = memo(function PresentationCard({
           <div className="min-w-0 flex-1">
             <h3 className="truncate text-xs font-semibold text-foreground">{presentation.title}</h3>
             <div className="mt-0.5 text-[10px] text-grey-500 dark:text-grey-400">
-              {new Date(presentation.updatedAt).toLocaleDateString('de-DE', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-              })}
+              {formatRelativeDate(presentation.updatedAt)}
             </div>
           </div>
           <CardActionMenu
