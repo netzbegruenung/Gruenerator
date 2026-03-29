@@ -2,7 +2,7 @@
  * Brandenburg Scraping Script
  *
  * Scrapes Grüne Brandenburg content from two websites:
- *   - brandenburg-lv: gruene-brandenburg.de (WordPress) — Presse, Beschlüsse (PDF), Wahlprogramme (PDF)
+ *   - brandenburg-lv: gruene-brandenburg.de (WordPress) — Presse, Beschlüsse (PDF), Landtagswahlprogramm 2024 (PDF)
  *   - brandenburg-archive-presse: archiv.gruene-brandenburg.de (Typo3) — Presse (bis Juli 2025)
  *   - brandenburg-archive-beschluesse: archiv.gruene-brandenburg.de (Typo3) — Beschlüsse (bis 2022)
  *
