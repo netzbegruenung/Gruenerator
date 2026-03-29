@@ -20,7 +20,6 @@ import {
   AIPromptInput,
   Button,
   CardGrid,
-  cn,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -31,23 +30,11 @@ import {
 import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import {
   FiArrowLeft,
-  FiCalendar,
-  FiCheckSquare,
-  FiClipboard,
   FiCloud,
-  FiEdit2,
-  FiEdit3,
   FiFile,
-  FiFileText,
   FiGrid,
-  FiMail,
-  FiMonitor,
-  FiMoreVertical,
   FiPlus,
-  FiRadio,
   FiSearch,
-  FiShare2,
-  FiTrash2,
   FiUpload,
   FiX,
   FiZap,
@@ -59,9 +46,11 @@ import withAuthRequired from '../../components/common/LoginRequired/withAuthRequ
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useBoards } from '../boards/hooks/useBoards';
-import { getBoardType } from '../boards/types';
 
+import { BoardCard } from './BoardCard';
 import { webAppDocsAdapter } from './docsAdapter';
+import { DocumentCard } from './DocumentCard';
+import { PresentationCard } from './PresentationCard';
 import { webAppSlidesAdapter } from './slidesAdapter';
 
 import type { Board } from '../boards/types';
@@ -74,48 +63,6 @@ const LazyTemplatePicker = lazy(() =>
 );
 const LazyFileImportDialog = lazy(() => import('./FileImportDialog'));
 const LazyWolkeImportModal = lazy(() => import('./WolkeImportModal'));
-
-const DOC_TYPE_STYLE: Record<
-  string,
-  { icon: React.ComponentType<{ size?: number; className?: string }>; bg: string; text: string }
-> = {
-  blank: { icon: FiFile, bg: 'bg-grey-100 dark:bg-grey-800', text: 'text-grey-500' },
-  antrag: {
-    icon: FiFileText,
-    bg: 'bg-blue-100 dark:bg-blue-900/30',
-    text: 'text-blue-600 dark:text-blue-400',
-  },
-  pressemitteilung: {
-    icon: FiRadio,
-    bg: 'bg-amber-100 dark:bg-amber-900/30',
-    text: 'text-amber-600 dark:text-amber-400',
-  },
-  protokoll: {
-    icon: FiClipboard,
-    bg: 'bg-violet-100 dark:bg-violet-900/30',
-    text: 'text-violet-600 dark:text-violet-400',
-  },
-  notizen: {
-    icon: FiEdit3,
-    bg: 'bg-yellow-100 dark:bg-yellow-900/30',
-    text: 'text-yellow-600 dark:text-yellow-400',
-  },
-  redaktionsplan: {
-    icon: FiCalendar,
-    bg: 'bg-teal-100 dark:bg-teal-900/30',
-    text: 'text-teal-600 dark:text-teal-400',
-  },
-  checkliste: {
-    icon: FiCheckSquare,
-    bg: 'bg-green-100 dark:bg-green-900/30',
-    text: 'text-green-600 dark:text-green-400',
-  },
-  einladung: {
-    icon: FiMail,
-    bg: 'bg-rose-100 dark:bg-rose-900/30',
-    text: 'text-rose-600 dark:text-rose-400',
-  },
-};
 
 const SLIDE_EXAMPLES = [
   {
@@ -229,12 +176,14 @@ function DocumentsContent() {
   const deleteDocumentMutation = useDeleteDocument();
   const updateDocumentMutation = useUpdateDocument();
 
-  const { boards, isLoading: boardsLoading, createBoard } = useBoards();
+  const { boards, isLoading: boardsLoading, createBoard, deleteBoard, updateBoard } = useBoards();
 
   const slidesApiClient = useMemo(() => createSlidesApiClient(slidesAdapter), [slidesAdapter]);
   const presentations = usePresentationStore((s) => s.presentations);
   const presentationsLoading = usePresentationStore((s) => s.isLoading);
   const fetchPresentations = usePresentationStore((s) => s.fetchPresentations);
+  const storeDeletePresentation = usePresentationStore((s) => s.deletePresentation);
+  const storeUpdatePresentation = usePresentationStore((s) => s.updatePresentation);
 
   useEffect(() => {
     fetchPresentations(slidesApiClient);
@@ -329,6 +278,47 @@ function DocumentsContent() {
       } catch (err) {
         console.error('Failed to rename document:', err);
       }
+    }
+  };
+
+  const handleDeletePresentation = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (window.confirm('Präsentation wirklich löschen?')) {
+      try {
+        await storeDeletePresentation(slidesApiClient, id);
+      } catch (err) {
+        console.error('Failed to delete presentation:', err);
+      }
+    }
+  };
+
+  const handleRenamePresentation = async (
+    pres: { id: string; title: string },
+    e: React.MouseEvent
+  ) => {
+    e.stopPropagation();
+    const newTitle = window.prompt('Neuer Titel:', pres.title);
+    if (newTitle?.trim() && newTitle.trim() !== pres.title) {
+      try {
+        await storeUpdatePresentation(slidesApiClient, pres.id, { title: newTitle.trim() });
+      } catch (err) {
+        console.error('Failed to rename presentation:', err);
+      }
+    }
+  };
+
+  const handleDeleteBoard = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (window.confirm('Board wirklich löschen?')) {
+      deleteBoard.mutate(id);
+    }
+  };
+
+  const handleRenameBoard = async (board: { id: string; title: string }, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newTitle = window.prompt('Neuer Titel:', board.title);
+    if (newTitle?.trim() && newTitle.trim() !== board.title) {
+      updateBoard.mutate({ id: board.id, title: newTitle.trim() });
     }
   };
 
@@ -483,6 +473,8 @@ function DocumentsContent() {
                     key={`pres-${item.data.id}`}
                     presentation={item.data}
                     onClick={() => navigate(`/docs/presentation/${item.data.id}`)}
+                    onDelete={handleDeletePresentation}
+                    onRename={handleRenamePresentation}
                   />
                 );
               return (
@@ -490,6 +482,8 @@ function DocumentsContent() {
                   key={`board-${item.data.id}`}
                   board={item.data}
                   onClick={() => navigate(`/boards/${item.data.id}`)}
+                  onDelete={handleDeleteBoard}
+                  onRename={handleRenameBoard}
                 />
               );
             })}
@@ -546,217 +540,6 @@ function DocumentsContent() {
         </Suspense>
       )}
     </>
-  );
-}
-
-function DocumentCard({
-  doc,
-  adapter,
-  onDelete,
-  onRename,
-  onShare,
-}: {
-  doc: {
-    id: string;
-    title: string;
-    updated_at: string;
-    document_subtype: string;
-    content?: string;
-    access_type?: string;
-    creator_name?: string;
-  };
-  adapter: ReturnType<typeof useDocsAdapter>;
-  onDelete: (id: string, e: React.MouseEvent) => void;
-  onRename: (doc: { id: string; title: string }, e: React.MouseEvent) => void;
-  onShare: (doc: { id: string; title: string }) => void;
-}) {
-  const style = DOC_TYPE_STYLE[doc.document_subtype] || DOC_TYPE_STYLE.blank;
-  const TypeIcon = style.icon;
-  const hasContent = !!doc.content?.trim();
-
-  return (
-    <div
-      className={cn(
-        'group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border border-grey-200 bg-background',
-        'aspect-[4/4.5] transition-[box-shadow,border-color,transform] duration-150',
-        'hover:shadow-md hover:border-grey-300',
-        'dark:border-grey-700 dark:hover:border-grey-500',
-        'md:hover:-translate-y-0.5',
-        'max-sm:aspect-[4/3]'
-      )}
-      onClick={() => adapter.navigateToDocument(doc.id)}
-    >
-      {hasContent ? (
-        <div className="relative flex-1 overflow-hidden bg-grey-50 dark:bg-grey-800/50">
-          <div
-            className={cn(
-              'pointer-events-none w-[800px] origin-top-left scale-[0.3] select-none px-12 py-8',
-              'font-[PT_Sans,Arial,sans-serif] leading-relaxed text-foreground',
-              '[&_h1]:font-[Raleway,PT_Sans,Arial,sans-serif] [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:leading-tight [&_h1]:mb-3 [&_h1]:mt-0',
-              '[&_h2]:font-[Raleway,PT_Sans,Arial,sans-serif] [&_h2]:text-[1.1rem] [&_h2]:font-semibold [&_h2]:leading-snug [&_h2]:mt-3.5 [&_h2]:mb-1.5',
-              '[&_h3]:font-[Raleway,PT_Sans,Arial,sans-serif] [&_h3]:text-[0.95rem] [&_h3]:font-semibold [&_h3]:mt-2.5 [&_h3]:mb-1',
-              '[&_p]:text-[0.8rem] [&_p]:mb-2 [&_p]:mt-0 [&_p]:leading-relaxed',
-              '[&_ul]:text-[0.8rem] [&_ul]:mb-2 [&_ul]:pl-5 [&_ol]:text-[0.8rem] [&_ol]:mb-2 [&_ol]:pl-5',
-              '[&_li]:mb-0.5',
-              '[&_strong]:font-semibold',
-              '[&_em]:italic'
-            )}
-            dangerouslySetInnerHTML={{ __html: doc.content! }}
-          />
-        </div>
-      ) : (
-        <div className={`flex flex-1 items-center justify-center pb-10 ${style.bg}`}>
-          <TypeIcon size={32} className={style.text} />
-        </div>
-      )}
-
-      <div className="absolute inset-x-0 bottom-0 backdrop-blur-md bg-white/70 dark:bg-grey-900/70 px-2.5 py-2 border-t border-white/50 dark:border-grey-700/50">
-        <div className="flex items-start justify-between gap-1.5">
-          <div className="min-w-0 flex-1">
-            <h3 className="truncate text-xs font-semibold text-foreground">{doc.title}</h3>
-            <div className="mt-0.5 flex items-center gap-1 text-[10px] text-grey-500 dark:text-grey-400">
-              <span>
-                {new Date(doc.updated_at).toLocaleDateString('de-DE', {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                })}
-              </span>
-              {doc.access_type && doc.access_type !== 'owner' && (
-                <>
-                  <span>·</span>
-                  <span className="text-primary-600 dark:text-primary-400">
-                    {doc.creator_name ? `Von ${doc.creator_name}` : 'Geteilt'}
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 max-sm:opacity-100"
-                onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                aria-label="Dokumentoptionen"
-              >
-                <FiMoreVertical size={16} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-              <DropdownMenuItem onClick={(e: React.MouseEvent) => onRename(doc, e)}>
-                <FiEdit2 size={14} />
-                Umbenennen
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={(e: React.MouseEvent) => {
-                  e.stopPropagation();
-                  onShare({ id: doc.id, title: doc.title });
-                }}
-              >
-                <FiShare2 size={14} />
-                Teilen
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={(e: React.MouseEvent) => onDelete(doc.id, e)}
-              >
-                <FiTrash2 size={14} />
-                Löschen
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PresentationCard({
-  presentation,
-  onClick,
-}: {
-  presentation: Presentation;
-  onClick: () => void;
-}) {
-  return (
-    <div
-      className={cn(
-        'group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border border-grey-200 bg-background',
-        'aspect-[4/4.5] transition-[box-shadow,border-color,transform] duration-150',
-        'hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-500',
-        'dark:border-grey-700',
-        'md:hover:-translate-y-0.5',
-        'max-sm:aspect-[4/3]'
-      )}
-      onClick={onClick}
-    >
-      <div className="flex flex-1 items-center justify-center pb-10 bg-indigo-50 dark:bg-indigo-900/20">
-        <FiMonitor size={32} className="text-indigo-500 dark:text-indigo-400" />
-      </div>
-
-      <div className="absolute inset-x-0 bottom-0 backdrop-blur-md bg-white/70 dark:bg-grey-900/70 px-2.5 py-2 border-t border-white/50 dark:border-grey-700/50">
-        <div className="min-w-0">
-          <h3 className="truncate text-xs font-semibold text-foreground">{presentation.title}</h3>
-          <div className="mt-0.5 text-[10px] text-grey-500 dark:text-grey-400">
-            {new Date(presentation.updatedAt).toLocaleDateString('de-DE', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function BoardCard({ board, onClick }: { board: Board; onClick: () => void }) {
-  const isWhiteboard = getBoardType(board) === 'whiteboard';
-
-  return (
-    <div
-      className={cn(
-        'group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border border-grey-200 bg-background',
-        'aspect-[4/4.5] transition-[box-shadow,border-color,transform] duration-150',
-        'hover:shadow-md hover:border-secondary-300 dark:hover:border-secondary-500',
-        'dark:border-grey-700',
-        'md:hover:-translate-y-0.5',
-        'max-sm:aspect-[4/3]'
-      )}
-      onClick={onClick}
-    >
-      <div className="flex flex-1 items-center justify-center pb-10 bg-secondary-50 dark:bg-secondary-900/20">
-        {isWhiteboard ? (
-          <PiPencilLine size={32} className="text-secondary-600 dark:text-secondary-400" />
-        ) : (
-          <PiKanban size={32} className="text-secondary-600 dark:text-secondary-400" />
-        )}
-      </div>
-
-      <div className="absolute inset-x-0 bottom-0 backdrop-blur-md bg-white/70 dark:bg-grey-900/70 px-2.5 py-2 border-t border-white/50 dark:border-grey-700/50">
-        <div className="min-w-0">
-          <h3 className="truncate text-xs font-semibold text-foreground">{board.title}</h3>
-          <div className="mt-0.5 flex items-center gap-1 text-[10px] text-grey-500 dark:text-grey-400">
-            <span>
-              {new Date(board.updated_at).toLocaleDateString('de-DE', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-              })}
-            </span>
-            {board.creator_name && (
-              <>
-                <span>·</span>
-                <span>{board.creator_name}</span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
 
