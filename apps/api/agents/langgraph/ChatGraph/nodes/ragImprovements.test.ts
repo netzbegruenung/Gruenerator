@@ -180,6 +180,7 @@ async function testExpandedContextWindow() {
     imageAttachments: [],
     threadAttachments: [],
     customSystemPrompt: null,
+    userInstructions: null,
     memoryContext: null,
     memoryRetrieveTimeMs: 0,
     notebookIds: [],

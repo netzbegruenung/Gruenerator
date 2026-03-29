@@ -21,14 +21,13 @@ export class VisionService {
   ): Promise<string> {
     const model = getModel(VISION_PROVIDER, VISION_MODEL_ID);
 
-    const raw = imageBase64.startsWith('data:')
-      ? imageBase64.replace(/^data:image\/[^;]+;base64,/, '')
-      : imageBase64;
-    const mimeType = imageBase64.startsWith('data:image/png')
-      ? 'image/png'
-      : imageBase64.startsWith('data:image/webp')
-        ? 'image/webp'
-        : 'image/jpeg';
+    let dataUrl: string;
+    if (imageBase64.startsWith('data:')) {
+      dataUrl = imageBase64;
+    } else {
+      const mimeType = 'image/jpeg';
+      dataUrl = `data:${mimeType};base64,${imageBase64}`;
+    }
 
     log.info(`[Vision] Analyzing image (instruction: "${instruction.slice(0, 60)}...")`);
     const startTime = Date.now();
@@ -40,7 +39,7 @@ export class VisionService {
           role: 'user',
           content: [
             { type: 'text', text: instruction },
-            { type: 'image', image: Buffer.from(raw, 'base64'), mimeType },
+            { type: 'image', image: dataUrl },
           ],
         },
       ],

@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import {
   FiPlus,
   FiFile,
@@ -19,11 +19,16 @@ import {
   FiTrash2,
 } from 'react-icons/fi';
 
-import { useDocumentStore } from '../../stores/documentStore';
-import { useDocsAdapter, createDocsApiClient } from '../../context/DocsContext';
+import { useDocsAdapter } from '../../context/DocsContext';
+import {
+  useDocuments,
+  useCreateDocument,
+  useGenerateDocument,
+  useDeleteDocument,
+  useUpdateDocument,
+} from '../../hooks/useDocuments';
 import { templates, type TemplateType, getTemplateContent } from '../../lib/templates';
 import { ShareModal } from '../permissions/ShareModal';
-import { AIDocumentCreator } from './AIDocumentCreator';
 import { TemplateCarousel } from './TemplateCarousel';
 import { TemplatePicker } from './TemplatePicker';
 
@@ -33,20 +38,13 @@ interface DocumentListProps {
 
 export const DocumentList = memo(({ searchQuery }: DocumentListProps) => {
   const adapter = useDocsAdapter();
-  const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
 
-  // Data selectors — only re-render when these values change
-  const documents = useDocumentStore((s) => s.documents);
-  const isLoading = useDocumentStore((s) => s.isLoading);
-  const isGenerating = useDocumentStore((s) => s.isGenerating);
-  const error = useDocumentStore((s) => s.error);
+  const { data: documents = [], isLoading, error } = useDocuments();
+  const createDocumentMutation = useCreateDocument();
+  const generateDocumentMutation = useGenerateDocument();
+  const deleteDocumentMutation = useDeleteDocument();
+  const updateDocumentMutation = useUpdateDocument();
 
-  // Action selectors — referentially stable
-  const fetchDocuments = useDocumentStore((s) => s.fetchDocuments);
-  const createDocument = useDocumentStore((s) => s.createDocument);
-  const generateDocument = useDocumentStore((s) => s.generateDocument);
-  const deleteDocument = useDocumentStore((s) => s.deleteDocument);
-  const updateDocument = useDocumentStore((s) => s.updateDocument);
   const [showGallery, setShowGallery] = useState(false);
   const [shareDoc, setShareDoc] = useState<{ id: string; title: string } | null>(null);
 
@@ -56,35 +54,34 @@ export const DocumentList = memo(({ searchQuery }: DocumentListProps) => {
     return documents.filter((doc) => doc.title.toLowerCase().includes(query));
   }, [documents, searchQuery]);
 
-  useEffect(() => {
-    fetchDocuments(apiClient);
-  }, [fetchDocuments, apiClient]);
-
   const handleTemplateSelect = useCallback(
     async (templateType: TemplateType) => {
       setShowGallery(false);
       try {
         const template = templates.find((t) => t.id === templateType);
         const title = template?.defaultTitle || 'Neues Dokument';
-        const newDoc = await createDocument(apiClient, title, null, templateType);
+        const newDoc = await createDocumentMutation.mutateAsync({
+          title,
+          documentSubtype: templateType,
+        });
         adapter.navigateToDocument(newDoc.id);
-      } catch (error) {
-        console.error('Failed to create document:', error);
+      } catch (err) {
+        console.error('Failed to create document:', err);
       }
     },
-    [createDocument, apiClient, adapter]
+    [createDocumentMutation, adapter]
   );
 
   const handleAIGenerate = useCallback(
     async (description: string) => {
       try {
-        const newDoc = await generateDocument(apiClient, description);
+        const newDoc = await generateDocumentMutation.mutateAsync(description);
         adapter.navigateToDocument(newDoc.id);
-      } catch (error) {
-        console.error('Failed to generate document:', error);
+      } catch (err) {
+        console.error('Failed to generate document:', err);
       }
     },
-    [generateDocument, apiClient, adapter]
+    [generateDocumentMutation, adapter]
   );
 
   const handleShowGallery = useCallback(() => setShowGallery(true), []);
@@ -93,9 +90,9 @@ export const DocumentList = memo(({ searchQuery }: DocumentListProps) => {
     e.stopPropagation();
     if (window.confirm('Dokument wirklich löschen?')) {
       try {
-        await deleteDocument(apiClient, id);
-      } catch (error) {
-        console.error('Failed to delete document:', error);
+        await deleteDocumentMutation.mutateAsync(id);
+      } catch (err) {
+        console.error('Failed to delete document:', err);
       }
     }
   };
@@ -103,25 +100,15 @@ export const DocumentList = memo(({ searchQuery }: DocumentListProps) => {
   const handleRenameDocument = async (doc: { id: string; title: string }, e: React.MouseEvent) => {
     e.stopPropagation();
     const newTitle = window.prompt('Neuer Titel:', doc.title);
-    console.log(
-      '[docs-rename] DocumentList prompt result: docId=%s, oldTitle="%s", newTitle=%o',
-      doc.id,
-      doc.title,
-      newTitle
-    );
     if (newTitle && newTitle.trim() && newTitle.trim() !== doc.title) {
       try {
-        await updateDocument(apiClient, doc.id, { title: newTitle.trim() });
-        console.log('[docs-rename] DocumentList rename success: docId=%s', doc.id);
-      } catch (error) {
-        console.error(
-          '[docs-rename] DocumentList rename failed: docId=%s, error=%o',
-          doc.id,
-          error
-        );
+        await updateDocumentMutation.mutateAsync({
+          id: doc.id,
+          updates: { title: newTitle.trim() },
+        });
+      } catch (err) {
+        console.error('Failed to rename document:', err);
       }
-    } else {
-      console.log('[docs-rename] DocumentList rename skipped: cancelled or unchanged');
     }
   };
 
@@ -130,14 +117,16 @@ export const DocumentList = memo(({ searchQuery }: DocumentListProps) => {
   }
 
   if (error) {
-    return <div className="py-12 px-4 text-center text-red-600 dark:text-red-400">{error}</div>;
+    return (
+      <div className="py-12 px-4 text-center text-red-600 dark:text-red-400">{error.message}</div>
+    );
   }
 
   return (
     <div className="w-full">
       {/* Desktop: AI creator + template carousel */}
       <div className="max-sm:hidden">
-        {/* <AIDocumentCreator onGenerate={handleAIGenerate} isLoading={isGenerating} /> */}
+        {/* <AIDocumentCreator onGenerate={handleAIGenerate} isLoading={generateDocumentMutation.isPending} /> */}
         <TemplateCarousel
           onTemplateSelect={handleTemplateSelect}
           onShowGallery={handleShowGallery}

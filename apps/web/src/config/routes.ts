@@ -221,7 +221,7 @@ const GruppenPage = lazy(() =>
       }),
   }))
 );
-const BoardsListRedirect = lazy(() => Promise.resolve({ default: createRedirect('/desk') }));
+const BoardsListRedirect = lazy(() => Promise.resolve({ default: createRedirect('/docs') }));
 const BoardPage = lazy(() =>
   Promise.all([
     import('../features/boards/BoardPage'),
