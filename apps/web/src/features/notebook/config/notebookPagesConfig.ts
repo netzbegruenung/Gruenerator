@@ -491,7 +491,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     startPageTitle: 'Was möchtest du über die Grünen Brandenburg wissen?',
     placeholder: 'Stell deine Frage zu Beschlüssen und Positionen der Grünen Brandenburg...',
     infoPanelDescription:
-      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und Wahlprogramme der Grünen Brandenburg.',
+      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und das Landtagswahlprogramm 2024 der Grünen Brandenburg.',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
       { icon: '🌍', text: 'Was sagen die Grünen Brandenburg zum Klimaschutz?' },
@@ -501,7 +501,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     documents: [
       { title: 'Pressemitteilungen', detail: 'Aktuelle und archivierte PMs' },
       { title: 'Beschlüsse', detail: 'Parteitagsbeschlüsse' },
-      { title: 'Wahlprogramme', detail: 'Landtags- und Kommunalwahlen' },
+      { title: 'Landtagswahlprogramm 2024', detail: 'Wahlprogramm zur Landtagswahl' },
     ],
     externalUrl: 'https://gruene-brandenburg.de',
     sources: [{ name: 'Grüne Brandenburg', count: 'Archiv' }],

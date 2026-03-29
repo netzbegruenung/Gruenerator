@@ -564,7 +564,7 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         {
           type: 'wahlprogramm',
           path: '/wahlprogramme/',
-          listSelector: 'a[href*="LTW2024"], a[href*="BRANDENBURG_VOR_ORT"]',
+          listSelector: 'a[href*="LTW2024"]',
           isPdfArchive: true,
           maxPages: 1,
         },

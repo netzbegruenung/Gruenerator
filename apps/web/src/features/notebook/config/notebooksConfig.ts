@@ -11,6 +11,7 @@ import {
   PiFlag,
   PiLightbulb,
   PiScales,
+  PiFlowerLight,
 } from 'react-icons/pi';
 
 import type { IconType } from 'react-icons';
@@ -128,10 +129,10 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
     path: '/gruene-brandenburg',
     title: 'Brandenburg',
     description:
-      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und Wahlprogramme der Grünen Brandenburg.',
+      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und das Landtagswahlprogramm 2024 der Grünen Brandenburg.',
     meta: 'Archiv',
-    tags: ['Brandenburg', 'Beschlüsse', 'Presse', 'Wahlprogramme'],
-    icon: PiTree,
+    tags: ['Brandenburg', 'Beschlüsse', 'Presse', 'Wahlprogramm'],
+    icon: PiFlowerLight,
     order: 9,
     category: 'landesebene',
   },
