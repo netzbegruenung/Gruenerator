@@ -2,7 +2,7 @@
 
 import mixpanel from 'mixpanel-browser';
 
-const MIXPANEL_TOKEN = 'd726e8bea8ec147f4c7720060cb2e6d1';
+const MIXPANEL_TOKEN = '';
 
 export enum MixpanelEvent {
   PageView = 'Page View',
@@ -157,5 +157,3 @@ export default {
   getDistinctId,
   identifyAnonymous,
 };
-
-
