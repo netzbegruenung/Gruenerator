@@ -188,7 +188,7 @@ const GroupLayoutPreview = () => {
             <div className="flex items-center justify-center gap-2 mb-2">
               <h1 className="text-3xl font-bold text-gray-900">{templateName}</h1>
               {isCustom && (
-                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-sm">
+                <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-sm">
                   Custom
                 </span>
               )}

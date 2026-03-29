@@ -46,9 +46,9 @@ export const CustomTemplateCard = React.memo(function CustomTemplateCard({ templ
                         [...Array(Math.min(4, template.layoutCount))].map((_, index) => (
                             <div
                                 key={`${template.id}-loading-${index}`}
-                                className="relative bg-gradient-to-br from-purple-50 to-blue-50 border border-gray-200 overflow-hidden aspect-video rounded flex items-center justify-center"
+                                className="relative bg-gradient-to-br from-green-50 to-blue-50 border border-gray-200 overflow-hidden aspect-video rounded flex items-center justify-center"
                             >
-                                <Loader2 className="w-4 h-4 text-purple-300 animate-spin" />
+                                <Loader2 className="w-4 h-4 text-green-300 animate-spin" />
                             </div>
                         ))
                     ) : previewLayouts.length > 0 && (
@@ -82,7 +82,7 @@ export const CustomTemplateCard = React.memo(function CustomTemplateCard({ templ
 
                 <div className="flex items-center gap-2">
 
-                    <ArrowUpRight className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition-colors" />
+                    <ArrowUpRight className="w-4 h-4 text-gray-400 group-hover:text-green-600 transition-colors" />
                 </div>
             </div>
         </Card>
@@ -216,7 +216,7 @@ const LayoutPreview = () => {
                             aria-label="Create new template"
                             style={{
                                 borderRadius: "48px",
-                                background: "linear-gradient(270deg, #D5CAFC 2.4%, #E3D2EB 27.88%, #F4DCD3 69.23%, #FDE4C2 100%)",
+                                background: "linear-gradient(270deg, #b6d4c8 2.4%, #c8ddd2 27.88%, #d4e8dc 69.23%, #e0f0e6 100%)",
                             }}
                         >
                             <span className="hidden md:inline">New Template</span>
@@ -233,8 +233,8 @@ const LayoutPreview = () => {
                     <button className='px-5  py-2 text-xs font-medium text-[#3A3A3A] rounded-[70px]'
                         onClick={() => setTab('custom')}
                         style={{
-                            background: tab === 'custom' ? '#F4F3FF' : 'transparent',
-                            color: tab === 'custom' ? '#5146E5' : '#3A3A3A'
+                            background: tab === 'custom' ? '#F0F8F4' : 'transparent',
+                            color: tab === 'custom' ? '#316049' : '#3A3A3A'
                         }}
                     >Custom</button>
                     <svg xmlns="http://www.w3.org/2000/svg" className='mx-1' width="2" height="17" viewBox="0 0 2 17" fill="none">
@@ -243,8 +243,8 @@ const LayoutPreview = () => {
                     <button className='px-5  py-2 text-xs font-medium text-[#3A3A3A] rounded-[70px]'
                         onClick={() => setTab('default')}
                         style={{
-                            background: tab === 'default' ? '#F4F3FF' : 'transparent',
-                            color: tab === 'default' ? '#5146E5' : '#3A3A3A'
+                            background: tab === 'default' ? '#F0F8F4' : 'transparent',
+                            color: tab === 'default' ? '#316049' : '#3A3A3A'
                         }}
                     >Built-in</button>
                 </div>

@@ -257,7 +257,7 @@ const dynamicSlideLayout = ({ data }: { data: z.infer<typeof Schema> }) => {
                     <div className="w-[116px] h-[6px]"
 
                         style={{
-                            backgroundColor: 'var(--primary-color,#9234EB)'
+                            backgroundColor: 'var(--primary-color,#316049)'
                         }}
                     />
                     <div className="space-y-6">

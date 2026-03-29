@@ -57,7 +57,7 @@ const AdvanceSettings = ({ config, onConfigChange }: ConfigurationSelectsProps) 
                     title="Advanced settings"
                     type="button"
                     onClick={() => handleOpenAdvancedChange(true)}
-                    className=" w-full h-full flex items-center px-3 py-1 text-sm  bg-[#F7F6F9] hover:bg-[#F7F6F9] border-[#EDEEEF] focus-visible:ring-[#5141E5] border-none rounded-[48px] font-instrument_sans font-medium"
+                    className=" w-full h-full flex items-center px-3 py-1 text-sm  bg-[#F7F6F9] hover:bg-[#F7F6F9] border-[#EDEEEF] focus-visible:ring-[#316049] border-none rounded-[48px] font-instrument_sans font-medium"
                 >
                     <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
                 </button>
@@ -161,7 +161,7 @@ const AdvanceSettings = ({ config, onConfigChange }: ConfigurationSelectsProps) 
 
                     <DialogFooter>
                         <Button variant="outline" onClick={() => handleOpenAdvancedChange(false)}>Cancel</Button>
-                        <Button onClick={handleSaveAdvanced} className="bg-[#5141e5] text-white hover:bg-[#5141e5]/90">Save</Button>
+                        <Button onClick={handleSaveAdvanced} className="bg-[#316049] text-white hover:bg-[#316049]/90">Save</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

@@ -85,7 +85,7 @@ const dynamicSlideLayout: React.FC<{ data: Partial<DataProps> }> = ({ data }) =>
                         <div className="w-[116.6px] h-[5.7px] mt-[12px]"
 
                             style={{
-                                backgroundColor: 'var(--primary-color,#9234EB)'
+                                backgroundColor: 'var(--primary-color,#316049)'
                             }}
                         />
                     </div>

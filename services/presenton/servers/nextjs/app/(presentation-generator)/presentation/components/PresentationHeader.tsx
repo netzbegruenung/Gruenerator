@@ -114,7 +114,7 @@ const PresentationHeader = ({
       await PresentationGenerationApi.updatePresentationContent(presentationData);
 
       if (await exportViaIpc("pptx")) {
-        toast.success("PPTX exported successfully!");
+        toast.success("PPTX erfolgreich exportiert!");
         return;
       }
 
@@ -133,9 +133,9 @@ const PresentationHeader = ({
       }
     } catch (error) {
       console.error("Export failed:", error);
-      toast.error("Having trouble exporting!", {
+      toast.error("Fehler beim Exportieren!", {
         description:
-          "We are having trouble exporting your presentation. Please try again.",
+          "Beim Exportieren ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.",
       });
     } finally {
       setIsExporting(false);
@@ -153,7 +153,7 @@ const PresentationHeader = ({
 
       trackEvent(MixpanelEvent.Header_ExportAsPDF_API_Call);
       if (await exportViaIpc("pdf")) {
-        toast.success("PDF exported successfully!");
+        toast.success("PDF erfolgreich exportiert!");
         return;
       }
       const response = await fetch('/api/export-as-pdf', {
@@ -174,9 +174,9 @@ const PresentationHeader = ({
 
     } catch (err) {
       console.error(err);
-      toast.error("Having trouble exporting!", {
+      toast.error("Fehler beim Exportieren!", {
         description:
-          "We are having trouble exporting your presentation. Please try again.",
+          "Beim Exportieren ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.",
       });
     } finally {
       setIsExporting(false);
@@ -203,7 +203,7 @@ const PresentationHeader = ({
 
   const ExportOptions = ({ mobile }: { mobile: boolean }) => (
     <div className={` rounded-[18px] max-md:mt-4 ${mobile ? "" : "bg-white"}  p-5`}>
-      <p className="text-sm font-medium text-[#19001F]">Export as</p>
+      <p className="text-sm font-medium text-[#19001F]">Exportieren als</p>
       <div className="my-[18px] h-[1px] bg-[#E8E8E8]" />
       <div className="space-y-3">
 
@@ -244,7 +244,7 @@ const PresentationHeader = ({
   return (
     <>
       <div className="py-7 sticky top-0 bg-white z-50 mb-[17px]  font-syne flex justify-between items-center">
-        <h2 className="text-lg text-[#101323] font-unbounded "><MarkdownRenderer content={presentationData?.title || "Presentation"} className="mb-0  w-[600px] truncate text-sm text-[#101323] " /></h2>
+        <h2 className="text-lg text-[#101323] font-unbounded "><MarkdownRenderer content={presentationData?.title || "Präsentation"} className="mb-0  w-[600px] truncate text-sm text-[#101323] " /></h2>
         <div className="flex items-center gap-2.5">
 
           {isPresentationSaving && <div className="flex items-center gap-2">
@@ -254,34 +254,34 @@ const PresentationHeader = ({
 
           <div className="flex items-center gap-2 bg-[#F6F6F9] px-3.5 h-[38px] border border-[#EDECEC] rounded-[80px]">
 
-            <ToolTip content="Regenerate Presentation">
+            <ToolTip content="Präsentation neu generieren">
               <button onClick={handleReGenerate} className="group">
-                <RotateCcw className="w-3.5 h-3.5 text-[#101323] group-hover:text-[#5141e5] duration-300" />
+                <RotateCcw className="w-3.5 h-3.5 text-[#101323] group-hover:text-[#316049] duration-300" />
               </button>
             </ToolTip>
             <Separator orientation="vertical" className="h-4" />
-            <ToolTip content="Undo">
+            <ToolTip content="Rückgängig">
               <button disabled={!canUndo} className=" disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer group" onClick={() => {
                 onUndo();
               }}>
 
-                <Undo2 className="w-3.5 h-3.5 text-[#101323] group-hover:text-[#5141e5] duration-300" />
+                <Undo2 className="w-3.5 h-3.5 text-[#101323] group-hover:text-[#316049] duration-300" />
 
               </button>
             </ToolTip>
             <Separator orientation="vertical" className="h-4" />
-            <ToolTip content="Redo">
+            <ToolTip content="Wiederherstellen">
 
               <button disabled={!canRedo} className=" disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer group" onClick={() => {
 
                 onRedo();
               }}>
-                <Redo2 className="w-3.5 h-3.5 text-[#101323] group-hover:text-[#5141e5] duration-300" />
+                <Redo2 className="w-3.5 h-3.5 text-[#101323] group-hover:text-[#316049] duration-300" />
 
               </button>
             </ToolTip>
             <Separator orientation="vertical" className="h-4 w-[2px]" />
-            <ToolTip content="Present">
+            <ToolTip content="Präsentieren">
               <button
                 onClick={() => {
                   const to = `?id=${presentation_id}&mode=present&slide=${currentSlide || 0}`;
@@ -289,7 +289,7 @@ const PresentationHeader = ({
                   router.push(to);
                 }}
                 disabled={!presentationData?.slides || presentationData?.slides.length === 0} className="cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group">
-                <Play className="w-3.5 h-3.5 text-[#101323] group-hover:text-[#5141e5] duration-300" />
+                <Play className="w-3.5 h-3.5 text-[#101323] group-hover:text-[#316049] duration-300" />
               </button>
             </ToolTip>
           </div>
@@ -298,11 +298,11 @@ const PresentationHeader = ({
             <PopoverTrigger asChild>
               <button className="flex  items-center gap-[7px] px-[18px] py-[11px] rounded-[53px] text-sm font-semibold text-[#101323]"
                 style={{
-                  background: "linear-gradient(270deg, #D5CAFC 2.4%, #E3D2EB 27.88%, #F4DCD3 69.23%, #FDE4C2 100%)",
+                  background: "linear-gradient(270deg, #b6d4c8 2.4%, #c8ddd2 27.88%, #d4e8dc 69.23%, #e0f0e6 100%)",
                 }}
                 disabled={isExporting}
               >
-                {isExporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Export"} <ArrowRightFromLine className="w-3.5 h-3.5" />
+                {isExporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Exportieren"} <ArrowRightFromLine className="w-3.5 h-3.5" />
               </button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-[200px] rounded-[18px] space-y-2 p-0  ">

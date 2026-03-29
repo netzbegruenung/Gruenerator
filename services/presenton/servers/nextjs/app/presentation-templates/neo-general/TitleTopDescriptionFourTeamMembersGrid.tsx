@@ -106,7 +106,7 @@ const dynamicSlideLayout: React.FC<{ data: Partial<z.infer<typeof Schema>> }> = 
                         <h1 className="text-[42.7px] font-bold leading-[1.1] tracking-[-1.6px] mb-[16px]" style={{ color: 'var(--background-text,#101828)' }}>
                             {title}
                         </h1>
-                        <div className="w-[116px] h-[6px]" style={{ backgroundColor: 'var(--primary-color,#9234EB)' }} />
+                        <div className="w-[116px] h-[6px]" style={{ backgroundColor: 'var(--primary-color,#316049)' }} />
                     </div>
 
                     <div className="basis-1/2 pl-[40px]">

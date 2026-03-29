@@ -34,7 +34,7 @@ interface ButtonState {
 const FINAL_STEP_CONFETTI_PIECES = [
   // left: denser at top
   { side: "left", offset: 1, top: 3, width: 28, height: 10, color: "#F59E0B", rotate: 12 },
-  { side: "left", offset: 7, top: 5, width: 18, height: 7, color: "#7C3AED", rotate: -10 },
+  { side: "left", offset: 7, top: 5, width: 18, height: 7, color: "#285040", rotate: -10 },
   { side: "left", offset: 12, top: 7, width: 20, height: 7, color: "#14B8A6", rotate: 22 },
   { side: "left", offset: 3, top: 10, width: 22, height: 8, color: "#22C55E", rotate: -18 },
   { side: "left", offset: 9, top: 12, width: 24, height: 8, color: "#E11D48", rotate: 18 },
@@ -48,7 +48,7 @@ const FINAL_STEP_CONFETTI_PIECES = [
   { side: "left", offset: 10, top: 41, width: 18, height: 7, color: "#A855F7", rotate: -14 },
   { side: "left", offset: 2, top: 50, width: 30, height: 10, color: "#EC4899", rotate: -28 },
   { side: "left", offset: 13, top: 58, width: 19, height: 7, color: "#22C55E", rotate: 17 },
-  { side: "left", offset: 5, top: 66, width: 24, height: 8, color: "#8B5CF6", rotate: 14 },
+  { side: "left", offset: 5, top: 66, width: 24, height: 8, color: "#52907A", rotate: 14 },
   { side: "left", offset: 11, top: 74, width: 18, height: 7, color: "#3B82F6", rotate: 12 },
   { side: "left", offset: 4, top: 82, width: 20, height: 7, color: "#14B8A6", rotate: 21 },
   { side: "left", offset: 7, top: 90, width: 24, height: 8, color: "#D946EF", rotate: -26 },
@@ -60,7 +60,7 @@ const FINAL_STEP_CONFETTI_PIECES = [
   { side: "right", offset: 4, top: 12, width: 24, height: 8, color: "#EC4899", rotate: 20 },
   { side: "right", offset: 10, top: 15, width: 22, height: 8, color: "#06B6D4", rotate: -18 },
   { side: "right", offset: 15, top: 18, width: 20, height: 7, color: "#22C55E", rotate: -25 },
-  { side: "right", offset: 5, top: 21, width: 18, height: 7, color: "#8B5CF6", rotate: 19 },
+  { side: "right", offset: 5, top: 21, width: 18, height: 7, color: "#52907A", rotate: 19 },
   { side: "right", offset: 12, top: 24, width: 21, height: 8, color: "#F43F5E", rotate: 14 },
   { side: "right", offset: 2, top: 28, width: 26, height: 9, color: "#84CC16", rotate: 15 },
   { side: "right", offset: 9, top: 33, width: 21, height: 8, color: "#F97316", rotate: -11 },
@@ -304,7 +304,7 @@ export default function Home() {
     //         disabled={buttonState.isDisabled}
     //         className={`w-full font-semibold py-3 px-4 rounded-lg transition-all duration-500 ${buttonState.isDisabled
     //           ? "bg-gray-400 cursor-not-allowed"
-    //           : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:ring-4 focus:ring-blue-200"
+    //           : "bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 focus:ring-4 focus:ring-blue-200"
     //           } text-white`}
     //       >
     //         {buttonState.isLoading ? (

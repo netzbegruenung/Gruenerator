@@ -26,7 +26,7 @@ import * as z from 'zod';
 import React from 'react';
 
 // Default color palettes for beautiful charts (fallback)
-const DEFAULT_CHART_COLORS = ['#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899']
+const DEFAULT_CHART_COLORS = ['#52907A', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899']
 
 
 
@@ -571,7 +571,7 @@ const dynamicSlideLayout: React.FC<{ data: Partial<FormData> }> = ({ data }) => 
                     <h1 className="text-[42.7px] font-bold tracking-[-2px]" style={{ color: 'var(--background-text,#101828)' }}>
                         {title || 'Spend & ROI Dashboard'}
                     </h1>
-                    <div className="w-[116.6px] h-[5.7px]" style={{ backgroundColor: 'var(--primary-color,#9234EB)' }} />
+                    <div className="w-[116.6px] h-[5.7px]" style={{ backgroundColor: 'var(--primary-color,#316049)' }} />
                 </div>
 
                 <div className="mt-10 w-full">

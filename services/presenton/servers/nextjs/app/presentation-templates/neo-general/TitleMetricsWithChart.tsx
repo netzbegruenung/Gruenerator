@@ -25,7 +25,7 @@ import {
 } from "recharts";
 
 // Color palettes
-const DEFAULT_CHART_COLORS = ['#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899']
+const DEFAULT_CHART_COLORS = ['#52907A', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899']
 
 const ChartLegend: React.FC<{ series: z.infer<typeof SeriesSchema>[], colors: string[] }> = ({ series, colors }) => (
     <div className="my-2 flex flex-wrap justify-center gap-6">
@@ -557,7 +557,7 @@ const dynamicSlideLayout: React.FC<{ data: Partial<SlideData> }> = ({ data }) =>
                         <h1 className="text-[42.7px] font-bold leading-tight mb-4 tracking-[-2px]" style={{ color: 'var(--background-text,#101828)' }}>
                             {title}
                         </h1>
-                        <div className="w-[116.6px] h-[5.7px]" style={{ backgroundColor: 'var(--primary-color,#9234EB)' }} />
+                        <div className="w-[116.6px] h-[5.7px]" style={{ backgroundColor: 'var(--primary-color,#316049)' }} />
                     </div>
                     <p className="text-[17.8px] max-w-[560px] leading-[1.6]" style={{ color: 'var(--background-text,#000000)' }}>
                         {description}
@@ -577,7 +577,7 @@ const dynamicSlideLayout: React.FC<{ data: Partial<SlideData> }> = ({ data }) =>
                                     {metric.value}
                                 </div>
                                 <div className="flex items-center gap-3 mt-2">
-                                    <div className="w-[10.5px] h-[10.5px] rounded-full" style={{ backgroundColor: 'var(--primary-color,#9134EB)' }} />
+                                    <div className="w-[10.5px] h-[10.5px] rounded-full" style={{ backgroundColor: 'var(--primary-color,#316049)' }} />
                                     <div className="text-[14px] font-normal uppercase tracking-wide" style={{ color: 'var(--background-text,#4D5463)' }}>
                                         {metric.label}
                                     </div>

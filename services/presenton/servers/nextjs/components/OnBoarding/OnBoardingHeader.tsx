@@ -9,7 +9,7 @@ const OnBoardingHeader = ({ currentStep }: { currentStep: number }) => {
                 <div className={`${currentStep === 1 ? 'bg-[#010100] text-white' : 'border border-[#ECECEF] text-[#494A4D]'} px-2.5 h-7 w-7  text-xs font-medium rounded-full flex items-center justify-center`}>
                     1
                 </div>
-                <p className='text-[#010000] text-xs '>Select Mode</p>
+                <p className='text-[#010000] text-xs '>Modus wählen</p>
             </div>
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="1" viewBox="0 0 22 1" fill="none">
                 <path d="M0 0.5H21.5" stroke="#ECECEF" />
@@ -18,7 +18,7 @@ const OnBoardingHeader = ({ currentStep }: { currentStep: number }) => {
                 <div className={`${currentStep === 2 ? 'bg-[#010100] text-white' : 'border border-[#ECECEF] text-[#494A4D]'} px-2.5 h-7 w-7  text-xs font-medium rounded-full flex items-center justify-center`}>
                     2
                 </div>
-                <p className='text-[#010000] text-xs '>Choose Providers</p>
+                <p className='text-[#010000] text-xs '>Anbieter wählen</p>
             </div>
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="1" viewBox="0 0 22 1" fill="none">
                 <path d="M0 0.5H21.5" stroke="#ECECEF" />
@@ -27,7 +27,7 @@ const OnBoardingHeader = ({ currentStep }: { currentStep: number }) => {
                 <div className={`${currentStep === 3 ? 'bg-[#010100] text-white' : 'border border-[#ECECEF] text-[#494A4D]'} px-2.5 h-7 w-7  text-xs font-medium rounded-full flex items-center justify-center`}>
                     3
                 </div>
-                <p className='text-[#010000] text-xs '>Finish Setup</p>
+                <p className='text-[#010000] text-xs '>Einrichtung abschließen</p>
             </div>
         </div>
     )

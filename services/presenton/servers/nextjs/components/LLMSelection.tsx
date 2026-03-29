@@ -385,12 +385,12 @@ export default function LLMProviderSelection({
           onClick={handleSaveConfig}
           disabled={buttonState.isDisabled}
           style={{
-            background: "linear-gradient(270deg, #D5CAFC 2.4%, #E3D2EB 27.88%, #F4DCD3 69.23%, #FDE4C2 100%)",
+            background: "linear-gradient(270deg, #b6d4c8 2.4%, #c8ddd2 27.88%, #d4e8dc 69.23%, #e0f0e6 100%)",
             color: "#101323",
           }}
           className={`w-full font-semibold py-3 px-4 rounded-lg transition-all duration-500 ${buttonState.isDisabled
             ? "bg-gray-400 cursor-not-allowed"
-            : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:ring-4 focus:ring-blue-200"
+            : "bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 focus:ring-4 focus:ring-blue-200"
             } text-white`}
         >
           {buttonState.isLoading ? (

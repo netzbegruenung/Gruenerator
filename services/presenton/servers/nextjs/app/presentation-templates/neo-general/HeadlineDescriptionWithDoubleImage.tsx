@@ -74,10 +74,10 @@ const HeadlineDescriptionWithDoubleImageLayout = ({ data }: { data: Partial<z.in
                         </h1>
 
                         {/* Decorative Purple Line */}
-                        <div className="w-[116.6px] h-[5.7px] bg-[#9234EB] mb-8"
+                        <div className="w-[116.6px] h-[5.7px] bg-[#316049] mb-8"
 
                             style={{
-                                backgroundColor: 'var(--primary-color,#9234EB)'
+                                backgroundColor: 'var(--primary-color,#316049)'
                             }}
                         />
 

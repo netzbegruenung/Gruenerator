@@ -13,6 +13,19 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        green: {
+          50: '#F0F8F4',
+          100: '#D8F0E6',
+          200: '#B1E0C9',
+          300: '#8AC9B0',
+          400: '#6BAA91',
+          500: '#52907A',
+          600: '#316049',
+          700: '#285040',
+          800: '#1F3F33',
+          900: '#1A332A',
+          950: '#123624',
+        },
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {

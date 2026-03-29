@@ -39,10 +39,10 @@ const CustomTemplateCard = ({ template }: { template: CustomTemplates }) => {
             {template.name}
           </h3>
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+            <span className="px-2.5 py-0.5 bg-green-100 text-green-800 rounded-full text-sm font-medium">
               {totalLayouts}
             </span>
-            <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition-colors" />
+            <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-green-600 transition-colors" />
           </div>
         </div>
 
@@ -55,9 +55,9 @@ const CustomTemplateCard = ({ template }: { template: CustomTemplates }) => {
             [...Array(Math.min(4, template.layoutCount))].map((_, index) => (
               <div
                 key={`${template.id}-loading-${index}`}
-                className="relative bg-gradient-to-br from-purple-50 to-blue-50 border border-gray-200 overflow-hidden aspect-video rounded flex items-center justify-center"
+                className="relative bg-gradient-to-br from-green-50 to-blue-50 border border-gray-200 overflow-hidden aspect-video rounded flex items-center justify-center"
               >
-                <Loader2 className="w-4 h-4 text-purple-300 animate-spin" />
+                <Loader2 className="w-4 h-4 text-green-300 animate-spin" />
               </div>
             ))
           ) : previewLayouts.length > 0 ? (
@@ -189,7 +189,7 @@ const LayoutPreview = () => {
             <h2 className="text-xl font-semibold text-gray-800 ">
               My Custom Templates
             </h2>
-            <a href="/custom-template" className="text-sm flex font-bold font-inter items-center justify-center gap-2  bg-[#5146E5] text-white px-4 py-2 rounded-md">
+            <a href="/custom-template" className="text-sm flex font-bold font-inter items-center justify-center gap-2  bg-[#316049] text-white px-4 py-2 rounded-md">
               <Plus className="w-4 h-4" /> Create new template
             </a>
           </div>

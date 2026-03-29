@@ -120,14 +120,14 @@ const BulletIconsOnlySlideLayout: React.FC<BulletIconsOnlySlideLayoutProps> = ({
                 {/* Decorative Wave Patterns */}
                 <div className="absolute top-0 left-0 w-32 h-full opacity-10 overflow-hidden">
                     <svg className="w-full h-full" viewBox="0 0 100 400" fill="none">
-                        <path d="M0 100C25 150 50 50 75 100C87.5 125 100 100 100 100V0H0V100Z" fill="#8b5cf6" opacity="0.4" />
-                        <path d="M0 200C37.5 250 62.5 150 100 200V150C75 175 50 150 25 175L0 200Z" fill="#8b5cf6" opacity="0.3" />
+                        <path d="M0 100C25 150 50 50 75 100C87.5 125 100 100 100 100V0H0V100Z" fill="#52907A" opacity="0.4" />
+                        <path d="M0 200C37.5 250 62.5 150 100 200V150C75 175 50 150 25 175L0 200Z" fill="#52907A" opacity="0.3" />
                     </svg>
                 </div>
 
                 <div className="absolute bottom-0 left-0 w-48 h-32 opacity-10 overflow-hidden">
                     <svg className="w-full h-full" viewBox="0 0 200 100" fill="none">
-                        <path d="M0 50C50 25 100 75 150 50C175 37.5 200 50 200 50V100H0V50Z" fill="#8b5cf6" opacity="0.2" />
+                        <path d="M0 50C50 25 100 75 150 50C175 37.5 200 50 200 50V100H0V50Z" fill="#52907A" opacity="0.2" />
                     </svg>
                 </div>
 
@@ -148,7 +148,7 @@ const BulletIconsOnlySlideLayout: React.FC<BulletIconsOnlySlideLayoutProps> = ({
                                     className={`flex items-start space-x-4 p-4 rounded-lg`}
                                 >
                                     {/* Icon */}
-                                    <div style={{ background: "var(--primary-color,#9333ea)" }} className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center">
+                                    <div style={{ background: "var(--primary-color,#316049)" }} className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center">
                                         <RemoteSvgIcon
                                             url={bullet.icon.__icon_url__}
                                             strokeColor={"currentColor"}
@@ -177,14 +177,14 @@ const BulletIconsOnlySlideLayout: React.FC<BulletIconsOnlySlideLayoutProps> = ({
                     {/* Right Section - Image */}
                     <div className="flex-shrink-0 w-96 flex items-center justify-center relative">
                         {/* Decorative Elements */}
-                        <div style={{ color: "var(--primary-color,#9333ea)" }} className="absolute top-8 right-8 text-purple-600 opacity-60">
+                        <div style={{ color: "var(--primary-color,#316049)" }} className="absolute top-8 right-8 text-green-600 opacity-60">
                             <svg width="32" height="32" viewBox="0 0 32 32" fill="currentColor">
                                 <path d="M16 0l4.12 8.38L28 12l-7.88 3.62L16 24l-4.12-8.38L4 12l7.88-3.62L16 0z" />
                             </svg>
                         </div>
 
                         <div className="absolute top-16 left-8 opacity-20">
-                            <svg width="80" height="20" viewBox="0 0 80 20" className="text-purple-600" style={{ color: "var(--primary-color,#9333ea)" }}>
+                            <svg width="80" height="20" viewBox="0 0 80 20" className="text-green-600" style={{ color: "var(--primary-color,#316049)" }}>
                                 <path
                                     d="M0 10 Q20 0 40 10 T80 10"
                                     stroke="currentColor"

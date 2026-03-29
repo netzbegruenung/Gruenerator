@@ -319,7 +319,7 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
 
     return (
         <div className='w-full max-w-[640px] font-syne'>
-            <p className='px-2.5 py-0.5 w-fit text-[#7A5AF8] rounded-[50px]  border border-[#EDEEEF] text-[10px] font-medium mb-5 font-syne'>PRESENTON</p>
+            <p className='px-2.5 py-0.5 w-fit text-[#52907A] rounded-[50px]  border border-[#EDEEEF] text-[10px] font-medium mb-5 font-syne'>PRESENTON</p>
             <div className='mb-[54px]'>
 
                 <h2 className='mb-4 text-black text-[26px] font-normal font-unbounded '>Choose your content providers</h2>
@@ -643,7 +643,7 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
                 </ToolTip>
                 <div className=" mb-7 flex items-center gap-6">
                     <div className='w-[60px] h-[60px] px-[13.5px] py-[14.2px] rounded-[4px] flex items-center justify-center'
-                        style={{ backgroundColor: '#F4F3FF' }}
+                        style={{ backgroundColor: '#F0F8F4' }}
                     >
                         <img src="/image-markup.svg" className='w-full h-full object-cover' alt='image-markup' />
                     </div>
@@ -856,7 +856,7 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
 
                     disabled={savingConfig}
                     onClick={handleSaveConfig}
-                    className='border border-[#EDEEEF] bg-[#7C51F8]  rounded-[58px] px-5 py-2.5 text-white text-xs  font-semibold'>
+                    className='border border-[#EDEEEF] bg-[#316049]  rounded-[58px] px-5 py-2.5 text-white text-xs  font-semibold'>
                     Continue to Finish
                 </button>
             </div>

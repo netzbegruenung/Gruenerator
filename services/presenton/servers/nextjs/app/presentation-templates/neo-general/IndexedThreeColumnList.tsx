@@ -88,7 +88,7 @@ const dynamicSlideLayout: React.FC<{ data: Partial<DataType> }> = ({ data }) => 
                     <div className="w-[116.6px] h-[5.7px]"
 
                         style={{
-                            backgroundColor: 'var(--primary-color,#9234EB)'
+                            backgroundColor: 'var(--primary-color,#316049)'
                         }}
                     />
                 </div>
@@ -99,7 +99,7 @@ const dynamicSlideLayout: React.FC<{ data: Partial<DataType> }> = ({ data }) => 
                             <div className="text-[85.3px] font-normal leading-none mb-[12px]"
 
                                 style={{
-                                    color: 'var(--background-text,#9134EB)'
+                                    color: 'var(--background-text,#316049)'
                                 }}
                             >
                                 {column?.index}

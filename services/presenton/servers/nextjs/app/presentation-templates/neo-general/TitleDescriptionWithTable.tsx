@@ -86,7 +86,7 @@ const dynamicSlideLayout: React.FC<{ data: Partial<z.infer<typeof Schema>> }> = 
                         <h1 className="text-[42.7px]  font-bold leading-[1.05] tracking-[-2.0px]" style={{ color: 'var(--background-text,#101828)' }}>
                             {title}
                         </h1>
-                        <div className="w-[116.6px] h-[5.7px] mt-4" style={{ backgroundColor: 'var(--primary-color,#9234EB)' }} />
+                        <div className="w-[116.6px] h-[5.7px] mt-4" style={{ backgroundColor: 'var(--primary-color,#316049)' }} />
                     </div>
                     <div className="basis-1/2 flex justify-end">
                         <p className="max-w-[510px] text-[16px] font-normal leading-[1.6] text-left" style={{ color: 'var(--background-text,#000000)' }}>
@@ -105,7 +105,7 @@ const dynamicSlideLayout: React.FC<{ data: Partial<z.infer<typeof Schema>> }> = 
                             <div
                                 key={`header-${idx}`}
                                 className={`py-[20px] px-[15px]  flex items-center justify-center ${idx !== sections.length - 1 ? 'border-r-[1.3px] ' : ''}`}
-                                style={{ borderColor: 'var(--stroke,#9134EB)' }}
+                                style={{ borderColor: 'var(--stroke,#316049)' }}
                             >
                                 <h2 className="text-[21.3px]  font-bold text-center" style={{ color: 'var(--primary-text,#FFFFFF)' }}>
                                     {section?.heading}
@@ -141,7 +141,7 @@ const dynamicSlideLayout: React.FC<{ data: Partial<z.infer<typeof Schema>> }> = 
                 </div>
 
 
-                <div className="absolute right-[320px] bottom-[362px] w-[15.8px] h-[15.8px] rounded-full opacity-10" style={{ backgroundColor: 'var(--primary-color,#9134EB)' }} />
+                <div className="absolute right-[320px] bottom-[362px] w-[15.8px] h-[15.8px] rounded-full opacity-10" style={{ backgroundColor: 'var(--primary-color,#316049)' }} />
             </div>
         </>
     );

@@ -29,7 +29,7 @@ export const layoutId = 'title-description-multi-chart-grid';
 export const layoutName = 'Title Description With Multi-Chart Grid';
 export const layoutDescription = 'A neo-modern dashboard layout with title, description, and 1–6 auto-arranged charts. Supports bar (vertical, horizontal, grouped, stacked, clustered, diverging), line, area, pie, donut, and scatter charts.';
 
-const DEFAULT_CHART_COLORS = ['#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899'];
+const DEFAULT_CHART_COLORS = ['#52907A', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899'];
 
 const ChartTypeEnum = z.enum([
     'bar-vertical',

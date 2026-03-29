@@ -74,8 +74,8 @@ const SupportingDoc = ({
     const handleValidate = (filesToReview: File[]) => {
         const disallowed = filesToReview.filter((file) => !isAllowedFile(file))
         if (disallowed.length > 0) {
-            toast.error('Some files are not supported', {
-                description: 'Only PDF, TXT, PPTX, and DOCX files are allowed.',
+            toast.error('Einige Dateien werden nicht unterstützt', {
+                description: 'Nur PDF-, TXT-, PPTX- und DOCX-Dateien sind erlaubt.',
             })
         }
     }
@@ -90,8 +90,8 @@ const SupportingDoc = ({
         onFilesChange(allowedFiles)
         handleValidate(nextFiles)
         if (allowedFiles.length > files.length) {
-            toast.success('Files selected', {
-                description: `${allowedFiles.length - files.length} file(s) have been added`,
+            toast.success('Dateien ausgewählt', {
+                description: `${allowedFiles.length - files.length} Datei(en) hinzugefügt`,
             })
         }
         e.currentTarget.value = ''
@@ -110,8 +110,8 @@ const SupportingDoc = ({
         onFilesChange(allowedFiles)
         handleValidate(nextFiles)
         if (allowedFiles.length > files.length) {
-            toast.success('Files selected', {
-                description: `${allowedFiles.length - files.length} file(s) have been added`,
+            toast.success('Dateien ausgewählt', {
+                description: `${allowedFiles.length - files.length} Datei(en) hinzugefügt`,
             })
         }
     }
@@ -140,7 +140,7 @@ const SupportingDoc = ({
         <div className="space-y-2" data-testid="attachments-uploader">
             <div className="flex items-center justify-between">
                 <p className="text-sm text-gray-600 font-syne">
-                    {hasFiles ? `${filteredFiles.length} attachment${filteredFiles.length > 1 ? 's' : ''}` : 'No attachments yet'}
+                    {hasFiles ? `${filteredFiles.length} ${filteredFiles.length > 1 ? 'Anhänge' : 'Anhang'}` : 'Noch keine Anhänge'}
                 </p>
                 <button
                     type="button"
@@ -150,12 +150,12 @@ const SupportingDoc = ({
                     data-testid="attachments-clear-button"
                     aria-disabled={!hasFiles}
                 >
-                    Clear all
+                    Alle entfernen
                 </button>
             </div>
 
             <label
-                className={`mt-1 block cursor-pointer rounded-lg border-2 border-dashed px-4 py-6 text-center transition-colors ${isDragging ? 'border-[#5146E5] bg-[#5146E5]/5' : 'border-gray-200 hover:border-[#5146E5]'}`}
+                className={`mt-1 block cursor-pointer rounded-lg border-2 border-dashed px-4 py-6 text-center transition-colors ${isDragging ? 'border-[#316049] bg-[#316049]/5' : 'border-gray-200 hover:border-[#316049]'}`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
@@ -169,9 +169,9 @@ const SupportingDoc = ({
                     data-testid="file-upload-input"
                 />
                 <div className="flex flex-col items-center gap-2">
-                    <Paperclip className="h-6 w-6 text-[#5146E5]" />
+                    <Paperclip className="h-6 w-6 text-[#316049]" />
                     <p className="text-sm font-medium text-gray-800 font-syne">
-                        Drag and drop PDF, TXT, PPTX, DOCX, or <span className="text-[#5146E5]">click to browse</span>
+                        PDF, TXT, PPTX, DOCX hierher ziehen oder <span className="text-[#316049]">durchsuchen</span>
                     </p>
                 </div>
             </label>
@@ -204,7 +204,7 @@ const SupportingDoc = ({
                                     type="button"
                                     onClick={() => handleRemoveFileAt(idx)}
                                     className="ml-2 inline-flex h-8 w-8 items-center justify-center rounded text-red-600 hover:bg-red-50 hover:text-red-700"
-                                    aria-label={`Remove ${file.name}`}
+                                    aria-label={`Entfernen: ${file.name}`}
                                     data-testid="remove-file-button"
                                 >
                                     <X className="h-5 w-5" />
@@ -214,7 +214,7 @@ const SupportingDoc = ({
                     </ul>
                     {filteredFiles.length !== files.length && (
                         <p className="mt-2 text-xs text-amber-600 font-syne">
-                            Some files were skipped. Only PDF, TXT, PPTX, and DOCX files are supported.
+                            Einige Dateien wurden übersprungen. Nur PDF, TXT, PPTX und DOCX werden unterstützt.
                         </p>
                     )}
                 </div>

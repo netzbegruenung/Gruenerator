@@ -17,7 +17,7 @@ export const defaultNavItems = [
 
 ];
 export const BelongingNavItems = [
-    { key: "settings" as const, label: "Settings", icon: Settings },
+    { key: "settings" as const, label: "Einstellungen", icon: Settings },
 ]
 
 const DashboardSidebar = () => {
@@ -38,8 +38,8 @@ const DashboardSidebar = () => {
             <div>
 
                 <div onClick={() => router.push("/dashboard")} className="flex items-center  pb-6 border-b border-slate-200/60   gap-2    ">
-                    <div className="bg-[#7C51F8] rounded-full cursor-pointer p-1 flex justify-center items-center mx-auto">
-                        <img src="/logo-with-bg.png" alt="Presenton logo" className="h-[40px] object-contain w-full" />
+                    <div className="bg-[#316049] rounded-full cursor-pointer p-1 flex justify-center items-center mx-auto">
+                        <img src="/logo-with-bg.png" alt="Grünerator Slides" className="h-[40px] object-contain w-full" />
                     </div>
                 </div>
                 <nav className="pt-6 font-syne" aria-label="Dashboard sections">
@@ -56,7 +56,7 @@ const DashboardSidebar = () => {
                             aria-label="Dashboard"
                             title="Dashboard"
                         >
-                            <LayoutDashboard className={["h-4 w-4", pathname === "/dashboard" ? "text-[#5146E5]" : "text-slate-600"].join(" ")} />
+                            <LayoutDashboard className={["h-4 w-4", pathname === "/dashboard" ? "text-[#316049]" : "text-slate-600"].join(" ")} />
                             <span className="text-[11px] text-slate-800">Dashboard</span>
                         </Link>
                         <Link
@@ -66,12 +66,12 @@ const DashboardSidebar = () => {
                                 "flex flex-col tex-center items-center gap-2  transition-colors",
                                 pathname === "/templates" ? "" : "ring-transparent",
                             ].join(" ")}
-                            aria-label="Templates"
-                            title="Templates"
+                            aria-label="Vorlagen"
+                            title="Vorlagen"
                         >
                             <div className="flex flex-col cursor-pointer tex-center items-center gap-2  transition-colors">
-                                <Star className={`h-4 w-4 ${pathname === "/templates" ? "text-[#5146E5]" : "text-slate-600"}`} />
-                                <span className="text-[11px] text-slate-800">Templates</span>
+                                <Star className={`h-4 w-4 ${pathname === "/templates" ? "text-[#316049]" : "text-slate-600"}`} />
+                                <span className="text-[11px] text-slate-800">Vorlagen</span>
                             </div>
                         </Link>
                         <Link
@@ -81,12 +81,12 @@ const DashboardSidebar = () => {
                                 "flex flex-col tex-center items-center gap-2  transition-colors",
                                 pathname === "/theme" ? "" : "ring-transparent",
                             ].join(" ")}
-                            aria-label="Theme"
-                            title="Theme"
+                            aria-label="Designs"
+                            title="Designs"
                         >
                             <div className="flex flex-col cursor-pointer tex-center items-center gap-2  transition-colors">
-                                <Palette className={`h-4 w-4 ${pathname === "/theme" ? "text-[#5146E5]" : "text-slate-600"}`} />
-                                <span className="text-[11px] text-slate-800">Themes</span>
+                                <Palette className={`h-4 w-4 ${pathname === "/theme" ? "text-[#316049]" : "text-slate-600"}`} />
+                                <span className="text-[11px] text-slate-800">Designs</span>
                             </div>
                         </Link>
                     </div>
@@ -109,7 +109,7 @@ const DashboardSidebar = () => {
                             aria-label={itemLabel}
                             title={itemLabel}
                         >
-                            <Icon className={["h-4 w-4", isActive ? "text-[#5146E5]" : "text-slate-600"].join(" ")} />
+                            <Icon className={["h-4 w-4", isActive ? "text-[#316049]" : "text-slate-600"].join(" ")} />
                             <span className="text-[11px] text-slate-800">{itemLabel}</span>
                         </Link>
                     );

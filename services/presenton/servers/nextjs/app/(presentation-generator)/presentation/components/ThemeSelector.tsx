@@ -81,13 +81,13 @@ const ThemeSelector = ({ presentation_id, current_theme, themes: allThemes }: { 
         <Popover open={isOpen} onOpenChange={setIsOpen}>
             <PopoverTrigger>
                 <button className={`text-sm px-[18px] py-2.5 gap-1.5 flex items-center  border border-[#EDEEEF] bg-[#F6F6F9]   duration-300 rounded-[88px] font-medium font-syne ${isOpen ? 'text-[#007AFF]' : 'text-black'}`}>
-                    <Palette className={`h-4 w-4 ${isOpen ? 'text-[#007AFF]' : 'text-black'}`} /> Theme
+                    <Palette className={`h-4 w-4 ${isOpen ? 'text-[#007AFF]' : 'text-black'}`} /> Design
                 </button>
             </PopoverTrigger>
             <PopoverContent className="w-fit rounded-[18px] max-h-80 overflow-y-auto hide-scrollbar">
                 <div className='pb-2 flex  gap-2 justify-end'>
-                    <button className='text-xs text-gray-500 pb-2 text-right underline' onClick={() => router.push(`/theme?tab=new-theme`)}>+Customize Theme</button>
-                    <button className='text-xs text-gray-500 pb-2 text-right underline' onClick={resetTheme}>Reset Theme</button>
+                    <button className='text-xs text-gray-500 pb-2 text-right underline' onClick={() => router.push(`/theme?tab=new-theme`)}>+ Design anpassen</button>
+                    <button className='text-xs text-gray-500 pb-2 text-right underline' onClick={resetTheme}>Design zurücksetzen</button>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
 

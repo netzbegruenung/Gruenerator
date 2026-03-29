@@ -51,7 +51,7 @@ const DashboardPage: React.FC = () => {
         <div className="flex xl:flex-row flex-col gap-6 xl:gap-0 items-center justify-between">
           <h3 className=" text-[28px] tracking-[-0.84px] font-unbounded font-normal text-[#101828] flex items-center gap-2">
 
-            Slide Presentations
+            Folienpräsentationen
           </h3>
           <div className="flex  gap-2.5 max-sm:w-full max-md:justify-center max-sm:flex-wrap">
 
@@ -60,15 +60,15 @@ const DashboardPage: React.FC = () => {
             <Link
               href="/generate"
               className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-black text-sm font-semibold font-syne shadow-sm hover:shadow-md"
-              aria-label="Create new presentation"
+              aria-label="Neue Präsentation erstellen"
               style={{
                 borderRadius: "48px",
-                background: "linear-gradient(270deg, #D5CAFC 2.4%, #E3D2EB 27.88%, #F4DCD3 69.23%, #FDE4C2 100%)",
+                background: "linear-gradient(270deg, #b6d4c8 2.4%, #c8ddd2 27.88%, #d4e8dc 69.23%, #e0f0e6 100%)",
               }}
             >
 
-              <span className="hidden md:inline">New presentation</span>
-              <span className="md:hidden">New</span>
+              <span className="hidden md:inline">Neue Präsentation</span>
+              <span className="md:hidden">Neu</span>
               <ChevronRight className="w-4 h-4" />
             </Link>
             {/* {
@@ -78,7 +78,7 @@ const DashboardPage: React.FC = () => {
                 aria-label="Create new themes"
                 style={{
                   borderRadius: "48px",
-                  background: "linear-gradient(270deg, #D5CAFC 2.4%, #E3D2EB 27.88%, #F4DCD3 69.23%, #FDE4C2 100%)",
+                  background: "linear-gradient(270deg, #b6d4c8 2.4%, #c8ddd2 27.88%, #d4e8dc 69.23%, #e0f0e6 100%)",
                 }}
               >
                 <span className="hidden md:inline">New Themes</span>
