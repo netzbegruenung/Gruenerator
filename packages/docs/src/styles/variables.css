@@ -37,16 +37,44 @@
   /* Brand colors */
   --primary-600: #316049;
 
+  /* shadcn CSS variable bridge — required by @blocknote/shadcn components */
+  --background: var(--background-color);
+  --foreground: var(--font-color);
+  --popover: var(--background-color);
+  --popover-foreground: var(--font-color);
+  --accent: var(--grey-100);
+  --accent-foreground: var(--font-color);
+  --muted: var(--grey-100);
+  --muted-foreground: var(--grey-500);
+  --border: var(--grey-200);
+  --input: var(--grey-200);
+  --ring: var(--secondary-600);
+
   /* Shadows */
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
 
   /* Spacing */
+  --radius: 0.5rem;
   --spacing-xxsmall: 4px;
   --spacing-xsmall: 8px;
   --spacing-small: 12px;
   --spacing-medium: 16px;
   --spacing-large: 24px;
   --spacing-xxlarge: 48px;
+}
+
+/* Dark mode shadcn bridge */
+:where([data-theme="dark"]) {
+  --background: var(--background-color, #1f2937);
+  --foreground: var(--font-color, #f9fafb);
+  --popover: var(--grey-800, #1f2937);
+  --popover-foreground: var(--font-color, #f9fafb);
+  --accent: var(--grey-700, #374151);
+  --accent-foreground: var(--font-color, #f9fafb);
+  --muted: var(--grey-700, #374151);
+  --muted-foreground: var(--grey-400, #989898);
+  --border: var(--grey-600, #4b5563);
+  --input: var(--grey-600, #4b5563);
 }
