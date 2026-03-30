@@ -104,7 +104,8 @@ const PageLayout = ({
 
   const appContentClasses = cn(
     'app-content',
-    (layoutMode === 'fullscreen' || layoutMode === 'immersive') && 'flex flex-col h-dvh pt-12'
+    layoutMode === 'fullscreen' && 'flex flex-col h-dvh pt-12',
+    layoutMode === 'immersive' && 'flex flex-col h-dvh'
   );
 
   const showPageFooter = showFooter && isHomePage && layoutMode === 'default';
@@ -113,15 +114,17 @@ const PageLayout = ({
     <GlobalChatProvider>
       <GlobalBridges />
       <div className={layoutClasses}>
-        <header className="fixed top-0 left-0 right-0 z-[1002] flex items-center justify-between px-2 h-12 pointer-events-none">
-          <div className="pointer-events-auto">
-            <SidebarToggle />
-          </div>
-          <div className="pointer-events-auto flex items-center gap-1">
-            <ProfileButton />
-          </div>
-        </header>
-        <Sidebar />
+        {layoutMode !== 'immersive' && (
+          <header className="fixed top-0 left-0 right-0 z-[1002] flex items-center justify-between px-2 h-12 pointer-events-none">
+            <div className="pointer-events-auto">
+              <SidebarToggle />
+            </div>
+            <div className="pointer-events-auto flex items-center gap-1">
+              <ProfileButton />
+            </div>
+          </header>
+        )}
+        {layoutMode !== 'immersive' && <Sidebar />}
         <div className={appContentClasses}>
           <main className={mainClasses}>{children}</main>
           {showPageFooter && (
