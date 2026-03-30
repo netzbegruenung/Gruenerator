@@ -24,24 +24,18 @@ const log = createLogger('SlidesGraph');
 
 /** Maps outline layout names to concrete layoutGroup + layout identifiers. */
 export const LAYOUT_MAP: Record<string, { layoutGroup: string; layout: string }> = {
-  intro: { layoutGroup: 'general', layout: 'general:general-intro-slide' },
-  'basic-info': { layoutGroup: 'general', layout: 'general:basic-info-slide' },
-  'bullet-points': {
-    layoutGroup: 'neo-general',
-    layout: 'neo-general:headline-text-with-stats-layout',
-  },
-  'bullet-with-icons': { layoutGroup: 'general', layout: 'general:bullet-with-icons-slide' },
-  metrics: { layoutGroup: 'general', layout: 'general:metrics-slide' },
-  quote: { layoutGroup: 'general', layout: 'general:quote-slide' },
-  table: { layoutGroup: 'general', layout: 'general:table-info-slide' },
-  chart: { layoutGroup: 'general', layout: 'general:chart-with-bullets-slide' },
-  team: { layoutGroup: 'general', layout: 'general:team-slide' },
-  'numbered-bullets': { layoutGroup: 'general', layout: 'general:numbered-bullets-slide' },
-  'table-of-contents': { layoutGroup: 'general', layout: 'general:table-of-contents-slide' },
-  closing: {
-    layoutGroup: 'neo-general',
-    layout: 'neo-general:thank-you-contact-info-footer-image-slide-layout',
-  },
+  intro: { layoutGroup: 'gruene', layout: 'gruene:b90-intro-slide' },
+  'basic-info': { layoutGroup: 'gruene', layout: 'gruene:b90-text-image-right-slide' },
+  'bullet-points': { layoutGroup: 'gruene', layout: 'gruene:b90-text-only-slide' },
+  'bullet-with-icons': { layoutGroup: 'gruene', layout: 'gruene:b90-text-only-slide' },
+  metrics: { layoutGroup: 'gruene', layout: 'gruene:b90-chart-slide' },
+  quote: { layoutGroup: 'gruene', layout: 'gruene:b90-branded-message-slide' },
+  table: { layoutGroup: 'gruene', layout: 'gruene:b90-text-only-slide' },
+  chart: { layoutGroup: 'gruene', layout: 'gruene:b90-chart-slide' },
+  team: { layoutGroup: 'gruene', layout: 'gruene:b90-text-only-slide' },
+  'numbered-bullets': { layoutGroup: 'gruene', layout: 'gruene:b90-agenda-slide' },
+  'table-of-contents': { layoutGroup: 'gruene', layout: 'gruene:b90-agenda-slide' },
+  closing: { layoutGroup: 'gruene', layout: 'gruene:b90-thank-you-contact-slide' },
 };
 
 /**
@@ -49,44 +43,57 @@ export const LAYOUT_MAP: Record<string, { layoutGroup: string; layout: string }>
  * schema cannot be loaded. Must match the actual layout Zod schemas exactly.
  */
 export const LAYOUT_FIELD_SPECS: Record<string, string> = {
-  intro: `- title: string (max 40 Zeichen)
-- description: string (max 150 Zeichen)
+  intro: `- title: string (min 3, max 60 Zeichen)
+- subtitle: string (max 200 Zeichen)
 - presenterName: string (max 50 Zeichen)
-- presentationDate: string (max 50 Zeichen)
-- image: Objekt mit {__image_prompt__: string}`,
-  'basic-info': `- title: string (max 40 Zeichen)
-- description: string (max 150 Zeichen)
-- image: Objekt mit {__image_prompt__: string}`,
-  'bullet-points': `- title: string (max 30 Zeichen)
-- bulletPoints: Array von STRINGS (nicht Objekten!) — jeder String max 160 Zeichen, max 6 Einträge
-- metrics: Array von Objekten [{value: string (max 8 Zeichen), label: string (max 10 Zeichen)}]`,
-  'bullet-with-icons': `- title: string (max 40 Zeichen)
-- description: string (max 150 Zeichen)
-- image: Objekt mit {__image_prompt__: string}
-- bulletPoints: Array von Objekten [{title: string (max 60 Zeichen), description: string (max 100 Zeichen), icon: Objekt mit {__icon_query__: string}}] (max 3 Einträge)`,
-  metrics: `- title: string (max 100 Zeichen)
-- metrics: Array von Objekten [{label: string (max 50 Zeichen), value: string (max 10 Zeichen), description: string (max 150 Zeichen)}] (2-3 Einträge)`,
-  quote: `- heading: string
-- quote: string
-- author: string
-- backgroundImage: Objekt mit {__image_prompt__: string}`,
-  table: `- title: string (max 40 Zeichen)
-- tableData: Objekt mit:
-  - headers: Array von strings (max 5, je max 30 Zeichen)
-  - rows: Array von Arrays mit strings (je max 50 Zeichen pro Zelle, max 6 Zeilen)
-- description: string (max 200 Zeichen)`,
-  'numbered-bullets': `- title: string (max 40 Zeichen)
-- image: Objekt mit {__image_prompt__: string}
-- bulletPoints: Array von Objekten [{title: string, description: string}] (max 6 Einträge)`,
-  team: `- title: string (max 40 Zeichen)
-- members: Array von Objekten [{name: string (max 50 Zeichen), role: string (max 50 Zeichen), image: Objekt mit {__image_prompt__: string}}] (max 5 Einträge)`,
+- presenterRole: string (max 80 Zeichen)
+- date: string (max 30 Zeichen)
+- image: Objekt mit {__image_url__: string, __image_prompt__: string (max 100 Zeichen)}`,
+  'basic-info': `- title: string (min 3, max 50 Zeichen)
+- description: string (max 300 Zeichen)
+- bulletPoints: Array von Objekten [{text: string (max 80 Zeichen)}] (max 5 Einträge)
+- image: Objekt mit {__image_url__: string, __image_prompt__: string (max 100 Zeichen)}
+- accentBadge: string (max 30 Zeichen, leer lassen wenn nicht gewünscht)`,
+  'bullet-points': `- title: string (min 3, max 50 Zeichen)
+- columnLeft: string (max 500 Zeichen)
+- columnRight: string (max 500 Zeichen)
+- accentBadge: string (max 30 Zeichen, leer lassen wenn nicht gewünscht)`,
+  'bullet-with-icons': `- title: string (min 3, max 50 Zeichen)
+- columnLeft: string (max 500 Zeichen)
+- columnRight: string (max 500 Zeichen)
+- accentBadge: string (max 30 Zeichen, leer lassen wenn nicht gewünscht)`,
+  metrics: `- title: string (max 40 Zeichen)
+- description: string (max 200 Zeichen)
+- chart: Objekt mit {type: "bar"|"line"|"area"|"pie"|"donut", categories: string[], series: [{name: string (max 32), values: number[]}]}`,
+  quote: `- icon: Objekt mit {__icon_url__: string, __icon_query__: string (max 20 Zeichen)}
+- messageBefore: string (max 60 Zeichen)
+- messageHighlight: string (max 40 Zeichen)
+- messageAfter: string (max 60 Zeichen)
+- subtitle: string (max 150 Zeichen)`,
+  table: `- title: string (min 3, max 50 Zeichen)
+- columnLeft: string (max 500 Zeichen)
+- columnRight: string (max 500 Zeichen)
+- accentBadge: string (max 30 Zeichen, leer lassen wenn nicht gewünscht)`,
+  'numbered-bullets': `- title: string (min 3, max 40 Zeichen)
+- items: Array von Objekten [{label: string (max 80 Zeichen)}] (2-10 Einträge)`,
+  team: `- title: string (min 3, max 50 Zeichen)
+- columnLeft: string (max 500 Zeichen)
+- columnRight: string (max 500 Zeichen)
+- accentBadge: string (max 30 Zeichen, leer lassen wenn nicht gewünscht)`,
   chart: `- title: string (max 40 Zeichen)
-- chartData: Objekt mit {type: "bar"|"line"|"pie"|"area", dataPoints: [{name: string, value: number}]}
-- bulletPoints: Array von Objekten [{title: string (max 80 Zeichen), description: string (max 150 Zeichen)}] (max 3 Einträge)`,
-  'table-of-contents': `- sections: Array von Objekten [{number: number, title: string (max 80 Zeichen), pageNumber: string (max 10 Zeichen)}]`,
-  closing: `- title: string (Abschlusstitel)
-- subtitle: string (Zusammenfassung)
-- contactInfo: Objekt mit {email: string, phone: string, website: string}`,
+- description: string (max 200 Zeichen)
+- chart: Objekt mit {type: "bar"|"line"|"area"|"pie"|"donut", categories: string[], series: [{name: string (max 32), values: number[]}]}`,
+  'table-of-contents': `- title: string (min 3, max 40 Zeichen)
+- items: Array von Objekten [{label: string (max 80 Zeichen)}] (2-10 Einträge)`,
+  closing: `- title: string (max 40 Zeichen)
+- subtitle: string (max 100 Zeichen)
+- contactName: string (max 50 Zeichen)
+- contactRole: string (max 80 Zeichen)
+- contactOrg: string (max 80 Zeichen)
+- contactAddress: string (max 100 Zeichen)
+- contactPhone: string (max 30 Zeichen)
+- contactEmail: string (max 60 Zeichen)
+- image: Objekt mit {__image_url__: string, __image_prompt__: string (max 100 Zeichen)}`,
 };
 
 /** Tone descriptions injected into system prompts. */
