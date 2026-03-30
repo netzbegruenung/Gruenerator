@@ -40,7 +40,7 @@ const ImagineInner: React.FC = memo(() => {
   const handleDownload = useCallback(() => {
     if (!generatedImage) return;
     const link = document.createElement('a');
-    link.href = `data:image/png;base64,${generatedImage}`;
+    link.href = generatedImage;
     link.download = `gruenerator-bild-${Date.now()}.png`;
     link.click();
   }, [generatedImage]);
@@ -72,11 +72,7 @@ const ImagineInner: React.FC = memo(() => {
 
       {generatedImage && (
         <div className="rounded-xl overflow-hidden border border-grey-200 dark:border-grey-700 bg-background-pure shadow-sm">
-          <img
-            src={`data:image/png;base64,${generatedImage}`}
-            alt="Generiertes Bild"
-            className="w-full h-auto"
-          />
+          <img src={generatedImage} alt="Generiertes Bild" className="w-full h-auto" />
           <div className="flex items-center gap-2 p-3 border-t border-grey-100 dark:border-grey-800">
             <Button variant="brand-outline" size="sm" onClick={handleDownload}>
               <Download className="size-3.5" />
