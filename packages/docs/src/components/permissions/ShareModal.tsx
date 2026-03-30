@@ -320,13 +320,13 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
           </span>
         </div>
 
-        <GroupShareSection
-          documentId={documentId}
-          apiClient={apiClient}
-          onGroupsLoaded={setHasGroups}
-        />
-
         <div className="flex-1 overflow-y-auto p-6">
+          <GroupShareSection
+            documentId={documentId}
+            apiClient={apiClient}
+            onGroupsLoaded={setHasGroups}
+          />
+
           <p className="mb-3 text-base font-semibold">Zugriff</p>
           {isLoading ? (
             <div className="flex justify-center py-6">
@@ -337,58 +337,10 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
               Noch niemand eingeladen
             </p>
           ) : (
-            <div className="flex flex-col gap-3">
-              {collaborators.map((collaborator) => {
-                if (collaborator.type === 'group') {
-                  return (
-                    <div
-                      key={`group-${collaborator.group_id}`}
-                      className="flex flex-nowrap items-center justify-between rounded-md border border-grey-200 bg-background p-3 dark:border-grey-700"
-                    >
-                      <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-3">
-                        <div
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-600 text-xs font-semibold text-white"
-                          style={{ fontSize: '0.7rem' }}
-                        >
-                          👥
-                        </div>
-                        <div className="min-w-0">
-                          <span className="block truncate text-sm font-medium">
-                            {collaborator.group_name}
-                          </span>
-                          <span className="block text-xs text-grey-500 dark:text-grey-400">
-                            Gruppe · {collaborator.member_count}{' '}
-                            {collaborator.member_count === 1 ? 'Mitglied' : 'Mitglieder'}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex flex-nowrap items-center gap-2">
-                        <select
-                          className="h-7 w-[150px] rounded-md border border-grey-300 bg-background px-2 text-xs outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 dark:border-grey-600 dark:bg-grey-800"
-                          value={collaborator.permission_level}
-                          onChange={(e) =>
-                            handleUpdateGroupPermission(
-                              collaborator.group_id,
-                              e.target.value as 'editor' | 'viewer'
-                            )
-                          }
-                        >
-                          <option value="editor">Bearbeiter*in</option>
-                          <option value="viewer">Betrachter*in</option>
-                        </select>
-                        <Button
-                          variant="outline"
-                          size="xs"
-                          onClick={() => handleRemoveGroup(collaborator.group_id)}
-                        >
-                          Entfernen
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                }
-
-                return (
+            <div className="flex flex-col gap-2">
+              {collaborators
+                .filter((c): c is UserCollaborator => c.type !== 'group')
+                .map((collaborator) => (
                   <div
                     key={collaborator.user_id}
                     className="flex flex-nowrap items-center justify-between rounded-md border border-grey-200 bg-background p-3 dark:border-grey-700"
@@ -449,8 +401,7 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
                       )}
                     </div>
                   </div>
-                );
-              })}
+                ))}
             </div>
           )}
         </div>

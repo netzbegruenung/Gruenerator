@@ -106,61 +106,61 @@ export const GroupShareSection = ({
   }
 
   return (
-    <div className="groups-section">
+    <div className="mb-md">
       <p className="mb-3 text-base font-semibold">Gruppen</p>
 
       {error && <span className="mb-3 block text-xs text-red-600 dark:text-red-400">{error}</span>}
 
       {availableGroups.length > 0 && (
-        <div className="group-share-add">
-          <div className="flex flex-nowrap items-end gap-2">
-            <select
-              className="h-9 flex-1 rounded-md border border-grey-300 bg-background px-3 text-sm outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 dark:border-grey-600 dark:bg-grey-800"
-              value={selectedGroupId ?? ''}
-              onChange={(e) => setSelectedGroupId(e.target.value || null)}
-            >
-              <option value="">Gruppe auswählen</option>
-              {availableGroups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-            </select>
-            <select
-              className="h-9 w-[150px] rounded-md border border-grey-300 bg-background px-3 text-sm outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 dark:border-grey-600 dark:bg-grey-800"
-              value={selectedPermission}
-              onChange={(e) => setSelectedPermission(e.target.value)}
-            >
-              <option value="viewer">Betrachter*in</option>
-              <option value="editor">Bearbeiter*in</option>
-            </select>
-            <Button size="sm" onClick={handleShare} disabled={!selectedGroupId || isSharing}>
-              {isSharing ? (
-                <span className="flex items-center gap-2">
-                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-grey-300 border-t-white" />
-                  Hinzufügen
-                </span>
-              ) : (
-                'Hinzufügen'
-              )}
-            </Button>
-          </div>
+        <div className="flex flex-nowrap items-end gap-2">
+          <select
+            className="h-9 flex-1 rounded-md border border-grey-300 bg-background px-3 text-sm outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 dark:border-grey-600 dark:bg-grey-800"
+            value={selectedGroupId ?? ''}
+            onChange={(e) => setSelectedGroupId(e.target.value || null)}
+          >
+            <option value="">Gruppe auswählen</option>
+            {availableGroups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+          <select
+            className="h-9 w-[130px] rounded-md border border-grey-300 bg-background px-3 text-sm outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 dark:border-grey-600 dark:bg-grey-800"
+            value={selectedPermission}
+            onChange={(e) => setSelectedPermission(e.target.value)}
+          >
+            <option value="viewer">Betrachter*in</option>
+            <option value="editor">Bearbeiter*in</option>
+          </select>
+          <Button size="sm" onClick={handleShare} disabled={!selectedGroupId || isSharing}>
+            {isSharing ? (
+              <span className="flex items-center gap-2">
+                <span className="h-3 w-3 animate-spin rounded-full border-2 border-grey-300 border-t-white" />
+              </span>
+            ) : (
+              'Hinzufügen'
+            )}
+          </Button>
         </div>
       )}
 
       {groupShares.length > 0 && (
-        <div className="mt-3 flex flex-col gap-3">
+        <div className="mt-3 flex flex-col gap-2">
           {groupShares.map((share) => (
             <div
               key={share.group_id}
-              className="group-share-item flex flex-nowrap items-center justify-between"
+              className="flex flex-nowrap items-center justify-between rounded-md border border-grey-200 bg-background p-3 dark:border-grey-700"
             >
-              <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                {share.group_name}
-              </span>
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-grey-100 text-sm dark:bg-grey-800">
+                  👥
+                </div>
+                <span className="min-w-0 truncate text-sm font-medium">{share.group_name}</span>
+              </div>
               <div className="flex flex-nowrap items-center gap-2">
                 <select
-                  className="h-7 w-[150px] rounded-md border border-grey-300 bg-background px-2 text-xs outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 dark:border-grey-600 dark:bg-grey-800"
+                  className="h-7 w-[130px] rounded-md border border-grey-300 bg-background px-2 text-xs outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 dark:border-grey-600 dark:bg-grey-800"
                   value={share.permission_level}
                   onChange={(e) => handleUpdatePermission(share.group_id, e.target.value)}
                 >
