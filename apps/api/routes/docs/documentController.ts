@@ -174,7 +174,16 @@ router.get('/', async (req: Request, res: Response) => {
             INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
             WHERE gcs.content_type = 'collaborative_documents'
           ) THEN 'group'
-        END AS access_type
+        END AS access_type,
+        COALESCE(
+          (SELECT json_agg(json_build_object('group_id', g.id, 'group_name', g.name))
+           FROM group_content_shares gcs2
+           INNER JOIN group_memberships gm2 ON gm2.group_id = gcs2.group_id AND gm2.user_id = $1
+           INNER JOIN groups g ON g.id = gcs2.group_id
+           WHERE gcs2.content_type = 'collaborative_documents'
+             AND gcs2.content_id = cd.id::text
+          ), '[]'::json
+        ) AS group_shares
        FROM collaborative_documents cd
        LEFT JOIN profiles p ON cd.created_by = p.id
        LEFT JOIN profiles le ON cd.last_edited_by = le.id
