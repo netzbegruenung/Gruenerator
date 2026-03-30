@@ -88,20 +88,14 @@ const SIDEBAR_TABS = [
 ];
 
 function EditorFAB({
-  connectionStatus,
+  showDisconnected,
   sidebarOpen,
   onToggleSidebar,
 }: {
-  connectionStatus: 'connected' | 'syncing' | 'disconnected';
+  showDisconnected: boolean;
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
 }) {
-  const statusColors = {
-    connected: 'bg-emerald-500',
-    syncing: 'bg-amber-500 animate-pulse',
-    disconnected: 'bg-red-500',
-  };
-
   return (
     <button
       className={`fixed bottom-6 right-6 w-12 h-12 rounded-full flex items-center justify-center bg-white/85 dark:bg-grey-900/85 backdrop-blur-xl border border-black/8 dark:border-white/10 shadow-lg cursor-pointer z-[150] transition-all hover:bg-white/95 dark:hover:bg-grey-800/95 hover:shadow-xl active:scale-95 [&_svg]:w-[22px] [&_svg]:h-[22px] [&_svg]:text-grey-700 dark:[&_svg]:text-grey-300 ${sidebarOpen ? 'bg-secondary-100 dark:bg-secondary-600/25 border-secondary-400 dark:border-secondary-600 z-[250] [&_svg]:text-secondary-700 dark:[&_svg]:text-secondary-400' : ''}`}
@@ -109,9 +103,9 @@ function EditorFAB({
       aria-label="Seitenleiste ein-/ausblenden"
     >
       <FiSidebar />
-      <span
-        className={`absolute top-0.5 right-0.5 w-2 h-2 rounded-full border-[1.5px] border-white/90 dark:border-grey-900/90 ${statusColors[connectionStatus]}`}
-      />
+      {showDisconnected && (
+        <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full border-[1.5px] border-white/90 dark:border-grey-900/90 bg-red-500" />
+      )}
     </button>
   );
 }
@@ -306,6 +300,20 @@ function EditorContent() {
 
   const initialContent = useMemo(() => docData?.content || '', [docData?.content]);
 
+  const [showDisconnected, setShowDisconnected] = useState(false);
+  useEffect(() => {
+    if (isConnected) {
+      setShowDisconnected(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowDisconnected(true), 5000);
+    return () => clearTimeout(timer);
+  }, [isConnected]);
+
+  const connectionStatus: 'disconnected' | undefined = showDisconnected
+    ? 'disconnected'
+    : undefined;
+
   if (docIsLoading) {
     return <div className="flex items-center justify-center h-full" />;
   }
@@ -325,8 +333,6 @@ function EditorContent() {
       </div>
     );
   }
-
-  const connectionStatus = !isConnected ? 'disconnected' : !isSynced ? 'syncing' : 'connected';
   const localUser = getLocalUser();
 
   return (
@@ -352,7 +358,7 @@ function EditorContent() {
 
       {isEmbedded ? (
         <EditorFAB
-          connectionStatus={connectionStatus}
+          showDisconnected={showDisconnected}
           sidebarOpen={sidebarOpen}
           onToggleSidebar={toggleSidebar}
         />
