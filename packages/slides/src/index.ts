@@ -22,24 +22,17 @@ export type {
   GeneratePresentationResponse,
 } from './types/slide';
 
-// Layouts — re-export from Presenton's registry (copied as-is)
+// Layouts — re-export from Presenton's registry
 export {
   allLayouts,
+  grueneTemplates,
   generalTemplates,
   neoGeneralTemplates,
-  modernTemplates,
-  neoModernTemplates,
-  standardTemplates,
-  neoStandardTemplates,
-  swiftTemplates,
-  neoSwiftTemplates,
   templates,
   getTemplatesByTemplateName,
   getTemplateByLayoutId,
   getLayoutByLayoutId,
 } from './components/layouts/index';
-
-export { ImageSchema, IconSchema } from './components/layouts/defaultSchemes';
 
 // Schema-only exports (safe for backend — no React)
 export { getLayoutSchema, getAllLayoutIds, layoutSchemaMap } from './schemas/index';
