@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 
@@ -49,29 +49,47 @@ export const useCollaboration = ({
   }));
 
   const providerRef = useRef<HocuspocusProvider | null>(null);
+  // Refs for values that should NOT trigger reconnection — only awareness updates
+  const userRef = useRef(user);
+  userRef.current = user;
+  const guestNameRef = useRef(guestName);
+  guestNameRef.current = guestName;
+  const guestIdRef = useRef(guestId);
+  guestIdRef.current = guestId;
 
+  const buildAwarenessUser = useCallback((): CollaborationUser => {
+    const u = userRef.current;
+    const gId = guestIdRef.current;
+    const gName = guestNameRef.current;
+    if (isGuest || !u) {
+      return { id: gId || 'guest', name: gName || 'Gast', color: generateUserColor() };
+    }
+    return {
+      id: u.id,
+      name: u.display_name || u.email || 'Anonymous',
+      color: generateUserColor(),
+      ...(u.avatar_robot_id ? { avatarRobotId: u.avatar_robot_id } : {}),
+    };
+  }, [isGuest]);
+
+  // Connection effect — only reconnects when document/config/auth-mode changes
   useEffect(() => {
     if (!documentId) return;
-    if (!isGuest && !user) return;
+    if (!isGuest && !userRef.current) return;
 
     let ignore = false;
     const ydoc = new Y.Doc();
 
     const initProvider = async () => {
-      console.info(
-        '[Collab] Initializing provider for document:',
-        documentId,
-        '| isGuest:',
-        isGuest,
-        '| url:',
-        config.url
-      );
+      console.info('[Collab] Init | doc:', documentId, '| isGuest:', isGuest, '| url:', config.url);
       const token = isGuest ? null : await config.getToken();
-      console.info('[Collab] Token resolved:', token ? 'present' : 'null');
+      console.info('[Collab] Token:', token ? 'present' : 'null');
 
       if (ignore) return;
 
       const WebSocketPolyfill = config.getWebSocketPolyfill?.();
+      const gId = guestIdRef.current;
+      const gName = guestNameRef.current;
 
       const provider = new HocuspocusProvider({
         url: config.url,
@@ -79,11 +97,11 @@ export const useCollaboration = ({
         document: ydoc,
         token: token ?? undefined,
         ...(WebSocketPolyfill ? { WebSocketPolyfill } : {}),
-        ...(isGuest && guestId ? { parameters: { guestId, guestName: guestName || 'Gast' } } : {}),
+        ...(isGuest && gId ? { parameters: { guestId: gId, guestName: gName || 'Gast' } } : {}),
       } as ConstructorParameters<typeof HocuspocusProvider>[0]);
 
-      // Immediately disconnect to prevent the auto-connect race condition.
-      // We reconnect explicitly after event listeners are set up.
+      // Disconnect immediately to prevent auto-connect race condition.
+      // We reconnect after event listeners are set up.
       provider.disconnect();
 
       if (ignore) {
@@ -92,17 +110,7 @@ export const useCollaboration = ({
       }
 
       providerRef.current = provider;
-
-      const awarenessUser: CollaborationUser = isGuest
-        ? { id: guestId || 'guest', name: guestName || 'Gast', color: generateUserColor() }
-        : {
-            id: user!.id,
-            name: user!.display_name || user!.email || 'Anonymous',
-            color: generateUserColor(),
-            ...(user!.avatar_robot_id ? { avatarRobotId: user!.avatar_robot_id } : {}),
-          };
-
-      provider.awareness?.setLocalStateField('user', awarenessUser);
+      provider.awareness?.setLocalStateField('user', buildAwarenessUser());
 
       provider.on('status', (event: { status: string }) => {
         console.info('[Collab] Status:', event.status, '| doc:', documentId);
@@ -129,7 +137,7 @@ export const useCollaboration = ({
 
       provider.on('close', (event: { event: CloseEvent }) => {
         console.warn(
-          '[Collab] Connection closed | doc:',
+          '[Collab] Closed | doc:',
           documentId,
           '| code:',
           event.event.code,
@@ -147,28 +155,36 @@ export const useCollaboration = ({
         return;
       }
 
-      setState({
-        ydoc,
-        provider,
-        isConnected: false,
-        isSynced: false,
-      });
-
-      if (!ignore) {
-        console.info('[Collab] Connecting to', config.url, '| doc:', documentId);
-        provider.connect();
-      }
+      setState({ ydoc, provider, isConnected: false, isSynced: false });
+      console.info('[Collab] Connecting to', config.url, '| doc:', documentId);
+      provider.connect();
     };
 
     initProvider();
 
     return () => {
-      console.info('[Collab] Cleanup — destroying provider | doc:', documentId);
+      console.info('[Collab] Cleanup | doc:', documentId);
       ignore = true;
       providerRef.current?.awareness?.setLocalState(null);
       providerRef.current?.destroy();
+      providerRef.current = null;
     };
-  }, [documentId, user, config, isGuest, guestId, guestName]);
+  }, [documentId, config, isGuest, buildAwarenessUser]);
+
+  // Update awareness when user identity changes — no reconnection needed
+  useEffect(() => {
+    const provider = providerRef.current;
+    if (!provider?.awareness) return;
+    provider.awareness.setLocalStateField('user', buildAwarenessUser());
+  }, [
+    user?.id,
+    user?.display_name,
+    user?.email,
+    user?.avatar_robot_id,
+    guestId,
+    guestName,
+    buildAwarenessUser,
+  ]);
 
   return state;
 };
