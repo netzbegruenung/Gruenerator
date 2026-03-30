@@ -58,7 +58,16 @@ export const useCollaboration = ({
     const ydoc = new Y.Doc();
 
     const initProvider = async () => {
+      console.info(
+        '[Collab] Initializing provider for document:',
+        documentId,
+        '| isGuest:',
+        isGuest,
+        '| url:',
+        config.url
+      );
       const token = isGuest ? null : await config.getToken();
+      console.info('[Collab] Token resolved:', token ? 'present' : 'null');
 
       if (ignore) return;
 
@@ -96,6 +105,7 @@ export const useCollaboration = ({
       provider.awareness?.setLocalStateField('user', awarenessUser);
 
       provider.on('status', (event: { status: string }) => {
+        console.info('[Collab] Status:', event.status, '| doc:', documentId);
         if (ignore) return;
         const newIsConnected = event.status === 'connected';
         setState((prev) => {
@@ -105,6 +115,7 @@ export const useCollaboration = ({
       });
 
       provider.on('synced', () => {
+        console.info('[Collab] Synced | doc:', documentId);
         if (ignore) return;
         setState((prev) => {
           if (prev.isSynced) return prev;
@@ -113,7 +124,22 @@ export const useCollaboration = ({
       });
 
       provider.on('authenticationFailed', (data: { reason: string }) => {
-        console.warn('[Hocuspocus] Auth failed:', data.reason);
+        console.error('[Collab] Auth FAILED:', data.reason, '| doc:', documentId);
+      });
+
+      provider.on('close', (event: { event: CloseEvent }) => {
+        console.warn(
+          '[Collab] Connection closed | doc:',
+          documentId,
+          '| code:',
+          event.event.code,
+          '| reason:',
+          event.event.reason
+        );
+      });
+
+      provider.on('disconnect', () => {
+        console.warn('[Collab] Disconnected | doc:', documentId);
       });
 
       if (ignore) {
@@ -129,6 +155,7 @@ export const useCollaboration = ({
       });
 
       if (!ignore) {
+        console.info('[Collab] Connecting to', config.url, '| doc:', documentId);
         provider.connect();
       }
     };
@@ -136,6 +163,7 @@ export const useCollaboration = ({
     initProvider();
 
     return () => {
+      console.info('[Collab] Cleanup — destroying provider | doc:', documentId);
       ignore = true;
       providerRef.current?.awareness?.setLocalState(null);
       providerRef.current?.destroy();
