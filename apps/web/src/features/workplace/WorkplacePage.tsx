@@ -48,15 +48,16 @@ const WorkplacePage = () => {
 
         <NotebooksSection />
 
-        <section className="mb-xl">
-          <SectionHeader title="Weitere Tools" />
-          <ToolsSection />
-        </section>
-
-        <section className="mb-xl">
-          <SectionHeader title="Experimentelle Tools" />
-          <ExperimentalToolsSection />
-        </section>
+        <div className="md:grid md:grid-cols-2 md:gap-lg mb-xl">
+          <section>
+            <SectionHeader title="Weitere Tools" />
+            <ToolsSection />
+          </section>
+          <section>
+            <SectionHeader title="Experimentelle Tools" />
+            <ExperimentalToolsSection />
+          </section>
+        </div>
       </PageContainer>
     </ErrorBoundary>
   );
