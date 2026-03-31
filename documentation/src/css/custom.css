@@ -1,19 +1,21 @@
 /**
- * Any CSS included here will be global. The classic template
- * bundles Infima by default. Infima is a CSS framework designed to
- * work well for content-centric websites.
+ * Global styles for the Grünerator documentation site.
+ * Built on Docusaurus's Infima CSS framework.
  */
 
-/* You can override the default Infima variables here. */
+/* ============================================
+   DESIGN TOKENS
+   ============================================ */
+
 :root {
-  /* Primary Color System ("Tanne") - Primary digital interaction color */
+  /* Primary Color System ("Tanne") */
   --primary-50: #e8f2ee;
   --primary-100: #c8dfd5;
   --primary-200: #a3c9b8;
   --primary-300: #7db39a;
   --primary-400: #60a183;
   --primary-500: #428f6c;
-  --primary-600: #005538;  /* Base "Tanne" color */
+  --primary-600: #005538;
   --primary-700: #004a2f;
   --primary-800: #003e26;
   --primary-900: #00321d;
@@ -26,17 +28,20 @@
   --secondary-300: #A0BBB0;
   --secondary-400: #85A899;
   --secondary-500: #6A9583;
-  --secondary-600: #5F8575;  /* Base "Eucalyptus" color */
+  --secondary-600: #5F8575;
   --secondary-700: #445F54;
   --secondary-800: #31453C;
   --secondary-900: #1E2A25;
   --secondary-950: #0B0F0D;
 
-  /* Dark mode background */
-  --dark-background: #2a2a2a;
-  --dark-background-darker: #1e1e1e;
+  /* Surface & Layout Tokens */
+  --surface-background: #fafbfc;
+  --surface-card: #ffffff;
+  --surface-border: rgba(0, 85, 56, 0.08);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.08);
 
-  /* Primary color mapped to Tanne scale */
+  /* Infima overrides */
   --ifm-color-primary: var(--primary-600);
   --ifm-color-primary-dark: var(--primary-700);
   --ifm-color-primary-darker: var(--primary-800);
@@ -45,22 +50,39 @@
   --ifm-color-primary-lighter: var(--primary-400);
   --ifm-color-primary-lightest: var(--primary-300);
 
-  /* Semantic color names */
   --color-accent: var(--secondary-100);
   --color-secondary: var(--secondary-600);
 
-  /* Gradients using tanne and eucalyptus */
+  /* Gradients */
   --background-gradient: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
   --accent-gradient: linear-gradient(to right, var(--primary-500) 0%, var(--primary-600) 100%);
 
+  /* Typography & Spacing */
+  --ifm-font-family-base: 'Open Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --ifm-line-height-base: 1.75;
   --ifm-code-font-size: 95%;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
-  --ifm-font-family-base: 'Open Sans', ui-sans-serif, system-ui;
+  --ifm-global-radius: 0.5rem;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.06);
+
+  /* Navbar */
+  --ifm-navbar-shadow: none;
+  --ifm-navbar-padding-vertical: 0.75rem;
+
+  /* Search */
+  --search-local-modal-width: 600px;
+  --search-local-spacing: 8px;
+  --search-local-hit-height: 44px;
+  --search-local-modal-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  --search-local-hit-shadow: none;
 }
 
-/* For readability concerns, you should choose a lighter palette in dark mode. */
 [data-theme='dark'] {
-  /* Primary color mapped to lighter tanne tones for dark mode */
+  --surface-background: #161b22;
+  --surface-card: #1c2128;
+  --surface-border: rgba(255, 255, 255, 0.08);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.3);
+
   --ifm-color-primary: var(--primary-400);
   --ifm-color-primary-dark: var(--primary-500);
   --ifm-color-primary-darker: var(--primary-600);
@@ -69,51 +91,289 @@
   --ifm-color-primary-lighter: var(--primary-200);
   --ifm-color-primary-lightest: var(--primary-100);
 
-  /* Semantic colors for dark mode */
   --color-accent: var(--secondary-200);
   --color-secondary: var(--secondary-500);
 
-  /* Gradients for dark mode */
   --background-gradient: linear-gradient(135deg, var(--primary-800) 0%, var(--primary-900) 100%);
   --accent-gradient: linear-gradient(to right, var(--primary-400) 0%, var(--primary-600) 100%);
 
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+  --search-local-modal-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
-/* Algolia DocSearch styling for light theme */
+/* ============================================
+   NAVBAR
+   ============================================ */
+
+.navbar {
+  border-bottom: 1px solid var(--surface-border);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+[data-theme='dark'] .navbar {
+  background: rgba(22, 27, 34, 0.85);
+}
+
+.navbar__link {
+  font-weight: 500;
+  font-size: 0.9375rem;
+  border-radius: 8px;
+  padding: 0.375rem 0.75rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.navbar__link:hover {
+  background: var(--primary-50);
+}
+
+[data-theme='dark'] .navbar__link:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.navbar__link--active {
+  color: var(--primary-600);
+  font-weight: 600;
+}
+
+[data-theme='dark'] .navbar__link--active {
+  color: var(--primary-400);
+}
+
+/* ============================================
+   SIDEBAR
+   ============================================ */
+
+.theme-doc-sidebar-container {
+  border-right: 1px solid var(--surface-border) !important;
+}
+
+.menu__link {
+  font-size: 0.9375rem;
+  font-weight: 400;
+  color: #4b5563;
+  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+  transition: background 0.15s ease, color 0.15s ease;
+  line-height: 1.5;
+}
+
+[data-theme='dark'] .menu__link {
+  color: #9ca3af;
+}
+
+.menu__link:hover {
+  background: var(--primary-50);
+  color: var(--primary-700);
+}
+
+[data-theme='dark'] .menu__link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--primary-300);
+}
+
+.menu__link--active {
+  background: var(--primary-50) !important;
+  color: var(--primary-600) !important;
+  font-weight: 600;
+}
+
+[data-theme='dark'] .menu__link--active {
+  background: rgba(96, 161, 131, 0.12) !important;
+  color: var(--primary-400) !important;
+}
+
+.menu__list-item-collapsible > .menu__link--sublist {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+  padding: 0.5rem 0.75rem;
+}
+
+[data-theme='dark'] .menu__list-item-collapsible > .menu__link--sublist {
+  color: #6b7280;
+}
+
+/* ============================================
+   DOC PAGE TYPOGRAPHY
+   ============================================ */
+
+.markdown h1:first-child {
+  font-size: 2.25rem;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+}
+
+.markdown h2 {
+  font-size: 1.625rem;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  font-weight: 700;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.markdown h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+}
+
+.markdown p {
+  margin-bottom: 1.25rem;
+  line-height: 1.75;
+}
+
+.markdown code {
+  background: var(--primary-50);
+  border: 1px solid var(--surface-border);
+  border-radius: 6px;
+  padding: 0.15em 0.4em;
+  font-size: 0.875em;
+}
+
+[data-theme='dark'] .markdown code {
+  background: rgba(96, 161, 131, 0.1);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.markdown blockquote {
+  border-left: 3px solid var(--primary-400);
+  background: var(--primary-50);
+  padding: 1rem 1.25rem;
+  border-radius: 0 8px 8px 0;
+  margin: 1.5rem 0;
+}
+
+[data-theme='dark'] .markdown blockquote {
+  background: rgba(96, 161, 131, 0.08);
+  border-left-color: var(--primary-600);
+}
+
+/* ============================================
+   TABLE OF CONTENTS (RIGHT SIDEBAR)
+   ============================================ */
+
+.table-of-contents {
+  font-size: 0.8125rem;
+  border-left: 2px solid var(--surface-border);
+  padding-left: 0.75rem;
+}
+
+.table-of-contents__link {
+  color: #6b7280;
+  transition: color 0.15s ease;
+}
+
+.table-of-contents__link:hover {
+  color: var(--primary-600);
+}
+
+[data-theme='dark'] .table-of-contents__link {
+  color: #9ca3af;
+}
+
+[data-theme='dark'] .table-of-contents__link:hover {
+  color: var(--primary-400);
+}
+
+.table-of-contents__link--active {
+  color: var(--primary-600) !important;
+  font-weight: 600;
+}
+
+[data-theme='dark'] .table-of-contents__link--active {
+  color: var(--primary-400) !important;
+}
+
+/* ============================================
+   FOOTER (LIGHT STYLE)
+   ============================================ */
+
+.footer {
+  background: var(--surface-background);
+  border-top: 1px solid var(--surface-border);
+  padding: 3.5rem 2rem 2rem;
+}
+
+.footer__title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+  margin-bottom: 1rem;
+}
+
+.footer__link-item {
+  font-size: 0.9rem;
+  color: #4b5563;
+  line-height: 2;
+}
+
+.footer__link-item:hover {
+  color: var(--primary-600);
+}
+
+[data-theme='dark'] .footer {
+  background: var(--surface-background);
+}
+
+[data-theme='dark'] .footer__title {
+  color: #6b7280;
+}
+
+[data-theme='dark'] .footer__link-item {
+  color: #9ca3af;
+}
+
+[data-theme='dark'] .footer__link-item:hover {
+  color: var(--primary-400);
+}
+
+.footer__copyright {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--surface-border);
+  color: #9ca3af;
+  font-size: 0.8125rem;
+}
+
+/* ============================================
+   SEARCH BAR STYLING
+   ============================================ */
+
 [data-theme='light'] .DocSearch {
-  /* --docsearch-primary-color: var(--ifm-color-primary); */
-  /* --docsearch-text-color: var(--ifm-font-color-base); */
   --docsearch-muted-color: var(--ifm-color-secondary-darkest);
   --docsearch-container-background: rgba(94, 100, 112, 0.7);
-  /* Modal */
   --docsearch-modal-background: var(--ifm-color-secondary-lighter);
-  /* Search box */
   --docsearch-searchbox-background: var(--ifm-color-secondary);
   --docsearch-searchbox-focus-background: var(--ifm-color-white);
-  /* Hit */
   --docsearch-hit-color: var(--ifm-font-color-base);
   --docsearch-hit-active-color: var(--ifm-color-white);
   --docsearch-hit-background: var(--ifm-color-white);
-  /* Footer */
   --docsearch-footer-background: var(--ifm-color-white);
 }
 
-/* Algolia DocSearch styling for dark theme */
 [data-theme='dark'] .DocSearch {
   --docsearch-text-color: var(--ifm-font-color-base);
   --docsearch-muted-color: var(--ifm-color-secondary-darkest);
   --docsearch-container-background: rgba(47, 55, 69, 0.7);
-  /* Modal */
   --docsearch-modal-background: var(--ifm-background-color);
-  /* Search box */
   --docsearch-searchbox-background: var(--ifm-background-color);
   --docsearch-searchbox-focus-background: var(--ifm-color-black);
-  /* Hit */
   --docsearch-hit-color: var(--ifm-font-color-base);
   --docsearch-hit-active-color: var(--ifm-color-white);
   --docsearch-hit-background: var(--ifm-color-emphasis-100);
-  /* Footer */
   --docsearch-footer-background: var(--ifm-background-surface-color);
   --docsearch-key-gradient: linear-gradient(
     -26.5deg,
@@ -122,30 +382,27 @@
   );
 }
 
-/* Dark mode header text styling */
-[data-theme='dark'] .hero__title,
-[data-theme='dark'] .hero__subtitle,
-[data-theme='dark'] .button--outline {
-  color: white !important;
+/* ============================================
+   ADMONITIONS / CALLOUTS
+   ============================================ */
+
+.alert {
+  border-radius: 10px;
+  border-width: 1px;
+  border-left-width: 3px;
 }
 
-/* White gradient text for Grünerator in hero title */
-.titleGreen {
-  color: white !important;
-  background: none !important;
-  -webkit-text-fill-color: white !important;
-  text-shadow: none !important;
+/* ============================================
+   PAGINATION
+   ============================================ */
+
+.pagination-nav__link {
+  border-radius: 12px;
+  border-color: var(--surface-border);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-/* Minimal search bar styling */
-:root {
-  --search-local-modal-width: 600px;
-  --search-local-spacing: 8px;
-  --search-local-hit-height: 44px;
-  --search-local-modal-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  --search-local-hit-shadow: none;
-}
-
-[data-theme='dark'] {
-  --search-local-modal-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+.pagination-nav__link:hover {
+  border-color: var(--primary-400);
+  box-shadow: var(--shadow-card-hover);
 }
