@@ -13,7 +13,7 @@ import {
 import { lazy, Suspense, useCallback, useState } from 'react';
 import { HiDocumentText, HiDownload } from 'react-icons/hi';
 import { IoCopyOutline } from 'react-icons/io5';
-import { PiCheckSquare, PiKanban, PiMicrophone, PiNotePencil, PiShieldCheck } from 'react-icons/pi';
+import { PiCheckSquare, PiKanban, PiMicrophone, PiNotePencil, PiUsersThree } from 'react-icons/pi';
 
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../components/common/PageContainer';
@@ -81,10 +81,10 @@ const TranskriptionPage = () => {
   const { state, transcribe, reset } = useTranscription();
   const { state: protokollState, formatAsProtokoll, reset: resetProtokoll } = useProtokoll();
   const [options, setOptions] = useState<TranscriptionOptions>({
-    diarize: true,
+    diarize: false,
     timestamps: true,
     language: 'de',
-    privacyMode: false,
+    privacyMode: true,
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [copied, setCopied] = useState(false);
@@ -191,11 +191,11 @@ const TranskriptionPage = () => {
             />
 
             <FeatureToggle
-              isActive={options.privacyMode ?? false}
-              onToggle={(v) => setOptions((o) => ({ ...o, privacyMode: v }))}
-              label="Privat verarbeiten"
-              icon={PiShieldCheck}
-              description="Audio wird ausschließlich auf unseren eigenen Servern verarbeitet, ohne Daten an externe Dienste zu senden."
+              isActive={options.diarize}
+              onToggle={(v) => setOptions((o) => ({ ...o, diarize: v, privacyMode: !v }))}
+              label="Sprecher*innen erkennen"
+              icon={PiUsersThree}
+              description="Erkennt verschiedene Sprecher*innen im Audio — ideal für Podcasts oder Interviews. Dabei werden die Daten an einen externen Dienst (Mistral) gesendet. Für Protokolle und Einzelaufnahmen ist dies nicht nötig."
               noBorder
             />
 
