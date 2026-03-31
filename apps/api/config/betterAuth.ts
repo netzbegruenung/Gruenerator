@@ -154,6 +154,9 @@ export const auth = betterAuth({
   ],
 
   advanced: {
+    ipAddress: {
+      ipAddressHeaders: ['x-forwarded-for', 'x-real-ip'],
+    },
     cookiePrefix: 'ba',
     generateId: false,
     crossSubDomainCookies: {
