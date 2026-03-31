@@ -6,7 +6,7 @@
 
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 
-export const TUS_UPLOAD_PATHS = ['/api/subtitler/upload'];
+export const TUS_UPLOAD_PATHS = ['/api/subtitler/upload', '/api/audio/upload'];
 
 const CUSTOM_BODY_PARSER_PATHS = ['/api/chat-graph/stream'];
 

@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import * as tus from 'tus-js-client';
 
 import apiClient from '../../../components/utils/apiClient';
 
@@ -35,6 +36,8 @@ const INITIAL_STATE: TranscriptionState = {
   speakerMap: {},
   error: null,
 };
+
+const TUS_UPLOAD_ENDPOINT = `${apiClient.defaults.baseURL}/audio/upload`;
 
 interface SSECallbacks {
   onExtractionStart: () => void;
@@ -105,6 +108,36 @@ async function parseSSEStream(response: Response, callbacks: SSECallbacks) {
   }
 }
 
+function tusUpload(
+  file: File,
+  onProgress: (percent: number) => void,
+  signal: AbortSignal
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const upload = new tus.Upload(file, {
+      endpoint: TUS_UPLOAD_ENDPOINT,
+      retryDelays: [0, 3000, 5000, 10000, 20000],
+      chunkSize: 5 * 1024 * 1024,
+      metadata: { filename: file.name, filetype: file.type },
+      onError: (err) => reject(err),
+      onProgress: (bytesUploaded, bytesTotal) => {
+        onProgress(Math.round((bytesUploaded / bytesTotal) * 100));
+      },
+      onSuccess: () => {
+        const uploadId = upload.url?.split('/').pop() ?? '';
+        resolve(uploadId);
+      },
+    });
+
+    signal.addEventListener('abort', () => {
+      upload.abort();
+      reject(new DOMException('Upload aborted', 'AbortError'));
+    });
+
+    upload.start();
+  });
+}
+
 export function useTranscription() {
   const [state, setState] = useState<TranscriptionState>(INITIAL_STATE);
   const abortRef = useRef<AbortController | null>(null);
@@ -115,58 +148,34 @@ export function useTranscription() {
       const controller = new AbortController();
       abortRef.current = controller;
 
-      const formData = new FormData();
-      formData.append('audio', file);
-
       const isVideo = file.type.startsWith('video/');
-      const usePrivacyEndpoint = options.privacyMode && !isVideo;
+      const useStreamEndpoint = !options.privacyMode;
 
       try {
         setState({ ...INITIAL_STATE, status: 'uploading' });
 
-        if (usePrivacyEndpoint) {
-          const params = new URLSearchParams({
-            language: options.language,
-            ...(options.diarize && { diarize: 'true' }),
-            ...(options.timestamps && { timestamps: 'true' }),
-            ...(options.privacyMode && { privacyMode: 'true' }),
-          });
+        const uploadId = await tusUpload(
+          file,
+          (percent) => setState((s) => ({ ...s, progress: percent })),
+          controller.signal
+        );
 
-          const response = await apiClient.post(`/voice/transcribe?${params}`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-            signal: controller.signal,
-            timeout: 900000,
-            onUploadProgress: (e) => {
-              if (e.total) {
-                setState((s) => ({ ...s, progress: Math.round((e.loaded / e.total!) * 100) }));
-              }
-            },
-          });
+        setState((s) => ({
+          ...s,
+          status: isVideo ? 'extracting' : 'transcribing',
+          progress: 0,
+        }));
 
-          const data = response.data;
-          if (!data.success) throw new Error(data.error ?? 'Transkription fehlgeschlagen');
-
-          const text = data.text ?? '';
-          setState({
-            status: 'done',
-            progress: 100,
-            text,
-            segments: data.segments ?? [],
-            hasTimestamps: data.hasTimestamps ?? false,
-            speakerMap: data.speakerMap ?? {},
-            error: null,
-          });
-          return text;
-        } else {
-          const params = new URLSearchParams({
-            language: options.language,
-            ...(options.diarize && { diarize: 'true' }),
-            ...(options.timestamps && { timestamps: 'true' }),
-          });
-
-          const response = await fetch(`/api/voice/transcribe/stream?${params}`, {
+        if (useStreamEndpoint) {
+          const response = await fetch('/api/voice/transcribe-upload/stream', {
             method: 'POST',
-            body: formData,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              uploadId,
+              language: options.language,
+              diarize: options.diarize,
+              timestamps: options.timestamps,
+            }),
             credentials: 'include',
             signal: controller.signal,
           });
@@ -175,8 +184,6 @@ export function useTranscription() {
             const err = await response.json().catch(() => ({}));
             throw new Error(err.error ?? `HTTP ${response.status}`);
           }
-
-          setState((s) => ({ ...s, status: isVideo ? 'extracting' : 'transcribing', progress: 0 }));
 
           let fullText = '';
 
@@ -213,6 +220,35 @@ export function useTranscription() {
 
           setState((s) => (s.status !== 'done' ? { ...s, status: 'done' } : s));
           return fullText;
+        } else {
+          const response = await apiClient.post(
+            '/voice/transcribe-upload',
+            {
+              uploadId,
+              language: options.language,
+              diarize: options.diarize,
+              timestamps: options.timestamps,
+            },
+            {
+              signal: controller.signal,
+              timeout: 900000,
+            }
+          );
+
+          const data = response.data;
+          if (!data.success) throw new Error(data.error ?? 'Transkription fehlgeschlagen');
+
+          const text = data.text ?? '';
+          setState({
+            status: 'done',
+            progress: 100,
+            text,
+            segments: data.segments ?? [],
+            hasTimestamps: data.hasTimestamps ?? false,
+            speakerMap: data.speakerMap ?? {},
+            error: null,
+          });
+          return text;
         }
       } catch (err) {
         if (controller.signal.aborted) return null;

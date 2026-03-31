@@ -280,6 +280,14 @@ async function startWorker(): Promise<void> {
     tusServer.handle(req, res);
   });
 
+  const audioUploadPath = '/api/audio/upload';
+  app.all(audioUploadPath, (req: Request, res: Response) => {
+    tusServer.handle(req, res);
+  });
+  app.all(audioUploadPath + '/*splat', (req: Request, res: Response) => {
+    tusServer.handle(req, res);
+  });
+
   // Compression middleware
   app.use(
     compression({
