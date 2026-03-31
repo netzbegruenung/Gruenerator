@@ -5,6 +5,7 @@ import { Copy, Check, Download, FileEdit, Loader2 } from 'lucide-react';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useExtraActions } from '../../context/ExtraActionsContext';
 import { MessageTTSButton } from './MessageTTSButton';
+import { formatSourcesMarkdown } from '../../lib/formatSourcesMarkdown';
 import type { ChatMessage } from '../../hooks/useChatGraphStream';
 
 interface MessageActionsProps {
@@ -90,16 +91,16 @@ export const MessageActions = memo(function MessageActions({
         return;
       }
 
-      const htmlContent = content
-        .split('\n\n')
-        .map((block) => `<p>${block.replace(/\n/g, '<br />')}</p>`)
-        .join('');
+      let exportContent = content;
+      if (metadata?.citations?.length) {
+        exportContent += formatSourcesMarkdown(metadata.citations);
+      }
 
       const response = await configFetch(endpoints.exportToDocs, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content: htmlContent,
+          content: exportContent,
           documentType: 'chat-response',
         }),
       });
