@@ -51,7 +51,7 @@
     "email": "suraj@presenton.ai"
   },
   "dependencies": {
-    "@puppeteer/browsers": "^1.9.1",
+    "@puppeteer/browsers": "^2.13.0",
     "@tailwindcss/cli": "^4.1.5",
     "@types/uuid": "^10.0.0",
     "dotenv": "^16.5.0",
@@ -66,7 +66,7 @@
   "devDependencies": {
     "cross-env": "^7.0.3",
     "electron": "^36.1.0",
-    "electron-builder": "^26.0.12",
+    "electron-builder": "^26.8.1",
     "typescript": "^5.8.3"
   },
   "peerDependencies": {
