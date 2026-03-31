@@ -49,7 +49,7 @@ router.get('/', async (req: Request, res: Response) => {
         AND cd.is_deleted = false
         AND (
           cd.created_by = $2
-          OR cd.permissions ? $3
+          OR cd.permissions ? $3::text
           OR cd.is_public = true
           OR cd.id IN (
             SELECT gcs.content_id::uuid

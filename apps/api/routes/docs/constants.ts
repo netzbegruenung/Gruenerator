@@ -4,6 +4,7 @@
  */
 export const COLLAB_SUBTYPES = [
   'blank',
+  'docs',
   'antrag',
   'pressemitteilung',
   'protokoll',
