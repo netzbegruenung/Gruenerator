@@ -519,7 +519,9 @@ async function startWorker(): Promise<void> {
   app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
     // Prevent "Cannot set headers after they are sent" errors
     if (res.headersSent) {
-      log.warn(`Error after headers sent: ${err.message}`);
+      log.warn(`Error after headers sent: ${err.message} | ${req.method} ${req.path}`, {
+        stack: err.stack,
+      });
       return;
     }
 
@@ -527,11 +529,12 @@ async function startWorker(): Promise<void> {
     let errorMessage = 'Bitte versuchen Sie es später erneut';
     let statusCode = isHttpError(err) ? err.status : 500;
 
-    log.error(`[GlobalErrorHandler] ${err.name}: ${err.message}`, {
+    log.error(`[GlobalErrorHandler] ${err.name}: ${err.message} | ${req.method} ${req.path}`, {
       path: req.path,
       method: req.method,
       statusCode,
       errorCode: (err as NodeJS.ErrnoException).code,
+      stack: err.stack,
     });
 
     if (
