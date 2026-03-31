@@ -119,7 +119,7 @@ const PageLayout = ({
     <GlobalChatProvider>
       <GlobalBridges />
       <div className={layoutClasses}>
-        {!hideHeader && (
+        {!hideHeader ? (
           <header className="fixed top-0 left-0 right-0 z-[1002] flex items-center justify-between px-2 h-12 pointer-events-none">
             <div className="pointer-events-auto">
               <SidebarToggle />
@@ -128,7 +128,13 @@ const PageLayout = ({
               <ProfileButton />
             </div>
           </header>
-        )}
+        ) : isSidebarOnly ? (
+          <div className="fixed top-0 left-0 z-[1002] px-2 h-12 flex items-center pointer-events-none">
+            <div className="pointer-events-auto">
+              <SidebarToggle />
+            </div>
+          </div>
+        ) : null}
         <Sidebar />
         <div className={appContentClasses}>
           <main className={mainClasses}>{children}</main>
