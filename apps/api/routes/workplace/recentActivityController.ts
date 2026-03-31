@@ -92,7 +92,7 @@ export async function fetchRecentDocs(
       p.display_name as creator_name,
       CASE
         WHEN cd.created_by = $1 THEN 'owner'
-        WHEN cd.permissions ? $2 THEN 'direct'
+        WHEN cd.permissions ? $2::text THEN 'direct'
         WHEN cd.id IN (
           SELECT gcs.content_id::uuid
           FROM group_content_shares gcs
@@ -107,7 +107,7 @@ export async function fetchRecentDocs(
       AND cd.document_subtype = ANY($3::text[])
       AND (
         cd.created_by = $1
-        OR cd.permissions ? $2
+        OR cd.permissions ? $2::text
         OR cd.id IN (
           SELECT gcs.content_id::uuid
           FROM group_content_shares gcs
@@ -148,7 +148,7 @@ export async function fetchRecentBoards(
       AND cd.is_deleted = false
       AND (
         cd.created_by = $1
-        OR cd.permissions ? $2
+        OR cd.permissions ? $2::text
         OR cd.is_public = true
         OR cd.id IN (
           SELECT gcs.content_id::uuid
@@ -285,13 +285,13 @@ export async function fetchRecentPresentations(
       p.display_name as creator_name,
       CASE
         WHEN cp.user_id = $1 THEN 'owner'
-        WHEN cp.permissions ? $2 THEN 'direct'
+        WHEN cp.permissions ? $2::text THEN 'direct'
       END AS access_type
     FROM collaborative_presentations cp
     LEFT JOIN profiles p ON cp.user_id = p.id
     WHERE
       cp.user_id = $1
-      OR cp.permissions ? $2
+      OR cp.permissions ? $2::text
       OR cp.is_public = true
     ORDER BY cp.updated_at DESC
     LIMIT $3`,

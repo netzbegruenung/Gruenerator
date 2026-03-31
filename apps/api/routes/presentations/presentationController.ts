@@ -97,7 +97,7 @@ router.get('/', async (req: Request, res: Response) => {
     const result = await db.query<PresentationRow>(
       `SELECT * FROM collaborative_presentations
        WHERE user_id = $1
-          OR permissions ? $1
+          OR permissions ? $1::text
        ORDER BY updated_at DESC`,
       [userId]
     );

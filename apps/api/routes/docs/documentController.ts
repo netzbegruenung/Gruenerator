@@ -167,7 +167,7 @@ router.get('/', async (req: Request, res: Response) => {
         le.display_name as last_editor_name,
         CASE
           WHEN cd.created_by = $1 THEN 'owner'
-          WHEN cd.permissions ? $2 THEN 'direct'
+          WHEN cd.permissions ? $2::text THEN 'direct'
           WHEN cd.id IN (
             SELECT gcs.content_id::uuid
             FROM group_content_shares gcs
