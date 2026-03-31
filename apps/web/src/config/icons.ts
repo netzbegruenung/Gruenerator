@@ -31,6 +31,7 @@ import {
   HiSparkles,
   HiVolumeUp,
   HiVolumeOff,
+  HiOutlineDocumentText,
 } from 'react-icons/hi';
 import {
   IoDownloadOutline,
@@ -254,7 +255,7 @@ export const ICONS: IconRegistry = {
     home: GrueneratorHomeIcon,
     scanner: PiScan,
     messenger: PiChatCircle,
-    docs: CiMemoPad,
+    docs: HiOutlineDocumentText,
     boards: PiSquaresFour,
     gruppen: HiUserGroup,
     notebooks: FaBook,
