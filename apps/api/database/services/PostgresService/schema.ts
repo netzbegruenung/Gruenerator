@@ -144,7 +144,7 @@ export function getSchemaPath(): string {
  * Get the path to migrations directory
  */
 export function getMigrationsPath(): string {
-  return path.join(__dirname, '../../migrations');
+  return path.join(__dirname, '../../postgres/migrations');
 }
 
 /**
