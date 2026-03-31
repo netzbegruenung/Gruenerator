@@ -14,6 +14,13 @@ import path from 'path';
 import express, { type Request, type Response, type Router } from 'express';
 import multer, { type FileFilterCallback } from 'multer';
 
+import {
+  getFilePathFromUploadId,
+  checkFileExists,
+  markUploadAsProcessed,
+  scheduleImmediateCleanup,
+  getUploadStatus,
+} from '../../services/subtitler/tusService.js';
 import { extractAudio, cleanupFiles } from '../../services/subtitler/videoUploadService.js';
 import mistralVoiceService from '../../services/voice/mistralVoiceService.js';
 import {
@@ -479,6 +486,163 @@ router.post(
     sse.end();
   }
 );
+
+// ============================================================================
+// TUS-based transcription (two-phase: upload via TUS, then process)
+// ============================================================================
+
+/**
+ * POST /api/voice/transcribe-upload
+ * Transcribe a file previously uploaded via TUS at /api/audio/upload.
+ * Reads the file from disk by uploadId, avoiding multer memory limits.
+ */
+router.post('/transcribe-upload', async (req: Request, res: Response<TranscribeResponse>) => {
+  const { uploadId, language = 'de', diarize = false, timestamps = false } = req.body;
+
+  if (!uploadId) {
+    return res.status(400).json({ success: false, error: 'uploadId ist erforderlich' });
+  }
+
+  const filePath = getFilePathFromUploadId(uploadId);
+  if (!(await checkFileExists(filePath))) {
+    scheduleImmediateCleanup(uploadId, 'file not found');
+    return res.status(404).json({ success: false, error: 'Upload nicht gefunden' });
+  }
+
+  try {
+    markUploadAsProcessed(uploadId);
+    const uploadStatus = await getUploadStatus(uploadId);
+    const meta = uploadStatus.metadata?.metadata;
+    let audioBuffer: Buffer = Buffer.from(await fs.promises.readFile(filePath));
+    let filename = meta?.filename || 'audio.mp3';
+    const filetype = meta?.filetype || '';
+
+    const options: TranscriptionOptions = {
+      language,
+      timestamp_granularities: timestamps ? ['segment'] : undefined,
+      diarize: diarize || undefined,
+    };
+
+    if (isVideoFile(filetype)) {
+      log.debug('[Voice] TUS upload is video, extracting audio from:', filename);
+      const extracted = await extractAudioFromVideo(audioBuffer, filename);
+      audioBuffer = extracted.buffer;
+      filename = extracted.filename;
+    }
+
+    log.debug('[Voice] Starting TUS transcription for:', filename, 'Options:', options);
+    const result = await transcribeBuffer(audioBuffer, filename, options);
+
+    let speakerMap: Record<string, string> = {};
+    if (diarize && result.text.includes('[speaker_')) {
+      speakerMap = await identifySpeakers(result.text);
+    }
+
+    scheduleImmediateCleanup(uploadId, 'transcription complete');
+
+    return res.json({
+      success: true,
+      text: result.text,
+      segments: result.segments,
+      hasTimestamps: result.hasTimestamps,
+      speakerMap,
+      language,
+    });
+  } catch (error) {
+    log.error('[Voice] TUS transcription error:', error);
+    scheduleImmediateCleanup(uploadId, 'transcription error');
+    return res.status(500).json({
+      success: false,
+      error: 'Fehler bei der Transkription: ' + (error as Error).message,
+    });
+  }
+});
+
+/**
+ * POST /api/voice/transcribe-upload/stream
+ * Streaming variant of TUS-based transcription. Returns SSE events.
+ */
+router.post('/transcribe-upload/stream', async (req: Request, res: Response) => {
+  const { uploadId, language = 'de', diarize = false, timestamps = false } = req.body;
+
+  if (!uploadId) {
+    return res.status(400).json({ success: false, error: 'uploadId ist erforderlich' });
+  }
+
+  const filePath = getFilePathFromUploadId(uploadId);
+  if (!(await checkFileExists(filePath))) {
+    scheduleImmediateCleanup(uploadId, 'file not found');
+    return res.status(404).json({ success: false, error: 'Upload nicht gefunden' });
+  }
+
+  const sse = createSSEStream(res);
+
+  try {
+    markUploadAsProcessed(uploadId);
+    const uploadStatus = await getUploadStatus(uploadId);
+    const meta = uploadStatus.metadata?.metadata;
+    let audioBuffer: Buffer = Buffer.from(await fs.promises.readFile(filePath));
+    let filename = meta?.filename || 'audio.mp3';
+    const filetype = meta?.filetype || '';
+    const needsFullTranscription = diarize || timestamps;
+
+    if (isVideoFile(filetype)) {
+      log.debug('[Voice] TUS upload is video, extracting audio from:', filename);
+      sse.sendRaw('extraction_start', { type: 'extraction_start' });
+      const extracted = await extractAudioFromVideo(audioBuffer, filename, {
+        onProgress: (percent, timemark) => {
+          sse.sendRaw('extraction_progress', { type: 'extraction_progress', percent, timemark });
+        },
+      });
+      audioBuffer = extracted.buffer;
+      filename = extracted.filename;
+      const audioSizeMB = +(audioBuffer.length / 1024 / 1024).toFixed(1);
+      sse.sendRaw('extraction_complete', { type: 'extraction_complete', audioSizeMB });
+    }
+
+    log.debug('[Voice] Starting TUS streaming transcription for:', filename);
+    sse.sendRaw('transcription_start', { type: 'transcription_start' });
+
+    if (needsFullTranscription) {
+      const options: TranscriptionOptions = {
+        language,
+        timestamp_granularities: timestamps ? ['segment'] : undefined,
+        diarize: diarize || undefined,
+      };
+
+      const result = await transcribeBuffer(audioBuffer, filename, options);
+
+      let speakerMap: Record<string, string> = {};
+      if (diarize && result.text.includes('[speaker_')) {
+        speakerMap = await identifySpeakers(result.text);
+      }
+
+      sse.sendRaw('done', {
+        type: 'done',
+        text: result.text,
+        segments: result.segments,
+        hasTimestamps: result.hasTimestamps,
+        speakerMap,
+      });
+    } else {
+      for await (const event of mistralVoiceService.transcribeFromBufferStream(
+        audioBuffer,
+        filename,
+        { language }
+      )) {
+        sse.sendRaw(event.type, event);
+      }
+    }
+
+    scheduleImmediateCleanup(uploadId, 'transcription complete');
+  } catch (error) {
+    log.error('[Voice] TUS streaming transcription error:', error);
+    scheduleImmediateCleanup(uploadId, 'transcription error');
+    sse.sendRaw('error', { type: 'error', text: (error as Error).message });
+  }
+
+  sse.end();
+});
 
 /**
  * POST /api/voice/transcribe-url
