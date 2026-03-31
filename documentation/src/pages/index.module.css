@@ -1,10 +1,10 @@
 /* ============================================
-   HERO SECTION
+   HERO SECTION — Light, airy Mintlify-style
    ============================================ */
 
 .hero {
-  background: var(--background-gradient);
-  padding: 4rem 2rem;
+  background: linear-gradient(180deg, var(--primary-50) 0%, #ffffff 100%);
+  padding: 6rem 2rem 5rem;
   text-align: center;
   position: relative;
   overflow: hidden;
@@ -18,35 +18,40 @@
   right: 0;
   bottom: 0;
   background:
-    radial-gradient(circle at 20% 50%, rgba(95, 133, 117, 0.2) 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, rgba(68, 95, 84, 0.2) 0%, transparent 50%);
+    radial-gradient(circle at 20% 30%, rgba(0, 85, 56, 0.04) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(95, 133, 117, 0.04) 0%, transparent 50%);
   pointer-events: none;
 }
 
 .heroContent {
   position: relative;
   z-index: 1;
-  max-width: 800px;
+  max-width: 680px;
   margin: 0 auto;
 }
 
 .heroTitle {
-  font-size: 3.5rem;
+  font-size: 3.75rem;
   font-weight: 700;
-  margin-bottom: 1rem;
-  color: white;
-  line-height: 1.2;
+  margin-bottom: 1.25rem;
+  color: #111827;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
 }
 
 .titleGreen {
-  color: white;
+  color: var(--primary-600);
 }
 
 .heroSubtitle {
-  font-size: 1.5rem;
-  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.25rem;
+  color: #6b7280;
   margin-bottom: 2.5rem;
   font-weight: 400;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
 }
 
 .heroButtons {
@@ -57,69 +62,71 @@
 }
 
 .primaryButton {
-  background: var(--accent-gradient);
+  background: var(--primary-600);
   color: white;
   padding: 0.875rem 2rem;
-  border-radius: 12px;
+  border-radius: 10px;
   font-weight: 600;
-  font-size: 1.125rem;
+  font-size: 1rem;
   text-decoration: none;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(95, 133, 117, 0.3);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 85, 56, 0.2);
   border: none;
 }
 
 .primaryButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(95, 133, 117, 0.4);
+  background: var(--primary-700);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 85, 56, 0.25);
   color: white;
   text-decoration: none;
 }
 
 .secondaryButton {
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(10px);
-  color: white;
+  background: transparent;
+  color: var(--primary-600);
   padding: 0.875rem 2rem;
-  border-radius: 12px;
+  border-radius: 10px;
   font-weight: 600;
-  font-size: 1.125rem;
+  font-size: 1rem;
   text-decoration: none;
-  transition: all 0.3s ease;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.2s ease;
+  border: 1px solid rgba(0, 85, 56, 0.2);
 }
 
 .secondaryButton:hover {
-  background: rgba(255, 255, 255, 0.25);
-  transform: translateY(-2px);
-  color: white;
+  background: var(--primary-50);
+  border-color: rgba(0, 85, 56, 0.35);
+  transform: translateY(-1px);
+  color: var(--primary-700);
   text-decoration: none;
 }
 
 /* ============================================
-   MAIN SECTION - CATEGORIES
+   MAIN SECTION — CATEGORIES
    ============================================ */
 
 .main {
-  padding: 4rem 2rem;
-  background: linear-gradient(180deg, #f9fafb 0%, #ffffff 100%);
+  padding: 5rem 2rem 6rem;
+  background: #ffffff;
 }
 
 .categoriesIntro {
   text-align: center;
-  margin-bottom: 3rem;
+  margin-bottom: 4rem;
 }
 
 .sectionTitle {
-  font-size: 2.5rem;
+  font-size: 2.25rem;
   font-weight: 700;
-  color: #1f2937;
+  color: #111827;
   margin-bottom: 0.75rem;
+  letter-spacing: -0.02em;
 }
 
 .sectionSubtitle {
-  font-size: 1.25rem;
-  color: #6b7280;
+  font-size: 1.125rem;
+  color: #9ca3af;
   font-weight: 400;
 }
 
@@ -130,32 +137,27 @@
 .categoriesGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 2rem;
+  gap: 2.5rem;
   max-width: 1200px;
   margin: 0 auto;
 }
 
 .categoryCard {
-  background: white;
+  background: var(--surface-card);
   border-radius: 16px;
-  padding: 2rem;
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.05),
-    0 10px 15px -5px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid #e5e7eb;
+  padding: 2.5rem;
+  box-shadow: var(--shadow-card);
+  transition: all 0.2s ease;
+  border: 1px solid var(--surface-border);
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
 }
 
 .categoryCard:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.05),
-    0 8px 16px -4px rgba(0, 0, 0, 0.1),
-    0 4px 6px -2px rgba(95, 133, 117, 0.08);
-  border-color: var(--color-600);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: rgba(0, 85, 56, 0.15);
 }
 
 .categoryCardLink {
@@ -176,12 +178,20 @@
 }
 
 .categoryIcon {
-  font-size: 2.5rem;
+  font-size: 1.5rem;
   line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: var(--primary-50);
+  border-radius: 12px;
+  flex-shrink: 0;
 }
 
 .categoryTitle {
-  font-size: 1.5rem;
+  font-size: 1.375rem;
   font-weight: 700;
   color: #111827;
   margin: 0;
@@ -189,9 +199,9 @@
 }
 
 .categoryDescription {
-  color: #4b5563;
-  font-size: 1rem;
-  line-height: 1.6;
+  color: #6b7280;
+  font-size: 0.9375rem;
+  line-height: 1.65;
   margin: 0;
 }
 
@@ -202,98 +212,35 @@
 .topPages {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.375rem;
   padding-top: 1rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--surface-border);
 }
 
 .topPageLink {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  color: var(--color-700);
+  padding: 0.4rem 0.75rem;
+  color: #4b5563;
   text-decoration: none;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 500;
   border-radius: 8px;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
 .topPageLink:hover {
-  background: var(--color-50);
-  color: var(--color-800);
+  background: var(--primary-50);
+  color: var(--primary-700);
   text-decoration: none;
 }
 
 .linkIcon {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
-}
-
-/* ============================================
-   QUICK LINKS FOOTER SECTION
-   ============================================ */
-
-.quickLinks {
-  background: var(--background-gradient);
-  padding: 3rem 2rem;
-}
-
-.quickLinksContent {
-  max-width: 1000px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 2rem;
-  flex-wrap: wrap;
-}
-
-.quickLinksText {
-  flex: 1;
-  min-width: 280px;
-}
-
-.quickLinksTitle {
-  font-size: 2rem;
-  font-weight: 700;
-  color: white;
-  margin: 0 0 0.5rem 0;
-}
-
-.quickLinksSubtitle {
-  font-size: 1.125rem;
-  color: rgba(255, 255, 255, 0.85);
-  margin: 0;
-}
-
-.quickLinksButton {
-  background: white;
-  color: var(--color-700);
-  padding: 1rem 2rem;
-  border-radius: 12px;
-  font-weight: 700;
-  font-size: 1.125rem;
-  text-decoration: none;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-}
-
-.quickLinksButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-  color: var(--color-800);
-  text-decoration: none;
-}
-
-.buttonIcon {
-  width: 20px;
-  height: 20px;
+  opacity: 0.5;
 }
 
 /* ============================================
@@ -302,53 +249,38 @@
 
 @media screen and (max-width: 996px) {
   .heroTitle {
-    font-size: 2.5rem;
+    font-size: 2.75rem;
   }
 
   .heroSubtitle {
-    font-size: 1.25rem;
+    font-size: 1.125rem;
   }
 
   .hero {
-    padding: 3rem 1.5rem;
+    padding: 4rem 1.5rem 3.5rem;
   }
 
   .main {
-    padding: 3rem 1.5rem;
+    padding: 3.5rem 1.5rem 4rem;
   }
 
   .sectionTitle {
-    font-size: 2rem;
-  }
-
-  .sectionSubtitle {
-    font-size: 1.125rem;
+    font-size: 1.875rem;
   }
 
   .categoriesGrid {
     grid-template-columns: 1fr;
     gap: 1.5rem;
   }
-
-  .quickLinksContent {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .quickLinksButton {
-    width: 100%;
-    max-width: 300px;
-    justify-content: center;
-  }
 }
 
 @media screen and (max-width: 768px) {
   .heroTitle {
-    font-size: 2rem;
+    font-size: 2.25rem;
   }
 
   .heroSubtitle {
-    font-size: 1.125rem;
+    font-size: 1rem;
   }
 
   .heroButtons {
@@ -360,40 +292,67 @@
   .secondaryButton {
     width: 100%;
     max-width: 300px;
-    justify-content: center;
+    text-align: center;
   }
 
   .categoryCard {
-    padding: 1.5rem;
+    padding: 2rem;
   }
 
   .categoryIcon {
-    font-size: 2rem;
+    width: 40px;
+    height: 40px;
+    font-size: 1.25rem;
   }
 
   .categoryTitle {
     font-size: 1.25rem;
   }
-
-  .quickLinks {
-    padding: 2rem 1.5rem;
-  }
-
-  .quickLinksTitle {
-    font-size: 1.5rem;
-  }
-
-  .quickLinksSubtitle {
-    font-size: 1rem;
-  }
 }
 
 /* ============================================
-   DARK MODE SUPPORT
+   DARK MODE
    ============================================ */
 
+[data-theme='dark'] .hero {
+  background: linear-gradient(180deg, #111827 0%, var(--surface-background) 100%);
+}
+
+[data-theme='dark'] .heroTitle {
+  color: #f9fafb;
+}
+
+[data-theme='dark'] .titleGreen {
+  color: var(--primary-400);
+}
+
+[data-theme='dark'] .heroSubtitle {
+  color: #9ca3af;
+}
+
+[data-theme='dark'] .primaryButton {
+  background: var(--primary-500);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme='dark'] .primaryButton:hover {
+  background: var(--primary-400);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme='dark'] .secondaryButton {
+  color: var(--primary-400);
+  border-color: rgba(96, 161, 131, 0.25);
+}
+
+[data-theme='dark'] .secondaryButton:hover {
+  background: rgba(96, 161, 131, 0.1);
+  border-color: rgba(96, 161, 131, 0.4);
+  color: var(--primary-300);
+}
+
 [data-theme='dark'] .main {
-  background: linear-gradient(180deg, #1f2937 0%, #111827 100%);
+  background: var(--surface-background);
 }
 
 [data-theme='dark'] .sectionTitle {
@@ -401,20 +360,21 @@
 }
 
 [data-theme='dark'] .sectionSubtitle {
-  color: #9ca3af;
+  color: #6b7280;
 }
 
 [data-theme='dark'] .categoryCard {
-  background: #1f2937;
-  border-color: #374151;
+  background: var(--surface-card);
+  border-color: var(--surface-border);
 }
 
 [data-theme='dark'] .categoryCard:hover {
-  border-color: var(--color-500);
-  box-shadow:
-    0 4px 6px rgba(0, 0, 0, 0.3),
-    0 20px 25px -5px rgba(0, 0, 0, 0.5),
-    0 10px 10px -5px rgba(106, 149, 131, 0.2);
+  border-color: rgba(96, 161, 131, 0.2);
+  box-shadow: var(--shadow-card-hover);
+}
+
+[data-theme='dark'] .categoryIcon {
+  background: rgba(96, 161, 131, 0.12);
 }
 
 [data-theme='dark'] .categoryTitle {
@@ -422,24 +382,18 @@
 }
 
 [data-theme='dark'] .categoryDescription {
-  color: #d1d5db;
+  color: #9ca3af;
 }
 
 [data-theme='dark'] .topPages {
-  border-top-color: #374151;
+  border-top-color: var(--surface-border);
 }
 
 [data-theme='dark'] .topPageLink {
-  color: var(--color-400);
+  color: #9ca3af;
 }
 
 [data-theme='dark'] .topPageLink:hover {
-  background: var(--color-800);
-  color: var(--color-300);
+  background: rgba(96, 161, 131, 0.1);
+  color: var(--primary-300);
 }
-
-/* ============================================
-   ANIMATIONS
-   ============================================ */
-
-/* Removed staggered entry animations for a cleaner, more minimal look */
