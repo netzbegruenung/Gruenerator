@@ -440,12 +440,11 @@ export class AuthService {
     }
 
     const cookies = parseCookie(cookieHeader);
-    const cookieNames = Object.keys(cookies);
-    log.info(`[Auth-Cookie] Available cookies: ${cookieNames.join(', ')}`);
-    const sessionToken = cookies['ba.session_token'];
+    const sessionToken = cookies['__Secure-ba.session_token'] || cookies['ba.session_token'];
 
     if (!sessionToken) {
-      log.warn(`[Auth-Cookie] No ba.session_token cookie found`);
+      const cookieNames = Object.keys(cookies);
+      log.warn(`[Auth-Cookie] No session token cookie found in: ${cookieNames.join(', ')}`);
       return { authenticated: false, reason: 'No session cookie found' };
     }
 
