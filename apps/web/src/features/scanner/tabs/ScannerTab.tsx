@@ -345,7 +345,7 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
     <div
       className={cn(
         'mx-auto w-full max-w-[640px] flex-1 content-center px-md py-lg',
-        'has-[.scanner-results]:max-w-[840px]',
+        hasResult && 'max-w-[840px]',
         isDragOver && 'drag-over'
       )}
     >
@@ -512,7 +512,7 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="scanner-results flex w-full flex-col gap-md"
+            className="flex w-full flex-col gap-md"
           >
             <div className="flex items-center gap-sm py-sm">
               {selectedFiles.length > 1 && (
@@ -593,12 +593,12 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
             exit={{ opacity: 0, y: -10 }}
             role="alert"
             aria-live="assertive"
-            className="form-error-message m-0 rounded-lg"
+            className="m-0 flex items-center justify-between gap-sm rounded-lg border border-error bg-error/10 px-md py-sm font-medium text-error dark:border-[rgba(211,47,47,0.6)] dark:bg-[rgba(211,47,47,0.15)]"
           >
-            <span className="error-message-text">{error}</span>
+            <span className="flex-1 leading-[1.4]">{error}</span>
             <button
               type="button"
-              className="error-dismiss-button"
+              className="flex shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-xxs text-error opacity-70 transition-all hover:scale-105 hover:bg-error/10 hover:opacity-100 active:scale-95"
               onClick={() => {
                 setError(null);
                 if (selectedFiles.length === 0) setScannerState('upload');
