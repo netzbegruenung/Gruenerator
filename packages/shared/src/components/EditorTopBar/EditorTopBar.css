@@ -142,15 +142,6 @@
   flex-shrink: 0;
 }
 
-.status-dot.connected {
-  background: #10b981;
-}
-
-.status-dot.syncing {
-  background: #f59e0b;
-  animation: editorTopBarPulse 1.5s ease-in-out infinite;
-}
-
 .status-dot.disconnected {
   background: #ef4444;
 }

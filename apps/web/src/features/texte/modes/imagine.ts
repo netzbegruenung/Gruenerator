@@ -23,9 +23,19 @@ export const imagineMode: ModeDefinition = {
       ],
       multiple: false,
     },
+    {
+      key: 'backend',
+      label: 'Modell',
+      options: [
+        { id: 'regolo', label: 'Standard' },
+        { id: '', label: 'Flux Pro' },
+      ],
+      multiple: false,
+    },
   ],
   defaults: {
     variant: '',
+    backend: 'regolo',
   },
   examples: [
     { label: 'Plakat', text: 'Ein grünes Wahlplakat mit Sonnenblumen und dem Slogan ' },

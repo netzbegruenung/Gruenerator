@@ -81,6 +81,13 @@ export const DEFAULT_FIELDS: Field[] = [
     typeOptions: {},
     order: 6,
   },
+  {
+    id: FIELD_IDS.COMMENTS,
+    name: 'Kommentare',
+    type: 'text',
+    typeOptions: { isSystem: true },
+    order: 7,
+  },
 ];
 
 export const DEFAULT_KANBAN_VIEW: BoardView = {
@@ -92,7 +99,7 @@ export const DEFAULT_KANBAN_VIEW: BoardView = {
   sorts: [],
   fieldSettings: DEFAULT_FIELDS.map((f) => ({
     fieldId: f.id,
-    visible: true,
+    visible: f.id !== FIELD_IDS.COMMENTS,
   })),
 };
 
@@ -107,6 +114,7 @@ export function createDefaultRow(statusOptionId: string, userId: string): Row {
       [FIELD_IDS.LABELS]: [],
       [FIELD_IDS.ASSIGNEE]: '',
       [FIELD_IDS.LINKED_DOCS]: '[]',
+      [FIELD_IDS.COMMENTS]: '[]',
     },
     createdBy: userId,
     createdAt: new Date().toISOString(),
@@ -123,6 +131,7 @@ export const DEFAULT_ROWS: Row[] = DEFAULT_STATUS_OPTIONS.map((opt) => ({
     [FIELD_IDS.LABELS]: [],
     [FIELD_IDS.ASSIGNEE]: '',
     [FIELD_IDS.LINKED_DOCS]: '[]',
+    [FIELD_IDS.COMMENTS]: '[]',
   },
   createdBy: 'system',
   createdAt: new Date().toISOString(),

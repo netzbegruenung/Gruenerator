@@ -51,7 +51,6 @@ const PresseSocialInner: React.FC<PresseSocialInnerProps> = memo(({ def }) => {
     selectedDocumentIds: setup.selectedDocumentIds,
     selectedTextIds: setup.selectedTextIds,
     attachments: allAttachments,
-    canUseSharepic: false,
     externalSubmitForm: submission.submitForm,
   });
 
@@ -80,9 +79,6 @@ const PresseSocialInner: React.FC<PresseSocialInnerProps> = memo(({ def }) => {
         inhalt: currentPrompt,
         platforms: filteredPlatforms,
         zitatgeber: (currentState.zitatgeber as string) || '',
-        sharepicType: 'default',
-        zitatAuthor: '',
-        uploadedImage: null,
       };
 
       const result = setup.features.useAgentMode

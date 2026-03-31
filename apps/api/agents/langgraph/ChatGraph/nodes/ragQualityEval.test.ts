@@ -222,6 +222,7 @@ async function evaluateBudgetAllocation() {
     imageAttachments: [],
     threadAttachments: [],
     customSystemPrompt: null,
+    userInstructions: null,
     memoryContext: null,
     memoryRetrieveTimeMs: 0,
     notebookIds: [],

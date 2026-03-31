@@ -44,17 +44,13 @@ interface DocumentExtractionInfo {
 }
 
 // Default modes type
-type DefaultMode = 'privacy' | 'pro' | 'ultra' | 'balanced';
+type DefaultMode = 'privacy' | 'pro' | 'balanced';
 
 // Feature state for backend
 interface FeatureState {
   useWebSearchTool: boolean;
   usePrivacyMode: boolean;
   useProMode: boolean;
-  useUltraMode: boolean;
-  useAutomaticSearch: boolean;
-  useBedrock: boolean;
-  useNotebookEnrich: boolean;
   useAgentMode: boolean;
 }
 
@@ -81,9 +77,6 @@ interface GeneratorSelectionState {
   useWebSearch: boolean;
   usePrivacyMode: boolean;
   useProMode: boolean;
-  useUltraMode: boolean;
-  useAutomaticSearch: boolean;
-  useNotebookEnrich: boolean;
   useAgentMode: boolean;
 }
 
@@ -111,15 +104,6 @@ interface GeneratorSelectionActions {
   setWebSearch: (enabled: boolean) => void;
   setPrivacyMode: (enabled: boolean) => void;
   setProMode: (enabled: boolean) => void;
-  setUltraMode: (enabled: boolean) => void;
-  toggleWebSearch: () => void;
-  togglePrivacyMode: () => void;
-  toggleProMode: () => void;
-  toggleUltraMode: () => void;
-  setAutomaticSearch: (enabled: boolean) => void;
-  toggleAutomaticSearch: () => void;
-  setNotebookEnrich: (enabled: boolean) => void;
-  toggleNotebookEnrich: () => void;
   setAgentMode: (enabled: boolean) => void;
   toggleAgentMode: () => void;
   getFeatureState: () => FeatureState;
@@ -150,9 +134,6 @@ const initialState: GeneratorSelectionState = {
   useWebSearch: false,
   usePrivacyMode: false,
   useProMode: false,
-  useUltraMode: false,
-  useAutomaticSearch: false,
-  useNotebookEnrich: false,
   useAgentMode: false,
 };
 
@@ -316,12 +297,7 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
           state.useWebSearch = false;
           state.usePrivacyMode = false;
           state.useProMode = false;
-          state.useUltraMode = false;
-          state.useNotebookEnrich = false;
-
-          if (modeToApply === 'ultra') {
-            state.useUltraMode = true;
-          } else if (modeToApply === 'pro') {
+          if (modeToApply === 'pro') {
             state.useProMode = true;
           } else if (modeToApply === 'privacy') {
             state.usePrivacyMode = true;
@@ -348,80 +324,7 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
         state.useProMode = enabled;
         if (enabled) {
           state.usePrivacyMode = false;
-          state.useUltraMode = false;
         }
-      }),
-
-    setUltraMode: (enabled) =>
-      set((state) => {
-        state.useUltraMode = enabled;
-        if (enabled) {
-          state.usePrivacyMode = false;
-          state.useProMode = false;
-        }
-      }),
-
-    toggleWebSearch: () =>
-      set((state) => {
-        state.useWebSearch = !state.useWebSearch;
-      }),
-
-    togglePrivacyMode: () =>
-      set((state) => {
-        state.usePrivacyMode = !state.usePrivacyMode;
-        if (state.usePrivacyMode) {
-          state.useProMode = false;
-        }
-      }),
-
-    toggleProMode: () =>
-      set((state) => {
-        state.useProMode = !state.useProMode;
-        if (state.useProMode) {
-          state.usePrivacyMode = false;
-          state.useUltraMode = false;
-        }
-      }),
-
-    toggleUltraMode: () =>
-      set((state) => {
-        state.useUltraMode = !state.useUltraMode;
-        if (state.useUltraMode) {
-          state.usePrivacyMode = false;
-          state.useProMode = false;
-        }
-      }),
-
-    setAutomaticSearch: (enabled) =>
-      set((state) => {
-        state.useAutomaticSearch = enabled;
-        if (enabled) {
-          state.selectedDocumentIds = [];
-          state.selectedTextIds = [];
-        }
-      }),
-
-    toggleAutomaticSearch: () => {
-      const currentState = get();
-      const newValue = !currentState.useAutomaticSearch;
-
-      set((state) => {
-        state.useAutomaticSearch = newValue;
-        if (newValue) {
-          state.selectedDocumentIds = [];
-          state.selectedTextIds = [];
-        }
-      });
-    },
-
-    setNotebookEnrich: (enabled) =>
-      set((state) => {
-        state.useNotebookEnrich = enabled;
-      }),
-
-    toggleNotebookEnrich: () =>
-      set((state) => {
-        state.useNotebookEnrich = !state.useNotebookEnrich;
       }),
 
     setAgentMode: (enabled) =>
@@ -440,10 +343,6 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
         useWebSearchTool: state.useWebSearch,
         usePrivacyMode: state.usePrivacyMode,
         useProMode: state.useProMode,
-        useUltraMode: state.useUltraMode,
-        useAutomaticSearch: state.useAutomaticSearch,
-        useBedrock: state.useUltraMode,
-        useNotebookEnrich: state.useNotebookEnrich,
         useAgentMode: state.useAgentMode,
       };
     },
@@ -453,9 +352,6 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
         state.useWebSearch = false;
         state.usePrivacyMode = false;
         state.useProMode = false;
-        state.useUltraMode = false;
-        state.useAutomaticSearch = false;
-        state.useNotebookEnrich = false;
         state.useAgentMode = false;
       }),
 

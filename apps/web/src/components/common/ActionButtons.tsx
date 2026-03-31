@@ -8,10 +8,10 @@ import {
   IoArrowRedoOutline,
 } from 'react-icons/io5';
 
-import { useLazyAuth } from '../../hooks/useAuth';
 import { useBetaFeatures } from '../../hooks/useBetaFeatures';
 import { awaitDeferredTitle } from '../../hooks/useDeferredTitle';
 import { useSaveToLibrary } from '../../hooks/useSaveToLibrary';
+import { useAuthStore } from '../../stores/authStore';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { useProfileStore } from '../../stores/profileStore';
 import { hashContent } from '../../utils/contentHash';
@@ -115,7 +115,7 @@ const ActionButtons = ({
   customExportOptions = [],
   hideDefaultExportOptions = false,
 }: ActionButtonsProps): JSX.Element => {
-  const { isAuthenticated } = useLazyAuth();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { getBetaFeatureState } = useBetaFeatures();
   const getGeneratedText = useGeneratedTextStore((state) => state.getGeneratedText);
   const getGeneratedTextMetadata = useGeneratedTextStore((state) => state.getGeneratedTextMetadata);

@@ -179,6 +179,7 @@ export {
 } from './stores/chatStore';
 
 export { useDocumentChatStore } from './stores/documentChatStore';
+export { useUserProfileStore, type UserRole } from './stores/userProfileStore';
 
 // Mention detection & insertion (shared logic for web + mobile)
 export {

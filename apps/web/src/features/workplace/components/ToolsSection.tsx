@@ -1,4 +1,5 @@
-import React, { memo, useMemo } from 'react';
+import { IconButton, IconButtonRow } from '@gruenerator/ui';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { getIcon } from '../../../config/icons';
@@ -10,10 +11,10 @@ interface ToolItem {
   title: string;
   path: string;
   icon: IconType;
-  betaFeature?: string;
+  devOnly?: boolean;
 }
 
-const ALL_TOOLS: ToolItem[] = [
+const MAIN_TOOLS: ToolItem[] = [
   {
     id: 'gruen-veraendern',
     title: 'Bild mit KI begrünen',
@@ -27,28 +28,15 @@ const ALL_TOOLS: ToolItem[] = [
     icon: getIcon('navigation', 'reel')!,
   },
   {
-    id: 'scanner',
-    title: 'Text digitalisieren',
-    path: '/scanner',
-    icon: getIcon('navigation', 'scanner')!,
-    betaFeature: 'scanner',
-  },
-  {
-    id: 'transkription',
-    title: 'Audio mit KI transkribieren',
-    path: '/transkription',
-    icon: getIcon('navigation', 'transkription')!,
-    betaFeature: 'scanner',
-  },
-  {
     id: 'vorlagen',
     title: 'Vorlagen',
     path: '/datenbank/vorlagen',
     icon: getIcon('navigation', 'vorlagen')!,
+    devOnly: true,
   },
   {
     id: 'recherche',
-    title: 'Datenbank durchsuchen',
+    title: 'Notebook-Daten durchsuchen',
     path: '/recherche',
     icon: getIcon('navigation', 'datenbank')!,
   },
@@ -57,6 +45,22 @@ const ALL_TOOLS: ToolItem[] = [
     title: 'Transfer',
     path: '/transfer',
     icon: getIcon('actions', 'upload')!,
+    devOnly: true,
+  },
+];
+
+const EXPERIMENTAL_TOOLS: ToolItem[] = [
+  {
+    id: 'scanner',
+    title: 'Text digitalisieren',
+    path: '/scanner',
+    icon: getIcon('navigation', 'scanner')!,
+  },
+  {
+    id: 'transkription',
+    title: 'Audio mit KI transkribieren',
+    path: '/transkription',
+    icon: getIcon('navigation', 'transkription')!,
   },
   {
     id: 'apps',
@@ -66,60 +70,41 @@ const ALL_TOOLS: ToolItem[] = [
   },
 ];
 
-const ToolIcon = memo(({ tool }: { tool: ToolItem }) => {
+function filterTools(tools: ToolItem[]): ToolItem[] {
+  return tools.filter((tool) => !tool.devOnly || import.meta.env.DEV);
+}
+
+function ToolIconRow({ tools }: { tools: ToolItem[] }) {
   const navigate = useNavigate();
-  const Icon = tool.icon;
-
   return (
-    <button
-      type="button"
-      className="flex flex-col items-center gap-sm cursor-pointer bg-transparent border-none p-0 group"
-      onClick={() => navigate(tool.path)}
-    >
-      <div className="flex items-center justify-center size-16 rounded-full bg-secondary-100 dark:bg-grey-700 text-secondary-600 dark:text-grey-200 transition-all duration-200 group-hover:bg-secondary-200 dark:group-hover:bg-grey-600 group-hover:scale-105 shadow-sm">
-        <Icon className="text-2xl" />
-      </div>
-      <span className="text-sm text-foreground text-center leading-tight max-w-20 line-clamp-2">
-        {tool.title}
-      </span>
-    </button>
+    <IconButtonRow>
+      {tools.map((tool) => {
+        const Icon = tool.icon;
+        return (
+          <IconButton
+            key={tool.id}
+            icon={<Icon />}
+            label={tool.title}
+            onClick={() => navigate(tool.path)}
+          />
+        );
+      })}
+    </IconButtonRow>
   );
+}
+
+const ToolsSection = React.memo(() => {
+  const tools = filterTools(MAIN_TOOLS);
+  return <ToolIconRow tools={tools} />;
 });
-ToolIcon.displayName = 'ToolIcon';
-
-const CREATE_GROUP_TOOL: ToolItem = {
-  id: 'gruppe-erstellen',
-  title: 'Gruppe erstellen',
-  path: '/gruppen',
-  icon: getIcon('navigation', 'gruppen')!,
-};
-
-const ToolsSection = React.memo(
-  ({
-    canAccessBetaFeature,
-    showCreateGroup,
-  }: {
-    canAccessBetaFeature: (feature: string) => boolean;
-    showCreateGroup?: boolean;
-  }) => {
-    const visibleTools = useMemo(() => {
-      const tools = ALL_TOOLS.filter(
-        (tool) => !tool.betaFeature || canAccessBetaFeature(tool.betaFeature)
-      );
-      if (showCreateGroup) tools.push(CREATE_GROUP_TOOL);
-      return tools;
-    }, [canAccessBetaFeature, showCreateGroup]);
-
-    return (
-      <div className="flex gap-xl flex-wrap p-md bg-background-pure dark:bg-transparent rounded-lg shadow-sm dark:shadow-none">
-        {visibleTools.map((tool) => (
-          <ToolIcon key={tool.id} tool={tool} />
-        ))}
-      </div>
-    );
-  }
-);
 
 ToolsSection.displayName = 'ToolsSection';
+
+export const ExperimentalToolsSection = React.memo(() => {
+  const tools = filterTools(EXPERIMENTAL_TOOLS);
+  return <ToolIconRow tools={tools} />;
+});
+
+ExperimentalToolsSection.displayName = 'ExperimentalToolsSection';
 
 export default ToolsSection;

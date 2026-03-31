@@ -6,6 +6,7 @@
  * service — no business logic is duplicated.
  */
 
+import { createAnalyzeImageTool } from './analyzeImage.js';
 import { createDraftStructuredTool } from './draftStructured.js';
 import { createEditImageTool } from './editImage.js';
 import { createGenerateImageTool } from './generateImage.js';
@@ -51,6 +52,7 @@ const TOOL_ENTRIES: ToolEntry[] = [
   { key: 'examples', factory: createSearchExamplesTool },
   { key: 'image', factory: createGenerateImageTool },
   { key: 'image_edit', factory: createEditImageTool },
+  { key: 'vision', factory: createAnalyzeImageTool },
   { key: 'scrape', factory: createScrapeUrlTool },
   { key: 'memory', factory: createRecallMemoryTool },
   { key: 'memory_save', factory: createSaveMemoryTool },
@@ -105,6 +107,7 @@ export const TOOL_LABELS: Record<string, string> = {
   search_examples: 'Suche Beispiele...',
   generate_image: 'Generiere Bild...',
   edit_image: 'Bearbeite Bild...',
+  analyze_image: 'Analysiere Bild...',
   scrape_url: 'Lade URL-Inhalt...',
   recall_memory: 'Rufe Erinnerungen ab...',
   save_memory: 'Speichere Information...',

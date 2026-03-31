@@ -1,4 +1,4 @@
-import { HiDocument, HiGlobeAlt, HiLink, HiLightningBolt, HiSearch } from 'react-icons/hi';
+import { HiGlobeAlt, HiLink, HiSearch } from 'react-icons/hi';
 
 import { cn } from '../../utils/cn';
 
@@ -24,7 +24,6 @@ interface EnrichmentSourcesDisplayProps {
     }[];
     urlsUsed?: boolean;
     webSearchUsed?: boolean;
-    autoSearchUsed?: boolean;
   };
   title?: string;
   className?: string;
@@ -39,16 +38,14 @@ const EnrichmentSourcesDisplay = ({
     return null;
   }
 
-  const { sources, urlsUsed, webSearchUsed, autoSearchUsed } = enrichmentSummary;
+  const { sources, urlsUsed, webSearchUsed } = enrichmentSummary;
 
   // Group sources by type
   const groupedSources = {
-    autoDocuments: sources.filter((s) => s.type === 'auto-document'),
     urls: sources.filter((s) => s.type === 'url'),
     webSearch: sources.filter((s) => s.type === 'websearch'),
   };
 
-  const hasAutoDocuments = groupedSources.autoDocuments.length > 0;
   const hasUrls = groupedSources.urls.length > 0;
   const hasWebSearch = groupedSources.webSearch.length > 0;
 
@@ -65,19 +62,6 @@ const EnrichmentSourcesDisplay = ({
           {title}
         </h4>
         <div className="flex gap-xs flex-wrap">
-          {autoSearchUsed && (
-            <span
-              className={cn(
-                'inline-flex items-center gap-xxs px-xs py-[2px] rounded-sm text-xs max-md:text-[0.7rem] font-medium border',
-                'bg-[rgba(95,133,117,0.1)] border-[var(--klee)] text-secondary-700',
-                'dark:bg-[rgba(95,133,117,0.2)] dark:text-secondary-400',
-                '[&_svg]:text-[0.9rem]'
-              )}
-            >
-              <HiLightningBolt />
-              Automatisch
-            </span>
-          )}
           {urlsUsed && (
             <span
               className={cn(
@@ -108,51 +92,6 @@ const EnrichmentSourcesDisplay = ({
       </div>
 
       <div className="flex flex-col gap-md">
-        {/* Auto-selected Documents */}
-        {hasAutoDocuments && (
-          <div className="flex flex-col gap-sm">
-            <div className="flex items-center gap-xs pb-xs border-b border-grey-200 dark:border-grey-700">
-              <HiLightningBolt className="text-[1.1rem] text-secondary-600 dark:text-secondary-400" />
-              <h5 className="m-0 flex-1 text-[0.95rem] max-md:text-sm font-semibold text-foreground">
-                Automatisch ausgewählte Dokumente
-              </h5>
-              <span className="text-[0.8rem] text-grey-400 bg-background px-xs py-[2px] rounded-sm border border-grey-200 dark:border-grey-700">
-                {groupedSources.autoDocuments.length}
-              </span>
-            </div>
-            <div className="flex flex-col gap-xs">
-              {groupedSources.autoDocuments.map((doc, index) => (
-                <div
-                  key={index}
-                  className={cn(
-                    'flex items-start gap-sm max-md:gap-xs p-sm max-md:p-xs',
-                    'bg-background border border-grey-200 dark:border-grey-700 rounded-sm',
-                    'transition-all duration-150 ease-in-out',
-                    'hover:border-[var(--interactive-accent-color)] hover:shadow-sm'
-                  )}
-                >
-                  <HiDocument className="shrink-0 text-[1.2rem] max-md:text-base mt-[2px] text-secondary-600 dark:text-secondary-400" />
-                  <div className="flex-1 min-w-0 flex flex-col gap-[4px]">
-                    <div className="text-sm max-md:text-[0.8rem] font-medium text-foreground overflow-hidden text-ellipsis line-clamp-2">
-                      {doc.title}
-                    </div>
-                    {doc.filename && (
-                      <div className="text-xs max-md:text-[0.7rem] text-grey-400 overflow-hidden text-ellipsis whitespace-nowrap">
-                        {doc.filename}
-                      </div>
-                    )}
-                    {doc.relevance && (
-                      <div className="text-xs max-md:text-[0.7rem] text-grey-400 font-medium">
-                        Relevanz: {doc.relevance}%
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* URLs */}
         {hasUrls && (
           <div className="flex flex-col gap-sm">

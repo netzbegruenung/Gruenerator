@@ -48,6 +48,23 @@ pnpm --filter @gruenerator/desktop dev           # Tauri desktop dev
 - **`packages/shared`** — Shared stores (Zustand), hooks, API clients, and feature modules (sharepic, image-studio, subtitle-editor, media-library, search). Shared components in `src/components/`.
 - **`services/mcp`** — Model Context Protocol server (`https://mcp.gruenerator.eu`). See `CLAUDE-mcp.md` for endpoints, tools, and testing.
 - **`services/comfyui`** — ComfyUI workflows for local GPU image generation.
+- **`services/presenton`** — Presenton slide generator (Next.js + FastAPI). Templates in `servers/nextjs/app/presentation-templates/b90-gruene/`. Self-hosted fonts in `servers/nextjs/public/fonts/` (no Google Fonts — GDPR). Archived non-GRÜNE templates in `_archive/` (gitignored).
+
+### Presenton Local Dev
+
+**Always use `Dockerfile.gruenerator`** (not `Dockerfile` or `Dockerfile.dev`). The generic Dockerfiles install docling/pytorch (~2GB) which is unnecessary and extremely slow on WSL2.
+
+```bash
+cd services/presenton
+docker build -f Dockerfile.gruenerator -t presenton-gruenerator .
+docker run -d -p 5000:80 -v ./app_data:/app_data presenton-gruenerator
+```
+
+Preview templates at `http://localhost:5000/template-preview`.
+
+### Database Migrations
+
+SQL migrations live in `apps/api/database/postgres/migrations/` and run automatically on server startup via `PostgresService.init()`. The runner tracks applied files in the `schema_migrations` table. Migrations must **not** contain `BEGIN`/`COMMIT` (the runner wraps each in a transaction). Path resolution uses `getMigrationsPath()` in `database/services/PostgresService/schema.ts`.
 
 ### Data Stores
 
@@ -123,8 +140,11 @@ Theme tokens: **Colors** (`bg-primary-500`, `text-foreground`, `bg-background`),
 - **Opportunistic migration**: Convert CSS to Tailwind when touching files. New features use Tailwind exclusively.
 
 #### Theme & Dark Mode
-- Dark mode: `[data-theme="dark"]` attribute. Always test both modes.
+- Dark mode: `[data-theme="dark"]` attribute on `<html>`. Toggled by `useDarkMode.ts`. Always test both modes.
 - **Use semantic tokens**: `text-foreground` (not `text-grey-800 dark:text-grey-100`), `text-foreground-heading`, `bg-background`, `bg-background-alt`, `bg-background-pure`.
+- **Color token architecture**: All color values live in `variables.css` as `-val` CSS variables with light/dark pairs. `@theme` in `index.css` is a pure mapping layer (`--color-card: var(--color-card-val)`). Never hardcode hex values in `@theme`.
+- **`@layer` ordering matters**: `base < legacy < components < utilities`. Package CSS with `:root` variable defaults must import into `layer(legacy)`, not `layer(components)` — layers beat specificity, so a higher layer always wins regardless of `[data-theme="dark"]` selectors.
+- **Tailwind `dark:` variant**: Configured via `@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *))` in `index.css`. For gradients, always add `dark:from-*` explicitly — Tailwind gradient stops need re-declaration in the dark context.
 
 #### CSS Variable Names — Do NOT Invent Variables
 

@@ -3,20 +3,16 @@
  * Extracts the existing scanner logic into a separate tab component
  */
 
-import { FeatureToggle } from '@gruenerator/ui';
+import { FeatureToggle, IconButton, IconButtonRow } from '@gruenerator/ui';
 import { motion, AnimatePresence } from 'motion/react';
-import { lazy, Suspense, useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { lazy, Suspense, useState, useCallback, useRef, useEffect } from 'react';
 import { HiX } from 'react-icons/hi';
 import {
   PiCamera,
   PiCheckSquare,
   PiKanban,
-  PiListChecks,
   PiNotePencil,
-  PiNotepad,
   PiScan,
-  PiShieldCheck,
-  PiTextAa,
   PiUploadSimple,
   PiX,
 } from 'react-icons/pi';
@@ -26,7 +22,6 @@ import SubmitButton from '../../../components/common/SubmitButton';
 import apiClient from '../../../components/utils/apiClient';
 import { useContentActions } from '../../../hooks/useContentActions';
 import useResponsive from '../../../hooks/useResponsive';
-import { useAuthStore } from '../../../stores/authStore';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { cn } from '../../../utils/cn';
 
@@ -60,32 +55,6 @@ const formatFileSize = (bytes: number): string => {
 
 const COMPONENT_NAME = 'scanner';
 
-const PARTY_NAMES: Record<string, string> = {
-  'de-DE': 'Bündnis 90/Die Grünen',
-  'de-AT': 'Die Grünen – Die Grüne Alternative',
-};
-
-const getTransformPresets = (partyName: string) => [
-  {
-    id: 'ergebnisprotokoll',
-    label: 'Ergebnisprotokoll',
-    instruction: `Der Text stammt aus dem Kontext der grünen Partei (${partyName}). Transformiere den Text in ein strukturiertes Ergebnisprotokoll. Gliedere die Inhalte in klare Abschnitte mit Überschriften. Fasse Ergebnisse, Beschlüsse und offene Punkte übersichtlich zusammen. Behalte alle faktischen Informationen bei.`,
-    Icon: PiListChecks,
-  },
-  {
-    id: 'notizen',
-    label: 'Notizen',
-    instruction: `Der Text stammt aus dem Kontext der grünen Partei (${partyName}). Fasse den Text als kompakte, übersichtliche Notizen zusammen. Verwende kurze Stichpunkte und Aufzählungen. Hebe die wichtigsten Informationen, Kernaussagen und Handlungspunkte hervor. Lasse unwichtige Details und Füllwörter weg.`,
-    Icon: PiNotepad,
-  },
-  {
-    id: 'text-korrigieren',
-    label: 'Text korrigieren',
-    instruction: `Der Text stammt aus dem Kontext der grünen Partei (${partyName}). Korrigiere Rechtschreibung, Grammatik und Zeichensetzung im Text. Behebe OCR-typische Fehler wie falsch erkannte Buchstaben, fehlende Leerzeichen oder zusammengezogene Wörter. Erkenne partei-spezifische Begriffe und Abkürzungen korrekt. Behalte den ursprünglichen Inhalt, Stil und die Struktur vollständig bei.`,
-    Icon: PiTextAa,
-  },
-];
-
 interface ScannerTabProps {
   onProcessingChange?: (isProcessing: boolean) => void;
   onResultsChange?: (hasResults: boolean) => void;
@@ -97,19 +66,13 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ScannerResult | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [isTransforming, setIsTransforming] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
-  const [usePrivateOcr, setUsePrivateOcr] = useState(false);
+  const [useHandwriting, setUseHandwriting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
   const { isMobileView } = useResponsive(768);
 
-  const locale = useAuthStore((state) => state.locale);
-  const partyName = PARTY_NAMES[locale] || PARTY_NAMES['de-DE'];
-  const transformPresets = useMemo(() => getTransformPresets(partyName), [partyName]);
-
   const setGeneratedText = useGeneratedTextStore((state) => state.setGeneratedText);
-  const setTextWithHistory = useGeneratedTextStore((state) => state.setTextWithHistory);
   const clearGeneratedText = useGeneratedTextStore((state) => state.clearGeneratedText);
 
   const getContent = useCallback(() => {
@@ -131,34 +94,6 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
     editorModal,
     closeEditorModal,
   } = useContentActions({ getContent, getTitle });
-
-  const handleTransform = useCallback(
-    async (instruction: string) => {
-      const currentText = useGeneratedTextStore.getState().getGeneratedText(COMPONENT_NAME);
-      if (!currentText || typeof currentText !== 'string') return;
-
-      setIsTransforming(true);
-      try {
-        const response = await apiClient.post('/claude_text_adjustment', {
-          originalText: currentText,
-          modification: instruction,
-          fullText: currentText,
-        });
-
-        if (response.data?.suggestions?.[0]) {
-          setTextWithHistory(COMPONENT_NAME, response.data.suggestions[0]);
-        } else {
-          setError('Keine Transformation erhalten.');
-        }
-      } catch (err: unknown) {
-        const error = err as { response?: { data?: { error?: string } }; message?: string };
-        setError(error.response?.data?.error || error.message || 'Transformation fehlgeschlagen.');
-      } finally {
-        setIsTransforming(false);
-      }
-    },
-    [setTextWithHistory]
-  );
 
   useEffect(() => {
     onProcessingChange?.(scannerState === 'processing');
@@ -288,7 +223,7 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
         const formData = new FormData();
         formData.append('file', file);
 
-        const url = usePrivateOcr ? '/scanner/extract?provider=docling' : '/scanner/extract';
+        const url = useHandwriting ? '/scanner/extract' : '/scanner/extract?provider=docling';
         const response = await apiClient.post(url, formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
@@ -345,7 +280,6 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
     <div
       className={cn(
         'mx-auto w-full max-w-[640px] flex-1 content-center px-md py-lg',
-        'has-[.scanner-results]:max-w-[840px]',
         isDragOver && 'drag-over'
       )}
     >
@@ -469,11 +403,11 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
             </div>
 
             <FeatureToggle
-              isActive={usePrivateOcr}
-              onToggle={setUsePrivateOcr}
-              label="Privat verarbeiten"
-              icon={PiShieldCheck}
-              description="Dokumente werden direkt auf dem Grünerator-Server verarbeitet, ohne Daten an externe Dienste zu senden. Handschriftliche Texte werden in diesem Modus nicht erkannt."
+              isActive={useHandwriting}
+              onToggle={setUseHandwriting}
+              label="Handschrift erkennen"
+              icon={PiNotePencil}
+              description="Aktiviere diesen Modus, um handschriftliche Texte zu erkennen. Dabei werden die Daten an einen externen Dienst (Mistral) gesendet."
               noBorder
             />
 
@@ -512,7 +446,7 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="scanner-results flex w-full flex-col gap-md"
+            className="flex w-full flex-col gap-md"
           >
             <div className="flex items-center gap-sm py-sm">
               {selectedFiles.length > 1 && (
@@ -532,54 +466,37 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
               </span>
             </div>
 
-            <div className="grid grid-cols-[1fr_auto] items-start gap-md max-md:grid-cols-1">
-              <div className="min-w-0">
-                <DisplaySection
-                  title={
-                    selectedFiles.length === 1
-                      ? selectedFiles[0].name
-                      : `${selectedFiles.length} Dateien`
-                  }
-                  value={result.text}
-                  componentName={COMPONENT_NAME}
-                  useMarkdown={true}
-                  showUndoControls={true}
-                  showRedoControls={true}
-                  showResetButton={true}
-                  onReset={handleClearFile}
-                  customExportOptions={[
-                    {
-                      id: 'todo-list',
-                      label: 'Aufgabenliste erstellen',
-                      icon: <PiCheckSquare size={16} />,
-                      onClick: handleCreateTodoList,
-                      disabled: !!actionLoading,
-                    },
-                    {
-                      id: 'board',
-                      label: 'Board erstellen',
-                      icon: <PiKanban size={16} />,
-                      onClick: handleCreateBoard,
-                      disabled: !!actionLoading,
-                    },
-                  ]}
-                />
-              </div>
+            <DisplaySection
+              title={
+                selectedFiles.length === 1
+                  ? selectedFiles[0].name
+                  : `${selectedFiles.length} Dateien`
+              }
+              value={result.text}
+              componentName={COMPONENT_NAME}
+              useMarkdown={true}
+              showUndoControls={true}
+              showRedoControls={true}
+              showResetButton={true}
+              onReset={handleClearFile}
+            />
 
-              <div className="sticky top-md flex flex-col gap-sm max-md:static max-md:flex-row max-md:flex-wrap">
-                {transformPresets.map((preset) => (
-                  <button
-                    key={preset.id}
-                    className="flex cursor-pointer items-center gap-sm whitespace-nowrap rounded-md border border-grey-200 bg-background px-md py-sm text-sm text-foreground transition-[border-color,background] duration-200 hover:border-primary hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-grey-700 dark:hover:bg-primary-900"
-                    onClick={() => handleTransform(preset.instruction)}
-                    disabled={isTransforming}
-                  >
-                    <preset.Icon />
-                    <span>{preset.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <IconButtonRow gap="lg" padding="sm">
+              <IconButton
+                icon={<PiCheckSquare />}
+                label="Aufgabenliste"
+                onClick={handleCreateTodoList}
+                disabled={!!actionLoading}
+                size="sm"
+              />
+              <IconButton
+                icon={<PiKanban />}
+                label="Board"
+                onClick={handleCreateBoard}
+                disabled={!!actionLoading}
+                size="sm"
+              />
+            </IconButtonRow>
           </motion.div>
         )}
       </AnimatePresence>
@@ -593,12 +510,12 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
             exit={{ opacity: 0, y: -10 }}
             role="alert"
             aria-live="assertive"
-            className="form-error-message m-0 rounded-lg"
+            className="m-0 flex items-center justify-between gap-sm rounded-lg border border-error bg-error/10 px-md py-sm font-medium text-error dark:border-[rgba(211,47,47,0.6)] dark:bg-[rgba(211,47,47,0.15)]"
           >
-            <span className="error-message-text">{error}</span>
+            <span className="flex-1 leading-[1.4]">{error}</span>
             <button
               type="button"
-              className="error-dismiss-button"
+              className="flex shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-xxs text-error opacity-70 transition-all hover:scale-105 hover:bg-error/10 hover:opacity-100 active:scale-95"
               onClick={() => {
                 setError(null);
                 if (selectedFiles.length === 0) setScannerState('upload');

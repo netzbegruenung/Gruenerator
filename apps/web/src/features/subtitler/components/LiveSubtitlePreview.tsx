@@ -86,52 +86,6 @@ const LiveSubtitlePreview: React.FC<LiveSubtitlePreviewProps> = ({
           borderRadius: '0.1em',
         };
 
-      case 'gj_clean':
-        return {
-          ...baseStyles,
-          fontFamily: "'GJFontRegular', Arial, sans-serif",
-          fontWeight: 'normal',
-          backgroundColor: 'transparent',
-          textShadow: 'none',
-          padding: '0',
-          borderRadius: '0',
-        };
-
-      case 'gj_shadow':
-        return {
-          ...baseStyles,
-          fontFamily: "'GJFontRegular', Arial, sans-serif",
-          fontWeight: 'normal',
-          backgroundColor: 'transparent',
-          textShadow: '0 2px 8px rgba(0, 0, 0, 0.8), 0 0 4px rgba(0, 0, 0, 0.6)',
-          padding: '0',
-          borderRadius: '0',
-        };
-
-      case 'gj_lavendel':
-        return {
-          ...baseStyles,
-          fontFamily: "'GJFontRegular', Arial, sans-serif",
-          fontWeight: 'normal',
-          backgroundColor: '#9f88ff',
-          color: '#ffffff',
-          textShadow: 'none',
-          padding: '0.2em 0.4em',
-          borderRadius: '0.1em',
-        };
-
-      case 'gj_hellgruen':
-        return {
-          ...baseStyles,
-          fontFamily: "'GJFontRegular', Arial, sans-serif",
-          fontWeight: 'normal',
-          backgroundColor: '#c7ff7a',
-          color: '#000000',
-          textShadow: 'none',
-          padding: '0.2em 0.4em',
-          borderRadius: '0.1em',
-        };
-
       case 'standard':
       default:
         return {

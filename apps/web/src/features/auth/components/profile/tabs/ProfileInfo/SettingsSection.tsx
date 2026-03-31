@@ -1,7 +1,7 @@
 import { Badge } from '@gruenerator/ui';
 import React, { memo } from 'react';
 import { type IconType } from 'react-icons';
-import { HiOutlineDatabase, HiOutlineDocumentSearch, HiOutlineUsers, HiSave } from 'react-icons/hi';
+import { HiOutlineDatabase, HiOutlineUsers } from 'react-icons/hi';
 
 import FeatureToggle from '../../../../../../components/common/FeatureToggle';
 import { getEmailPreferenceTypes } from '../../../../../../features/notifications/notificationConfig';
@@ -13,8 +13,6 @@ interface SettingsSectionProps {
   isActive: boolean;
   onSuccessMessage: (message: string) => void;
   onErrorMessage: (message: string) => void;
-  igelActive: boolean;
-  onToggleIgelModus: (checked: boolean) => void;
   isBetaFeaturesUpdating: boolean;
 }
 
@@ -62,21 +60,11 @@ const LocaleSelector: React.FC = () => {
 const BETA_VIEWS = {
   DATABASE: 'database',
   COLLAB: 'collab',
-  WORKPLACE: 'workplace',
   VORLAGEN: 'vorlagen',
-  AUTO_SAVE_GENERATED: 'autoSaveGenerated',
-  AUTO_DOCUMENT_SEARCH: 'autoDocumentSearch',
 };
 
 const SettingsSection: React.FC<SettingsSectionProps> = memo(
-  ({
-    isActive,
-    onSuccessMessage,
-    onErrorMessage,
-    igelActive,
-    onToggleIgelModus,
-    isBetaFeaturesUpdating,
-  }) => {
+  ({ isActive, onSuccessMessage, onErrorMessage, isBetaFeaturesUpdating }) => {
     const { getBetaFeatureState, updateUserBetaFeatures, availableFeatures, isAdmin } =
       useBetaFeatures();
 
@@ -105,18 +93,6 @@ const SettingsSection: React.FC<SettingsSectionProps> = memo(
             checkboxLabel: 'Kollaborative Bearbeitung aktivieren',
             icon: HiOutlineUsers,
           };
-        case BETA_VIEWS.WORKPLACE:
-          return {
-            title: 'Workplace',
-            description: 'Gruppen, Dokumente, Scanner und Boards',
-            checked: getBetaFeatureState('workplace'),
-            setter: (value: boolean) => updateUserBetaFeatures('workplace', value),
-            featureName: 'Workplace',
-            checkboxLabel: 'Gruppen, Dokumente, Scanner (OCR) und Kanban-Boards aktivieren',
-            linkTo: '/workplace',
-            linkText: 'Zum Workplace',
-            icon: HiOutlineUsers,
-          };
         case BETA_VIEWS.VORLAGEN:
           return {
             title: 'Vorlagen & Galerie',
@@ -129,45 +105,15 @@ const SettingsSection: React.FC<SettingsSectionProps> = memo(
             linkText: 'Zu Meine Vorlagen',
             icon: HiOutlineDatabase,
           };
-        case BETA_VIEWS.AUTO_SAVE_GENERATED:
-          return {
-            title: 'Auto-Speichern generierter Texte',
-            description: 'Generierte Texte automatisch in der Bibliothek speichern',
-            checked: getBetaFeatureState('autoSaveGenerated'),
-            setter: (value: boolean) => updateUserBetaFeatures('autoSaveGenerated', value),
-            featureName: 'Auto-Speichern generierter Texte',
-            checkboxLabel: 'Automatisches Speichern generierter Texte in der Bibliothek aktivieren',
-            icon: HiSave,
-          };
-        case BETA_VIEWS.AUTO_DOCUMENT_SEARCH:
-          return {
-            title: 'Automatische Dokumentensuche',
-            description: 'KI durchsucht deine Bibliothek automatisch',
-            checked: getBetaFeatureState('autoDocumentSearch'),
-            setter: (value: boolean) => updateUserBetaFeatures('autoDocumentSearch', value),
-            featureName: 'Automatische Dokumentensuche',
-            checkboxLabel:
-              'Automatische Suche in deiner Dokumenten-Bibliothek bei der Textgenerierung aktivieren',
-            icon: HiOutlineDocumentSearch,
-          };
         default:
           return null;
       }
     };
 
-    const SETTINGS_KEYS = new Set(['autoSaveGenerated', 'autoDocumentSearch']);
-    const settingsFeatures = availableFeatures.filter((f) => SETTINGS_KEYS.has(f.key));
-    const experimentalFeatures = availableFeatures.filter((f) => !SETTINGS_KEYS.has(f.key));
-
-    const renderToggle = (
-      feature: { key: string; isAdminOnly: boolean },
-      isExperimental = false
-    ) => {
+    const renderToggle = (feature: { key: string; isAdminOnly: boolean }) => {
       const config = getBetaFeatureConfig(feature.key);
       if (!config) return null;
-      const description = isExperimental
-        ? `${config.description} (Experimentell)`
-        : config.description;
+      const description = `${config.description} (Experimentell)`;
       return (
         <div key={feature.key} className="flex items-center gap-sm">
           <FeatureToggle
@@ -191,8 +137,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = memo(
         <div>
           <div className="text-sm font-medium text-foreground mb-md">Einstellungen</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
-            {settingsFeatures.map((f) => renderToggle(f))}
-            {experimentalFeatures.map((f) => renderToggle(f, true))}
+            {availableFeatures.map((f) => renderToggle(f))}
           </div>
         </div>
 

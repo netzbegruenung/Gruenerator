@@ -90,12 +90,6 @@ export const AGENT_MAPPINGS: AgentMappings = {
     description: 'Large parliamentary inquiries',
     params: { requestType: 'grosse_anfrage' },
   },
-  gruene_jugend: {
-    route: 'gruene_jugend',
-    keywords: ['grüne jugend', 'jugend', 'aktivismus', 'radikal', 'jugendlich'],
-    description: 'Youth-oriented political content',
-    params: {},
-  },
   leichte_sprache: {
     route: 'leichte_sprache',
     keywords: [

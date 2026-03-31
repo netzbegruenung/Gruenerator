@@ -1,0 +1,107 @@
+name: Social Media Sync
+
+on:
+  schedule:
+    - cron: '0 3 * * 1' # Weekly Monday 04:00 CET (03:00 UTC)
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Preview without storing'
+        type: boolean
+        default: false
+      force:
+        description: 'Force re-index even if unchanged'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: social-media-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync social media examples
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile --filter @gruenerator/api...
+
+      - name: Run social media sync
+        id: sync
+        continue-on-error: true
+        run: |
+          ARGS="--source social-media"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
+          echo "Running: npx tsx apps/api/update-all-content.ts $ARGS"
+          npx tsx apps/api/update-all-content.ts $ARGS
+        env:
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
+          QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          SYNC_SUMMARY_PATH: ${{ github.workspace }}/sync-summary.json
+
+      - name: Generate job summary
+        if: always()
+        run: |
+          SUMMARY_FILE="${{ github.workspace }}/sync-summary.json"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          if [ ! -f "$SUMMARY_FILE" ]; then
+            echo "## Social Media Sync — No Summary" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The sync script did not produce a summary file. Check the [workflow logs]($RUN_URL)." >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
+          TIMESTAMP=$(jq -r '.timestamp' "$SUMMARY_FILE")
+          STORED=$(jq -r '.totals.stored' "$SUMMARY_FILE")
+          ERRORS=$(jq -r '.totals.errors' "$SUMMARY_FILE")
+          DURATION=$(jq -r '.totalDuration' "$SUMMARY_FILE")
+
+          if [ "$ERRORS" -gt 0 ]; then STATUS_ICON="⚠️"; else STATUS_ICON="✅"; fi
+
+          {
+            echo "## ${STATUS_ICON} Social Media Sync"
+            echo ""
+            echo "**Date:** $(date -d "$TIMESTAMP" '+%d.%m.%Y %H:%M UTC' 2>/dev/null || echo "$TIMESTAMP")"
+            echo "**Duration:** ${DURATION}s | **New:** +${STORED} | **Errors:** ${ERRORS}"
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Update content stats page
+        if: always()
+        run: npx tsx apps/api/generate-content-stats.ts
+        env:
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
+          QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
+
+      - name: Create PR for stats page update
+        if: always()
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: 'docs: update content stats after social media sync [skip ci]'
+          title: 'docs: update content stats'
+          body: 'Automated content stats update from Social Media Sync workflow.'
+          branch: automated/content-stats-update
+          add-paths: documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
+          delete-branch: true
+          labels: automated
+
+      - name: Fail if sync had errors
+        if: steps.sync.outcome == 'failure'
+        run: exit 1

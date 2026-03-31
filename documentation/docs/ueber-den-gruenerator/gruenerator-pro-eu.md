@@ -14,7 +14,7 @@ Der Grünerator ist die souveräne Alternative: **100% europäische Infrastruktu
 
 - **Mistral AI** (Frankreich) — Text, Sprache, Reasoning
 - **Black Forest Labs** (Deutschland) — Bildbearbeitung
-- **Gladia** (Frankreich) — Video-Transkription
+- **Regolo / Seeweb** (Italien) — Audio-/Video-Transkription (Zero Data Retention)
 - **IONOS** (Deutschland) — Backup-KI
 - **netzbegrünung e.V.** (Deutschland / Finnland) — Infrastruktur, Datenbank, Gruenerator-GPT
 - **SearXNG** (selbstgehostet, Deutschland) — Suche

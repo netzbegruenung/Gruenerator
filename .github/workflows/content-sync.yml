@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       source:
-        description: 'Source group (empty = all). Options: landesverbaende, gruenblog, gruene-at, kommunalwiki, boell-stiftung, bundestag, social-media'
+        description: 'Source group (empty = all). Options: landesverbaende, gruenblog, gruene-at, kommunalwiki, boell-stiftung, bundestag'
         required: false
         type: string
       dry_run:
@@ -21,6 +21,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: content-sync-${{ github.event.schedule || 'manual' }}
@@ -47,7 +48,7 @@ jobs:
           elif [ "$SCHEDULE" = "0 2 * * *" ] || [ -z "$SCHEDULE" ]; then
             # Daily 3 AM CET or manual dispatch (no source) → all sources
             echo 'use_matrix=true' >> $GITHUB_OUTPUT
-            echo 'matrix={"source":["landesverbaende","gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag","social-media"]}' >> $GITHUB_OUTPUT
+            echo 'matrix={"source":["landesverbaende","gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag"]}' >> $GITHUB_OUTPUT
           else
             # Hourly schedule → landesverbaende only
             echo 'use_matrix=false' >> $GITHUB_OUTPUT
@@ -239,13 +240,17 @@ jobs:
           QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
           QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
 
-      - name: Commit stats page
+      - name: Create PR for stats page update
         if: always()
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
-          git diff --cached --quiet || git commit -m "docs: update content stats [skip ci]" && git push
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: 'docs: update content stats [skip ci]'
+          title: 'docs: update content stats'
+          body: 'Automated content stats update from Content Sync workflow.'
+          branch: automated/content-stats-update
+          add-paths: documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
+          delete-branch: true
+          labels: automated
 
   # ─── Single-source run (no matrix overhead) ────────────────────
   sync-single:
@@ -325,13 +330,17 @@ jobs:
           QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
           QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
 
-      - name: Commit stats page
+      - name: Create PR for stats page update
         if: always()
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
-          git diff --cached --quiet || git commit -m "docs: update content stats [skip ci]" && git push
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: 'docs: update content stats [skip ci]'
+          title: 'docs: update content stats'
+          body: 'Automated content stats update from Content Sync workflow.'
+          branch: automated/content-stats-update
+          add-paths: documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
+          delete-branch: true
+          labels: automated
 
       - name: Fail if sync had errors
         if: steps.sync.outcome == 'failure'

@@ -68,6 +68,12 @@ export {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from './components/dropdown-menu';
+export {
+  IconButton,
+  iconButtonVariants,
+  IconButtonRow,
+  iconButtonRowVariants,
+} from './components/icon-button';
 export { Input } from './components/input';
 export { Label } from './components/label';
 export { Popover, PopoverContent, PopoverTrigger, PopoverAnchor } from './components/popover';
@@ -168,6 +174,8 @@ export {
   type StepProps,
 } from './components/multi-step-form';
 export { SelectCard, type SelectCardProps } from './components/select-card';
+export { SmartInput, type SmartInputOption, type SmartInputProps } from './components/smart-input';
+export { LiteTooltip, type LiteTooltipProps } from './components/lite-tooltip';
 export { Toaster } from './components/sonner';
 export {
   NotificationBell,

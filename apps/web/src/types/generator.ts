@@ -37,17 +37,12 @@ export interface GeneratorSelectionState {
   useWebSearch: boolean;
   usePrivacyMode: boolean;
   useProMode: boolean;
-  useUltraMode: boolean;
-  useAutomaticSearch: boolean;
 }
 
 export interface FeatureState {
   useWebSearchTool: boolean;
   usePrivacyMode: boolean;
   useProMode: boolean;
-  useUltraMode: boolean;
-  useAutomaticSearch: boolean;
-  useBedrock: boolean;
 }
 
 export interface SelectedIds {

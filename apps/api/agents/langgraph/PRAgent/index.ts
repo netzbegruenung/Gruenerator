@@ -52,7 +52,6 @@ export async function processAutomatischPR(
         systemRole: '',
         selectedDocumentIds: request.selectedDocumentIds || [],
         searchQuery: request.inhalt,
-        useAutomaticSearch: req.user?.beta_features?.autoDocumentSearch ?? true,
       },
       req
     );
@@ -197,7 +196,6 @@ export async function processStrategyGeneration(
         systemRole: '',
         selectedDocumentIds: requestData.selectedDocumentIds || [],
         searchQuery: requestData.inhalt,
-        useAutomaticSearch: req.user?.beta_features?.autoDocumentSearch ?? true,
       },
       req
     );
@@ -308,7 +306,6 @@ export async function processProductionGeneration(
         systemRole: '',
         selectedDocumentIds: [],
         searchQuery: inputData.inhalt,
-        useAutomaticSearch: false,
       },
       req
     );

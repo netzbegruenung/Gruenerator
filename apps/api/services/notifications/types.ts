@@ -5,6 +5,9 @@ export type NotificationType =
   | 'document_permission_changed'
   | 'document_access_revoked'
   | 'board_updates'
+  | 'board_comment_added'
+  | 'board_comment_reply'
+  | 'board_user_mentioned'
   | 'group_activity'
   | 'group_member_joined'
   | 'group_role_changed'
@@ -26,6 +29,9 @@ export const ALL_NOTIFICATION_TYPES: NotificationType[] = [
   'document_permission_changed',
   'document_access_revoked',
   'board_updates',
+  'board_comment_added',
+  'board_comment_reply',
+  'board_user_mentioned',
   'group_activity',
   'group_member_joined',
   'group_role_changed',

@@ -13,7 +13,6 @@ export function useAuth() {
   const error = useAuthStore((state) => state.error);
   const isLoggingOut = useAuthStore((state) => state.isLoggingOut);
   const locale = useAuthStore((state) => state.locale);
-  const igelModus = useAuthStore((state) => state.igelModus);
   const selectedMessageColor = useAuthStore((state) => state.selectedMessageColor);
 
   const setAuthState = useAuthStore((state) => state.setAuthState);
@@ -23,7 +22,6 @@ export function useAuth() {
   const clearAuth = useAuthStore((state) => state.clearAuth);
   const updateProfile = useAuthStore((state) => state.updateProfile);
   const updateLocale = useAuthStore((state) => state.updateLocale);
-  const updateIgelModus = useAuthStore((state) => state.updateIgelModus);
   const updateMessageColor = useAuthStore((state) => state.updateMessageColor);
 
   return {
@@ -33,7 +31,6 @@ export function useAuth() {
     error,
     isLoggingOut,
     locale,
-    igelModus,
     selectedMessageColor,
 
     setAuthState,
@@ -43,7 +40,6 @@ export function useAuth() {
     clearAuth,
     updateProfile,
     updateLocale,
-    updateIgelModus,
     updateMessageColor,
   };
 }

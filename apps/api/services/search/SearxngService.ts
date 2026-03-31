@@ -440,7 +440,7 @@ URL: ${result.url}
     };
 
     const keyString = JSON.stringify(keyData);
-    return `searxng:${crypto.createHash('md5').update(keyString).digest('hex')}`;
+    return `searxng:${crypto.createHash('sha256').update(keyString).digest('hex')}`;
   }
 
   /**

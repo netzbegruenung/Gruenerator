@@ -24,7 +24,6 @@ export interface EnrichmentOptions {
   selectedDocumentIds?: string[];
   selectedTextIds?: string[];
   searchQuery?: string | null;
-  useAutomaticSearch?: boolean;
   provider?: string;
   aiWorkerPool?: any;
   req?: any;
@@ -67,15 +66,6 @@ export interface WebSearchSource {
   domain: string;
 }
 
-export interface AutoSelectedDocument {
-  id: string;
-  title: string;
-  filename: string;
-  relevance_score: number;
-  relevance_percent: number;
-  matched_query: string;
-}
-
 export interface DocumentReference {
   title: string;
   filename: string;
@@ -96,8 +86,6 @@ export interface EnrichmentMetadata {
   enableDocQnA: boolean;
   webSearchSources: WebSearchSource[] | null;
   usePrivacyMode: boolean;
-  autoSearchUsed: boolean;
-  autoSelectedDocuments: AutoSelectedDocument[];
   urlsProcessed?: string[];
   documentsPreProcessed?: boolean;
   documentsReferences?: DocumentReference[];
@@ -199,13 +187,6 @@ export interface DocumentSearchResult {
   textReferences?: any[];
 }
 
-export interface AutoSearchOptions {
-  limit?: number;
-  threshold?: number;
-  usePrivacyMode?: boolean;
-  useProMode?: boolean;
-}
-
 /**
  * Union type for all enrichment task results
  * Used to properly type the enrichmentTasks array
@@ -216,5 +197,4 @@ export type EnrichmentTaskResult =
   | { type: 'vectorsearch'; knowledge: string[]; documentReferences: DocumentReference[] }
   | { type: 'texts'; knowledge: string[]; textReferences: TextReference[] }
   | { type: 'knowledge'; knowledge: string[] }
-  | { type: 'autovectorsearch'; knowledge: string[]; metadata: any }
   | { type: 'notebook_enrich'; preAnswer: string | null; timeMs: number };

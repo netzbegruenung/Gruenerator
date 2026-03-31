@@ -12,7 +12,7 @@ import {
 
 import Spinner from '../../../components/common/Spinner';
 import { ProfileIconButton } from '../../../components/profile/actions/ProfileActionButton';
-import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { useAuthStore } from '../../../stores/authStore';
 import { useDocumentsStore, type Document } from '../../../stores/documentsStore';
 
 import { cn } from '@/utils/cn';
@@ -43,7 +43,7 @@ const DocumentSelector: React.FC<DocumentSelectorProps> = memo(
     onRemoveDocument = null,
     disabled = false,
   }) => {
-    const { user } = useOptimizedAuth();
+    const user = useAuthStore((s) => s.user);
     const { documents, isLoading, error, fetchDocuments, clearError } = useDocumentsStore();
 
     const [searchQuery, setSearchQuery] = useState('');

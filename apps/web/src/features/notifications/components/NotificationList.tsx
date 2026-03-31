@@ -1,7 +1,7 @@
 import { Button, ItemGroup, ItemSeparator, ScrollArea, Separator } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { CheckCheck } from 'lucide-react';
-import { useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import {
@@ -11,15 +11,23 @@ import {
   useDismissNotification,
   useDismissAll,
 } from '../hooks/useNotifications';
+import { getNotificationConfig } from '../notificationConfig';
+import { NOTIFICATION_GROUPS } from '../types';
 
-import NotificationGroup from './NotificationGroup';
+import NotificationGroupComponent from './NotificationGroup';
 import NotificationItem from './NotificationItem';
 
-import type { Notification } from '../types';
+import type { Notification, NotificationGroup as NotificationGroupType } from '../types';
 
 type GroupedEntry =
   | { kind: 'single'; notification: Notification }
   | { kind: 'group'; key: string; items: Notification[] };
+
+interface CategorySection {
+  category: NotificationGroupType;
+  label: string;
+  entries: GroupedEntry[];
+}
 
 function groupNotifications(notifications: Notification[]): GroupedEntry[] {
   const groups = new Map<string, Notification[]>();
@@ -49,6 +57,34 @@ function groupNotifications(notifications: Notification[]): GroupedEntry[] {
   });
 }
 
+function getNotificationCategory(entry: GroupedEntry): NotificationGroupType {
+  const type = entry.kind === 'group' ? entry.items[0].type : entry.notification.type;
+  return (getNotificationConfig(type).group ?? 'system') as NotificationGroupType;
+}
+
+function groupByCategory(entries: GroupedEntry[]): CategorySection[] {
+  const categoryMap = new Map<NotificationGroupType, GroupedEntry[]>();
+
+  for (const entry of entries) {
+    const cat = getNotificationCategory(entry);
+    const existing = categoryMap.get(cat) ?? [];
+    existing.push(entry);
+    categoryMap.set(cat, existing);
+  }
+
+  return Array.from(categoryMap.entries())
+    .map(([category, catEntries]) => ({
+      category,
+      label: NOTIFICATION_GROUPS[category]?.label ?? 'Sonstige',
+      entries: catEntries,
+    }))
+    .sort(
+      (a, b) =>
+        (NOTIFICATION_GROUPS[a.category]?.order ?? 99) -
+        (NOTIFICATION_GROUPS[b.category]?.order ?? 99)
+    );
+}
+
 function formatShortTime(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const min = Math.floor(diff / 60000);
@@ -76,6 +112,7 @@ const NotificationList = ({ unreadCount }: NotificationListProps) => {
   const notifications = notifData?.pages.flat() ?? [];
 
   const grouped = useMemo(() => groupNotifications(notifications), [notifications]);
+  const sections = useMemo(() => groupByCategory(grouped), [grouped]);
 
   const handleMarkAsRead = useCallback((id: string) => markAsRead.mutate(id), [markAsRead]);
 
@@ -120,35 +157,45 @@ const NotificationList = ({ unreadCount }: NotificationListProps) => {
       </div>
 
       <ScrollArea className="max-h-[280px]">
-        <ItemGroup>
-          {grouped.map((entry, idx) => {
-            const key = entry.kind === 'group' ? entry.key : entry.notification.id;
-            return (
-              <div key={key}>
-                {idx > 0 && <ItemSeparator />}
-                {entry.kind === 'group' ? (
-                  <NotificationGroup
-                    items={entry.items}
-                    formatTime={formatShortTime}
-                    onMarkAsRead={handleMarkAsRead}
-                    onDismiss={handleDismiss}
-                    navigate={navigate}
-                    refreshProfile={refreshProfile}
-                  />
-                ) : (
-                  <NotificationItem
-                    notification={entry.notification}
-                    formatTime={formatShortTime}
-                    onMarkAsRead={handleMarkAsRead}
-                    onDismiss={handleDismiss}
-                    navigate={navigate}
-                    refreshProfile={refreshProfile}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </ItemGroup>
+        {sections.map((section, sectionIdx) => (
+          <div key={section.category}>
+            {sectionIdx > 0 && <Separator />}
+            <div className="px-md pt-sm pb-xs">
+              <span className="text-[0.65rem] font-semibold text-grey-400 dark:text-grey-500 uppercase tracking-wider">
+                {section.label}
+              </span>
+            </div>
+            <ItemGroup>
+              {section.entries.map((entry, idx) => {
+                const key = entry.kind === 'group' ? entry.key : entry.notification.id;
+                return (
+                  <div key={key}>
+                    {idx > 0 && <ItemSeparator />}
+                    {entry.kind === 'group' ? (
+                      <NotificationGroupComponent
+                        items={entry.items}
+                        formatTime={formatShortTime}
+                        onMarkAsRead={handleMarkAsRead}
+                        onDismiss={handleDismiss}
+                        navigate={navigate}
+                        refreshProfile={refreshProfile}
+                      />
+                    ) : (
+                      <NotificationItem
+                        notification={entry.notification}
+                        formatTime={formatShortTime}
+                        onMarkAsRead={handleMarkAsRead}
+                        onDismiss={handleDismiss}
+                        navigate={navigate}
+                        refreshProfile={refreshProfile}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </ItemGroup>
+          </div>
+        ))}
         {hasNextPage && (
           <>
             <Separator />
@@ -170,4 +217,4 @@ const NotificationList = ({ unreadCount }: NotificationListProps) => {
   );
 };
 
-export default NotificationList;
+export default memo(NotificationList);

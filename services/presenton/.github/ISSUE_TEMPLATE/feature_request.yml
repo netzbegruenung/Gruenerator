@@ -1,0 +1,88 @@
+name: Feature request
+description: Suggest a new capability or improvement for Presenton.
+title: "[Feature]: "
+labels:
+  - enhancement
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement to **Presenton** 🚀  
+        Please describe the feature clearly so we can understand the problem and evaluate the idea.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One-line description of the feature request.
+      placeholder: Add support for exporting presentations as Google Slides.
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What problem are you trying to solve? Why is the current behavior insufficient?
+      placeholder: |
+        Currently Presenton exports presentations only as PPTX or PDF.
+        Our team collaborates primarily in Google Slides, so we must manually convert files.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: Proposed solution
+      description: Describe the feature you'd like to see and how it should work.
+      placeholder: |
+        Add a new export option for Google Slides.
+        When generating a presentation, users could select:
+        - PPTX
+        - PDF
+        - Google Slides
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you considered other solutions or workarounds?
+      placeholder: |
+        Currently we export PPTX and manually upload to Google Slides, which adds extra steps.
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case
+      description: Describe how this feature would be used in real workflows.
+      placeholder: |
+        Teams generating AI presentations for meetings could directly open them in Google Slides
+        for collaborative editing.
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: |
+        Explain the importance of this feature.
+
+        Include:
+        - Who would benefit from it
+        - Severity of the current limitation
+        - Frequency of the issue
+        - Workflow impact
+      placeholder: |
+        Affected users: Teams using Presenton for collaborative presentations
+        Severity: Medium
+        Frequency: Frequent
+        Impact: Saves time and removes manual conversion steps.
+
+  - type: textarea
+    id: additional_information
+    attributes:
+      label: Additional information
+      description: Any extra context, screenshots, references, or examples.
+      placeholder: Links to similar features in Gamma, Beautiful AI, or other presentation tools.

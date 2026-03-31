@@ -4,7 +4,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import apiClient from '../../components/utils/apiClient';
-import { useOptimizedAuth } from '../../hooks/useAuth';
+import { useAuthStore } from '../../stores/authStore';
 
 import type { CustomPrompt, CustomPromptCreateData, CustomPromptUpdateData } from './types';
 
@@ -20,7 +20,7 @@ interface UseCustomPromptsOptions {
 
 export const useCustomPromptsData = (options: UseCustomPromptsOptions = {}) => {
   const { isActive = true, enabled = true } = options;
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
 
   const query = useQuery<CustomPrompt[], Error>({
     queryKey: QUERY_KEYS.customPrompts(user?.id),
@@ -39,7 +39,7 @@ export const useCustomPromptsData = (options: UseCustomPromptsOptions = {}) => {
 
 export const useSavedPromptsData = (options: UseCustomPromptsOptions = {}) => {
   const { isActive = true, enabled = true } = options;
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
 
   const query = useQuery<CustomPrompt[], Error>({
     queryKey: QUERY_KEYS.savedPrompts(user?.id),
@@ -57,7 +57,7 @@ export const useSavedPromptsData = (options: UseCustomPromptsOptions = {}) => {
 };
 
 export const usePromptMutations = () => {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
 
   const createMutation = useMutation({

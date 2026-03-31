@@ -6,9 +6,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -21,7 +18,6 @@ import React, { type JSX, useState, useRef, useMemo, useCallback } from 'react';
 import {
   HiGlobeAlt,
   HiPaperClip,
-  HiLightningBolt,
   HiPlusCircle,
   HiClipboardList,
   HiAnnotation,
@@ -30,7 +26,6 @@ import {
   HiX,
   HiCheck,
 } from 'react-icons/hi';
-import { HiSparkles } from 'react-icons/hi2';
 import { useShallow } from 'zustand/react/shallow';
 
 import LoginPage from '../../features/auth/pages/LoginPage';
@@ -41,7 +36,6 @@ import { getPDFPageCount } from '../../utils/fileAttachmentUtils';
 
 import AttachedFilesList from './AttachedFilesList';
 import ContentSelector, { type AttachedFile } from './ContentSelector';
-import GrueneratorGPTIcon from './GrueneratorGPTIcon';
 
 /* ── Memoized sub-components to avoid re-renders on dropdown open/close ── */
 
@@ -112,71 +106,6 @@ const SelectedContentBadges = React.memo(function SelectedContentBadges({
   );
 });
 
-interface ModeDropdownItemsProps {
-  usePrivacyMode: boolean;
-  useProMode: boolean;
-  onSelectKreativ: () => void;
-  onSelectPrivacy: () => void;
-  onSelectPro: () => void;
-}
-
-const ModeDropdownItems = React.memo(function ModeDropdownItems({
-  usePrivacyMode,
-  useProMode,
-  onSelectKreativ,
-  onSelectPrivacy,
-  onSelectPro,
-}: ModeDropdownItemsProps) {
-  return (
-    <>
-      <button
-        type="button"
-        className={cn(
-          'flex w-full items-center gap-sm border-b border-grey-200 px-sm py-sm text-left transition-colors hover:bg-hover-alt dark:border-grey-700',
-          !usePrivacyMode && !useProMode && 'bg-primary-500 text-white hover:bg-primary-600'
-        )}
-        onClick={onSelectKreativ}
-      >
-        <HiSparkles className="shrink-0 text-lg" />
-        <div className="flex flex-col gap-xxs">
-          <span className="text-sm font-medium leading-tight">Kreativ</span>
-          <span className="text-xs leading-tight opacity-70">Mistral Medium.</span>
-        </div>
-      </button>
-
-      <button
-        type="button"
-        className={cn(
-          'flex w-full items-center gap-sm border-b border-grey-200 px-sm py-sm text-left transition-colors hover:bg-hover-alt dark:border-grey-700',
-          usePrivacyMode && 'bg-primary-500 text-white hover:bg-primary-600'
-        )}
-        onClick={onSelectPrivacy}
-      >
-        <GrueneratorGPTIcon className="shrink-0 text-lg" />
-        <div className="flex flex-col gap-xxs">
-          <span className="text-sm font-medium leading-tight">Gruenerator-GPT</span>
-          <span className="text-xs leading-tight opacity-70">Selbstgehostete, sichere KI.</span>
-        </div>
-      </button>
-
-      <button
-        type="button"
-        className={cn(
-          'flex w-full items-center gap-sm px-sm py-sm text-left transition-colors hover:bg-hover-alt',
-          useProMode && 'bg-primary-500 text-white hover:bg-primary-600'
-        )}
-        onClick={onSelectPro}
-      >
-        <HiPlusCircle className="shrink-0 text-lg" />
-        <div className="flex flex-col gap-xxs">
-          <span className="text-sm font-medium leading-tight">Reasoning</span>
-          <span className="text-xs leading-tight opacity-70">Kann nachdenken. Dauert länger.</span>
-        </div>
-      </button>
-    </>
-  );
-});
-
 interface ContentSelectorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -196,8 +125,6 @@ const ContentSelectorDialog = React.memo(function ContentSelectorDialog({
     isLoadingTexts,
     isLoadingDocuments,
     uiConfig,
-    useAutomaticSearch,
-    toggleAutomaticSearch,
   } = useGeneratorSelectionStore(
     useShallow((state) => ({
       availableTexts: state.availableTexts,
@@ -209,8 +136,6 @@ const ContentSelectorDialog = React.memo(function ContentSelectorDialog({
       isLoadingTexts: state.isLoadingTexts,
       isLoadingDocuments: state.isLoadingDocuments,
       uiConfig: state.uiConfig,
-      useAutomaticSearch: state.useAutomaticSearch,
-      toggleAutomaticSearch: state.toggleAutomaticSearch,
     }))
   );
 
@@ -223,11 +148,6 @@ const ContentSelectorDialog = React.memo(function ContentSelectorDialog({
 
   const isLoading = isLoadingTexts || isLoadingDocuments;
 
-  const handleAutoToggle = () => {
-    toggleAutomaticSearch();
-    onOpenChange(false);
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[80vh] flex-col sm:max-w-[28rem]">
@@ -236,24 +156,6 @@ const ContentSelectorDialog = React.memo(function ContentSelectorDialog({
         </DialogHeader>
 
         <div className="-mx-6 min-h-0 flex-1 overflow-y-auto px-6">
-          <div className="mb-sm">
-            <button
-              type="button"
-              className={cn(
-                'flex w-full items-center gap-sm rounded-md px-md py-sm text-left transition-colors hover:bg-hover-alt',
-                useAutomaticSearch && 'bg-secondary-100 dark:bg-secondary-100/25'
-              )}
-              onClick={handleAutoToggle}
-            >
-              <HiLightningBolt className="shrink-0 text-xl opacity-70 text-[var(--interactive-accent-color)]" />
-              <div className="min-w-0 flex-1">
-                <span className="block font-medium">Automatische Suche</span>
-                <span className="block text-sm opacity-60">KI wählt relevante Inhalte</span>
-              </div>
-              {useAutomaticSearch && <HiCheck className="shrink-0 text-xl text-primary-500" />}
-            </button>
-          </div>
-
           {completedDocuments.length > 0 && (
             <div className="mb-sm">
               <div className="px-sm py-xs text-xs font-semibold uppercase tracking-wider opacity-50">
@@ -330,7 +232,6 @@ const ContentSelectorDialog = React.memo(function ContentSelectorDialog({
 
 const DEFAULT_ATTACHED_FILES: AttachedFile[] = [];
 interface FeatureIconsProps {
-  onBalancedModeClick?: () => void;
   onAttachmentClick?: (files: File[]) => void;
   onRemoveFile?: (index: number) => void;
   onInteractiveModeClick?: () => void;
@@ -338,60 +239,35 @@ interface FeatureIconsProps {
   attachedFiles?: AttachedFile[];
   attachmentActive?: boolean;
   className?: string;
-  showPrivacyInfoLink?: boolean;
-  onPrivacyInfoClick?: () => void;
-  showWebSearchInfoLink?: boolean;
-  onWebSearchInfoClick?: () => void;
   noBorder?: boolean;
   hideLoginPrompt?: boolean;
   showAgentMode?: boolean;
 }
 
 const FeatureIcons = ({
-  onBalancedModeClick,
   onAttachmentClick,
   onRemoveFile,
   onInteractiveModeClick,
   interactiveModeActive = true,
   attachedFiles = DEFAULT_ATTACHED_FILES,
   className = '',
-  showPrivacyInfoLink = false,
-  onPrivacyInfoClick,
-  showWebSearchInfoLink = false,
-  onWebSearchInfoClick,
   noBorder = false,
   hideLoginPrompt = false,
   showAgentMode = false,
 }: FeatureIconsProps): JSX.Element | null => {
   // Data selector — useShallow for change detection on values that actually change
-  const {
-    useWebSearch,
-    usePrivacyMode,
-    useProMode,
-    useAutomaticSearch,
-    useAgentMode,
-    selectedDocumentIds,
-    selectedTextIds,
-    availableDocuments,
-    availableTexts,
-  } = useGeneratorSelectionStore(
-    useShallow((state) => ({
-      useWebSearch: state.useWebSearch,
-      usePrivacyMode: state.usePrivacyMode,
-      useProMode: state.useProMode,
-      useAutomaticSearch: state.useAutomaticSearch,
-      useAgentMode: state.useAgentMode,
-      selectedDocumentIds: state.selectedDocumentIds,
-      selectedTextIds: state.selectedTextIds,
-      availableDocuments: state.availableDocuments,
-      availableTexts: state.availableTexts,
-    }))
-  );
+  const { useAgentMode, selectedDocumentIds, selectedTextIds, availableDocuments, availableTexts } =
+    useGeneratorSelectionStore(
+      useShallow((state) => ({
+        useAgentMode: state.useAgentMode,
+        selectedDocumentIds: state.selectedDocumentIds,
+        selectedTextIds: state.selectedTextIds,
+        availableDocuments: state.availableDocuments,
+        availableTexts: state.availableTexts,
+      }))
+    );
 
   // Action selectors — Zustand functions are referentially stable, no useShallow needed
-  const toggleWebSearch = useGeneratorSelectionStore((s) => s.toggleWebSearch);
-  const togglePrivacyMode = useGeneratorSelectionStore((s) => s.togglePrivacyMode);
-  const toggleProMode = useGeneratorSelectionStore((s) => s.toggleProMode);
   const toggleAgentMode = useGeneratorSelectionStore((s) => s.toggleAgentMode);
   const toggleDocumentSelection = useGeneratorSelectionStore((s) => s.toggleDocumentSelection);
   const toggleTextSelection = useGeneratorSelectionStore((s) => s.toggleTextSelection);
@@ -403,31 +279,12 @@ const FeatureIcons = ({
   );
   const [showLoginModal, setShowLoginModal] = useState(false);
 
-  const [balancedOpen, setBalancedOpen] = useState(false);
   const [contentOpen, setContentOpen] = useState(false);
   const [selectorDialogOpen, setSelectorDialogOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { user } = useAuth();
-
-  // Stable callbacks for memoized children
-  const handleSelectKreativ = useCallback(() => {
-    if (usePrivacyMode) togglePrivacyMode();
-    if (useProMode) toggleProMode();
-    if (onBalancedModeClick) onBalancedModeClick();
-    setBalancedOpen(false);
-  }, [usePrivacyMode, useProMode, togglePrivacyMode, toggleProMode, onBalancedModeClick]);
-
-  const handleSelectPrivacy = useCallback(() => {
-    togglePrivacyMode();
-    setBalancedOpen(false);
-  }, [togglePrivacyMode]);
-
-  const handleSelectPro = useCallback(() => {
-    toggleProMode();
-    setBalancedOpen(false);
-  }, [toggleProMode]);
 
   const handleOpenSelector = useCallback(() => {
     setContentOpen(false);
@@ -530,55 +387,6 @@ const FeatureIcons = ({
     >
       <TooltipProvider>
         <div className="flex flex-nowrap items-center justify-start gap-xs">
-          {/* Web Search — removed, integrated into Pro mode */}
-
-          {/* AI Mode Dropdown — disabled: model selection now automatic (GPT-OSS + reasoning by type) */}
-          {/* <DropdownMenu
-            open={balancedOpen}
-            onOpenChange={(open) => {
-              setBalancedOpen(open);
-              if (open) setContentOpen(false);
-            }}
-          >
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn(
-                      'size-9 sm:size-10 text-grey-600 dark:text-grey-400 hover:bg-secondary-50 dark:hover:bg-secondary-700 transition-colors duration-150',
-                      (usePrivacyMode || useProMode) &&
-                        'bg-secondary-100 dark:bg-secondary-700 text-primary-500'
-                    )}
-                    aria-label={usePrivacyMode ? 'Gruenerator-GPT' : useProMode ? 'Pro' : 'Kreativ'}
-                    type="button"
-                  >
-                    {usePrivacyMode ? (
-                      <GrueneratorGPTIcon className="size-5 sm:size-6" />
-                    ) : useProMode ? (
-                      <HiPlusCircle className="size-5 sm:size-6" />
-                    ) : (
-                      <HiSparkles className="size-5 sm:size-6" />
-                    )}
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent>
-                {usePrivacyMode ? 'Gruenerator-GPT' : useProMode ? 'Reasoning' : 'Kreativ'}
-              </TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent align="center" className="w-72 p-0">
-              <ModeDropdownItems
-                usePrivacyMode={usePrivacyMode}
-                useProMode={useProMode}
-                onSelectKreativ={handleSelectKreativ}
-                onSelectPrivacy={handleSelectPrivacy}
-                onSelectPro={handleSelectPro}
-              />
-            </DropdownMenuContent>
-          </DropdownMenu> */}
-
           {/* Pro Mode Toggle */}
           {showAgentMode && (
             <Tooltip>
@@ -606,13 +414,7 @@ const FeatureIcons = ({
           )}
 
           {/* Content Popover */}
-          <Popover
-            open={contentOpen}
-            onOpenChange={(open) => {
-              setContentOpen(open);
-              if (open) setBalancedOpen(false);
-            }}
-          >
+          <Popover open={contentOpen} onOpenChange={setContentOpen}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <PopoverTrigger asChild>
@@ -621,29 +423,23 @@ const FeatureIcons = ({
                     size="icon"
                     className={cn(
                       'size-9 sm:size-10 text-grey-600 dark:text-grey-400 hover:bg-secondary-50 dark:hover:bg-secondary-700 transition-colors duration-150',
-                      (totalContentCount > 0 || useAutomaticSearch) &&
+                      totalContentCount > 0 &&
                         'bg-secondary-100 dark:bg-secondary-700 text-primary-500'
                     )}
                     aria-label="Inhalt"
                     type="button"
                     disabled={isValidatingFiles}
                   >
-                    {useAutomaticSearch ? (
-                      <HiLightningBolt className="size-5 sm:size-6" />
-                    ) : (
-                      <HiPaperClip className="size-5 sm:size-6" />
-                    )}
+                    <HiPaperClip className="size-5 sm:size-6" />
                   </Button>
                 </PopoverTrigger>
               </TooltipTrigger>
               <TooltipContent>
                 {isValidatingFiles
                   ? 'Prüfe...'
-                  : useAutomaticSearch
-                    ? 'Auto'
-                    : totalContentCount > 0
-                      ? `${totalContentCount} Inhalt(e)`
-                      : 'Inhalt'}
+                  : totalContentCount > 0
+                    ? `${totalContentCount} Inhalt(e)`
+                    : 'Inhalt'}
               </TooltipContent>
             </Tooltip>
             <PopoverContent align="center" className="w-72">
@@ -712,31 +508,6 @@ const FeatureIcons = ({
         toggleDocumentSelection={toggleDocumentSelection}
         toggleTextSelection={toggleTextSelection}
       />
-
-      {showWebSearchInfoLink && (
-        <div className="mt-xxs text-[0.85rem] leading-relaxed" role="status" aria-live="polite">
-          <span>Websuche aktiviert. </span>
-          <button
-            type="button"
-            className="text-primary-500 underline underline-offset-2 hover:opacity-90"
-            onClick={onWebSearchInfoClick}
-          >
-            Was ist das?
-          </button>
-        </div>
-      )}
-      {showPrivacyInfoLink && (
-        <div className="mt-xxs text-[0.85rem] leading-relaxed" role="status" aria-live="polite">
-          <span>Privacy-Mode aktiviert. </span>
-          <button
-            type="button"
-            className="text-primary-500 underline underline-offset-2 hover:opacity-90"
-            onClick={onPrivacyInfoClick}
-          >
-            Was ist das?
-          </button>
-        </div>
-      )}
 
       {validationError && (
         <div

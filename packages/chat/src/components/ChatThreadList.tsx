@@ -3,8 +3,7 @@
 import { useState, useCallback } from 'react';
 import { ThreadListPrimitive } from '@assistant-ui/react';
 import { cn } from '../lib/utils';
-import { Archive, ChevronDown, Plus } from 'lucide-react';
-import { useAgentStore } from '../stores/chatStore';
+import { Archive, ChevronDown } from 'lucide-react';
 import {
   GrueneratorThreadListItem,
   GrueneratorArchivedThreadListItem,
@@ -19,19 +18,7 @@ export function ChatThreadList() {
 
   return (
     <ThreadListPrimitive.Root className="flex flex-1 flex-col overflow-hidden">
-      <div className="px-4 pt-2">
-        <ThreadListPrimitive.New
-          onClick={() => useAgentStore.getState().setChatViewMode('thread')}
-          className={cn(
-            'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-            'text-primary-600 hover:bg-primary/5'
-          )}
-        >
-          <Plus className="h-4 w-4" />
-          Neuer Chat
-        </ThreadListPrimitive.New>
-      </div>
-      <div className="flex-1 overflow-y-auto px-4 pt-1 scrollbar-thin">
+      <div className="flex-1 overflow-y-auto px-4 pt-2 scrollbar-thin">
         <ThreadListPrimitive.Items components={threadComponents} />
 
         <div className="mt-4">

@@ -42,7 +42,7 @@ router.get('/', async (req, res) => {
               t.notebook_collection_id,
               CASE
                 WHEN t.user_id::text = $1 THEN 'owner'
-                WHEN t.permissions ? $2 THEN 'shared'
+                WHEN t.permissions ? $2::text THEN 'shared'
                 ELSE 'group'
               END as access_type,
               m.content as last_msg_content, m.role as last_msg_role, m.created_at as last_msg_created_at
@@ -56,7 +56,7 @@ router.get('/', async (req, res) => {
        ) m ON true
        WHERE (
          t.user_id::text = $1
-         OR t.permissions ? $2
+         OR t.permissions ? $2::text
          OR t.is_public = true
          OR t.id IN (
            SELECT gcs.content_id::uuid FROM group_content_shares gcs

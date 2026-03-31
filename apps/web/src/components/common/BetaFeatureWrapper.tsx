@@ -1,8 +1,8 @@
 import { type ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 
-import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useBetaFeatures } from '../../hooks/useBetaFeatures';
+import { useAuthStore } from '../../stores/authStore';
 
 interface BetaFeatureWrapperProps {
   children: ReactNode;
@@ -15,7 +15,8 @@ const BetaFeatureWrapper = ({
   featureKey,
   fallbackPath = '/profile',
 }: BetaFeatureWrapperProps) => {
-  const { user, isAuthenticated } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { canAccessBetaFeature, isLoading } = useBetaFeatures();
 
   // Show loading state while checking authentication and beta features

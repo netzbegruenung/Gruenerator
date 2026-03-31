@@ -12,8 +12,8 @@ import React, { lazy, memo, Suspense, useCallback, useEffect, useMemo, useState 
 import { FaFileWord } from 'react-icons/fa6';
 import { FiDownload, FiExternalLink } from 'react-icons/fi';
 
-import { useLazyAuth } from '../../../hooks/useAuth';
 import { useCollaborationConfig } from '../../../hooks/useCollaborationConfig';
+import { useAuthStore } from '../../../stores/authStore';
 import { webAppDocsAdapter } from '../../docs/docsAdapter';
 
 import type { BlockNoteEditor as BlockNoteEditorCore } from '@blocknote/core';
@@ -37,7 +37,7 @@ interface InlineEditorProps {
 }
 
 const InlineEditorContent = memo(({ editorState, onBack, docsApiClient }: InlineEditorProps) => {
-  const { user } = useLazyAuth();
+  const user = useAuthStore((s) => s.user);
   const [syncTimedOut, setSyncTimedOut] = useState(false);
   const [editor, setEditor] = useState<BlockNoteEditorCore | null>(null);
   const { updateDocument } = useDocumentStore();
@@ -96,7 +96,7 @@ const InlineEditorContent = memo(({ editorState, onBack, docsApiClient }: Inline
     window.URL.revokeObjectURL(url);
   }, [editor, editorState.title]);
 
-  const docsUrl = `https://docs.gruenerator.eu/document/${editorState.documentId}`;
+  const docsUrl = `/docs/${editorState.documentId}`;
   const isReady = provider && (isSynced || syncTimedOut);
 
   const rightActions = (

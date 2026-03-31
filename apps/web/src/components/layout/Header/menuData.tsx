@@ -8,9 +8,7 @@ import type { IconType } from 'react-icons';
 export interface BetaFeatures {
   databaseBetaEnabled?: boolean;
   youBetaEnabled?: boolean;
-  igelModeEnabled?: boolean;
   isAustrian?: boolean;
-  workplace?: boolean;
 }
 
 // Menu item type definition
@@ -53,6 +51,15 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
     title: 'Startseite',
     description: 'Erstellen, Dokumente & Medien',
     icon: getIcon('navigation', 'home'),
+  };
+
+  items.docs = {
+    id: 'docs',
+    path: '/docs',
+    title: 'Dokumente',
+    description: 'Dokumente & Präsentationen',
+    icon: getIcon('navigation', 'docs'),
+    activePaths: ['/docs'],
   };
 
   return items;

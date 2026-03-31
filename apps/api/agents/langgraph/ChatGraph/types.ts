@@ -153,6 +153,7 @@ export interface ChatGraphInput {
   docMentionIds?: string[];
   userLocale?: UserLocale;
   customSystemPrompt?: string;
+  userInstructions?: string;
 }
 
 /**
@@ -199,6 +200,9 @@ export interface ChatGraphState {
 
   // Custom system prompt (replaces entire agent system prompt when set)
   customSystemPrompt: string | null;
+
+  // User profile instructions (from profiles.custom_prompt, additive to all modes)
+  userInstructions: string | null;
 
   // Memory context (from mem0 cross-thread memory)
   memoryContext: string | null;

@@ -6,10 +6,8 @@ export interface User {
   avatar_robot_id?: string;
   keycloak_id?: string;
   locale?: 'de-DE' | 'de-AT';
-  igel_modus?: boolean;
   user_metadata?: {
     chat_color?: string;
-    igel_modus?: boolean;
     [key: string]: unknown;
   };
   [key: string]: unknown;
@@ -22,7 +20,6 @@ export interface AuthState {
   error: string | null;
   isLoggingOut: boolean;
   selectedMessageColor: string;
-  igelModus: boolean;
   locale: 'de-DE' | 'de-AT';
   supabaseSession: unknown | null;
 }
@@ -31,7 +28,6 @@ export interface PersistedAuthState {
   user: User | null;
   isAuthenticated: boolean;
   selectedMessageColor: string;
-  igelModus: boolean;
   locale: 'de-DE' | 'de-AT';
 }
 

@@ -20,6 +20,7 @@ export interface Document {
   metadata?: Record<string, unknown>;
   access_type?: 'owner' | 'direct' | 'group' | 'public';
   creator_name?: string;
+  group_shares?: Array<{ group_id: string; group_name: string }>;
 }
 
 interface DocumentStore {

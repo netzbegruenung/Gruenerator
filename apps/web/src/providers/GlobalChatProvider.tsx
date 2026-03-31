@@ -20,7 +20,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useNotebookChatStore } from '../features/notebook/stores/notebookChatStore';
 import useNotebookStore from '../features/notebook/stores/notebookStore';
 import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookChatResolver';
-import { useOptimizedAuth } from '../hooks/useAuth';
+import { useAuthStore } from '../stores/authStore';
 import { buildLoginUrl, isPublicPage } from '../utils/authRedirect';
 
 const DocsEditorModal = lazy(() => import('@/components/common/DocsEditorModal'));
@@ -61,7 +61,8 @@ interface GlobalChatProviderProps {
 }
 
 export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
-  const { user } = useOptimizedAuth();
+  const userId = useAuthStore((s) => s.user?.id);
+  const userName = useAuthStore((s) => s.user?.display_name || s.user?.name);
   const navigate = useNavigate();
   const location = useLocation();
   const chats = useNotebookChatStore((s) => s.chats);
@@ -81,16 +82,22 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
     fetchQACollections();
   }, [mentionablesActivated, qaCollections.length, fetchQACollections]);
 
+  // Refs for stable getExternalThreads callback — prevents function recreation on store changes
+  const chatsRef = useRef(chats);
+  const qaRef = useRef(qaCollections);
+  chatsRef.current = chats;
+  qaRef.current = qaCollections;
+
   const getExternalThreads = useCallback(() => {
-    const userCols = qaCollections.map((c) => ({ id: c.id, name: c.name }));
-    const entries = resolveNotebookChatEntries(chats, userCols);
+    const userCols = qaRef.current.map((c) => ({ id: c.id, name: c.name }));
+    const entries = resolveNotebookChatEntries(chatsRef.current, userCols);
     return entries.map((e) => ({
       remoteId: `notebook:${e.collectionKey}`,
       title: e.title,
       externalId: e.path,
       updatedAt: new Date(e.timestamp).toISOString(),
     }));
-  }, [chats, qaCollections]);
+  }, []);
 
   const handleExternalClick = useCallback(
     (path: string) => {
@@ -145,8 +152,8 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
 
   return (
     <GrueneratorChatProvider
-      userId={user?.id}
-      userName={user?.display_name || user?.name}
+      userId={userId}
+      userName={userName}
       config={chatConfig}
       getExternalThreads={getExternalThreads}
       onExternalThreadClick={handleExternalClick}
@@ -154,7 +161,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
     >
       <TooltipProvider>
         {children}
-        {user?.id && <ChatThreadPortal />}
+        {userId && <ChatThreadPortal />}
       </TooltipProvider>
       {editorModal && (
         <Suspense fallback={null}>

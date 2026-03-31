@@ -13,8 +13,16 @@ export interface ReviewCriterion {
 
 const ANTRAG_CRITERIA: ReviewCriterion[] = [
   { id: 'betreff', label: 'Enthält einen klaren, prägnanten Betreff', weight: 2 },
-  { id: 'beschluss', label: 'Hat einen konkreten Beschlussvorschlag ("Die Verwaltung wird beauftragt...")', weight: 3 },
-  { id: 'begruendung', label: 'Begründung enthält Fakten, Ist-Zustand und Soll-Zustand', weight: 3 },
+  {
+    id: 'beschluss',
+    label: 'Hat einen konkreten Beschlussvorschlag ("Die Verwaltung wird beauftragt...")',
+    weight: 3,
+  },
+  {
+    id: 'begruendung',
+    label: 'Begründung enthält Fakten, Ist-Zustand und Soll-Zustand',
+    weight: 3,
+  },
   { id: 'sprache', label: 'Sprache ist formal, rechtssicher und geschlechtsneutral', weight: 2 },
   { id: 'laenge', label: 'Angemessene Länge (ca. 1500-2000 Zeichen für Anträge)', weight: 1 },
   { id: 'struktur', label: 'Klare Struktur mit erkennbaren Abschnitten', weight: 2 },
@@ -24,11 +32,19 @@ const ANTRAG_CRITERIA: ReviewCriterion[] = [
 const REDE_CRITERIA: ReviewCriterion[] = [
   { id: 'einstieg', label: 'Starker, aufmerksamkeitsfesselnder Einstieg', weight: 3 },
   { id: 'kernargumente', label: '2-3 klare Kernargumente mit Belegen', weight: 3 },
-  { id: 'rhetorik', label: 'Rhetorische Mittel (Wiederholungen, Metaphern, rhetorische Fragen)', weight: 2 },
+  {
+    id: 'rhetorik',
+    label: 'Rhetorische Mittel (Wiederholungen, Metaphern, rhetorische Fragen)',
+    weight: 2,
+  },
   { id: 'appell', label: 'Kraftvoller Aufruf zum Handeln am Ende', weight: 3 },
   { id: 'balance', label: 'Balance zwischen Leidenschaft und Professionalität', weight: 2 },
   { id: 'uebergaenge', label: 'Gute Übergänge zwischen Abschnitten', weight: 1 },
-  { id: 'hinweise', label: 'Einstiegsideen, Kernargumente und Tipps für Redner*in vorangestellt', weight: 2 },
+  {
+    id: 'hinweise',
+    label: 'Einstiegsideen, Kernargumente und Tipps für Redner*in vorangestellt',
+    weight: 2,
+  },
 ];
 
 const WAHLPROGRAMM_CRITERIA: ReviewCriterion[] = [
@@ -43,20 +59,15 @@ const WAHLPROGRAMM_CRITERIA: ReviewCriterion[] = [
 
 const OEFF_CRITERIA: ReviewCriterion[] = [
   { id: 'format', label: 'Korrektes Format für die angefragte Plattform', weight: 3 },
-  { id: 'ton', label: 'Plattform-gerechter Ton (sachlich für PM, locker für Social Media)', weight: 3 },
+  {
+    id: 'ton',
+    label: 'Plattform-gerechter Ton (sachlich für PM, locker für Social Media)',
+    weight: 3,
+  },
   { id: 'cta', label: 'Klarer Call-to-Action vorhanden', weight: 2 },
   { id: 'laenge', label: 'Zeichenlimit der Plattform eingehalten', weight: 2 },
   { id: 'fakten', label: 'Keine erfundenen Fakten oder Zitate', weight: 3 },
   { id: 'w_fragen', label: 'Lead-Absatz bei PM beantwortet W-Fragen', weight: 2 },
-];
-
-const GRUENE_JUGEND_CRITERIA: ReviewCriterion[] = [
-  { id: 'ton', label: 'Authentischer, jugendlicher und aktivistischer Ton', weight: 3 },
-  { id: 'positionierung', label: 'Klare linke politische Positionierung', weight: 3 },
-  { id: 'cta', label: 'Starke Handlungsaufforderung und Aktivismus-Aufruf', weight: 2 },
-  { id: 'plattform', label: 'Plattform-spezifische Formatierung eingehalten', weight: 2 },
-  { id: 'inklusion', label: 'Solidarische Botschaften mit marginalisierten Gruppen', weight: 2 },
-  { id: 'interaktion', label: 'Fragen zur Interaktion gestellt', weight: 1 },
 ];
 
 const CRITERIA_MAP: Record<string, ReviewCriterion[]> = {
@@ -64,7 +75,6 @@ const CRITERIA_MAP: Record<string, ReviewCriterion[]> = {
   'gruenerator-rede-schreiber': REDE_CRITERIA,
   'gruenerator-wahlprogramm': WAHLPROGRAMM_CRITERIA,
   'gruenerator-oeffentlichkeitsarbeit': OEFF_CRITERIA,
-  'gruenerator-gruene-jugend': GRUENE_JUGEND_CRITERIA,
 };
 
 /**

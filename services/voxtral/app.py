@@ -110,7 +110,7 @@ async def transcribe(
 
     except Exception as e:
         logger.error(f"Transcription failed: {e}", exc_info=True)
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"error": "Transcription processing failed"}, status_code=500)
 
 
 def _extract_timestamps(text: str) -> list[dict]:

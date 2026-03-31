@@ -13,7 +13,6 @@ export interface AuthStoreConfig {
   updateAvatarApi?: (avatarRobotId: string) => Promise<User>;
   updateMessageColorApi?: (color: string) => Promise<void>;
   updateLocaleApi?: (locale: 'de-DE' | 'de-AT') => Promise<void>;
-  updateIgelModusApi?: (enabled: boolean) => Promise<void>;
   onClearAuth?: () => void;
 }
 
@@ -35,7 +34,6 @@ const createAuthStoreSlice: StateCreator<AuthStore> = (set, get) => ({
       error: null,
       selectedMessageColor:
         user.user_metadata?.chat_color || DEFAULT_AUTH_STATE.selectedMessageColor,
-      igelModus: user.igel_modus || false,
       locale: user.locale || 'de-DE',
       ...rest,
     });
@@ -114,35 +112,13 @@ const createAuthStoreSlice: StateCreator<AuthStore> = (set, get) => ({
       set({ user: { ...currentUser, locale } });
     }
   },
-
-  updateIgelModus: async (enabled) => {
-    if (!storeConfig.updateIgelModusApi) {
-      throw new Error('updateIgelModusApi not configured');
-    }
-
-    await storeConfig.updateIgelModusApi(enabled);
-    set({ igelModus: enabled });
-
-    const currentUser = get().user;
-    if (currentUser) {
-      set({ user: { ...currentUser, igel_modus: enabled } });
-    }
-  },
 });
 
 export const useAuthStore = create<AuthStore>()(createAuthStoreSlice);
 
 export const getAuthState = (): AuthState => {
-  const {
-    user,
-    isAuthenticated,
-    isLoading,
-    error,
-    isLoggingOut,
-    selectedMessageColor,
-    igelModus,
-    locale,
-  } = useAuthStore.getState();
+  const { user, isAuthenticated, isLoading, error, isLoggingOut, selectedMessageColor, locale } =
+    useAuthStore.getState();
   return {
     user,
     isAuthenticated,
@@ -150,7 +126,6 @@ export const getAuthState = (): AuthState => {
     error,
     isLoggingOut,
     selectedMessageColor,
-    igelModus,
     locale,
   };
 };

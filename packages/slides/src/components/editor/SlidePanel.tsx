@@ -49,7 +49,7 @@ export function SlidePanel({
                 : 'border-grey-200 dark:border-grey-700 hover:border-grey-300'
             }`}
           >
-            <div className="relative">
+            <div className="relative overflow-hidden" style={{ aspectRatio: '16/9' }}>
               <div className="pointer-events-none">
                 <SlideCanvas
                   slide={{

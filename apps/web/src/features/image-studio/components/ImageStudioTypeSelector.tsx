@@ -3,7 +3,7 @@ import { HiExternalLink, HiPhotograph } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
 
 import { StatusBadge } from '../../../components/common/StatusBadge';
-import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { useAuthStore } from '../../../stores/authStore';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import {
   getCategoryConfig,
@@ -25,7 +25,7 @@ const ImageStudioTypeSelector: React.FC = () => {
   const category = useImageStudioStore((state) => state.category);
   const setType = useImageStudioStore((state) => state.setType);
 
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
   const isAustrianUser = user?.locale === 'de-AT';
 
   const categoryConfig = useMemo(() => getCategoryConfig(category || ''), [category]);

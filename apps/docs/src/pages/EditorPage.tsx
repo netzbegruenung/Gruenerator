@@ -449,6 +449,7 @@ export const EditorPage = () => {
                   hideHeader
                   typingUsers={typingUsers}
                   onTypingChange={setTyping}
+                  embedded
                 />
               </Suspense>
             )}

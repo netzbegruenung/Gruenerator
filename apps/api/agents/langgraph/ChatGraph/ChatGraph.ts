@@ -126,6 +126,11 @@ const ChatStateAnnotation = Annotation.Root({
     reducer: (x, y) => y ?? x,
   }),
 
+  // User profile instructions (additive to all modes)
+  userInstructions: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
+  }),
+
   // Memory context (from mem0 cross-thread memory)
   memoryContext: Annotation<string | null>({
     reducer: (x, y) => y ?? x,
@@ -488,6 +493,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
 
     // Custom system prompt (from thread or user settings)
     customSystemPrompt: input.customSystemPrompt || null,
+
+    // User profile instructions (from profiles.custom_prompt)
+    userInstructions: input.userInstructions || null,
 
     // Memory context (will be set by controller before graph execution)
     memoryContext: null,

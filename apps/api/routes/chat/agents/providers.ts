@@ -11,6 +11,13 @@ import type { LanguageModel } from 'ai';
 
 const LITELLM_DEFAULT_MODEL = 'gpt-oss:120b';
 
+export const VISION_MODEL = {
+  provider: 'regolo' as const,
+  model: 'mistral-small-2503',
+};
+
+export const VISION_CAPABLE_MODELS = new Set(['pixtral-large-latest', 'mistral-small-2503']);
+
 /**
  * Available models that can be selected by the user.
  * Maps user-facing model IDs to provider/model configurations.
@@ -122,15 +129,20 @@ export function getModel(provider: AgentConfig['provider'], modelId: string): La
     case 'litellm': {
       console.log(`[providers] Creating LiteLLM model with default: ${LITELLM_DEFAULT_MODEL}`);
       const litellm = getLiteLLMProvider();
-      const model = litellm(LITELLM_DEFAULT_MODEL);
+      const model = litellm.chat(LITELLM_DEFAULT_MODEL);
       console.log(`[providers] LiteLLM model created successfully`);
       return model;
     }
     case 'regolo': {
+      if (!process.env.REGOLO_API_KEY) {
+        console.log(`[providers] REGOLO_API_KEY not set, falling back to Mistral: ${modelId}`);
+        const mistral = getMistralProvider();
+        return mistral(modelId);
+      }
       const regoloDefault = process.env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
       console.log(`[providers] Creating Regolo model: ${modelId || regoloDefault}`);
       const regolo = getRegoloProvider();
-      const model = regolo(modelId || regoloDefault);
+      const model = regolo.chat(modelId || regoloDefault);
       console.log(`[providers] Regolo model created successfully`);
       return model;
     }

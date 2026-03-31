@@ -290,7 +290,8 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     id: 'brandenburg-system',
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Brandenburg',
-    description: 'Pressemitteilungen, Beschlüsse und Wahlprogramme der Grünen Brandenburg',
+    description:
+      'Pressemitteilungen, Beschlüsse und Landtagswahlprogramm 2024 der Grünen Brandenburg',
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [

@@ -30,6 +30,7 @@ interface VorlageItem {
   external_url?: string;
   content_data?: { originalUrl?: string };
   metadata?: { author_name?: string; contact_email?: string };
+  [key: string]: unknown;
 }
 
 const parseSearchQuery = (query: string): { textQuery: string; tags: string[] } => {

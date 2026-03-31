@@ -60,7 +60,6 @@ import {
   createMessage,
   touchThread,
   threadExists,
-  getThreadSettings,
 } from './services/threadPersistenceService.js';
 
 import type { ProcessedAttachmentMeta } from './services/attachmentProcessingService.js';
@@ -239,29 +238,15 @@ router.post('/stream', async (req, res) => {
       }
     }
 
-    // === Resolve custom system prompt + tools (thread-level > request body) ===
-    let resolvedCustomPrompt: string | undefined = rawCustomSystemPrompt;
-    let resolvedEnabledTools = enabledTools;
-
-    if (
-      actualThreadId &&
-      (resolvedCustomPrompt === undefined || resolvedEnabledTools === undefined)
-    ) {
-      const threadSettings = await getThreadSettings(actualThreadId);
-      if (resolvedCustomPrompt === undefined && threadSettings?.custom_system_prompt) {
-        resolvedCustomPrompt = threadSettings.custom_system_prompt;
-      }
-      if (resolvedEnabledTools === undefined && threadSettings?.custom_enabled_tools) {
-        resolvedEnabledTools = threadSettings.custom_enabled_tools as Record<string, boolean>;
-      }
-    }
+    // === Read user profile instructions ===
+    const userInstructions = (user as any).custom_prompt?.trim() || undefined;
 
     // === Initialize state ===
     const initialState = await initializeChatState({
       messages: validMessages,
       threadId: actualThreadId,
       agentId: agentId || 'gruenerator-universal',
-      enabledTools: resolvedEnabledTools || {
+      enabledTools: enabledTools || {
         search: true,
         web: true,
         person: true,
@@ -285,7 +270,8 @@ router.post('/stream', async (req, res) => {
       boardIds: rawBoardIds?.length ? rawBoardIds : undefined,
       docMentionIds: rawDocMentionIds?.length ? rawDocMentionIds : undefined,
       userLocale: (user as any)?.locale || 'de-DE',
-      customSystemPrompt: resolvedCustomPrompt,
+      customSystemPrompt: rawCustomSystemPrompt,
+      userInstructions,
     });
 
     const userLocale = (user as any)?.locale || 'de-DE';
@@ -392,9 +378,15 @@ router.post('/stream', async (req, res) => {
           )
             .filter((d) => d.content)
             .map((d) => {
-              const plainText = (d.content || '')
-                .replace(/<[^>]+>/g, '')
-                .replace(/&nbsp;/g, ' ')
+              let plainText = d.content || '';
+              let prevText: string;
+              do {
+                prevText = plainText;
+                plainText = plainText.replace(/<[^>]+>/g, '');
+              } while (plainText !== prevText);
+              plainText = plainText
+                .replace(/&[a-zA-Z]+;/g, ' ')
+                .replace(/&#x?[0-9a-fA-F]+;/g, ' ')
                 .replace(/\s+/g, ' ')
                 .trim();
               log.info(`[ChatGraph] Doc context loaded: "${d.title}" (${plainText.length} chars)`);
@@ -829,7 +821,9 @@ router.post('/stream', async (req, res) => {
     sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
 
     const systemMessage = await buildSystemMessage(finalState);
-    const { model: aiModel } = resolveModel(finalState.agentConfig, modelId);
+    const { model: aiModel } = resolveModel(finalState.agentConfig, modelId, {
+      hasImages: imageAttachments.length > 0,
+    });
 
     const prunedValidMessages = pruneMessages(validMessages);
     const finalSystemMessage = actualThreadId
@@ -1014,7 +1008,10 @@ router.post('/resume', async (req, res) => {
     sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
 
     const systemMessage = await buildSystemMessage(finalState);
-    const { model: aiModel } = resolveModel(finalState.agentConfig, modelId);
+    const resumeImageAttachments = requestContext.imageAttachments || [];
+    const { model: aiModel } = resolveModel(finalState.agentConfig, modelId, {
+      hasImages: resumeImageAttachments.length > 0,
+    });
 
     const validMessages = requestContext.validMessages as any[];
     const prunedValidMessages = pruneMessages(validMessages);

@@ -1,8 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 
+import { useAuthStore } from '../stores/authStore';
 import { useBetaFeaturesStore, FEATURE_GROUPS } from '../stores/betaFeaturesStore';
-
-import { useOptimizedAuth } from './useAuth';
 
 // Types for beta features store
 interface BetaFeaturesState {
@@ -57,7 +56,6 @@ for (const [groupKey, children] of Object.entries(FEATURE_GROUPS)) {
 // Beta features configuration - single source of truth
 const BETA_FEATURES_CONFIG: BetaFeatureConfig[] = [
   { key: 'sharepic', label: 'Sharepic', isAdminOnly: false, devOnly: true },
-  { key: 'workplace', label: 'Desk', isAdminOnly: false },
   { key: 'vorlagen', label: 'Vorlagen & Galerie', isAdminOnly: false, devOnly: true },
   { key: 'database', label: 'Datenbank', isAdminOnly: true },
   { key: 'notebook', label: 'Notebooks', isAdminOnly: false, defaultEnabled: true },
@@ -67,22 +65,9 @@ const BETA_FEATURES_CONFIG: BetaFeatureConfig[] = [
     isAdminOnly: false,
     defaultEnabled: true,
   },
-  {
-    key: 'autoSaveGenerated',
-    label: 'Auto-Speichern generierter Texte',
-    isAdminOnly: false,
-    defaultEnabled: true,
-  },
-  {
-    key: 'autoDocumentSearch',
-    label: 'Automatische Dokumentensuche',
-    isAdminOnly: false,
-    defaultEnabled: false,
-  },
   { key: 'prompts', label: 'Eigene Prompts', isAdminOnly: false },
   { key: 'memories', label: 'Erinnerungen', isAdminOnly: false, defaultEnabled: true },
   // Profile-only settings (not shown in Labor tab)
-  { key: 'igel_modus', label: 'Igel-Modus', isAdminOnly: false, isProfileSetting: true },
   { key: 'labor', label: 'Labor', isAdminOnly: false, isProfileSetting: true },
 ];
 
@@ -91,7 +76,8 @@ const ADMIN_ONLY_FEATURES = BETA_FEATURES_CONFIG.filter((f) => f.isAdminOnly).ma
 
 // Unified hook for managing beta features using Zustand store
 export const useBetaFeatures = (_options: UseBetaFeaturesOptions = {}): UseBetaFeaturesReturn => {
-  const { user } = useOptimizedAuth();
+  const userId = useAuthStore((s) => s.user?.id);
+  const isAdmin = useAuthStore((s) => s.user?.is_admin === true);
 
   // Split selectors to prevent unnecessary re-renders
   const betaFeatures = useBetaFeaturesStore((state: BetaFeaturesState) => state.betaFeatures);
@@ -104,14 +90,11 @@ export const useBetaFeatures = (_options: UseBetaFeaturesOptions = {}): UseBetaF
 
   // Ensure hydration when user changes - now includes hydrate in dependencies
   useEffect(() => {
-    if (!user?.id) return;
-    if (!isHydrated || storeUserId !== user.id) {
-      hydrate(user.id);
+    if (!userId) return;
+    if (!isHydrated || storeUserId !== userId) {
+      hydrate(userId);
     }
-  }, [user?.id, isHydrated, storeUserId, hydrate]);
-
-  // Memoize isAdmin to prevent unnecessary recalculations
-  const isAdmin = React.useMemo(() => user?.is_admin === true, [user?.is_admin]);
+  }, [userId, isHydrated, storeUserId, hydrate]);
 
   // Helper functions - memoized with stable dependencies
   const getBetaFeatureState = React.useCallback(
@@ -176,31 +159,37 @@ export const useBetaFeatures = (_options: UseBetaFeaturesOptions = {}): UseBetaF
     [toggle]
   );
 
-  return {
-    // Data
-    betaFeatures,
-    isLoading: !isHydrated,
-    isError: !!error,
-    error,
-
-    // Helper functions
-    getBetaFeatureState,
-    canAccessBetaFeature,
-    shouldShowTab,
-    availableFeatures,
-    getAvailableFeatures,
-
-    // Actions
-    updateUserBetaFeatures,
-
-    // Admin status
-    isAdmin,
-    adminOnlyFeatures: ADMIN_ONLY_FEATURES,
-
-    // Mutation state
-    isUpdating,
-    updateError: error,
-  };
+  return useMemo(
+    () => ({
+      betaFeatures,
+      isLoading: !isHydrated,
+      isError: !!error,
+      error,
+      getBetaFeatureState,
+      canAccessBetaFeature,
+      shouldShowTab,
+      availableFeatures,
+      getAvailableFeatures,
+      updateUserBetaFeatures,
+      isAdmin,
+      adminOnlyFeatures: ADMIN_ONLY_FEATURES,
+      isUpdating,
+      updateError: error,
+    }),
+    [
+      betaFeatures,
+      isHydrated,
+      error,
+      getBetaFeatureState,
+      canAccessBetaFeature,
+      shouldShowTab,
+      availableFeatures,
+      getAvailableFeatures,
+      updateUserBetaFeatures,
+      isAdmin,
+      isUpdating,
+    ]
+  );
 };
 
 export default useBetaFeatures;

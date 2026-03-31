@@ -9,9 +9,9 @@ import React, {
   type FormEvent,
 } from 'react';
 
-import { useOptimizedAuth } from '../../../../../../hooks/useAuth';
 import { useAutosave } from '../../../../../../hooks/useAutosave';
 import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
+import { useAuthStore } from '../../../../../../stores/authStore';
 import { useProfileStore } from '../../../../../../stores/profileStore';
 import { useProfile } from '../../../../hooks/useProfileData';
 import {
@@ -50,7 +50,7 @@ const ProfileInfoTabContainer = ({
   deleteAccount,
   canManageAccount,
 }: ProfileInfoTabContainerProps) => {
-  const { user: authUser } = useOptimizedAuth();
+  const authUser = useAuthStore((s) => s.user);
   const user = userProp || authUser;
 
   // ALL HOOKS MUST BE CALLED BEFORE ANY EARLY RETURNS
@@ -70,8 +70,6 @@ const ProfileInfoTabContainer = ({
     updateUserBetaFeatures,
     isUpdating: isBetaFeaturesUpdating,
   } = useBetaFeatures();
-
-  const igelActive = getBetaFeatureState('igel');
 
   // State hooks - must be called unconditionally
   const [displayName, setDisplayName] = useState('');
@@ -325,16 +323,6 @@ const ProfileInfoTabContainer = ({
     }
   };
 
-  const handleToggleIgelModus = async () => {
-    try {
-      await updateUserBetaFeatures('igel', !igelActive);
-      onSuccessMessage(igelActive ? 'IGEL-Modus deaktiviert' : 'IGEL-Modus aktiviert');
-    } catch (error) {
-      console.error('Failed to toggle IGEL mode:', error);
-      onErrorProfileMessage('Fehler beim Umschalten des IGEL-Modus');
-    }
-  };
-
   const avatarProps: AvatarDisplay = getAvatarDisplayProps({
     avatar_robot_id: avatarRobotId,
     display_name: displayName,
@@ -375,8 +363,6 @@ const ProfileInfoTabContainer = ({
         deleteAccountError={deleteAccountError}
         isDeletingAccount={isDeletingAccount}
         onDeleteAccountSubmit={handleDeleteAccountSubmit}
-        igelActive={igelActive}
-        onToggleIgelModus={handleToggleIgelModus}
         isBetaFeaturesUpdating={isBetaFeaturesUpdating}
         onSuccessMessage={onSuccessMessage}
       />

@@ -480,18 +480,22 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         }
         // Deduplicate in case of overlap
         const uniqueCollections = [...new Set(collectionsToSearch)];
+        const isNotebookScoped =
+          state.notebookCollectionIds && state.notebookCollectionIds.length > 0;
 
         const query = searchQuery || '';
 
         // Search all sub-queries (if decomposed) across all collections
+        // Notebook-scoped searches get deeper recall (10 vs 3 per collection)
         const subQueries = state.subQueries?.length ? state.subQueries : [query];
+        const perCollectionLimit = isNotebookScoped ? 10 : 3;
 
         const searchPromises = uniqueCollections.flatMap((collection) =>
           subQueries.map((sq) =>
             executeDirectSearch({
               query: sq,
               collection,
-              limit: 3,
+              limit: perCollectionLimit,
               filters: detectedFilters || undefined,
             }).catch((err: any) => {
               log.warn(
@@ -531,8 +535,10 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         }
 
         // Sort by relevance and take top results
+        // Notebook-scoped searches keep more candidates for reranking
         allResults.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
-        results = allResults.slice(0, 8);
+        const resultsCap = isNotebookScoped ? 20 : 8;
+        results = allResults.slice(0, resultsCap);
         citations = buildCitations(results);
 
         // Track which collections were searched for observability

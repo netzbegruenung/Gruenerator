@@ -14,6 +14,7 @@ import { Router, type Request, type Response } from 'express';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { getModel, isProviderConfigured } from '../chat/agents/providers.js';
+import { type AgentConfig } from '../chat/agents/types.js';
 
 const log = createLogger('DocsAI');
 const router = createAuthenticatedRouter();
@@ -47,12 +48,16 @@ export async function handleAiRequest(req: Request, res: Response) {
       return res.status(400).json({ error: 'Tool definitions object is required' });
     }
 
-    if (!isProviderConfigured('mistral')) {
-      log.error('[DocsAI] Mistral provider not configured');
+    const providerChain: AgentConfig['provider'][] = ['litellm', 'regolo', 'mistral'];
+    const provider = providerChain.find((p) => isProviderConfigured(p));
+
+    if (!provider) {
+      log.error('[DocsAI] No AI provider configured (tried: litellm, regolo, mistral)');
       return res.status(500).json({ error: 'AI provider not configured' });
     }
 
-    const model = getModel('mistral', 'mistral-large-latest');
+    log.info(`[DocsAI] Using provider: ${provider}`);
+    const model = getModel(provider, 'mistral-large-latest');
 
     const messagesWithDocState = injectDocumentStateMessages(messages);
     log.info(

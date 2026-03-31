@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS collaborative_presentations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL DEFAULT 'Neue Präsentation',
-  user_id TEXT NOT NULL,
+  user_id UUID NOT NULL,
   language TEXT DEFAULT 'de',
   theme JSONB DEFAULT '{}',
   template TEXT DEFAULT 'general',

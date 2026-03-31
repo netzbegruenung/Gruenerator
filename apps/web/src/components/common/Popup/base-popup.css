@@ -762,7 +762,7 @@
   }
 
   .popup-slider-dot--active {
-    background: white;
+    background: var(--background-color-pure);
   }
 
   .popup-slider-dot:hover {

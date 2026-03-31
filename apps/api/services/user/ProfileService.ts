@@ -98,7 +98,6 @@ class ProfileService {
       const newProfile = {
         ...profileData,
         beta_features: profileData.beta_features || {},
-        igel_modus: profileData.igel_modus || false,
         groups_enabled: profileData.groups_enabled || false,
         custom_generators: profileData.custom_generators || false,
         database_access: profileData.database_access || false,
@@ -180,8 +179,6 @@ class ProfileService {
       };
 
       const featureColumnMap: Record<string, string> = {
-        igel_modus: 'igel_modus',
-        groups: 'groups_enabled',
         customGenerators: 'custom_generators',
         database: 'database_access',
         collab: 'collab',
@@ -195,9 +192,6 @@ class ProfileService {
         vorlagen: 'vorlagen',
         videoEditor: 'video_editor',
         prompts: 'prompts',
-        scanner: 'scanner',
-        docs: 'docs',
-        boards: 'boards',
         memories: 'memory_enabled',
       };
 
@@ -413,7 +407,6 @@ class ProfileService {
         const stats = await this.db.queryOne(`
           SELECT
             COUNT(*) as total_profiles,
-            COUNT(*) FILTER (WHERE igel_modus = true) as igel_users,
             COUNT(*) FILTER (WHERE bundestag_api_enabled = true) as bundestag_users,
             COUNT(*) FILTER (WHERE memory_enabled = true) as memory_users,
             COUNT(*) FILTER (WHERE last_login > NOW() - INTERVAL '30 days') as active_users
@@ -427,7 +420,6 @@ class ProfileService {
           const stats = await this.db.queryOne(`
             SELECT
               COUNT(*) as total_profiles,
-              COUNT(*) FILTER (WHERE igel_modus = true) as igel_users,
               0 as bundestag_users,
               0 as memory_users,
               COUNT(*) FILTER (WHERE last_login > NOW() - INTERVAL '30 days') as active_users
@@ -449,7 +441,6 @@ class ProfileService {
   getMergedBetaFeatures(profile: UserProfile): BetaFeatures {
     const profileBetaFeatures = profile.beta_features || {};
     const profileSettingsAsBetaFeatures: BetaFeatures = {
-      igel_modus: profile.igel_modus || false,
       groups: profile.groups_enabled || false,
       customGenerators: profile.custom_generators || false,
       database: profile.database_access || false,
@@ -488,7 +479,6 @@ class ProfileService {
     sessionUser.beta_features = this.getMergedBetaFeatures(profile);
 
     const featureMap: Record<string, string> = {
-      igel_modus: 'igel_modus',
       groups: 'groups_enabled',
       customGenerators: 'custom_generators',
       database: 'database_access',

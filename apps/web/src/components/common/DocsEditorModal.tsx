@@ -6,8 +6,8 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react
 import { createPortal } from 'react-dom';
 
 import { webAppDocsAdapter } from '../../features/docs/docsAdapter';
-import { useLazyAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
+import { useAuthStore } from '../../stores/authStore';
 
 import { cn } from '@/utils/cn';
 
@@ -35,7 +35,7 @@ const DocsEditorContent = ({
   title?: string;
   onClose: () => void;
 }) => {
-  const { user } = useLazyAuth();
+  const user = useAuthStore((s) => s.user);
   const [syncTimedOut, setSyncTimedOut] = useState(false);
 
   const collabUser = useMemo(

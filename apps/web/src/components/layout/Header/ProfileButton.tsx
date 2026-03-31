@@ -1,12 +1,4 @@
-import {
-  Badge,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@gruenerator/ui';
+import { Badge, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@gruenerator/ui';
 import { LogOut } from 'lucide-react';
 import { memo, useState } from 'react';
 import { FaCloud, FaFolder, FaUserCircle, FaUsers } from 'react-icons/fa';
@@ -20,8 +12,8 @@ import {
   useUnreadCount,
   useMarkAllAsRead,
 } from '../../../features/notifications/hooks/useNotifications';
-import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
+import { useAuthStore } from '../../../stores/authStore';
 
 import type { AvatarDisplay, Profile } from '../../../features/auth/services/profileApiService';
 import type { User } from '../../../stores/authStore';
@@ -39,7 +31,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { key: 'gruppen', label: 'Gruppen', path: '/gruppen', icon: FaUsers, betaFeature: 'groups' },
-  { key: 'chat-settings', label: 'Eigener Chat', path: '/chat/settings', icon: HiChat },
+  { key: 'dein-gruenerator', label: 'Dein Grünerator', path: '/dein-gruenerator', icon: HiChat },
   { key: 'inhalte', label: 'Dateien', path: '/profile/inhalte', icon: FaFolder },
   { key: 'wolke', label: 'Wolke', path: '/profile/wolke', icon: FaCloud },
   { key: 'einstellungen', label: 'Einstellungen', path: '/profile', icon: HiCog },
@@ -87,18 +79,19 @@ interface ProfileDropdownContentProps {
 }
 
 const ProfileDropdownContent = memo(({ user, unreadCount }: ProfileDropdownContentProps) => {
-  const { logout, isLoggingOut } = useOptimizedAuth();
+  const logout = useAuthStore((s) => s.logout);
+  const isLoggingOut = useAuthStore((s) => s.isLoggingOut);
   const navigate = useNavigate();
   const location = useLocation();
   const { shouldShowTab } = useBetaFeatures();
 
-  const { data: profile } = useProfile(user.id) as { data: Profile | undefined };
+  const { data: profile } = useProfile(user.id);
 
   const displayName = profile?.display_name || '';
-  const avatarRobotId = profile?.avatar_robot_id ?? 1;
+  const avatarRobotId = profile?.avatar_robot_id ?? null;
 
   const avatarProps = getAvatarDisplayProps({
-    avatar_robot_id: avatarRobotId,
+    ...(avatarRobotId != null && { avatar_robot_id: avatarRobotId }),
     display_name: displayName,
     email: user.email,
   });
@@ -131,73 +124,62 @@ const ProfileDropdownContent = memo(({ user, unreadCount }: ProfileDropdownConte
               ? location.pathname === '/profile'
               : location.pathname.startsWith(item.path);
           return (
-            <Tooltip key={item.key}>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => navigate(item.path)}
-                  className={cn(
-                    'flex items-center justify-center size-9 rounded-lg transition-colors',
-                    isActive
-                      ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400'
-                      : 'text-grey-500 hover:bg-background-alt hover:text-foreground'
-                  )}
-                  aria-label={item.label}
-                >
-                  <item.icon className="size-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="text-xs">
-                {item.label}
-              </TooltipContent>
-            </Tooltip>
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => navigate(item.path)}
+              className={cn(
+                'flex items-center justify-center size-9 rounded-lg transition-colors',
+                isActive
+                  ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400'
+                  : 'text-grey-500 hover:bg-background-alt hover:text-foreground'
+              )}
+              aria-label={item.label}
+            >
+              <item.icon className="size-4" />
+            </button>
           );
         })}
         <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-xxs" />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onClick={() => {
-                if (!isLoggingOut) void logout();
-              }}
-              disabled={isLoggingOut}
-              className={cn(
-                'flex items-center justify-center size-9 rounded-lg transition-colors',
-                isLoggingOut
-                  ? 'opacity-50 cursor-not-allowed text-grey-400'
-                  : 'text-grey-500 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600'
-              )}
-              aria-label={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
-            >
-              <LogOut className="size-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-xs">
-            {isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
-          </TooltipContent>
-        </Tooltip>
+        <button
+          type="button"
+          onClick={() => {
+            if (!isLoggingOut) void logout();
+          }}
+          disabled={isLoggingOut}
+          className={cn(
+            'flex items-center justify-center size-9 rounded-lg transition-colors',
+            isLoggingOut
+              ? 'opacity-50 cursor-not-allowed text-grey-400'
+              : 'text-grey-500 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600'
+          )}
+          aria-label={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
+        >
+          <LogOut className="size-4" />
+        </button>
       </div>
 
-      <NotificationList unreadCount={unreadCount} />
+      {unreadCount > 0 && <NotificationList unreadCount={unreadCount} />}
     </>
   );
 });
 ProfileDropdownContent.displayName = 'ProfileDropdownContent';
 
 const ProfileButton = () => {
-  const { user, loading, isInitialLoad, setLoginIntent } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
+  const loading = useAuthStore((s) => s.isLoading);
+  const setLoginIntent = useAuthStore((s) => s.setLoginIntent);
   const [open, setOpen] = useState(false);
 
   const { data: unreadCount = 0 } = useUnreadCount();
   const markAllAsRead = useMarkAllAsRead();
 
-  const { data: profile } = useProfile(user?.id) as { data: Profile | undefined };
-  const avatarRobotId = profile?.avatar_robot_id ?? 1;
+  const { data: profile, isPlaceholderData } = useProfile(user?.id);
+  const avatarRobotId = profile?.avatar_robot_id ?? null;
   const displayName = profile?.display_name || '';
 
   const avatarProps = getAvatarDisplayProps({
-    avatar_robot_id: avatarRobotId,
+    ...(avatarRobotId != null && { avatar_robot_id: avatarRobotId }),
     display_name: displayName,
     email: user?.email,
   });
@@ -240,7 +222,11 @@ const ProfileButton = () => {
           className="relative flex items-center justify-center size-[38px] rounded-full border border-grey-200 dark:border-grey-700 bg-background hover:border-primary-500 hover:bg-hover-alt transition-colors"
           aria-label="Profil-Menü öffnen"
         >
-          {renderAvatar(avatarProps, 'sm', isInitialLoad)}
+          {avatarRobotId == null && !displayName ? (
+            <div className="size-full rounded-full bg-grey-200 dark:bg-grey-700 animate-pulse" />
+          ) : (
+            renderAvatar(avatarProps, 'sm', isPlaceholderData)
+          )}
           {unreadCount > 0 && (
             <Badge
               variant="destructive"
@@ -258,4 +244,4 @@ const ProfileButton = () => {
   );
 };
 
-export default ProfileButton;
+export default memo(ProfileButton);

@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import useBetaFeatures from '../../../hooks/useBetaFeatures';
 import { useAuthStore } from '../../../stores/authStore';
 import { getDirectMenuItems, type MenuItemType } from '../../layout/Header/menuData';
 
@@ -33,14 +32,11 @@ const DesktopHome = () => {
   const displayName = useAuthStore((state) => state.user?.display_name);
   const firstName = displayName?.split(' ')[0];
   const navigate = useNavigate();
-  const { getBetaFeatureState } = useBetaFeatures();
-  const workplaceEnabled = getBetaFeatureState('workplace');
-
   const menuItems = useMemo(() => {
-    const items = getDirectMenuItems({ workplace: workplaceEnabled });
+    const items = getDirectMenuItems();
 
     return Object.values(items).filter((item) => item.id !== 'home' && item.path);
-  }, [workplaceEnabled]);
+  }, []);
 
   return (
     <div className="min-h-full flex items-center justify-center p-xl bg-background">

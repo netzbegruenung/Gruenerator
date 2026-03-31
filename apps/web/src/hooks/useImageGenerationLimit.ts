@@ -1,15 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 
 import apiClient from '../components/utils/apiClient';
-
-import { useOptimizedAuth } from './useAuth';
+import { useAuthStore } from '../stores/authStore';
 
 /**
  * React Query hook for managing image generation limits
  * Fetches current user's daily image generation status
  */
 export const useImageGenerationLimit = () => {
-  const { user, isAuthenticated } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   return useQuery({
     queryKey: ['imageGenerationStatus', user?.id],
