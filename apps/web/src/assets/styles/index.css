@@ -50,8 +50,13 @@
 /* ── Chat package component styles (merges into Tailwind's components layer) ── */
 @import "../../../../../packages/chat/src/styles/chat-embedded.css" layer(components);
 
-/* ── Docs package component styles (BlockNote theme overrides) ── */
-@import "../../../../../packages/docs/src/styles/docs.css" layer(components);
+/* ── Docs package default variables + BlockNote theme overrides ──
+   Imported into layer(legacy) so its :where(:root) defaults don't
+   override dark-mode variables — layer(components) would win over
+   layer(legacy) regardless of selector specificity. BlockNote
+   component-level overrides still work because they target specific
+   .bn-* selectors with higher specificity than the :where() defaults. */
+@import "../../../../../packages/docs/src/styles/docs.css" layer(legacy);
 
 /*
  * Source paths for Tailwind class detection
