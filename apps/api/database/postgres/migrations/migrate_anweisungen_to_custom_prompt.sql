@@ -10,7 +10,7 @@
 -- Safe to run multiple times: the DROP COLUMN uses IF EXISTS.
 -- ════════════════════════════════════════════════════════════════════════════
 
-BEGIN;
+-- Transaction is managed by the migration runner — do not add BEGIN/COMMIT here.
 
 -- Step 1: Merge old per-type prompts into custom_prompt where it is empty
 UPDATE profiles
@@ -47,12 +47,6 @@ ALTER TABLE profiles DROP COLUMN IF EXISTS custom_gruenejugend_prompt;
 ALTER TABLE profiles DROP COLUMN IF EXISTS custom_rede_prompt;
 ALTER TABLE profiles DROP COLUMN IF EXISTS custom_buergeranfragen_prompt;
 
-COMMIT;
-
--- Step 3: Verification query (run after migration)
--- Shows profiles whose custom_prompt was populated by the migration
-SELECT id, display_name, LEFT(custom_prompt, 80) AS custom_prompt_preview
-FROM profiles
-WHERE custom_prompt IS NOT NULL AND custom_prompt != ''
-ORDER BY updated_at DESC
-LIMIT 20;
+-- Verification (run manually after migration):
+-- SELECT id, display_name, LEFT(custom_prompt, 80) FROM profiles
+-- WHERE custom_prompt IS NOT NULL AND custom_prompt != '' ORDER BY updated_at DESC LIMIT 20;

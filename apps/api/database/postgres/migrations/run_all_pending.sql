@@ -15,7 +15,6 @@ SET beta_features = jsonb_set(
 WHERE auto_save_on_export = true;
 
 -- 2. Merge per-generator Anweisungen → unified custom_prompt (2026-02-07)
-BEGIN;
 
 UPDATE profiles
 SET custom_prompt = CONCAT_WS(
@@ -49,8 +48,6 @@ ALTER TABLE profiles DROP COLUMN IF EXISTS custom_universal_prompt;
 ALTER TABLE profiles DROP COLUMN IF EXISTS custom_gruenejugend_prompt;
 ALTER TABLE profiles DROP COLUMN IF EXISTS custom_rede_prompt;
 ALTER TABLE profiles DROP COLUMN IF EXISTS custom_buergeranfragen_prompt;
-
-COMMIT;
 
 -- 3. Drop deprecated auto_save_on_export (2026-02-19)
 ALTER TABLE profiles DROP COLUMN IF EXISTS auto_save_on_export;
