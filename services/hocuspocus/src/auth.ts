@@ -1,6 +1,5 @@
 import { randomUUID } from 'crypto';
 
-import { parse as parseCookie } from 'cookie';
 import { jwtVerify } from 'jose';
 
 import { createLogger } from './logger.js';
@@ -439,28 +438,36 @@ export class AuthService {
       return { authenticated: false, reason: 'No session cookie provided' };
     }
 
-    const cookies = parseCookie(cookieHeader);
-    const sessionToken = cookies['__Secure-ba.session_token'] || cookies['ba.session_token'];
+    log.info(`[Auth-Cookie] Verifying session via API`);
 
-    if (!sessionToken) {
-      const cookieNames = Object.keys(cookies);
-      log.warn(`[Auth-Cookie] No session token cookie found in: ${cookieNames.join(', ')}`);
-      return { authenticated: false, reason: 'No session cookie found' };
+    const apiBase = process.env.API_INTERNAL_URL || 'http://api:3001';
+    let userId: string;
+
+    try {
+      const response = await fetch(`${apiBase}/api/auth/v2/get-session`, {
+        headers: { cookie: cookieHeader },
+      });
+
+      if (!response.ok) {
+        log.warn(`[Auth-Cookie] API session check returned ${response.status}`);
+        return { authenticated: false, reason: 'Session not found or expired' };
+      }
+
+      const data = (await response.json()) as {
+        session?: { userId?: string };
+        user?: { id?: string };
+      };
+      userId = data.session?.userId || data.user?.id || '';
+
+      if (!userId) {
+        log.warn(`[Auth-Cookie] API returned session but no user ID`);
+        return { authenticated: false, reason: 'Session not found or expired' };
+      }
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      log.error(`[Auth-Cookie] API session check failed: ${err.message}`);
+      return { authenticated: false, reason: 'Session verification failed' };
     }
-
-    log.info(`[Auth-Cookie] Looking up Better Auth session`);
-
-    const result = await this.db(
-      `SELECT user_id FROM ba_sessions WHERE token = $1 AND expires_at > NOW()`,
-      [sessionToken]
-    );
-
-    if (result.length === 0) {
-      log.warn(`[Auth-Cookie] Session not found or expired`);
-      return { authenticated: false, reason: 'Session not found or expired' };
-    }
-
-    const userId = result[0].user_id as string;
 
     log.info(`[Auth-Cookie] User ID from session: ${userId}`);
     return this.checkRoomAccess(documentName, userId);
