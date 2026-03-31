@@ -50,12 +50,20 @@
 /* ── Chat package component styles (merges into Tailwind's components layer) ── */
 @import "../../../../../packages/chat/src/styles/chat-embedded.css" layer(components);
 
+/* ── Docs package component styles (BlockNote theme overrides) ── */
+@import "../../../../../packages/docs/src/styles/docs.css" layer(components);
+
 /*
  * Source paths for Tailwind class detection
  */
 @source "../../**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/chat/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/ui/src/**/*.{js,ts,jsx,tsx}";
+@source "../../../../../packages/docs/src/**/*.{js,ts,jsx,tsx}";
+@source "../../../../../packages/slides/src/**/*.{js,ts,jsx,tsx}";
+@source "../../../../../packages/wolke/src/**/*.{js,ts,jsx,tsx}";
+@source "../../../../../packages/collab/src/**/*.{js,ts,jsx,tsx}";
+@source "../../../../../packages/canvas-editor/src/**/*.{js,ts,jsx,tsx}";
 
 /* ── CSS-only tooltip (zero JS, zero re-renders) ── */
 @layer components {
