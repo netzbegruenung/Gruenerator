@@ -30,6 +30,8 @@ vi.mock('../../routes/chat/agents/providers.js', () => ({
   isProviderConfigured: mockIsProviderConfigured,
 }));
 
+vi.mock('../../routes/chat/agents/types.js', () => ({}));
+
 const mockLogInfo = vi.fn();
 const mockLogWarn = vi.fn();
 const mockLogError = vi.fn();
@@ -161,7 +163,7 @@ describe('aiController – POST /api/docs/ai', () => {
   // ── Provider configuration ────────────────────────────────
 
   describe('Provider configuration', () => {
-    it('returns 500 when mistral is not configured', async () => {
+    it('returns 500 when no provider is configured', async () => {
       mockIsProviderConfigured.mockReturnValue(false);
       const { res, statusFn, jsonFn } = createMockRes();
       const req = createMockReq({
@@ -175,7 +177,7 @@ describe('aiController – POST /api/docs/ai', () => {
       expect(jsonFn).toHaveBeenCalledWith({ error: 'AI provider not configured' });
     });
 
-    it('logs error when provider is not configured', async () => {
+    it('logs error when no provider is configured', async () => {
       mockIsProviderConfigured.mockReturnValue(false);
       const { res } = createMockRes();
       const req = createMockReq({
@@ -185,15 +187,13 @@ describe('aiController – POST /api/docs/ai', () => {
 
       await handleAiRequest(req, res);
 
-      expect(mockLogError).toHaveBeenCalledWith('[DocsAI] Mistral provider not configured');
+      expect(mockLogError).toHaveBeenCalledWith(
+        '[DocsAI] No AI provider configured (tried: litellm, regolo, mistral)'
+      );
     });
-  });
 
-  // ── Happy path ────────────────────────────────────────────
-
-  describe('Happy path', () => {
-    it('calls isProviderConfigured with mistral', async () => {
-      const { mockPipe } = setupHappyPath();
+    it('tries providers in order: litellm → regolo → mistral', async () => {
+      mockIsProviderConfigured.mockReturnValue(false);
       const { res } = createMockRes();
       const req = createMockReq({
         messages: sampleMessages,
@@ -202,12 +202,43 @@ describe('aiController – POST /api/docs/ai', () => {
 
       await handleAiRequest(req, res);
 
+      expect(mockIsProviderConfigured).toHaveBeenCalledWith('litellm');
+      expect(mockIsProviderConfigured).toHaveBeenCalledWith('regolo');
       expect(mockIsProviderConfigured).toHaveBeenCalledWith('mistral');
-      expect(mockPipe).toHaveBeenCalled();
     });
 
-    it('calls getModel with mistral and mistral-large-latest', async () => {
+    it('selects litellm when it is the first configured provider', async () => {
+      mockIsProviderConfigured.mockImplementation((p: string) => p === 'litellm');
       setupHappyPath();
+      mockIsProviderConfigured.mockImplementation((p: string) => p === 'litellm');
+      const { res } = createMockRes();
+      const req = createMockReq({
+        messages: sampleMessages,
+        toolDefinitions: sampleToolDefinitions,
+      });
+
+      await handleAiRequest(req, res);
+
+      expect(mockGetModel).toHaveBeenCalledWith('litellm', 'mistral-large-latest');
+    });
+
+    it('falls back to regolo when litellm is not configured', async () => {
+      setupHappyPath();
+      mockIsProviderConfigured.mockImplementation((p: string) => p === 'regolo');
+      const { res } = createMockRes();
+      const req = createMockReq({
+        messages: sampleMessages,
+        toolDefinitions: sampleToolDefinitions,
+      });
+
+      await handleAiRequest(req, res);
+
+      expect(mockGetModel).toHaveBeenCalledWith('regolo', 'mistral-large-latest');
+    });
+
+    it('falls back to mistral when litellm and regolo are not configured', async () => {
+      setupHappyPath();
+      mockIsProviderConfigured.mockImplementation((p: string) => p === 'mistral');
       const { res } = createMockRes();
       const req = createMockReq({
         messages: sampleMessages,
@@ -217,6 +248,25 @@ describe('aiController – POST /api/docs/ai', () => {
       await handleAiRequest(req, res);
 
       expect(mockGetModel).toHaveBeenCalledWith('mistral', 'mistral-large-latest');
+    });
+  });
+
+  // ── Happy path ────────────────────────────────────────────
+
+  describe('Happy path', () => {
+    it('selects a configured provider and pipes the stream', async () => {
+      const { mockPipe } = setupHappyPath();
+      const { res } = createMockRes();
+      const req = createMockReq({
+        messages: sampleMessages,
+        toolDefinitions: sampleToolDefinitions,
+      });
+
+      await handleAiRequest(req, res);
+
+      expect(mockIsProviderConfigured).toHaveBeenCalled();
+      expect(mockGetModel).toHaveBeenCalled();
+      expect(mockPipe).toHaveBeenCalled();
     });
 
     it('calls injectDocumentStateMessages with the messages', async () => {

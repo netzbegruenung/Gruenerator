@@ -129,7 +129,7 @@ export function getModel(provider: AgentConfig['provider'], modelId: string): La
     case 'litellm': {
       console.log(`[providers] Creating LiteLLM model with default: ${LITELLM_DEFAULT_MODEL}`);
       const litellm = getLiteLLMProvider();
-      const model = litellm(LITELLM_DEFAULT_MODEL);
+      const model = litellm.chat(LITELLM_DEFAULT_MODEL);
       console.log(`[providers] LiteLLM model created successfully`);
       return model;
     }
@@ -142,7 +142,7 @@ export function getModel(provider: AgentConfig['provider'], modelId: string): La
       const regoloDefault = process.env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
       console.log(`[providers] Creating Regolo model: ${modelId || regoloDefault}`);
       const regolo = getRegoloProvider();
-      const model = regolo(modelId || regoloDefault);
+      const model = regolo.chat(modelId || regoloDefault);
       console.log(`[providers] Regolo model created successfully`);
       return model;
     }
