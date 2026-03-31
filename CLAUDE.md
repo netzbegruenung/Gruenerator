@@ -62,6 +62,10 @@ docker run -d -p 5000:80 -v ./app_data:/app_data presenton-gruenerator
 
 Preview templates at `http://localhost:5000/template-preview`.
 
+### Database Migrations
+
+SQL migrations live in `apps/api/database/postgres/migrations/` and run automatically on server startup via `PostgresService.init()`. The runner tracks applied files in the `schema_migrations` table. Migrations must **not** contain `BEGIN`/`COMMIT` (the runner wraps each in a transaction). Path resolution uses `getMigrationsPath()` in `database/services/PostgresService/schema.ts`.
+
 ### Data Stores
 
 - **PostgreSQL** — Primary DB. Schema at `apps/api/database/postgres/schema.sql`. Connect: `PGPASSWORD=gruenerator psql -h localhost -U gruenerator -d gruenerator`

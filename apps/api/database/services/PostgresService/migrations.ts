@@ -1,5 +1,8 @@
 /**
  * Database migration runner
+ *
+ * Uses a PostgreSQL advisory lock to ensure only one process runs
+ * migrations at a time (safe for Node.js cluster mode).
  */
 
 import fs from 'fs';
@@ -8,19 +11,24 @@ import { getMigrationsPath } from './schema.js';
 
 import type { Pool, PoolClient } from 'pg';
 
+const MIGRATION_LOCK_ID = 42_000_001;
+
 /**
- * Run database migrations with timeout protection
+ * Run database migrations with advisory lock and timeout protection
  */
 export async function runMigrations(pool: Pool): Promise<void> {
+  const migrationsPath = getMigrationsPath();
+
+  if (!fs.existsSync(migrationsPath)) {
+    console.log('[PostgresService] Migrations directory not found, skipping migrations');
+    return;
+  }
+
+  const client = await pool.connect();
   try {
-    const migrationsPath = getMigrationsPath();
+    await client.query('SET statement_timeout = 60000');
+    await client.query(`SELECT pg_advisory_lock(${MIGRATION_LOCK_ID})`);
 
-    if (!fs.existsSync(migrationsPath)) {
-      console.log('[PostgresService] Migrations directory not found, skipping migrations');
-      return;
-    }
-
-    const client = await pool.connect();
     try {
       await client.query(`
         CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -29,45 +37,52 @@ export async function runMigrations(pool: Pool): Promise<void> {
           applied_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
         )
       `);
-    } finally {
-      client.release();
-    }
 
-    const migrationFiles = fs
-      .readdirSync(migrationsPath)
-      .filter((file) => file.endsWith('.sql'))
-      .sort();
+      const migrationFiles = fs
+        .readdirSync(migrationsPath)
+        .filter((file) => file.endsWith('.sql'))
+        .sort();
 
-    if (migrationFiles.length === 0) {
-      console.log('[PostgresService] No migration files found');
-      return;
-    }
-
-    const appliedResult = await pool.query('SELECT filename FROM schema_migrations');
-    const appliedFilenames = new Set(appliedResult.rows.map((row) => row.filename));
-    const pendingFiles = migrationFiles.filter((f) => !appliedFilenames.has(f));
-
-    console.log(
-      `[PostgresService] Migrations: ${migrationFiles.length} total, ${appliedFilenames.size} applied, ${pendingFiles.length} pending`
-    );
-
-    for (const filename of migrationFiles) {
-      if (appliedFilenames.has(filename)) {
-        continue;
+      if (migrationFiles.length === 0) {
+        console.log('[PostgresService] No migration files found');
+        return;
       }
 
-      await runSingleMigration(pool, migrationsPath, filename);
+      const appliedResult = await client.query('SELECT filename FROM schema_migrations');
+      const appliedFilenames = new Set(
+        appliedResult.rows.map((row: { filename: string }) => row.filename)
+      );
+      const pendingFiles = migrationFiles.filter((f) => !appliedFilenames.has(f));
+
+      console.log(
+        `[PostgresService] Migrations: ${migrationFiles.length} total, ${appliedFilenames.size} applied, ${pendingFiles.length} pending`
+      );
+
+      if (pendingFiles.length === 0) return;
+
+      for (const filename of pendingFiles) {
+        await runSingleMigration(client, migrationsPath, filename);
+      }
+    } finally {
+      await client.query(`SELECT pg_advisory_unlock(${MIGRATION_LOCK_ID})`);
     }
   } catch (error) {
     console.error('[PostgresService] Error running migrations:', error);
+  } finally {
+    try {
+      await client.query('SET statement_timeout = 0');
+    } catch {
+      // ignore
+    }
+    client.release();
   }
 }
 
 /**
- * Run a single migration file
+ * Run a single migration file using the already-locked client
  */
 async function runSingleMigration(
-  pool: Pool,
+  client: PoolClient,
   migrationsPath: string,
   filename: string
 ): Promise<void> {
@@ -79,21 +94,17 @@ async function runSingleMigration(
 
   console.log(`[PostgresService] Migration ${filename} size: ${migrationSql.length} characters`);
 
-  const client = await pool.connect();
   try {
-    await client.query('SET statement_timeout = 30000');
-    await client.query('BEGIN');
-
+    await client.query('SAVEPOINT migration_sp');
     await client.query(migrationSql);
-
     await client.query('INSERT INTO schema_migrations (filename) VALUES ($1)', [filename]);
-    await client.query('COMMIT');
+    await client.query('RELEASE SAVEPOINT migration_sp');
 
     const duration = Date.now() - startTime;
     console.log(`[PostgresService] ✅ Migration ${filename} applied successfully in ${duration}ms`);
   } catch (error) {
     try {
-      await client.query('ROLLBACK');
+      await client.query('ROLLBACK TO SAVEPOINT migration_sp');
     } catch (rollbackError) {
       console.error(
         `[PostgresService] Rollback failed for ${filename}:`,
@@ -102,16 +113,6 @@ async function runSingleMigration(
     }
 
     console.error(`[PostgresService] ❌ Migration ${filename} failed:`, (error as Error).message);
-  } finally {
-    try {
-      await client.query('SET statement_timeout = 0');
-    } catch (resetError) {
-      console.warn(
-        '[PostgresService] Failed to reset statement timeout:',
-        (resetError as Error).message
-      );
-    }
-    client.release();
   }
 }
 
