@@ -68,7 +68,7 @@ export class PostgresService {
   }
 
   async init(): Promise<void> {
-    console.log('[PostgresService] Starting minimal initialization...');
+    console.log('[PostgresService] Starting initialization...');
     try {
       this.healthStatus = 'connecting';
       console.log('[PostgresService] Effective configuration:', this.getSafeConfigForLog());
@@ -84,16 +84,24 @@ export class PostgresService {
       this.isHealthy = true;
       this.healthStatus = 'healthy';
       this.lastError = null;
-      console.log(
-        '[PostgresService] PostgreSQL minimal initialization successful (connection only)'
-      );
+      console.log('[PostgresService] PostgreSQL connection established');
+
+      // Run pending migrations
+      try {
+        await runMigrations(this.pool);
+        console.log('[PostgresService] ✓ Migrations complete');
+      } catch (error) {
+        console.warn(
+          '[PostgresService] ⚠️ Migration run failed (non-critical):',
+          (error as Error).message
+        );
+      }
 
       // Auto-sync schema columns
       try {
         await this.syncSchemaColumns();
         console.log('[PostgresService] ✓ Schema columns synchronized');
       } catch (error) {
-        // Graceful failure: log warning but don't throw
         console.warn(
           '[PostgresService] ⚠️ Schema column sync failed (non-critical):',
           (error as Error).message

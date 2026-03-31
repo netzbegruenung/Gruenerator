@@ -2,7 +2,7 @@
 -- Adds tables required by Better Auth (sessions, accounts, verification)
 -- and missing columns on profiles (created_at, email_verified)
 
-BEGIN;
+-- Transaction is managed by the migration runner — do not add BEGIN/COMMIT here.
 
 -- Add missing columns required by Better Auth
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
@@ -86,5 +86,3 @@ SELECT
 FROM profiles
 WHERE keycloak_id IS NOT NULL
 ON CONFLICT (user_id, provider_id) DO NOTHING;
-
-COMMIT;
