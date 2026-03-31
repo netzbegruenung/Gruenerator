@@ -361,7 +361,9 @@ async function startWorker(): Promise<void> {
 
   // Better Auth handler (must be before express.json middleware)
   const { betterAuthHandler } = await import('./routes/auth/betterAuthHandler.js');
-  app.all('/api/auth/v2/*splat', betterAuthHandler);
+  app.all('/api/auth/v2/*splat', (req, res, next) => {
+    Promise.resolve(betterAuthHandler(req, res)).catch(next);
+  });
 
   // Logging middleware (only for errors)
   app.use(
@@ -536,6 +538,12 @@ async function startWorker(): Promise<void> {
       errorCode: (err as NodeJS.ErrnoException).code,
       stack: err.stack,
     });
+
+    if (req.path.startsWith('/api/auth/v2/')) {
+      log.warn(`[BetterAuth] Error on ${req.path}: ${err.message}`);
+      res.redirect('/auth/login?error=auth_failed');
+      return;
+    }
 
     if (
       err.name === 'AuthenticationError' ||
