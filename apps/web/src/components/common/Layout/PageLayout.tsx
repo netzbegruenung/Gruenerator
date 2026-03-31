@@ -88,6 +88,8 @@ const PageLayout = ({
   }
 
   const isImmersive = layoutMode === 'immersive';
+  const isSidebarOnly = layoutMode === 'sidebarOnly';
+  const hideHeader = isImmersive || isSidebarOnly;
 
   const layoutClasses = [
     'app-layout',
@@ -101,6 +103,7 @@ const PageLayout = ({
     'relative flex-1',
     layoutMode === 'fullscreen' && 'mt-0 min-h-0 overflow-hidden',
     layoutMode === 'immersive' && 'mt-0 min-h-0 overflow-y-auto',
+    layoutMode === 'sidebarOnly' && 'mt-0',
     layoutMode === 'default' && 'mt-lg'
   );
 
@@ -116,7 +119,7 @@ const PageLayout = ({
     <GlobalChatProvider>
       <GlobalBridges />
       <div className={layoutClasses}>
-        {!isImmersive && (
+        {!hideHeader && (
           <header className="fixed top-0 left-0 right-0 z-[1002] flex items-center justify-between px-2 h-12 pointer-events-none">
             <div className="pointer-events-auto">
               <SidebarToggle />
