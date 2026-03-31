@@ -247,98 +247,102 @@
 
   /* Primary/Secondary shortcuts (used as bg-primary, text-primary, etc.) */
   --color-primary: var(--primary-500);
-  --color-primary-light: #46962b;
-  --color-primary-dark: #1a332a;
+  --color-primary-light: var(--color-primary-light-val);
+  --color-primary-dark: var(--color-primary-dark-val);
   --color-secondary: var(--secondary-500);
 
   /* Surface & Layout */
-  --color-surface: #f3f4f6;
-  --color-surface-hover: #e5e7eb;
-  --color-hover-overlay: rgba(0,0,0,0.05);
-  --color-user-bubble: #f0f8f4;
-  --color-background-secondary: #f8faf9;
-  --color-background-dark: #1a332a;
+  --color-surface: var(--color-surface-val);
+  --color-surface-hover: var(--color-surface-hover-val);
+  --color-hover-overlay: var(--color-hover-overlay-val);
+  --color-user-bubble: var(--color-user-bubble-val);
+  --color-background-secondary: var(--color-background-secondary-val);
+  --color-background-dark: var(--color-background-dark-val);
 
   /* Text */
-  --color-foreground-muted: #666666;
-  --color-foreground-dark: #e5e5e5;
-  --color-muted-foreground: #666666;
+  --color-foreground-muted: var(--color-foreground-muted-val);
+  --color-foreground-dark: var(--color-foreground-dark-val);
+  --color-muted-foreground: var(--color-muted-foreground-val);
 
   /* Borders */
-  --color-border: #e5e5e5;
-  --color-border-dark: #374151;
+  --color-border: var(--color-border-val);
+  --color-border-dark: var(--color-border-dark-val);
 
   /* Card */
-  --color-card: #ffffff;
-  --color-card-foreground: #1a1a1a;
+  --color-card: var(--color-card-val);
+  --color-card-foreground: var(--color-card-foreground-val);
+
+  /* Popover */
+  --color-popover: var(--color-popover-val);
+  --color-popover-foreground: var(--color-popover-foreground-val);
 
   /* Accent & Actions */
-  --color-accent-hover: #3d8225;
-  --color-destructive: #dc2626;
+  --color-accent-hover: var(--color-accent-hover-val);
+  --color-destructive: var(--color-destructive-val);
 
   /* Code Blocks */
-  --color-code-block-bg: #111827;
-  --color-code-block-fg: #e5e7eb;
-  --color-code-inline-bg: #f3f4f6;
+  --color-code-block-bg: var(--color-code-block-bg-val);
+  --color-code-block-fg: var(--color-code-block-fg-val);
+  --color-code-inline-bg: var(--color-code-inline-bg-val);
 
   /* Error */
-  --color-error-bg: #fef2f2;
+  --color-error-bg: var(--color-error-bg-val);
 
   /* Badge Colors */
-  --color-badge-purple: #7c3aed;
-  --color-badge-purple-bg: rgba(139,92,246,0.1);
-  --color-badge-indigo: #4338ca;
-  --color-badge-indigo-bg: rgba(99,102,241,0.1);
-  --color-badge-indigo-hover: rgba(99,102,241,0.15);
+  --color-badge-purple: var(--color-badge-purple-val);
+  --color-badge-purple-bg: var(--color-badge-purple-bg-val);
+  --color-badge-indigo: var(--color-badge-indigo-val);
+  --color-badge-indigo-bg: var(--color-badge-indigo-bg-val);
+  --color-badge-indigo-hover: var(--color-badge-indigo-hover-val);
 
   /* Status Colors */
-  --color-status-green: #16a34a;
-  --color-status-yellow: #ca8a04;
-  --color-status-red: #dc2626;
+  --color-status-green: var(--color-status-green-val);
+  --color-status-yellow: var(--color-status-yellow-val);
+  --color-status-red: var(--color-status-red-val);
 
   /* Muted / Disabled */
-  --color-muted-disabled: #9ca3af;
+  --color-muted-disabled: var(--color-muted-disabled-val);
 
   /* Tool Colors */
-  --color-tool-indigo: #4f46e5;
-  --color-tool-indigo-bg: #e0e7ff;
-  --color-tool-emerald: #059669;
-  --color-tool-emerald-bg: #d1fae5;
-  --color-tool-orange: #ea580c;
-  --color-tool-orange-bg: #ffedd5;
-  --color-tool-purple: #9333ea;
-  --color-tool-purple-bg: #f3e8ff;
+  --color-tool-indigo: var(--color-tool-indigo-val);
+  --color-tool-indigo-bg: var(--color-tool-indigo-bg-val);
+  --color-tool-emerald: var(--color-tool-emerald-val);
+  --color-tool-emerald-bg: var(--color-tool-emerald-bg-val);
+  --color-tool-orange: var(--color-tool-orange-val);
+  --color-tool-orange-bg: var(--color-tool-orange-bg-val);
+  --color-tool-purple: var(--color-tool-purple-val);
+  --color-tool-purple-bg: var(--color-tool-purple-bg-val);
 
   /* Section / Toggle */
-  --color-section-border: #e5e7eb;
-  --color-toggle-track: #cbd5e1;
+  --color-section-border: var(--color-section-border-val);
+  --color-toggle-track: var(--color-toggle-track-val);
 
   /* Collection Badge Colors */
-  --color-collection-grundsatzprogramm: #059669;
-  --color-collection-grundsatzprogramm-bg: rgba(5,150,105,0.1);
-  --color-collection-bundestagsfraktion: #2563eb;
-  --color-collection-bundestagsfraktion-bg: rgba(37,99,235,0.1);
-  --color-collection-gruene-de: #16a34a;
-  --color-collection-gruene-de-bg: rgba(22,163,74,0.1);
-  --color-collection-kommunalwiki: #d97706;
-  --color-collection-kommunalwiki-bg: rgba(217,119,6,0.1);
-  --color-collection-web: #ea580c;
-  --color-collection-web-bg: rgba(234,88,12,0.1);
-  --color-collection-research: #4f46e5;
-  --color-collection-research-bg: rgba(79,70,229,0.1);
-  --color-collection-landesverband: #0d9488;
-  --color-collection-landesverband-bg: rgba(13,148,136,0.1);
-  --color-collection-boell: #7c3aed;
-  --color-collection-boell-bg: rgba(124,58,237,0.1);
-  --color-collection-examples: #ec4899;
-  --color-collection-examples-bg: rgba(236,72,153,0.1);
-  --color-collection-oesterreich: #0891b2;
-  --color-collection-oesterreich-bg: rgba(8,145,178,0.1);
+  --color-collection-grundsatzprogramm: var(--color-collection-grundsatzprogramm-val);
+  --color-collection-grundsatzprogramm-bg: var(--color-collection-grundsatzprogramm-bg-val);
+  --color-collection-bundestagsfraktion: var(--color-collection-bundestagsfraktion-val);
+  --color-collection-bundestagsfraktion-bg: var(--color-collection-bundestagsfraktion-bg-val);
+  --color-collection-gruene-de: var(--color-collection-gruene-de-val);
+  --color-collection-gruene-de-bg: var(--color-collection-gruene-de-bg-val);
+  --color-collection-kommunalwiki: var(--color-collection-kommunalwiki-val);
+  --color-collection-kommunalwiki-bg: var(--color-collection-kommunalwiki-bg-val);
+  --color-collection-web: var(--color-collection-web-val);
+  --color-collection-web-bg: var(--color-collection-web-bg-val);
+  --color-collection-research: var(--color-collection-research-val);
+  --color-collection-research-bg: var(--color-collection-research-bg-val);
+  --color-collection-landesverband: var(--color-collection-landesverband-val);
+  --color-collection-landesverband-bg: var(--color-collection-landesverband-bg-val);
+  --color-collection-boell: var(--color-collection-boell-val);
+  --color-collection-boell-bg: var(--color-collection-boell-bg-val);
+  --color-collection-examples: var(--color-collection-examples-val);
+  --color-collection-examples-bg: var(--color-collection-examples-bg-val);
+  --color-collection-oesterreich: var(--color-collection-oesterreich-val);
+  --color-collection-oesterreich-bg: var(--color-collection-oesterreich-bg-val);
 
   /* Relevance Indicator Colors */
-  --color-relevance-high: #16a34a;
-  --color-relevance-medium: #ca8a04;
-  --color-relevance-low: #dc2626;
+  --color-relevance-high: var(--color-relevance-high-val);
+  --color-relevance-medium: var(--color-relevance-medium-val);
+  --color-relevance-low: var(--color-relevance-low-val);
 
   /* Canvas Editor Layout */
   --image-studio-tab-bar-width: 64px;
@@ -370,83 +374,13 @@
   --animate-subsection-fade-in: subsectionFadeIn 0.15s ease-out;
 
   /* ── Standard shadcn semantic tokens (required by packages/chat UI primitives) ── */
-  --color-primary-foreground: #ffffff;
-  --color-secondary-foreground: #ffffff;
-  --color-accent-foreground: #1a1a1a;
-  --color-muted: #f3f4f6;
-  --color-destructive-foreground: #ffffff;
-  --color-input: #e5e5e5;
-  --color-ring: var(--primary-500);
-}
-
-/*
- * Chat package dark-mode overrides (un-layered).
- *
- * The @theme block above hardcodes light-mode values for chat tokens.
- * chat-embedded.css's [data-theme='dark'] sits inside layer(components),
- * which loses to @theme in the cascade. Un-layered styles always win,
- * so these overrides work correctly.
- */
-[data-theme='dark'] {
-  --color-background-secondary: #242424;
-  --color-foreground-muted: #999999;
-  --color-muted-foreground: #999999;
-  --color-border: #374151;
-  --color-card: #242424;
-  --color-card-foreground: #e5e5e5;
-  --color-surface: rgba(255,255,255,0.05);
-  --color-surface-hover: rgba(255,255,255,0.1);
-  --color-hover-overlay: rgba(255,255,255,0.05);
-  --color-user-bubble: rgba(255,255,255,0.1);
-  --color-code-inline-bg: #1f2937;
-  --color-error-bg: rgba(153,27,27,0.2);
-  --color-badge-purple: #c4b5fd;
-  --color-badge-purple-bg: rgba(91,33,182,0.3);
-  --color-badge-indigo: #a5b4fc;
-  --color-badge-indigo-bg: rgba(67,56,202,0.4);
-  --color-badge-indigo-hover: rgba(67,56,202,0.5);
-  --color-status-green: #4ade80;
-  --color-status-yellow: #facc15;
-  --color-status-red: #f87171;
-  --color-muted-disabled: #6b7280;
-  --color-tool-indigo: #818cf8;
-  --color-tool-indigo-bg: rgba(67,56,202,0.3);
-  --color-tool-emerald: #34d399;
-  --color-tool-emerald-bg: rgba(5,150,105,0.3);
-  --color-tool-orange: #fb923c;
-  --color-tool-orange-bg: rgba(234,88,12,0.3);
-  --color-tool-purple: #c084fc;
-  --color-tool-purple-bg: rgba(147,51,234,0.3);
-  --color-section-border: #374151;
-  --color-toggle-track: #4b5563;
-  --color-collection-grundsatzprogramm: #34d399;
-  --color-collection-grundsatzprogramm-bg: rgba(5,150,105,0.25);
-  --color-collection-bundestagsfraktion: #60a5fa;
-  --color-collection-bundestagsfraktion-bg: rgba(37,99,235,0.25);
-  --color-collection-gruene-de: #4ade80;
-  --color-collection-gruene-de-bg: rgba(22,163,74,0.25);
-  --color-collection-kommunalwiki: #fbbf24;
-  --color-collection-kommunalwiki-bg: rgba(217,119,6,0.25);
-  --color-collection-web: #fb923c;
-  --color-collection-web-bg: rgba(234,88,12,0.25);
-  --color-collection-research: #818cf8;
-  --color-collection-research-bg: rgba(79,70,229,0.25);
-  --color-collection-landesverband: #2dd4bf;
-  --color-collection-landesverband-bg: rgba(13,148,136,0.25);
-  --color-collection-boell: #a78bfa;
-  --color-collection-boell-bg: rgba(124,58,237,0.25);
-  --color-collection-examples: #f472b6;
-  --color-collection-examples-bg: rgba(236,72,153,0.25);
-  --color-collection-oesterreich: #22d3ee;
-  --color-collection-oesterreich-bg: rgba(8,145,178,0.25);
-  --color-relevance-high: #4ade80;
-  --color-relevance-medium: #facc15;
-  --color-relevance-low: #f87171;
-  --color-accent-foreground: #e5e5e5;
-  --color-muted: #2a2a2a;
-  --color-destructive: #f87171;
-  --color-input: #374151;
-  --color-ring: #56a17e;
+  --color-primary-foreground: var(--color-primary-foreground-val);
+  --color-secondary-foreground: var(--color-secondary-foreground-val);
+  --color-accent-foreground: var(--color-accent-foreground-val);
+  --color-muted: var(--color-muted-val);
+  --color-destructive-foreground: var(--color-destructive-foreground-val);
+  --color-input: var(--color-input-val);
+  --color-ring: var(--color-ring-val);
 }
 
 /* ── Keyframe animations for BaseForm components ── */

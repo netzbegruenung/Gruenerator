@@ -8,7 +8,7 @@
 .polaroid {
   width: 100px;
   height: 116px;
-  background: white;
+  background: var(--background-color-pure);
   border-radius: 4px;
   padding: 8px 8px 24px 8px;
   box-shadow:

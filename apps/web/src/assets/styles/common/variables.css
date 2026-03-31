@@ -175,6 +175,116 @@
     --form-element-padding-y: var(--spacing-responsive-small);
     --form-element-padding-x: var(--spacing-responsive-small);
     --form-element-min-height: 44px;
+
+    /* ── Tailwind @theme token values (light mode) ──
+       These -val variables are referenced by @theme in index.css.
+       Dark overrides live in the [data-theme="dark"] block below. */
+
+    /* Primary shortcuts */
+    --color-primary-light-val: #46962b;
+    --color-primary-dark-val: #1a332a;
+
+    /* Surface & Layout */
+    --color-surface-val: #f3f4f6;
+    --color-surface-hover-val: #e5e7eb;
+    --color-hover-overlay-val: rgba(0,0,0,0.05);
+    --color-user-bubble-val: #f0f8f4;
+    --color-background-secondary-val: #f8faf9;
+    --color-background-dark-val: #1a332a;
+
+    /* Text */
+    --color-foreground-muted-val: #666666;
+    --color-foreground-dark-val: #e5e5e5;
+    --color-muted-foreground-val: #666666;
+
+    /* Borders */
+    --color-border-val: #e5e5e5;
+    --color-border-dark-val: #374151;
+
+    /* Card */
+    --color-card-val: #ffffff;
+    --color-card-foreground-val: #1a1a1a;
+
+    /* Popover (same as card) */
+    --color-popover-val: #ffffff;
+    --color-popover-foreground-val: #1a1a1a;
+
+    /* Accent & Actions */
+    --color-accent-hover-val: #3d8225;
+    --color-destructive-val: #dc2626;
+
+    /* Code Blocks */
+    --color-code-block-bg-val: #111827;
+    --color-code-block-fg-val: #e5e7eb;
+    --color-code-inline-bg-val: #f3f4f6;
+
+    /* Error */
+    --color-error-bg-val: #fef2f2;
+
+    /* Badge Colors */
+    --color-badge-purple-val: #7c3aed;
+    --color-badge-purple-bg-val: rgba(139,92,246,0.1);
+    --color-badge-indigo-val: #4338ca;
+    --color-badge-indigo-bg-val: rgba(99,102,241,0.1);
+    --color-badge-indigo-hover-val: rgba(99,102,241,0.15);
+
+    /* Status Colors */
+    --color-status-green-val: #16a34a;
+    --color-status-yellow-val: #ca8a04;
+    --color-status-red-val: #dc2626;
+
+    /* Muted / Disabled */
+    --color-muted-disabled-val: #9ca3af;
+
+    /* Tool Colors */
+    --color-tool-indigo-val: #4f46e5;
+    --color-tool-indigo-bg-val: #e0e7ff;
+    --color-tool-emerald-val: #059669;
+    --color-tool-emerald-bg-val: #d1fae5;
+    --color-tool-orange-val: #ea580c;
+    --color-tool-orange-bg-val: #ffedd5;
+    --color-tool-purple-val: #9333ea;
+    --color-tool-purple-bg-val: #f3e8ff;
+
+    /* Section / Toggle */
+    --color-section-border-val: #e5e7eb;
+    --color-toggle-track-val: #cbd5e1;
+
+    /* Collection Badge Colors */
+    --color-collection-grundsatzprogramm-val: #059669;
+    --color-collection-grundsatzprogramm-bg-val: rgba(5,150,105,0.1);
+    --color-collection-bundestagsfraktion-val: #2563eb;
+    --color-collection-bundestagsfraktion-bg-val: rgba(37,99,235,0.1);
+    --color-collection-gruene-de-val: #16a34a;
+    --color-collection-gruene-de-bg-val: rgba(22,163,74,0.1);
+    --color-collection-kommunalwiki-val: #d97706;
+    --color-collection-kommunalwiki-bg-val: rgba(217,119,6,0.1);
+    --color-collection-web-val: #ea580c;
+    --color-collection-web-bg-val: rgba(234,88,12,0.1);
+    --color-collection-research-val: #4f46e5;
+    --color-collection-research-bg-val: rgba(79,70,229,0.1);
+    --color-collection-landesverband-val: #0d9488;
+    --color-collection-landesverband-bg-val: rgba(13,148,136,0.1);
+    --color-collection-boell-val: #7c3aed;
+    --color-collection-boell-bg-val: rgba(124,58,237,0.1);
+    --color-collection-examples-val: #ec4899;
+    --color-collection-examples-bg-val: rgba(236,72,153,0.1);
+    --color-collection-oesterreich-val: #0891b2;
+    --color-collection-oesterreich-bg-val: rgba(8,145,178,0.1);
+
+    /* Relevance Indicator Colors */
+    --color-relevance-high-val: #16a34a;
+    --color-relevance-medium-val: #ca8a04;
+    --color-relevance-low-val: #dc2626;
+
+    /* Standard shadcn semantic tokens */
+    --color-primary-foreground-val: #ffffff;
+    --color-secondary-foreground-val: #ffffff;
+    --color-accent-foreground-val: #1a1a1a;
+    --color-muted-val: #f3f4f6;
+    --color-destructive-foreground-val: #ffffff;
+    --color-input-val: #e5e5e5;
+    --color-ring-val: var(--primary-500);
 }
 
 
@@ -219,6 +329,99 @@
 
     /* Form Input Styles for dark theme */
     --input-background: var(--background-color-alt);
+
+    /* ── Tailwind @theme token values (dark mode) ── */
+
+    /* Surface & Layout */
+    --color-surface-val: rgba(255,255,255,0.05);
+    --color-surface-hover-val: rgba(255,255,255,0.1);
+    --color-hover-overlay-val: rgba(255,255,255,0.05);
+    --color-user-bubble-val: rgba(255,255,255,0.1);
+    --color-background-secondary-val: #242424;
+
+    /* Text */
+    --color-foreground-muted-val: #999999;
+    --color-muted-foreground-val: #999999;
+
+    /* Borders */
+    --color-border-val: #374151;
+
+    /* Card */
+    --color-card-val: #242424;
+    --color-card-foreground-val: #e5e5e5;
+
+    /* Popover (same as card) */
+    --color-popover-val: #242424;
+    --color-popover-foreground-val: #e5e5e5;
+
+    /* Code Blocks */
+    --color-code-inline-bg-val: #1f2937;
+
+    /* Error */
+    --color-error-bg-val: rgba(153,27,27,0.2);
+
+    /* Badge Colors */
+    --color-badge-purple-val: #c4b5fd;
+    --color-badge-purple-bg-val: rgba(91,33,182,0.3);
+    --color-badge-indigo-val: #a5b4fc;
+    --color-badge-indigo-bg-val: rgba(67,56,202,0.4);
+    --color-badge-indigo-hover-val: rgba(67,56,202,0.5);
+
+    /* Status Colors */
+    --color-status-green-val: #4ade80;
+    --color-status-yellow-val: #facc15;
+    --color-status-red-val: #f87171;
+
+    /* Muted / Disabled */
+    --color-muted-disabled-val: #6b7280;
+
+    /* Tool Colors */
+    --color-tool-indigo-val: #818cf8;
+    --color-tool-indigo-bg-val: rgba(67,56,202,0.3);
+    --color-tool-emerald-val: #34d399;
+    --color-tool-emerald-bg-val: rgba(5,150,105,0.3);
+    --color-tool-orange-val: #fb923c;
+    --color-tool-orange-bg-val: rgba(234,88,12,0.3);
+    --color-tool-purple-val: #c084fc;
+    --color-tool-purple-bg-val: rgba(147,51,234,0.3);
+
+    /* Section / Toggle */
+    --color-section-border-val: #374151;
+    --color-toggle-track-val: #4b5563;
+
+    /* Collection Badge Colors */
+    --color-collection-grundsatzprogramm-val: #34d399;
+    --color-collection-grundsatzprogramm-bg-val: rgba(5,150,105,0.25);
+    --color-collection-bundestagsfraktion-val: #60a5fa;
+    --color-collection-bundestagsfraktion-bg-val: rgba(37,99,235,0.25);
+    --color-collection-gruene-de-val: #4ade80;
+    --color-collection-gruene-de-bg-val: rgba(22,163,74,0.25);
+    --color-collection-kommunalwiki-val: #fbbf24;
+    --color-collection-kommunalwiki-bg-val: rgba(217,119,6,0.25);
+    --color-collection-web-val: #fb923c;
+    --color-collection-web-bg-val: rgba(234,88,12,0.25);
+    --color-collection-research-val: #818cf8;
+    --color-collection-research-bg-val: rgba(79,70,229,0.25);
+    --color-collection-landesverband-val: #2dd4bf;
+    --color-collection-landesverband-bg-val: rgba(13,148,136,0.25);
+    --color-collection-boell-val: #a78bfa;
+    --color-collection-boell-bg-val: rgba(124,58,237,0.25);
+    --color-collection-examples-val: #f472b6;
+    --color-collection-examples-bg-val: rgba(236,72,153,0.25);
+    --color-collection-oesterreich-val: #22d3ee;
+    --color-collection-oesterreich-bg-val: rgba(8,145,178,0.25);
+
+    /* Relevance Indicator Colors */
+    --color-relevance-high-val: #4ade80;
+    --color-relevance-medium-val: #facc15;
+    --color-relevance-low-val: #f87171;
+
+    /* Standard shadcn semantic tokens */
+    --color-accent-foreground-val: #e5e5e5;
+    --color-muted-val: #2a2a2a;
+    --color-destructive-val: #f87171;
+    --color-input-val: #374151;
+    --color-ring-val: #56a17e;
 }
 
 
@@ -265,6 +468,69 @@
 
         /* Form Input Styles for prefers-color-scheme: dark */
         --input-background: var(--background-color-alt);
+
+        /* ── Tailwind @theme token values (prefers-color-scheme dark) ── */
+        --color-surface-val: rgba(255,255,255,0.05);
+        --color-surface-hover-val: rgba(255,255,255,0.1);
+        --color-hover-overlay-val: rgba(255,255,255,0.05);
+        --color-user-bubble-val: rgba(255,255,255,0.1);
+        --color-background-secondary-val: #242424;
+        --color-foreground-muted-val: #999999;
+        --color-muted-foreground-val: #999999;
+        --color-border-val: #374151;
+        --color-card-val: #242424;
+        --color-card-foreground-val: #e5e5e5;
+        --color-popover-val: #242424;
+        --color-popover-foreground-val: #e5e5e5;
+        --color-code-inline-bg-val: #1f2937;
+        --color-error-bg-val: rgba(153,27,27,0.2);
+        --color-badge-purple-val: #c4b5fd;
+        --color-badge-purple-bg-val: rgba(91,33,182,0.3);
+        --color-badge-indigo-val: #a5b4fc;
+        --color-badge-indigo-bg-val: rgba(67,56,202,0.4);
+        --color-badge-indigo-hover-val: rgba(67,56,202,0.5);
+        --color-status-green-val: #4ade80;
+        --color-status-yellow-val: #facc15;
+        --color-status-red-val: #f87171;
+        --color-muted-disabled-val: #6b7280;
+        --color-tool-indigo-val: #818cf8;
+        --color-tool-indigo-bg-val: rgba(67,56,202,0.3);
+        --color-tool-emerald-val: #34d399;
+        --color-tool-emerald-bg-val: rgba(5,150,105,0.3);
+        --color-tool-orange-val: #fb923c;
+        --color-tool-orange-bg-val: rgba(234,88,12,0.3);
+        --color-tool-purple-val: #c084fc;
+        --color-tool-purple-bg-val: rgba(147,51,234,0.3);
+        --color-section-border-val: #374151;
+        --color-toggle-track-val: #4b5563;
+        --color-collection-grundsatzprogramm-val: #34d399;
+        --color-collection-grundsatzprogramm-bg-val: rgba(5,150,105,0.25);
+        --color-collection-bundestagsfraktion-val: #60a5fa;
+        --color-collection-bundestagsfraktion-bg-val: rgba(37,99,235,0.25);
+        --color-collection-gruene-de-val: #4ade80;
+        --color-collection-gruene-de-bg-val: rgba(22,163,74,0.25);
+        --color-collection-kommunalwiki-val: #fbbf24;
+        --color-collection-kommunalwiki-bg-val: rgba(217,119,6,0.25);
+        --color-collection-web-val: #fb923c;
+        --color-collection-web-bg-val: rgba(234,88,12,0.25);
+        --color-collection-research-val: #818cf8;
+        --color-collection-research-bg-val: rgba(79,70,229,0.25);
+        --color-collection-landesverband-val: #2dd4bf;
+        --color-collection-landesverband-bg-val: rgba(13,148,136,0.25);
+        --color-collection-boell-val: #a78bfa;
+        --color-collection-boell-bg-val: rgba(124,58,237,0.25);
+        --color-collection-examples-val: #f472b6;
+        --color-collection-examples-bg-val: rgba(236,72,153,0.25);
+        --color-collection-oesterreich-val: #22d3ee;
+        --color-collection-oesterreich-bg-val: rgba(8,145,178,0.25);
+        --color-relevance-high-val: #4ade80;
+        --color-relevance-medium-val: #facc15;
+        --color-relevance-low-val: #f87171;
+        --color-accent-foreground-val: #e5e5e5;
+        --color-muted-val: #2a2a2a;
+        --color-destructive-val: #f87171;
+        --color-input-val: #374151;
+        --color-ring-val: #56a17e;
     }
 }
 

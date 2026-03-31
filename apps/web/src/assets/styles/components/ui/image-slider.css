@@ -91,7 +91,7 @@
 }
 
 .image-gallery-bullet.active {
-  background-color: white;
+  background-color: var(--background-color-pure);
   transform: scale(1.2);
 }
 
