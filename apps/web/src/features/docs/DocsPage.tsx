@@ -21,10 +21,7 @@ import {
   Button,
   CardGrid,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   ResponsiveMenu,
-  ResponsiveMenuSection,
   ResponsiveMenuItem,
 } from '@gruenerator/ui';
 import {
@@ -41,15 +38,12 @@ import {
   FiArrowLeft,
   FiCloud,
   FiFile,
-  FiGrid,
   FiPlus,
   FiSearch,
   FiUpload,
   FiUsers,
   FiX,
-  FiZap,
 } from 'react-icons/fi';
-import { PiKanban, PiPencilLine } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
@@ -88,32 +82,15 @@ const SLIDE_EXAMPLES = [
   },
 ];
 
-const CreateNewMenu = memo(function CreateNewMenu({
-  onTemplateSelect,
-  onShowGallery,
+const ImportMenu = memo(function ImportMenu({
   onShowImportDialog,
   onShowWolkeImport,
-  onShowGenerateSlides,
-  onCreateBoard,
 }: {
-  onTemplateSelect: (type: TemplateType) => void;
-  onShowGallery: () => void;
   onShowImportDialog: () => void;
   onShowWolkeImport: () => void;
-  onShowGenerateSlides: () => void;
-  onCreateBoard: (type: 'kanban' | 'whiteboard') => void;
 }) {
   const desktopContent = (
     <>
-      <DropdownMenuLabel>Dokument</DropdownMenuLabel>
-      <DropdownMenuItem onClick={() => onTemplateSelect('blank')}>
-        <FiFile size={16} />
-        Leeres Dokument
-      </DropdownMenuItem>
-      <DropdownMenuItem onClick={onShowGallery}>
-        <FiGrid size={16} />
-        Aus Vorlage…
-      </DropdownMenuItem>
       <DropdownMenuItem onClick={onShowImportDialog}>
         <FiUpload size={16} />
         Datei importieren…
@@ -122,71 +99,31 @@ const CreateNewMenu = memo(function CreateNewMenu({
         <FiCloud size={16} />
         Aus Wolke importieren…
       </DropdownMenuItem>
-      <DropdownMenuSeparator />
-      {/* <DropdownMenuLabel>Präsentation</DropdownMenuLabel>
-      <DropdownMenuItem onClick={onShowGenerateSlides}>
-        <FiZap size={16} />
-        KI-Präsentation erstellen
-      </DropdownMenuItem>
-      <DropdownMenuSeparator /> */}
-      <DropdownMenuLabel>Board</DropdownMenuLabel>
-      <DropdownMenuItem onClick={() => onCreateBoard('kanban')}>
-        <PiKanban size={16} />
-        Neues Board
-      </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => onCreateBoard('whiteboard')}>
-        <PiPencilLine size={16} />
-        Neues Whiteboard
-      </DropdownMenuItem>
     </>
   );
 
   const mobileContent = (
     <>
-      <ResponsiveMenuSection title="Dokument">
-        <ResponsiveMenuItem icon={<FiFile size={16} />} onClick={() => onTemplateSelect('blank')}>
-          Leeres Dokument
-        </ResponsiveMenuItem>
-        <ResponsiveMenuItem icon={<FiGrid size={16} />} onClick={onShowGallery}>
-          Aus Vorlage…
-        </ResponsiveMenuItem>
-        <ResponsiveMenuItem icon={<FiUpload size={16} />} onClick={onShowImportDialog}>
-          Datei importieren…
-        </ResponsiveMenuItem>
-        <ResponsiveMenuItem icon={<FiCloud size={16} />} onClick={onShowWolkeImport}>
-          Aus Wolke importieren…
-        </ResponsiveMenuItem>
-      </ResponsiveMenuSection>
-      {/* <ResponsiveMenuSection title="Präsentation">
-        <ResponsiveMenuItem icon={<FiZap size={16} />} onClick={onShowGenerateSlides}>
-          KI-Präsentation erstellen
-        </ResponsiveMenuItem>
-      </ResponsiveMenuSection> */}
-      <ResponsiveMenuSection title="Board">
-        <ResponsiveMenuItem icon={<PiKanban size={16} />} onClick={() => onCreateBoard('kanban')}>
-          Neues Board
-        </ResponsiveMenuItem>
-        <ResponsiveMenuItem
-          icon={<PiPencilLine size={16} />}
-          onClick={() => onCreateBoard('whiteboard')}
-        >
-          Neues Whiteboard
-        </ResponsiveMenuItem>
-      </ResponsiveMenuSection>
+      <ResponsiveMenuItem icon={<FiUpload size={16} />} onClick={onShowImportDialog}>
+        Datei importieren…
+      </ResponsiveMenuItem>
+      <ResponsiveMenuItem icon={<FiCloud size={16} />} onClick={onShowWolkeImport}>
+        Aus Wolke importieren…
+      </ResponsiveMenuItem>
     </>
   );
 
   return (
     <ResponsiveMenu
       trigger={
-        <Button>
-          <FiPlus size={16} />
-          Neu
+        <Button variant="outline">
+          <FiUpload size={16} />
+          Importieren
         </Button>
       }
       dropdownSide="bottom"
       dropdownAlign="end"
-      sheetTitle="Neu erstellen"
+      sheetTitle="Importieren"
       desktopContent={desktopContent}
       mobileContent={mobileContent}
     />
@@ -550,13 +487,9 @@ function DocumentsContent() {
             </button>
           )}
         </div>
-        <CreateNewMenu
-          onTemplateSelect={handleTemplateSelect}
-          onShowGallery={() => setShowGallery(true)}
+        <ImportMenu
           onShowImportDialog={() => setShowImportDialog(true)}
           onShowWolkeImport={() => setShowWolkeImport(true)}
-          onShowGenerateSlides={() => setShowGenerateSlides(true)}
-          onCreateBoard={handleCreateBoard}
         />
       </div>
 
