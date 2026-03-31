@@ -6,7 +6,7 @@ import { isDesktopApp } from '../utils/platform';
 /**
  * Route configuration interface
  */
-export type LayoutMode = 'default' | 'fullscreen' | 'immersive' | 'noChrome';
+export type LayoutMode = 'default' | 'fullscreen' | 'immersive' | 'noChrome' | 'sidebarOnly';
 
 export interface RouteConfig {
   path: string;
@@ -370,7 +370,7 @@ const standardRoutes: RouteConfig[] = [
   },
   // Pages Feature Routes
   // Docs: overview, editor, and presentations
-  { path: '/docs', component: DocsPage },
+  { path: '/docs', component: DocsPage, layoutMode: 'sidebarOnly' },
   { path: '/docs/presentation/:id', component: DocsPresentationPage, layoutMode: 'immersive' },
   { path: '/docs/:id', component: DocsEditorPage, layoutMode: 'immersive' },
   { path: '/boards', component: BoardsListRedirect },
