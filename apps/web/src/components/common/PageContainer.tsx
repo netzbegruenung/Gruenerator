@@ -31,7 +31,8 @@ export default function PageContainer({
     <div
       className={cn(
         'min-h-screen',
-        gradient && 'bg-gradient-to-b from-background to-secondary-600/5 dark:to-background'
+        gradient &&
+          'bg-gradient-to-b from-background to-secondary-600/5 dark:from-background dark:to-background'
       )}
     >
       <div
