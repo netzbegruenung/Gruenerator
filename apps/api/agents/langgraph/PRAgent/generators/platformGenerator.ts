@@ -71,7 +71,11 @@ export async function generatePlatformContent(
       req
     );
 
-    return aiResult.content || aiResult.data?.content || '';
+    const content = aiResult.content || aiResult.data?.content || '';
+    console.log(
+      `[PR Agent] ${platform} content generated: length=${content.length}, preview="${content.substring(0, 200)}"`
+    );
+    return content;
   } catch (error) {
     console.error(`[PR Agent] Error generating ${platform} content:`, error);
     return `[Fehler bei der Generierung des ${platform} Inhalts]`;
