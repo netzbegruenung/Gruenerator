@@ -59,7 +59,6 @@ import {
   PiPaintBrush,
   PiArticle,
   PiSquaresFour,
-  PiHouse,
   PiScan,
   PiChatCircle,
   PiDesktop,
@@ -68,6 +67,7 @@ import {
 import { RiMagicLine, RiRobot3Line } from 'react-icons/ri';
 
 import GrueneratorGPTIcon from '../components/common/GrueneratorGPTIcon';
+import GrueneratorHomeIcon from '../components/icons/GrueneratorHomeIcon';
 
 import type { ComponentType } from 'react';
 import type { IconBaseProps } from 'react-icons';
@@ -251,7 +251,7 @@ export const ICONS: IconRegistry = {
     imagine: RiMagicLine,
     texte: PiArticle,
     eigene: PiWrench,
-    home: PiHouse,
+    home: GrueneratorHomeIcon,
     scanner: PiScan,
     messenger: PiChatCircle,
     docs: CiMemoPad,
