@@ -45,10 +45,14 @@ export async function runMigrations(pool: Pool): Promise<void> {
 
     const appliedResult = await pool.query('SELECT filename FROM schema_migrations');
     const appliedFilenames = new Set(appliedResult.rows.map((row) => row.filename));
+    const pendingFiles = migrationFiles.filter((f) => !appliedFilenames.has(f));
+
+    console.log(
+      `[PostgresService] Migrations: ${migrationFiles.length} total, ${appliedFilenames.size} applied, ${pendingFiles.length} pending`
+    );
 
     for (const filename of migrationFiles) {
       if (appliedFilenames.has(filename)) {
-        console.log(`[PostgresService] Migration ${filename} already applied`);
         continue;
       }
 
@@ -74,14 +78,6 @@ async function runSingleMigration(
   const migrationSql = fs.readFileSync(migrationPath, 'utf8');
 
   console.log(`[PostgresService] Migration ${filename} size: ${migrationSql.length} characters`);
-
-  if (migrationSql.includes('FOREIGN KEY') && migrationSql.includes('REFERENCES')) {
-    console.warn(
-      `[PostgresService] ⚠️ Skipping migration ${filename} - contains foreign key constraint that may hang`
-    );
-    console.warn('[PostgresService] Foreign key constraints will be handled by schema.sql instead');
-    return;
-  }
 
   const client = await pool.connect();
   try {
