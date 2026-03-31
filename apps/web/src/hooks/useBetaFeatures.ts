@@ -56,7 +56,6 @@ for (const [groupKey, children] of Object.entries(FEATURE_GROUPS)) {
 // Beta features configuration - single source of truth
 const BETA_FEATURES_CONFIG: BetaFeatureConfig[] = [
   { key: 'sharepic', label: 'Sharepic', isAdminOnly: false, devOnly: true },
-  { key: 'workplace', label: 'Desk', isAdminOnly: false },
   { key: 'vorlagen', label: 'Vorlagen & Galerie', isAdminOnly: false, devOnly: true },
   { key: 'database', label: 'Datenbank', isAdminOnly: true },
   { key: 'notebook', label: 'Notebooks', isAdminOnly: false, defaultEnabled: true },

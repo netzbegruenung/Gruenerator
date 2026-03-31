@@ -179,65 +179,17 @@ const VoiceAgentPage = lazy(() => import('../features/voice-agent/VoiceAgentPage
 
 const MobileEditorPage = lazy(() => import('../pages/MobileEditorPage'));
 
-const ScannerPage = lazy(() =>
-  Promise.all([
-    import('../features/scanner/ScannerPage'),
-    import('../components/common/BetaFeatureWrapper'),
-  ]).then(([scannerModule, wrapperModule]) => ({
-    default: (props: Record<string, unknown>) =>
-      wrapperModule.default({
-        children: createElement(scannerModule.default, props),
-        featureKey: 'scanner',
-        fallbackPath: '/profile?tab=labor',
-      }),
-  }))
-);
-const TranskriptionPage = lazy(() =>
-  Promise.all([
-    import('../features/transkription/TranskriptionPage'),
-    import('../components/common/BetaFeatureWrapper'),
-  ]).then(([pageModule, wrapperModule]) => ({
-    default: (props: Record<string, unknown>) =>
-      wrapperModule.default({
-        children: createElement(pageModule.default, props),
-        featureKey: 'scanner',
-        fallbackPath: '/profile?tab=labor',
-      }),
-  }))
-);
+const ScannerPage = lazy(() => import('../features/scanner/ScannerPage'));
+const TranskriptionPage = lazy(() => import('../features/transkription/TranskriptionPage'));
 const TransferPage = lazy(() => import('../features/transfer/TransferPage'));
 const BriefingPage = lazy(() => import('../features/briefing/BriefingPage'));
 const BriefingArchivePage = lazy(() => import('../features/briefing/BriefingArchivePage'));
 const BriefingArticlePage = lazy(() => import('../features/briefing/BriefingArticlePage'));
 const DeskPage = lazy(() => import('../features/workplace/WorkplacePage'));
 const RecherchePage = lazy(() => import('../features/recherche/RecherchePage'));
-const GruppenPage = lazy(() =>
-  Promise.all([
-    import('../features/groups/pages/GruppenPage'),
-    import('../components/common/BetaFeatureWrapper'),
-  ]).then(([gruppenModule, wrapperModule]) => ({
-    default: (props: Record<string, unknown>) =>
-      wrapperModule.default({
-        children: createElement(gruppenModule.default, props),
-        featureKey: 'groups',
-        fallbackPath: '/',
-      }),
-  }))
-);
+const GruppenPage = lazy(() => import('../features/groups/pages/GruppenPage'));
 const BoardsListRedirect = lazy(() => Promise.resolve({ default: createRedirect('/docs') }));
-const BoardPage = lazy(() =>
-  Promise.all([
-    import('../features/boards/BoardPage'),
-    import('../components/common/BetaFeatureWrapper'),
-  ]).then(([boardsModule, wrapperModule]) => ({
-    default: (props: Record<string, unknown>) =>
-      wrapperModule.default({
-        children: createElement(boardsModule.default, props),
-        featureKey: 'boards',
-        fallbackPath: '/profile?tab=labor',
-      }),
-  }))
-);
+const BoardPage = lazy(() => import('../features/boards/BoardPage'));
 const PublicBoardPage = lazy(() => import('../features/boards/PublicBoardPage'));
 const GruenOMatDemoPage = lazy(() => import('../features/gruen-o-mat/GruenOMatDemoPage'));
 const ResearchPage = lazy(() => import('../features/research/ResearchPage'));
@@ -283,7 +235,7 @@ export const GrueneratorenBundle = {
 
 // Route Konfigurationen
 const standardRoutes: RouteConfig[] = [
-  { path: '/', component: DeskPage },
+  { path: '/', component: HomeWrapper },
   { path: '/startseite', component: Startseite },
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },

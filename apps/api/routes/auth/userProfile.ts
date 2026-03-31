@@ -228,7 +228,6 @@ router.patch(
       }
 
       const allowedFeatures = [
-        'groups',
         'database',
         'sharepic',
         'anweisungen',
@@ -245,9 +244,6 @@ router.patch(
         'vorlagen',
         'videoEditor',
         'prompts',
-        'scanner',
-        'docs',
-        'boards',
         'memories',
       ];
 

@@ -376,202 +376,183 @@ const RecentReelCard = memo(
 );
 RecentReelCard.displayName = 'RecentReelCard';
 
-interface RecentlyCreatedSectionProps {
-  showDocs: boolean;
-  showBoards: boolean;
-}
+const RecentlyCreatedSection: React.FC = memo(() => {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-const RecentlyCreatedSection: React.FC<RecentlyCreatedSectionProps> = memo(
-  ({ showDocs, showBoards }) => {
-    const navigate = useNavigate();
-    const queryClient = useQueryClient();
+  const { data: allItems = [], isLoading } = useQuery({
+    queryKey: ['recent-activity'],
+    queryFn: fetchRecentActivity,
+    staleTime: 30_000,
+  });
 
-    const { data: allItems = [], isLoading } = useQuery({
-      queryKey: ['recent-activity'],
-      queryFn: fetchRecentActivity,
-      staleTime: 30_000,
+  const items = allItems
+    .filter((item) => {
+      if (item.type === 'text') return false;
+      return true;
+    })
+    .slice(0, 10);
+
+  const { createBoard, deleteBoard } = useBoards({ enabled: showBoards });
+
+  const createEmptyDoc = useMutation({
+    mutationFn: async () => {
+      const res = await apiClient.post('/docs', { title: 'Neues Dokument' });
+      return res.data as { id: string };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+    },
+  });
+
+  const handleConvertText = useCallback(
+    async (textId: string) => {
+      try {
+        const res = await apiClient.post(`/auth/saved-texts/${textId}/convert-to-doc`);
+        const { documentId } = res.data as { documentId: string };
+        navigate(`/docs/${documentId}`);
+      } catch {
+        // fallback to old editor
+        navigate(`/texte/texteditor?textId=${textId}`);
+      }
+    },
+    [navigate]
+  );
+
+  const handleDelete = useCallback(
+    (item: RecentItem) => {
+      const messages: Record<RecentItemType, string> = {
+        doc: 'Dokument wirklich löschen?',
+        board: 'Board wirklich löschen?',
+        image: 'Bild wirklich löschen?',
+        video: 'Video wirklich löschen?',
+        text: 'Text wirklich löschen?',
+        presentation: 'Präsentation wirklich löschen?',
+      };
+
+      if (!window.confirm(messages[item.type])) return;
+
+      if (item.type === 'board') {
+        deleteBoard.mutateAsync(item.id).then(() => {
+          queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+        });
+        return;
+      }
+
+      if (item.deleteEndpoint) {
+        const endpoint = item.deleteEndpoint.replace(/^\/api/, '');
+        apiClient.delete(endpoint).then(() => {
+          queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+        });
+      }
+    },
+    [deleteBoard, queryClient]
+  );
+
+  const handleShare = useCallback((item: RecentItem) => {
+    navigator.clipboard.writeText(`${window.location.origin}${item.href}`);
+  }, []);
+
+  const handleCreateDoc = useCallback(() => {
+    createEmptyDoc.mutate(undefined, {
+      onSuccess: (data) => navigate(`/docs/${data.id}`),
     });
+  }, [createEmptyDoc, navigate]);
 
-    const items = allItems
-      .filter((item) => {
-        if (item.type === 'doc' && !showDocs) return false;
-        if (item.type === 'board' && !showBoards) return false;
-        if (item.type === 'text') return false;
-        return true;
-      })
-      .slice(0, 10);
-
-    const { createBoard, deleteBoard } = useBoards({ enabled: showBoards });
-
-    const createEmptyDoc = useMutation({
-      mutationFn: async () => {
-        const res = await apiClient.post('/docs', { title: 'Neues Dokument' });
-        return res.data as { id: string };
-      },
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
-      },
-    });
-
-    const handleConvertText = useCallback(
-      async (textId: string) => {
-        try {
-          const res = await apiClient.post(`/auth/saved-texts/${textId}/convert-to-doc`);
-          const { documentId } = res.data as { documentId: string };
-          navigate(`/docs/${documentId}`);
-        } catch {
-          // fallback to old editor
-          navigate(`/texte/texteditor?textId=${textId}`);
-        }
-      },
-      [navigate]
+  const handleCreateBoard = useCallback(() => {
+    createBoard.mutate(
+      { title: 'Neues Board' },
+      { onSuccess: (board) => navigate(`/boards/${board.id}`) }
     );
+  }, [createBoard, navigate]);
 
-    const handleDelete = useCallback(
-      (item: RecentItem) => {
-        const messages: Record<RecentItemType, string> = {
-          doc: 'Dokument wirklich löschen?',
-          board: 'Board wirklich löschen?',
-          image: 'Bild wirklich löschen?',
-          video: 'Video wirklich löschen?',
-          text: 'Text wirklich löschen?',
-          presentation: 'Präsentation wirklich löschen?',
-        };
-
-        if (!window.confirm(messages[item.type])) return;
-
-        if (item.type === 'board') {
-          deleteBoard.mutateAsync(item.id).then(() => {
-            queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
-          });
-          return;
-        }
-
-        if (item.deleteEndpoint) {
-          const endpoint = item.deleteEndpoint.replace(/^\/api/, '');
-          apiClient.delete(endpoint).then(() => {
-            queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
-          });
-        }
-      },
-      [deleteBoard, queryClient]
+  const handleCreateWhiteboard = useCallback(() => {
+    createBoard.mutate(
+      { title: 'Neues Whiteboard', boardType: 'whiteboard' },
+      { onSuccess: (board) => navigate(`/boards/${board.id}`) }
     );
+  }, [createBoard, navigate]);
 
-    const handleShare = useCallback((item: RecentItem) => {
-      navigator.clipboard.writeText(`${window.location.origin}${item.href}`);
-    }, []);
+  const createMenu = useCallback(
+    (trigger: React.ReactNode) => (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <DropdownMenuItem onClick={handleCreateDoc}>
+            <HiOutlineDocumentText />
+            Dokument
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleCreateBoard}>
+            <PiKanban />
+            Board
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleCreateWhiteboard}>
+            <PiPencilLine />
+            Whiteboard
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => navigate('/imagine')}>
+            <PiImageSquare />
+            Bild erstellen
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => navigate('/studio/video')}>
+            <PiVideoCamera />
+            Reel / Video erstellen
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ),
+    [showDocs, showBoards, handleCreateDoc, handleCreateBoard, handleCreateWhiteboard, navigate]
+  );
 
-    const handleCreateDoc = useCallback(() => {
-      createEmptyDoc.mutate(undefined, {
-        onSuccess: (data) => navigate(`/docs/${data.id}`),
-      });
-    }, [createEmptyDoc, navigate]);
+  return (
+    <section className="mb-xl">
+      <SectionHeader title="Zuletzt erstellt" createLabel="Neu erstellen" createMenu={createMenu} />
 
-    const handleCreateBoard = useCallback(() => {
-      createBoard.mutate(
-        { title: 'Neues Board' },
-        { onSuccess: (board) => navigate(`/boards/${board.id}`) }
-      );
-    }, [createBoard, navigate]);
-
-    const handleCreateWhiteboard = useCallback(() => {
-      createBoard.mutate(
-        { title: 'Neues Whiteboard', boardType: 'whiteboard' },
-        { onSuccess: (board) => navigate(`/boards/${board.id}`) }
-      );
-    }, [createBoard, navigate]);
-
-    const createMenu = useCallback(
-      (trigger: React.ReactNode) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            {showDocs && (
-              <DropdownMenuItem onClick={handleCreateDoc}>
-                <HiOutlineDocumentText />
-                Dokument
-              </DropdownMenuItem>
-            )}
-            {showBoards && (
-              <>
-                <DropdownMenuItem onClick={handleCreateBoard}>
-                  <PiKanban />
-                  Board
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleCreateWhiteboard}>
-                  <PiPencilLine />
-                  Whiteboard
-                </DropdownMenuItem>
-              </>
-            )}
-            {(showDocs || showBoards) && <DropdownMenuSeparator />}
-            <DropdownMenuItem onClick={() => navigate('/imagine')}>
-              <PiImageSquare />
-              Bild erstellen
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/studio/video')}>
-              <PiVideoCamera />
-              Reel / Video erstellen
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
-      [showDocs, showBoards, handleCreateDoc, handleCreateBoard, handleCreateWhiteboard, navigate]
-    );
-
-    return (
-      <section className="mb-xl">
-        <SectionHeader
-          title="Zuletzt erstellt"
-          createLabel="Neu erstellen"
-          createMenu={createMenu}
-        />
-
-        {isLoading ? (
-          <CardGrid columns="5">
-            {Array.from({ length: 5 }, (_, i) => (
-              <div
-                key={i}
-                className="rounded-md border border-grey-200 dark:border-grey-700 overflow-hidden"
-              >
-                <Skeleton className="aspect-[4/3] rounded-none" />
-                <div className="px-sm py-sm">
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-1/2 mt-1.5" />
-                </div>
+      {isLoading ? (
+        <CardGrid columns="5">
+          {Array.from({ length: 5 }, (_, i) => (
+            <div
+              key={i}
+              className="rounded-md border border-grey-200 dark:border-grey-700 overflow-hidden"
+            >
+              <Skeleton className="aspect-[4/3] rounded-none" />
+              <div className="px-sm py-sm">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/2 mt-1.5" />
               </div>
-            ))}
-          </CardGrid>
-        ) : items.length === 0 ? (
-          <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
-            Noch keine Inhalte vorhanden.
-          </p>
-        ) : (
-          <CardGrid columns="5">
-            {items.map((item) =>
-              item.type === 'video' ? (
-                <RecentReelCard
-                  key={`${item.type}-${item.id}`}
-                  item={item}
-                  onDelete={handleDelete}
-                  onShare={handleShare}
-                />
-              ) : (
-                <RecentItemCard
-                  key={`${item.type}-${item.id}`}
-                  item={item}
-                  onDelete={handleDelete}
-                  onShare={handleShare}
-                  onConvertText={handleConvertText}
-                />
-              )
-            )}
-          </CardGrid>
-        )}
-      </section>
-    );
-  }
-);
+            </div>
+          ))}
+        </CardGrid>
+      ) : items.length === 0 ? (
+        <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
+          Noch keine Inhalte vorhanden.
+        </p>
+      ) : (
+        <CardGrid columns="5">
+          {items.map((item) =>
+            item.type === 'video' ? (
+              <RecentReelCard
+                key={`${item.type}-${item.id}`}
+                item={item}
+                onDelete={handleDelete}
+                onShare={handleShare}
+              />
+            ) : (
+              <RecentItemCard
+                key={`${item.type}-${item.id}`}
+                item={item}
+                onDelete={handleDelete}
+                onShare={handleShare}
+                onConvertText={handleConvertText}
+              />
+            )
+          )}
+        </CardGrid>
+      )}
+    </section>
+  );
+});
 
 RecentlyCreatedSection.displayName = 'RecentlyCreatedSection';
 

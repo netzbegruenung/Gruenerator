@@ -26,14 +26,11 @@ interface BetaFeaturesActions {
 type BetaFeaturesStore = BetaFeaturesState & BetaFeaturesActions;
 
 // Feature groups: a single toggle controls multiple backend features
-export const FEATURE_GROUPS: Record<string, string[]> = {
-  workplace: ['groups', 'docs', 'scanner', 'boards'],
-};
+export const FEATURE_GROUPS: Record<string, string[]> = {};
 
 // Normalize backend keys to frontend camelCase keys
 const normalizeBetaFeatures = (features: Record<string, unknown> = {}): BetaFeatures => {
   const keyMap: Record<string, string> = {
-    groups_enabled: 'groups',
     database_access: 'database',
     collab: 'collab',
     notebook: 'notebook',
@@ -41,11 +38,7 @@ const normalizeBetaFeatures = (features: Record<string, unknown> = {}): BetaFeat
     anweisungen: 'anweisungen',
     content_management: 'contentManagement',
     canva: 'canva',
-    // DEPRECATED: chat: 'chat',
     labor_enabled: 'labor',
-    scanner: 'scanner',
-    docs: 'docs',
-    boards: 'boards',
     memory_enabled: 'memories',
   };
 

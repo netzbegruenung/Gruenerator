@@ -179,7 +179,6 @@ class ProfileService {
       };
 
       const featureColumnMap: Record<string, string> = {
-        groups: 'groups_enabled',
         customGenerators: 'custom_generators',
         database: 'database_access',
         collab: 'collab',
@@ -193,9 +192,6 @@ class ProfileService {
         vorlagen: 'vorlagen',
         videoEditor: 'video_editor',
         prompts: 'prompts',
-        scanner: 'scanner',
-        docs: 'docs',
-        boards: 'boards',
         memories: 'memory_enabled',
       };
 
