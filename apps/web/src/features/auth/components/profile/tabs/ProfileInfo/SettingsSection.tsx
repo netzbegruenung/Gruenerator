@@ -60,7 +60,6 @@ const LocaleSelector: React.FC = () => {
 const BETA_VIEWS = {
   DATABASE: 'database',
   COLLAB: 'collab',
-  WORKPLACE: 'workplace',
   VORLAGEN: 'vorlagen',
 };
 
@@ -92,18 +91,6 @@ const SettingsSection: React.FC<SettingsSectionProps> = memo(
             setter: (value: boolean) => updateUserBetaFeatures('collab', value),
             featureName: 'Kollaborative Bearbeitung',
             checkboxLabel: 'Kollaborative Bearbeitung aktivieren',
-            icon: HiOutlineUsers,
-          };
-        case BETA_VIEWS.WORKPLACE:
-          return {
-            title: 'Workplace',
-            description: 'Gruppen, Dokumente, Scanner und Boards',
-            checked: getBetaFeatureState('workplace'),
-            setter: (value: boolean) => updateUserBetaFeatures('workplace', value),
-            featureName: 'Workplace',
-            checkboxLabel: 'Gruppen, Dokumente, Scanner (OCR) und Kanban-Boards aktivieren',
-            linkTo: '/workplace',
-            linkText: 'Zum Workplace',
             icon: HiOutlineUsers,
           };
         case BETA_VIEWS.VORLAGEN:

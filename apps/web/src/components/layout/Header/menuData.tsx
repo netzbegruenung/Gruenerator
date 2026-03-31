@@ -9,7 +9,6 @@ export interface BetaFeatures {
   databaseBetaEnabled?: boolean;
   youBetaEnabled?: boolean;
   isAustrian?: boolean;
-  workplace?: boolean;
 }
 
 // Menu item type definition

@@ -75,7 +75,6 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   const { getBetaFeatureState } = useBetaFeatures();
 
   const databaseBetaEnabled = useMemo(() => getBetaFeatureState('database'), [getBetaFeatureState]);
-  const workplaceEnabled = useMemo(() => getBetaFeatureState('workplace'), [getBetaFeatureState]);
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
 
@@ -94,8 +93,8 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   );
 
   const directMenuItems = useMemo(
-    () => getDirectMenuItems({ databaseBetaEnabled, isAustrian, workplace: workplaceEnabled }),
-    [databaseBetaEnabled, isAustrian, workplaceEnabled]
+    () => getDirectMenuItems({ databaseBetaEnabled, isAustrian }),
+    [databaseBetaEnabled, isAustrian]
   );
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
   const additionalItems = useMemo<MenuItemType[]>(

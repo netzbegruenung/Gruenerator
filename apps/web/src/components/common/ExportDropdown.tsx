@@ -31,7 +31,6 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
-import { useBetaFeatures } from '../../hooks/useBetaFeatures';
 import { awaitDeferredTitle } from '../../hooks/useDeferredTitle';
 import { useAuthStore } from '../../stores/authStore';
 import { useExportStore } from '../../stores/core/exportStore';
@@ -109,9 +108,8 @@ const ExportDropdown = ({
   const activeShareLinks = shareLinks.filter((link) => link.is_active);
   const location = useLocation();
   const navigate = useNavigate();
-  const { getBetaFeatureState } = useBetaFeatures();
   const hasChatAccess = isAuthenticated;
-  const hasDocsAccess = isAuthenticated && getBetaFeatureState('docs');
+  const hasDocsAccess = isAuthenticated;
   const { submitForm: submitEtherpad, loading: etherpadLoading } = useApiSubmit('etherpad/create');
   const getGeneratedText = useGeneratedTextStore((state) => state.getGeneratedText);
 

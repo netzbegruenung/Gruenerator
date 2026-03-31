@@ -1,5 +1,5 @@
 import { IconButton, IconButtonRow } from '@gruenerator/ui';
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { getIcon } from '../../../config/icons';
@@ -11,10 +11,10 @@ interface ToolItem {
   title: string;
   path: string;
   icon: IconType;
-  betaFeature?: string;
+  devOnly?: boolean;
 }
 
-const ALL_TOOLS: ToolItem[] = [
+const MAIN_TOOLS: ToolItem[] = [
   {
     id: 'gruen-veraendern',
     title: 'Bild mit KI begrünen',
@@ -28,28 +28,15 @@ const ALL_TOOLS: ToolItem[] = [
     icon: getIcon('navigation', 'reel')!,
   },
   {
-    id: 'scanner',
-    title: 'Text digitalisieren',
-    path: '/scanner',
-    icon: getIcon('navigation', 'scanner')!,
-    betaFeature: 'scanner',
-  },
-  {
-    id: 'transkription',
-    title: 'Audio mit KI transkribieren',
-    path: '/transkription',
-    icon: getIcon('navigation', 'transkription')!,
-    betaFeature: 'scanner',
-  },
-  {
     id: 'vorlagen',
     title: 'Vorlagen',
     path: '/datenbank/vorlagen',
     icon: getIcon('navigation', 'vorlagen')!,
+    devOnly: true,
   },
   {
     id: 'recherche',
-    title: 'Datenbank durchsuchen',
+    title: 'Notebook-Daten durchsuchen',
     path: '/recherche',
     icon: getIcon('navigation', 'datenbank')!,
   },
@@ -58,6 +45,22 @@ const ALL_TOOLS: ToolItem[] = [
     title: 'Transfer',
     path: '/transfer',
     icon: getIcon('actions', 'upload')!,
+    devOnly: true,
+  },
+];
+
+const EXPERIMENTAL_TOOLS: ToolItem[] = [
+  {
+    id: 'scanner',
+    title: 'Text digitalisieren',
+    path: '/scanner',
+    icon: getIcon('navigation', 'scanner')!,
+  },
+  {
+    id: 'transkription',
+    title: 'Audio mit KI transkribieren',
+    path: '/transkription',
+    icon: getIcon('navigation', 'transkription')!,
   },
   {
     id: 'apps',
@@ -67,33 +70,41 @@ const ALL_TOOLS: ToolItem[] = [
   },
 ];
 
-const ToolsSection = React.memo(
-  ({ canAccessBetaFeature }: { canAccessBetaFeature: (feature: string) => boolean }) => {
-    const navigate = useNavigate();
+function filterTools(tools: ToolItem[]): ToolItem[] {
+  return tools.filter((tool) => !tool.devOnly || import.meta.env.DEV);
+}
 
-    const visibleTools = useMemo(
-      () => ALL_TOOLS.filter((tool) => !tool.betaFeature || canAccessBetaFeature(tool.betaFeature)),
-      [canAccessBetaFeature]
-    );
+function ToolIconRow({ tools }: { tools: ToolItem[] }) {
+  const navigate = useNavigate();
+  return (
+    <IconButtonRow>
+      {tools.map((tool) => {
+        const Icon = tool.icon;
+        return (
+          <IconButton
+            key={tool.id}
+            icon={<Icon />}
+            label={tool.title}
+            onClick={() => navigate(tool.path)}
+          />
+        );
+      })}
+    </IconButtonRow>
+  );
+}
 
-    return (
-      <IconButtonRow>
-        {visibleTools.map((tool) => {
-          const Icon = tool.icon;
-          return (
-            <IconButton
-              key={tool.id}
-              icon={<Icon />}
-              label={tool.title}
-              onClick={() => navigate(tool.path)}
-            />
-          );
-        })}
-      </IconButtonRow>
-    );
-  }
-);
+const ToolsSection = React.memo(() => {
+  const tools = filterTools(MAIN_TOOLS);
+  return <ToolIconRow tools={tools} />;
+});
 
 ToolsSection.displayName = 'ToolsSection';
+
+export const ExperimentalToolsSection = React.memo(() => {
+  const tools = filterTools(EXPERIMENTAL_TOOLS);
+  return <ToolIconRow tools={tools} />;
+});
+
+ExperimentalToolsSection.displayName = 'ExperimentalToolsSection';
 
 export default ToolsSection;

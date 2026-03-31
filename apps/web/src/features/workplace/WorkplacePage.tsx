@@ -4,7 +4,6 @@ import { useState } from 'react';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
-import useBetaFeatures from '../../hooks/useBetaFeatures';
 import { useFirstName } from '../../hooks/useFirstName';
 import { DEFAULT_MODE } from '../texte/modes';
 
@@ -12,7 +11,7 @@ import CreatorSection from './components/CreatorSection';
 import NotebooksSection from './components/NotebooksSection';
 import RecentlyCreatedSection from './components/RecentlyCreatedSection';
 import ReelsSection from './components/ReelsSection';
-import ToolsSection from './components/ToolsSection';
+import ToolsSection, { ExperimentalToolsSection } from './components/ToolsSection';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -23,7 +22,6 @@ function getGreeting(): string {
 }
 
 const WorkplacePage = () => {
-  const { canAccessBetaFeature } = useBetaFeatures();
   const firstName = useFirstName();
 
   const [mode, setMode] = useState(DEFAULT_MODE);
@@ -44,7 +42,7 @@ const WorkplacePage = () => {
           <CreatorSection mode={mode} onModeChange={setMode} />
         </div>
 
-        <RecentlyCreatedSection showDocs showBoards={canAccessBetaFeature('boards')} />
+        <RecentlyCreatedSection />
 
         {/* <ReelsSection /> */}
 
@@ -52,7 +50,12 @@ const WorkplacePage = () => {
 
         <section className="mb-xl">
           <SectionHeader title="Weitere Tools" />
-          <ToolsSection canAccessBetaFeature={canAccessBetaFeature} />
+          <ToolsSection />
+        </section>
+
+        <section className="mb-xl">
+          <SectionHeader title="Experimentelle Tools" />
+          <ExperimentalToolsSection />
         </section>
       </PageContainer>
     </ErrorBoundary>
