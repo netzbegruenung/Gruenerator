@@ -66,6 +66,7 @@ export interface DocumentCardDoc {
   content?: string;
   access_type?: string;
   creator_name?: string;
+  group_shares?: Array<{ group_id: string; group_name: string }>;
 }
 
 export const DocumentCard = memo(function DocumentCard({
