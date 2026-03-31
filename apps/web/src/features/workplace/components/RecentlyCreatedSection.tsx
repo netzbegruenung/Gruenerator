@@ -393,7 +393,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
     })
     .slice(0, 10);
 
-  const { createBoard, deleteBoard } = useBoards({ enabled: showBoards });
+  const { createBoard, deleteBoard } = useBoards({ enabled: true });
 
   const createEmptyDoc = useMutation({
     mutationFn: async () => {
@@ -502,7 +502,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
         </DropdownMenuContent>
       </DropdownMenu>
     ),
-    [showDocs, showBoards, handleCreateDoc, handleCreateBoard, handleCreateWhiteboard, navigate]
+    [handleCreateDoc, handleCreateBoard, handleCreateWhiteboard, navigate]
   );
 
   return (
