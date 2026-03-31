@@ -140,8 +140,11 @@ Theme tokens: **Colors** (`bg-primary-500`, `text-foreground`, `bg-background`),
 - **Opportunistic migration**: Convert CSS to Tailwind when touching files. New features use Tailwind exclusively.
 
 #### Theme & Dark Mode
-- Dark mode: `[data-theme="dark"]` attribute. Always test both modes.
+- Dark mode: `[data-theme="dark"]` attribute on `<html>`. Toggled by `useDarkMode.ts`. Always test both modes.
 - **Use semantic tokens**: `text-foreground` (not `text-grey-800 dark:text-grey-100`), `text-foreground-heading`, `bg-background`, `bg-background-alt`, `bg-background-pure`.
+- **Color token architecture**: All color values live in `variables.css` as `-val` CSS variables with light/dark pairs. `@theme` in `index.css` is a pure mapping layer (`--color-card: var(--color-card-val)`). Never hardcode hex values in `@theme`.
+- **`@layer` ordering matters**: `base < legacy < components < utilities`. Package CSS with `:root` variable defaults must import into `layer(legacy)`, not `layer(components)` — layers beat specificity, so a higher layer always wins regardless of `[data-theme="dark"]` selectors.
+- **Tailwind `dark:` variant**: Configured via `@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *))` in `index.css`. For gradients, always add `dark:from-*` explicitly — Tailwind gradient stops need re-declaration in the dark context.
 
 #### CSS Variable Names — Do NOT Invent Variables
 
