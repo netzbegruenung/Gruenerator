@@ -45,6 +45,7 @@ import {
   FiPlus,
   FiSearch,
   FiUpload,
+  FiUsers,
   FiX,
   FiZap,
 } from 'react-icons/fi';
@@ -54,6 +55,7 @@ import { useNavigate } from 'react-router-dom';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import { getBoardTemplate } from '../boards/boardTemplates';
 import { useBoards } from '../boards/hooks/useBoards';
 
 import { BoardCard } from './BoardCard';
@@ -61,6 +63,7 @@ import { webAppDocsAdapter } from './docsAdapter';
 import { DocumentCard } from './DocumentCard';
 import { PresentationCard } from './PresentationCard';
 import { webAppSlidesAdapter } from './slidesAdapter';
+import { TemplateCarousel } from './TemplateCarousel';
 
 import type { Board } from '../boards/types';
 
@@ -201,6 +204,7 @@ type UnifiedItem =
         content?: string;
         access_type?: string;
         creator_name?: string;
+        group_shares?: Array<{ group_id: string; group_name: string }>;
       };
       sortKey: number;
     }
@@ -313,43 +317,73 @@ function DocumentsContent() {
 
   const isLoading = docsLoading || boardsLoading || presentationsLoading;
 
-  const unifiedItems = useMemo(() => {
-    const items: UnifiedItem[] = [];
+  const { personalItems, groupDocsByGroup, hasAnyItems } = useMemo(() => {
+    const query = deferredSearch.trim().toLowerCase();
+    const matchesSearch = (title: string) => !query || title.toLowerCase().includes(query);
+
+    const personal: UnifiedItem[] = [];
+    const groupMap = new Map<string, { groupName: string; docs: UnifiedItem[] }>();
 
     for (const doc of documents) {
-      items.push({
-        kind: 'document',
-        data: doc,
-        sortKey: new Date(doc.updated_at).getTime(),
-      });
+      if (!matchesSearch(doc.title)) continue;
+
+      if (doc.access_type === 'group' && doc.group_shares?.length) {
+        for (const gs of doc.group_shares) {
+          let entry = groupMap.get(gs.group_id);
+          if (!entry) {
+            entry = { groupName: gs.group_name, docs: [] };
+            groupMap.set(gs.group_id, entry);
+          }
+          entry.docs.push({
+            kind: 'document',
+            data: doc,
+            sortKey: new Date(doc.updated_at).getTime(),
+          });
+        }
+      } else {
+        personal.push({
+          kind: 'document',
+          data: doc,
+          sortKey: new Date(doc.updated_at).getTime(),
+        });
+      }
     }
+
     for (const pres of presentations) {
-      items.push({
+      if (!matchesSearch(pres.title)) continue;
+      personal.push({
         kind: 'presentation',
         data: pres,
         sortKey: new Date(pres.updatedAt).getTime(),
       });
     }
+
     for (const board of boards) {
-      items.push({
+      if (!matchesSearch(board.title)) continue;
+      personal.push({
         kind: 'board',
         data: board,
         sortKey: new Date(board.updated_at).getTime(),
       });
     }
 
-    items.sort((a, b) => b.sortKey - a.sortKey);
-    return items;
-  }, [documents, presentations, boards]);
+    personal.sort((a, b) => b.sortKey - a.sortKey);
 
-  const filteredItems = useMemo(() => {
-    if (!deferredSearch.trim()) return unifiedItems;
-    const query = deferredSearch.trim().toLowerCase();
-    return unifiedItems.filter((item) => {
-      const title = item.data.title;
-      return title.toLowerCase().includes(query);
-    });
-  }, [unifiedItems, deferredSearch]);
+    const sortedGroups = Array.from(groupMap.entries()).sort(([, a], [, b]) =>
+      a.groupName.localeCompare(b.groupName, 'de')
+    );
+    for (const [, group] of sortedGroups) {
+      group.docs.sort((a, b) => b.sortKey - a.sortKey);
+    }
+
+    return {
+      personalItems: personal,
+      groupDocsByGroup: sortedGroups,
+      hasAnyItems: documents.length > 0 || presentations.length > 0 || boards.length > 0,
+    };
+  }, [documents, presentations, boards, deferredSearch]);
+
+  const hasFilteredResults = personalItems.length > 0 || groupDocsByGroup.length > 0;
 
   const handleTemplateSelect = useCallback(
     async (templateType: TemplateType) => {
@@ -462,6 +496,23 @@ function DocumentsContent() {
     [createBoard, navigate]
   );
 
+  const handleCreateBoardFromTemplate = useCallback(
+    (templateId: string) => {
+      const template = getBoardTemplate(templateId);
+      if (!template) return;
+      createBoard.mutate(
+        { title: template.defaultTitle, boardType: 'kanban' },
+        {
+          onSuccess: (board) =>
+            navigate(`/boards/${board.id}`, {
+              state: { generatedStructure: template.structure },
+            }),
+        }
+      );
+    },
+    [createBoard, navigate]
+  );
+
   if (showGenerateSlides) {
     return (
       <GenerateSlidesForm
@@ -510,6 +561,13 @@ function DocumentsContent() {
       </div>
 
       <main>
+        <TemplateCarousel
+          onTemplateSelect={handleTemplateSelect}
+          onShowGallery={() => setShowGallery(true)}
+          onCreateBoardFromTemplate={handleCreateBoardFromTemplate}
+          onCreateWhiteboard={() => handleCreateBoard('whiteboard')}
+        />
+
         {isLoading ? (
           <CardGrid columns="auto" gap="md">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -521,7 +579,7 @@ function DocumentsContent() {
           </CardGrid>
         ) : docsError ? (
           <p className="py-12 text-center text-red-600 dark:text-red-400">{docsError.message}</p>
-        ) : unifiedItems.length === 0 ? (
+        ) : !hasAnyItems ? (
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-grey-500 dark:text-grey-400">
             <FiFile size={40} className="text-grey-300 dark:text-grey-600" />
             <p className="text-[0.9375rem]">Noch keine Inhalte vorhanden.</p>
@@ -530,43 +588,71 @@ function DocumentsContent() {
               Erstes Dokument erstellen
             </Button>
           </div>
-        ) : filteredItems.length === 0 ? (
+        ) : !hasFilteredResults ? (
           <p className="py-12 text-center text-grey-500 dark:text-grey-400">
             Keine Ergebnisse gefunden.
           </p>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
-            {filteredItems.map((item) => {
-              if (item.kind === 'document')
-                return (
-                  <DocumentCard
-                    key={`doc-${item.data.id}`}
-                    doc={item.data}
-                    adapter={adapter}
-                    onDelete={handleDeleteDoc}
-                    onRename={handleRenameDoc}
-                    onShare={setShareDoc}
-                  />
-                );
-              if (item.kind === 'presentation')
-                return (
-                  <PresentationCard
-                    key={`pres-${item.data.id}`}
-                    presentation={item.data}
-                    onDelete={handleDeletePresentation}
-                    onRename={handleRenamePresentation}
-                  />
-                );
-              return (
-                <BoardCard
-                  key={`board-${item.data.id}`}
-                  board={item.data}
-                  onDelete={handleDeleteBoard}
-                  onRename={handleRenameBoard}
-                />
-              );
-            })}
-          </div>
+          <>
+            {personalItems.length > 0 && (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
+                {personalItems.map((item) => {
+                  if (item.kind === 'document')
+                    return (
+                      <DocumentCard
+                        key={`doc-${item.data.id}`}
+                        doc={item.data}
+                        adapter={adapter}
+                        onDelete={handleDeleteDoc}
+                        onRename={handleRenameDoc}
+                        onShare={setShareDoc}
+                      />
+                    );
+                  if (item.kind === 'presentation')
+                    return (
+                      <PresentationCard
+                        key={`pres-${item.data.id}`}
+                        presentation={item.data}
+                        onDelete={handleDeletePresentation}
+                        onRename={handleRenamePresentation}
+                      />
+                    );
+                  return (
+                    <BoardCard
+                      key={`board-${item.data.id}`}
+                      board={item.data}
+                      onDelete={handleDeleteBoard}
+                      onRename={handleRenameBoard}
+                    />
+                  );
+                })}
+              </div>
+            )}
+
+            {groupDocsByGroup.map(([groupId, { groupName, docs }]) => (
+              <div key={groupId} className="mt-xl">
+                <h2 className="mb-sm flex items-center gap-xs text-sm font-medium text-grey-500 dark:text-grey-400">
+                  <FiUsers size={14} />
+                  {groupName}
+                </h2>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
+                  {docs.map((item) => {
+                    if (item.kind !== 'document') return null;
+                    return (
+                      <DocumentCard
+                        key={`doc-${item.data.id}-${groupId}`}
+                        doc={item.data}
+                        adapter={adapter}
+                        onDelete={handleDeleteDoc}
+                        onRename={handleRenameDoc}
+                        onShare={setShareDoc}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </>
         )}
       </main>
 
