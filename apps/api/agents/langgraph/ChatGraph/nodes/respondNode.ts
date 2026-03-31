@@ -203,7 +203,10 @@ async function formatSearchContext(state: ChatGraphState): Promise<string> {
   }
 
   // Default: budget-based truncation
-  const topResults = state.searchResults.slice(0, MAX_SEARCH_RESULTS);
+  // Notebook-scoped searches get more results and higher budget for deeper answers
+  const isNotebookScoped = (state.notebookCollectionIds?.length ?? 0) > 0;
+  const maxResults = isNotebookScoped ? 12 : MAX_SEARCH_RESULTS;
+  const topResults = state.searchResults.slice(0, maxResults);
 
   // Document chat gets the highest budget for focused Q&A
   const isDocumentChat = state.documentChatIds?.length > 0;
@@ -213,9 +216,11 @@ async function formatSearchContext(state: ChatGraphState): Promise<string> {
   const isMultiSource = (state.searchSources?.length || 0) > 1;
   const budget = isDocumentChat
     ? SEARCH_CONTEXT_BUDGET_DOCUMENTCHAT
-    : hasCrawledContent || isMultiSource
-      ? SEARCH_CONTEXT_BUDGET_CRAWLED
-      : SEARCH_CONTEXT_BUDGET;
+    : isNotebookScoped
+      ? SEARCH_CONTEXT_BUDGET_DOCUMENTCHAT
+      : hasCrawledContent || isMultiSource
+        ? SEARCH_CONTEXT_BUDGET_CRAWLED
+        : SEARCH_CONTEXT_BUDGET;
 
   // Crawled results get 2x weight in budget allocation
   const weightedRelevance = topResults.map((r) => {

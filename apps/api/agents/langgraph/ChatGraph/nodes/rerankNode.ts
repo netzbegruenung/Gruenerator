@@ -52,13 +52,18 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
   const startTime = Date.now();
   const { searchResults, searchQuery, aiWorkerPool, hasTemporal } = state;
 
+  // Notebook-scoped searches get higher limits for deeper recall
+  const isNotebookScoped = (state.notebookCollectionIds?.length ?? 0) > 0;
+  const inputLimit = isNotebookScoped ? 20 : RERANK_INPUT_LIMIT;
+  const outputLimit = isNotebookScoped ? 12 : RERANK_OUTPUT_LIMIT;
+
   // Skip reranking if too few results
   if (searchResults.length <= 3) {
     log.info(`[Rerank] Skipping — only ${searchResults.length} results`);
     return { rerankTimeMs: Date.now() - startTime };
   }
 
-  const candidates = searchResults.slice(0, RERANK_INPUT_LIMIT);
+  const candidates = searchResults.slice(0, inputLimit);
 
   log.info(
     `[Rerank] Reranking ${candidates.length} results for query: "${searchQuery?.slice(0, 50)}..."`
@@ -115,7 +120,7 @@ ${passageList}`;
     // B3: Apply MMR diversity reranking as second pass
     // Keep top 2 results unchanged, apply diversity for positions 3+
     const diverse = filtered.length > 3 ? applyMMR(filtered, 0.7, 2) : filtered;
-    const reranked = diverse.slice(0, RERANK_OUTPUT_LIMIT);
+    const reranked = diverse.slice(0, outputLimit);
 
     log.info(
       `[Rerank] Complete: ${candidates.length} → ${reranked.length} results (diversity applied) in ${rerankTimeMs}ms`
