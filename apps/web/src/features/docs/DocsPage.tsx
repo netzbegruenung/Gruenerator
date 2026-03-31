@@ -120,12 +120,12 @@ const CreateNewMenu = memo(function CreateNewMenu({
         Aus Wolke importieren…
       </DropdownMenuItem>
       <DropdownMenuSeparator />
-      <DropdownMenuLabel>Präsentation</DropdownMenuLabel>
+      {/* <DropdownMenuLabel>Präsentation</DropdownMenuLabel>
       <DropdownMenuItem onClick={onShowGenerateSlides}>
         <FiZap size={16} />
         KI-Präsentation erstellen
       </DropdownMenuItem>
-      <DropdownMenuSeparator />
+      <DropdownMenuSeparator /> */}
       <DropdownMenuLabel>Board</DropdownMenuLabel>
       <DropdownMenuItem onClick={() => onCreateBoard('kanban')}>
         <PiKanban size={16} />
@@ -154,11 +154,11 @@ const CreateNewMenu = memo(function CreateNewMenu({
           Aus Wolke importieren…
         </ResponsiveMenuItem>
       </ResponsiveMenuSection>
-      <ResponsiveMenuSection title="Präsentation">
+      {/* <ResponsiveMenuSection title="Präsentation">
         <ResponsiveMenuItem icon={<FiZap size={16} />} onClick={onShowGenerateSlides}>
           KI-Präsentation erstellen
         </ResponsiveMenuItem>
-      </ResponsiveMenuSection>
+      </ResponsiveMenuSection> */}
       <ResponsiveMenuSection title="Board">
         <ResponsiveMenuItem icon={<PiKanban size={16} />} onClick={() => onCreateBoard('kanban')}>
           Neues Board
@@ -477,43 +477,41 @@ function DocumentsContent() {
   return (
     <>
       <div className="mb-md mt-md">
-        <div className="flex flex-wrap items-center justify-between gap-sm mb-md">
+        <div className="flex items-center justify-between gap-sm mb-md">
           <h1 className="m-0 text-2xl font-semibold text-foreground-heading font-[Raleway,PT_Sans,Arial,sans-serif]">
             Dokumente
           </h1>
-
-          <div className="flex items-center gap-2">
-            <div className="relative w-full sm:w-auto sm:min-w-[300px] md:min-w-[400px]">
-              <FiSearch
-                size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-grey-400"
-              />
-              <input
-                type="text"
-                placeholder="Durchsuchen…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-full border border-grey-200 bg-grey-50 py-2 pl-9 pr-9 text-sm outline-none transition-colors placeholder:text-grey-400 focus:border-secondary-600 focus:ring-1 focus:ring-secondary-600/30 dark:border-grey-700 dark:bg-grey-800 dark:focus:border-secondary-600"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  aria-label="Suche zurücksetzen"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-grey-400 hover:bg-grey-100 hover:text-grey-600 dark:hover:bg-grey-800"
-                >
-                  <FiX size={14} />
-                </button>
-              )}
-            </div>
-
-            <CreateNewMenu
-              onTemplateSelect={handleTemplateSelect}
-              onShowGallery={() => setShowGallery(true)}
-              onShowImportDialog={() => setShowImportDialog(true)}
-              onShowWolkeImport={() => setShowWolkeImport(true)}
-              onShowGenerateSlides={() => setShowGenerateSlides(true)}
-              onCreateBoard={handleCreateBoard}
+          <CreateNewMenu
+            onTemplateSelect={handleTemplateSelect}
+            onShowGallery={() => setShowGallery(true)}
+            onShowImportDialog={() => setShowImportDialog(true)}
+            onShowWolkeImport={() => setShowWolkeImport(true)}
+            onShowGenerateSlides={() => setShowGenerateSlides(true)}
+            onCreateBoard={handleCreateBoard}
+          />
+        </div>
+        <div className="mx-auto w-full max-w-[500px]">
+          <div className="relative">
+            <FiSearch
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-grey-400"
             />
+            <input
+              type="text"
+              placeholder="Durchsuchen…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-full border border-grey-200 bg-grey-50 py-2 pl-9 pr-9 text-sm outline-none transition-colors placeholder:text-grey-400 focus:border-secondary-600 focus:ring-1 focus:ring-secondary-600/30 dark:border-grey-700 dark:bg-grey-800 dark:focus:border-secondary-600"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                aria-label="Suche zurücksetzen"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-grey-400 hover:bg-grey-100 hover:text-grey-600 dark:hover:bg-grey-800"
+              >
+                <FiX size={14} />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -615,7 +613,7 @@ function DocumentsContent() {
 
 const DocsPage = () => (
   <ErrorBoundary>
-    <PageContainer maxWidth="lg">
+    <PageContainer maxWidth="lg" noPadTop>
       <DocsProvider adapter={webAppDocsAdapter}>
         <SlidesProvider adapter={webAppSlidesAdapter}>
           <DocumentsContent />
@@ -626,7 +624,7 @@ const DocsPage = () => (
 );
 
 const DocsPageFallback = () => (
-  <PageContainer maxWidth="lg">
+  <PageContainer maxWidth="lg" noPadTop>
     <div className="mb-md">
       <h1 className="m-0 text-2xl font-semibold text-foreground-heading font-[Raleway,PT_Sans,Arial,sans-serif]">
         Dokumente

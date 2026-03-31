@@ -14,6 +14,7 @@ interface PageContainerProps {
   subtitle?: string;
   maxWidth?: keyof typeof MAX_WIDTH;
   gradient?: boolean;
+  noPadTop?: boolean;
   className?: string;
 }
 
@@ -23,6 +24,7 @@ export default function PageContainer({
   subtitle,
   maxWidth = 'lg',
   gradient = true,
+  noPadTop = false,
   className,
 }: PageContainerProps) {
   return (
@@ -34,7 +36,8 @@ export default function PageContainer({
     >
       <div
         className={cn(
-          'w-full mx-auto pt-[60px] px-lg pb-xl max-md:pt-lg max-md:px-md',
+          'w-full mx-auto px-lg pb-xl max-md:px-md',
+          noPadTop ? 'pt-8 max-md:pt-sm' : 'pt-[60px] max-md:pt-lg',
           MAX_WIDTH[maxWidth],
           className
         )}
