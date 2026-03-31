@@ -11,7 +11,6 @@ import {
 } from 'react-icons/fa';
 import { FaFileWord } from 'react-icons/fa6';
 import { FiUpload, FiFile, FiX, FiFileText, FiCheck } from 'react-icons/fi';
-import { GiHedgehog } from 'react-icons/gi';
 import {
   HiInformationCircle,
   HiOutlineTrash,
@@ -32,6 +31,7 @@ import {
   HiSparkles,
   HiVolumeUp,
   HiVolumeOff,
+  HiOutlineDocumentText,
 } from 'react-icons/hi';
 import {
   IoDownloadOutline,
@@ -60,7 +60,6 @@ import {
   PiPaintBrush,
   PiArticle,
   PiSquaresFour,
-  PiHouse,
   PiScan,
   PiChatCircle,
   PiDesktop,
@@ -69,6 +68,7 @@ import {
 import { RiMagicLine, RiRobot3Line } from 'react-icons/ri';
 
 import GrueneratorGPTIcon from '../components/common/GrueneratorGPTIcon';
+import GrueneratorHomeIcon from '../components/icons/GrueneratorHomeIcon';
 
 import type { ComponentType } from 'react';
 import type { IconBaseProps } from 'react-icons';
@@ -125,7 +125,6 @@ export type NavigationIconName =
   | 'antrag'
   | 'presse-social'
   | 'universal'
-  | 'gruene-jugend'
   | 'suche'
   | 'reel'
   | 'sharepic'
@@ -242,7 +241,6 @@ export const ICONS: IconRegistry = {
     antrag: PiFileText,
     'presse-social': PiNewspaper,
     universal: PiSquaresFour,
-    'gruene-jugend': GiHedgehog,
     suche: PiMagnifyingGlass,
     reel: PiVideoCamera,
     sharepic: PiImageSquare,
@@ -254,10 +252,10 @@ export const ICONS: IconRegistry = {
     imagine: RiMagicLine,
     texte: PiArticle,
     eigene: PiWrench,
-    home: PiHouse,
+    home: GrueneratorHomeIcon,
     scanner: PiScan,
     messenger: PiChatCircle,
-    docs: CiMemoPad,
+    docs: HiOutlineDocumentText,
     boards: PiSquaresFour,
     gruppen: HiUserGroup,
     notebooks: FaBook,

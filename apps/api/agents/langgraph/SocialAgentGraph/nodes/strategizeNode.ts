@@ -67,7 +67,10 @@ Schreibe überwiegend als Fließtext. Nutze Markdown sparsam — nur einzelne **
     const strategy = aiResult.content || aiResult.data?.content || '';
 
     const strategyTimeMs = Date.now() - startTime;
-    log.debug(`[strategizeNode] Strategy generated in ${strategyTimeMs}ms`);
+    log.debug(
+      `[strategizeNode] Strategy generated in ${strategyTimeMs}ms, ` +
+        `length=${strategy.length}, preview="${strategy.substring(0, 200)}"`
+    );
 
     return {
       strategy,

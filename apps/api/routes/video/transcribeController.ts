@@ -1,7 +1,7 @@
 /**
  * Video Transcription Controller
  *
- * Provides speech-to-text via Gladia for the video editor.
+ * Provides speech-to-text via Regolo/Voxtral for the video editor.
  * Downloads media from URL, transcribes with word timestamps,
  * and returns results in the format expected by @designcombo/captions.
  */

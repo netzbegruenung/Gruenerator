@@ -177,7 +177,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
         id: 'berlin-system',
         name: 'Grüne Berlin',
         icon: HiDocumentText,
-        description: 'Pressemitteilungen und Beschlüsse',
+        description: 'Wahlprogramm 2026, Pressemitteilungen und Beschlüsse',
         documentCount: 'Archiv',
         externalUrl: 'https://gruene.berlin',
         linkType: 'url',
@@ -434,14 +434,16 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collections: [{ id: 'berlin-system', name: 'Grüne Berlin' }],
     startPageTitle: 'Was möchtest du über die Grünen Berlin wissen?',
     placeholder: 'Stell deine Frage zu Beschlüssen und Positionen der Grünen Berlin...',
-    infoPanelDescription: 'Durchsuchbar sind Pressemitteilungen und Beschlüsse der Grünen Berlin.',
+    infoPanelDescription:
+      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und das Wahlprogramm 2026 der Grünen Berlin.',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
       { icon: '🌍', text: 'Was sagen die Grünen Berlin zum Klimaschutz?' },
       { icon: '🚲', text: 'Welche Positionen gibt es zur Mobilitätswende?' },
-      { icon: '🏙️', text: 'Was sind die Beschlüsse zur Stadtentwicklung?' },
+      { icon: '📋', text: 'Was steht im Wahlprogramm zur Stadtentwicklung?' },
     ],
     documents: [
+      { title: 'Wahlprogramm 2026', detail: '6 Kapitel' },
       { title: 'Pressemitteilungen', detail: 'Aktuelle Positionen' },
       { title: 'Beschlüsse', detail: 'Parteitagsbeschlüsse' },
     ],
@@ -489,7 +491,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     startPageTitle: 'Was möchtest du über die Grünen Brandenburg wissen?',
     placeholder: 'Stell deine Frage zu Beschlüssen und Positionen der Grünen Brandenburg...',
     infoPanelDescription:
-      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und Wahlprogramme der Grünen Brandenburg.',
+      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und das Landtagswahlprogramm 2024 der Grünen Brandenburg.',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
       { icon: '🌍', text: 'Was sagen die Grünen Brandenburg zum Klimaschutz?' },
@@ -499,7 +501,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     documents: [
       { title: 'Pressemitteilungen', detail: 'Aktuelle und archivierte PMs' },
       { title: 'Beschlüsse', detail: 'Parteitagsbeschlüsse' },
-      { title: 'Wahlprogramme', detail: 'Landtags- und Kommunalwahlen' },
+      { title: 'Landtagswahlprogramm 2024', detail: 'Wahlprogramm zur Landtagswahl' },
     ],
     externalUrl: 'https://gruene-brandenburg.de',
     sources: [{ name: 'Grüne Brandenburg', count: 'Archiv' }],

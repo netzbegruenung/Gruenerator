@@ -1,6 +1,6 @@
 import { useState } from 'react';
+import { Button, cn } from '@gruenerator/ui';
 import { templates, type TemplateType } from '../../lib/templates';
-import './TemplatePicker.css';
 
 interface TemplatePickerProps {
   onSelect: (type: TemplateType) => void;
@@ -25,34 +25,44 @@ export const TemplatePicker = ({ onSelect, onClose }: TemplatePickerProps) => {
   };
 
   return (
-    <div className="template-picker-overlay" onClick={handleOverlayClick}>
-      <div className="template-picker-panel">
-        <div className="template-picker-header">
-          <h2>Dokumentvorlage wählen</h2>
+    <div
+      className="fixed inset-0 bg-black/50 flex justify-center items-center z-[1000]"
+      onClick={handleOverlayClick}
+    >
+      <div className="w-[90%] max-w-[640px] max-h-[80vh] bg-background dark:border dark:border-grey-700 shadow-lg rounded-xl flex flex-col overflow-hidden">
+        <div className="p-lg border-b border-grey-200 dark:border-grey-700">
+          <h2 className="text-xl font-semibold text-foreground m-0">Dokumentvorlage wählen</h2>
         </div>
 
-        <div className="template-picker-grid">
+        <div className="p-lg grid grid-cols-2 sm:grid-cols-3 gap-md overflow-y-auto">
           {templates.map((template) => (
             <button
               key={template.id}
-              className={`template-card ${selected === template.id ? 'selected' : ''}`}
+              className={cn(
+                'flex flex-col items-start gap-1 p-md bg-background border-2 border-grey-200 dark:border-grey-600 rounded-lg cursor-pointer transition-[border-color,box-shadow] duration-150 ease-out text-left font-[inherit] hover:border-grey-400 hover:shadow-sm',
+                selected === template.id && 'border-secondary-600 ring-1 ring-secondary-600'
+              )}
               onClick={() => handleCardClick(template.id)}
               onDoubleClick={() => handleCardDoubleClick(template.id)}
             >
-              <span className="template-card-icon">{template.icon}</span>
-              <span className="template-card-name">{template.name}</span>
-              <span className="template-card-description">{template.description}</span>
+              <span className="text-[1.75rem] leading-none mb-1">{template.icon}</span>
+              <span className="text-[0.9375rem] font-semibold text-foreground">
+                {template.name}
+              </span>
+              <span className="text-[0.8125rem] text-grey-500 leading-snug">
+                {template.description}
+              </span>
             </button>
           ))}
         </div>
 
-        <div className="template-picker-footer">
-          <button className="template-picker-btn cancel" onClick={onClose}>
+        <div className="flex justify-end gap-sm p-lg border-t border-grey-200 dark:border-grey-700">
+          <Button variant="outline" onClick={onClose}>
             Abbrechen
-          </button>
-          <button className="template-picker-btn confirm" onClick={() => onSelect(selected)}>
+          </Button>
+          <Button variant="brand" onClick={() => onSelect(selected)}>
             Erstellen
-          </button>
+          </Button>
         </div>
       </div>
     </div>

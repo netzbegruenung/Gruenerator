@@ -22,9 +22,12 @@ const imageCounter = new ImageGenerationCounter(redisClient as any);
 
 type PureImageVariant = 'illustration-pure' | 'realistic-pure' | 'pixel-pure' | 'editorial-pure';
 
+type ImageBackend = 'hosted' | 'regolo' | 'ionos';
+
 interface ImaginePureRequestBody {
   prompt: string;
   variant?: PureImageVariant;
+  backend?: ImageBackend;
   seed?: number;
   width?: number;
   height?: number;
@@ -105,7 +108,7 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
     }
 
     const body = req.body as ImaginePureRequestBody;
-    const { prompt, variant = 'illustration-pure', seed, width, height } = body;
+    const { prompt, variant = 'illustration-pure', backend, seed, width, height } = body;
 
     if (!prompt || typeof prompt !== 'string' || prompt.trim().length < 5) {
       return res.status(400).json({
@@ -160,7 +163,9 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       `[ImaginePure] Calling FLUX API with dimensions ${dimensions.width}x${dimensions.height}${width && height ? ' (custom)' : ' (variant default)'}`
     );
 
-    const flux = await FluxImageService.create();
+    const validBackends: ImageBackend[] = ['hosted', 'regolo', 'ionos'];
+    const selectedBackend = backend && validBackends.includes(backend) ? backend : undefined;
+    const flux = await FluxImageService.create(selectedBackend);
     const fluxOptions: {
       width: number;
       height: number;

@@ -1,5 +1,14 @@
 import React from 'react';
 
+function escapeSvgAttr(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/'/g, '&#39;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 export type RemoteSvgOptions = {
   strokeColor?: string;
   fillColor?: string;
@@ -124,9 +133,9 @@ export function useRemoteSvgIcon(url?: string, options: RemoteSvgOptions = {}) {
     async function run() {
       if (!url) {
         // build simple fallback svg
-        const stroke = options.strokeColor || 'currentColor';
-        const fill = options.fillColor ?? 'none';
-        const cls = options.className ? ` class=\"${options.className}\"` : '';
+        const stroke = escapeSvgAttr(options.strokeColor || 'currentColor');
+        const fill = escapeSvgAttr(options.fillColor ?? 'none');
+        const cls = options.className ? ` class="${escapeSvgAttr(options.className)}"` : '';
         setSvgMarkup(
           `<svg${cls} xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' stroke='${stroke}' fill='${fill}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10' fill='currentColor' opacity='0.12'></circle><path d='M8 12l3 3 5-6' fill='none'></path></svg>`
         );
@@ -134,9 +143,9 @@ export function useRemoteSvgIcon(url?: string, options: RemoteSvgOptions = {}) {
       }
       // non-svg extensions fallback
       if (/\.(png|jpe?g|gif|webp)(?:\?|$)/i.test(url)) {
-        const stroke = options.strokeColor || 'currentColor';
-        const fill = options.fillColor ?? 'none';
-        const cls = options.className ? ` class=\"${options.className}\"` : '';
+        const stroke = escapeSvgAttr(options.strokeColor || 'currentColor');
+        const fill = escapeSvgAttr(options.fillColor ?? 'none');
+        const cls = options.className ? ` class="${escapeSvgAttr(options.className)}"` : '';
         setSvgMarkup(
           `<svg${cls} xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' stroke='${stroke}' fill='${fill}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10' fill='currentColor' opacity='0.12'></circle><path d='M8 12l3 3 5-6' fill='none'></path></svg>`
         );
@@ -169,9 +178,9 @@ export function useRemoteSvgIcon(url?: string, options: RemoteSvgOptions = {}) {
       } catch (e: any) {
         if (cancelled) return;
         setError(e?.message || 'Failed to load SVG');
-        const stroke = options.strokeColor || 'currentColor';
-        const fill = options.fillColor ?? 'none';
-        const cls = options.className ? ` class=\"${options.className}\"` : '';
+        const stroke = escapeSvgAttr(options.strokeColor || 'currentColor');
+        const fill = escapeSvgAttr(options.fillColor ?? 'none');
+        const cls = options.className ? ` class="${escapeSvgAttr(options.className)}"` : '';
         setSvgMarkup(
           `<svg${cls} xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' stroke='${stroke}' fill='${fill}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10' fill='currentColor' opacity='0.12'></circle><path d='M8 12l3 3 5-6' fill='none'></path></svg>`
         );

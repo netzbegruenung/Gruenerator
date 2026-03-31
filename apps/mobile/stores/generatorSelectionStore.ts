@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 
-export type AIMode = 'kreativ' | 'privacy' | 'pro' | 'ultra';
+export type AIMode = 'kreativ' | 'privacy' | 'pro';
 
 export interface AttachedFile {
   id: string;
@@ -16,8 +16,6 @@ interface GeneratorSelectionState {
   useWebSearch: boolean;
   usePrivacyMode: boolean;
   useProMode: boolean;
-  useUltraMode: boolean;
-  useAutomaticSearch: boolean;
   selectedDocumentIds: string[];
   selectedTextIds: string[];
   attachedFiles: AttachedFile[];
@@ -29,8 +27,6 @@ interface GeneratorSelectionActions {
   toggleWebSearch: () => void;
   togglePrivacyMode: () => void;
   toggleProMode: () => void;
-  toggleUltraMode: () => void;
-  toggleAutomaticSearch: () => void;
   setAIMode: (mode: AIMode) => void;
   getCurrentAIMode: () => AIMode;
   toggleDocumentSelection: (documentId: string) => void;
@@ -49,8 +45,6 @@ interface FeatureState {
   useWebSearchTool: boolean;
   usePrivacyMode: boolean;
   useProMode: boolean;
-  useUltraMode: boolean;
-  useAutomaticSearch: boolean;
   selectedDocumentIds: string[];
   selectedTextIds: string[];
   attachedFiles: AttachedFile[];
@@ -62,8 +56,6 @@ const initialState: GeneratorSelectionState = {
   useWebSearch: false,
   usePrivacyMode: false,
   useProMode: false,
-  useUltraMode: false,
-  useAutomaticSearch: false,
   selectedDocumentIds: [],
   selectedTextIds: [],
   attachedFiles: [],
@@ -85,7 +77,6 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
         state.usePrivacyMode = !state.usePrivacyMode;
         if (state.usePrivacyMode) {
           state.useProMode = false;
-          state.useUltraMode = false;
         }
       }),
 
@@ -94,25 +85,6 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
         state.useProMode = !state.useProMode;
         if (state.useProMode) {
           state.usePrivacyMode = false;
-          state.useUltraMode = false;
-        }
-      }),
-
-    toggleUltraMode: () =>
-      set((state) => {
-        state.useUltraMode = !state.useUltraMode;
-        if (state.useUltraMode) {
-          state.usePrivacyMode = false;
-          state.useProMode = false;
-        }
-      }),
-
-    toggleAutomaticSearch: () =>
-      set((state) => {
-        state.useAutomaticSearch = !state.useAutomaticSearch;
-        if (state.useAutomaticSearch) {
-          state.selectedDocumentIds = [];
-          state.selectedTextIds = [];
         }
       }),
 
@@ -120,12 +92,10 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
       set((state) => {
         state.usePrivacyMode = mode === 'privacy';
         state.useProMode = mode === 'pro';
-        state.useUltraMode = mode === 'ultra';
       }),
 
     getCurrentAIMode: (): AIMode => {
       const state = get();
-      if (state.useUltraMode) return 'ultra';
       if (state.useProMode) return 'pro';
       if (state.usePrivacyMode) return 'privacy';
       return 'kreativ';
@@ -139,9 +109,6 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
         } else {
           state.selectedDocumentIds.push(documentId);
         }
-        if (state.useAutomaticSearch) {
-          state.useAutomaticSearch = false;
-        }
       }),
 
     toggleTextSelection: (textId: string) =>
@@ -152,17 +119,11 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
         } else {
           state.selectedTextIds.push(textId);
         }
-        if (state.useAutomaticSearch) {
-          state.useAutomaticSearch = false;
-        }
       }),
 
     addAttachedFile: (file: AttachedFile) =>
       set((state) => {
         state.attachedFiles.push(file);
-        if (state.useAutomaticSearch) {
-          state.useAutomaticSearch = false;
-        }
       }),
 
     removeAttachedFile: (fileId: string) =>
@@ -191,8 +152,6 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
         useWebSearchTool: state.useWebSearch,
         usePrivacyMode: state.usePrivacyMode,
         useProMode: state.useProMode,
-        useUltraMode: state.useUltraMode,
-        useAutomaticSearch: state.useAutomaticSearch,
         selectedDocumentIds: state.selectedDocumentIds,
         selectedTextIds: state.selectedTextIds,
         attachedFiles: state.attachedFiles,

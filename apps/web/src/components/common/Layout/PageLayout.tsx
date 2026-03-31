@@ -87,10 +87,14 @@ const PageLayout = ({
     );
   }
 
+  const isImmersive = layoutMode === 'immersive';
+  const isSidebarOnly = layoutMode === 'sidebarOnly';
+  const hideHeader = isImmersive || isSidebarOnly;
+
   const layoutClasses = [
     'app-layout',
     sidebarOpen ? 'sidebar-open' : '',
-    hideAppSidebar ? 'sidebar-hidden' : '',
+    hideAppSidebar || isImmersive ? 'sidebar-hidden' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -99,12 +103,14 @@ const PageLayout = ({
     'relative flex-1',
     layoutMode === 'fullscreen' && 'mt-0 min-h-0 overflow-hidden',
     layoutMode === 'immersive' && 'mt-0 min-h-0 overflow-y-auto',
+    layoutMode === 'sidebarOnly' && 'mt-0',
     layoutMode === 'default' && 'mt-lg'
   );
 
   const appContentClasses = cn(
     'app-content',
-    (layoutMode === 'fullscreen' || layoutMode === 'immersive') && 'flex flex-col h-dvh pt-12'
+    layoutMode === 'fullscreen' && 'flex flex-col h-dvh pt-12',
+    layoutMode === 'immersive' && 'flex flex-col h-dvh'
   );
 
   const showPageFooter = showFooter && isHomePage && layoutMode === 'default';
@@ -113,14 +119,22 @@ const PageLayout = ({
     <GlobalChatProvider>
       <GlobalBridges />
       <div className={layoutClasses}>
-        <header className="fixed top-0 left-0 right-0 z-[1002] flex items-center justify-between px-2 h-12 pointer-events-none">
-          <div className="pointer-events-auto">
-            <SidebarToggle />
+        {!hideHeader ? (
+          <header className="fixed top-0 left-0 right-0 z-[1002] flex items-center justify-between px-2 h-12 pointer-events-none">
+            <div className="pointer-events-auto">
+              <SidebarToggle />
+            </div>
+            <div className="pointer-events-auto flex items-center gap-1">
+              <ProfileButton />
+            </div>
+          </header>
+        ) : isSidebarOnly ? (
+          <div className="fixed top-0 left-0 z-[1002] px-2 h-12 flex items-center pointer-events-none">
+            <div className="pointer-events-auto">
+              <SidebarToggle />
+            </div>
           </div>
-          <div className="pointer-events-auto flex items-center gap-1">
-            <ProfileButton />
-          </div>
-        </header>
+        ) : null}
         <Sidebar />
         <div className={appContentClasses}>
           <main className={mainClasses}>{children}</main>

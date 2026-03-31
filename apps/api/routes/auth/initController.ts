@@ -3,6 +3,7 @@ import express, { type Response, type Router } from 'express';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { getProfileService } from '../../services/user/ProfileService.js';
 import { createLogger } from '../../utils/logger.js';
 import {
   fetchRecentDocs,
@@ -22,14 +23,15 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): P
   try {
     const userId = req.user!.id;
 
-    const [groups, savedTexts, notebookCollections, recentActivity] = await Promise.all([
+    const [groups, savedTexts, notebookCollections, recentActivity, profile] = await Promise.all([
       fetchGroups(userId),
       fetchSavedTexts(userId),
       fetchNotebookCollections(userId),
       fetchRecentActivity(userId),
+      fetchProfile(userId),
     ]);
 
-    res.json({ groups, savedTexts, notebookCollections, recentActivity });
+    res.json({ groups, savedTexts, notebookCollections, recentActivity, profile });
   } catch (error: any) {
     log.error('Failed to fetch init data:', error);
     res.status(500).json({ error: 'Failed to fetch init data' });
@@ -149,6 +151,21 @@ async function fetchNotebookCollections(userId: string): Promise<any[]> {
   } catch (error) {
     log.warn('Notebook collections fetch failed in init:', error);
     return [];
+  }
+}
+
+async function fetchProfile(userId: string): Promise<any> {
+  try {
+    const profileService = getProfileService();
+    const profile = await profileService.getProfileById(userId);
+    if (!profile) return null;
+    return {
+      ...profile,
+      is_sso_user: !!profile.keycloak_id,
+    };
+  } catch (error) {
+    log.warn('Profile fetch failed in init:', error);
+    return null;
   }
 }
 

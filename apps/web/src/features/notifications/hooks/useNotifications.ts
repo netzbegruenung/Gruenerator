@@ -35,7 +35,9 @@ export function useUnreadCount() {
       setUnreadCount(res.data.count);
       return res.data.count;
     },
-    refetchInterval: 60000,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    refetchOnMount: false,
   });
 }
 

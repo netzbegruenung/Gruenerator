@@ -138,14 +138,20 @@ async function convertMessages(
       // Handle documents and images
       const hasImages = content.some((c) => c.type === 'image' && c.source?.data);
       if (hasImages) {
-        const parts: Array<{ type: 'text'; text: string } | { type: 'image'; image: string }> = [];
+        const parts: Array<
+          { type: 'text'; text: string } | { type: 'image'; image: Buffer; mimeType: string }
+        > = [];
         for (const c of content) {
           if (c.type === 'text') {
             parts.push({ type: 'text', text: c.text || '' });
           } else if (c.type === 'image' && c.source?.data) {
             const mediaType = c.source.media_type || 'image/png';
             const base64Data = c.source.data.replace(/^data:image\/[^;]+;base64,/, '');
-            parts.push({ type: 'image', image: `data:${mediaType};base64,${base64Data}` });
+            parts.push({
+              type: 'image',
+              image: Buffer.from(base64Data, 'base64'),
+              mimeType: mediaType,
+            });
           }
         }
         modelMessages.push({ role: 'user', content: parts });

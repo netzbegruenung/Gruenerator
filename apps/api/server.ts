@@ -14,17 +14,14 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import compression from 'compression';
-import { RedisStore } from 'connect-redis';
 import cors from 'cors';
 import express, { type Express, type Request, type Response, type NextFunction } from 'express';
-import session from 'express-session';
 import helmet from 'helmet';
 import { isHttpError } from 'http-errors';
 import morgan from 'morgan';
 import multer from 'multer';
 
 import { createCorsOptions } from './config/cors.js';
-import passport from './config/passportSetup.js';
 import { getServerConfig } from './config/serverConfig.js';
 import { Sentry } from './lib/sentry.js';
 
@@ -272,18 +269,22 @@ async function startWorker(): Promise<void> {
     log.warn(`ProfileService init failed: ${err.message}`);
   }
 
-  // TUS Upload Handler — registered before compression and session middleware.
-  // @tus/server v2 uses srvx internally, which calls res.end(resolve) with a
-  // Promise resolver function. express-session's monkey-patched end() treats
-  // that function as data to write, causing a TypeError in compression's
-  // write(). Placing TUS routes here lets them use the raw, unwrapped response
-  // methods. TUS uploads are binary streams that don't benefit from compression
-  // and authenticate via upload ID, so no session middleware is needed.
+  // TUS Upload Handler — registered before compression middleware.
+  // TUS uploads are binary streams that don't benefit from compression
+  // and authenticate via upload ID.
   const tusUploadPath = '/api/subtitler/upload';
   app.all(tusUploadPath, (req: Request, res: Response) => {
     tusServer.handle(req, res);
   });
   app.all(tusUploadPath + '/*splat', (req: Request, res: Response) => {
+    tusServer.handle(req, res);
+  });
+
+  const audioUploadPath = '/api/audio/upload';
+  app.all(audioUploadPath, (req: Request, res: Response) => {
+    tusServer.handle(req, res);
+  });
+  app.all(audioUploadPath + '/*splat', (req: Request, res: Response) => {
     tusServer.handle(req, res);
   });
 
@@ -366,32 +367,11 @@ async function startWorker(): Promise<void> {
     log.error('Redis connection failed, sessions may not persist');
   }
 
-  // Session configuration
-  const sessionSecret = process.env.SESSION_SECRET || 'temporary-fallback-secret-for-mobile-only';
-  if (!process.env.SESSION_SECRET) {
-    log.warn('SESSION_SECRET not set - using temporary fallback');
-  }
-
-  app.use(
-    session({
-      store: new RedisStore({ client: redisClient }),
-      secret: sessionSecret,
-      resave: false,
-      saveUninitialized: true,
-      name: 'gruenerator.sid',
-      cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-        sameSite: 'lax',
-        domain: undefined,
-        path: '/',
-      },
-    })
-  );
-
-  // Passport middleware
-  app.use(passport.initialize());
+  // Better Auth handler (must be before express.json middleware)
+  const { betterAuthHandler } = await import('./routes/auth/betterAuthHandler.js');
+  app.all('/api/auth/v2/*splat', (req, res, next) => {
+    Promise.resolve(betterAuthHandler(req, res)).catch(next);
+  });
 
   // Logging middleware (only for errors)
   app.use(
@@ -549,7 +529,9 @@ async function startWorker(): Promise<void> {
   app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
     // Prevent "Cannot set headers after they are sent" errors
     if (res.headersSent) {
-      log.warn(`Error after headers sent: ${err.message}`);
+      log.warn(`Error after headers sent: ${err.message} | ${req.method} ${req.path}`, {
+        stack: err.stack,
+      });
       return;
     }
 
@@ -557,12 +539,19 @@ async function startWorker(): Promise<void> {
     let errorMessage = 'Bitte versuchen Sie es später erneut';
     let statusCode = isHttpError(err) ? err.status : 500;
 
-    log.error(`[GlobalErrorHandler] ${err.name}: ${err.message}`, {
+    log.error(`[GlobalErrorHandler] ${err.name}: ${err.message} | ${req.method} ${req.path}`, {
       path: req.path,
       method: req.method,
       statusCode,
       errorCode: (err as NodeJS.ErrnoException).code,
+      stack: err.stack,
     });
+
+    if (req.path.startsWith('/api/auth/v2/')) {
+      log.warn(`[BetterAuth] Error on ${req.path}: ${err.message}`);
+      res.redirect('/auth/login?error=auth_failed');
+      return;
+    }
 
     if (
       err.name === 'AuthenticationError' ||

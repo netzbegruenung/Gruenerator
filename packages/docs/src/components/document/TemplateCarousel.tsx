@@ -1,7 +1,7 @@
 import { memo, useState, useEffect, useRef } from 'react';
 import { FiChevronDown, FiMoreVertical } from 'react-icons/fi';
+import { cn } from '@gruenerator/ui';
 import { templates, type TemplateType } from '../../lib/templates';
-import './TemplateCarousel.css';
 
 const STORAGE_KEY = 'gruenerator_docs_templates_hidden';
 
@@ -47,20 +47,23 @@ export const TemplateCarousel = memo(
     };
 
     return (
-      <div className="template-carousel-section">
-        <div className="template-carousel-header">
-          <h2 className="template-carousel-title">Neues Dokument anlegen</h2>
+      <div className="bg-grey-50 dark:bg-grey-800 rounded-lg px-md pt-sm pb-md mb-lg max-[480px]:rounded-none max-[480px]:-mx-md max-[480px]:px-sm max-[480px]:pt-xs max-[480px]:pb-sm">
+        <div className="flex justify-between items-center h-[52px]">
+          <h2 className="text-base font-normal text-foreground m-0">Neues Dokument anlegen</h2>
 
-          <div className="template-carousel-actions">
-            <button className="template-carousel-gallery-btn" onClick={onShowGallery}>
+          <div className="flex items-center gap-sm">
+            <button
+              className="flex items-center gap-1 bg-transparent border-none text-sm font-medium text-grey-500 cursor-pointer px-xs py-xxs rounded-lg hover:bg-hover-alt hover:text-foreground font-[inherit]"
+              onClick={onShowGallery}
+            >
               Vorlagengalerie <FiChevronDown size={14} />
             </button>
 
-            <div className="template-carousel-divider" />
+            <div className="w-px h-6 bg-grey-300/50 dark:bg-grey-600 shrink-0" />
 
-            <div className="template-carousel-overflow-wrapper" ref={menuRef}>
+            <div className="relative" ref={menuRef}>
               <button
-                className="template-carousel-overflow-btn"
+                className="flex items-center justify-center w-8 h-8 bg-transparent border-none rounded-lg cursor-pointer text-grey-500 text-lg hover:bg-hover-alt hover:text-foreground"
                 onClick={() => setShowMenu((prev) => !prev)}
                 aria-label="Weitere Optionen"
               >
@@ -68,8 +71,11 @@ export const TemplateCarousel = memo(
               </button>
 
               {showMenu && (
-                <div className="template-carousel-menu">
-                  <button className="template-carousel-menu-item" onClick={toggleHidden}>
+                <div className="absolute top-full right-0 mt-1 bg-background-pure dark:bg-grey-700 border border-grey-200 dark:border-grey-600 rounded-lg shadow-md z-10 min-w-[220px] overflow-hidden">
+                  <button
+                    className="block w-full py-2.5 px-4 bg-transparent border-none text-left text-sm text-foreground cursor-pointer font-[inherit] hover:bg-grey-100 dark:hover:bg-grey-600"
+                    onClick={toggleHidden}
+                  >
                     {isHidden ? 'Alle Vorlagen anzeigen' : 'Alle Vorlagen ausblenden'}
                   </button>
                 </div>
@@ -79,33 +85,42 @@ export const TemplateCarousel = memo(
         </div>
 
         {!isHidden && (
-          <div className="template-carousel-scroll">
+          <div className="flex gap-4 overflow-x-auto py-2 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {templates.map((template) => (
               <button
                 key={template.id}
-                className="template-carousel-card"
+                className="group shrink-0 w-[118px] cursor-pointer bg-transparent border-none p-0 text-left font-[inherit]"
                 onClick={() => onTemplateSelect(template.id)}
                 title={template.description}
               >
                 <div
-                  className={`template-carousel-card-thumbnail ${
-                    template.id === 'blank'
-                      ? 'template-carousel-card-thumbnail--blank'
-                      : 'template-carousel-card-thumbnail--preview'
-                  }`}
+                  className={cn(
+                    'w-[118px] h-[150px] border border-grey-200 dark:border-grey-600 rounded bg-background-pure dark:bg-grey-700 overflow-hidden relative transition-[box-shadow,border-color] duration-150 ease-out group-hover:shadow-sm group-hover:border-grey-300 dark:group-hover:border-grey-500',
+                    template.id === 'blank' && 'flex items-center justify-center'
+                  )}
                 >
                   {template.id === 'blank' ? (
-                    <span className="template-carousel-card-thumbnail-plus">+</span>
+                    <span className="text-[2.5rem] font-light leading-none text-secondary-600">
+                      +
+                    </span>
                   ) : (
-                    <div
-                      className="template-carousel-card-preview"
-                      dangerouslySetInnerHTML={{ __html: template.content }}
-                    />
+                    <>
+                      <div
+                        className="w-[590px] p-[32px_40px] scale-[0.2] origin-top-left pointer-events-none select-none text-foreground font-[PT_Sans,Arial,sans-serif] leading-normal [&_h1]:font-[Raleway,PT_Sans,Arial,sans-serif] [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mb-3 [&_h1]:mt-0 [&_h1]:leading-tight [&_h2]:font-[Raleway,PT_Sans,Arial,sans-serif] [&_h2]:text-[1.1rem] [&_h2]:font-semibold [&_h2]:mt-3.5 [&_h2]:mb-1.5 [&_h2]:leading-snug [&_h3]:font-[Raleway,PT_Sans,Arial,sans-serif] [&_h3]:text-[0.95rem] [&_h3]:font-semibold [&_h3]:mt-2.5 [&_h3]:mb-1 [&_p]:text-[0.8rem] [&_p]:mb-2 [&_p]:mt-0 [&_p]:leading-normal [&_ul]:text-[0.8rem] [&_ul]:mb-2 [&_ul]:mt-0 [&_ul]:pl-5 [&_ol]:text-[0.8rem] [&_ol]:mb-2 [&_ol]:mt-0 [&_ol]:pl-5 [&_li]:mb-0.5 [&_blockquote]:border-l-[3px] [&_blockquote]:border-grey-300 dark:[&_blockquote]:border-grey-500 [&_blockquote]:my-2 [&_blockquote]:mx-0 [&_blockquote]:py-1 [&_blockquote]:px-3 [&_blockquote]:text-grey-500 [&_hr]:border-none [&_hr]:border-t [&_hr]:border-grey-200 dark:[&_hr]:border-grey-600 [&_hr]:my-2.5 [&_strong]:font-semibold [&_em]:italic"
+                        dangerouslySetInnerHTML={{ __html: template.content }}
+                      />
+                      {/* Gradient fade overlay */}
+                      <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-b from-transparent to-white dark:to-grey-700 pointer-events-none" />
+                    </>
                   )}
                 </div>
-                <div className="template-carousel-card-caption">
-                  <span className="template-carousel-card-name">{template.name}</span>
-                  <span className="template-carousel-card-subtitle">{template.description}</span>
+                <div className="pt-1.5 px-1">
+                  <span className="block text-[0.8125rem] font-medium text-foreground truncate">
+                    {template.name}
+                  </span>
+                  <span className="block text-xs font-light text-grey-500 truncate">
+                    {template.description}
+                  </span>
                 </div>
               </button>
             ))}

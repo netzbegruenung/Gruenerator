@@ -8,7 +8,7 @@ import LoginRequired from '../../../components/common/LoginRequired/LoginRequire
 import Spinner from '../../../components/common/Spinner';
 import apiClient from '../../../components/utils/apiClient';
 import { buildUrl } from '../../../config/domains';
-import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { useAuthStore } from '../../../stores/authStore';
 import { canShare, shareContent, copyToClipboard } from '../../../utils/shareUtils';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -28,7 +28,8 @@ interface ApiError {
 
 const SharedVideoPage = () => {
   const { shareToken } = useParams();
-  const { user, isAuthenticated } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [shareData, setShareData] = useState<ShareData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

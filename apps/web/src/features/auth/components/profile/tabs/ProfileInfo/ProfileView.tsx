@@ -1,8 +1,6 @@
 import { Button } from '@gruenerator/ui';
 import { motion } from 'motion/react';
-import React, { useState, type FormEvent } from 'react';
-import { GiHedgehog } from 'react-icons/gi';
-import { HiOutlinePencil } from 'react-icons/hi';
+import React, { type FormEvent } from 'react';
 
 import TextInput from '../../../../../../components/common/Form/Input/TextInput';
 import Spinner from '../../../../../../components/common/Spinner';
@@ -69,8 +67,6 @@ interface ProfileViewProps {
   deleteAccountError: string;
   isDeletingAccount: boolean;
   onDeleteAccountSubmit: (e: FormEvent<HTMLFormElement>) => void;
-  igelActive: boolean;
-  onToggleIgelModus: (checked: boolean) => void;
   isBetaFeaturesUpdating: boolean;
   onSuccessMessage: (message: string) => void;
 }
@@ -101,12 +97,9 @@ const ProfileView = ({
   deleteAccountError,
   isDeletingAccount,
   onDeleteAccountSubmit,
-  igelActive,
-  onToggleIgelModus,
   isBetaFeaturesUpdating,
   onSuccessMessage,
 }: ProfileViewProps) => {
-  const [showPromptEditor, setShowPromptEditor] = useState(false);
   const { locale, updateLocale } = useAuthStore();
 
   const handleLocaleChange = (newLocale: SupportedLocale) => {
@@ -201,89 +194,12 @@ const ProfileView = ({
               🇦🇹
             </button>
           </div>
-          <button
-            type="button"
-            className={cn(
-              'flex items-center justify-center size-8 rounded-md transition-all',
-              igelActive
-                ? 'opacity-100 text-primary-500 bg-primary-500/10'
-                : 'opacity-40 text-foreground hover:opacity-70',
-              'disabled:cursor-not-allowed disabled:opacity-30'
-            )}
-            onClick={() => onToggleIgelModus(!igelActive)}
-            aria-label="Igel-Modus"
-            title={igelActive ? 'Igel-Modus deaktivieren' : 'Igel-Modus aktivieren'}
-            disabled={isBetaFeaturesUpdating}
-          >
-            <GiHedgehog size={20} />
-          </button>
         </div>
-      </div>
-
-      {/* Personal instructions */}
-      <div className="flex flex-col">
-        <div className="flex items-center gap-sm mb-sm">
-          <HiOutlinePencil className="size-5 text-primary-500" />
-          <span className="text-sm font-medium text-foreground">Persönliche Anweisungen</span>
-          <div className="flex-1" />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-grey-500 hover:text-foreground"
-            onClick={() => setShowPromptEditor(!showPromptEditor)}
-          >
-            {showPromptEditor ? 'Schließen' : 'Bearbeiten'}
-          </Button>
-        </div>
-
-        {!showPromptEditor && customPrompt ? (
-          <p className="text-sm text-grey-500 line-clamp-2">{customPrompt}</p>
-        ) : !showPromptEditor ? (
-          <p className="text-sm text-grey-400">
-            Anweisungen für alle Text-Generierungen, z.B. Schreibstil oder Infos zu deinem
-            Wahlkreis.
-          </p>
-        ) : null}
-
-        {showPromptEditor && (
-          <div className="flex flex-col gap-sm rounded-lg bg-background-alt p-md mt-sm">
-            <textarea
-              id="customPrompt"
-              value={customPrompt}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                setCustomPrompt(e.target.value)
-              }
-              placeholder="z.B. dein Schreibstil oder Infos zu dir und deinem Wahlkreis..."
-              className="w-full rounded-md border border-grey-300 bg-input-bg p-sm text-sm text-foreground resize-vertical placeholder:text-grey-400 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 dark:border-grey-600"
-              rows={4}
-              maxLength={2000}
-              disabled={isLoading}
-            />
-            <div className="flex items-center justify-between">
-              {customPrompt.length > 1500 ? (
-                <div className="text-xs text-grey-400">{customPrompt.length}/2000</div>
-              ) : (
-                <div />
-              )}
-              {isPromptDirty && (
-                <Button
-                  size="sm"
-                  onClick={onSaveCustomPrompt}
-                  disabled={isSavingPrompt || isLoading}
-                >
-                  {isSavingPrompt ? 'Speichert…' : 'Speichern'}
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Experimental Features */}
       <SettingsSection
         isActive={true}
-        igelActive={igelActive}
-        onToggleIgelModus={onToggleIgelModus}
         isBetaFeaturesUpdating={isBetaFeaturesUpdating}
         onSuccessMessage={onSuccessMessage}
         onErrorMessage={() => {}}

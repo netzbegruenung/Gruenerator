@@ -21,13 +21,11 @@ import type {
   SavedText,
   VectorSearchResult,
   FullTextResult,
-  AutoSearchOptions,
   EnrichmentTaskResult,
   HybridSearchResult,
   TextReference,
   DocumentReference,
   WebSearchSource,
-  AutoSelectedDocument,
 } from './types/requestEnrichment.js';
 
 // Lazy import to avoid circular dependency issues
@@ -102,7 +100,6 @@ class RequestEnricher {
       social: 'Social Media',
       universal: 'Universal',
       press: 'Pressemitteilung',
-      gruene_jugend: 'Grüne Jugend',
       text: 'Allgemeiner Text',
     };
 
@@ -329,7 +326,6 @@ class RequestEnricher {
       selectedDocumentIds = [],
       selectedTextIds = [],
       searchQuery = null,
-      useAutomaticSearch = false,
       // Fast mode pre-answer options
       enableNotebookEnrich = false,
       notebookEnrichPrompt = undefined,
@@ -463,41 +459,6 @@ class RequestEnricher {
       );
     }
 
-    // Automatic vector search (if enabled and NO manual selections - manual takes priority)
-    // Now works in privacy mode too (with local-only search, no AI query enhancement)
-    if (
-      useAutomaticSearch &&
-      selectedDocumentIds.length === 0 &&
-      selectedTextIds.length === 0 &&
-      searchQuery
-    ) {
-      console.log(
-        `🎯 [RequestEnricher] Automatic search mode enabled - searching all user documents${usePrivacyMode ? ' (privacy mode: local only)' : ''}`
-      );
-
-      enrichmentTasks.push(
-        this.performAutomaticVectorSearch(searchQuery, options.req, {
-          limit: 2,
-          threshold: 0.65,
-          usePrivacyMode: usePrivacyMode,
-        })
-          .then((result) => ({
-            type: 'autovectorsearch' as const,
-            knowledge: result.knowledge,
-            metadata: result.metadata,
-          }))
-          .catch((error) => {
-            console.log('🎯 [RequestEnricher] Auto vector search failed:', error.message);
-            return { type: 'autovectorsearch' as const, knowledge: [] as string[], metadata: null };
-          })
-      );
-    } else if (
-      useAutomaticSearch &&
-      (selectedDocumentIds.length > 0 || selectedTextIds.length > 0)
-    ) {
-      console.log('🎯 [RequestEnricher] Automatic search skipped: manual selections take priority');
-    }
-
     // Fast mode pre-answer (if enabled) - generates quick preliminary draft
     // Runs in parallel with other enrichments since it doesn't need their context
     if (enableNotebookEnrich && !usePrivacyMode) {
@@ -533,9 +494,6 @@ class RequestEnricher {
     // Aggregate results
     let totalDocuments = 0;
     let webSearchSources: WebSearchSource[] | null = null;
-    let autoSearchMetadata: {
-      autoSelectedDocuments: AutoSelectedDocument[];
-    } | null = null;
     let notebookEnrichMetadata: { preAnswer: string; timeMs: number } | null = null;
     const allDocumentReferences: DocumentReference[] = [];
     const allTextReferences: TextReference[] = [];
@@ -579,19 +537,6 @@ class RequestEnricher {
         if (result.textReferences && result.textReferences.length > 0) {
           allTextReferences.push(...result.textReferences);
         }
-      } else if (result.type === 'autovectorsearch') {
-        if (result.knowledge.length > 0) {
-          state.knowledge.push(...result.knowledge);
-          autoSearchMetadata = result.metadata;
-          console.log(
-            `🎯 [RequestEnricher] Added automatic vector search knowledge (${result.knowledge.length} documents)`
-          );
-          if (autoSearchMetadata?.autoSelectedDocuments) {
-            console.log(
-              `   - Auto-selected: ${autoSearchMetadata.autoSelectedDocuments.map((d) => d.title).join(', ')}`
-            );
-          }
-        }
       } else if (result.type === 'notebook_enrich') {
         if (result.preAnswer) {
           state.knowledge.push(
@@ -617,8 +562,6 @@ class RequestEnricher {
       enableDocQnA: enableDocQnA && state.documents.length > 0,
       webSearchSources,
       usePrivacyMode,
-      autoSearchUsed: useAutomaticSearch && autoSearchMetadata !== null,
-      autoSelectedDocuments: autoSearchMetadata?.autoSelectedDocuments || [],
       documentsPreProcessed:
         (state as { _documentsPreProcessed?: boolean })._documentsPreProcessed ?? false,
       documentsReferences: allDocumentReferences.length > 0 ? allDocumentReferences : undefined,
@@ -1040,203 +983,6 @@ class RequestEnricher {
     } catch (error) {
       console.log('🎯 [RequestEnricher] Texts fetch error:', getErrorMessage(error));
       return { knowledge: [], textReferences: [] };
-    }
-  }
-
-  /**
-   * Perform automatic vector search across ALL user documents/texts
-   * Used when "Automatisch" mode is enabled in SimpleContentSelector
-   * @param {string} searchQuery - Extracted from form fields (thema, details, etc.)
-   * @param {Object} req - Express request object (for user ID)
-   * @param {Object} options - Search options (limit, threshold)
-   * @returns {Object} { knowledge: [], metadata: { autoSelectedDocuments: [] } }
-   */
-  async performAutomaticVectorSearch(
-    searchQuery: string,
-    req: any,
-    options: AutoSearchOptions = {}
-  ): Promise<DocumentSearchResult & { metadata?: any }> {
-    const { limit = 3, threshold = 0.6, usePrivacyMode = false } = options;
-    const userId = req?.user?.id;
-
-    if (!userId) {
-      console.log('🎯 [RequestEnricher] Auto vector search skipped: no user ID');
-      return { knowledge: [], metadata: null };
-    }
-
-    if (!searchQuery || !searchQuery.trim()) {
-      console.log('🎯 [RequestEnricher] Auto vector search skipped: no search query');
-      return { knowledge: [], metadata: null };
-    }
-
-    const startTime = Date.now();
-
-    try {
-      console.log(
-        `🎯 [RequestEnricher] AUTO VECTOR SEARCH: "${searchQuery}" (limit=${limit}, threshold=${threshold}, privacyMode=${usePrivacyMode})`
-      );
-
-      let searchQueries = [searchQuery];
-      let enhancementMetadata: {
-        originalQuery: string;
-        enhancedQueries: string[];
-        confidence: number;
-        source: string;
-        semanticContext: any;
-      } | null = null;
-
-      // Only use AI query enhancement if NOT in privacy mode
-      if (!usePrivacyMode) {
-        try {
-          const { default: aiSearchAgent } = await import('../services/aiSearchAgent.js');
-
-          const enhancement = await aiSearchAgent.enhanceQuery(
-            searchQuery,
-            {
-              contentType: 'general',
-              limit: 3,
-              includeContext: true,
-              useCache: true,
-            },
-            req
-          );
-
-          if (enhancement.success && enhancement.enhancedQueries) {
-            searchQueries = enhancement.enhancedQueries;
-            enhancementMetadata = {
-              originalQuery: enhancement.originalQuery,
-              enhancedQueries: enhancement.enhancedQueries,
-              confidence: enhancement.confidence,
-              source: enhancement.source,
-              semanticContext: enhancement.semanticContext,
-            };
-            console.log(`🎯 [RequestEnricher] Query enhanced: ${searchQueries.length} variants`);
-            console.log(`   - Original: "${enhancement.originalQuery}"`);
-            console.log(
-              `   - Enhanced: ${searchQueries
-                .slice(0, 3)
-                .map((q) => `"${q}"`)
-                .join(', ')}`
-            );
-          }
-        } catch (enhanceError) {
-          console.warn(
-            '🎯 [RequestEnricher] Query enhancement failed, using original:',
-            getErrorMessage(enhanceError)
-          );
-        }
-      } else {
-        console.log(
-          '🎯 [RequestEnricher] Privacy mode: Skipping AI query enhancement, using original query only'
-        );
-      }
-
-      const documentSearchService = await getQdrantDocumentService();
-      await documentSearchService.ensureInitialized();
-
-      // Define a flexible type for search results that allows additional properties from the service
-      interface SearchResultItem {
-        document_id: string;
-        title: string;
-        filename: string;
-        relevant_content: string;
-        similarity_score: number;
-        matched_query: string;
-        [key: string]: unknown; // Allow additional properties from the service
-      }
-      const allResults: SearchResultItem[] = [];
-      const seenDocumentIds = new Set<string>();
-
-      for (const query of searchQueries) {
-        const searchResult = await documentSearchService.hybridSearch(query.trim(), userId, {
-          limit: limit * 2,
-          threshold: threshold,
-          vectorWeight: 0.7,
-          textWeight: 0.3,
-        });
-
-        if (searchResult.success && searchResult.results) {
-          for (const result of searchResult.results) {
-            if (!seenDocumentIds.has(result.document_id)) {
-              seenDocumentIds.add(result.document_id);
-              allResults.push({
-                ...result,
-                matched_query: query,
-              } as SearchResultItem);
-            } else {
-              const existingIndex = allResults.findIndex(
-                (r) => r.document_id === result.document_id
-              );
-              if (
-                existingIndex >= 0 &&
-                result.similarity_score > allResults[existingIndex].similarity_score
-              ) {
-                allResults[existingIndex] = {
-                  ...result,
-                  matched_query: query,
-                } as SearchResultItem;
-              }
-            }
-          }
-        }
-      }
-
-      allResults.sort((a, b) => (b.similarity_score || 0) - (a.similarity_score || 0));
-      const topResults = allResults.slice(0, limit);
-
-      if (topResults.length === 0) {
-        console.log('🎯 [RequestEnricher] Auto vector search: no results found');
-        return { knowledge: [], metadata: null };
-      }
-
-      const formattedKnowledge = topResults.map((doc) => {
-        const relevancePercent = Math.round((doc.similarity_score || 0) * 100);
-        const matchInfo =
-          doc.matched_query !== searchQuery ? ` (Variante: "${doc.matched_query}")` : '';
-
-        return `## Dokument (Auto-ausgewählt): ${doc.title}
-**Datei:** ${doc.filename}
-**Relevanz:** ${relevancePercent}%
-**Inhalt:** Intelligenter Auszug
-**Info:** Automatisch ausgewählt basierend auf Ihrer Anfrage${matchInfo}
-
-${doc.relevant_content}`;
-      });
-
-      const metadata = {
-        autoSelectedDocuments: topResults.map((r) => ({
-          id: r.document_id,
-          title: r.title,
-          filename: r.filename,
-          relevance_score: r.similarity_score,
-          relevance_percent: Math.round((r.similarity_score || 0) * 100),
-          matched_query: r.matched_query,
-        })),
-        enhancement: enhancementMetadata,
-      };
-
-      const elapsedTime = Date.now() - startTime;
-      console.log(`🎯 [RequestEnricher] Auto vector search complete (${elapsedTime}ms):`);
-      console.log(`   - Documents found: ${topResults.length}`);
-      console.log(
-        `   - Avg relevance: ${Math.round(metadata.autoSelectedDocuments.reduce((sum, d) => sum + d.relevance_percent, 0) / metadata.autoSelectedDocuments.length)}%`
-      );
-      console.log(
-        `   - Top match: ${metadata.autoSelectedDocuments[0]?.title} (${metadata.autoSelectedDocuments[0]?.relevance_percent}%)`
-      );
-      if (enhancementMetadata) {
-        console.log(
-          `   - AI Enhancement: ${enhancementMetadata.source} (confidence: ${Math.round(enhancementMetadata.confidence * 100)}%)`
-        );
-      }
-
-      return {
-        knowledge: formattedKnowledge,
-        metadata,
-      };
-    } catch (error) {
-      console.error('🎯 [RequestEnricher] Auto vector search error:', error);
-      return { knowledge: [], metadata: null };
     }
   }
 }

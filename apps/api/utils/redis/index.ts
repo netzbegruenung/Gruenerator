@@ -12,9 +12,6 @@ export {
   DesktopOAuthStateManager,
 } from './DesktopOAuthStateManager.js';
 
-// OIDC State Store exports (Redis fallback for privacy browsers)
-export { storeOIDCState, consumeOIDCState } from './OIDCStateStore.js';
-
 // Bridge Code Store exports (cross-worker session bridging for mobile WebViews)
 export { storeBridgeCode, consumeBridgeCode } from './BridgeCodeStore.js';
 

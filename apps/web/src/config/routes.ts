@@ -6,7 +6,7 @@ import { isDesktopApp } from '../utils/platform';
 /**
  * Route configuration interface
  */
-export type LayoutMode = 'default' | 'fullscreen' | 'immersive' | 'noChrome';
+export type LayoutMode = 'default' | 'fullscreen' | 'immersive' | 'noChrome' | 'sidebarOnly';
 
 export interface RouteConfig {
   path: string;
@@ -47,6 +47,7 @@ const TexteRedirectToDeskComponent: FC<Record<string, unknown>> = () =>
 const TexteRedirectToDesk = lazy(() => Promise.resolve({ default: TexteRedirectToDeskComponent }));
 const VorlagenGallery = lazy(() => import('../components/common/Gallery'));
 const AdminDashboardPage = lazy(() => import('../features/admin/AdminDashboardPage'));
+const GrueneApiTestPage = lazy(() => import('../features/admin/GrueneApiTestPage'));
 const PlaygroundPage = lazy(() => import('../features/playground/PlaygroundPage'));
 const CustomGeneratorPage = lazy(() => import('../features/generators/CustomGeneratorPage'));
 const CreateCustomGeneratorPage = lazy(
@@ -72,6 +73,9 @@ const Datenschutz = lazy(
 );
 const Impressum = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Impressum'));
 const Support = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Support'));
+const Nutzungsbedingungen = lazy(
+  () => import('../components/pages/Impressum_Datenschutz_Terms/Nutzungsbedingungen')
+);
 const NotFound = lazy(() => import('../components/pages/NotFound'));
 const Search = lazy(() => import('../features/search/components/SearchPage'));
 const OparlPage = lazy(() => import('../features/oparl/pages/OparlPage'));
@@ -175,83 +179,24 @@ const VoiceAgentPage = lazy(() => import('../features/voice-agent/VoiceAgentPage
 
 const MobileEditorPage = lazy(() => import('../pages/MobileEditorPage'));
 
-const ScannerPage = lazy(() =>
-  Promise.all([
-    import('../features/scanner/ScannerPage'),
-    import('../components/common/BetaFeatureWrapper'),
-  ]).then(([scannerModule, wrapperModule]) => ({
-    default: (props: Record<string, unknown>) =>
-      wrapperModule.default({
-        children: createElement(scannerModule.default, props),
-        featureKey: 'scanner',
-        fallbackPath: '/profile?tab=labor',
-      }),
-  }))
-);
-const TranskriptionPage = lazy(() =>
-  Promise.all([
-    import('../features/transkription/TranskriptionPage'),
-    import('../components/common/BetaFeatureWrapper'),
-  ]).then(([pageModule, wrapperModule]) => ({
-    default: (props: Record<string, unknown>) =>
-      wrapperModule.default({
-        children: createElement(pageModule.default, props),
-        featureKey: 'scanner',
-        fallbackPath: '/profile?tab=labor',
-      }),
-  }))
-);
+const ScannerPage = lazy(() => import('../features/scanner/ScannerPage'));
+const TranskriptionPage = lazy(() => import('../features/transkription/TranskriptionPage'));
 const TransferPage = lazy(() => import('../features/transfer/TransferPage'));
 const BriefingPage = lazy(() => import('../features/briefing/BriefingPage'));
 const BriefingArchivePage = lazy(() => import('../features/briefing/BriefingArchivePage'));
 const BriefingArticlePage = lazy(() => import('../features/briefing/BriefingArticlePage'));
 const DeskPage = lazy(() => import('../features/workplace/WorkplacePage'));
 const RecherchePage = lazy(() => import('../features/recherche/RecherchePage'));
-const GruppenPage = lazy(() =>
-  Promise.all([
-    import('../features/groups/pages/GruppenPage'),
-    import('../components/common/BetaFeatureWrapper'),
-  ]).then(([gruppenModule, wrapperModule]) => ({
-    default: (props: Record<string, unknown>) =>
-      wrapperModule.default({
-        children: createElement(gruppenModule.default, props),
-        featureKey: 'groups',
-        fallbackPath: '/',
-      }),
-  }))
-);
-const BoardsListRedirect = lazy(() => Promise.resolve({ default: createRedirect('/desk') }));
-const BoardPage = lazy(() =>
-  Promise.all([
-    import('../features/boards/BoardPage'),
-    import('../components/common/BetaFeatureWrapper'),
-  ]).then(([boardsModule, wrapperModule]) => ({
-    default: (props: Record<string, unknown>) =>
-      wrapperModule.default({
-        children: createElement(boardsModule.default, props),
-        featureKey: 'boards',
-        fallbackPath: '/profile?tab=labor',
-      }),
-  }))
-);
+const GruppenPage = lazy(() => import('../features/groups/pages/GruppenPage'));
+const BoardsListRedirect = lazy(() => Promise.resolve({ default: createRedirect('/docs') }));
+const BoardPage = lazy(() => import('../features/boards/BoardPage'));
 const PublicBoardPage = lazy(() => import('../features/boards/PublicBoardPage'));
 const GruenOMatDemoPage = lazy(() => import('../features/gruen-o-mat/GruenOMatDemoPage'));
 const ResearchPage = lazy(() => import('../features/research/ResearchPage'));
 const MonitorPage = lazy(() => import('../features/monitor/MonitorPage'));
-const DocsListRedirect = lazy(() => Promise.resolve({ default: createRedirect('/desk') }));
-const DocsEditorPage = lazy(() =>
-  Promise.all([
-    import('../features/docs/DocsEditorPage'),
-    import('../components/common/BetaFeatureWrapper'),
-  ]).then(([docsModule, wrapperModule]) => ({
-    default: (props: Record<string, unknown>) =>
-      wrapperModule.default({
-        children: createElement(docsModule.default, props),
-        featureKey: 'docs',
-        fallbackPath: '/profile?tab=labor',
-      }),
-  }))
-);
+const DocsPage = lazy(() => import('../features/docs/DocsPage'));
+const DocsEditorPage = lazy(() => import('../features/docs/DocsEditorPage'));
+const DocsPresentationPage = lazy(() => import('../features/docs/DocsPresentationPage'));
 
 /**
  * Lazy loading für Grüneratoren Bundle
@@ -290,7 +235,7 @@ export const GrueneratorenBundle = {
 
 // Route Konfigurationen
 const standardRoutes: RouteConfig[] = [
-  { path: '/', component: DeskPage },
+  { path: '/', component: HomeWrapper },
   { path: '/startseite', component: Startseite },
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
@@ -305,6 +250,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/briefing/:agentId/archiv', component: BriefingArchivePage },
   { path: '/briefing/:agentId/archiv/:filename', component: BriefingArticlePage },
   { path: '/admin', component: AdminDashboardPage },
+  { path: '/admin/gruene-api', component: GrueneApiTestPage },
   { path: '/playground', component: PlaygroundPage },
   { path: '/datenbank/vorlagen', component: GrueneratorenBundle.VorlagenListe },
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
@@ -362,8 +308,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
   { path: '/reel', component: GrueneratorenBundle.Reel },
   { path: '/reel/beta', component: SubtitlerBetaPage },
-  { path: '/scanner', component: GrueneratorenBundle.Scanner, layoutMode: 'immersive' },
-  { path: '/transfer', component: GrueneratorenBundle.Transfer, layoutMode: 'immersive' },
+  { path: '/scanner', component: GrueneratorenBundle.Scanner },
+  { path: '/transfer', component: GrueneratorenBundle.Transfer },
   { path: '/transkription', component: GrueneratorenBundle.Transkription },
   { path: '/subtitler/share/:shareToken', component: SharedVideoPage, layoutMode: 'noChrome' },
   { path: '/share/:shareToken', component: SharedMediaPage, layoutMode: 'noChrome' },
@@ -385,6 +331,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/datenschutz', component: Datenschutz },
   { path: '/impressum', component: Impressum },
   { path: '/support', component: Support },
+  { path: '/nutzungsbedingungen', component: Nutzungsbedingungen },
   // Auth-Routen (only components still used after Authentic integration)
   { path: '/login', component: LoginPage },
   { path: '/register', component: RegistrationPage },
@@ -396,7 +343,11 @@ const standardRoutes: RouteConfig[] = [
   { path: '/join-group/:joinToken', component: JoinGroupPage },
   // Q&A Chat Routen
   { path: '/notebook/:id', component: GrueneratorenBundle.NotebookChat, layoutMode: 'fullscreen' },
-  { path: '/chat/settings', component: ChatSettingsPage },
+  { path: '/dein-gruenerator', component: ChatSettingsPage },
+  {
+    path: '/chat/settings',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/dein-gruenerator') })),
+  },
   { path: '/chat', component: GrueneratorenBundle.Chat, layoutMode: 'fullscreen' },
   { path: '/voice', component: VoiceAgentPage, layoutMode: 'noChrome' },
   // Apps & Connect Page
@@ -418,9 +369,10 @@ const standardRoutes: RouteConfig[] = [
     withForm: true,
   },
   // Pages Feature Routes
-  // Docs collaborative editor
-  { path: '/docs', component: DocsListRedirect },
-  { path: '/docs/:id', component: DocsEditorPage, layoutMode: 'noChrome' },
+  // Docs: overview, editor, and presentations
+  { path: '/docs', component: DocsPage, layoutMode: 'sidebarOnly' },
+  { path: '/docs/presentation/:id', component: DocsPresentationPage, layoutMode: 'immersive' },
+  { path: '/docs/:id', component: DocsEditorPage, layoutMode: 'immersive' },
   { path: '/boards', component: BoardsListRedirect },
   { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome' },
   { path: '/boards/:id', component: BoardPage, layoutMode: 'noChrome' },

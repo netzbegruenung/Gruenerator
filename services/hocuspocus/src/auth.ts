@@ -1,6 +1,5 @@
 import { randomUUID } from 'crypto';
 
-import { parse as parseCookie } from 'cookie';
 import { jwtVerify } from 'jose';
 
 import { createLogger } from './logger.js';
@@ -439,45 +438,35 @@ export class AuthService {
       return { authenticated: false, reason: 'No session cookie provided' };
     }
 
-    const cookies = parseCookie(cookieHeader);
-    const sessionCookie = cookies['gruenerator.sid'];
+    log.info(`[Auth-Cookie] Verifying session via API`);
 
-    if (!sessionCookie) {
-      return { authenticated: false, reason: 'No session cookie found' };
-    }
+    const apiBase = process.env.API_INTERNAL_URL || 'http://api:3001';
+    let userId: string;
 
-    const sessionId = sessionCookie.startsWith('s:')
-      ? sessionCookie.substring(2).split('.')[0]
-      : sessionCookie;
+    try {
+      const response = await fetch(`${apiBase}/api/auth/v2/get-session`, {
+        headers: { cookie: cookieHeader },
+      });
 
-    if (!sessionId) {
-      return { authenticated: false, reason: 'Invalid session cookie format' };
-    }
+      if (!response.ok) {
+        log.warn(`[Auth-Cookie] API session check returned ${response.status}`);
+        return { authenticated: false, reason: 'Session not found or expired' };
+      }
 
-    const sessionKey = `sess:${sessionId}`;
-    log.info(`[Auth-Cookie] Looking up session: ${sessionKey.substring(0, 15)}...`);
+      const data = (await response.json()) as {
+        session?: { userId?: string };
+        user?: { id?: string };
+      };
+      userId = data.session?.userId || data.user?.id || '';
 
-    if (!this.redis.isReady) {
-      log.error(`[Auth-Cookie] FAILED: Redis client not ready`);
-      return { authenticated: false, reason: 'Session store unavailable' };
-    }
-
-    const sessionString = await this.redis.get(sessionKey);
-
-    if (!sessionString) {
-      log.warn(`[Auth-Cookie] Session not found or expired`);
-      return { authenticated: false, reason: 'Session not found or expired' };
-    }
-
-    const sessionData = JSON.parse(
-      typeof sessionString === 'string' ? sessionString : JSON.stringify(sessionString)
-    );
-
-    const userId = sessionData?.passport?.user?.id || sessionData?.passport?.user;
-
-    if (!userId) {
-      log.warn(`[Auth-Cookie] User not authenticated in session`);
-      return { authenticated: false, reason: 'User not authenticated in session' };
+      if (!userId) {
+        log.warn(`[Auth-Cookie] API returned session but no user ID`);
+        return { authenticated: false, reason: 'Session not found or expired' };
+      }
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      log.error(`[Auth-Cookie] API session check failed: ${err.message}`);
+      return { authenticated: false, reason: 'Session verification failed' };
     }
 
     log.info(`[Auth-Cookie] User ID from session: ${userId}`);

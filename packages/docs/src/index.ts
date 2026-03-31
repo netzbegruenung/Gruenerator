@@ -32,6 +32,15 @@ export { ErrorBoundary } from './components/common/ErrorBoundary';
 export { useCollaborators, type CollaborationUser } from '@gruenerator/collab';
 export { useDocumentChat, type ChatMessage } from './hooks/useDocumentChat';
 export { useBlockNoteComments } from './hooks/useBlockNoteComments';
+export {
+  docsKeys,
+  useDocuments,
+  useCreateDocument,
+  useDeleteDocument,
+  useUpdateDocument,
+  useDuplicateDocument,
+  useGenerateDocument,
+} from './hooks/useDocuments';
 export { useResolveUsers } from './hooks/useResolveUsers';
 export { useIsTouchDevice } from './hooks/useIsTouchDevice';
 

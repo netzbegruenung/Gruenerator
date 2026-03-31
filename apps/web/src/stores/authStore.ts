@@ -12,7 +12,6 @@ export type SupportedLocale = 'de-DE' | 'de-AT';
 
 export interface UserMetadata {
   chat_color?: string;
-  igel_modus?: boolean;
   [key: string]: unknown;
 }
 
@@ -24,7 +23,6 @@ export interface User {
   display_name?: string;
   avatar_robot_id?: string;
   keycloak_id?: string | null;
-  igel_modus?: boolean;
   locale?: SupportedLocale;
   user_metadata?: UserMetadata;
   [key: string]: unknown;
@@ -71,7 +69,6 @@ interface PersistedAuthState {
   user: User | null;
   isAuthenticated: boolean;
   selectedMessageColor: string;
-  igelModus: boolean;
   locale: SupportedLocale;
   isLoading: boolean;
 }
@@ -84,7 +81,6 @@ export interface AuthStore {
   error: string | null;
   isLoggingOut: boolean;
   selectedMessageColor: string;
-  igelModus: boolean;
   locale: SupportedLocale;
   supabaseSession: SupabaseSession | null;
   unsubscribeSupabase: () => void;
@@ -100,7 +96,6 @@ export interface AuthStore {
   updateProfile: (profileData: ProfileData) => Promise<ProfileData>;
   updateAvatar: (avatarRobotId: string) => Promise<ProfileData>;
   updateMessageColor: (color: string) => Promise<string>;
-  setIgelModus: (enabled: boolean) => Promise<boolean>;
   handleFailedBackendSession: () => Promise<void>;
   initializeSupabaseAuth: () => Promise<void>;
   cleanupSupabaseAuth: () => void;
@@ -200,7 +195,6 @@ const loadPersistedAuthState = (): PersistedAuthState | null => {
           user: authState.user,
           isAuthenticated: authState.isAuthenticated,
           selectedMessageColor: authState.selectedMessageColor || '#008939',
-          igelModus: authState.igelModus || false,
           locale: authState.locale || 'de-DE',
           isLoading: false, // Don't start in loading state if we have persisted data
         };
@@ -224,7 +218,6 @@ const persistAuthState = (authState: Partial<AuthStore>): void => {
         user: authState.user,
         isAuthenticated: authState.isAuthenticated,
         selectedMessageColor: authState.selectedMessageColor,
-        igelModus: authState.igelModus,
         locale: authState.locale,
       },
       timestamp: Date.now(),
@@ -259,9 +252,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   selectedMessageColor: persistedState?.selectedMessageColor || '#008939', // Default Klee
 
-  // Igel-Modus (Grüne Jugend membership)
-  igelModus: persistedState?.igelModus || false, // Default OFF
-
   // Locale/language preference
   locale: persistedState?.locale || detectBrowserLocale(),
 
@@ -282,7 +272,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       supabaseSession: data.supabaseSession || null,
       // Extract color from user metadata if available
       selectedMessageColor: data.user?.user_metadata?.chat_color || '#008939',
-      igelModus: data.user?.igel_modus || false, // Read from profiles table instead of user_metadata
       locale: userLocale,
     });
   },
@@ -341,7 +330,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       error: null,
       isLoggingOut: false,
       selectedMessageColor: '#008939',
-      igelModus: false,
       locale: detectBrowserLocale(),
       supabaseSession: null,
       _supabaseAuthCleanup: null,
@@ -360,7 +348,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const metadata = user.user_metadata;
       set((state) => ({
         selectedMessageColor: (metadata.chat_color as string) || state.selectedMessageColor,
-        igelModus: metadata.igel_modus ?? state.igelModus,
       }));
     }
   },
@@ -420,27 +407,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const state = get();
       const previousColor = state.user?.user_metadata?.chat_color || '#008939';
       set({ selectedMessageColor: previousColor });
-      throw error;
-    }
-  },
-
-  // Igel-Modus (Grüne Jugend membership) management via Backend API
-  setIgelModus: async (enabled: boolean): Promise<boolean> => {
-    // Optimistic update
-    set({ igelModus: enabled });
-
-    try {
-      const response = await apiClient.patch('/auth/profile/igel-modus', { igel_modus: enabled });
-      const result = response.data as ApiResponse & { igelModus?: boolean };
-
-      if (!result.success) {
-        throw new Error(result.message || 'Igel-Modus Update fehlgeschlagen');
-      }
-
-      return result.igelModus as boolean;
-    } catch (error: unknown) {
-      // Revert optimistic update on failure
-      set({ igelModus: !enabled });
       throw error;
     }
   },

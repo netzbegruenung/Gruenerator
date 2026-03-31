@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import apiClient from '../components/utils/apiClient';
+import { extractHTMLContent } from '../components/utils/contentExtractor';
 import { downloadFile } from '../utils/downloadFile';
 
 interface EditorModalState {
@@ -25,10 +26,7 @@ export function useContentActions({ getContent, getTitle }: UseContentActionsOpt
     try {
       const content = getContent();
       const title = getTitle();
-      const html = content
-        .split('\n\n')
-        .map((b) => `<p>${b.replace(/\n/g, '<br />')}</p>`)
-        .join('');
+      const html = await extractHTMLContent(content);
       const res = await apiClient.post('/docs/from-export', {
         content: html,
         title,

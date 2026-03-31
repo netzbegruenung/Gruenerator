@@ -6,7 +6,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
-import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { useAuthStore } from '../../../stores/authStore';
 import { useProfileStore } from '../../../stores/profileStore';
 import {
   type AnweisungenSaveData,
@@ -56,7 +56,7 @@ export const QUERY_KEYS = {
 
 // === PROFILE DATA ===
 export const useProfile = (userId?: string) => {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
   const actualUserId = userId || user?.id;
   const syncProfile = useProfileStore((state) => state.syncProfile);
 
@@ -64,14 +64,20 @@ export const useProfile = (userId?: string) => {
     queryKey: QUERY_KEYS.profile(actualUserId),
     queryFn: profileApiService.getProfile,
     enabled: !!actualUserId,
-    staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
-    gcTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
+    staleTime: 15 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
     retry: (failureCount: number) => failureCount < 2,
-    // Prevent automatic refetch that could interfere with avatar updates
     refetchInterval: false,
+    placeholderData: user
+      ? {
+          avatar_robot_id: user.avatar_robot_id,
+          display_name: user.display_name || user.name,
+          email: user.email,
+        }
+      : undefined,
   });
 
   // Sync React Query data with profileStore
@@ -86,7 +92,7 @@ export const useProfile = (userId?: string) => {
 
 // === BUNDLED PROFILE DATA ===
 export const useBundledProfileData = (options: BundleOptions = {}) => {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
   const userId = user?.id;
 
   const defaultOptions: Required<BundleOptions> = {
@@ -115,7 +121,7 @@ export const useBundledProfileData = (options: BundleOptions = {}) => {
 
 // === ANWEISUNGEN & WISSEN ===
 export const useAnweisungenWissen = ({ isActive, enabled = true }: TabHookOptions = {}) => {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
 
   const queryKey = QUERY_KEYS.anweisungenWissen(user?.id);
@@ -184,7 +190,7 @@ export const useAnweisungenWissen = ({ isActive, enabled = true }: TabHookOption
 
 // === Q&A COLLECTIONS ===
 export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOptions = {}) => {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
 
   const query = useQuery<NotebookCollection[], Error>({
@@ -263,7 +269,7 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
 // - useCustomGeneratorsMutations: Provides update/delete mutations only (no fetching/syncing)
 
 export const useCustomGeneratorsData = ({ isActive, enabled = true }: TabHookOptions = {}) => {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
 
   const shouldFetch = enabled && !!user?.id && isActive;
 
@@ -284,7 +290,7 @@ export const useCustomGeneratorsData = ({ isActive, enabled = true }: TabHookOpt
 };
 
 export const useCustomGeneratorsMutations = () => {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
 
   const updateMutation = useMutation({
@@ -377,7 +383,7 @@ export const useCustomGenerators = ({ isActive, enabled = true }: TabHookOptions
 
 // === SAVED GENERATORS ===
 export const useSavedGenerators = ({ isActive, enabled = true }: TabHookOptions = {}) => {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
 
   const query = useQuery<CustomGenerator[], Error>({
@@ -425,7 +431,7 @@ export const useSavedGenerators = ({ isActive, enabled = true }: TabHookOptions 
 
 // === GENERATOR DOCUMENTS ===
 export const useGeneratorDocuments = (generatorId: string | undefined) => {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
 
   const query = useQuery<Document[], Error>({
@@ -465,7 +471,7 @@ export const useGeneratorDocuments = (generatorId: string | undefined) => {
 
 // === USER TEXTS ===
 export const useUserTexts = ({ isActive, enabled = true }: TabHookOptions = {}) => {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
 
   const query = useQuery<SavedText[], Error>({
@@ -507,7 +513,7 @@ export const useUserTexts = ({ isActive, enabled = true }: TabHookOptions = {}) 
 
 // === USER TEMPLATES ===
 export const useUserTemplates = ({ isActive, enabled = true }: TabHookOptions = {}) => {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
 
   const query = useQuery<UserTemplate[], Error>({
@@ -576,7 +582,7 @@ export const useUserTemplates = ({ isActive, enabled = true }: TabHookOptions = 
 
 // === AVAILABLE DOCUMENTS ===
 export const useAvailableDocuments = ({ enabled = true }: EnabledOnlyOptions = {}) => {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
 
   const query = useQuery<Document[], Error>({
     queryKey: QUERY_KEYS.availableDocuments(user?.id),
@@ -591,7 +597,7 @@ export const useAvailableDocuments = ({ enabled = true }: EnabledOnlyOptions = {
 
 // === MEMORY (MEM0RY) ===
 export const useMemories = ({ isActive, enabled = true }: TabHookOptions = {}) => {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
 
   const query = useQuery<Memory[], Error>({

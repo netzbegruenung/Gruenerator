@@ -3,6 +3,7 @@ import { Router, type Response } from 'express';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { type AuthenticatedRequest } from '../../middleware/types.js';
+import { MarkdownService } from '../../services/markdown/MarkdownService.js';
 import {
   validateAndSanitizeHtml,
   extractTitleFromHtml,
@@ -42,9 +43,14 @@ router.post('/from-export', requireAuth, async (req: AuthenticatedRequest, res: 
       return res.status(400).json({ error: 'Content is required' });
     }
 
+    // Convert markdown to HTML if content looks like markdown (not HTML)
+    const isLikelyMarkdown =
+      !content.trim().startsWith('<') && /\*\*|^#{1,3}\s|^[-*+]\s/m.test(content);
+    const htmlContent = isLikelyMarkdown ? new MarkdownService().markdownToHtml(content) : content;
+
     let sanitizedContent: string;
     try {
-      sanitizedContent = validateAndSanitizeHtml(content);
+      sanitizedContent = validateAndSanitizeHtml(htmlContent);
     } catch (error: any) {
       return res.status(400).json({ error: error.message });
     }

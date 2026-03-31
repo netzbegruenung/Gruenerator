@@ -83,7 +83,6 @@ interface LocaleStyleMapping {
 
 class AssSubtitleService {
   private grueneTypeFontPath: string;
-  private gjFontPath: string;
   private montserratFontPath: string;
   private localeStyleMapping: LocaleStyleMapping;
 
@@ -92,7 +91,6 @@ class AssSubtitleService {
       __dirname,
       '../../public/fonts/GrueneTypeNeue-Regular.ttf'
     );
-    this.gjFontPath = path.resolve(__dirname, '../../public/fonts/GJFontRegular.ttf');
     this.montserratFontPath = path.resolve(__dirname, '../../public/fonts/Montserrat-Bold.ttf');
 
     this.localeStyleMapping = {
@@ -106,9 +104,6 @@ class AssSubtitleService {
   }
 
   getFontPathForStyle(stylePreference: string): string {
-    if (stylePreference?.startsWith('gj_')) {
-      return this.gjFontPath;
-    }
     if (stylePreference?.startsWith('at_')) {
       return this.montserratFontPath;
     }
@@ -212,66 +207,6 @@ class AssSubtitleService {
           shadow: 0,
           primaryColor: '&Hffffff',
           secondaryColor: '&Hffffff',
-          spacing: 1,
-        };
-      }
-
-      case 'gj_clean':
-        return {
-          ...baseStyle,
-          fontName: 'Wix Madefor Display',
-          backColor: '&H00000000',
-          borderStyle: 0,
-          outline: 0,
-          outlineColor: '&H00000000',
-          shadow: 0,
-          primaryColor: '&Hffffff',
-          secondaryColor: '&Hffffff',
-        };
-
-      case 'gj_shadow':
-        return {
-          ...baseStyle,
-          fontName: 'Wix Madefor Display',
-          backColor: '&H00000000',
-          borderStyle: 0,
-          outline: 0,
-          shadow: 3,
-          outlineColor: '&H80000000',
-          primaryColor: '&Hffffff',
-          secondaryColor: '&Hffffff',
-        };
-
-      case 'gj_lavendel': {
-        const lavendelColor = this.convertRgbToAssBgr('#9f88ff', 0x00);
-        const lavendelOutline = this.convertRgbToAssBgr('#7d66cc', 0x00);
-        return {
-          ...baseStyle,
-          fontName: 'Wix Madefor Display',
-          backColor: lavendelColor,
-          borderStyle: 3,
-          outline: 1,
-          outlineColor: lavendelOutline,
-          shadow: 0,
-          primaryColor: '&Hffffff',
-          secondaryColor: '&Hffffff',
-          spacing: 1,
-        };
-      }
-
-      case 'gj_hellgruen': {
-        const hellgruenColor = this.convertRgbToAssBgr('#c7ff7a', 0x00);
-        const hellgruenOutline = this.convertRgbToAssBgr('#9fcc5f', 0x00);
-        return {
-          ...baseStyle,
-          fontName: 'Wix Madefor Display',
-          backColor: hellgruenColor,
-          borderStyle: 3,
-          outline: 1,
-          outlineColor: hellgruenOutline,
-          shadow: 0,
-          primaryColor: '&H000000',
-          secondaryColor: '&H000000',
           spacing: 1,
         };
       }
@@ -413,11 +348,6 @@ class AssSubtitleService {
 
     if (subtitlePreference === 'manual') {
       fontSize = Math.floor(fontSize * 1.2);
-    }
-
-    const isGjStyle = stylePreference?.startsWith('gj_');
-    if (isGjStyle) {
-      fontSize = Math.floor(fontSize * 0.7);
     }
 
     const isAtStyle = stylePreference?.startsWith('at_');
@@ -573,8 +503,6 @@ Style: ${styleLine}`;
     if (
       stylePreference === 'standard' ||
       stylePreference === 'tanne' ||
-      stylePreference === 'gj_lavendel' ||
-      stylePreference === 'gj_hellgruen' ||
       stylePreference === 'at_standard' ||
       stylePreference === 'at_gruen'
     ) {

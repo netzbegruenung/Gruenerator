@@ -249,7 +249,7 @@ Spezialisierte Assistenten als MCP Prompts. Alle benötigen \`country\` als Para
 | oeffentlichkeitsarbeit | Pressemitteilungen & Social Media (optional: \`platform\`) |
 | antrag | Kommunalpolitische Anträge, kleine & große Anfragen |
 | rede-schreiber | Politische Reden mit Einstiegsideen und Rednerhinweisen |
-| gruene-jugend | Aktivistischer Social-Media-Content im Stil der Grünen Jugend |
+
 | buergerservice | Bürger*innenanfragen professionell beantworten |
 | wahlprogramm | Strukturierte Wahlprogramm-Kapitel |
 

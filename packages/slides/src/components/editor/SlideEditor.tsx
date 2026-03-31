@@ -3,7 +3,7 @@ import { useCallback, useRef, useState } from 'react';
 import { usePresentationStore } from '../../stores/presentationStore';
 import { type ExportFormat, type PresentationWithSlides } from '../../types/slide';
 
-import { SlideCanvas } from './SlideCanvas';
+import { SlideCanvas, SlideCanvasAutoScale } from './SlideCanvas';
 import { SlidePanel } from './SlidePanel';
 import { SlideToolbar } from './SlideToolbar';
 
@@ -13,6 +13,7 @@ interface SlideEditorProps {
   onBack?: () => void;
   onTitleChange?: (title: string) => void;
   onExport?: (format: ExportFormat) => void;
+  onEdit?: () => void;
   isSaving?: boolean;
 }
 
@@ -26,6 +27,7 @@ export function SlideEditor({
   onBack,
   onTitleChange,
   onExport,
+  onEdit,
   isSaving = false,
 }: SlideEditorProps) {
   const { currentSlideIndex, setCurrentSlideIndex } = usePresentationStore();
@@ -44,16 +46,24 @@ export function SlideEditor({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (isPresentMode) {
-        if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
-          e.preventDefault();
-          setCurrentSlideIndex(Math.min(currentSlideIndex + 1, presentation.slides.length - 1));
-        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-          e.preventDefault();
-          setCurrentSlideIndex(Math.max(currentSlideIndex - 1, 0));
-        } else if (e.key === 'Escape') {
-          handleExitPresent();
-        }
+      // Skip if user is typing in an input
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || (isPresentMode && e.key === ' ')) {
+        e.preventDefault();
+        setCurrentSlideIndex(Math.min(currentSlideIndex + 1, presentation.slides.length - 1));
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        setCurrentSlideIndex(Math.max(currentSlideIndex - 1, 0));
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        setCurrentSlideIndex(0);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        setCurrentSlideIndex(presentation.slides.length - 1);
+      } else if (e.key === 'Escape' && isPresentMode) {
+        handleExitPresent();
       }
     },
     [
@@ -130,13 +140,19 @@ export function SlideEditor({
   }
 
   return (
-    <div className="flex flex-col h-screen" onKeyDown={handleKeyDown} tabIndex={-1}>
+    <div
+      className="flex flex-col h-full outline-none"
+      onKeyDown={handleKeyDown}
+      tabIndex={-1}
+      ref={(el) => el?.focus()}
+    >
       <SlideToolbar
         title={presentation.title}
         onTitleChange={editable ? onTitleChange : undefined}
         onExport={onExport}
         onPresent={handlePresent}
         onBack={onBack}
+        onEdit={onEdit}
         isSaving={isSaving}
         editable={editable}
         slideCount={presentation.slides.length}
@@ -153,12 +169,12 @@ export function SlideEditor({
 
         <div
           ref={mainRef}
-          className="flex-1 overflow-auto bg-grey-100 dark:bg-grey-900 p-8 flex items-start justify-center"
+          className="flex-1 overflow-auto bg-grey-100 dark:bg-grey-900 p-4 flex items-start justify-center"
         >
           {currentSlide ? (
-            <div className="w-full max-w-[960px]">
-              <div className="rounded-xl shadow-xl overflow-hidden">
-                <SlideCanvas
+            <div className="w-full">
+              <div className="rounded-xl shadow-xl overflow-hidden" style={{ aspectRatio: '16/9' }}>
+                <SlideCanvasAutoScale
                   slide={{
                     layout: currentSlide.layout,
                     layout_group: currentSlide.layoutGroup,
@@ -166,7 +182,6 @@ export function SlideEditor({
                     properties: currentSlide.properties,
                   }}
                   isEditMode={editable}
-                  scale={Math.min(960 / 1280, 1)}
                 />
               </div>
 

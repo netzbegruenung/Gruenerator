@@ -1,3 +1,4 @@
+import { MdDiversity1 } from 'react-icons/md';
 import {
   PiMagnifyingGlass,
   PiBooks,
@@ -8,9 +9,9 @@ import {
   PiNewspaper,
   PiTree,
   PiFlag,
-  PiBuildings,
   PiLightbulb,
   PiScales,
+  PiFlowerLight,
 } from 'react-icons/pi';
 
 import type { IconType } from 'react-icons';
@@ -103,10 +104,11 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
     id: 'berlin-notebook',
     path: '/gruene-berlin',
     title: 'Berlin',
-    description: 'Durchsuchbar sind Pressemitteilungen und Beschlüsse der Grünen Berlin.',
+    description:
+      'Durchsuchbar sind Wahlprogramm 2026, Pressemitteilungen und Beschlüsse der Grünen Berlin.',
     meta: 'Archiv',
-    tags: ['Berlin', 'Beschlüsse', 'Presse'],
-    icon: PiBuildings,
+    tags: ['Berlin', 'Wahlprogramm', 'Beschlüsse', 'Presse'],
+    icon: MdDiversity1,
     order: 7,
     category: 'landesebene',
   },
@@ -127,10 +129,10 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
     path: '/gruene-brandenburg',
     title: 'Brandenburg',
     description:
-      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und Wahlprogramme der Grünen Brandenburg.',
+      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und das Landtagswahlprogramm 2024 der Grünen Brandenburg.',
     meta: 'Archiv',
-    tags: ['Brandenburg', 'Beschlüsse', 'Presse', 'Wahlprogramme'],
-    icon: PiTree,
+    tags: ['Brandenburg', 'Beschlüsse', 'Presse', 'Wahlprogramm'],
+    icon: PiFlowerLight,
     order: 9,
     category: 'landesebene',
   },

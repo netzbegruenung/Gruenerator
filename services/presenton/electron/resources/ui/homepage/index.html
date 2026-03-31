@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Presenton</title>
+  <link rel="stylesheet" href="../assets/css/tailwind.css">
+  <script src="./script.js"></script>
+  <style>
+    .loading-circle {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .status-panel {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      background: rgba(17, 24, 39, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 12px;
+      line-height: 1.4;
+      display: inline-flex;
+      width: fit-content;
+      max-width: 80vw;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 4px 0;
+    }
+
+    .status-name {
+      flex: 1;
+      color: #e5e7eb;
+      font-weight: 600;
+    }
+
+    .status-text {
+      color: #d1d5db;
+    }
+
+    .status-icon {
+      width: 10px;
+      height: 10px;
+      display: inline-block;
+      border-radius: 9999px;
+    }
+
+    .status-icon.loading {
+      background: #3b82f6;
+      animation: pulse 1s ease-in-out infinite;
+    }
+
+    .status-icon.ok {
+      background: #10b981;
+    }
+
+    .status-icon.error {
+      background: #ef4444;
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: 0.35;
+      }
+      50% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0.35;
+      }
+    }
+
+    .status-tooltip {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 8px;
+      background: rgba(17, 24, 39, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 11px;
+      color: #e5e7eb;
+      white-space: normal;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 200px;
+      opacity: 0;
+      transform: translateY(-4px);
+      pointer-events: none;
+      transition: opacity 120ms ease, transform 120ms ease;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.28);
+    }
+
+    .status-panel:hover .status-tooltip {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .status-tooltip-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .status-tooltip-line span {
+      white-space: nowrap;
+    }
+
+    .status-tooltip-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-tooltip-label::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 9999px;
+      background: #6b7280;
+      box-shadow: 0 0 0 2px rgba(107, 114, 128, 0.2);
+    }
+
+    .status-tooltip-label.loading::before {
+      background: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+      animation: pulse 1s ease-in-out infinite;
+    }
+
+    .status-tooltip-label.ok::before {
+      background: #10b981;
+      box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+    }
+
+    .status-tooltip-label.error::before {
+      background: #ef4444;
+      box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
+    }
+  </style>
+</head>
+
+<body class="bg-gray-900 text-white flex flex-col items-center justify-center h-screen">
+  <img src="../assets/images/presenton_logo.png" alt="Presenton Logo" class="h-20">
+  <p class="mt-16 text-lg">Just a moment...</p>
+  <div class="loading-circle mt-8"></div>
+
+  <div class="status-panel" id="dependencies-panel">
+    <div class="status-row">
+      <span class="status-icon loading" id="icon-dependencies"></span>
+      <span class="status-name" id="status-dependencies">Dependencies</span>
+    </div>
+    <div class="status-tooltip" id="dependencies-tooltip">
+      <div class="status-tooltip-line">
+        <span class="status-tooltip-label loading" id="tooltip-label-libreoffice">LibreOffice</span>
+        <span id="tooltip-libreoffice">Checking...</span>
+      </div>
+      <div class="status-tooltip-line">
+        <span class="status-tooltip-label loading" id="tooltip-label-puppeteer">Chromium</span>
+        <span id="tooltip-puppeteer">Checking...</span>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

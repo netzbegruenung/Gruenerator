@@ -5,11 +5,16 @@
  */
 
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 import { createLogger } from '../../utils/logger.js';
 
 import { ffmpeg, normalizeRotation, type FFprobeMetadata } from './ffmpegWrapper.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const fsPromises = fs.promises;
 const log = createLogger('videoUpload');
@@ -115,6 +120,12 @@ async function extractAudio(
   options?: ExtractAudioOptions
 ): Promise<string> {
   log.debug('Starte Audio-Extraktion:', { inputPath: videoPath, outputPath });
+
+  const allowedDirs = [path.resolve(__dirname, '../../uploads'), path.resolve(os.tmpdir())];
+  const resolvedVideoPath = path.resolve(videoPath);
+  if (!allowedDirs.some((dir) => resolvedVideoPath.startsWith(dir + path.sep))) {
+    throw new Error('Video path outside allowed directory');
+  }
 
   if (!fs.existsSync(videoPath)) {
     throw new Error(`Video-Datei nicht gefunden: ${videoPath}`);

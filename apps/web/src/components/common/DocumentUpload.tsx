@@ -15,7 +15,7 @@ import {
   HiOutlineCloudDownload,
 } from 'react-icons/hi';
 
-import { useOptimizedAuth } from '../../hooks/useAuth';
+import { useAuthStore } from '../../stores/authStore';
 import { useDocumentsStore } from '../../stores/documentsStore';
 import { cn } from '../../utils/cn';
 import { validateUrl, normalizeUrl, generateTitleFromUrl } from '../../utils/urlValidation';
@@ -195,7 +195,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
     const isFormVisible = forceShowUploadForm || showUploadForm;
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const { user } = useOptimizedAuth();
+    const user = useAuthStore((s) => s.user);
 
     const {
       documents,

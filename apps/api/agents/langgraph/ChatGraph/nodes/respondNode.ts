@@ -203,7 +203,10 @@ async function formatSearchContext(state: ChatGraphState): Promise<string> {
   }
 
   // Default: budget-based truncation
-  const topResults = state.searchResults.slice(0, MAX_SEARCH_RESULTS);
+  // Notebook-scoped searches get more results and higher budget for deeper answers
+  const isNotebookScoped = (state.notebookCollectionIds?.length ?? 0) > 0;
+  const maxResults = isNotebookScoped ? 12 : MAX_SEARCH_RESULTS;
+  const topResults = state.searchResults.slice(0, maxResults);
 
   // Document chat gets the highest budget for focused Q&A
   const isDocumentChat = state.documentChatIds?.length > 0;
@@ -213,9 +216,11 @@ async function formatSearchContext(state: ChatGraphState): Promise<string> {
   const isMultiSource = (state.searchSources?.length || 0) > 1;
   const budget = isDocumentChat
     ? SEARCH_CONTEXT_BUDGET_DOCUMENTCHAT
-    : hasCrawledContent || isMultiSource
-      ? SEARCH_CONTEXT_BUDGET_CRAWLED
-      : SEARCH_CONTEXT_BUDGET;
+    : isNotebookScoped
+      ? SEARCH_CONTEXT_BUDGET_DOCUMENTCHAT
+      : hasCrawledContent || isMultiSource
+        ? SEARCH_CONTEXT_BUDGET_CRAWLED
+        : SEARCH_CONTEXT_BUDGET;
 
   // Crawled results get 2x weight in budget allocation
   const weightedRelevance = topResults.map((r) => {
@@ -262,6 +267,25 @@ ${limitedContext}
 
 ---
 Beantworte Fragen zu den Dokumenten basierend auf deren Inhalt.`;
+}
+
+/**
+ * Format image attachment context for the system message.
+ * Instructs the model to acknowledge and describe the attached images.
+ */
+function formatImageContext(state: ChatGraphState): string {
+  if (!state.imageAttachments || state.imageAttachments.length === 0) {
+    return '';
+  }
+
+  const count = state.imageAttachments.length;
+  const names = state.imageAttachments.map((img) => img.name).join(', ');
+
+  return `
+
+## ANGEHÄNGTE BILDER
+
+Der Nutzer hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). Die Bilder sind in der Nachricht sichtbar. Beziehe dich auf den Bildinhalt in deiner Antwort.`;
 }
 
 /**
@@ -401,6 +425,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   } = state;
   const searchContext = await formatSearchContext(state);
   const attachmentContext = formatAttachmentContext(state);
+  const imageContext = formatImageContext(state);
   const summaryContextFormatted = formatSummaryContext(summaryContext);
   const threadAttachmentsContext = formatThreadAttachmentsContext(threadAttachments);
   const memoryContextFormatted = formatMemoryContext(memoryContext);
@@ -441,10 +466,15 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
     year: 'numeric',
   });
 
+  // User profile instructions (additive — included in all modes)
+  const userInstructionsFormatted = state.userInstructions
+    ? `\n\n## PERSÖNLICHE ANWEISUNGEN\n\nDer*die Nutzer*in hat folgendes Profil hinterlegt:\n\n${state.userInstructions}\n\nBefolge diese Anweisungen bei allen Antworten.`
+    : '';
+
   // Custom system prompt: replaces the entire agent prompt when set
   if (state.customSystemPrompt) {
     return `${state.customSystemPrompt}
-Heutiges Datum: ${today}${localeContext}${memoryContextFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${attachmentContext}${summaryContextFormatted}${searchContext}${hasSources ? `\n${citationInstruction}` : ''}`;
+Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryContextFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}${hasSources ? `\n${citationInstruction}` : ''}`;
   }
 
   // Use a neutral, non-partisan system role for document summaries
@@ -456,7 +486,7 @@ Heutiges Datum: ${today}${localeContext}${memoryContextFormatted}${boardContextF
   const systemRole = localizePlaceholders(rawSystemRole, (state.userLocale as Locale) || 'de-DE');
 
   return `${systemRole}
-Heutiges Datum: ${today}${localeContext}${intentGuidance}${memoryContextFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${attachmentContext}${summaryContextFormatted}${searchContext}
+Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo

@@ -7,25 +7,26 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  FiPlus,
-  FiFile,
-  FiGrid,
-  FiMoreVertical,
-  FiEdit2,
-  FiShare2,
-  FiTrash2,
-} from 'react-icons/fi';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { FiPlus, FiFile, FiGrid, FiUsers } from 'react-icons/fi';
 
-import { useDocumentStore } from '../../stores/documentStore';
-import { useDocsAdapter, createDocsApiClient } from '../../context/DocsContext';
-import { templates, type TemplateType, getTemplateContent } from '../../lib/templates';
+import { useDocsAdapter } from '../../context/DocsContext';
+import {
+  useDocuments,
+  useCreateDocument,
+  useGenerateDocument,
+  useDeleteDocument,
+  useUpdateDocument,
+} from '../../hooks/useDocuments';
+import { type TemplateType } from '../../lib/templates';
+import type { Document } from '../../stores/documentStore';
 import { ShareModal } from '../permissions/ShareModal';
-import { AIDocumentCreator } from './AIDocumentCreator';
+import { DocumentCard } from './DocumentCard';
 import { TemplateCarousel } from './TemplateCarousel';
 import { TemplatePicker } from './TemplatePicker';
-import './DocumentList.css';
+
+const gridClasses =
+  'flex flex-col gap-sm sm:grid sm:grid-cols-2 sm:gap-md md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-lg lg:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]';
 
 interface DocumentListProps {
   searchQuery?: string;
@@ -33,20 +34,13 @@ interface DocumentListProps {
 
 export const DocumentList = memo(({ searchQuery }: DocumentListProps) => {
   const adapter = useDocsAdapter();
-  const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
 
-  // Data selectors — only re-render when these values change
-  const documents = useDocumentStore((s) => s.documents);
-  const isLoading = useDocumentStore((s) => s.isLoading);
-  const isGenerating = useDocumentStore((s) => s.isGenerating);
-  const error = useDocumentStore((s) => s.error);
+  const { data: documents = [], isLoading, error } = useDocuments();
+  const createDocumentMutation = useCreateDocument();
+  const generateDocumentMutation = useGenerateDocument();
+  const deleteDocumentMutation = useDeleteDocument();
+  const updateDocumentMutation = useUpdateDocument();
 
-  // Action selectors — referentially stable
-  const fetchDocuments = useDocumentStore((s) => s.fetchDocuments);
-  const createDocument = useDocumentStore((s) => s.createDocument);
-  const generateDocument = useDocumentStore((s) => s.generateDocument);
-  const deleteDocument = useDocumentStore((s) => s.deleteDocument);
-  const updateDocument = useDocumentStore((s) => s.updateDocument);
   const [showGallery, setShowGallery] = useState(false);
   const [shareDoc, setShareDoc] = useState<{ id: string; title: string } | null>(null);
 
@@ -56,206 +50,172 @@ export const DocumentList = memo(({ searchQuery }: DocumentListProps) => {
     return documents.filter((doc) => doc.title.toLowerCase().includes(query));
   }, [documents, searchQuery]);
 
-  useEffect(() => {
-    fetchDocuments(apiClient);
-  }, [fetchDocuments, apiClient]);
+  const { personalDocs, groupDocsByGroup } = useMemo(() => {
+    const personal: Document[] = [];
+    const groupMap = new Map<string, { groupName: string; docs: Document[] }>();
+
+    for (const doc of filteredDocuments) {
+      if (doc.access_type === 'group' && doc.group_shares?.length) {
+        for (const gs of doc.group_shares) {
+          let entry = groupMap.get(gs.group_id);
+          if (!entry) {
+            entry = { groupName: gs.group_name, docs: [] };
+            groupMap.set(gs.group_id, entry);
+          }
+          entry.docs.push(doc);
+        }
+      } else {
+        personal.push(doc);
+      }
+    }
+
+    return {
+      personalDocs: personal,
+      groupDocsByGroup: Array.from(groupMap.entries()).sort(([, a], [, b]) =>
+        a.groupName.localeCompare(b.groupName, 'de')
+      ),
+    };
+  }, [filteredDocuments]);
 
   const handleTemplateSelect = useCallback(
     async (templateType: TemplateType) => {
       setShowGallery(false);
       try {
+        const { templates } = await import('../../lib/templates');
         const template = templates.find((t) => t.id === templateType);
         const title = template?.defaultTitle || 'Neues Dokument';
-        const newDoc = await createDocument(apiClient, title, null, templateType);
+        const newDoc = await createDocumentMutation.mutateAsync({
+          title,
+          documentSubtype: templateType,
+        });
         adapter.navigateToDocument(newDoc.id);
-      } catch (error) {
-        console.error('Failed to create document:', error);
+      } catch (err) {
+        console.error('Failed to create document:', err);
       }
     },
-    [createDocument, apiClient, adapter]
-  );
-
-  const handleAIGenerate = useCallback(
-    async (description: string) => {
-      try {
-        const newDoc = await generateDocument(apiClient, description);
-        adapter.navigateToDocument(newDoc.id);
-      } catch (error) {
-        console.error('Failed to generate document:', error);
-      }
-    },
-    [generateDocument, apiClient, adapter]
+    [createDocumentMutation, adapter]
   );
 
   const handleShowGallery = useCallback(() => setShowGallery(true), []);
 
-  const handleDeleteDocument = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (window.confirm('Dokument wirklich löschen?')) {
-      try {
-        await deleteDocument(apiClient, id);
-      } catch (error) {
-        console.error('Failed to delete document:', error);
+  const handleDeleteDocument = useCallback(
+    async (id: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (window.confirm('Dokument wirklich löschen?')) {
+        try {
+          await deleteDocumentMutation.mutateAsync(id);
+        } catch (err) {
+          console.error('Failed to delete document:', err);
+        }
       }
-    }
-  };
+    },
+    [deleteDocumentMutation]
+  );
 
-  const handleRenameDocument = async (doc: { id: string; title: string }, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const newTitle = window.prompt('Neuer Titel:', doc.title);
-    console.log(
-      '[docs-rename] DocumentList prompt result: docId=%s, oldTitle="%s", newTitle=%o',
-      doc.id,
-      doc.title,
-      newTitle
-    );
-    if (newTitle && newTitle.trim() && newTitle.trim() !== doc.title) {
-      try {
-        await updateDocument(apiClient, doc.id, { title: newTitle.trim() });
-        console.log('[docs-rename] DocumentList rename success: docId=%s', doc.id);
-      } catch (error) {
-        console.error(
-          '[docs-rename] DocumentList rename failed: docId=%s, error=%o',
-          doc.id,
-          error
-        );
+  const handleRenameDocument = useCallback(
+    async (doc: { id: string; title: string }, e: React.MouseEvent) => {
+      e.stopPropagation();
+      const newTitle = window.prompt('Neuer Titel:', doc.title);
+      if (newTitle && newTitle.trim() && newTitle.trim() !== doc.title) {
+        try {
+          await updateDocumentMutation.mutateAsync({
+            id: doc.id,
+            updates: { title: newTitle.trim() },
+          });
+        } catch (err) {
+          console.error('Failed to rename document:', err);
+        }
       }
-    } else {
-      console.log('[docs-rename] DocumentList rename skipped: cancelled or unchanged');
-    }
-  };
+    },
+    [updateDocumentMutation]
+  );
+
+  const handleShareDocument = useCallback((doc: { id: string; title: string }) => {
+    setShareDoc({ id: doc.id, title: doc.title });
+  }, []);
+
+  const handleNavigate = useCallback((id: string) => adapter.navigateToDocument(id), [adapter]);
 
   if (isLoading) {
-    return <div className="document-list-loading">Lädt...</div>;
+    return <div className="py-12 px-4 text-center text-grey-500 dark:text-grey-400">Lädt...</div>;
   }
 
   if (error) {
-    return <div className="document-list-error">{error}</div>;
+    return (
+      <div className="py-12 px-4 text-center text-red-600 dark:text-red-400">{error.message}</div>
+    );
   }
 
+  const hasNoDocuments = documents.length === 0;
+  const hasNoResults = filteredDocuments.length === 0 && !hasNoDocuments;
+
   return (
-    <div className="document-list">
-      {/* Desktop: AI creator + template carousel */}
-      <div className="desktop-only-templates">
-        {/* <AIDocumentCreator onGenerate={handleAIGenerate} isLoading={isGenerating} /> */}
+    <div className="w-full">
+      {/* Desktop: template carousel */}
+      <div className="max-sm:hidden">
         <TemplateCarousel
           onTemplateSelect={handleTemplateSelect}
           onShowGallery={handleShowGallery}
         />
       </div>
 
-      {documents.length === 0 ? (
-        <div className="document-list-empty">
+      {hasNoDocuments ? (
+        <div className="py-12 px-4 text-center text-[0.9375rem] leading-relaxed text-grey-500 dark:text-grey-400">
           Noch keine Dokumente vorhanden. Erstelle dein erstes Dokument!
         </div>
-      ) : filteredDocuments.length === 0 ? (
-        <div className="document-list-empty">Keine Dokumente gefunden.</div>
-      ) : (
-        <div className="document-grid">
-          {filteredDocuments.map((doc) => {
-            const template = templates.find((t) => t.id === doc.document_subtype);
-            const emoji = template?.icon || '📄';
-            const templateHtml = getTemplateContent(doc.document_subtype);
-            const previewHtml = doc.content?.trim()
-              ? /^<[a-z]/i.test(doc.content.trim())
-                ? doc.content
-                : `<p>${doc.content}</p>`
-              : templateHtml;
-
-            return (
-              <div
-                key={doc.id}
-                className="document-card"
-                onClick={() => adapter.navigateToDocument(doc.id)}
-              >
-                {previewHtml ? (
-                  <div className="document-card-preview document-card-preview-miniature">
-                    <div
-                      className="document-card-preview-page"
-                      dangerouslySetInnerHTML={{ __html: previewHtml }}
-                    />
-                  </div>
-                ) : (
-                  <div className="document-card-preview document-card-preview-empty">
-                    <span>{emoji}</span>
-                  </div>
-                )}
-
-                <div className="document-card-footer">
-                  <div className="document-card-header">
-                    <h3 className="document-card-title">
-                      <span className="document-card-emoji">{emoji}</span>
-                      {doc.title}
-                    </h3>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          className="document-card-menu"
-                          onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                          aria-label="Dokumentoptionen"
-                        >
-                          <FiMoreVertical size={16} />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        align="end"
-                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                      >
-                        <DropdownMenuItem
-                          onClick={(e: React.MouseEvent) => handleRenameDocument(doc, e)}
-                        >
-                          <FiEdit2 size={14} />
-                          Umbenennen
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={(e: React.MouseEvent) => {
-                            e.stopPropagation();
-                            setShareDoc({ id: doc.id, title: doc.title });
-                          }}
-                        >
-                          <FiShare2 size={14} />
-                          Teilen
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={(e: React.MouseEvent) => handleDeleteDocument(doc.id, e)}
-                        >
-                          <FiTrash2 size={14} />
-                          Löschen
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  <div className="document-card-meta">
-                    <span>
-                      {new Date(doc.updated_at).toLocaleDateString('de-DE', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                      })}
-                    </span>
-                    {doc.access_type && doc.access_type !== 'owner' && (
-                      <span className="document-card-sharing">
-                        {doc.creator_name ? `Von ${doc.creator_name}` : 'Geteilt'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+      ) : hasNoResults ? (
+        <div className="py-12 px-4 text-center text-[0.9375rem] leading-relaxed text-grey-500 dark:text-grey-400">
+          Keine Dokumente gefunden.
         </div>
+      ) : (
+        <>
+          {/* Personal documents */}
+          {personalDocs.length > 0 && (
+            <div className={gridClasses}>
+              {personalDocs.map((doc) => (
+                <DocumentCard
+                  key={doc.id}
+                  doc={doc}
+                  onNavigate={handleNavigate}
+                  onRename={handleRenameDocument}
+                  onDelete={handleDeleteDocument}
+                  onShare={handleShareDocument}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* One section per group */}
+          {groupDocsByGroup.map(([groupId, { groupName, docs }]) => (
+            <div key={groupId} className="mt-xl">
+              <h2 className="mb-sm flex items-center gap-xs text-sm font-medium text-grey-500 dark:text-grey-400">
+                <FiUsers size={14} />
+                {groupName}
+              </h2>
+              <div className={gridClasses}>
+                {docs.map((doc) => (
+                  <DocumentCard
+                    key={`${doc.id}-${groupId}`}
+                    doc={doc}
+                    onNavigate={handleNavigate}
+                    onRename={handleRenameDocument}
+                    onDelete={handleDeleteDocument}
+                    onShare={handleShareDocument}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </>
       )}
 
       {/* Mobile: floating action button */}
-      <div className="mobile-fab-container">
+      <div className="hidden max-sm:fixed max-sm:bottom-5 max-sm:right-5 max-sm:z-[100] max-sm:block">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               size="lg"
-              className="mobile-fab h-[52px] w-[52px] rounded-full bg-[#5F8575] hover:bg-[#5F8575]/90"
+              className="h-[52px] w-[52px] rounded-full bg-[#5F8575] shadow-[0_4px_12px_rgba(0,0,0,0.15),0_2px_4px_rgba(0,0,0,0.1)] hover:bg-[#5F8575]/90"
               aria-label="Neues Dokument erstellen"
             >
               <FiPlus size={24} />

@@ -25,8 +25,8 @@ import {
 import apiClient from '../../../../../../../components/utils/apiClient';
 import * as documentAndTextUtils from '../../../../../../../components/utils/documentAndTextUtils';
 import { handleError } from '../../../../../../../components/utils/errorHandling';
-import { useOptimizedAuth } from '../../../../../../../hooks/useAuth';
 import { useTabIndex } from '../../../../../../../hooks/useTabIndex';
+import { useAuthStore } from '../../../../../../../stores/authStore';
 import { useDocumentsStore } from '../../../../../../../stores/documentsStore';
 import { useDocumentMode } from '../../../../../../documents/hooks/useDocumentMode';
 
@@ -118,7 +118,8 @@ const DocumentsSection = memo(
     const tabIndex = useTabIndex('PROFILE_CONTENT_MANAGEMENT');
 
     // Auth state
-    const { user, isAuthenticated } = useOptimizedAuth();
+    const user = useAuthStore((s) => s.user);
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
     // Document mode management
     const { loading: modeLoading } = useDocumentMode();

@@ -16,7 +16,6 @@ export interface Profile {
   keycloak_id?: string | null;
   is_admin?: boolean;
   bundestag_api_enabled?: boolean;
-  igel_modus?: boolean;
   beta_features?: Record<string, unknown>;
   memory_enabled?: boolean;
   [key: string]: unknown;
@@ -242,7 +241,6 @@ export const profileApiService = {
       keycloak_id: profile.keycloak_id,
       // Add missing profile fields that are needed for frontend state management
       bundestag_api_enabled: profile.bundestag_api_enabled || false,
-      igel_modus: profile.igel_modus || false,
       beta_features: profile.beta_features || {},
       memory_enabled: profile.memory_enabled || false,
       custom_prompt: profile.custom_prompt || '',

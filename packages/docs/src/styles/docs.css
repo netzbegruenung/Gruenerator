@@ -9,11 +9,5 @@
    @blocknote/xl-ai/style.css
 */
 
-/* Component styles */
+/* BlockNote theme overrides — targets third-party DOM elements */
 @import '../components/editor/BlockNoteEditor.css';
-@import '../components/editor/PresenceAvatars.css';
-@import '../components/document/DocumentList.css';
-@import '../components/document/TemplateCarousel.css';
-@import '../components/document/TemplatePicker.css';
-@import '../components/chat/ChatSidebar.css';
-@import '../components/permissions/ShareModal.css';

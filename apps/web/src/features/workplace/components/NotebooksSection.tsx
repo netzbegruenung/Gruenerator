@@ -3,9 +3,14 @@ import React, { memo, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import ToolGrid from '../../../components/common/ToolGrid';
+import { useAuthStore } from '../../../stores/authStore';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 import NotebookEditor from '../../notebook/components/NotebookEditor';
-import { SYSTEM_NOTEBOOKS, getOrderedNotebooks } from '../../notebook/config/notebooksConfig';
+import {
+  getAustrianNotebooks,
+  getNotebooksByCategory,
+  SYSTEM_NOTEBOOKS,
+} from '../../notebook/config/notebooksConfig';
 
 import type { ToolEntry } from '../../../components/common/ToolGrid';
 import type { NotebookCollection } from '../../../types/notebook';
@@ -15,6 +20,8 @@ const INITIAL_COUNT = 5;
 const NotebooksSection: React.FC = memo(() => {
   const navigate = useNavigate();
   const [showEditor, setShowEditor] = useState(false);
+  const locale = useAuthStore((state) => state.locale);
+  const isAustrian = locale === 'de-AT';
 
   const { query, createQACollection, deleteQACollection } = useNotebookCollections({
     isActive: true,
@@ -23,7 +30,14 @@ const NotebooksSection: React.FC = memo(() => {
 
   const systemTools: ToolEntry[] = useMemo(
     () =>
-      getOrderedNotebooks()
+      (isAustrian
+        ? getAustrianNotebooks()
+        : [
+            ...getNotebooksByCategory('bundesebene'),
+            ...getNotebooksByCategory('landesebene'),
+            ...getNotebooksByCategory('weitere'),
+          ]
+      )
         .slice(0, INITIAL_COUNT)
         .map((nb) => ({
           id: nb.id,
@@ -32,7 +46,7 @@ const NotebooksSection: React.FC = memo(() => {
           path: nb.path,
           icon: nb.icon,
         })),
-    []
+    [isAustrian]
   );
 
   const userTools: ToolEntry[] = useMemo(

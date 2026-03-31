@@ -22,6 +22,7 @@ WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY tsconfig.base.json tsconfig.strict-migration.json ./
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/slides/package.json ./packages/slides/
 COPY services/hocuspocus/package.json ./services/hocuspocus/
 COPY apps/api/package.json ./apps/api/
 
@@ -31,6 +32,7 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 
 # Copy source and compile
 COPY packages/shared ./packages/shared
+COPY packages/slides ./packages/slides
 COPY services/hocuspocus ./services/hocuspocus
 COPY apps/api ./apps/api
 
@@ -40,6 +42,10 @@ RUN pnpm exec tsc --project tsconfig.json
 
 # Compile hocuspocus (API imports @gruenerator/hocuspocus at runtime)
 WORKDIR /app/services/hocuspocus
+RUN pnpm exec tsc --project tsconfig.build.json
+
+# Compile slides schemas (API imports @gruenerator/slides/schemas at runtime)
+WORKDIR /app/packages/slides
 RUN pnpm exec tsc --project tsconfig.build.json
 
 # Compile API (needs extra heap for large codebase)
@@ -94,6 +100,7 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/pnpm-lock.yaml ./
 
 # Copy package.json files for workspace structure
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/package.json ./packages/shared/
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/slides/package.json ./packages/slides/
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/package.json ./services/hocuspocus/
 COPY --from=builder --chown=gruenerator:gruenerator /app/apps/api/package.json ./apps/api/
 
@@ -112,6 +119,10 @@ RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' packages/shared/package.json
 # Copy compiled hocuspocus package (resolves @gruenerator/hocuspocus imports at runtime)
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/dist ./services/hocuspocus/dist
 RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' services/hocuspocus/package.json
+
+# Copy compiled slides schemas (resolves @gruenerator/slides/schemas imports at runtime)
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/slides/dist ./packages/slides/dist
+RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' packages/slides/package.json
 
 # Copy compiled API with bundled assets
 COPY --from=builder --chown=gruenerator:gruenerator /app/apps/api/dist ./apps/api/dist

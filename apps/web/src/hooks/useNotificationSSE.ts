@@ -1,9 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useCallback } from 'react';
 
+import { useAuthStore } from '../stores/authStore';
 import { useNotificationStore } from '../stores/notificationStore';
 
-import { useOptimizedAuth } from './useAuth';
 import { useBetaFeatures } from './useBetaFeatures';
 
 const RECONNECT_BASE_DELAY = 1000;
@@ -17,7 +17,7 @@ interface SSENotificationData {
 type OnNotificationCallback = (data: SSENotificationData) => void;
 
 export function useNotificationSSE(onNotification?: OnNotificationCallback): void {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
   const { canAccessBetaFeature } = useBetaFeatures();
   const queryClient = useQueryClient();
   const eventSourceRef = useRef<EventSource | null>(null);

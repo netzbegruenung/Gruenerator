@@ -2,6 +2,8 @@ import * as React from 'react';
 
 import { cn } from '../lib/cn';
 
+type VideoCardAspect = '9/16' | 'square';
+
 interface VideoCardProps extends Omit<React.ComponentProps<'div'>, 'children'> {
   src: string;
   poster?: string;
@@ -9,6 +11,8 @@ interface VideoCardProps extends Omit<React.ComponentProps<'div'>, 'children'> {
   duration?: number;
   footer?: React.ReactNode;
   overlay?: React.ReactNode;
+  aspect?: VideoCardAspect;
+  onTitleClick?: (e: React.MouseEvent) => void;
 }
 
 const formatDuration = (seconds: number): string => {
@@ -17,6 +21,14 @@ const formatDuration = (seconds: number): string => {
   return `${mins}:${String(secs).padStart(2, '0')}`;
 };
 
+const aspectClasses: Record<VideoCardAspect, string> = {
+  '9/16': 'aspect-[9/16]',
+  square: 'aspect-square',
+};
+
+const isTouchDevice = () =>
+  typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
 function VideoCard({
   src,
   poster,
@@ -24,6 +36,8 @@ function VideoCard({
   duration,
   footer,
   overlay,
+  aspect = '9/16',
+  onTitleClick,
   className,
   ...props
 }: VideoCardProps) {
@@ -31,8 +45,7 @@ function VideoCard({
   const [playing, setPlaying] = React.useState(false);
   const hoveringRef = React.useRef(false);
 
-  const handleMouseEnter = React.useCallback(() => {
-    hoveringRef.current = true;
+  const startPlayback = React.useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
 
@@ -41,16 +54,11 @@ function VideoCard({
     }
     void video
       .play()
-      .then(() => {
-        if (hoveringRef.current) setPlaying(true);
-      })
-      .catch(() => {
-        // play() rejected — user left before playback started
-      });
+      .then(() => setPlaying(true))
+      .catch(() => {});
   }, [src]);
 
-  const handleMouseLeave = React.useCallback(() => {
-    hoveringRef.current = false;
+  const stopPlayback = React.useCallback(() => {
     setPlaying(false);
     const video = videoRef.current;
     if (video) {
@@ -58,6 +66,31 @@ function VideoCard({
       video.currentTime = 0;
     }
   }, []);
+
+  const handleMouseEnter = React.useCallback(() => {
+    if (isTouchDevice()) return;
+    hoveringRef.current = true;
+    startPlayback();
+  }, [startPlayback]);
+
+  const handleMouseLeave = React.useCallback(() => {
+    if (isTouchDevice()) return;
+    hoveringRef.current = false;
+    stopPlayback();
+  }, [stopPlayback]);
+
+  const handleVideoTap = React.useCallback(
+    (e: React.MouseEvent) => {
+      if (!isTouchDevice()) return;
+      e.stopPropagation();
+      if (playing) {
+        stopPlayback();
+      } else {
+        startPlayback();
+      }
+    },
+    [playing, startPlayback, stopPlayback]
+  );
 
   return (
     <div
@@ -70,7 +103,10 @@ function VideoCard({
       onMouseLeave={handleMouseLeave}
       {...props}
     >
-      <div className="relative aspect-[9/16] overflow-hidden">
+      <div className={cn('relative overflow-hidden', aspectClasses[aspect])}>
+        {/* Tap zone for mobile play/pause */}
+        <div className="absolute inset-0 z-10" onClick={handleVideoTap} />
+
         <video
           ref={videoRef}
           muted
@@ -108,23 +144,35 @@ function VideoCard({
         {/* Gradient + text overlay — fades out when playing */}
         <div
           className={cn(
-            'absolute inset-0 flex flex-col justify-end transition-opacity duration-300 pointer-events-none',
-            playing ? 'opacity-0' : 'opacity-100'
+            'absolute inset-0 flex flex-col justify-end transition-opacity duration-300',
+            playing ? 'opacity-0 pointer-events-none' : 'opacity-100'
           )}
         >
           <div className="bg-gradient-to-t from-black/80 via-black/30 to-transparent px-3 pb-3 pt-12">
-            {title && (
-              <p className="text-white text-sm font-semibold leading-snug line-clamp-2 m-0">
-                {title}
-              </p>
-            )}
+            {title &&
+              (onTitleClick ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onTitleClick(e);
+                  }}
+                  className="text-white text-sm font-semibold leading-snug line-clamp-2 m-0 p-0 bg-transparent border-none cursor-pointer text-left hover:underline relative z-20"
+                >
+                  {title}
+                </button>
+              ) : (
+                <p className="text-white text-sm font-semibold leading-snug line-clamp-2 m-0">
+                  {title}
+                </p>
+              ))}
             {duration != null && duration > 0 && (
               <span className="text-white/70 text-xs mt-1 block">{formatDuration(duration)}</span>
             )}
           </div>
         </div>
 
-        {overlay && <div className="absolute inset-0">{overlay}</div>}
+        {overlay && <div className="absolute inset-0 z-30">{overlay}</div>}
       </div>
 
       {footer && (
@@ -136,4 +184,4 @@ function VideoCard({
   );
 }
 
-export { VideoCard, type VideoCardProps };
+export { VideoCard, type VideoCardProps, type VideoCardAspect };

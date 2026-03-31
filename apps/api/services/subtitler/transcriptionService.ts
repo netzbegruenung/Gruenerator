@@ -11,7 +11,6 @@ import { fileURLToPath } from 'url';
 import { createLogger } from '../../utils/logger.js';
 
 import { startBackgroundCompression } from './backgroundCompressionService.js';
-import { transcribeWithGladia } from './gladiaService.js';
 import { generateManualSubtitles } from './manualSubtitleGeneratorService.js';
 import { transcribeWithRegolo } from './regoloTranscriptionService.js';
 import { extractAudio } from './videoUploadService.js';
@@ -32,8 +31,8 @@ interface AIWorkerPool {
 }
 
 /**
- * Provider chain: regolo faster-whisper (default) → voxtral → gladia (legacy)
- * Override with TRANSCRIPTION_PROVIDER env var: regolo | voxtral | gladia
+ * Provider chain: regolo faster-whisper (default) → voxtral (fallback)
+ * Override with TRANSCRIPTION_PROVIDER env var: regolo | voxtral
  */
 async function transcribeWithProvider(
   audioPath: string,
@@ -60,20 +59,8 @@ async function transcribeWithProvider(
     }
   }
 
-  if (process.env.GLADIA_API_KEY) {
-    log.debug('Using Gladia for transcription (legacy fallback)');
-    try {
-      return await transcribeWithGladia(audioPath, requestWordTimestamps, uploadId);
-    } catch (error: any) {
-      if (error.message === 'CANCELLED') {
-        log.info(`Transcription cancelled for upload: ${uploadId}`);
-      }
-      throw error;
-    }
-  }
-
   throw new Error(
-    'No transcription provider configured. Set REGOLO_API_KEY (faster-whisper), MISTRAL_API_KEY (Voxtral), or GLADIA_API_KEY.'
+    'No transcription provider configured. Set REGOLO_API_KEY (faster-whisper) or MISTRAL_API_KEY (Voxtral).'
   );
 }
 

@@ -3,8 +3,10 @@
  * Handles profile CRUD, beta features, user defaults, and account deletion
  */
 
+import { fromNodeHeaders } from 'better-auth/node';
 import express, { type Router, type Response } from 'express';
 
+import { auth } from '../../config/betterAuth.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
@@ -33,7 +35,7 @@ const router: Router = express.Router();
 
 router.get(
   '/profile',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const profileService = getProfileService();
@@ -85,7 +87,7 @@ router.get(
 
 router.put(
   '/profile',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const profileService = getProfileService();
@@ -146,7 +148,7 @@ router.put(
 
 router.patch(
   '/profile/avatar',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const profileService = getProfileService();
@@ -157,21 +159,6 @@ router.patch(
       if (req.user) {
         req.user.avatar_robot_id = avatar_robot_id;
       }
-
-      if (req.session.passport && req.session.passport.user) {
-        req.session.passport.user.avatar_robot_id = avatar_robot_id;
-      }
-
-      req.session.save((err) => {
-        if (err) {
-          log.error('[User Profile /profile/avatar PATCH] Session save error:', err);
-        } else {
-          log.debug(
-            '[User Profile /profile/avatar PATCH] Session saved with avatar_robot_id:',
-            avatar_robot_id
-          );
-        }
-      });
 
       res.json({
         success: true,
@@ -196,7 +183,7 @@ router.patch(
 
 router.get(
   '/profile/beta-features',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const profileService = getProfileService();
@@ -226,7 +213,7 @@ router.get(
 
 router.patch(
   '/profile/beta-features',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const profileService = getProfileService();
@@ -241,7 +228,6 @@ router.patch(
       }
 
       const allowedFeatures = [
-        'groups',
         'database',
         'sharepic',
         'anweisungen',
@@ -254,16 +240,10 @@ router.patch(
         'labor',
         'sites',
         'interactiveAntrag',
-        'autoSaveGenerated',
-        'autoDocumentSearch',
         'website',
         'vorlagen',
         'videoEditor',
-        'igel_modus',
         'prompts',
-        'scanner',
-        'docs',
-        'boards',
         'memories',
       ];
 
@@ -288,21 +268,6 @@ router.patch(
 
       if (req.user) {
         profileService.updateUserSession(req.user, updatedProfile, feature, enabled);
-
-        if (req.session.passport && req.session.passport.user) {
-          profileService.updateUserSession(
-            req.session.passport.user,
-            updatedProfile,
-            feature,
-            enabled
-          );
-        }
-
-        req.session.save((err) => {
-          if (err) {
-            log.error('[User Profile /profile/beta-features PATCH] Session save error:', err);
-          }
-        });
       }
 
       res.json({
@@ -327,7 +292,7 @@ router.patch(
 
 router.patch(
   '/profile/message-color',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const profileService = getProfileService();
@@ -361,7 +326,7 @@ router.patch(
 
 router.get(
   '/profile/user-defaults',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const profileService = getProfileService();
@@ -397,7 +362,7 @@ router.get(
 
 router.patch(
   '/profile/user-defaults',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const profileService = getProfileService();
@@ -443,7 +408,7 @@ router.patch(
 
 router.get(
   '/profile/notification-preferences',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { getPreferencesForUser, getDefaultPreferences } =
@@ -465,7 +430,7 @@ router.get(
 
 router.patch(
   '/profile/notification-preferences',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { category, channels } = req.body as {
@@ -554,74 +519,12 @@ router.patch(
 );
 
 // ============================================================================
-// Igel-Modus (Grüne Jugend)
-// ============================================================================
-
-router.patch(
-  '/profile/igel-modus',
-  ensureAuthenticated as any,
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    try {
-      const profileService = getProfileService();
-      const { igel_modus } = req.body as { igel_modus: boolean };
-
-      if (typeof igel_modus !== 'boolean') {
-        res.status(400).json({
-          success: false,
-          message: 'Igel-Modus Status ist erforderlich.',
-        });
-        return;
-      }
-
-      await profileService.updateBetaFeatures(req.user!.id, 'igel_modus', igel_modus);
-
-      log.debug(
-        `[Igel Modus Change] User ${req.user!.id}: igel_modus ${igel_modus ? 'ENABLED' : 'DISABLED'}`
-      );
-
-      const updatedProfile = await profileService.getProfileById(req.user!.id);
-      if (req.user && updatedProfile) {
-        profileService.updateUserSession(req.user, updatedProfile, 'igel_modus', igel_modus);
-
-        if (req.session.passport && req.session.passport.user) {
-          profileService.updateUserSession(
-            req.session.passport.user,
-            updatedProfile,
-            'igel_modus',
-            igel_modus
-          );
-        }
-
-        req.session.save((err) => {
-          if (err) {
-            log.error('[User Profile /profile/igel-modus PATCH] Session save error:', err);
-          }
-        });
-      }
-
-      res.json({
-        success: true,
-        igelModus: igel_modus,
-        message: `Igel-Modus ${igel_modus ? 'aktiviert' : 'deaktiviert'}! Du bist ${igel_modus ? 'jetzt' : 'nicht mehr'} Mitglied der Grünen Jugend.`,
-      });
-    } catch (error) {
-      const err = error as Error;
-      log.error('[User Profile /profile/igel-modus PATCH] Error:', err);
-      res.status(500).json({
-        success: false,
-        message: err.message || 'Fehler beim Aktualisieren des Igel-Modus.',
-      });
-    }
-  }
-);
-
-// ============================================================================
 // Account Deletion
 // ============================================================================
 
 router.delete(
   '/delete-account',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -704,24 +607,13 @@ router.delete(
       const deleteResult = await profileService.deleteProfile(userId);
       log.debug(`[User Delete] Profile deletion result for user ${userId}:`, deleteResult);
 
-      // Step 4: Logout and clear session/cookie
-      log.debug(`[User Delete] Step 4: Clearing session and cookies for user ${userId}`);
-      req.logout?.(() => {});
-      if (req.session) {
-        try {
-          await new Promise<void>((resolve) => req.session.destroy(() => resolve()));
-          log.debug(`[User Delete] Session destroyed for user ${userId}`);
-        } catch (e) {
-          const err = e as Error;
-          log.warn(`[User Delete] Session destruction warning for user ${userId}:`, err?.message);
-        }
+      // Step 4: Revoke Better Auth session
+      log.debug(`[User Delete] Step 4: Revoking sessions for user ${userId}`);
+      try {
+        await auth.api.signOut({ headers: fromNodeHeaders(req.headers) });
+      } catch {
+        // Session may already be gone after profile deletion cascade
       }
-      res.clearCookie('gruenerator.sid', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-      });
-      log.debug(`[User Delete] Cookies cleared for user ${userId}`);
 
       log.debug(`[User Delete] ✅ Account deletion completed successfully for user ${userId}`);
 

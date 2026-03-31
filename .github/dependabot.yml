@@ -477,33 +477,6 @@ updates:
           - '*'
 
   # =============================================================================
-  # REMOTION SERVICE (services/remotion)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/services/remotion'
-    schedule:
-      interval: 'weekly'
-      day: 'wednesday'
-      time: '08:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'remotion'
-    groups:
-      remotion:
-        patterns:
-          - 'remotion'
-          - '@remotion/*'
-      all-minor-patch:
-        update-types:
-          - 'minor'
-          - 'patch'
-        exclude-patterns:
-          - 'remotion'
-          - '@remotion/*'
-
-  # =============================================================================
   # DOCUMENTATION - Docusaurus site (documentation/)
   # =============================================================================
   - package-ecosystem: 'npm'

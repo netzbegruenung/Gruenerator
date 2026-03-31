@@ -88,7 +88,6 @@ export async function processGraphRequestStreaming(
       selectedDocumentIds,
       selectedTextIds,
       searchQuery,
-      useAutomaticSearch,
       useNotebookEnrich,
     } = requestData;
 
@@ -170,7 +169,6 @@ export async function processGraphRequestStreaming(
         selectedDocumentIds: selectedDocumentIds || [],
         selectedTextIds: selectedTextIds || [],
         searchQuery: searchQuery || null,
-        useAutomaticSearch: useAutomaticSearch || false,
         examples: [],
         provider,
         aiWorkerPool: (req as any).app.locals.aiWorkerPool,
@@ -214,10 +212,7 @@ export async function processGraphRequestStreaming(
       try {
         const { redisClient } = await import('../../utils/redis/index.js');
         const privacyCounter = new PrivacyCounter(redisClient);
-        const userId =
-          (req as any).user?.id ||
-          (req as any).session?.passport?.user?.id ||
-          (req as any).sessionID;
+        const userId = (req as any).user?.id;
         if (userId) {
           const privacyProvider = await privacyCounter.getProviderForUser(userId);
           effectiveProvider = privacyProvider as any;
@@ -355,7 +350,7 @@ export async function processGraphRequestStreaming(
 
     // Log successful generation
     logGeneration({
-      userId: (req as any).user?.id || (req as any).session?.passport?.user?.id || null,
+      userId: (req as any).user?.id || null,
       generationType: routeType,
       platform: requestData.platforms?.[0] || null,
       tokensUsed: null,
@@ -363,10 +358,10 @@ export async function processGraphRequestStreaming(
     });
 
     // Cache edit context in Redis
-    if ((req as any).session?.id) {
+    if (req.user?.id) {
       try {
         const { redisClient } = await import('../../utils/redis/index.js');
-        const contextCacheKey = `edit_context:${(req as any).session.id}:${routeType}`;
+        const contextCacheKey = `edit_context:${req.user.id}:${routeType}`;
         const contextData = {
           originalRequest: requestData,
           enrichedState: {
@@ -402,8 +397,6 @@ export async function processGraphRequestStreaming(
       docQnAUsed: enrichedState.enrichmentMetadata?.enableDocQnA || false,
       vectorSearchUsed: (selectedDocumentIds && selectedDocumentIds.length > 0) || false,
       webSearchUsed: (enrichedState.enrichmentMetadata?.webSearchSources?.length ?? 0) > 0,
-      autoSearchUsed: enrichedState.enrichmentMetadata?.autoSearchUsed || false,
-      autoSelectedDocuments: enrichedState.enrichmentMetadata?.autoSelectedDocuments || [],
       notebookEnrichUsed: enrichedState.enrichmentMetadata?.notebookEnrichUsed || false,
       sources: [
         ...(enrichedState.enrichmentMetadata?.urlsProcessed || []).map((url: string) => ({
@@ -415,12 +408,6 @@ export async function processGraphRequestStreaming(
           type: 'websearch',
           title: source.title || source.url,
           url: source.url,
-        })),
-        ...(enrichedState.enrichmentMetadata?.autoSelectedDocuments || []).map((doc: any) => ({
-          type: 'auto-document',
-          title: doc.title,
-          filename: doc.filename,
-          relevance: doc.relevance_percent,
         })),
       ],
     };
@@ -440,7 +427,7 @@ export async function processGraphRequestStreaming(
     log.error(`[streaming] Error processing ${routeType}:`, errorMessage);
 
     logGeneration({
-      userId: (req as any).user?.id || (req as any).session?.passport?.user?.id || null,
+      userId: (req as any).user?.id || null,
       generationType: routeType,
       platform: req.body?.platforms?.[0] || null,
       tokensUsed: null,

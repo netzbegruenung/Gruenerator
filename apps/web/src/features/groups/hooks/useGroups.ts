@@ -3,6 +3,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import apiClient from '../../../components/utils/apiClient';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useGroupsStore } from '../../../stores/auth/groupsStore';
+import { useAuthStore } from '../../../stores/authStore';
 
 export interface GroupSummary {
   id: string;
@@ -424,7 +425,7 @@ export const useGroupVorlagen = (groupId: string | null, { isActive }: UseGroups
 };
 
 export const useUpdateGroupSettings = (groupId: string | null) => {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
 
   const mutation = useMutation({

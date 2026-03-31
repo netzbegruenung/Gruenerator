@@ -1,0 +1,141 @@
+name: Bug report
+description: Report crashes, regressions, or incorrect behavior in Presenton.
+title: "[Bug]: "
+labels:
+  - bug
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug in **Presenton** 🚀  
+        Please provide clear steps so we can reproduce and fix the issue quickly.
+
+  - type: dropdown
+    id: bug_type
+    attributes:
+      label: Bug type
+      description: Select the category that best matches the issue.
+      options:
+        - Regression (worked before, now fails)
+        - Crash (app exits or freezes)
+        - UI bug
+        - Generation bug (slides/content incorrect)
+        - Export bug (PPTX/PDF issues)
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One sentence describing the issue.
+      placeholder: Exporting a generated presentation as PPTX fails after slide generation.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Provide the shortest reproducible steps.
+      placeholder: |
+        1. Start Presenton Electron app
+        2. Generate presentation with 5 slides
+        3. Click "Export PPTX"
+        4. Error occurs
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen.
+      placeholder: The presentation should export successfully as a PPTX file.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead.
+      placeholder: Export fails and the app shows an error message.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Presenton version
+      description: Version of Presenton you are using.
+      placeholder: 0.6.2-beta
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      description: OS and version.
+      placeholder: macOS 14 / Ubuntu 24.04 / Windows 11
+    validations:
+      required: true
+
+  - type: dropdown
+    id: run_method
+    attributes:
+      label: How are you running Presenton?
+      options:
+        - Electron Desktop App
+        - Docker
+        - Local Development
+        - API Only
+    validations:
+      required: true
+
+  - type: dropdown
+    id: llm_provider
+    attributes:
+      label: LLM provider
+      description: AI model provider used for generation.
+      options:
+        - OpenAI
+        - Google Gemini
+        - Anthropic
+        - Ollama
+        - Custom OpenAI-compatible API
+        - Not relevant
+  
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: Include logs, console output, or screenshots.
+      render: shell
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: |
+        Explain how this bug affects usage.
+
+        Include:
+        - Who is affected
+        - Severity
+        - Frequency
+        - Consequence
+      placeholder: |
+        Affected: Users generating AI presentations
+        Severity: High
+        Frequency: Always
+        Consequence: Presentations cannot be exported.
+
+  - type: textarea
+    id: additional_information
+    attributes:
+      label: Additional information
+      description: Any extra context that might help debug the issue.
+      placeholder: Logs from Electron console, template used, or related issues.

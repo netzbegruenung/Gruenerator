@@ -24,6 +24,7 @@ COPY packages/canvas-editor/package.json ./packages/canvas-editor/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/collab/package.json ./packages/collab/
 COPY packages/wolke/package.json ./packages/wolke/
+COPY packages/slides/package.json ./packages/slides/
 COPY apps/web/package.json ./apps/web/
 
 # Install only web + transitive workspace deps (not all ~6 workspaces)
@@ -39,6 +40,7 @@ COPY packages/canvas-editor ./packages/canvas-editor
 COPY packages/ui ./packages/ui
 COPY packages/collab ./packages/collab
 COPY packages/wolke ./packages/wolke
+COPY packages/slides ./packages/slides
 COPY apps/web ./apps/web
 COPY CHANGELOG.md ./
 
@@ -87,15 +89,17 @@ server {
     gzip_min_length 1024;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript image/svg+xml;
 
-    # Cache static assets
-    location ~* \.(css|js|map|jpe?g|gif|png|webp|svg|ico|woff|woff2)$ {
+    # Hashed assets under /assets/ — cache forever
+    # Vite outputs all content-hashed files here (js, css, images, fonts)
+    location /assets/ {
         expires 1y;
         add_header Cache-Control "public, immutable";
-        try_files $uri =404;
     }
 
-    # SPA fallback - serve index.html for client-side routing
+    # Everything else (index.html, config.js, manifest.json, SW, illustrations)
+    # no-cache = store but revalidate via ETag → efficient 304 responses
     location / {
+        add_header Cache-Control "no-cache";
         try_files $uri /index.html;
     }
 

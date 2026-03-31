@@ -63,6 +63,7 @@ export interface Row {
   createdBy: string;
   createdAt: string;
   icon?: string;
+  coverColor?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -141,6 +142,15 @@ export interface LinkedDoc {
 // Well-known field IDs (created with every new board)
 // ---------------------------------------------------------------------------
 
+export interface CardComment {
+  id: string;
+  text: string;
+  authorId: string;
+  authorName: string;
+  authorAvatarRobotId: number;
+  createdAt: string;
+}
+
 export const FIELD_IDS = {
   TITLE: 'field-title',
   STATUS: 'field-status',
@@ -149,4 +159,5 @@ export const FIELD_IDS = {
   LABELS: 'field-labels',
   ASSIGNEE: 'field-assignee',
   LINKED_DOCS: 'field-linked-docs',
+  COMMENTS: 'field-comments',
 } as const;

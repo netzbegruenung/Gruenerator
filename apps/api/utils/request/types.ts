@@ -46,11 +46,6 @@ export interface AttachmentSummary {
  * Enrichment summary (includes all source types)
  */
 export interface EnrichmentSummary {
-  autoSelectedDocuments?: Array<{
-    id: string;
-    title: string;
-    score?: number;
-  }>;
   webSearchSources?: WebSearchSource[];
   [key: string]: any;
 }

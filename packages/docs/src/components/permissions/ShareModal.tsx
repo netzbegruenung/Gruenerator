@@ -1,10 +1,9 @@
 import { getAvatarDisplayProps, getRobotAvatarPath } from '@gruenerator/shared/avatar';
-import { Alert, AlertDescription, Badge, Button } from '@gruenerator/ui';
+import { Alert, AlertDescription, Badge, Button, cn } from '@gruenerator/ui';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 
 import { useDocsAdapter, createDocsApiClient } from '../../context/DocsContext';
 import { GroupShareSection } from './GroupShareSection';
-import './ShareModal.css';
 
 interface UserCollaborator {
   type?: 'user';
@@ -262,11 +261,20 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
   );
 
   return (
-    <div className="share-modal-overlay" onClick={onClose}>
-      <div className="share-modal-panel" onClick={(e) => e.stopPropagation()}>
-        <div className="share-modal-header">
+    <div
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[80vh] w-[600px] max-w-[90%] flex-col overflow-hidden rounded-lg bg-background shadow-lg dark:border dark:border-grey-700"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-grey-200 p-6 dark:border-grey-700">
           <span className="text-lg font-semibold">Dokument teilen</span>
-          <button onClick={onClose} className="close-button">
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded border-none bg-transparent p-0 text-lg text-foreground hover:bg-black/5 dark:hover:bg-white/10"
+          >
             ×
           </button>
         </div>
@@ -277,8 +285,8 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
           </Alert>
         )}
 
-        <div className="share-link-section">
-          <div className="share-link-row">
+        <div className="border-b border-grey-200 p-4 px-6 dark:border-grey-700">
+          <div className="flex flex-wrap items-end gap-2">
             <div className="flex flex-col" style={{ flex: '1 1 160px', minWidth: 0 }}>
               <label className="mb-1 text-sm font-medium">Zugriffsmodus</label>
               <select
@@ -312,13 +320,13 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
           </span>
         </div>
 
-        <GroupShareSection
-          documentId={documentId}
-          apiClient={apiClient}
-          onGroupsLoaded={setHasGroups}
-        />
+        <div className="flex-1 overflow-y-auto p-6">
+          <GroupShareSection
+            documentId={documentId}
+            apiClient={apiClient}
+            onGroupsLoaded={setHasGroups}
+          />
 
-        <div className="collaborators-section">
           <p className="mb-3 text-base font-semibold">Zugriff</p>
           {isLoading ? (
             <div className="flex justify-center py-6">
@@ -329,61 +337,13 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
               Noch niemand eingeladen
             </p>
           ) : (
-            <div className="flex flex-col gap-3">
-              {collaborators.map((collaborator) => {
-                if (collaborator.type === 'group') {
-                  return (
-                    <div
-                      key={`group-${collaborator.group_id}`}
-                      className="collaborator-item flex flex-nowrap items-center justify-between"
-                    >
-                      <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-3">
-                        <div
-                          className="collaborator-avatar collaborator-avatar-initials"
-                          style={{ fontSize: '0.7rem' }}
-                        >
-                          👥
-                        </div>
-                        <div className="min-w-0">
-                          <span className="block truncate text-sm font-medium">
-                            {collaborator.group_name}
-                          </span>
-                          <span className="block text-xs text-grey-500 dark:text-grey-400">
-                            Gruppe · {collaborator.member_count}{' '}
-                            {collaborator.member_count === 1 ? 'Mitglied' : 'Mitglieder'}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex flex-nowrap items-center gap-2">
-                        <select
-                          className="h-7 w-[150px] rounded-md border border-grey-300 bg-background px-2 text-xs outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 dark:border-grey-600 dark:bg-grey-800"
-                          value={collaborator.permission_level}
-                          onChange={(e) =>
-                            handleUpdateGroupPermission(
-                              collaborator.group_id,
-                              e.target.value as 'editor' | 'viewer'
-                            )
-                          }
-                        >
-                          <option value="editor">Bearbeiter*in</option>
-                          <option value="viewer">Betrachter*in</option>
-                        </select>
-                        <Button
-                          variant="outline"
-                          size="xs"
-                          onClick={() => handleRemoveGroup(collaborator.group_id)}
-                        >
-                          Entfernen
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                }
-
-                return (
+            <div className="flex flex-col gap-2">
+              {collaborators
+                .filter((c): c is UserCollaborator => c.type !== 'group')
+                .map((collaborator) => (
                   <div
                     key={collaborator.user_id}
-                    className="collaborator-item flex flex-nowrap items-center justify-between"
+                    className="flex flex-nowrap items-center justify-between rounded-md border border-grey-200 bg-background p-3 dark:border-grey-700"
                   >
                     <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-3">
                       {(() => {
@@ -392,10 +352,10 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
                           <img
                             src={getRobotAvatarPath(avatar.robotId!)}
                             alt={avatar.alt}
-                            className="collaborator-avatar"
+                            className="h-8 w-8 shrink-0 rounded-full object-cover"
                           />
                         ) : (
-                          <div className="collaborator-avatar collaborator-avatar-initials">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-600 text-xs font-semibold text-white">
                             {avatar.initials}
                           </div>
                         );
@@ -441,13 +401,12 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
                       )}
                     </div>
                   </div>
-                );
-              })}
+                ))}
             </div>
           )}
         </div>
 
-        <div className="share-modal-footer">
+        <div className="flex items-center border-t border-grey-200 p-4 px-6 dark:border-grey-700">
           <Button variant="outline" size="xs" className="rounded-full" onClick={copyShareLink}>
             {copySuccess ? '✓ Kopiert' : 'Link kopieren'}
           </Button>

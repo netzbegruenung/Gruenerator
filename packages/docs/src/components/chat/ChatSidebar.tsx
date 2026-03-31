@@ -1,9 +1,9 @@
+import { cn } from '@gruenerator/ui';
 import { useRef, useEffect, useCallback } from 'react';
 import { FiX, FiMessageCircle } from 'react-icons/fi';
 import { ChatMessageComponent } from './ChatMessage';
 import { ChatComposer } from './ChatComposer';
 import type { ChatMessage } from '../../hooks/useDocumentChat';
-import './ChatSidebar.css';
 
 interface ChatSidebarProps {
   messages: ChatMessage[];
@@ -14,6 +14,7 @@ interface ChatSidebarProps {
   hideHeader?: boolean;
   typingUsers?: string[];
   onTypingChange?: (isTyping: boolean) => void;
+  embedded?: boolean;
 }
 
 export const ChatSidebar = ({
@@ -25,6 +26,7 @@ export const ChatSidebar = ({
   hideHeader = false,
   typingUsers,
   onTypingChange,
+  embedded = false,
 }: ChatSidebarProps) => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
@@ -42,7 +44,14 @@ export const ChatSidebar = ({
   }, [messages.length]);
 
   return (
-    <div className="chat-sidebar flex flex-col">
+    <div
+      className={cn(
+        'flex flex-col overflow-hidden',
+        embedded
+          ? 'w-full min-w-0 max-w-none flex-1 border-l-0'
+          : 'w-80 min-w-80 max-w-80 border-l border-grey-200 bg-background dark:border-grey-700 dark:bg-background max-md:fixed max-md:inset-0 max-md:z-[200] max-md:w-full max-md:min-w-full max-md:max-w-full max-md:border-l-0'
+      )}
+    >
       {!hideHeader && (
         <>
           <div className="flex items-center justify-between px-md py-sm">
@@ -52,7 +61,10 @@ export const ChatSidebar = ({
                 type="button"
                 onClick={onClose}
                 aria-label="Chat schließen"
-                className="chat-sidebar-close items-center justify-center rounded p-1 text-grey-500 hover:bg-grey-100 hover:text-grey-700 dark:text-grey-400 dark:hover:bg-grey-800 dark:hover:text-grey-200"
+                className={cn(
+                  'items-center justify-center rounded p-1 text-grey-500 hover:bg-grey-100 hover:text-grey-700 dark:text-grey-400 dark:hover:bg-grey-800 dark:hover:text-grey-200',
+                  embedded ? 'flex' : 'hidden max-md:flex'
+                )}
               >
                 <FiX size={16} />
               </button>

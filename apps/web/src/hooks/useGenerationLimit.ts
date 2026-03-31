@@ -1,8 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import apiClient from '../components/utils/apiClient';
-
-import { useOptimizedAuth } from './useAuth';
+import { useAuthStore } from '../stores/authStore';
 
 // Types for generation limit data
 interface GenerationLimitData {
@@ -45,7 +44,7 @@ interface BulkLimitData {
  * console.log(`Remaining: ${limit?.remaining}/${limit?.limit}`);
  */
 export const useGenerationLimit = (resourceType: string) => {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
 
   return useQuery<GenerationLimitData>({
     queryKey: ['generationLimit', resourceType, user?.id || 'anonymous'],
@@ -92,7 +91,7 @@ export const useGenerationLimit = (resourceType: string) => {
  * console.log(limits.image?.remaining); // 3
  */
 export const useMultipleGenerationLimits = (resourceTypes: string[]) => {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
 
   return useQuery<BulkLimitData>({
     queryKey: ['generationLimitBulk', resourceTypes, user?.id || 'anonymous'],

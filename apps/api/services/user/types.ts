@@ -19,7 +19,6 @@ export interface UserProfile {
   locale?: 'de-DE' | 'de-AT';
 
   // Feature flags
-  igel_modus: boolean;
   groups_enabled: boolean;
   custom_generators: boolean;
   database_access: boolean;
@@ -59,7 +58,6 @@ export interface ProfileCreateData {
   user_defaults?: Record<string, Record<string, any>>;
   locale?: string;
   last_login?: string;
-  igel_modus?: boolean;
   groups_enabled?: boolean;
   custom_generators?: boolean;
   database_access?: boolean;
@@ -82,7 +80,6 @@ export interface ProfileUpdateData {
 }
 
 export interface BetaFeatures {
-  igel_modus: boolean;
   groups: boolean;
   customGenerators: boolean;
   database: boolean;
@@ -105,7 +102,6 @@ export interface BetaFeatures {
 
 export interface ProfileStats {
   total_profiles: number;
-  igel_users: number;
   bundestag_users: number;
   memory_users: number;
   active_users: number;

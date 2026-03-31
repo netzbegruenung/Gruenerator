@@ -78,6 +78,7 @@ class TTSService {
 
     const startTime = Date.now();
     let chunkIndex = 0;
+    let doneEmitted = false;
 
     try {
       const stream = await mistralClient.audio.speech.complete(
@@ -103,10 +104,20 @@ class TTSService {
             sampleRate: VOXTRAL_SAMPLE_RATE,
           });
         } else if (event.data.type === 'speech.audio.done') {
+          doneEmitted = true;
           const durationMs = Date.now() - startTime;
           log.debug('[TTS] Stream completed', { chunks: chunkIndex, durationMs });
           callbacks.onDone?.({ chunks: chunkIndex, durationMs });
         }
+      }
+
+      if (!doneEmitted) {
+        const durationMs = Date.now() - startTime;
+        log.debug('[TTS] Stream ended without done event, signaling completion', {
+          chunks: chunkIndex,
+          durationMs,
+        });
+        callbacks.onDone?.({ chunks: chunkIndex, durationMs });
       }
     } catch (error) {
       log.error('[TTS] Stream error:', error);

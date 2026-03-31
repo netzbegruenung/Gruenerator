@@ -38,11 +38,6 @@ export function generateQuestionsForIntent(intent: Intent, message: string): str
               Diese sollen in leichte Sprache übersetzt werden. Fokussiere auf: Kernbotschaften, wichtige Fakten.
               Antworte in 4-6 einfachen Stichpunkten.`;
 
-    case 'gruene_jugend':
-      return `Welche Aspekte aus den Dokumenten sind relevant für junge Menschen und Aktivismus zu: "${context}"?
-              Fokussiere auf: Zukunftsbezug, Generationengerechtigkeit, Handlungsaufforderungen.
-              Antworte in 5-7 aktivistischen Stichpunkten.`;
-
     case 'universal':
     default:
       return `Was sagen die Dokumente zu: "${context}"?

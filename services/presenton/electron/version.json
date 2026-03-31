@@ -1,0 +1,9 @@
+{
+  "version": "0.6.3-beta",
+  "message": "This Release Has new Export Package, Better Exports, and a lot of bug fixes. Please check the changelog for more details.",
+  "downloads": {
+    "linux": "https://github.com/presenton/presenton/releases/download/electron-v0.6.3-beta/Presenton-0.6.3-beta.deb",
+    "mac": "https://github.com/presenton/presenton/releases/download/electron-v0.6.3-beta/Presenton-0.6.3-beta.dmg",
+    "windows": "https://github.com/presenton/presenton/releases/download/electron-v0.6.3-beta/Presenton-0.6.3-beta.exe"
+  }
+}

@@ -4,7 +4,7 @@ const Datenschutz = () => {
   return (
     <div className="page-container">
       <h1>Datenschutzerklärung</h1>
-      <p>Stand: 1. Januar 2026</p>
+      <p>Stand: 29. März 2026</p>
 
       <h2>Kurzzusammenfassung</h2>
       <p>
@@ -47,10 +47,10 @@ const Datenschutz = () => {
       <p>
         <strong>
           Wenn Du die Sprachaufnahme-Funktion oder den Reel-Grünerator nutzt, werden Deine Audio-
-          und Videodaten auf unserem Server verarbeitet. Beim Reel-Grünerator werden die Audiodaten
-          zur Transkription an Gladia übermittelt und ausschließlich auf EU-Servern verarbeitet. Die
-          Daten werden nach der Transkription automatisch gelöscht (Zero Data Retention). Die
-          verarbeiteten Daten werden nicht dauerhaft bei uns gespeichert.
+          und Videodaten auf unserem Server verarbeitet. Die Audiodaten werden zur Transkription
+          vorrangig an <strong>Regolo</strong> (EU, Zero Data Retention) oder alternativ an{' '}
+          <strong>Mistral AI Voxtral</strong> (EU) übermittelt. Die verarbeiteten Daten werden nicht
+          dauerhaft bei uns gespeichert.
         </strong>
       </p>
       <p>
@@ -77,31 +77,7 @@ const Datenschutz = () => {
 
       <h2 id="nutzungsbedingungen">Nutzungsbedingungen</h2>
       <p>
-        Die von Dir getätigten Eingaben werden zur Bearbeitung an unseren Partner Mistral AI
-        weitergeleitet. Deine Daten werden dort nicht zum KI-Training genutzt und nicht dauerhaft
-        gespeichert. Mit dem Absenden Deiner Eingabe beachtest Du die{' '}
-        <a href="https://mistral.ai/terms/">Nutzungsbedingungen von Mistral AI</a>, die Deine Daten
-        empfangen und verarbeiten.
-      </p>
-      <p>
-        Bei Aktivierung des Reasoning-Modus im GRUENERATOR wird das erweiterte Magistral-Modell von
-        Mistral AI verwendet. Die Verarbeitung erfolgt weiterhin unter den gleichen
-        Datenschutzbedingungen wie im Kreativ-Modus. Du kannst für jede Anfrage individuell
-        entscheiden, welchen Modus Du nutzen möchtest.
-      </p>
-      <p>
-        <strong>Grünerator Imagine:</strong> Bei Nutzung der Bildbearbeitungsfunktion werden Deine
-        Bilder an Black Forest Labs weitergeleitet. Mit dem Upload stimmst Du der Verarbeitung gemäß
-        den <a href="https://blackforestlabs.ai/privacy-policy/">Datenschutzbestimmungen</a> und{' '}
-        <a href="https://blackforestlabs.ai/terms-of-service/">Nutzungsbedingungen</a> von Black
-        Forest Labs zu. Bitte lade keine Bilder hoch, die personenbezogene Daten Dritter enthalten,
-        für deren Verarbeitung Du keine Rechtsgrundlage hast.
-      </p>
-      <p>
-        <strong>Hinweis zu Bildinhalten:</strong> Bitte achte darauf, dass Du nur Bilder hochlädst,
-        für die Du die erforderlichen Rechte besitzt. Lade keine Bilder mit erkennbaren Personen
-        hoch, es sei denn, Du hast deren ausdrückliche Einwilligung. Bilder von Minderjährigen sind
-        generell nicht gestattet.
+        Es gelten unsere <a href="/nutzungsbedingungen">Nutzungsbedingungen</a>.
       </p>
 
       <h2>Datenschutzhinweise</h2>
@@ -153,8 +129,8 @@ const Datenschutz = () => {
         <strong>Externe Verarbeitung durch Dienstleister:</strong>
       </p>
       <ul>
-        <li>Sprache-zu-Text: Mistral Voxtral (EU-Server, max. 30 Tage)</li>
-        <li>Video-Transkription: Gladia (EU-Server, Zero Retention)</li>
+        <li>Sprache-zu-Text (primär): Regolo / Seeweb (EU-Server, Zero Data Retention)</li>
+        <li>Sprache-zu-Text (Fallback): Mistral Voxtral (EU-Server, max. 30 Tage)</li>
         <li>Details zu externen Dienstleistern: siehe Auftragsverarbeiter-Sektion oben</li>
       </ul>
 
@@ -171,8 +147,9 @@ const Datenschutz = () => {
         info@hetzner.com gehostet. Der Hoster empfängt die oben genannten Daten als
         Auftragsverarbeiter. Bei Nutzung des Grünerator Imagine fungiert Black Forest Labs Inc. als
         Auftragsverarbeiter für die Bildbearbeitung mittels FLUX-KI. Beim Reel-Grünerator fungiert{' '}
-        <strong>Gladia SAS</strong> als Auftragsverarbeiter für die Audiotranskription mit
-        ausschließlicher EU-Datenverarbeitung.
+        <strong>Regolo AI</strong> als Auftragsverarbeiter für die Audiotranskription mit Zero Data
+        Retention (EU-Datenverarbeitung). Als Fallback wird <strong>Mistral AI Voxtral</strong> für
+        die Transkription eingesetzt.
       </p>
 
       <p>
@@ -244,15 +221,19 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        <strong>4. Gladia SAS</strong> (Paris, Frankreich)
+        <strong>4. Seeweb S.r.l. / Regolo AI</strong> (C.so Lazio 9/a, 03100 Frosinone, Italien)
       </p>
       <ul>
-        <li>Zweck: Video-Audiotranskription (Reel-Grünerator)</li>
-        <li>Server: EU (Frankreich)</li>
-        <li>Zero Data Retention: Sofortlöschung nach Transkription</li>
-        <li>DSGVO-konform: Französisches Unternehmen mit EU-Datenverarbeitung</li>
+        <li>Zweck: Audio-/Videotranskription (Reel-Grünerator, Sprachaufnahme)</li>
+        <li>Server: EU (Italien)</li>
+        <li>Modell: faster-whisper-large-v3</li>
+        <li>Zero Data Retention: Input- und Output-Daten werden am Ende jeder Session gelöscht</li>
+        <li>DSGVO-konform: Italienisches Unternehmen mit ausschließlicher EU-Datenverarbeitung</li>
         <li>
-          Details: <a href="https://www.gladia.io/privacy-policy">Datenschutzerklärung</a>
+          Details:{' '}
+          <a href="https://regolo.ai/docs/compliance-and-privacy/privacy-policy/">
+            Datenschutzerklärung
+          </a>
         </li>
       </ul>
 
@@ -459,8 +440,8 @@ const Datenschutz = () => {
             <td>90 Tage (automatische Löschung)</td>
           </tr>
           <tr>
-            <td>Video-Transkription (Gladia)</td>
-            <td>Zero Retention – sofortige Löschung</td>
+            <td>Audio-/Video-Transkription (Regolo)</td>
+            <td>Zero Retention – Löschung am Ende der Session</td>
           </tr>
           <tr>
             <td>Umami-Analysen</td>
@@ -483,9 +464,9 @@ const Datenschutz = () => {
 
       <p>
         <strong>Audiodaten beim Reel-Grünerator:</strong>
-        Deine Betroffenenrechte bezüglich der an Gladia übermittelten Audiodaten kannst Du über uns
-        geltend machen. Direktkontakt: privacy@gladia.io. Die Daten werden nach der Transkription
-        automatisch gelöscht (Zero Data Retention).
+        Deine Betroffenenrechte bezüglich der an Regolo/Seeweb übermittelten Audiodaten kannst Du
+        über uns geltend machen. Direktkontakt: privacy@seeweb.it. Die Daten werden am Ende der
+        Session automatisch gelöscht (Zero Data Retention).
       </p>
 
       <p>

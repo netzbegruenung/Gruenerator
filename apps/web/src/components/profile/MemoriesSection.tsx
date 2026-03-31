@@ -14,8 +14,8 @@ import { Trash2, Plus, AlertTriangle, Brain, RefreshCw } from 'lucide-react';
 import React, { memo, useState } from 'react';
 
 import { profileApiService, type Memory } from '@/features/auth/services/profileApiService';
-import { useOptimizedAuth } from '@/hooks/useAuth';
 import { useBetaFeatures } from '@/hooks/useBetaFeatures';
+import { useAuthStore } from '@/stores/authStore';
 
 const TOPIC_OPTIONS = [
   { value: '', label: 'Kein Thema' },
@@ -49,7 +49,7 @@ function formatRelativeTime(dateStr: string | undefined): string {
 }
 
 export default memo(function MemoriesSection() {
-  const { user } = useOptimizedAuth();
+  const user = useAuthStore((s) => s.user);
   const userId = user?.id;
   const { getBetaFeatureState, updateUserBetaFeatures } = useBetaFeatures();
   const memoriesEnabled = getBetaFeatureState('memories');

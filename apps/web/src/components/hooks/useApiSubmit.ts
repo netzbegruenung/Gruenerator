@@ -9,8 +9,6 @@ const getGeneratorTypeFromEndpoint = (endpoint: string): string | undefined => {
   const endpointMap: Record<string, string> = {
     '/claude_social': 'social_media',
     claude_social: 'social_media',
-    '/claude_gruene_jugend': 'gruenejugend',
-    claude_gruene_jugend: 'gruenejugend',
     'claude/antrag': 'antrag',
     'claude/antrag-simple': 'antrag',
     'antraege/generate-simple': 'antrag',

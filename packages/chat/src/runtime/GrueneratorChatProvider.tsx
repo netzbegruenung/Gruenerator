@@ -359,10 +359,6 @@ function ThreadTitleEffect() {
   const titleTriggeredRef = useRef<string | null>(null);
 
   useEffect(() => {
-    titleTriggeredRef.current = null;
-  }, [currentThreadId]);
-
-  useEffect(() => {
     if (messageCount >= 2 && currentThreadId && titleTriggeredRef.current !== currentThreadId) {
       try {
         const state = aui.threadListItem().getState();
@@ -437,8 +433,10 @@ function ChatCollaborationBridge({
   children: ReactNode;
 }) {
   const threadId = useAgentStore((s) => s.currentThreadId);
+  const chatViewMode = useAgentStore((s) => s.chatViewMode);
+  const activeThreadId = chatViewMode === 'thread' ? threadId : null;
   const user = useMemo(() => ({ id: userId, name: userName || userId }), [userId, userName]);
-  const collab = useChatCollaboration(threadId, user);
+  const collab = useChatCollaboration(activeThreadId, user);
 
   return <ChatCollaborationProvider value={collab}>{children}</ChatCollaborationProvider>;
 }
@@ -570,9 +568,7 @@ function GrueneratorChatRuntimeProvider({
   }, [providerApiClient, userId, mentionablesActivated]);
 
   const getExternalThreadsRef = useRef(getExternalThreads);
-  useEffect(() => {
-    getExternalThreadsRef.current = getExternalThreads;
-  });
+  getExternalThreadsRef.current = getExternalThreads;
 
   const threadListAdapter = useMemo(() => {
     const base = createGrueneratorThreadListAdapter(providerApiClient, getDefaultAgent(), {

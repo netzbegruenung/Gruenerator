@@ -106,6 +106,9 @@ SECURITY-ALERTS.md
 !packages/docs/
 !documentation/docs/
 
+# Internal contracts and legal documents
+documentation/docs/intern/
+
 # Backup files
 backup/
 git-*-backup-*.txt
@@ -157,8 +160,8 @@ typecheck_output.txt
 .turbo/
 **/.turbo/
 
-# Remotion build output
-apps/api/services/remotion/out/
+# Remotion renderer (local-only, standalone service)
+services/remotion/
 
 # ComfyUI (local-only, not deployed via CI)
 apps/api/services/comfyui/
@@ -170,3 +173,4 @@ services/comfyui/
 # Video editor (local-only, not tracked yet)
 apps/video/
 
+.expo/

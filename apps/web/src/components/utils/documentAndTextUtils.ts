@@ -25,7 +25,6 @@ export const TEXT_DOCUMENT_TYPES: Record<string, string> = {
   social: 'Social Media',
   universal: 'Universal',
   press: 'Pressemitteilung',
-  gruene_jugend: 'Gruene Jugend',
 };
 
 // =====================================================================

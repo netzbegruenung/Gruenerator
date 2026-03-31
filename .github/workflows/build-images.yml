@@ -10,6 +10,7 @@ on:
       - 'services/**'
       - 'packages/**'
       - 'documentation/**'
+      - 'pnpm-lock.yaml'
       - 'nginx.conf'
       - 'docker-compose.prod.yml'
       - '.github/workflows/build-images.yml'
@@ -119,6 +120,7 @@ jobs:
             api:
               - 'apps/api/**'
               - 'packages/shared/**'
+              - 'packages/slides/**'
             sites:
               - 'apps/sites/**'
               - 'packages/shared/**'

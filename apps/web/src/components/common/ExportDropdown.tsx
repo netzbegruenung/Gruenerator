@@ -31,9 +31,8 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
-import { useLazyAuth } from '../../hooks/useAuth';
-import { useBetaFeatures } from '../../hooks/useBetaFeatures';
 import { awaitDeferredTitle } from '../../hooks/useDeferredTitle';
+import { useAuthStore } from '../../stores/authStore';
 import { useExportStore } from '../../stores/core/exportStore';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { canShare, shareContent } from '../../utils/shareUtils';
@@ -102,16 +101,15 @@ const ExportDropdown = ({
   const [padURL, setPadURL] = useState<string>('');
   const [urlCopied, setUrlCopied] = useState<boolean>(false);
 
-  const { isAuthenticated } = useLazyAuth();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   // Wolke export is currently disabled — don't fetch share links until re-enabled
   const { data: shareLinks = [] } = useShareLinks(undefined, undefined, { enabled: false });
   const uploadToWolkeMutation = useUploadToWolke();
   const activeShareLinks = shareLinks.filter((link) => link.is_active);
   const location = useLocation();
   const navigate = useNavigate();
-  const { getBetaFeatureState } = useBetaFeatures();
   const hasChatAccess = isAuthenticated;
-  const hasDocsAccess = isAuthenticated && getBetaFeatureState('docs');
+  const hasDocsAccess = isAuthenticated;
   const { submitForm: submitEtherpad, loading: etherpadLoading } = useApiSubmit('etherpad/create');
   const getGeneratedText = useGeneratedTextStore((state) => state.getGeneratedText);
 
@@ -141,7 +139,6 @@ const ExportDropdown = ({
     if (path.includes('antrag')) return 'antrag-generator';
     if (path.includes('universal') || path.includes('rede') || path.includes('wahlprogramm'))
       return 'universal-text';
-    if (path.includes('gruene-jugend')) return 'gruene-jugend';
     if (path.includes('gruene-notebook')) return 'ask-grundsatz';
     if (path.includes('ask')) return 'ask';
 
@@ -180,8 +177,6 @@ const ExportDropdown = ({
       path.includes('wahlprogramm')
     ) {
       fallbacks.push('universal-text', 'universal', 'rede', 'wahlprogramm');
-    } else if (path.includes('gruene-jugend')) {
-      fallbacks.push('gruene-jugend', 'gruene_jugend');
     } else if (path.includes('gruene-notebook')) {
       fallbacks.push('ask-grundsatz', 'ask');
     } else if (path.includes('ask')) {
