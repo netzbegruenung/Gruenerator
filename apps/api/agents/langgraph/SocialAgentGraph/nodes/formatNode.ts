@@ -54,7 +54,10 @@ export async function formatNode(state: SocialAgentState): Promise<Partial<Socia
 
   const formattedOutput = sections.join('\n\n---\n\n');
 
-  log.debug(`[formatNode] Output assembled: ${formattedOutput.length} chars`);
+  log.debug(
+    `[formatNode] Output assembled: ${formattedOutput.length} chars, ` +
+      `sections=${sections.length}, sectionLengths=[${sections.map((s) => s.length).join(', ')}]`
+  );
 
   return { formattedOutput };
 }

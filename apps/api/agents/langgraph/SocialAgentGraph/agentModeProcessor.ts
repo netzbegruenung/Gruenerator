@@ -183,6 +183,11 @@ export async function processAgentModeRequest(req: Request, res: Response): Prom
   try {
     const result = await runSocialAgentGraph(input);
 
+    log.debug(
+      `[agentMode] Result: success=${result.success}, contentLength=${result.content.length}, ` +
+        `error=${result.error || 'none'}`
+    );
+
     if (result.success) {
       res.json({
         success: true,

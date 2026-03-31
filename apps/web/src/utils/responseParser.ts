@@ -425,6 +425,8 @@ const ENDPOINT_CATEGORIES: Record<string, EndpointCategory> = {
   // Claude text generation
   '/claude_social': 'claude-text',
   claude_social: 'claude-text',
+  '/claude_social/agent': 'claude-text',
+  'claude_social/agent': 'claude-text',
   '/claude_universal': 'claude-text',
   claude_universal: 'claude-text',
   '/claude_rede': 'claude-text',

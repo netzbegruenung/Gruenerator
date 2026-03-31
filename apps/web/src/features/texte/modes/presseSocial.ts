@@ -13,7 +13,7 @@ export const presseSocialMode: ModeDefinition = {
   searchQueryFields: ['inhalt'],
   placeholder: 'Beschreibe dein Thema und alle relevanten Details...',
   useCustomSubmit: true,
-  showAgentMode: true,
+  showAgentMode: false,
   useMarkdown: false,
   settings: [
     {
