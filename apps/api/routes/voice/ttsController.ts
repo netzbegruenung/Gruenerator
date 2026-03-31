@@ -108,6 +108,10 @@ router.post('/stream', async (req: GenerateRequest, res: Response) => {
       res.end();
     }
   }
+
+  if (!res.writableEnded) {
+    res.end();
+  }
 });
 
 router.get('/voices', async (req: Request, res: Response) => {
