@@ -445,42 +445,40 @@ export const CardDetailPanel = memo(function CardDetailPanel({
               </div>
             </div>
 
-            {/* Assignee */}
-            <div className="flex flex-row">
-              <p className="w-24 shrink-0 text-sm font-medium text-grey-500 dark:text-grey-100 pt-1.5">
-                <FiUser className="inline mr-1.5" size={13} />
-                Zuständig
-              </p>
-              <div className="flex-1">
-                {assignee && (
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <img
-                      src={getRobotAvatarPath(assignee.avatarRobotId ?? 1)}
-                      alt=""
-                      className="w-6 h-6 rounded-full shrink-0"
-                    />
-                    <span className="text-sm text-foreground truncate">{assignee.name}</span>
-                    <button
-                      onClick={() => handleAssigneeChange(null)}
-                      className="text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer text-xs p-2 sm:p-0 ml-auto"
-                      title="Zuweisung entfernen"
-                    >
-                      &times;
-                    </button>
-                  </div>
-                )}
-                {groupId ? (
+            {/* Assignee — only shown when a group is linked */}
+            {groupId && (
+              <div className="flex flex-row">
+                <p className="w-24 shrink-0 text-sm font-medium text-grey-500 dark:text-grey-100 pt-1.5">
+                  <FiUser className="inline mr-1.5" size={13} />
+                  Zuständig
+                </p>
+                <div className="flex-1">
+                  {assignee && (
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <img
+                        src={getRobotAvatarPath(assignee.avatarRobotId ?? 1)}
+                        alt=""
+                        className="w-6 h-6 rounded-full shrink-0"
+                      />
+                      <span className="text-sm text-foreground truncate">{assignee.name}</span>
+                      <button
+                        onClick={() => handleAssigneeChange(null)}
+                        className="text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer text-xs p-2 sm:p-0 ml-auto"
+                        title="Zuweisung entfernen"
+                      >
+                        &times;
+                      </button>
+                    </div>
+                  )}
                   <MemberPicker groupId={groupId} onSelect={handleAssigneeChange}>
                     <button className="flex items-center gap-1.5 text-xs text-grey-400 dark:text-grey-300 hover:text-primary-600 bg-transparent border-none cursor-pointer transition-colors py-2 sm:py-0">
                       <FiPlus size={12} />
                       {assignee ? 'Ändern' : 'Person zuweisen'}
                     </button>
                   </MemberPicker>
-                ) : (
-                  <span className="text-xs text-grey-400">Gruppe erforderlich</span>
-                )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Due date */}
             <div className="flex flex-row">

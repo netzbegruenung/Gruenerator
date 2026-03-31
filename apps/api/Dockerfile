@@ -44,6 +44,10 @@ RUN pnpm exec tsc --project tsconfig.json
 WORKDIR /app/services/hocuspocus
 RUN pnpm exec tsc --project tsconfig.build.json
 
+# Compile slides schemas (API imports @gruenerator/slides/schemas at runtime)
+WORKDIR /app/packages/slides
+RUN pnpm exec tsc --project tsconfig.build.json
+
 # Compile API (needs extra heap for large codebase)
 WORKDIR /app/apps/api
 RUN NODE_OPTIONS="--max-old-space-size=8192" pnpm exec tsc --project tsconfig.build.json
@@ -115,6 +119,10 @@ RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' packages/shared/package.json
 # Copy compiled hocuspocus package (resolves @gruenerator/hocuspocus imports at runtime)
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/dist ./services/hocuspocus/dist
 RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' services/hocuspocus/package.json
+
+# Copy compiled slides schemas (resolves @gruenerator/slides/schemas imports at runtime)
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/slides/dist ./packages/slides/dist
+RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' packages/slides/package.json
 
 # Copy compiled API with bundled assets
 COPY --from=builder --chown=gruenerator:gruenerator /app/apps/api/dist ./apps/api/dist
