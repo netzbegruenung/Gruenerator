@@ -1,6 +1,7 @@
 import {
   CardActionsMenu,
   CardGrid,
+  cn,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -13,7 +14,17 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { memo, useCallback } from 'react';
 import { FaImage, FaVideo } from 'react-icons/fa';
-import { FiMonitor } from 'react-icons/fi';
+import {
+  FiCalendar,
+  FiCheckSquare,
+  FiClipboard,
+  FiEdit3,
+  FiFile,
+  FiFileText,
+  FiMail,
+  FiMonitor,
+  FiRadio,
+} from 'react-icons/fi';
 import { HiOutlineDocumentText } from 'react-icons/hi';
 import {
   PiImageSquare,
@@ -28,12 +39,53 @@ import { Link, useNavigate } from 'react-router-dom';
 import apiClient from '../../../components/utils/apiClient';
 import { getIcon } from '../../../config/icons';
 import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
+import { formatRelativeDate } from '../../../utils/dateFormatter';
 import { useBoards } from '../../boards/hooks/useBoards';
 
 const DocsIcon = getIcon('navigation', 'docs');
 const BoardIcon = getIcon('navigation', 'boards');
 
-const dateFormat: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
+const DOC_SUBTYPE_STYLE: Record<
+  string,
+  { icon: React.ComponentType<{ size?: number; className?: string }>; bg: string; text: string }
+> = {
+  blank: { icon: FiFile, bg: 'bg-grey-100 dark:bg-grey-800', text: 'text-grey-500' },
+  antrag: {
+    icon: FiFileText,
+    bg: 'bg-blue-100 dark:bg-blue-900/30',
+    text: 'text-blue-600 dark:text-blue-400',
+  },
+  pressemitteilung: {
+    icon: FiRadio,
+    bg: 'bg-amber-100 dark:bg-amber-900/30',
+    text: 'text-amber-600 dark:text-amber-400',
+  },
+  protokoll: {
+    icon: FiClipboard,
+    bg: 'bg-violet-100 dark:bg-violet-900/30',
+    text: 'text-violet-600 dark:text-violet-400',
+  },
+  notizen: {
+    icon: FiEdit3,
+    bg: 'bg-yellow-100 dark:bg-yellow-900/30',
+    text: 'text-yellow-600 dark:text-yellow-400',
+  },
+  redaktionsplan: {
+    icon: FiCalendar,
+    bg: 'bg-teal-100 dark:bg-teal-900/30',
+    text: 'text-teal-600 dark:text-teal-400',
+  },
+  checkliste: {
+    icon: FiCheckSquare,
+    bg: 'bg-green-100 dark:bg-green-900/30',
+    text: 'text-green-600 dark:text-green-400',
+  },
+  einladung: {
+    icon: FiMail,
+    bg: 'bg-rose-100 dark:bg-rose-900/30',
+    text: 'text-rose-600 dark:text-rose-400',
+  },
+};
 
 type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'text' | 'presentation';
 
@@ -117,17 +169,44 @@ const RecentItemCard = memo(
     onConvertText?: (textId: string) => void;
   }) => {
     const TypeIcon = TYPE_ICONS[item.type];
+    const isDoc = item.type === 'doc';
+    const docStyle = isDoc
+      ? (DOC_SUBTYPE_STYLE[item.documentType ?? 'blank'] ?? DOC_SUBTYPE_STYLE.blank)
+      : null;
+    const DocTypeIcon = docStyle?.icon;
+    const hasDocContent = isDoc && !!item.content?.trim();
 
-    const cardClass =
-      'group relative flex flex-col bg-background border border-grey-200 dark:border-grey-700 rounded-md overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-grey-300 dark:hover:border-grey-600 no-underline';
+    const cardClass = cn(
+      'group relative flex flex-col bg-background border border-grey-200 dark:border-grey-700 overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-grey-300 dark:hover:border-grey-600 no-underline',
+      isDoc ? 'rounded-xl aspect-[4/4.5] max-sm:aspect-[4/3]' : 'rounded-md'
+    );
 
     const cardContent = (
       <>
-        {item.type === 'doc' && (
-          <div className="flex items-center justify-center bg-white dark:bg-grey-800 aspect-[4/3] text-4xl select-none">
-            {item.emoji ?? '📄'}
-          </div>
-        )}
+        {isDoc &&
+          (hasDocContent ? (
+            <div className="relative flex-1 overflow-hidden bg-grey-50 dark:bg-grey-800/50">
+              <div
+                className={cn(
+                  'pointer-events-none w-[800px] origin-top-left scale-[0.3] select-none px-12 py-8',
+                  'font-[PT_Sans,Arial,sans-serif] leading-relaxed text-foreground',
+                  '[&_h1]:font-[Raleway,PT_Sans,Arial,sans-serif] [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:leading-tight [&_h1]:mb-3 [&_h1]:mt-0',
+                  '[&_h2]:font-[Raleway,PT_Sans,Arial,sans-serif] [&_h2]:text-[1.1rem] [&_h2]:font-semibold [&_h2]:leading-snug [&_h2]:mt-3.5 [&_h2]:mb-1.5',
+                  '[&_h3]:font-[Raleway,PT_Sans,Arial,sans-serif] [&_h3]:text-[0.95rem] [&_h3]:font-semibold [&_h3]:mt-2.5 [&_h3]:mb-1',
+                  '[&_p]:text-[0.8rem] [&_p]:mb-2 [&_p]:mt-0 [&_p]:leading-relaxed',
+                  '[&_ul]:text-[0.8rem] [&_ul]:mb-2 [&_ul]:pl-5 [&_ol]:text-[0.8rem] [&_ol]:mb-2 [&_ol]:pl-5',
+                  '[&_li]:mb-0.5',
+                  '[&_strong]:font-semibold',
+                  '[&_em]:italic'
+                )}
+                dangerouslySetInnerHTML={{ __html: item.content! }}
+              />
+            </div>
+          ) : (
+            <div className={`flex flex-1 items-center justify-center pb-10 ${docStyle!.bg}`}>
+              {DocTypeIcon && <DocTypeIcon size={32} className={docStyle!.text} />}
+            </div>
+          ))}
         {item.type === 'board' && (
           <div className="flex items-center justify-center bg-white dark:bg-grey-800 aspect-[4/3] select-none">
             {item.boardType === 'whiteboard' ? (
@@ -191,23 +270,42 @@ const RecentItemCard = memo(
           </CardActionsMenu>
         </div>
 
-        <div className="border-t border-grey-100 dark:border-grey-700 px-sm py-sm">
-          <div className="flex items-center gap-xs min-w-0">
-            {TypeIcon && <TypeIcon className="text-sm text-secondary-600 shrink-0" />}
-            <span className="text-sm font-medium text-foreground-heading truncate">
-              {item.title || FALLBACK_TITLES[item.type]}
-            </span>
+        {isDoc ? (
+          <div className="absolute inset-x-0 bottom-0 backdrop-blur-md bg-white/70 dark:bg-grey-900/70 px-2.5 py-2 border-t border-white/50 dark:border-grey-700/50">
+            <h3 className="truncate text-xs font-semibold text-foreground m-0">
+              {item.title || FALLBACK_TITLES.doc}
+            </h3>
+            <div className="mt-0.5 flex items-center gap-1 text-[10px] text-grey-500 dark:text-grey-400">
+              <span>{formatRelativeDate(item.date)}</span>
+              {item.accessType && item.accessType !== 'owner' && (
+                <>
+                  <span>·</span>
+                  <span className="text-primary-600 dark:text-primary-400">
+                    {item.creatorName ? `Von ${item.creatorName}` : 'Geteilt'}
+                  </span>
+                </>
+              )}
+            </div>
           </div>
-          <p className="text-xs text-grey-400 mt-0.5 m-0 truncate">
-            {item.type === 'text' && item.documentType && TEXT_TYPE_LABELS[item.documentType]
-              ? `${TEXT_TYPE_LABELS[item.documentType]} · `
-              : ''}
-            {item.accessType && item.accessType !== 'owner' && item.creatorName
-              ? `Von ${item.creatorName} · `
-              : ''}
-            {new Date(item.date).toLocaleDateString('de-DE', dateFormat)}
-          </p>
-        </div>
+        ) : (
+          <div className="border-t border-grey-100 dark:border-grey-700 px-sm py-sm">
+            <div className="flex items-center gap-xs min-w-0">
+              {TypeIcon && <TypeIcon className="text-sm text-secondary-600 shrink-0" />}
+              <span className="text-sm font-medium text-foreground-heading truncate">
+                {item.title || FALLBACK_TITLES[item.type]}
+              </span>
+            </div>
+            <p className="text-xs text-grey-400 mt-0.5 m-0 truncate">
+              {item.type === 'text' && item.documentType && TEXT_TYPE_LABELS[item.documentType]
+                ? `${TEXT_TYPE_LABELS[item.documentType]} · `
+                : ''}
+              {item.accessType && item.accessType !== 'owner' && item.creatorName
+                ? `Von ${item.creatorName} · `
+                : ''}
+              {formatRelativeDate(item.date)}
+            </p>
+          </div>
+        )}
       </>
     );
 

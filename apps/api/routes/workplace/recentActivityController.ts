@@ -88,7 +88,7 @@ export async function fetchRecentDocs(
 ): Promise<RecentActivityItem[]> {
   const rows = await db.query(
     `SELECT
-      cd.id, cd.title, cd.updated_at, cd.document_subtype, cd.created_by,
+      cd.id, cd.title, cd.updated_at, cd.document_subtype, cd.content, cd.created_by,
       p.display_name as creator_name,
       CASE
         WHEN cd.created_by = $1 THEN 'owner'
@@ -127,6 +127,8 @@ export async function fetchRecentDocs(
     type: 'doc' as const,
     href: `/docs/${row.id}`,
     emoji: SUBTYPE_EMOJI[row.document_subtype ?? 'blank'] ?? '📄',
+    documentType: row.document_subtype ?? 'blank',
+    content: row.content ?? null,
     creatorName: row.creator_name,
     accessType: row.access_type,
     deleteEndpoint: `/api/docs/${row.id}`,
