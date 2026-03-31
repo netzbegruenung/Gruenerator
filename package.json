@@ -48,7 +48,6 @@
     "services/comfyui",
     "services/hocuspocus",
     "services/mcp",
-    "services/remotion",
     "documentation"
   ],
   "dependencies": {
