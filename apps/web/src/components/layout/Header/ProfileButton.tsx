@@ -167,7 +167,6 @@ ProfileDropdownContent.displayName = 'ProfileDropdownContent';
 
 const ProfileButton = () => {
   const user = useAuthStore((s) => s.user);
-  const loading = useAuthStore((s) => s.isLoading);
   const setLoginIntent = useAuthStore((s) => s.setLoginIntent);
   const [open, setOpen] = useState(false);
 
@@ -184,7 +183,7 @@ const ProfileButton = () => {
     email: user?.email,
   });
 
-  if (!loading && !user) {
+  if (!user) {
     return (
       <Link
         to="/login"
@@ -194,18 +193,6 @@ const ProfileButton = () => {
       >
         <FaUserCircle className="text-lg text-foreground-heading" />
       </Link>
-    );
-  }
-
-  if (!user && loading) {
-    return (
-      <button
-        className="flex items-center justify-center size-[38px] rounded-full border border-grey-200 dark:border-grey-700 bg-background transition-colors overflow-hidden"
-        disabled
-        aria-label="Profil wird geladen"
-      >
-        <FaUserCircle className="text-lg text-foreground-heading" />
-      </button>
     );
   }
 
