@@ -186,7 +186,7 @@ const BlockNoteEditorInner = ({
     const vp = window.visualViewport;
     const update = () => {
       if (!wrapperRef.current) return;
-      const keyboardHeight = window.innerHeight - vp!.height;
+      const keyboardHeight = window.innerHeight - vp.height;
       wrapperRef.current.style.setProperty(
         '--mobile-keyboard-offset',
         keyboardHeight > 0 ? `${keyboardHeight}px` : '0px'
