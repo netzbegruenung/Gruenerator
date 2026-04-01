@@ -5,7 +5,6 @@ import { isDesktopApp } from '../../utils/platform';
 import type { SlidesAdapter } from '@gruenerator/slides';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-const PRESENTON_API_BASE_URL = import.meta.env.VITE_PRESENTON_API_BASE_URL || '/presenton-api';
 
 async function getPlatformToken(): Promise<string | null> {
   if (isDesktopApp()) {
@@ -29,8 +28,6 @@ export const webAppSlidesAdapter: SlidesAdapter = {
   fetch: platformFetch,
 
   getApiBaseUrl: () => API_BASE_URL,
-
-  getPresenterApiBaseUrl: () => PRESENTON_API_BASE_URL,
 
   getAuthHeaders: async (): Promise<Record<string, string>> => {
     const token = await getPlatformToken();

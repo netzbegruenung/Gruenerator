@@ -13,8 +13,6 @@ export interface SlidesAdapter {
   fetch: (url: string, options?: RequestInit) => Promise<Response>;
   /** Base URL for the API (e.g. 'https://api.gruenerator.de' or '') */
   getApiBaseUrl(): string;
-  /** Base URL for the Presenton API (e.g. 'http://presenton:5000' or '/presenton-api') */
-  getPresenterApiBaseUrl(): string;
   /** Get auth headers for non-fetch usage */
   getAuthHeaders(): Promise<Record<string, string>>;
   /** Called on 401 — redirect to login or show auth UI */
