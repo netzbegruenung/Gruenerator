@@ -13,15 +13,10 @@ import {
 import { useState, useCallback, useMemo, memo } from 'react';
 import { HiOutlineArrowLeft, HiOutlineTrash, HiPlus } from 'react-icons/hi2';
 
-import apiClient from '../../components/utils/apiClient';
-import { useAuthStore } from '../../stores/authStore';
-import { useUserDefaultsStore } from '../../stores/userDefaultsStore';
-
-import { searchMdBs } from './grueneMdBs';
-
-import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
-import PageContainer from '@/components/common/PageContainer';
-import ErrorBoundary from '@/components/ErrorBoundary';
+import apiClient from '../../../../../../components/utils/apiClient';
+import { searchMdBs } from '../../../../../../features/chat/grueneMdBs';
+import { useAuthStore } from '../../../../../../stores/authStore';
+import { useUserDefaultsStore } from '../../../../../../stores/userDefaultsStore';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -253,7 +248,7 @@ function RoleCard({
 
 type WizardStep = 'ebene' | 'bundesland' | 'gliederung' | 'rolle' | 'instructions';
 
-function ChatSettingsPage() {
+export default function RolesSection() {
   const locale = useAuthStore((s) => s.locale);
   const isAustrian = locale === 'de-AT';
   const getDefault = useUserDefaultsStore((s) => s.getDefault);
@@ -470,247 +465,230 @@ function ChatSettingsPage() {
   );
 
   return (
-    <ErrorBoundary>
-      <PageContainer
-        maxWidth="md"
-        title="Dein Grünerator"
-        subtitle="Personalisiere deinen Grünerator"
-      >
-        <div className="flex flex-col gap-lg">
-          {successMessage && (
-            <div className="rounded-lg border border-green-200 bg-green-50 px-lg py-md text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400">
-              {successMessage}
-            </div>
-          )}
+    <div className="flex flex-col gap-lg">
+      {successMessage && (
+        <div className="rounded-lg border border-green-200 bg-green-50 px-lg py-md text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400">
+          {successMessage}
+        </div>
+      )}
 
-          {addingRole ? (
-            // ─── Add Role Wizard ───────────────────────────────────────────
-            generating ? (
-              <div className="flex flex-col items-center gap-md py-2xl">
-                <div className="size-8 animate-spin rounded-full border-2 border-grey-300 border-t-primary-500" />
-                <p className="text-sm text-grey-500">System-Prompt wird generiert…</p>
+      {addingRole ? (
+        // ─── Add Role Wizard ───────────────────────────────────────────
+        generating ? (
+          <div className="flex flex-col items-center gap-md py-2xl">
+            <div className="size-8 animate-spin rounded-full border-2 border-grey-300 border-t-primary-500" />
+            <p className="text-sm text-grey-500">System-Prompt wird generiert…</p>
+          </div>
+        ) : wizardStep === 'ebene' ? (
+          <>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-foreground-heading m-0">
+                Rolle hinzufügen
+              </h2>
+              <Button variant="ghost" size="sm" onClick={cancelAddRole}>
+                Abbrechen
+              </Button>
+            </div>
+            <p className="text-sm text-grey-500 -mt-md">Auf welcher Ebene bist du aktiv?</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
+              {ebenen.map((e) => (
+                <SelectCard
+                  key={e.id}
+                  icon={e.icon}
+                  label={e.label}
+                  selected={wizEbene === e.id}
+                  onClick={() => handleWizEbene(e.id)}
+                />
+              ))}
+            </div>
+          </>
+        ) : wizardStep === 'bundesland' ? (
+          <>
+            {renderWizardBack}
+            <h2 className="text-lg font-semibold text-foreground-heading">
+              In welchem Bundesland?
+            </h2>
+            <SmartInput
+              value={wizBundeslandQuery}
+              onValueChange={(v) => setWizBundeslandQuery(v)}
+              onSelect={(option) => handleWizBundesland(option.label)}
+              options={bundeslandOptions}
+              placeholder="Bundesland eingeben..."
+              autoFocus
+            />
+          </>
+        ) : wizardStep === 'gliederung' ? (
+          <>
+            {renderWizardBack}
+            <h2 className="text-lg font-semibold text-foreground-heading">
+              {LOCAL_NAME_LABELS[wizEbene || ''] || 'Name deiner Gliederung'}
+            </h2>
+            <p className="text-sm text-grey-500 -mt-md">{wizBundesland}</p>
+            <div className="flex gap-sm">
+              <Input
+                value={wizGliederung}
+                onChange={(e) => setWizGliederung(e.target.value)}
+                placeholder={LOCAL_NAME_PLACEHOLDERS[wizEbene || ''] || ''}
+                className="flex-1"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleWizGliederungSubmit();
+                }}
+                autoFocus
+              />
+              <Button
+                onClick={handleWizGliederungSubmit}
+                disabled={!wizGliederung.trim()}
+                size="sm"
+              >
+                Weiter
+              </Button>
+            </div>
+          </>
+        ) : wizardStep === 'rolle' ? (
+          <>
+            {renderWizardBack}
+            <h2 className="text-lg font-semibold text-foreground-heading">Was ist deine Rolle?</h2>
+            {wizEbene && (
+              <p className="text-sm text-grey-500 -mt-md">
+                {ebenen.find((e) => e.id === wizEbene)?.label}
+                {wizBundesland ? ` · ${wizBundesland}` : ''}
+                {wizGliederung ? ` · ${wizGliederung}` : ''}
+              </p>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
+              {wizEbene &&
+                (rollenMap[wizEbene] || []).map((rolle) => (
+                  <SelectCard
+                    key={rolle}
+                    label={rolle}
+                    selected={wizRolle === rolle}
+                    onClick={() => handleWizSelectRolle(rolle)}
+                  />
+                ))}
+              <SelectCard
+                label="Sonstige"
+                description="Eigene Rolle eingeben"
+                selected={wizRolle === 'custom'}
+                onClick={() => setWizRolle('custom')}
+              />
+            </div>
+
+            {wizRolle === 'custom' && (
+              <div className="flex gap-sm">
+                <Input
+                  value={wizCustomRolle}
+                  onChange={(e) => setWizCustomRolle(e.target.value)}
+                  placeholder="z.B. Fraktionsgeschäftsführer*in"
+                  className="flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleWizCustomRolleSubmit();
+                  }}
+                />
               </div>
-            ) : wizardStep === 'ebene' ? (
-              <>
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-foreground-heading m-0">
-                    Rolle hinzufügen
-                  </h2>
-                  <Button variant="ghost" size="sm" onClick={cancelAddRole}>
-                    Abbrechen
+            )}
+
+            {wizRolle && wizRolle !== 'custom' && needsAbgeordneteName(wizRolle) && (
+              <div>
+                <p className="mb-sm text-xs text-grey-500">
+                  Für welche*n Abgeordnete*n arbeitest du?
+                </p>
+                <div className="relative">
+                  <Input
+                    value={wizAbgeordnete}
+                    onChange={(e) => setWizAbgeordnete(e.target.value)}
+                    placeholder={isAustrian ? 'z.B. Sigrid Maurer' : 'z.B. Lisa Badum'}
+                    autoComplete="off"
+                  />
+                  {!isAustrian && (
+                    <MdBSuggestions query={wizAbgeordnete} onSelect={setWizAbgeordnete} />
+                  )}
+                </div>
+              </div>
+            )}
+
+            {canAddRole && <Button onClick={() => setWizardStep('instructions')}>Weiter</Button>}
+          </>
+        ) : wizardStep === 'instructions' ? (
+          <>
+            {renderWizardBack}
+            <h2 className="text-lg font-semibold text-foreground-heading">
+              Zusätzliche Anweisungen
+            </h2>
+            <p className="text-sm text-grey-500 -mt-md">Optionale Hinweise für diese Rolle</p>
+            <textarea
+              value={wizInstructions}
+              onChange={(e) => setWizInstructions(e.target.value)}
+              className="w-full rounded-lg border border-grey-200 bg-input-bg p-md text-sm leading-relaxed text-foreground resize-vertical placeholder:text-grey-400 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 dark:border-grey-700"
+              rows={4}
+              placeholder="z.B. Schreibe Pressemitteilungen immer mit Zitat des Fraktionsvorsitzenden."
+              autoFocus
+            />
+            <div className="flex items-center gap-sm">
+              <Button onClick={handleAddRole} disabled={generating}>
+                Rolle hinzufügen
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setWizInstructions('');
+                  void handleAddRole();
+                }}
+                disabled={generating}
+              >
+                Überspringen
+              </Button>
+            </div>
+          </>
+        ) : null
+      ) : (
+        // ─── Role List ──────────────────────────────────────────────────
+        <>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Deine Rollen</CardTitle>
+                {roles.length > 0 && (
+                  <Button variant="ghost" size="sm" onClick={startAddRole}>
+                    <HiPlus className="size-4 mr-1" />
+                    Hinzufügen
+                  </Button>
+                )}
+              </div>
+              <CardDescription>
+                Definiere deine Rollen — der Grünerator passt sich automatisch an.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {roles.length === 0 ? (
+                <div className="text-center py-md">
+                  <Button variant="outline" onClick={startAddRole}>
+                    <HiPlus className="size-4 mr-1" />
+                    Erste Rolle hinzufügen
                   </Button>
                 </div>
-                <p className="text-sm text-grey-500 -mt-md">Auf welcher Ebene bist du aktiv?</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
-                  {ebenen.map((e) => (
-                    <SelectCard
-                      key={e.id}
-                      icon={e.icon}
-                      label={e.label}
-                      selected={wizEbene === e.id}
-                      onClick={() => handleWizEbene(e.id)}
+              ) : (
+                <div className="flex flex-col gap-sm">
+                  {roles.map((role, i) => (
+                    <RoleCard
+                      key={`${role.ebene}-${role.rolle}-${i}`}
+                      role={role}
+                      ebenen={ebenen}
+                      onDelete={() => handleDeleteRole(i)}
                     />
                   ))}
                 </div>
-              </>
-            ) : wizardStep === 'bundesland' ? (
-              <>
-                {renderWizardBack}
-                <h2 className="text-lg font-semibold text-foreground-heading">
-                  In welchem Bundesland?
-                </h2>
-                <SmartInput
-                  value={wizBundeslandQuery}
-                  onValueChange={(v) => setWizBundeslandQuery(v)}
-                  onSelect={(option) => handleWizBundesland(option.label)}
-                  options={bundeslandOptions}
-                  placeholder="Bundesland eingeben..."
-                  autoFocus
-                />
-              </>
-            ) : wizardStep === 'gliederung' ? (
-              <>
-                {renderWizardBack}
-                <h2 className="text-lg font-semibold text-foreground-heading">
-                  {LOCAL_NAME_LABELS[wizEbene || ''] || 'Name deiner Gliederung'}
-                </h2>
-                <p className="text-sm text-grey-500 -mt-md">{wizBundesland}</p>
-                <div className="flex gap-sm">
-                  <Input
-                    value={wizGliederung}
-                    onChange={(e) => setWizGliederung(e.target.value)}
-                    placeholder={LOCAL_NAME_PLACEHOLDERS[wizEbene || ''] || ''}
-                    className="flex-1"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleWizGliederungSubmit();
-                    }}
-                    autoFocus
-                  />
-                  <Button
-                    onClick={handleWizGliederungSubmit}
-                    disabled={!wizGliederung.trim()}
-                    size="sm"
-                  >
-                    Weiter
-                  </Button>
-                </div>
-              </>
-            ) : wizardStep === 'rolle' ? (
-              <>
-                {renderWizardBack}
-                <h2 className="text-lg font-semibold text-foreground-heading">
-                  Was ist deine Rolle?
-                </h2>
-                {wizEbene && (
-                  <p className="text-sm text-grey-500 -mt-md">
-                    {ebenen.find((e) => e.id === wizEbene)?.label}
-                    {wizBundesland ? ` · ${wizBundesland}` : ''}
-                    {wizGliederung ? ` · ${wizGliederung}` : ''}
-                  </p>
-                )}
+              )}
+            </CardContent>
+          </Card>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
-                  {wizEbene &&
-                    (rollenMap[wizEbene] || []).map((rolle) => (
-                      <SelectCard
-                        key={rolle}
-                        label={rolle}
-                        selected={wizRolle === rolle}
-                        onClick={() => handleWizSelectRolle(rolle)}
-                      />
-                    ))}
-                  <SelectCard
-                    label="Sonstige"
-                    description="Eigene Rolle eingeben"
-                    selected={wizRolle === 'custom'}
-                    onClick={() => setWizRolle('custom')}
-                  />
-                </div>
-
-                {wizRolle === 'custom' && (
-                  <div className="flex gap-sm">
-                    <Input
-                      value={wizCustomRolle}
-                      onChange={(e) => setWizCustomRolle(e.target.value)}
-                      placeholder="z.B. Fraktionsgeschäftsführer*in"
-                      className="flex-1"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleWizCustomRolleSubmit();
-                      }}
-                    />
-                  </div>
-                )}
-
-                {wizRolle && wizRolle !== 'custom' && needsAbgeordneteName(wizRolle) && (
-                  <div>
-                    <p className="mb-sm text-xs text-grey-500">
-                      Für welche*n Abgeordnete*n arbeitest du?
-                    </p>
-                    <div className="relative">
-                      <Input
-                        value={wizAbgeordnete}
-                        onChange={(e) => setWizAbgeordnete(e.target.value)}
-                        placeholder={isAustrian ? 'z.B. Sigrid Maurer' : 'z.B. Lisa Badum'}
-                        autoComplete="off"
-                      />
-                      {!isAustrian && (
-                        <MdBSuggestions query={wizAbgeordnete} onSelect={setWizAbgeordnete} />
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {canAddRole && (
-                  <Button onClick={() => setWizardStep('instructions')}>Weiter</Button>
-                )}
-              </>
-            ) : wizardStep === 'instructions' ? (
-              <>
-                {renderWizardBack}
-                <h2 className="text-lg font-semibold text-foreground-heading">
-                  Zusätzliche Anweisungen
-                </h2>
-                <p className="text-sm text-grey-500 -mt-md">Optionale Hinweise für diese Rolle</p>
-                <textarea
-                  value={wizInstructions}
-                  onChange={(e) => setWizInstructions(e.target.value)}
-                  className="w-full rounded-lg border border-grey-200 bg-input-bg p-md text-sm leading-relaxed text-foreground resize-vertical placeholder:text-grey-400 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 dark:border-grey-700"
-                  rows={4}
-                  placeholder="z.B. Schreibe Pressemitteilungen immer mit Zitat des Fraktionsvorsitzenden."
-                  autoFocus
-                />
-                <div className="flex items-center gap-sm">
-                  <Button onClick={handleAddRole} disabled={generating}>
-                    Rolle hinzufügen
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setWizInstructions('');
-                      void handleAddRole();
-                    }}
-                    disabled={generating}
-                  >
-                    Überspringen
-                  </Button>
-                </div>
-              </>
-            ) : null
-          ) : (
-            // ─── Role List + Freetext ──────────────────────────────────────
-            <>
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Deine Rollen</CardTitle>
-                    {roles.length > 0 && (
-                      <Button variant="ghost" size="sm" onClick={startAddRole}>
-                        <HiPlus className="size-4 mr-1" />
-                        Hinzufügen
-                      </Button>
-                    )}
-                  </div>
-                  <CardDescription>
-                    Definiere deine Rollen — der Grünerator passt sich automatisch an.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {roles.length === 0 ? (
-                    <div className="text-center py-md">
-                      <Button variant="outline" onClick={startAddRole}>
-                        <HiPlus className="size-4 mr-1" />
-                        Erste Rolle hinzufügen
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-sm">
-                      {roles.map((role, i) => (
-                        <RoleCard
-                          key={`${role.ebene}-${role.rolle}-${i}`}
-                          role={role}
-                          ebenen={ebenen}
-                          onDelete={() => handleDeleteRole(i)}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <div className="flex justify-end pb-lg">
-                <Button onClick={handleSave} disabled={saving}>
-                  {saving ? 'Speichert…' : 'Speichern'}
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
-      </PageContainer>
-    </ErrorBoundary>
+          <div className="flex justify-end">
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? 'Speichert…' : 'Speichern'}
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
-
-export default withAuthRequired(ChatSettingsPage, {
-  title: 'Dein Grünerator',
-  fallback: <div className="flex min-h-0 flex-1 bg-background" />,
-});
