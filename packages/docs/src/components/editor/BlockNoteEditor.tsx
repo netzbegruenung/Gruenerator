@@ -178,6 +178,24 @@ const BlockNoteEditorInner = ({
   const getMentionMenuItems = useMentionUsers(provider ?? null);
   const hasInitialized = useRef(false);
   const [isReady, setIsReady] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isTouchDevice || !window.visualViewport) return;
+
+    const vp = window.visualViewport;
+    const update = () => {
+      if (!wrapperRef.current) return;
+      const keyboardHeight = window.innerHeight - vp!.height;
+      wrapperRef.current.style.setProperty(
+        '--mobile-keyboard-offset',
+        keyboardHeight > 0 ? `${keyboardHeight}px` : '0px'
+      );
+    };
+
+    vp.addEventListener('resize', update);
+    return () => vp.removeEventListener('resize', update);
+  }, [isTouchDevice]);
 
   const collaborationUser = useMemo(() => {
     if (!provider?.awareness) return null;
@@ -322,7 +340,10 @@ const BlockNoteEditorInner = ({
   }
 
   return (
-    <div className={`blocknote-wrapper${staticToolbar ? ' blocknote-static-toolbar' : ''}`}>
+    <div
+      ref={wrapperRef}
+      className={`blocknote-wrapper${staticToolbar ? ' blocknote-static-toolbar' : ''}`}
+    >
       <ErrorBoundary>
         <BlockNoteView
           editor={editor}
