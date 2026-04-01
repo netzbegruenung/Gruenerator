@@ -13,6 +13,7 @@ export interface RouteConfig {
   component: LazyExoticComponent<ComponentType<Record<string, unknown>>>;
   withForm?: boolean;
   layoutMode?: LayoutMode;
+  auth?: 'required' | 'guest';
 }
 
 /**
@@ -62,11 +63,7 @@ const RegistrationPage = lazy(() => import('../features/auth/pages/RegistrationP
 const JoinGroupPage = lazy(() => import('../features/groups/pages/JoinGroupPage'));
 
 // Lazy loading für statische Seiten - platform-aware home
-const HomeWrapper = lazy(() =>
-  isDesktopApp()
-    ? import('../components/pages/DesktopHome/DesktopHome')
-    : import('../components/pages/SmartHome')
-);
+const DesktopHome = lazy(() => import('../components/pages/DesktopHome/DesktopHome'));
 const Startseite = lazy(() => import('../components/pages/Startseite'));
 const Datenschutz = lazy(
   () => import('../components/pages/Impressum_Datenschutz_Terms/Datenschutz')
@@ -235,8 +232,11 @@ export const GrueneratorenBundle = {
 
 // Route Konfigurationen
 const standardRoutes: RouteConfig[] = [
-  { path: '/', component: HomeWrapper },
-  { path: '/startseite', component: Startseite },
+  // Desktop app always shows DesktopHome dashboard; web redirects auth'd users to /desk
+  isDesktopApp()
+    ? { path: '/', component: DesktopHome }
+    : { path: '/', component: Startseite, auth: 'guest' as const },
+  { path: '/startseite', component: Startseite, auth: 'guest' },
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
   { path: '/desk', component: DeskPage },
@@ -333,8 +333,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/support', component: Support },
   { path: '/nutzungsbedingungen', component: Nutzungsbedingungen },
   // Auth-Routen (only components still used after Authentic integration)
-  { path: '/login', component: LoginPage },
-  { path: '/register', component: RegistrationPage },
+  { path: '/login', component: LoginPage, auth: 'guest' },
+  { path: '/register', component: RegistrationPage, auth: 'guest' },
   { path: '/profile', component: ProfilePage },
   { path: '/profile/:tab', component: ProfilePage },
   { path: '/profile/:tab/:subtab', component: ProfilePage },
@@ -389,12 +389,16 @@ standardRoutes.push({
 const specialRoutes: RouteConfig[] = [];
 
 export interface Routes {
-  standard: RouteConfig[];
+  guest: RouteConfig[];
+  protected: RouteConfig[];
+  public: RouteConfig[];
   special: RouteConfig[];
 }
 
 export const routes: Routes = {
-  standard: standardRoutes,
+  guest: standardRoutes.filter((r) => r.auth === 'guest'),
+  protected: standardRoutes.filter((r) => r.auth === 'required'),
+  public: standardRoutes.filter((r) => !r.auth),
   special: specialRoutes,
 };
 

@@ -6,6 +6,8 @@ import SuspenseWrapper from './components/common/SuspenseWrapper';
 import ErrorBoundary from './components/ErrorBoundary';
 import useAccessibility from './components/hooks/useAccessibility';
 import useDarkMode from './components/hooks/useDarkMode';
+import AuthRoute from './components/routing/AuthRoute';
+import GuestRoute from './components/routing/GuestRoute';
 import LegacyGeneratorRedirect from './components/routing/LegacyGeneratorRedirect';
 import RouteComponent from './components/routing/RouteComponent';
 import { useScrollRestoration } from './components/utils/commonFunctions';
@@ -172,8 +174,45 @@ function App() {
             <Routes>
               {/* Legacy redirect: /generator/:slug -> /gruenerator/:slug */}
               <Route path="/generator/:slug" element={<LegacyGeneratorRedirect />} />
-              {/* Standard-Routen */}
-              {routes.standard.map(({ path, layoutMode }) => (
+
+              {/* Guest-only: redirect authenticated users to /desk */}
+              <Route element={<GuestRoute />}>
+                {routes.guest.map(({ path, layoutMode }) => (
+                  <Route
+                    key={path}
+                    path={path}
+                    element={
+                      <RouteComponent
+                        path={path}
+                        darkMode={darkMode}
+                        toggleDarkMode={toggleDarkMode}
+                        layoutMode={layoutMode}
+                      />
+                    }
+                  />
+                ))}
+              </Route>
+
+              {/* Auth-required: redirect guests to /login */}
+              <Route element={<AuthRoute />}>
+                {routes.protected.map(({ path, layoutMode }) => (
+                  <Route
+                    key={path}
+                    path={path}
+                    element={
+                      <RouteComponent
+                        path={path}
+                        darkMode={darkMode}
+                        toggleDarkMode={toggleDarkMode}
+                        layoutMode={layoutMode}
+                      />
+                    }
+                  />
+                ))}
+              </Route>
+
+              {/* Public: accessible to everyone */}
+              {routes.public.map(({ path, layoutMode }) => (
                 <Route
                   key={path}
                   path={path}
@@ -188,7 +227,7 @@ function App() {
                 />
               ))}
 
-              {/* Spezielle Routen */}
+              {/* Special routes */}
               {routes.special.map(({ path, layoutMode }) => (
                 <Route
                   key={path}
