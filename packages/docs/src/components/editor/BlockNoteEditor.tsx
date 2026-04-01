@@ -242,6 +242,12 @@ const BlockNoteEditorInner = ({
   const editor = useCreateBlockNote(
     {
       schema,
+      tables: {
+        splitCells: true,
+        cellBackgroundColor: true,
+        cellTextColor: true,
+        headers: true,
+      },
       dictionary: {
         ...de,
         ai: aiDe,
@@ -252,12 +258,6 @@ const BlockNoteEditorInner = ({
     },
     [collaborationOptions]
   );
-
-  useEffect(() => {
-    if (!editor) return;
-
-    editor.isEditable = editable;
-  }, [editor, editable]);
 
   useEffect(() => {
     if (!editor) return;
@@ -324,7 +324,13 @@ const BlockNoteEditorInner = ({
   return (
     <div className={`blocknote-wrapper${staticToolbar ? ' blocknote-static-toolbar' : ''}`}>
       <ErrorBoundary>
-        <BlockNoteView editor={editor} theme={theme} formattingToolbar={false} slashMenu={false}>
+        <BlockNoteView
+          editor={editor}
+          theme={theme}
+          editable={editable}
+          formattingToolbar={false}
+          slashMenu={false}
+        >
           <AIMenuController />
           {hideFormattingToolbar ? null : staticToolbar ? (
             <FormattingToolbar>
