@@ -1,6 +1,9 @@
 # Inspiration / reference repos
 inspiration/
 
+# Presenton (upstream fork, managed separately)
+services/presenton/
+
 # Dependencies
 node_modules
 package-lock.json
