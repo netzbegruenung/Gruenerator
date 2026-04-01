@@ -13,7 +13,7 @@ import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
 import { WolkeSaveModal, uploadToWolke } from '@gruenerator/wolke';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
-import { FiCloud, FiDownload, FiShare2, FiSidebar } from 'react-icons/fi';
+import { FiCloud, FiDownload, FiShare2, FiSidebar, FiX } from 'react-icons/fi';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
@@ -483,7 +483,7 @@ function EditorContent() {
                   className="hidden max-md:flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-grey-500 hover:bg-grey-100 hover:text-foreground dark:hover:bg-grey-700"
                   aria-label="Seitenleiste schließen"
                 >
-                  ✕
+                  <FiX size={18} />
                 </button>
               </div>
             </div>
