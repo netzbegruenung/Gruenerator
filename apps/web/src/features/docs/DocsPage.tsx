@@ -264,25 +264,25 @@ function DocumentsContent() {
     for (const doc of documents) {
       if (!matchesSearch(doc.title)) continue;
 
-      if (doc.access_type === 'group' && doc.group_shares?.length) {
+      const item: UnifiedItem = {
+        kind: 'document',
+        data: doc,
+        sortKey: new Date(doc.updated_at).getTime(),
+      };
+
+      if (doc.access_type !== 'group') {
+        personal.push(item);
+      }
+
+      if (doc.group_shares?.length) {
         for (const gs of doc.group_shares) {
           let entry = groupMap.get(gs.group_id);
           if (!entry) {
             entry = { groupName: gs.group_name, docs: [] };
             groupMap.set(gs.group_id, entry);
           }
-          entry.docs.push({
-            kind: 'document',
-            data: doc,
-            sortKey: new Date(doc.updated_at).getTime(),
-          });
+          entry.docs.push({ ...item });
         }
-      } else {
-        personal.push({
-          kind: 'document',
-          data: doc,
-          sortKey: new Date(doc.updated_at).getTime(),
-        });
       }
     }
 
