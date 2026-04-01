@@ -186,7 +186,9 @@ const BlockNoteEditorInner = ({
     const vp = window.visualViewport;
     const update = () => {
       if (!wrapperRef.current) return;
-      const keyboardHeight = window.innerHeight - vp.height;
+      // Use clientHeight instead of innerHeight to avoid URL bar inflation on mobile browsers
+      const layoutHeight = document.documentElement.clientHeight;
+      const keyboardHeight = layoutHeight - vp.height;
       wrapperRef.current.style.setProperty(
         '--mobile-keyboard-offset',
         keyboardHeight > 0 ? `${keyboardHeight}px` : '0px'
@@ -194,7 +196,11 @@ const BlockNoteEditorInner = ({
     };
 
     vp.addEventListener('resize', update);
-    return () => vp.removeEventListener('resize', update);
+    vp.addEventListener('scroll', update);
+    return () => {
+      vp.removeEventListener('resize', update);
+      vp.removeEventListener('scroll', update);
+    };
   }, [isTouchDevice]);
 
   const collaborationUser = useMemo(() => {
