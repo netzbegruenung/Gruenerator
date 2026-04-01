@@ -116,9 +116,9 @@ const ImportMenu = memo(function ImportMenu({
   return (
     <ResponsiveMenu
       trigger={
-        <Button variant="outline">
+        <Button variant="outline" className="max-sm:h-9 max-sm:w-9 max-sm:p-0 max-sm:rounded-full">
           <FiUpload size={16} />
-          Importieren
+          <span className="max-sm:hidden">Importieren</span>
         </Button>
       }
       dropdownSide="bottom"
