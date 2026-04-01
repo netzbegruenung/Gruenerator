@@ -2,7 +2,7 @@ import { Badge, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@
 import { LogOut } from 'lucide-react';
 import { memo, useState } from 'react';
 import { FaCloud, FaFolder, FaUserCircle, FaUsers } from 'react-icons/fa';
-import { HiCog, HiChat } from 'react-icons/hi';
+import { HiCog } from 'react-icons/hi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
@@ -31,7 +31,6 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { key: 'gruppen', label: 'Gruppen', path: '/gruppen', icon: FaUsers, betaFeature: 'groups' },
-  { key: 'dein-gruenerator', label: 'Dein Grünerator', path: '/dein-gruenerator', icon: HiChat },
   { key: 'inhalte', label: 'Dateien', path: '/profile/inhalte', icon: FaFolder },
   { key: 'wolke', label: 'Wolke', path: '/profile/wolke', icon: FaCloud },
   { key: 'einstellungen', label: 'Einstellungen', path: '/profile', icon: HiCog },

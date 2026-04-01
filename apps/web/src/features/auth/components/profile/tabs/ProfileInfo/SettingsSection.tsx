@@ -134,12 +134,14 @@ const SettingsSection: React.FC<SettingsSectionProps> = memo(
 
     return (
       <div className="flex flex-col gap-lg">
-        <div>
-          <div className="text-sm font-medium text-foreground mb-md">Einstellungen</div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
-            {availableFeatures.map((f) => renderToggle(f))}
+        {availableFeatures.length > 0 && (
+          <div>
+            <div className="text-sm font-medium text-foreground mb-md">Einstellungen</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+              {availableFeatures.map((f) => renderToggle(f))}
+            </div>
           </div>
-        </div>
+        )}
 
         <NotificationToggles onSuccessMessage={onSuccessMessage} onErrorMessage={onErrorMessage} />
       </div>

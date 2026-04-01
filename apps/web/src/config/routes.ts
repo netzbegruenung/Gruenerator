@@ -169,7 +169,6 @@ const NotebookChat = lazy(() =>
 
 // Chat page (uses @gruenerator/chat shared package)
 const ChatPage = lazy(() => import('../features/chat/ChatPage'));
-const ChatSettingsPage = lazy(() => import('../features/chat/ChatSettingsPage'));
 
 // Voice agent (immersive voice conversation)
 const VoiceAgentPage = lazy(() => import('../features/voice-agent/VoiceAgentPage'));
@@ -343,10 +342,13 @@ const standardRoutes: RouteConfig[] = [
   { path: '/join-group/:joinToken', component: JoinGroupPage },
   // Q&A Chat Routen
   { path: '/notebook/:id', component: GrueneratorenBundle.NotebookChat, layoutMode: 'fullscreen' },
-  { path: '/dein-gruenerator', component: ChatSettingsPage },
+  {
+    path: '/dein-gruenerator',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/profile') })),
+  },
   {
     path: '/chat/settings',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/dein-gruenerator') })),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/profile') })),
   },
   { path: '/chat', component: GrueneratorenBundle.Chat, layoutMode: 'fullscreen' },
   { path: '/voice', component: VoiceAgentPage, layoutMode: 'noChrome' },
