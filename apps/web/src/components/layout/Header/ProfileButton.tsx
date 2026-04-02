@@ -2,7 +2,7 @@ import { Badge, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@
 import { LogOut } from 'lucide-react';
 import { memo, useState } from 'react';
 import { FaCloud, FaFolder, FaUserCircle, FaUsers } from 'react-icons/fa';
-import { HiCog, HiChat } from 'react-icons/hi';
+import { HiCog } from 'react-icons/hi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
@@ -31,7 +31,6 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { key: 'gruppen', label: 'Gruppen', path: '/gruppen', icon: FaUsers, betaFeature: 'groups' },
-  { key: 'dein-gruenerator', label: 'Dein Grünerator', path: '/dein-gruenerator', icon: HiChat },
   { key: 'inhalte', label: 'Dateien', path: '/profile/inhalte', icon: FaFolder },
   { key: 'wolke', label: 'Wolke', path: '/profile/wolke', icon: FaCloud },
   { key: 'einstellungen', label: 'Einstellungen', path: '/profile', icon: HiCog },
@@ -167,7 +166,6 @@ ProfileDropdownContent.displayName = 'ProfileDropdownContent';
 
 const ProfileButton = () => {
   const user = useAuthStore((s) => s.user);
-  const loading = useAuthStore((s) => s.isLoading);
   const setLoginIntent = useAuthStore((s) => s.setLoginIntent);
   const [open, setOpen] = useState(false);
 
@@ -184,7 +182,7 @@ const ProfileButton = () => {
     email: user?.email,
   });
 
-  if (!loading && !user) {
+  if (!user) {
     return (
       <Link
         to="/login"
@@ -194,18 +192,6 @@ const ProfileButton = () => {
       >
         <FaUserCircle className="text-lg text-foreground-heading" />
       </Link>
-    );
-  }
-
-  if (!user && loading) {
-    return (
-      <button
-        className="flex items-center justify-center size-[38px] rounded-full border border-grey-200 dark:border-grey-700 bg-background transition-colors overflow-hidden"
-        disabled
-        aria-label="Profil wird geladen"
-      >
-        <FaUserCircle className="text-lg text-foreground-heading" />
-      </button>
     );
   }
 

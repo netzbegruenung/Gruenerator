@@ -6,7 +6,8 @@ export type TemplateType =
   | 'notizen'
   | 'redaktionsplan'
   | 'checkliste'
-  | 'einladung';
+  | 'einladung'
+  | 'tabelle';
 
 export interface DocumentTemplate {
   id: TemplateType;
@@ -277,6 +278,55 @@ export const templates: DocumentTemplate[] = [
 <p>Grüne Grüße<br>
 Maxi Mustermensch<br>
 <em>Sprecher*in OV Bad Musterdorf</em></p>
+`,
+  },
+  {
+    id: 'tabelle',
+    name: 'Tabelle',
+    description: 'Tabelle mit Zeilen und Spalten',
+    icon: '📊',
+    defaultTitle: 'Neue Tabelle',
+    content: `
+<h1>Neue Tabelle</h1>
+
+<table>
+  <tr>
+    <th>Thema</th>
+    <th>Verantwortlich</th>
+    <th>Status</th>
+    <th>Frist</th>
+  </tr>
+  <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+</table>
 `,
   },
 ];

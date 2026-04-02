@@ -485,7 +485,8 @@ router.post('/generate', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/presentations/:id/export/:format — Export via Presenton FastAPI proxy
+// GET /api/presentations/:id/export/:format — Export presentation as PPTX/PDF
+// TODO: Replace with pptxgenjs rendering (Presenton service removed)
 router.get(
   '/:id/export/:format',
   async (req: Request<{ id: string; format: string }>, res: Response) => {
@@ -497,77 +498,26 @@ router.get(
       return res.status(400).json({ error: 'Format muss pptx oder pdf sein' });
     }
 
+    // Check access
     try {
-      // Check access
-      const presResult = (await db.query<PresentationRow>(
+      const presResult = await db.query<PresentationRow>(
         'SELECT * FROM collaborative_presentations WHERE id = $1',
         [id]
-      )) as PresentationRow[];
+      );
       const presentation = presResult[0];
       if (!presentation) return res.status(404).json({ error: 'Nicht gefunden' });
       if (!hasAccess(presentation, userId)) {
         return res.status(403).json({ error: 'Kein Zugriff' });
       }
-
-      // Get slides
-      const slidesResult = (await db.query<SlideRow>(
-        'SELECT * FROM presentation_slides WHERE presentation_id = $1 ORDER BY index ASC',
-        [id]
-      )) as SlideRow[];
-
-      // Forward to Presenton for PPTX/PDF generation
-      const presentonUrl = process.env.PRESENTON_INTERNAL_URL || 'http://localhost:5050';
-
-      // First, create the presentation in Presenton
-      const generateResponse = await fetch(`${presentonUrl}/api/v1/ppt/presentation/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: presentation.title,
-          slides_markdown: slidesResult.map(
-            (s) =>
-              `## ${(s.content as Record<string, unknown>).title || 'Slide'}\n${(s.content as Record<string, unknown>).description || ''}`
-          ),
-          n_slides: slidesResult.length,
-          language: presentation.language || 'Deutsch',
-          export_as: format,
-        }),
-      });
-
-      if (!generateResponse.ok) {
-        const errText = await generateResponse.text();
-        log.error('Presenton export failed', { status: generateResponse.status, body: errText });
-        return res.status(502).json({ error: 'Export-Dienst nicht erreichbar' });
-      }
-
-      const generateResult = (await generateResponse.json()) as {
-        path: string;
-        presentation_id: string;
-      };
-
-      // Fetch the generated file
-      const fileResponse = await fetch(`${presentonUrl}${generateResult.path}`);
-      if (!fileResponse.ok) {
-        return res.status(502).json({ error: 'Export-Datei nicht verfügbar' });
-      }
-
-      const contentType =
-        format === 'pptx'
-          ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-          : 'application/pdf';
-
-      const sanitizedTitle =
-        presentation.title.replace(/[^a-zA-Z0-9äöüÄÖÜß\s-]/g, '').trim() || 'Praesentation';
-
-      res.setHeader('Content-Type', contentType);
-      res.setHeader('Content-Disposition', `attachment; filename="${sanitizedTitle}.${format}"`);
-
-      const buffer = await fileResponse.arrayBuffer();
-      res.send(Buffer.from(buffer));
     } catch (err) {
-      log.error('Failed to export presentation', err);
-      res.status(500).json({ error: 'Fehler beim Export' });
+      log.error('Failed to check presentation access for export', err);
+      return res.status(500).json({ error: 'Fehler beim Export' });
     }
+
+    res.status(501).json({
+      error:
+        'Export ist derzeit nicht verfügbar. PPTX/PDF-Export wird in Kürze wieder bereitgestellt.',
+    });
   }
 );
 

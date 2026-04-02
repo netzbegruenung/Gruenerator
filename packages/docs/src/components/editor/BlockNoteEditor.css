@@ -161,10 +161,36 @@
 }
 
 @media (max-width: 767px) {
+  .blocknote-static-toolbar .bn-editor {
+    padding-bottom: 3.5rem;
+  }
+
   .blocknote-static-toolbar .bn-formatting-toolbar {
-    top: -1rem;
-    margin: -1rem 0 0.5rem;
-    padding: 0.375rem 0.5rem;
+    position: fixed;
+    bottom: var(--mobile-keyboard-offset, 0px);
+    left: 0;
+    right: 0;
+    top: auto;
+    margin: 0;
+    padding: 0.375rem 0.75rem;
+    padding-bottom: calc(0.375rem + env(safe-area-inset-bottom, 0));
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-top: 1px solid var(--grey-200, #e5e7eb);
+    border-bottom: none;
+    box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
+    border-radius: 0;
+    z-index: 50;
+    background: var(--grey-100, #f3f4f6);
+    transition: bottom 0.15s ease-out;
+    touch-action: pan-x;
+  }
+
+  [data-theme="dark"] .blocknote-static-toolbar .bn-formatting-toolbar {
+    border-top-color: var(--grey-700, #374151);
+    box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.2);
+    background: var(--grey-900, #111827);
   }
 }
 

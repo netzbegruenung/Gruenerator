@@ -9,7 +9,7 @@ import {
   useIsMobile,
 } from '@gruenerator/ui';
 import { useState, useEffect, useMemo, useCallback, memo } from 'react';
-import { PiSun, PiMoon, PiX, PiStarFill, PiPlus } from 'react-icons/pi';
+import { PiSun, PiMoon, PiX, PiStarFill, PiPlus, PiSignIn } from 'react-icons/pi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { getFavouriteItemsById } from '../../../config/sidebarFavouritesConfig';
@@ -72,6 +72,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   const isMobile = useIsMobile();
 
   const user = useAuthStore((s) => s.user);
+  const setLoginIntent = useAuthStore((s) => s.setLoginIntent);
   const { getBetaFeatureState } = useBetaFeatures();
 
   const databaseBetaEnabled = useMemo(() => getBetaFeatureState('database'), [getBetaFeatureState]);
@@ -335,8 +336,20 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         )}
       />
 
+      {/* Login button for unauthenticated users */}
+      {!user && (
+        <div className="mt-auto px-2 pt-xs shrink-0">
+          <NavTooltip label="Anmelden" collapsed={!sidebarExpanded}>
+            <Link to="/login" className={menuLinkClass(false)} onClick={() => setLoginIntent()}>
+              <PiSignIn aria-hidden="true" className={iconClass} />
+              <span className={titleClass}>Anmelden</span>
+            </Link>
+          </NavTooltip>
+        </div>
+      )}
+
       {/* Footer - pushed to bottom */}
-      <div className="mt-auto px-2 py-xs shrink-0 flex items-center">
+      <div className={cn(user ? 'mt-auto' : '', 'px-2 py-xs shrink-0 flex items-center')}>
         <NavTooltip
           label={darkMode ? 'Heller Modus' : 'Dunkler Modus'}
           collapsed={!sidebarExpanded}
