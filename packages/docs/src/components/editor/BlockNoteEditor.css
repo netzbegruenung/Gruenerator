@@ -183,6 +183,8 @@
     border-radius: 0;
     z-index: 50;
     background: var(--grey-100, #f3f4f6);
+    transition: bottom 0.15s ease-out;
+    touch-action: none;
   }
 
   [data-theme="dark"] .blocknote-static-toolbar .bn-formatting-toolbar {
