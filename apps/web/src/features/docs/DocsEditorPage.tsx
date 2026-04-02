@@ -13,7 +13,7 @@ import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
 import { WolkeSaveModal, uploadToWolke } from '@gruenerator/wolke';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
-import { FiCloud, FiDownload, FiShare2, FiSidebar } from 'react-icons/fi';
+import { FiCloud, FiDownload, FiShare2, FiSidebar, FiX } from 'react-icons/fi';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
@@ -462,20 +462,29 @@ function EditorContent() {
         {sidebarOpen && (
           <aside className="w-80 min-w-80 max-w-80 flex flex-col border-l border-grey-200 dark:border-grey-700 bg-background dark:bg-grey-900 overflow-hidden max-md:fixed max-md:inset-0 max-md:w-full max-md:min-w-full max-md:max-w-full max-md:border-l-0 max-md:z-[200]">
             <div className="py-2 px-3 border-b border-grey-200 dark:border-grey-700 shrink-0">
-              <div className="inline-flex w-full rounded-lg bg-grey-100 p-0.5 dark:bg-grey-800">
-                {SIDEBAR_TABS.map((tab) => (
-                  <button
-                    key={tab.value}
-                    onClick={() => setSidebarTab(tab.value)}
-                    className={`flex-1 rounded-md px-3 py-1 text-xs font-medium transition-all ${
-                      sidebarTab === tab.value
-                        ? 'bg-background-pure text-foreground shadow-sm'
-                        : 'text-grey-500 hover:text-grey-700 dark:text-grey-400 dark:hover:text-grey-200'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+              <div className="flex items-center gap-2">
+                <div className="inline-flex flex-1 rounded-lg bg-grey-100 p-0.5 dark:bg-grey-800">
+                  {SIDEBAR_TABS.map((tab) => (
+                    <button
+                      key={tab.value}
+                      onClick={() => setSidebarTab(tab.value)}
+                      className={`flex-1 rounded-md px-3 py-1 text-xs font-medium transition-all ${
+                        sidebarTab === tab.value
+                          ? 'bg-background-pure text-foreground shadow-sm'
+                          : 'text-grey-500 hover:text-grey-700 dark:text-grey-400 dark:hover:text-grey-200'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="hidden max-md:flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-grey-500 hover:bg-grey-100 hover:text-foreground dark:hover:bg-grey-700"
+                  aria-label="Seitenleiste schließen"
+                >
+                  <FiX size={18} />
+                </button>
               </div>
             </div>
 

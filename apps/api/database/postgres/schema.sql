@@ -86,7 +86,9 @@ CREATE TABLE IF NOT EXISTS profiles (
     document_mode TEXT DEFAULT 'manual',
     user_defaults JSONB DEFAULT '{}',
     docs BOOLEAN DEFAULT FALSE,
-    boards BOOLEAN DEFAULT FALSE
+    boards BOOLEAN DEFAULT FALSE,
+    bundestag_api_enabled BOOLEAN DEFAULT FALSE,
+    memory_enabled BOOLEAN DEFAULT FALSE
 );
 
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS sites_enabled BOOLEAN DEFAULT TRUE;

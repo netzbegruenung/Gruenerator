@@ -12,6 +12,7 @@ export const COLLAB_SUBTYPES = [
   'redaktionsplan',
   'checkliste',
   'einladung',
+  'tabelle',
   'boards',
 ];
 

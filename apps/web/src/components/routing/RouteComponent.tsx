@@ -34,7 +34,9 @@ const RouteComponent = ({
 
   const route = isSpecial
     ? (routes.special as RouteConfig[]).find((r) => r.path === path)
-    : (routes.standard as RouteConfig[]).find((r) => r.path === path);
+    : ([...routes.guest, ...routes.protected, ...routes.public] as RouteConfig[]).find(
+        (r) => r.path === path
+      );
 
   // Call hook unconditionally (Rules of Hooks)
   const CachedComponent = useRouteCache(

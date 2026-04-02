@@ -8,6 +8,7 @@ import MemoriesSection from '../../../../../../components/profile/MemoriesSectio
 import { useAuthStore, type SupportedLocale } from '../../../../../../stores/authStore';
 import { cn } from '../../../../../../utils/cn';
 
+import RolesSection from './RolesSection';
 import SettingsSection from './SettingsSection';
 
 interface User {
@@ -196,6 +197,9 @@ const ProfileView = ({
           </div>
         </div>
       </div>
+
+      {/* Dein Grünerator — inline role management */}
+      <RolesSection />
 
       {/* Experimental Features */}
       <SettingsSection

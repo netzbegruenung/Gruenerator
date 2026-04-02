@@ -3,7 +3,6 @@ import { type SlidesAdapter } from '@gruenerator/slides';
 import { useAuthStore } from '../stores/authStore';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-const PRESENTON_API_BASE_URL = import.meta.env.VITE_PRESENTON_API_BASE_URL || '/presenton-api';
 
 /**
  * Web (Vite SPA) implementation of SlidesAdapter.
@@ -13,8 +12,6 @@ export const webSlidesAdapter: SlidesAdapter = {
   fetch: (url, options) => fetch(url, { ...options, credentials: 'include' }),
 
   getApiBaseUrl: () => API_BASE_URL,
-
-  getPresenterApiBaseUrl: () => PRESENTON_API_BASE_URL,
 
   getAuthHeaders: async () => ({}),
 

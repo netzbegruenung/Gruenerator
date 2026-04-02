@@ -108,7 +108,8 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
   useEffect(() => {
     void fetchCollaborators();
     void fetchShareSettings();
-  }, [fetchCollaborators, fetchShareSettings]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documentId]);
 
   const copyShareLink = async () => {
     const shareUrl = `${window.location.origin}/document/${documentId}`;

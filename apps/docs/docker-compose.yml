@@ -73,29 +73,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-
-  presenton:
-    image: ghcr.io/presenton/presenton:latest
-    container_name: gruenerator-presenton
-    restart: unless-stopped
-    ports:
-      - '5050:80'
-    environment:
-      LLM: ${PRESENTON_LLM:-openai}
-      OPENAI_API_KEY: ${PRESENTON_OPENAI_API_KEY:-}
-      OPENAI_MODEL: ${PRESENTON_OPENAI_MODEL:-gpt-4.1}
-      IMAGE_PROVIDER: ${PRESENTON_IMAGE_PROVIDER:-pexels}
-      PEXELS_API_KEY: ${PRESENTON_PEXELS_API_KEY:-}
-      CAN_CHANGE_KEYS: 'true'
-      DISABLE_ANONYMOUS_TELEMETRY: 'true'
-    volumes:
-      - presenton-data:/app_data
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:80/']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-
-volumes:
-  presenton-data:
