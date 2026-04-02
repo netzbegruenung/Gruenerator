@@ -187,13 +187,39 @@ const BlockNoteEditorInner = ({
       wrapperRef.current?.style.setProperty('--mobile-keyboard-offset', px > 0 ? `${px}px` : '0px');
     };
 
+    const TOOLBAR_HEIGHT = 44;
+    let scrollTimer: ReturnType<typeof setTimeout>;
+
+    const scrollSelectionIntoView = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      const rect = sel.getRangeAt(0).getBoundingClientRect();
+      const vp = window.visualViewport;
+      if (!vp) return;
+      const visibleBottom = vp.offsetTop + vp.height - TOOLBAR_HEIGHT;
+      if (rect.bottom > visibleBottom) {
+        window.scrollBy({ top: rect.bottom - visibleBottom + 16, behavior: 'smooth' });
+      } else if (rect.top < vp.offsetTop) {
+        window.scrollBy({ top: rect.top - vp.offsetTop - 16, behavior: 'smooth' });
+      }
+    };
+
     // Prefer VirtualKeyboard API (Chrome/Edge 93+) — gives exact geometry, no delay
     const vk = (navigator as any).virtualKeyboard;
     if (vk) {
       vk.overlaysContent = true;
-      const onGeometryChange = () => setOffset(vk.boundingRect.height);
+      const onGeometryChange = () => {
+        setOffset(vk.boundingRect.height);
+        scrollTimer = setTimeout(scrollSelectionIntoView, 100);
+      };
       vk.addEventListener('geometrychange', onGeometryChange);
-      return () => vk.removeEventListener('geometrychange', onGeometryChange);
+      const onSelectionChange = () => scrollSelectionIntoView();
+      document.addEventListener('selectionchange', onSelectionChange);
+      return () => {
+        vk.removeEventListener('geometrychange', onGeometryChange);
+        document.removeEventListener('selectionchange', onSelectionChange);
+        clearTimeout(scrollTimer);
+      };
     }
 
     // Fallback: Visual Viewport API (Safari, older browsers)
@@ -207,6 +233,8 @@ const BlockNoteEditorInner = ({
       const keyboardHeight = layoutHeight - vp.height - vp.offsetTop;
       if (keyboardHeight > 50) lastKnownKeyboardHeight = keyboardHeight;
       setOffset(keyboardHeight);
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(scrollSelectionIntoView, 100);
     };
 
     const onFocusIn = (e: FocusEvent) => {
@@ -222,15 +250,20 @@ const BlockNoteEditorInner = ({
       setOffset(0);
     };
 
+    const onSelectionChange = () => scrollSelectionIntoView();
+
     vp.addEventListener('resize', update);
     vp.addEventListener('scroll', update);
     document.addEventListener('focusin', onFocusIn);
     document.addEventListener('focusout', onFocusOut);
+    document.addEventListener('selectionchange', onSelectionChange);
     return () => {
       vp.removeEventListener('resize', update);
       vp.removeEventListener('scroll', update);
       document.removeEventListener('focusin', onFocusIn);
       document.removeEventListener('focusout', onFocusOut);
+      document.removeEventListener('selectionchange', onSelectionChange);
+      clearTimeout(scrollTimer);
     };
   }, [isTouchDevice]);
 
