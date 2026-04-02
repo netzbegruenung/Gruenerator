@@ -186,9 +186,9 @@ const BlockNoteEditorInner = ({
     const vp = window.visualViewport;
     const update = () => {
       if (!wrapperRef.current) return;
-      // Use clientHeight instead of innerHeight to avoid URL bar inflation on mobile browsers
+      // Use clientHeight to avoid URL bar inflation, subtract offsetTop for scroll position
       const layoutHeight = document.documentElement.clientHeight;
-      const keyboardHeight = layoutHeight - vp.height;
+      const keyboardHeight = layoutHeight - vp.height - vp.offsetTop;
       wrapperRef.current.style.setProperty(
         '--mobile-keyboard-offset',
         keyboardHeight > 0 ? `${keyboardHeight}px` : '0px'
