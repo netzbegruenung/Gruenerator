@@ -18,7 +18,7 @@
   "dependencies": {
     "@assistant-ui/react-markdown": "^0.12.8",
     "@gruenerator/voice": "workspace:*",
-    "ai": "^6.0.141",
+    "ai": "^6.0.145",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -35,9 +35,11 @@
     "rough-notation": "^0.5.1",
     "sonner": "^2.0.7",
     "svg-dotted-map": "^2.1.0",
-    "tailwind-merge": "^3.5.0"
+    "tailwind-merge": "^3.5.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@rolldown/plugin-babel": "^0.2.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "typescript": "^5.9.3"
