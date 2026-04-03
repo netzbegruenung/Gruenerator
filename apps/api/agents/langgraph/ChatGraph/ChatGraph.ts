@@ -549,6 +549,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
 
     // Classification (will be set by classifier node)
     intent: 'direct' as SearchIntent,
+    secondaryIntent: null,
     searchSources: [],
     searchQuery: null,
     subQueries: null,

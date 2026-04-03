@@ -2,7 +2,7 @@
  * Search User Content Tool
  *
  * Searches the user's own uploaded documents (Qdrant) and saved/generated texts
- * (PostgreSQL user_documents). Enables the DeepAgent to autonomously find user
+ * (PostgreSQL user_documents). Enables the agent to autonomously find user
  * content when the message implies personal documents — without requiring an
  * explicit @datei mention.
  */

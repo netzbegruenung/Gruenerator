@@ -10,7 +10,7 @@ export const INTENT_TO_TOOL: Record<string, string> = {
 };
 
 /**
- * Maps DeepAgent tool names to UI-facing tool names.
+ * Maps backend tool names (from thinking_step events) to UI-facing tool names.
  */
 export const DEEP_TOOL_MAP: Record<string, string> = {
   search_documents: 'gruenerator_search',

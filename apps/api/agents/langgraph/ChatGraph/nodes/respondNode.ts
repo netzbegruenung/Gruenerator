@@ -439,9 +439,24 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
     ? '\nDu chattest mit ausgewählten Dokumenten des Nutzers. Beantworte Fragen basierend auf den Dokumenten. Zitiere relevante Passagen.'
     : intent === 'summary'
       ? '\nDer Nutzer hat eine Zusammenfassung angefordert. Präsentiere die vorbereitete Zusammenfassung klar und strukturiert.'
-      : intent === 'direct'
-        ? '\nDies ist eine direkte Anfrage ohne Recherche-Bedarf. Antworte natürlich und hilfsbereit.'
-        : '\nDu hast Recherche-Ergebnisse erhalten. Nutze sie um eine fundierte Antwort zu geben.';
+      : intent === 'chart'
+        ? `\nDer Nutzer möchte ein Diagramm. Erstelle die Daten und gib sie als JSON-Block zurück.
+Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diesem Format:
+
+\`\`\`chart
+{"type":"bar","title":"Titel","data":[{"name":"A","wert":10},{"name":"B","wert":20}],"xKey":"name","yKeys":["wert"]}
+\`\`\`
+
+Regeln:
+- type: "bar", "line", "area", "pie" oder "donut"
+- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey
+- xKey: Name des Feldes für die X-Achse (z.B. "name", "monat", "jahr")
+- yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])
+- Verwende realistische, plausible Daten wenn keine konkreten Zahlen gegeben sind
+- Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`
+        : intent === 'direct'
+          ? '\nDies ist eine direkte Anfrage ohne Recherche-Bedarf. Antworte natürlich und hilfsbereit.'
+          : '\nDu hast Recherche-Ergebnisse erhalten. Nutze sie um eine fundierte Antwort zu geben.';
 
   const hasSources = state.searchResults.length > 0 && intent !== 'direct';
   const sourceCount = state.searchResults.filter((r) => r.url).length;

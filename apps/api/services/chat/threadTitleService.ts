@@ -3,7 +3,7 @@
  *
  * Shared service for generating and updating chat thread titles.
  * Consolidates the identical updateThreadTitle + first-sentence heuristic
- * that was duplicated across chatGraphController, chatStreamController, and chatDeepController.
+ * that was duplicated across chat controllers.
  *
  * Generates AI-powered German titles using Mistral-small via aiWorkerPool.
  */

@@ -38,7 +38,6 @@ export interface GrueneratorAdapterConfig {
   modelId: string;
   enabledTools: Record<ToolKey, boolean>;
   threadId: string | null;
-  useDeepAgent?: boolean;
   selectedNotebookId?: string;
   threadMode?: ThreadMode;
   searchMode?: SearchMode;
@@ -816,9 +815,7 @@ export function createGrueneratorModelAdapter(
           ? endpoints.searchStream
           : threadMode === 'notebook'
             ? endpoints.notebookStream
-            : config.useDeepAgent
-              ? endpoints.deepStream
-              : endpoints.chatStream;
+            : endpoints.chatStream;
 
       // Mode-aware request body
       let requestBody: Record<string, unknown>;

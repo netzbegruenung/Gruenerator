@@ -1,16 +1,10 @@
 /**
  * ChatGraph Public Exports
  *
- * LangGraph-based agentic chat system. The DeepAgent (ReAct) is the
- * default pipeline; the legacy fixed pipeline is kept for backwards
- * compatibility.
+ * LangGraph-based agentic chat system.
+ * Pipeline: classify → search → rerank → qualityGate → respond
  */
 
-// Default pipeline: ReAct deep agent
-export { createDeepAgent, convertToLangChainMessages } from './deepAgent.js';
-export type { DeepAgentInput, DeepAgentInstance } from './deepAgent.js';
-
-// Legacy fixed pipeline (@deprecated — use DeepAgent instead)
 export { chatGraph, runChatGraph, initializeChatState } from './ChatGraph.js';
 export {
   classifierNode,

@@ -196,7 +196,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: grueneratorChatRoute } = await import('./routes/chat/grueneratorChat.js');
   const { default: chatServiceRouter } = await import('./routes/chat/index.js');
   const { default: chatGraphRouter } = await import('./routes/chat/chatGraphController.js');
-  const { default: chatDeepRouter } = await import('./routes/chat/chatDeepController.js'); // @experimental — DeepAgent, not production-ready
   const { default: threadSharingRouter } = await import('./routes/chat/threadSharingController.js');
   const { default: gruenOMatRouter } = await import('./routes/gruenomat/gruenOMatController.js');
   const { default: mediaRouter } = await import('./routes/media/mediaController.js');
@@ -244,7 +243,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/chat-service', standardMutationLimiter, chatServiceRouter);
   app.use('/api/chat-service/threads', standardMutationLimiter, threadSharingRouter);
   app.use('/api/chat-graph', aiGenerationLimiter, chatGraphRouter);
-  app.use('/api/chat-deep', aiGenerationLimiter, chatDeepRouter); // @experimental — DeepAgent route, not production-ready
   app.use('/api/gruen-o-mat', gruenOMatRouter);
   app.use('/api/dreizeilen_canvas', standardMutationLimiter, sharepicDreizeilenCanvasRoute);
   app.use('/api/zitat_canvas', standardMutationLimiter, zitatSharepicCanvasRoute);
