@@ -348,6 +348,12 @@ export async function addRowsToBoard(
   rows: Array<Record<string, unknown>>,
   userId: string
 ): Promise<void> {
+  const MAX_ROWS_PER_UPDATE = 100;
+  if (rows.length > MAX_ROWS_PER_UPDATE) {
+    throw new Error(`Cannot add more than ${MAX_ROWS_PER_UPDATE} rows in one request`);
+  }
+  if (rows.length === 0) return;
+
   const doc = await loadBoardYjsDoc(boardId);
   if (!doc) {
     throw new Error(`Board ${boardId} not found or has no Yjs document`);

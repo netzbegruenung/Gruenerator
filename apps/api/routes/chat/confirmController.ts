@@ -37,11 +37,9 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
     case 'save_as_doc': {
       const { createDocumentWithContent } =
         await import('../../services/docs/DocGenerationService.js');
-      const content = action.payload.content as string;
-      const title = action.payload.title as string;
-      const subtype = (action.payload.subtype as string) || 'docs';
+      const { content, title, subtype } = action.payload;
 
-      const newDoc = await createDocumentWithContent(title, content, subtype, action.userId);
+      const newDoc = await createDocumentWithContent(title, content, subtype || 'docs', action.userId);
       return {
         message: `Dokument **"${title}"** wurde erstellt.`,
         url: `/document/${newDoc.id}`,
@@ -51,8 +49,7 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
     case 'modify_doc': {
       const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
       const pg = getPostgresInstance();
-      const docId = action.payload.docId as string;
-      const newContent = action.payload.newContent as string;
+      const { docId, newContent } = action.payload;
 
       await pg.query(
         'UPDATE collaborative_documents SET content = $1, last_edited_by = $2, updated_at = NOW() WHERE id = $3',
@@ -66,8 +63,7 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
 
     case 'modify_board': {
       const { addRowsToBoard } = await import('../../services/boards/BoardService.js');
-      const boardId = action.payload.boardId as string;
-      const rows = action.payload.rows as Array<Record<string, unknown>>;
+      const { boardId, rows } = action.payload;
 
       await addRowsToBoard(boardId, rows, action.userId);
       return {
@@ -77,8 +73,8 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
     }
 
     default: {
-      const _exhaustive: never = action.type;
-      throw new Error(`Unknown action type: ${action.type}`);
+      const _exhaustive: never = action;
+      throw new Error(`Unknown action type: ${(action as PendingAction).type}`);
     }
   }
 }

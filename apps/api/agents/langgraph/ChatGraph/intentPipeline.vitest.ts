@@ -322,18 +322,14 @@ describe('ConfirmActionType consistency', () => {
   });
 
   it('PendingAction type accepts all ConfirmActionType values', () => {
-    for (const type of ALL_CONFIRM_TYPES) {
-      const action: PendingAction = {
-        actionId: 'test',
-        type,
-        threadId: 'thread-1',
-        userId: 'user-1',
-        title: 'Test',
-        preview: 'Preview',
-        payload: {},
-        createdAt: Date.now(),
-      };
-      expect(action.type).toBe(type);
+    const base = { actionId: 'test', threadId: 'thread-1', userId: 'user-1', title: 'Test', preview: 'Preview', createdAt: Date.now() };
+    const actions: PendingAction[] = [
+      { ...base, type: 'save_as_doc', payload: { content: 'text', title: 'Doc', subtype: 'docs' } },
+      { ...base, type: 'modify_doc', payload: { docId: 'doc-1', newContent: 'new' } },
+      { ...base, type: 'modify_board', payload: { boardId: 'b-1', rows: [], responseText: '' } },
+    ];
+    for (const action of actions) {
+      expect(ALL_CONFIRM_TYPES).toContain(action.type);
     }
   });
 });
