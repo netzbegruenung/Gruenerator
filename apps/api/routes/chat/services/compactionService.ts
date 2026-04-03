@@ -14,12 +14,46 @@ import { getModel } from '../agents/providers.js';
 
 const log = createLogger('CompactionService');
 
-// Configuration constants
+// Configuration constants (defaults for 128K+ context models)
 export const COMPACTION_THRESHOLD = 50;
 export const COMPACTION_TOKEN_THRESHOLD = 24000;
 export const KEEP_RECENT = 20;
 export const RE_COMPACTION_THRESHOLD = 50;
 export const SUMMARY_MAX_TOKENS = 800;
+
+/**
+ * Model-aware message count limit (lobe-chat pattern).
+ * Returns how many recent messages to keep based on context window size.
+ * Smaller models need fewer messages to leave room for system prompt + response.
+ */
+export function getKeepRecent(contextWindowTokens?: number): number {
+  if (!contextWindowTokens) return KEEP_RECENT;
+  if (contextWindowTokens < 16000) return 6;
+  if (contextWindowTokens < 32000) return 10;
+  if (contextWindowTokens < 64000) return 15;
+  return KEEP_RECENT;
+}
+
+/**
+ * Model-aware compaction threshold.
+ * Returns when to trigger compaction based on context window size.
+ */
+export function getCompactionThreshold(contextWindowTokens?: number): number {
+  if (!contextWindowTokens) return COMPACTION_THRESHOLD;
+  if (contextWindowTokens < 16000) return 15;
+  if (contextWindowTokens < 32000) return 25;
+  if (contextWindowTokens < 64000) return 35;
+  return COMPACTION_THRESHOLD;
+}
+
+/**
+ * Model-aware token threshold for compaction.
+ */
+export function getCompactionTokenThreshold(contextWindowTokens?: number): number {
+  if (!contextWindowTokens) return COMPACTION_TOKEN_THRESHOLD;
+  // Use ~40% of context window as token threshold
+  return Math.min(Math.floor(contextWindowTokens * 0.4), COMPACTION_TOKEN_THRESHOLD);
+}
 
 /**
  * Model configuration for compaction.
@@ -48,19 +82,24 @@ export interface Message {
  * Check if a thread needs compaction based on message count or estimated token usage.
  * Token-based threshold catches conversations with few but very large messages
  * (e.g., pasted articles) that would otherwise lose context before hitting the message count.
+ * When contextWindowTokens is provided, uses model-aware thresholds.
  */
 export function needsCompaction(
   messageCount: number,
   existingSummary: string | null,
-  estimatedTokens?: number
+  estimatedTokens?: number,
+  contextWindowTokens?: number
 ): boolean {
-  if (estimatedTokens && estimatedTokens >= COMPACTION_TOKEN_THRESHOLD && !existingSummary) {
+  const threshold = getCompactionThreshold(contextWindowTokens);
+  const tokenThreshold = getCompactionTokenThreshold(contextWindowTokens);
+
+  if (estimatedTokens && estimatedTokens >= tokenThreshold && !existingSummary) {
     return true;
   }
   if (!existingSummary) {
-    return messageCount >= COMPACTION_THRESHOLD;
+    return messageCount >= threshold;
   }
-  return messageCount >= COMPACTION_THRESHOLD + RE_COMPACTION_THRESHOLD;
+  return messageCount >= threshold + RE_COMPACTION_THRESHOLD;
 }
 
 /**
@@ -131,14 +170,16 @@ function formatMessagesForSummary(messages: Message[]): string {
  */
 export async function generateCompactionSummary(
   threadId: string,
-  messages: Message[]
+  messages: Message[],
+  contextWindowTokens?: number
 ): Promise<string> {
-  if (messages.length <= KEEP_RECENT) {
+  const keepRecent = getKeepRecent(contextWindowTokens);
+  if (messages.length <= keepRecent) {
     log.warn(`[Compaction] Not enough messages to compact for thread ${threadId}`);
     throw new Error('Not enough messages to compact');
   }
 
-  const toSummarize = messages.slice(0, -KEEP_RECENT);
+  const toSummarize = messages.slice(0, -keepRecent);
   const lastSummarizedMessage = toSummarize[toSummarize.length - 1];
 
   log.info(
@@ -193,7 +234,8 @@ Halte die Zusammenfassung kompakt aber informativ (max. 400 Wörter). Schreibe i
 export function prepareMessagesWithCompaction(
   messages: ModelMessage[],
   compactionState: CompactionState,
-  baseSystemMessage: string
+  baseSystemMessage: string,
+  contextWindowTokens?: number
 ): { messages: ModelMessage[]; systemMessage: string } {
   if (!compactionState.summary) {
     return {
@@ -215,8 +257,9 @@ ${compactionState.summary}
 Die folgenden Nachrichten sind die aktuellsten im Gespräch.`;
 
   // Filter to only keep recent messages (excluding system messages which are handled separately)
+  const keepRecent = getKeepRecent(contextWindowTokens);
   const nonSystemMessages = messages.filter((m) => m.role !== 'system');
-  const recentMessages = nonSystemMessages.slice(-KEEP_RECENT);
+  const recentMessages = nonSystemMessages.slice(-keepRecent);
 
   log.debug(
     `[Compaction] Prepared messages: ${nonSystemMessages.length} original -> ${recentMessages.length} recent ` +
