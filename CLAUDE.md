@@ -48,7 +48,9 @@ pnpm --filter @gruenerator/desktop dev           # Tauri desktop dev
 - **`packages/shared`** — Shared stores (Zustand), hooks, API clients, and feature modules (sharepic, image-studio, subtitle-editor, media-library, search). Shared components in `src/components/`.
 - **`services/mcp`** — Model Context Protocol server (`https://mcp.gruenerator.eu`). See `CLAUDE-mcp.md` for endpoints, tools, and testing.
 - **`services/comfyui`** — ComfyUI workflows for local GPU image generation.
-- **`services/presenton`** — Presenton slide generator (Next.js + FastAPI). Templates in `servers/nextjs/app/presentation-templates/b90-gruene/`. Self-hosted fonts in `servers/nextjs/public/fonts/` (no Google Fonts — GDPR). Archived non-GRÜNE templates in `_archive/` (gitignored).
+### Page Layout Modes
+
+Routes in `routes.ts` use `layoutMode` (type `LayoutMode` in `PageLayout.tsx`) to control header/chrome visibility: `default` shows the full header (SidebarToggle + ProfileButton) with `mt-lg` content spacing; `fullscreen` shows the header but uses `pt-12` and `h-dvh` for contained layouts; `immersive` hides the header entirely with `h-dvh` (used by docs editor which renders its own toolbar); `sidebarOnly` shows only the SidebarToggle without ProfileButton (used by chat, docs overview); `noChrome` renders bare content with no header or sidebar (used by public/shared pages, voice agent).
 
 ### Presenton Local Dev
 
@@ -199,6 +201,8 @@ Follow [You Might Not Need an Effect](https://react.dev/learn/you-might-not-need
 ### Commits
 
 Conventional Commits enforced by commitlint: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`, etc.
+
+**Atomic commits**: Each commit must contain exactly one logical change. Never bundle unrelated changes (e.g. a refactor + a style fix + a new feature) into a single commit. When multiple files change, group them by concern, not by timing.
 
 ### TypeScript
 
