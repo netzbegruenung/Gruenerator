@@ -404,3 +404,89 @@ describe('heuristicClassify: chart intent', () => {
     expect(result.intent).toBe('chart');
   });
 });
+
+// ─── save_as_doc and modify_doc: heuristic does NOT detect ──────────────
+// These intents require LLM context (e.g. @doc mention present).
+// Heuristic correctly falls through to 'direct' or other intents.
+
+describe('heuristicClassify: doc/board action intents fall through', () => {
+  it('does not heuristic-detect save_as_doc (requires LLM)', () => {
+    const result = heuristicClassify('Speichere das als Dokument');
+    // Falls through to direct or research — not save_as_doc
+    expect(result.intent).not.toBe('save_as_doc');
+  });
+
+  it('does not heuristic-detect modify_doc (requires LLM + @doc)', () => {
+    const result = heuristicClassify('Ändere den zweiten Absatz');
+    expect(result.intent).not.toBe('modify_doc');
+  });
+
+  it('does not heuristic-detect modify_board (requires LLM + @board)', () => {
+    const result = heuristicClassify('Füge eine neue Aufgabe hinzu');
+    expect(result.intent).not.toBe('modify_board');
+  });
+});
+
+// ─── parseClassifierResponse: new intents are valid ─────────────────────
+
+describe('parseClassifierResponse: new intent values', () => {
+  it('accepts chart intent from LLM', () => {
+    const json = JSON.stringify({
+      intent: 'chart',
+      searchQuery: 'Wahlergebnisse als Balkendiagramm',
+      optimizedSearchQuery: null,
+      reasoning: 'Chart request',
+      contentType: null,
+      needsResearch: false,
+      needsClarification: false,
+    });
+    const result = parseClassifierResponse(json, 'Erstelle ein Balkendiagramm');
+    expect(result).not.toBeNull();
+    expect(result!.intent).toBe('chart');
+  });
+
+  it('accepts save_as_doc intent from LLM', () => {
+    const json = JSON.stringify({
+      intent: 'save_as_doc',
+      searchQuery: null,
+      optimizedSearchQuery: null,
+      reasoning: 'User wants to save as document',
+      contentType: null,
+      needsResearch: false,
+      needsClarification: false,
+    });
+    const result = parseClassifierResponse(json, 'Speichere das als Dokument');
+    expect(result).not.toBeNull();
+    expect(result!.intent).toBe('save_as_doc');
+  });
+
+  it('accepts modify_doc intent from LLM', () => {
+    const json = JSON.stringify({
+      intent: 'modify_doc',
+      searchQuery: null,
+      optimizedSearchQuery: null,
+      reasoning: 'User wants to edit mentioned document',
+      contentType: null,
+      needsResearch: false,
+      needsClarification: false,
+    });
+    const result = parseClassifierResponse(json, 'Ändere den zweiten Absatz');
+    expect(result).not.toBeNull();
+    expect(result!.intent).toBe('modify_doc');
+  });
+
+  it('accepts modify_board intent from LLM', () => {
+    const json = JSON.stringify({
+      intent: 'modify_board',
+      searchQuery: null,
+      optimizedSearchQuery: null,
+      reasoning: 'User wants to add tasks to board',
+      contentType: null,
+      needsResearch: false,
+      needsClarification: false,
+    });
+    const result = parseClassifierResponse(json, 'Füge neue Aufgaben zum Board hinzu');
+    expect(result).not.toBeNull();
+    expect(result!.intent).toBe('modify_board');
+  });
+});
