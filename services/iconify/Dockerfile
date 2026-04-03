@@ -8,7 +8,7 @@ RUN apk add --no-cache git && \
     npm run build && \
     apk del git
 
-ENV ICONIFY_PORT=3100
+ENV PORT=3100
 EXPOSE 3100
 
 CMD ["npm", "run", "start"]
