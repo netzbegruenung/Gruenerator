@@ -22,6 +22,8 @@ import {
 } from './compactionService.js';
 import { toTokenCounterMessage, CONTEXT_CONFIG } from './messageHelpers.js';
 
+import type { ModelMessage } from 'ai';
+
 const log = createLogger('ContextPruning');
 
 // In-memory guards to prevent re-triggering compaction on every message after threshold
@@ -30,14 +32,14 @@ const lastCompactionTime = new Map<string, number>();
 const COMPACTION_COOLDOWN_MS = 60_000; // 1 minute
 
 export interface PruningResult {
-  prunedMessages: any[];
+  prunedMessages: ModelMessage[];
   systemMessage: string;
 }
 
 /**
  * Prune conversation messages to fit within token budget and apply compaction if available.
  */
-export function pruneMessages(validMessages: any[]): any[] {
+export function pruneMessages(validMessages: ModelMessage[]): ModelMessage[] {
   const messagesForTokenCount = validMessages.map(toTokenCounterMessage);
   const preStats = getTokenStats(messagesForTokenCount);
 
