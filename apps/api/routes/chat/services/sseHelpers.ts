@@ -86,7 +86,7 @@ export interface SSEEventPayloads {
     searchSources?: SearchSource[] | null;
     compound?: boolean;
   };
-  search_start: { message: string };
+  search_start: { message: string; subQueries?: string[] };
   search_complete: {
     message: string;
     resultCount: number;

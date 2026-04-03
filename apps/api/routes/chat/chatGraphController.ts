@@ -916,16 +916,22 @@ router.post('/stream', async (req, res) => {
         const toolEnabled = forcedTool || enabledTools?.[currentIntent] !== false;
         if (toolEnabled) {
           let searchInputState = finalState;
-          if (finalState.complexity === 'complex' && currentIntent === 'research') {
+          if (
+            ['complex', 'moderate'].includes(finalState.complexity) &&
+            currentIntent === 'research'
+          ) {
             const briefResult = await briefGeneratorNode(finalState);
             searchInputState = { ...finalState, ...briefResult } as ChatGraphState;
           }
 
-          sse.send('search_start', { message: PROGRESS_MESSAGES.searchStart });
+          sse.send('search_start', {
+            message: PROGRESS_MESSAGES.searchStart,
+            subQueries: finalState.subQueries?.length ? finalState.subQueries : undefined,
+          });
           const searchResult = await searchNode(searchInputState);
           finalState = { ...searchInputState, ...searchResult } as ChatGraphState;
 
-          if (finalState.searchResults?.length > 3) {
+          if (finalState.searchResults?.length > 1) {
             const rerankResult = await rerankNode(finalState);
             finalState = { ...finalState, ...rerankResult } as ChatGraphState;
             if (finalState.searchResults.length > 0) {

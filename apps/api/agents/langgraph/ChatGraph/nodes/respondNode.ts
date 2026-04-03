@@ -471,8 +471,9 @@ Regeln:
   } else if (hasSources) {
     citationInstruction = `
 5. Du hast genau ${sourceCount} Quelle(n). Verwende NUR [1] bis [${sourceCount}] als Quellenverweise. Höhere Nummern existieren NICHT.
-6. Setze die Referenz direkt nach der Aussage, z.B.: "Die Grünen fordern ein Tempolimit [1]."
-7. Erfinde KEINE zusätzlichen Quellen oder Quellenverweise über [${sourceCount}] hinaus.`;
+6. Zitiere 1-2 Quellen pro Kernaussage — nicht jeder Satz braucht eine Referenz.
+7. Setze die Referenz direkt nach der Aussage, z.B.: "Die Grünen fordern ein Tempolimit [1]."
+8. Erfinde KEINE zusätzlichen Quellen oder Quellenverweise über [${sourceCount}] hinaus.`;
   }
 
   const today = new Date().toLocaleDateString('de-DE', {
@@ -506,7 +507,7 @@ Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuid
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo
-2. Kurze, präzise Antworten (max 3-4 Absätze für einfache Fragen)
+2. ${state.complexity === 'complex' ? 'Strukturiere mit Überschriften, bis zu 6 Absätze' : state.complexity === 'moderate' ? '2-4 Absätze mit klarer Struktur' : 'Kurze, präzise Antworten (1-2 Absätze)'}
 3. Antworte auf Deutsch
 4. Erfinde keine Fakten oder Quellennamen
 5. Erstelle KEINE Quellenliste/Quellenverzeichnis am Ende — Quellen werden automatisch in der Oberfläche angezeigt
