@@ -35,6 +35,7 @@ export type {
   ChatGraphState,
   SearchIntent,
   SearchSource,
+  GatherSource,
   SearchResult,
   Citation,
   ClassificationResult,

@@ -8,6 +8,7 @@
 import type {
   SearchIntent,
   SearchSource,
+  GatherSource,
   GeneratedImageResult,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { Response } from 'express';
@@ -17,6 +18,7 @@ import type { Response } from 'express';
  */
 export type SSEEventType =
   | 'thread_created'
+  | 'compound_start'
   | 'intent'
   | 'search_start'
   | 'search_complete'
@@ -66,6 +68,10 @@ export interface ThinkingStepPayload {
  */
 export interface SSEEventPayloads {
   thread_created: { threadId: string };
+  compound_start: {
+    stages: GatherSource[];
+    message: string;
+  };
   intent: {
     intent: SearchIntent;
     message: string;
@@ -73,6 +79,7 @@ export interface SSEEventPayloads {
     searchQuery?: string;
     subQueries?: string[] | null;
     searchSources?: SearchSource[] | null;
+    compound?: boolean;
   };
   search_start: { message: string };
   search_complete: {
@@ -136,6 +143,13 @@ export const INTENT_MESSAGES: Record<SearchIntent, string> = {
  * Progress messages for common stages.
  */
 export const PROGRESS_MESSAGES = {
+  compoundStart: (stages: number) => `Mehrstufige Anfrage erkannt (${stages} Quellen)...`,
+  compoundGather: (source: string) =>
+    source === 'notebook-search'
+      ? 'Recherchiere in Notizbüchern...'
+      : source === 'web-search'
+        ? 'Suche im Web...'
+        : 'Führe Recherche durch...',
   searchStart: 'Durchsuche Quellen...',
   searchComplete: (count: number) =>
     count > 0 ? `${count} relevante Quellen gefunden` : 'Keine passenden Quellen gefunden',

@@ -154,6 +154,7 @@ export interface ChatGraphInput {
   userLocale?: UserLocale;
   customSystemPrompt?: string;
   userInstructions?: string;
+  contextWindowTokens?: number;
 }
 
 /**
@@ -208,6 +209,10 @@ export interface ChatGraphState {
   memoryContext: string | null;
   memoryRetrieveTimeMs: number;
 
+  // Compound query detection (notebook + skill → gather-then-apply pipeline)
+  isCompound: boolean;
+  gatherSources: GatherSource[];
+
   // Classification output
   intent: SearchIntent;
   searchSources: SearchSource[];
@@ -253,6 +258,9 @@ export interface ChatGraphState {
   responseText: string;
   streamingStarted: boolean;
 
+  // Context window awareness (from model registry)
+  contextWindowTokens: number;
+
   // Metadata for observability
   startTime: number;
   classificationTimeMs: number;
@@ -290,6 +298,13 @@ export interface ChatGraphOutput {
 }
 
 /**
+ * Gather sources for compound queries.
+ * When a user combines a data source (@notebook) with a skill (@pressemitteilung),
+ * the classifier returns which sources to gather context from before response generation.
+ */
+export type GatherSource = 'notebook-search' | 'web-search' | 'research';
+
+/**
  * Classification result from the classifier node.
  */
 export interface ClassificationResult {
@@ -303,4 +318,5 @@ export interface ClassificationResult {
   needsClarification?: boolean;
   clarificationQuestion?: string;
   clarificationOptions?: string[];
+  gatherSources?: GatherSource[];
 }

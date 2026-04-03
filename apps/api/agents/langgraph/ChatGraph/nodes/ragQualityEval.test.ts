@@ -240,6 +240,8 @@ async function evaluateBudgetAllocation() {
     subQueries: null,
     reasoning: 'test',
     contentType: null,
+    isCompound: false,
+    gatherSources: [],
     hasTemporal: false,
     complexity: 'moderate',
     needsClarification: false,
@@ -267,6 +269,7 @@ async function evaluateBudgetAllocation() {
     rerankTimeMs: 0,
     searchedCollections: [],
     responseTimeMs: 0,
+    contextWindowTokens: 128000,
     error: null,
   };
 
