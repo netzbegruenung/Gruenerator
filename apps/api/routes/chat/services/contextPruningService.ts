@@ -66,7 +66,8 @@ export function pruneMessages(validMessages: any[]): any[] {
 export async function applyCompaction(
   threadId: string,
   prunedValidMessages: any[],
-  systemMessage: string
+  systemMessage: string,
+  contextWindowTokens?: number
 ): Promise<string> {
   try {
     const messageCount = await getMessageCount(threadId);
@@ -79,7 +80,12 @@ export async function applyCompaction(
     const cooldownActive = now - (lastCompactionTime.get(threadId) ?? 0) < COMPACTION_COOLDOWN_MS;
 
     if (
-      needsCompaction(messageCount, compactionState.summary, estimatedTokens) &&
+      needsCompaction(
+        messageCount,
+        compactionState.summary,
+        estimatedTokens,
+        contextWindowTokens
+      ) &&
       !compactionInProgress.has(threadId) &&
       !cooldownActive
     ) {
@@ -88,7 +94,7 @@ export async function applyCompaction(
         `[Context] Thread ${threadId}: ${messageCount} messages, ~${estimatedTokens} tokens, triggering background compaction`
       );
       const threadMessages = await getThreadMessages(threadId);
-      generateCompactionSummary(threadId, threadMessages)
+      generateCompactionSummary(threadId, threadMessages, contextWindowTokens)
         .then(() => lastCompactionTime.set(threadId, Date.now()))
         .catch((err) => log.error('[Compaction] Background compaction failed:', err))
         .finally(() => compactionInProgress.delete(threadId));
@@ -99,7 +105,8 @@ export async function applyCompaction(
       const compacted = prepareMessagesWithCompaction(
         messagesForTokenCount,
         compactionState,
-        systemMessage
+        systemMessage,
+        contextWindowTokens
       );
       log.info(
         `[Context] Applied compaction summary (${compactionState.summary.length} chars) to system message`

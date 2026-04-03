@@ -21,18 +21,23 @@ export const VISION_CAPABLE_MODELS = new Set(['pixtral-large-latest', 'mistral-s
 /**
  * Available models that can be selected by the user.
  * Maps user-facing model IDs to provider/model configurations.
+ * contextWindow is in tokens — used by downstream context management to adapt budgets.
  */
 export const AVAILABLE_MODELS: Record<
   string,
-  { provider: 'mistral' | 'litellm' | 'regolo'; model: string }
+  { provider: 'mistral' | 'litellm' | 'regolo'; model: string; contextWindow: number }
 > = {
   // 'mistral' is intentionally absent — it uses agent defaults (like 'auto')
   // Legacy IDs kept for backward compatibility (old stored client preferences)
-  'mistral-large': { provider: 'mistral', model: 'mistral-large-latest' },
-  'mistral-medium': { provider: 'mistral', model: 'mistral-medium-latest' },
-  'pixtral-large': { provider: 'mistral', model: 'pixtral-large-latest' },
-  litellm: { provider: 'litellm', model: 'gpt-oss:120b' },
-  regolo: { provider: 'regolo', model: process.env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b' },
+  'mistral-large': { provider: 'mistral', model: 'mistral-large-latest', contextWindow: 128000 },
+  'mistral-medium': { provider: 'mistral', model: 'mistral-medium-latest', contextWindow: 128000 },
+  'pixtral-large': { provider: 'mistral', model: 'pixtral-large-latest', contextWindow: 128000 },
+  litellm: { provider: 'litellm', model: 'gpt-oss:120b', contextWindow: 16384 },
+  regolo: {
+    provider: 'regolo',
+    model: process.env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b',
+    contextWindow: 32768,
+  },
 };
 
 /**
@@ -41,8 +46,34 @@ export const AVAILABLE_MODELS: Record<
  */
 export function getModelConfig(
   modelId: string
-): { provider: 'mistral' | 'litellm' | 'regolo'; model: string } | null {
+): { provider: 'mistral' | 'litellm' | 'regolo'; model: string; contextWindow: number } | null {
   return AVAILABLE_MODELS[modelId] || null;
+}
+
+/**
+ * Default context window for Mistral agent defaults and unknown models.
+ * Conservative enough to avoid overflow, generous enough for good responses.
+ */
+const DEFAULT_CONTEXT_WINDOW = 32768;
+
+/**
+ * Get context window size (in tokens) for a model.
+ * Looks up AVAILABLE_MODELS first, then falls back to provider defaults.
+ */
+export function getContextWindow(
+  modelId: string | null | undefined,
+  provider?: 'mistral' | 'litellm' | 'regolo' | 'anthropic'
+): number {
+  if (modelId && AVAILABLE_MODELS[modelId]) {
+    return AVAILABLE_MODELS[modelId].contextWindow;
+  }
+
+  // Provider-level defaults for agent configs that use 'auto' or unnamed models
+  if (provider === 'mistral') return 128000;
+  if (provider === 'litellm') return 16384;
+  if (provider === 'regolo') return 32768;
+
+  return DEFAULT_CONTEXT_WINDOW;
 }
 
 let mistralInstance: ReturnType<typeof createMistral> | null = null;
