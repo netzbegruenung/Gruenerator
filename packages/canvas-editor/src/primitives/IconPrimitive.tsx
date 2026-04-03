@@ -1,13 +1,13 @@
-import React, { useMemo, useState, useEffect, useRef, memo } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
 import type Konva from 'konva';
-import type { IconType } from 'react-icons';
+
+import { generateIconDataUrl } from '../utils/canvasIcons';
 
 export interface IconPrimitiveProps {
   id: string;
-  icon: IconType;
+  icon: string;
   x: number;
   y: number;
   scale: number;
@@ -16,13 +16,13 @@ export interface IconPrimitiveProps {
   onSelect: () => void;
   onDragEnd: (x: number, y: number) => void;
   onTransformEnd: (x: number, y: number, scale: number, rotation: number) => void;
-  color?: string; // Optional override
+  color?: string;
   opacity?: number;
 }
 
 function IconPrimitiveInner({
   id,
-  icon: Icon,
+  icon,
   x,
   y,
   scale,
@@ -38,20 +38,24 @@ function IconPrimitiveInner({
   const transformerRef = useRef<Konva.Transformer>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
 
-  // Render icon to image
   useEffect(() => {
-    // Render at high resolution (e.g. 200px) so scaling looks good
+    let cancelled = false;
     const size = 200;
-    const svgString = renderToStaticMarkup(<Icon size={size} style={{ color }} />);
-    const decoded = encodeURIComponent(svgString);
-    const dataUrl = `data:image/svg+xml;charset=utf-8,${decoded}`;
 
-    const img = new window.Image();
-    img.src = dataUrl;
-    img.onload = () => setImage(img);
-  }, [Icon, color]);
+    generateIconDataUrl(icon, size, color).then((dataUrl) => {
+      if (cancelled || !dataUrl) return;
+      const img = new window.Image();
+      img.src = dataUrl;
+      img.onload = () => {
+        if (!cancelled) setImage(img);
+      };
+    });
 
-  // Transformer logic
+    return () => {
+      cancelled = true;
+    };
+  }, [icon, color]);
+
   useEffect(() => {
     if (selected && transformerRef.current && groupRef.current) {
       transformerRef.current.nodes([groupRef.current]);
@@ -87,11 +91,9 @@ function IconPrimitiveInner({
 
           const scaleX = node.scaleX();
           const scaleY = node.scaleY();
-          // Recover the abstract scale factor (dividing by baseScale)
           const newScale = Math.max(scaleX, scaleY) / baseScale;
           const newRotation = node.rotation();
 
-          // Reset node transform
           node.scaleX(scale * baseScale);
           node.scaleY(scale * baseScale);
           node.rotation(rotation);
@@ -107,7 +109,6 @@ function IconPrimitiveInner({
           offsetY={BASE_SIZE / 2}
         />
 
-        {/* Selection border */}
         {selected && (
           <Rect
             x={-BASE_SIZE / 2}
@@ -115,7 +116,7 @@ function IconPrimitiveInner({
             width={BASE_SIZE}
             height={BASE_SIZE}
             stroke="#0066ff"
-            strokeWidth={2 / (scale * baseScale)} // Counter-scale stroke
+            strokeWidth={2 / (scale * baseScale)}
             dash={[5, 5]}
             listening={false}
           />
@@ -133,11 +134,7 @@ function IconPrimitiveInner({
   );
 }
 
-/**
- * Memoized IconPrimitive - Prevents unnecessary re-renders during drag
- */
 export const IconPrimitive = memo(IconPrimitiveInner, (prevProps, nextProps) => {
-  // Compare data props
   if (prevProps.id !== nextProps.id) return false;
   if (prevProps.icon !== nextProps.icon) return false;
   if (prevProps.x !== nextProps.x) return false;
@@ -148,7 +145,6 @@ export const IconPrimitive = memo(IconPrimitiveInner, (prevProps, nextProps) => 
   if (prevProps.color !== nextProps.color) return false;
   if (prevProps.opacity !== nextProps.opacity) return false;
 
-  // Callbacks are considered stable
   return true;
 });
 

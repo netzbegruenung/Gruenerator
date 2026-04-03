@@ -1,10 +1,10 @@
 import { useCallback, useMemo, useRef, useEffect, useState } from 'react';
 import { FaCheck } from 'react-icons/fa';
+import { Icon } from '@iconify/react';
 
 import Spinner from '../../common/Spinner';
 import { usePaginatedIcons } from '../../hooks/usePaginatedIcons';
 import { loadAllIcons, getIconsSync, type IconDef } from '../../utils/canvasIcons';
-import { filterIcons } from '../../utils/filterUtils';
 import {
   CARD_GRID,
   CARD_CHECK_SMALL,
@@ -24,7 +24,12 @@ export interface IconsSectionProps {
   searchQuery?: string;
 }
 
-const RECOMMENDED_ICON_IDS = ['pi-flowertulip', 'pi-heartfill', 'pi-sparklefill', 'pi-starfill'];
+const RECOMMENDED_ICON_IDS = [
+  'ph:flower-tulip',
+  'ph:heart-fill',
+  'ph:sparkle-fill',
+  'ph:star-fill',
+];
 
 export function IconsSection({
   selectedIcons,
@@ -52,20 +57,23 @@ export function IconsSection({
   }, []);
 
   const recommendedIcons = useMemo(
-    () => RECOMMENDED_ICON_IDS.map((id) => allIcons.find((icon) => icon.id === id)).filter(Boolean),
+    () =>
+      RECOMMENDED_ICON_IDS.map((id) => allIcons.find((icon) => icon.id === id)).filter(
+        Boolean
+      ) as IconDef[],
     [allIcons]
   );
 
-  const { visibleIcons, hasMore, loadMore } = usePaginatedIcons(isExpanded);
+  const {
+    visibleIcons,
+    hasMore,
+    loadMore,
+    isLoading: paginationLoading,
+  } = usePaginatedIcons(isExpanded, searchQuery);
 
   const hasSearch = searchQuery.trim().length > 0;
 
-  const searchResults = useMemo(
-    () => (hasSearch ? filterIcons(allIcons, searchQuery) : []),
-    [hasSearch, searchQuery, allIcons]
-  );
-
-  const icons = hasSearch ? searchResults : isExpanded ? visibleIcons : recommendedIcons;
+  const icons = hasSearch ? visibleIcons : isExpanded ? visibleIcons : recommendedIcons;
 
   useEffect(() => {
     if (!isExpanded || !hasMore) return;
@@ -120,7 +128,6 @@ export function IconsSection({
       <div className={cn(CARD_GRID, 'grid-cols-[repeat(auto-fill,minmax(56px,1fr))]')}>
         {icons.map((icon) => {
           if (!icon) return null;
-          const IconComponent = icon.component;
           const isSelected = selectedIcons.includes(icon.id);
           const isDisabled = !isSelected && selectedIcons.length >= maxSelections;
 
@@ -134,7 +141,7 @@ export function IconsSection({
               disabled={isDisabled}
             >
               <div className={cn(CARD_PREVIEW, 'text-[var(--font-color)]')}>
-                <IconComponent size={30} />
+                <Icon icon={icon.id} width={30} height={30} />
                 {isSelected && (
                   <span className={CARD_CHECK_SMALL}>
                     <FaCheck size={8} />
@@ -146,10 +153,12 @@ export function IconsSection({
         })}
       </div>
 
+      {(isExpanded || hasSearch) && paginationLoading && <Spinner size="small" />}
+
       {isExpanded && !hasSearch && (
         <>
           <div ref={sentinelRef} className="h-px w-full" />
-          {hasMore && <Spinner size="small" />}
+          {hasMore && !paginationLoading && <Spinner size="small" />}
         </>
       )}
     </div>

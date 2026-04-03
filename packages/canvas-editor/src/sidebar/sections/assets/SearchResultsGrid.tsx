@@ -1,5 +1,6 @@
 import { FaCheck } from 'react-icons/fa';
 import { PiMagnifyingGlass } from 'react-icons/pi';
+import { Icon } from '@iconify/react';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { FRAME_ICON_MAP } from '../../../utils/frameUtils';
@@ -125,7 +126,6 @@ export function SearchResultsGrid({
 
         if (result.type === 'icon' && result.iconDef && onIconToggle) {
           const icon = result.iconDef;
-          const IconComponent = icon.component;
           const isSelected = selectedIcons.includes(icon.id);
           const isDisabled = !isSelected && selectedIcons.length >= maxIconSelections;
 
@@ -139,7 +139,7 @@ export function SearchResultsGrid({
               disabled={isDisabled}
             >
               <div className="flex items-center justify-center w-full h-full relative">
-                <IconComponent size={24} />
+                <Icon icon={icon.id} width={24} height={24} />
                 {isSelected && (
                   <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-primary-600 text-white flex items-center justify-center">
                     <FaCheck size={8} />
