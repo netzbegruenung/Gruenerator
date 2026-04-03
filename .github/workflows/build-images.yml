@@ -126,7 +126,6 @@ jobs:
             api:
               - 'apps/api/**'
               - 'packages/shared/**'
-              - 'packages/slides/**'
             sites:
               - 'apps/sites/**'
               - 'packages/shared/**'
@@ -138,7 +137,6 @@ jobs:
               - 'packages/collab/**'
               - 'packages/ui/**'
               - 'packages/wolke/**'
-              - 'packages/slides/**'
             hocuspocus:
               - 'services/hocuspocus/**'
             mcp:

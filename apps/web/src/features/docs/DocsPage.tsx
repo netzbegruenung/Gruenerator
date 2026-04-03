@@ -9,41 +9,14 @@ import {
   type TemplateType,
 } from '@gruenerator/docs';
 import {
-  SlidesProvider,
-  useSlidesAdapter,
-  createSlidesApiClient,
-  usePresentationStore,
-  type Presentation,
-  type GeneratePresentationResponse,
-} from '@gruenerator/slides';
-import {
-  AIPromptInput,
   Button,
   CardGrid,
   DropdownMenuItem,
   ResponsiveMenu,
   ResponsiveMenuItem,
 } from '@gruenerator/ui';
-import {
-  lazy,
-  memo,
-  Suspense,
-  useCallback,
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
-import {
-  FiArrowLeft,
-  FiCloud,
-  FiFile,
-  FiPlus,
-  FiSearch,
-  FiUpload,
-  FiUsers,
-  FiX,
-} from 'react-icons/fi';
+import { lazy, memo, Suspense, useCallback, useDeferredValue, useMemo, useState } from 'react';
+import { FiCloud, FiFile, FiPlus, FiSearch, FiUpload, FiUsers, FiX } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
@@ -55,8 +28,6 @@ import { useBoards } from '../boards/hooks/useBoards';
 import { BoardCard } from './BoardCard';
 import { webAppDocsAdapter } from './docsAdapter';
 import { DocumentCard } from './DocumentCard';
-import { PresentationCard } from './PresentationCard';
-import { webAppSlidesAdapter } from './slidesAdapter';
 import { TemplateCarousel } from './TemplateCarousel';
 
 import type { Board } from '../boards/types';
@@ -69,18 +40,6 @@ const LazyTemplatePicker = lazy(() =>
 );
 const LazyFileImportDialog = lazy(() => import('./FileImportDialog'));
 const LazyWolkeImportModal = lazy(() => import('./WolkeImportModal'));
-
-const SLIDE_EXAMPLES = [
-  {
-    label: 'Klimaschutz',
-    text: 'Präsentation über kommunale Klimaschutzmaßnahmen und deren Umsetzung',
-  },
-  { label: 'Verkehrswende', text: 'Verkehrswende in der Stadt: Fahrrad, ÖPNV und autofreie Zonen' },
-  {
-    label: 'Quartalsbericht',
-    text: 'Quartalsbericht unserer Fraktion: Erfolge, Anträge und Ausblick',
-  },
-];
 
 const ImportMenu = memo(function ImportMenu({
   onShowImportDialog,
@@ -145,85 +104,10 @@ type UnifiedItem =
       };
       sortKey: number;
     }
-  | { kind: 'presentation'; data: Presentation; sortKey: number }
   | { kind: 'board'; data: Board; sortKey: number };
-
-function GenerateSlidesForm({
-  onBack,
-  onGenerated,
-}: {
-  onBack: () => void;
-  onGenerated: (id: string) => void;
-}) {
-  const adapter = useSlidesAdapter();
-  const apiClient = useMemo(() => createSlidesApiClient(adapter), [adapter]);
-
-  const [content, setContent] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>('');
-
-  const handleGenerate = useCallback(async () => {
-    if (!content.trim()) return;
-    setIsGenerating(true);
-    setErrorMsg(null);
-    try {
-      const result = await apiClient.post<GeneratePresentationResponse>('/presentations/generate', {
-        content: content.trim(),
-        tone: 'professional',
-        verbosity: 'standard',
-        nSlides: 8,
-        language: 'Deutsch',
-        instructions: null,
-        includeTitleSlide: true,
-        includeTableOfContents: false,
-      });
-      onGenerated(result.presentationId);
-    } catch (err) {
-      setIsGenerating(false);
-      setErrorMsg((err as Error).message || 'Fehler bei der Erstellung');
-    }
-  }, [content, apiClient, onGenerated]);
-
-  return (
-    <div>
-      <button
-        onClick={onBack}
-        className="mb-lg flex items-center gap-1.5 text-sm text-grey-500 hover:text-foreground transition-colors bg-transparent border-none cursor-pointer"
-      >
-        <FiArrowLeft size={16} />
-        Zurück
-      </button>
-
-      <div className="text-center mb-lg">
-        <h2 className="text-2xl font-semibold text-foreground-heading mb-xs">
-          KI-Präsentation erstellen
-        </h2>
-        <p className="text-sm text-grey-500">Beschreibe das Thema — die KI erstellt die Folien.</p>
-      </div>
-
-      <AIPromptInput
-        value={content}
-        onChange={setContent}
-        onSubmit={handleGenerate}
-        placeholder="Worüber soll die Präsentation sein?"
-        isLoading={isGenerating}
-        examples={SLIDE_EXAMPLES}
-        error={errorMsg}
-        rows={3}
-      />
-
-      {isGenerating && (
-        <p className="text-center text-xs text-grey-400 mt-3">
-          Das kann bis zu 30 Sekunden dauern…
-        </p>
-      )}
-    </div>
-  );
-}
 
 function DocumentsContent() {
   const adapter = useDocsAdapter();
-  const slidesAdapter = useSlidesAdapter();
   const navigate = useNavigate();
 
   const { data: documents = [], isLoading: docsLoading, error: docsError } = useDocuments();
@@ -233,26 +117,14 @@ function DocumentsContent() {
 
   const { boards, isLoading: boardsLoading, createBoard, deleteBoard, updateBoard } = useBoards();
 
-  const slidesApiClient = useMemo(() => createSlidesApiClient(slidesAdapter), [slidesAdapter]);
-  const presentations = usePresentationStore((s) => s.presentations);
-  const presentationsLoading = usePresentationStore((s) => s.isLoading);
-  const fetchPresentations = usePresentationStore((s) => s.fetchPresentations);
-  const storeDeletePresentation = usePresentationStore((s) => s.deletePresentation);
-  const storeUpdatePresentation = usePresentationStore((s) => s.updatePresentation);
-
-  useEffect(() => {
-    fetchPresentations(slidesApiClient);
-  }, [fetchPresentations, slidesApiClient]);
-
   const [searchQuery, setSearchQuery] = useState('');
   const deferredSearch = useDeferredValue(searchQuery);
   const [showGallery, setShowGallery] = useState(false);
-  const [showGenerateSlides, setShowGenerateSlides] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showWolkeImport, setShowWolkeImport] = useState(false);
   const [shareDoc, setShareDoc] = useState<{ id: string; title: string } | null>(null);
 
-  const isLoading = docsLoading || boardsLoading || presentationsLoading;
+  const isLoading = docsLoading || boardsLoading;
 
   const { personalItems, groupDocsByGroup, hasAnyItems } = useMemo(() => {
     const query = deferredSearch.trim().toLowerCase();
@@ -286,15 +158,6 @@ function DocumentsContent() {
       }
     }
 
-    for (const pres of presentations) {
-      if (!matchesSearch(pres.title)) continue;
-      personal.push({
-        kind: 'presentation',
-        data: pres,
-        sortKey: new Date(pres.updatedAt).getTime(),
-      });
-    }
-
     for (const board of boards) {
       if (!matchesSearch(board.title)) continue;
       personal.push({
@@ -316,9 +179,9 @@ function DocumentsContent() {
     return {
       personalItems: personal,
       groupDocsByGroup: sortedGroups,
-      hasAnyItems: documents.length > 0 || presentations.length > 0 || boards.length > 0,
+      hasAnyItems: documents.length > 0 || boards.length > 0,
     };
-  }, [documents, presentations, boards, deferredSearch]);
+  }, [documents, boards, deferredSearch]);
 
   const hasFilteredResults = personalItems.length > 0 || groupDocsByGroup.length > 0;
 
@@ -372,35 +235,6 @@ function DocumentsContent() {
     [updateDocumentMutation]
   );
 
-  const handleDeletePresentation = useCallback(
-    async (id: string, e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (window.confirm('Präsentation wirklich löschen?')) {
-        try {
-          await storeDeletePresentation(slidesApiClient, id);
-        } catch (err) {
-          console.error('Failed to delete presentation:', err);
-        }
-      }
-    },
-    [storeDeletePresentation, slidesApiClient]
-  );
-
-  const handleRenamePresentation = useCallback(
-    async (pres: { id: string; title: string }, e: React.MouseEvent) => {
-      e.stopPropagation();
-      const newTitle = window.prompt('Neuer Titel:', pres.title);
-      if (newTitle?.trim() && newTitle.trim() !== pres.title) {
-        try {
-          await storeUpdatePresentation(slidesApiClient, pres.id, { title: newTitle.trim() });
-        } catch (err) {
-          console.error('Failed to rename presentation:', err);
-        }
-      }
-    },
-    [storeUpdatePresentation, slidesApiClient]
-  );
-
   const handleDeleteBoard = useCallback(
     (id: string, e: React.MouseEvent) => {
       e.stopPropagation();
@@ -449,18 +283,6 @@ function DocumentsContent() {
     },
     [createBoard, navigate]
   );
-
-  if (showGenerateSlides) {
-    return (
-      <GenerateSlidesForm
-        onBack={() => setShowGenerateSlides(false)}
-        onGenerated={(id) => {
-          setShowGenerateSlides(false);
-          navigate(`/docs/presentation/${id}`);
-        }}
-      />
-    );
-  }
 
   return (
     <>
@@ -541,15 +363,6 @@ function DocumentsContent() {
                         onShare={setShareDoc}
                       />
                     );
-                  if (item.kind === 'presentation')
-                    return (
-                      <PresentationCard
-                        key={`pres-${item.data.id}`}
-                        presentation={item.data}
-                        onDelete={handleDeletePresentation}
-                        onRename={handleRenamePresentation}
-                      />
-                    );
                   return (
                     <BoardCard
                       key={`board-${item.data.id}`}
@@ -627,9 +440,7 @@ const DocsPage = () => (
   <ErrorBoundary>
     <PageContainer maxWidth="lg" noPadTop>
       <DocsProvider adapter={webAppDocsAdapter}>
-        <SlidesProvider adapter={webAppSlidesAdapter}>
-          <DocumentsContent />
-        </SlidesProvider>
+        <DocumentsContent />
       </DocsProvider>
     </PageContainer>
   </ErrorBoundary>
