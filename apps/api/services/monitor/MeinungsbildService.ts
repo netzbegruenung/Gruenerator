@@ -174,7 +174,8 @@ export async function lookupMeinungsbildByTopic(topic: string): Promise<string |
   }
 
   return (
-    'Meinungsbild Deutschland (MRP-Schätzung basierend auf ~118.000 Befragten, GERDA/GLES/ALLBUS)\n\n' +
+    'Meinungsbild Deutschland (MRP-Schätzung basierend auf ~118.000 Befragten)\n' +
+    'Quelle: Heddesheimer, Hilbig, Sichart & Wiedemann (2025). GERDA: German Election Database. Nature: Scientific Data, 12: 618.\n\n' +
     parts.join('\n\n---\n\n')
   );
 }
