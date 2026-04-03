@@ -8,16 +8,12 @@ import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { canAccessThread } from './services/threadAccessService.js';
+import { getUser } from './services/threadPersistenceService.js';
 
 import type { Thread, Message } from './agents/types.js';
-import type { UserProfile } from '../../services/user/types.js';
-import type express from 'express';
 
 const log = createLogger('MessagesController');
 const router = createAuthenticatedRouter();
-
-const getUser = (req: express.Request): UserProfile | undefined =>
-  (req as any).user as UserProfile | undefined;
 
 router.get('/', async (req, res) => {
   try {

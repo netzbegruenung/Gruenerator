@@ -50,6 +50,8 @@ export interface AgentConfig {
   enabledTools?: string[];
   /** Few-shot examples injected into the system prompt to guide output quality */
   fewShotExamples?: FewShotExample[];
+  /** Runtime-only: set by controller, not by agent YAML files */
+  userId?: string;
 }
 
 export interface Thread {
