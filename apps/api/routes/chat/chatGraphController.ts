@@ -336,7 +336,7 @@ router.post('/stream', async (req, res) => {
     }
 
     // === Read user profile instructions ===
-    const userInstructions = (user as any).custom_prompt?.trim() || undefined;
+    const userInstructions = user.custom_prompt?.trim() || undefined;
 
     // === Resolve context window for model-aware budgets ===
     const contextWindowTokens = getContextWindow(modelId);
@@ -369,16 +369,16 @@ router.post('/stream', async (req, res) => {
           : undefined,
       boardIds: rawBoardIds?.length ? rawBoardIds : undefined,
       docMentionIds: rawDocMentionIds?.length ? rawDocMentionIds : undefined,
-      userLocale: (user as any)?.locale || 'de-DE',
+      userLocale: user.locale || 'de-DE',
       customSystemPrompt: rawCustomSystemPrompt,
       userInstructions,
       contextWindowTokens,
     });
 
-    const userLocale = (user as any)?.locale || 'de-DE';
+    const userLocale = user.locale || 'de-DE';
     log.info(`[ChatGraph] User ${userId} locale: ${userLocale}`);
 
-    (initialState.agentConfig as any).userId = userId;
+    initialState.agentConfig.userId = userId;
     if (memoryContext) {
       initialState.memoryContext = memoryContext;
       initialState.memoryRetrieveTimeMs = memoryRetrieveTimeMs;
@@ -936,7 +936,7 @@ router.post('/stream', async (req, res) => {
       if (currentIntent === 'image') {
         const imageToolEnabled = forcedTool || enabledTools?.['image'] !== false;
         log.info(
-          `[ChatGraph] Image branch — imageToolEnabled=${imageToolEnabled}, userId=${(classifiedState.agentConfig as any).userId}, BFL_KEY_SET=${!!process.env.BFL_API_KEY}`
+          `[ChatGraph] Image branch — imageToolEnabled=${imageToolEnabled}, userId=${classifiedState.agentConfig.userId}, BFL_KEY_SET=${!!process.env.BFL_API_KEY}`
         );
         if (imageToolEnabled) {
           sse.send('image_start', { message: PROGRESS_MESSAGES.imageStart });

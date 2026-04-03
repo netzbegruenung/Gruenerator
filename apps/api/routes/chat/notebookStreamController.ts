@@ -10,16 +10,15 @@ import { createLogger } from '../../utils/logger.js';
 
 import { handleNotebookStream, sendSSE } from './notebookStreamCore.js';
 import { SSEWriter } from './services/sseHelpers.js';
-import { createThread, createMessage, touchThread } from './services/threadPersistenceService.js';
-
-import type { UserProfile } from '../../services/user/types.js';
-import type express from 'express';
+import {
+  getUser,
+  createThread,
+  createMessage,
+  touchThread,
+} from './services/threadPersistenceService.js';
 
 const router = createAuthenticatedRouter();
 const log = createLogger('notebookStream');
-
-const getUser = (req: express.Request): UserProfile | undefined =>
-  (req as any).user as UserProfile | undefined;
 
 /**
  * POST /api/chat-service/notebook/stream
