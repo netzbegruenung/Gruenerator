@@ -121,6 +121,7 @@ export { ChatSidebar } from './components/ChatSidebar';
 export { ChatThreadList } from './components/ChatThreadList';
 export { ToolToggles } from './components/ToolToggles';
 export { MarkdownContent } from './components/MarkdownContent';
+export { CitationMarkdownText } from './components/message-parts/CitationMarkdownText';
 export { ToolCallUI } from './components/ToolCallUI';
 export { grueneratorToolkit } from './components/tool-ui/GrueneratorToolUIs';
 export { ThemeProvider, useTheme } from './components/ThemeProvider';

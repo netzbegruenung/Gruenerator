@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@assistant-ui/react-markdown": "^0.12.8",
     "@gruenerator/voice": "workspace:*",
     "ai": "^6.0.141",
     "class-variance-authority": "^0.7.1",
@@ -30,6 +31,7 @@
     "react-day-picker": "^9.14.0",
     "react-dropzone": "^15.0.0",
     "recharts": "2.15.4",
+    "remark-gfm": "^4.0.1",
     "rough-notation": "^0.5.1",
     "sonner": "^2.0.7",
     "svg-dotted-map": "^2.1.0",
