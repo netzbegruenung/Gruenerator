@@ -142,15 +142,14 @@ describe('LAYOUT_FIELD_SPECS', () => {
     }
   });
 
-  it('bullet-points spec mentions bulletPoints array', () => {
-    expect(LAYOUT_FIELD_SPECS['bullet-points']).toContain('bulletPoints');
-    expect(LAYOUT_FIELD_SPECS['bullet-points']).toContain('Array');
+  it('bullet-points spec mentions columnLeft and columnRight', () => {
+    expect(LAYOUT_FIELD_SPECS['bullet-points']).toContain('columnLeft');
+    expect(LAYOUT_FIELD_SPECS['bullet-points']).toContain('columnRight');
   });
 
-  it('table spec mentions tableData with headers and rows', () => {
-    expect(LAYOUT_FIELD_SPECS['table']).toContain('tableData');
-    expect(LAYOUT_FIELD_SPECS['table']).toContain('headers');
-    expect(LAYOUT_FIELD_SPECS['table']).toContain('rows');
+  it('table spec mentions columnLeft and columnRight', () => {
+    expect(LAYOUT_FIELD_SPECS['table']).toContain('columnLeft');
+    expect(LAYOUT_FIELD_SPECS['table']).toContain('columnRight');
   });
 });
 
