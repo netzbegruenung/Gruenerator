@@ -322,7 +322,14 @@ describe('ConfirmActionType consistency', () => {
   });
 
   it('PendingAction type accepts all ConfirmActionType values', () => {
-    const base = { actionId: 'test', threadId: 'thread-1', userId: 'user-1', title: 'Test', preview: 'Preview', createdAt: Date.now() };
+    const base = {
+      actionId: 'test',
+      threadId: 'thread-1',
+      userId: 'user-1',
+      title: 'Test',
+      preview: 'Preview',
+      createdAt: Date.now(),
+    };
     const actions: PendingAction[] = [
       { ...base, type: 'save_as_doc', payload: { content: 'text', title: 'Doc', subtype: 'docs' } },
       { ...base, type: 'modify_doc', payload: { docId: 'doc-1', newContent: 'new' } },
