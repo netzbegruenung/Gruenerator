@@ -195,6 +195,7 @@ async function testExpandedContextWindow() {
     documentMentionContext: null,
     searchSources: [],
     intent: 'search',
+    secondaryIntent: null,
     searchQuery: 'test query',
     subQueries: null,
     reasoning: 'test',

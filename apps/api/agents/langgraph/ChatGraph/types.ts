@@ -222,6 +222,7 @@ export interface ChatGraphState {
 
   // Classification output
   intent: SearchIntent;
+  secondaryIntent: SearchIntent | null;
   searchSources: SearchSource[];
   searchQuery: string | null;
   subQueries: string[] | null;
