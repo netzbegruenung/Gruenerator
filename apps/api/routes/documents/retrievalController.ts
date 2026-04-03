@@ -43,7 +43,6 @@ router.get('/user', async (req: DocumentRequest, res: Response): Promise<void> =
     // Get user's document mode preference (defaults to manual)
     const userMode = await postgresDocumentService.getUserDocumentMode(userId);
 
-    // Use PostgreSQL + Qdrant exclusively (no more Supabase fallback)
     const documents = await postgresDocumentService.getDocumentsBySourceType(userId, null);
 
     // Get first chunks from Qdrant for documents that need previews
