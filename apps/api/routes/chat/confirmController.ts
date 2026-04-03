@@ -39,7 +39,12 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
         await import('../../services/docs/DocGenerationService.js');
       const { content, title, subtype } = action.payload;
 
-      const newDoc = await createDocumentWithContent(title, content, subtype || 'docs', action.userId);
+      const newDoc = await createDocumentWithContent(
+        title,
+        content,
+        subtype || 'docs',
+        action.userId
+      );
       return {
         message: `Dokument **"${title}"** wurde erstellt.`,
         url: `/document/${newDoc.id}`,
