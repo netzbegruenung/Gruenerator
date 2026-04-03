@@ -1,10 +1,5 @@
 /**
- * @deprecated Use DeepAgent (deepAgent.ts) instead. This fixed pipeline is kept
- * for backwards compatibility but is no longer the default. The DeepAgent's
- * ReAct loop with autonomous tool selection supersedes the rigid
- * classify → search → rerank → respond flow.
- *
- * ChatGraph - LangGraph-Based Agentic Chat (Legacy)
+ * ChatGraph - LangGraph-Based Agentic Chat
  *
  * Graph flow:
  *   START → classifier → [briefGenerator|search|image|respond] → ... → respond → END
@@ -141,6 +136,11 @@ const ChatStateAnnotation = Annotation.Root({
     reducer: (x, y) => y ?? x ?? 0,
   }),
 
+  // Chat history context (from past conversation search, injected by controller)
+  chatHistoryContext: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
+  }),
+
   // Compound query detection (notebook + skill → gather-then-apply pipeline)
   isCompound: Annotation<boolean>({
     reducer: (x, y) => y ?? x ?? false,
@@ -151,6 +151,9 @@ const ChatStateAnnotation = Annotation.Root({
 
   // Classification output
   intent: Annotation<SearchIntent>({
+    reducer: (x, y) => y ?? x,
+  }),
+  secondaryIntent: Annotation<SearchIntent | null>({
     reducer: (x, y) => y ?? x,
   }),
   searchSources: Annotation<SearchSource[]>({
@@ -536,6 +539,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     // Memory context (will be set by controller before graph execution)
     memoryContext: null,
     memoryRetrieveTimeMs: 0,
+
+    // Chat history context (will be set by controller when classifier detects past conversation reference)
+    chatHistoryContext: null,
 
     // Compound query detection (will be set by classifier node)
     isCompound: false,

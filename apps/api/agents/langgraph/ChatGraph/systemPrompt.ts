@@ -25,6 +25,7 @@ export interface SystemPromptContext {
   documentIds?: string[];
   userInstructions?: string;
   conversationSummary?: string;
+  chatHistoryContext?: string | null;
   userLocale?: string;
   customSystemPrompt?: string;
 }
@@ -105,6 +106,11 @@ Der Nutzer ist in Österreich. Beachte:
   // 8. Memory context (if available)
   if (ctx.memoryContext) {
     sections.push(formatMemoryContext(ctx.memoryContext));
+  }
+
+  // 8b. Chat history context (past conversations relevant to this query)
+  if (ctx.chatHistoryContext) {
+    sections.push(ctx.chatHistoryContext);
   }
 
   // 9. Attachment context (uploaded documents)

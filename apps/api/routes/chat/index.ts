@@ -16,6 +16,7 @@ import confirmRouter from './confirmController.js';
 import messagesRouter from './messagesController.js';
 import notebookStreamRouter from './notebookStreamController.js';
 import promptGeneratorRouter from './promptGeneratorController.js';
+import searchRouter from './searchController.js';
 import summarizeRouter from './summarizeController.js';
 import threadsRouter from './threadsController.js';
 
@@ -28,6 +29,7 @@ router.use('/notebook/stream', notebookStreamRouter);
 router.use('/summarize', summarizeRouter);
 router.use('/generate-system-prompt', promptGeneratorRouter);
 router.use('/confirm', confirmRouter);
+router.use('/search', searchRouter);
 
 router.get('/agents', async (req, res) => {
   try {

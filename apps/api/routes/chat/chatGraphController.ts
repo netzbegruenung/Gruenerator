@@ -41,6 +41,7 @@ import {
   processAttachments,
   injectImageAttachments,
 } from './services/attachmentProcessingService.js';
+import { searchChatHistory } from './services/chatSearchService.js';
 import { extractCompoundTopic } from './services/compoundTopicExtractor.js';
 import { pruneMessages, applyCompaction } from './services/contextPruningService.js';
 import { fetchDocumentContext, fetchTextContext } from './services/documentContextService.js';
@@ -579,6 +580,30 @@ router.post('/stream', async (req, res) => {
         : undefined,
       compound: isCompound || undefined,
     });
+
+    // === Chat history context enrichment ===
+    if (classifiedState.searchSources?.includes('chat_history') && classifiedState.searchQuery) {
+      try {
+        const chatResults = await searchChatHistory(userId, classifiedState.searchQuery, {
+          excludeThreadId: actualThreadId || undefined,
+          limit: 3,
+        });
+        if (chatResults.length > 0) {
+          const chatContext = chatResults
+            .map(
+              (r) =>
+                `### ${r.threadTitle || 'Untitled'} (${new Date(r.threadUpdatedAt).toLocaleDateString('de-DE')})\n${r.snippet}`
+            )
+            .join('\n\n');
+          classifiedState.chatHistoryContext = `## RELEVANTE VERGANGENE GESPRÄCHE\n\n${chatContext}`;
+          log.info(
+            `[ChatGraph] Injected ${chatResults.length} chat history results for "${classifiedState.searchQuery}"`
+          );
+        }
+      } catch (err) {
+        log.warn(`[ChatGraph] Chat history search failed: ${err}`);
+      }
+    }
 
     // === HITL: Check if clarification is needed ===
     // Skip clarification for compound queries — the user was explicit with mentions

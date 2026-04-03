@@ -893,6 +893,16 @@ function detectSearchSources(query: string, intent: SearchIntent): SearchSource[
     return ['documents', 'web'];
   }
 
+  // References to past conversations → include chat_history source
+  const chatHistoryKeywords =
+    /\b(letzte[sn]?\s+gespräch|vorher\s+besprochen|letzte\s+woche|gestern\s+besprochen|was\s+haben\s+wir|erinnere?\s+dich|wir\s+hatten|früheres?\s+chat|voriges?\s+gespräch|damals\s+besprochen)\b/i;
+  if (chatHistoryKeywords.test(q)) {
+    const base: SearchSource[] = hasPartyKeywords
+      ? ['documents', 'chat_history']
+      : ['chat_history'];
+    return base;
+  }
+
   return [];
 }
 
