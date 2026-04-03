@@ -205,7 +205,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: fluxImageEditingRoute } = await import('./routes/flux/imageEditing.js');
   const { default: unsplashRouter } = await import('./routes/unsplash/unsplashRoutes.js');
   const { default: docsRouter } = await import('./routes/docs/index.js');
-  const { default: presentationsRouter } = await import('./routes/presentations/index.js');
+
   const { default: publicDocRouter } = await import('./routes/docs/publicDocController.js');
   const { default: boardsRouter } = await import('./routes/boards/boardsController.js');
   const { default: boardCommentsRouter } =
@@ -373,7 +373,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/media', requireAuth, standardMutationLimiter, mediaRouter);
   app.use('/api/docs/public', publicReadLimiter, publicDocRouter);
   app.use('/api/docs', requireAuth, standardMutationLimiter, docsRouter);
-  app.use('/api/presentations', requireAuth, standardMutationLimiter, presentationsRouter);
+
   app.use('/api/boards/public', publicReadLimiter, publicBoardRouter);
   app.use('/api/boards', requireAuth, standardMutationLimiter, boardsRouter);
   app.use('/api/board-comments', requireAuth, standardMutationLimiter, boardCommentsRouter);
