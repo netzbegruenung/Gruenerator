@@ -381,11 +381,11 @@ const ActionButtons = ({
           key="save"
           onClick={handleSave}
           className={actionBtnClass}
-          aria-label="In Supabase speichern"
+          aria-label="Speichern"
           disabled={saveLoading}
           {...(!isMobileView && {
             'data-tooltip-id': 'action-tooltip',
-            'data-tooltip-content': 'In Supabase speichern',
+            'data-tooltip-content': 'Speichern',
           })}
         >
           {saveIcon}

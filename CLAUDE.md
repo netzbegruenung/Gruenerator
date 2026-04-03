@@ -52,18 +52,6 @@ pnpm --filter @gruenerator/desktop dev           # Tauri desktop dev
 
 Routes in `routes.ts` use `layoutMode` (type `LayoutMode` in `PageLayout.tsx`) to control header/chrome visibility: `default` shows the full header (SidebarToggle + ProfileButton) with `mt-lg` content spacing; `fullscreen` shows the header but uses `pt-12` and `h-dvh` for contained layouts; `immersive` hides the header entirely with `h-dvh` (used by docs editor which renders its own toolbar); `sidebarOnly` shows only the SidebarToggle without ProfileButton (used by chat, docs overview); `noChrome` renders bare content with no header or sidebar (used by public/shared pages, voice agent).
 
-### Presenton Local Dev
-
-**Always use `Dockerfile.gruenerator`** (not `Dockerfile` or `Dockerfile.dev`). The generic Dockerfiles install docling/pytorch (~2GB) which is unnecessary and extremely slow on WSL2.
-
-```bash
-cd services/presenton
-docker build -f Dockerfile.gruenerator -t presenton-gruenerator .
-docker run -d -p 5000:80 -v ./app_data:/app_data presenton-gruenerator
-```
-
-Preview templates at `http://localhost:5000/template-preview`.
-
 ### Database Migrations
 
 SQL migrations live in `apps/api/database/postgres/migrations/` and run automatically on server startup via `PostgresService.init()`. The runner tracks applied files in the `schema_migrations` table. Migrations must **not** contain `BEGIN`/`COMMIT` (the runner wraps each in a transaction). Path resolution uses `getMigrationsPath()` in `database/services/PostgresService/schema.ts`.
