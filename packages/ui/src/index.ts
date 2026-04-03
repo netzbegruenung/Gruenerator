@@ -245,3 +245,10 @@ export {
   TableCaption,
 } from './components/table';
 export { Calendar, CalendarDayButton } from './components/calendar';
+export {
+  ApprovalCard,
+  type ApprovalCardProps,
+  type ApprovalDecision,
+  type SerializableApprovalCard,
+  type MetadataItem,
+} from './components/tool-ui/approval-card';

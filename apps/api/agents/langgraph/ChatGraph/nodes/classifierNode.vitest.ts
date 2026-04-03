@@ -380,3 +380,27 @@ describe('looksMultiTopic', () => {
     expect(looksMultiTopic('recherchiere und Umweltpolitik der Grünen in Bayern')).toBe(false);
   });
 });
+
+// ─── heuristicClassify: chart intent ─────────────────────────────────────
+
+describe('heuristicClassify: chart intent', () => {
+  it('detects "Erstelle ein Diagramm" as chart', () => {
+    const result = heuristicClassify('Erstelle ein Diagramm über die Wahlergebnisse');
+    expect(result.intent).toBe('chart');
+  });
+
+  it('detects "Balkendiagramm" as chart', () => {
+    const result = heuristicClassify('Zeige mir ein Balkendiagramm der Umfragewerte');
+    expect(result.intent).toBe('chart');
+  });
+
+  it('detects "Kreisdiagramm" as chart', () => {
+    const result = heuristicClassify('Erstelle ein Kreisdiagramm mit den Sitzverteilungen');
+    expect(result.intent).toBe('chart');
+  });
+
+  it('detects "Statistik" via fuzzy match', () => {
+    const result = heuristicClassify('Visualisiere die Statistik als Chart');
+    expect(result.intent).toBe('chart');
+  });
+});

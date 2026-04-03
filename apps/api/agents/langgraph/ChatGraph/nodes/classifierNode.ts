@@ -35,6 +35,10 @@ VERFÜGBARE TOOLS:
 - web: Aktuelle Nachrichten, externe Fakten, EXPLIZITE Web-Suche ("suche im netz")
 - examples: Social-Media-Beispiele, Vorlagen, Posts zum Thema
 - summary: Zusammenfassung eines Dokuments - "fasse zusammen", "zusammenfassung", "kurzfassung"
+- chart: Datenvisualisierung - "erstelle Diagramm", "Balkendiagramm", "Kreisdiagramm", "visualisiere als Chart", "Statistik darstellen"
+- save_as_doc: Antwort als Dokument speichern - "speichere als Dokument", "mach ein Dokument daraus", "als Protokoll speichern"
+- modify_doc: Erwähntes Dokument bearbeiten (NUR wenn ein @Dokument erwähnt wurde UND Bearbeitungsabsicht) - "ändere", "ergänze", "aktualisiere", "füge hinzu", "überarbeite"
+- modify_board: Erwähntes Board bearbeiten (NUR wenn ein @Board erwähnt wurde UND Änderungsabsicht) - "füge Aufgabe hinzu", "neue Karte", "aktualisiere Board", "erstelle Aufgaben"
 - direct: Begrüßungen, Dank, rein kreative Aufgaben OHNE Faktenbedarf
 
 SCHRITT 1 - ORIGINALTEXT BEWAHREN:
@@ -147,7 +151,7 @@ Antworte NUR mit JSON:
   "typoAnalysis": {"original": "...", "corrected": "..."} | null,
   "contentType": "pressemitteilung" | "artikel" | "rede" | "argumentation" | "tweet" | "slogan" | null,
   "needsResearch": true | false,
-  "intent": "image" | "research" | "search" | "web" | "examples" | "summary" | "direct",
+  "intent": "image" | "research" | "search" | "web" | "examples" | "summary" | "chart" | "save_as_doc" | "modify_doc" | "modify_board" | "direct",
   "searchQuery": "ORIGINALTEXT des Benutzers (KEINE Korrekturen an Eigennamen!)" | null,
   "optimizedSearchQuery": "nur das faktische Thema aus dem ORIGINALTEXT, ohne Aufgabenanweisung" | null,
   "subQueries": ["thema1", "thema2"] | null,
@@ -172,13 +176,17 @@ Bei "direct" und "image" setze searchQuery, optimizedSearchQuery, subQueries, se
  * Keywords for fuzzy matching in heuristic fallback.
  * Maps intents to their trigger keywords.
  */
-const INTENT_KEYWORDS: Record<Exclude<SearchIntent, 'direct' | 'image_edit'>, string[]> = {
+const INTENT_KEYWORDS: Record<
+  Exclude<SearchIntent, 'direct' | 'image_edit' | 'save_as_doc' | 'modify_doc' | 'modify_board'>,
+  string[]
+> = {
   research: ['recherchiere', 'recherche', 'untersuche', 'analysiere', 'erforsche'],
   image: ['visualisiere', 'zeichne', 'illustriere', 'grafik', 'illustration'],
   web: ['internet', 'netz', 'online', 'aktuell', 'nachricht', 'news'],
   search: ['grüne', 'partei', 'programm', 'position', 'wahlprogramm', 'beschluss'],
   examples: ['beispiel', 'vorlage', 'tweet', 'instagram', 'social'],
   summary: ['zusammenfassung', 'zusammenfassen', 'kurzfassung', 'überblick'],
+  chart: ['diagramm', 'balkendiagramm', 'kreisdiagramm', 'liniendiagramm', 'chart', 'statistik'],
 };
 
 /**
@@ -367,6 +375,18 @@ function heuristicClassify(userContent: string): HeuristicResult {
       searchQuery: null,
       reasoning: 'Summary keywords detected (needs document context for high confidence)',
       confidence: 0.7,
+    };
+  }
+
+  // High confidence (0.88): Chart/data visualization requests
+  const chartKeywords =
+    /\b(diagramm|balkendiagramm|kreisdiagramm|liniendiagramm|tortendiagramm|chart|graph\b.{0,10}erstell|visualisier.{0,15}(daten|statistik|chart|werte))\b/i;
+  if (chartKeywords.test(q)) {
+    return {
+      intent: 'chart',
+      searchQuery: userContent,
+      reasoning: 'Chart/visualization request detected',
+      confidence: 0.88,
     };
   }
 

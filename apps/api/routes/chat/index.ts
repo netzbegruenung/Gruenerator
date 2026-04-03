@@ -12,6 +12,7 @@ import {
 
 import { getAgent, loadAgents, getDefaultAgentId } from './agents/agentLoader.js';
 import chatStreamRouter from './chatStreamController.js';
+import confirmRouter from './confirmController.js';
 import messagesRouter from './messagesController.js';
 import notebookStreamRouter from './notebookStreamController.js';
 import promptGeneratorRouter from './promptGeneratorController.js';
@@ -26,6 +27,7 @@ router.use('/messages', messagesRouter);
 router.use('/notebook/stream', notebookStreamRouter);
 router.use('/summarize', summarizeRouter);
 router.use('/generate-system-prompt', promptGeneratorRouter);
+router.use('/confirm', confirmRouter);
 
 router.get('/agents', async (req, res) => {
   try {

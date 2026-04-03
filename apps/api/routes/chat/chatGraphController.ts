@@ -45,6 +45,7 @@ import { extractCompoundTopic } from './services/compoundTopicExtractor.js';
 import { pruneMessages, applyCompaction } from './services/contextPruningService.js';
 import { fetchDocumentContext, fetchTextContext } from './services/documentContextService.js';
 import { extractTextContent, filterEmptyAssistantMessages } from './services/messageHelpers.js';
+import { pendingActionStore } from './services/pendingActionStore.js';
 import { pipelineStateStore } from './services/pipelineStateStore.js';
 import {
   persistAssistantResponse,
@@ -71,6 +72,7 @@ import type {
   GeneratedImageResult,
   ProcessedAttachment,
   ImageAttachment,
+  PendingAction,
 } from '../../agents/langgraph/ChatGraph/types.js';
 import type { UIMessage } from 'ai';
 
@@ -946,6 +948,100 @@ router.post('/stream', async (req, res) => {
       aiWorkerPool,
       requestId,
     });
+
+    // === Stage 4b: Emit confirm_action for intents that need user approval ===
+    const actionIntent = finalState.intent;
+    if (
+      actualThreadId &&
+      (actionIntent === 'save_as_doc' ||
+        actionIntent === 'modify_doc' ||
+        actionIntent === 'modify_board')
+    ) {
+      const actionId = `action_${Date.now()}`;
+      let pendingAction: PendingAction | null = null;
+
+      if (actionIntent === 'save_as_doc') {
+        pendingAction = {
+          actionId,
+          type: 'save_as_doc',
+          threadId: actualThreadId,
+          userId,
+          title: 'Antwort als Dokument speichern',
+          preview: fullText.slice(0, 200),
+          payload: {
+            content: fullText,
+            title: classifiedState.searchQuery || 'Neues Dokument',
+            subtype: 'docs',
+          },
+          createdAt: Date.now(),
+        };
+        sse.send('confirm_action', {
+          actionId,
+          type: 'save_as_doc',
+          title: 'Dokument erstellen',
+          description: 'Die Antwort wird als neues Dokument gespeichert.',
+          icon: 'file-text',
+          metadata: [
+            { key: 'Titel', value: classifiedState.searchQuery || 'Neues Dokument' },
+            { key: 'Länge', value: `${fullText.length} Zeichen` },
+          ],
+          confirmLabel: 'Dokument erstellen',
+          cancelLabel: 'Abbrechen',
+          threadId: actualThreadId,
+        });
+      } else if (actionIntent === 'modify_doc' && rawDocMentionIds?.length) {
+        const docId = rawDocMentionIds[0];
+        pendingAction = {
+          actionId,
+          type: 'modify_doc',
+          threadId: actualThreadId,
+          userId,
+          title: 'Dokument aktualisieren',
+          preview: fullText.slice(0, 200),
+          payload: { docId, newContent: fullText },
+          createdAt: Date.now(),
+        };
+        sse.send('confirm_action', {
+          actionId,
+          type: 'modify_doc',
+          title: 'Dokument bearbeiten',
+          description: 'Das erwähnte Dokument wird mit dem neuen Inhalt aktualisiert.',
+          icon: 'pencil',
+          metadata: [{ key: 'Dokument', value: docId }],
+          confirmLabel: 'Aktualisieren',
+          cancelLabel: 'Abbrechen',
+          threadId: actualThreadId,
+        });
+      } else if (actionIntent === 'modify_board' && rawBoardIds?.length) {
+        const boardId = rawBoardIds[0];
+        pendingAction = {
+          actionId,
+          type: 'modify_board',
+          threadId: actualThreadId,
+          userId,
+          title: 'Board aktualisieren',
+          preview: fullText.slice(0, 200),
+          payload: { boardId, rows: [], responseText: fullText },
+          createdAt: Date.now(),
+        };
+        sse.send('confirm_action', {
+          actionId,
+          type: 'modify_board',
+          title: 'Board bearbeiten',
+          description: 'Die Aufgaben werden zum Board hinzugefügt.',
+          icon: 'kanban',
+          metadata: [{ key: 'Board', value: boardId }],
+          confirmLabel: 'Hinzufügen',
+          cancelLabel: 'Abbrechen',
+          threadId: actualThreadId,
+        });
+      }
+
+      if (pendingAction) {
+        await pendingActionStore.store(pendingAction);
+        log.info(`[ChatGraph] Confirm action stored: ${actionId} (${actionIntent})`);
+      }
+    }
 
     const totalTimeMs = Date.now() - finalState.startTime;
     sse.send('done', {
