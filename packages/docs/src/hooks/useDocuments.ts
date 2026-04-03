@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 
 import { createDocsApiClient, useDocsAdapter } from '../context/DocsContext';
 import { type Document } from '../stores/documentStore';
+import { useDocumentCacheStore } from '../stores/documentCacheStore';
 
 export const docsKeys = {
   all: ['documents'] as const,
@@ -12,10 +13,19 @@ export const docsKeys = {
 export function useDocuments() {
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
+  const setCachedDocs = useDocumentCacheStore((s) => s.setCachedDocs);
 
   return useQuery({
     queryKey: docsKeys.list(),
-    queryFn: () => apiClient.get<Document[]>('/docs'),
+    queryFn: async () => {
+      const docs = await apiClient.get<Document[]>('/docs');
+      setCachedDocs(docs);
+      return docs;
+    },
+    placeholderData: () => {
+      const cached = useDocumentCacheStore.getState().cachedDocs;
+      return cached.length > 0 ? (cached as Document[]) : undefined;
+    },
     staleTime: 5 * 60 * 1000,
   });
 }

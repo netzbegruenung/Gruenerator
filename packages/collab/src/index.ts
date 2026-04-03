@@ -8,4 +8,6 @@ export { useAwarenessState } from './hooks/useAwarenessState';
 export { PresenceAvatars } from './components/PresenceAvatars';
 export { TypingIndicator } from './components/TypingIndicator';
 export { generateUserColor } from './utils';
+export { removeDocCache, clearAllDocCaches } from './lib/cacheRegistry';
+export { getAuthErrorMessage } from './lib/authErrors';
 export type { CollaborationUser } from './types';
