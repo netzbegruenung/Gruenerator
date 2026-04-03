@@ -50,16 +50,16 @@ Antworte NUR mit JSON:
  */
 export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
-  const { searchResults, searchQuery, aiWorkerPool, hasTemporal } = state;
+  const { searchResults, searchQuery, aiWorkerPool, hasTemporal, intent, researchBrief } = state;
 
   // Notebook-scoped searches get higher limits for deeper recall
   const isNotebookScoped = (state.notebookCollectionIds?.length ?? 0) > 0;
   const inputLimit = isNotebookScoped ? 20 : RERANK_INPUT_LIMIT;
   const outputLimit = isNotebookScoped ? 12 : RERANK_OUTPUT_LIMIT;
 
-  // Skip reranking if too few results
-  if (searchResults.length <= 3) {
-    log.info(`[Rerank] Skipping — only ${searchResults.length} results`);
+  // Skip reranking if only one result
+  if (searchResults.length <= 1) {
+    log.info(`[Rerank] Skipping — only ${searchResults.length} result`);
     return { rerankTimeMs: Date.now() - startTime };
   }
 
@@ -75,7 +75,14 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
       .map((r, i) => `[${i}] ${r.title}\n${r.content.slice(0, 300)}`)
       .join('\n\n');
 
-    const userMessage = `Suchanfrage: "${searchQuery}"
+    const intentGuidance: Record<string, string> = {
+      research: '\nHinweis: Bevorzuge Quellen mit Analyse, Synthese und Vergleichen.',
+      search: '\nHinweis: Offizielle Parteibeschlüsse und Programme höher als Kommentare bewerten.',
+      web: '\nHinweis: Seriöse Nachrichtenquellen höher als Social Media oder Foren bewerten.',
+      examples: '\nHinweis: Aktuelle und visuell ansprechende Beispiele bevorzugen.',
+    };
+
+    const userMessage = `Suchanfrage: "${searchQuery}"${researchBrief ? `\nRecherche-Kontext: ${researchBrief}` : ''}${intentGuidance[intent] || ''}
 
 Ergebnisse:
 ${passageList}`;
