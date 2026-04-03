@@ -1,11 +1,10 @@
 import { SectionHeader } from '@gruenerator/ui';
-import { memo, useState } from 'react';
+import { memo } from 'react';
 
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useFirstName } from '../../hooks/useFirstName';
-import { DEFAULT_MODE } from '../texte/modes';
 
 import CreatorSection from './components/CreatorSection';
 import NotebooksSection from './components/NotebooksSection';
@@ -185,8 +184,6 @@ Sun.displayName = 'Sun';
 const WorkplacePage = () => {
   const firstName = useFirstName();
 
-  const [mode, setMode] = useState(DEFAULT_MODE);
-
   return (
     <ErrorBoundary>
       {/* <Sun /> */}
@@ -201,7 +198,7 @@ const WorkplacePage = () => {
         </div>
 
         <div className="max-w-3xl mx-auto mb-xl">
-          <CreatorSection mode={mode} onModeChange={setMode} />
+          <CreatorSection />
         </div>
 
         <RecentlyCreatedSection />
