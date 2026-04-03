@@ -61,7 +61,10 @@ export default defineConfig(({ command }) => ({
   plugins: [
     // Only use Tauri stub plugin when NOT in Tauri context
     ...(!isTauri ? [tauriStubPlugin()] : []),
-    react({ jsxRuntime: 'automatic' }),
+    react({
+      jsxRuntime: 'automatic',
+      babel: { plugins: [['babel-plugin-react-compiler']] },
+    }),
     tailwindcss(),
   ],
   resolve: {

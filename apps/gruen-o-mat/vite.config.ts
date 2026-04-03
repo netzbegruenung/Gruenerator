@@ -6,7 +6,13 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   base: '/',
-  plugins: [tailwindcss(), react({ jsxRuntime: 'automatic' })],
+  plugins: [
+    tailwindcss(),
+    react({
+      jsxRuntime: 'automatic',
+      babel: { plugins: [['babel-plugin-react-compiler']] },
+    }),
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
