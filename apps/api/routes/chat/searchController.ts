@@ -9,6 +9,7 @@ import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { searchChatHistory } from './services/chatSearchService.js';
+import { getUser } from './services/threadPersistenceService.js';
 
 const log = createLogger('ChatSearchController');
 const router = createAuthenticatedRouter();
@@ -20,10 +21,11 @@ const router = createAuthenticatedRouter();
  */
 router.get('/', async (req, res) => {
   try {
-    const userId = (req as any).user?.id as string | undefined;
-    if (!userId) {
+    const user = getUser(req);
+    if (!user?.id) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
+    const userId = user.id;
 
     const query = req.query.q as string | undefined;
     if (!query || query.trim().length < 2) {

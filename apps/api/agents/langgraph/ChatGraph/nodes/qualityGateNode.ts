@@ -25,11 +25,12 @@ Bewerte die Abdeckung auf einer Skala von 1-5:
 1 = Keine Abdeckung, Ergebnisse passen nicht zur Frage
 
 Wenn die Bewertung < 3 ist, schlage eine bessere Suchanfrage vor.
+Optional: Wenn die Anfrage mehrere Aspekte hat, nenne die schwach abgedeckten.
 
 Antworte NUR mit JSON:
 { "score": 4, "sufficient": true }
 oder
-{ "score": 2, "sufficient": false, "refinedQuery": "bessere Suchanfrage hier" }`;
+{ "score": 2, "sufficient": false, "refinedQuery": "bessere Suchanfrage hier", "weakAspects": ["Aspekt1"] }`;
 
 /**
  * Quality gate node implementation.
@@ -92,7 +93,10 @@ export async function qualityGateNode(state: ChatGraphState): Promise<Partial<Ch
       );
 
       if (!parsed.sufficient && parsed.refinedQuery) {
-        log.info(`[QualityGate] Refined query: "${parsed.refinedQuery}"`);
+        const weakInfo = parsed.weakAspects?.length
+          ? ` (weak: ${parsed.weakAspects.join(', ')})`
+          : '';
+        log.info(`[QualityGate] Refined query: "${parsed.refinedQuery}"${weakInfo}`);
         return {
           qualityScore: parsed.score,
           qualityAssessmentTimeMs,
@@ -122,6 +126,7 @@ interface QualityResult {
   score: number;
   sufficient: boolean;
   refinedQuery?: string;
+  weakAspects?: string[];
 }
 
 function parseQualityResponse(content: string): QualityResult | null {
@@ -132,6 +137,7 @@ function parseQualityResponse(content: string): QualityResult | null {
         score: Math.max(1, Math.min(5, parsed.score)),
         sufficient: parsed.sufficient,
         refinedQuery: parsed.refinedQuery || undefined,
+        weakAspects: Array.isArray(parsed.weakAspects) ? parsed.weakAspects : undefined,
       };
     }
   } catch {

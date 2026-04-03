@@ -20,7 +20,7 @@ import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { pendingActionStore } from './services/pendingActionStore.js';
-import { createMessage, touchThread } from './services/threadPersistenceService.js';
+import { getUser, createMessage, touchThread } from './services/threadPersistenceService.js';
 
 import type { PendingAction } from '../../agents/langgraph/ChatGraph/types.js';
 
@@ -99,10 +99,11 @@ router.post('/', async (req, res) => {
       confirmed: boolean;
     };
 
-    const userId = (req as any).user?.id as string | undefined;
-    if (!userId) {
+    const user = getUser(req);
+    if (!user?.id) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
+    const userId = user.id;
 
     if (!threadId || !actionId) {
       return res.status(400).json({ error: 'threadId and actionId are required' });

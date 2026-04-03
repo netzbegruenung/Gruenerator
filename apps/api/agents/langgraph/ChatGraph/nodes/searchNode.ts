@@ -284,6 +284,28 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         );
       }
 
+      if (searchSources.includes('examples')) {
+        const country =
+          state.agentConfig.toolRestrictions?.examplesCountry ||
+          (state.userLocale === 'de-AT' ? 'AT' : undefined);
+        sourcePromises.push(
+          executeDirectExamplesSearch({ query, platform: undefined, country })
+            .then((r) => ({
+              results: (r.examples || []).map((e: any) => ({
+                source: 'examples',
+                title: `${e.platform} Beispiel${e.author ? ` von ${e.author}` : ''}`,
+                content: e.content || '',
+                relevance: 0.8,
+              })),
+              collections: ['examples'],
+            }))
+            .catch((err) => {
+              log.warn(`[Search] Examples search failed in multi-source: ${err.message}`);
+              return { results: [], collections: [] };
+            })
+        );
+      }
+
       const sourceResults = await Promise.all(sourcePromises);
       const allResults = sourceResults.map((s) => s.results);
       searchedCollections = sourceResults.flatMap((s) => s.collections);
@@ -485,9 +507,24 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
         const query = searchQuery || '';
 
-        // Search all sub-queries (if decomposed) across all collections
+        // Expand queries for broader document coverage (short timeout to avoid blocking)
+        let expandedQueries: string[] = [];
+        if (!isNotebookScoped) {
+          try {
+            const expanded = await expandQuery(query, state.aiWorkerPool);
+            if (expanded.alternatives.length > 0) {
+              expandedQueries = expanded.alternatives;
+              log.info(`[Search] Document query expanded: +${expandedQueries.length} variants`);
+            }
+          } catch {
+            // Expansion is best-effort for document search
+          }
+        }
+
+        // Search all sub-queries (if decomposed) + expanded variants across all collections
         // Notebook-scoped searches get deeper recall (10 vs 3 per collection)
-        const subQueries = state.subQueries?.length ? state.subQueries : [query];
+        const baseQueries = state.subQueries?.length ? state.subQueries : [query];
+        const subQueries = [...baseQueries, ...expandedQueries];
         const perCollectionLimit = isNotebookScoped ? 10 : 3;
 
         const searchPromises = uniqueCollections.flatMap((collection) =>

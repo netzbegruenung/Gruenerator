@@ -948,6 +948,12 @@ function detectSearchSources(query: string, intent: SearchIntent): SearchSource[
     return ['documents', 'web'];
   }
 
+  // Party content + examples request → documents + examples
+  const examplesKeywords = /\b(beispiel|vorlage|post|tweet|instagram|social\s*media)\b/i;
+  if (hasPartyKeywords && examplesKeywords.test(q)) {
+    return ['documents', 'examples'];
+  }
+
   // References to past conversations → include chat_history source
   const chatHistoryKeywords =
     /\b(letzte[sn]?\s+gespräch|vorher\s+besprochen|letzte\s+woche|gestern\s+besprochen|was\s+haben\s+wir|erinnere?\s+dich|wir\s+hatten|früheres?\s+chat|voriges?\s+gespräch|damals\s+besprochen)\b/i;

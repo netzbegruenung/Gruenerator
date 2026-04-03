@@ -19,7 +19,7 @@ import type { ModelMessage } from 'ai';
  * When multiple sources are specified, the search node runs them concurrently
  * and merges/deduplicates the results before reranking.
  */
-export type SearchSource = 'documents' | 'web' | 'chat_history' | 'wolke';
+export type SearchSource = 'documents' | 'web' | 'examples' | 'chat_history' | 'wolke';
 
 /**
  * Supported user locales for locale-aware collection routing.
