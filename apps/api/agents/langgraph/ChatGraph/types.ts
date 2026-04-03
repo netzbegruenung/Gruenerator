@@ -213,6 +213,9 @@ export interface ChatGraphState {
   memoryContext: string | null;
   memoryRetrieveTimeMs: number;
 
+  // Chat history context (from past conversation search, injected by controller)
+  chatHistoryContext: string | null;
+
   // Compound query detection (notebook + skill → gather-then-apply pipeline)
   isCompound: boolean;
   gatherSources: GatherSource[];
@@ -316,6 +319,7 @@ export type GatherSource = 'notebook-search' | 'web-search' | 'research';
  */
 export interface ClassificationResult {
   intent: SearchIntent;
+  secondaryIntent?: SearchIntent | null;
   searchSources?: SearchSource[];
   searchQuery: string | null;
   subQueries?: string[] | null;

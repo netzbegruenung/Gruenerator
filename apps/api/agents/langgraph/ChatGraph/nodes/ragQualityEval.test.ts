@@ -225,6 +225,7 @@ async function evaluateBudgetAllocation() {
     userInstructions: null,
     memoryContext: null,
     memoryRetrieveTimeMs: 0,
+    chatHistoryContext: null,
     notebookIds: [],
     notebookCollectionIds: [],
     defaultNotebookCollectionIds: [],
