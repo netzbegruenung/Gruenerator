@@ -19,6 +19,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@assistant-ui/react-markdown": "^0.12.8",
     "@gruenerator/collab": "workspace:*",
     "@gruenerator/ui": "workspace:*",
     "@gruenerator/voice": "workspace:*",

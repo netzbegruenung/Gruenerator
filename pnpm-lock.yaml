@@ -1343,6 +1343,9 @@ importers:
       '@assistant-ui/react':
         specifier: '>=0.12.0'
         version: 0.12.21(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
+      '@assistant-ui/react-markdown':
+        specifier: ^0.12.8
+        version: 0.12.8(@assistant-ui/react@0.12.21(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4)))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@gruenerator/collab':
         specifier: workspace:*
         version: link:../collab
@@ -1625,6 +1628,9 @@ importers:
 
   packages/ui:
     dependencies:
+      '@assistant-ui/react-markdown':
+        specifier: ^0.12.8
+        version: 0.12.8(@assistant-ui/react@0.12.21(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4)))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@gruenerator/voice':
         specifier: workspace:*
         version: link:../voice
@@ -1673,6 +1679,9 @@ importers:
       recharts:
         specifier: 2.15.4
         version: 2.15.4(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      remark-gfm:
+        specifier: ^4.0.1
+        version: 4.0.1
       rough-notation:
         specifier: ^0.5.1
         version: 0.5.1
@@ -2069,6 +2078,16 @@ packages:
       react:
         optional: true
       zustand:
+        optional: true
+
+  '@assistant-ui/react-markdown@0.12.8':
+    resolution: {integrity: sha512-3oFtpnOlSBjT9A23zjDjGtAbZu0AIdZ4Zxmp5VtzRH67946j4ltIsgwFukm3D7B6T+Z63YJMxTyZDzY1AsJU1Q==}
+    peerDependencies:
+      '@assistant-ui/react': ^0.12.22
+      '@types/react': ^19.2.14
+      react: 19.2.4
+    peerDependenciesMeta:
+      '@types/react':
         optional: true
 
   '@assistant-ui/react-native@0.1.8':
@@ -21960,6 +21979,21 @@ snapshots:
       react: 19.2.4
       zustand: 5.0.12(@types/react@19.2.14)(immer@11.1.4)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
 
+  '@assistant-ui/react-markdown@0.12.8(@assistant-ui/react@0.12.21(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4)))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+    dependencies:
+      '@assistant-ui/react': 0.12.21(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
+      '@radix-ui/react-primitive': 2.1.4(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@radix-ui/react-use-callback-ref': 1.1.1(@types/react@19.2.14)(react@19.2.4)
+      classnames: 2.5.1
+      react: 19.2.4
+      react-markdown: 10.1.0(@types/react@19.2.14)(react@19.2.4)
+    optionalDependencies:
+      '@types/react': 19.2.14
+    transitivePeerDependencies:
+      - '@types/react-dom'
+      - react-dom
+      - supports-color
+
   '@assistant-ui/react-native@0.1.8(@types/react@19.2.14)(assistant-cloud@0.1.23)(immer@11.1.4)(react-native@0.83.2(@babel/core@7.29.0)(@react-native/metro-config@0.84.1(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))':
     dependencies:
       '@assistant-ui/core': 0.1.9(@assistant-ui/store@0.2.5(@assistant-ui/tap@0.5.5(@types/react@19.2.14)(react@19.2.4))(@types/react@19.2.14)(react@19.2.4))(@assistant-ui/tap@0.5.5(@types/react@19.2.14)(react@19.2.4))(@types/react@19.2.14)(assistant-cloud@0.1.23)(react@19.2.4)(zustand@5.0.12(@types/react@19.2.14)(immer@11.1.4)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4)))
@@ -30806,9 +30840,7 @@ snapshots:
       metro-runtime: 0.83.5
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
     optional: true
 
   '@react-native/normalize-colors@0.74.89':
