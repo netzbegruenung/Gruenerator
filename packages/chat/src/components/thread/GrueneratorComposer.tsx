@@ -314,12 +314,14 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             typeof window !== 'undefined' && !window.matchMedia('(pointer: coarse)').matches
           }
           placeholder={placeholder}
-          className="min-h-[3rem] max-h-40 w-full flex-grow resize-none bg-transparent px-5 pt-4 pb-2 text-foreground outline-none placeholder:text-foreground-muted/60"
+          minRows={1}
+          maxRows={8}
+          className="min-h-0 w-full flex-grow resize-none bg-transparent px-5 pt-3.5 pb-2.5 text-foreground outline-none placeholder:text-foreground-muted/60"
           onChange={showMentions ? handleChange : undefined}
           onKeyDown={showMentions ? handleKeyDown : undefined}
         />
 
-        <div className="flex items-center justify-between px-2 pb-2">
+        <div className="flex items-center justify-between px-2 pb-1">
           <div className="flex items-center gap-0.5">
             <ComposerPrimitive.AddAttachment asChild>
               <button ref={uploadRef} className="hidden" aria-hidden="true" />
