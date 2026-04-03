@@ -6,7 +6,7 @@ services:
     ports:
       - '3100:3100'
     environment:
-      - ICONIFY_PORT=3100
+      - PORT=3100
     restart: unless-stopped
     healthcheck:
       test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:3100/collections']
