@@ -35,7 +35,7 @@ export function createSaveMemoryTool(deps: ToolDependencies): DynamicStructuredT
         return 'Erinnerungssystem nicht verfügbar.';
       }
 
-      const userId = (deps.agentConfig as any).userId;
+      const userId = deps.agentConfig.userId;
       if (!userId) {
         return 'Kein Nutzer-Kontext zum Speichern.';
       }

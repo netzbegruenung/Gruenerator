@@ -9,7 +9,10 @@ import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 
 import { executeDirectWebSearch } from '../../../../routes/chat/agents/directSearch.js';
-import { selectAndCrawlTopUrls } from '../../../../services/search/CrawlingService.js';
+import {
+  selectAndCrawlTopUrls,
+  type CrawledResult,
+} from '../../../../services/search/CrawlingService.js';
 import { expandQuery } from '../../../../services/search/QueryExpansionService.js';
 import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -126,17 +129,17 @@ export function createWebSearchTool(deps: ToolDependencies): DynamicStructuredTo
             setTimeout(() => reject(new Error('Crawl deadline exceeded')), CRAWL_DEADLINE_MS)
           ),
         ]);
-        results = crawled.map((r) => ({
+        results = crawled.map((r: CrawledResult) => ({
           ...r,
           title: r.title || '',
           url: r.url || '',
-          snippet: r.content,
-          domain: (r as any).domain || '',
-          relevance: (r as any).relevance || 0.5,
-          content: (r as any).fullContent || r.content,
+          snippet: r.content || '',
+          domain: (r.url ? new URL(r.url).hostname : '') || '',
+          relevance: r.relevance || 0.5,
+          content: r.fullContent || r.content || '',
         }));
-      } catch (err: any) {
-        log.warn(`[WebSearch] Crawling skipped: ${err.message}`);
+      } catch (err) {
+        log.warn(`[WebSearch] Crawling skipped: ${err instanceof Error ? err.message : err}`);
       }
 
       if (results.length === 0) {

@@ -27,7 +27,7 @@ function stripHtmlTags(html: string): string {
 }
 
 export function createSearchUserContentTool(deps: ToolDependencies): DynamicStructuredTool | null {
-  const userId = deps.userId || (deps.agentConfig as any).userId;
+  const userId = deps.userId || deps.agentConfig.userId;
   if (!userId) {
     return null;
   }
