@@ -7,16 +7,7 @@ import {
   useThreadListItem,
   useAui,
 } from '@assistant-ui/react';
-import {
-  MessageSquare,
-  MoreVertical,
-  Pencil,
-  Archive,
-  Trash2,
-  BookOpen,
-  Share2,
-  Search,
-} from 'lucide-react';
+import { MoreVertical, Pencil, Archive, Trash2, Share2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAgentStore } from '../../stores/chatStore';
 import { useExternalThread } from '../../context/ExternalThreadContext';
@@ -46,7 +37,7 @@ function ExternalThreadItem() {
   return (
     <div
       className={cn(
-        'group flex w-full items-center gap-2 rounded-lg px-3 py-2 transition-colors',
+        'group flex w-full items-center gap-2 rounded-lg px-3 py-2.5 transition-colors',
         'hover:bg-primary/5',
         isActive && 'bg-primary/10 text-primary'
       )}
@@ -57,27 +48,14 @@ function ExternalThreadItem() {
           useAgentStore.getState().setChatViewMode('thread');
           if (externalId) ctx?.onClick(externalId);
         }}
-        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        className="flex min-w-0 flex-1 items-center text-left"
       >
-        <BookOpen className="h-4 w-4 flex-shrink-0" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm">{title ?? 'Notebook'}</p>
         </div>
       </button>
     </div>
   );
-}
-
-function ThreadTypeIcon({ remoteId }: { remoteId: string | undefined }) {
-  const threadType = remoteId ? getThreadType(remoteId) : 'chat';
-  switch (threadType) {
-    case 'search':
-      return <Search className="h-4 w-4 flex-shrink-0" />;
-    case 'notebook':
-      return <BookOpen className="h-4 w-4 flex-shrink-0" />;
-    default:
-      return <MessageSquare className="h-4 w-4 flex-shrink-0" />;
-  }
 }
 
 export function GrueneratorThreadListItem() {
@@ -117,16 +95,15 @@ export function GrueneratorThreadListItem() {
     <>
       <ThreadListItemPrimitive.Root
         className={cn(
-          'group flex w-full items-center gap-2 rounded-lg px-3 py-2 transition-colors',
+          'group flex w-full items-center gap-2 rounded-lg px-3 py-2.5 transition-colors',
           'hover:bg-primary/5',
           'data-[active]:bg-primary/10 data-[active]:text-primary'
         )}
       >
         <ThreadListItemPrimitive.Trigger
           onClick={handleSwitch}
-          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          className="flex min-w-0 flex-1 items-center text-left"
         >
-          <ThreadTypeIcon remoteId={remoteId} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm">
               <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
@@ -192,16 +169,15 @@ export function GrueneratorArchivedThreadListItem() {
   return (
     <ThreadListItemPrimitive.Root
       className={cn(
-        'group flex w-full items-center gap-2 rounded-lg px-3 py-2 transition-colors',
+        'group flex w-full items-center gap-2 rounded-lg px-3 py-2.5 transition-colors',
         'hover:bg-primary/5 opacity-60',
         'data-[active]:bg-primary/10 data-[active]:text-primary data-[active]:opacity-100'
       )}
     >
       <ThreadListItemPrimitive.Trigger
         onClick={handleSwitch}
-        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        className="flex min-w-0 flex-1 items-center text-left"
       >
-        <Archive className="h-4 w-4 flex-shrink-0 text-foreground-muted" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm">
             <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />

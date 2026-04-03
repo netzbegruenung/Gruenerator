@@ -19,6 +19,7 @@ export function ChatThreadList() {
   return (
     <ThreadListPrimitive.Root className="flex flex-1 flex-col overflow-hidden">
       <div className="flex-1 overflow-y-auto px-4 pt-2 scrollbar-thin">
+        <p className="px-3 pb-3 pt-2 text-sm font-semibold text-foreground">Chats</p>
         <ThreadListPrimitive.Items components={threadComponents} />
 
         <div className="mt-4">
