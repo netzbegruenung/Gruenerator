@@ -562,7 +562,6 @@ export const useAuth = (options: AuthOptions = {}) => {
       updateAvatar,
       refetchAuth,
       session: null,
-      supabase: null,
       canManageAccount,
     };
   }, [
