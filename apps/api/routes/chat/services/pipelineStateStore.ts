@@ -3,6 +3,7 @@ import redisClient from '../../../utils/redis/client.js';
 
 import type { ProcessedAttachmentMeta } from './attachmentProcessingService.js';
 import type { ChatGraphState, ImageAttachment } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { ModelMessage } from 'ai';
 
 const log = createLogger('PipelineStateStore');
 
@@ -20,7 +21,7 @@ export interface StoredRequestContext {
   imageAttachments: ImageAttachment[];
   memoryContext: string | null;
   memoryRetrieveTimeMs: number;
-  validMessages: unknown[];
+  validMessages: ModelMessage[];
   forcedTool: boolean;
   rawDocumentIds?: string[];
 }

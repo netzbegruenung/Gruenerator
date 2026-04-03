@@ -1293,7 +1293,7 @@ router.post('/resume', async (req, res) => {
       hasImages: resumeImageAttachments.length > 0,
     });
 
-    const validMessages = requestContext.validMessages as any[];
+    const validMessages = requestContext.validMessages;
     const prunedValidMessages = pruneMessages(validMessages);
     const messagesForAI = buildMessagesForAI(systemMessage, prunedValidMessages);
 
