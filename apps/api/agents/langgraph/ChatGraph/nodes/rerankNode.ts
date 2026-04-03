@@ -19,6 +19,13 @@ const log = createLogger('ChatGraph:Rerank');
 const RERANK_INPUT_LIMIT = 12;
 const RERANK_OUTPUT_LIMIT = 8;
 
+const INTENT_RERANK_GUIDANCE: Record<string, string> = {
+  research: '\nHinweis: Bevorzuge Quellen mit Analyse, Synthese und Vergleichen.',
+  search: '\nHinweis: Offizielle Parteibeschlüsse und Programme höher als Kommentare bewerten.',
+  web: '\nHinweis: Seriöse Nachrichtenquellen höher als Social Media oder Foren bewerten.',
+  examples: '\nHinweis: Aktuelle und visuell ansprechende Beispiele bevorzugen.',
+};
+
 const RERANK_PROMPT = `Du bewertest die Relevanz von Suchergebnissen für eine Benutzeranfrage.
 
 Für jedes Ergebnis vergib einen Relevanz-Score von 1-5:
@@ -58,8 +65,8 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
   const outputLimit = isNotebookScoped ? 12 : RERANK_OUTPUT_LIMIT;
 
   // Skip reranking if only one result
-  if (searchResults.length <= 1) {
-    log.info(`[Rerank] Skipping — only ${searchResults.length} result`);
+  if (searchResults.length <= 2) {
+    log.info(`[Rerank] Skipping — only ${searchResults.length} results`);
     return { rerankTimeMs: Date.now() - startTime };
   }
 
@@ -75,14 +82,7 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
       .map((r, i) => `[${i}] ${r.title}\n${r.content.slice(0, 300)}`)
       .join('\n\n');
 
-    const intentGuidance: Record<string, string> = {
-      research: '\nHinweis: Bevorzuge Quellen mit Analyse, Synthese und Vergleichen.',
-      search: '\nHinweis: Offizielle Parteibeschlüsse und Programme höher als Kommentare bewerten.',
-      web: '\nHinweis: Seriöse Nachrichtenquellen höher als Social Media oder Foren bewerten.',
-      examples: '\nHinweis: Aktuelle und visuell ansprechende Beispiele bevorzugen.',
-    };
-
-    const userMessage = `Suchanfrage: "${searchQuery}"${researchBrief ? `\nRecherche-Kontext: ${researchBrief}` : ''}${intentGuidance[intent] || ''}
+    const userMessage = `Suchanfrage: "${searchQuery}"${researchBrief ? `\nRecherche-Kontext: ${researchBrief}` : ''}${INTENT_RERANK_GUIDANCE[intent] || ''}
 
 Ergebnisse:
 ${passageList}`;

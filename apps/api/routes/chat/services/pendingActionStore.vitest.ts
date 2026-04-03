@@ -127,6 +127,7 @@ describe('PendingAction payload shapes', () => {
       payload: {
         boardId: 'board-456',
         rows: [{ title: 'New Task', status: 'To Do' }],
+        responseText: 'Add task to board',
       },
     };
     expect(action.payload.boardId).toBe('board-456');

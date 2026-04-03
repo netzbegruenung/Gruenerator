@@ -353,18 +353,41 @@ export interface ChartData {
 export type ConfirmActionType = 'save_as_doc' | 'modify_doc' | 'modify_board';
 
 /**
- * Pending action stored in Redis while awaiting user confirmation.
+ * Type-safe payloads for each confirm action type.
  */
-export interface PendingAction {
+export interface SaveAsDocPayload {
+  content: string;
+  title: string;
+  subtype: string;
+}
+
+export interface ModifyDocPayload {
+  docId: string;
+  newContent: string;
+}
+
+export interface ModifyBoardPayload {
+  boardId: string;
+  rows: Array<Record<string, unknown>>;
+  responseText: string;
+}
+
+/**
+ * Pending action stored in Redis while awaiting user confirmation.
+ * Discriminated union ensures type-safe payload access per action type.
+ */
+export type PendingAction = {
   actionId: string;
-  type: ConfirmActionType;
   threadId: string;
   userId: string;
   title: string;
   preview: string;
-  payload: Record<string, unknown>;
   createdAt: number;
-}
+} & (
+  | { type: 'save_as_doc'; payload: SaveAsDocPayload }
+  | { type: 'modify_doc'; payload: ModifyDocPayload }
+  | { type: 'modify_board'; payload: ModifyBoardPayload }
+);
 
 /**
  * Chat search result from searching past conversations.

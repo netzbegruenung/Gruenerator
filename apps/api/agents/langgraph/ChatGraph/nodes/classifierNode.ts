@@ -187,6 +187,19 @@ Antworte NUR mit JSON:
 Bei "direct" und "image" setze searchQuery, optimizedSearchQuery, subQueries, searchSources und filters auf null/[].`;
 
 /**
+ * Intents that don't trigger search/retrieval — used to skip query optimization.
+ */
+const NON_SEARCH_INTENTS = new Set([
+  'direct',
+  'image',
+  'image_edit',
+  'chart',
+  'save_as_doc',
+  'modify_doc',
+  'modify_board',
+]);
+
+/**
  * Keywords for fuzzy matching in heuristic fallback.
  * Maps intents to their trigger keywords.
  */
@@ -659,6 +672,7 @@ function parseClassifierResponse(content: string, userContent: string): Classifi
     'web',
     'examples',
     'image',
+    'image_edit',
     'summary',
     'chart',
     'save_as_doc',
@@ -700,14 +714,7 @@ function parseClassifierResponse(content: string, userContent: string): Classifi
 
     if (parsed.intent && validIntents.includes(parsed.intent)) {
       const suffix = extracted ? ' (extracted)' : '';
-      const isSearchIntent = ![
-        'direct',
-        'image',
-        'chart',
-        'save_as_doc',
-        'modify_doc',
-        'modify_board',
-      ].includes(parsed.intent);
+      const isSearchIntent = !NON_SEARCH_INTENTS.has(parsed.intent);
 
       // Prefer optimizedSearchQuery for search intents
       let effectiveSearchQuery = isSearchIntent
@@ -1285,7 +1292,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     const heuristic = heuristicClassify(userContent);
 
     // Penalize confidence for multi-topic search queries → forces LLM decomposition
-    const isSearchIntent = !['direct', 'image'].includes(heuristic.intent);
+    const isSearchIntent = !NON_SEARCH_INTENTS.has(heuristic.intent);
     const needsDecomposition = isSearchIntent && looksMultiTopic(userContent);
 
     // Penalize confidence for vague follow-ups in multi-turn conversations →
@@ -1312,7 +1319,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
 
       // Apply query optimization for search intents
       let optimizedQuery = heuristic.searchQuery;
-      if (heuristic.searchQuery && !['direct', 'image'].includes(heuristic.intent)) {
+      if (heuristic.searchQuery && !NON_SEARCH_INTENTS.has(heuristic.intent)) {
         const extracted = extractSearchTopic(heuristic.searchQuery);
         if (extracted !== heuristic.searchQuery) {
           log.debug(

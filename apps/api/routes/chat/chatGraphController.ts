@@ -76,12 +76,101 @@ import type {
   PendingAction,
   ChartData,
   SearchIntent,
+  ConfirmActionType,
 } from '../../agents/langgraph/ChatGraph/types.js';
 import type { UIMessage } from 'ai';
 
 const log = createLogger('ChatGraphController');
 const router = createAuthenticatedRouter();
 router.use(express.json({ limit: '50mb' }));
+
+const GREEN_CHART_COLORS = ['#005538', '#8AC9B0', '#52907A', '#B1E0C9', '#003D28', '#6BAA91'];
+
+function extractChartFromResponse(text: string): ChartData | null {
+  const match = text.match(/```chart\s*\n?([\s\S]*?)```/);
+  if (!match) return null;
+  try {
+    const data = JSON.parse(match[1].trim()) as ChartData;
+    if (data.type && data.data && data.xKey && data.yKeys) {
+      if (!data.colors) data.colors = GREEN_CHART_COLORS;
+      return data;
+    }
+    return null;
+  } catch {
+    log.warn('[ChatGraph] Failed to parse chart JSON from response');
+    return null;
+  }
+}
+
+const CONFIRM_ACTION_CONFIG: Record<
+  ConfirmActionType,
+  { title: string; description: string; icon: string; confirmLabel: string }
+> = {
+  save_as_doc: {
+    title: 'Dokument erstellen',
+    description: 'Die Antwort wird als neues Dokument gespeichert.',
+    icon: 'file-text',
+    confirmLabel: 'Dokument erstellen',
+  },
+  modify_doc: {
+    title: 'Dokument bearbeiten',
+    description: 'Das erwähnte Dokument wird mit dem neuen Inhalt aktualisiert.',
+    icon: 'pencil',
+    confirmLabel: 'Aktualisieren',
+  },
+  modify_board: {
+    title: 'Board bearbeiten',
+    description: 'Die Aufgaben werden zum Board hinzugefügt.',
+    icon: 'kanban',
+    confirmLabel: 'Hinzufügen',
+  },
+};
+
+function buildPendingAction(
+  intent: SearchIntent,
+  threadId: string,
+  userId: string,
+  fullText: string,
+  searchQuery: string | null,
+  docMentionIds: string[] | undefined,
+  boardIds: string[] | undefined
+): PendingAction | null {
+  const base = {
+    actionId: `action_${Date.now()}`,
+    threadId,
+    userId,
+    preview: fullText.slice(0, 200),
+    createdAt: Date.now(),
+  };
+
+  switch (intent) {
+    case 'save_as_doc':
+      return {
+        ...base,
+        type: 'save_as_doc',
+        title: 'Antwort als Dokument speichern',
+        payload: { content: fullText, title: searchQuery || 'Neues Dokument', subtype: 'docs' },
+      };
+    case 'modify_doc':
+      if (!docMentionIds?.length) return null;
+      return {
+        ...base,
+        type: 'modify_doc',
+        title: 'Dokument aktualisieren',
+        payload: { docId: docMentionIds[0], newContent: fullText },
+      };
+    case 'modify_board':
+      if (!boardIds?.length) return null;
+      return {
+        ...base,
+        type: 'modify_board',
+        title: 'Board aktualisieren',
+        payload: { boardId: boardIds[0], rows: [], responseText: fullText },
+      };
+    default:
+      return null;
+  }
+}
 
 /**
  * POST /api/chat-graph/stream
@@ -931,7 +1020,7 @@ router.post('/stream', async (req, res) => {
           const searchResult = await searchNode(searchInputState);
           finalState = { ...searchInputState, ...searchResult } as ChatGraphState;
 
-          if (finalState.searchResults?.length > 1) {
+          if (finalState.searchResults?.length > 2) {
             const rerankResult = await rerankNode(finalState);
             finalState = { ...finalState, ...rerankResult } as ChatGraphState;
             if (finalState.searchResults.length > 0) {
@@ -982,22 +1071,12 @@ router.post('/stream', async (req, res) => {
 
     // === Stage 3b: Extract chart data from response (if chart intent) ===
     if (finalState.intent === 'chart') {
-      const chartMatch = fullText.match(/```chart\s*\n?([\s\S]*?)```/);
-      if (chartMatch) {
-        try {
-          const chartData = JSON.parse(chartMatch[1].trim()) as ChartData;
-          if (chartData.type && chartData.data && chartData.xKey && chartData.yKeys) {
-            if (!chartData.colors) {
-              chartData.colors = ['#005538', '#8AC9B0', '#52907A', '#B1E0C9', '#003D28', '#6BAA91'];
-            }
-            sse.send('chart_data', { chart: chartData });
-            log.info(
-              `[ChatGraph] Chart data extracted: ${chartData.type} with ${chartData.data.length} points`
-            );
-          }
-        } catch (err) {
-          log.warn(`[ChatGraph] Failed to parse chart JSON: ${err}`);
-        }
+      const chartData = extractChartFromResponse(fullText);
+      if (chartData) {
+        sse.send('chart_data', { chart: chartData });
+        log.info(
+          `[ChatGraph] Chart data extracted: ${chartData.type} with ${chartData.data.length} points`
+        );
       }
     }
 
@@ -1017,96 +1096,45 @@ router.post('/stream', async (req, res) => {
     });
 
     // === Stage 4b: Emit confirm_action for intents that need user approval ===
-    const actionIntent = finalState.intent;
-    if (
-      actualThreadId &&
-      (actionIntent === 'save_as_doc' ||
-        actionIntent === 'modify_doc' ||
-        actionIntent === 'modify_board')
-    ) {
-      const actionId = `action_${Date.now()}`;
-      let pendingAction: PendingAction | null = null;
-
-      if (actionIntent === 'save_as_doc') {
-        pendingAction = {
-          actionId,
-          type: 'save_as_doc',
-          threadId: actualThreadId,
-          userId,
-          title: 'Antwort als Dokument speichern',
-          preview: fullText.slice(0, 200),
-          payload: {
-            content: fullText,
-            title: classifiedState.searchQuery || 'Neues Dokument',
-            subtype: 'docs',
-          },
-          createdAt: Date.now(),
-        };
-        sse.send('confirm_action', {
-          actionId,
-          type: 'save_as_doc',
-          title: 'Dokument erstellen',
-          description: 'Die Antwort wird als neues Dokument gespeichert.',
-          icon: 'file-text',
-          metadata: [
-            { key: 'Titel', value: classifiedState.searchQuery || 'Neues Dokument' },
-            { key: 'Länge', value: `${fullText.length} Zeichen` },
-          ],
-          confirmLabel: 'Dokument erstellen',
-          cancelLabel: 'Abbrechen',
-          threadId: actualThreadId,
-        });
-      } else if (actionIntent === 'modify_doc' && rawDocMentionIds?.length) {
-        const docId = rawDocMentionIds[0];
-        pendingAction = {
-          actionId,
-          type: 'modify_doc',
-          threadId: actualThreadId,
-          userId,
-          title: 'Dokument aktualisieren',
-          preview: fullText.slice(0, 200),
-          payload: { docId, newContent: fullText },
-          createdAt: Date.now(),
-        };
-        sse.send('confirm_action', {
-          actionId,
-          type: 'modify_doc',
-          title: 'Dokument bearbeiten',
-          description: 'Das erwähnte Dokument wird mit dem neuen Inhalt aktualisiert.',
-          icon: 'pencil',
-          metadata: [{ key: 'Dokument', value: docId }],
-          confirmLabel: 'Aktualisieren',
-          cancelLabel: 'Abbrechen',
-          threadId: actualThreadId,
-        });
-      } else if (actionIntent === 'modify_board' && rawBoardIds?.length) {
-        const boardId = rawBoardIds[0];
-        pendingAction = {
-          actionId,
-          type: 'modify_board',
-          threadId: actualThreadId,
-          userId,
-          title: 'Board aktualisieren',
-          preview: fullText.slice(0, 200),
-          payload: { boardId, rows: [], responseText: fullText },
-          createdAt: Date.now(),
-        };
-        sse.send('confirm_action', {
-          actionId,
-          type: 'modify_board',
-          title: 'Board bearbeiten',
-          description: 'Die Aufgaben werden zum Board hinzugefügt.',
-          icon: 'kanban',
-          metadata: [{ key: 'Board', value: boardId }],
-          confirmLabel: 'Hinzufügen',
-          cancelLabel: 'Abbrechen',
-          threadId: actualThreadId,
-        });
-      }
+    if (actualThreadId) {
+      const pendingAction = buildPendingAction(
+        finalState.intent,
+        actualThreadId,
+        userId,
+        fullText,
+        classifiedState.searchQuery,
+        rawDocMentionIds,
+        rawBoardIds
+      );
 
       if (pendingAction) {
+        const ssePayload = CONFIRM_ACTION_CONFIG[pendingAction.type];
+        const metadataEntries =
+          pendingAction.type === 'save_as_doc'
+            ? [
+                { key: 'Titel', value: pendingAction.payload.title },
+                { key: 'Länge', value: `${fullText.length} Zeichen` },
+              ]
+            : pendingAction.type === 'modify_doc'
+              ? [{ key: 'Dokument', value: pendingAction.payload.docId }]
+              : [{ key: 'Board', value: pendingAction.payload.boardId }];
+
+        sse.send('confirm_action', {
+          actionId: pendingAction.actionId,
+          type: pendingAction.type,
+          title: ssePayload.title,
+          description: ssePayload.description,
+          icon: ssePayload.icon,
+          metadata: metadataEntries,
+          confirmLabel: ssePayload.confirmLabel,
+          cancelLabel: 'Abbrechen',
+          threadId: actualThreadId,
+        });
+
         await pendingActionStore.store(pendingAction);
-        log.info(`[ChatGraph] Confirm action stored: ${actionId} (${actionIntent})`);
+        log.info(
+          `[ChatGraph] Confirm action stored: ${pendingAction.actionId} (${pendingAction.type})`
+        );
       }
     }
 

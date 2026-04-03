@@ -49,7 +49,7 @@ function extractMessageText(content: unknown): string {
 export async function briefGeneratorNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
 
-  if (state.complexity !== 'complex' || state.intent !== 'research') {
+  if (!['complex', 'moderate'].includes(state.complexity) || state.intent !== 'research') {
     log.info(`[BriefGenerator] Skipping — complexity=${state.complexity}, intent=${state.intent}`);
     return {};
   }
