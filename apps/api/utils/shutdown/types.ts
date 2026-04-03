@@ -8,7 +8,7 @@ import type { Server } from 'http';
 export interface ShutdownableResource {
   shutdown?(): Promise<void>;
   close?(cb?: (err?: Error) => void): void;
-  quit?(): Promise<void>;
+  quit?(): Promise<unknown>;
   terminate?(): Promise<number>;
   isOpen?: boolean;
 }
