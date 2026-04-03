@@ -65,9 +65,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   const userName = useAuthStore((s) => s.user?.display_name || s.user?.name);
   const navigate = useNavigate();
   const location = useLocation();
-  const chats = useNotebookChatStore((s) => s.chats);
-  const qaCollections = useNotebookStore((s) => s.qaCollections);
-  const fetchQACollections = useNotebookStore((s) => s.fetchQACollections);
+  const qaCollectionsLength = useNotebookStore((s) => s.qaCollections.length);
 
   const [editorModal, setEditorModal] = useState<{
     documentId: string;
@@ -78,15 +76,26 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
 
   const mentionablesActivated = useAgentStore((s) => s.mentionablesActivated);
   useEffect(() => {
-    if (!mentionablesActivated || qaCollections.length > 0) return;
-    fetchQACollections();
-  }, [mentionablesActivated, qaCollections.length, fetchQACollections]);
+    if (!mentionablesActivated || qaCollectionsLength > 0) return;
+    useNotebookStore.getState().fetchQACollections();
+  }, [mentionablesActivated, qaCollectionsLength]);
 
-  // Refs for stable getExternalThreads callback — prevents function recreation on store changes
-  const chatsRef = useRef(chats);
-  const qaRef = useRef(qaCollections);
-  chatsRef.current = chats;
-  qaRef.current = qaCollections;
+  // Refs for stable getExternalThreads callback — updated via Zustand .subscribe() to avoid re-renders
+  const chatsRef = useRef(useNotebookChatStore.getState().chats);
+  const qaRef = useRef(useNotebookStore.getState().qaCollections);
+
+  useEffect(() => {
+    const unsubChats = useNotebookChatStore.subscribe((s) => {
+      chatsRef.current = s.chats;
+    });
+    const unsubQa = useNotebookStore.subscribe((s) => {
+      qaRef.current = s.qaCollections;
+    });
+    return () => {
+      unsubChats();
+      unsubQa();
+    };
+  }, []);
 
   const getExternalThreads = useCallback(() => {
     const userCols = qaRef.current.map((c) => ({ id: c.id, name: c.name }));
