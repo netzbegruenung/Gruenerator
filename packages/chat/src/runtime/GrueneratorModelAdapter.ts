@@ -151,6 +151,8 @@ async function* parseSSEStream(
   let activeToolCall: ToolCallPart | null = null;
   const allToolCalls: ToolCallPart[] = [];
   let interruptPending = false;
+  let lastYieldTime = 0;
+  const YIELD_INTERVAL = 50; // ms — max 20 yields/sec, matches NotebookModelAdapter
 
   function buildResult(): ChatModelRunResult {
     const content: Array<{ type: 'text'; text: string } | ToolCallPart | SourcePart> = [];
@@ -435,7 +437,11 @@ async function* parseSSEStream(
         case 'text_delta': {
           const delta = (data as { text: string }).text;
           accumulatedText += delta;
-          yield buildResult();
+          const now = performance.now();
+          if (now - lastYieldTime >= YIELD_INTERVAL) {
+            lastYieldTime = now;
+            yield buildResult();
+          }
           break;
         }
 
