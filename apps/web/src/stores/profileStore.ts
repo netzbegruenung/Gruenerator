@@ -466,7 +466,6 @@ export const useProfileStore = create<ProfileStore>()(
             authState.setAuthState({
               user: { ...authState.user, ...sanitizedUpdates } as typeof authState.user,
               isAuthenticated: authState.isAuthenticated,
-              supabaseSession: authState.supabaseSession,
             });
           }
         } catch (error) {

@@ -21,7 +21,6 @@ export interface AuthState {
   isLoggingOut: boolean;
   selectedMessageColor: string;
   locale: 'de-DE' | 'de-AT';
-  supabaseSession: unknown | null;
 }
 
 export interface PersistedAuthState {

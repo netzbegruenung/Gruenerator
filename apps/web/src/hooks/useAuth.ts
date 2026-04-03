@@ -13,7 +13,6 @@ interface AuthOptions {
 interface AuthData {
   isAuthenticated: boolean;
   user?: Record<string, unknown>;
-  supabaseSession?: Record<string, unknown>;
 }
 
 interface PartialLogoutState {
@@ -449,7 +448,6 @@ export const useAuth = (options: AuthOptions = {}) => {
           setAuthState({
             user: authData.user as any,
             isAuthenticated: authData.isAuthenticated,
-            supabaseSession: authData.supabaseSession as any,
           });
 
           // Consolidated init: single request seeds all query caches
@@ -469,15 +467,6 @@ export const useAuth = (options: AuthOptions = {}) => {
             .catch((error: unknown) => {
               console.warn('[useAuth] Init prefetch failed, falling back:', error);
             });
-        }
-
-        if (authData.supabaseSession) {
-          try {
-            const { initializeSupabaseAuth } = useAuthStore.getState();
-            initializeSupabaseAuth();
-          } catch (error) {
-            // Supabase auth initialization failed
-          }
         }
       } else if (currentIsAuthenticated) {
         // Only clear auth if user was previously authenticated
@@ -547,7 +536,6 @@ export const useAuth = (options: AuthOptions = {}) => {
         refetchAuth: () => {},
         setLoginIntent: () => {},
         session: null,
-        supabase: null,
         canManageAccount: (): boolean => false,
       };
     }

@@ -325,7 +325,7 @@ async function startWorker(): Promise<void> {
             "'self'",
             'data:',
             'blob:',
-            'https://*.supabase.co',
+
             'https://umami-f0s4w04kg4oww8cg44ssg4w8.moritz-waechter.de',
             `http://*.${PRIMARY_DOMAIN}`,
             `https://*.${PRIMARY_DOMAIN}`,
