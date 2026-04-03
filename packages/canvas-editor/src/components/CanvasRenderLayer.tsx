@@ -270,7 +270,7 @@ function CanvasRenderLayerInner<
             <IconPrimitive
               key={iconId}
               id={iconId}
-              icon={iconDef.component}
+              icon={iconDef.id}
               x={x}
               y={y}
               scale={scale}
