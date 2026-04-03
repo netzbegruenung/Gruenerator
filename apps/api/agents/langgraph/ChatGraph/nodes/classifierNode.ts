@@ -146,12 +146,26 @@ KEIN Klärungsbedarf (Gesprächsverlauf vorhanden):
 - Verlauf über Pressemitteilung + "mach das kürzer als post" → needsClarification: false
 - Verlauf über Energiewende + "erstelle einen Post dazu" → needsClarification: false
 
+SCHRITT 9 - SEKUNDÄREN INTENT ERKENNEN:
+Wenn die Anfrage ZUSÄTZLICH zur Hauptaufgabe eine zweite Aktion erfordert, setze secondaryIntent:
+- "Recherchiere X und erstelle ein Bild dazu" → intent: "research", secondaryIntent: "image"
+- "Suche nach Y und zeige Beispiele" → intent: "search", secondaryIntent: "examples"
+- "Fasse das Dokument zusammen und erstelle ein Diagramm" → intent: "summary", secondaryIntent: "chart"
+- Einfache Anfragen → secondaryIntent: null (Standard)
+
+REGELN:
+- secondaryIntent MUSS sich vom intent unterscheiden
+- Maximal EIN secondaryIntent
+- search/research/web können NICHT secondaryIntent sein — sie liefern Kontext und sind immer primary
+- Typische secondaryIntents: image, examples, chart, save_as_doc
+
 Antworte NUR mit JSON:
 {
   "typoAnalysis": {"original": "...", "corrected": "..."} | null,
   "contentType": "pressemitteilung" | "artikel" | "rede" | "argumentation" | "tweet" | "slogan" | null,
   "needsResearch": true | false,
   "intent": "image" | "research" | "search" | "web" | "examples" | "summary" | "chart" | "save_as_doc" | "modify_doc" | "modify_board" | "direct",
+  "secondaryIntent": "image" | "examples" | "chart" | "save_as_doc" | null,
   "searchQuery": "ORIGINALTEXT des Benutzers (KEINE Korrekturen an Eigennamen!)" | null,
   "optimizedSearchQuery": "nur das faktische Thema aus dem ORIGINALTEXT, ohne Aufgabenanweisung" | null,
   "subQueries": ["thema1", "thema2"] | null,
@@ -518,6 +532,7 @@ interface ClassifierLLMResponse {
   contentType?: string | null;
   needsResearch?: boolean;
   intent: string;
+  secondaryIntent?: string | null;
   searchQuery: string | null;
   optimizedSearchQuery?: string | null;
   subQueries?: string[] | null;
@@ -638,7 +653,19 @@ function heuristicExtractFilters(query: string): SubcategoryFilters | null {
  */
 function parseClassifierResponse(content: string, userContent: string): ClassificationResult {
   // Valid intents (person removed - feature disabled)
-  const validIntents = ['research', 'search', 'web', 'examples', 'image', 'summary', 'direct'];
+  const validIntents = [
+    'research',
+    'search',
+    'web',
+    'examples',
+    'image',
+    'summary',
+    'chart',
+    'save_as_doc',
+    'modify_doc',
+    'modify_board',
+    'direct',
+  ];
 
   /**
    * Process parsed response and build classification result.
@@ -673,7 +700,14 @@ function parseClassifierResponse(content: string, userContent: string): Classifi
 
     if (parsed.intent && validIntents.includes(parsed.intent)) {
       const suffix = extracted ? ' (extracted)' : '';
-      const isSearchIntent = !['direct', 'image'].includes(parsed.intent);
+      const isSearchIntent = ![
+        'direct',
+        'image',
+        'chart',
+        'save_as_doc',
+        'modify_doc',
+        'modify_board',
+      ].includes(parsed.intent);
 
       // Prefer optimizedSearchQuery for search intents
       let effectiveSearchQuery = isSearchIntent
@@ -740,8 +774,22 @@ function parseClassifierResponse(content: string, userContent: string): Classifi
         log.debug(`[Classifier] Detected filters: ${JSON.stringify(filters)}`);
       }
 
+      // Validate secondaryIntent: must differ from intent, cannot be a context-providing intent
+      const contextIntents = new Set(['search', 'research', 'web']);
+      const validSecondary =
+        parsed.secondaryIntent &&
+        parsed.secondaryIntent !== parsed.intent &&
+        !contextIntents.has(parsed.secondaryIntent)
+          ? (parsed.secondaryIntent as SearchIntent)
+          : null;
+
+      if (validSecondary) {
+        log.info(`[Classifier] Secondary intent detected: ${validSecondary}`);
+      }
+
       const result: ClassificationResult = {
         intent: parsed.intent as SearchIntent,
+        secondaryIntent: validSecondary,
         searchQuery: effectiveSearchQuery,
         subQueries,
         searchSources,
@@ -1341,6 +1389,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
 
     return {
       intent: classification.intent,
+      secondaryIntent: classification.secondaryIntent || null,
       searchSources: llmSearchSources,
       searchQuery: classification.searchQuery,
       subQueries: classification.subQueries || null,

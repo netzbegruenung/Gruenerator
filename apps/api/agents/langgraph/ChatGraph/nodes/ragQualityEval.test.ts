@@ -237,6 +237,7 @@ async function evaluateBudgetAllocation() {
     documentMentionContext: null,
     searchSources: [],
     intent: 'search',
+    secondaryIntent: null,
     searchQuery: 'Klimapolitik der Grünen',
     subQueries: null,
     reasoning: 'test',

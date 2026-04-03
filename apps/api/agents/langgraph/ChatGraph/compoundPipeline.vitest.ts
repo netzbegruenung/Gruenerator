@@ -111,6 +111,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     isCompound: false,
     gatherSources: [],
     intent: 'search',
+    secondaryIntent: null,
     searchSources: [],
     searchQuery: 'Hamburg Klimapolitik',
     subQueries: null,

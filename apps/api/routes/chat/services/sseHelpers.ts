@@ -78,6 +78,7 @@ export interface SSEEventPayloads {
   };
   intent: {
     intent: SearchIntent;
+    secondaryIntent?: SearchIntent;
     message: string;
     reasoning?: string;
     searchQuery?: string;
