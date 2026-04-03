@@ -146,6 +146,10 @@
   background: #ef4444;
 }
 
+.status-dot.offline-cached {
+  background: #f59e0b;
+}
+
 @keyframes editorTopBarPulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }

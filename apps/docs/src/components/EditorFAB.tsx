@@ -3,7 +3,7 @@ import { FiSidebar } from 'react-icons/fi';
 import './EditorFAB.css';
 
 interface EditorFABProps {
-  connectionStatus: 'connected' | 'syncing' | 'disconnected';
+  connectionStatus: 'connected' | 'syncing' | 'disconnected' | 'offline-cached';
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
 }

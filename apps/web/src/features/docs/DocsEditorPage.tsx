@@ -1,4 +1,8 @@
-import { useCollaboration, type CollaborationConfig } from '@gruenerator/collab';
+import {
+  useCollaboration,
+  getAuthErrorMessage,
+  type CollaborationConfig,
+} from '@gruenerator/collab';
 import {
   DocsProvider,
   useDocumentChat,
@@ -178,7 +182,7 @@ function EditorContent() {
   const [commentsPortalTarget, setCommentsPortalTarget] = useState<HTMLElement | null>(null);
 
   const collabConfig = useCollaborationConfig();
-  const { ydoc, provider, isConnected, isSynced } = useCollaboration({
+  const { ydoc, provider, isConnected, isSynced, isLocalLoaded, authError } = useCollaboration({
     documentId: id || '',
     user: isGuest
       ? null
@@ -195,6 +199,14 @@ function EditorContent() {
     provider,
     isSynced,
   });
+
+  useEffect(() => {
+    if (!authError) return;
+    const message = getAuthErrorMessage(authError);
+    if (message) {
+      import('sonner').then(({ toast }) => toast.error(message));
+    }
+  }, [authError]);
 
   const handleEditorReady = useCallback((editorInstance: BlockNoteEditor) => {
     setEditor(editorInstance);
@@ -310,8 +322,10 @@ function EditorContent() {
     return () => clearTimeout(timer);
   }, [isConnected]);
 
-  const connectionStatus: 'disconnected' | undefined = showDisconnected
-    ? 'disconnected'
+  const connectionStatus: 'disconnected' | 'offline-cached' | undefined = showDisconnected
+    ? isLocalLoaded
+      ? 'offline-cached'
+      : 'disconnected'
     : undefined;
 
   if (docIsLoading) {
@@ -452,7 +466,7 @@ function EditorContent() {
             documentSubtype={docData.document_subtype}
             ydoc={ydoc}
             provider={provider}
-            isSynced={isSynced}
+            isSynced={isLocalLoaded || isSynced}
             editable={canEdit}
             commentsPortalTarget={commentsPortalTarget}
             onEditorReady={handleEditorReady}
