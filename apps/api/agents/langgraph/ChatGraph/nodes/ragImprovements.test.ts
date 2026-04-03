@@ -219,6 +219,7 @@ async function testExpandedContextWindow() {
     imageTimeMs: 0,
     summaryContext: null,
     summaryTimeMs: 0,
+    chartData: null,
     responseText: '',
     streamingStarted: false,
     startTime: Date.now(),

@@ -10,6 +10,8 @@ import type {
   SearchSource,
   GatherSource,
   GeneratedImageResult,
+  ConfirmActionType,
+  ChartData,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { Response } from 'express';
 
@@ -31,6 +33,8 @@ export type SSEEventType =
   | 'text_delta'
   | 'interrupt'
   | 'document_indexed'
+  | 'confirm_action'
+  | 'chart_data'
   | 'done'
   | 'error';
 
@@ -105,6 +109,21 @@ export interface SSEEventPayloads {
     options?: string[];
     threadId?: string;
   };
+  confirm_action: {
+    actionId: string;
+    type: ConfirmActionType;
+    title: string;
+    description?: string;
+    icon?: string;
+    metadata?: Array<{ key: string; value: string }>;
+    variant?: 'default' | 'destructive';
+    confirmLabel?: string;
+    cancelLabel?: string;
+    threadId?: string;
+  };
+  chart_data: {
+    chart: ChartData;
+  };
   done: {
     threadId?: string | null;
     citations?: unknown[];
@@ -136,6 +155,10 @@ export const INTENT_MESSAGES: Record<SearchIntent, string> = {
   image: 'Generiere Bild...',
   image_edit: 'Bearbeite Bild...',
   summary: 'Fasse Dokument(e) zusammen...',
+  chart: 'Erstelle Diagramm...',
+  save_as_doc: 'Erstelle Dokument aus Antwort...',
+  modify_doc: 'Bearbeite Dokument...',
+  modify_board: 'Aktualisiere Board...',
   direct: 'Beantworte direkt...',
 };
 

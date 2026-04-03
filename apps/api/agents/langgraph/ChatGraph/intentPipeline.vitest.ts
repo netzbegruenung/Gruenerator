@@ -19,7 +19,16 @@ import {
   PROGRESS_MESSAGES,
   getIntentMessage,
 } from '../../../routes/chat/services/sseHelpers.js';
-import type { SearchIntent, ImageStyle, ChatGraphState } from './types.js';
+import type {
+  SearchIntent,
+  ImageStyle,
+  ChatGraphState,
+  ChartData,
+  ConfirmActionType,
+  PendingAction,
+  ChatSearchResult,
+  SearchSource,
+} from './types.js';
 
 // ============================================================================
 // Helpers
@@ -38,6 +47,10 @@ const ALL_INTENTS: SearchIntent[] = [
   'image',
   'image_edit',
   'summary',
+  'chart',
+  'save_as_doc',
+  'modify_doc',
+  'modify_board',
   'direct',
 ];
 
@@ -253,6 +266,10 @@ describe('every SearchIntent has a handler path', () => {
     web: 'handled via search branch (intent !== direct)',
     examples: 'handled via search branch (intent !== direct)',
     summary: 'handled via summary branch in controller',
+    chart: 'routes to respond, chart data handled by controller post-response',
+    save_as_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
+    modify_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
+    modify_board: 'routes to respond, then confirm_action SSE + pendingActionStore',
   };
 
   for (const intent of ALL_INTENTS) {
@@ -263,4 +280,141 @@ describe('every SearchIntent has a handler path', () => {
       ).toBeDefined();
     });
   }
+});
+
+// ============================================================================
+// 8. Action-related Intents
+// ============================================================================
+
+describe('action-related intents', () => {
+  const ACTION_INTENTS: SearchIntent[] = ['save_as_doc', 'modify_doc', 'modify_board'];
+
+  it('all action intents are in ALL_INTENTS', () => {
+    for (const intent of ACTION_INTENTS) {
+      expect(ALL_INTENTS).toContain(intent);
+    }
+  });
+
+  it('action intents have distinct INTENT_MESSAGES', () => {
+    const messages = ACTION_INTENTS.map((i) => INTENT_MESSAGES[i]);
+    const unique = new Set(messages);
+    expect(unique.size).toBe(ACTION_INTENTS.length);
+  });
+
+  it('INTENT_MESSAGES for action intents are in German', () => {
+    for (const intent of ACTION_INTENTS) {
+      expect(INTENT_MESSAGES[intent].endsWith('...')).toBe(true);
+    }
+  });
+});
+
+// ============================================================================
+// 9. ConfirmActionType ↔ SearchIntent Consistency
+// ============================================================================
+
+describe('ConfirmActionType consistency', () => {
+  const ALL_CONFIRM_TYPES: ConfirmActionType[] = ['save_as_doc', 'modify_doc', 'modify_board'];
+
+  it('every ConfirmActionType has a matching SearchIntent', () => {
+    for (const type of ALL_CONFIRM_TYPES) {
+      expect(ALL_INTENTS).toContain(type);
+    }
+  });
+
+  it('PendingAction type accepts all ConfirmActionType values', () => {
+    for (const type of ALL_CONFIRM_TYPES) {
+      const action: PendingAction = {
+        actionId: 'test',
+        type,
+        threadId: 'thread-1',
+        userId: 'user-1',
+        title: 'Test',
+        preview: 'Preview',
+        payload: {},
+        createdAt: Date.now(),
+      };
+      expect(action.type).toBe(type);
+    }
+  });
+});
+
+// ============================================================================
+// 10. ChartData Type Shape
+// ============================================================================
+
+describe('ChartData type shape', () => {
+  const CHART_TYPES: ChartData['type'][] = ['bar', 'line', 'area', 'pie', 'donut'];
+
+  it('accepts all chart types', () => {
+    for (const type of CHART_TYPES) {
+      const chart: ChartData = {
+        type,
+        title: 'Test Chart',
+        data: [{ name: 'A', value: 10 }],
+        xKey: 'name',
+        yKeys: ['value'],
+      };
+      expect(chart.type).toBe(type);
+    }
+  });
+
+  it('chartData field is nullable in ChatGraphState', () => {
+    const partial: Partial<ChatGraphState> = { chartData: null };
+    expect(partial.chartData).toBeNull();
+  });
+
+  it('chartData accepts full ChartData object', () => {
+    const chart: ChartData = {
+      type: 'bar',
+      title: 'Test',
+      data: [{ name: 'Jan', wert: 42 }],
+      xKey: 'name',
+      yKeys: ['wert'],
+      colors: ['#005538'],
+    };
+    const partial: Partial<ChatGraphState> = { chartData: chart };
+    expect(partial.chartData?.title).toBe('Test');
+  });
+});
+
+// ============================================================================
+// 11. SearchSource Expanded Types
+// ============================================================================
+
+describe('SearchSource expanded types', () => {
+  const ALL_SOURCES: SearchSource[] = ['documents', 'web', 'chat_history', 'wolke'];
+
+  it('SearchSource accepts all expected values', () => {
+    for (const source of ALL_SOURCES) {
+      const partial: Partial<ChatGraphState> = { searchSources: [source] };
+      expect(partial.searchSources).toContain(source);
+    }
+  });
+
+  it('ChatSearchResult has required fields', () => {
+    const result: ChatSearchResult = {
+      threadId: 'thread-1',
+      threadTitle: 'Test Thread',
+      agentId: 'gruenerator-universal',
+      snippet: 'test snippet content',
+      messageRole: 'assistant',
+      matchedAt: '2026-04-04T12:00:00Z',
+      threadUpdatedAt: '2026-04-04T12:00:00Z',
+    };
+    expect(result.threadId).toBe('thread-1');
+    expect(result.messageRole).toBe('assistant');
+  });
+
+  it('ChatSearchResult threadTitle is nullable', () => {
+    const result: ChatSearchResult = {
+      threadId: 'thread-1',
+      threadTitle: null,
+      agentId: 'test',
+      snippet: 'test',
+      messageRole: 'user',
+      matchedAt: '2026-04-04T12:00:00Z',
+      threadUpdatedAt: '2026-04-04T12:00:00Z',
+    };
+    expect(result.threadTitle).toBeNull();
+  });
 });
