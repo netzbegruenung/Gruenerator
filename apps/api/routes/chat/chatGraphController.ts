@@ -74,6 +74,8 @@ import type {
   ProcessedAttachment,
   ImageAttachment,
   PendingAction,
+  ChartData,
+  SearchIntent,
 } from '../../agents/langgraph/ChatGraph/types.js';
 import type { UIMessage } from 'ai';
 
@@ -578,6 +580,7 @@ router.post('/stream', async (req, res) => {
       searchSources: classifiedState.searchSources?.length
         ? classifiedState.searchSources
         : undefined,
+      secondaryIntent: classifiedState.secondaryIntent || undefined,
       compound: isCompound || undefined,
     });
 
@@ -827,52 +830,37 @@ router.post('/stream', async (req, res) => {
     let finalState = classifiedState;
     let generatedImage: GeneratedImageResult | null = null;
 
-    log.info(
-      `[ChatGraph] Stage 2 — intent=${classifiedState.intent}, forcedTool=${forcedTool}, enabledTools.image=${enabledTools?.['image']}`
-    );
-    if (classifiedState.intent === 'image') {
-      const imageToolEnabled = forcedTool || enabledTools?.['image'] !== false;
-      log.info(
-        `[ChatGraph] Image branch — imageToolEnabled=${imageToolEnabled}, userId=${(classifiedState.agentConfig as any).userId}, BFL_KEY_SET=${!!process.env.BFL_API_KEY}`
-      );
-      if (imageToolEnabled) {
-        sse.send('image_start', { message: PROGRESS_MESSAGES.imageStart });
-        const imageResult = await imageNode(classifiedState);
-        log.info(
-          `[ChatGraph] imageNode result — hasImage=${!!imageResult.generatedImage}, error=${imageResult.error || 'none'}, timeMs=${imageResult.imageTimeMs}`
-        );
-        finalState = { ...classifiedState, ...imageResult } as ChatGraphState;
+    // Build ordered list of intents to execute (primary first, then secondary)
+    const intentsToExecute: SearchIntent[] = [classifiedState.intent];
+    if (
+      classifiedState.secondaryIntent &&
+      classifiedState.secondaryIntent !== classifiedState.intent
+    ) {
+      intentsToExecute.push(classifiedState.secondaryIntent);
+      log.info(`[ChatGraph] Multi-intent: ${intentsToExecute.join(' → ')}`);
+    }
 
-        if (finalState.generatedImage) {
-          generatedImage = finalState.generatedImage;
-          sse.send('image_complete', {
-            message: PROGRESS_MESSAGES.imageComplete,
-            image: generatedImage,
-          });
-        } else if (finalState.error) {
-          sse.send('image_complete', {
-            message: PROGRESS_MESSAGES.imageError(finalState.error),
-            error: finalState.error,
-          });
-        }
-      }
-    } else if (classifiedState.intent === 'image_edit') {
-      const imageEditToolEnabled = forcedTool || enabledTools?.['image_edit'] !== false;
-      if (imageEditToolEnabled) {
-        if (!imageAttachments || imageAttachments.length === 0) {
-          sse.send('image_complete', {
-            message: PROGRESS_MESSAGES.imageEditNoAttachment,
-            error: PROGRESS_MESSAGES.imageEditNoAttachment,
-          });
-        } else {
-          sse.send('image_start', { message: PROGRESS_MESSAGES.imageEditStart });
-          const imageEditResult = await imageEditNode(classifiedState);
-          finalState = { ...classifiedState, ...imageEditResult } as ChatGraphState;
+    for (const currentIntent of intentsToExecute) {
+      log.info(
+        `[ChatGraph] Stage 2 — intent=${currentIntent}, forcedTool=${forcedTool}, enabledTools.image=${enabledTools?.['image']}`
+      );
+      if (currentIntent === 'image') {
+        const imageToolEnabled = forcedTool || enabledTools?.['image'] !== false;
+        log.info(
+          `[ChatGraph] Image branch — imageToolEnabled=${imageToolEnabled}, userId=${(classifiedState.agentConfig as any).userId}, BFL_KEY_SET=${!!process.env.BFL_API_KEY}`
+        );
+        if (imageToolEnabled) {
+          sse.send('image_start', { message: PROGRESS_MESSAGES.imageStart });
+          const imageResult = await imageNode(finalState);
+          log.info(
+            `[ChatGraph] imageNode result — hasImage=${!!imageResult.generatedImage}, error=${imageResult.error || 'none'}, timeMs=${imageResult.imageTimeMs}`
+          );
+          finalState = { ...finalState, ...imageResult } as ChatGraphState;
 
           if (finalState.generatedImage) {
             generatedImage = finalState.generatedImage;
             sse.send('image_complete', {
-              message: PROGRESS_MESSAGES.imageEditComplete,
+              message: PROGRESS_MESSAGES.imageComplete,
               image: generatedImage,
             });
           } else if (finalState.error) {
@@ -882,51 +870,78 @@ router.post('/stream', async (req, res) => {
             });
           }
         }
-      }
-    } else if (classifiedState.intent === 'summary') {
-      const docCount =
-        (classifiedState.documentChatIds?.length || 0) + (classifiedState.documentIds?.length || 0);
-      sse.send('summary_start', {
-        message: PROGRESS_MESSAGES.summaryStart,
-        documentCount: docCount,
-      });
-      const summaryResult = await summarizeNode(classifiedState);
-      finalState = { ...classifiedState, ...summaryResult } as ChatGraphState;
-      const summaryLength = finalState.summaryContext?.length || 0;
-      sse.send('summary_complete', {
-        message: PROGRESS_MESSAGES.summaryComplete(summaryLength, finalState.summaryTimeMs || 0),
-        summaryLength,
-        timeMs: finalState.summaryTimeMs || 0,
-      });
-    } else if (classifiedState.intent !== 'direct') {
-      const toolEnabled = forcedTool || enabledTools?.[classifiedState.intent] !== false;
-      if (toolEnabled) {
-        let searchInputState = classifiedState;
-        if (classifiedState.complexity === 'complex' && classifiedState.intent === 'research') {
-          const briefResult = await briefGeneratorNode(classifiedState);
-          searchInputState = { ...classifiedState, ...briefResult } as ChatGraphState;
-        }
+      } else if (currentIntent === 'image_edit') {
+        const imageEditToolEnabled = forcedTool || enabledTools?.['image_edit'] !== false;
+        if (imageEditToolEnabled) {
+          if (!imageAttachments || imageAttachments.length === 0) {
+            sse.send('image_complete', {
+              message: PROGRESS_MESSAGES.imageEditNoAttachment,
+              error: PROGRESS_MESSAGES.imageEditNoAttachment,
+            });
+          } else {
+            sse.send('image_start', { message: PROGRESS_MESSAGES.imageEditStart });
+            const imageEditResult = await imageEditNode(finalState);
+            finalState = { ...finalState, ...imageEditResult } as ChatGraphState;
 
-        sse.send('search_start', { message: PROGRESS_MESSAGES.searchStart });
-        const searchResult = await searchNode(searchInputState);
-        finalState = { ...searchInputState, ...searchResult } as ChatGraphState;
-
-        if (finalState.searchResults?.length > 3) {
-          const rerankResult = await rerankNode(finalState);
-          finalState = { ...finalState, ...rerankResult } as ChatGraphState;
-          if (finalState.searchResults.length > 0) {
-            finalState.citations = buildCitations(finalState.searchResults);
+            if (finalState.generatedImage) {
+              generatedImage = finalState.generatedImage;
+              sse.send('image_complete', {
+                message: PROGRESS_MESSAGES.imageEditComplete,
+                image: generatedImage,
+              });
+            } else if (finalState.error) {
+              sse.send('image_complete', {
+                message: PROGRESS_MESSAGES.imageError(finalState.error),
+                error: finalState.error,
+              });
+            }
           }
         }
-
-        const resultCount = finalState.searchResults?.length || 0;
-        sse.send('search_complete', {
-          message: PROGRESS_MESSAGES.searchComplete(resultCount),
-          resultCount,
-          results: finalState.searchResults?.slice(0, 10) || [],
+      } else if (currentIntent === 'summary') {
+        const docCount =
+          (finalState.documentChatIds?.length || 0) + (finalState.documentIds?.length || 0);
+        sse.send('summary_start', {
+          message: PROGRESS_MESSAGES.summaryStart,
+          documentCount: docCount,
         });
+        const summaryResult = await summarizeNode(finalState);
+        finalState = { ...finalState, ...summaryResult } as ChatGraphState;
+        const summaryLength = finalState.summaryContext?.length || 0;
+        sse.send('summary_complete', {
+          message: PROGRESS_MESSAGES.summaryComplete(summaryLength, finalState.summaryTimeMs || 0),
+          summaryLength,
+          timeMs: finalState.summaryTimeMs || 0,
+        });
+      } else if (currentIntent !== 'direct') {
+        const toolEnabled = forcedTool || enabledTools?.[currentIntent] !== false;
+        if (toolEnabled) {
+          let searchInputState = finalState;
+          if (finalState.complexity === 'complex' && currentIntent === 'research') {
+            const briefResult = await briefGeneratorNode(finalState);
+            searchInputState = { ...finalState, ...briefResult } as ChatGraphState;
+          }
+
+          sse.send('search_start', { message: PROGRESS_MESSAGES.searchStart });
+          const searchResult = await searchNode(searchInputState);
+          finalState = { ...searchInputState, ...searchResult } as ChatGraphState;
+
+          if (finalState.searchResults?.length > 3) {
+            const rerankResult = await rerankNode(finalState);
+            finalState = { ...finalState, ...rerankResult } as ChatGraphState;
+            if (finalState.searchResults.length > 0) {
+              finalState.citations = buildCitations(finalState.searchResults);
+            }
+          }
+
+          const resultCount = finalState.searchResults?.length || 0;
+          sse.send('search_complete', {
+            message: PROGRESS_MESSAGES.searchComplete(resultCount),
+            resultCount,
+            results: finalState.searchResults?.slice(0, 10) || [],
+          });
+        }
       }
-    }
+    } // end for (intentsToExecute)
 
     // === Stage 3: Response generation ===
     sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
@@ -958,6 +973,27 @@ router.post('/stream', async (req, res) => {
     });
 
     if (fullText === null) return; // stream errored, SSE already closed
+
+    // === Stage 3b: Extract chart data from response (if chart intent) ===
+    if (finalState.intent === 'chart') {
+      const chartMatch = fullText.match(/```chart\s*\n?([\s\S]*?)```/);
+      if (chartMatch) {
+        try {
+          const chartData = JSON.parse(chartMatch[1].trim()) as ChartData;
+          if (chartData.type && chartData.data && chartData.xKey && chartData.yKeys) {
+            if (!chartData.colors) {
+              chartData.colors = ['#005538', '#8AC9B0', '#52907A', '#B1E0C9', '#003D28', '#6BAA91'];
+            }
+            sse.send('chart_data', { chart: chartData });
+            log.info(
+              `[ChatGraph] Chart data extracted: ${chartData.type} with ${chartData.data.length} points`
+            );
+          }
+        } catch (err) {
+          log.warn(`[ChatGraph] Failed to parse chart JSON: ${err}`);
+        }
+      }
+    }
 
     // === Stage 4: Persist & complete ===
     await persistAssistantResponse({

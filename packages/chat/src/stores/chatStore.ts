@@ -98,7 +98,6 @@ interface AgentState {
   selectedModel: ModelId;
   currentThreadId: string | null;
   enabledTools: Record<ToolKey, boolean>;
-  useDeepAgent: boolean;
   selectedNotebookId: string;
   compactionState: CompactionState;
   compactionLoading: boolean;
@@ -119,7 +118,6 @@ interface AgentState {
   setCurrentThread: (threadId: string | null) => void;
   toggleTool: (tool: ToolKey) => void;
   setAllTools: (enabled: boolean) => void;
-  toggleDeepAgent: () => void;
   setSelectedNotebook: (notebookId: string) => void;
   setPendingMessage: (message: string | null) => void;
   setPendingDraft: (draft: string | null) => void;
@@ -159,7 +157,6 @@ export const useAgentStore = create<AgentState>()(
       selectedModel: 'mistral',
       currentThreadId: null,
       enabledTools: { ...DEFAULT_ENABLED_TOOLS },
-      useDeepAgent: false,
       selectedNotebookId: 'gruenerator-notebook',
       compactionState: { ...DEFAULT_COMPACTION_STATE },
       compactionLoading: false,
@@ -213,8 +210,6 @@ export const useAgentStore = create<AgentState>()(
             research: enabled,
           },
         }),
-
-      toggleDeepAgent: () => set((state) => ({ useDeepAgent: !state.useDeepAgent })),
 
       setSelectedNotebook: (notebookId) => set({ selectedNotebookId: notebookId }),
 
@@ -367,7 +362,6 @@ export const useAgentStore = create<AgentState>()(
         selectedModel: state.selectedModel,
         currentThreadId: state.currentThreadId,
         enabledTools: state.enabledTools,
-        useDeepAgent: state.useDeepAgent,
         selectedNotebookId: state.selectedNotebookId,
         threadMode: state.threadMode,
         searchMode: state.searchMode,

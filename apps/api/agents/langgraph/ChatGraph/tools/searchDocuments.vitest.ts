@@ -3,7 +3,7 @@
  *
  * Verifies:
  * 1. Zod schema validation for the search_documents tool
- * 2. 5-level collection priority chain (mirrors searchNode's chain in the DeepAgent context)
+ * 2. 5-level collection priority chain (mirrors searchNode's chain)
  * 3. LLM `collections` parameter override behavior
  * 4. Document-scoped search via getQdrantDocumentService
  * 5. Integrated reranking with Mistral + MMR diversity
