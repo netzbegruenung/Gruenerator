@@ -8,8 +8,8 @@ import {
   TooltipTrigger,
   useIsMobile,
 } from '@gruenerator/ui';
-import { useState, useEffect, useMemo, useCallback, memo } from 'react';
-import { PiSun, PiMoon, PiX, PiStarFill, PiPlus, PiSignIn } from 'react-icons/pi';
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
+import { PiSun, PiMoon, PiStarFill, PiSignIn } from 'react-icons/pi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { getFavouriteItemsById } from '../../../config/sidebarFavouritesConfig';
@@ -27,7 +27,9 @@ import {
   type MenuSection,
 } from '../Header/menuData';
 
+import NewItemDropdown from './NewItemDropdown';
 import SidebarSection from './SidebarSection';
+import { iconClass, menuLinkClass } from './sidebarStyles';
 
 import { cn } from '@/utils/cn';
 import '../../../assets/styles/components/layout/sidebar.css';
@@ -55,16 +57,6 @@ function NavTooltip({
   );
 }
 
-const menuLinkClass = (active: boolean, disabled?: boolean) =>
-  cn(
-    'flex items-center gap-md py-sm px-xs pl-2 mx-2 rounded-sm min-h-[40px] no-underline whitespace-nowrap transition-colors text-foreground hover:bg-hover-alt active:bg-[var(--hover-color)]',
-    active && 'bg-primary-100 text-primary-700 dark:bg-primary-950 dark:text-primary-200',
-    disabled && 'opacity-55 cursor-default pointer-events-none'
-  );
-
-const iconClass =
-  'text-[1.4rem] text-foreground shrink-0 w-6 flex items-center justify-center transition-colors xl:text-[1.5rem] 2xl:text-[1.6rem] 2xl:w-7';
-
 const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -80,6 +72,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   const isAustrian = locale === 'de-AT';
 
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const newMenuOpenRef = useRef(false);
   const [darkMode, setDarkMode] = useState(
     () => document.documentElement.getAttribute('data-theme') === 'dark'
   );
@@ -188,6 +181,12 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
     setDarkMode(!darkMode);
   }, [darkMode]);
 
+  const handleMouseLeave = useCallback(() => {
+    if (!newMenuOpenRef.current) {
+      close();
+    }
+  }, [close]);
+
   const titleClass = cn(
     'font-semibold text-[0.95rem] text-foreground-heading leading-snug transition-all duration-150 font-[Raleway,PT_Sans,Arial,sans-serif] xl:text-[1rem] 2xl:text-[1.05rem]',
     sidebarExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'
@@ -276,29 +275,14 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           </div>
         )}
 
-        {/* New Chat */}
-        <div className="flex flex-col gap-0.5 p-0 mt-xs">
-          {isDesktop ? (
-            <NavTooltip label="Neuer Chat" collapsed={!sidebarExpanded}>
-              <button onClick={handleChatClick} className={menuLinkClass(false)} type="button">
-                <PiPlus aria-hidden="true" className={iconClass} />
-                <span className={titleClass}>Neuer Chat</span>
-              </button>
-            </NavTooltip>
-          ) : (
-            <button
-              onClick={() => {
-                handleChatClick();
-                close();
-              }}
-              className={menuLinkClass(false)}
-              type="button"
-            >
-              <PiPlus aria-hidden="true" className={iconClass} />
-              <span className={titleClass}>Neuer Chat</span>
-            </button>
-          )}
-        </div>
+        {/* New Item Dropdown */}
+        <NewItemDropdown
+          openRef={newMenuOpenRef}
+          titleClass={titleClass}
+          onChatClick={handleChatClick}
+          onLinkClick={handleLinkClick}
+          onClose={close}
+        />
 
         {/* Favourites */}
         <SidebarFavourites
@@ -331,7 +315,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       <div
         id="chat-thread-portal-slot"
         className={cn(
-          'flex-1 flex flex-col overflow-hidden min-h-0 border-t border-grey-200 dark:border-grey-700',
+          'flex-1 flex flex-col overflow-hidden min-h-0 mt-2',
           !sidebarExpanded && 'hidden'
         )}
       />
@@ -412,7 +396,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           )}
           aria-label="Hauptnavigation"
           onMouseEnter={isDesktop ? open : undefined}
-          onMouseLeave={isDesktop && !forceExpanded ? close : undefined}
+          onMouseLeave={isDesktop && !forceExpanded ? handleMouseLeave : undefined}
         >
           {sidebarInner}
         </aside>
@@ -421,7 +405,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   );
 };
 
-function SidebarFavourites({
+const SidebarFavourites = memo(function SidebarFavourites({
   isOpen,
   isDesktop,
   onLinkClick,
@@ -452,12 +436,7 @@ function SidebarFavourites({
       {items.map((item) => {
         const content = (
           <>
-            {item.icon && (
-              <item.icon
-                aria-hidden="true"
-                className="text-[1.4rem] text-foreground shrink-0 w-6 flex items-center justify-center transition-colors xl:text-[1.5rem] 2xl:text-[1.6rem] 2xl:w-7"
-              />
-            )}
+            {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
             <span className={titleClass}>{item.title}</span>
             <button
               type="button"
@@ -502,6 +481,6 @@ function SidebarFavourites({
       })}
     </div>
   );
-}
+});
 
 export default memo(Sidebar);
