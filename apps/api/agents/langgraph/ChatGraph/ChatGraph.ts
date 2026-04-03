@@ -433,13 +433,19 @@ function routeAfterQualityGate(state: ChatState): 'search' | 'respond' {
 function createChatGraph() {
   const graph = new StateGraph(ChatStateAnnotation)
     // Add nodes
-    .addNode('classifier', classifierNode as any)
-    .addNode('briefGenerator', briefGeneratorNode as any)
-    .addNode('search', searchNode as any)
-    .addNode('rerank', rerankNode as any)
-    .addNode('qualityGate', qualityGateNode as any)
-    .addNode('image', imageNode as any)
-    .addNode('respond', respondNode as any)
+    // LangGraph's StateGraph.addNode expects the Annotation-inferred state shape,
+    // but our node functions are typed against ChatGraphState interface.
+    // The shapes are identical at runtime — this cast bridges the two type systems.
+    .addNode('classifier', classifierNode as (state: ChatState) => Promise<Partial<ChatState>>)
+    .addNode(
+      'briefGenerator',
+      briefGeneratorNode as (state: ChatState) => Promise<Partial<ChatState>>
+    )
+    .addNode('search', searchNode as (state: ChatState) => Promise<Partial<ChatState>>)
+    .addNode('rerank', rerankNode as (state: ChatState) => Promise<Partial<ChatState>>)
+    .addNode('qualityGate', qualityGateNode as (state: ChatState) => Promise<Partial<ChatState>>)
+    .addNode('image', imageNode as (state: ChatState) => Promise<Partial<ChatState>>)
+    .addNode('respond', respondNode as (state: ChatState) => Promise<Partial<ChatState>>)
 
     // START → classifier
     .addEdge('__start__', 'classifier')

@@ -177,7 +177,7 @@ export async function handleNotebookStream(
         results: searchContext.sortedResults,
         referencesMap: searchContext.referencesMap,
         question,
-        aiWorkerPool: (req as any).app.locals.aiWorkerPool,
+        aiWorkerPool: req.app.locals.aiWorkerPool,
         limit: 10,
       });
       searchContext.sortedResults = reranked.results;
@@ -251,7 +251,7 @@ export async function handleNotebookStream(
     const defaultAgentConfig = { provider: DEFAULT_PROVIDER, model: DEFAULT_MODEL };
     const { model: aiModel, provider: resolvedProvider } = resolveModel(defaultAgentConfig, model);
 
-    if (!isProviderConfigured(resolvedProvider as any)) {
+    if (!isProviderConfigured(resolvedProvider)) {
       sendSSE(res, 'error', { error: `Provider "${resolvedProvider}" is not configured` });
       res.end();
       return null;

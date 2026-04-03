@@ -119,7 +119,7 @@ function getRegoloProvider() {
   return regoloInstance;
 }
 
-export function isProviderConfigured(provider: AgentConfig['provider']): boolean {
+export function isProviderConfigured(provider: string): boolean {
   let configured = false;
   switch (provider) {
     case 'mistral':
@@ -147,7 +147,7 @@ export function isProviderConfigured(provider: AgentConfig['provider']): boolean
   }
 }
 
-export function getModel(provider: AgentConfig['provider'], modelId: string): LanguageModel {
+export function getModel(provider: string, modelId: string): LanguageModel {
   console.log(`[providers] getModel called: provider=${provider}, modelId=${modelId}`);
   switch (provider) {
     case 'mistral': {

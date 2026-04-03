@@ -414,7 +414,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             ).getQdrantDocumentService();
             const response = await documentSearchService.search({
               query: searchQuery || '',
-              userId: (agentConfig as any).userId,
+              userId: agentConfig.userId,
               options: {
                 limit: 12,
                 mode: 'hybrid',
@@ -427,11 +427,11 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
             for (const r of response.results || []) {
               results.push({
-                source: `documentchat:${(r as any).document_id || 'unknown'}`,
-                title: (r as any).title || 'Dokument',
-                content: (r as any).chunk_text || '',
-                url: (r as any).source_url || undefined,
-                relevance: (r as any).score ?? 0.5,
+                source: `documentchat:${r.document_id || 'unknown'}`,
+                title: r.title || 'Dokument',
+                content: r.relevant_content || '',
+                url: r.source_url || undefined,
+                relevance: r.similarity_score ?? 0.5,
               });
             }
             searchedCollections.push('documentchat');
@@ -450,7 +450,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             ).getQdrantDocumentService();
             const response = await documentSearchService.search({
               query: searchQuery || '',
-              userId: (agentConfig as any).userId,
+              userId: agentConfig.userId,
               options: {
                 limit: 8,
                 mode: 'hybrid',
@@ -463,11 +463,11 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
             for (const r of response.results || []) {
               results.push({
-                source: `document:${(r as any).document_id || 'unknown'}`,
-                title: (r as any).title || 'Dokument',
-                content: (r as any).chunk_text || '',
-                url: (r as any).source_url || undefined,
-                relevance: (r as any).score ?? 0.5,
+                source: `document:${r.document_id || 'unknown'}`,
+                title: r.title || 'Dokument',
+                content: r.relevant_content || '',
+                url: r.source_url || undefined,
+                relevance: r.similarity_score ?? 0.5,
               });
             }
             searchedCollections.push('user-documents');

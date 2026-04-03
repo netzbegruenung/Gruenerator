@@ -241,7 +241,7 @@ export async function summarizeNode(state: ChatGraphState): Promise<Partial<Chat
 
   try {
     const { aiWorkerPool } = state;
-    const userId = (state.agentConfig as any).userId;
+    const userId = state.agentConfig.userId;
     const docIds = [...(state.documentChatIds || []), ...(state.documentIds || [])];
 
     // Try retrieving full text from Qdrant

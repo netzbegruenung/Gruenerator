@@ -222,7 +222,7 @@ export class SSEWriter {
   send<T extends SSEEventType>(event: T, data: SSEEventPayloads[T]): void {
     if (this.ended) return;
     this.res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-    (this.res as any).flush?.();
+    (this.res as unknown as { flush?: () => void }).flush?.();
   }
 
   /**
@@ -231,7 +231,7 @@ export class SSEWriter {
   sendRaw(event: string, data: unknown): void {
     if (this.ended) return;
     this.res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-    (this.res as any).flush?.();
+    (this.res as unknown as { flush?: () => void }).flush?.();
   }
 
   /**

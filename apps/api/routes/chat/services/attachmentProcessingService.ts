@@ -14,6 +14,7 @@ import type {
   ProcessedAttachment,
   ImageAttachment,
 } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { ModelMessage } from 'ai';
 
 const log = createLogger('AttachmentProcessing');
 
@@ -107,10 +108,10 @@ export async function processAttachments(
  * Inject image attachments into the last user message for vision model processing.
  */
 export function injectImageAttachments(
-  messages: any[],
+  messages: ModelMessage[],
   imageAttachments: ImageAttachment[],
   requestId: string
-): any[] {
+): ModelMessage[] {
   if (imageAttachments.length === 0) return messages;
 
   log.info(`[${requestId}] Adding ${imageAttachments.length} images to message for vision model`);
@@ -118,7 +119,7 @@ export function injectImageAttachments(
   const result = [...messages];
   let lastUserIdx = -1;
   for (let i = result.length - 1; i >= 0; i--) {
-    if ((result[i] as any).role === 'user') {
+    if (result[i].role === 'user') {
       lastUserIdx = i;
       break;
     }

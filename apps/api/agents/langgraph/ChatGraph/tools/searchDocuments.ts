@@ -126,7 +126,7 @@ export function createSearchDocumentsTool(deps: ToolDependencies): DynamicStruct
     func: async ({ query, collections, document_ids, topK }) => {
       // Document-scoped search: filter by specific document IDs
       if (document_ids?.length) {
-        const userId = (deps.agentConfig as any).userId;
+        const userId = deps.agentConfig.userId;
         log.info(
           `[SearchDocuments] Document-scoped search: query="${query.slice(0, 60)}" docs=${document_ids.length}`
         );
