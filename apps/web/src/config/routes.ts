@@ -349,7 +349,7 @@ const standardRoutes: RouteConfig[] = [
     path: '/chat/settings',
     component: lazy(() => Promise.resolve({ default: createRedirect('/profile') })),
   },
-  { path: '/chat', component: GrueneratorenBundle.Chat, layoutMode: 'fullscreen' },
+  { path: '/chat', component: GrueneratorenBundle.Chat, layoutMode: 'sidebarOnly' },
   { path: '/voice', component: VoiceAgentPage, layoutMode: 'noChrome' },
   // Apps & Connect Page
   { path: '/apps', component: AppsPage },
