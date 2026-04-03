@@ -39,6 +39,7 @@ import type {
   SearchResult,
   Citation,
   ImageStyle,
+  GatherSource,
   GeneratedImageResult,
   ImageAttachment,
   ThreadAttachment,
@@ -137,6 +138,14 @@ const ChatStateAnnotation = Annotation.Root({
   }),
   memoryRetrieveTimeMs: Annotation<number>({
     reducer: (x, y) => y ?? x ?? 0,
+  }),
+
+  // Compound query detection (notebook + skill → gather-then-apply pipeline)
+  isCompound: Annotation<boolean>({
+    reducer: (x, y) => y ?? x ?? false,
+  }),
+  gatherSources: Annotation<GatherSource[]>({
+    reducer: (x, y) => y ?? x ?? [],
   }),
 
   // Classification output
@@ -246,6 +255,11 @@ const ChatStateAnnotation = Annotation.Root({
   }),
   streamingStarted: Annotation<boolean>({
     reducer: (x, y) => y ?? x ?? false,
+  }),
+
+  // Context window awareness (from model registry)
+  contextWindowTokens: Annotation<number>({
+    reducer: (x, y) => y ?? x ?? 128000,
   }),
 
   // Metadata for observability
@@ -501,6 +515,10 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     memoryContext: null,
     memoryRetrieveTimeMs: 0,
 
+    // Compound query detection (will be set by classifier node)
+    isCompound: false,
+    gatherSources: [],
+
     // Classification (will be set by classifier node)
     intent: 'direct' as SearchIntent,
     searchSources: [],
@@ -541,6 +559,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     // Response (will be set by respond node)
     responseText: '',
     streamingStarted: false,
+
+    // Context window awareness
+    contextWindowTokens: input.contextWindowTokens || 128000,
 
     // Metadata
     startTime: Date.now(),

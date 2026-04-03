@@ -29,16 +29,19 @@ import {
   summarizeNode,
   buildCitations,
 } from '../../agents/langgraph/ChatGraph/index.js';
+import { truncateDocument } from '../../agents/langgraph/ChatGraph/nodes/respondNode.js';
 import { isKnownNotebook } from '../../config/notebookCollectionMap.js';
 import { getMem0Instance } from '../../services/mem0/index.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { getContextWindow } from './agents/providers.js';
 import { getThreadAttachments } from './services/attachmentPersistenceService.js';
 import {
   processAttachments,
   injectImageAttachments,
 } from './services/attachmentProcessingService.js';
+import { extractCompoundTopic } from './services/compoundTopicExtractor.js';
 import { pruneMessages, applyCompaction } from './services/contextPruningService.js';
 import { fetchDocumentContext, fetchTextContext } from './services/documentContextService.js';
 import { extractTextContent, filterEmptyAssistantMessages } from './services/messageHelpers.js';
@@ -241,6 +244,9 @@ router.post('/stream', async (req, res) => {
     // === Read user profile instructions ===
     const userInstructions = (user as any).custom_prompt?.trim() || undefined;
 
+    // === Resolve context window for model-aware budgets ===
+    const contextWindowTokens = getContextWindow(modelId);
+
     // === Initialize state ===
     const initialState = await initializeChatState({
       messages: validMessages,
@@ -272,6 +278,7 @@ router.post('/stream', async (req, res) => {
       userLocale: (user as any)?.locale || 'de-DE',
       customSystemPrompt: rawCustomSystemPrompt,
       userInstructions,
+      contextWindowTokens,
     });
 
     const userLocale = (user as any)?.locale || 'de-DE';
@@ -373,6 +380,11 @@ router.post('/stream', async (req, res) => {
         );
 
         if (docResults.length > 0) {
+          // Per-doc budget scales with context window: 8K for 128K models, 2K for 16K models
+          const perDocBudget = Math.max(
+            2000,
+            Math.min(8000, Math.floor(contextWindowTokens * 0.25))
+          );
           const docParts = (
             docResults as Array<{ id: string; title: string; content: string | null }>
           )
@@ -389,8 +401,17 @@ router.post('/stream', async (req, res) => {
                 .replace(/&#x?[0-9a-fA-F]+;/g, ' ')
                 .replace(/\s+/g, ' ')
                 .trim();
-              log.info(`[ChatGraph] Doc context loaded: "${d.title}" (${plainText.length} chars)`);
-              return `### ${d.title}\n\n${plainText}`;
+              const truncated = truncateDocument(plainText, perDocBudget);
+              if (truncated.length < plainText.length) {
+                log.info(
+                  `[ChatGraph] Doc context truncated: "${d.title}" (${plainText.length} → ${truncated.length} chars, budget: ${perDocBudget})`
+                );
+              } else {
+                log.info(
+                  `[ChatGraph] Doc context loaded: "${d.title}" (${plainText.length} chars)`
+                );
+              }
+              return `### ${d.title}\n\n${truncated}`;
             });
 
           if (docParts.length > 0) {
@@ -405,7 +426,18 @@ router.post('/stream', async (req, res) => {
     }
 
     // === Phase 2: Index uploaded document attachments via vector pipeline ===
-    if (docAttachments.length > 0) {
+    // Small docs (<4K chars extracted text) stay inline for full context.
+    // Large docs are vectorized for RAG retrieval — more efficient and relevant
+    // than truncating 50 pages to intro+outro.
+    const SMALL_DOC_VECTORIZATION_THRESHOLD = 4000;
+
+    const largeDocAttachments = docAttachments.filter((att) => {
+      const meta = processedMeta.find((m) => m.name === att.name && !m.isImage);
+      const textLength = meta?.extractedText?.length ?? 0;
+      return textLength >= SMALL_DOC_VECTORIZATION_THRESHOLD;
+    });
+
+    if (largeDocAttachments.length > 0) {
       try {
         const { getPostgresDocumentService } =
           await import('../../services/document-services/PostgresDocumentService/index.js');
@@ -417,7 +449,7 @@ router.post('/stream', async (req, res) => {
         const pgService = getPostgresDocumentService();
         const qdrantService = getQdrantDocumentService();
 
-        for (const att of docAttachments) {
+        for (const att of largeDocAttachments) {
           try {
             const buffer = Buffer.from(att.data, 'base64');
             const result = await processFileUpload(
@@ -453,9 +485,26 @@ router.post('/stream', async (req, res) => {
       }
     }
 
-    // Clear raw attachment text when vectorization succeeded (use semantic retrieval instead)
+    // Clear raw attachment text for vectorized docs only.
+    // Small docs (<4K chars) keep their inline attachmentContext.
     if (initialState.documentChatIds && initialState.documentChatIds.length > 0) {
-      initialState.attachmentContext = null;
+      if (largeDocAttachments.length === docAttachments.length) {
+        // All docs were vectorized — clear all attachment context
+        initialState.attachmentContext = null;
+      } else {
+        // Mixed: keep only small doc text in attachmentContext, large docs use RAG
+        const smallDocNames = new Set(
+          docAttachments.filter((att) => !largeDocAttachments.includes(att)).map((att) => att.name)
+        );
+        const smallDocTexts = processedMeta
+          .filter((m) => !m.isImage && m.extractedText && smallDocNames.has(m.name))
+          .map((m) => `### ${m.name}\n\n${m.extractedText}`);
+        initialState.attachmentContext =
+          smallDocTexts.length > 0 ? smallDocTexts.join('\n\n---\n\n') : null;
+      }
+      log.info(
+        `[ChatGraph] Attachment routing: ${largeDocAttachments.length} vectorized (RAG), ${docAttachments.length - largeDocAttachments.length} inline`
+      );
     }
 
     // === Stage 1: Classify ===
@@ -468,15 +517,47 @@ router.post('/stream', async (req, res) => {
     log.info(
       `[ChatGraph] forcedTools received: ${JSON.stringify(forcedTools)}, classifier intent: ${classifiedState.intent}`
     );
+
+    // === Compound query detection ===
+    // When notebooks + non-default agent are both present, this is a compound query
+    // (e.g., "@hamburg erstelle eine @pressemitteilung" = search Hamburg THEN write press release)
+    const isCompound = notebookIds.length > 0 && !!agentId && agentId !== 'gruenerator-universal';
+    classifiedState.isCompound = isCompound;
+
+    if (isCompound) {
+      log.info(
+        `[ChatGraph] Compound query detected: notebooks=[${notebookIds.join(',')}], agent=${agentId}`
+      );
+
+      // Ensure search query is populated for compound queries with vague text
+      if (!classifiedState.searchQuery) {
+        const userText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        classifiedState.searchQuery = extractCompoundTopic(userText, notebookIds);
+        log.info(`[ChatGraph] Compound topic extracted: "${classifiedState.searchQuery}"`);
+      }
+
+      // Emit compound start event for frontend multi-step progress
+      const gatherSources = classifiedState.gatherSources?.length
+        ? classifiedState.gatherSources
+        : ['notebook-search' as const];
+      classifiedState.gatherSources = gatherSources;
+
+      sse.send('compound_start', {
+        stages: gatherSources,
+        message: PROGRESS_MESSAGES.compoundStart(gatherSources.length),
+      });
+    }
+
     if (forcedTools && forcedTools.length > 0) {
-      const TOOL_PRIORITY = [
-        'image',
-        'image_edit',
-        'summary',
-        'research',
-        'web',
-        'search',
-      ] as const;
+      // For compound queries with search-class forced tools, search takes precedence
+      const searchClassTools = ['research', 'web', 'search'];
+      const hasSearchTool = forcedTools.some((t) => searchClassTools.includes(t));
+
+      const TOOL_PRIORITY =
+        isCompound && hasSearchTool
+          ? (['research', 'web', 'search', 'image', 'image_edit', 'summary'] as const)
+          : (['image', 'image_edit', 'summary', 'research', 'web', 'search'] as const);
+
       const forced = TOOL_PRIORITY.find((t) => forcedTools.includes(t));
       if (forced) {
         classifiedState.intent = forced;
@@ -494,12 +575,15 @@ router.post('/stream', async (req, res) => {
       searchSources: classifiedState.searchSources?.length
         ? classifiedState.searchSources
         : undefined,
+      compound: isCompound || undefined,
     });
 
     // === HITL: Check if clarification is needed ===
+    // Skip clarification for compound queries — the user was explicit with mentions
     if (
       classifiedState.needsClarification &&
       !forcedTool &&
+      !isCompound &&
       !initialState.attachmentContext &&
       !initialState.boardContext &&
       !initialState.documentMentionContext
@@ -827,7 +911,12 @@ router.post('/stream', async (req, res) => {
 
     const prunedValidMessages = pruneMessages(validMessages);
     const finalSystemMessage = actualThreadId
-      ? await applyCompaction(actualThreadId, prunedValidMessages, systemMessage)
+      ? await applyCompaction(
+          actualThreadId,
+          prunedValidMessages,
+          systemMessage,
+          contextWindowTokens
+        )
       : systemMessage;
 
     let messagesForAI = buildMessagesForAI(finalSystemMessage, prunedValidMessages);

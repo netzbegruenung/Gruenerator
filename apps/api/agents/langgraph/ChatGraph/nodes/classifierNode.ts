@@ -11,7 +11,13 @@ import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer
 import { createLogger } from '../../../../utils/logger.js';
 
 import type { SubcategoryFilters } from '../../../../config/systemCollectionsConfig.js';
-import type { ChatGraphState, SearchIntent, SearchSource, ClassificationResult } from '../types.js';
+import type {
+  ChatGraphState,
+  SearchIntent,
+  SearchSource,
+  GatherSource,
+  ClassificationResult,
+} from '../types.js';
 import type { ModelMessage } from 'ai';
 
 const log = createLogger('ChatGraph:Classifier');
@@ -1085,10 +1091,34 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
       }
     }
 
-    // If notebooks are mentioned, force search intent but use LLM for query optimization
-    if (hasNotebooks && userContent.length > 0) {
+    // If notebooks are mentioned, force search intent with LLM query optimization.
+    // Also detect compound queries: notebook + non-default agent = gather-then-apply pipeline.
+    if (hasNotebooks) {
+      const isNonDefaultAgent = state.agentConfig.identifier !== 'gruenerator-universal';
+      const gatherSources: GatherSource[] = ['notebook-search'];
+
+      // Empty user content after mention stripping (e.g., "@hamburg @presse")
+      if (userContent.length === 0) {
+        const classificationTimeMs = Date.now() - startTime;
+        log.info(
+          `[Classifier] Notebook mention with empty text, forcing search intent (compound: ${isNonDefaultAgent})`
+        );
+        return {
+          intent: 'search',
+          searchSources: [],
+          searchQuery: null,
+          detectedFilters: null,
+          reasoning: 'Notebook mention with empty text forces search intent',
+          hasTemporal: false,
+          complexity: 'simple' as const,
+          classificationTimeMs,
+          gatherSources,
+          ...(isNonDefaultAgent ? { contentType: null } : {}),
+        };
+      }
+
       log.info(
-        `[Classifier] Notebook mention detected, forcing search intent with LLM query optimization`
+        `[Classifier] Notebook mention detected, forcing search intent with LLM query optimization (compound: ${isNonDefaultAgent})`
       );
 
       // Use LLM to correct typos and optimize the search query
@@ -1135,6 +1165,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
           hasTemporal: temporal.hasTemporal,
           complexity,
           classificationTimeMs,
+          gatherSources,
         };
       } catch (error: any) {
         // Fallback to heuristic if LLM fails
@@ -1149,6 +1180,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
           hasTemporal: temporal.hasTemporal,
           complexity,
           classificationTimeMs: Date.now() - startTime,
+          gatherSources,
         };
       }
     }
