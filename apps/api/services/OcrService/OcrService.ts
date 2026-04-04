@@ -193,7 +193,7 @@ export class OCRService {
         }
       }
 
-      // Optional parseability check for PDFs only (for telemetry)
+      // Parseability check for PDFs — skip OCR if text is directly extractable
       let parseCheck: ParseabilityCheck | null = null;
       if (fileExtension === '.pdf') {
         try {
@@ -206,7 +206,32 @@ export class OCRService {
       let result: ExtractionResult;
       let usedProvider: string;
 
-      if (configuredProvider === 'docling') {
+      // Fast path: skip OCR for text-native PDFs (saves API costs)
+      if (parseCheck?.isParseable && parseCheck.confidence >= 0.8) {
+        console.log(
+          `[OCRService] PDF is text-native (confidence=${(parseCheck.confidence * 100).toFixed(0)}%), using direct extraction`
+        );
+        try {
+          result = await this.extractTextDirectlyFromPDF(filePath);
+          // Verify extraction produced meaningful text, fall through to OCR if not
+          if (result.text && result.text.length >= 50) {
+            usedProvider = 'pdfjs-direct';
+          } else {
+            console.log(
+              `[OCRService] Direct extraction yielded insufficient text (${result.text?.length ?? 0} chars), falling back to OCR`
+            );
+            result = await this.extractTextWithMistralOCR(filePath);
+            usedProvider = 'mistral-ocr';
+          }
+        } catch (directError) {
+          console.warn(
+            `[OCRService] Direct PDF extraction failed, falling back to OCR:`,
+            (directError as Error).message
+          );
+          result = await this.extractTextWithMistralOCR(filePath);
+          usedProvider = 'mistral-ocr';
+        }
+      } else if (configuredProvider === 'docling') {
         // Try Docling first, fall back to Mistral if unavailable or on error
         const doclingReady = await checkDocling();
         if (doclingReady) {

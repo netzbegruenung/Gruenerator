@@ -40,6 +40,7 @@ export function collapseBlankLines(text: string): string {
 
 /**
  * Clean text for embedding preparation
+ * - Removes null bytes and leading whitespace after newlines
  * - Removes soft hyphens
  * - Dehyphenates words split across line breaks
  * - Joins OCR-split words
@@ -52,6 +53,12 @@ export function collapseBlankLines(text: string): string {
  */
 export function cleanTextForEmbedding(text: string, preserveStructure = false): string {
   let out = text || '';
+
+  // Remove null bytes (break Postgres text columns)
+  out = out.replace(/\0/g, '');
+
+  // Remove leading whitespace after newlines (OCR indentation artifacts)
+  out = out.replace(/\n[ \t]+/g, '\n');
 
   // Remove soft hyphens
   out = out.replace(new RegExp(SOFT_HYPHEN, 'g'), '');
