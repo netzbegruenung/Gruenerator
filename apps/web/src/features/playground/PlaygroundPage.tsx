@@ -36,6 +36,7 @@ interface ModelConfig {
   name: string;
   category: string;
   reasoning: boolean;
+  vision: boolean;
 }
 
 interface PromptConfig {
