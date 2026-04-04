@@ -24,12 +24,8 @@ import {
   briefGeneratorNode,
   searchNode,
   rerankNode,
-  imageNode,
-  imageEditNode,
-  summarizeNode,
   buildCitations,
 } from '../../agents/langgraph/ChatGraph/index.js';
-import { truncateDocument } from '../../agents/langgraph/ChatGraph/nodes/respondNode.js';
 import { isKnownNotebook } from '../../config/notebookCollectionMap.js';
 import { getMem0Instance } from '../../services/mem0/index.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
@@ -43,10 +39,16 @@ import {
 } from './services/attachmentProcessingService.js';
 import { searchChatHistory } from './services/chatSearchService.js';
 import { extractCompoundTopic } from './services/compoundTopicExtractor.js';
+import { extractChartFromResponse, emitConfirmAction } from './services/confirmActionService.js';
+import { enrichContext } from './services/contextEnrichmentService.js';
 import { pruneMessages, applyCompaction } from './services/contextPruningService.js';
-import { fetchDocumentContext, fetchTextContext } from './services/documentContextService.js';
+import {
+  handleBoardCreation,
+  generateAndCreateDocument,
+  handleShareDoc,
+  executeIntentPipeline,
+} from './services/intentExecutionService.js';
 import { extractTextContent, filterEmptyAssistantMessages } from './services/messageHelpers.js';
-import { pendingActionStore } from './services/pendingActionStore.js';
 import { pipelineStateStore } from './services/pipelineStateStore.js';
 import {
   persistAssistantResponse,
@@ -64,7 +66,6 @@ import {
   createThread,
   createMessage,
   touchThread,
-  threadExists,
 } from './services/threadPersistenceService.js';
 
 import type { ProcessedAttachmentMeta } from './services/attachmentProcessingService.js';
@@ -73,119 +74,13 @@ import type {
   GeneratedImageResult,
   ProcessedAttachment,
   ImageAttachment,
-  PendingAction,
-  ChartData,
   SearchIntent,
-  ConfirmActionType,
 } from '../../agents/langgraph/ChatGraph/types.js';
 import type { UIMessage } from 'ai';
 
 const log = createLogger('ChatGraphController');
 const router = createAuthenticatedRouter();
 router.use(express.json({ limit: '50mb' }));
-
-const GREEN_CHART_COLORS = ['#005538', '#8AC9B0', '#52907A', '#B1E0C9', '#003D28', '#6BAA91'];
-
-function extractChartFromResponse(text: string): ChartData | null {
-  const match = text.match(/```chart\s*\n?([\s\S]*?)```/);
-  if (!match) return null;
-  try {
-    const data = JSON.parse(match[1].trim()) as ChartData;
-    if (data.type && data.data && data.xKey && data.yKeys) {
-      if (!data.colors) data.colors = GREEN_CHART_COLORS;
-      return data;
-    }
-    return null;
-  } catch {
-    log.warn('[ChatGraph] Failed to parse chart JSON from response');
-    return null;
-  }
-}
-
-const CONFIRM_ACTION_CONFIG: Record<
-  ConfirmActionType,
-  { title: string; description: string; icon: string; confirmLabel: string }
-> = {
-  save_as_doc: {
-    title: 'Dokument erstellen',
-    description: 'Die Antwort wird als neues Dokument gespeichert.',
-    icon: 'file-text',
-    confirmLabel: 'Dokument erstellen',
-  },
-  modify_doc: {
-    title: 'Dokument bearbeiten',
-    description: 'Das erwähnte Dokument wird mit dem neuen Inhalt aktualisiert.',
-    icon: 'pencil',
-    confirmLabel: 'Aktualisieren',
-  },
-  modify_board: {
-    title: 'Board bearbeiten',
-    description: 'Die Aufgaben werden zum Board hinzugefügt.',
-    icon: 'kanban',
-    confirmLabel: 'Hinzufügen',
-  },
-};
-
-function buildPendingAction(opts: {
-  intent: SearchIntent;
-  threadId: string;
-  userId: string;
-  fullText: string;
-  searchQuery: string | null;
-  docMentionIds: string[] | undefined;
-  boardIds: string[] | undefined;
-  documentSubtype: string | null;
-}): PendingAction | null {
-  const {
-    intent,
-    threadId,
-    userId,
-    fullText,
-    searchQuery,
-    docMentionIds,
-    boardIds,
-    documentSubtype,
-  } = opts;
-  const base = {
-    actionId: `action_${Date.now()}`,
-    threadId,
-    userId,
-    preview: fullText.slice(0, 200),
-    createdAt: Date.now(),
-  };
-
-  switch (intent) {
-    case 'save_as_doc':
-      return {
-        ...base,
-        type: 'save_as_doc',
-        title: 'Antwort als Dokument speichern',
-        payload: {
-          content: fullText,
-          title: searchQuery || 'Neues Dokument',
-          subtype: documentSubtype || 'docs',
-        },
-      };
-    case 'modify_doc':
-      if (!docMentionIds?.length) return null;
-      return {
-        ...base,
-        type: 'modify_doc',
-        title: 'Dokument aktualisieren',
-        payload: { docId: docMentionIds[0], newContent: fullText },
-      };
-    case 'modify_board':
-      if (!boardIds?.length) return null;
-      return {
-        ...base,
-        type: 'modify_board',
-        title: 'Board aktualisieren',
-        payload: { boardId: boardIds[0], rows: [], responseText: fullText },
-      };
-    default:
-      return null;
-  }
-}
 
 /**
  * POST /api/chat-graph/stream
@@ -310,7 +205,6 @@ router.post('/stream', async (req, res) => {
     }
 
     if (actualThreadId && lastUserMessage) {
-      // Validate thread access before inserting (prevents FK violation + enforces sharing permissions)
       if (!isNewThread) {
         if (!(await canAccessThread(actualThreadId, userId))) {
           sse.send('error', { error: 'Thread not found' });
@@ -407,222 +301,19 @@ router.post('/stream', async (req, res) => {
       initialState.memoryRetrieveTimeMs = memoryRetrieveTimeMs;
     }
 
-    // Handle @datei document and text references
-    if (rawDocumentIds?.length) {
-      try {
-        const docResult = await fetchDocumentContext(userId, rawDocumentIds);
-        if (docResult.text) {
-          initialState.attachmentContext = initialState.attachmentContext
-            ? `${initialState.attachmentContext}\n\n---\n\n## REFERENZIERTE DOKUMENTE\n\n${docResult.text}`
-            : `## REFERENZIERTE DOKUMENTE\n\n${docResult.text}`;
-        } else if (docResult.documents.length > 0) {
-          initialState.documentIds = docResult.documents.map((d) => d.id);
-        }
-      } catch (err) {
-        log.warn(
-          `[ChatGraph] Document context retrieval failed: ${err instanceof Error ? err.message : String(err)}`
-        );
-      }
-    }
-
-    if (rawTextIds?.length) {
-      try {
-        const textResult = await fetchTextContext(userId, rawTextIds);
-        if (textResult.text) {
-          initialState.attachmentContext = initialState.attachmentContext
-            ? `${initialState.attachmentContext}\n\n---\n\n## REFERENZIERTE TEXTE\n\n${textResult.text}`
-            : `## REFERENZIERTE TEXTE\n\n${textResult.text}`;
-          log.info(
-            `[ChatGraph] Text context injected: ${textResult.totalChars} chars from ${textResult.count} text(s)`
-          );
-        }
-      } catch (err) {
-        log.warn(
-          `[ChatGraph] Text context retrieval failed: ${err instanceof Error ? err.message : String(err)}`
-        );
-      }
-    }
-
-    // === Fetch board context (from @board mentions) ===
-    if (rawBoardIds?.length) {
-      try {
-        const { loadBoardState, formatBoardAsContext } =
-          await import('../../services/boards/BoardService.js');
-
-        const boardStates = await Promise.all(
-          rawBoardIds.map((boardId) =>
-            loadBoardState(boardId, userId).catch((err) => {
-              log.warn(
-                `[ChatGraph] Failed to load board ${boardId}: ${err instanceof Error ? err.message : String(err)}`
-              );
-              return null;
-            })
-          )
-        );
-
-        const boardContextParts = boardStates
-          .filter((s): s is NonNullable<typeof s> => s !== null)
-          .map((s) => {
-            log.info(
-              `[ChatGraph] Board context loaded: "${s.title}" (${s.fields.length} fields, ${s.rows.length} rows)`
-            );
-            return formatBoardAsContext(s);
-          });
-
-        if (boardContextParts.length > 0) {
-          initialState.boardContext = boardContextParts.join('\n\n');
-        }
-      } catch (importErr) {
-        log.warn(
-          `[ChatGraph] Board context services unavailable: ${importErr instanceof Error ? importErr.message : String(importErr)}`
-        );
-      }
-    }
-
-    // === Fetch collaborative document context (from @doc mentions) ===
-    if (rawDocMentionIds?.length) {
-      try {
-        const { getPostgresInstance } =
-          await import('../../database/services/PostgresService/PostgresService.js');
-        const dbInst = getPostgresInstance();
-
-        const docResults = await dbInst.query(
-          `SELECT id, title, content FROM collaborative_documents
-           WHERE id = ANY($1::uuid[]) AND is_deleted = false AND document_subtype != 'boards'
-           AND (created_by = $2 OR permissions ? $2::text OR is_public = true
-                OR id IN (SELECT gcs.content_id FROM group_content_shares gcs
-                          INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2
-                          WHERE gcs.content_type = 'collaborative_documents'))`,
-          [rawDocMentionIds, userId]
-        );
-
-        if (docResults.length > 0) {
-          // Per-doc budget scales with context window: 8K for 128K models, 2K for 16K models
-          const perDocBudget = Math.max(
-            2000,
-            Math.min(8000, Math.floor(contextWindowTokens * 0.25))
-          );
-          const docParts = (
-            docResults as Array<{ id: string; title: string; content: string | null }>
-          )
-            .filter((d) => d.content)
-            .map((d) => {
-              let plainText = d.content || '';
-              let prevText: string;
-              do {
-                prevText = plainText;
-                plainText = plainText.replace(/<[^>]+>/g, '');
-              } while (plainText !== prevText);
-              plainText = plainText
-                .replace(/&[a-zA-Z]+;/g, ' ')
-                .replace(/&#x?[0-9a-fA-F]+;/g, ' ')
-                .replace(/\s+/g, ' ')
-                .trim();
-              const truncated = truncateDocument(plainText, perDocBudget);
-              if (truncated.length < plainText.length) {
-                log.info(
-                  `[ChatGraph] Doc context truncated: "${d.title}" (${plainText.length} → ${truncated.length} chars, budget: ${perDocBudget})`
-                );
-              } else {
-                log.info(
-                  `[ChatGraph] Doc context loaded: "${d.title}" (${plainText.length} chars)`
-                );
-              }
-              return `### ${d.title}\n\n${truncated}`;
-            });
-
-          if (docParts.length > 0) {
-            initialState.documentMentionContext = docParts.join('\n\n---\n\n');
-          }
-        }
-      } catch (err) {
-        log.warn(
-          `[ChatGraph] Doc mention context failed: ${err instanceof Error ? err.message : String(err)}`
-        );
-      }
-    }
-
-    // === Phase 2: Index uploaded document attachments via vector pipeline ===
-    // Small docs (<4K chars extracted text) stay inline for full context.
-    // Large docs are vectorized for RAG retrieval — more efficient and relevant
-    // than truncating 50 pages to intro+outro.
-    const SMALL_DOC_VECTORIZATION_THRESHOLD = 4000;
-
-    const largeDocAttachments = docAttachments.filter((att) => {
-      const meta = processedMeta.find((m) => m.name === att.name && !m.isImage);
-      const textLength = meta?.extractedText?.length ?? 0;
-      return textLength >= SMALL_DOC_VECTORIZATION_THRESHOLD;
+    // === Enrich context (documents, boards, mentions, vectorization) ===
+    await enrichContext({
+      initialState,
+      userId,
+      rawDocumentIds,
+      rawTextIds,
+      rawBoardIds,
+      rawDocMentionIds,
+      docAttachments,
+      processedMeta,
+      contextWindowTokens,
+      sse,
     });
-
-    if (largeDocAttachments.length > 0) {
-      try {
-        const { getPostgresDocumentService } =
-          await import('../../services/document-services/PostgresDocumentService/index.js');
-        const { getQdrantDocumentService } =
-          await import('../../services/document-services/DocumentSearchService/index.js');
-        const { processFileUpload } =
-          await import('../../services/document-services/DocumentProcessingService/fileProcessing.js');
-
-        const pgService = getPostgresDocumentService();
-        const qdrantService = getQdrantDocumentService();
-
-        for (const att of largeDocAttachments) {
-          try {
-            const buffer = Buffer.from(att.data, 'base64');
-            const result = await processFileUpload(
-              pgService,
-              qdrantService,
-              userId,
-              {
-                buffer,
-                mimetype: att.type,
-                originalname: att.name,
-                size: buffer.length,
-              },
-              att.name,
-              'documentchat'
-            );
-
-            initialState.documentChatIds.push(result.id);
-            sse.send('document_indexed', {
-              documentId: result.id,
-              title: result.title,
-            });
-            log.info(`[ChatGraph] Indexed attachment as document: ${result.title} (${result.id})`);
-          } catch (indexErr) {
-            log.warn(
-              `[ChatGraph] Failed to index attachment "${att.name}": ${indexErr instanceof Error ? indexErr.message : String(indexErr)}`
-            );
-          }
-        }
-      } catch (importErr) {
-        log.warn(
-          `[ChatGraph] Document indexing services unavailable: ${importErr instanceof Error ? importErr.message : String(importErr)}`
-        );
-      }
-    }
-
-    // Clear raw attachment text for vectorized docs only.
-    // Small docs (<4K chars) keep their inline attachmentContext.
-    if (initialState.documentChatIds && initialState.documentChatIds.length > 0) {
-      if (largeDocAttachments.length === docAttachments.length) {
-        // All docs were vectorized — clear all attachment context
-        initialState.attachmentContext = null;
-      } else {
-        // Mixed: keep only small doc text in attachmentContext, large docs use RAG
-        const smallDocNames = new Set(
-          docAttachments.filter((att) => !largeDocAttachments.includes(att)).map((att) => att.name)
-        );
-        const smallDocTexts = processedMeta
-          .filter((m) => !m.isImage && m.extractedText && smallDocNames.has(m.name))
-          .map((m) => `### ${m.name}\n\n${m.extractedText}`);
-        initialState.attachmentContext =
-          smallDocTexts.length > 0 ? smallDocTexts.join('\n\n---\n\n') : null;
-      }
-      log.info(
-        `[ChatGraph] Attachment routing: ${largeDocAttachments.length} vectorized (RAG), ${docAttachments.length - largeDocAttachments.length} inline`
-      );
-    }
 
     // === Stage 1: Classify ===
     const classifiedState = {
@@ -636,8 +327,6 @@ router.post('/stream', async (req, res) => {
     );
 
     // === Compound query detection ===
-    // When notebooks + non-default agent are both present, this is a compound query
-    // (e.g., "@hamburg erstelle eine @pressemitteilung" = search Hamburg THEN write press release)
     const isCompound = notebookIds.length > 0 && !!agentId && agentId !== 'gruenerator-universal';
     classifiedState.isCompound = isCompound;
 
@@ -646,14 +335,12 @@ router.post('/stream', async (req, res) => {
         `[ChatGraph] Compound query detected: notebooks=[${notebookIds.join(',')}], agent=${agentId}`
       );
 
-      // Ensure search query is populated for compound queries with vague text
       if (!classifiedState.searchQuery) {
         const userText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
         classifiedState.searchQuery = extractCompoundTopic(userText, notebookIds);
         log.info(`[ChatGraph] Compound topic extracted: "${classifiedState.searchQuery}"`);
       }
 
-      // Emit compound start event for frontend multi-step progress
       const gatherSources = classifiedState.gatherSources?.length
         ? classifiedState.gatherSources
         : ['notebook-search' as const];
@@ -666,7 +353,6 @@ router.post('/stream', async (req, res) => {
     }
 
     if (forcedTools && forcedTools.length > 0) {
-      // For compound queries with search-class forced tools, search takes precedence
       const searchClassTools = ['research', 'web', 'search'];
       const hasSearchTool = forcedTools.some((t) => searchClassTools.includes(t));
 
@@ -721,7 +407,6 @@ router.post('/stream', async (req, res) => {
     }
 
     // === HITL: Check if clarification is needed ===
-    // Skip clarification for compound queries — the user was explicit with mentions
     if (
       classifiedState.needsClarification &&
       !forcedTool &&
@@ -788,184 +473,28 @@ router.post('/stream', async (req, res) => {
 
     // === Handle @board-erstellen tool ===
     if (forcedTools?.includes('board-erstellen')) {
-      sse.send('response_start', { message: 'Erstelle Board...' });
-
-      try {
-        const {
-          BOARD_GENERATION_PROMPT,
-          createBoardDocument,
-          parseBoardStructure,
-          postProcessBoardStructure,
-        } = await import('../../services/boards/BoardService.js');
-
-        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-
-        const boardGenResult = await aiWorkerPool.processRequest(
-          {
-            type: 'board_generation',
-            systemPrompt: BOARD_GENERATION_PROMPT,
-            messages: [{ role: 'user', content: lastUserText }],
-            options: { temperature: 0.7, max_tokens: 2000 },
-          },
-          req
-        );
-
-        const boardStructure =
-          boardGenResult.success && boardGenResult.content
-            ? parseBoardStructure(boardGenResult.content)
-            : null;
-
-        if (boardStructure) {
-          const { id: newBoardId, title: boardTitle } = await createBoardDocument(
-            boardStructure.title || 'Neues Board',
-            userId
-          );
-
-          const columnNames = boardStructure.statusOptions.map((c) => c.name).join(', ');
-          const cardCount = boardStructure.rows.length;
-
-          const responseText =
-            `Board **"${boardTitle}"** wurde erstellt!\n\n` +
-            `**Spalten:** ${columnNames}\n` +
-            `**Karten:** ${cardCount} Aufgaben\n\n` +
-            `[Board öffnen](/boards/${newBoardId})`;
-
-          for (let i = 0; i < responseText.length; i += 20) {
-            sse.send('text_delta', { text: responseText.slice(i, i + 20) });
-          }
-
-          const totalTimeMs = Date.now() - classifiedState.startTime;
-          sse.sendRaw('done', {
-            threadId: actualThreadId,
-            citations: [],
-            boardId: newBoardId,
-            boardGeneratedStructure: postProcessBoardStructure(boardStructure, userId),
-            metadata: {
-              intent: 'direct',
-              searchCount: 0,
-              totalTimeMs,
-              classificationTimeMs: classifiedState.classificationTimeMs,
-              searchTimeMs: 0,
-            },
-          });
-
-          if (actualThreadId) {
-            await createMessage(actualThreadId, 'assistant', responseText);
-            await touchThread(actualThreadId);
-          }
-
-          log.info(`[ChatGraph] Board created: "${boardTitle}" (${newBoardId})`);
-          sse.end();
-          return;
-        }
-      } catch (boardErr) {
-        log.error(
-          `[ChatGraph] Board creation failed: ${boardErr instanceof Error ? boardErr.message : String(boardErr)}`
-        );
-      }
-    }
-
-    // === Shared document creation helper ===
-    async function generateAndCreateDocument(opts: {
-      userContent: string;
-      subtypeOverride?: string | null;
-      conversationContext?: string;
-      intent: string;
-      skipTerminate?: boolean;
-    }): Promise<boolean> {
-      if (!opts.skipTerminate) {
-        sse.send('response_start', { message: 'Erstelle Dokument...' });
-      }
-
-      try {
-        const { DOCUMENT_GENERATION_PROMPT, parseDocumentResponse, createDocumentWithContent } =
-          await import('../../services/docs/DocGenerationService.js');
-
-        const subtypeHint = opts.subtypeOverride
-          ? `\nVerwende subtype: "${opts.subtypeOverride}".`
-          : '';
-
-        const userMessage = opts.conversationContext
-          ? `Konversationskontext:\n${opts.conversationContext}\n\nAktuelle Anfrage: ${opts.userContent}`
-          : opts.userContent;
-
-        const docGenResult = await aiWorkerPool.processRequest(
-          {
-            type: 'doc_generation',
-            systemPrompt: DOCUMENT_GENERATION_PROMPT + subtypeHint,
-            messages: [{ role: 'user', content: userMessage }],
-            options: { temperature: 0.7, max_tokens: 4000 },
-          },
-          req
-        );
-
-        const generated =
-          docGenResult.success && docGenResult.content
-            ? parseDocumentResponse(docGenResult.content)
-            : { title: 'Neues Dokument', subtype: 'blank', content: '' };
-
-        const docSubtype = opts.subtypeOverride || generated.subtype;
-        const newDoc = await createDocumentWithContent(
-          generated.title,
-          generated.content,
-          docSubtype,
-          userId
-        );
-
-        const newDocId = newDoc.id;
-        const docTitle = generated.title;
-
-        const responseText = `Dokument **"${docTitle}"** wurde erstellt.`;
-
-        for (let i = 0; i < responseText.length; i += 20) {
-          sse.send('text_delta', { text: responseText.slice(i, i + 20) });
-        }
-
-        sse.send('document_created', {
-          documentId: newDocId,
-          title: docTitle,
-          subtype: docSubtype,
-          url: `/docs/${newDocId}`,
-        });
-
-        log.info(`[ChatGraph] Document created (${opts.intent}): "${docTitle}" (${newDocId})`);
-
-        if (!opts.skipTerminate) {
-          const totalTimeMs = Date.now() - classifiedState.startTime;
-          sse.sendRaw('done', {
-            threadId: actualThreadId,
-            citations: [],
-            documentId: newDocId,
-            metadata: {
-              intent: opts.intent,
-              searchCount: 0,
-              totalTimeMs,
-              classificationTimeMs: classifiedState.classificationTimeMs,
-              searchTimeMs: 0,
-            },
-          });
-
-          if (actualThreadId) {
-            await createMessage(actualThreadId, 'assistant', responseText);
-            await touchThread(actualThreadId);
-          }
-
-          sse.end();
-        }
-
-        return true;
-      } catch (docErr) {
-        log.error(
-          `[ChatGraph] Document creation failed (${opts.intent}): ${docErr instanceof Error ? docErr.message : String(docErr)}`
-        );
-        return false;
-      }
+      const created = await handleBoardCreation({
+        sse,
+        classifiedState,
+        lastUserMessage,
+        aiWorkerPool,
+        req,
+        actualThreadId,
+        userId,
+      });
+      if (created) return;
     }
 
     // === Handle @dokument-erstellen tool ===
     if (forcedTools?.includes('dokument-erstellen')) {
       const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
       const created = await generateAndCreateDocument({
+        sse,
+        classifiedState,
+        aiWorkerPool,
+        req,
+        actualThreadId,
+        userId,
         userContent: lastUserText,
         intent: 'direct',
       });
@@ -981,6 +510,12 @@ router.post('/stream', async (req, res) => {
         .join('\n');
 
       const created = await generateAndCreateDocument({
+        sse,
+        classifiedState,
+        aiWorkerPool,
+        req,
+        actualThreadId,
+        userId,
         userContent: lastUserText,
         subtypeOverride: classifiedState.documentSubtype,
         conversationContext,
@@ -989,133 +524,28 @@ router.post('/stream', async (req, res) => {
       if (created) return;
     }
 
-    // === Stage 2: Search or Image Generation ===
-    let finalState = classifiedState;
-    let generatedImage: GeneratedImageResult | null = null;
-
-    // Build ordered list of intents to execute (primary first, then secondary)
-    const intentsToExecute: SearchIntent[] = [classifiedState.intent];
-    if (
-      classifiedState.secondaryIntent &&
-      classifiedState.secondaryIntent !== classifiedState.intent
-    ) {
-      intentsToExecute.push(classifiedState.secondaryIntent);
-      log.info(`[ChatGraph] Multi-intent: ${intentsToExecute.join(' → ')}`);
+    // === Handle share_doc intent ===
+    if (classifiedState.intent === 'share_doc' && actualThreadId) {
+      const handled = await handleShareDoc({
+        sse,
+        classifiedState,
+        actualThreadId,
+        userId,
+        lastUserMessage,
+        rawDocMentionIds,
+        rawDocumentChatIds: rawDocumentChatIds,
+      });
+      if (handled) return;
     }
 
-    for (const currentIntent of intentsToExecute) {
-      log.info(
-        `[ChatGraph] Stage 2 — intent=${currentIntent}, forcedTool=${forcedTool}, enabledTools.image=${enabledTools?.['image']}`
-      );
-      if (currentIntent === 'image') {
-        const imageToolEnabled = forcedTool || enabledTools?.['image'] !== false;
-        log.info(
-          `[ChatGraph] Image branch — imageToolEnabled=${imageToolEnabled}, userId=${classifiedState.agentConfig.userId}, BFL_KEY_SET=${!!process.env.BFL_API_KEY}`
-        );
-        if (imageToolEnabled) {
-          sse.send('image_start', { message: PROGRESS_MESSAGES.imageStart });
-          const imageResult = await imageNode(finalState);
-          log.info(
-            `[ChatGraph] imageNode result — hasImage=${!!imageResult.generatedImage}, error=${imageResult.error || 'none'}, timeMs=${imageResult.imageTimeMs}`
-          );
-          finalState = { ...finalState, ...imageResult } as ChatGraphState;
-
-          if (finalState.generatedImage) {
-            generatedImage = finalState.generatedImage;
-            sse.send('image_complete', {
-              message: PROGRESS_MESSAGES.imageComplete,
-              image: generatedImage,
-            });
-          } else if (finalState.error) {
-            sse.send('image_complete', {
-              message: PROGRESS_MESSAGES.imageError(finalState.error),
-              error: finalState.error,
-            });
-          }
-        }
-      } else if (currentIntent === 'image_edit') {
-        const imageEditToolEnabled = forcedTool || enabledTools?.['image_edit'] !== false;
-        if (imageEditToolEnabled) {
-          if (!imageAttachments || imageAttachments.length === 0) {
-            sse.send('image_complete', {
-              message: PROGRESS_MESSAGES.imageEditNoAttachment,
-              error: PROGRESS_MESSAGES.imageEditNoAttachment,
-            });
-          } else {
-            sse.send('image_start', { message: PROGRESS_MESSAGES.imageEditStart });
-            const imageEditResult = await imageEditNode(finalState);
-            finalState = { ...finalState, ...imageEditResult } as ChatGraphState;
-
-            if (finalState.generatedImage) {
-              generatedImage = finalState.generatedImage;
-              sse.send('image_complete', {
-                message: PROGRESS_MESSAGES.imageEditComplete,
-                image: generatedImage,
-              });
-            } else if (finalState.error) {
-              sse.send('image_complete', {
-                message: PROGRESS_MESSAGES.imageError(finalState.error),
-                error: finalState.error,
-              });
-            }
-          }
-        }
-      } else if (currentIntent === 'summary') {
-        const docCount =
-          (finalState.documentChatIds?.length || 0) + (finalState.documentIds?.length || 0);
-        sse.send('summary_start', {
-          message: PROGRESS_MESSAGES.summaryStart,
-          documentCount: docCount,
-        });
-        const summaryResult = await summarizeNode(finalState);
-        finalState = { ...finalState, ...summaryResult } as ChatGraphState;
-        const summaryLength = finalState.summaryContext?.length || 0;
-        sse.send('summary_complete', {
-          message: PROGRESS_MESSAGES.summaryComplete(summaryLength, finalState.summaryTimeMs || 0),
-          summaryLength,
-          timeMs: finalState.summaryTimeMs || 0,
-        });
-      } else if (
-        currentIntent !== 'direct' &&
-        currentIntent !== 'save_as_doc' &&
-        currentIntent !== 'modify_doc' &&
-        currentIntent !== 'modify_board'
-      ) {
-        const toolEnabled = forcedTool || enabledTools?.[currentIntent] !== false;
-        if (toolEnabled) {
-          let searchInputState = finalState;
-          if (
-            ['complex', 'moderate'].includes(finalState.complexity) &&
-            currentIntent === 'research'
-          ) {
-            const briefResult = await briefGeneratorNode(finalState);
-            searchInputState = { ...finalState, ...briefResult } as ChatGraphState;
-          }
-
-          sse.send('search_start', {
-            message: PROGRESS_MESSAGES.searchStart,
-            subQueries: finalState.subQueries?.length ? finalState.subQueries : undefined,
-          });
-          const searchResult = await searchNode(searchInputState);
-          finalState = { ...searchInputState, ...searchResult } as ChatGraphState;
-
-          if (finalState.searchResults?.length > 2) {
-            const rerankResult = await rerankNode(finalState);
-            finalState = { ...finalState, ...rerankResult } as ChatGraphState;
-            if (finalState.searchResults.length > 0) {
-              finalState.citations = buildCitations(finalState.searchResults);
-            }
-          }
-
-          const resultCount = finalState.searchResults?.length || 0;
-          sse.send('search_complete', {
-            message: PROGRESS_MESSAGES.searchComplete(resultCount),
-            resultCount,
-            results: finalState.searchResults?.slice(0, 10) || [],
-          });
-        }
-      }
-    } // end for (intentsToExecute)
+    // === Stage 2: Search or Image Generation ===
+    const { finalState, generatedImage } = await executeIntentPipeline({
+      classifiedState,
+      sse,
+      forcedTool,
+      enabledTools,
+      imageAttachments,
+    });
 
     // === Stage 3: Response generation ===
     sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
@@ -1176,50 +606,19 @@ router.post('/stream', async (req, res) => {
 
     // === Stage 4b: Emit confirm_action for intents that need user approval ===
     if (actualThreadId) {
-      const pendingAction = buildPendingAction({
-        intent: finalState.intent,
-        threadId: actualThreadId,
+      await emitConfirmAction({
+        sse,
+        actualThreadId,
         userId,
         fullText,
-        searchQuery: classifiedState.searchQuery,
-        docMentionIds: rawDocMentionIds,
-        boardIds: rawBoardIds,
-        documentSubtype: classifiedState.documentSubtype || null,
+        finalState,
+        classifiedState,
+        rawDocMentionIds,
+        rawBoardIds,
       });
-
-      if (pendingAction) {
-        const ssePayload = CONFIRM_ACTION_CONFIG[pendingAction.type];
-        const metadataEntries =
-          pendingAction.type === 'save_as_doc'
-            ? [
-                { key: 'Titel', value: pendingAction.payload.title },
-                { key: 'Typ', value: pendingAction.payload.subtype },
-                { key: 'Länge', value: `${fullText.length} Zeichen` },
-              ]
-            : pendingAction.type === 'modify_doc'
-              ? [{ key: 'Dokument', value: pendingAction.payload.docId }]
-              : [{ key: 'Board', value: pendingAction.payload.boardId }];
-
-        sse.send('confirm_action', {
-          actionId: pendingAction.actionId,
-          type: pendingAction.type,
-          title: ssePayload.title,
-          description: ssePayload.description,
-          icon: ssePayload.icon,
-          metadata: metadataEntries,
-          confirmLabel: ssePayload.confirmLabel,
-          cancelLabel: 'Abbrechen',
-          threadId: actualThreadId,
-        });
-
-        await pendingActionStore.store(pendingAction);
-        log.info(
-          `[ChatGraph] Confirm action stored: ${pendingAction.actionId} (${pendingAction.type})`
-        );
-      }
     }
 
-    // === Stage 4c: Handle save_as_doc as secondary intent (search + create document) ===
+    // === Stage 4c: Handle save_as_doc as secondary intent ===
     if (
       classifiedState.secondaryIntent === 'save_as_doc' &&
       classifiedState.intent !== 'save_as_doc' &&
@@ -1232,6 +631,12 @@ router.post('/stream', async (req, res) => {
       ].join('\n');
 
       await generateAndCreateDocument({
+        sse,
+        classifiedState,
+        aiWorkerPool,
+        req,
+        actualThreadId,
+        userId,
         userContent: lastUserText,
         subtypeOverride: classifiedState.documentSubtype,
         conversationContext,
