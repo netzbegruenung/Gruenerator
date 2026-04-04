@@ -138,7 +138,9 @@ export default memo(function MemoriesSection() {
         <FeatureToggle
           isActive={memoriesEnabled}
           onToggle={(checked) => updateUserBetaFeatures('memories', checked)}
-          label={`Erinnerungen${memoriesEnabled ? ` (${isLoading ? '…' : memories.length})` : ''}`}
+          label={
+            memoriesEnabled ? `Erinnerungen (${isLoading ? '…' : memories.length})` : 'Erinnerungen'
+          }
           icon={Brain}
           noBorder
           className="flex-1 p-0"
