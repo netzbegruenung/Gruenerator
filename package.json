@@ -21,6 +21,7 @@
       "markdown-it": ">=14.1.0",
       "tar": ">=7.5.11",
       "undici": ">=7.18.2",
+      "@qdrant/js-client-rest>undici": "^6.24.1",
       "rollup": ">=4.59.0",
       "zod": "^3.24.1",
       "better-auth>zod": "^4.3.6",
@@ -39,7 +40,9 @@
       "mermaid": ">=10.9.4",
       "srvx": ">=0.11.13",
       "file-type": ">=20.6.0",
-      "nanoid": ">=5.0.9"
+      "nanoid": ">=5.0.9",
+      "lodash-es": ">=4.18.0",
+      "lodash": ">=4.18.0"
     }
   },
   "workspaces": [
