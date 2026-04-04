@@ -29,6 +29,36 @@ const router = createAuthenticatedRouter();
 router.use(express.json());
 
 /**
+ * Check if a user has write access to a collaborative_documents row.
+ * Checks: owner → direct permission (owner/editor) → group share (write: true).
+ */
+async function hasWriteAccess(documentId: string, userId: string): Promise<boolean> {
+  const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
+  const pg = getPostgresInstance();
+
+  const rows = (await pg.query(
+    'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND is_deleted = false',
+    [documentId]
+  )) as { created_by: string; permissions: Record<string, { level: string }> | null }[];
+
+  if (rows.length === 0) return false;
+
+  const doc = rows[0];
+  const isOwner = doc.created_by === userId;
+  const userPerm = doc.permissions?.[userId];
+  if (isOwner || (userPerm && ['owner', 'editor'].includes(userPerm.level))) return true;
+
+  const groupAccess = (await pg.query(
+    `SELECT gcs.permissions FROM group_content_shares gcs
+     INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+     WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2 LIMIT 1`,
+    [userId, documentId]
+  )) as { permissions: { read: boolean; write: boolean } | null }[];
+
+  return groupAccess.length > 0 && groupAccess[0].permissions?.write === true;
+}
+
+/**
  * Execute a confirmed action based on its type.
  * Returns a user-facing result message.
  */
@@ -52,10 +82,14 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
     }
 
     case 'modify_doc': {
-      const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
-      const pg = getPostgresInstance();
       const { docId, newContent } = action.payload;
 
+      if (!(await hasWriteAccess(docId, action.userId))) {
+        throw new Error('Keine Berechtigung, dieses Dokument zu bearbeiten.');
+      }
+
+      const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
+      const pg = getPostgresInstance();
       await pg.query(
         'UPDATE collaborative_documents SET content = $1, last_edited_by = $2, updated_at = NOW() WHERE id = $3',
         [newContent, action.userId, docId]
@@ -67,9 +101,13 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
     }
 
     case 'modify_board': {
-      const { addRowsToBoard } = await import('../../services/boards/BoardService.js');
       const { boardId, rows } = action.payload;
 
+      if (!(await hasWriteAccess(boardId, action.userId))) {
+        throw new Error('Keine Berechtigung, dieses Board zu bearbeiten.');
+      }
+
+      const { addRowsToBoard } = await import('../../services/boards/BoardService.js');
       await addRowsToBoard(boardId, rows, action.userId);
       return {
         message: `Board wurde aktualisiert (${rows.length} Änderung${rows.length !== 1 ? 'en' : ''}).`,
