@@ -10,6 +10,8 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 
+import { sanitizeFilename } from '../../utils/validation/security.js';
+
 import type { ExtractionResult } from './types.js';
 import type { Mistral } from '@mistralai/mistralai';
 import type {
@@ -125,6 +127,7 @@ export async function extractBase64WithMistralOCR(
   filename: string,
   mimeType: string
 ): Promise<ExtractionResult> {
+  filename = sanitizeFilename(filename, 'document');
   const startTime = Date.now();
 
   try {
