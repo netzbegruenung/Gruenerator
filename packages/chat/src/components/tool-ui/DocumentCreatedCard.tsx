@@ -19,6 +19,8 @@ export const DocumentCreatedCard = memo(function DocumentCreatedCard({
         </div>
         <a
           href={document.url}
+          target="_blank"
+          rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full bg-primary text-white hover:bg-primary/90 transition-colors flex-shrink-0"
         >
           Dokument öffnen
