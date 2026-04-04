@@ -19,8 +19,6 @@ import {
 import { type CategoryFilterField } from './CategoryFilterDropdown';
 import { type SourceFilterCollection } from './SourceFilterDropdown';
 import { composerToolbarButtonClass } from '../../lib/utils';
-import { MODEL_ICONS } from '../../lib/modelIcons';
-import { MODEL_OPTIONS } from '../../stores/chatStore';
 import { GrueneratorComposer } from '../thread/GrueneratorComposer';
 
 export interface SourceFilterConfig {
@@ -44,8 +42,6 @@ interface NotebookComposerProps {
   categoryFilters?: CategoryFilterConfig;
   mode?: 'fast' | 'deep';
   onModeChange?: (mode: 'fast' | 'deep') => void;
-  selectedModel?: string;
-  onModelChange?: (modelId: string) => void;
 }
 
 function CategoryFilterItems({
@@ -89,19 +85,12 @@ function NotebookSettingsDropdown({
   onModeChange,
   sourceFilters,
   categoryFilters,
-  selectedModel = 'mistral',
-  onModelChange,
 }: {
   mode?: 'fast' | 'deep';
   onModeChange?: (mode: 'fast' | 'deep') => void;
   sourceFilters?: SourceFilterConfig;
   categoryFilters?: CategoryFilterConfig;
-  selectedModel?: string;
-  onModelChange?: (modelId: string) => void;
 }) {
-  const currentModel = MODEL_OPTIONS.find((m) => m.id === selectedModel) || MODEL_OPTIONS[0];
-  const CurrentModelIcon = MODEL_ICONS[currentModel.icon];
-  const isLimitedContext = selectedModel === 'litellm';
   const categoryActiveCount = categoryFilters
     ? Object.values(categoryFilters.activeFilters).reduce((sum, arr) => sum + arr.length, 0)
     : 0;
@@ -135,39 +124,11 @@ function NotebookSettingsDropdown({
                 <Zap className="h-3.5 w-3.5" />
                 Schnell
               </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="deep" disabled={isLimitedContext}>
+              <DropdownMenuRadioItem value="deep">
                 <BookOpen className="h-3.5 w-3.5" />
                 Tiefenrecherche
               </DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
-          </>
-        )}
-
-        {onModelChange && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <CurrentModelIcon className="h-3.5 w-3.5" />
-                Modell
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
-                <DropdownMenuRadioGroup
-                  value={selectedModel}
-                  onValueChange={(v) => onModelChange(v)}
-                >
-                  {MODEL_OPTIONS.map((m) => {
-                    const Icon = MODEL_ICONS[m.icon];
-                    return (
-                      <DropdownMenuRadioItem key={m.id} value={m.id}>
-                        <Icon className="h-3.5 w-3.5" />
-                        {m.name}
-                      </DropdownMenuRadioItem>
-                    );
-                  })}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
           </>
         )}
 
@@ -301,8 +262,6 @@ export function NotebookComposer({
   categoryFilters,
   mode,
   onModeChange,
-  selectedModel,
-  onModelChange,
 }: NotebookComposerProps) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
 
@@ -320,8 +279,6 @@ export function NotebookComposer({
           onModeChange={onModeChange}
           sourceFilters={sourceFilters}
           categoryFilters={categoryFilters}
-          selectedModel={selectedModel}
-          onModelChange={onModelChange}
         />
       }
     />
