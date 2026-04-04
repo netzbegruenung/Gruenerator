@@ -24,6 +24,9 @@ import { type Country } from '../utils/localization.ts';
 
 type SearchMode = 'hybrid' | 'vector' | 'text';
 
+// Must match minFinalScore in qdrant/client.ts hybridConfig
+const MCP_MIN_RELEVANCE_SCORE = 0.35;
+
 interface SearchResult {
   score: number;
   title: string;
@@ -33,6 +36,23 @@ interface SearchResult {
   documentId?: string;
   qualityScore?: number;
   payload?: Record<string, unknown>;
+}
+
+function deduplicateText(text: string): string {
+  if (text.length < 100) return text;
+  const half = Math.floor(text.length / 2);
+  for (const sep of ['. ', '.\n', '! ', '? ']) {
+    const splitIdx = text.indexOf(sep, Math.max(0, half - 50));
+    if (splitIdx > 0 && splitIdx < half + 50) {
+      const firstHalf = text.slice(0, splitIdx + sep.length).trim();
+      const secondHalf = text.slice(splitIdx + sep.length).trim();
+      const compareLen = Math.min(firstHalf.length, secondHalf.length, 100);
+      if (compareLen > 50 && firstHalf.slice(0, compareLen) === secondHalf.slice(0, compareLen)) {
+        return firstHalf;
+      }
+    }
+  }
+  return text;
 }
 
 function truncateAtSentence(text: string, maxLength: number): string {
@@ -78,7 +98,7 @@ function formatResult(
     score: Math.round(r.score * 1000) / 1000,
     source: r.title,
     url: r.url,
-    excerpt: truncateAtSentence(r.text || '', 800),
+    excerpt: truncateAtSentence(deduplicateText(r.text || ''), 800),
     searchMethod: r.searchMethod || searchMode,
   };
   if (r.documentId) base.documentId = r.documentId;
@@ -562,7 +582,7 @@ async function searchMultipleCollections({
     }
 
     allResults.sort((a, b) => b.score - a.score);
-    const topResults = allResults.slice(0, limit);
+    const topResults = allResults.filter((r) => r.score >= MCP_MIN_RELEVANCE_SCORE).slice(0, limit);
 
     const collectionsSearched = collections
       .map((key) => config.collections[key]?.displayName || key)
