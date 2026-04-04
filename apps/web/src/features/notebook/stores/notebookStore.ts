@@ -15,6 +15,7 @@ export interface FilterFieldConfig {
   label?: string;
   type?: string;
   values?: (string | FilterValueItem)[];
+  valueLabels?: Record<string, string>;
   min?: unknown;
   max?: unknown;
 }

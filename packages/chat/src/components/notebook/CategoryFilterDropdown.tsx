@@ -18,6 +18,7 @@ export interface CategoryFilterField {
   field: string;
   label: string;
   values: Array<{ value: string; count?: number }>;
+  valueLabels?: Record<string, string>;
 }
 
 export interface CategoryFilterDropdownProps {
@@ -48,7 +49,7 @@ function FilterCheckboxItems({
             onCheckedChange={() => onToggle(fieldConfig.field, value)}
           >
             <div className="flex w-full items-center justify-between gap-2">
-              <span className="truncate">{value}</span>
+              <span className="truncate">{fieldConfig.valueLabels?.[value] ?? value}</span>
               {count != null && (
                 <span className="shrink-0 text-[10px] text-foreground-muted">{count}</span>
               )}

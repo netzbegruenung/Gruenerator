@@ -53,11 +53,13 @@ function CategoryFilterItems({
   values,
   activeValues,
   onToggle,
+  valueLabels,
 }: {
   field: string;
   values: CategoryFilterField['values'];
   activeValues: string[];
   onToggle: (field: string, value: string) => void;
+  valueLabels?: Record<string, string>;
 }) {
   return (
     <>
@@ -70,7 +72,7 @@ function CategoryFilterItems({
             onCheckedChange={() => onToggle(field, value)}
           >
             <div className="flex w-full items-center justify-between gap-2">
-              <span className="truncate">{value}</span>
+              <span className="truncate">{valueLabels?.[value] ?? value}</span>
               {count != null && (
                 <span className="shrink-0 text-[10px] text-foreground-muted">{count}</span>
               )}
@@ -245,6 +247,7 @@ function NotebookSettingsDropdown({
                     categoryFilters.activeFilters[categoryFilters.fields[0].field] || []
                   }
                   onToggle={categoryFilters.onToggle}
+                  valueLabels={categoryFilters.fields[0].valueLabels}
                 />
               </>
             ) : (
@@ -264,6 +267,7 @@ function NotebookSettingsDropdown({
                       values={fieldConfig.values}
                       activeValues={categoryFilters.activeFilters[fieldConfig.field] || []}
                       onToggle={categoryFilters.onToggle}
+                      valueLabels={fieldConfig.valueLabels}
                     />
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>

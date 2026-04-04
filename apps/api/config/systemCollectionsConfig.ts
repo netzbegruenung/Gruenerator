@@ -16,6 +16,7 @@ export interface FilterableField {
   field: string;
   label: string;
   type: 'keyword' | 'date_range';
+  valueLabels?: Record<string, string>;
 }
 
 export interface DefaultFilter {
@@ -52,6 +53,7 @@ export interface SubcategoryFilters {
   region?: string | string[];
   landesverband?: string | string[];
   gremium?: string | string[];
+  source_id?: string | string[];
   date_from?: string;
   date_to?: string;
 }
@@ -263,10 +265,18 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'source_type', label: 'Quelle', type: 'keyword' },
-      { field: 'content_type', label: 'Typ', type: 'keyword' },
-      { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
-      { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
+      {
+        field: 'source_id',
+        label: 'Quelle',
+        type: 'keyword',
+        valueLabels: {
+          'berlin-lv-presse': 'LV Presse',
+          'berlin-lv-beschluesse': 'LV Beschlüsse',
+          'berlin-lv-wahlprogramm': 'LV Wahlprogramm',
+          'berlin-fraktion-presse': 'Fraktion Presse',
+          'berlin-fraktion-beschluesse': 'Fraktion Beschlüsse',
+        },
+      },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
     defaultFilter: { field: 'landesverband', value: ['BE', 'BE-F'] },
@@ -424,6 +434,7 @@ export function buildSubcategoryFilter(
     'region',
     'landesverband',
     'gremium',
+    'source_id',
   ];
 
   for (const key of filterKeys) {
