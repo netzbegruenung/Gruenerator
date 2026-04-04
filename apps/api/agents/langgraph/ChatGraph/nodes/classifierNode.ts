@@ -166,6 +166,7 @@ Antworte NUR mit JSON:
   "needsResearch": true | false,
   "intent": "image" | "research" | "search" | "web" | "examples" | "summary" | "chart" | "save_as_doc" | "modify_doc" | "modify_board" | "direct",
   "secondaryIntent": "image" | "examples" | "chart" | "save_as_doc" | null,
+  "documentSubtype": "antrag" | "pressemitteilung" | "protokoll" | "notizen" | "redaktionsplan" | "checkliste" | "einladung" | "tabelle" | null,
   "searchQuery": "ORIGINALTEXT des Benutzers (KEINE Korrekturen an Eigennamen!)" | null,
   "optimizedSearchQuery": "nur das faktische Thema aus dem ORIGINALTEXT, ohne Aufgabenanweisung" | null,
   "subQueries": ["thema1", "thema2"] | null,
@@ -184,7 +185,8 @@ Antworte NUR mit JSON:
   "reasoning": "..."
 }
 
-Bei "direct" und "image" setze searchQuery, optimizedSearchQuery, subQueries, searchSources und filters auf null/[].`;
+Bei "direct" und "image" setze searchQuery, optimizedSearchQuery, subQueries, searchSources und filters auf null/[].
+Bei "save_as_doc" setze documentSubtype auf den passenden Dokumenttyp (z.B. "checkliste" für Aufgabenlisten, "protokoll" für Sitzungsprotokolle, "pressemitteilung" für Pressemitteilungen, "tabelle" für tabellarische Daten). Wenn kein spezifischer Typ erkennbar ist, setze null.`;
 
 /**
  * Intents that don't trigger search/retrieval — used to skip query optimization.
@@ -561,6 +563,7 @@ interface ClassifierLLMResponse {
   needsClarification?: boolean;
   clarificationQuestion?: string;
   clarificationOptions?: string[];
+  documentSubtype?: string | null;
   reasoning: string;
 }
 
@@ -803,6 +806,7 @@ function parseClassifierResponse(content: string, userContent: string): Classifi
         filters,
         reasoning: (parsed.reasoning || 'LLM classification') + suffix,
         contentType: parsed.contentType || null,
+        documentSubtype: parsed.documentSubtype || null,
       };
 
       if (parsed.needsClarification && parsed.clarificationQuestion) {
@@ -1494,6 +1498,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
       detectedFilters: classification.filters || null,
       reasoning: classification.reasoning,
       contentType: classification.contentType || null,
+      documentSubtype: classification.documentSubtype || null,
       hasTemporal: temporal.hasTemporal,
       complexity,
       classificationTimeMs,
