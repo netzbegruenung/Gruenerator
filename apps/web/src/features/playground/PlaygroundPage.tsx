@@ -1,3 +1,30 @@
+import {
+  Badge,
+  Button,
+  Card,
+  CardAction,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  CollapsibleSection,
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+  Textarea,
+} from '@gruenerator/ui';
+import { Beaker, BrainCircuit, Cpu, Play, Square, Type } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { cn } from '../../utils/cn';
@@ -52,6 +79,18 @@ const FIELD_PLACEHOLDERS: Record<string, string> = {
   text: 'Ausgangstext eingeben...',
 };
 
+const REASONING_OPTIONS: { value: ReasoningEffort; label: string }[] = [
+  { value: 'none', label: 'Aus' },
+  { value: 'low', label: 'Niedrig' },
+  { value: 'medium', label: 'Mittel' },
+  { value: 'high', label: 'Hoch' },
+];
+
+const PANEL_STYLES = [
+  { accent: 'border-l-primary-500', dot: 'bg-primary-500', label: 'A' },
+  { accent: 'border-l-secondary-500', dot: 'bg-secondary-500', label: 'B' },
+] as const;
+
 // ─── Memoized field input ────────────────────────────────────────────────
 
 const FieldInput = memo(function FieldInput({
@@ -73,25 +112,21 @@ const FieldInput = memo(function FieldInput({
   const isTextarea = field === 'inhalt' || field === 'text';
 
   return (
-    <div className={isTextarea ? 'lg:col-span-2' : ''}>
-      <label className="mb-1 block text-xs font-medium text-grey-500">
-        {FIELD_LABELS[field] || field}
-      </label>
+    <div className={cn('flex flex-col gap-1.5', isTextarea && 'lg:col-span-2')}>
+      <Label className="text-xs text-muted-foreground">{FIELD_LABELS[field] || field}</Label>
       {isTextarea ? (
-        <textarea
+        <Textarea
           value={value}
           onChange={handleChange}
           placeholder={FIELD_PLACEHOLDERS[field] || ''}
           rows={3}
-          className="w-full rounded-lg border border-grey-200 bg-background px-3 py-2 text-sm text-foreground placeholder:text-grey-400 dark:border-grey-700"
         />
       ) : (
-        <input
+        <Input
           type="text"
           value={value}
           onChange={handleChange}
           placeholder={FIELD_PLACEHOLDERS[field] || ''}
-          className="w-full rounded-lg border border-grey-200 bg-background px-3 py-2 text-sm text-foreground placeholder:text-grey-400 dark:border-grey-700"
         />
       )}
     </div>
@@ -102,48 +137,62 @@ const FieldInput = memo(function FieldInput({
 
 const OutputPanel = memo(function OutputPanel({
   panel,
-  label,
-  isLeft,
+  panelIndex,
 }: {
   panel: PanelState;
-  label: string;
-  isLeft: boolean;
+  panelIndex: 0 | 1;
 }) {
+  const style = PANEL_STYLES[panelIndex];
+
+  if (!panel.model) {
+    return (
+      <Card className={cn('flex-1 border-l-4', style.accent)}>
+        <CardContent className="flex-1">
+          <Empty className="h-full min-h-[200px] border-none">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Cpu />
+              </EmptyMedia>
+              <EmptyTitle>Modell {style.label}</EmptyTitle>
+              <EmptyDescription>
+                Wähle ein Modell aus, um Ergebnisse zu vergleichen
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <div
-      className={cn(
-        'flex flex-col overflow-hidden',
-        isLeft ? 'border-r border-grey-200 dark:border-grey-700' : ''
-      )}
-    >
-      <div className="flex items-center justify-between border-b border-grey-200 bg-background-alt px-4 py-2 dark:border-grey-700">
+    <Card className={cn('flex flex-1 flex-col border-l-4 overflow-hidden', style.accent)}>
+      <CardHeader className="border-b border-grey-200 dark:border-grey-700">
         <div className="flex items-center gap-2">
           <span
             className={cn(
-              'inline-block h-2 w-2 rounded-full',
+              'inline-block size-2 shrink-0 rounded-full transition-colors',
               panel.streaming
-                ? 'animate-pulse bg-primary-500'
+                ? cn('animate-pulse', style.dot)
                 : panel.output
                   ? 'bg-green-500'
                   : 'bg-grey-300 dark:bg-grey-600'
             )}
           />
-          <span className="text-sm font-medium text-foreground">{panel.model?.name || label}</span>
-          {panel.model && (
-            <span className="rounded bg-grey-100 px-1.5 py-0.5 text-xs text-grey-500 dark:bg-grey-800">
-              {panel.model.provider}
-            </span>
-          )}
+          <CardTitle className="text-sm">{panel.model.name}</CardTitle>
+          <Badge variant="outline" className="text-[10px]">
+            {panel.model.provider}
+          </Badge>
+          {panel.streaming && <Badge className="animate-pulse text-[10px]">Generiert...</Badge>}
         </div>
-        <div className="flex items-center gap-3 text-xs text-grey-500">
-          {panel.elapsed > 0 && (
-            <span className="tabular-nums">{(panel.elapsed / 1000).toFixed(1)}s</span>
-          )}
-          {panel.output && <span className="tabular-nums">{panel.output.length} Zeichen</span>}
-        </div>
-      </div>
+        <CardAction>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground tabular-nums">
+            {panel.elapsed > 0 && <span>{(panel.elapsed / 1000).toFixed(1)}s</span>}
+            {panel.output && <span>{panel.output.length} Zeichen</span>}
+          </div>
+        </CardAction>
+      </CardHeader>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <CardContent className="flex-1 overflow-y-auto py-4">
         {panel.error ? (
           <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
             {panel.error}
@@ -152,17 +201,20 @@ const OutputPanel = memo(function OutputPanel({
           <div className="space-y-3">
             {panel.reasoning && (
               <details open={panel.isReasoning && !panel.output} className="group">
-                <summary className="cursor-pointer text-xs font-medium text-grey-400 select-none">
+                <summary className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-muted-foreground select-none">
                   {panel.isReasoning ? (
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-grey-300 border-t-primary-500" />
+                    <>
+                      <span className="inline-block size-3 animate-spin rounded-full border-2 border-grey-300 border-t-primary-500" />
                       Denkt...
-                    </span>
+                    </>
                   ) : (
-                    `Reasoning (${panel.reasoning.length} Zeichen)`
+                    <>
+                      <BrainCircuit className="size-3" />
+                      Reasoning ({panel.reasoning.length} Zeichen)
+                    </>
                   )}
                 </summary>
-                <div className="mt-2 whitespace-pre-wrap rounded-lg bg-grey-50 p-3 text-xs leading-relaxed text-grey-500 dark:bg-grey-800/50 dark:text-grey-400">
+                <div className="mt-2 whitespace-pre-wrap rounded-lg bg-grey-50 p-3 text-xs leading-relaxed text-muted-foreground dark:bg-grey-800/50">
                   {panel.reasoning}
                 </div>
               </details>
@@ -174,28 +226,26 @@ const OutputPanel = memo(function OutputPanel({
             )}
           </div>
         ) : panel.streaming ? (
-          <div className="flex items-center gap-2 text-sm text-grey-400">
-            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-grey-300 border-t-primary-500" />
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="inline-block size-4 animate-spin rounded-full border-2 border-grey-300 border-t-primary-500" />
             Generiert...
           </div>
         ) : (
-          <div className="flex h-full items-center justify-center text-sm text-grey-400">
-            {panel.model ? 'Klicke "Generieren" um zu starten' : 'Wähle ein Modell aus'}
-          </div>
+          <Empty className="h-full min-h-[120px] border-none">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Play />
+              </EmptyMedia>
+              <EmptyDescription>Klicke &quot;Generieren&quot; um zu starten</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 });
 
 // ─── Memoized model selector ─────────────────────────────────────────────
-
-const REASONING_OPTIONS: { value: ReasoningEffort; label: string }[] = [
-  { value: 'none', label: 'Aus' },
-  { value: 'low', label: 'Niedrig' },
-  { value: 'medium', label: 'Mittel' },
-  { value: 'high', label: 'Hoch' },
-];
 
 const ModelSelector = memo(function ModelSelector({
   label,
@@ -215,41 +265,45 @@ const ModelSelector = memo(function ModelSelector({
   onReasoningChange: (value: ReasoningEffort) => void;
 }) {
   return (
-    <div>
-      <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-grey-500">
-        {label}
-      </label>
+    <div className="flex flex-col gap-1.5">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
       <div className="flex gap-2">
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full rounded-lg border border-grey-200 bg-background px-3 py-2 text-sm text-foreground dark:border-grey-700"
-        >
-          <option value="">Modell wählen...</option>
-          {Object.entries(groupedModels).map(([category, categoryModels]) => (
-            <optgroup key={category} label={category}>
-              {categoryModels.map((m) => (
-                <option key={`${m.provider}/${m.id}`} value={`${m.provider}/${m.id}`}>
-                  {m.name}
-                  {m.reasoning ? ' *' : ''}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-        {showReasoning && (
-          <select
-            value={reasoningEffort}
-            onChange={(e) => onReasoningChange(e.target.value as ReasoningEffort)}
-            className="w-[100px] shrink-0 rounded-lg border border-grey-200 bg-background px-2 py-2 text-xs text-foreground dark:border-grey-700"
-            title="Reasoning Effort"
-          >
-            {REASONING_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
+        <Select value={value || '_none'} onValueChange={(v) => onChange(v === '_none' ? '' : v)}>
+          <SelectTrigger className="w-full min-w-0">
+            <SelectValue placeholder="Modell wählen..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_none">Modell wählen...</SelectItem>
+            {Object.entries(groupedModels).map(([category, categoryModels]) => (
+              <SelectGroup key={category}>
+                <SelectLabel>{category}</SelectLabel>
+                {categoryModels.map((m) => (
+                  <SelectItem key={`${m.provider}/${m.id}`} value={`${m.provider}/${m.id}`}>
+                    {m.name}
+                    {m.reasoning ? ' *' : ''}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             ))}
-          </select>
+          </SelectContent>
+        </Select>
+        {showReasoning && (
+          <Select
+            value={reasoningEffort}
+            onValueChange={(v) => onReasoningChange(v as ReasoningEffort)}
+          >
+            <SelectTrigger className="w-[100px] shrink-0" size="sm">
+              <BrainCircuit className="size-3 text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {REASONING_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
       </div>
     </div>
@@ -439,7 +493,7 @@ function PlaygroundPage() {
             currentEvent = line.slice(7).trim();
             continue;
           }
-          if (line.startsWith(': ')) continue; // heartbeat comment
+          if (line.startsWith(': ')) continue;
           if (!line.startsWith('data: ')) continue;
 
           try {
@@ -474,7 +528,6 @@ function PlaygroundPage() {
                 return next;
               });
             } else if (data.text && !currentEvent) {
-              // Fallback for events without event: prefix
               fullText += data.text;
               const currentText = fullText;
               setPanels((prev) => {
@@ -543,100 +596,102 @@ function PlaygroundPage() {
   const modelBValue = panels[1].model ? `${panels[1].model.provider}/${panels[1].model.id}` : '';
 
   return (
-    <div className="flex h-full flex-col bg-background">
-      {/* Header bar */}
-      <div className="border-b border-grey-200 bg-background-alt px-6 py-4 dark:border-grey-700">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-semibold text-foreground">Playground</h1>
-            <p className="text-sm text-grey-500">
-              Vergleiche Prompts und Agents mit verschiedenen Modellen
-            </p>
-          </div>
-          <div className="flex gap-2">
-            {isAnyStreaming ? (
-              <button
-                onClick={handleStop}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
-              >
-                Stoppen
-              </button>
-            ) : (
-              <button
-                onClick={handleGenerate}
-                disabled={!canGenerate}
-                className={cn(
-                  'rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors',
-                  canGenerate
-                    ? 'bg-primary-600 hover:bg-primary-700'
-                    : 'cursor-not-allowed bg-grey-300 dark:bg-grey-700'
-                )}
-              >
-                Generieren
-              </button>
-            )}
-          </div>
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-md px-lg pb-xl pt-lg max-md:px-md">
+      {/* Header */}
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="flex items-center gap-sm text-2xl font-semibold text-foreground-heading">
+            <Beaker className="size-6 text-primary-600" />
+            Playground
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Vergleiche Prompts und Agents mit verschiedenen Modellen
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {isAnyStreaming ? (
+            <Button variant="brand-danger" size="brand-sm" onClick={handleStop}>
+              <Square className="size-3.5" />
+              Stoppen
+            </Button>
+          ) : (
+            <Button
+              variant="brand"
+              size="brand-sm"
+              onClick={handleGenerate}
+              disabled={!canGenerate}
+            >
+              <Play className="size-3.5" />
+              Generieren
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Config section */}
-      <div className="border-b border-grey-200 bg-background px-6 py-4 dark:border-grey-700">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-grey-500">
-              Generator
-            </label>
-            <select
-              value={selectedPrompt?.id || ''}
-              onChange={(e) => handlePromptChange(e.target.value)}
-              className="w-full rounded-lg border border-grey-200 bg-background px-3 py-2 text-sm text-foreground dark:border-grey-700"
-            >
-              {prompts.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
+      {/* Config card */}
+      <Card>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-md lg:grid-cols-3">
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs text-muted-foreground">Generator</Label>
+              <Select value={selectedPrompt?.id || ''} onValueChange={handlePromptChange}>
+                <SelectTrigger className="w-full">
+                  <Type className="size-3.5 text-muted-foreground" />
+                  <SelectValue placeholder="Generator wählen..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {prompts.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <ModelSelector
-            label="Modell A"
-            value={modelAValue}
-            reasoningEffort={panels[0].reasoningEffort}
-            showReasoning={!!panels[0].model?.reasoning}
-            groupedModels={groupedModels}
-            onChange={handleModelChangeA}
-            onReasoningChange={handleReasoningChangeA}
-          />
-          <ModelSelector
-            label="Modell B"
-            value={modelBValue}
-            reasoningEffort={panels[1].reasoningEffort}
-            showReasoning={!!panels[1].model?.reasoning}
-            groupedModels={groupedModels}
-            onChange={handleModelChangeB}
-            onReasoningChange={handleReasoningChangeB}
-          />
-        </div>
+            <ModelSelector
+              label="Modell A"
+              value={modelAValue}
+              reasoningEffort={panels[0].reasoningEffort}
+              showReasoning={!!panels[0].model?.reasoning}
+              groupedModels={groupedModels}
+              onChange={handleModelChangeA}
+              onReasoningChange={handleReasoningChangeA}
+            />
+            <ModelSelector
+              label="Modell B"
+              value={modelBValue}
+              reasoningEffort={panels[1].reasoningEffort}
+              showReasoning={!!panels[1].model?.reasoning}
+              groupedModels={groupedModels}
+              onChange={handleModelChangeB}
+              onReasoningChange={handleReasoningChangeB}
+            />
+          </div>
+        </CardContent>
 
         {selectedPrompt && (
-          <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
-            {selectedPrompt.requestFields.map((field) => (
-              <FieldInput
-                key={field}
-                field={field}
-                value={fields[field] || ''}
-                onChange={handleFieldChange}
-              />
-            ))}
-          </div>
+          <CardContent className="pt-0">
+            <CollapsibleSection title="Eingabefelder" defaultOpen bordered>
+              <div className="grid grid-cols-1 gap-sm lg:grid-cols-2">
+                {selectedPrompt.requestFields.map((field) => (
+                  <FieldInput
+                    key={field}
+                    field={field}
+                    value={fields[field] || ''}
+                    onChange={handleFieldChange}
+                  />
+                ))}
+              </div>
+            </CollapsibleSection>
+          </CardContent>
         )}
-      </div>
+      </Card>
 
       {/* Output panels */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-2">
-        <OutputPanel panel={panels[0]} label="Modell A" isLeft />
-        <OutputPanel panel={panels[1]} label="Modell B" isLeft={false} />
+      <div className="grid min-h-[400px] grid-cols-1 gap-md lg:grid-cols-2">
+        <OutputPanel panel={panels[0]} panelIndex={0} />
+        <OutputPanel panel={panels[1]} panelIndex={1} />
       </div>
     </div>
   );
