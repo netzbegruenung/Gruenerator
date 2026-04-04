@@ -27,7 +27,13 @@ interface FiltersResponse {
   filters: Record<string, FilterFieldConfig>;
 }
 
-const ALLOWED_FILTER_FIELDS = new Set(['published_at', 'content_type']);
+const ALLOWED_FILTER_FIELDS = new Set([
+  'published_at',
+  'content_type',
+  'primary_category',
+  'subcategories',
+  'region',
+]);
 
 export function useResearchFilters() {
   const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>([]);
