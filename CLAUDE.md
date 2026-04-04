@@ -62,6 +62,14 @@ SQL migrations live in `apps/api/database/postgres/migrations/` and run automati
 - **Redis** — Sessions, caching, rate limiting. Connect: `redis-cli -a 'F-e9ZjuJ03U-@'`. Useful: `GET "monitor:stimmung:de"`, `DEL "monitor:stimmung:de"` to clear cache.
 - **Qdrant** — Vector embeddings for semantic search.
 
+### Content Sync & Scraping
+
+System Qdrant collections are populated by scrapers in `apps/api/services/scrapers/`. Sync is automated via GitHub Actions (`content-sync.yml`): hourly for Landesverbände, daily for all other sources. Entry point: `apps/api/update-all-content.ts`.
+
+**NEVER do a full rescrape (`--force` on all sources).** We have thousands of web-scraped documents. Only rescrape targeted subsets (e.g., PDFs only via `reprocess-pdfs.ts`) when pipeline changes affect extraction quality. Web-scraped HTML content rarely needs reprocessing.
+
+**`satzungen_documents`** — dormant collection, not actively used or synced. Exclude from improvements and rescraping.
+
 ### Adding a New Landesverband Notebook
 
 See `CLAUDE-landesverband.md` for the full 9-file checklist, naming conventions, and verification steps.
