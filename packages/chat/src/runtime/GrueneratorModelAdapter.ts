@@ -19,7 +19,7 @@ import { parseAllMentions } from '../lib/mentionParser';
 import { parseSSELine } from '../lib/sseParser';
 import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../lib/toolMappings';
 import { useDocumentChatStore } from '../stores/documentChatStore';
-import type { ConfirmActionData } from '../types/messageMetadata';
+import type { ConfirmActionData, DocumentCreatedData } from '../types/messageMetadata';
 
 export type GrueneratorMessageMetadata = {
   progress?: ChatProgress;
@@ -32,6 +32,7 @@ export type GrueneratorMessageMetadata = {
   agentId?: string;
   agentMention?: string;
   confirmAction?: ConfirmActionData;
+  createdDocument?: DocumentCreatedData;
   [key: string]: unknown;
 };
 
@@ -151,6 +152,7 @@ async function* parseSSEStream(
   let receivedFollowUpSuggestions: string[] = [];
   let receivedMetadata: StreamMetadata | null = null;
   let receivedConfirmAction: ConfirmActionData | null = null;
+  let receivedCreatedDocument: DocumentCreatedData | null = null;
   let activeToolCall: ToolCallPart | null = null;
   const allToolCalls: ToolCallPart[] = [];
   let interruptPending = false;
@@ -194,6 +196,7 @@ async function* parseSSEStream(
     if (receivedFollowUpSuggestions.length > 0)
       custom.followUpSuggestions = receivedFollowUpSuggestions;
     if (receivedConfirmAction) custom.confirmAction = receivedConfirmAction;
+    if (receivedCreatedDocument) custom.createdDocument = receivedCreatedDocument;
     if (agentInfo?.agentId) {
       custom.agentId = agentInfo.agentId;
       if (agentInfo.agentMention) custom.agentMention = agentInfo.agentMention;
@@ -479,6 +482,12 @@ async function* parseSSEStream(
 
         case 'confirm_action': {
           receivedConfirmAction = data as ConfirmActionData;
+          yield buildResult();
+          break;
+        }
+
+        case 'document_created': {
+          receivedCreatedDocument = data as DocumentCreatedData;
           yield buildResult();
           break;
         }

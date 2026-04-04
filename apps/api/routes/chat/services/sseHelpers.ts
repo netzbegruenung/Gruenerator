@@ -33,6 +33,7 @@ export type SSEEventType =
   | 'text_delta'
   | 'interrupt'
   | 'document_indexed'
+  | 'document_created'
   | 'confirm_action'
   | 'chart_data'
   | 'done'
@@ -104,6 +105,7 @@ export interface SSEEventPayloads {
   thinking_step: ThinkingStepPayload;
   text_delta: { text: string };
   document_indexed: { documentId: string; title: string };
+  document_created: { documentId: string; title: string; subtype: string; url: string };
   interrupt: {
     interruptType: 'clarification';
     question: string;

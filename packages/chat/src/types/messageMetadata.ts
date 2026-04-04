@@ -22,6 +22,13 @@ export interface ConfirmActionData {
   threadId: string;
 }
 
+export interface DocumentCreatedData {
+  documentId: string;
+  title: string;
+  subtype: string;
+  url: string;
+}
+
 export type ChatMessageMetadata = {
   progress?: ChatProgress;
   citations?: Citation[];
@@ -35,8 +42,8 @@ export type ChatMessageMetadata = {
   streamMetadata?: StreamMetadata;
   threadId?: string;
   followUpSuggestions?: string[];
-  // Confirm action (save_as_doc, modify_doc, modify_board)
   confirmAction?: ConfirmActionData;
+  createdDocument?: DocumentCreatedData;
   // Notebook specific
   rawCitations?: RawCitation[];
   sources?: Source[];
