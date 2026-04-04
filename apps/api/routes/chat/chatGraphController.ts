@@ -1009,7 +1009,12 @@ router.post('/stream', async (req, res) => {
           summaryLength,
           timeMs: finalState.summaryTimeMs || 0,
         });
-      } else if (currentIntent !== 'direct') {
+      } else if (
+        currentIntent !== 'direct' &&
+        currentIntent !== 'save_as_doc' &&
+        currentIntent !== 'modify_doc' &&
+        currentIntent !== 'modify_board'
+      ) {
         const toolEnabled = forcedTool || enabledTools?.[currentIntent] !== false;
         if (toolEnabled) {
           let searchInputState = finalState;
