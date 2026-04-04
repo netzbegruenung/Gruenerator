@@ -235,7 +235,7 @@ export async function setupRoutes(app: Application): Promise<void> {
 
   app.use('/api/claude_social', aiGenerationLimiter, claudeSocialRoute);
   app.use('/api/claude_alttext', aiGenerationLimiter, claudeAlttextRoute);
-  app.use('/api/vision', requireAuth, aiGenerationLimiter, visionRouter);
+  app.use('/api/vision', aiGenerationLimiter, requireAuth, visionRouter);
   app.use('/api/claude_website', aiGenerationLimiter, claudeWebsiteRoute);
   app.use('/api/leichte_sprache', aiGenerationLimiter, leichteSpracheRoute);
   app.use('/api/claude_rede', aiGenerationLimiter, redeRouter);
