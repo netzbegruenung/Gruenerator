@@ -16,6 +16,7 @@ import { fileURLToPath } from 'url';
 import compression from 'compression';
 import cors from 'cors';
 import express, { type Express, type Request, type Response, type NextFunction } from 'express';
+import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { isHttpError } from 'http-errors';
 import morgan from 'morgan';
@@ -368,7 +369,14 @@ async function startWorker(): Promise<void> {
 
   // Better Auth handler (must be before express.json middleware)
   const { betterAuthHandler } = await import('./routes/auth/betterAuthHandler.js');
-  app.all('/api/auth/v2/*splat', (req, res, next) => {
+  const authV2Limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many authentication requests, please try again later.' },
+  });
+  app.all('/api/auth/v2/*splat', authV2Limiter, (req, res, next) => {
     Promise.resolve(betterAuthHandler(req, res)).catch(next);
   });
 
