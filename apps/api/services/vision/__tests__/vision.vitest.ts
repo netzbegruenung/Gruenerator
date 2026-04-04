@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 
-import { isProviderConfigured, getModel } from '../../ai/providers.js';
+import { isProviderConfigured } from '../../ai/providers.js';
 import { isVisionCapable, getAvailableModels } from '../../ai/modelDiscovery.js';
 import { executeProvider } from '../../../workers/providers/index.js';
 
