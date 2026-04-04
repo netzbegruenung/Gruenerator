@@ -9,6 +9,7 @@
  */
 
 import { promises as fs } from 'fs';
+import os from 'os';
 import path from 'path';
 
 import type { ExtractionResult } from './types.js';
@@ -104,8 +105,18 @@ async function sendBufferToDocling(
  * Extract text from a file on disk using Docling-Serve.
  */
 export async function extractTextWithDocling(filePath: string): Promise<ExtractionResult> {
+  const resolvedPath = path.resolve(filePath);
+  const allowedBases = [
+    os.tmpdir(),
+    path.resolve(__dirname, '../../uploads'),
+    path.resolve(__dirname, '../../storage'),
+  ];
+  if (!allowedBases.some((base) => resolvedPath.startsWith(base + path.sep))) {
+    throw new Error('File path outside allowed directories');
+  }
+
   console.log(`[DoclingOCR] Starting extraction:`, { filePath });
-  const fileBuffer = await fs.readFile(filePath);
+  const fileBuffer = await fs.readFile(resolvedPath);
   const fileName = path.basename(filePath);
   return sendBufferToDocling(fileBuffer, fileName, '[DoclingOCR]');
 }
