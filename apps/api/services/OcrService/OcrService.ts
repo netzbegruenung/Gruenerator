@@ -10,6 +10,7 @@ import path from 'path';
 import { vectorConfig } from '../../config/vectorConfig.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { getQdrantInstance } from '../../database/services/QdrantService.js';
+import { sanitizeFilename } from '../../utils/validation/security.js';
 import { smartChunkDocument } from '../document-services/index.js';
 import { mistralEmbeddingService } from '../mistral/index.js';
 
@@ -407,6 +408,7 @@ export class OCRService {
     filename: string,
     mimeType: string
   ): Promise<ExtractionResult> {
+    filename = sanitizeFilename(filename, 'attachment');
     if (this.isTextDecodable(mimeType, filename)) {
       const text = Buffer.from(base64Data, 'base64').toString('utf-8');
       return {
