@@ -4,7 +4,7 @@ import * as path from 'path';
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
 
 import { sanitizeFilename } from '../../utils/validation/index.js';
-import { validateUrlSync } from '../../utils/validation/urlSecurity.js';
+import { validateUrlSync, validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 
 // Type Definitions
 export interface ParsedShareLink {
@@ -117,6 +117,21 @@ class NextcloudApiClient {
       baseUrl: this.baseURL,
       shareToken: this.shareToken.substring(0, 8) + '...',
     });
+  }
+
+  /**
+   * Async factory that adds DNS-aware SSRF validation on top of the sync check.
+   * All call sites should use `await NextcloudApiClient.create(link)` instead of `new`.
+   */
+  static async create(shareLink: string): Promise<NextcloudApiClient> {
+    const client = new NextcloudApiClient(shareLink);
+    const urlCheck = await validateUrlForFetch(client.baseURL, {
+      allowedProtocols: ['https:'],
+    });
+    if (!urlCheck.isValid) {
+      throw new Error(`Nextcloud URL failed SSRF validation: ${urlCheck.error}`);
+    }
+    return client;
   }
 
   /**
@@ -688,6 +703,12 @@ class NextcloudApiClient {
           .map((segment) => encodeURIComponent(segment))
           .join('/');
         fileUrl = `${this.webdavUrl}/${encodedPath}`;
+      }
+
+      const parsedFileUrl = new URL(fileUrl);
+      const parsedBaseUrl = new URL(this.baseURL);
+      if (parsedFileUrl.origin !== parsedBaseUrl.origin) {
+        throw new Error('Download URL origin mismatch — possible SSRF attempt');
       }
 
       console.log(`[NextcloudApiClient] Downloading from URL: ${fileUrl}`);

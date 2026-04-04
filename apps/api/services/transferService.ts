@@ -143,7 +143,7 @@ class TransferService {
       throw new Error('Wolke connection no longer available');
     }
 
-    const client = new NextcloudApiClient(wolkeLink.share_link);
+    const client = await NextcloudApiClient.create(wolkeLink.share_link);
     const webdavPath = `/public.php/webdav/${record.wolke_file_path}`;
 
     log.info('Proxying download from Wolke', {
@@ -226,7 +226,7 @@ class TransferService {
 
     const targetFolder = folderPath || TRANSFER_FOLDER;
 
-    const client = new NextcloudApiClient(wolkeLink.share_link);
+    const client = await NextcloudApiClient.create(wolkeLink.share_link);
 
     // Ensure the transfer folder exists (auto-create on first use)
     await client.ensureFolder(targetFolder);
@@ -299,7 +299,7 @@ class TransferService {
 
     const targetFolder = folderPath || TRANSFER_FOLDER;
 
-    const client = new NextcloudApiClient(wolkeLink.share_link);
+    const client = await NextcloudApiClient.create(wolkeLink.share_link);
 
     await client.ensureFolder(targetFolder);
 

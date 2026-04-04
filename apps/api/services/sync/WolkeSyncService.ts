@@ -164,7 +164,7 @@ export class WolkeSyncService {
    */
   async listFolderContents(shareLink: any, folderPath: string = ''): Promise<NextcloudFile[]> {
     try {
-      const client = new NextcloudApiClient(shareLink.share_link);
+      const client = await NextcloudApiClient.create(shareLink.share_link);
       const shareInfo = await client.getShareInfo();
 
       if (!shareInfo.success) {
@@ -197,7 +197,7 @@ export class WolkeSyncService {
     cleanup: () => Promise<void>;
   }> {
     try {
-      const client = new NextcloudApiClient(shareLink.share_link);
+      const client = await NextcloudApiClient.create(shareLink.share_link);
       const tempDir = os.tmpdir();
       const tempFileName = `wolke_${Date.now()}_${file.name}`;
       const tempFilePath = path.join(tempDir, tempFileName);
@@ -325,7 +325,7 @@ export class WolkeSyncService {
       }
 
       // Download file from Nextcloud
-      const client = new NextcloudApiClient(shareLink.share_link);
+      const client = await NextcloudApiClient.create(shareLink.share_link);
       console.log(`[WolkeSyncService] Downloading file: ${file.name}`);
       const fileData = await client.downloadFile(file.href);
 
