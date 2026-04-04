@@ -80,6 +80,21 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
     useNotebookStore.getState().fetchQACollections();
   }, [mentionablesActivated, qaCollectionsLength]);
 
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { mentions } = (e as CustomEvent<{ mentions: string[] }>).detail;
+      if (mentions.length === 0) return;
+      const names = mentions.map((m) => `@${m}`).join(', ');
+      import('sonner').then(({ toast }) =>
+        toast.warning(`${names} konnte nicht aufgeloest werden`, {
+          description: 'Nutze @docs um ein kollaboratives Dokument auszuwaehlen.',
+        })
+      );
+    };
+    window.addEventListener('gruenerator:unresolved-mentions', handler);
+    return () => window.removeEventListener('gruenerator:unresolved-mentions', handler);
+  }, []);
+
   // Refs for stable getExternalThreads callback — updated via Zustand .subscribe() to avoid re-renders
   const chatsRef = useRef(useNotebookChatStore.getState().chats);
   const qaRef = useRef(useNotebookStore.getState().qaCollections);

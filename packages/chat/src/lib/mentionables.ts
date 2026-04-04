@@ -391,6 +391,17 @@ export const docToolMentionables: Mentionable[] = [
     backgroundColor: '#0891B2',
     mention: 'dokument-erstellen',
   },
+  {
+    type: 'doc',
+    category: 'function',
+    trigger: '@',
+    identifier: 'docs-picker-trigger',
+    title: 'Dokument einfuegen',
+    description: 'Kollaboratives Dokument als Kontext hinzufuegen',
+    avatar: '📄',
+    backgroundColor: '#0891B2',
+    mention: 'docs',
+  },
 ];
 
 export interface DocMentionable {
