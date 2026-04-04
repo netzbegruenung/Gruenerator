@@ -133,7 +133,8 @@ function buildPendingAction(
   fullText: string,
   searchQuery: string | null,
   docMentionIds: string[] | undefined,
-  boardIds: string[] | undefined
+  boardIds: string[] | undefined,
+  documentSubtype: string | null
 ): PendingAction | null {
   const base = {
     actionId: `action_${Date.now()}`,
@@ -149,7 +150,11 @@ function buildPendingAction(
         ...base,
         type: 'save_as_doc',
         title: 'Antwort als Dokument speichern',
-        payload: { content: fullText, title: searchQuery || 'Neues Dokument', subtype: 'docs' },
+        payload: {
+          content: fullText,
+          title: searchQuery || 'Neues Dokument',
+          subtype: documentSubtype || 'docs',
+        },
       };
     case 'modify_doc':
       if (!docMentionIds?.length) return null;
@@ -1117,7 +1122,8 @@ router.post('/stream', async (req, res) => {
         fullText,
         classifiedState.searchQuery,
         rawDocMentionIds,
-        rawBoardIds
+        rawBoardIds,
+        classifiedState.documentSubtype || null
       );
 
       if (pendingAction) {
@@ -1126,6 +1132,7 @@ router.post('/stream', async (req, res) => {
           pendingAction.type === 'save_as_doc'
             ? [
                 { key: 'Titel', value: pendingAction.payload.title },
+                { key: 'Typ', value: pendingAction.payload.subtype },
                 { key: 'Länge', value: `${fullText.length} Zeichen` },
               ]
             : pendingAction.type === 'modify_doc'

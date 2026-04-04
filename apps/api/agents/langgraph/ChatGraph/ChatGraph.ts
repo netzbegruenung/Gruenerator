@@ -177,6 +177,9 @@ const ChatStateAnnotation = Annotation.Root({
   contentType: Annotation<string | null>({
     reducer: (x, y) => y ?? x,
   }),
+  documentSubtype: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
+  }),
 
   // Clarification (HITL interrupt)
   needsClarification: Annotation<boolean>({
@@ -563,6 +566,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     hasTemporal: false,
     complexity: 'moderate' as const,
     contentType: null,
+    documentSubtype: null,
     needsClarification: false,
     clarificationQuestion: null,
     clarificationOptions: null,

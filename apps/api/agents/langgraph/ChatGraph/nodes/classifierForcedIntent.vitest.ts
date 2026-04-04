@@ -75,6 +75,7 @@ function buildState(overrides: Partial<ChatGraphState> & { userMessage: string }
     hasTemporal: false,
     complexity: 'moderate' as const,
     contentType: null,
+    documentSubtype: null,
     needsClarification: false,
     clarificationQuestion: null,
     clarificationOptions: null,

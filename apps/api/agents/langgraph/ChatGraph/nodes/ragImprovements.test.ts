@@ -200,6 +200,7 @@ async function testExpandedContextWindow() {
     subQueries: null,
     reasoning: 'test',
     contentType: null,
+    documentSubtype: null,
     isCompound: false,
     gatherSources: [],
     hasTemporal: false,
