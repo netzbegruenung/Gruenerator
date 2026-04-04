@@ -23,7 +23,7 @@ import {
   SelectValue,
   Textarea,
 } from '@gruenerator/ui';
-import { Beaker, BrainCircuit, Cpu, Play, Square, Type } from 'lucide-react';
+import { Beaker, BrainCircuit, Cpu, ImagePlus, Play, Square, Trash2, Type } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { cn } from '../../utils/cn';
@@ -42,8 +42,8 @@ interface ModelConfig {
 interface PromptConfig {
   id: string;
   name: string;
-  requestFields: string[];
-  platforms: string[];
+  description: string;
+  fields: string[];
 }
 
 interface PanelState {
@@ -55,28 +55,23 @@ interface PanelState {
   streaming: boolean;
   elapsed: number;
   error: string | null;
+  ocrText: string | null;
 }
 
 const FIELD_LABELS: Record<string, string> = {
+  systemPrompt: 'System-Prompt',
+  userMessage: 'Nachricht',
   inhalt: 'Inhalt / Thema',
   textForm: 'Textform',
-  requestType: 'Antragstyp',
-  gliederung: 'Gliederung / Absender*in',
-  platform: 'Plattform',
-  text: 'Text',
-  zielgruppe: 'Zielgruppe',
-  laenge: 'Gewünschte Länge',
-  stil: 'Stil',
-  kontext: 'Kontext',
+  originalText: 'Ausgangstext',
 };
 
 const FIELD_PLACEHOLDERS: Record<string, string> = {
+  systemPrompt: 'Du bist ein hilfreicher Assistent...',
+  userMessage: 'Schreibe eine Nachricht an das Modell...',
   inhalt: 'Worum soll es gehen? Beschreibe das Thema, die politische Forderung oder den Anlass...',
   textForm: 'z.B. Pressemitteilung, Blogpost, Newsletter, Rede...',
-  requestType: 'z.B. antrag, kleine_anfrage, grosse_anfrage',
-  gliederung: 'z.B. Kreisverband Musterstadt',
-  platform: 'z.B. facebook, twitter, instagram, linkedin',
-  text: 'Ausgangstext eingeben...',
+  originalText: 'Den zu übersetzenden Text hier eingeben...',
 };
 
 const REASONING_OPTIONS: { value: ReasoningEffort; label: string }[] = [
@@ -109,7 +104,11 @@ const FieldInput = memo(function FieldInput({
     [field, onChange]
   );
 
-  const isTextarea = field === 'inhalt' || field === 'text';
+  const isTextarea =
+    field === 'systemPrompt' ||
+    field === 'userMessage' ||
+    field === 'inhalt' ||
+    field === 'originalText';
 
   return (
     <div className={cn('flex flex-col gap-1.5', isTextarea && 'lg:col-span-2')}>
@@ -224,6 +223,17 @@ const OutputPanel = memo(function OutputPanel({
                 {panel.output}
               </div>
             )}
+            {panel.ocrText && (
+              <details className="group">
+                <summary className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-muted-foreground select-none">
+                  <Type className="size-3" />
+                  Extrahierter Text (OCR)
+                </summary>
+                <div className="mt-2 whitespace-pre-wrap rounded-lg bg-grey-50 p-3 text-xs leading-relaxed text-muted-foreground dark:bg-grey-800/50">
+                  {panel.ocrText}
+                </div>
+              </details>
+            )}
           </div>
         ) : panel.streaming ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -322,6 +332,7 @@ function createEmptyPanel(): PanelState {
     streaming: false,
     elapsed: 0,
     error: null,
+    ocrText: null,
   };
 }
 
@@ -334,6 +345,8 @@ function PlaygroundPage() {
     createEmptyPanel(),
     createEmptyPanel(),
   ]);
+  const [imageData, setImageData] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const abortRefs = useRef<[AbortController | null, AbortController | null]>([null, null]);
   const fieldsRef = useRef(fields);
@@ -356,10 +369,10 @@ function PlaygroundPage() {
       .then((d) => {
         const list = (d.prompts || []) as PromptConfig[];
         setPrompts(list);
-        const universal = list.find((p) => p.id === 'universal');
-        if (universal) {
-          setSelectedPrompt(universal);
-          setFields(Object.fromEntries(universal.requestFields.map((f) => [f, ''])));
+        const initial = list.find((p) => p.id === 'free') || list[0];
+        if (initial) {
+          setSelectedPrompt(initial);
+          setFields(Object.fromEntries(initial.fields.map((f) => [f, ''])));
         }
       })
       .catch(() => {});
@@ -370,7 +383,7 @@ function PlaygroundPage() {
       const prompt = prompts.find((p) => p.id === id);
       if (prompt) {
         setSelectedPrompt(prompt);
-        setFields(Object.fromEntries(prompt.requestFields.map((f) => [f, ''])));
+        setFields(Object.fromEntries(prompt.fields.map((f) => [f, ''])));
       }
     },
     [prompts]
@@ -380,197 +393,232 @@ function PlaygroundPage() {
     setFields((prev) => ({ ...prev, [field]: value }));
   }, []);
 
+  const updatePanel = useCallback((idx: 0 | 1, patch: Partial<PanelState>) => {
+    setPanels((prev) => {
+      const next = [...prev] as [PanelState, PanelState];
+      next[idx] = { ...next[idx], ...patch };
+      return next;
+    });
+  }, []);
+
   const handleModelChangeA = useCallback(
     (modelId: string) => {
       const model = models.find((m) => `${m.provider}/${m.id}` === modelId) || null;
-      setPanels((prev) => {
-        const next = [...prev] as [PanelState, PanelState];
-        next[0] = { ...next[0], model };
-        return next;
-      });
+      updatePanel(0, { model });
     },
-    [models]
+    [models, updatePanel]
   );
 
   const handleModelChangeB = useCallback(
     (modelId: string) => {
       const model = models.find((m) => `${m.provider}/${m.id}` === modelId) || null;
-      setPanels((prev) => {
-        const next = [...prev] as [PanelState, PanelState];
-        next[1] = { ...next[1], model };
-        return next;
-      });
+      updatePanel(1, { model });
     },
-    [models]
+    [models, updatePanel]
   );
 
-  const handleReasoningChangeA = useCallback((value: ReasoningEffort) => {
-    setPanels((prev) => {
-      const next = [...prev] as [PanelState, PanelState];
-      next[0] = { ...next[0], reasoningEffort: value };
-      return next;
-    });
+  const handleReasoningChangeA = useCallback(
+    (value: ReasoningEffort) => updatePanel(0, { reasoningEffort: value }),
+    [updatePanel]
+  );
+
+  const handleReasoningChangeB = useCallback(
+    (value: ReasoningEffort) => updatePanel(1, { reasoningEffort: value }),
+    [updatePanel]
+  );
+
+  const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setImageData(reader.result as string);
+    reader.readAsDataURL(file);
+    e.target.value = '';
   }, []);
 
-  const handleReasoningChangeB = useCallback((value: ReasoningEffort) => {
-    setPanels((prev) => {
-      const next = [...prev] as [PanelState, PanelState];
-      next[1] = { ...next[1], reasoningEffort: value };
-      return next;
-    });
-  }, []);
+  const handleRemoveImage = useCallback(() => setImageData(null), []);
 
-  const streamGenerate = useCallback(async (panelIdx: 0 | 1) => {
-    const panel = panelsRef.current[panelIdx];
-    const prompt = selectedPromptRef.current;
-    if (!panel.model || !prompt) return;
+  const imageDataRef = useRef(imageData);
+  imageDataRef.current = imageData;
 
-    abortRefs.current[panelIdx]?.abort();
-    const controller = new AbortController();
-    abortRefs.current[panelIdx] = controller;
+  const visionAnalyze = useCallback(
+    async (panelIdx: 0 | 1) => {
+      const panel = panelsRef.current[panelIdx];
+      if (!panel.model || !imageDataRef.current) return;
 
-    setPanels((prev) => {
-      const next = [...prev] as [PanelState, PanelState];
-      next[panelIdx] = {
-        ...next[panelIdx],
+      abortRefs.current[panelIdx]?.abort();
+      const controller = new AbortController();
+      abortRefs.current[panelIdx] = controller;
+
+      updatePanel(panelIdx, {
         output: '',
         reasoning: '',
         isReasoning: false,
         streaming: true,
         elapsed: 0,
         error: null,
-      };
-      return next;
-    });
-
-    const startTime = performance.now();
-    const timerInterval = setInterval(() => {
-      setPanels((prev) => {
-        const next = [...prev] as [PanelState, PanelState];
-        next[panelIdx] = { ...next[panelIdx], elapsed: Math.round(performance.now() - startTime) };
-        return next;
-      });
-    }, 100);
-
-    try {
-      const response = await fetch('/api/texte/playground/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-        credentials: 'include',
-        signal: controller.signal,
-        body: JSON.stringify({
-          type: prompt.id,
-          provider: panel.model.provider,
-          model: panel.model.id,
-          ...(panel.model.reasoning && panel.reasoningEffort !== 'medium'
-            ? { reasoningEffort: panel.reasoningEffort }
-            : {}),
-          ...fieldsRef.current,
-        }),
+        ocrText: null,
       });
 
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const startTime = performance.now();
 
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No response body');
+      try {
+        const instruction =
+          Object.values(fieldsRef.current).filter(Boolean).join('\n') ||
+          'Beschreibe dieses Bild detailliert. Was ist darauf zu sehen?';
 
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let fullText = '';
-      let fullReasoning = '';
-      let currentEvent = '';
+        const response = await fetch('/api/vision/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          signal: controller.signal,
+          body: JSON.stringify({
+            image: imageDataRef.current,
+            instruction,
+            provider: panel.model.provider,
+            model: panel.model.id,
+          }),
+        });
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
-
-        for (const line of lines) {
-          if (line.startsWith('event: ')) {
-            currentEvent = line.slice(7).trim();
-            continue;
-          }
-          if (line.startsWith(': ')) continue;
-          if (!line.startsWith('data: ')) continue;
-
-          try {
-            const data = JSON.parse(line.slice(6));
-
-            if (currentEvent === 'reasoning_start') {
-              setPanels((prev) => {
-                const next = [...prev] as [PanelState, PanelState];
-                next[panelIdx] = { ...next[panelIdx], isReasoning: true };
-                return next;
-              });
-            } else if (currentEvent === 'reasoning_delta' && data.text) {
-              fullReasoning += data.text;
-              const currentReasoning = fullReasoning;
-              setPanels((prev) => {
-                const next = [...prev] as [PanelState, PanelState];
-                next[panelIdx] = { ...next[panelIdx], reasoning: currentReasoning };
-                return next;
-              });
-            } else if (currentEvent === 'reasoning_end') {
-              setPanels((prev) => {
-                const next = [...prev] as [PanelState, PanelState];
-                next[panelIdx] = { ...next[panelIdx], isReasoning: false };
-                return next;
-              });
-            } else if (currentEvent === 'text_delta' && data.text) {
-              fullText += data.text;
-              const currentText = fullText;
-              setPanels((prev) => {
-                const next = [...prev] as [PanelState, PanelState];
-                next[panelIdx] = { ...next[panelIdx], output: currentText };
-                return next;
-              });
-            } else if (data.text && !currentEvent) {
-              fullText += data.text;
-              const currentText = fullText;
-              setPanels((prev) => {
-                const next = [...prev] as [PanelState, PanelState];
-                next[panelIdx] = { ...next[panelIdx], output: currentText };
-                return next;
-              });
-            }
-
-            if (data.error) throw new Error(data.error);
-          } catch (e) {
-            if (e instanceof SyntaxError) continue;
-            throw e;
-          }
-
-          currentEvent = '';
-        }
-      }
-    } catch (e: unknown) {
-      if ((e as Error).name === 'AbortError') return;
-      setPanels((prev) => {
-        const next = [...prev] as [PanelState, PanelState];
-        next[panelIdx] = { ...next[panelIdx], error: (e as Error).message };
-        return next;
-      });
-    } finally {
-      clearInterval(timerInterval);
-      setPanels((prev) => {
-        const next = [...prev] as [PanelState, PanelState];
-        next[panelIdx] = {
-          ...next[panelIdx],
+        updatePanel(panelIdx, {
+          output: data.description || '',
+          ocrText: data.extractedText || null,
+        });
+      } catch (e: unknown) {
+        if ((e as Error).name === 'AbortError') return;
+        updatePanel(panelIdx, { error: (e as Error).message });
+      } finally {
+        updatePanel(panelIdx, {
           streaming: false,
           elapsed: Math.round(performance.now() - startTime),
-        };
-        return next;
+        });
+      }
+    },
+    [updatePanel]
+  );
+
+  const streamGenerate = useCallback(
+    async (panelIdx: 0 | 1) => {
+      const panel = panelsRef.current[panelIdx];
+      const prompt = selectedPromptRef.current;
+      if (!panel.model || !prompt) return;
+
+      abortRefs.current[panelIdx]?.abort();
+      const controller = new AbortController();
+      abortRefs.current[panelIdx] = controller;
+
+      updatePanel(panelIdx, {
+        output: '',
+        reasoning: '',
+        isReasoning: false,
+        streaming: true,
+        elapsed: 0,
+        error: null,
+        ocrText: null,
       });
-    }
-  }, []);
+
+      const startTime = performance.now();
+      const timerInterval = setInterval(() => {
+        updatePanel(panelIdx, { elapsed: Math.round(performance.now() - startTime) });
+      }, 500);
+
+      try {
+        const response = await fetch('/api/texte/playground/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+          credentials: 'include',
+          signal: controller.signal,
+          body: JSON.stringify({
+            type: prompt.id,
+            provider: panel.model.provider,
+            model: panel.model.id,
+            ...(panel.model.reasoning && panel.reasoningEffort !== 'medium'
+              ? { reasoningEffort: panel.reasoningEffort }
+              : {}),
+            ...fieldsRef.current,
+          }),
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('No response body');
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let fullText = '';
+        let fullReasoning = '';
+        let currentEvent = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              currentEvent = line.slice(7).trim();
+              continue;
+            }
+            if (line.startsWith(': ')) continue;
+            if (!line.startsWith('data: ')) continue;
+
+            try {
+              const data = JSON.parse(line.slice(6));
+
+              if (currentEvent === 'reasoning_start') {
+                updatePanel(panelIdx, { isReasoning: true });
+              } else if (currentEvent === 'reasoning_delta' && data.text) {
+                fullReasoning += data.text;
+                updatePanel(panelIdx, { reasoning: fullReasoning });
+              } else if (currentEvent === 'reasoning_end') {
+                updatePanel(panelIdx, { isReasoning: false });
+              } else if ((currentEvent === 'text_delta' || !currentEvent) && data.text) {
+                fullText += data.text;
+                updatePanel(panelIdx, { output: fullText });
+              }
+
+              if (data.error) throw new Error(data.error);
+            } catch (e) {
+              if (e instanceof SyntaxError) continue;
+              throw e;
+            }
+
+            currentEvent = '';
+          }
+        }
+      } catch (e: unknown) {
+        if ((e as Error).name === 'AbortError') return;
+        updatePanel(panelIdx, { error: (e as Error).message });
+      } finally {
+        clearInterval(timerInterval);
+        updatePanel(panelIdx, {
+          streaming: false,
+          elapsed: Math.round(performance.now() - startTime),
+        });
+      }
+    },
+    [updatePanel]
+  );
 
   const handleGenerate = useCallback(() => {
-    if (panelsRef.current[0].model) streamGenerate(0);
-    if (panelsRef.current[1].model) streamGenerate(1);
-  }, [streamGenerate]);
+    const hasImage = !!imageDataRef.current;
+    for (const idx of [0, 1] as const) {
+      const panel = panelsRef.current[idx];
+      if (!panel.model) continue;
+      if (hasImage && panel.model.vision) {
+        visionAnalyze(idx);
+      } else {
+        streamGenerate(idx);
+      }
+    }
+  }, [streamGenerate, visionAnalyze]);
 
   const handleStop = useCallback(() => {
     abortRefs.current[0]?.abort();
@@ -578,10 +626,10 @@ function PlaygroundPage() {
   }, []);
 
   const isAnyStreaming = panels[0].streaming || panels[1].streaming;
+  const hasVisionModel = panels.some((p) => p.model?.vision);
   const canGenerate =
-    selectedPrompt &&
     (panels[0].model || panels[1].model) &&
-    Object.values(fields).some((v) => v.trim());
+    (Object.values(fields).some((v) => v.trim()) || imageData);
 
   const groupedModels = useMemo(
     () =>
@@ -633,11 +681,11 @@ function PlaygroundPage() {
         <CardContent>
           <div className="grid grid-cols-1 gap-md lg:grid-cols-3">
             <div className="flex flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground">Generator</Label>
+              <Label className="text-xs text-muted-foreground">Modus</Label>
               <Select value={selectedPrompt?.id || ''} onValueChange={handlePromptChange}>
                 <SelectTrigger className="w-full">
                   <Type className="size-3.5 text-muted-foreground" />
-                  <SelectValue placeholder="Generator wählen..." />
+                  <SelectValue placeholder="Modus wählen..." />
                 </SelectTrigger>
                 <SelectContent>
                   {prompts.map((p) => (
@@ -674,7 +722,7 @@ function PlaygroundPage() {
           <CardContent className="pt-0">
             <CollapsibleSection title="Eingabefelder" defaultOpen bordered>
               <div className="grid grid-cols-1 gap-sm lg:grid-cols-2">
-                {selectedPrompt.requestFields.map((field) => (
+                {selectedPrompt.fields.map((field) => (
                   <FieldInput
                     key={field}
                     field={field}
@@ -687,6 +735,57 @@ function PlaygroundPage() {
           </CardContent>
         )}
       </Card>
+
+      {/* Image upload — shown when at least one vision model is selected */}
+      {hasVisionModel && (
+        <Card>
+          <CardContent>
+            <div className="flex items-center gap-md">
+              {imageData ? (
+                <div className="flex items-center gap-sm">
+                  <img
+                    src={imageData}
+                    alt="Vorschau"
+                    className="size-16 rounded-md border border-grey-200 object-cover dark:border-grey-700"
+                  />
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground">Bild angehängt</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRemoveImage}
+                      className="h-7 gap-1 px-2 text-xs"
+                    >
+                      <Trash2 className="size-3" />
+                      Entfernen
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="gap-1.5"
+                >
+                  <ImagePlus className="size-3.5" />
+                  Bild hinzufügen
+                </Button>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              <span className="text-xs text-muted-foreground">
+                Vision-Modelle analysieren das Bild und extrahieren Text via OCR
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Output panels */}
       <div className="grid min-h-[400px] grid-cols-1 gap-md lg:grid-cols-2">

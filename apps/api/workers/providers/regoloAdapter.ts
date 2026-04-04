@@ -29,23 +29,77 @@ function convertMessages(
       continue;
     }
 
-    let content: string;
     if (typeof msg.content === 'string') {
-      content = msg.content;
-    } else if (Array.isArray(msg.content)) {
-      content = msg.content
-        .map((c) => {
-          const block = c as { text?: string; content?: string };
-          return block.text || block.content || '';
-        })
-        .join('\n');
-    } else {
-      content = String(msg.content);
+      modelMessages.push({
+        role: msg.role as 'user' | 'assistant' | 'system',
+        content: msg.content,
+      });
+      continue;
+    }
+
+    if (Array.isArray(msg.content)) {
+      const contentParts = msg.content as Array<{
+        type: string;
+        text?: string;
+        content?: string;
+        source?: { data?: string; media_type?: string };
+        image_url?: { url: string };
+      }>;
+
+      const hasImages = contentParts.some(
+        (c) =>
+          (c.type === 'image' && c.source?.data) || (c.type === 'image_url' && c.image_url?.url)
+      );
+
+      if (hasImages) {
+        const parts: Array<
+          { type: 'text'; text: string } | { type: 'image'; image: Buffer | URL; mimeType?: string }
+        > = [];
+
+        for (const c of contentParts) {
+          if (c.type === 'text') {
+            parts.push({ type: 'text', text: c.text || '' });
+          } else if (c.type === 'image' && c.source?.data) {
+            const mediaType = c.source.media_type || 'image/png';
+            const base64Data = c.source.data.replace(/^data:image\/[^;]+;base64,/, '');
+            parts.push({
+              type: 'image',
+              image: Buffer.from(base64Data, 'base64'),
+              mimeType: mediaType,
+            });
+          } else if (c.type === 'image_url' && c.image_url?.url) {
+            const url = c.image_url.url;
+            if (url.startsWith('data:')) {
+              const match = url.match(/^data:(image\/[^;]+);base64,(.+)$/);
+              if (match) {
+                parts.push({
+                  type: 'image',
+                  image: Buffer.from(match[2], 'base64'),
+                  mimeType: match[1],
+                });
+              }
+            } else {
+              parts.push({ type: 'image', image: new URL(url) });
+            }
+          }
+        }
+
+        modelMessages.push({ role: 'user', content: parts });
+        continue;
+      }
+
+      const textContent = contentParts.map((c) => c.text || c.content || '').join('\n');
+
+      modelMessages.push({
+        role: msg.role as 'user' | 'assistant' | 'system',
+        content: textContent,
+      });
+      continue;
     }
 
     modelMessages.push({
       role: msg.role as 'user' | 'assistant' | 'system',
-      content,
+      content: String(msg.content),
     });
   }
 

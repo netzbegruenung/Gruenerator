@@ -6,6 +6,8 @@
 import { createMistral } from '@ai-sdk/mistral';
 import { createOpenAI } from '@ai-sdk/openai';
 
+import { isVisionCapable } from '../../../services/ai/modelDiscovery.js';
+
 import type { AgentConfig } from './types.js';
 import type { LanguageModel } from 'ai';
 
@@ -13,12 +15,12 @@ const LITELLM_DEFAULT_MODEL = 'gpt-oss:120b';
 
 export const VISION_MODEL = {
   provider: 'regolo' as const,
-  model: 'mistral-small-2503',
+  model: process.env.VISION_DEFAULT_MODEL || 'qwen3-vl-32b',
 };
 
 export { INTERMEDIATE_MODEL, getIntermediateModel } from '../../../services/ai/providers.js';
 
-export const VISION_CAPABLE_MODELS = new Set(['pixtral-large-latest', 'mistral-small-2503']);
+export { isVisionCapable };
 
 /**
  * Available models that can be selected by the user.
