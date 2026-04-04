@@ -61,6 +61,7 @@ export function makeCitationComponents(citationMap: Map<number, Citation>) {
     p: ({ children }: { children?: ReactNode }) => (
       <p className="mb-2 leading-relaxed">{withCitations(children)}</p>
     ),
+    hr: () => null,
     blockquote: ({ children }: { children?: ReactNode }) => (
       <blockquote className="my-2 border-l-4 border-primary pl-4 italic">{children}</blockquote>
     ),
