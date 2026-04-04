@@ -15,6 +15,7 @@ import { MessageActions } from '../message-parts/MessageActions';
 import { SearchResultsSection, type AdditionalSource } from '../message-parts/SearchResultsSection';
 import { CitationProvider, useFetchFullText } from '../../context/CitationContext';
 import { resolveCitations } from '../../lib/citationUtils';
+import { ConfirmActionCard } from '../tool-ui/ConfirmActionCard';
 import type { ChatMessageMetadata } from '../../types/messageMetadata';
 
 function AssistantMessageTextPart() {
@@ -140,6 +141,10 @@ export const AssistantMessage = memo(function AssistantMessage() {
         <CitationProvider citations={citations} fetchFullText={fetchFullText}>
           <MessagePrimitive.Parts components={partComponents} />
         </CitationProvider>
+
+        {!isStreaming && custom?.confirmAction && (
+          <ConfirmActionCard action={custom.confirmAction} />
+        )}
 
         {showSearchResults && (
           <SearchResultsSection citations={citations} additionalSources={additionalSources} />

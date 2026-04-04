@@ -16,6 +16,7 @@ export interface ChatConfig {
     summarize?: string;
     exportMessage?: string;
     exportToDocs?: string;
+    chatConfirm?: string;
   };
   /** Base URL for the Docs app. Auto-detected from hostname if not set. */
   docsBaseUrl?: string;
@@ -37,6 +38,7 @@ export interface ResolvedEndpoints {
   summarize: string;
   exportMessage: string;
   exportToDocs: string;
+  chatConfirm: string;
 }
 
 interface ResolvedChatConfig {
@@ -66,6 +68,7 @@ const DEFAULT_ENDPOINTS: ResolvedEndpoints = {
   summarize: '/api/chat-service/summarize',
   exportMessage: '/api/exports/chat-message',
   exportToDocs: '/api/docs/from-export',
+  chatConfirm: '/api/chat-service/confirm',
 };
 
 function resolveDocsUrl(configured?: string): string {
