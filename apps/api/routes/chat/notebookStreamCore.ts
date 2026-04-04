@@ -35,8 +35,8 @@ import type express from 'express';
 const log = createLogger('NotebookStreamCore');
 const notebookHelper = new NotebookQdrantHelper();
 
-const DEFAULT_PROVIDER = 'mistral';
-const DEFAULT_MODEL = 'mistral-large-latest';
+const DEFAULT_PROVIDER = 'litellm';
+const DEFAULT_MODEL = 'gpt-oss:120b';
 
 export interface NotebookStreamOptions {
   req: express.Request;
@@ -175,7 +175,6 @@ export async function handleNotebookStream(
         results: searchContext.sortedResults,
         referencesMap: searchContext.referencesMap,
         question,
-        aiWorkerPool: req.app.locals.aiWorkerPool,
         limit: 10,
       });
       searchContext.sortedResults = reranked.results;

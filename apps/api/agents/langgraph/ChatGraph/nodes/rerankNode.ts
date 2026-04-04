@@ -1,17 +1,17 @@
 /**
  * Rerank Node
  *
- * Uses Mistral-small to rerank search results by semantic relevance.
- * Sits between the search and respond nodes in the graph pipeline.
+ * Uses Regolo's dedicated Rerank API (Qwen3-Reranker-4B cross-encoder)
+ * to rerank search results by semantic relevance. Sits between the search
+ * and respond nodes in the graph pipeline.
  *
- * Takes the top results from search, asks the LLM to score relevance,
- * and returns only the best matches. This improves precision significantly
- * when combined with cross-collection search (which increases candidate volume).
+ * After cross-encoder scoring, applies MMR diversity filtering to reduce
+ * redundancy in the final result set.
  */
 
 import { applyMMR } from '../../../../services/search/DiversityReranker.js';
+import { regoloRerankService } from '../../../../services/search/RegoloRerankService.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
 import type { ChatGraphState, SearchResult } from '../types.js';
 
@@ -20,52 +20,19 @@ const log = createLogger('ChatGraph:Rerank');
 const RERANK_INPUT_LIMIT = 12;
 const RERANK_OUTPUT_LIMIT = 8;
 
-const INTENT_RERANK_GUIDANCE: Record<string, string> = {
-  research: '\nHinweis: Bevorzuge Quellen mit Analyse, Synthese und Vergleichen.',
-  search: '\nHinweis: Offizielle Parteibeschlüsse und Programme höher als Kommentare bewerten.',
-  web: '\nHinweis: Seriöse Nachrichtenquellen höher als Social Media oder Foren bewerten.',
-  examples: '\nHinweis: Aktuelle und visuell ansprechende Beispiele bevorzugen.',
-};
-
-const RERANK_PROMPT = `Du bewertest die Relevanz von Suchergebnissen für eine Benutzeranfrage.
-
-Für jedes Ergebnis vergib einen Relevanz-Score von 1-5:
-5 = Direkt relevant, beantwortet die Frage
-4 = Sehr relevant, enthält wichtige Informationen
-3 = Teilweise relevant, enthält Hintergrundinformationen
-2 = Wenig relevant, nur am Rande verwandt
-1 = Nicht relevant
-
-Antworte NUR mit JSON:
-{ "scores": [{"index": 0, "score": 5}, {"index": 1, "score": 3}, ...] }`;
-
-const RERANK_PROMPT_TEMPORAL = `Du bewertest die Relevanz von Suchergebnissen für eine Benutzeranfrage.
-Bevorzuge aktuelle Ergebnisse — neuere Quellen mit aktuellen Informationen sollten höher bewertet werden.
-
-Für jedes Ergebnis vergib einen Relevanz-Score von 1-5:
-5 = Direkt relevant, beantwortet die Frage, aktuell
-4 = Sehr relevant, enthält wichtige aktuelle Informationen
-3 = Teilweise relevant, enthält Hintergrundinformationen
-2 = Wenig relevant, nur am Rande verwandt oder veraltet
-1 = Nicht relevant oder stark veraltet
-
-Antworte NUR mit JSON:
-{ "scores": [{"index": 0, "score": 5}, {"index": 1, "score": 3}, ...] }`;
-
 /**
- * Rerank search results using Mistral-small.
- * Batches all passages into a single LLM call for efficiency.
+ * Rerank search results using Regolo's cross-encoder reranker.
+ * Applies MMR diversity filtering as a second pass.
  */
 export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
-  const { searchResults, searchQuery, aiWorkerPool, hasTemporal, intent, researchBrief } = state;
+  const { searchResults, searchQuery, hasTemporal, researchBrief } = state;
 
   // Notebook-scoped searches get higher limits for deeper recall
   const isNotebookScoped = (state.notebookCollectionIds?.length ?? 0) > 0;
   const inputLimit = isNotebookScoped ? 20 : RERANK_INPUT_LIMIT;
   const outputLimit = isNotebookScoped ? 12 : RERANK_OUTPUT_LIMIT;
 
-  // Skip reranking if only one result
   if (searchResults.length <= 2) {
     log.info(`[Rerank] Skipping — only ${searchResults.length} results`);
     return { rerankTimeMs: Date.now() - startTime };
@@ -78,55 +45,40 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
   );
 
   try {
-    // Build the passage list for the LLM
-    const passageList = candidates
-      .map((r, i) => `[${i}] ${r.title}\n${r.content.slice(0, 300)}`)
-      .join('\n\n');
+    const documents = candidates.map((r) => `${r.title}\n${r.content.slice(0, 300)}`);
 
-    const userMessage = `Suchanfrage: "${searchQuery}"${researchBrief ? `\nRecherche-Kontext: ${researchBrief}` : ''}${INTENT_RERANK_GUIDANCE[intent] || ''}
+    const instruct = hasTemporal
+      ? 'Given a search query, retrieve relevant and current passages that answer the query. Prefer recent sources.'
+      : undefined;
 
-Ergebnisse:
-${passageList}`;
+    const queryStr = researchBrief ? `${searchQuery}\n${researchBrief}` : searchQuery || '';
 
-    const response = await aiWorkerPool.processRequest(
-      {
-        type: 'chat_rerank',
-        provider: INTERMEDIATE_MODEL.provider,
-        systemPrompt: hasTemporal ? RERANK_PROMPT_TEMPORAL : RERANK_PROMPT,
-        messages: [{ role: 'user', content: userMessage }],
-        options: {
-          model: INTERMEDIATE_MODEL.model,
-          max_tokens: 200,
-          temperature: 0.0,
-          top_p: 1.0,
-          response_format: { type: 'json_object' },
-        },
-      },
-      null
-    );
+    const rerankResults = await regoloRerankService.rerank({
+      query: queryStr,
+      documents,
+      topN: inputLimit,
+      instruct,
+    });
 
-    // Parse scores
-    const parsed = parseRerankResponse(response.content || '', candidates.length);
     const rerankTimeMs = Date.now() - startTime;
 
-    if (!parsed) {
-      log.warn('[Rerank] Failed to parse response, keeping original order');
-      return { rerankTimeMs };
+    // Map scores back onto SearchResult objects
+    const scoreMap = new Map<number, number>();
+    for (const r of rerankResults) {
+      scoreMap.set(r.originalIndex, r.relevanceScore);
     }
 
-    // Apply scores and re-sort
     const scoredResults: SearchResult[] = candidates.map((r, i) => ({
       ...r,
-      relevance: parsed[i] !== undefined ? parsed[i] / 5 : r.relevance || 0.5,
+      relevance: scoreMap.get(i) ?? r.relevance ?? 0.5,
     }));
 
     scoredResults.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
 
-    // Filter out low-relevance results (score 1 = not relevant)
+    // Filter out low-relevance results
     const filtered = scoredResults.filter((r) => (r.relevance || 0) > 0.2);
 
-    // B3: Apply MMR diversity reranking as second pass
-    // Keep top 2 results unchanged, apply diversity for positions 3+
+    // Apply MMR diversity reranking as second pass
     const diverse = filtered.length > 3 ? applyMMR(filtered, 0.7, 2) : filtered;
     const reranked = diverse.slice(0, outputLimit);
 
@@ -141,43 +93,5 @@ ${passageList}`;
   } catch (error: any) {
     log.error('[Rerank] Error:', error.message);
     return { rerankTimeMs: Date.now() - startTime };
-  }
-}
-
-/**
- * Parse the rerank LLM response into a score map.
- * Returns index→score mapping, or null if parsing fails.
- */
-function parseRerankResponse(
-  content: string,
-  candidateCount: number
-): Record<number, number> | null {
-  try {
-    const parsed = JSON.parse(content);
-    const scores: Record<number, number> = {};
-
-    if (parsed.scores && Array.isArray(parsed.scores)) {
-      for (const entry of parsed.scores) {
-        const idx = Number(entry.index);
-        const score = Number(entry.score);
-        if (idx >= 0 && idx < candidateCount && score >= 1 && score <= 5) {
-          scores[idx] = score;
-        }
-      }
-    }
-
-    if (Object.keys(scores).length === 0) return null;
-    return scores;
-  } catch {
-    // Try extracting JSON from text
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        return parseRerankResponse(jsonMatch[0], candidateCount);
-      } catch {
-        return null;
-      }
-    }
-    return null;
   }
 }

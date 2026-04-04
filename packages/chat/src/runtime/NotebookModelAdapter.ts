@@ -38,8 +38,6 @@ export interface NotebookAdapterConfig {
   endpoint?: string;
   documentIds?: string[];
   threadId?: string | null;
-  provider?: string;
-  model?: string;
 }
 
 export interface Citation {
@@ -138,8 +136,6 @@ export function createNotebookModelAdapter(
         ...(config.mode && { mode: config.mode }),
         ...(config.documentIds?.length && { documentIds: config.documentIds }),
         ...(config.threadId && { threadId: config.threadId }),
-        ...(config.provider && { provider: config.provider }),
-        ...(config.model && { model: config.model }),
         ...config.extraParams,
       };
 
