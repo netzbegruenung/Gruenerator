@@ -180,7 +180,7 @@ router.get(
       const shareLink = await wolkeSyncService.getShareLink(userId, shareLinkId);
 
       // List all files and folders (unfiltered, unlike listFolderContents which is for sync)
-      const client = new NextcloudApiClient(shareLink.share_link);
+      const client = await NextcloudApiClient.create(shareLink.share_link);
       const files = await client.listFolder(folderPath || undefined);
 
       // Filter and enrich files with additional metadata for UI
