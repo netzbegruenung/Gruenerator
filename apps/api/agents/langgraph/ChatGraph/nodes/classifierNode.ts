@@ -990,15 +990,63 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     const temporal = analyzeTemporality(userContent);
     const complexity = detectComplexity(userContent);
 
-    // If documents or notebooks are specified, bias toward search intent
+    // Resource presence flags
     const hasNotebooks = state.notebookIds && state.notebookIds.length > 0;
     const hasDocuments = state.documentIds && state.documentIds.length > 0;
+    const hasDocumentChat = state.documentChatIds && state.documentChatIds.length > 0;
+    const hasBoards = state.boardIds && state.boardIds.length > 0;
+    const hasDocMentions = state.docMentionIds && state.docMentionIds.length > 0;
+    const hasAttachmentContext = !!state.attachmentContext;
+    const hasImageAttachments = state.imageAttachments && state.imageAttachments.length > 0;
+    const hasAnyDocuments = hasDocumentChat || hasDocuments || hasAttachmentContext;
 
+    // ── TIER 1: Mutation intents (resource + action keywords) ──
+    // These are the most specific signals — a user explicitly requesting a change
+    // to a referenced resource. Must be checked BEFORE passive context checks,
+    // otherwise an image attachment or OCR text would shadow the mutation intent.
+    const boardModifyPattern =
+      /\b(fuege?\s+(aufgabe|karte|eintrag)|neue\s+(karte|aufgabe)|aktualisiere\s+board|erstelle\s+aufgabe|aender|ergaenz|ueberarbeit|vereinfach|strukturier|umstrukturier|loesch|entfern|verschieb|sortier)/i;
+    const docModifyPattern =
+      /\b(aender|ergaenz|aktualisier|ueberarbeit|fuege?\s+hinzu|vereinfach|umschreib|kuerz|erweiter)/i;
+
+    if (hasBoards && userContent.length > 0 && boardModifyPattern.test(userContent)) {
+      const classificationTimeMs = Date.now() - startTime;
+      log.info(
+        `[Classifier] Board mutation detected (${state.boardIds.length} board(s)), forcing modify_board intent`
+      );
+      return {
+        intent: 'modify_board',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: 'Board mention + modification keywords → modify_board',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs,
+      };
+    }
+
+    if (hasDocMentions && userContent.length > 0 && docModifyPattern.test(userContent)) {
+      const classificationTimeMs = Date.now() - startTime;
+      log.info(
+        `[Classifier] Collaborative document mutation detected (${state.docMentionIds.length} doc(s)), forcing modify_doc intent`
+      );
+      return {
+        intent: 'modify_doc',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: 'Collaborative document mention + modification keywords → modify_doc',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs,
+      };
+    }
+
+    // ── TIER 2: Context intents (resource presence, no mutation keywords) ──
     // Summary detection: when documents/attachments are present AND user asks for summary,
     // force summary intent. Without documents, "fasse zusammen" goes to LLM for disambiguation
     // (could mean web search + summarize, or conversation summary).
-    const hasDocumentChat = state.documentChatIds && state.documentChatIds.length > 0;
-    const hasAnyDocuments = hasDocumentChat || hasDocuments || !!state.attachmentContext;
     const summaryPattern =
       /\b(fass[e]?\s+(das\s+|die\s+|den\s+)?(dokument\s+|datei\s+)?zusammen|zusammenfass|zusammenfassung|kurzfassung)\b/i;
     if (hasAnyDocuments && summaryPattern.test(userContent)) {
@@ -1083,7 +1131,6 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
 
     // If file attachments were uploaded (OCR-extracted), force direct intent —
     // the respondNode already formats attachmentContext into the system message.
-    const hasAttachmentContext = !!state.attachmentContext;
     if (hasAttachmentContext && userContent.length > 0) {
       log.info(
         `[Classifier] File attachment detected (${state.attachmentContext!.length} chars), forcing direct intent`
@@ -1102,7 +1149,6 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
 
     // If image attachments are present, force direct intent —
     // the vision model will interpret the image directly in the respond step.
-    const hasImageAttachments = state.imageAttachments && state.imageAttachments.length > 0;
     if (hasImageAttachments) {
       log.info(
         `[Classifier] Image attachment detected (${state.imageAttachments.length} images), forcing direct intent`
@@ -1116,6 +1162,45 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
         hasTemporal: temporal.hasTemporal,
         complexity,
         classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
+    // If boards are mentioned (no mutation keywords — those were caught in Tier 1),
+    // force direct intent so respondNode uses the board context.
+    if (hasBoards && userContent.length > 0) {
+      const classificationTimeMs = Date.now() - startTime;
+      log.info(
+        `[Classifier] Board mention detected (${state.boardIds.length} board(s)), forcing direct intent`
+      );
+      return {
+        intent: 'direct',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: 'Board mention forces direct intent — board context injected by controller',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs,
+      };
+    }
+
+    // If collaborative documents are mentioned (no mutation keywords — caught in Tier 1),
+    // force direct intent so respondNode uses the document context.
+    if (hasDocMentions && userContent.length > 0) {
+      const classificationTimeMs = Date.now() - startTime;
+      log.info(
+        `[Classifier] Collaborative document mention detected (${state.docMentionIds.length} doc(s)), forcing direct intent`
+      );
+      return {
+        intent: 'direct',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning:
+          'Collaborative document mention forces direct intent — content injected by controller',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs,
       };
     }
 
