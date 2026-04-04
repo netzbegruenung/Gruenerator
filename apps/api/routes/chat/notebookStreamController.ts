@@ -8,8 +8,8 @@
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
-import { handleNotebookStream, sendSSE } from './notebookStreamCore.js';
-import { SSEWriter } from './services/sseHelpers.js';
+import { handleNotebookStream } from './notebookStreamCore.js';
+import { SSEWriter, createSSEStream } from './services/sseHelpers.js';
 import {
   getUser,
   createThread,
@@ -28,9 +28,9 @@ const log = createLogger('notebookStream');
 router.post('/', async (req, res) => {
   const user = getUser(req);
   if (!user?.id) {
-    SSEWriter.initHeaders(res);
-    sendSSE(res, 'error', { error: 'Unauthorized' });
-    res.end();
+    const sse = createSSEStream(res);
+    sse.send('error', { error: 'Unauthorized' });
+    sse.end();
     return;
   }
 
@@ -52,6 +52,7 @@ router.post('/', async (req, res) => {
   const userText = typeof lastUserMessage?.content === 'string' ? lastUserMessage.content : '';
 
   let threadId = existingThreadId as string | null;
+  const sse = createSSEStream(res);
 
   // Create thread on first message
   if (!threadId && userText) {
@@ -73,9 +74,7 @@ router.post('/', async (req, res) => {
         }
       );
       threadId = thread.id;
-
-      SSEWriter.initHeaders(res);
-      sendSSE(res, 'thread_created', { threadId });
+      sse.send('thread_created', { threadId });
     } catch (err) {
       log.error('Failed to create notebook thread:', err);
     }
@@ -102,6 +101,7 @@ router.post('/', async (req, res) => {
     documentIds,
     userId: user.id,
     allowUserCollections: true,
+    sse,
   });
 
   // Persist assistant message and update thread timestamp in parallel

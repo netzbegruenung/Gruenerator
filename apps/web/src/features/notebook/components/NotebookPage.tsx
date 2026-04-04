@@ -204,7 +204,7 @@ const NotebookPageContent = ({
     }
     const f = getFiltersForCollection(selectedCollections[0]?.id);
     return Object.keys(f).length > 0 ? f : undefined;
-  }, [isMulti, selectedCollections, getFiltersForCollection]);
+  }, [isMulti, selectedCollections, getFiltersForCollection, activeFiltersStore]);
 
   const { initialMessages, onComplete } = useNotebookChatBridge({
     collections: selectedCollections,
