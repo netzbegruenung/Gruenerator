@@ -187,7 +187,6 @@ const BlockNoteEditorInner = ({
       wrapperRef.current?.style.setProperty('--mobile-keyboard-offset', px > 0 ? `${px}px` : '0px');
     };
 
-    const TOOLBAR_HEIGHT = 44;
     let scrollTimer: ReturnType<typeof setTimeout>;
 
     const scrollSelectionIntoView = () => {
@@ -196,7 +195,10 @@ const BlockNoteEditorInner = ({
       const rect = sel.getRangeAt(0).getBoundingClientRect();
       const vp = window.visualViewport;
       if (!vp) return;
-      const visibleBottom = vp.offsetTop + vp.height - TOOLBAR_HEIGHT;
+      const toolbarHeight =
+        wrapperRef.current?.querySelector('.bn-formatting-toolbar')?.getBoundingClientRect()
+          .height || 44;
+      const visibleBottom = vp.offsetTop + vp.height - toolbarHeight;
       if (rect.bottom > visibleBottom) {
         window.scrollBy({ top: rect.bottom - visibleBottom + 16, behavior: 'smooth' });
       } else if (rect.top < vp.offsetTop) {

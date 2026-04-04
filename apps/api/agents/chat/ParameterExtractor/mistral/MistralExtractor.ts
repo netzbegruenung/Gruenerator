@@ -3,7 +3,9 @@
  * Uses Mistral for semantic parameter understanding
  */
 
-import mistralClient from '../../../../workers/mistralClient.js';
+import { generateText } from 'ai';
+
+import { getIntermediateModel } from '../../../../services/ai/providers.js';
 
 import { createExtractionPrompt } from './prompts.js';
 
@@ -22,23 +24,14 @@ export async function extractParametersWithMistral(
 
   console.log('[MistralExtractor] Using Mistral for parameter extraction:', agent);
 
-  const response = await mistralClient.chat.complete({
-    model: 'mistral-small-latest',
-    messages: [
-      {
-        role: 'user',
-        content: prompt,
-      },
-    ],
+  const result = await generateText({
+    model: getIntermediateModel(),
+    prompt,
     temperature: 0.1,
-    maxTokens: 500,
+    maxOutputTokens: 500,
   });
 
-  const messageContent = response.choices[0].message.content;
-  let responseText =
-    typeof messageContent === 'string'
-      ? messageContent.trim()
-      : JSON.stringify(messageContent).trim();
+  let responseText = result.text.trim();
 
   // Remove markdown code blocks if present
   if (responseText.startsWith('```json')) {

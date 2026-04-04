@@ -196,7 +196,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: grueneratorChatRoute } = await import('./routes/chat/grueneratorChat.js');
   const { default: chatServiceRouter } = await import('./routes/chat/index.js');
   const { default: chatGraphRouter } = await import('./routes/chat/chatGraphController.js');
-  const { default: chatDeepRouter } = await import('./routes/chat/chatDeepController.js'); // @experimental — DeepAgent, not production-ready
   const { default: threadSharingRouter } = await import('./routes/chat/threadSharingController.js');
   const { default: gruenOMatRouter } = await import('./routes/gruenomat/gruenOMatController.js');
   const { default: mediaRouter } = await import('./routes/media/mediaController.js');
@@ -206,7 +205,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: fluxImageEditingRoute } = await import('./routes/flux/imageEditing.js');
   const { default: unsplashRouter } = await import('./routes/unsplash/unsplashRoutes.js');
   const { default: docsRouter } = await import('./routes/docs/index.js');
-  const { default: presentationsRouter } = await import('./routes/presentations/index.js');
+
   const { default: publicDocRouter } = await import('./routes/docs/publicDocController.js');
   const { default: boardsRouter } = await import('./routes/boards/boardsController.js');
   const { default: boardCommentsRouter } =
@@ -244,7 +243,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/chat-service', standardMutationLimiter, chatServiceRouter);
   app.use('/api/chat-service/threads', standardMutationLimiter, threadSharingRouter);
   app.use('/api/chat-graph', aiGenerationLimiter, chatGraphRouter);
-  app.use('/api/chat-deep', aiGenerationLimiter, chatDeepRouter); // @experimental — DeepAgent route, not production-ready
   app.use('/api/gruen-o-mat', gruenOMatRouter);
   app.use('/api/dreizeilen_canvas', standardMutationLimiter, sharepicDreizeilenCanvasRoute);
   app.use('/api/zitat_canvas', standardMutationLimiter, zitatSharepicCanvasRoute);
@@ -375,7 +373,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/media', requireAuth, standardMutationLimiter, mediaRouter);
   app.use('/api/docs/public', publicReadLimiter, publicDocRouter);
   app.use('/api/docs', requireAuth, standardMutationLimiter, docsRouter);
-  app.use('/api/presentations', requireAuth, standardMutationLimiter, presentationsRouter);
+
   app.use('/api/boards/public', publicReadLimiter, publicBoardRouter);
   app.use('/api/boards', requireAuth, standardMutationLimiter, boardsRouter);
   app.use('/api/board-comments', requireAuth, standardMutationLimiter, boardCommentsRouter);
@@ -390,7 +388,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/web-search', publicReadLimiter, webSearchRouter);
   app.use('/api/research', requireAuth, standardMutationLimiter, researchRouter);
   app.use('/api/image-generation', aiGenerationLimiter, imageGenerationRouter);
-  app.use('/api/rate-limit', rateLimitRouter);
+  app.use('/api/rate-limit', publicReadLimiter, rateLimitRouter);
 
   // Debug: log all requests to /api/releases/*
   app.use('/api/releases', (req, res, next) => {
@@ -402,7 +400,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/releases', publicReadLimiter, releasesRouter);
   app.use('/api/exports', requireAuth, standardMutationLimiter, exportDocumentsRouter);
   app.use('/api/markdown', publicReadLimiter, markdownRouter);
-  app.use('/api/database', databaseTestRouter);
+  app.use('/api/database', publicReadLimiter, databaseTestRouter);
 
   if (snapshottingRouter) {
     app.use('/api/internal', snapshottingRouter);
@@ -413,19 +411,23 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/internal/content-sync', contentSyncRouter);
   app.use('/api/monitor', requireAuth, publicReadLimiter, monitorRouter);
 
-  app.get('/api/internal/route-stats', async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { getPostgresInstance } = await import('./database/services/PostgresService.js');
-      const postgresService = getPostgresInstance();
-      const limit = parseInt(req.query.limit as string) || 50;
-      const stats = await postgresService.getRouteStats(limit);
-      res.json({ success: true, stats, currentBuffer: routeTracker.getStatsObject() });
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      log.error(`Route stats fetch failed: ${err.message}`);
-      res.status(500).json({ success: false, error: err.message });
+  app.get(
+    '/api/internal/route-stats',
+    publicReadLimiter,
+    async (req: Request, res: Response): Promise<void> => {
+      try {
+        const { getPostgresInstance } = await import('./database/services/PostgresService.js');
+        const postgresService = getPostgresInstance();
+        const limit = parseInt(req.query.limit as string) || 50;
+        const stats = await postgresService.getRouteStats(limit);
+        res.json({ success: true, stats, currentBuffer: routeTracker.getStatsObject() });
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        log.error(`Route stats fetch failed: ${err.message}`);
+        res.status(500).json({ success: false, error: err.message });
+      }
     }
-  });
+  );
 
   app.use('/api/video', requireAuth, standardMutationLimiter, videoRouter);
   app.use('/api/nextcloud', requireAuth, standardMutationLimiter, nextcloudApiRouter);

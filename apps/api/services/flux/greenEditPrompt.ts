@@ -4,7 +4,7 @@
  * Builds structured FLUX image-to-image prompts for green urban transformation.
  * Detects German keywords to selectively add urban greening elements.
  *
- * Shared between the ChatGraph imageEditNode and the DeepAgent edit_image tool.
+ * Shared between the ChatGraph imageEditNode and the edit_image tool.
  */
 
 export function buildGreenEditPrompt(userText: string): string {

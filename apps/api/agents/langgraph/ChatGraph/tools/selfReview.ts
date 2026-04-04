@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { localizePlaceholders } from '../../../../services/localization/index.js';
 import { type Locale } from '../../../../services/localization/types.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
 import { formatCriteriaForPrompt, getReviewCriteria } from './reviewCriteria.js';
 
@@ -78,11 +79,11 @@ export function createSelfReviewTool(deps: ToolDependencies): DynamicStructuredT
         const response = await deps.aiWorkerPool.processRequest(
           {
             type: 'self_review',
-            provider: 'mistral',
+            provider: INTERMEDIATE_MODEL.provider,
             systemPrompt: localizedPrompt,
             messages: [{ role: 'user', content: userPrompt }],
             options: {
-              model: 'mistral-small-latest',
+              model: INTERMEDIATE_MODEL.model,
               max_tokens: 800,
               temperature: 0.0,
               response_format: { type: 'json_object' },

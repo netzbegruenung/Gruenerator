@@ -16,15 +16,10 @@ import {
   COMPACTION_THRESHOLD,
   KEEP_RECENT,
 } from './services/compactionService.js';
-
-import type { UserProfile } from '../../services/user/types.js';
-import type express from 'express';
+import { getUser } from './services/threadPersistenceService.js';
 
 const log = createLogger('SummarizeController');
 const router = createAuthenticatedRouter();
-
-const getUser = (req: express.Request): UserProfile | undefined =>
-  (req as any).user as UserProfile | undefined;
 
 /**
  * GET /api/chat-service/summarize?threadId=xxx

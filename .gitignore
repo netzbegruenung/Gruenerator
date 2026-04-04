@@ -1,8 +1,8 @@
 # Inspiration / reference repos
 inspiration/
 
-# Presenton (upstream fork, managed separately)
-services/presenton/
+# External data repos
+.external/
 
 # Dependencies
 node_modules
@@ -143,15 +143,11 @@ apps/docs-expo/.expo/
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/schemas/*.json
 !apps/desktop/src-tauri/gen/schemas/.gitkeep
-apps/docs-desktop/src-tauri/target/
-apps/docs-desktop/src-tauri/gen/schemas/*.json
-!apps/docs-desktop/src-tauri/gen/schemas/.gitkeep
 
 # Rust
 target/
 Cargo.lock
 !apps/desktop/src-tauri/Cargo.lock
-!apps/docs-desktop/src-tauri/Cargo.lock
 
 # Typecheck outputs
 apps/web/typecheck_output.txt

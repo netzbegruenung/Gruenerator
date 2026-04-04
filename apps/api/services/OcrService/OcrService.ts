@@ -10,6 +10,7 @@ import path from 'path';
 import { vectorConfig } from '../../config/vectorConfig.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { getQdrantInstance } from '../../database/services/QdrantService.js';
+import { sanitizeFilename } from '../../utils/validation/security.js';
 import { smartChunkDocument } from '../document-services/index.js';
 import { mistralEmbeddingService } from '../mistral/index.js';
 
@@ -193,7 +194,7 @@ export class OCRService {
         }
       }
 
-      // Optional parseability check for PDFs only (for telemetry)
+      // Parseability check for PDFs — skip OCR if text is directly extractable
       let parseCheck: ParseabilityCheck | null = null;
       if (fileExtension === '.pdf') {
         try {
@@ -206,7 +207,32 @@ export class OCRService {
       let result: ExtractionResult;
       let usedProvider: string;
 
-      if (configuredProvider === 'docling') {
+      // Fast path: skip OCR for text-native PDFs (saves API costs)
+      if (parseCheck?.isParseable && parseCheck.confidence >= 0.8) {
+        console.log(
+          `[OCRService] PDF is text-native (confidence=${(parseCheck.confidence * 100).toFixed(0)}%), using direct extraction`
+        );
+        try {
+          result = await this.extractTextDirectlyFromPDF(filePath);
+          // Verify extraction produced meaningful text, fall through to OCR if not
+          if (result.text && result.text.length >= 50) {
+            usedProvider = 'pdfjs-direct';
+          } else {
+            console.log(
+              `[OCRService] Direct extraction yielded insufficient text (${result.text?.length ?? 0} chars), falling back to OCR`
+            );
+            result = await this.extractTextWithMistralOCR(filePath);
+            usedProvider = 'mistral-ocr';
+          }
+        } catch (directError) {
+          console.warn(
+            `[OCRService] Direct PDF extraction failed, falling back to OCR:`,
+            (directError as Error).message
+          );
+          result = await this.extractTextWithMistralOCR(filePath);
+          usedProvider = 'mistral-ocr';
+        }
+      } else if (configuredProvider === 'docling') {
         // Try Docling first, fall back to Mistral if unavailable or on error
         const doclingReady = await checkDocling();
         if (doclingReady) {
@@ -307,9 +333,74 @@ export class OCRService {
   }
 
   /**
+   * MIME types that can be directly decoded as UTF-8 text (no OCR needed).
+   */
+  static readonly TEXT_DECODABLE_MIMES = new Set([
+    'text/plain',
+    'text/markdown',
+    'text/csv',
+    'text/html',
+    'text/xml',
+    'text/javascript',
+    'text/x-python',
+    'text/yaml',
+    'text/x-yaml',
+    'application/json',
+    'application/xml',
+    'application/x-yaml',
+    'text/typescript',
+  ]);
+
+  /**
+   * File extensions that should be treated as text regardless of MIME type.
+   * Browsers often misidentify code files (e.g. .ts → video/mp2t).
+   */
+  static readonly TEXT_DECODABLE_EXTENSIONS = new Set([
+    '.ts',
+    '.tsx',
+    '.jsx',
+    '.mjs',
+    '.cjs',
+    '.sh',
+    '.bash',
+    '.zsh',
+    '.sql',
+    '.toml',
+    '.env',
+    '.log',
+    '.yml',
+    '.yaml',
+    '.md',
+    '.mdx',
+    '.css',
+    '.less',
+    '.scss',
+    '.sass',
+    '.rs',
+    '.go',
+    '.java',
+    '.kt',
+    '.rb',
+    '.php',
+    '.c',
+    '.cpp',
+    '.h',
+    '.hpp',
+  ]);
+
+  /**
+   * Check if a file should be decoded as UTF-8 text based on MIME type or extension.
+   */
+  private isTextDecodable(mimeType: string, filename: string): boolean {
+    if (OCRService.TEXT_DECODABLE_MIMES.has(mimeType)) return true;
+    const ext = filename.includes('.') ? `.${filename.split('.').pop()?.toLowerCase()}` : '';
+    return OCRService.TEXT_DECODABLE_EXTENSIONS.has(ext);
+  }
+
+  /**
    * Extract text from any base64-encoded attachment.
    * Routes by MIME type:
-   * - text/plain → direct UTF-8 decode
+   * - text-decodable (text/*, code, markdown, CSV, JSON, etc.) → direct UTF-8 decode
    * - all documents → Docling (primary) → Mistral OCR (fallback) → PDF.js (PDF-only last resort)
    */
   async extractTextFromBase64(
@@ -317,7 +408,8 @@ export class OCRService {
     filename: string,
     mimeType: string
   ): Promise<ExtractionResult> {
-    if (mimeType === 'text/plain') {
+    filename = sanitizeFilename(filename, 'attachment');
+    if (this.isTextDecodable(mimeType, filename)) {
       const text = Buffer.from(base64Data, 'base64').toString('utf-8');
       return {
         text,

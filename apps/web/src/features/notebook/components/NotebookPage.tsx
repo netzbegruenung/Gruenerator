@@ -204,7 +204,7 @@ const NotebookPageContent = ({
     }
     const f = getFiltersForCollection(selectedCollections[0]?.id);
     return Object.keys(f).length > 0 ? f : undefined;
-  }, [isMulti, selectedCollections, getFiltersForCollection]);
+  }, [isMulti, selectedCollections, getFiltersForCollection, activeFiltersStore]);
 
   const { initialMessages, onComplete } = useNotebookChatBridge({
     collections: selectedCollections,
@@ -268,6 +268,7 @@ const NotebookPageContent = ({
             ? { value: v.value, count: v.count }
             : { value: v as string }
         ),
+        ...(cfg.valueLabels ? { valueLabels: cfg.valueLabels } : {}),
       }));
 
     if (fields.length === 0) return undefined;

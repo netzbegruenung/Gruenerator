@@ -1,7 +1,7 @@
 import { generateText } from 'ai';
 import { Router, type Request, type Response } from 'express';
 
-import { getModel } from '../../../services/ai/providers.js';
+import { getIntermediateModel } from '../../../services/ai/providers.js';
 import { extractJsonObject } from '../../../utils/jsonParser.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -207,7 +207,7 @@ async function generateImageModification(
 
   try {
     const result = await generateText({
-      model: getModel('mistral', 'mistral-small-latest'),
+      model: getIntermediateModel(),
       system:
         'Du bist ein erfahrener Bildbearbeiter. Deine Aufgabe ist es, Benutzeranweisungen in konkrete Bildmodifikationsparameter umzuwandeln. Gib nur das resultierende JSON-Objekt zurück.',
       prompt,

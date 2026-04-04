@@ -16,6 +16,7 @@ import { fileURLToPath } from 'url';
 import compression from 'compression';
 import cors from 'cors';
 import express, { type Express, type Request, type Response, type NextFunction } from 'express';
+import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { isHttpError } from 'http-errors';
 import morgan from 'morgan';
@@ -29,6 +30,7 @@ import { Sentry } from './lib/sentry.js';
 import { shouldSkipBodyParser, TUS_UPLOAD_PATHS } from './middleware/bodyParserConfig.js';
 import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
 import { setupRoutes } from './routes.js';
+import { createAIService, type AIService } from './services/ai/aiService.js';
 import { startUploadsCleanup } from './services/cleanup/uploadsCleanupService.js';
 import { startNotificationCleanup } from './services/notifications/notificationCleanupService.js';
 import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
@@ -40,7 +42,6 @@ import {
   createMasterShutdownHandler,
   createWorkerShutdownHandler,
 } from './utils/shutdown/index.js';
-import AIWorkerPool from './workers/aiWorkerPool.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -48,7 +49,7 @@ const __dirname = path.dirname(__filename);
 const log = createLogger('Server');
 const numCPUs = os.cpus().length;
 
-let aiWorkerPool: AIWorkerPool | null = null;
+let aiService: AIService | null = null;
 
 const isDev = process.env.NODE_ENV !== 'production';
 const workerCount = parseInt(process.env.WORKER_COUNT || '2', 10);
@@ -217,17 +218,16 @@ async function startWorker(): Promise<void> {
     next();
   });
 
-  // Initialize AI worker pool
-  const aiWorkerCount = parseInt(process.env.AI_WORKER_COUNT || '7', 10);
-  log.debug(`Initializing AI worker pool with ${aiWorkerCount} workers`);
-  aiWorkerPool = new AIWorkerPool(aiWorkerCount, redisClient as any);
-  app.locals.aiWorkerPool = aiWorkerPool;
+  // Initialize AI service (direct AI SDK calls, no worker threads)
+  log.debug('Initializing AI service');
+  aiService = createAIService(redisClient);
+  app.locals.aiWorkerPool = aiService;
 
   // Initialize AI Search Agent
   try {
     const aiSearchAgentModule = (await import('./services/aiSearchAgent.js')) as any;
     if (typeof aiSearchAgentModule.setAIWorkerPool === 'function') {
-      aiSearchAgentModule.setAIWorkerPool(aiWorkerPool);
+      aiSearchAgentModule.setAIWorkerPool(aiService);
       log.debug('AI Search Agent initialized');
     }
   } catch (error) {
@@ -326,7 +326,7 @@ async function startWorker(): Promise<void> {
             "'self'",
             'data:',
             'blob:',
-            'https://*.supabase.co',
+
             'https://umami-f0s4w04kg4oww8cg44ssg4w8.moritz-waechter.de',
             `http://*.${PRIMARY_DOMAIN}`,
             `https://*.${PRIMARY_DOMAIN}`,
@@ -369,7 +369,14 @@ async function startWorker(): Promise<void> {
 
   // Better Auth handler (must be before express.json middleware)
   const { betterAuthHandler } = await import('./routes/auth/betterAuthHandler.js');
-  app.all('/api/auth/v2/*splat', (req, res, next) => {
+  const authV2Limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many authentication requests, please try again later.' },
+  });
+  app.all('/api/auth/v2/*splat', authV2Limiter, (req, res, next) => {
     Promise.resolve(betterAuthHandler(req, res)).catch(next);
   });
 
@@ -604,7 +611,7 @@ async function startWorker(): Promise<void> {
 
   // Worker shutdown handler
   const shutdownHandler = createWorkerShutdownHandler({
-    resources: [aiWorkerPool as any, redisClient as any].filter(Boolean),
+    resources: [aiService, redisClient].filter(Boolean),
     server,
     logger: log,
   });

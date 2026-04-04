@@ -75,6 +75,10 @@
   background: #ef4444;
 }
 
+.editor-fab__status.offline-cached {
+  background: #f59e0b;
+}
+
 @keyframes editorFabPulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }

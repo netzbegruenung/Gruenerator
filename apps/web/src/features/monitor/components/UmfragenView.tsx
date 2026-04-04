@@ -12,6 +12,8 @@ import { useMemo, useState } from 'react';
 
 import { usePolls } from '../hooks/useMonitor';
 
+import { MeinungsbildSection } from './MeinungsbildSection';
+
 import type { MonitorLocale } from '../hooks/useMonitor';
 
 interface UmfragenViewProps {
@@ -397,48 +399,52 @@ export function UmfragenView({ locale }: UmfragenViewProps) {
     : 'Wenn am nächsten Sonntag Bundestagswahl wäre… Wöchentlich aggregierter Durchschnitt.';
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg items-start">
-      <div>
-        <SonntagsfrageChart
-          key={activeParliament}
-          parliament={activeParliament}
-          title={activeTitle}
-          subtitle={activeSubtitle}
-        />
-      </div>
+    <div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg items-start">
+        <div>
+          <SonntagsfrageChart
+            key={activeParliament}
+            parliament={activeParliament}
+            title={activeTitle}
+            subtitle={activeSubtitle}
+          />
+        </div>
 
-      <div>
-        <p className="text-xs font-semibold text-foreground-heading uppercase tracking-wide mb-sm">
-          Grüne in den Ländern
-        </p>
-        <div className="grid grid-cols-2 gap-xs">
-          <button
-            onClick={() => setSelectedLand(null)}
-            className={`col-span-2 flex items-center justify-between gap-xs p-sm rounded-lg border transition-all text-left w-full
-              ${
-                !selectedLand
-                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/30 shadow-sm'
-                  : 'border-grey-200 dark:border-grey-700 hover:border-grey-300 dark:hover:border-grey-600 hover:shadow-sm'
-              }`}
-          >
-            <p
-              className={`text-xs font-semibold ${!selectedLand ? 'text-primary-700 dark:text-primary-400' : 'text-foreground'}`}
+        <div>
+          <p className="text-xs font-semibold text-foreground-heading uppercase tracking-wide mb-sm">
+            Grüne in den Ländern
+          </p>
+          <div className="grid grid-cols-2 gap-xs">
+            <button
+              onClick={() => setSelectedLand(null)}
+              className={`col-span-2 flex items-center justify-between gap-xs p-sm rounded-lg border transition-all text-left w-full
+                ${
+                  !selectedLand
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/30 shadow-sm'
+                    : 'border-grey-200 dark:border-grey-700 hover:border-grey-300 dark:hover:border-grey-600 hover:shadow-sm'
+                }`}
             >
-              Bundestrend
-            </p>
-            <span className="text-[10px] text-grey-400">Deutschland</span>
-          </button>
-          {sortedLaender.map((land) => (
-            <LandCard
-              key={land.id}
-              id={land.id}
-              name={land.name}
-              isSelected={selectedLand === land.id}
-              onClick={() => setSelectedLand(selectedLand === land.id ? null : land.id)}
-            />
-          ))}
+              <p
+                className={`text-xs font-semibold ${!selectedLand ? 'text-primary-700 dark:text-primary-400' : 'text-foreground'}`}
+              >
+                Bundestrend
+              </p>
+              <span className="text-[10px] text-grey-400">Deutschland</span>
+            </button>
+            {sortedLaender.map((land) => (
+              <LandCard
+                key={land.id}
+                id={land.id}
+                name={land.name}
+                isSelected={selectedLand === land.id}
+                onClick={() => setSelectedLand(selectedLand === land.id ? null : land.id)}
+              />
+            ))}
+          </div>
         </div>
       </div>
+
+      <MeinungsbildSection />
     </div>
   );
 }

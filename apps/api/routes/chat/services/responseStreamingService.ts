@@ -35,7 +35,7 @@ interface ModelResolution {
  * Resolve which AI model to use: user selection overrides agent default.
  */
 export function resolveModel(
-  agentConfig: any,
+  agentConfig: { provider: string; model: string; defaultModel?: string },
   modelId?: string,
   options?: { hasImages?: boolean }
 ): ModelResolution {

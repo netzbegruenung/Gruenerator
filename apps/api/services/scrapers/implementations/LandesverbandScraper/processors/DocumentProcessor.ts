@@ -10,6 +10,7 @@ import {
   batchDelete,
   batchUpsert,
 } from '../../../../../database/services/QdrantService/operations/batchOperations.js';
+import { chunkQualityService } from '../../../../ChunkQualityService/index.js';
 import { smartChunkDocument } from '../../../../document-services/index.js';
 import { mistralEmbeddingService } from '../../../../mistral/index.js';
 import { DateExtractor } from '../extractors/DateExtractor.js';
@@ -116,7 +117,7 @@ export class DocumentProcessor {
     const chunkTexts = chunks.map((c: any) => c.text || c.chunk_text);
     const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
 
-    // STEP 8: Build Qdrant points
+    // STEP 8: Build Qdrant points (with quality scoring)
     const points = chunks.map((chunk, index) => ({
       id: this.generatePointId(url, index),
       vector: embeddings[index],
@@ -132,6 +133,7 @@ export class DocumentProcessor {
         content_hash: contentHash,
         chunk_index: index,
         chunk_text: chunkTexts[index],
+        quality_score: chunkQualityService.calculateQualityScore(chunkTexts[index]),
         title: documentTitle,
         primary_category: categories?.[0] || null,
         subcategories: categories || [],

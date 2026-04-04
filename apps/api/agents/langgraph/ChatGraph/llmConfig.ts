@@ -8,6 +8,8 @@
 
 import { ChatMistralAI } from '@langchain/mistralai';
 
+export { INTERMEDIATE_MODEL } from '../../../services/ai/providers.js';
+
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 
 export interface AgentLLMConfig {

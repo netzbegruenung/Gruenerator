@@ -2,7 +2,7 @@
  * Search User Content Tool
  *
  * Searches the user's own uploaded documents (Qdrant) and saved/generated texts
- * (PostgreSQL user_documents). Enables the DeepAgent to autonomously find user
+ * (PostgreSQL user_documents). Enables the agent to autonomously find user
  * content when the message implies personal documents — without requiring an
  * explicit @datei mention.
  */
@@ -27,7 +27,7 @@ function stripHtmlTags(html: string): string {
 }
 
 export function createSearchUserContentTool(deps: ToolDependencies): DynamicStructuredTool | null {
-  const userId = deps.userId || (deps.agentConfig as any).userId;
+  const userId = deps.userId || deps.agentConfig.userId;
   if (!userId) {
     return null;
   }

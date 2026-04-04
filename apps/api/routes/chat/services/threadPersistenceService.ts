@@ -8,13 +8,15 @@
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 
 import type { UserProfile } from '../../../services/user/types.js';
+import type { AuthRequest } from '../../auth/types.js';
 import type express from 'express';
 
 /**
- * Get user from request.
+ * Get typed user from request.
+ * Accepts both AuthRequest (typed user) and plain Request (Keycloak middleware).
  */
-export const getUser = (req: express.Request): UserProfile | undefined =>
-  (req as any).user as UserProfile | undefined;
+export const getUser = (req: AuthRequest | express.Request): UserProfile | undefined =>
+  (req as AuthRequest).user;
 
 /**
  * Create a new chat thread.

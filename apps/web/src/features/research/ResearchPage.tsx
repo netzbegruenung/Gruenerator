@@ -13,7 +13,13 @@ import {
   StatusBanner,
 } from '@gruenerator/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { HiArrowsUpDown, HiBarsArrowDown, HiCog6Tooth, HiRectangleStack } from 'react-icons/hi2';
+import {
+  HiArrowsUpDown,
+  HiBarsArrowDown,
+  HiCog6Tooth,
+  HiRectangleStack,
+  HiTag,
+} from 'react-icons/hi2';
 import { IoSearch } from 'react-icons/io5';
 
 import IndexCard from '../../components/common/IndexCard';
@@ -58,7 +64,10 @@ function formatPublishedDate(iso: string): string {
   }
 }
 
-function resultToCardProps(result: ResearchResult) {
+function resultToCardProps(
+  result: ResearchResult,
+  onFindSimilar?: (sourceUrl: string, collectionId: string) => void
+) {
   const similarityPercent = Math.round(result.similarity_score * 100);
   const tags = result.collection_name ? [result.collection_name] : [];
   const chunkLabel =
@@ -69,24 +78,44 @@ function resultToCardProps(result: ResearchResult) {
     metaParts.push(formatPublishedDate(result.published_at));
   }
 
+  const hasHighlights = result.relevant_content?.includes('<mark>');
+
   return {
     title: result.title,
-    description: result.relevant_content,
+    description: hasHighlights ? (
+      <span dangerouslySetInnerHTML={{ __html: result.relevant_content }} />
+    ) : (
+      result.relevant_content
+    ),
     tags,
     meta: (
       <div className="flex w-full items-center justify-between">
         <span className="text-xs text-grey-500">{metaParts.join(' · ')}</span>
-        {result.source_url && (
-          <a
-            href={result.source_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-primary-500 hover:underline"
-            onClick={(e: React.MouseEvent) => e.stopPropagation()}
-          >
-            Quelle öffnen
-          </a>
-        )}
+        <div className="flex items-center gap-sm">
+          {result.source_url && result.collection_id && onFindSimilar && (
+            <button
+              type="button"
+              className="text-xs text-grey-500 hover:text-primary-500 hover:underline"
+              onClick={(e: React.MouseEvent) => {
+                e.stopPropagation();
+                onFindSimilar(result.source_url!, result.collection_id!);
+              }}
+            >
+              Ähnliche
+            </button>
+          )}
+          {result.source_url && (
+            <a
+              href={result.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-primary-500 hover:underline"
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+            >
+              Quelle öffnen
+            </a>
+          )}
+        </div>
       </div>
     ),
     onClick: result.source_url
@@ -97,7 +126,7 @@ function resultToCardProps(result: ResearchResult) {
 
 function ResearchPage() {
   const [query, setQuery] = useState('');
-  const { results, metadata, isLoading, error, search } = useResearch();
+  const { results, metadata, isLoading, error, search, fetchSimilar } = useResearch();
   const [hasSearched, setHasSearched] = useState(false);
   const lastQueryRef = useRef('');
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -128,11 +157,17 @@ function ResearchPage() {
     setFiltersEnabled(true);
   }, [setFiltersEnabled]);
 
+  const getKeywordConfig = (field: string) => filterFields[field];
+  const getActiveValues = useCallback(
+    (field: string) => {
+      const active = activeFilters[field];
+      return Array.isArray(active) ? active : [];
+    },
+    [activeFilters]
+  );
+
   const contentTypeConfig = filterFields['content_type'];
-  const activeContentTypes = useMemo(() => {
-    const active = activeFilters['content_type'];
-    return Array.isArray(active) ? active : [];
-  }, [activeFilters]);
+  const activeContentTypes = getActiveValues('content_type');
 
   const dateFilterCount = useMemo(() => {
     let count = 0;
@@ -274,6 +309,44 @@ function ResearchPage() {
                   </DropdownMenu>
                 )}
 
+                {(['primary_category', 'subcategories', 'region'] as const).map((field) => {
+                  const config = getKeywordConfig(field);
+                  const values = config?.values ?? [];
+                  const active = getActiveValues(field);
+                  if (!config || values.length === 0) return null;
+                  return (
+                    <DropdownMenu key={field}>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <HiTag className="size-4" />
+                          {filtersLoading
+                            ? 'Laden...'
+                            : active.length > 0
+                              ? `${active.length} ${config.label}`
+                              : config.label}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="max-h-[20rem] overflow-y-auto">
+                        {values.map((v) => (
+                          <DropdownMenuCheckboxItem
+                            key={v.value}
+                            checked={active.includes(v.value)}
+                            onCheckedChange={(checked) => {
+                              setKeywordFilter(
+                                field,
+                                checked ? [...active, v.value] : active.filter((t) => t !== v.value)
+                              );
+                            }}
+                            onSelect={(e) => e.preventDefault()}
+                          >
+                            {v.value} ({v.count})
+                          </DropdownMenuCheckboxItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  );
+                })}
+
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm">
@@ -379,7 +452,10 @@ function ResearchPage() {
             {results.map((result, i) => (
               <IndexCard
                 key={`${result.document_id}-${result.collection_id ?? i}`}
-                {...resultToCardProps(result)}
+                {...resultToCardProps(result, (sourceUrl, collectionId) => {
+                  setHasSearched(true);
+                  void fetchSimilar(sourceUrl, collectionId);
+                })}
               />
             ))}
           </CardGrid>

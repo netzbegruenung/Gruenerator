@@ -1,8 +1,9 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useEffect } from 'react';
 
 import type { ReactNode } from 'react';
 
 import type { StockImage, StockImageAttribution } from './common/imageSourceTypes';
+import { setIconifyApiUrl } from './utils/canvasIcons';
 
 export interface CanvasEditorServices {
   /** Fetch curated stock images by category */
@@ -52,6 +53,9 @@ export interface CanvasEditorServices {
 
   /** Base URL for static assets (illustrations, etc.). Defaults to '' (same origin). */
   assetBaseUrl?: string;
+
+  /** Self-hosted Iconify API URL for icon browsing/search (e.g., 'https://iconify.gruenerator.eu') */
+  iconifyApiUrl?: string;
 }
 
 const CanvasEditorContext = createContext<CanvasEditorServices>({});
@@ -63,6 +67,12 @@ export function CanvasEditorProvider({
   services: CanvasEditorServices;
   children: ReactNode;
 }) {
+  useEffect(() => {
+    if (services.iconifyApiUrl) {
+      setIconifyApiUrl(services.iconifyApiUrl);
+    }
+  }, [services.iconifyApiUrl]);
+
   return <CanvasEditorContext.Provider value={services}>{children}</CanvasEditorContext.Provider>;
 }
 

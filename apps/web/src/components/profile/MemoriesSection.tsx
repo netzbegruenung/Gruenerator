@@ -7,8 +7,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  FeatureToggle,
 } from '@gruenerator/ui';
-import * as Switch from '@radix-ui/react-switch';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trash2, Plus, AlertTriangle, Brain, RefreshCw } from 'lucide-react';
 import React, { memo, useState } from 'react';
@@ -135,12 +135,16 @@ export default memo(function MemoriesSection() {
   return (
     <div>
       <div className="flex items-center gap-sm mb-sm">
-        <Brain className="size-5 text-primary-500" />
-        <h3 className="text-sm font-medium text-foreground">Erinnerungen</h3>
-        {memoriesEnabled && (
-          <span className="text-xs text-grey-400">({isLoading ? '…' : memories.length})</span>
-        )}
-        <div className="flex-1" />
+        <FeatureToggle
+          isActive={memoriesEnabled}
+          onToggle={(checked) => updateUserBetaFeatures('memories', checked)}
+          label={
+            memoriesEnabled ? `Erinnerungen (${isLoading ? '…' : memories.length})` : 'Erinnerungen'
+          }
+          icon={Brain}
+          noBorder
+          className="flex-1 p-0"
+        />
         {memoriesEnabled && (
           <Button
             variant="ghost"
@@ -152,14 +156,6 @@ export default memo(function MemoriesSection() {
             Hinzufügen
           </Button>
         )}
-        <Switch.Root
-          className="feature-switch"
-          checked={memoriesEnabled}
-          onCheckedChange={(checked) => updateUserBetaFeatures('memories', checked)}
-          aria-label="Erinnerungen aktivieren"
-        >
-          <Switch.Thumb className="feature-switch-thumb" />
-        </Switch.Root>
       </div>
 
       {!memoriesEnabled && <p className="text-sm text-grey-400">Erinnerungen sind deaktiviert.</p>}

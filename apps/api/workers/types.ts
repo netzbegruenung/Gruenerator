@@ -247,7 +247,7 @@ export type ProviderAdapters = Record<ProviderName, ProviderAdapter>;
 
 export interface AIWorkerPool {
   processRequest(data: AIRequestData, req?: unknown): Promise<AIWorkerResult>;
-  shutdown(): Promise<void[]>;
+  shutdown(): Promise<void>;
 }
 
 // Re-export provider types for convenience

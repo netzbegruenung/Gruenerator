@@ -34,7 +34,7 @@ export async function imageEditNode(state: ChatGraphState): Promise<Partial<Chat
         ? lastUserMessage.content
         : JSON.stringify(lastUserMessage?.content || '');
 
-    const userId = (agentConfig as any).userId;
+    const userId = agentConfig.userId;
 
     if (!userId) {
       log.warn('[ImageEditNode] No user ID available for rate limiting');

@@ -8,7 +8,10 @@
 import type {
   SearchIntent,
   SearchSource,
+  GatherSource,
   GeneratedImageResult,
+  ConfirmActionType,
+  ChartData,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { Response } from 'express';
 
@@ -17,6 +20,7 @@ import type { Response } from 'express';
  */
 export type SSEEventType =
   | 'thread_created'
+  | 'compound_start'
   | 'intent'
   | 'search_start'
   | 'search_complete'
@@ -29,6 +33,10 @@ export type SSEEventType =
   | 'text_delta'
   | 'interrupt'
   | 'document_indexed'
+  | 'document_created'
+  | 'confirm_action'
+  | 'chart_data'
+  | 'completion'
   | 'done'
   | 'error';
 
@@ -66,15 +74,21 @@ export interface ThinkingStepPayload {
  */
 export interface SSEEventPayloads {
   thread_created: { threadId: string };
+  compound_start: {
+    stages: GatherSource[];
+    message: string;
+  };
   intent: {
     intent: SearchIntent;
+    secondaryIntent?: SearchIntent;
     message: string;
     reasoning?: string;
     searchQuery?: string;
     subQueries?: string[] | null;
     searchSources?: SearchSource[] | null;
+    compound?: boolean;
   };
-  search_start: { message: string };
+  search_start: { message: string; subQueries?: string[] };
   search_complete: {
     message: string;
     resultCount: number;
@@ -92,11 +106,35 @@ export interface SSEEventPayloads {
   thinking_step: ThinkingStepPayload;
   text_delta: { text: string };
   document_indexed: { documentId: string; title: string };
+  document_created: { documentId: string; title: string; subtype: string; url: string };
   interrupt: {
     interruptType: 'clarification';
     question: string;
     options?: string[];
     threadId?: string;
+  };
+  confirm_action: {
+    actionId: string;
+    type: ConfirmActionType;
+    title: string;
+    description?: string;
+    icon?: string;
+    metadata?: Array<{ key: string; value: string }>;
+    variant?: 'default' | 'destructive';
+    confirmLabel?: string;
+    cancelLabel?: string;
+    threadId?: string;
+  };
+  chart_data: {
+    chart: ChartData;
+  };
+  completion: {
+    answer: string;
+    citations: unknown[];
+    sources: unknown[];
+    allSources: unknown[];
+    sourcesByCollection?: Record<string, unknown>;
+    metadata?: Record<string, unknown>;
   };
   done: {
     threadId?: string | null;
@@ -129,6 +167,11 @@ export const INTENT_MESSAGES: Record<SearchIntent, string> = {
   image: 'Generiere Bild...',
   image_edit: 'Bearbeite Bild...',
   summary: 'Fasse Dokument(e) zusammen...',
+  chart: 'Erstelle Diagramm...',
+  save_as_doc: 'Erstelle Dokument aus Antwort...',
+  modify_doc: 'Bearbeite Dokument...',
+  modify_board: 'Aktualisiere Board...',
+  share_doc: 'Teile Dokument mit Gruppe...',
   direct: 'Beantworte direkt...',
 };
 
@@ -136,6 +179,13 @@ export const INTENT_MESSAGES: Record<SearchIntent, string> = {
  * Progress messages for common stages.
  */
 export const PROGRESS_MESSAGES = {
+  compoundStart: (stages: number) => `Mehrstufige Anfrage erkannt (${stages} Quellen)...`,
+  compoundGather: (source: string) =>
+    source === 'notebook-search'
+      ? 'Recherchiere in Notizbüchern...'
+      : source === 'web-search'
+        ? 'Suche im Web...'
+        : 'Führe Recherche durch...',
   searchStart: 'Durchsuche Quellen...',
   searchComplete: (count: number) =>
     count > 0 ? `${count} relevante Quellen gefunden` : 'Keine passenden Quellen gefunden',
@@ -182,18 +232,18 @@ export class SSEWriter {
    * Send a typed SSE event.
    */
   send<T extends SSEEventType>(event: T, data: SSEEventPayloads[T]): void {
-    if (this.ended) return;
+    if (this.ended || this.res.writableEnded || this.res.destroyed) return;
     this.res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-    (this.res as any).flush?.();
+    (this.res as unknown as { flush?: () => void }).flush?.();
   }
 
   /**
    * Send a raw SSE event (for backwards compatibility).
    */
   sendRaw(event: string, data: unknown): void {
-    if (this.ended) return;
+    if (this.ended || this.res.writableEnded || this.res.destroyed) return;
     this.res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-    (this.res as any).flush?.();
+    (this.res as unknown as { flush?: () => void }).flush?.();
   }
 
   /**

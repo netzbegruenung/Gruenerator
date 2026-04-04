@@ -5,7 +5,7 @@ import { MessagePrimitive, useMessage } from '@assistant-ui/react';
 import { useAgentStore } from '../../stores/chatStore';
 import { agentsList, getDefaultAgent } from '../../lib/agents';
 import { ChatIcon } from '../icons';
-import { MarkdownContent } from '../MarkdownContent';
+import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
 import { ProgressIndicator } from '../message-parts/ProgressIndicator';
 import { ProgressTracker } from '../tool-ui/progress-tracker/ProgressTracker';
 import { SkillBadge } from '../message-parts/SkillBadge';
@@ -15,20 +15,14 @@ import { MessageActions } from '../message-parts/MessageActions';
 import { SearchResultsSection, type AdditionalSource } from '../message-parts/SearchResultsSection';
 import { CitationProvider, useFetchFullText } from '../../context/CitationContext';
 import { resolveCitations } from '../../lib/citationUtils';
+import { ConfirmActionCard } from '../tool-ui/ConfirmActionCard';
+import { DocumentCreatedCard } from '../tool-ui/DocumentCreatedCard';
 import type { ChatMessageMetadata } from '../../types/messageMetadata';
 
-function AssistantMessageTextPart({
-  text,
-}: {
-  type: 'text';
-  text: string;
-  [key: string]: unknown;
-}) {
-  if (!text) return null;
-
+function AssistantMessageTextPart() {
   return (
     <div className="prose prose-sm max-w-none break-words">
-      <MarkdownContent content={text} />
+      <CitationMarkdownText />
     </div>
   );
 }
@@ -148,6 +142,14 @@ export const AssistantMessage = memo(function AssistantMessage() {
         <CitationProvider citations={citations} fetchFullText={fetchFullText}>
           <MessagePrimitive.Parts components={partComponents} />
         </CitationProvider>
+
+        {!isStreaming && custom?.confirmAction && (
+          <ConfirmActionCard action={custom.confirmAction} />
+        )}
+
+        {!isStreaming && custom?.createdDocument && (
+          <DocumentCreatedCard document={custom.createdDocument} />
+        )}
 
         {showSearchResults && (
           <SearchResultsSection citations={citations} additionalSources={additionalSources} />

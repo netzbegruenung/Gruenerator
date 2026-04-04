@@ -111,7 +111,7 @@ export async function imageNode(state: ChatGraphState): Promise<Partial<ChatGrap
 
     // Get user ID from agent config for rate limiting
     // Note: userId is passed through agentConfig.userId or extracted from request context
-    const userId = (agentConfig as any).userId;
+    const userId = agentConfig.userId;
 
     if (!userId) {
       log.warn('[ImageNode] No user ID available for rate limiting');

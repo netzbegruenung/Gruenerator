@@ -3,6 +3,8 @@
  * Handles routing between Mistral, IONOS, LiteLLM, and other providers
  */
 
+import { INTERMEDIATE_MODEL } from '../ai/providers.js';
+
 import type {
   ProviderName,
   ModelName,
@@ -139,13 +141,15 @@ export function selectProviderAndModel({
     provider = 'litellm';
     model = options.model || 'gpt-oss:120b';
   }
-  // Fast helper tasks — Mistral Small
-  else if (type === 'antrag_question_generation' || type === 'antrag_qa_summary') {
-    provider = 'mistral';
-    model = options.model || 'mistral-small-latest';
-  } else if (type === 'gruenerator_ask' || type === 'gruenerator_ask_grundsatz') {
-    provider = 'mistral';
-    model = options.model || 'mistral-small-latest';
+  // Fast helper tasks — Intermediate model (Regolo)
+  else if (
+    type === 'antrag_question_generation' ||
+    type === 'antrag_qa_summary' ||
+    type === 'gruenerator_ask' ||
+    type === 'gruenerator_ask_grundsatz'
+  ) {
+    provider = INTERMEDIATE_MODEL.provider;
+    model = options.model || INTERMEDIATE_MODEL.model;
   }
   // Sharepic types — short creative text, GPT-OSS
   else if (

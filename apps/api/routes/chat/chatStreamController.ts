@@ -25,11 +25,10 @@ import {
   prepareMessagesWithCompaction,
   type CompactionState,
 } from './services/compactionService.js';
+import { getUser } from './services/threadPersistenceService.js';
 
 import type { ResearchResult } from './agents/directSearch.js';
 import type { AgentConfig } from './agents/types.js';
-import type { UserProfile } from '../../services/user/types.js';
-import type express from 'express';
 
 const log = createLogger('ChatStreamController');
 const router = createAuthenticatedRouter();
@@ -53,9 +52,6 @@ const TOOL_KEY_TO_NAME: Record<ToolKey, SearchToolName> = {
   research: 'research',
   direct: 'direct_response',
 };
-
-const getUser = (req: express.Request): UserProfile | undefined =>
-  (req as any).user as UserProfile | undefined;
 
 const ALL_COLLECTIONS = [
   'deutschland',

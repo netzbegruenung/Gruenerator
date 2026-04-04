@@ -7,7 +7,7 @@ import { cn } from '@/utils/cn';
 export interface IndexCardProps {
   id?: string;
   title: string;
-  description?: string;
+  description?: ReactNode;
   meta?: ReactNode;
   tags?: string[];
   headerActions?: ReactNode;

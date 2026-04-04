@@ -140,7 +140,7 @@ export async function loadBoardState(boardId: string, userId: string): Promise<B
 
   const boardResult = await db.query(
     `SELECT title, content FROM collaborative_documents
-     WHERE id = $1 AND document_subtype = $2 AND is_deleted = false
+     WHERE id = $1::uuid AND document_subtype = $2 AND is_deleted = false
      AND (created_by = $3 OR permissions ? $3::text OR is_public = true
           OR id IN (SELECT gcs.content_id FROM group_content_shares gcs
                     INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $3
@@ -337,4 +337,62 @@ export async function createBoardDocument(
     ]
   );
   return { id: result[0].id as string, title: result[0].title as string };
+}
+
+/**
+ * Add rows to an existing board by loading the Yjs document,
+ * appending rows to the 'rows' array, and persisting the update.
+ */
+export async function addRowsToBoard(
+  boardId: string,
+  rows: Array<Record<string, unknown>>,
+  userId: string
+): Promise<void> {
+  const MAX_ROWS_PER_UPDATE = 100;
+  if (rows.length > MAX_ROWS_PER_UPDATE) {
+    throw new Error(`Cannot add more than ${MAX_ROWS_PER_UPDATE} rows in one request`);
+  }
+  if (rows.length === 0) return;
+
+  const doc = await loadBoardYjsDoc(boardId);
+  if (!doc) {
+    throw new Error(`Board ${boardId} not found or has no Yjs document`);
+  }
+
+  const yRows = doc.getArray('rows');
+  const now = new Date().toISOString();
+
+  doc.transact(() => {
+    for (const row of rows) {
+      const newRow = new Y.Map();
+      const rowId = row.id
+        ? String(row.id)
+        : `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      newRow.set('id', rowId);
+      newRow.set('createdBy', userId);
+      newRow.set('createdAt', now);
+
+      const cells = new Y.Map();
+      cells.set(FIELD_IDS.TITLE, String(row.title || ''));
+      cells.set(FIELD_IDS.STATUS, String(row.status || ''));
+      cells.set(FIELD_IDS.DESCRIPTION, String(row.description || ''));
+      cells.set(FIELD_IDS.DUE_DATE, row.dueDate ? String(row.dueDate) : null);
+      cells.set(FIELD_IDS.LABELS, []);
+      cells.set(FIELD_IDS.ASSIGNEE, String(row.assignee || ''));
+      cells.set(FIELD_IDS.LINKED_DOCS, '[]');
+      newRow.set('cells', cells);
+
+      yRows.push([newRow]);
+    }
+  });
+
+  const update = Y.encodeStateAsUpdate(doc);
+  const db = getPostgresInstance();
+  await db.query('INSERT INTO yjs_document_updates (document_id, data) VALUES ($1, $2)', [
+    boardId,
+    Buffer.from(update),
+  ]);
+
+  _log.info(`Added ${rows.length} rows to board ${boardId}`);
+  doc.destroy();
 }

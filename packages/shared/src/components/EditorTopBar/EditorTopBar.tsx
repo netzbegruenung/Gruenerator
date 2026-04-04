@@ -4,7 +4,7 @@ import './EditorTopBar.css';
 
 interface EditorTopBarProps {
   title?: string;
-  connectionStatus?: 'connected' | 'syncing' | 'disconnected';
+  connectionStatus?: 'connected' | 'syncing' | 'disconnected' | 'offline-cached';
   onBack?: () => void;
   rightActions?: ReactNode;
   onTitleChange?: (newTitle: string) => void;

@@ -9,7 +9,6 @@ export interface ChatConfig {
   endpoints?: {
     chatStream?: string;
     chatResume?: string;
-    deepStream?: string;
     searchStream?: string;
     notebookStream?: string;
     messages?: string;
@@ -17,6 +16,7 @@ export interface ChatConfig {
     summarize?: string;
     exportMessage?: string;
     exportToDocs?: string;
+    chatConfirm?: string;
   };
   /** Base URL for the Docs app. Auto-detected from hostname if not set. */
   docsBaseUrl?: string;
@@ -31,7 +31,6 @@ export interface ChatConfig {
 export interface ResolvedEndpoints {
   chatStream: string;
   chatResume: string;
-  deepStream: string;
   searchStream: string;
   notebookStream: string;
   messages: string;
@@ -39,6 +38,7 @@ export interface ResolvedEndpoints {
   summarize: string;
   exportMessage: string;
   exportToDocs: string;
+  chatConfirm: string;
 }
 
 interface ResolvedChatConfig {
@@ -61,7 +61,6 @@ interface ChatConfigStore extends ResolvedChatConfig {
 const DEFAULT_ENDPOINTS: ResolvedEndpoints = {
   chatStream: '/api/chat-graph/stream',
   chatResume: '/api/chat-graph/resume',
-  deepStream: '/api/chat-deep/stream',
   searchStream: '/api/search-graph/stream',
   notebookStream: '/api/chat-service/notebook/stream',
   messages: '/api/chat-service/messages',
@@ -69,6 +68,7 @@ const DEFAULT_ENDPOINTS: ResolvedEndpoints = {
   summarize: '/api/chat-service/summarize',
   exportMessage: '/api/exports/chat-message',
   exportToDocs: '/api/docs/from-export',
+  chatConfirm: '/api/chat-service/confirm',
 };
 
 function resolveDocsUrl(configured?: string): string {

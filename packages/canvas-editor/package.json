@@ -25,6 +25,8 @@
   },
   "dependencies": {
     "@gruenerator/shared": "workspace:*",
+    "@iconify/react": "^6.0.2",
+    "@iconify/utils": "^3.1.0",
     "@radix-ui/react-slider": "^1.3.6",
     "clsx": "^2.1.1",
     "immer": "^11.1.4",

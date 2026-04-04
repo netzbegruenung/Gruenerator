@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
 import oparlApiClient from '../../api-clients/oparlApiClient.js';
+import { chunkQualityService } from '../../ChunkQualityService/index.js';
 import { smartChunkDocument } from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { ocrService } from '../../ocrService.js';
@@ -306,6 +307,7 @@ export class OparlScraper extends BaseScraper {
         oparl_id: paper.id,
         chunk_index: index,
         chunk_text: chunkTexts[index],
+        quality_score: chunkQualityService.calculateQualityScore(chunkTexts[index]),
         full_text: index === 0 ? fullText : null,
         city: city,
         title: paper.name || 'Untitled',

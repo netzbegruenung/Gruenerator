@@ -99,6 +99,7 @@ router.get('/collections/:id/filters', async (req: Request<{ id: string }>, res:
         label: string;
         type: string;
         values?: Array<{ value: string; count: number }>;
+        valueLabels?: Record<string, string>;
         min?: string;
         max?: string;
       }
@@ -130,6 +131,7 @@ router.get('/collections/:id/filters', async (req: Request<{ id: string }>, res:
             label: field.label,
             type: fieldType,
             values: valuesWithCounts,
+            ...(field.valueLabels ? { valueLabels: field.valueLabels } : {}),
           };
         }
       } catch (fieldError) {

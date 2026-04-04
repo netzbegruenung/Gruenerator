@@ -10,6 +10,7 @@
 import { localizePlaceholders } from '../../../../services/localization/index.js';
 import { type Locale } from '../../../../services/localization/types.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
 import type { ChatGraphState, ThreadAttachment } from '../types.js';
 
@@ -151,7 +152,7 @@ async function cleanFindings(state: ChatGraphState): Promise<string | null> {
   const response = await aiWorkerPool.processRequest(
     {
       type: 'chat_clean_findings',
-      provider: 'mistral',
+      provider: INTERMEDIATE_MODEL.provider,
       systemPrompt: FINDINGS_CLEANING_PROMPT,
       messages: [
         {
@@ -160,7 +161,7 @@ async function cleanFindings(state: ChatGraphState): Promise<string | null> {
         },
       ],
       options: {
-        model: 'mistral-small-latest',
+        model: INTERMEDIATE_MODEL.model,
         max_tokens: 600,
         temperature: 0.2,
       },
@@ -429,6 +430,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   const summaryContextFormatted = formatSummaryContext(summaryContext);
   const threadAttachmentsContext = formatThreadAttachmentsContext(threadAttachments);
   const memoryContextFormatted = formatMemoryContext(memoryContext);
+  const chatHistoryFormatted = state.chatHistoryContext ? `\n\n${state.chatHistoryContext}` : '';
   const boardContextFormatted = formatBoardContext(boardContext);
   const docMentionContextFormatted = formatDocumentMentionContext(documentMentionContext);
   const localeContext = formatLocaleContext(state.userLocale);
@@ -438,9 +440,28 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
     ? '\nDu chattest mit ausgewählten Dokumenten des Nutzers. Beantworte Fragen basierend auf den Dokumenten. Zitiere relevante Passagen.'
     : intent === 'summary'
       ? '\nDer Nutzer hat eine Zusammenfassung angefordert. Präsentiere die vorbereitete Zusammenfassung klar und strukturiert.'
-      : intent === 'direct'
-        ? '\nDies ist eine direkte Anfrage ohne Recherche-Bedarf. Antworte natürlich und hilfsbereit.'
-        : '\nDu hast Recherche-Ergebnisse erhalten. Nutze sie um eine fundierte Antwort zu geben.';
+      : intent === 'chart'
+        ? `\nDer Nutzer möchte ein Diagramm. Erstelle die Daten und gib sie als JSON-Block zurück.
+Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diesem Format:
+
+\`\`\`chart
+{"type":"bar","title":"Titel","data":[{"name":"A","wert":10},{"name":"B","wert":20}],"xKey":"name","yKeys":["wert"]}
+\`\`\`
+
+Regeln:
+- type: "bar", "line", "area", "pie" oder "donut"
+- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey
+- xKey: Name des Feldes für die X-Achse (z.B. "name", "monat", "jahr")
+- yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])
+- Verwende realistische, plausible Daten wenn keine konkreten Zahlen gegeben sind
+- Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`
+        : intent === 'image'
+          ? state.generatedImage
+            ? `\nDu hast erfolgreich ein Bild generiert. Das Bild wurde dem*der Nutzer*in bereits angezeigt.\nBeschreibe kurz was auf dem Bild zu sehen ist basierend auf dem Prompt: "${state.imagePrompt || ''}"\nBiete an, Änderungen vorzunehmen oder ein neues Bild zu erstellen.`
+            : '\nDie Bildgenerierung ist fehlgeschlagen. Entschuldige dich und biete an, es erneut zu versuchen.'
+          : intent === 'direct'
+            ? '\nDies ist eine direkte Anfrage ohne Recherche-Bedarf. Antworte natürlich und hilfsbereit.'
+            : '\nDu hast Recherche-Ergebnisse erhalten. Nutze sie um eine fundierte Antwort zu geben.';
 
   const hasSources = state.searchResults.length > 0 && intent !== 'direct';
   const sourceCount = state.searchResults.filter((r) => r.url).length;
@@ -455,8 +476,9 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   } else if (hasSources) {
     citationInstruction = `
 5. Du hast genau ${sourceCount} Quelle(n). Verwende NUR [1] bis [${sourceCount}] als Quellenverweise. Höhere Nummern existieren NICHT.
-6. Setze die Referenz direkt nach der Aussage, z.B.: "Die Grünen fordern ein Tempolimit [1]."
-7. Erfinde KEINE zusätzlichen Quellen oder Quellenverweise über [${sourceCount}] hinaus.`;
+6. Zitiere 1-2 Quellen pro Kernaussage — nicht jeder Satz braucht eine Referenz.
+7. Setze die Referenz direkt nach der Aussage, z.B.: "Die Grünen fordern ein Tempolimit [1]."
+8. Erfinde KEINE zusätzlichen Quellen oder Quellenverweise über [${sourceCount}] hinaus.`;
   }
 
   const today = new Date().toLocaleDateString('de-DE', {
@@ -474,7 +496,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   // Custom system prompt: replaces the entire agent prompt when set
   if (state.customSystemPrompt) {
     return `${state.customSystemPrompt}
-Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryContextFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}${hasSources ? `\n${citationInstruction}` : ''}`;
+Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}${hasSources ? `\n${citationInstruction}` : ''}`;
   }
 
   // Use a neutral, non-partisan system role for document summaries
@@ -486,11 +508,11 @@ Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryCont
   const systemRole = localizePlaceholders(rawSystemRole, (state.userLocale as Locale) || 'de-DE');
 
   return `${systemRole}
-Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}
+Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo
-2. Kurze, präzise Antworten (max 3-4 Absätze für einfache Fragen)
+2. ${state.complexity === 'complex' ? 'Strukturiere mit Überschriften, bis zu 6 Absätze' : state.complexity === 'moderate' ? '2-4 Absätze mit klarer Struktur' : 'Kurze, präzise Antworten (1-2 Absätze)'}
 3. Antworte auf Deutsch
 4. Erfinde keine Fakten oder Quellennamen
 5. Erstelle KEINE Quellenliste/Quellenverzeichnis am Ende — Quellen werden automatisch in der Oberfläche angezeigt

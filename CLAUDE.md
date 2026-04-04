@@ -48,19 +48,9 @@ pnpm --filter @gruenerator/desktop dev           # Tauri desktop dev
 - **`packages/shared`** — Shared stores (Zustand), hooks, API clients, and feature modules (sharepic, image-studio, subtitle-editor, media-library, search). Shared components in `src/components/`.
 - **`services/mcp`** — Model Context Protocol server (`https://mcp.gruenerator.eu`). See `CLAUDE-mcp.md` for endpoints, tools, and testing.
 - **`services/comfyui`** — ComfyUI workflows for local GPU image generation.
-- **`services/presenton`** — Presenton slide generator (Next.js + FastAPI). Templates in `servers/nextjs/app/presentation-templates/b90-gruene/`. Self-hosted fonts in `servers/nextjs/public/fonts/` (no Google Fonts — GDPR). Archived non-GRÜNE templates in `_archive/` (gitignored).
+### Page Layout Modes
 
-### Presenton Local Dev
-
-**Always use `Dockerfile.gruenerator`** (not `Dockerfile` or `Dockerfile.dev`). The generic Dockerfiles install docling/pytorch (~2GB) which is unnecessary and extremely slow on WSL2.
-
-```bash
-cd services/presenton
-docker build -f Dockerfile.gruenerator -t presenton-gruenerator .
-docker run -d -p 5000:80 -v ./app_data:/app_data presenton-gruenerator
-```
-
-Preview templates at `http://localhost:5000/template-preview`.
+Routes in `routes.ts` use `layoutMode` (type `LayoutMode` in `PageLayout.tsx`) to control header/chrome visibility: `default` shows the full header (SidebarToggle + ProfileButton) with `mt-lg` content spacing; `fullscreen` shows the header but uses `pt-12` and `h-dvh` for contained layouts; `immersive` hides the header entirely with `h-dvh` (used by docs editor which renders its own toolbar); `sidebarOnly` shows only the SidebarToggle without ProfileButton (used by chat, docs overview); `noChrome` renders bare content with no header or sidebar (used by public/shared pages, voice agent).
 
 ### Database Migrations
 
@@ -71,6 +61,14 @@ SQL migrations live in `apps/api/database/postgres/migrations/` and run automati
 - **PostgreSQL** — Primary DB. Schema at `apps/api/database/postgres/schema.sql`. Connect: `PGPASSWORD=gruenerator psql -h localhost -U gruenerator -d gruenerator`
 - **Redis** — Sessions, caching, rate limiting. Connect: `redis-cli -a 'F-e9ZjuJ03U-@'`. Useful: `GET "monitor:stimmung:de"`, `DEL "monitor:stimmung:de"` to clear cache.
 - **Qdrant** — Vector embeddings for semantic search.
+
+### Content Sync & Scraping
+
+System Qdrant collections are populated by scrapers in `apps/api/services/scrapers/`. Sync is automated via GitHub Actions (`content-sync.yml`): hourly for Landesverbände, daily for all other sources. Entry point: `apps/api/update-all-content.ts`.
+
+**NEVER do a full rescrape (`--force` on all sources).** We have thousands of web-scraped documents. Only rescrape targeted subsets (e.g., PDFs only via `reprocess-pdfs.ts`) when pipeline changes affect extraction quality. Web-scraped HTML content rarely needs reprocessing.
+
+**`satzungen_documents`** — dormant collection, not actively used or synced. Exclude from improvements and rescraping.
 
 ### Adding a New Landesverband Notebook
 
@@ -199,6 +197,8 @@ Follow [You Might Not Need an Effect](https://react.dev/learn/you-might-not-need
 ### Commits
 
 Conventional Commits enforced by commitlint: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`, etc.
+
+**Atomic commits**: Each commit must contain exactly one logical change. Never bundle unrelated changes (e.g. a refactor + a style fix + a new feature) into a single commit. When multiple files change, group them by concern, not by timing.
 
 ### TypeScript
 

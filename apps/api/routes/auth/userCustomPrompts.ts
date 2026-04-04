@@ -5,17 +5,16 @@
 
 import { randomBytes } from 'crypto';
 
-import { Mistral } from '@mistralai/mistralai';
+import { generateText } from 'ai';
 import express, { type Router, type Response, type NextFunction } from 'express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
+import { getIntermediateModel } from '../../services/ai/providers.js';
 import { getPromptVectorService } from '../../services/prompts/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { AuthRequest } from './types.js';
-
-const mistral = new Mistral({ apiKey: process.env.MISTRAL_API_KEY });
 
 const log = createLogger('userCustomPrompts');
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
@@ -45,19 +44,14 @@ function generateSlug(): string {
 
 async function generatePromptName(promptText: string): Promise<string> {
   try {
-    const response = await mistral.chat.complete({
-      model: 'mistral-small-latest',
-      messages: [
-        {
-          role: 'user',
-          content: `Generate a short, descriptive German title (3-5 words) for this prompt template. Only respond with the title, nothing else.\n\nPrompt:\n${promptText.substring(0, 500)}`,
-        },
-      ],
-      maxTokens: 30,
+    const result = await generateText({
+      model: getIntermediateModel(),
+      prompt: `Generate a short, descriptive German title (3-5 words) for this prompt template. Only respond with the title, nothing else.\n\nPrompt:\n${promptText.substring(0, 500)}`,
+      maxOutputTokens: 30,
       temperature: 0.3,
     });
 
-    const name = response.choices?.[0]?.message?.content?.toString().trim();
+    const name = result.text.trim();
     return name || 'Mein Prompt';
   } catch (error) {
     log.warn('Failed to generate prompt name:', error);

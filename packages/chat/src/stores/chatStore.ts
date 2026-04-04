@@ -98,7 +98,6 @@ interface AgentState {
   selectedModel: ModelId;
   currentThreadId: string | null;
   enabledTools: Record<ToolKey, boolean>;
-  useDeepAgent: boolean;
   selectedNotebookId: string;
   compactionState: CompactionState;
   compactionLoading: boolean;
@@ -111,6 +110,7 @@ interface AgentState {
   threadMode: ThreadMode;
   searchMode: SearchMode;
   customSystemPrompt: string | null;
+  customRoleName: string | null;
   customEnabledTools: Record<string, boolean> | null;
   mentionablesActivated: boolean;
   setSelectedAgent: (agentId: string | null) => void;
@@ -119,7 +119,6 @@ interface AgentState {
   setCurrentThread: (threadId: string | null) => void;
   toggleTool: (tool: ToolKey) => void;
   setAllTools: (enabled: boolean) => void;
-  toggleDeepAgent: () => void;
   setSelectedNotebook: (notebookId: string) => void;
   setPendingMessage: (message: string | null) => void;
   setPendingDraft: (draft: string | null) => void;
@@ -132,6 +131,7 @@ interface AgentState {
   triggerCompaction: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   incrementMessageCount: () => void;
   setCustomSystemPrompt: (prompt: string | null) => void;
+  setCustomRoleName: (name: string | null) => void;
   setCustomEnabledTools: (tools: Record<string, boolean> | null) => void;
   loadThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   saveThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
@@ -159,7 +159,6 @@ export const useAgentStore = create<AgentState>()(
       selectedModel: 'mistral',
       currentThreadId: null,
       enabledTools: { ...DEFAULT_ENABLED_TOOLS },
-      useDeepAgent: false,
       selectedNotebookId: 'gruenerator-notebook',
       compactionState: { ...DEFAULT_COMPACTION_STATE },
       compactionLoading: false,
@@ -172,6 +171,7 @@ export const useAgentStore = create<AgentState>()(
       threadMode: 'chat' as ThreadMode,
       searchMode: 'web' as SearchMode,
       customSystemPrompt: null,
+      customRoleName: null,
       customEnabledTools: null,
       mentionablesActivated: false,
 
@@ -213,8 +213,6 @@ export const useAgentStore = create<AgentState>()(
             research: enabled,
           },
         }),
-
-      toggleDeepAgent: () => set((state) => ({ useDeepAgent: !state.useDeepAgent })),
 
       setSelectedNotebook: (notebookId) => set({ selectedNotebookId: notebookId }),
 
@@ -282,6 +280,8 @@ export const useAgentStore = create<AgentState>()(
 
       setCustomSystemPrompt: (prompt) => set({ customSystemPrompt: prompt }),
 
+      setCustomRoleName: (name) => set({ customRoleName: name }),
+
       setCustomEnabledTools: (tools) => set({ customEnabledTools: tools }),
 
       loadThreadSettings: async (threadId: string, apiClient: ChatApiClient) => {
@@ -303,7 +303,7 @@ export const useAgentStore = create<AgentState>()(
           state.threadMode === 'eigener' &&
           !state.customSystemPrompt
         ) {
-          set({ threadMode: 'chat' });
+          set({ threadMode: 'chat', customRoleName: null });
         }
       },
 
@@ -367,7 +367,6 @@ export const useAgentStore = create<AgentState>()(
         selectedModel: state.selectedModel,
         currentThreadId: state.currentThreadId,
         enabledTools: state.enabledTools,
-        useDeepAgent: state.useDeepAgent,
         selectedNotebookId: state.selectedNotebookId,
         threadMode: state.threadMode,
         searchMode: state.searchMode,

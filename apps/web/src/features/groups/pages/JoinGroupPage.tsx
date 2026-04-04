@@ -10,7 +10,7 @@ import { useGroups } from '../hooks/useGroups';
 const JoinGroupPage = () => {
   const { joinToken } = useParams();
   const navigate = useNavigate();
-  const { user: supabaseUser, loading: isLoading, isAuthResolved } = useOptimizedAuth();
+  const { user, loading: isLoading, isAuthResolved } = useOptimizedAuth();
   const [groupName, setGroupName] = useState('');
   const [status, setStatus] = useState<
     'loading' | 'ready' | 'already_member' | 'success' | 'error'
@@ -23,7 +23,7 @@ const JoinGroupPage = () => {
     let isMounted = true;
 
     const verifyToken = async () => {
-      if (!joinToken || isLoading || !isAuthResolved || !supabaseUser) return;
+      if (!joinToken || isLoading || !isAuthResolved || !user) return;
 
       try {
         const response = await apiClient.get(`/auth/groups/verify-token/${joinToken}`);
@@ -54,10 +54,10 @@ const JoinGroupPage = () => {
     return () => {
       isMounted = false;
     };
-  }, [joinToken, supabaseUser, isLoading, isAuthResolved]);
+  }, [joinToken, user, isLoading, isAuthResolved]);
 
   const handleJoin = () => {
-    if (!joinToken || !supabaseUser) return;
+    if (!joinToken || !user) return;
 
     joinGroup(joinToken, {
       onSuccess: (result) => {
@@ -75,7 +75,7 @@ const JoinGroupPage = () => {
     });
   };
 
-  if (isAuthResolved && !isLoading && !supabaseUser) {
+  if (isAuthResolved && !isLoading && !user) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center p-md">
         <Card className="max-w-[500px] w-full shadow-md">

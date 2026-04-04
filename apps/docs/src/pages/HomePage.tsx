@@ -1,6 +1,5 @@
 import { DocumentList } from '@gruenerator/docs';
 import { getAvatarDisplayProps, getRobotAvatarPath } from '@gruenerator/shared/avatar';
-import { PresentationList, SlidesProvider } from '@gruenerator/slides';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +13,6 @@ import { FiLogOut, FiSearch, FiSettings, FiX } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../hooks/useAuth';
-import { webSlidesAdapter } from '../lib/slidesAdapter';
 import { useAuthStore } from '../stores/authStore';
 
 import '@gruenerator/docs/styles';
@@ -44,16 +42,12 @@ const UserAvatar = memo(
 );
 UserAvatar.displayName = 'UserAvatar';
 
-type ContentTab = 'documents' | 'presentations';
-
 export const HomePage = () => {
   const { user } = useAuth();
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const deferredSearch = useDeferredValue(searchQuery);
-  const [activeTab, setActiveTab] = useState<ContentTab>('documents');
-
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-[1200px] px-md py-lg md:px-xl md:py-xl">
@@ -75,11 +69,7 @@ export const HomePage = () => {
               />
               <input
                 type="text"
-                placeholder={
-                  activeTab === 'documents'
-                    ? 'Dokumente durchsuchen…'
-                    : 'Präsentationen durchsuchen…'
-                }
+                placeholder="Dokumente durchsuchen…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full rounded-full border border-grey-200 bg-grey-50 py-2 pl-9 pr-9 text-sm outline-none transition-colors placeholder:text-grey-400 focus:border-secondary-600 focus:ring-1 focus:ring-secondary-600/30 dark:border-grey-700 dark:bg-grey-800 dark:focus:border-secondary-600"
@@ -130,39 +120,8 @@ export const HomePage = () => {
           </div>
         </header>
 
-        <div className="flex gap-1 mb-md border-b border-grey-200 dark:border-grey-700">
-          <button
-            onClick={() => setActiveTab('documents')}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
-              activeTab === 'documents'
-                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                : 'border-transparent text-grey-500 hover:text-grey-700 dark:hover:text-grey-300'
-            }`}
-          >
-            Dokumente
-          </button>
-          <button
-            onClick={() => setActiveTab('presentations')}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
-              activeTab === 'presentations'
-                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                : 'border-transparent text-grey-500 hover:text-grey-700 dark:hover:text-grey-300'
-            }`}
-          >
-            Präsentationen
-          </button>
-        </div>
-
         <main>
-          {activeTab === 'documents' && <DocumentList searchQuery={deferredSearch} />}
-          {activeTab === 'presentations' && (
-            <SlidesProvider adapter={webSlidesAdapter}>
-              <PresentationList
-                searchQuery={deferredSearch}
-                onPresentationClick={(id) => navigate(`/presentation/${id}`)}
-              />
-            </SlidesProvider>
-          )}
+          <DocumentList searchQuery={deferredSearch} />
         </main>
       </div>
     </div>

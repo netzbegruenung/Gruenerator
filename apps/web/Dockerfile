@@ -24,7 +24,7 @@ COPY packages/canvas-editor/package.json ./packages/canvas-editor/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/collab/package.json ./packages/collab/
 COPY packages/wolke/package.json ./packages/wolke/
-COPY packages/slides/package.json ./packages/slides/
+
 COPY apps/web/package.json ./apps/web/
 
 # Install only web + transitive workspace deps (not all ~6 workspaces)
@@ -40,7 +40,7 @@ COPY packages/canvas-editor ./packages/canvas-editor
 COPY packages/ui ./packages/ui
 COPY packages/collab ./packages/collab
 COPY packages/wolke ./packages/wolke
-COPY packages/slides ./packages/slides
+
 COPY apps/web ./apps/web
 COPY CHANGELOG.md ./
 
