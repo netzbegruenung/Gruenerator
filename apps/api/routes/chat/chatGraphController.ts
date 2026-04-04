@@ -473,7 +473,7 @@ router.post('/stream', async (req, res) => {
 
         const docResults = await dbInst.query(
           `SELECT id, title, content FROM collaborative_documents
-           WHERE id = ANY($1) AND is_deleted = false AND document_subtype != 'boards'
+           WHERE id = ANY($1::uuid[]) AND is_deleted = false AND document_subtype != 'boards'
            AND (created_by = $2 OR permissions ? $2::text OR is_public = true
                 OR id IN (SELECT gcs.content_id FROM group_content_shares gcs
                           INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2
