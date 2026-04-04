@@ -388,7 +388,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/web-search', publicReadLimiter, webSearchRouter);
   app.use('/api/research', requireAuth, standardMutationLimiter, researchRouter);
   app.use('/api/image-generation', aiGenerationLimiter, imageGenerationRouter);
-  app.use('/api/rate-limit', rateLimitRouter);
+  app.use('/api/rate-limit', publicReadLimiter, rateLimitRouter);
 
   // Debug: log all requests to /api/releases/*
   app.use('/api/releases', (req, res, next) => {
@@ -400,7 +400,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/releases', publicReadLimiter, releasesRouter);
   app.use('/api/exports', requireAuth, standardMutationLimiter, exportDocumentsRouter);
   app.use('/api/markdown', publicReadLimiter, markdownRouter);
-  app.use('/api/database', databaseTestRouter);
+  app.use('/api/database', publicReadLimiter, databaseTestRouter);
 
   if (snapshottingRouter) {
     app.use('/api/internal', snapshottingRouter);
@@ -411,19 +411,23 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/internal/content-sync', contentSyncRouter);
   app.use('/api/monitor', requireAuth, publicReadLimiter, monitorRouter);
 
-  app.get('/api/internal/route-stats', async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { getPostgresInstance } = await import('./database/services/PostgresService.js');
-      const postgresService = getPostgresInstance();
-      const limit = parseInt(req.query.limit as string) || 50;
-      const stats = await postgresService.getRouteStats(limit);
-      res.json({ success: true, stats, currentBuffer: routeTracker.getStatsObject() });
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      log.error(`Route stats fetch failed: ${err.message}`);
-      res.status(500).json({ success: false, error: err.message });
+  app.get(
+    '/api/internal/route-stats',
+    publicReadLimiter,
+    async (req: Request, res: Response): Promise<void> => {
+      try {
+        const { getPostgresInstance } = await import('./database/services/PostgresService.js');
+        const postgresService = getPostgresInstance();
+        const limit = parseInt(req.query.limit as string) || 50;
+        const stats = await postgresService.getRouteStats(limit);
+        res.json({ success: true, stats, currentBuffer: routeTracker.getStatsObject() });
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        log.error(`Route stats fetch failed: ${err.message}`);
+        res.status(500).json({ success: false, error: err.message });
+      }
     }
-  });
+  );
 
   app.use('/api/video', requireAuth, standardMutationLimiter, videoRouter);
   app.use('/api/nextcloud', requireAuth, standardMutationLimiter, nextcloudApiRouter);
