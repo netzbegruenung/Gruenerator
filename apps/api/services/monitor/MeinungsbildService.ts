@@ -130,7 +130,8 @@ export async function lookupMeinungsbildByTopic(topic: string): Promise<string |
   const data = await getMeinungsbild();
   if (!data) return null;
 
-  const query = topic.toLowerCase();
+  const query = topic.trim().toLowerCase();
+  if (!query) return null;
   const words = query.split(/\s+/).filter((w) => w.length > 2);
 
   const scored = data.issues.map((issue) => {
