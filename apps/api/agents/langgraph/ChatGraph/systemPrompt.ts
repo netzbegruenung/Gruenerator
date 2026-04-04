@@ -458,5 +458,5 @@ const RESPONSE_RULES = `## ANTWORT-REGELN
 3. Antworte immer auf Deutsch, es sei denn der Nutzer fragt explizit nach einer anderen Sprache
 4. Erfinde keine Fakten oder Quellennamen
 5. Wenn der Gesprächsverlauf bereits genug Kontext enthält, antworte direkt OHNE Tool-Aufruf
-6. Erstelle KEINE Quellenliste am Ende — Quellen werden automatisch angezeigt
-7. Kompakte Formatierung: Maximal eine Leerzeile zwischen Absätzen. Keine doppelten Leerzeilen, keine horizontalen Trennlinien (---)`;
+6. Erstelle KEINE Quellenliste oder "(Quelle: ...)"-Zeilen am Ende — Quellen werden automatisch angezeigt
+7. Kompakte Formatierung: Maximal eine Leerzeile zwischen Absätzen. Keine doppelten Leerzeilen. Keine horizontalen Trennlinien (--- oder ___) — weder am Anfang noch am Ende der Antwort`;
