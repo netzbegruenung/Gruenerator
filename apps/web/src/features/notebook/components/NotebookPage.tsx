@@ -268,6 +268,7 @@ const NotebookPageContent = ({
             ? { value: v.value, count: v.count }
             : { value: v as string }
         ),
+        ...(cfg.valueLabels ? { valueLabels: cfg.valueLabels } : {}),
       }));
 
     if (fields.length === 0) return undefined;
