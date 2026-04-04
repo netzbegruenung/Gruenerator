@@ -11,6 +11,7 @@
 
 import { applyMMR } from '../../../../services/search/DiversityReranker.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
 import type { ChatGraphState, SearchResult } from '../types.js';
 
@@ -90,11 +91,11 @@ ${passageList}`;
     const response = await aiWorkerPool.processRequest(
       {
         type: 'chat_rerank',
-        provider: 'mistral',
+        provider: INTERMEDIATE_MODEL.provider,
         systemPrompt: hasTemporal ? RERANK_PROMPT_TEMPORAL : RERANK_PROMPT,
         messages: [{ role: 'user', content: userMessage }],
         options: {
-          model: 'mistral-small-latest',
+          model: INTERMEDIATE_MODEL.model,
           max_tokens: 200,
           temperature: 0.0,
           top_p: 1.0,

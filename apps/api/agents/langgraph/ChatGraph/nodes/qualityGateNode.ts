@@ -10,6 +10,7 @@
  */
 
 import { createLogger } from '../../../../utils/logger.js';
+import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
 import type { ChatGraphState } from '../types.js';
 
@@ -66,7 +67,7 @@ export async function qualityGateNode(state: ChatGraphState): Promise<Partial<Ch
     const response = await aiWorkerPool.processRequest(
       {
         type: 'chat_quality_gate',
-        provider: 'mistral',
+        provider: INTERMEDIATE_MODEL.provider,
         systemPrompt: QUALITY_PROMPT,
         messages: [
           {
@@ -75,7 +76,7 @@ export async function qualityGateNode(state: ChatGraphState): Promise<Partial<Ch
           },
         ],
         options: {
-          model: 'mistral-small-latest',
+          model: INTERMEDIATE_MODEL.model,
           max_tokens: 80,
           temperature: 0.0,
           response_format: { type: 'json_object' },

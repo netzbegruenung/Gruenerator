@@ -15,7 +15,7 @@ import { generateText } from 'ai';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { createLogger } from '../../../utils/logger.js';
-import { getModel } from '../agents/providers.js';
+import { getIntermediateModel } from '../agents/providers.js';
 
 const log = createLogger('AttachmentPersistenceService');
 
@@ -135,7 +135,7 @@ Halte die Zusammenfassung sehr kompakt (max. 150 Wörter). Beginne direkt mit de
 
   try {
     const result = await generateText({
-      model: getModel('mistral', 'mistral-small-latest'),
+      model: getIntermediateModel(),
       system: systemPrompt,
       prompt: textToSummarize,
       maxOutputTokens: SUMMARY_MAX_TOKENS,

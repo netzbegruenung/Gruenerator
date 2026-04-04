@@ -10,7 +10,7 @@ import { generateText, type ModelMessage } from 'ai';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { createLogger } from '../../../utils/logger.js';
-import { getModel } from '../agents/providers.js';
+import { getIntermediateModel } from '../agents/providers.js';
 
 const log = createLogger('CompactionService');
 
@@ -54,16 +54,6 @@ export function getCompactionTokenThreshold(contextWindowTokens?: number): numbe
   // Use ~40% of context window as token threshold
   return Math.min(Math.floor(contextWindowTokens * 0.4), COMPACTION_TOKEN_THRESHOLD);
 }
-
-/**
- * Model configuration for compaction.
- * Summarization is a straightforward task - use a small, fast model.
- * Large models are overkill and waste resources on simple summarization.
- */
-const COMPACTION_MODEL = {
-  provider: 'mistral' as const,
-  model: 'mistral-small-latest', // Small model is sufficient for summarization
-};
 
 export interface CompactionState {
   summary: string | null;
@@ -201,7 +191,7 @@ Halte die Zusammenfassung kompakt aber informativ (max. 400 Wörter). Schreibe i
 
   try {
     const result = await generateText({
-      model: getModel(COMPACTION_MODEL.provider, COMPACTION_MODEL.model),
+      model: getIntermediateModel(),
       system: systemPrompt,
       prompt: formattedMessages,
       maxOutputTokens: SUMMARY_MAX_TOKENS,

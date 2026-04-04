@@ -11,6 +11,7 @@
  * - Graceful degradation: returns just the original query on failure
  */
 
+import { INTERMEDIATE_MODEL } from '../../routes/chat/agents/providers.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('QueryExpansion');
@@ -52,11 +53,11 @@ export async function expandQuery(query: string, aiWorkerPool: any): Promise<Exp
     const response = await aiWorkerPool.processRequest(
       {
         type: 'chat_query_expansion',
-        provider: 'mistral',
+        provider: INTERMEDIATE_MODEL.provider,
         systemPrompt: EXPANSION_PROMPT,
         messages: [{ role: 'user', content: `Suchanfrage: "${query}"` }],
         options: {
-          model: 'mistral-small-latest',
+          model: INTERMEDIATE_MODEL.model,
           max_tokens: 100,
           temperature: 0.3,
           response_format: { type: 'json_object' },

@@ -11,6 +11,7 @@
  */
 
 import { createLogger } from '../../../../utils/logger.js';
+import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
 import type { ChatGraphState } from '../types.js';
 
@@ -63,7 +64,7 @@ async function singlePassSummarize(
   const response = await aiWorkerPool.processRequest(
     {
       type: 'chat_summarize',
-      provider: 'mistral',
+      provider: INTERMEDIATE_MODEL.provider,
       systemPrompt: SINGLE_PASS_PROMPT,
       messages: [
         {
@@ -72,7 +73,7 @@ async function singlePassSummarize(
         },
       ],
       options: {
-        model: 'mistral-small-latest',
+        model: INTERMEDIATE_MODEL.model,
         max_tokens: 1200,
         temperature: 0.2,
       },
@@ -116,7 +117,7 @@ async function mapReduceSummarize(aiWorkerPool: any, title: string, text: string
         const response = await aiWorkerPool.processRequest(
           {
             type: 'chat_summarize_map',
-            provider: 'mistral',
+            provider: INTERMEDIATE_MODEL.provider,
             systemPrompt: MAP_PROMPT,
             messages: [
               {
@@ -125,7 +126,7 @@ async function mapReduceSummarize(aiWorkerPool: any, title: string, text: string
               },
             ],
             options: {
-              model: 'mistral-small-latest',
+              model: INTERMEDIATE_MODEL.model,
               max_tokens: 400,
               temperature: 0.2,
             },
@@ -156,7 +157,7 @@ async function mapReduceSummarize(aiWorkerPool: any, title: string, text: string
   const response = await aiWorkerPool.processRequest(
     {
       type: 'chat_summarize_reduce',
-      provider: 'mistral',
+      provider: INTERMEDIATE_MODEL.provider,
       systemPrompt: REDUCE_PROMPT,
       messages: [
         {
@@ -165,7 +166,7 @@ async function mapReduceSummarize(aiWorkerPool: any, title: string, text: string
         },
       ],
       options: {
-        model: 'mistral-small-latest',
+        model: INTERMEDIATE_MODEL.model,
         max_tokens: 1200,
         temperature: 0.2,
       },
@@ -206,7 +207,7 @@ async function summarizeConversation(state: ChatGraphState): Promise<string> {
   const response = await aiWorkerPool.processRequest(
     {
       type: 'chat_summarize_conversation',
-      provider: 'mistral',
+      provider: INTERMEDIATE_MODEL.provider,
       systemPrompt: CONVERSATION_SUMMARY_PROMPT,
       messages: [
         {
@@ -215,7 +216,7 @@ async function summarizeConversation(state: ChatGraphState): Promise<string> {
         },
       ],
       options: {
-        model: 'mistral-small-latest',
+        model: INTERMEDIATE_MODEL.model,
         max_tokens: 800,
         temperature: 0.2,
       },

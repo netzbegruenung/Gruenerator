@@ -213,28 +213,31 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
         </DropdownMenuSubContent>
       </DropdownMenuSub>
 
-      <DropdownMenuSub>
-        <DropdownMenuSubTrigger>
-          <CurrentIcon className="h-3.5 w-3.5" />
-          Modell
-        </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent>
-          <DropdownMenuRadioGroup
-            value={selectedModel}
-            onValueChange={(v) => setSelectedModel(v as typeof selectedModel)}
-          >
-            {MODEL_OPTIONS.map((model) => {
-              const Icon = MODEL_ICONS[model.icon];
-              return (
-                <DropdownMenuRadioItem key={model.id} value={model.id}>
-                  <Icon className="h-3.5 w-3.5" />
-                  {model.name}
-                </DropdownMenuRadioItem>
-              );
-            })}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuSubContent>
-      </DropdownMenuSub>
+      {/* Model picker hidden — fixed to LiteLLM for generation, Regolo for agent nodes */}
+      {false && (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <CurrentIcon className="h-3.5 w-3.5" />
+            Modell
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            <DropdownMenuRadioGroup
+              value={selectedModel}
+              onValueChange={(v) => setSelectedModel(v as typeof selectedModel)}
+            >
+              {MODEL_OPTIONS.map((model) => {
+                const Icon = MODEL_ICONS[model.icon];
+                return (
+                  <DropdownMenuRadioItem key={model.id} value={model.id}>
+                    <Icon className="h-3.5 w-3.5" />
+                    {model.name}
+                  </DropdownMenuRadioItem>
+                );
+              })}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      )}
 
       {threadId && (
         <>

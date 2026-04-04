@@ -16,6 +16,8 @@ export const VISION_MODEL = {
   model: 'mistral-small-2503',
 };
 
+export { INTERMEDIATE_MODEL, getIntermediateModel } from '../../../services/ai/providers.js';
+
 export const VISION_CAPABLE_MODELS = new Set(['pixtral-large-latest', 'mistral-small-2503']);
 
 /**

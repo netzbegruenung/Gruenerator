@@ -16,7 +16,7 @@ import { applyMMR } from '../../../services/search/DiversityReranker.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { executeDirectSearch, executeDirectWebSearch } from './directSearchExecutors.js';
-import { getModel } from './providers.js';
+import { getIntermediateModel } from './providers.js';
 import { truncateText, deduplicateByUrl } from './searchFormatting.js';
 
 const log = createLogger('DirectSearch');
@@ -332,7 +332,7 @@ async function synthesizeAnswerWithLLM(
     };
   }
 
-  const aiModel = getModel('mistral', 'mistral-small-latest');
+  const aiModel = getIntermediateModel();
 
   const systemPrompt = `Du bist ein Recherche-Assistent der Grünen Partei. Synthetisiere die gegebenen Quellen zu einer kohärenten, informativen Antwort auf Deutsch.
 
