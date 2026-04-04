@@ -13,58 +13,55 @@ const log = createLogger('playground');
 
 const router: Router = express.Router();
 
+const PLAYGROUND_PROMPTS = [
+  {
+    id: 'free',
+    name: 'Freie Eingabe',
+    description: 'Eigenen System-Prompt und Nachricht eingeben',
+    fields: ['systemPrompt', 'userMessage'],
+  },
+  {
+    id: 'universal',
+    name: 'Text Generator',
+    description: 'Texte in verschiedenen Formaten generieren',
+    fields: ['textForm', 'inhalt'],
+  },
+  {
+    id: 'leichte_sprache',
+    name: 'Leichte Sprache',
+    description: 'Texte in Leichte Sprache übersetzen',
+    fields: ['originalText'],
+  },
+];
+
 router.post('/generate', async (req: Request, res: Response): Promise<void> => {
   const { type, provider, model, ...rest } = req.body;
 
-  if (!type) {
+  const resolvedType = type === 'free' ? 'custom_prompt' : type;
+
+  if (!resolvedType) {
     res.status(400).json({ error: 'type is required' });
     return;
   }
 
-  log.debug(`[playground] Generate: type=${type}, provider=${provider}, model=${model}`);
+  log.debug(`[playground] Generate: type=${resolvedType}, provider=${provider}, model=${model}`);
 
-  req.body = { ...rest, provider, model };
+  if (type === 'free') {
+    req.body = {
+      provider,
+      model,
+      prompt: rest.systemPrompt || '',
+      userInput: rest.userMessage || '',
+    };
+  } else {
+    req.body = { ...rest, provider, model };
+  }
 
-  return processGraphRequestStreaming(type, req, res);
+  return processGraphRequestStreaming(resolvedType, req, res);
 });
 
-router.get('/prompts', async (_req: Request, res: Response): Promise<void> => {
-  const fs = await import('fs/promises');
-  const path = await import('path');
-  const { fileURLToPath } = await import('url');
-
-  const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  const promptsDir = path.join(__dirname, '../../prompts');
-
-  try {
-    const files = await fs.readdir(promptsDir);
-    const prompts = [];
-
-    for (const file of files) {
-      if (!file.endsWith('.json')) continue;
-      try {
-        const content = await fs.readFile(path.join(promptsDir, file), 'utf-8');
-        const config = JSON.parse(content);
-        if (config.id && config.name && config.requestFields) {
-          prompts.push({
-            id: config.id,
-            name: config.name,
-            requestFields: config.requestFields,
-            platforms: config.platforms ? Object.keys(config.platforms) : [],
-            features: config.features || {},
-            options: config.options || {},
-          });
-        }
-      } catch {
-        // skip invalid files
-      }
-    }
-
-    res.json({ prompts });
-  } catch (error) {
-    log.error('[playground] Failed to list prompts:', error);
-    res.status(500).json({ error: 'Failed to list prompts' });
-  }
+router.get('/prompts', (_req: Request, res: Response): void => {
+  res.json({ prompts: PLAYGROUND_PROMPTS });
 });
 
 router.get('/models', async (req: Request, res: Response): Promise<void> => {

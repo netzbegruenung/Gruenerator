@@ -10,12 +10,7 @@
 import { streamText } from 'ai';
 
 import { createLogger } from '../../../utils/logger.js';
-import {
-  getModel,
-  getModelConfig,
-  VISION_MODEL,
-  VISION_CAPABLE_MODELS,
-} from '../agents/providers.js';
+import { getModel, getModelConfig, VISION_MODEL, isVisionCapable } from '../agents/providers.js';
 
 import { sanitizeContentPartsForModel, stripEmptyAssistantMessages } from './messageHelpers.js';
 import { PROGRESS_MESSAGES } from './sseHelpers.js';
@@ -53,7 +48,7 @@ export function resolveModel(
     }
   }
 
-  if (options?.hasImages && !VISION_CAPABLE_MODELS.has(modelName)) {
+  if (options?.hasImages && !isVisionCapable(modelName)) {
     log.info(
       `[ChatGraph] Images present but "${modelName}" lacks vision — switching to ${VISION_MODEL.provider}/${VISION_MODEL.model}`
     );

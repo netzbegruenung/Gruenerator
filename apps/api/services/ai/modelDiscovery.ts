@@ -35,6 +35,7 @@ const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision:
   'magistral-small-latest': { name: 'Magistral Small', reasoning: true, vision: false },
   'mistral-small-latest': { name: 'Mistral Small', reasoning: false, vision: false },
   'mistral-small-2503': { name: 'Mistral Small (Vision)', reasoning: false, vision: true },
+  'qwen3-vl-32b': { name: 'Qwen3 VL 32B', reasoning: false, vision: true },
   'mistral-medium-latest': { name: 'Mistral Medium', reasoning: false, vision: false },
   'pixtral-large-latest': { name: 'Pixtral Large', reasoning: false, vision: true },
   'gpt-oss-120b': { name: 'GPT-OSS 120B', reasoning: true, vision: false },
@@ -232,4 +233,22 @@ export async function getAvailableModels(forceRefresh = false): Promise<Playgrou
     });
 
   return fetchInProgress;
+}
+
+/**
+ * Check if a model ID is known to support vision.
+ * Uses MODEL_METADATA (synchronous, no API call needed).
+ */
+export function isVisionCapable(modelId: string): boolean {
+  const meta = MODEL_METADATA[modelId];
+  return meta?.vision ?? false;
+}
+
+/**
+ * Get all vision-capable models from the cached discovery results.
+ * Falls back to MODEL_METADATA if cache is empty.
+ */
+export async function getVisionCapableModels(): Promise<PlaygroundModel[]> {
+  const allModels = await getAvailableModels();
+  return allModels.filter((m) => m.vision);
 }
