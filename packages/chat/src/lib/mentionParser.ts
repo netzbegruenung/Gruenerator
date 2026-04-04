@@ -18,6 +18,7 @@ export interface ParsedMentions {
   hasDocumentChat: boolean;
   boardIds: string[];
   docMentionIds: string[];
+  unresolvedMentions: string[];
   cleanText: string;
 }
 
@@ -59,6 +60,7 @@ export function parseAllMentions(text: string): ParsedMentions {
   const seenTexts = new Set<string>();
   const seenBoards = new Set<string>();
   const seenDocMentions = new Set<string>();
+  const unresolvedMentions: string[] = [];
   const mentionSpans: [number, number][] = [];
 
   let match: RegExpExecArray | null;
@@ -100,7 +102,12 @@ export function parseAllMentions(text: string): ParsedMentions {
     }
 
     const mentionable = resolveMentionable(alias);
-    if (!mentionable) continue;
+    if (!mentionable) {
+      if (trigger === '@') {
+        unresolvedMentions.push(alias);
+      }
+      continue;
+    }
 
     if (trigger === '/') {
       // /alias → always treat as agent (skill)
@@ -158,6 +165,7 @@ export function parseAllMentions(text: string): ParsedMentions {
     hasDocumentChat,
     boardIds,
     docMentionIds,
+    unresolvedMentions,
     cleanText,
   };
 }
