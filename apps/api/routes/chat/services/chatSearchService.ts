@@ -61,7 +61,7 @@ export async function searchChatHistory(
   const { threadType, limit = 5, excludeThreadId, startDate, endDate } = options;
   const db = getPostgresInstance();
 
-  const searchPattern = `%${query.replace(/%/g, '\\%').replace(/_/g, '\\_')}%`;
+  const searchPattern = `%${query.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')}%`;
 
   const params: unknown[] = [userId, searchPattern];
   let paramIdx = 3;
