@@ -121,7 +121,7 @@ async function main() {
   let toDelete: (string | number)[] = [];
   let toKeep = 0;
 
-  for (const [baseUrl, vectors] of vectorsByBaseUrl) {
+  for (const [, vectors] of vectorsByBaseUrl) {
     // Group by indexed_at (each scrape run produces vectors with the same timestamp)
     const byTimestamp = new Map<string, VectorInfo[]>();
     for (const v of vectors) {
