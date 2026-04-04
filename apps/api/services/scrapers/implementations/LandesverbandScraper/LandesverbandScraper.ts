@@ -715,11 +715,13 @@ export class LandesverbandScraper extends BaseScraper {
     } else {
       absolute = baseUrl + '/' + url;
     }
-    // Canonicalize: strip fragment only (preserve trailing slashes to match existing Qdrant data)
+    // Canonicalize: strip fragment and cache-busting params (preserve trailing slashes to match existing Qdrant data)
     try {
       const parsed = new URL(absolute);
       parsed.hash = '';
-      return parsed.origin + parsed.pathname + parsed.search;
+      parsed.searchParams.delete('tmstv');
+      const search = parsed.searchParams.toString();
+      return parsed.origin + parsed.pathname + (search ? '?' + search : '');
     } catch {
       return absolute;
     }
