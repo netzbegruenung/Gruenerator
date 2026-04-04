@@ -563,7 +563,7 @@ router.get(
         fetchPromises.push(
           postgres
             .query(
-              'SELECT id, title, document_subtype, created_by, created_at, updated_at FROM collaborative_documents WHERE id = ANY($1) AND is_deleted = false',
+              'SELECT id, title, document_subtype, created_by, created_at, updated_at FROM collaborative_documents WHERE id = ANY($1::uuid[]) AND is_deleted = false',
               [ids],
               { table: 'collaborative_documents' }
             )

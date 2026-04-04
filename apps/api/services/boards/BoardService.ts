@@ -140,7 +140,7 @@ export async function loadBoardState(boardId: string, userId: string): Promise<B
 
   const boardResult = await db.query(
     `SELECT title, content FROM collaborative_documents
-     WHERE id = $1 AND document_subtype = $2 AND is_deleted = false
+     WHERE id = $1::uuid AND document_subtype = $2 AND is_deleted = false
      AND (created_by = $3 OR permissions ? $3::text OR is_public = true
           OR id IN (SELECT gcs.content_id FROM group_content_shares gcs
                     INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $3
