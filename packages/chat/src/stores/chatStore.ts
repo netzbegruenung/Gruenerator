@@ -110,6 +110,7 @@ interface AgentState {
   threadMode: ThreadMode;
   searchMode: SearchMode;
   customSystemPrompt: string | null;
+  customRoleName: string | null;
   customEnabledTools: Record<string, boolean> | null;
   mentionablesActivated: boolean;
   setSelectedAgent: (agentId: string | null) => void;
@@ -130,6 +131,7 @@ interface AgentState {
   triggerCompaction: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   incrementMessageCount: () => void;
   setCustomSystemPrompt: (prompt: string | null) => void;
+  setCustomRoleName: (name: string | null) => void;
   setCustomEnabledTools: (tools: Record<string, boolean> | null) => void;
   loadThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   saveThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
@@ -169,6 +171,7 @@ export const useAgentStore = create<AgentState>()(
       threadMode: 'chat' as ThreadMode,
       searchMode: 'web' as SearchMode,
       customSystemPrompt: null,
+      customRoleName: null,
       customEnabledTools: null,
       mentionablesActivated: false,
 
@@ -277,6 +280,8 @@ export const useAgentStore = create<AgentState>()(
 
       setCustomSystemPrompt: (prompt) => set({ customSystemPrompt: prompt }),
 
+      setCustomRoleName: (name) => set({ customRoleName: name }),
+
       setCustomEnabledTools: (tools) => set({ customEnabledTools: tools }),
 
       loadThreadSettings: async (threadId: string, apiClient: ChatApiClient) => {
@@ -298,7 +303,7 @@ export const useAgentStore = create<AgentState>()(
           state.threadMode === 'eigener' &&
           !state.customSystemPrompt
         ) {
-          set({ threadMode: 'chat' });
+          set({ threadMode: 'chat', customRoleName: null });
         }
       },
 

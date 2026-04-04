@@ -100,6 +100,7 @@ router.get('/', async (req, res) => {
             searchCount?: number;
             citations?: unknown[];
             searchResults?: unknown[];
+            roleName?: string;
           }
         | undefined;
       let resultsMap = new Map<string, unknown>();
@@ -109,13 +110,14 @@ router.get('/', async (req, res) => {
           // It's tool invocation results
           resultsMap = buildResultsMap(msg.tool_results);
         } else {
-          // It's search metadata
+          // It's search metadata or user message metadata (e.g. roleName)
           const meta = parsedToolResults as Record<string, unknown>;
           metadata = {
             intent: meta.intent as string | undefined,
             searchCount: meta.searchCount as number | undefined,
             citations: meta.citations as unknown[] | undefined,
             searchResults: meta.searchResults as unknown[] | undefined,
+            roleName: meta.roleName as string | undefined,
           };
         }
       }

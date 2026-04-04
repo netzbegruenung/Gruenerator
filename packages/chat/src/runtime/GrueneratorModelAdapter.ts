@@ -42,6 +42,7 @@ export interface GrueneratorAdapterConfig {
   threadMode?: ThreadMode;
   searchMode?: SearchMode;
   customSystemPrompt?: string | null;
+  customRoleName?: string | null;
   customEnabledTools?: Record<string, boolean> | null;
 }
 
@@ -718,7 +719,8 @@ export function createGrueneratorModelAdapter(
       });
 
       // Skip attachment extraction and mention parsing for non-chat modes
-      const isChatMode = !config.threadMode || config.threadMode === 'chat';
+      const isChatMode =
+        !config.threadMode || config.threadMode === 'chat' || config.threadMode === 'eigener';
 
       // Extract attachments from AUI's CompleteAttachment objects on the last user message.
       // AUI stores file/image content in message.attachments[].content, NOT in message.content.
@@ -798,6 +800,20 @@ export function createGrueneratorModelAdapter(
             docMentionIds = parsed.docMentionIds;
             hasDocumentChat = parsed.hasDocumentChat;
             textPart.text = parsed.cleanText;
+
+            if (parsed.unresolvedMentions.length > 0) {
+              const names = parsed.unresolvedMentions.map((m) => `@${m}`).join(', ');
+              console.warn(
+                `[ModelAdapter] Unresolved mentions: ${names} — use @docs to browse collaborative documents`
+              );
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(
+                  new CustomEvent('gruenerator:unresolved-mentions', {
+                    detail: { mentions: parsed.unresolvedMentions },
+                  })
+                );
+              }
+            }
           }
           break;
         }
@@ -864,6 +880,7 @@ export function createGrueneratorModelAdapter(
           documentChatMode: hasDocumentChat || documentChatIds.length > 0 || undefined,
           defaultNotebookId: config.selectedNotebookId || undefined,
           customSystemPrompt: config.customSystemPrompt || undefined,
+          roleName: config.customRoleName || undefined,
         };
       } else {
         // Chat mode: full request with mentions, attachments, tools

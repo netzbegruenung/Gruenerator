@@ -94,6 +94,7 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
       : (MODE_CONFIG.find((m) => m.mode === threadMode)?.Icon ?? MessageSquare);
 
   const setCustomSystemPrompt = useAgentStore((s) => s.setCustomSystemPrompt);
+  const setCustomRoleName = useAgentStore((s) => s.setCustomRoleName);
 
   const activeRoleName =
     threadMode === 'eigener' && hasRoles
@@ -108,11 +109,13 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
       const role = roles[roleIndex];
       if (role?.systemPrompt) {
         setCustomSystemPrompt(role.systemPrompt);
+        setCustomRoleName(role.rolle);
         setThreadMode('eigener');
       }
       return;
     }
     if (value !== 'eigener') {
+      setCustomRoleName(null);
       setThreadMode(value as ThreadMode);
     }
   };
