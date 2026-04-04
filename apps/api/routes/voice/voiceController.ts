@@ -29,6 +29,7 @@ import {
   extractTodoList,
 } from '../../services/voice/protokollService.js';
 import { createLogger } from '../../utils/logger.js';
+import { sanitizeFilename } from '../../utils/validation/security.js';
 import { createSSEStream } from '../chat/services/sseHelpers.js';
 
 const log = createLogger('voice');
@@ -514,7 +515,7 @@ router.post('/transcribe-upload', async (req: Request, res: Response<TranscribeR
     const uploadStatus = await getUploadStatus(uploadId);
     const meta = uploadStatus.metadata?.metadata;
     let audioBuffer: Buffer = Buffer.from(await fs.promises.readFile(filePath));
-    let filename = meta?.filename || 'audio.mp3';
+    let filename = sanitizeFilename(meta?.filename || 'audio.mp3', 'audio.mp3');
     const filetype = meta?.filetype || '';
 
     const options: TranscriptionOptions = {
@@ -582,7 +583,7 @@ router.post('/transcribe-upload/stream', async (req: Request, res: Response) => 
     const uploadStatus = await getUploadStatus(uploadId);
     const meta = uploadStatus.metadata?.metadata;
     let audioBuffer: Buffer = Buffer.from(await fs.promises.readFile(filePath));
-    let filename = meta?.filename || 'audio.mp3';
+    let filename = sanitizeFilename(meta?.filename || 'audio.mp3', 'audio.mp3');
     const filetype = meta?.filetype || '';
     const needsFullTranscription = diarize || timestamps;
 
