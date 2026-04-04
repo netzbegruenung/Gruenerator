@@ -44,6 +44,7 @@ export type SearchIntent =
   | 'save_as_doc' // Save response as document ("speichere als Dokument")
   | 'modify_doc' // Modify mentioned document ("ändere", "ergänze" with @doc)
   | 'modify_board' // Modify mentioned board ("füge Aufgabe hinzu" with @board)
+  | 'share_doc' // Share document with group ("teile mit Gruppe", "share mit AG")
   | 'direct'; // No search needed (greetings, creative tasks without fact needs)
 
 /**
@@ -229,6 +230,7 @@ export interface ChatGraphState {
   reasoning: string;
   contentType: string | null;
   documentSubtype: string | null;
+  targetGroupName: string | null;
   hasTemporal: boolean;
   complexity: 'simple' | 'moderate' | 'complex';
 
@@ -333,6 +335,7 @@ export interface ClassificationResult {
   clarificationOptions?: string[];
   gatherSources?: GatherSource[];
   documentSubtype?: string | null;
+  targetGroupName?: string | null;
 }
 
 /**
@@ -352,7 +355,7 @@ export interface ChartData {
  * Confirm action types for HITL (Human-In-The-Loop) confirmation.
  * Used when the agent wants to perform a side-effect that requires user approval.
  */
-export type ConfirmActionType = 'save_as_doc' | 'modify_doc' | 'modify_board';
+export type ConfirmActionType = 'save_as_doc' | 'modify_doc' | 'modify_board' | 'share_doc';
 
 /**
  * Type-safe payloads for each confirm action type.
@@ -374,6 +377,14 @@ export interface ModifyBoardPayload {
   responseText: string;
 }
 
+export interface ShareDocPayload {
+  docId: string;
+  docTitle: string;
+  groupId: string;
+  groupName: string;
+  permissionLevel: 'viewer' | 'editor';
+}
+
 /**
  * Pending action stored in Redis while awaiting user confirmation.
  * Discriminated union ensures type-safe payload access per action type.
@@ -389,6 +400,7 @@ export type PendingAction = {
   | { type: 'save_as_doc'; payload: SaveAsDocPayload }
   | { type: 'modify_doc'; payload: ModifyDocPayload }
   | { type: 'modify_board'; payload: ModifyBoardPayload }
+  | { type: 'share_doc'; payload: ShareDocPayload }
 );
 
 /**

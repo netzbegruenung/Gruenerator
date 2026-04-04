@@ -180,6 +180,9 @@ const ChatStateAnnotation = Annotation.Root({
   documentSubtype: Annotation<string | null>({
     reducer: (x, y) => y ?? x,
   }),
+  targetGroupName: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
+  }),
 
   // Clarification (HITL interrupt)
   needsClarification: Annotation<boolean>({
@@ -359,7 +362,12 @@ function routeAfterClassification(
   }
 
   // Action intents (save_as_doc, modify_doc, modify_board) = respond first, controller handles action
-  if (intent === 'save_as_doc' || intent === 'modify_doc' || intent === 'modify_board') {
+  if (
+    intent === 'save_as_doc' ||
+    intent === 'modify_doc' ||
+    intent === 'modify_board' ||
+    intent === 'share_doc'
+  ) {
     log.info(`[ChatGraph] Route: classifier → respond (${intent} handled by controller)`);
     return 'respond';
   }
@@ -378,6 +386,7 @@ function routeAfterClassification(
     save_as_doc: 'save_as_doc',
     modify_doc: 'modify_doc',
     modify_board: 'modify_board',
+    share_doc: 'share_doc',
     direct: 'direct',
   };
 
@@ -567,6 +576,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     complexity: 'moderate' as const,
     contentType: null,
     documentSubtype: null,
+    targetGroupName: null,
     needsClarification: false,
     clarificationQuestion: null,
     clarificationOptions: null,

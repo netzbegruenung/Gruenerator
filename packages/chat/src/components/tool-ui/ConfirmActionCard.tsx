@@ -1,5 +1,5 @@
 import { useState, memo } from 'react';
-import { FileText, Pencil, LayoutGrid, Check, X, ArrowRight, Loader2 } from 'lucide-react';
+import { FileText, Pencil, LayoutGrid, Share2, Check, X, ArrowRight, Loader2 } from 'lucide-react';
 import type { ConfirmActionData, ConfirmActionType } from '../../types/messageMetadata';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 
@@ -9,6 +9,7 @@ const ICON_MAP: Record<ConfirmActionType, typeof FileText> = {
   save_as_doc: FileText,
   modify_doc: Pencil,
   modify_board: LayoutGrid,
+  share_doc: Share2,
 };
 
 export const ConfirmActionCard = memo(function ConfirmActionCard({

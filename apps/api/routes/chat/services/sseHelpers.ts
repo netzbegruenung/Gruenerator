@@ -162,6 +162,7 @@ export const INTENT_MESSAGES: Record<SearchIntent, string> = {
   save_as_doc: 'Erstelle Dokument aus Antwort...',
   modify_doc: 'Bearbeite Dokument...',
   modify_board: 'Aktualisiere Board...',
+  share_doc: 'Teile Dokument mit Gruppe...',
   direct: 'Beantworte direkt...',
 };
 

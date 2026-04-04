@@ -201,6 +201,7 @@ async function testExpandedContextWindow() {
     reasoning: 'test',
     contentType: null,
     documentSubtype: null,
+    targetGroupName: null,
     isCompound: false,
     gatherSources: [],
     hasTemporal: false,
