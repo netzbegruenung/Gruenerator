@@ -25,6 +25,9 @@ export const COMMON_FILTER_FIELDS: CommonFilterField[] = [
   'region',
   'country',
   'platform',
+  'source_id',
+  'landesverband',
+  'gremium',
 ];
 
 /**
@@ -59,6 +62,18 @@ export function buildQdrantFilter(
         key,
         match: { value },
       } as QdrantMatchCondition);
+    }
+  }
+
+  // Handle date range filtering (date_from / date_to → published_at range)
+  const dateFrom = filters['date_from'];
+  const dateTo = filters['date_to'];
+  if (dateFrom || dateTo) {
+    const range: { gte?: string; lte?: string } = {};
+    if (typeof dateFrom === 'string' && dateFrom) range.gte = dateFrom;
+    if (typeof dateTo === 'string' && dateTo) range.lte = dateTo;
+    if (Object.keys(range).length > 0) {
+      must.push({ key: 'published_at', range } as QdrantRangeCondition);
     }
   }
 
@@ -110,7 +125,7 @@ export function buildQdrantFilterFromSpecs(specs: FilterSpec[]): QdrantFilter | 
         break;
 
       case 'range':
-        if (typeof value === 'number' && rangeOp) {
+        if ((typeof value === 'number' || typeof value === 'string') && rangeOp) {
           must.push({
             key: field,
             range: { [rangeOp]: value },
@@ -218,7 +233,12 @@ export function textMatch(field: string, text: string): QdrantTextCondition {
  */
 export function rangeMatch(
   field: string,
-  range: { gt?: number; gte?: number; lt?: number; lte?: number }
+  range: {
+    gt?: number | string;
+    gte?: number | string;
+    lt?: number | string;
+    lte?: number | string;
+  }
 ): QdrantRangeCondition {
   return { key: field, range };
 }
