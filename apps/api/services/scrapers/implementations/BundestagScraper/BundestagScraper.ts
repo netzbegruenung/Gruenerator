@@ -7,6 +7,7 @@ import { indexBundestagContent } from '../../../../database/services/QdrantServi
 import { BRAND } from '../../../../utils/domainUtils.js';
 import { createLogger } from '../../../../utils/logger.js';
 import BundestagContentProcessor from '../../../bundestag/BundestagContentProcessor.js';
+import { chunkQualityService } from '../../../ChunkQualityService/index.js';
 import { mistralEmbeddingService } from '../../../mistral/index.js';
 import { WebsiteCrawler } from '../WebsiteCrawler.js';
 
@@ -141,6 +142,7 @@ export class BundestagScraper {
               .map((c) => ({
                 text: c.text,
                 chunk_text: c.text,
+                quality_score: chunkQualityService.calculateQualityScore(c.text),
                 embedding: c.embedding!,
                 token_count: c.token_count,
                 tokens: c.token_count,
