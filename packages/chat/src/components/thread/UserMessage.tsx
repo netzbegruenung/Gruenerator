@@ -2,6 +2,7 @@
 
 import { MessagePrimitive, useMessage, useMessageQuote } from '@assistant-ui/react';
 import { UserMessageAttachments } from '../assistant-ui/attachment';
+import { useAgentStore } from '../../stores/chatStore';
 
 function QuoteBlock() {
   const quote = useMessageQuote();
@@ -16,8 +17,14 @@ function QuoteBlock() {
 
 export function UserMessage() {
   const message = useMessage();
-  const custom = message.metadata?.custom as { senderId?: string; senderName?: string } | undefined;
+  const custom = message.metadata?.custom as
+    | { senderId?: string; senderName?: string; roleName?: string }
+    | undefined;
   const senderId = custom?.senderId;
+  const storeRoleName = useAgentStore((s) =>
+    s.threadMode === 'eigener' ? s.customRoleName : null
+  );
+  const roleName = custom?.roleName || storeRoleName;
 
   return (
     <MessagePrimitive.Root className="mx-auto flex w-full min-w-0 max-w-3xl justify-end">
@@ -25,6 +32,11 @@ export function UserMessage() {
         {senderId && (
           <p className="mb-1 text-right text-xs text-grey-400">
             {custom?.senderName || 'Teammitglied'}
+          </p>
+        )}
+        {roleName && (
+          <p className="mb-1 text-right text-[11px] font-medium text-primary-600 dark:text-primary-400">
+            Als {roleName}
           </p>
         )}
         <div className="rounded-3xl bg-user-bubble px-4 py-3">

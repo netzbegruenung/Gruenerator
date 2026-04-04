@@ -50,6 +50,7 @@ function ChatPage() {
     if (role.systemPrompt) {
       store.setCustomSystemPrompt(role.systemPrompt);
     }
+    store.setCustomRoleName(role.rolle);
     store.setThreadMode('eigener');
     store.setChatViewMode('thread');
   }, []);

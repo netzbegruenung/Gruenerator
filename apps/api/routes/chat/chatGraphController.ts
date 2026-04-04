@@ -199,6 +199,7 @@ router.post('/stream', async (req, res) => {
       boardIds: rawBoardIds,
       docMentionIds: rawDocMentionIds,
       customSystemPrompt: rawCustomSystemPrompt,
+      roleName: rawRoleName,
     } = req.body as {
       messages: UIMessage[];
       agentId?: string;
@@ -216,6 +217,7 @@ router.post('/stream', async (req, res) => {
       boardIds?: string[];
       docMentionIds?: string[];
       customSystemPrompt?: string;
+      roleName?: string;
     };
 
     // === Validate ===
@@ -302,7 +304,13 @@ router.post('/stream', async (req, res) => {
         }
       }
       const userText = extractTextContent(lastUserMessage.content);
-      await createMessage(actualThreadId, 'user', userText, undefined, userId);
+      await createMessage(
+        actualThreadId,
+        'user',
+        userText,
+        rawRoleName ? { roleName: rawRoleName } : undefined,
+        userId
+      );
     }
 
     // === Process attachments ===

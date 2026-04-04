@@ -83,6 +83,7 @@ interface LoadedMessage {
     toolCalls?: PersistedToolCall[];
     senderId?: string;
     senderName?: string | null;
+    roleName?: string;
   };
 }
 
@@ -155,6 +156,7 @@ function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMessageLik
       custom.senderId = m.metadata.senderId;
       custom.senderName = m.metadata.senderName ?? null;
     }
+    if (m.metadata?.roleName) custom.roleName = m.metadata.roleName;
     if (m.metadata?.citations) custom.citations = m.metadata.citations;
     if (m.metadata?.generatedImage) custom.generatedImage = m.metadata.generatedImage;
     if (m.metadata?.intent)
@@ -256,6 +258,7 @@ function useGrueneratorThreadRuntime() {
     threadMode,
     searchMode,
     customSystemPrompt,
+    customRoleName,
     customEnabledTools,
   } = useAgentStore(
     useShallow((s) => ({
@@ -266,6 +269,7 @@ function useGrueneratorThreadRuntime() {
       threadMode: s.threadMode,
       searchMode: s.searchMode,
       customSystemPrompt: s.customSystemPrompt,
+      customRoleName: s.customRoleName,
       customEnabledTools: s.customEnabledTools,
     }))
   );
@@ -284,6 +288,7 @@ function useGrueneratorThreadRuntime() {
       threadMode,
       searchMode,
       customSystemPrompt,
+      customRoleName,
       customEnabledTools,
     }),
     [
@@ -294,13 +299,10 @@ function useGrueneratorThreadRuntime() {
       threadMode,
       searchMode,
       customSystemPrompt,
+      customRoleName,
       customEnabledTools,
     ]
   );
-
-  const onThreadCreated = useCallback((newThreadId: string) => {
-    useAgentStore.getState().setCurrentThread(newThreadId);
-  }, []);
 
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const onUnauthorized = useChatConfigStore((s) => s.onUnauthorized);
@@ -308,6 +310,17 @@ function useGrueneratorThreadRuntime() {
     () => createChatApiClient(fetchFn, onUnauthorized),
     [fetchFn, onUnauthorized]
   );
+
+  const runtimeApiClientRef = useRef(runtimeApiClient);
+  runtimeApiClientRef.current = runtimeApiClient;
+
+  const onThreadCreated = useCallback((newThreadId: string) => {
+    useAgentStore.getState().setCurrentThread(newThreadId);
+    const state = useAgentStore.getState();
+    if (state.threadMode === 'eigener' && state.customSystemPrompt) {
+      state.saveThreadSettings(newThreadId, runtimeApiClientRef.current);
+    }
+  }, []);
 
   const needsCompactionRef = useRef(needsCompaction);
   needsCompactionRef.current = needsCompaction;
