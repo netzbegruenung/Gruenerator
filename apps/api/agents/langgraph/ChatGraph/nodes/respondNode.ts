@@ -454,9 +454,13 @@ Regeln:
 - yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])
 - Verwende realistische, plausible Daten wenn keine konkreten Zahlen gegeben sind
 - Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`
-        : intent === 'direct'
-          ? '\nDies ist eine direkte Anfrage ohne Recherche-Bedarf. Antworte natürlich und hilfsbereit.'
-          : '\nDu hast Recherche-Ergebnisse erhalten. Nutze sie um eine fundierte Antwort zu geben.';
+        : intent === 'image'
+          ? state.generatedImage
+            ? `\nDu hast erfolgreich ein Bild generiert. Das Bild wurde dem*der Nutzer*in bereits angezeigt.\nBeschreibe kurz was auf dem Bild zu sehen ist basierend auf dem Prompt: "${state.imagePrompt || ''}"\nBiete an, Änderungen vorzunehmen oder ein neues Bild zu erstellen.`
+            : '\nDie Bildgenerierung ist fehlgeschlagen. Entschuldige dich und biete an, es erneut zu versuchen.'
+          : intent === 'direct'
+            ? '\nDies ist eine direkte Anfrage ohne Recherche-Bedarf. Antworte natürlich und hilfsbereit.'
+            : '\nDu hast Recherche-Ergebnisse erhalten. Nutze sie um eine fundierte Antwort zu geben.';
 
   const hasSources = state.searchResults.length > 0 && intent !== 'direct';
   const sourceCount = state.searchResults.filter((r) => r.url).length;
