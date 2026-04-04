@@ -871,8 +871,11 @@ router.post('/stream', async (req, res) => {
       subtypeOverride?: string | null;
       conversationContext?: string;
       intent: string;
+      skipTerminate?: boolean;
     }): Promise<boolean> {
-      sse.send('response_start', { message: 'Erstelle Dokument...' });
+      if (!opts.skipTerminate) {
+        sse.send('response_start', { message: 'Erstelle Dokument...' });
+      }
 
       try {
         const { DOCUMENT_GENERATION_PROMPT, parseDocumentResponse, createDocumentWithContent } =
@@ -925,27 +928,31 @@ router.post('/stream', async (req, res) => {
           url: `/docs/${newDocId}`,
         });
 
-        const totalTimeMs = Date.now() - classifiedState.startTime;
-        sse.sendRaw('done', {
-          threadId: actualThreadId,
-          citations: [],
-          documentId: newDocId,
-          metadata: {
-            intent: opts.intent,
-            searchCount: 0,
-            totalTimeMs,
-            classificationTimeMs: classifiedState.classificationTimeMs,
-            searchTimeMs: 0,
-          },
-        });
+        log.info(`[ChatGraph] Document created (${opts.intent}): "${docTitle}" (${newDocId})`);
 
-        if (actualThreadId) {
-          await createMessage(actualThreadId, 'assistant', responseText);
-          await touchThread(actualThreadId);
+        if (!opts.skipTerminate) {
+          const totalTimeMs = Date.now() - classifiedState.startTime;
+          sse.sendRaw('done', {
+            threadId: actualThreadId,
+            citations: [],
+            documentId: newDocId,
+            metadata: {
+              intent: opts.intent,
+              searchCount: 0,
+              totalTimeMs,
+              classificationTimeMs: classifiedState.classificationTimeMs,
+              searchTimeMs: 0,
+            },
+          });
+
+          if (actualThreadId) {
+            await createMessage(actualThreadId, 'assistant', responseText);
+            await touchThread(actualThreadId);
+          }
+
+          sse.end();
         }
 
-        log.info(`[ChatGraph] Document created (${opts.intent}): "${docTitle}" (${newDocId})`);
-        sse.end();
         return true;
       } catch (docErr) {
         log.error(
@@ -1210,6 +1217,27 @@ router.post('/stream', async (req, res) => {
           `[ChatGraph] Confirm action stored: ${pendingAction.actionId} (${pendingAction.type})`
         );
       }
+    }
+
+    // === Stage 4c: Handle save_as_doc as secondary intent (search + create document) ===
+    if (
+      classifiedState.secondaryIntent === 'save_as_doc' &&
+      classifiedState.intent !== 'save_as_doc' &&
+      fullText
+    ) {
+      const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+      const conversationContext = [
+        ...validMessages.slice(-4).map((m) => `${m.role}: ${extractTextContent(m.content)}`),
+        `assistant: ${fullText.slice(0, 3000)}`,
+      ].join('\n');
+
+      await generateAndCreateDocument({
+        userContent: lastUserText,
+        subtypeOverride: classifiedState.documentSubtype,
+        conversationContext,
+        intent: 'save_as_doc',
+        skipTerminate: true,
+      });
     }
 
     const totalTimeMs = Date.now() - finalState.startTime;

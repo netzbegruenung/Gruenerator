@@ -1106,6 +1106,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
 
         return {
           intent: 'search',
+          secondaryIntent: classification.secondaryIntent || null,
           searchSources: [],
           searchQuery: optimizedQuery,
           subQueries: classification.subQueries || null,
@@ -1114,6 +1115,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
           hasTemporal: temporal.hasTemporal,
           complexity,
           classificationTimeMs,
+          documentSubtype: classification.documentSubtype || null,
         };
       } catch (error: any) {
         log.warn(
@@ -1246,6 +1248,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
 
         return {
           intent: 'search',
+          secondaryIntent: classification.secondaryIntent || null,
           searchSources: [],
           searchQuery: optimizedQuery,
           subQueries: classification.subQueries || null,
@@ -1254,6 +1257,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
           hasTemporal: temporal.hasTemporal,
           complexity,
           classificationTimeMs,
+          documentSubtype: classification.documentSubtype || null,
         };
       } catch (error: any) {
         log.warn(`[Classifier] LLM failed for document query, using heuristic: ${error.message}`);
@@ -1337,6 +1341,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
 
         return {
           intent: 'search',
+          secondaryIntent: classification.secondaryIntent || null,
           searchSources: [],
           searchQuery: optimizedQuery,
           subQueries: classification.subQueries || null,
@@ -1346,6 +1351,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
           complexity,
           classificationTimeMs,
           gatherSources,
+          documentSubtype: classification.documentSubtype || null,
         };
       } catch (error: any) {
         // Fallback to heuristic if LLM fails
