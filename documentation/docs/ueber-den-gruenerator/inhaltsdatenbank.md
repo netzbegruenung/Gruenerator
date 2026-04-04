@@ -6,45 +6,45 @@ description: Aktuelle Statistiken über die indexierten Inhalte im Grünerator
 
 # Inhaltsdatenbank
 
-> Zuletzt aktualisiert: **21.03.2026, 23:00**
+> Zuletzt aktualisiert: **04.04.2026, 23:44**
 
 ## Übersicht
 
 Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei.
-Insgesamt sind **41.239 Vektoren** in der Datenbank gespeichert.
+Insgesamt sind **159.998 Vektoren** in der Datenbank gespeichert.
 
 ## Sammlungen
 
-| Sammlung               |   Vektoren |
-| ---------------------- | ---------: |
-| Landesverbände         |     21.484 |
-| KommunalWiki           |      7.118 |
-| Bundestag              |      4.650 |
-| Böll-Stiftung          |      2.788 |
-| gruene.at              |      1.011 |
-| gruene.de              |        884 |
-| Grundsatzprogramm      |        838 |
-| Grüne Österreich       |        776 |
-| Satzungen              |        712 |
-| Social-Media-Beispiele |        694 |
-| Grünblog               |        284 |
-| **Gesamt**             | **41.239** |
+| Sammlung               |    Vektoren |
+| ---------------------- | ----------: |
+| Landesverbände         |     139.832 |
+| KommunalWiki           |       7.149 |
+| Bundestag              |       4.481 |
+| Böll-Stiftung          |       2.978 |
+| Social-Media-Beispiele |       1.024 |
+| gruene.at              |       1.012 |
+| gruene.de              |         884 |
+| Grundsatzprogramm      |         838 |
+| Grüne Österreich       |         776 |
+| Satzungen              |         712 |
+| Grünblog               |         312 |
+| **Gesamt**             | **159.998** |
 
 ## Landesverbände
 
-Die Landesverbände-Sammlung enthält **19.376 Vektoren** aus 8 Quellen.
+Die Landesverbände-Sammlung enthält **20.240 Vektoren** aus 8 Quellen.
 
 | Landesverband                   | Kürzel |   Vektoren |
 | ------------------------------- | ------ | ---------: |
 | Thüringen Fraktion              | TH-F   |      6.015 |
-| Hamburg                         | HH     |      4.581 |
-| Thüringen                       | TH     |      2.848 |
-| Berlin                          | BE     |      1.801 |
-| Sachsen-Anhalt Fraktion         | LSA-F  |      1.373 |
+| Hamburg                         | HH     |      4.599 |
+| Berlin                          | BE     |      2.766 |
+| Thüringen                       | TH     |      2.721 |
+| Sachsen-Anhalt Fraktion         | LSA-F  |      1.381 |
 | Mecklenburg-Vorpommern          | MV     |      1.169 |
 | Sachsen-Anhalt                  | LSA    |      1.074 |
 | Mecklenburg-Vorpommern Fraktion | MV-F   |        515 |
-| **Gesamt**                      |        | **19.376** |
+| **Gesamt**                      |        | **20.240** |
 
 ## Aktualisierung
 
