@@ -13,6 +13,7 @@ import { executeDirectSearch } from '../../../../routes/chat/agents/directSearch
 import { getQdrantDocumentService } from '../../../../services/document-services/DocumentSearchService/index.js';
 import { applyMMR } from '../../../../services/search/DiversityReranker.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 import {
   getDefaultCollectionsForLocale,
   getSupplementaryCollectionsForLocale,
@@ -58,13 +59,13 @@ async function rerankResults(
     const response = await aiWorkerPool.processRequest(
       {
         type: 'chat_rerank',
-        provider: 'mistral',
+        provider: INTERMEDIATE_MODEL.provider,
         systemPrompt: RERANK_PROMPT,
         messages: [
           { role: 'user', content: `Suchanfrage: "${query}"\n\nErgebnisse:\n${passageList}` },
         ],
         options: {
-          model: 'mistral-small-latest',
+          model: INTERMEDIATE_MODEL.model,
           max_tokens: 200,
           temperature: 0.0,
           top_p: 1.0,

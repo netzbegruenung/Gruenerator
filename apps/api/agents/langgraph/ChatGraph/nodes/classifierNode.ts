@@ -13,6 +13,7 @@
 
 import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
 import { heuristicExtractFilters } from './classifierFilters.js';
 import {
@@ -365,7 +366,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     const response = await aiWorkerPool.processRequest(
       {
         type: 'chat_intent_classification',
-        provider: 'mistral',
+        provider: INTERMEDIATE_MODEL.provider,
         systemPrompt: CLASSIFIER_PROMPT,
         messages: [
           {
@@ -376,7 +377,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
           },
         ],
         options: {
-          model: 'mistral-small-latest',
+          model: INTERMEDIATE_MODEL.model,
           max_tokens: 250,
           temperature: 0.1,
           response_format: { type: 'json_object' },
@@ -477,7 +478,7 @@ async function classifyWithForcedSearch(opts: {
     const response = await aiWorkerPool.processRequest(
       {
         type: 'chat_intent_classification',
-        provider: 'mistral',
+        provider: INTERMEDIATE_MODEL.provider,
         systemPrompt: CLASSIFIER_PROMPT,
         messages: [
           {
@@ -488,7 +489,7 @@ async function classifyWithForcedSearch(opts: {
           },
         ],
         options: {
-          model: 'mistral-small-latest',
+          model: INTERMEDIATE_MODEL.model,
           max_tokens: 250,
           temperature: 0.1,
           response_format: { type: 'json_object' },

@@ -10,6 +10,7 @@
  */
 
 import { createLogger } from '../../../../utils/logger.js';
+import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
 import type { ChatGraphState } from '../types.js';
 
@@ -82,11 +83,11 @@ Erstelle einen klaren, fokussierten Recherche-Auftrag.`;
     const response = await aiWorkerPool.processRequest(
       {
         type: 'chat_research_brief',
-        provider: 'mistral',
+        provider: INTERMEDIATE_MODEL.provider,
         systemPrompt: BRIEF_PROMPT,
         messages: [{ role: 'user', content: userMessage }],
         options: {
-          model: 'mistral-small-latest',
+          model: INTERMEDIATE_MODEL.model,
           max_tokens: 200,
           temperature: 0.2,
         },

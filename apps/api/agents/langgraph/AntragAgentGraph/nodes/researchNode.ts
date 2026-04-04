@@ -1,7 +1,9 @@
+import { generateText } from 'ai';
+
+import { getIntermediateModel } from '../../../../services/ai/providers.js';
 import { extractLocaleFromRequest } from '../../../../services/localization/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { enrichRequest } from '../../../../utils/requestEnrichment.js';
-import mistralClient from '../../../../workers/mistralClient.js';
 import { searchArgumentsFromNotebooks } from '../../PRAgent/generators/argumentsGenerator.js';
 
 import type { ArgumentResult } from '../../PRAgent/generators/argumentsGenerator.js';
@@ -144,15 +146,14 @@ Erstelle eine sachliche, faktenorientierte Zusammenfassung mit den folgenden dre
 Halte die Zusammenfassung sachlich und faktenorientiert (max. 400 Wörter). Keine Kommunikationstipps, keine Formulierungsvorschläge.`;
 
   try {
-    const response = await mistralClient.chat.complete({
-      model: 'mistral-small-latest',
-      messages: [{ role: 'user', content: prompt }],
-      maxTokens: 800,
+    const result = await generateText({
+      model: getIntermediateModel(),
+      prompt,
+      maxOutputTokens: 800,
       temperature: 0.2,
     });
 
-    const content = response.choices?.[0]?.message?.content;
-    const summary = typeof content === 'string' ? content.trim() : '';
+    const summary = result.text.trim();
 
     // If the LLM returned nearly empty content (just headers without substance),
     // fall back to a formatted excerpt list so the user still sees useful data

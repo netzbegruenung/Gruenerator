@@ -24,6 +24,19 @@ const PROVIDER_DEFAULTS = {
   regolo: process.env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b',
 } as const;
 
+/**
+ * Central config for all intermediate/agent processing tasks.
+ * Change this once to switch all intermediate tasks to a different provider/model.
+ */
+export const INTERMEDIATE_MODEL = {
+  provider: 'regolo' as const,
+  model: 'mistral-small-4-119b',
+};
+
+export function getIntermediateModel(): LanguageModel {
+  return getModel(INTERMEDIATE_MODEL.provider, INTERMEDIATE_MODEL.model);
+}
+
 const LITELLM_DEFAULT_BASE_URL = 'https://litellm.netzbegruenung.verdigado.net';
 
 // Models incompatible with IONOS OpenAI-compatible endpoint

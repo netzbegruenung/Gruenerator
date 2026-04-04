@@ -10,6 +10,7 @@
 import { localizePlaceholders } from '../../../../services/localization/index.js';
 import { type Locale } from '../../../../services/localization/types.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
 import type { ChatGraphState, ThreadAttachment } from '../types.js';
 
@@ -151,7 +152,7 @@ async function cleanFindings(state: ChatGraphState): Promise<string | null> {
   const response = await aiWorkerPool.processRequest(
     {
       type: 'chat_clean_findings',
-      provider: 'mistral',
+      provider: INTERMEDIATE_MODEL.provider,
       systemPrompt: FINDINGS_CLEANING_PROMPT,
       messages: [
         {
@@ -160,7 +161,7 @@ async function cleanFindings(state: ChatGraphState): Promise<string | null> {
         },
       ],
       options: {
-        model: 'mistral-small-latest',
+        model: INTERMEDIATE_MODEL.model,
         max_tokens: 600,
         temperature: 0.2,
       },

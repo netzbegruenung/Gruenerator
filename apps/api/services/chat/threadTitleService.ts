@@ -9,6 +9,7 @@
  */
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { INTERMEDIATE_MODEL } from '../../routes/chat/agents/providers.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('ThreadTitle');
@@ -77,7 +78,7 @@ export async function generateThreadTitle(
 
   const aiRequest = {
     type: 'chat_thread_title',
-    provider: 'mistral',
+    provider: INTERMEDIATE_MODEL.provider,
     systemPrompt: TITLE_PROMPT,
     messages: [
       {
@@ -86,7 +87,7 @@ export async function generateThreadTitle(
       },
     ],
     options: {
-      model: 'mistral-small-latest',
+      model: INTERMEDIATE_MODEL.model,
       max_tokens: 30,
       temperature: 0.3,
     },
