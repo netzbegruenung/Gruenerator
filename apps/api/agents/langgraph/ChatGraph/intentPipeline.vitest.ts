@@ -270,6 +270,7 @@ describe('every SearchIntent has a handler path', () => {
     save_as_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
     modify_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
     modify_board: 'routes to respond, then confirm_action SSE + pendingActionStore',
+    share_doc: 'short-circuits before LLM — resolves group, emits confirm_action SSE',
   };
 
   for (const intent of ALL_INTENTS) {

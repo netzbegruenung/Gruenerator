@@ -8,7 +8,7 @@ import type {
 import type { Citation as RawCitation, Source, LinkConfig } from '../runtime/NotebookModelAdapter';
 import type { AdditionalSource } from '../components/message-parts/SearchResultsSection';
 
-export type ConfirmActionType = 'save_as_doc' | 'modify_doc' | 'modify_board';
+export type ConfirmActionType = 'save_as_doc' | 'modify_doc' | 'modify_board' | 'share_doc';
 
 export interface ConfirmActionData {
   actionId: string;
