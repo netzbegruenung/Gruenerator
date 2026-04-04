@@ -1,12 +1,62 @@
 # Fine-Tuning gpt-oss with Grünerator Document Data
 
-Fine-tune gpt-oss (20B or 120B) on Green party documents to generate authentic party-style content — press releases, resolutions, social media posts, and policy texts.
+## Background
+
+### Why fine-tune?
+
+Grünerator uses gpt-oss as its primary text generation model. Out of the box, gpt-oss is a strong general-purpose model — it can write German text, follow instructions, and adapt to system prompts. But it doesn't inherently _know_ what a Green Party press release sounds like, how a Parteitagsbeschluss is structured, or what tone an Instagram post from Bündnis 90/Die Grünen should strike.
+
+Fine-tuning bridges that gap. By training the model on thousands of real party documents — press releases, resolutions, social media posts, policy texts — we teach it the specific patterns of Green Party communication: the vocabulary, the rhetorical structures, the use of Genderstern, the balance between urgency and pragmatism that characterizes Grüne messaging.
+
+### What is LoRA fine-tuning?
+
+Traditional fine-tuning updates all of a model's parameters — for a 20-billion-parameter model, that means retraining 20 billion weights. This is expensive, slow, and risks catastrophic forgetting (the model "forgets" its general capabilities while learning the new domain).
+
+**LoRA** (Low-Rank Adaptation) takes a different approach. It freezes all original weights and injects small, trainable matrices alongside them — typically less than 0.1% of the model's parameters. The result is a lightweight "adapter" that shifts the model's behavior toward the target domain while preserving everything it already knows. Training is fast (minutes to hours instead of days), cheap (~$6 per run), and the adapter file is small enough to hot-swap at inference time.
+
+### Our approach: Multi-LoRA by country and content type
+
+The Grünerator platform serves two distinct Green parties:
+
+- **Bündnis 90/Die Grünen** (Germany) — the larger party, with extensive press, Bundestag, and social media content
+- **Die Grünen – Die Grüne Alternative** (Austria) — a separate party with its own communication style and political context
+
+These are not regional variants of the same voice — they are different organizations with different names, structures, and messaging. Mixing their training data would produce a model that awkwardly straddles both identities. Instead, we train **separate LoRA adapters** for each country, served on the same base model via Together AI's Multi-LoRA infrastructure. The user's locale (`de-DE` or `de-AT`) determines which adapter handles their request — at no extra inference cost.
+
+Within each country adapter, the training data is balanced across content types (press releases, social media, resolutions) and biased toward recent content (`--min-date 2022-01-01`) to capture modern communication style. Collections that don't reflect party voice — such as the Heinrich-Böll-Stiftung (academic/analytical tone) or the Kommunalwiki (neutral encyclopedia style) — are excluded from training.
+
+### Data pipeline
+
+The fine-tuning pipeline has three stages:
+
+1. **Export** (`exportNotebookData.ts`) — Pulls documents from Qdrant vector collections, reconstructs full texts from chunks, and writes raw JSONL with metadata (title, content type, collection, publication date).
+
+2. **Transform** (`transformTrainingData.ts`) — Converts raw documents into chat-format training pairs: a system prompt establishing the Green Party expert role, a user prompt requesting a specific content type, and the actual document as the assistant's response. Applies quality filters (minimum length, deduplication, generic title removal) and balances the dataset across collections and content types using `--max-per-bucket`. Newer documents are preferred.
+
+3. **Train** (`togetherFineTune.py`) — Uploads the JSONL to Together AI and launches a LoRA fine-tuning job. Monitors progress, reports training events, and outputs the adapter model name for use in inference.
+
+### Cost structure
+
+Together AI charges per token processed during training, with a $6 minimum per job. A well-balanced training dataset of ~700-800 examples at 1 epoch fits comfortably within that minimum. Inference with fine-tuned adapters costs the same as the base model — no premium for using custom weights.
+
+| What                              | Cost               |
+| --------------------------------- | ------------------ |
+| One country adapter (Phase 1)     | ~$6                |
+| Both countries                    | ~$12               |
+| Content-type specialist (Phase 2) | ~$6 each           |
+| Inference                         | Same as base model |
+
+---
 
 ## Prerequisites
 
 - Access to Qdrant (credentials in `.env`)
 - Node.js 20+ with `npx tsx`
-- RunPod account for GPU training
+
+For training, choose one:
+
+- **Together AI** (recommended) — managed LoRA fine-tuning, no GPU infra to manage. Requires `pip install "together>=2.0.0"` and `TOGETHER_API_KEY`
+- **RunPod** — self-managed GPU training with Unsloth. More control, more setup
 
 ## Step 1: Export Documents
 
@@ -71,7 +121,66 @@ wc -l data/training-data.jsonl data/validation-data.jsonl
 shuf -n 1 data/training-data.jsonl | jq '.messages[1].content, .messages[2].content[:200]'
 ```
 
-## Step 3: GPU Setup on RunPod
+## Step 3: Fine-Tune on Together AI (Recommended)
+
+Managed LoRA fine-tuning — no GPU infrastructure to manage.
+
+```bash
+# Install Together SDK
+pip install "together>=2.0.0"
+export TOGETHER_API_KEY=your_key
+
+# Start fine-tuning (uploads data, creates LoRA job, monitors progress)
+python scripts/togetherFineTune.py
+
+# Use gpt-oss-120b instead of 20b
+python scripts/togetherFineTune.py --model openai/gpt-oss-120b
+
+# Custom training parameters
+python scripts/togetherFineTune.py --n-epochs 3 --learning-rate 2e-5 --suffix gruenerator-v2
+
+# Skip deployment (just train, use serverless inference)
+python scripts/togetherFineTune.py --skip-deploy
+```
+
+### Managing Jobs
+
+```bash
+# List recent jobs
+python scripts/togetherFineTune.py --list-jobs
+
+# Check status of a running job
+python scripts/togetherFineTune.py --status ft-abc123
+```
+
+### Together AI Model Options
+
+| Model                           | API String            | Context | Cost   |
+| ------------------------------- | --------------------- | ------- | ------ |
+| GPT-OSS 20B (recommended start) | `openai/gpt-oss-20b`  | 24K     | Lower  |
+| GPT-OSS 120B                    | `openai/gpt-oss-120b` | 16K     | Higher |
+
+### Default LoRA Parameters
+
+| Parameter         | Default | Notes                             |
+| ----------------- | ------- | --------------------------------- |
+| `--lora-r`        | 64      | LoRA rank                         |
+| `--lora-alpha`    | 16      | Scaling factor                    |
+| `--n-epochs`      | 2       | Conservative to avoid overfitting |
+| `--learning-rate` | 1e-5    | Standard for LoRA                 |
+| `--batch-size`    | max     | Together auto-determines optimal  |
+
+### Integrating the Fine-Tuned Model
+
+After training completes, the script prints the output model name (e.g. `your-org/gpt-oss-20b-gruenerator-v1`). To use it:
+
+1. **Serverless** (simplest): Use the model name directly in Together AI API calls
+2. **Dedicated endpoint**: Omit `--skip-deploy` to auto-create an endpoint
+3. **Via LiteLLM**: Add the fine-tuned model to your LiteLLM proxy config
+
+---
+
+## Step 3 (Alternative): GPU Setup on RunPod
 
 ### Option A: gpt-oss-20B (recommended starting point)
 
@@ -353,3 +462,172 @@ This needs ~64GB+ system RAM but only ~8GB VRAM for the attention layers.
 ### Integrating with Grünerator
 
 Once the model is running via llama.cpp server, you can point Grünerator's API at it by configuring it as an OpenAI-compatible provider. The server exposes `/v1/chat/completions` which works with any OpenAI SDK client.
+
+---
+
+## Multi-LoRA Adapter Strategy
+
+All adapters share the same GPT-OSS base model. Together AI serves them serverlessly at base model price — no extra cost per adapter.
+
+### Phase 1: Country Adapters (Germany + Austria)
+
+Germany and Austria are **separate parties** with different names, structures, and political contexts. They get separate adapters from the start.
+
+#### Phase 1a: Germany — `gruenerator-de-v1`
+
+Core data: party communication voice (no Böll-Stiftung, no Kommunalwiki).
+
+```bash
+cd apps/api
+
+# Export German party collections only
+npx tsx scripts/exportNotebookData.ts \
+  --collection landesverbaende_documents \
+  --collection bundestag_content \
+  --collection gruene_de_documents \
+  --collection grundsatz_documents \
+  --collection social_media_examples
+
+# Transform with balanced buckets, recent content, quality floor
+# --min-date filters for modern communication style (formatting, topics)
+npx tsx scripts/transformTrainingData.ts \
+  --max-per-bucket 100 --min-length 500 --min-date 2022-01-01 \
+  --output-dir data/de
+
+# Fine-tune
+TOGETHER_API_KEY=... .venv/bin/python scripts/togetherFineTune.py \
+  --training data/de/training-data.jsonl \
+  --validation data/de/validation-data.jsonl \
+  --suffix gruenerator-de-v1 --n-epochs 1 --skip-deploy
+```
+
+**Collections used:**
+| Collection | Content | Est. examples after bucket cap |
+|---|---|---|
+| `landesverbaende_documents` | Presse, Beschlüsse, Anträge | ~300 |
+| `bundestag_content` | Bundestagsfraktion texts | ~100 |
+| `social_media_examples` | Facebook, Instagram | ~200 |
+| `gruene_de_documents` | Official website | ~100 |
+| `grundsatz_documents` | Grundsatzprogramm | ~30-60 |
+| **Total** | | **~730-760** |
+
+**Collections excluded:**
+
+- `boell_stiftung_documents` — think tank / academic tone, not party voice
+- `kommunalwiki_documents` — neutral wiki style, not political communication
+- Austrian collections — separate adapter
+
+Estimated cost: **~$6** (minimum charge)
+
+#### Phase 1b: Austria — `gruenerator-at-v1`
+
+```bash
+# Export Austrian collections
+npx tsx scripts/exportNotebookData.ts \
+  --collection oesterreich_gruene_documents \
+  --collection gruene_at_documents
+
+# Transform (Austrian content uses SYSTEM_PROMPT_AT automatically)
+npx tsx scripts/transformTrainingData.ts \
+  --min-length 500 --output-dir data/at
+
+# Fine-tune
+TOGETHER_API_KEY=... .venv/bin/python scripts/togetherFineTune.py \
+  --training data/at/training-data.jsonl \
+  --validation data/at/validation-data.jsonl \
+  --suffix gruenerator-at-v1 --n-epochs 1 --skip-deploy
+```
+
+**Collections used:**
+| Collection | Content | Docs |
+|---|---|---|
+| `oesterreich_gruene_documents` | Party programs | 3 (large, sliding window → ~60) |
+| `gruene_at_documents` | News, Themen, Organisation | 161 |
+| **Total** | | **~220** |
+
+Estimated cost: **~$6** (minimum charge). Smaller dataset, but 220 examples is enough for LoRA style adaptation.
+
+### Phase 2: Content-Type Specialists (Optional)
+
+If Phase 1 quality review shows style bleed between content types (e.g. social media outputs sound too formal), split further:
+
+```bash
+# German press release specialist
+npx tsx scripts/exportNotebookData.ts --collection landesverbaende_documents --collection bundestag_content
+npx tsx scripts/transformTrainingData.ts --max-per-bucket 100 --min-length 500 --min-date 2023-01-01 --output-dir data/de-presse
+TOGETHER_API_KEY=... .venv/bin/python scripts/togetherFineTune.py \
+  --training data/de-presse/training-data.jsonl \
+  --validation data/de-presse/validation-data.jsonl \
+  --suffix gruenerator-de-presse-v1 --n-epochs 1 --skip-deploy
+
+# German social media specialist
+npx tsx scripts/exportNotebookData.ts --collection social_media_examples
+npx tsx scripts/transformTrainingData.ts --output-dir data/de-social
+TOGETHER_API_KEY=... .venv/bin/python scripts/togetherFineTune.py \
+  --training data/de-social/training-data.jsonl \
+  --validation data/de-social/validation-data.jsonl \
+  --suffix gruenerator-de-social-v1 --n-epochs 1 --skip-deploy
+```
+
+Each specialist adapter: ~$6.
+
+### Using Adapters at Inference Time
+
+Each fine-tuned adapter gets a model name. Use it directly — Together handles routing:
+
+```python
+from together import Together
+client = Together()
+
+# German adapter
+response = client.chat.completions.create(
+    model="your-org/gpt-oss-20b-gruenerator-de-v1",
+    messages=[
+        {"role": "system", "content": "Du bist ein Kommunikationsexperte von Bündnis 90/Die Grünen."},
+        {"role": "user", "content": "Schreibe eine Pressemitteilung zum Thema: Klimaschutzgesetz"},
+    ],
+)
+
+# Austrian adapter — same base model, different adapter
+response = client.chat.completions.create(
+    model="your-org/gpt-oss-20b-gruenerator-at-v1",
+    messages=[
+        {"role": "system", "content": "Du bist ein Kommunikationsexperte von Die Grünen – Die Grüne Alternative."},
+        {"role": "user", "content": "Verfasse eine Presseaussendung zum Thema: Klimaschutz"},
+    ],
+)
+```
+
+List all trained adapter names:
+
+```bash
+TOGETHER_API_KEY=... .venv/bin/python scripts/togetherFineTune.py --list-models
+```
+
+### Routing in Grünerator
+
+Map user locale to adapter in the API config or LiteLLM proxy:
+
+```
+# Primary axis: country (from user locale / domain)
+locale=de-DE  →  gruenerator-de-v1
+locale=de-AT  →  gruenerator-at-v1
+
+# Phase 2 refinement: country + content type
+locale=de-DE, type=presse     →  gruenerator-de-presse-v1
+locale=de-DE, type=social     →  gruenerator-de-social-v1
+locale=de-DE, type=*          →  gruenerator-de-v1 (fallback)
+```
+
+This maps cleanly to the existing `extractLocaleFromRequest(req)` in `services/localization/index.ts`.
+
+### Cost Summary
+
+| Phase                | Adapters | Training cost | Inference cost           |
+| -------------------- | -------- | ------------- | ------------------------ |
+| Phase 1a: Germany    | 1        | ~$6           | Base model price         |
+| Phase 1b: Austria    | 1        | ~$6           | Base model price         |
+| Phase 2: Specialists | 2-4      | ~$6 each      | Base model price (same!) |
+| **Total Phase 1**    | **2**    | **~$12**      | **Base model price**     |
+
+Inference cost is identical regardless of how many adapters you have — you only pay per-token at base model rates.
