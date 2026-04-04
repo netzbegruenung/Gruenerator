@@ -11,6 +11,7 @@ import {
 import {
   Button,
   CardGrid,
+  DismissableBanner,
   DropdownMenuItem,
   ResponsiveMenu,
   ResponsiveMenuItem,
@@ -314,6 +315,15 @@ function DocumentsContent() {
           onShowWolkeImport={() => setShowWolkeImport(true)}
         />
       </div>
+
+      <DismissableBanner
+        storageKey="gruenerator_docs_experimental_warning_dismissed"
+        variant="warning"
+        className="mb-md"
+      >
+        <strong>Experimentelles Feature</strong> — Diese Funktion befindet sich noch in der
+        Entwicklung. Bitte behalte eine lokale Sicherungskopie deiner Dateien.
+      </DismissableBanner>
 
       <main>
         <TemplateCarousel
