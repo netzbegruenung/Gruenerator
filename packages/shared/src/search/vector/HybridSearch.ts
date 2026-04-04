@@ -286,23 +286,26 @@ export function calculateTextSearchScore(
   text: string | undefined,
   position: number
 ): number {
-  if (!text || !searchTerm) return 0.1;
+  if (!text || !searchTerm) return 0.05;
 
   const lowerText = text.toLowerCase();
   const lowerTerm = searchTerm.toLowerCase();
 
-  // Count matches
   const escapedTerm = lowerTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const matches = (lowerText.match(new RegExp(escapedTerm, 'g')) || []).length;
-  let score = Math.min(matches * 0.1, 0.8);
 
-  // Position penalty
-  const positionPenalty = Math.max(0.1, 1 - position * 0.1);
+  if (matches === 0) return 0.05;
+
+  // Logarithmic: diminishing returns per additional match (8th occurrence adds less than 1st)
+  let score = Math.min(0.15 * Math.log2(matches + 1), 0.8);
+
+  // Position penalty (gentler decay)
+  const positionPenalty = Math.max(0.2, 1 - position * 0.08);
   score *= positionPenalty;
 
   // Length normalization
-  const lengthNormalization = Math.min(1, searchTerm.length / 10);
+  const lengthNormalization = Math.min(1, searchTerm.length / 8);
   score *= lengthNormalization;
 
-  return Math.min(1.0, Math.max(0.1, score));
+  return Math.min(1.0, Math.max(0.05, score));
 }
