@@ -3,6 +3,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  useIsMobile,
 } from '@gruenerator/ui';
 import { type MutableRefObject, memo, useState, useCallback } from 'react';
 import { HiOutlineDocumentText } from 'react-icons/hi';
@@ -25,6 +26,7 @@ const NewItemDropdown = memo(function NewItemDropdown({
   onLinkClick,
   onClose,
 }: NewItemDropdownProps) {
+  const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
 
   const handleOpenChange = useCallback(
@@ -44,7 +46,7 @@ const NewItemDropdown = memo(function NewItemDropdown({
             <span className={titleClass}>Neu</span>
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent side="right" align="start" sideOffset={8}>
+        <DropdownMenuContent side={isMobile ? 'bottom' : 'right'} align="start" sideOffset={8}>
           <DropdownMenuItem
             onClick={() => {
               onChatClick();

@@ -448,7 +448,7 @@ function DocumentsContent() {
 
 const DocsPage = () => (
   <ErrorBoundary>
-    <PageContainer maxWidth="lg" noPadTop>
+    <PageContainer maxWidth="lg" noPadTop className="max-md:pt-lg">
       <DocsProvider adapter={webAppDocsAdapter}>
         <DocumentsContent />
       </DocsProvider>

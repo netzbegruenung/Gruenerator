@@ -219,6 +219,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: emailRouter } = await import('./routes/email/emailController.js');
   const { default: videoRouter } = await import('./routes/video/index.js');
   const { default: transferRouter } = await import('./routes/transfer/transferController.js');
+  const { default: visionRouter } = await import('./routes/vision/visionController.js');
 
   // Auth routes — authLimiter applied inside authCore.ts to login/callback only
   app.use('/api/auth', standardMutationLimiter, authRouter);
@@ -234,6 +235,7 @@ export async function setupRoutes(app: Application): Promise<void> {
 
   app.use('/api/claude_social', aiGenerationLimiter, claudeSocialRoute);
   app.use('/api/claude_alttext', aiGenerationLimiter, claudeAlttextRoute);
+  app.use('/api/vision', aiGenerationLimiter, requireAuth, visionRouter);
   app.use('/api/claude_website', aiGenerationLimiter, claudeWebsiteRoute);
   app.use('/api/leichte_sprache', aiGenerationLimiter, leichteSpracheRoute);
   app.use('/api/claude_rede', aiGenerationLimiter, redeRouter);

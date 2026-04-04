@@ -37,10 +37,13 @@ export function getIntermediateModel(): LanguageModel {
   return getModel(INTERMEDIATE_MODEL.provider, INTERMEDIATE_MODEL.model);
 }
 
-const LITELLM_DEFAULT_BASE_URL = 'https://litellm.netzbegruenung.verdigado.net';
+export const LITELLM_DEFAULT_BASE_URL = 'https://litellm.netzbegruenung.verdigado.net';
+export const IONOS_BASE_URL = 'https://openai.inference.de-txl.ionos.com/v1';
+export const REGOLO_BASE_URL = 'https://api.regolo.ai/v1';
+export const MISTRAL_API_URL = 'https://api.mistral.ai/v1';
 
 // Models incompatible with IONOS OpenAI-compatible endpoint
-const IONOS_INCOMPATIBLE_PATTERNS = [
+export const IONOS_INCOMPATIBLE_PATTERNS = [
   /^mistral/i,
   /^mixtral/i,
   /^claude/i,
@@ -100,7 +103,7 @@ function getIONOSProvider(): ReturnType<typeof createOpenAI> {
       throw new Error('IONOS_API_TOKEN environment variable is required');
     }
     ionosInstance = createOpenAI({
-      baseURL: 'https://openai.inference.de-txl.ionos.com/v1',
+      baseURL: IONOS_BASE_URL,
       apiKey,
       name: 'ionos',
     });
@@ -119,7 +122,7 @@ function getRegoloProvider(): ReturnType<typeof createOpenAI> {
       throw new Error('REGOLO_API_KEY environment variable is required');
     }
     regoloInstance = createOpenAI({
-      baseURL: 'https://api.regolo.ai/v1',
+      baseURL: REGOLO_BASE_URL,
       apiKey,
       name: 'regolo',
     });
@@ -172,7 +175,7 @@ export function getModel(provider: ProviderName | string, modelId?: string): Lan
     }
     case 'litellm': {
       const litellm = getLiteLLMProvider();
-      return litellm.chat(PROVIDER_DEFAULTS.litellm);
+      return litellm.chat(modelId || PROVIDER_DEFAULTS.litellm);
     }
     case 'ionos': {
       const ionos = getIONOSProvider();

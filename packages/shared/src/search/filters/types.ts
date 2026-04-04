@@ -30,10 +30,10 @@ export interface QdrantMatchAnyCondition {
 export interface QdrantRangeCondition {
   key: string;
   range: {
-    gt?: number;
-    gte?: number;
-    lt?: number;
-    lte?: number;
+    gt?: number | string;
+    gte?: number | string;
+    lt?: number | string;
+    lte?: number | string;
   };
 }
 
@@ -88,4 +88,7 @@ export type CommonFilterField =
   | 'subcategories'
   | 'region'
   | 'country'
-  | 'platform';
+  | 'platform'
+  | 'source_id'
+  | 'landesverband'
+  | 'gremium';
