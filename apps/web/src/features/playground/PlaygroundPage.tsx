@@ -4,7 +4,6 @@ import {
   Card,
   CardAction,
   CardContent,
-  CardFooter,
   CardHeader,
   CardTitle,
   CollapsibleSection,
