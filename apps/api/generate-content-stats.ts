@@ -33,12 +33,16 @@ const CONTENT_COLLECTIONS = [
 ];
 
 const LV_SHORT_NAMES: { code: string; label: string }[] = [
+  { code: 'BB', label: 'Brandenburg' },
+  { code: 'BE', label: 'Berlin' },
+  { code: 'BE-F', label: 'Berlin Fraktion' },
+  { code: 'BY', label: 'Bayern' },
+  { code: 'HH', label: 'Hamburg' },
   { code: 'LSA', label: 'Sachsen-Anhalt' },
   { code: 'LSA-F', label: 'Sachsen-Anhalt Fraktion' },
   { code: 'MV', label: 'Mecklenburg-Vorpommern' },
   { code: 'MV-F', label: 'Mecklenburg-Vorpommern Fraktion' },
-  { code: 'HH', label: 'Hamburg' },
-  { code: 'BE', label: 'Berlin' },
+  { code: 'SH', label: 'Schleswig-Holstein' },
   { code: 'TH', label: 'Thüringen' },
   { code: 'TH-F', label: 'Thüringen Fraktion' },
 ];
