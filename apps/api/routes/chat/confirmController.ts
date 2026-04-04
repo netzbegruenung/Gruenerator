@@ -67,11 +67,14 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
     case 'save_as_doc': {
       const { createDocumentWithContent } =
         await import('../../services/docs/DocGenerationService.js');
+      const { markdownToHtml } = await import('../../services/markdown/index.js');
       const { content, title, subtype } = action.payload;
+
+      const htmlContent = markdownToHtml(content);
 
       const newDoc = await createDocumentWithContent(
         title,
-        content,
+        htmlContent,
         subtype || 'docs',
         action.userId
       );
