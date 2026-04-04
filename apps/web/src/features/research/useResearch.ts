@@ -44,6 +44,7 @@ interface UseResearchReturn {
   isLoading: boolean;
   error: string | null;
   search: (params: SearchParams) => Promise<void>;
+  fetchSimilar: (sourceUrl: string, collectionId: string) => Promise<void>;
 }
 
 export function useResearch(): UseResearchReturn {
@@ -80,5 +81,28 @@ export function useResearch(): UseResearchReturn {
     }
   }, []);
 
-  return { results, metadata, isLoading, error, search };
+  const fetchSimilar = useCallback(async (sourceUrl: string, collectionId: string) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await apiClient.post<ResearchResponse>('/research/similar', {
+        sourceUrl,
+        collectionId,
+      });
+
+      setResults(response.data.results);
+      setMetadata(response.data.metadata);
+    } catch (err: any) {
+      const message =
+        err.response?.data?.error || 'Ähnliche Dokumente konnten nicht geladen werden.';
+      setError(message);
+      setResults([]);
+      setMetadata(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  return { results, metadata, isLoading, error, search, fetchSimilar };
 }
