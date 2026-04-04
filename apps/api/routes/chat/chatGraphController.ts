@@ -126,16 +126,26 @@ const CONFIRM_ACTION_CONFIG: Record<
   },
 };
 
-function buildPendingAction(
-  intent: SearchIntent,
-  threadId: string,
-  userId: string,
-  fullText: string,
-  searchQuery: string | null,
-  docMentionIds: string[] | undefined,
-  boardIds: string[] | undefined,
-  documentSubtype: string | null
-): PendingAction | null {
+function buildPendingAction(opts: {
+  intent: SearchIntent;
+  threadId: string;
+  userId: string;
+  fullText: string;
+  searchQuery: string | null;
+  docMentionIds: string[] | undefined;
+  boardIds: string[] | undefined;
+  documentSubtype: string | null;
+}): PendingAction | null {
+  const {
+    intent,
+    threadId,
+    userId,
+    fullText,
+    searchQuery,
+    docMentionIds,
+    boardIds,
+    documentSubtype,
+  } = opts;
   const base = {
     actionId: `action_${Date.now()}`,
     threadId,
@@ -855,21 +865,32 @@ router.post('/stream', async (req, res) => {
       }
     }
 
-    // === Handle @dokument-erstellen tool ===
-    if (forcedTools?.includes('dokument-erstellen')) {
+    // === Shared document creation helper ===
+    async function generateAndCreateDocument(opts: {
+      userContent: string;
+      subtypeOverride?: string | null;
+      conversationContext?: string;
+      intent: string;
+    }): Promise<boolean> {
       sse.send('response_start', { message: 'Erstelle Dokument...' });
 
       try {
         const { DOCUMENT_GENERATION_PROMPT, parseDocumentResponse, createDocumentWithContent } =
           await import('../../services/docs/DocGenerationService.js');
 
-        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        const subtypeHint = opts.subtypeOverride
+          ? `\nVerwende subtype: "${opts.subtypeOverride}".`
+          : '';
+
+        const userMessage = opts.conversationContext
+          ? `Konversationskontext:\n${opts.conversationContext}\n\nAktuelle Anfrage: ${opts.userContent}`
+          : opts.userContent;
 
         const docGenResult = await aiWorkerPool.processRequest(
           {
             type: 'doc_generation',
-            systemPrompt: DOCUMENT_GENERATION_PROMPT,
-            messages: [{ role: 'user', content: lastUserText }],
+            systemPrompt: DOCUMENT_GENERATION_PROMPT + subtypeHint,
+            messages: [{ role: 'user', content: userMessage }],
             options: { temperature: 0.7, max_tokens: 4000 },
           },
           req
@@ -880,24 +901,29 @@ router.post('/stream', async (req, res) => {
             ? parseDocumentResponse(docGenResult.content)
             : { title: 'Neues Dokument', subtype: 'blank', content: '' };
 
+        const docSubtype = opts.subtypeOverride || generated.subtype;
         const newDoc = await createDocumentWithContent(
           generated.title,
           generated.content,
-          generated.subtype,
+          docSubtype,
           userId
         );
 
         const newDocId = newDoc.id;
         const docTitle = generated.title;
 
-        const responseText =
-          `Dokument **"${docTitle}"** wurde erstellt!\n\n` +
-          `**Typ:** ${generated.subtype}\n\n` +
-          `[Dokument öffnen](/document/${newDocId})`;
+        const responseText = `Dokument **"${docTitle}"** wurde erstellt.`;
 
         for (let i = 0; i < responseText.length; i += 20) {
           sse.send('text_delta', { text: responseText.slice(i, i + 20) });
         }
+
+        sse.send('document_created', {
+          documentId: newDocId,
+          title: docTitle,
+          subtype: docSubtype,
+          url: `/docs/${newDocId}`,
+        });
 
         const totalTimeMs = Date.now() - classifiedState.startTime;
         sse.sendRaw('done', {
@@ -905,7 +931,7 @@ router.post('/stream', async (req, res) => {
           citations: [],
           documentId: newDocId,
           metadata: {
-            intent: 'direct',
+            intent: opts.intent,
             searchCount: 0,
             totalTimeMs,
             classificationTimeMs: classifiedState.classificationTimeMs,
@@ -918,14 +944,42 @@ router.post('/stream', async (req, res) => {
           await touchThread(actualThreadId);
         }
 
-        log.info(`[ChatGraph] Document created: "${docTitle}" (${newDocId})`);
+        log.info(`[ChatGraph] Document created (${opts.intent}): "${docTitle}" (${newDocId})`);
         sse.end();
-        return;
+        return true;
       } catch (docErr) {
         log.error(
-          `[ChatGraph] Document creation failed: ${docErr instanceof Error ? docErr.message : String(docErr)}`
+          `[ChatGraph] Document creation failed (${opts.intent}): ${docErr instanceof Error ? docErr.message : String(docErr)}`
         );
+        return false;
       }
+    }
+
+    // === Handle @dokument-erstellen tool ===
+    if (forcedTools?.includes('dokument-erstellen')) {
+      const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+      const created = await generateAndCreateDocument({
+        userContent: lastUserText,
+        intent: 'direct',
+      });
+      if (created) return;
+    }
+
+    // === Handle save_as_doc intent ===
+    if (classifiedState.intent === 'save_as_doc') {
+      const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+      const conversationContext = validMessages
+        .slice(-6)
+        .map((m) => `${m.role}: ${extractTextContent(m.content)}`)
+        .join('\n');
+
+      const created = await generateAndCreateDocument({
+        userContent: lastUserText,
+        subtypeOverride: classifiedState.documentSubtype,
+        conversationContext,
+        intent: 'save_as_doc',
+      });
+      if (created) return;
     }
 
     // === Stage 2: Search or Image Generation ===
@@ -1115,16 +1169,16 @@ router.post('/stream', async (req, res) => {
 
     // === Stage 4b: Emit confirm_action for intents that need user approval ===
     if (actualThreadId) {
-      const pendingAction = buildPendingAction(
-        finalState.intent,
-        actualThreadId,
+      const pendingAction = buildPendingAction({
+        intent: finalState.intent,
+        threadId: actualThreadId,
         userId,
         fullText,
-        classifiedState.searchQuery,
-        rawDocMentionIds,
-        rawBoardIds,
-        classifiedState.documentSubtype || null
-      );
+        searchQuery: classifiedState.searchQuery,
+        docMentionIds: rawDocMentionIds,
+        boardIds: rawBoardIds,
+        documentSubtype: classifiedState.documentSubtype || null,
+      });
 
       if (pendingAction) {
         const ssePayload = CONFIRM_ACTION_CONFIG[pendingAction.type];

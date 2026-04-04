@@ -93,23 +93,13 @@ export const ConfirmActionCard = memo(function ConfirmActionCard({
     );
   }
 
-  if (status === 'rejected') {
+  if (status === 'rejected' || status === 'expired') {
+    const label = status === 'rejected' ? 'Abgebrochen' : 'Aktion abgelaufen';
     return (
       <div className="my-2 text-sm">
         <div className="inline-flex items-center gap-1.5 rounded-full bg-grey-100 dark:bg-grey-800 px-2.5 py-1">
           <X className="h-3.5 w-3.5 text-foreground-muted" />
-          <span className="text-foreground-muted">Abgebrochen</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (status === 'expired') {
-    return (
-      <div className="my-2 text-sm">
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-grey-100 dark:bg-grey-800 px-2.5 py-1">
-          <X className="h-3.5 w-3.5 text-foreground-muted" />
-          <span className="text-foreground-muted">Aktion abgelaufen</span>
+          <span className="text-foreground-muted">{label}</span>
         </div>
       </div>
     );

@@ -16,6 +16,7 @@ import { SearchResultsSection, type AdditionalSource } from '../message-parts/Se
 import { CitationProvider, useFetchFullText } from '../../context/CitationContext';
 import { resolveCitations } from '../../lib/citationUtils';
 import { ConfirmActionCard } from '../tool-ui/ConfirmActionCard';
+import { DocumentCreatedCard } from '../tool-ui/DocumentCreatedCard';
 import type { ChatMessageMetadata } from '../../types/messageMetadata';
 
 function AssistantMessageTextPart() {
@@ -144,6 +145,10 @@ export const AssistantMessage = memo(function AssistantMessage() {
 
         {!isStreaming && custom?.confirmAction && (
           <ConfirmActionCard action={custom.confirmAction} />
+        )}
+
+        {!isStreaming && custom?.createdDocument && (
+          <DocumentCreatedCard document={custom.createdDocument} />
         )}
 
         {showSearchResults && (
