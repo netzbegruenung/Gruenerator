@@ -36,6 +36,7 @@ export type SSEEventType =
   | 'document_created'
   | 'confirm_action'
   | 'chart_data'
+  | 'completion'
   | 'done'
   | 'error';
 
@@ -126,6 +127,14 @@ export interface SSEEventPayloads {
   };
   chart_data: {
     chart: ChartData;
+  };
+  completion: {
+    answer: string;
+    citations: unknown[];
+    sources: unknown[];
+    allSources: unknown[];
+    sourcesByCollection?: Record<string, unknown>;
+    metadata?: Record<string, unknown>;
   };
   done: {
     threadId?: string | null;
@@ -223,7 +232,7 @@ export class SSEWriter {
    * Send a typed SSE event.
    */
   send<T extends SSEEventType>(event: T, data: SSEEventPayloads[T]): void {
-    if (this.ended) return;
+    if (this.ended || this.res.writableEnded || this.res.destroyed) return;
     this.res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
     (this.res as unknown as { flush?: () => void }).flush?.();
   }
@@ -232,7 +241,7 @@ export class SSEWriter {
    * Send a raw SSE event (for backwards compatibility).
    */
   sendRaw(event: string, data: unknown): void {
-    if (this.ended) return;
+    if (this.ended || this.res.writableEnded || this.res.destroyed) return;
     this.res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
     (this.res as unknown as { flush?: () => void }).flush?.();
   }
