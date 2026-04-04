@@ -7,7 +7,7 @@
 /**
  * Type of field filter (how the field should be queried)
  */
-export type FilterFieldType = 'keyword' | 'text' | 'numeric' | 'boolean';
+export type FilterFieldType = 'keyword' | 'text' | 'numeric' | 'boolean' | 'date_range';
 
 /**
  * Configuration for a filterable field within a collection
@@ -17,6 +17,8 @@ export interface FilterFieldConfig {
   label: string;
   /** How this field should be filtered */
   type: FilterFieldType;
+  /** Optional mapping of field values to human-readable display names */
+  valueLabels?: Record<string, string>;
   /** Optional description for documentation */
   description?: string;
 }
@@ -66,4 +68,8 @@ export type CollectionKey =
   | 'schleswig-holstein'
   | 'thueringen'
   | 'bayern'
-  | 'berlin';
+  | 'berlin'
+  | 'mecklenburg-vorpommern'
+  | 'brandenburg'
+  | 'satzungen'
+  | 'gruenblog';

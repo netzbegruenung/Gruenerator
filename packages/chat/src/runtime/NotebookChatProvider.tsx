@@ -34,8 +34,6 @@ export interface NotebookChatProviderProps {
   endpoint?: string;
   documentIds?: string[];
   threadId?: string | null;
-  provider?: string;
-  model?: string;
 }
 
 /**
@@ -61,8 +59,6 @@ function NotebookChatProviderInner({
   endpoint,
   documentIds,
   threadId: initialThreadId,
-  provider,
-  model,
 }: NotebookChatProviderProps) {
   const isMulti = collections.length > 1;
   // Use a ref for threadId so adapter is not recreated when it changes mid-conversation
@@ -89,21 +85,8 @@ function NotebookChatProviderInner({
       endpoint,
       documentIds,
       threadId: threadIdRef.current,
-      provider,
-      model,
     }),
-    [
-      collections,
-      isMulti,
-      filters,
-      locale,
-      extraParams,
-      mode,
-      endpoint,
-      documentIds,
-      provider,
-      model,
-    ]
+    [collections, isMulti, filters, locale, extraParams, mode, endpoint, documentIds]
   );
 
   const onCompleteRef = useRef(onComplete);

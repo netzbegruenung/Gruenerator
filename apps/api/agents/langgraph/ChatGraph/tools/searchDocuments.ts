@@ -12,8 +12,8 @@ import { z } from 'zod';
 import { executeDirectSearch } from '../../../../routes/chat/agents/directSearch.js';
 import { getQdrantDocumentService } from '../../../../services/document-services/DocumentSearchService/index.js';
 import { applyMMR } from '../../../../services/search/DiversityReranker.js';
+import { regoloRerankService } from '../../../../services/search/RegoloRerankService.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 import {
   getDefaultCollectionsForLocale,
   getSupplementaryCollectionsForLocale,
@@ -23,18 +23,6 @@ import type { ToolDependencies } from './registry.js';
 
 const log = createLogger('Tool:SearchDocuments');
 
-const RERANK_PROMPT = `Du bewertest die Relevanz von Suchergebnissen für eine Benutzeranfrage.
-
-Für jedes Ergebnis vergib einen Relevanz-Score von 1-5:
-5 = Direkt relevant, beantwortet die Frage
-4 = Sehr relevant, enthält wichtige Informationen
-3 = Teilweise relevant, enthält Hintergrundinformationen
-2 = Wenig relevant, nur am Rande verwandt
-1 = Nicht relevant
-
-Antworte NUR mit JSON:
-{ "scores": [{"index": 0, "score": 5}, {"index": 1, "score": 3}, ...] }`;
-
 interface ScoredResult {
   source: string;
   title: string;
@@ -43,52 +31,26 @@ interface ScoredResult {
   relevance: number;
 }
 
-async function rerankResults(
-  results: ScoredResult[],
-  query: string,
-  aiWorkerPool: any
-): Promise<ScoredResult[]> {
+async function rerankResults(results: ScoredResult[], query: string): Promise<ScoredResult[]> {
   if (results.length <= 3) return results;
 
   const candidates = results.slice(0, 12);
-  const passageList = candidates
-    .map((r, i) => `[${i}] ${r.title}\n${r.content.slice(0, 300)}`)
-    .join('\n\n');
 
   try {
-    const response = await aiWorkerPool.processRequest(
-      {
-        type: 'chat_rerank',
-        provider: INTERMEDIATE_MODEL.provider,
-        systemPrompt: RERANK_PROMPT,
-        messages: [
-          { role: 'user', content: `Suchanfrage: "${query}"\n\nErgebnisse:\n${passageList}` },
-        ],
-        options: {
-          model: INTERMEDIATE_MODEL.model,
-          max_tokens: 200,
-          temperature: 0.0,
-          top_p: 1.0,
-          response_format: { type: 'json_object' },
-        },
-      },
-      null
-    );
+    const documents = candidates.map((r) => `${r.title}\n${r.content.slice(0, 300)}`);
+    const rerankResults = await regoloRerankService.rerank({
+      query,
+      documents,
+      topN: 12,
+    });
 
-    const rawContent = (response.content || '{}').trim();
-    const cleanedContent = rawContent
-      .replace(/^```(?:json)?\s*/i, '')
-      .replace(/\s*```\s*$/i, '')
-      .trim();
-    const parsed = JSON.parse(cleanedContent);
-    if (parsed.scores && Array.isArray(parsed.scores)) {
-      for (const entry of parsed.scores) {
-        const idx = Number(entry.index);
-        const score = Number(entry.score);
-        if (idx >= 0 && idx < candidates.length && score >= 1 && score <= 5) {
-          candidates[idx].relevance = score / 5;
-        }
-      }
+    const scoreMap = new Map<number, number>();
+    for (const r of rerankResults) {
+      scoreMap.set(r.originalIndex, r.relevanceScore);
+    }
+
+    for (let i = 0; i < candidates.length; i++) {
+      candidates[i].relevance = scoreMap.get(i) ?? candidates[i].relevance;
     }
   } catch (err: any) {
     log.warn(`[SearchDocuments] Rerank failed, keeping original order: ${err.message}`);
@@ -155,7 +117,7 @@ export function createSearchDocumentsTool(deps: ToolDependencies): DynamicStruct
             relevance: r.score ?? 0.5,
           }));
 
-          const reranked = await rerankResults(results, query, deps.aiWorkerPool);
+          const reranked = await rerankResults(results, query);
 
           if (reranked.length === 0) {
             return 'Keine relevanten Inhalte in den referenzierten Dokumenten gefunden.';
@@ -225,7 +187,7 @@ export function createSearchDocumentsTool(deps: ToolDependencies): DynamicStruct
       allResults.sort((a, b) => b.relevance - a.relevance);
 
       // Integrated reranking
-      const reranked = await rerankResults(allResults, query, deps.aiWorkerPool);
+      const reranked = await rerankResults(allResults, query);
 
       if (reranked.length === 0) {
         return 'Keine relevanten Dokumente gefunden.';

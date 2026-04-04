@@ -43,6 +43,7 @@ export const COLLECTIONS: CollectionConfigMap = {
     filterableFields: {
       primary_category: { label: 'Bereich', type: 'keyword' },
       country: { label: 'Land', type: 'keyword' },
+      published_at: { label: 'Datum', type: 'date_range' },
     },
     defaultSearchMode: 'hybrid',
     supportsPersonDetection: true,
@@ -57,6 +58,7 @@ export const COLLECTIONS: CollectionConfigMap = {
     filterableFields: {
       primary_category: { label: 'Bereich', type: 'keyword' },
       country: { label: 'Land', type: 'keyword' },
+      published_at: { label: 'Datum', type: 'date_range' },
     },
     defaultSearchMode: 'hybrid',
     country: 'DE',
@@ -70,6 +72,7 @@ export const COLLECTIONS: CollectionConfigMap = {
     filterableFields: {
       primary_category: { label: 'Bereich', type: 'keyword' },
       country: { label: 'Land', type: 'keyword' },
+      published_at: { label: 'Datum', type: 'date_range' },
     },
     defaultSearchMode: 'hybrid',
     country: 'AT',
@@ -84,6 +87,7 @@ export const COLLECTIONS: CollectionConfigMap = {
       content_type: { label: 'Artikeltyp', type: 'keyword' },
       primary_category: { label: 'Kategorie', type: 'keyword' },
       subcategories: { label: 'Unterkategorien', type: 'keyword' },
+      published_at: { label: 'Datum', type: 'date_range' },
     },
     defaultSearchMode: 'hybrid',
     includeInDefaultSearch: true,
@@ -98,6 +102,7 @@ export const COLLECTIONS: CollectionConfigMap = {
       primary_category: { label: 'Thema', type: 'keyword' },
       subcategories: { label: 'Unterkategorien', type: 'keyword' },
       region: { label: 'Region', type: 'keyword' },
+      published_at: { label: 'Datum', type: 'date_range' },
     },
     defaultSearchMode: 'hybrid',
     includeInDefaultSearch: true,
@@ -123,6 +128,8 @@ export const COLLECTIONS: CollectionConfigMap = {
     filterableFields: {
       content_type: { label: 'Typ', type: 'keyword' },
       primary_category: { label: 'Kategorie', type: 'keyword' },
+      subcategories: { label: 'Unterkategorien', type: 'keyword' },
+      published_at: { label: 'Datum', type: 'date_range' },
     },
     defaultSearchMode: 'hybrid',
     defaultFilter: { field: 'landesverband', value: 'HH' },
@@ -135,7 +142,10 @@ export const COLLECTIONS: CollectionConfigMap = {
     displayName: 'Grüne Schleswig-Holstein',
     description: 'Wahlprogramm der Grünen Schleswig-Holstein zur Landtagswahl',
     filterableFields: {
+      content_type: { label: 'Typ', type: 'keyword' },
       primary_category: { label: 'Programm', type: 'keyword' },
+      subcategories: { label: 'Unterkategorien', type: 'keyword' },
+      published_at: { label: 'Datum', type: 'date_range' },
     },
     defaultSearchMode: 'hybrid',
     defaultFilter: { field: 'landesverband', value: 'SH' },
@@ -150,6 +160,8 @@ export const COLLECTIONS: CollectionConfigMap = {
     filterableFields: {
       content_type: { label: 'Typ', type: 'keyword' },
       primary_category: { label: 'Kategorie', type: 'keyword' },
+      subcategories: { label: 'Unterkategorien', type: 'keyword' },
+      published_at: { label: 'Datum', type: 'date_range' },
     },
     defaultSearchMode: 'hybrid',
     defaultFilter: { field: 'landesverband', value: ['TH', 'TH-F'] },
@@ -162,7 +174,10 @@ export const COLLECTIONS: CollectionConfigMap = {
     displayName: 'Grüne Bayern',
     description: 'Regierungsprogramm der Grünen Bayern zur Landtagswahl',
     filterableFields: {
+      content_type: { label: 'Typ', type: 'keyword' },
       primary_category: { label: 'Programm', type: 'keyword' },
+      subcategories: { label: 'Unterkategorien', type: 'keyword' },
+      published_at: { label: 'Datum', type: 'date_range' },
     },
     defaultSearchMode: 'hybrid',
     defaultFilter: { field: 'landesverband', value: 'BY' },
@@ -173,15 +188,83 @@ export const COLLECTIONS: CollectionConfigMap = {
   berlin: {
     name: 'landesverbaende_documents',
     displayName: 'Grüne Berlin',
-    description: 'Pressemitteilungen und Beschlüsse der Grünen Berlin',
+    description: 'Pressemitteilungen und Beschlüsse der Grünen Berlin (Landesverband & Fraktion)',
+    filterableFields: {
+      source_id: {
+        label: 'Quelle',
+        type: 'keyword',
+        valueLabels: {
+          'berlin-lv-presse': 'LV Presse',
+          'berlin-lv-beschluesse': 'LV Beschlüsse',
+          'berlin-lv-wahlprogramm': 'LV Wahlprogramm',
+          'berlin-fraktion-presse': 'Fraktion Presse',
+          'berlin-fraktion-beschluesse': 'Fraktion Beschlüsse',
+        },
+      },
+      published_at: { label: 'Datum', type: 'date_range' },
+    },
+    defaultSearchMode: 'hybrid',
+    defaultFilter: { field: 'landesverband', value: ['BE', 'BE-F'] },
+    country: 'DE',
+    includeInDefaultSearch: false,
+  },
+
+  'mecklenburg-vorpommern': {
+    name: 'landesverbaende_documents',
+    displayName: 'Grüne Mecklenburg-Vorpommern',
+    description: 'Pressemitteilungen und Parteitagsbeschlüsse der Grünen Mecklenburg-Vorpommern',
     filterableFields: {
       content_type: { label: 'Typ', type: 'keyword' },
       primary_category: { label: 'Kategorie', type: 'keyword' },
+      subcategories: { label: 'Unterkategorien', type: 'keyword' },
+      published_at: { label: 'Datum', type: 'date_range' },
     },
     defaultSearchMode: 'hybrid',
-    defaultFilter: { field: 'landesverband', value: 'BE' },
+    defaultFilter: { field: 'landesverband', value: 'MV' },
     country: 'DE',
     includeInDefaultSearch: false,
+  },
+
+  brandenburg: {
+    name: 'landesverbaende_documents',
+    displayName: 'Grüne Brandenburg',
+    description:
+      'Pressemitteilungen, Beschlüsse und Landtagswahlprogramm 2024 der Grünen Brandenburg',
+    filterableFields: {
+      content_type: { label: 'Typ', type: 'keyword' },
+      primary_category: { label: 'Kategorie', type: 'keyword' },
+      subcategories: { label: 'Unterkategorien', type: 'keyword' },
+      published_at: { label: 'Datum', type: 'date_range' },
+    },
+    defaultSearchMode: 'hybrid',
+    defaultFilter: { field: 'landesverband', value: 'BB' },
+    country: 'DE',
+    includeInDefaultSearch: false,
+  },
+
+  satzungen: {
+    name: 'satzungen_documents',
+    displayName: 'Satzungen',
+    description: 'Satzungen der Kreisverbände und Ortsverbände',
+    filterableFields: {
+      landesverband: { label: 'Landesverband', type: 'keyword' },
+      gremium: { label: 'Gremium', type: 'keyword' },
+    },
+    defaultSearchMode: 'hybrid',
+    includeInDefaultSearch: false,
+  },
+
+  gruenblog: {
+    name: 'gruenblog_documents',
+    displayName: 'Grünblog',
+    description: 'Onlinemagazin der Grünen – Artikel zu Wissen, Meinen, Machen',
+    filterableFields: {
+      primary_category: { label: 'Kategorie', type: 'keyword' },
+      published_at: { label: 'Datum', type: 'date_range' },
+    },
+    defaultSearchMode: 'hybrid',
+    country: 'DE',
+    includeInDefaultSearch: true,
   },
 };
 

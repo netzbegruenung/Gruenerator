@@ -203,7 +203,10 @@ WICHTIG: Rufe ZUERST gruenerator_get_filters auf, um gültige Filterwerte zu erf
 | boell-stiftung | region (z.B. europa, asien, nahost) |
 | bundestagsfraktion, gruene-de, gruene-at | country (DE oder AT) |
 | examples | platform (instagram, facebook), country (DE oder AT) |
-| Landesverbände | content_type (Typ), primary_category (Kategorie) |
+| Landesverbände | content_type (Typ), primary_category, subcategories |
+| berlin | source_id (Quelle: LV/Fraktion Presse/Beschlüsse) |
+| satzungen | landesverband, gremium |
+| viele Sammlungen | date_from / date_to (Datumsbereich, ISO-Format) |
 
 ## Beispiele
 
@@ -217,7 +220,13 @@ Suche in einem Landesverband:
 { "query": "Klimaschutz", "country": "DE", "collection": "hamburg" }
 
 Suche mit Filter (NACH Aufruf von gruenerator_get_filters):
-{ "query": "Klimaschutz", "country": "DE", "collection": "kommunalwiki", "filters": { "content_type": "praxishilfe" } }`;
+{ "query": "Klimaschutz", "country": "DE", "collection": "kommunalwiki", "filters": { "content_type": "praxishilfe" } }
+
+Suche mit Datumsfilter:
+{ "query": "Energiewende", "country": "DE", "collection": "gruene-de", "filters": { "date_from": "2025-01-01" } }
+
+Suche in Berlin nach Quelle:
+{ "query": "Verkehrswende", "country": "DE", "collection": "berlin", "filters": { "source_id": "berlin-lv-presse" } }`;
 }
 
 export const searchTool = {
@@ -248,13 +257,13 @@ export const searchTool = {
           .string()
           .optional()
           .describe(
-            'Inhaltstyp (für kommunalwiki, boell-stiftung) - erst gruenerator_get_filters aufrufen!'
+            'Inhaltstyp (für kommunalwiki, boell-stiftung, Landesverbände) - erst gruenerator_get_filters aufrufen!'
           ),
         subcategories: z
           .string()
           .optional()
           .describe(
-            'Unterkategorie (für kommunalwiki, boell-stiftung) - erst gruenerator_get_filters aufrufen!'
+            'Unterkategorie (für kommunalwiki, boell-stiftung, Landesverbände) - erst gruenerator_get_filters aufrufen!'
           ),
         region: z
           .string()
@@ -273,6 +282,32 @@ export const searchTool = {
           .optional()
           .describe(
             'Plattform (instagram oder facebook, nur für examples) - erst gruenerator_get_filters aufrufen!'
+          ),
+        source_id: z
+          .string()
+          .optional()
+          .describe(
+            'Quellen-ID (nur berlin: berlin-lv-presse, berlin-fraktion-presse, etc.) - erst gruenerator_get_filters aufrufen!'
+          ),
+        landesverband: z
+          .string()
+          .optional()
+          .describe('Landesverband (nur satzungen) - erst gruenerator_get_filters aufrufen!'),
+        gremium: z
+          .string()
+          .optional()
+          .describe('Gremium (nur satzungen) - erst gruenerator_get_filters aufrufen!'),
+        date_from: z
+          .string()
+          .optional()
+          .describe(
+            'Startdatum (ISO-Format, z.B. "2024-01-01") - für Sammlungen mit published_at Filter'
+          ),
+        date_to: z
+          .string()
+          .optional()
+          .describe(
+            'Enddatum (ISO-Format, z.B. "2025-12-31") - für Sammlungen mit published_at Filter'
           ),
       })
       .optional()

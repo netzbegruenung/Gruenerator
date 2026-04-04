@@ -13,7 +13,6 @@ import {
   type ChatMessageMetadata,
   type ExtraAction,
   type NotebookMessageMetadata,
-  MODEL_OPTIONS,
 } from '@gruenerator/chat';
 import { PanelLeft } from 'lucide-react';
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -130,15 +129,6 @@ const NotebookPageContent = ({
   const filterValuesCache = useNotebookStore((s) => s.filterValuesCache);
   const activeFiltersStore = useNotebookStore((s) => s.activeFilters);
   const [mode, setMode] = useState<'fast' | 'deep'>('fast');
-  const [selectedModelId, setSelectedModelId] = useState('mistral');
-  const selectedModelOption =
-    MODEL_OPTIONS.find((m) => m.id === selectedModelId) || MODEL_OPTIONS[0];
-  const handleModelChange = useCallback((modelId: string) => {
-    setSelectedModelId(modelId);
-    if (modelId === 'litellm') {
-      setMode('fast');
-    }
-  }, []);
   const [searchParams, setSearchParams] = useSearchParams();
   const [threadId, setThreadId] = useState<string | null>(
     threadIdProp || searchParams.get('thread')
@@ -300,8 +290,6 @@ const NotebookPageContent = ({
       onThreadCreated={handleThreadCreated}
       threadId={threadId}
       mode={mode}
-      provider={selectedModelOption.provider}
-      model={selectedModelOption.id}
       documentIds={documentIds}
     >
       <CitationPanelProvider>
@@ -331,8 +319,6 @@ const NotebookPageContent = ({
                 categoryFilters={categoryFilters}
                 mode={mode}
                 onModeChange={setMode}
-                selectedModel={selectedModelId}
-                onModelChange={handleModelChange}
               />
             </ThreadPrimitive.Root>
           </div>
