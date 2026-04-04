@@ -33,7 +33,7 @@ export function createEditImageTool(deps: ToolDependencies): DynamicStructuredTo
         .describe('Beschreibung der gewünschten Bearbeitung (z.B. "mehr Bäume und Radwege")'),
     }),
     func: async ({ instruction }) => {
-      const userId = (deps.agentConfig as any).userId;
+      const userId = deps.agentConfig.userId;
 
       if (!userId) {
         return 'Fehler: Benutzerauthentifizierung für Bildbearbeitung erforderlich.';

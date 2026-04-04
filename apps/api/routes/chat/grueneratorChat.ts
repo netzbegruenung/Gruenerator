@@ -7,6 +7,14 @@ import crypto from 'crypto';
 
 import express from 'express';
 
+/** Express Response with captured content from setupResponseCapture() */
+interface CapturedResponse extends express.Response {
+  _responseContent?: {
+    results?: Array<{ agent: string }>;
+    content?: string | { text?: string };
+  };
+}
+
 import {
   isWebSearchConfirmation,
   extractRequestedInformation,
@@ -89,7 +97,7 @@ router.post(
 
       const conversation = await chatMemory.getConversation(userId);
       const trimmedHistory = trimMessagesToTokenLimit(
-        conversation.messages as any,
+        conversation.messages as Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
         CONFIG.TOKEN_LIMIT
       );
 
@@ -187,7 +195,7 @@ router.post(
         const result = await processConversationRequest({
           message,
           userId,
-          locale: user?.locale as any,
+          locale: user?.locale,
           subIntent: intentResult.subIntent,
           messageHistory: trimmedHistory,
           aiWorkerPool: req.app.locals.aiWorkerPool,
@@ -221,7 +229,7 @@ router.post(
         await processMultiIntentRequest(intentResult.intents, req, res, baseContext);
 
         // Store response in memory
-        const responseContent = (res as any)._responseContent;
+        const responseContent = (res as CapturedResponse)._responseContent;
         if (responseContent && responseContent.results) {
           const agentList = responseContent.results.map((r: any) => r.agent).join(', ');
           await chatMemory.addMessage(
@@ -241,7 +249,7 @@ router.post(
         await processSingleIntentRequest(intent, req, res, baseContext);
 
         // Store response in memory (skip sharepic and imagine)
-        const responseContent = (res as any)._responseContent;
+        const responseContent = (res as CapturedResponse)._responseContent;
         if (
           responseContent &&
           responseContent.content &&

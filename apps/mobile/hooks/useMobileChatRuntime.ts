@@ -15,16 +15,14 @@ interface MobileChatRuntimeOptions {
 }
 
 export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
-  const { selectedAgentId, selectedModel, enabledTools, useDeepAgent, selectedNotebookId } =
-    useAgentStore(
-      useShallow((s) => ({
-        selectedAgentId: s.selectedAgentId,
-        selectedModel: s.selectedModel,
-        enabledTools: s.enabledTools,
-        useDeepAgent: s.useDeepAgent,
-        selectedNotebookId: s.selectedNotebookId,
-      }))
-    );
+  const { selectedAgentId, selectedModel, enabledTools, selectedNotebookId } = useAgentStore(
+    useShallow((s) => ({
+      selectedAgentId: s.selectedAgentId,
+      selectedModel: s.selectedModel,
+      enabledTools: s.enabledTools,
+      selectedNotebookId: s.selectedNotebookId,
+    }))
+  );
   const incrementMessageCount = useAgentStore((s) => s.incrementMessageCount);
   const needsCompaction = useAgentStore((s) => s.needsCompaction);
   const compactionState = useAgentStore((s) => s.compactionState);
@@ -36,10 +34,9 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       modelId: selectedModel,
       enabledTools,
       threadId: useAgentStore.getState().currentThreadId,
-      useDeepAgent,
       selectedNotebookId,
     }),
-    [selectedAgentId, selectedModel, enabledTools, useDeepAgent, selectedNotebookId]
+    [selectedAgentId, selectedModel, enabledTools, selectedNotebookId]
   );
 
   const onThreadCreated = useCallback((newThreadId: string) => {

@@ -11,9 +11,20 @@ export type AllowedMimeType =
   | 'image/png'
   | 'image/webp'
   | 'text/plain'
+  | 'text/markdown'
+  | 'text/csv'
+  | 'text/html'
+  | 'text/xml'
+  | 'text/javascript'
+  | 'text/x-python'
+  | 'application/json'
+  | 'application/xml'
   | 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   | 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-  | 'application/vnd.oasis.opendocument.text';
+  | 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  | 'application/vnd.ms-excel'
+  | 'application/vnd.oasis.opendocument.text'
+  | 'application/vnd.oasis.opendocument.spreadsheet';
 
 export interface ProcessedFile {
   name: string;
@@ -42,10 +53,21 @@ const ALLOWED_FILE_TYPES: Record<AllowedMimeType, string> = {
   'image/jpeg': 'JPEG Image',
   'image/png': 'PNG Image',
   'image/webp': 'WebP Image',
-  'text/plain': 'Text File',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word Document',
+  'text/plain': 'Text',
+  'text/markdown': 'Markdown',
+  'text/csv': 'CSV',
+  'text/html': 'HTML',
+  'text/xml': 'XML',
+  'text/javascript': 'JavaScript',
+  'text/x-python': 'Python',
+  'application/json': 'JSON',
+  'application/xml': 'XML',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PowerPoint',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'Excel',
+  'application/vnd.ms-excel': 'Excel',
   'application/vnd.oasis.opendocument.text': 'OpenDocument',
+  'application/vnd.oasis.opendocument.spreadsheet': 'ODS Spreadsheet',
 };
 
 const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -63,7 +85,7 @@ export function validateFile(file: File): void {
     throw new Error('Keine Datei ausgewählt');
   }
 
-  if (!ALLOWED_FILE_TYPES[file.type as AllowedMimeType]) {
+  if (!isSupportedFileType(file.type, file.name)) {
     const allowedTypes = Object.values(ALLOWED_FILE_TYPES).join(', ');
     throw new Error(
       `Dateityp nicht unterstützt: ${file.type || 'unbekannt'}. Erlaubt: ${allowedTypes}`
@@ -130,12 +152,56 @@ export function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-export function getFileTypeDisplayName(mimeType: string): string {
-  return ALLOWED_FILE_TYPES[mimeType as AllowedMimeType] || mimeType;
+export function getFileTypeDisplayName(mimeType: string, filename?: string): string {
+  if (ALLOWED_FILE_TYPES[mimeType as AllowedMimeType]) {
+    return ALLOWED_FILE_TYPES[mimeType as AllowedMimeType];
+  }
+  if (filename) {
+    const ext = filename.split('.').pop()?.toUpperCase();
+    if (ext) return ext;
+  }
+  return mimeType;
 }
 
-export function isSupportedFileType(mimeType: string): boolean {
-  return !!ALLOWED_FILE_TYPES[mimeType as AllowedMimeType];
+/**
+ * File extensions accepted regardless of MIME type.
+ * Browsers misidentify some code files (e.g. .ts → video/mp2t).
+ */
+const TEXT_EXTENSION_OVERRIDES = new Set([
+  '.ts',
+  '.tsx',
+  '.jsx',
+  '.mjs',
+  '.cjs',
+  '.sh',
+  '.sql',
+  '.toml',
+  '.env',
+  '.log',
+  '.yml',
+  '.yaml',
+  '.md',
+  '.mdx',
+  '.css',
+  '.less',
+  '.scss',
+  '.rs',
+  '.go',
+  '.java',
+  '.rb',
+  '.php',
+  '.c',
+  '.cpp',
+  '.h',
+]);
+
+export function isSupportedFileType(mimeType: string, filename?: string): boolean {
+  if (ALLOWED_FILE_TYPES[mimeType as AllowedMimeType]) return true;
+  if (filename) {
+    const ext = filename.includes('.') ? `.${filename.split('.').pop()?.toLowerCase()}` : '';
+    if (TEXT_EXTENSION_OVERRIDES.has(ext)) return true;
+  }
+  return false;
 }
 
 export async function prepareFilesForSubmission(files: File[]): Promise<ProcessedFile[]> {
@@ -153,7 +219,7 @@ export async function prepareFilesForSubmission(files: File[]): Promise<Processe
       data: base64Data,
       isImage: isImageMimeType(file.type),
       displayName: file.name,
-      displayType: ALLOWED_FILE_TYPES[file.type as AllowedMimeType] || file.type,
+      displayType: getFileTypeDisplayName(file.type, file.name),
       displaySize: formatFileSize(file.size),
     });
   }
@@ -187,7 +253,9 @@ export function createFilesSummary(processedFiles: ProcessedFile[]): FileSummary
 }
 
 export function getAcceptedFileTypes(): string {
-  return Object.keys(ALLOWED_FILE_TYPES).join(',');
+  const mimeTypes = Object.keys(ALLOWED_FILE_TYPES);
+  const extensions = [...TEXT_EXTENSION_OVERRIDES];
+  return [...mimeTypes, ...extensions].join(',');
 }
 
 export const FILE_LIMITS = {

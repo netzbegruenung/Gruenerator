@@ -1,6 +1,7 @@
 import { Router, type Response } from 'express';
 
 import { generateKeywordInsights } from '../../services/monitor/KeywordInsightsGraph.js';
+import { getMeinungsbild } from '../../services/monitor/MeinungsbildService.js';
 import { generateMonitorBriefing } from '../../services/monitor/MonitorBriefingGraph.js';
 import {
   getLatestSnapshot,
@@ -12,11 +13,8 @@ import {
   refreshMonitor,
 } from '../../services/monitor/MonitorService.js';
 import { getEntitySummary } from '../../services/monitor/MonitorSummaryService.js';
+import { getPolitProPolls, POLITPRO_PARLIAMENTS } from '../../services/monitor/PolitProService.js';
 import { getPolls } from '../../services/monitor/PollScraper.js';
-import {
-  getPolitProPolls,
-  POLITPRO_PARLIAMENTS,
-} from '../../services/monitor/PolitProService.js';
 import { getStimmungSummary } from '../../services/monitor/StimmungSummaryService.js';
 import { TOPIC_CATEGORIES } from '../../services/monitor/types.js';
 import {
@@ -194,6 +192,21 @@ router.get('/polls', async (req: AuthRequest, res: Response): Promise<void> => {
 
 router.get('/polls/parliaments', (_req: AuthRequest, res: Response): void => {
   res.json(POLITPRO_PARLIAMENTS);
+});
+
+router.get('/meinungsbild', async (_req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const data = await getMeinungsbild();
+    if (!data) {
+      res.status(503).json({ error: 'Meinungsbild data unavailable' });
+      return;
+    }
+    res.set('Cache-Control', 'private, max-age=3600, stale-while-revalidate=7200');
+    res.json(data);
+  } catch (error) {
+    log.error(`GET /meinungsbild failed: ${toError(error).message}`);
+    res.status(500).json({ error: 'Failed to fetch meinungsbild data' });
+  }
 });
 
 router.get('/stimmung', async (req: AuthRequest, res: Response): Promise<void> => {

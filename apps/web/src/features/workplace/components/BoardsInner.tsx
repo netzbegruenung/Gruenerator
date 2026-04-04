@@ -37,7 +37,7 @@ const BoardsInner: React.FC = memo(() => {
       isLoading={generateBoard.isPending}
       placeholder={def?.placeholder ?? 'Beschreibe, was du planen möchtest...'}
       examples={def?.examples}
-      toolbar={<FeatureIcons attachedFiles={[]} noBorder />}
+      toolbar={<FeatureIcons noBorder />}
     />
   );
 });

@@ -83,6 +83,7 @@ interface LoadedMessage {
     toolCalls?: PersistedToolCall[];
     senderId?: string;
     senderName?: string | null;
+    roleName?: string;
   };
 }
 
@@ -155,6 +156,7 @@ function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMessageLik
       custom.senderId = m.metadata.senderId;
       custom.senderName = m.metadata.senderName ?? null;
     }
+    if (m.metadata?.roleName) custom.roleName = m.metadata.roleName;
     if (m.metadata?.citations) custom.citations = m.metadata.citations;
     if (m.metadata?.generatedImage) custom.generatedImage = m.metadata.generatedImage;
     if (m.metadata?.intent)
@@ -250,24 +252,22 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
 function useGrueneratorThreadRuntime() {
   const {
     selectedAgentId,
-    selectedModel,
     enabledTools,
-    useDeepAgent,
     selectedNotebookId,
     threadMode,
     searchMode,
     customSystemPrompt,
+    customRoleName,
     customEnabledTools,
   } = useAgentStore(
     useShallow((s) => ({
       selectedAgentId: s.selectedAgentId,
-      selectedModel: s.selectedModel,
       enabledTools: s.enabledTools,
-      useDeepAgent: s.useDeepAgent,
       selectedNotebookId: s.selectedNotebookId,
       threadMode: s.threadMode,
       searchMode: s.searchMode,
       customSystemPrompt: s.customSystemPrompt,
+      customRoleName: s.customRoleName,
       customEnabledTools: s.customEnabledTools,
     }))
   );
@@ -279,32 +279,27 @@ function useGrueneratorThreadRuntime() {
   const getConfig = useCallback(
     (): GrueneratorAdapterConfig => ({
       agentId: selectedAgentId,
-      modelId: selectedModel,
+      modelId: 'litellm',
       enabledTools,
       threadId: useAgentStore.getState().currentThreadId,
-      useDeepAgent,
       selectedNotebookId,
       threadMode,
       searchMode,
       customSystemPrompt,
+      customRoleName,
       customEnabledTools,
     }),
     [
       selectedAgentId,
-      selectedModel,
       enabledTools,
-      useDeepAgent,
       selectedNotebookId,
       threadMode,
       searchMode,
       customSystemPrompt,
+      customRoleName,
       customEnabledTools,
     ]
   );
-
-  const onThreadCreated = useCallback((newThreadId: string) => {
-    useAgentStore.getState().setCurrentThread(newThreadId);
-  }, []);
 
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const onUnauthorized = useChatConfigStore((s) => s.onUnauthorized);
@@ -312,6 +307,17 @@ function useGrueneratorThreadRuntime() {
     () => createChatApiClient(fetchFn, onUnauthorized),
     [fetchFn, onUnauthorized]
   );
+
+  const runtimeApiClientRef = useRef(runtimeApiClient);
+  runtimeApiClientRef.current = runtimeApiClient;
+
+  const onThreadCreated = useCallback((newThreadId: string) => {
+    useAgentStore.getState().setCurrentThread(newThreadId);
+    const state = useAgentStore.getState();
+    if (state.threadMode === 'eigener' && state.customSystemPrompt) {
+      state.saveThreadSettings(newThreadId, runtimeApiClientRef.current);
+    }
+  }, []);
 
   const needsCompactionRef = useRef(needsCompaction);
   needsCompactionRef.current = needsCompaction;

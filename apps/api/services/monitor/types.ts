@@ -116,6 +116,29 @@ export interface NounCount {
   count: number;
 }
 
+// --- Meinungsbild (GERDA MRP estimates) ---
+
+export interface MeinungsbildIssue {
+  id: string;
+  label_de: string;
+  category: string;
+  question_de: string;
+  direction: string;
+}
+
+export interface MeinungsbildEstimate {
+  state_code: string;
+  state_name: string;
+  estimate: number;
+  pop: number;
+}
+
+export interface MeinungsbildData {
+  issues: MeinungsbildIssue[];
+  estimates: Record<string, MeinungsbildEstimate[]>;
+  fetchedAt: string;
+}
+
 export interface NlpClassificationResult {
   id: string;
   topics: Partial<Record<TopicCategory, number>>;

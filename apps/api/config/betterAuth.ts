@@ -147,7 +147,7 @@ export const auth = betterAuth({
 
   trustedOrigins: [
     'gruenerator://',
-    'https://slides.gruenerator.eu',
+
     ...(process.env.NODE_ENV === 'development'
       ? ['exp://', 'http://localhost:3000', 'http://localhost:5050']
       : []),

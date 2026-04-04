@@ -22,6 +22,8 @@ import {
 } from './compactionService.js';
 import { toTokenCounterMessage, CONTEXT_CONFIG } from './messageHelpers.js';
 
+import type { ModelMessage } from 'ai';
+
 const log = createLogger('ContextPruning');
 
 // In-memory guards to prevent re-triggering compaction on every message after threshold
@@ -30,14 +32,14 @@ const lastCompactionTime = new Map<string, number>();
 const COMPACTION_COOLDOWN_MS = 60_000; // 1 minute
 
 export interface PruningResult {
-  prunedMessages: any[];
+  prunedMessages: ModelMessage[];
   systemMessage: string;
 }
 
 /**
  * Prune conversation messages to fit within token budget and apply compaction if available.
  */
-export function pruneMessages(validMessages: any[]): any[] {
+export function pruneMessages(validMessages: ModelMessage[]): ModelMessage[] {
   const messagesForTokenCount = validMessages.map(toTokenCounterMessage);
   const preStats = getTokenStats(messagesForTokenCount);
 
@@ -66,7 +68,8 @@ export function pruneMessages(validMessages: any[]): any[] {
 export async function applyCompaction(
   threadId: string,
   prunedValidMessages: any[],
-  systemMessage: string
+  systemMessage: string,
+  contextWindowTokens?: number
 ): Promise<string> {
   try {
     const messageCount = await getMessageCount(threadId);
@@ -79,7 +82,12 @@ export async function applyCompaction(
     const cooldownActive = now - (lastCompactionTime.get(threadId) ?? 0) < COMPACTION_COOLDOWN_MS;
 
     if (
-      needsCompaction(messageCount, compactionState.summary, estimatedTokens) &&
+      needsCompaction(
+        messageCount,
+        compactionState.summary,
+        estimatedTokens,
+        contextWindowTokens
+      ) &&
       !compactionInProgress.has(threadId) &&
       !cooldownActive
     ) {
@@ -88,7 +96,7 @@ export async function applyCompaction(
         `[Context] Thread ${threadId}: ${messageCount} messages, ~${estimatedTokens} tokens, triggering background compaction`
       );
       const threadMessages = await getThreadMessages(threadId);
-      generateCompactionSummary(threadId, threadMessages)
+      generateCompactionSummary(threadId, threadMessages, contextWindowTokens)
         .then(() => lastCompactionTime.set(threadId, Date.now()))
         .catch((err) => log.error('[Compaction] Background compaction failed:', err))
         .finally(() => compactionInProgress.delete(threadId));
@@ -99,7 +107,8 @@ export async function applyCompaction(
       const compacted = prepareMessagesWithCompaction(
         messagesForTokenCount,
         compactionState,
-        systemMessage
+        systemMessage,
+        contextWindowTokens
       );
       log.info(
         `[Context] Applied compaction summary (${compactionState.summary.length} chars) to system message`

@@ -134,6 +134,8 @@ export {
 } from './components/empty';
 export { SectionHeader, sectionHeaderVariants } from './components/section-header';
 export { StatusBanner, statusBannerVariants } from './components/status-banner';
+export { DismissableBanner, type DismissableBannerProps } from './components/dismissable-banner';
+export { usePersistentDismiss } from './hooks/use-persistent-dismiss';
 export {
   Card,
   CardHeader,
@@ -245,3 +247,10 @@ export {
   TableCaption,
 } from './components/table';
 export { Calendar, CalendarDayButton } from './components/calendar';
+export {
+  ApprovalCard,
+  type ApprovalCardProps,
+  type ApprovalDecision,
+  type SerializableApprovalCard,
+  type MetadataItem,
+} from './components/tool-ui/approval-card';

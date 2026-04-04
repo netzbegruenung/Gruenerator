@@ -141,7 +141,7 @@ router.post('/share-links', async (req: Request, res: Response): Promise<void> =
 
     let connectionTest: { success: boolean; message: string } | null = null;
     try {
-      const client = new NextcloudApiClient(shareLink);
+      const client = await NextcloudApiClient.create(shareLink);
       connectionTest = await client.testConnection();
     } catch (testError) {
       const testErr = testError as Error;
@@ -275,7 +275,7 @@ router.post('/test-connection', async (req: Request, res: Response): Promise<voi
       return;
     }
 
-    const client = new NextcloudApiClient(shareLink);
+    const client = await NextcloudApiClient.create(shareLink);
     const testResult = await client.testConnection();
 
     res.json(testResult);
@@ -320,7 +320,7 @@ router.get(
         return;
       }
 
-      const client = new NextcloudApiClient(shareLink.share_link);
+      const client = await NextcloudApiClient.create(shareLink.share_link);
       const items = await client.listFolder(folderPath || undefined);
 
       res.json({
@@ -382,7 +382,7 @@ router.post('/upload', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const client = new NextcloudApiClient(shareLink.share_link);
+    const client = await NextcloudApiClient.create(shareLink.share_link);
     const uploadResult = await client.uploadFile(content, filename, folderPath);
 
     res.json(uploadResult);
@@ -463,7 +463,7 @@ router.post('/upload-test', async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    const client = new NextcloudApiClient(shareLink.share_link);
+    const client = await NextcloudApiClient.create(shareLink.share_link);
     const uploadResult = await client.uploadFile(content, filename);
 
     res.json(uploadResult);
@@ -524,7 +524,7 @@ router.get(
         return;
       }
 
-      const client = new NextcloudApiClient(shareLink.share_link);
+      const client = await NextcloudApiClient.create(shareLink.share_link);
       const shareInfo = await client.getShareInfo();
 
       res.json(shareInfo);

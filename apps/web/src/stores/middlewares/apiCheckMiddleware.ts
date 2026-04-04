@@ -67,7 +67,7 @@ export const apiCheckMiddleware =
 
 /**
  * Configuration helper for API validation
- * Maps store keys to Supabase RPC feature names
+ * Maps store keys to API feature names
  */
 export const createApiValidationConfig = (featureMap: Record<string, string>) => ({
   apiValidation: featureMap,

@@ -10,6 +10,7 @@ import { createAnalyzeImageTool } from './analyzeImage.js';
 import { createDraftStructuredTool } from './draftStructured.js';
 import { createEditImageTool } from './editImage.js';
 import { createGenerateImageTool } from './generateImage.js';
+import { createLookupMeinungsbildTool } from './lookupMeinungsbild.js';
 import { createRecallMemoryTool } from './recallMemory.js';
 import { createResearchTool } from './research.js';
 import { createSaveMemoryTool } from './saveMemory.js';
@@ -59,6 +60,7 @@ const TOOL_ENTRIES: ToolEntry[] = [
   { key: 'self_review', factory: createSelfReviewTool },
   { key: 'draft_structured', factory: createDraftStructuredTool },
   { key: 'user_content', factory: createSearchUserContentTool },
+  { key: 'meinungsbild', factory: createLookupMeinungsbildTool },
 ];
 
 /**
@@ -73,7 +75,13 @@ const TOOL_ENTRIES: ToolEntry[] = [
  * - The frontend hasn't disabled it (or it's in the always-enabled set)
  */
 export function buildTools(deps: ToolDependencies): DynamicStructuredTool[] {
-  const alwaysEnabled = new Set(['scrape', 'memory', 'memory_save', 'user_content']);
+  const alwaysEnabled = new Set([
+    'scrape',
+    'memory',
+    'memory_save',
+    'user_content',
+    'meinungsbild',
+  ]);
   const agentWhitelist = deps.agentConfig.enabledTools;
   const tools: DynamicStructuredTool[] = [];
 
@@ -114,4 +122,5 @@ export const TOOL_LABELS: Record<string, string> = {
   self_review: 'Prüfe Entwurf...',
   draft_structured: 'Erstelle strukturierten Entwurf...',
   search_user_content: 'Durchsuche Nutzerdokumente...',
+  lookup_meinungsbild: 'Suche Meinungsumfragen...',
 };

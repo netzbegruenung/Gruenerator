@@ -10,6 +10,7 @@
  */
 
 import { createLogger } from '../../../../utils/logger.js';
+import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
 import type { ChatGraphState } from '../types.js';
 
@@ -25,11 +26,12 @@ Bewerte die Abdeckung auf einer Skala von 1-5:
 1 = Keine Abdeckung, Ergebnisse passen nicht zur Frage
 
 Wenn die Bewertung < 3 ist, schlage eine bessere Suchanfrage vor.
+Optional: Wenn die Anfrage mehrere Aspekte hat, nenne die schwach abgedeckten.
 
 Antworte NUR mit JSON:
 { "score": 4, "sufficient": true }
 oder
-{ "score": 2, "sufficient": false, "refinedQuery": "bessere Suchanfrage hier" }`;
+{ "score": 2, "sufficient": false, "refinedQuery": "bessere Suchanfrage hier", "weakAspects": ["Aspekt1"] }`;
 
 /**
  * Quality gate node implementation.
@@ -37,7 +39,8 @@ oder
  */
 export async function qualityGateNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
-  const { searchResults, searchQuery, searchCount, maxSearches, aiWorkerPool } = state;
+  const { searchResults, searchQuery, searchCount, maxSearches, aiWorkerPool, researchBrief } =
+    state;
 
   // Skip quality check if we've already used max searches or have few results
   if (searchCount >= maxSearches) {
@@ -64,16 +67,16 @@ export async function qualityGateNode(state: ChatGraphState): Promise<Partial<Ch
     const response = await aiWorkerPool.processRequest(
       {
         type: 'chat_quality_gate',
-        provider: 'mistral',
+        provider: INTERMEDIATE_MODEL.provider,
         systemPrompt: QUALITY_PROMPT,
         messages: [
           {
             role: 'user',
-            content: `Suchanfrage: "${searchQuery}"\n\nErgebnisse:\n${resultsSummary}`,
+            content: `Suchanfrage: "${searchQuery}"${researchBrief ? `\nRecherche-Kontext: ${researchBrief}` : ''}\n\nErgebnisse:\n${resultsSummary}`,
           },
         ],
         options: {
-          model: 'mistral-small-latest',
+          model: INTERMEDIATE_MODEL.model,
           max_tokens: 80,
           temperature: 0.0,
           response_format: { type: 'json_object' },
@@ -91,7 +94,10 @@ export async function qualityGateNode(state: ChatGraphState): Promise<Partial<Ch
       );
 
       if (!parsed.sufficient && parsed.refinedQuery) {
-        log.info(`[QualityGate] Refined query: "${parsed.refinedQuery}"`);
+        const weakInfo = parsed.weakAspects?.length
+          ? ` (weak: ${parsed.weakAspects.join(', ')})`
+          : '';
+        log.info(`[QualityGate] Refined query: "${parsed.refinedQuery}"${weakInfo}`);
         return {
           qualityScore: parsed.score,
           qualityAssessmentTimeMs,
@@ -121,6 +127,7 @@ interface QualityResult {
   score: number;
   sufficient: boolean;
   refinedQuery?: string;
+  weakAspects?: string[];
 }
 
 function parseQualityResponse(content: string): QualityResult | null {
@@ -131,6 +138,7 @@ function parseQualityResponse(content: string): QualityResult | null {
         score: Math.max(1, Math.min(5, parsed.score)),
         sufficient: parsed.sufficient,
         refinedQuery: parsed.refinedQuery || undefined,
+        weakAspects: Array.isArray(parsed.weakAspects) ? parsed.weakAspects : undefined,
       };
     }
   } catch {

@@ -192,7 +192,6 @@ const ResearchPage = lazy(() => import('../features/research/ResearchPage'));
 const MonitorPage = lazy(() => import('../features/monitor/MonitorPage'));
 const DocsPage = lazy(() => import('../features/docs/DocsPage'));
 const DocsEditorPage = lazy(() => import('../features/docs/DocsEditorPage'));
-const DocsPresentationPage = lazy(() => import('../features/docs/DocsPresentationPage'));
 
 /**
  * Lazy loading für Grüneratoren Bundle
@@ -350,7 +349,7 @@ const standardRoutes: RouteConfig[] = [
     path: '/chat/settings',
     component: lazy(() => Promise.resolve({ default: createRedirect('/profile') })),
   },
-  { path: '/chat', component: GrueneratorenBundle.Chat, layoutMode: 'fullscreen' },
+  { path: '/chat', component: GrueneratorenBundle.Chat, layoutMode: 'sidebarOnly' },
   { path: '/voice', component: VoiceAgentPage, layoutMode: 'noChrome' },
   // Apps & Connect Page
   { path: '/apps', component: AppsPage },
@@ -371,9 +370,8 @@ const standardRoutes: RouteConfig[] = [
     withForm: true,
   },
   // Pages Feature Routes
-  // Docs: overview, editor, and presentations
+  // Docs: overview and editor
   { path: '/docs', component: DocsPage, layoutMode: 'sidebarOnly' },
-  { path: '/docs/presentation/:id', component: DocsPresentationPage, layoutMode: 'immersive' },
   { path: '/docs/:id', component: DocsEditorPage, layoutMode: 'immersive' },
   { path: '/boards', component: BoardsListRedirect },
   { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome' },

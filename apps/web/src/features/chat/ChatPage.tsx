@@ -3,18 +3,15 @@ import {
   type NotebookLink,
   GrueneratorThread,
   useAgentStore,
-  useUserProfileStore,
   type UserRole,
 } from '@gruenerator/chat';
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-
-import { useAuthStore } from '../../stores/authStore';
-import { useUserDefaultsStore } from '../../stores/userDefaultsStore';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import { SYSTEM_NOTEBOOKS } from '@/features/notebook/config/notebooksConfig';
 import { useFirstName } from '@/hooks/useFirstName';
+import { useHydrateUserProfile } from '@/hooks/useHydrateUserProfile';
 
 const notebookLinks: NotebookLink[] = SYSTEM_NOTEBOOKS.map((nb) => ({
   id: nb.id,
@@ -27,14 +24,7 @@ function ChatPage() {
   const navigate = useNavigate();
   const chatViewMode = useAgentStore((s) => s.chatViewMode);
   const firstName = useFirstName();
-  const locale = useAuthStore((s) => s.locale);
-  const getDefault = useUserDefaultsStore((s) => s.getDefault);
-
-  // Hydrate the chat package's userProfileStore with roles from user defaults
-  useEffect(() => {
-    const roles = getDefault<UserRole[]>('profile', 'roles') || [];
-    useUserProfileStore.getState().hydrate({ roles, locale: locale || 'de-DE' });
-  }, [getDefault, locale]);
+  useHydrateUserProfile();
 
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
 
@@ -50,6 +40,7 @@ function ChatPage() {
     if (role.systemPrompt) {
       store.setCustomSystemPrompt(role.systemPrompt);
     }
+    store.setCustomRoleName(role.rolle);
     store.setThreadMode('eigener');
     store.setChatViewMode('thread');
   }, []);

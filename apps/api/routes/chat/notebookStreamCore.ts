@@ -57,12 +57,8 @@ export interface NotebookStreamOptions {
   minResultsForGeneration?: number;
   /** Filter search to specific document IDs within the collection. */
   documentIds?: string[];
-}
-
-export function sendSSE(res: express.Response, event: string, data: any): void {
-  if (res.writableEnded || res.destroyed) return;
-  res.write(`event: ${event}\n`);
-  res.write(`data: ${JSON.stringify(data)}\n\n`);
+  /** Shared SSE writer — if provided, used instead of creating one internally. */
+  sse?: SSEWriter;
 }
 
 export interface NotebookStreamResult {
@@ -97,6 +93,8 @@ export async function handleNotebookStream(
     SSEWriter.initHeaders(res);
   }
 
+  const sse = options.sse ?? new SSEWriter(res);
+
   const abortController = new AbortController();
   req.on('close', () => {
     abortController.abort();
@@ -104,28 +102,28 @@ export async function handleNotebookStream(
 
   try {
     if (!messages || messages.length === 0) {
-      sendSSE(res, 'error', { error: 'Messages are required' });
-      res.end();
+      sse.send('error', { error: 'Messages are required' });
+      sse.end();
       return null;
     }
 
     if (!collectionId && (!collectionIds || collectionIds.length === 0)) {
-      sendSSE(res, 'error', { error: 'collectionId or collectionIds is required' });
-      res.end();
+      sse.send('error', { error: 'collectionId or collectionIds is required' });
+      sse.end();
       return null;
     }
 
     const lastUserMessage = messages.filter((m) => m.role === 'user').pop();
     if (!lastUserMessage || typeof lastUserMessage.content !== 'string') {
-      sendSSE(res, 'error', { error: 'No user message found' });
-      res.end();
+      sse.send('error', { error: 'No user message found' });
+      sse.end();
       return null;
     }
 
     const question = lastUserMessage.content;
     const t0 = Date.now();
 
-    sendSSE(res, 'search_start', { message: 'Suche in Dokumenten...' });
+    sse.send('search_start', { message: 'Suche in Dokumenten...' });
 
     let searchContext: SearchContext | null;
     try {
@@ -154,8 +152,8 @@ export async function handleNotebookStream(
     } catch (error: any) {
       log.error('Search context error:', error);
       log.debug(`⏱ Search context failed: ${Date.now() - t0}ms`);
-      sendSSE(res, 'error', { error: error.message || 'Failed to get search context' });
-      res.end();
+      sse.send('error', { error: error.message || 'Failed to get search context' });
+      sse.end();
       return null;
     }
 
@@ -164,7 +162,7 @@ export async function handleNotebookStream(
       `⏱ Search context: ${t1 - t0}ms, ${searchContext?.sortedResults.length ?? 0} results`
     );
 
-    sendSSE(res, 'search_complete', {
+    sse.send('search_complete', {
       message: searchContext
         ? `${searchContext.sortedResults.length} relevante Stellen gefunden`
         : '0 relevante Stellen gefunden',
@@ -177,7 +175,7 @@ export async function handleNotebookStream(
         results: searchContext.sortedResults,
         referencesMap: searchContext.referencesMap,
         question,
-        aiWorkerPool: (req as any).app.locals.aiWorkerPool,
+        aiWorkerPool: req.app.locals.aiWorkerPool,
         limit: 10,
       });
       searchContext.sortedResults = reranked.results;
@@ -210,8 +208,8 @@ export async function handleNotebookStream(
         searchContext.sortedResults.length,
         minResults
       );
-      sendSSE(res, 'text_delta', { text: msg });
-      sendSSE(res, 'completion', {
+      sse.send('text_delta', { text: msg });
+      sse.send('completion', {
         answer: msg,
         citations: [],
         sources: [],
@@ -221,7 +219,7 @@ export async function handleNotebookStream(
           qualityGateTriggered: true,
         },
       });
-      res.end();
+      sse.end();
       return null;
     }
 
@@ -231,8 +229,8 @@ export async function handleNotebookStream(
         ? 'Leider konnte ich in dieser Sammlung keine passenden Stellen zu Ihrer Frage finden.'
         : 'Leider konnte ich in den verfügbaren Quellen keine passenden Informationen zu Ihrer Frage finden.';
 
-      sendSSE(res, 'text_delta', { text: noResultsMessage });
-      sendSSE(res, 'completion', {
+      sse.send('text_delta', { text: noResultsMessage });
+      sse.send('completion', {
         answer: noResultsMessage,
         citations: [],
         sources: [],
@@ -243,7 +241,7 @@ export async function handleNotebookStream(
           citationsCount: 0,
         },
       });
-      res.end();
+      sse.end();
       return null;
     }
 
@@ -251,9 +249,9 @@ export async function handleNotebookStream(
     const defaultAgentConfig = { provider: DEFAULT_PROVIDER, model: DEFAULT_MODEL };
     const { model: aiModel, provider: resolvedProvider } = resolveModel(defaultAgentConfig, model);
 
-    if (!isProviderConfigured(resolvedProvider as any)) {
-      sendSSE(res, 'error', { error: `Provider "${resolvedProvider}" is not configured` });
-      res.end();
+    if (!isProviderConfigured(resolvedProvider)) {
+      sse.send('error', { error: `Provider "${resolvedProvider}" is not configured` });
+      sse.end();
       return null;
     }
 
@@ -281,7 +279,7 @@ export async function handleNotebookStream(
       abortSignal: abortController.signal,
     });
 
-    sendSSE(res, 'response_start', { message: 'Generiere Antwort...' });
+    sse.send('response_start', { message: 'Generiere Antwort...' });
 
     let fullText = '';
     let firstChunkTime: number | undefined;
@@ -294,13 +292,13 @@ export async function handleNotebookStream(
           log.debug(`⏱ First token latency: ${firstChunkTime - t2}ms`);
         }
         fullText += chunk;
-        sendSSE(res, 'text_delta', { text: chunk });
+        sse.send('text_delta', { text: chunk });
       }
     } catch (streamError: any) {
       if (abortController.signal.aborted) {
         log.debug('Notebook stream aborted by client disconnect');
         log.debug(`⏱ Total (aborted): ${Date.now() - t0}ms, ${fullText.length} chars`);
-        res.end();
+        sse.end();
         return null;
       }
       const t4err = Date.now();
@@ -337,7 +335,7 @@ export async function handleNotebookStream(
             );
           }
 
-          sendSSE(res, 'completion', {
+          sse.send('completion', {
             answer: cleanDraft,
             citations,
             sources,
@@ -354,13 +352,13 @@ export async function handleNotebookStream(
           });
         } catch (citationError: any) {
           log.error('Failed to process partial citations:', citationError);
-          sendSSE(res, 'error', { error: streamError.message || 'Stream interrupted' });
+          sse.send('error', { error: streamError.message || 'Stream interrupted' });
         }
       } else {
-        sendSSE(res, 'error', { error: streamError.message || 'Stream interrupted' });
+        sse.send('error', { error: streamError.message || 'Stream interrupted' });
       }
       log.debug(`⏱ Total (error path): ${Date.now() - t0}ms`);
-      res.end();
+      sse.end();
       return null;
     }
 
@@ -372,14 +370,14 @@ export async function handleNotebookStream(
       log.warn('Prompt leakage detected in response, replacing with fallback');
       const fallback =
         options.noResultsMessage || 'Entschuldigung, ich konnte keine passende Antwort generieren.';
-      sendSSE(res, 'completion', {
+      sse.send('completion', {
         answer: fallback,
         citations: [],
         sources: [],
         allSources: [],
         metadata: { totalResults: searchContext.sortedResults.length, leakageDetected: true },
       });
-      res.end();
+      sse.end();
       return null;
     }
 
@@ -413,7 +411,7 @@ export async function handleNotebookStream(
     const t5 = Date.now();
     log.debug(`⏱ Citation processing: ${t5 - t4}ms, ${citations.length} citations`);
 
-    sendSSE(res, 'completion', {
+    sse.send('completion', {
       answer: cleanDraft,
       citations,
       sources,
@@ -432,13 +430,13 @@ export async function handleNotebookStream(
     log.debug(
       `⏱ Total: ${t6 - t0}ms [${isFast ? 'fast' : 'deep'}] (search=${t1 - t0}, setup=${t2 - t1}, ttft=${(firstChunkTime || t2) - t2}, stream=${t4 - (firstChunkTime || t2)}, cite=${t5 - t4})`
     );
-    res.end();
+    sse.end();
 
     return { answer: cleanDraft, citations, sources, question };
   } catch (error: any) {
     log.error('Notebook stream error:', error);
-    sendSSE(res, 'error', { error: 'Internal server error' });
-    res.end();
+    sse.send('error', { error: 'Internal server error' });
+    sse.end();
     return null;
   }
 }

@@ -19,6 +19,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
   return {
     messages: [],
     intent: 'research',
+    secondaryIntent: null,
     complexity: 'complex',
     searchQuery: 'Klimapolitik',
     aiWorkerPool: {

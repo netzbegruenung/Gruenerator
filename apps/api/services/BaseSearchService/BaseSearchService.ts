@@ -317,7 +317,6 @@ export class BaseSearchService {
 
     console.log(`[${this.serviceName}] Calling ${rpcFunction} with threshold: ${threshold}`);
 
-    // Note: supabaseService is imported by subclasses that need it
     // This base implementation throws an error
     throw new DatabaseError(
       'Base findSimilarChunks must be overridden by subclass',

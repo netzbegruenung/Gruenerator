@@ -94,6 +94,7 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
       : (MODE_CONFIG.find((m) => m.mode === threadMode)?.Icon ?? MessageSquare);
 
   const setCustomSystemPrompt = useAgentStore((s) => s.setCustomSystemPrompt);
+  const setCustomRoleName = useAgentStore((s) => s.setCustomRoleName);
 
   const activeRoleName =
     threadMode === 'eigener' && hasRoles
@@ -108,11 +109,13 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
       const role = roles[roleIndex];
       if (role?.systemPrompt) {
         setCustomSystemPrompt(role.systemPrompt);
+        setCustomRoleName(role.rolle);
         setThreadMode('eigener');
       }
       return;
     }
     if (value !== 'eigener') {
+      setCustomRoleName(null);
       setThreadMode(value as ThreadMode);
     }
   };
@@ -210,28 +213,31 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
         </DropdownMenuSubContent>
       </DropdownMenuSub>
 
-      <DropdownMenuSub>
-        <DropdownMenuSubTrigger>
-          <CurrentIcon className="h-3.5 w-3.5" />
-          Modell
-        </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent>
-          <DropdownMenuRadioGroup
-            value={selectedModel}
-            onValueChange={(v) => setSelectedModel(v as typeof selectedModel)}
-          >
-            {MODEL_OPTIONS.map((model) => {
-              const Icon = MODEL_ICONS[model.icon];
-              return (
-                <DropdownMenuRadioItem key={model.id} value={model.id}>
-                  <Icon className="h-3.5 w-3.5" />
-                  {model.name}
-                </DropdownMenuRadioItem>
-              );
-            })}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuSubContent>
-      </DropdownMenuSub>
+      {/* Model picker hidden — fixed to LiteLLM for generation, Regolo for agent nodes */}
+      {false && (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <CurrentIcon className="h-3.5 w-3.5" />
+            Modell
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            <DropdownMenuRadioGroup
+              value={selectedModel}
+              onValueChange={(v) => setSelectedModel(v as typeof selectedModel)}
+            >
+              {MODEL_OPTIONS.map((model) => {
+                const Icon = MODEL_ICONS[model.icon];
+                return (
+                  <DropdownMenuRadioItem key={model.id} value={model.id}>
+                    <Icon className="h-3.5 w-3.5" />
+                    {model.name}
+                  </DropdownMenuRadioItem>
+                );
+              })}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      )}
 
       {threadId && (
         <>

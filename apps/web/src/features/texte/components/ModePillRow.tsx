@@ -1,9 +1,27 @@
-import { SettingsDropdown, pillBase, pillInactive, pillActive } from '@gruenerator/ui';
+import {
+  SettingsDropdown,
+  pillBase,
+  pillInactive,
+  pillActive,
+  type SettingConfig,
+} from '@gruenerator/ui';
 import React, { memo, useCallback } from 'react';
 
 import { MODE_GROUPS, SUBMODE_LABELS } from '../modes';
 
 import { cn } from '@/utils/cn';
+
+const DROPDOWN_CONFIGS: Record<string, SettingConfig> = Object.fromEntries(
+  MODE_GROUPS.filter((g) => g.submodes).map((group) => [
+    group.id,
+    {
+      key: group.id,
+      label: group.label,
+      options: group.submodes!.map((id) => ({ id, label: SUBMODE_LABELS[id] ?? id })),
+      multiple: false as const,
+    },
+  ])
+);
 
 interface ModePillRowProps {
   mode: string;
@@ -36,15 +54,7 @@ const ModePillRow: React.FC<ModePillRowProps> = memo(({ mode, onModeChange }) =>
           return (
             <SettingsDropdown
               key={group.id}
-              config={{
-                key: group.id,
-                label: group.label,
-                options: group.submodes.map((id) => ({
-                  id,
-                  label: SUBMODE_LABELS[id] ?? id,
-                })),
-                multiple: false,
-              }}
+              config={DROPDOWN_CONFIGS[group.id]}
               value={isSonstigeActive ? mode : ''}
               onChange={(val) => onModeChange(val as string)}
               triggerLabel={group.label}

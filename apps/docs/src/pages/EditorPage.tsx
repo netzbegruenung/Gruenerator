@@ -1,4 +1,8 @@
-import { useCollaboration, type CollaborationConfig } from '@gruenerator/collab';
+import {
+  useCollaboration,
+  getAuthErrorMessage,
+  type CollaborationConfig,
+} from '@gruenerator/collab';
 import {
   useDocumentChat,
   BlockNoteEditor as BlockNoteEditorComponent,
@@ -160,7 +164,7 @@ export const EditorPage = () => {
     }),
     [adapter]
   );
-  const { ydoc, provider, isConnected, isSynced } = useCollaboration({
+  const { ydoc, provider, isConnected, isSynced, isLocalLoaded, authError } = useCollaboration({
     documentId: id || '',
     user: isGuest ? null : user,
     config: collabConfig,
@@ -292,6 +296,19 @@ export const EditorPage = () => {
     return <div className="loading-container" />;
   }
 
+  if (authError) {
+    const errorMessage =
+      getAuthErrorMessage(authError) || 'Verbindung zum Dokument fehlgeschlagen.';
+    return (
+      <div className="error-container" style={{ flexDirection: 'column', gap: '1rem' }}>
+        <span>{errorMessage}</span>
+        <a href="/" style={{ color: 'var(--secondary-600)', textDecoration: 'underline' }}>
+          Zurück zur Übersicht
+        </a>
+      </div>
+    );
+  }
+
   if (!docData) {
     return (
       <div className="error-container" style={{ flexDirection: 'column', gap: '1rem' }}>
@@ -308,7 +325,13 @@ export const EditorPage = () => {
     );
   }
 
-  const connectionStatus = !isConnected ? 'disconnected' : !isSynced ? 'syncing' : 'connected';
+  const connectionStatus = !isConnected
+    ? isLocalLoaded
+      ? 'offline-cached'
+      : 'disconnected'
+    : !isSynced
+      ? 'syncing'
+      : 'connected';
   const localUser = getLocalUser();
 
   return (
@@ -412,7 +435,7 @@ export const EditorPage = () => {
             documentSubtype={docData.document_subtype}
             ydoc={ydoc}
             provider={provider}
-            isSynced={isSynced}
+            isSynced={isLocalLoaded || isSynced}
             editable={canEdit}
             commentsPortalTarget={commentsPortalTarget}
             onEditorReady={handleEditorReady}

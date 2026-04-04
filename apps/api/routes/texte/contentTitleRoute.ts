@@ -1,8 +1,9 @@
+import { generateText } from 'ai';
 import express, { type Router, type Request, type Response } from 'express';
 
 import authMiddleware from '../../middleware/authMiddleware.js';
+import { getIntermediateModel } from '../../services/ai/providers.js';
 import { createLogger } from '../../utils/logger.js';
-import mistralClient from '../../workers/mistralClient.js';
 
 const log = createLogger('content-title');
 const { requireAuth } = authMiddleware;
@@ -24,24 +25,15 @@ contentTitleRouter.post('/', requireAuth, async (req: Request, res: Response): P
   const snippet = content.slice(0, 500);
 
   try {
-    const response = await mistralClient.chat.complete({
-      model: 'mistral-small-latest',
-      messages: [
-        { role: 'system', content: TITLE_PROMPT },
-        {
-          role: 'user',
-          content: `Inhaltstyp: ${contentType || 'Text'}\n\nInhalt:\n${snippet}`,
-        },
-      ],
-      maxTokens: 30,
+    const result = await generateText({
+      model: getIntermediateModel(),
+      system: TITLE_PROMPT,
+      prompt: `Inhaltstyp: ${contentType || 'Text'}\n\nInhalt:\n${snippet}`,
+      maxOutputTokens: 30,
       temperature: 0.3,
     });
 
-    const rawTitle =
-      response.choices?.[0]?.message?.content
-        ?.toString()
-        .trim()
-        .replace(/^["']|["']$/g, '') || '';
+    const rawTitle = result.text.trim().replace(/^["']|["']$/g, '');
 
     if (!rawTitle || rawTitle.length < 2 || rawTitle.length > 100) {
       log.warn(`[content-title] AI title rejected (length=${rawTitle?.length})`);

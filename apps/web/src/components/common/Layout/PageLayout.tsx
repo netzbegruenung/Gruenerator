@@ -103,14 +103,15 @@ const PageLayout = ({
     'relative flex-1',
     layoutMode === 'fullscreen' && 'mt-0 min-h-0 overflow-hidden',
     layoutMode === 'immersive' && 'mt-0 min-h-0 overflow-y-auto',
-    layoutMode === 'sidebarOnly' && 'mt-0',
+    layoutMode === 'sidebarOnly' && 'mt-0 min-h-0',
     layoutMode === 'default' && 'mt-lg'
   );
 
   const appContentClasses = cn(
     'app-content',
     layoutMode === 'fullscreen' && 'flex flex-col h-dvh pt-12',
-    layoutMode === 'immersive' && 'flex flex-col h-dvh'
+    layoutMode === 'immersive' && 'flex flex-col h-dvh',
+    layoutMode === 'sidebarOnly' && 'flex flex-col h-dvh'
   );
 
   const showPageFooter = showFooter && isHomePage && layoutMode === 'default';

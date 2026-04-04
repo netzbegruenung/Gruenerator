@@ -66,7 +66,12 @@ export default function CanvasEditorDOM({
   };
 
   return (
-    <CanvasEditorProvider services={{ assetBaseUrl: 'https://gruenerator.eu' }}>
+    <CanvasEditorProvider
+      services={{
+        assetBaseUrl: 'https://gruenerator.eu',
+        iconifyApiUrl: 'https://iconify.gruenerator.eu',
+      }}
+    >
       <div
         style={
           { width: '100%', height: '100vh', '--mobile-tab-bar-height': '0px' } as CSSProperties

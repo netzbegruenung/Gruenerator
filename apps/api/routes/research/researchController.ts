@@ -12,6 +12,7 @@ import {
   buildSubcategoryFilter,
 } from '../../config/systemCollectionsConfig.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
+import { scrollDocuments } from '../../database/services/QdrantService/operations/batchOperations.js';
 import { getQdrantDocumentService } from '../../services/document-services/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -38,6 +39,75 @@ function truncateSnippet(text: string, limit: number = SNIPPET_MAX_CHARS): strin
   }
 
   return truncated + ' …';
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
+ * Extract the best snippet from text based on query terms, with <mark> highlighting.
+ * Falls back to plain truncation if no query terms match.
+ */
+function highlightSnippet(text: string, query: string, limit: number = SNIPPET_MAX_CHARS): string {
+  if (!text || !query) return truncateSnippet(text, limit);
+
+  const terms = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((t) => t.length >= 2);
+
+  if (terms.length === 0) return truncateSnippet(text, limit);
+
+  const textLower = text.toLowerCase();
+
+  // Find the best window: slide through text, score by term matches
+  let bestStart = 0;
+  let bestScore = 0;
+
+  const step = 40;
+  for (let start = 0; start < text.length - limit / 2; start += step) {
+    const end = Math.min(start + limit, text.length);
+    const window = textLower.slice(start, end);
+    let score = 0;
+    for (const term of terms) {
+      let idx = 0;
+      while ((idx = window.indexOf(term, idx)) !== -1) {
+        score++;
+        idx += term.length;
+      }
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestStart = start;
+    }
+  }
+
+  if (bestScore === 0) return truncateSnippet(text, limit);
+
+  // Extract window, align to word boundaries
+  let start = bestStart;
+  let end = Math.min(start + limit, text.length);
+
+  if (start > 0) {
+    const spaceAfter = text.indexOf(' ', start);
+    if (spaceAfter !== -1 && spaceAfter < start + 20) start = spaceAfter + 1;
+  }
+  if (end < text.length) {
+    const spaceBefore = text.lastIndexOf(' ', end);
+    if (spaceBefore > end - 20) end = spaceBefore;
+  }
+
+  const snippet = text.slice(start, end);
+  const prefix = start > 0 ? '… ' : '';
+  const suffix = end < text.length ? ' …' : '';
+
+  // Highlight terms with <mark> tags
+  const escaped = escapeHtml(snippet);
+  const termPattern = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const highlighted = escaped.replace(new RegExp(`(${termPattern})`, 'gi'), '<mark>$1</mark>');
+
+  return prefix + highlighted + suffix;
 }
 
 // =============================================================================
@@ -374,10 +444,10 @@ router.post('/search', async (req: Request, res: Response): Promise<void> => {
 
     deduped = deduped.slice(0, effectiveLimit);
 
-    // Truncate text fields for the response
+    // Extract best snippets with query-term highlighting
     const truncated = deduped.map((r) => ({
       ...r,
-      relevant_content: truncateSnippet(r.relevant_content),
+      relevant_content: highlightSnippet(r.relevant_content, trimmedQuery),
       top_chunks: r.top_chunks.map((chunk: TopChunk) => ({
         preview: truncateSnippet(chunk.preview, CHUNK_PREVIEW_MAX_CHARS),
         chunk_index: chunk.chunk_index,
@@ -398,6 +468,134 @@ router.post('/search', async (req: Request, res: Response): Promise<void> => {
   } catch (error: any) {
     log.error(`Research search failed: ${error.message}`);
     res.status(500).json({ error: 'Search failed. Please try again.' });
+  }
+});
+
+// =============================================================================
+// POST /research/similar
+// =============================================================================
+
+interface ResearchSimilarBody {
+  sourceUrl: string;
+  collectionId: string;
+  limit?: number;
+}
+
+router.post('/similar', async (req: Request, res: Response): Promise<void> => {
+  const startTime = Date.now();
+  const { sourceUrl, collectionId, limit = 5 } = req.body as ResearchSimilarBody;
+
+  if (!sourceUrl || typeof sourceUrl !== 'string') {
+    res.status(400).json({ error: 'sourceUrl is required.' });
+    return;
+  }
+
+  if (!collectionId || typeof collectionId !== 'string') {
+    res.status(400).json({ error: 'collectionId is required.' });
+    return;
+  }
+
+  const systemConfig = getSystemCollectionConfig(collectionId);
+  if (!systemConfig) {
+    res.status(400).json({ error: 'Invalid collectionId.' });
+    return;
+  }
+
+  const effectiveLimit = Math.min(Math.max(limit, 1), 20);
+
+  try {
+    const qdrant = getQdrantInstance();
+    await qdrant.init();
+
+    if (!qdrant.client) {
+      res.status(500).json({ error: 'Qdrant client not available.' });
+      return;
+    }
+
+    const qdrantCollection = systemConfig.qdrantCollection;
+
+    // Find the source document's chunks by source_url
+    const sourcePoints = await scrollDocuments(
+      qdrant.client,
+      qdrantCollection,
+      {
+        must: [{ key: 'source_url', match: { value: sourceUrl } }],
+      },
+      { limit: 20, withPayload: true, withVector: false }
+    );
+
+    if (sourcePoints.length === 0) {
+      res.json({
+        results: [],
+        metadata: { totalResults: 0, collections: [], timeMs: Date.now() - startTime },
+      });
+      return;
+    }
+
+    // Use point IDs as positive examples for recommend
+    const positiveIds = sourcePoints.map((p) => p.id);
+
+    const recommendResult = await qdrant.client.recommend(qdrantCollection, {
+      positive: positiveIds,
+      limit: effectiveLimit * 3, // Over-fetch to account for dedup
+      filter: {
+        must_not: [{ key: 'source_url', match: { value: sourceUrl } }],
+      },
+      with_payload: true,
+    });
+
+    // Deduplicate by source_url, keeping highest score
+    const dedupMap = new Map<
+      string,
+      { score: number; payload: Record<string, unknown>; id: string | number }
+    >();
+
+    for (const point of recommendResult) {
+      const payload = (point.payload as Record<string, unknown>) || {};
+      const url = (payload.source_url as string) || String(point.id);
+      const score = point.score ?? 0;
+      const existing = dedupMap.get(url);
+      if (!existing || score > existing.score) {
+        dedupMap.set(url, { score, payload, id: point.id });
+      }
+    }
+
+    const deduped = Array.from(dedupMap.values())
+      .sort((a, b) => b.score - a.score)
+      .slice(0, effectiveLimit);
+
+    // Format results to match the search endpoint format
+    const results = deduped.map((item) => {
+      const payload = item.payload;
+      return {
+        document_id: String(payload.document_id || item.id),
+        title: String(payload.title || 'Unbekanntes Dokument'),
+        source_url: (payload.source_url as string) || null,
+        relevant_content: truncateSnippet(
+          String(payload.relevant_content || payload.content || payload.text || '')
+        ),
+        similarity_score: item.score,
+        chunk_count: 1,
+        top_chunks: [],
+        collection_id: collectionId,
+        collection_name: systemConfig.name,
+        published_at: (payload.published_at as string) ?? null,
+      };
+    });
+
+    const collectionsFound = [...new Set(results.map((r) => r.collection_id))];
+
+    res.json({
+      results,
+      metadata: {
+        totalResults: results.length,
+        collections: collectionsFound,
+        timeMs: Date.now() - startTime,
+      },
+    });
+  } catch (error: any) {
+    log.error(`Research similar failed: ${error.message}`);
+    res.status(500).json({ error: 'Similar search failed. Please try again.' });
   }
 });
 

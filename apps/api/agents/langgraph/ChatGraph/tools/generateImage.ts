@@ -57,7 +57,7 @@ export function createGenerateImageTool(deps: ToolDependencies): DynamicStructur
         .describe('Bildstil (Standard: wird aus Beschreibung erkannt)'),
     }),
     func: async ({ description, style: requestedStyle }) => {
-      const userId = (deps.agentConfig as any).userId;
+      const userId = deps.agentConfig.userId;
 
       if (!userId) {
         return 'Fehler: Benutzerauthentifizierung für Bildgenerierung erforderlich.';

@@ -6,6 +6,7 @@
  * on ExpandedChunkResult[] + referencesMap (notebook types).
  */
 
+import { INTERMEDIATE_MODEL } from '../../routes/chat/agents/providers.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { ExpandedChunkResult } from '../search/types.js';
@@ -105,11 +106,11 @@ export async function rerankNotebookResults({
     const response = await aiWorkerPool.processRequest(
       {
         type: 'notebook_rerank',
-        provider: 'mistral',
+        provider: INTERMEDIATE_MODEL.provider,
         systemPrompt: RERANK_PROMPT,
         messages: [{ role: 'user', content: userMessage }],
         options: {
-          model: 'mistral-small-latest',
+          model: INTERMEDIATE_MODEL.model,
           max_tokens: 200,
           temperature: 0.0,
           top_p: 1.0,

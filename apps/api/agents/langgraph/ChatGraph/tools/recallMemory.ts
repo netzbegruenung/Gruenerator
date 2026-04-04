@@ -31,7 +31,7 @@ export function createRecallMemoryTool(deps: ToolDependencies): DynamicStructure
         return 'Erinnerungssystem nicht verfügbar.';
       }
 
-      const userId = (deps.agentConfig as any).userId;
+      const userId = deps.agentConfig.userId;
       if (!userId) {
         return 'Kein Nutzer-Kontext für Erinnerungsabruf.';
       }

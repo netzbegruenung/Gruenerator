@@ -97,6 +97,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     memoryContext: null,
     memoryRetrieveTimeMs: 0,
     intent: 'search',
+    secondaryIntent: null,
     searchSources: [],
     searchQuery: 'Klimapolitik',
     subQueries: null,

@@ -11,6 +11,7 @@
 
 import { applyMMR } from '../../../../services/search/DiversityReranker.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
 import type { ChatGraphState, SearchResult } from '../types.js';
 
@@ -18,6 +19,13 @@ const log = createLogger('ChatGraph:Rerank');
 
 const RERANK_INPUT_LIMIT = 12;
 const RERANK_OUTPUT_LIMIT = 8;
+
+const INTENT_RERANK_GUIDANCE: Record<string, string> = {
+  research: '\nHinweis: Bevorzuge Quellen mit Analyse, Synthese und Vergleichen.',
+  search: '\nHinweis: Offizielle Parteibeschlüsse und Programme höher als Kommentare bewerten.',
+  web: '\nHinweis: Seriöse Nachrichtenquellen höher als Social Media oder Foren bewerten.',
+  examples: '\nHinweis: Aktuelle und visuell ansprechende Beispiele bevorzugen.',
+};
 
 const RERANK_PROMPT = `Du bewertest die Relevanz von Suchergebnissen für eine Benutzeranfrage.
 
@@ -50,15 +58,15 @@ Antworte NUR mit JSON:
  */
 export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
-  const { searchResults, searchQuery, aiWorkerPool, hasTemporal } = state;
+  const { searchResults, searchQuery, aiWorkerPool, hasTemporal, intent, researchBrief } = state;
 
   // Notebook-scoped searches get higher limits for deeper recall
   const isNotebookScoped = (state.notebookCollectionIds?.length ?? 0) > 0;
   const inputLimit = isNotebookScoped ? 20 : RERANK_INPUT_LIMIT;
   const outputLimit = isNotebookScoped ? 12 : RERANK_OUTPUT_LIMIT;
 
-  // Skip reranking if too few results
-  if (searchResults.length <= 3) {
+  // Skip reranking if only one result
+  if (searchResults.length <= 2) {
     log.info(`[Rerank] Skipping — only ${searchResults.length} results`);
     return { rerankTimeMs: Date.now() - startTime };
   }
@@ -75,7 +83,7 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
       .map((r, i) => `[${i}] ${r.title}\n${r.content.slice(0, 300)}`)
       .join('\n\n');
 
-    const userMessage = `Suchanfrage: "${searchQuery}"
+    const userMessage = `Suchanfrage: "${searchQuery}"${researchBrief ? `\nRecherche-Kontext: ${researchBrief}` : ''}${INTENT_RERANK_GUIDANCE[intent] || ''}
 
 Ergebnisse:
 ${passageList}`;
@@ -83,11 +91,11 @@ ${passageList}`;
     const response = await aiWorkerPool.processRequest(
       {
         type: 'chat_rerank',
-        provider: 'mistral',
+        provider: INTERMEDIATE_MODEL.provider,
         systemPrompt: hasTemporal ? RERANK_PROMPT_TEMPORAL : RERANK_PROMPT,
         messages: [{ role: 'user', content: userMessage }],
         options: {
-          model: 'mistral-small-latest',
+          model: INTERMEDIATE_MODEL.model,
           max_tokens: 200,
           temperature: 0.0,
           top_p: 1.0,

@@ -3,12 +3,13 @@
  *
  * Shared service for generating and updating chat thread titles.
  * Consolidates the identical updateThreadTitle + first-sentence heuristic
- * that was duplicated across chatGraphController, chatStreamController, and chatDeepController.
+ * that was duplicated across chat controllers.
  *
  * Generates AI-powered German titles using Mistral-small via aiWorkerPool.
  */
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { INTERMEDIATE_MODEL } from '../../routes/chat/agents/providers.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('ThreadTitle');
@@ -77,7 +78,7 @@ export async function generateThreadTitle(
 
   const aiRequest = {
     type: 'chat_thread_title',
-    provider: 'mistral',
+    provider: INTERMEDIATE_MODEL.provider,
     systemPrompt: TITLE_PROMPT,
     messages: [
       {
@@ -86,7 +87,7 @@ export async function generateThreadTitle(
       },
     ],
     options: {
-      model: 'mistral-small-latest',
+      model: INTERMEDIATE_MODEL.model,
       max_tokens: 30,
       temperature: 0.3,
     },

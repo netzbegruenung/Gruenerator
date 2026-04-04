@@ -9,7 +9,8 @@ import { Router } from 'express';
 import { isSystemCollectionId } from '../../config/systemCollectionsConfig.js';
 import { rateLimitMiddleware, rateLimitInfo } from '../../middleware/rateLimitMiddleware.js';
 import { createLogger } from '../../utils/logger.js';
-import { handleNotebookStream, sendSSE } from '../chat/notebookStreamCore.js';
+import { handleNotebookStream } from '../chat/notebookStreamCore.js';
+import { createSSEStream } from '../chat/services/sseHelpers.js';
 
 import { screenInput, BLOCKED_RESPONSE, OFF_TOPIC_RESPONSE } from './topicGuard.js';
 
@@ -90,20 +91,16 @@ router.post(
     const screen = screenInput(lastUserMessage.content);
     if (screen.blocked) {
       log.warn('Blocked input [%s]: %s', screen.reason, lastUserMessage.content.slice(0, 80));
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.setHeader('X-Accel-Buffering', 'no');
-      res.flushHeaders();
-      sendSSE(res, 'text_delta', { text: BLOCKED_RESPONSE });
-      sendSSE(res, 'completion', {
+      const sse = createSSEStream(res);
+      sse.send('text_delta', { text: BLOCKED_RESPONSE });
+      sse.send('completion', {
         answer: BLOCKED_RESPONSE,
         citations: [],
         sources: [],
         allSources: [],
         metadata: { blocked: true, reason: screen.reason },
       });
-      res.end();
+      sse.end();
       return;
     }
 

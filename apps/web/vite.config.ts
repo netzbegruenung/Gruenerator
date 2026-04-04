@@ -1,8 +1,9 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
-import react from '@vitejs/plugin-react';
+import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -62,6 +63,7 @@ export default defineConfig(({ command }) => ({
     // Only use Tauri stub plugin when NOT in Tauri context
     ...(!isTauri ? [tauriStubPlugin()] : []),
     react({ jsxRuntime: 'automatic' }),
+    ...(command === 'build' ? [babel({ presets: [reactCompilerPreset()] })] : []),
     tailwindcss(),
   ],
   resolve: {

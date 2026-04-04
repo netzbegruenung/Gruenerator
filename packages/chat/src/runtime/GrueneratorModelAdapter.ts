@@ -19,6 +19,7 @@ import { parseAllMentions } from '../lib/mentionParser';
 import { parseSSELine } from '../lib/sseParser';
 import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../lib/toolMappings';
 import { useDocumentChatStore } from '../stores/documentChatStore';
+import type { ConfirmActionData, DocumentCreatedData } from '../types/messageMetadata';
 
 export type GrueneratorMessageMetadata = {
   progress?: ChatProgress;
@@ -30,6 +31,8 @@ export type GrueneratorMessageMetadata = {
   followUpSuggestions?: string[];
   agentId?: string;
   agentMention?: string;
+  confirmAction?: ConfirmActionData;
+  createdDocument?: DocumentCreatedData;
   [key: string]: unknown;
 };
 
@@ -38,11 +41,11 @@ export interface GrueneratorAdapterConfig {
   modelId: string;
   enabledTools: Record<ToolKey, boolean>;
   threadId: string | null;
-  useDeepAgent?: boolean;
   selectedNotebookId?: string;
   threadMode?: ThreadMode;
   searchMode?: SearchMode;
   customSystemPrompt?: string | null;
+  customRoleName?: string | null;
   customEnabledTools?: Record<string, boolean> | null;
 }
 
@@ -148,9 +151,13 @@ async function* parseSSEStream(
   let receivedImage: GeneratedImage | null = null;
   let receivedFollowUpSuggestions: string[] = [];
   let receivedMetadata: StreamMetadata | null = null;
+  let receivedConfirmAction: ConfirmActionData | null = null;
+  let receivedCreatedDocument: DocumentCreatedData | null = null;
   let activeToolCall: ToolCallPart | null = null;
   const allToolCalls: ToolCallPart[] = [];
   let interruptPending = false;
+  let lastYieldTime = 0;
+  const YIELD_INTERVAL = 50; // ms — max 20 yields/sec, matches NotebookModelAdapter
 
   function buildResult(): ChatModelRunResult {
     const content: Array<{ type: 'text'; text: string } | ToolCallPart | SourcePart> = [];
@@ -188,6 +195,8 @@ async function* parseSSEStream(
     if (receivedMetadata) custom.streamMetadata = receivedMetadata;
     if (receivedFollowUpSuggestions.length > 0)
       custom.followUpSuggestions = receivedFollowUpSuggestions;
+    if (receivedConfirmAction) custom.confirmAction = receivedConfirmAction;
+    if (receivedCreatedDocument) custom.createdDocument = receivedCreatedDocument;
     if (agentInfo?.agentId) {
       custom.agentId = agentInfo.agentId;
       if (agentInfo.agentMention) custom.agentMention = agentInfo.agentMention;
@@ -435,7 +444,11 @@ async function* parseSSEStream(
         case 'text_delta': {
           const delta = (data as { text: string }).text;
           accumulatedText += delta;
-          yield buildResult();
+          const now = performance.now();
+          if (now - lastYieldTime >= YIELD_INTERVAL) {
+            lastYieldTime = now;
+            yield buildResult();
+          }
           break;
         }
 
@@ -464,6 +477,18 @@ async function* parseSSEStream(
           if (interrupted) interruptPending = true;
           transitionStep('complete');
           currentProgress = { stage: 'complete', message: '' };
+          break;
+        }
+
+        case 'confirm_action': {
+          receivedConfirmAction = data as ConfirmActionData;
+          yield buildResult();
+          break;
+        }
+
+        case 'document_created': {
+          receivedCreatedDocument = data as DocumentCreatedData;
+          yield buildResult();
           break;
         }
 
@@ -713,7 +738,8 @@ export function createGrueneratorModelAdapter(
       });
 
       // Skip attachment extraction and mention parsing for non-chat modes
-      const isChatMode = !config.threadMode || config.threadMode === 'chat';
+      const isChatMode =
+        !config.threadMode || config.threadMode === 'chat' || config.threadMode === 'eigener';
 
       // Extract attachments from AUI's CompleteAttachment objects on the last user message.
       // AUI stores file/image content in message.attachments[].content, NOT in message.content.
@@ -793,6 +819,20 @@ export function createGrueneratorModelAdapter(
             docMentionIds = parsed.docMentionIds;
             hasDocumentChat = parsed.hasDocumentChat;
             textPart.text = parsed.cleanText;
+
+            if (parsed.unresolvedMentions.length > 0) {
+              const names = parsed.unresolvedMentions.map((m) => `@${m}`).join(', ');
+              console.warn(
+                `[ModelAdapter] Unresolved mentions: ${names} — use @docs to browse collaborative documents`
+              );
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(
+                  new CustomEvent('gruenerator:unresolved-mentions', {
+                    detail: { mentions: parsed.unresolvedMentions },
+                  })
+                );
+              }
+            }
           }
           break;
         }
@@ -810,9 +850,7 @@ export function createGrueneratorModelAdapter(
           ? endpoints.searchStream
           : threadMode === 'notebook'
             ? endpoints.notebookStream
-            : config.useDeepAgent
-              ? endpoints.deepStream
-              : endpoints.chatStream;
+            : endpoints.chatStream;
 
       // Mode-aware request body
       let requestBody: Record<string, unknown>;
@@ -861,6 +899,7 @@ export function createGrueneratorModelAdapter(
           documentChatMode: hasDocumentChat || documentChatIds.length > 0 || undefined,
           defaultNotebookId: config.selectedNotebookId || undefined,
           customSystemPrompt: config.customSystemPrompt || undefined,
+          roleName: config.customRoleName || undefined,
         };
       } else {
         // Chat mode: full request with mentions, attachments, tools

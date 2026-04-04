@@ -284,6 +284,28 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         );
       }
 
+      if (searchSources.includes('examples')) {
+        const country =
+          state.agentConfig.toolRestrictions?.examplesCountry ||
+          (state.userLocale === 'de-AT' ? 'AT' : undefined);
+        sourcePromises.push(
+          executeDirectExamplesSearch({ query, platform: undefined, country })
+            .then((r) => ({
+              results: (r.examples || []).map((e: any) => ({
+                source: 'examples',
+                title: `${e.platform} Beispiel${e.author ? ` von ${e.author}` : ''}`,
+                content: e.content || '',
+                relevance: 0.8,
+              })),
+              collections: ['examples'],
+            }))
+            .catch((err) => {
+              log.warn(`[Search] Examples search failed in multi-source: ${err.message}`);
+              return { results: [], collections: [] };
+            })
+        );
+      }
+
       const sourceResults = await Promise.all(sourcePromises);
       const allResults = sourceResults.map((s) => s.results);
       searchedCollections = sourceResults.flatMap((s) => s.collections);
@@ -392,7 +414,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             ).getQdrantDocumentService();
             const response = await documentSearchService.search({
               query: searchQuery || '',
-              userId: (agentConfig as any).userId,
+              userId: agentConfig.userId,
               options: {
                 limit: 12,
                 mode: 'hybrid',
@@ -405,11 +427,11 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
             for (const r of response.results || []) {
               results.push({
-                source: `documentchat:${(r as any).document_id || 'unknown'}`,
-                title: (r as any).title || 'Dokument',
-                content: (r as any).chunk_text || '',
-                url: (r as any).source_url || undefined,
-                relevance: (r as any).score ?? 0.5,
+                source: `documentchat:${r.document_id || 'unknown'}`,
+                title: r.title || 'Dokument',
+                content: r.relevant_content || '',
+                url: r.source_url || undefined,
+                relevance: r.similarity_score ?? 0.5,
               });
             }
             searchedCollections.push('documentchat');
@@ -428,7 +450,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             ).getQdrantDocumentService();
             const response = await documentSearchService.search({
               query: searchQuery || '',
-              userId: (agentConfig as any).userId,
+              userId: agentConfig.userId,
               options: {
                 limit: 8,
                 mode: 'hybrid',
@@ -441,11 +463,11 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
             for (const r of response.results || []) {
               results.push({
-                source: `document:${(r as any).document_id || 'unknown'}`,
-                title: (r as any).title || 'Dokument',
-                content: (r as any).chunk_text || '',
-                url: (r as any).source_url || undefined,
-                relevance: (r as any).score ?? 0.5,
+                source: `document:${r.document_id || 'unknown'}`,
+                title: r.title || 'Dokument',
+                content: r.relevant_content || '',
+                url: r.source_url || undefined,
+                relevance: r.similarity_score ?? 0.5,
               });
             }
             searchedCollections.push('user-documents');
@@ -485,9 +507,24 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
         const query = searchQuery || '';
 
-        // Search all sub-queries (if decomposed) across all collections
+        // Expand queries for broader document coverage (short timeout to avoid blocking)
+        let expandedQueries: string[] = [];
+        if (!isNotebookScoped) {
+          try {
+            const expanded = await expandQuery(query, state.aiWorkerPool);
+            if (expanded.alternatives.length > 0) {
+              expandedQueries = expanded.alternatives;
+              log.info(`[Search] Document query expanded: +${expandedQueries.length} variants`);
+            }
+          } catch {
+            // Expansion is best-effort for document search
+          }
+        }
+
+        // Search all sub-queries (if decomposed) + expanded variants across all collections
         // Notebook-scoped searches get deeper recall (10 vs 3 per collection)
-        const subQueries = state.subQueries?.length ? state.subQueries : [query];
+        const baseQueries = state.subQueries?.length ? state.subQueries : [query];
+        const subQueries = [...baseQueries, ...expandedQueries];
         const perCollectionLimit = isNotebookScoped ? 10 : 3;
 
         const searchPromises = uniqueCollections.flatMap((collection) =>

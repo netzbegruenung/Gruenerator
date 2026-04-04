@@ -367,6 +367,41 @@ export function useTopicDocuments(keyword?: string, locale: MonitorLocale = 'de'
   });
 }
 
+// --- Meinungsbild (GERDA MRP estimates) ---
+
+export interface MeinungsbildIssue {
+  id: string;
+  label_de: string;
+  category: string;
+  question_de: string;
+  direction: string;
+}
+
+export interface MeinungsbildEstimate {
+  state_code: string;
+  state_name: string;
+  estimate: number;
+  pop: number;
+}
+
+export interface MeinungsbildData {
+  issues: MeinungsbildIssue[];
+  estimates: Record<string, MeinungsbildEstimate[]>;
+  fetchedAt: string;
+}
+
+export function useMeinungsbild() {
+  return useQuery<MeinungsbildData>({
+    queryKey: ['monitor', 'meinungsbild'],
+    queryFn: async () => {
+      const { data } = await apiClient.get('/monitor/meinungsbild');
+      return data;
+    },
+    staleTime: 60 * 60 * 1000,
+    gcTime: 120 * 60 * 1000,
+  });
+}
+
 export type {
   MonitorSnapshot,
   TopicScore,
@@ -376,4 +411,5 @@ export type {
   WatcherEntityInfo,
   EntityResult,
   EntitySummaryResult,
+  MeinungsbildData as MeinungsbildDataType,
 };

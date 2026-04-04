@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
+import { IndexeddbPersistence } from 'y-indexeddb';
 
 import { generateUserColor } from '../utils';
+import { registerDocAccess, removeDocCache } from '../lib/cacheRegistry';
+import { isAwarenessOnlyRoom } from '../lib/roomTypes';
 
 import type { CollaborationUser } from '../types';
 
@@ -17,6 +20,8 @@ interface CollaborationState {
   provider: HocuspocusProvider | null;
   isConnected: boolean;
   isSynced: boolean;
+  isLocalLoaded: boolean;
+  authError: string | null;
 }
 
 export interface UseCollaborationOptions {
@@ -46,9 +51,12 @@ export const useCollaboration = ({
     provider: null,
     isConnected: false,
     isSynced: false,
+    isLocalLoaded: false,
+    authError: null,
   }));
 
   const providerRef = useRef<HocuspocusProvider | null>(null);
+  const idbProviderRef = useRef<IndexeddbPersistence | null>(null);
   // Refs for values that should NOT trigger reconnection — only awareness updates
   const userRef = useRef(user);
   userRef.current = user;
@@ -78,7 +86,48 @@ export const useCollaboration = ({
     if (!isGuest && !userRef.current) return;
 
     let ignore = false;
+    let corruptionTimeout: ReturnType<typeof setTimeout> | null = null;
     const ydoc = new Y.Doc();
+
+    const markLocalLoaded = () =>
+      setState((prev) => (prev.isLocalLoaded ? prev : { ...prev, isLocalLoaded: true }));
+
+    if (!isAwarenessOnlyRoom(documentId)) {
+      try {
+        const dbName = `gruenerator-doc-${documentId}`;
+        const idbProvider = new IndexeddbPersistence(dbName, ydoc);
+        idbProviderRef.current = idbProvider;
+        idbProvider.on('synced', () => {
+          if (ignore) return;
+          console.info('[Collab] Local cache loaded | doc:', documentId);
+          markLocalLoaded();
+        });
+        corruptionTimeout = setTimeout(() => {
+          if (ignore || idbProvider.synced) return;
+          console.warn(
+            '[Collab] IndexedDB sync timeout — clearing corrupted cache | doc:',
+            documentId
+          );
+          idbProvider.destroy();
+          idbProviderRef.current = null;
+          try {
+            indexedDB.deleteDatabase(dbName);
+          } catch {
+            /* best-effort */
+          }
+          markLocalLoaded();
+        }, 5000);
+        idbProvider.whenSynced.then(() => {
+          if (corruptionTimeout) clearTimeout(corruptionTimeout);
+        });
+        registerDocAccess(documentId);
+      } catch (err) {
+        console.warn('[Collab] IndexedDB unavailable, continuing without local cache:', err);
+        markLocalLoaded();
+      }
+    } else {
+      markLocalLoaded();
+    }
 
     const initProvider = async () => {
       console.info('[Collab] Init | doc:', documentId, '| isGuest:', isGuest, '| url:', config.url);
@@ -133,6 +182,12 @@ export const useCollaboration = ({
 
       provider.on('authenticationFailed', (data: { reason: string }) => {
         console.error('[Collab] Auth FAILED:', data.reason, '| doc:', documentId);
+        if (ignore) return;
+        const reason = data.reason || '';
+        if (reason.includes('deleted') || reason.includes('denied')) {
+          removeDocCache(documentId);
+        }
+        setState((prev) => ({ ...prev, authError: reason }));
       });
 
       provider.on('close', (event: { event: CloseEvent }) => {
@@ -155,7 +210,7 @@ export const useCollaboration = ({
         return;
       }
 
-      setState({ ydoc, provider, isConnected: false, isSynced: false });
+      setState((prev) => ({ ...prev, ydoc, provider, isConnected: false, isSynced: false }));
       console.info('[Collab] Connecting to', config.url, '| doc:', documentId);
       provider.connect();
     };
@@ -165,9 +220,12 @@ export const useCollaboration = ({
     return () => {
       console.info('[Collab] Cleanup | doc:', documentId);
       ignore = true;
+      if (corruptionTimeout) clearTimeout(corruptionTimeout);
       providerRef.current?.awareness?.setLocalState(null);
       providerRef.current?.destroy();
       providerRef.current = null;
+      idbProviderRef.current?.destroy();
+      idbProviderRef.current = null;
     };
   }, [documentId, config, isGuest, buildAwarenessUser]);
 

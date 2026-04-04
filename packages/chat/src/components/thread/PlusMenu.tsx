@@ -5,6 +5,7 @@ import {
   BookOpen,
   Check,
   FileSearch,
+  FileText,
   Library,
   Paperclip,
   PlusIcon,
@@ -37,12 +38,14 @@ import { SkillLibraryModal } from '../skills/SkillLibraryModal';
 interface PlusMenuProps {
   onInsertMention: (mentionable: Mentionable) => void;
   onOpenFileBrowser: () => void;
+  onOpenDocBrowser?: () => void;
   onUploadFile: () => void;
 }
 
 export const PlusMenu = memo(function PlusMenu({
   onInsertMention,
   onOpenFileBrowser,
+  onOpenDocBrowser,
   onUploadFile,
 }: PlusMenuProps) {
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -136,6 +139,12 @@ export const PlusMenu = memo(function PlusMenu({
             <FileSearch className="h-3.5 w-3.5" />
             Dokument referenzieren
           </DropdownMenuItem>
+          {onOpenDocBrowser && (
+            <DropdownMenuItem onClick={onOpenDocBrowser}>
+              <FileText className="h-3.5 w-3.5" />
+              Kollaboratives Dokument
+            </DropdownMenuItem>
+          )}
         </DropdownMenuSubContent>
       </DropdownMenuSub>
     </>
@@ -153,6 +162,14 @@ export const PlusMenu = memo(function PlusMenu({
         >
           Dokument referenzieren
         </ResponsiveMenuItem>
+        {onOpenDocBrowser && (
+          <ResponsiveMenuItem
+            icon={<FileText />}
+            onClick={() => handleMobileAction(onOpenDocBrowser)}
+          >
+            Kollaboratives Dokument
+          </ResponsiveMenuItem>
+        )}
       </ResponsiveMenuSection>
 
       <ResponsiveMenuSection title="Skills">

@@ -111,7 +111,7 @@ interface ToolCall {
 interface ToolExecutionResult {
   tool: string;
   input: Record<string, unknown>;
-  result?: SearchToolResult | DatabaseQueryResult | AnalyzeResult;
+  result?: SearchToolResult | AnalyzeResult;
   error?: string;
   success?: boolean;
   results?: SearchResultItem[];
@@ -135,12 +135,6 @@ interface SearchResultItem {
   [key: string]: unknown;
 }
 
-interface DatabaseQueryResult {
-  success: boolean;
-  results: unknown[];
-  note?: string;
-}
-
 interface AnalyzeResult {
   success: boolean;
   selectedResults: SearchResultItem[];
@@ -159,13 +153,6 @@ interface SearchExamplesParams {
   limit?: number;
   threshold?: number;
   user_id?: string;
-}
-
-interface DatabaseQueryParams {
-  table: string;
-  filters?: Record<string, unknown>;
-  columns?: string[];
-  limit?: number;
 }
 
 interface CacheInstance {
@@ -244,20 +231,6 @@ class AISearchAgent {
             threshold: { type: 'number', description: 'Similarity threshold (0-1)', default: 0.25 },
           },
           required: ['query', 'content_type'],
-        },
-      },
-      {
-        name: 'execute_database_query',
-        description: 'Execute direct database query using MCP Supabase tools',
-        input_schema: {
-          type: 'object',
-          properties: {
-            table: { type: 'string', description: 'Database table name' },
-            filters: { type: 'object', description: 'Query filters' },
-            columns: { type: 'array', description: 'Columns to select', items: { type: 'string' } },
-            limit: { type: 'number', description: 'Limit results', default: 10 },
-          },
-          required: ['table'],
         },
       },
       {
@@ -871,7 +844,7 @@ Nach der Suche erkläre deine Keyword-Wahl und begründe die Relevanz der Ergebn
 
     for (const toolCall of toolCalls) {
       try {
-        let toolResult: SearchToolResult | DatabaseQueryResult | AnalyzeResult | undefined;
+        let toolResult: SearchToolResult | AnalyzeResult | undefined;
 
         switch (toolCall.name) {
           case 'search_database_examples':
@@ -879,11 +852,7 @@ Nach der Suche erkläre deine Keyword-Wahl und begründe die Relevanz der Ergebn
               toolCall.input as unknown as SearchExamplesParams
             );
             break;
-          case 'execute_database_query':
-            toolResult = await this.handleExecuteDatabaseQuery(
-              toolCall.input as unknown as DatabaseQueryParams
-            );
-            break;
+
           case 'analyze_and_rank_results':
             toolResult = await this.handleAnalyzeAndRankResults(
               toolCall.input as unknown as AnalyzeAndRankParams
@@ -951,21 +920,6 @@ Nach der Suche erkläre deine Keyword-Wahl und begründe die Relevanz der Ergebn
       results: resultsWithMetadata,
       count: resultsWithMetadata.length,
       search_query: params.query,
-    };
-  }
-
-  /**
-   * Handle execute_database_query tool call using MCP Supabase
-   */
-  private async handleExecuteDatabaseQuery(
-    params: DatabaseQueryParams
-  ): Promise<DatabaseQueryResult> {
-    log.debug(`Database query tool called: table=${params.table}`);
-
-    return {
-      success: true,
-      results: [],
-      note: 'MCP Supabase integration needed for direct database queries',
     };
   }
 

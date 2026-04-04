@@ -217,7 +217,7 @@ router.post('/from-wolke', requireAuth, async (req: AuthenticatedRequest, res: R
       return res.status(404).json({ error: 'Wolke-Verbindung nicht gefunden' });
     }
 
-    const client = new NextcloudApiClient(shareLink.share_link);
+    const client = await NextcloudApiClient.create(shareLink.share_link);
     const downloaded = await client.downloadFile(filePath);
 
     if (!downloaded.buffer || downloaded.buffer.length === 0) {

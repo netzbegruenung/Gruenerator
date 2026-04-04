@@ -28,21 +28,9 @@ export interface User {
   [key: string]: unknown;
 }
 
-export interface SupabaseSession {
-  access_token?: string;
-  refresh_token?: string;
-  user?: {
-    id: string;
-    user_metadata?: UserMetadata;
-    [key: string]: unknown;
-  };
-  [key: string]: unknown;
-}
-
 export interface AuthStateData {
   user: User | null;
   isAuthenticated: boolean;
-  supabaseSession?: SupabaseSession | null;
 }
 
 export interface ProfileData {
@@ -82,23 +70,15 @@ export interface AuthStore {
   isLoggingOut: boolean;
   selectedMessageColor: string;
   locale: SupportedLocale;
-  supabaseSession: SupabaseSession | null;
-  unsubscribeSupabase: () => void;
-  _supabaseAuthCleanup?: (() => void) | null;
-
   // Actions
   setAuthState: (data: AuthStateData) => void;
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
   setLoggingOut: (loggingOut: boolean) => void;
   clearAuth: () => void;
-  setSupabaseSession: (session: SupabaseSession | null) => void;
   updateProfile: (profileData: ProfileData) => Promise<ProfileData>;
   updateAvatar: (avatarRobotId: string) => Promise<ProfileData>;
   updateMessageColor: (color: string) => Promise<string>;
-  handleFailedBackendSession: () => Promise<void>;
-  initializeSupabaseAuth: () => Promise<void>;
-  cleanupSupabaseAuth: () => void;
   login: (source?: AuthSource) => void;
   setLoginIntent: () => void;
   logout: () => Promise<void>;
@@ -240,7 +220,6 @@ const persistedState = loadPersistedAuthState();
 
 /**
  * Zustand store for authentication state management
- * Uses Authentik SSO for authentication and Supabase for user metadata/preferences
  */
 export const useAuthStore = create<AuthStore>((set, get) => ({
   // Auth state - use persisted state if available, otherwise defaults
@@ -255,10 +234,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   // Locale/language preference
   locale: persistedState?.locale || detectBrowserLocale(),
 
-  // Supabase specific state
-  supabaseSession: null,
-  unsubscribeSupabase: () => {}, // Placeholder for cleanup
-
   // Main actions
   setAuthState: (data: AuthStateData) => {
     const userLocale: SupportedLocale =
@@ -269,7 +244,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       isAuthenticated: data.isAuthenticated,
       isLoading: false,
       error: null,
-      supabaseSession: data.supabaseSession || null,
       // Extract color from user metadata if available
       selectedMessageColor: data.user?.user_metadata?.chat_color || '#008939',
       locale: userLocale,
@@ -285,12 +259,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   setLoggingOut: (loggingOut: boolean) => set({ isLoggingOut: loggingOut }),
 
   clearAuth: () => {
-    // Cleanup Supabase auth listener
-    const state = get();
-    if (state._supabaseAuthCleanup) {
-      state._supabaseAuthCleanup();
-    }
-
     // CRITICAL: Set logout timestamp to prevent immediate re-auth
     localStorage.setItem(LOGOUT_TIMESTAMP_KEY, Date.now().toString());
 
@@ -331,25 +299,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       isLoggingOut: false,
       selectedMessageColor: '#008939',
       locale: detectBrowserLocale(),
-      supabaseSession: null,
-      _supabaseAuthCleanup: null,
     });
-  },
-
-  // Supabase session management
-  setSupabaseSession: (session: SupabaseSession | null) => {
-    const user = session?.user || null;
-    set({
-      supabaseSession: session,
-    });
-
-    // Update metadata from Supabase session if available
-    if (user?.user_metadata) {
-      const metadata = user.user_metadata;
-      set((state) => ({
-        selectedMessageColor: (metadata.chat_color as string) || state.selectedMessageColor,
-      }));
-    }
   },
 
   // Profile management via Backend API
@@ -411,19 +361,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
   },
 
-  // Legacy compatibility methods (deprecated with new auth system)
-  handleFailedBackendSession: async () => {
-    // No longer needed with new auth system
-  },
-
-  initializeSupabaseAuth: async () => {
-    // No longer needed with new auth system
-  },
-
-  cleanupSupabaseAuth: () => {
-    // No longer needed with new auth system
-  },
-
   // Auth actions (these now redirect to backend endpoints)
   login: (source?: AuthSource) => {
     if (isDesktopApp()) {
@@ -452,16 +389,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       // Step 1: Set logging out state immediately for smooth UX
       set({ isLoggingOut: true });
 
-      // Step 2: Cleanup Supabase auth listener immediately to prevent state conflicts
-      if (state._supabaseAuthCleanup) {
-        try {
-          state._supabaseAuthCleanup();
-        } catch {
-          // Intentionally swallow cleanup errors during logout
-        }
-      }
-
-      // Step 3: Call backend logout API FIRST (before clearing local state)
+      // Step 2: Call backend logout API FIRST (before clearing local state)
       let backendResponse: Record<string, unknown> | null = null;
       try {
         const response = await apiClient.post('/auth/logout');
@@ -749,7 +677,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 }));
 
 // Export legacy helpers for backward compatibility
-export { legacyHelpers as supabaseHelpers };
+export { legacyHelpers };
 
 // Subscribe to changes and persist them to localStorage
 useAuthStore.subscribe((state) => {

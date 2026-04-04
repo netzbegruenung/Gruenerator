@@ -51,10 +51,14 @@ function CanvasIcon({
 }) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
 
-  // Generate data URL for this icon
   useEffect(() => {
-    const url = generateIconDataUrl(iconId, position.size * 2, color);
-    setDataUrl(url);
+    let cancelled = false;
+    generateIconDataUrl(iconId, position.size * 2, color).then((url) => {
+      if (!cancelled) setDataUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [iconId, position.size, color]);
 
   const [image] = useImage(dataUrl || '', 'anonymous');

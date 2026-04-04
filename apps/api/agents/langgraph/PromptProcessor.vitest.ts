@@ -38,7 +38,7 @@ describe('validateRequest', () => {
   it('fails when no fields are provided', () => {
     const result = validateRequest({}, redeConfig);
     expect(result).toBeTruthy();
-    expect(result).toContain('Inhalt');
+    expect(result).toContain('Thema');
   });
 
   it('fails when only rolle is provided (thema missing)', () => {
@@ -96,46 +96,41 @@ describe('rede requestTemplate', () => {
   const redeConfig = loadPromptConfig('rede');
   const template = redeConfig.requestTemplate!;
 
-  it('renders with only inhalt (smart detection flow)', () => {
+  it('renders with thema only', () => {
     const result = SimpleTemplateEngine.render(template, {
-      inhalt: 'Rede über erneuerbare Energien',
+      thema: 'Rede über erneuerbare Energien',
     });
-    expect(result).toContain('<inhalt>');
+    expect(result).toContain('<thema>');
     expect(result).toContain('Rede über erneuerbare Energien');
-    expect(result).not.toContain('<rolle>');
-    expect(result).not.toContain('<thema>');
+    expect(result).not.toContain('<redezeit>');
   });
 
-  it('renders with rolle and thema (normal form flow)', () => {
+  it('renders with thema and redezeit', () => {
     const result = SimpleTemplateEngine.render(template, {
-      rolle: 'Fraktionsvorsitzende',
       thema: 'Energiewende',
+      redezeit: '15',
     });
-    expect(result).not.toContain('<inhalt>');
-    expect(result).toContain('<rolle>');
-    expect(result).toContain('Fraktionsvorsitzende');
     expect(result).toContain('<thema>');
     expect(result).toContain('Energiewende');
+    expect(result).toContain('<redezeit>');
+    expect(result).toContain('15');
   });
 
   it('renders with all fields', () => {
     const result = SimpleTemplateEngine.render(template, {
-      inhalt: 'Kernpunkte der Debatte',
-      rolle: 'Bundestagsabgeordnete',
       thema: 'Klimaschutzgesetz',
       redezeit: '10',
+      currentDate: '2026-03-31',
     });
-    expect(result).toContain('<inhalt>');
-    expect(result).toContain('<rolle>');
     expect(result).toContain('<thema>');
+    expect(result).toContain('Klimaschutzgesetz');
     expect(result).toContain('<redezeit>');
+    expect(result).toContain('Aktuelles Datum: 2026-03-31');
   });
 
   it('renders gracefully with no optional fields', () => {
     const result = SimpleTemplateEngine.render(template, {});
-    expect(result).not.toContain('<inhalt>');
-    expect(result).not.toContain('<rolle>');
-    expect(result).not.toContain('<thema>');
+    expect(result).toContain('<thema>');
     expect(result).not.toContain('<redezeit>');
     expect(result).toContain('Aktuelles Datum:');
   });
