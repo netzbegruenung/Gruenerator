@@ -1,5 +1,5 @@
 import { useState, memo } from 'react';
-import { FileText, Pencil, LayoutGrid, Check, X, ExternalLink, Loader2 } from 'lucide-react';
+import { FileText, Pencil, LayoutGrid, Check, X, ArrowRight, Loader2 } from 'lucide-react';
 import type { ConfirmActionData, ConfirmActionType } from '../../types/messageMetadata';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 
@@ -57,8 +57,8 @@ export const ConfirmActionCard = memo(function ConfirmActionCard({
       if (data.url) {
         const isDocsUrl = data.url.startsWith('/document/');
         if (isDocsUrl) {
-          const { getDocsUrl } = useChatConfigStore.getState();
-          setResultUrl(`${getDocsUrl()}${data.url}`);
+          const docId = data.url.replace('/document/', '');
+          setResultUrl(`/docs/${docId}`);
         } else {
           setResultUrl(data.url);
         }
@@ -81,12 +81,10 @@ export const ConfirmActionCard = memo(function ConfirmActionCard({
               <span className="text-foreground-muted">&middot;</span>
               <a
                 href={resultUrl}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"
               >
                 {action.type === 'modify_board' ? 'Board öffnen' : 'Dokument öffnen'}
-                <ExternalLink className="h-3 w-3" />
+                <ArrowRight className="h-3 w-3" />
               </a>
             </>
           )}
