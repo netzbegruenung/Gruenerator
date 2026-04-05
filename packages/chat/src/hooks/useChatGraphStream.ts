@@ -46,6 +46,12 @@ export interface ProgressStep {
   completedAt?: number;
 }
 
+export interface MemoryContextInfo {
+  memoryCount: number;
+  memories: Array<{ content: string; category: string | null }>;
+  isPersona: boolean;
+}
+
 export interface ChatProgress {
   stage: ProgressStage;
   message: string;
@@ -53,6 +59,7 @@ export interface ChatProgress {
   resultCount?: number;
   reasoning?: string;
   steps?: ProgressStep[];
+  memoryContext?: MemoryContextInfo;
 }
 
 export interface Citation {
@@ -388,6 +395,15 @@ export function useChatGraphStream(
                 const { text } = data as { text: string };
                 accumulatedText += text;
                 setStreamingText(accumulatedText);
+                break;
+              }
+
+              case 'memory_context': {
+                const memCtx = data as MemoryContextInfo;
+                setProgress((prev) => ({
+                  ...prev,
+                  memoryContext: memCtx,
+                }));
                 break;
               }
 
