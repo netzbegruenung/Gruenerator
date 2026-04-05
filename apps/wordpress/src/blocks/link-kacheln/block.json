@@ -1,0 +1,35 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "gruenerator/link-tile-block",
+  "title": "Link-Kachel",
+  "category": "gruenerator-category",
+  "icon": "admin-links",
+  "description": "Füge eine anklickbare Kachel mit Hintergrundbild und Titel hinzu",
+  "textdomain": "gruenerator",
+  "attributes": {
+    "title": {
+      "type": "string",
+      "default": "Unsere Spitzenkandidatin"
+    },
+    "backgroundImage": {
+      "type": "string",
+      "default": ""
+    },
+    "linkUrl": {
+      "type": "string",
+      "default": "https://beta.gruenerator.de"
+    },
+    "ariaLabel": {
+      "type": "string",
+      "default": ""
+    }
+  },
+  "supports": {
+    "html": false,
+    "align": ["wide", "full"]
+  },
+  "editorScript": "file:./block.js",
+  "editorStyle": "file:./editor.scss",
+  "style": "file:./style.scss"
+}
