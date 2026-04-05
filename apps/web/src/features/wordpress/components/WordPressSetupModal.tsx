@@ -19,6 +19,7 @@ const WordPressSetupModal = ({ onClose, onSuccess }: WordPressSetupModalProps) =
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [testSuccess, setTestSuccess] = useState(false);
+  const [testDetails, setTestDetails] = useState('');
 
   const testConnection = useTestWordPressConnection();
   const addSite = useAddWordPressSite();
@@ -31,6 +32,7 @@ const WordPressSetupModal = ({ onClose, onSuccess }: WordPressSetupModalProps) =
 
     setError('');
     setTestSuccess(false);
+    setTestDetails('');
 
     try {
       const result = await testConnection.mutateAsync({
@@ -40,8 +42,17 @@ const WordPressSetupModal = ({ onClose, onSuccess }: WordPressSetupModalProps) =
       });
       if (result.success) {
         setTestSuccess(true);
+        const details = [
+          result.siteName && `Seite: ${result.siteName}`,
+          result.displayName && `Angemeldet als: ${result.displayName}`,
+        ]
+          .filter(Boolean)
+          .join(' · ');
+        if (details) {
+          setTestDetails(details);
+        }
       } else {
-        setError(result.message || 'Verbindungstest fehlgeschlagen.');
+        setError(result.error || result.message || 'Verbindungstest fehlgeschlagen.');
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Unbekannter Fehler';
@@ -122,6 +133,7 @@ const WordPressSetupModal = ({ onClose, onSuccess }: WordPressSetupModalProps) =
                   setSiteUrl(e.target.value);
                   setError('');
                   setTestSuccess(false);
+                  setTestDetails('');
                 }}
                 placeholder="https://gruene-musterstadt.de"
                 required
@@ -142,6 +154,7 @@ const WordPressSetupModal = ({ onClose, onSuccess }: WordPressSetupModalProps) =
                   setUsername(e.target.value);
                   setError('');
                   setTestSuccess(false);
+                  setTestDetails('');
                 }}
                 required
                 disabled={isSubmitting}
@@ -164,6 +177,7 @@ const WordPressSetupModal = ({ onClose, onSuccess }: WordPressSetupModalProps) =
                   setAppPassword(e.target.value);
                   setError('');
                   setTestSuccess(false);
+                  setTestDetails('');
                 }}
                 required
                 disabled={isSubmitting}
@@ -197,9 +211,14 @@ const WordPressSetupModal = ({ onClose, onSuccess }: WordPressSetupModalProps) =
             )}
 
             {testSuccess && (
-              <div className="flex items-center gap-sm text-secondary-700 text-sm px-md py-sm bg-secondary-50 rounded-md border border-secondary-300 mt-md">
-                <IoCheckmarkCircleOutline size={16} />
-                Verbindung erfolgreich!
+              <div className="flex flex-col gap-xs text-secondary-700 text-sm px-md py-sm bg-secondary-50 rounded-md border border-secondary-300 mt-md">
+                <div className="flex items-center gap-sm">
+                  <IoCheckmarkCircleOutline size={16} />
+                  Verbindung erfolgreich!
+                </div>
+                {testDetails && (
+                  <span className="text-xs text-secondary-600 ml-[24px]">{testDetails}</span>
+                )}
               </div>
             )}
 
