@@ -1,29 +1,22 @@
 import {
-  Badge,
   Button,
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CollapsibleSection,
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxGroup,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxLabel,
+  ComboboxList,
   Input,
-  Label,
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
   Textarea,
 } from '@gruenerator/ui';
-import { Beaker, BrainCircuit, Cpu, ImagePlus, Play, Square, Trash2, Type } from 'lucide-react';
+import { BrainCircuit, ImagePlus, Play, Square, Trash2, Type } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { cn } from '../../utils/cn';
@@ -81,10 +74,7 @@ const REASONING_OPTIONS: { value: ReasoningEffort; label: string }[] = [
   { value: 'high', label: 'Hoch' },
 ];
 
-const PANEL_STYLES = [
-  { accent: 'border-l-primary-500', dot: 'bg-primary-500', label: 'A' },
-  { accent: 'border-l-secondary-500', dot: 'bg-secondary-500', label: 'B' },
-] as const;
+const PANEL_DOTS = ['bg-primary-500', 'bg-secondary-500'] as const;
 
 // ─── Memoized field input ────────────────────────────────────────────────
 
@@ -112,7 +102,7 @@ const FieldInput = memo(function FieldInput({
 
   return (
     <div className={cn('flex flex-col gap-1.5', isTextarea && 'lg:col-span-2')}>
-      <Label className="text-xs text-muted-foreground">{FIELD_LABELS[field] || field}</Label>
+      <span className="text-xs text-muted-foreground">{FIELD_LABELS[field] || field}</span>
       {isTextarea ? (
         <Textarea
           value={value}
@@ -141,69 +131,45 @@ const OutputPanel = memo(function OutputPanel({
   panel: PanelState;
   panelIndex: 0 | 1;
 }) {
-  const style = PANEL_STYLES[panelIndex];
+  const hasContent = panel.output || panel.reasoning || panel.error || panel.streaming;
 
-  if (!panel.model) {
-    return (
-      <Card className={cn('flex-1 border-l-4', style.accent)}>
-        <CardContent className="flex-1">
-          <Empty className="h-full min-h-[200px] border-none">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Cpu />
-              </EmptyMedia>
-              <EmptyTitle>Modell {style.label}</EmptyTitle>
-              <EmptyDescription>
-                Wähle ein Modell aus, um Ergebnisse zu vergleichen
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </CardContent>
-      </Card>
-    );
-  }
+  if (!panel.model || !hasContent) return null;
 
   return (
-    <Card className={cn('flex flex-1 flex-col border-l-4 overflow-hidden', style.accent)}>
-      <CardHeader className="border-b border-grey-200 dark:border-grey-700">
-        <div className="flex items-center gap-2">
+    <div className="flex flex-1 flex-col overflow-hidden rounded-lg border border-grey-200 dark:border-grey-700">
+      <div className="flex items-center justify-between border-b border-grey-200 px-4 py-2.5 dark:border-grey-700">
+        <div className="flex items-center gap-2 text-sm font-medium">
           <span
             className={cn(
-              'inline-block size-2 shrink-0 rounded-full transition-colors',
+              'size-2 rounded-full',
               panel.streaming
-                ? cn('animate-pulse', style.dot)
-                : panel.output
-                  ? 'bg-green-500'
-                  : 'bg-grey-300 dark:bg-grey-600'
+                ? cn('animate-pulse', PANEL_DOTS[panelIndex])
+                : panel.error
+                  ? 'bg-red-500'
+                  : 'bg-green-500'
             )}
           />
-          <CardTitle className="text-sm">{panel.model.name}</CardTitle>
-          <Badge variant="outline" className="text-[10px]">
+          {panel.model.name}
+          <span className="text-[10px] font-normal text-muted-foreground">
             {panel.model.provider}
-          </Badge>
-          {panel.streaming && <Badge className="animate-pulse text-[10px]">Generiert...</Badge>}
+          </span>
         </div>
-        <CardAction>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground tabular-nums">
-            {panel.elapsed > 0 && <span>{(panel.elapsed / 1000).toFixed(1)}s</span>}
-            {panel.output && <span>{panel.output.length} Zeichen</span>}
-          </div>
-        </CardAction>
-      </CardHeader>
+        <span className="text-xs tabular-nums text-muted-foreground">
+          {(panel.elapsed / 1000).toFixed(1)}s{panel.output && ` · ${panel.output.length} Zeichen`}
+        </span>
+      </div>
 
-      <CardContent className="flex-1 overflow-y-auto py-4">
+      <div className="flex-1 overflow-y-auto p-4">
         {panel.error ? (
-          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
-            {panel.error}
-          </div>
+          <p className="text-sm text-red-600 dark:text-red-400">{panel.error}</p>
         ) : panel.output || panel.reasoning ? (
-          <div className="space-y-3">
+          <>
             {panel.reasoning && (
-              <details open={panel.isReasoning && !panel.output} className="group">
-                <summary className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-muted-foreground select-none">
+              <details open={panel.isReasoning && !panel.output}>
+                <summary className="mb-2 flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground select-none">
                   {panel.isReasoning ? (
                     <>
-                      <span className="inline-block size-3 animate-spin rounded-full border-2 border-grey-300 border-t-primary-500" />
+                      <span className="size-3 animate-spin rounded-full border-2 border-grey-300 border-t-primary-500" />
                       Denkt...
                     </>
                   ) : (
@@ -213,9 +179,9 @@ const OutputPanel = memo(function OutputPanel({
                     </>
                   )}
                 </summary>
-                <div className="mt-2 whitespace-pre-wrap rounded-lg bg-grey-50 p-3 text-xs leading-relaxed text-muted-foreground dark:bg-grey-800/50">
+                <pre className="mb-3 whitespace-pre-wrap rounded-md bg-grey-50 p-3 text-xs leading-relaxed text-muted-foreground dark:bg-grey-800/50">
                   {panel.reasoning}
-                </div>
+                </pre>
               </details>
             )}
             {panel.output && (
@@ -224,34 +190,25 @@ const OutputPanel = memo(function OutputPanel({
               </div>
             )}
             {panel.ocrText && (
-              <details className="group">
-                <summary className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-muted-foreground select-none">
+              <details className="mt-3">
+                <summary className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground select-none">
                   <Type className="size-3" />
-                  Extrahierter Text (OCR)
+                  OCR-Text
                 </summary>
-                <div className="mt-2 whitespace-pre-wrap rounded-lg bg-grey-50 p-3 text-xs leading-relaxed text-muted-foreground dark:bg-grey-800/50">
+                <pre className="mt-2 whitespace-pre-wrap rounded-md bg-grey-50 p-3 text-xs leading-relaxed text-muted-foreground dark:bg-grey-800/50">
                   {panel.ocrText}
-                </div>
+                </pre>
               </details>
             )}
-          </div>
-        ) : panel.streaming ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="inline-block size-4 animate-spin rounded-full border-2 border-grey-300 border-t-primary-500" />
-            Generiert...
-          </div>
+          </>
         ) : (
-          <Empty className="h-full min-h-[120px] border-none">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Play />
-              </EmptyMedia>
-              <EmptyDescription>Klicke &quot;Generieren&quot; um zu starten</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="size-4 animate-spin rounded-full border-2 border-grey-300 border-t-primary-500" />
+            {(panel.elapsed / 1000).toFixed(1)}s
+          </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 });
 
@@ -274,29 +231,36 @@ const ModelSelector = memo(function ModelSelector({
   onChange: (value: string) => void;
   onReasoningChange: (value: ReasoningEffort) => void;
 }) {
+  const handleValueChange = useCallback(
+    (newValue: string | null) => {
+      onChange(newValue ?? '');
+    },
+    [onChange]
+  );
+
   return (
     <div className="flex flex-col gap-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <span className="text-xs text-muted-foreground">{label}</span>
       <div className="flex gap-2">
-        <Select value={value || '_none'} onValueChange={(v) => onChange(v === '_none' ? '' : v)}>
-          <SelectTrigger className="w-full min-w-0">
-            <SelectValue placeholder="Modell wählen..." />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="_none">Modell wählen...</SelectItem>
-            {Object.entries(groupedModels).map(([category, categoryModels]) => (
-              <SelectGroup key={category}>
-                <SelectLabel>{category}</SelectLabel>
-                {categoryModels.map((m) => (
-                  <SelectItem key={`${m.provider}/${m.id}`} value={`${m.provider}/${m.id}`}>
-                    {m.name}
-                    {m.reasoning ? ' *' : ''}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox value={value || null} onValueChange={handleValueChange}>
+          <ComboboxInput placeholder="Modell suchen..." />
+          <ComboboxContent>
+            <ComboboxList>
+              <ComboboxEmpty>Kein Modell gefunden</ComboboxEmpty>
+              {Object.entries(groupedModels).map(([category, categoryModels]) => (
+                <ComboboxGroup key={category}>
+                  <ComboboxLabel>{category}</ComboboxLabel>
+                  {categoryModels.map((m) => (
+                    <ComboboxItem key={`${m.provider}/${m.id}`} value={`${m.provider}/${m.id}`}>
+                      {m.name}
+                      {m.reasoning ? ' *' : ''}
+                    </ComboboxItem>
+                  ))}
+                </ComboboxGroup>
+              ))}
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
         {showReasoning && (
           <Select
             value={reasoningEffort}
@@ -644,154 +608,118 @@ function PlaygroundPage() {
   const modelBValue = panels[1].model ? `${panels[1].model.provider}/${panels[1].model.id}` : '';
 
   return (
-    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-md px-lg pb-xl pt-lg max-md:px-md">
-      {/* Header */}
-      <div className="flex items-end justify-between">
-        <div>
-          <h1 className="flex items-center gap-sm text-2xl font-semibold text-foreground-heading">
-            <Beaker className="size-6 text-primary-600" />
-            Playground
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Vergleiche Prompts und Agents mit verschiedenen Modellen
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {isAnyStreaming ? (
-            <Button variant="brand-danger" size="brand-sm" onClick={handleStop}>
-              <Square className="size-3.5" />
-              Stoppen
-            </Button>
-          ) : (
-            <Button
-              variant="brand"
-              size="brand-sm"
-              onClick={handleGenerate}
-              disabled={!canGenerate}
-            >
-              <Play className="size-3.5" />
-              Generieren
-            </Button>
-          )}
-        </div>
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-lg px-lg pb-xl pt-lg max-md:px-md">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-foreground-heading">Playground</h1>
+        {isAnyStreaming ? (
+          <Button variant="brand-danger" size="brand-sm" onClick={handleStop}>
+            <Square className="size-3.5" />
+            Stoppen
+          </Button>
+        ) : (
+          <Button variant="brand" size="brand-sm" onClick={handleGenerate} disabled={!canGenerate}>
+            <Play className="size-3.5" />
+            Generieren
+          </Button>
+        )}
       </div>
 
-      {/* Config card */}
-      <Card>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-md lg:grid-cols-3">
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground">Modus</Label>
-              <Select value={selectedPrompt?.id || ''} onValueChange={handlePromptChange}>
-                <SelectTrigger className="w-full">
-                  <Type className="size-3.5 text-muted-foreground" />
-                  <SelectValue placeholder="Modus wählen..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {prompts.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+      <div className="grid grid-cols-1 gap-md lg:grid-cols-3">
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs text-muted-foreground">Modus</span>
+          <Select value={selectedPrompt?.id || ''} onValueChange={handlePromptChange}>
+            <SelectTrigger className="w-full">
+              <Type className="size-3.5 text-muted-foreground" />
+              <SelectValue placeholder="Modus wählen..." />
+            </SelectTrigger>
+            <SelectContent>
+              {prompts.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <ModelSelector
+          label="Modell A"
+          value={modelAValue}
+          reasoningEffort={panels[0].reasoningEffort}
+          showReasoning={!!panels[0].model?.reasoning}
+          groupedModels={groupedModels}
+          onChange={handleModelChangeA}
+          onReasoningChange={handleReasoningChangeA}
+        />
+        <ModelSelector
+          label="Modell B"
+          value={modelBValue}
+          reasoningEffort={panels[1].reasoningEffort}
+          showReasoning={!!panels[1].model?.reasoning}
+          groupedModels={groupedModels}
+          onChange={handleModelChangeB}
+          onReasoningChange={handleReasoningChangeB}
+        />
+      </div>
 
-            <ModelSelector
-              label="Modell A"
-              value={modelAValue}
-              reasoningEffort={panels[0].reasoningEffort}
-              showReasoning={!!panels[0].model?.reasoning}
-              groupedModels={groupedModels}
-              onChange={handleModelChangeA}
-              onReasoningChange={handleReasoningChangeA}
+      {selectedPrompt && (
+        <div className="grid grid-cols-1 gap-sm lg:grid-cols-2">
+          {selectedPrompt.fields.map((field) => (
+            <FieldInput
+              key={field}
+              field={field}
+              value={fields[field] || ''}
+              onChange={handleFieldChange}
             />
-            <ModelSelector
-              label="Modell B"
-              value={modelBValue}
-              reasoningEffort={panels[1].reasoningEffort}
-              showReasoning={!!panels[1].model?.reasoning}
-              groupedModels={groupedModels}
-              onChange={handleModelChangeB}
-              onReasoningChange={handleReasoningChangeB}
-            />
-          </div>
-        </CardContent>
-
-        {selectedPrompt && (
-          <CardContent className="pt-0">
-            <CollapsibleSection title="Eingabefelder" defaultOpen bordered>
-              <div className="grid grid-cols-1 gap-sm lg:grid-cols-2">
-                {selectedPrompt.fields.map((field) => (
-                  <FieldInput
-                    key={field}
-                    field={field}
-                    value={fields[field] || ''}
-                    onChange={handleFieldChange}
-                  />
-                ))}
-              </div>
-            </CollapsibleSection>
-          </CardContent>
-        )}
-      </Card>
-
-      {/* Image upload — shown when at least one vision model is selected */}
-      {hasVisionModel && (
-        <Card>
-          <CardContent>
-            <div className="flex items-center gap-md">
-              {imageData ? (
-                <div className="flex items-center gap-sm">
-                  <img
-                    src={imageData}
-                    alt="Vorschau"
-                    className="size-16 rounded-md border border-grey-200 object-cover dark:border-grey-700"
-                  />
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">Bild angehängt</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleRemoveImage}
-                      className="h-7 gap-1 px-2 text-xs"
-                    >
-                      <Trash2 className="size-3" />
-                      Entfernen
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="gap-1.5"
-                >
-                  <ImagePlus className="size-3.5" />
-                  Bild hinzufügen
-                </Button>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-              <span className="text-xs text-muted-foreground">
-                Vision-Modelle analysieren das Bild und extrahieren Text via OCR
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+          ))}
+        </div>
       )}
 
-      {/* Output panels */}
-      <div className="grid min-h-[400px] grid-cols-1 gap-md lg:grid-cols-2">
-        <OutputPanel panel={panels[0]} panelIndex={0} />
-        <OutputPanel panel={panels[1]} panelIndex={1} />
-      </div>
+      {hasVisionModel && (
+        <div className="flex items-center gap-sm">
+          {imageData ? (
+            <>
+              <img
+                src={imageData}
+                alt="Vorschau"
+                className="size-12 rounded-md border border-grey-200 object-cover dark:border-grey-700"
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRemoveImage}
+                className="h-7 gap-1 px-2 text-xs"
+              >
+                <Trash2 className="size-3" />
+                Entfernen
+              </Button>
+            </>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              className="gap-1.5"
+            >
+              <ImagePlus className="size-3.5" />
+              Bild hinzufügen
+            </Button>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="hidden"
+          />
+        </div>
+      )}
+
+      {panels.some((p) => p.model && (p.output || p.reasoning || p.error || p.streaming)) && (
+        <div className="grid grid-cols-1 gap-md lg:grid-cols-2">
+          <OutputPanel panel={panels[0]} panelIndex={0} />
+          <OutputPanel panel={panels[1]} panelIndex={1} />
+        </div>
+      )}
     </div>
   );
 }

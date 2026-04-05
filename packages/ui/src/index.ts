@@ -40,6 +40,18 @@ export {
   CommandSeparator,
 } from './components/command';
 export {
+  Combobox,
+  ComboboxInput,
+  ComboboxContent,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxGroup,
+  ComboboxLabel,
+  ComboboxEmpty,
+  ComboboxTrigger,
+  ComboboxValue,
+} from './components/combobox';
+export {
   Dialog,
   DialogClose,
   DialogContent,
