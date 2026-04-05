@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { createLogger } from '../../logger.js';
 import { encryptCredential } from '../../validation/encryption.js';
@@ -17,6 +19,29 @@ export class WordPressSiteManager {
     const postgres = getPostgresInstance();
     await postgres.ensureInitialized();
     return postgres;
+  }
+
+  private static async getSitesArray(userId: string): Promise<WordPressSite[]> {
+    const postgres = await this.getPostgres();
+    const profile = await postgres.queryOne(
+      'SELECT wordpress_sites FROM profiles WHERE id = $1',
+      [userId],
+      { table: 'profiles' }
+    );
+    const raw = profile?.wordpress_sites;
+    return Array.isArray(raw) ? raw : [];
+  }
+
+  private static async saveSitesArray(userId: string, sites: WordPressSite[]): Promise<void> {
+    const postgres = await this.getPostgres();
+    const result = await postgres.update(
+      'profiles',
+      { wordpress_sites: JSON.stringify(sites) },
+      { id: userId }
+    );
+    if (!result.data || result.data.length === 0) {
+      throw new Error('Profile not found');
+    }
   }
 
   static validateSiteUrl(siteUrl: string): WordPressSiteValidation {
@@ -60,16 +85,7 @@ export class WordPressSiteManager {
         throw new Error(validation.error ?? 'Invalid site URL');
       }
 
-      const postgres = await this.getPostgres();
-
-      const profile = await postgres.queryOne(
-        'SELECT wordpress_sites FROM profiles WHERE id = $1',
-        [userId],
-        { table: 'profiles' }
-      );
-
-      const rawCurrentSites = profile?.wordpress_sites;
-      const currentSites: WordPressSite[] = Array.isArray(rawCurrentSites) ? rawCurrentSites : [];
+      const currentSites = await this.getSitesArray(userId);
 
       const existingSite = currentSites.find(
         (site: WordPressSite) =>
@@ -80,7 +96,7 @@ export class WordPressSiteManager {
       }
 
       const newSite: WordPressSite = {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         label: label || null,
         site_url: validation.normalizedUrl,
         username,
@@ -91,17 +107,7 @@ export class WordPressSiteManager {
         last_error: null,
       };
 
-      const updatedSites = [...currentSites, newSite];
-
-      const result = await postgres.update(
-        'profiles',
-        { wordpress_sites: JSON.stringify(updatedSites) },
-        { id: userId }
-      );
-
-      if (!result.data || result.data.length === 0) {
-        throw new Error('Failed to save site - profile not found');
-      }
+      await this.saveSitesArray(userId, [...currentSites, newSite]);
 
       logger.info('WordPress site saved successfully', { siteId: newSite.id });
 
@@ -114,26 +120,17 @@ export class WordPressSiteManager {
 
   static async getSites(userId: string): Promise<WordPressSitePublic[]> {
     try {
-      logger.info('Getting WordPress sites for user', { userId });
+      logger.debug('Getting WordPress sites for user', { userId });
 
       if (!userId) throw new Error('User ID is required');
 
-      const postgres = await this.getPostgres();
-
-      const profile = await postgres.queryOne(
-        'SELECT wordpress_sites FROM profiles WHERE id = $1',
-        [userId],
-        { table: 'profiles' }
-      );
-
-      const rawSites = profile?.wordpress_sites;
-      const sites: WordPressSite[] = Array.isArray(rawSites) ? rawSites : [];
+      const sites = await this.getSitesArray(userId);
 
       const sortedSites = sites.sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
-      logger.info('Retrieved WordPress sites', { userId, count: sortedSites.length });
+      logger.debug('Retrieved WordPress sites', { userId, count: sortedSites.length });
 
       return sortedSites.map((site) => this.toPublic(site));
     } catch (error) {
@@ -144,20 +141,11 @@ export class WordPressSiteManager {
 
   static async getSiteById(userId: string, siteId: string): Promise<WordPressSite> {
     try {
-      logger.info('Getting WordPress site by ID', { userId, siteId });
+      logger.debug('Getting WordPress site by ID', { userId, siteId });
 
       if (!userId || !siteId) throw new Error('User ID and site ID are required');
 
-      const postgres = await this.getPostgres();
-
-      const profile = await postgres.queryOne(
-        'SELECT wordpress_sites FROM profiles WHERE id = $1',
-        [userId],
-        { table: 'profiles' }
-      );
-
-      const rawSites = profile?.wordpress_sites;
-      const sites: WordPressSite[] = Array.isArray(rawSites) ? rawSites : [];
+      const sites = await this.getSitesArray(userId);
       const site = sites.find((s: WordPressSite) => s.id === siteId);
 
       if (!site) throw new Error('WordPress site not found');
@@ -179,16 +167,7 @@ export class WordPressSiteManager {
 
       if (!userId || !siteId) throw new Error('User ID and site ID are required');
 
-      const postgres = await this.getPostgres();
-
-      const profile = await postgres.queryOne(
-        'SELECT wordpress_sites FROM profiles WHERE id = $1',
-        [userId],
-        { table: 'profiles' }
-      );
-
-      const rawCurrentSites = profile?.wordpress_sites;
-      const currentSites: WordPressSite[] = Array.isArray(rawCurrentSites) ? rawCurrentSites : [];
+      const currentSites = await this.getSitesArray(userId);
       const siteIndex = currentSites.findIndex((s: WordPressSite) => s.id === siteId);
 
       if (siteIndex === -1) throw new Error('WordPress site not found');
@@ -205,16 +184,8 @@ export class WordPressSiteManager {
         updatedSite.app_password_encrypted = encryptCredential(app_password);
       }
 
-      const updatedSites = [...currentSites];
-      updatedSites[siteIndex] = updatedSite;
-
-      const result = await postgres.update(
-        'profiles',
-        { wordpress_sites: JSON.stringify(updatedSites) },
-        { id: userId }
-      );
-
-      if (!result) throw new Error('Failed to update site - profile not found');
+      currentSites[siteIndex] = updatedSite;
+      await this.saveSitesArray(userId, currentSites);
 
       logger.info('WordPress site updated successfully', { siteId });
 
@@ -231,29 +202,15 @@ export class WordPressSiteManager {
 
       if (!userId || !siteId) throw new Error('User ID and site ID are required');
 
-      const postgres = await this.getPostgres();
-
-      const profile = await postgres.queryOne(
-        'SELECT wordpress_sites FROM profiles WHERE id = $1',
-        [userId],
-        { table: 'profiles' }
-      );
-
-      const rawCurrentSites = profile?.wordpress_sites;
-      const currentSites: WordPressSite[] = Array.isArray(rawCurrentSites) ? rawCurrentSites : [];
+      const currentSites = await this.getSitesArray(userId);
       const siteToDelete = currentSites.find((s: WordPressSite) => s.id === siteId);
 
       if (!siteToDelete) throw new Error('WordPress site not found');
 
-      const updatedSites = currentSites.filter((s: WordPressSite) => s.id !== siteId);
-
-      const result = await postgres.update(
-        'profiles',
-        { wordpress_sites: JSON.stringify(updatedSites) },
-        { id: userId }
+      await this.saveSitesArray(
+        userId,
+        currentSites.filter((s: WordPressSite) => s.id !== siteId)
       );
-
-      if (!result) throw new Error('Failed to delete site - profile not found');
 
       logger.info('WordPress site deleted successfully', { siteId });
 
@@ -266,26 +223,7 @@ export class WordPressSiteManager {
 
   static async updateLastUsed(userId: string, siteId: string): Promise<void> {
     try {
-      const postgres = await this.getPostgres();
-
-      const profile = await postgres.queryOne(
-        'SELECT wordpress_sites FROM profiles WHERE id = $1',
-        [userId],
-        { table: 'profiles' }
-      );
-
-      const rawSites = profile?.wordpress_sites;
-      const sites: WordPressSite[] = Array.isArray(rawSites) ? rawSites : [];
-      const siteIndex = sites.findIndex((s: WordPressSite) => s.id === siteId);
-
-      if (siteIndex === -1) return;
-
-      sites[siteIndex] = {
-        ...sites[siteIndex],
-        last_used_at: new Date().toISOString(),
-      };
-
-      await postgres.update('profiles', { wordpress_sites: JSON.stringify(sites) }, { id: userId });
+      await this.patchSiteField(userId, siteId, { last_used_at: new Date().toISOString() });
     } catch (error) {
       logger.error('Error in updateLastUsed', { error: (error as Error).message });
     }
@@ -297,29 +235,23 @@ export class WordPressSiteManager {
     error: string | null
   ): Promise<void> {
     try {
-      const postgres = await this.getPostgres();
-
-      const profile = await postgres.queryOne(
-        'SELECT wordpress_sites FROM profiles WHERE id = $1',
-        [userId],
-        { table: 'profiles' }
-      );
-
-      const rawSites = profile?.wordpress_sites;
-      const sites: WordPressSite[] = Array.isArray(rawSites) ? rawSites : [];
-      const siteIndex = sites.findIndex((s: WordPressSite) => s.id === siteId);
-
-      if (siteIndex === -1) return;
-
-      sites[siteIndex] = {
-        ...sites[siteIndex],
-        last_error: error,
-      };
-
-      await postgres.update('profiles', { wordpress_sites: JSON.stringify(sites) }, { id: userId });
+      await this.patchSiteField(userId, siteId, { last_error: error });
     } catch (error_) {
       logger.error('Error in updateLastError', { error: (error_ as Error).message });
     }
+  }
+
+  private static async patchSiteField(
+    userId: string,
+    siteId: string,
+    patch: Partial<WordPressSite>
+  ): Promise<void> {
+    const sites = await this.getSitesArray(userId);
+    const siteIndex = sites.findIndex((s: WordPressSite) => s.id === siteId);
+    if (siteIndex === -1) return;
+
+    sites[siteIndex] = { ...sites[siteIndex], ...patch };
+    await this.saveSitesArray(userId, sites);
   }
 
   private static toPublic(site: WordPressSite): WordPressSitePublic {
