@@ -27,7 +27,12 @@ import {
   buildCitations,
 } from '../../agents/langgraph/ChatGraph/index.js';
 import { isKnownNotebook } from '../../config/notebookCollectionMap.js';
-import { getMem0Instance } from '../../services/mem0/index.js';
+import {
+  getMem0Instance,
+  normalizeCategory,
+  formatMemoriesByCategory,
+} from '../../services/mem0/index.js';
+import { getCachedPersona } from '../../services/mem0/personaService.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -233,19 +238,42 @@ router.post('/stream', async (req, res) => {
     const previousAttachments = actualThreadId ? await getThreadAttachments(actualThreadId, 5) : [];
 
     // === Memory retrieval (mem0) ===
+    // Strategy: try compiled persona first (coherent summary), fall back to individual memories
     let memoryContext: string | null = null;
     let memoryRetrieveTimeMs = 0;
+    let memoriesUsed: Array<{ content: string; category: string | null }> = [];
 
     const mem0 = getMem0Instance();
     if (mem0 && lastUserMessage) {
       try {
         const memoryStartTime = Date.now();
-        const userQuery = extractTextContent(lastUserMessage.content);
-        const memories = await mem0.searchMemories(userQuery, userId, 5);
-        if (memories.length > 0) {
-          memoryContext = memories.map((m) => `- ${m.memory}`).join('\n');
-          log.info(`[${requestId}] Retrieved ${memories.length} memories for context`);
+
+        // Try compiled persona first (pre-cached, no LLM call)
+        const persona = await getCachedPersona(userId);
+        if (persona) {
+          memoryContext = persona;
+          memoriesUsed = [{ content: '[Persona]', category: null }];
+          log.info(`[${requestId}] Using cached persona for memory context`);
+        } else {
+          // Fall back to individual memory search
+          const userQuery = extractTextContent(lastUserMessage.content);
+          const memories = await mem0.searchMemories(userQuery, userId, 5);
+          if (memories.length > 0) {
+            memoriesUsed = memories.map((m) => ({
+              content: m.memory,
+              category: normalizeCategory(m.metadata?.memoryType) ?? null,
+            }));
+
+            memoryContext = formatMemoriesByCategory(
+              memories.map((m) => ({
+                memory: m.memory,
+                category: normalizeCategory(m.metadata?.memoryType),
+              }))
+            );
+            log.info(`[${requestId}] Retrieved ${memories.length} memories for context`);
+          }
         }
+
         memoryRetrieveTimeMs = Date.now() - memoryStartTime;
       } catch (memError) {
         log.warn(`[${requestId}] Memory retrieval failed (continuing without):`, memError);
@@ -299,6 +327,13 @@ router.post('/stream', async (req, res) => {
     if (memoryContext) {
       initialState.memoryContext = memoryContext;
       initialState.memoryRetrieveTimeMs = memoryRetrieveTimeMs;
+
+      const isPersona = memoriesUsed.length === 1 && memoriesUsed[0].content === '[Persona]';
+      sse.send('memory_context', {
+        memoryCount: isPersona ? 1 : memoriesUsed.length,
+        memories: isPersona ? [] : memoriesUsed,
+        isPersona,
+      });
     }
 
     // === Enrich context (documents, boards, mentions, vectorization) ===

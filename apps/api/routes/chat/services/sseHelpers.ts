@@ -36,6 +36,7 @@ export type SSEEventType =
   | 'document_created'
   | 'confirm_action'
   | 'chart_data'
+  | 'memory_context'
   | 'completion'
   | 'done'
   | 'error';
@@ -124,6 +125,11 @@ export interface SSEEventPayloads {
     confirmLabel?: string;
     cancelLabel?: string;
     threadId?: string;
+  };
+  memory_context: {
+    memoryCount: number;
+    memories: Array<{ content: string; category: string | null }>;
+    isPersona: boolean;
   };
   chart_data: {
     chart: ChartData;

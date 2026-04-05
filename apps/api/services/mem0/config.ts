@@ -9,6 +9,7 @@
 import OpenAI from 'openai';
 
 import { createQdrantClient } from '../../database/services/QdrantService/connection.js';
+import { extractJsonObject } from '../../utils/jsonParser.js';
 import { MistralEmbeddingService } from '../mistral/MistralEmbeddingService/MistralEmbeddingService.js';
 
 import type { MemoryConfig } from 'mem0ai/oss';
@@ -100,39 +101,12 @@ class LiteLLMAdapter {
       max_tokens: 4096,
     });
 
-    let content = response.choices[0]?.message?.content || '';
+    const raw = response.choices[0]?.message?.content || '';
 
     // GPT-OSS often outputs chain-of-thought reasoning before JSON.
-    // Always attempt extraction: mem0 internally expects JSON but doesn't always
-    // pass response_format through the LangChain adapter interface.
-    if (content && !content.trimStart().startsWith('{') && !content.trimStart().startsWith('[')) {
-      const bracketRe = /[[{]/g;
-      let match: RegExpExecArray | null;
-      let extracted = false;
-      while (!extracted && (match = bracketRe.exec(content)) !== null) {
-        if (match.index === 0) continue; // already valid JSON at position 0
-        const candidate = content.slice(match.index);
-        try {
-          JSON.parse(candidate);
-          content = candidate;
-          extracted = true;
-        } catch {
-          for (let end = candidate.length - 1; end > 0; end--) {
-            const ch = candidate[end];
-            if (ch === '}' || ch === ']') {
-              try {
-                JSON.parse(candidate.slice(0, end + 1));
-                content = candidate.slice(0, end + 1);
-                extracted = true;
-                break;
-              } catch {
-                /* continue scanning */
-              }
-            }
-          }
-        }
-      }
-    }
+    // Use shared extractJsonObject utility to robustly extract JSON from prose.
+    const parsed = extractJsonObject(raw);
+    const content = parsed ? JSON.stringify(parsed) : raw;
 
     return { content };
   }
@@ -172,19 +146,36 @@ export function buildMem0Config(): Partial<MemoryConfig> {
 
   const customPrompt = `Du bist ein Gedächtnis-Assistent für den Grünerator, eine KI-Plattform für Die Grünen.
 
-Speichere NUR folgende Informationen:
-1. Persönliche Fakten: Name, Wahlkreis, Kreisverband, politische Funktion, Parteiebene
-2. Politische Positionen: Themen, Schwerpunkte, Haltungen zu Sachfragen
-3. Schreibstil-Präferenzen: bevorzugte Tonalität, Sprachlevel, Zielgruppe
-4. Wiederkehrende Kontexte: regelmäßige Formate (Pressemitteilung, Social Media, Rede), häufige Themen
+Extrahiere Erinnerungen und ordne sie einer der folgenden Kategorien zu:
+
+## Kategorien
+
+1. **identity** — Persönliche Fakten: Name, Wahlkreis, Kreisverband, politische Funktion, Parteiebene, Fachgebiete
+   Beispiel: "Kreisverbandsvorstand in Freiburg" → identity
+2. **activity** — Zeitgebundene Ereignisse: laufende Anträge, Pressemitteilungen, Kampagnen, Parteitagstermine
+   Beispiel: "Arbeitet am Klimaantrag für den Landesparteitag im Mai" → activity
+3. **context** — Laufende Situationen: aktuelle Projekte, AG-Arbeit, Koalitionsverhandlungen
+   Beispiel: "Ist Mitglied der AG Energie und Klimaschutz" → context
+4. **experience** — Erfahrungen: was bei Formaten gut ankam, Lektionen aus Kampagnen
+   Beispiel: "Letzte PM zum Bürgergeld kam in lokalen Medien gut an" → experience
+5. **preference** — Dauerhafte Präferenzen: Schreibstil, Tonalität, Formate, Zielgruppe, Sprachlevel
+   Beispiel: "Bevorzugt kurze, direkte Formulierungen für Social Media" → preference
+
+## Konfidenz
+
+Bewerte jede Erinnerung:
+- **high**: Explizite Aussage ("Ich bin...", "Ich bevorzuge immer...")
+- **medium**: Aus Gesprächsmuster abgeleitet
+- **low**: Einmalige Erwähnung, mehrdeutig
 
 Speichere NICHT:
-- Aufgaben-Anweisungen wie "tweet kürzen", "schreibe eine Rede", "mach kürzer", "übersetze"
+- Aufgaben-Anweisungen ("tweet kürzen", "schreibe eine Rede", "mach kürzer")
 - Einmalige Generierungsaufträge oder Formatierungs-Befehle
 - Gesprächs-Metadaten (Grüße, Danke, Feedback zum Tool)
 - Sensible persönliche Daten (Adresse, Telefonnummer, Passwörter)
 
-Antworte auf Deutsch. Formuliere Erinnerungen als kurze Fakten-Aussagen.`;
+Antworte auf Deutsch. Formuliere Erinnerungen als kurze Fakten-Aussagen.
+Füge bei jeder Erinnerung die Kategorie und Konfidenz als Metadaten hinzu.`;
 
   return {
     customPrompt,
