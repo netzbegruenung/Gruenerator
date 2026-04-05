@@ -19,3 +19,7 @@ export {
 
 // Tailwind CSS class merging utility
 export { cn } from './cn.js';
+
+// German relative time formatting
+export { formatRelativeTime } from './formatRelativeTime.js';
+export type { FormatRelativeTimeOptions } from './formatRelativeTime.js';

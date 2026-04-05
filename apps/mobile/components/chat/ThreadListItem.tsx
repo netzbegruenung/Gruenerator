@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { formatRelativeTime } from '@gruenerator/shared/utils';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
 import { colors, spacing, borderRadius } from '../../theme';
@@ -10,34 +11,6 @@ interface ThreadItem {
   title: string | null;
   updatedAt: string;
   lastMessage?: { content: string; role: string; created_at: string } | null;
-}
-
-interface Props {
-  thread: ThreadItem;
-  theme: Theme;
-  onPress: () => void;
-  onDelete: () => void;
-}
-
-function formatRelativeTime(dateStr: string): string {
-  const now = Date.now();
-  const date = new Date(dateStr).getTime();
-  const diffMs = now - date;
-  const diffMins = Math.floor(diffMs / 60_000);
-
-  if (diffMins < 1) return 'Gerade eben';
-  if (diffMins < 60) return `Vor ${diffMins} Min.`;
-
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `Vor ${diffHours} Std.`;
-
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) return `Vor ${diffDays} Tag${diffDays > 1 ? 'en' : ''}`;
-
-  return new Date(dateStr).toLocaleDateString('de-DE', {
-    day: 'numeric',
-    month: 'short',
-  });
 }
 
 export function ThreadListItem({ thread, theme, onPress, onDelete }: Props) {
