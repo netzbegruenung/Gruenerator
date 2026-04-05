@@ -148,7 +148,32 @@ const GENERIC_TITLES = new Set([
 ]);
 
 function isGenericTitle(title: string): boolean {
-  return GENERIC_TITLES.has(title.toLowerCase().trim());
+  const t = title.toLowerCase().trim();
+  if (GENERIC_TITLES.has(t)) return true;
+  // Filter titles that are just numbers, markdown headings, or too short to be meaningful
+  if (/^\d+$/.test(t)) return true;
+  if (/^#+\s/.test(t)) return true;
+  if (t.length < 5) return true;
+  return false;
+}
+
+/**
+ * Common website navigation/header boilerplate patterns found in scraped content.
+ * These appear at the start of documents and should be stripped before training.
+ */
+const BOILERPLATE_PATTERNS = [
+  /^KontaktPresseJobsTermine.*?\d{2}\.\d{2}\.\d{2}\s*[–—-]\s*/s,
+  /^(?:Zum Inhalt springen|Skip to content|Navigation überspringen)\s*/i,
+  /^(?:Suche|Menü|Menu)\s*(?:öffnen|schließen)?\s*/i,
+  /^(?:Startseite|Home)\s*[>»›]\s*/i,
+];
+
+function stripBoilerplate(content: string): string {
+  let cleaned = content;
+  for (const pattern of BOILERPLATE_PATTERNS) {
+    cleaned = cleaned.replace(pattern, '');
+  }
+  return cleaned.trim();
 }
 
 function getSystemPrompt(doc: RawDocument): string {
@@ -186,7 +211,7 @@ function createTrainingExample(
     messages: [
       { role: 'system', content: getSystemPrompt(doc) },
       { role: 'user', content: promptOverride || selectPromptTemplate(doc) },
-      { role: 'assistant', content },
+      { role: 'assistant', content: stripBoilerplate(content) },
     ],
   };
 }
@@ -216,12 +241,16 @@ function createSlidingWindowExamples(
     if (windowText.length < 200) continue;
     if (windowText.length > maxLength) continue;
 
-    // Use section-specific prompt if we can extract a heading
+    // Use section-specific prompt if we can extract a usable heading
     const firstLine = windowParagraphs[0].trim();
-    const isHeading =
-      firstLine.length < 120 && !firstLine.endsWith('.') && !firstLine.endsWith(',');
+    const isUsableHeading =
+      firstLine.length < 120 &&
+      firstLine.length >= 5 &&
+      !firstLine.endsWith('.') &&
+      !firstLine.endsWith(',') &&
+      !isGenericTitle(firstLine);
 
-    const prompt = isHeading
+    const prompt = isUsableHeading
       ? selectPromptTemplate({
           ...doc,
           title: firstLine,

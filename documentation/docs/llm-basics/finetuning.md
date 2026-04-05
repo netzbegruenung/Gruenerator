@@ -122,6 +122,45 @@ Das erste deutsche Modell (`gruenerator-de-v1`) wurde am 5. April 2026 trainiert
 > 🚲 Kurzstrecken per Fahrrad statt Auto – mehr Bewegung, weniger CO₂.
 > ♻️ Abfalltrennung: Plastik, Papier, Bio – alles trennt sich leichter, wenn wir es wollen.
 
+## Modell verwenden & herunterladen
+
+Das trainierte Modell ist privat auf Together AI gespeichert und kann direkt per API verwendet oder als Datei heruntergeladen werden.
+
+### Modellname (Together AI API)
+
+```
+moritzius007_971c/gpt-oss-20b-gruenerator-de-v1-40c19966
+```
+
+### Download
+
+Zwei Varianten stehen zum Download bereit:
+
+| Variante    | Größe   | Beschreibung                                                       |
+| ----------- | ------- | ------------------------------------------------------------------ |
+| **Adapter** | ~115 MB | Nur die LoRA-Gewichte. Kann auf das Basismodell aufgesetzt werden. |
+| **Merged**  | ~20 GB  | Vollständiges Modell mit eingebackenem Adapter. Direkt einsetzbar. |
+
+Download über die Together AI API (erfordert `TOGETHER_API_KEY`):
+
+```bash
+cd apps/api
+
+# Adapter herunterladen (empfohlen — klein, flexibel)
+TOGETHER_API_KEY=... .venv/bin/python scripts/togetherFineTune.py \
+  --download ft-8f0086c8-1811 --download-type adapter
+
+# Vollständiges Modell herunterladen
+TOGETHER_API_KEY=... .venv/bin/python scripts/togetherFineTune.py \
+  --download ft-8f0086c8-1811 --download-type merged
+```
+
+Die Dateien werden als ZSTD-komprimierte Archive (`.tar.zst`) gespeichert und können mit `tar --zstd -xf dateiname.tar.zst` entpackt werden.
+
+### Selbst hosten
+
+Das heruntergeladene Modell kann lokal oder auf eigener Infrastruktur betrieben werden — zum Beispiel über LiteLLM, vLLM oder llama.cpp. Details dazu stehen im [FINETUNING-GUIDE](https://github.com/netzbegruenung/gruenerator/blob/master/apps/api/scripts/FINETUNING-GUIDE.md).
+
 ## Nächste Schritte
 
 - **Österreich-Adapter**: Separates Modell für Die Grüne Alternative, trainiert auf österreichischen Parteidokumenten
