@@ -20,7 +20,7 @@ import {
 } from '../alternativesSection';
 import { injectFeatureProps } from '../featureInjector';
 import { getPlaceholder } from '../placeholders';
-import { shareTab, createShareSection } from '../shareSection';
+import { createShareSection } from '../shareSection';
 
 import { createBaseActions } from './commonActions';
 
@@ -262,7 +262,6 @@ export function createImageTwoTextCanvas(
         ariaLabel: 'Dekorative Elemente',
       },
       alternativesTab,
-      shareTab,
     ],
 
     getVisibleTabs: () => ['image', 'assets', 'alternatives', 'share'],

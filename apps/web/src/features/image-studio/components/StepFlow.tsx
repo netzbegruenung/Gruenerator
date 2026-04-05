@@ -12,8 +12,9 @@ import ImageSizeSelectStep from '../steps/ImageSizeSelectStep';
 import ImageUploadStep from '../steps/ImageUploadStep';
 import InputStep from '../steps/InputStep';
 
+import { cn } from '@/utils/cn';
+
 // Types (Keep StepFlowProps, but maybe move others if needed by steps)
-import { IMAGE_STUDIO_TYPES } from '../utils/typeConfig';
 
 export interface StepFlowProps {
   onBack?: () => void;
@@ -63,8 +64,10 @@ const StepFlow: React.FC<StepFlowProps> = ({
   imageLimitData,
   startAtCanvasEdit,
 }) => {
-  const { handleChange, updateFormData, name, sloganAlternatives, uploadedImage } =
-    useImageStudioStore();
+  const handleChange = useImageStudioStore((s) => s.handleChange);
+  const updateFormData = useImageStudioStore((s) => s.updateFormData);
+  const uploadedImage = useImageStudioStore((s) => s.uploadedImage);
+  const sloganAlternatives = useImageStudioStore((s) => s.sloganAlternatives);
   const user = useAuthStore((s) => s.user);
 
   const {
@@ -108,10 +111,10 @@ const StepFlow: React.FC<StepFlowProps> = ({
   }, [uploadedImage]);
 
   useEffect(() => {
-    if (!name && userDisplayName) {
+    if (!useImageStudioStore.getState().name && userDisplayName) {
       updateFormData({ name: userDisplayName });
     }
-  }, [userDisplayName]);
+  }, [userDisplayName, updateFormData]);
 
   useEffect(() => {
     onStepChange?.(currentStep?.type || '');
@@ -142,9 +145,16 @@ const StepFlow: React.FC<StepFlowProps> = ({
     return null;
   }
 
+  const isCanvasEdit = currentStep?.type === 'canvas_edit';
+
   return (
     <div className="flex flex-col items-center w-full">
-      <div className="w-full max-w-[700px] mx-auto flex flex-col gap-md p-md max-[768px]:p-xs">
+      <div
+        className={cn(
+          'w-full max-w-[700px] mx-auto flex flex-col gap-md p-md max-[768px]:p-xs',
+          isCanvasEdit && 'max-w-none p-0 gap-0 max-[768px]:p-0'
+        )}
+      >
         <AnimatePresence mode="wait" custom={direction}>
           {currentStep.type === 'image_upload' && (
             <ImageUploadStep
@@ -171,7 +181,6 @@ const StepFlow: React.FC<StepFlowProps> = ({
             <InputStep
               key={currentStep.id}
               field={(currentStep as InputStepData).field}
-              value={getFieldValue((currentStep as InputStepData).field?.name ?? '')}
               onChange={handleChange}
               onNext={handleNext}
               onBack={handleBack}

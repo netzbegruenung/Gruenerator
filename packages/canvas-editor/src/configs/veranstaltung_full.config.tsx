@@ -27,7 +27,7 @@ import {
 } from './factory/commonActions';
 import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';
-import { shareTab, createShareSection } from './shareSection';
+import { createShareSection } from './shareSection';
 
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { CircleBadgeInstance, CircleBadgeTextLine } from '../primitives';
@@ -292,10 +292,9 @@ export const veranstaltungFullConfig: FullCanvasConfig<
     { id: 'image', icon: HiPhotograph, label: 'Bild', ariaLabel: 'Bild anpassen' },
     { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Dekorative Elemente' },
     alternativesTab,
-    shareTab,
   ],
 
-  getVisibleTabs: () => ['image', 'assets', 'alternatives', 'share'],
+  getVisibleTabs: () => ['image', 'assets', 'alternatives'],
 
   getAutoSwitchTab: (selectedElement) => (selectedElement?.startsWith('frame-') ? 'assets' : null),
 

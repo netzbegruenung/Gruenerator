@@ -34,10 +34,13 @@ import { useAutoSaveStore } from '../stores/useAutoSaveStore';
 import { useCanvasSidebarStore } from '../stores/canvasSidebarStore';
 
 import { GenericCanvas } from './GenericCanvas';
+import { PageToolbar } from './PageToolbar';
+import { Toolbar } from './Toolbar';
 import { AddPageButton } from './TemplatePickerFlyout';
 import { ZoomableViewport } from './ZoomableViewport';
 
-import type { GenericCanvasRef } from './GenericCanvas';
+import type { GenericCanvasRef, ToolbarStateReport } from './GenericCanvas';
+import type { AlignmentDirection } from './Toolbar';
 import type { CanvasConfigId, FullCanvasConfig } from '../configs/types';
 import type { MobileBridgeProps } from '../hooks/useMobileBridge';
 import type { MobileSubsectionBridgeValue } from '../sidebar/MobileSubsectionBridgeContext';
@@ -96,12 +99,15 @@ interface CanvasEditorProps {
 interface PageWrapperProps {
   page: { id: string; configId: CanvasConfigId; state: Record<string, unknown> };
   index: number;
+  pageCount: number;
   config: FullCanvasConfig;
   isActive: boolean;
   canDelete: boolean;
   canvasRef: React.RefObject<GenericCanvasRef | null>;
   onSelect: (index: number) => void;
   onDelete: (id: string) => void;
+  onMovePage: (id: string, direction: 'up' | 'down') => void;
+  onDuplicatePage: (id: string) => void;
   onExport: (base64: string) => void;
   onCancel: () => void;
   callbacks: Record<string, (val: unknown) => void>;
@@ -118,6 +124,7 @@ interface PageWrapperProps {
     selectedElement: string | null
   ) => void;
   mobileBridge?: MobileBridgeProps;
+  onToolbarStateChange?: (state: ToolbarStateReport) => void;
 }
 
 /**
@@ -127,17 +134,21 @@ interface PageWrapperProps {
 const PageWrapper = memo(function PageWrapper({
   page,
   index,
+  pageCount,
   config,
   isActive,
   canDelete,
   canvasRef,
   onSelect,
   onDelete,
+  onMovePage,
+  onDuplicatePage,
   onExport,
   onCancel,
   callbacks,
   multiPageExport,
   onStateChange,
+  onToolbarStateChange,
   mobileBridge,
 }: PageWrapperProps) {
   // Report state/actions to parent when ref is ready or changes
@@ -174,14 +185,6 @@ const PageWrapper = memo(function PageWrapper({
     onSelect(index);
   }, [onSelect, index]);
 
-  const handleDelete = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      onDelete(page.id);
-    },
-    [onDelete, page.id]
-  );
-
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === 'Enter' || e.key === ' ') {
@@ -195,7 +198,7 @@ const PageWrapper = memo(function PageWrapper({
   return (
     <div
       className={cn(
-        'heterogeneous-multipage__page-wrapper group relative cursor-pointer overflow-hidden w-fit p-0.5 focus-visible:outline-2 focus-visible:outline-[var(--tanne,#0a2b1e)] focus-visible:outline-offset-1',
+        'heterogeneous-multipage__page-wrapper group relative cursor-pointer w-fit focus-visible:outline-2 focus-visible:outline-[var(--tanne,#0a2b1e)] focus-visible:outline-offset-1',
         '[&_.zoomable-viewport-wrapper]:w-fit [&_.zoomable-viewport-container]:p-0 [&_.zoomable-viewport-container]:overflow-visible',
         isActive && 'heterogeneous-multipage__page-wrapper--active'
       )}
@@ -206,16 +209,15 @@ const PageWrapper = memo(function PageWrapper({
       aria-label={`Seite ${index + 1}${isActive ? ' (ausgewählt)' : ''}`}
       aria-pressed={isActive}
     >
-      {canDelete && (
-        <button
-          className="absolute top-sm right-sm z-10 flex items-center justify-center size-7 border-none rounded-full bg-background-pure shadow-[0_2px_6px_rgba(0,0,0,0.15)] text-lg leading-none text-foreground-muted cursor-pointer opacity-0 transition-[opacity,background-color,color] duration-150 group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-red-600 focus-visible:outline-offset-2 max-canvas-mobile:size-6 max-canvas-mobile:text-base max-canvas-mobile:top-xs max-canvas-mobile:right-xs max-canvas-mobile:opacity-100 dark:bg-grey-900 dark:text-grey-400 dark:hover:bg-red-950 dark:hover:text-red-400"
-          onClick={handleDelete}
-          type="button"
-          aria-label={`Seite ${index + 1} löschen`}
-        >
-          ×
-        </button>
-      )}
+      <PageToolbar
+        pageIndex={index}
+        pageCount={pageCount}
+        isActive={isActive}
+        onMoveUp={() => onMovePage(page.id, 'up')}
+        onMoveDown={() => onMovePage(page.id, 'down')}
+        onDuplicate={() => onDuplicatePage(page.id)}
+        onDelete={canDelete ? () => onDelete(page.id) : undefined}
+      />
 
       <ZoomableViewport
         canvasWidth={config.canvas.width}
@@ -231,6 +233,7 @@ const PageWrapper = memo(function PageWrapper({
           callbacks={callbacks}
           multiPageExport={multiPageExport}
           mobileBridge={mobileBridge}
+          onToolbarStateChange={onToolbarStateChange}
         />
       </ZoomableViewport>
     </div>
@@ -272,6 +275,8 @@ export function CanvasEditor({
     pages,
     addPage,
     duplicateCurrentPage,
+    duplicatePage,
+    movePage,
     removePage,
     currentPageIndex,
     setCurrentPageIndex,
@@ -292,7 +297,7 @@ export function CanvasEditor({
 
   // Sidebar state - ONE shared sidebar for all pages
   // In mobile bridge mode, activeTab is controlled by native via mobileBridge.activeTab
-  const [localActiveTab, setLocalActiveTab] = useState<SidebarTabId | null>('text');
+  const [localActiveTab, setLocalActiveTab] = useState<SidebarTabId | null>(null);
   const prevTabRef = useRef<SidebarTabId | null>(null);
   const activeTab = isMobileBridge ? (mobileBridge!.activeTab ?? null) : localActiveTab;
   const setActiveTab = setLocalActiveTab;
@@ -304,6 +309,9 @@ export function CanvasEditor({
     actions: Record<string, unknown>;
     selectedElement: string | null;
   } | null>(null);
+
+  // Toolbar state - reported by active page's GenericCanvas
+  const [toolbarState, setToolbarState] = useState<ToolbarStateReport | null>(null);
 
   // Create refs array for all canvas instances
   const canvasRefsRef = useRef<React.RefObject<GenericCanvasRef | null>[]>([]);
@@ -424,6 +432,62 @@ export function CanvasEditor({
       });
     },
     []
+  );
+
+  const handleToolbarStateChange = useCallback((report: ToolbarStateReport) => {
+    setToolbarState((prev) => {
+      if (
+        prev &&
+        prev.selectedElement === report.selectedElement &&
+        prev.activeFloatingModule === report.activeFloatingModule &&
+        prev.canUndo === report.canUndo &&
+        prev.canRedo === report.canRedo &&
+        prev.canMoveUp === report.canMoveUp &&
+        prev.canMoveDown === report.canMoveDown
+      ) {
+        return prev;
+      }
+      return report;
+    });
+  }, []);
+
+  const toolbarHandlers = useMemo(() => {
+    const ref = canvasRefsRef.current[currentPageIndex];
+    return {
+      undo: () => ref?.current?.undo?.(),
+      redo: () => ref?.current?.redo?.(),
+      handleMoveLayer: (direction: 'up' | 'down') => ref?.current?.handleMoveLayer?.(direction),
+      handleColorSelect: (color: string) => ref?.current?.handleColorSelect?.(color),
+      handleOpacityChange: (id: string, opacity: number, type: string) =>
+        ref?.current?.handleOpacityChange?.(id, opacity, type),
+      handleFontSizeChange: (id: string, size: number) =>
+        ref?.current?.handleFontSizeChange?.(id, size),
+      handleAlign: (direction: AlignmentDirection) => ref?.current?.handleAlign?.(direction),
+    };
+  }, [currentPageIndex]);
+
+  const handleCaptureCanvas = useCallback(async () => {
+    const ref = canvasRefsRef.current[currentPageIndex];
+    if (!ref?.current) return null;
+    return await ref.current.captureCanvas();
+  }, [currentPageIndex]);
+
+  const handleDownload = useCallback(
+    (format: 'png' | 'jpeg' = 'png', pixelRatio = 2) => {
+      const ref = canvasRefsRef.current[currentPageIndex];
+      if (!ref?.current) return;
+      const dataUrl = ref.current.toDataURL({ format, pixelRatio });
+      if (dataUrl) {
+        const ext = format === 'jpeg' ? 'jpg' : 'png';
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = `gruenerator-seite-${currentPageIndex + 1}.${ext}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    },
+    [currentPageIndex]
   );
 
   // Get active page data for shared sidebar
@@ -732,6 +796,49 @@ export function CanvasEditor({
     };
   }, [isExternalSidebar]);
 
+  const toolbarOnDelete = useMemo(
+    () => (pageCount > 1 && currentPage ? () => removePage(currentPage.id) : undefined),
+    [pageCount, currentPage?.id, removePage]
+  );
+
+  const canvasText = ((activeState as Record<string, unknown> | null)?.headline as string) ?? '';
+  const canvasConfigId = pages[currentPageIndex]?.configId ?? '';
+  const canvasWidth = activeConfig?.canvas.width ?? 1080;
+  const canvasHeight = activeConfig?.canvas.height ?? 1080;
+
+  const noop = useCallback(() => {}, []);
+  const toolbarShareProps = useMemo(
+    () => ({
+      onCaptureCanvas: handleCaptureCanvas,
+      onDownload: handleDownload,
+      onNavigateToGallery: noop,
+      canvasText,
+      canvasType: canvasConfigId,
+      canvasWidth,
+      canvasHeight,
+      shareToken: null,
+      pageCount,
+      onDownloadAllZip: downloadAllAsZip,
+      onShareAllPages: shareAllPages,
+      isMultiExporting,
+      exportProgress,
+    }),
+    [
+      handleCaptureCanvas,
+      handleDownload,
+      noop,
+      canvasText,
+      canvasConfigId,
+      canvasWidth,
+      canvasHeight,
+      pageCount,
+      downloadAllAsZip,
+      shareAllPages,
+      isMultiExporting,
+      exportProgress,
+    ]
+  );
+
   if (!allConfigsLoaded) {
     return pageLoadingIndicator;
   }
@@ -781,11 +888,27 @@ export function CanvasEditor({
       </Suspense>
     ) : null;
 
+  const toolbarElement =
+    !isMobileBridge && toolbarState ? (
+      <Toolbar
+        selectedElement={toolbarState.selectedElement}
+        activeFloatingModule={toolbarState.activeFloatingModule}
+        canUndo={toolbarState.canUndo}
+        canRedo={toolbarState.canRedo}
+        canMoveUp={toolbarState.canMoveUp}
+        canMoveDown={toolbarState.canMoveDown}
+        handlers={toolbarHandlers}
+        onDelete={toolbarOnDelete}
+        shareProps={toolbarShareProps}
+      />
+    ) : null;
+
   return (
     <CanvasEditorLayout
       sidebar={panel}
       tabBar={tabBar}
       actions={null}
+      toolbar={toolbarElement}
       hideMobileChrome={isMobileBridge}
       externalSidebar={isExternalSidebar}
       subsectionBar={webSubsectionBar}
@@ -803,17 +926,21 @@ export function CanvasEditor({
               key={page.id}
               page={page}
               index={index}
+              pageCount={pageCount}
               config={config}
               isActive={isActive}
               canDelete={canDelete}
               canvasRef={canvasRefsRef.current[index]}
               onSelect={handlePageSelect}
               onDelete={removePage}
+              onMovePage={movePage}
+              onDuplicatePage={duplicatePage}
               onExport={handleExport}
               onCancel={onCancel}
               callbacks={callbacks}
               multiPageExport={index === 0 ? multiPageExportProps : undefined}
               onStateChange={handlePageStateChange}
+              onToolbarStateChange={isActive ? handleToolbarStateChange : undefined}
               mobileBridge={isActive ? mobileBridge : undefined}
             />
           );
@@ -821,7 +948,7 @@ export function CanvasEditor({
 
         {/* Add page button at the end */}
         {canAddMore && (
-          <div className="flex justify-center py-md px-sm mt-sm max-canvas-mobile:py-sm max-canvas-mobile:px-xs max-canvas-mobile:mt-xs">
+          <div className="w-full max-w-[28rem] pt-sm max-canvas-mobile:pt-xs max-canvas-mobile:px-xs">
             <AddPageButton
               onSelectTemplate={handleAddPage}
               onDuplicateCurrent={duplicateCurrentPage}

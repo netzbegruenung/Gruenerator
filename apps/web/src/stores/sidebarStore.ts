@@ -4,6 +4,8 @@ interface SidebarState {
   isOpen: boolean;
   hideRequesters: Set<string>;
   hideAppSidebar: boolean;
+  headerHideRequesters: Set<string>;
+  hideAppHeader: boolean;
   forceExpandedRequesters: Set<string>;
   forceExpanded: boolean;
   open: () => void;
@@ -11,6 +13,8 @@ interface SidebarState {
   toggle: () => void;
   requestHideSidebar: (requesterId: string) => void;
   releaseHideSidebar: (requesterId: string) => void;
+  requestHideHeader: (requesterId: string) => void;
+  releaseHideHeader: (requesterId: string) => void;
   requestForceExpanded: (requesterId: string) => void;
   releaseForceExpanded: (requesterId: string) => void;
 }
@@ -19,6 +23,8 @@ const useSidebarStore = create<SidebarState>((set) => ({
   isOpen: false,
   hideRequesters: new Set(),
   hideAppSidebar: false,
+  headerHideRequesters: new Set(),
+  hideAppHeader: false,
   forceExpandedRequesters: new Set(),
   forceExpanded: false,
   open: () => set({ isOpen: true }),
@@ -40,6 +46,24 @@ const useSidebarStore = create<SidebarState>((set) => ({
       return {
         hideRequesters: newSet,
         hideAppSidebar: newSet.size > 0,
+      };
+    }),
+  requestHideHeader: (requesterId: string) =>
+    set((state) => {
+      const newSet = new Set(state.headerHideRequesters);
+      newSet.add(requesterId);
+      return {
+        headerHideRequesters: newSet,
+        hideAppHeader: newSet.size > 0,
+      };
+    }),
+  releaseHideHeader: (requesterId: string) =>
+    set((state) => {
+      const newSet = new Set(state.headerHideRequesters);
+      newSet.delete(requesterId);
+      return {
+        headerHideRequesters: newSet,
+        hideAppHeader: newSet.size > 0,
       };
     }),
   requestForceExpanded: (requesterId: string) =>

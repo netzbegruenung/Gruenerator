@@ -42,6 +42,8 @@ export interface UsePageManagerReturn {
     stateOverrides?: Record<string, unknown>
   ) => Promise<void>;
   duplicateCurrentPage: () => void;
+  duplicatePage: (id: string) => void;
+  movePage: (id: string, direction: 'up' | 'down') => void;
   removePage: (id: string) => void;
   updatePageState: (id: string, partial: Record<string, unknown>) => void;
   canAddMore: boolean;
@@ -210,6 +212,61 @@ export function usePageManager({
   }, [canAddMore, pages, currentPageIndex]);
 
   /**
+   * Duplicate a specific page by ID (inserts after the original)
+   */
+  const duplicatePage = useCallback(
+    (id: string) => {
+      if (!canAddMore) return;
+
+      const sourceIndex = pages.findIndex((p) => p.id === id);
+      if (sourceIndex === -1) return;
+
+      const sourcePage = pages[sourceIndex];
+      const duplicated: HeterogeneousPage = {
+        id: uuid(),
+        configId: sourcePage.configId,
+        state: { ...sourcePage.state },
+        order: 0,
+      };
+
+      setPages((prev) => {
+        const next = [...prev];
+        next.splice(sourceIndex + 1, 0, duplicated);
+        return next.map((p, i) => ({ ...p, order: i }));
+      });
+      setCurrentPageIndex(sourceIndex + 1);
+    },
+    [canAddMore, pages]
+  );
+
+  /**
+   * Move a page up or down in the order
+   */
+  const movePage = useCallback(
+    (id: string, direction: 'up' | 'down') => {
+      const index = pages.findIndex((p) => p.id === id);
+      if (index === -1) return;
+
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= pages.length) return;
+
+      setPages((prev) => {
+        const next = [...prev];
+        [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+        return next.map((p, i) => ({ ...p, order: i }));
+      });
+
+      // Follow the moved page
+      if (currentPageIndex === index) {
+        setCurrentPageIndex(targetIndex);
+      } else if (currentPageIndex === targetIndex) {
+        setCurrentPageIndex(index);
+      }
+    },
+    [pages, currentPageIndex]
+  );
+
+  /**
    * Remove a page by ID
    */
   const removePage = useCallback(
@@ -248,6 +305,8 @@ export function usePageManager({
     currentPage,
     addPage,
     duplicateCurrentPage,
+    duplicatePage,
+    movePage,
     removePage,
     updatePageState,
     canAddMore,

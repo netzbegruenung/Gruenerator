@@ -15,6 +15,7 @@ import {
   flattenPoints,
   measureTextWidth,
 } from '../utils/dreizeilenLayout';
+import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { calculateElementSnapPosition } from '../utils/snapping';
 
 import type { SnapTarget } from '../utils/snapping';
@@ -318,8 +319,7 @@ function BalkenGroupInner({
     input.style.lineHeight = String(lineHeight);
   }, [balkens, editingIndex, stageWidth, stageHeight, fontSize]); // Added fontSize dep
 
-  // Track last snap state to avoid redundant updates
-  const lastSnapRef = useRef({ h: false, v: false, linesCount: 0 });
+  const snap = useSnapScheduler({ onSnapChange, onSnapLinesChange });
 
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -344,33 +344,19 @@ function BalkenGroupInner({
 
       node.position({ x: result.x + contentWidth / 2, y: result.y + contentHeight / 2 });
 
-      // Only update snap state if it actually changed
-      const snapChanged =
-        lastSnapRef.current.h !== result.snapH || lastSnapRef.current.v !== result.snapV;
-      const linesChanged = lastSnapRef.current.linesCount !== result.snapLines.length;
-
-      if (snapChanged || linesChanged) {
-        lastSnapRef.current = {
-          h: result.snapH,
-          v: result.snapV,
-          linesCount: result.snapLines.length,
-        };
-        onSnapChange(result.snapH, result.snapV);
-        onSnapLinesChange(result.snapLines);
-      }
+      snap.scheduleSnap(result.snapH, result.snapV, result.snapLines);
     },
-    [bounds, getSnapTargets, stageWidth, stageHeight, onSnapChange, onSnapLinesChange]
+    [bounds, getSnapTargets, stageWidth, stageHeight, snap]
   );
 
   const handleDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
-      onSnapChange(false, false);
-      onSnapLinesChange([]);
+      snap.onDragEnd();
       const centerX = bounds.left + bounds.width / 2;
       const centerY = bounds.top + bounds.height / 2;
       onDragEnd(e.target.x() - centerX, e.target.y() - centerY);
     },
-    [onDragEnd, onSnapChange, onSnapLinesChange, bounds]
+    [onDragEnd, snap, bounds]
   );
 
   const handleTransformEnd = useCallback(() => {
@@ -515,6 +501,7 @@ function BalkenGroupInner({
         rotation={rotation}
         opacity={opacity}
         draggable={editingIndex === null} // Disable drag while editing
+        onDragStart={snap.onDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
         onTransformEnd={handleTransformEnd}

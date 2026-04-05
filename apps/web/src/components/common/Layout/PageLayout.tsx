@@ -38,6 +38,7 @@ const PageLayout = ({
   const [showFooter, setShowFooter] = useState(false);
   const sidebarOpen = useSidebarStore((state) => state.isOpen);
   const hideAppSidebar = useSidebarStore((state) => state.hideAppSidebar);
+  const hideAppHeader = useSidebarStore((state) => state.hideAppHeader);
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const isHomePage = pathname === '/';
@@ -88,7 +89,7 @@ const PageLayout = ({
   }
 
   const isImmersive = layoutMode === 'immersive';
-  const isSidebarOnly = layoutMode === 'sidebarOnly';
+  const isSidebarOnly = layoutMode === 'sidebarOnly' || hideAppHeader;
   const hideHeader = isImmersive || isSidebarOnly;
 
   const layoutClasses = [
@@ -103,15 +104,15 @@ const PageLayout = ({
     'relative flex-1',
     layoutMode === 'fullscreen' && 'mt-0 min-h-0 overflow-hidden',
     layoutMode === 'immersive' && 'mt-0 min-h-0 overflow-y-auto',
-    layoutMode === 'sidebarOnly' && 'mt-0 min-h-0',
-    layoutMode === 'default' && 'mt-lg'
+    (layoutMode === 'sidebarOnly' || isSidebarOnly) && 'mt-0 min-h-0',
+    layoutMode === 'default' && !isSidebarOnly && 'mt-lg'
   );
 
   const appContentClasses = cn(
     'app-content',
     layoutMode === 'fullscreen' && 'flex flex-col h-dvh pt-12',
     layoutMode === 'immersive' && 'flex flex-col h-dvh',
-    layoutMode === 'sidebarOnly' && 'flex flex-col h-dvh'
+    (layoutMode === 'sidebarOnly' || isSidebarOnly) && 'flex flex-col h-dvh'
   );
 
   const showPageFooter = showFooter && isHomePage && layoutMode === 'default';
