@@ -1,0 +1,48 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "gruenerator/meine-themen-block",
+  "title": "Meine Themen",
+  "category": "gruenerator-category",
+  "icon": "groups",
+  "description": "Füge einen Bereich hinzu, um deine wichtigsten Themen anzuzeigen",
+  "textdomain": "gruenerator",
+  "attributes": {
+    "title": {
+      "type": "string",
+      "default": "Meine Themen"
+    },
+    "themes": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "object",
+        "properties": {
+          "imageId": {
+            "type": "integer",
+            "default": 0
+          },
+          "imageUrl": {
+            "type": "string",
+            "default": "https://via.placeholder.com/600x400"
+          },
+          "title": {
+            "type": "string",
+            "default": ""
+          },
+          "content": {
+            "type": "string",
+            "default": ""
+          }
+        }
+      }
+    }
+  },
+  "supports": {
+    "html": false,
+    "align": ["wide", "full"]
+  },
+  "editorScript": "file:./block.js",
+  "editorStyle": "file:./editor.scss",
+  "style": "file:./style.scss"
+}

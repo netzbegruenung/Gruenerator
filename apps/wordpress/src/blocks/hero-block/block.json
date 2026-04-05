@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "gruenerator/hero-block",
+  "title": "Vorstellungsbereich",
+  "category": "gruenerator-category",
+  "icon": "cover-image",
+  "description": "Füge einen Bereich hinzu, in dem du dich vorstellst",
+  "textdomain": "gruenerator",
+  "attributes": {
+    "heroImageId": {
+      "type": "number",
+      "default": 0
+    },
+    "heroImageUrl": {
+      "type": "string",
+      "default": ""
+    },
+    "heroHeading": {
+      "type": "string",
+      "default": ""
+    },
+    "heroText": {
+      "type": "string",
+      "default": ""
+    },
+    "socialLinks": {
+      "type": "object",
+      "default": {
+        "facebook": "",
+        "twitter": "",
+        "youtube": ""
+      }
+    }
+  },
+  "supports": {
+    "html": false,
+    "align": ["wide", "full"]
+  },
+  "editorScript": "file:./block.js",
+  "editorStyle": "file:./editor.scss",
+  "style": "file:./style.scss"
+}
