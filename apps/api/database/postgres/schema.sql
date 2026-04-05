@@ -83,6 +83,8 @@ CREATE TABLE IF NOT EXISTS profiles (
     prompts BOOLEAN DEFAULT FALSE,
     interactive_antrag_enabled BOOLEAN DEFAULT TRUE,
     nextcloud_share_links JSONB DEFAULT '[]',
+    wordpress_sites JSONB DEFAULT '[]',
+    wordpress_enabled BOOLEAN DEFAULT FALSE,
     document_mode TEXT DEFAULT 'manual',
     user_defaults JSONB DEFAULT '{}',
     docs BOOLEAN DEFAULT FALSE,

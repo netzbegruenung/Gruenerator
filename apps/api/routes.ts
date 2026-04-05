@@ -192,6 +192,7 @@ export async function setupRoutes(app: Application): Promise<void> {
     interactionRouter: notebookInteractionRouter,
   } = await import('./routes/notebook/index.js');
   const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.js');
+  const { default: wordpressApiRouter } = await import('./routes/wordpress/wordpressApi.js');
   const { urlController: crawlUrlRouter } = await import('./routes/crawl/index.js');
   const { default: grueneratorChatRoute } = await import('./routes/chat/grueneratorChat.js');
   const { default: chatServiceRouter } = await import('./routes/chat/index.js');
@@ -433,6 +434,7 @@ export async function setupRoutes(app: Application): Promise<void> {
 
   app.use('/api/video', requireAuth, standardMutationLimiter, videoRouter);
   app.use('/api/nextcloud', requireAuth, standardMutationLimiter, nextcloudApiRouter);
+  app.use('/api/wordpress', requireAuth, standardMutationLimiter, wordpressApiRouter);
   app.use('/api/sites/generate-from-flyer', aiGenerationLimiter, flyerController);
   app.use('/api/sites', standardMutationLimiter, sitesRouter);
   app.use('/api/flux/green-edit', aiGenerationLimiter, fluxImageEditingRoute);

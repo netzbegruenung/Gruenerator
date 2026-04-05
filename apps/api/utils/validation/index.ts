@@ -25,5 +25,8 @@ export {
   default as hashUtils,
 } from './hash.js';
 
+// Encryption Utils exports
+export { encryptCredential, decryptCredential, default as encryptionUtils } from './encryption.js';
+
 // Type exports
 export type * from './types.js';

@@ -27,6 +27,7 @@ interface UserProfileShape {
   video_editor: boolean;
   bundestag_api_enabled?: boolean;
   memory_enabled?: boolean;
+  wordpress_enabled?: boolean;
   created_at: Date | string;
   updated_at: Date | string;
   last_login?: Date | string;
