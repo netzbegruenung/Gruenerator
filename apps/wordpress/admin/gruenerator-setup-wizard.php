@@ -8,7 +8,8 @@ require_once GRUENERATOR_PATH . 'includes/setup-wizard-steps.php';
 require_once GRUENERATOR_PATH . 'includes/setup-wizard-processor.php';
 
 function gruenerator_is_setup_complete() {
-    return get_option('gruenerator_setup_completed', false);
+    $setup = Gruenerator_Options::get_setup();
+    return $setup['setup_completed'];
 }
 
 function gruenerator_log($message, $level = 'info') {
@@ -60,7 +61,7 @@ function gruenerator_setup_wizard() {
 
     // Wenn das Setup neu gestartet werden soll
     if (isset($_POST['gruenerator_restart_setup']) && check_admin_referer('gruenerator_restart_setup')) {
-        delete_option('gruenerator_setup_completed');
+        Gruenerator_Options::update_setup('setup_completed', false);
     }
 
     $steps = array(
@@ -215,12 +216,12 @@ function gruenerator_process_setup() {
 add_action('admin_post_gruenerator_process_setup', 'gruenerator_process_setup');
 
 function gruenerator_reset_setup() {
-    if (isset($_GET['reset_setup']) && $_GET['reset_setup'] == '1' && current_user_can('manage_options')) {
+    if (isset($_GET['reset_setup']) && $_GET['reset_setup'] === '1' && current_user_can('manage_options')) {
         if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'gruenerator_reset_setup')) {
             wp_die('Sicherheitsüberprüfung fehlgeschlagen');
         }
         gruenerator_log("Setup wird zurückgesetzt", 'info');
-        delete_option('gruenerator_setup_completed');
+        Gruenerator_Options::update_setup('setup_completed', false);
         wp_safe_redirect(menu_page_url('gruenerator-setup-wizard', false));
         exit;
     }
