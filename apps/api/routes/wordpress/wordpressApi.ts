@@ -1,17 +1,32 @@
 import { Router, type Request, type Response } from 'express';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
-import WordPressApiClient from '../../services/api-clients/wordpressApiClient.js';
+import WordPressApiClient, {
+  type GetPostsParams,
+} from '../../services/api-clients/wordpressApiClient.js';
 import { WordPressSiteManager } from '../../utils/integrations/wordpress/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { decryptCredential } from '../../utils/validation/encryption.js';
 
 const log = createLogger('wordpress');
 
+function getUserId(req: Request): string {
+  const userId = req.user?.id;
+  if (!userId) throw Object.assign(new Error('Unauthorized'), { statusCode: 401 });
+  return userId;
+}
+
 async function getClientForSite(userId: string, siteId: string): Promise<WordPressApiClient> {
   const site = await WordPressSiteManager.getSiteById(userId, siteId);
   const decryptedPassword = decryptCredential(site.app_password_encrypted);
   return WordPressApiClient.create(site.site_url, site.username, decryptedPassword);
+}
+
+function handleError(res: Response, error: unknown, fallbackMessage: string): void {
+  const err = error as Error & { statusCode?: number };
+  const status = err.statusCode || (err.message?.includes('not found') ? 404 : 500);
+  log.error(`[WordPressApi] ${fallbackMessage}`, { error: err.message });
+  res.status(status).json({ error: fallbackMessage, message: err.message });
 }
 
 interface ConnectSiteBody {
@@ -53,94 +68,33 @@ const router: Router = Router();
 
 router.use(requireAuth as any);
 
-/**
- * Get WordPress integration status
- * GET /api/wordpress/status
- */
 router.get('/status', async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
-    log.debug('[WordPressApi] Getting WordPress status', { userId });
-
+    const userId = getUserId(req);
     const sites = await WordPressSiteManager.getSites(userId);
-
-    res.json({
-      connected: sites.length > 0,
-      sitesCount: sites.length,
-    });
+    res.json({ connected: sites.length > 0, sitesCount: sites.length });
   } catch (error) {
-    const err = error as Error;
-    log.error('[WordPressApi] Error getting WordPress status', { error: err.message });
-    res.status(500).json({
-      error: 'Failed to get WordPress status',
-      message: err.message,
-    });
+    handleError(res, error, 'Failed to get WordPress status');
   }
 });
 
-/**
- * List connected WordPress sites (credentials omitted)
- * GET /api/wordpress/sites
- */
 router.get('/sites', async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
-    log.debug('[WordPressApi] Getting sites', { userId });
-
+    const userId = getUserId(req);
     const sites = await WordPressSiteManager.getSites(userId);
-
-    res.json({
-      success: true,
-      sites,
-    });
+    res.json({ success: true, sites });
   } catch (error) {
-    const err = error as Error;
-    log.error('[WordPressApi] Error getting sites', { error: err.message });
-    res.status(500).json({
-      error: 'Failed to get sites',
-      message: err.message,
-    });
+    handleError(res, error, 'Failed to get sites');
   }
 });
 
-/**
- * Connect a new WordPress site
- * POST /api/wordpress/sites
- */
 router.post('/sites', async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
+    const userId = getUserId(req);
     const { siteUrl, username, appPassword, label } = req.body as ConnectSiteBody;
 
-    log.debug('[WordPressApi] Connecting new site', { userId, label });
-
-    if (!siteUrl) {
-      res.status(400).json({ error: 'Site URL is required' });
-      return;
-    }
-
-    if (!username) {
-      res.status(400).json({ error: 'Username is required' });
-      return;
-    }
-
-    if (!appPassword) {
-      res.status(400).json({ error: 'Application password is required' });
+    if (!siteUrl || !username || !appPassword) {
+      res.status(400).json({ error: 'Site URL, username, and application password are required' });
       return;
     }
 
@@ -163,71 +117,31 @@ router.post('/sites', async (req: Request, res: Response): Promise<void> => {
         error: testErr.message,
         siteId: savedSite.id,
       });
-      connectionTest = {
-        success: false,
-        error: testErr.message,
-      };
+      connectionTest = { success: false, error: testErr.message };
     }
 
-    res.status(201).json({
-      success: true,
-      site: savedSite,
-      connectionTest,
-    });
+    res.status(201).json({ success: true, site: savedSite, connectionTest });
   } catch (error) {
     const err = error as Error;
-    log.error('[WordPressApi] Error connecting site', { error: err.message });
-
     if (err.message.includes('already saved')) {
-      res.status(409).json({
-        error: 'Site already exists',
-        message: err.message,
-      });
+      res.status(409).json({ error: 'Site already exists', message: err.message });
       return;
     }
-
-    res.status(500).json({
-      error: 'Failed to connect site',
-      message: err.message,
-    });
+    handleError(res, error, 'Failed to connect site');
   }
 });
 
-/**
- * Update a WordPress site
- * PUT /api/wordpress/sites/:id
- */
 router.put('/sites/:id', async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
+    const userId = getUserId(req);
     const siteId = req.params.id;
     const { label, is_active, username, appPassword } = req.body as UpdateSiteBody;
 
-    log.debug('[WordPressApi] Updating site', { userId, siteId });
-
-    if (!siteId) {
-      res.status(400).json({ error: 'Site ID is required' });
-      return;
-    }
-
     const updates: Record<string, unknown> = {};
-    if (typeof label === 'string') {
-      updates.label = label.trim() || null;
-    }
-    if (typeof is_active === 'boolean') {
-      updates.is_active = is_active;
-    }
-    if (typeof username === 'string') {
-      updates.username = username;
-    }
-    if (typeof appPassword === 'string') {
-      updates.app_password = appPassword;
-    }
+    if (typeof label === 'string') updates.label = label.trim() || null;
+    if (typeof is_active === 'boolean') updates.is_active = is_active;
+    if (typeof username === 'string') updates.username = username;
+    if (typeof appPassword === 'string') updates.app_password = appPassword;
 
     if (Object.keys(updates).length === 0) {
       res.status(400).json({ error: 'No valid updates provided' });
@@ -235,88 +149,26 @@ router.put('/sites/:id', async (req: Request<{ id: string }>, res: Response): Pr
     }
 
     const updatedSite = await WordPressSiteManager.updateSite(userId, siteId, updates);
-
-    res.json({
-      success: true,
-      site: updatedSite,
-    });
+    res.json({ success: true, site: updatedSite });
   } catch (error) {
-    const err = error as Error;
-    log.error('[WordPressApi] Error updating site', { error: err.message });
-
-    if (err.message.includes('not found')) {
-      res.status(404).json({
-        error: 'Site not found',
-        message: err.message,
-      });
-      return;
-    }
-
-    res.status(500).json({
-      error: 'Failed to update site',
-      message: err.message,
-    });
+    handleError(res, error, 'Failed to update site');
   }
 });
 
-/**
- * Delete a WordPress site
- * DELETE /api/wordpress/sites/:id
- */
 router.delete('/sites/:id', async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
-    const siteId = req.params.id;
-
-    log.debug('[WordPressApi] Deleting site', { userId, siteId });
-
-    if (!siteId) {
-      res.status(400).json({ error: 'Site ID is required' });
-      return;
-    }
-
-    const result = await WordPressSiteManager.deleteSite(userId, siteId);
-
+    const userId = getUserId(req);
+    const result = await WordPressSiteManager.deleteSite(userId, req.params.id);
     res.json(result);
   } catch (error) {
-    const err = error as Error;
-    log.error('[WordPressApi] Error deleting site', { error: err.message });
-
-    if (err.message.includes('not found')) {
-      res.status(404).json({
-        error: 'Site not found',
-        message: err.message,
-      });
-      return;
-    }
-
-    res.status(500).json({
-      error: 'Failed to delete site',
-      message: err.message,
-    });
+    handleError(res, error, 'Failed to delete site');
   }
 });
 
-/**
- * Test WordPress credentials
- * POST /api/wordpress/test-connection
- */
 router.post('/test-connection', async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
+    getUserId(req);
     const { siteUrl, username, appPassword } = req.body as TestConnectionBody;
-
-    log.debug('[WordPressApi] Testing WordPress connection', { userId });
 
     if (!siteUrl || !username || !appPassword) {
       res.status(400).json({ error: 'Site URL, username, and application password are required' });
@@ -324,42 +176,19 @@ router.post('/test-connection', async (req: Request, res: Response): Promise<voi
     }
 
     const client = await WordPressApiClient.create(siteUrl, username, appPassword);
-    const testResult = await client.testConnection();
-
-    res.json(testResult);
+    res.json(await client.testConnection());
   } catch (error) {
-    const err = error as Error;
-    log.error('[WordPressApi] Error testing connection', { error: err.message });
-    res.status(500).json({
-      success: false,
-      error: err.message,
-    });
+    handleError(res, error, 'Connection test failed');
   }
 });
 
-/**
- * Publish a post to WordPress
- * POST /api/wordpress/publish
- */
 router.post('/publish', async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
+    const userId = getUserId(req);
     const { siteId, title, content, status, excerpt } = req.body as PublishBody;
 
-    log.debug('[WordPressApi] Publishing post', { userId, siteId });
-
-    if (!siteId) {
-      res.status(400).json({ error: 'Site ID is required' });
-      return;
-    }
-
-    if (!title || !content) {
-      res.status(400).json({ error: 'Title and content are required' });
+    if (!siteId || !title || !content) {
+      res.status(400).json({ error: 'Site ID, title, and content are required' });
       return;
     }
 
@@ -370,9 +199,7 @@ router.post('/publish', async (req: Request, res: Response): Promise<void> => {
         status: status || 'draft',
         excerpt,
       });
-
       await WordPressSiteManager.updateLastUsed(userId, siteId);
-
       res.json({
         success: true,
         postId: result.id,
@@ -381,208 +208,74 @@ router.post('/publish', async (req: Request, res: Response): Promise<void> => {
         status: result.status,
       });
     } catch (publishError) {
-      const publishErr = publishError as Error;
-      await WordPressSiteManager.updateLastError(userId, siteId, publishErr.message);
+      await WordPressSiteManager.updateLastError(userId, siteId, (publishError as Error).message);
       throw publishError;
     }
   } catch (error) {
-    const err = error as Error;
-    log.error('[WordPressApi] Error publishing post', { error: err.message });
-
-    if (err.message.includes('not found')) {
-      res.status(404).json({
-        error: 'Site not found',
-        message: err.message,
-      });
-      return;
-    }
-
-    res.status(500).json({
-      error: 'Failed to publish post',
-      message: err.message,
-    });
+    handleError(res, error, 'Failed to publish post');
   }
 });
 
-/**
- * List posts from a WordPress site
- * GET /api/wordpress/sites/:id/posts
- */
 router.get(
   '/sites/:id/posts',
   async (req: Request<{ id: string }>, res: Response): Promise<void> => {
     try {
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
+      const userId = getUserId(req);
+      const client = await getClientForSite(userId, req.params.id);
 
-      const siteId = req.params.id;
-      const status = req.query.status as string | null;
-      const search = req.query.search as string | null;
-      const per_page = req.query.per_page ? parseInt(req.query.per_page as string, 10) : 10;
-      const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+      const params: GetPostsParams = {
+        per_page: req.query.per_page ? parseInt(req.query.per_page as string, 10) : 10,
+        page: req.query.page ? parseInt(req.query.page as string, 10) : 1,
+      };
+      if (req.query.status) params.status = req.query.status as string;
+      if (req.query.search) params.search = req.query.search as string;
 
-      log.debug('[WordPressApi] Listing posts', { userId, siteId });
-
-      if (!siteId) {
-        res.status(400).json({ error: 'Site ID is required' });
-        return;
-      }
-
-      const site = await WordPressSiteManager.getSiteById(userId, siteId);
-      const decryptedPassword = decryptCredential(site.app_password_encrypted);
-
-      const client = await WordPressApiClient.create(
-        site.site_url,
-        site.username,
-        decryptedPassword
-      );
-
-      const params: Record<string, unknown> = { per_page, page };
-      if (status) params.status = status;
-      if (search) params.search = search;
-
-      const result = await client.getPosts(params as any);
-
-      res.json({
-        success: true,
-        ...result,
-      });
+      res.json({ success: true, ...(await client.getPosts(params)) });
     } catch (error) {
-      const err = error as Error;
-      log.error('[WordPressApi] Error listing posts', { error: err.message });
-
-      if (err.message.includes('not found')) {
-        res.status(404).json({
-          error: 'Site not found',
-          message: err.message,
-        });
-        return;
-      }
-
-      res.status(500).json({
-        error: 'Failed to list posts',
-        message: err.message,
-      });
+      handleError(res, error, 'Failed to list posts');
     }
   }
 );
 
-/**
- * Get a single post from a WordPress site
- * GET /api/wordpress/sites/:id/posts/:postId
- */
 router.get(
   '/sites/:id/posts/:postId',
   async (req: Request<{ id: string; postId: string }>, res: Response): Promise<void> => {
     try {
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
-
-      const siteId = req.params.id;
+      const userId = getUserId(req);
       const postId = parseInt(req.params.postId, 10);
-
-      log.debug('[WordPressApi] Getting post', { userId, siteId, postId });
-
-      if (!siteId) {
-        res.status(400).json({ error: 'Site ID is required' });
-        return;
-      }
-
       if (isNaN(postId)) {
         res.status(400).json({ error: 'Invalid post ID' });
         return;
       }
 
-      const site = await WordPressSiteManager.getSiteById(userId, siteId);
-      const decryptedPassword = decryptCredential(site.app_password_encrypted);
-
-      const client = await WordPressApiClient.create(
-        site.site_url,
-        site.username,
-        decryptedPassword
-      );
-
-      const post = await client.getPost(postId);
-
-      res.json({
-        success: true,
-        post,
-      });
+      const client = await getClientForSite(userId, req.params.id);
+      res.json({ success: true, post: await client.getPost(postId) });
     } catch (error) {
-      const err = error as Error;
-      log.error('[WordPressApi] Error getting post', { error: err.message });
-
-      if (err.message.includes('not found')) {
-        res.status(404).json({
-          error: 'Not found',
-          message: err.message,
-        });
-        return;
-      }
-
-      res.status(500).json({
-        error: 'Failed to get post',
-        message: err.message,
-      });
+      handleError(res, error, 'Failed to get post');
     }
   }
 );
 
-/**
- * Update a post on a WordPress site
- * PUT /api/wordpress/sites/:id/posts/:postId
- */
 router.put(
   '/sites/:id/posts/:postId',
   async (req: Request<{ id: string; postId: string }>, res: Response): Promise<void> => {
     try {
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
-
+      const userId = getUserId(req);
       const siteId = req.params.id;
       const postId = parseInt(req.params.postId, 10);
       const { title, content, status, excerpt } = req.body as UpdatePostBody;
-
-      log.debug('[WordPressApi] Updating post', { userId, siteId, postId });
-
-      if (!siteId) {
-        res.status(400).json({ error: 'Site ID is required' });
-        return;
-      }
 
       if (isNaN(postId)) {
         res.status(400).json({ error: 'Invalid post ID' });
         return;
       }
-
       if (!title || !content) {
         res.status(400).json({ error: 'Title and content are required' });
         return;
       }
 
-      const site = await WordPressSiteManager.getSiteById(userId, siteId);
-      const decryptedPassword = decryptCredential(site.app_password_encrypted);
-
-      const client = await WordPressApiClient.create(
-        site.site_url,
-        site.username,
-        decryptedPassword
-      );
-
-      const result = await client.updatePost(postId, title, content, {
-        status,
-        excerpt,
-      });
-
+      const client = await getClientForSite(userId, siteId);
+      const result = await client.updatePost(postId, title, content, { status, excerpt });
       await WordPressSiteManager.updateLastUsed(userId, siteId);
 
       res.json({
@@ -593,79 +286,20 @@ router.put(
         status: result.status,
       });
     } catch (error) {
-      const err = error as Error;
-      log.error('[WordPressApi] Error updating post', { error: err.message });
-
-      if (err.message.includes('not found')) {
-        res.status(404).json({
-          error: 'Not found',
-          message: err.message,
-        });
-        return;
-      }
-
-      res.status(500).json({
-        error: 'Failed to update post',
-        message: err.message,
-      });
+      handleError(res, error, 'Failed to update post');
     }
   }
 );
 
-/**
- * List categories from a WordPress site
- * GET /api/wordpress/sites/:id/categories
- */
 router.get(
   '/sites/:id/categories',
   async (req: Request<{ id: string }>, res: Response): Promise<void> => {
     try {
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
-
-      const siteId = req.params.id;
-
-      log.debug('[WordPressApi] Getting categories', { userId, siteId });
-
-      if (!siteId) {
-        res.status(400).json({ error: 'Site ID is required' });
-        return;
-      }
-
-      const site = await WordPressSiteManager.getSiteById(userId, siteId);
-      const decryptedPassword = decryptCredential(site.app_password_encrypted);
-
-      const client = await WordPressApiClient.create(
-        site.site_url,
-        site.username,
-        decryptedPassword
-      );
-
-      const categories = await client.getCategories();
-
-      res.json({
-        success: true,
-        categories,
-      });
+      const userId = getUserId(req);
+      const client = await getClientForSite(userId, req.params.id);
+      res.json({ success: true, categories: await client.getCategories() });
     } catch (error) {
-      const err = error as Error;
-      log.error('[WordPressApi] Error getting categories', { error: err.message });
-
-      if (err.message.includes('not found')) {
-        res.status(404).json({
-          error: 'Site not found',
-          message: err.message,
-        });
-        return;
-      }
-
-      res.status(500).json({
-        error: 'Failed to get categories',
-        message: err.message,
-      });
+      handleError(res, error, 'Failed to get categories');
     }
   }
 );

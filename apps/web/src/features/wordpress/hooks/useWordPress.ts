@@ -113,11 +113,11 @@ export function usePublishToWordPress() {
 
 // ── Re-exports ────────────────────────────────────────────────────────
 
-export { wordpressKeys };
-export type {
-  WordPressSite,
-  WordPressConnectionTestResult,
-  WordPressPublishResult,
-  WordPressPost,
-  WordPressCategory,
+export {
+  wordpressKeys,
+  type WordPressSite,
+  type WordPressConnectionTestResult,
+  type WordPressPublishResult,
+  type WordPressPost,
+  type WordPressCategory,
 };

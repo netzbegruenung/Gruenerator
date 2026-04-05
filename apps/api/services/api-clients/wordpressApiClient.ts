@@ -346,10 +346,8 @@ class WordPressApiClient {
 
   private normalizeError(error: unknown): Error {
     if (axios.isAxiosError(error)) {
-      const axiosErr = error as AxiosError;
-
-      if (axiosErr.response) {
-        const status = axiosErr.response.status;
+      if (error.response) {
+        const status = error.response.status;
         if (status === 401) {
           return new Error('Anmeldedaten ungültig. Bitte Anwendungspasswort prüfen.');
         }
@@ -362,19 +360,12 @@ class WordPressApiClient {
         if (status >= 500) {
           return new Error('WordPress-Server-Fehler');
         }
-        return new Error(
-          (axiosErr.response.data as { message?: string })?.message || axiosErr.message
-        );
+        return new Error((error.response.data as { message?: string })?.message || error.message);
       }
-
       return new Error('WordPress-Seite nicht erreichbar');
     }
 
-    if (error instanceof Error) {
-      return error;
-    }
-
-    return new Error(String(error));
+    return error instanceof Error ? error : new Error(String(error));
   }
 }
 
