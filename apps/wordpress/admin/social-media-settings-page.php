@@ -38,12 +38,12 @@ function gruenerator_social_media_settings_page() {
                 }
             }
         }
-        update_option('gruenerator_social_media_profiles', implode("\n", $social_media_data));
+        Gruenerator_Options::update_social(implode("\n", $social_media_data));
         echo '<div class="notice notice-success"><p>' . esc_html__('Einstellungen gespeichert.', 'gruenerator') . '</p></div>';
     }
 
     // Holen Sie die aktuellen Einstellungen
-    $social_media_profiles = get_option('gruenerator_social_media_profiles', '');
+    $social_media_profiles = Gruenerator_Options::get_social();
     $current_profiles = array();
     foreach (explode("\n", $social_media_profiles) as $profile) {
         $parts = explode(';', $profile);
@@ -51,7 +51,7 @@ function gruenerator_social_media_settings_page() {
             $icon = $parts[0];
             $name = $parts[1];
             $value = $parts[2];
-            
+
             foreach ($social_networks as $key => $network) {
                 if ($network['icon'] === $icon) {
                     $current_profiles[$key] = ($network['type'] === 'email') ? str_replace('mailto:', '', $value) : $value;
@@ -76,13 +76,13 @@ function gruenerator_social_media_settings_page() {
                             </label>
                         </th>
                         <td>
-                            <input type="<?php echo esc_attr($network['type']); ?>" 
-                                   id="<?php echo esc_attr($key); ?>_value" 
-                                   name="<?php echo esc_attr($key); ?>_value" 
-                                   value="<?php echo isset($current_profiles[$key]) ? esc_attr($current_profiles[$key]) : ''; ?>" 
+                            <input type="<?php echo esc_attr($network['type']); ?>"
+                                   id="<?php echo esc_attr($key); ?>_value"
+                                   name="<?php echo esc_attr($key); ?>_value"
+                                   value="<?php echo isset($current_profiles[$key]) ? esc_attr($current_profiles[$key]) : ''; ?>"
                                    class="regular-text">
                             <p class="description">
-                                <?php 
+                                <?php
                                 if ($network['type'] === 'email') {
                                     esc_html_e('Gib deine E-Mail-Adresse ein.', 'gruenerator');
                                 } else {

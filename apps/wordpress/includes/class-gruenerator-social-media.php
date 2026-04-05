@@ -4,8 +4,8 @@ if (!defined('ABSPATH')) {
 }
 
 function gruenerator_get_social_media_data() {
-    $social_media_profiles = get_option('gruenerator_social_media_profiles', '');
-    
+    $social_media_profiles = Gruenerator_Options::get_social();
+
     $profiles = array();
     $lines = explode("\n", $social_media_profiles);
     foreach ($lines as $line) {
@@ -23,6 +23,6 @@ function gruenerator_get_social_media_data() {
             }
         }
     }
-    
+
     return $profiles;
 }
