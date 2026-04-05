@@ -7,16 +7,23 @@ export interface WordPressSite {
   site_url: string;
   username: string;
   label: string | null;
+  has_credentials: boolean;
+  is_active: boolean;
   created_at: string;
-  updated_at: string;
+  last_used_at: string | null;
+  last_error: string | null;
 }
 
 export interface WordPressPost {
   id: number;
-  title: string;
+  title: { rendered: string };
+  content: { rendered: string };
+  excerpt: { rendered: string };
   status: string;
   link: string;
   date: string;
+  categories: number[];
+  tags: number[];
 }
 
 export interface WordPressCategory {
@@ -28,15 +35,21 @@ export interface WordPressCategory {
 
 export interface WordPressConnectionTestResult {
   success: boolean;
-  message: string | null;
-  site_name: string | null;
+  username: string | null;
+  displayName: string | null;
+  canPublish: boolean;
+  siteName: string | null;
+  siteDescription: string | null;
+  error: string | null;
+  errorCode: string | null;
 }
 
 export interface WordPressPublishResult {
   success: boolean;
-  post_id: number | null;
-  post_url: string | null;
-  message: string | null;
+  postId: number | null;
+  editUrl: string | null;
+  viewUrl: string | null;
+  status: string | null;
 }
 
 // ── API Functions ─────────────────────────────────────────────────────

@@ -1,18 +1,18 @@
-/**
- * Credential Encryption Utilities
- * AES-256-GCM encryption for securely storing credentials in the database
- */
-
 import * as crypto from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16;
 const AUTH_TAG_LENGTH = 16;
 
+let _cachedKey: Buffer | null = null;
+
 function getEncryptionKey(): Buffer {
+  if (_cachedKey) return _cachedKey;
+
   const keyHex = process.env.CREDENTIAL_ENCRYPTION_KEY;
   if (keyHex && keyHex.length === 64) {
-    return Buffer.from(keyHex, 'hex');
+    _cachedKey = Buffer.from(keyHex, 'hex');
+    return _cachedKey;
   }
 
   const secret = process.env.SESSION_SECRET;
@@ -20,7 +20,9 @@ function getEncryptionKey(): Buffer {
     throw new Error('CREDENTIAL_ENCRYPTION_KEY or SESSION_SECRET must be set');
   }
 
-  return crypto.pbkdf2Sync(secret, 'gruenerator-credential-encryption', 100000, 32, 'sha256');
+  // PBKDF2 with 100k iterations is CPU-intensive — cache the result
+  _cachedKey = crypto.pbkdf2Sync(secret, 'gruenerator-credential-encryption', 100000, 32, 'sha256');
+  return _cachedKey;
 }
 
 export function encryptCredential(plaintext: string): string {

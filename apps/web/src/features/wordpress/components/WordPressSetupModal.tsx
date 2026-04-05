@@ -16,7 +16,6 @@ const WordPressSetupModal = ({ onClose, onSuccess }: WordPressSetupModalProps) =
   const [username, setUsername] = useState('');
   const [appPassword, setAppPassword] = useState('');
   const [label, setLabel] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [testSuccess, setTestSuccess] = useState(false);
   const [testDetails, setTestDetails] = useState('');
@@ -52,7 +51,7 @@ const WordPressSetupModal = ({ onClose, onSuccess }: WordPressSetupModalProps) =
           setTestDetails(details);
         }
       } else {
-        setError(result.error || result.message || 'Verbindungstest fehlgeschlagen.');
+        setError(result.error || 'Verbindungstest fehlgeschlagen.');
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Unbekannter Fehler';
@@ -68,7 +67,6 @@ const WordPressSetupModal = ({ onClose, onSuccess }: WordPressSetupModalProps) =
       return;
     }
 
-    setIsSubmitting(true);
     setError('');
 
     try {
@@ -83,8 +81,6 @@ const WordPressSetupModal = ({ onClose, onSuccess }: WordPressSetupModalProps) =
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Unbekannter Fehler';
       setError('Fehler beim Verbinden: ' + errorMessage);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -137,7 +133,7 @@ const WordPressSetupModal = ({ onClose, onSuccess }: WordPressSetupModalProps) =
                 }}
                 placeholder="https://gruene-musterstadt.de"
                 required
-                disabled={isSubmitting}
+                disabled={addSite.isPending}
                 className={inputClasses}
               />
             </div>
@@ -157,7 +153,7 @@ const WordPressSetupModal = ({ onClose, onSuccess }: WordPressSetupModalProps) =
                   setTestDetails('');
                 }}
                 required
-                disabled={isSubmitting}
+                disabled={addSite.isPending}
                 className={inputClasses}
               />
             </div>
@@ -180,7 +176,7 @@ const WordPressSetupModal = ({ onClose, onSuccess }: WordPressSetupModalProps) =
                   setTestDetails('');
                 }}
                 required
-                disabled={isSubmitting}
+                disabled={addSite.isPending}
                 className={inputClasses}
               />
               <small className="text-grey-600 text-xs leading-snug">
@@ -198,7 +194,7 @@ const WordPressSetupModal = ({ onClose, onSuccess }: WordPressSetupModalProps) =
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
                 placeholder="z.B. Ortsverband Blog"
-                disabled={isSubmitting}
+                disabled={addSite.isPending}
                 className={inputClasses}
               />
             </div>
@@ -232,7 +228,7 @@ const WordPressSetupModal = ({ onClose, onSuccess }: WordPressSetupModalProps) =
                 )}
                 onClick={handleTestConnection}
                 disabled={
-                  isSubmitting ||
+                  addSite.isPending ||
                   testConnection.isPending ||
                   !siteUrl.trim() ||
                   !username.trim() ||
@@ -256,10 +252,10 @@ const WordPressSetupModal = ({ onClose, onSuccess }: WordPressSetupModalProps) =
                   'disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none max-md:w-full'
                 )}
                 disabled={
-                  isSubmitting || !siteUrl.trim() || !username.trim() || !appPassword.trim()
+                  addSite.isPending || !siteUrl.trim() || !username.trim() || !appPassword.trim()
                 }
               >
-                {isSubmitting ? (
+                {addSite.isPending ? (
                   <>
                     <div className="size-4 border-2 border-transparent border-t-current rounded-full animate-spin" />
                     Verbinde...

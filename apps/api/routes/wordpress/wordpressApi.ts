@@ -8,6 +8,12 @@ import { decryptCredential } from '../../utils/validation/encryption.js';
 
 const log = createLogger('wordpress');
 
+async function getClientForSite(userId: string, siteId: string): Promise<WordPressApiClient> {
+  const site = await WordPressSiteManager.getSiteById(userId, siteId);
+  const decryptedPassword = decryptCredential(site.app_password_encrypted);
+  return WordPressApiClient.create(site.site_url, site.username, decryptedPassword);
+}
+
 interface ConnectSiteBody {
   siteUrl: string;
   username: string;
@@ -357,10 +363,7 @@ router.post('/publish', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const site = await WordPressSiteManager.getSiteById(userId, siteId);
-    const decryptedPassword = decryptCredential(site.app_password_encrypted);
-
-    const client = await WordPressApiClient.create(site.site_url, site.username, decryptedPassword);
+    const client = await getClientForSite(userId, siteId);
 
     try {
       const result = await client.createPost(title, content, {
