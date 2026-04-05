@@ -12,6 +12,8 @@ import { Text as KonvaText, Transformer } from 'react-konva';
 
 import { calculateSnapPosition, calculateElementSnapPosition } from '../utils/snapping';
 
+import { useSnapScheduler } from '../hooks/useSnapScheduler';
+
 import type { SnapTarget, SnapLine } from '../utils/snapping';
 import type { TransformConfig, TransformAnchor } from '@gruenerator/shared/canvas-editor';
 import type Konva from 'konva';
@@ -100,6 +102,10 @@ function CanvasTextInner({
   const textRef = useRef<Konva.Text>(null);
   const trRef = useRef<Konva.Transformer>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const snap = useSnapScheduler({
+    onSnapChange: onSnapChange ?? (() => {}),
+    onSnapLinesChange: onSnapLinesChange ?? (() => {}),
+  });
 
   useEffect(() => {
     if (selected && trRef.current && textRef.current && !isEditing) {
@@ -116,16 +122,14 @@ function CanvasTextInner({
       const nodeWidth = node.width() * node.scaleX();
       const nodeHeight = node.height() * node.scaleY();
 
-      onSnapChange?.(false, false);
-      onSnapLinesChange?.([]);
+      snap.onDragEnd();
       onDragEnd?.(node.x(), node.y());
 
-      // Report final position to store only on drag end (not during drag for performance)
       if (id && onPositionChange) {
         onPositionChange(id, node.x(), node.y(), nodeWidth, nodeHeight);
       }
     },
-    [id, onDragEnd, onSnapChange, onSnapLinesChange, onPositionChange]
+    [id, onDragEnd, onPositionChange, snap]
   );
 
   const handleDragMove = useCallback(
@@ -134,11 +138,8 @@ function CanvasTextInner({
       const nodeWidth = node.width() * node.scaleX();
       const nodeHeight = node.height() * node.scaleY();
 
-      // Position reported on dragEnd to avoid re-renders during drag
-
       if (!stageWidth || !stageHeight) return;
 
-      // Use element snapping if targets provided or center snapping enabled
       if ((snapTargets && snapTargets.length > 0) || snapToCenter) {
         const result = calculateElementSnapPosition(
           node.x(),
@@ -151,11 +152,10 @@ function CanvasTextInner({
         );
 
         node.position({ x: result.x, y: result.y });
-        onSnapChange?.(result.snapH, result.snapV);
-        onSnapLinesChange?.(result.snapLines);
+        snap.scheduleSnap(result.snapH, result.snapV, result.snapLines);
       }
     },
-    [snapToCenter, stageWidth, stageHeight, onSnapChange, snapTargets, onSnapLinesChange]
+    [snapToCenter, stageWidth, stageHeight, snapTargets, snap]
   );
 
   // Let Konva handle visual scaling; fontSize is committed on transformEnd
@@ -313,6 +313,7 @@ function CanvasTextInner({
         onTap={onSelect}
         onDblClick={handleDblClick}
         onDblTap={handleDblClick}
+        onDragStart={snap.onDragStart}
         onDragEnd={handleDragEnd}
         onDragMove={handleDragMove}
         onTransform={handleTransform}

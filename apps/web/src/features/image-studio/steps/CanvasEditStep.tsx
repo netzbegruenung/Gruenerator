@@ -182,8 +182,10 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
 }) => {
   useEffect(() => {
     useSidebarStore.getState().requestHideSidebar('canvas');
+    useSidebarStore.getState().requestHideHeader('canvas');
     return () => {
       useSidebarStore.getState().releaseHideSidebar('canvas');
+      useSidebarStore.getState().releaseHideHeader('canvas');
     };
   }, []);
 

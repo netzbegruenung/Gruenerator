@@ -2,19 +2,20 @@ import React, { memo, useState, useEffect } from 'react';
 
 import { FONT_COLORS } from '../utils/shapes';
 
-import { FloatingTapBar } from './FloatingTapBar/FloatingTapBar';
-import { FloatingColorPicker } from './FloatingTapBar/modules/FloatingColorPicker';
-import { FloatingFontSizeControl } from './FloatingTapBar/modules/FloatingFontSizeControl';
-import { FloatingHistoryControls } from './FloatingTapBar/modules/FloatingHistoryControls';
-import { FloatingLayerControls } from './FloatingTapBar/modules/FloatingLayerControls';
-import { FloatingOpacityControl } from './FloatingTapBar/modules/FloatingOpacityControl';
+import { TopBar } from './TopBar/TopBar';
+import { ShareDropdown, type ShareDropdownProps } from './TopBar/ShareDropdown';
+import { FloatingColorPicker } from './TopBar/modules/FloatingColorPicker';
+import { FloatingFontSizeControl } from './TopBar/modules/FloatingFontSizeControl';
+import { FloatingHistoryControls } from './TopBar/modules/FloatingHistoryControls';
+import { FloatingLayerControls } from './TopBar/modules/FloatingLayerControls';
+import { FloatingOpacityControl } from './TopBar/modules/FloatingOpacityControl';
 
 import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
 
 /**
- * FloatingToolbar - Floating toolbar with contextual controls
+ * Toolbar - Top bar with contextual controls
  *
- * Renders a floating toolbar above the canvas with:
+ * Renders a full-width toolbar above the canvas with:
  * - History controls (undo/redo)
  * - Layer controls (move up/down)
  * - Element-specific controls (color, opacity, font size)
@@ -41,7 +42,7 @@ export interface PageInfo {
 
 export type AlignmentDirection = 'left' | 'center-h' | 'right' | 'top' | 'center-v' | 'bottom';
 
-interface FloatingToolbarProps {
+interface ToolbarProps {
   selectedElement: string | null;
   activeFloatingModule: FloatingModuleState | null;
   canUndo: boolean;
@@ -58,11 +59,13 @@ interface FloatingToolbarProps {
     handleAlign?: (direction: AlignmentDirection) => void;
   };
   onDelete?: () => void;
+  /** Share dropdown props — when provided, renders the share button in the top-right */
+  shareProps?: ShareDropdownProps;
   /** Optional page info for multi-page navigation */
   pageInfo?: PageInfo;
 }
 
-export const FloatingToolbar = memo(
+export const Toolbar = memo(
   ({
     selectedElement,
     activeFloatingModule,
@@ -72,8 +75,9 @@ export const FloatingToolbar = memo(
     canMoveDown,
     handlers,
     onDelete,
+    shareProps,
     pageInfo,
-  }: FloatingToolbarProps) => {
+  }: ToolbarProps) => {
     const [isColorPickerExpanded, setIsColorPickerExpanded] = useState(false);
     const [isMobile, setIsMobile] = useState(
       typeof window !== 'undefined' && window.innerWidth < 900
@@ -89,7 +93,7 @@ export const FloatingToolbar = memo(
     const shouldHideOtherControls = isMobile && isColorPickerExpanded;
 
     return (
-      <FloatingTapBar visible={true}>
+      <TopBar visible={true}>
         {!shouldHideOtherControls && onDelete && (
           <>
             <button
@@ -335,9 +339,11 @@ export const FloatingToolbar = memo(
             )}
           </>
         )}
-      </FloatingTapBar>
+
+        {shareProps && <ShareDropdown {...shareProps} />}
+      </TopBar>
     );
   }
 );
 
-FloatingToolbar.displayName = 'FloatingToolbar';
+Toolbar.displayName = 'Toolbar';

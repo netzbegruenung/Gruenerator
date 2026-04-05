@@ -17,7 +17,7 @@ import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
 
 import { createBaseActions } from './factory/commonActions';
 import { injectFeatureProps } from './featureInjector';
-import { shareTab, createShareSection } from './shareSection';
+import { createShareSection } from './shareSection';
 
 import type {
   BaseCanvasState,
@@ -114,10 +114,9 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
       label: 'Elemente',
       ariaLabel: 'Elemente hinzufügen',
     },
-    shareTab,
   ],
 
-  getVisibleTabs: () => ['background', 'text', 'elements', 'share'],
+  getVisibleTabs: () => ['background', 'text', 'elements'],
 
   getAutoSwitchTab: (selectedElement) =>
     selectedElement?.startsWith('frame-') ? 'elements' : null,

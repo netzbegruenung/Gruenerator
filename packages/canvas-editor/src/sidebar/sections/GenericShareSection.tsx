@@ -14,13 +14,12 @@ import {
 import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
 import { MdTextFields } from 'react-icons/md';
 
-// TODO: enable when push-to-phone backend is deployed
-// import { PushToPhoneButton } from '../../../../../components/common/PushToPhoneButton';
 import Spinner from '../../common/Spinner';
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { useAutoSaveStore } from '../../stores/useAutoSaveStore';
 import { SubsectionTabBar } from '../SubsectionTabBar';
-// templates.css is expected to be provided by the consuming app
+
+import { cn } from '../../utils/cn';
 
 export interface GenericShareSectionProps {
   exportedImage: string | null;
@@ -30,7 +29,6 @@ export interface GenericShareSectionProps {
   onNavigateToGallery: () => void;
   canvasText: string;
   canvasType: string;
-  // Multi-page export props
   pageCount?: number;
   onDownloadAllZip?: () => Promise<void>;
   onShareAllPages?: () => Promise<void>;
@@ -38,7 +36,21 @@ export interface GenericShareSectionProps {
   exportProgress?: { current: number; total: number };
 }
 
-// Reusable hook for portal dropdown positioning + click-outside
+const iconBtn =
+  'size-10 rounded-xl border-none bg-grey-100 dark:bg-grey-800 cursor-pointer flex items-center justify-center text-foreground text-lg transition-[background-color,color,transform] duration-200 hover:bg-primary-100 hover:text-primary-600 dark:hover:bg-primary-900 dark:hover:text-primary-400 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed';
+
+const primaryBtn =
+  'w-full py-2.5 px-4 rounded-lg border-none bg-primary-600 text-white font-medium text-sm cursor-pointer flex items-center justify-center gap-2 transition-[background-color,transform] duration-200 hover:bg-primary-700 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed';
+
+const secondaryBtn =
+  'w-full py-2 px-4 rounded-lg border border-grey-200 dark:border-grey-700 bg-transparent text-foreground font-medium text-sm cursor-pointer flex items-center justify-center gap-2 transition-[background-color,border-color] duration-200 hover:bg-grey-100 dark:hover:bg-grey-800';
+
+const dropdownMenu =
+  'bg-background-pure border border-grey-200 dark:border-grey-700 rounded-xl shadow-lg p-1 min-w-[200px]';
+
+const dropdownOption =
+  'w-full py-2 px-3 rounded-lg border-none bg-transparent text-foreground text-sm cursor-pointer flex items-center gap-2 transition-[background-color] duration-150 hover:bg-grey-100 dark:hover:bg-grey-800 disabled:opacity-40 disabled:cursor-not-allowed';
+
 function usePortalDropdown() {
   const [open, setOpen] = useState(false);
   const [style, setStyle] = useState<CSSProperties>({});
@@ -90,7 +102,6 @@ function usePortalDropdown() {
   return { open, setOpen, style, triggerRef, menuRef };
 }
 
-// Download & Share Subsection - combined with dropdown for multi-page
 function DownloadShareSubsection({
   exportedImage,
   shareToken,
@@ -222,14 +233,14 @@ function DownloadShareSubsection({
   }, [isMultiPage, onShareAllPages, shareDropdown, handleNativeShare]);
 
   return (
-    <div className="share-subsection">
-      <h3 className="share-subsection__title">Download & Teilen</h3>
+    <div className="flex flex-col gap-3">
+      <h3 className="text-sm font-semibold text-foreground m-0">Download & Teilen</h3>
 
-      <div className="platform-icons">
-        <div className="download-dropdown-container">
+      <div className="flex items-center gap-2">
+        <div className="relative">
           <button
             ref={dlDropdown.triggerRef}
-            className="platform-icon-btn platform-icon-btn--download"
+            className={iconBtn}
             onClick={handleDownloadClick}
             disabled={downloadState !== 'idle' && !isMultiPage}
             title="Herunterladen"
@@ -252,12 +263,12 @@ function DownloadShareSubsection({
             createPortal(
               <div
                 ref={dlDropdown.menuRef}
-                className="download-dropdown-content"
+                className={dropdownMenu}
                 style={dlDropdown.style}
                 role="menu"
               >
                 <button
-                  className="download-dropdown-option"
+                  className={dropdownOption}
                   onClick={handleSingleDownload}
                   role="menuitem"
                   type="button"
@@ -266,7 +277,7 @@ function DownloadShareSubsection({
                   <span>Diese Seite (PNG)</span>
                 </button>
                 <button
-                  className="download-dropdown-option"
+                  className={dropdownOption}
                   onClick={handleDownloadAllZip}
                   disabled={isMultiExporting}
                   role="menuitem"
@@ -290,10 +301,10 @@ function DownloadShareSubsection({
         </div>
 
         {canUseNativeShare && (
-          <div className="download-dropdown-container">
+          <div className="relative">
             <button
               ref={shareDropdown.triggerRef}
-              className="platform-icon-btn platform-icon-btn--native"
+              className={iconBtn}
               onClick={handleShareClick}
               disabled={isSharing}
               title="Teilen"
@@ -317,12 +328,12 @@ function DownloadShareSubsection({
               createPortal(
                 <div
                   ref={shareDropdown.menuRef}
-                  className="download-dropdown-content"
+                  className={dropdownMenu}
                   style={shareDropdown.style}
                   role="menu"
                 >
                   <button
-                    className="download-dropdown-option"
+                    className={dropdownOption}
                     onClick={handleNativeShare}
                     role="menuitem"
                     type="button"
@@ -331,7 +342,7 @@ function DownloadShareSubsection({
                     <span>Diese Seite teilen</span>
                   </button>
                   <button
-                    className="download-dropdown-option"
+                    className={dropdownOption}
                     onClick={handleShareAllPages}
                     disabled={isSharing}
                     role="menuitem"
@@ -345,27 +356,22 @@ function DownloadShareSubsection({
               )}
           </div>
         )}
-
-        {/* TODO: enable when push-to-phone backend is deployed
-        <PushToPhoneButton shareToken={shareToken} onCaptureCanvas={onCaptureCanvas} />
-        */}
       </div>
 
-      {/* Multi-page export progress */}
       {isMultiExporting && exportProgress && exportProgress.total > 0 && (
-        <div className="multi-page-download__progress">
+        <div className="relative w-full h-6 bg-grey-100 dark:bg-grey-800 rounded-full overflow-hidden">
           <div
-            className="multi-page-download__progress-bar"
+            className="absolute inset-y-0 left-0 bg-primary-600 rounded-full transition-[width] duration-300"
             style={{ width: `${(exportProgress.current / exportProgress.total) * 100}%` }}
           />
-          <span className="multi-page-download__progress-text">
+          <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-foreground">
             {exportProgress.current}/{exportProgress.total} Seiten
           </span>
         </div>
       )}
 
       {downloadState === 'success' && autoSaveStatus === 'saving' && (
-        <div className="share-status">
+        <div className="flex items-center gap-2 text-sm text-foreground-muted">
           <Spinner size="small" />
           <span>Wird synchronisiert...</span>
         </div>
@@ -373,11 +379,11 @@ function DownloadShareSubsection({
 
       {downloadState === 'success' && autoSaveStatus === 'saved' && shareToken && (
         <>
-          <div className="share-status share-status--success">
+          <div className="flex items-center gap-2 text-sm text-primary-600">
             <IoCheckmarkOutline />
             <span>In Galerie gesichert</span>
           </div>
-          <button className="btn btn-secondary" onClick={onNavigateToGallery} type="button">
+          <button className={secondaryBtn} onClick={onNavigateToGallery} type="button">
             <FaImages />
             Zur Galerie
           </button>
@@ -385,7 +391,7 @@ function DownloadShareSubsection({
       )}
 
       {downloadState === 'success' && autoSaveStatus === 'error' && (
-        <div className="share-status share-status--error">
+        <div className="flex items-center gap-2 text-sm text-red-600">
           <span>Fehler beim Speichern</span>
         </div>
       )}
@@ -393,7 +399,6 @@ function DownloadShareSubsection({
   );
 }
 
-// Template Subsection
 function TemplateSubsection({
   shareToken,
   onCaptureCanvas,
@@ -410,10 +415,8 @@ function TemplateSubsection({
     try {
       let tokenToUse = shareToken || currentShareToken;
 
-      // Auto-capture if no shareToken exists
       if (!tokenToUse) {
         onCaptureCanvas();
-        // Wait for auto-save to complete
         await new Promise<void>((resolve, reject) => {
           const checkStatus = () => {
             const status = useAutoSaveStore.getState().autoSaveStatus;
@@ -454,48 +457,46 @@ function TemplateSubsection({
   };
 
   return (
-    <div className="share-subsection">
-      <h3 className="share-subsection__title">Vorlage</h3>
+    <div className="flex flex-col gap-3">
+      <h3 className="text-sm font-semibold text-foreground m-0">Vorlage</h3>
 
       {!templateUrl ? (
-        <>
-          <button
-            className="btn btn-primary"
-            onClick={handleSaveAsTemplate}
-            disabled={isSaving}
-            type="button"
-          >
-            {isSaving ? (
-              <>
-                <Spinner size="small" />
-                Speichern...
-              </>
-            ) : (
-              <>
-                <FaSave /> Als Vorlage speichern
-              </>
-            )}
-          </button>
-        </>
+        <button
+          className={primaryBtn}
+          onClick={handleSaveAsTemplate}
+          disabled={isSaving}
+          type="button"
+        >
+          {isSaving ? (
+            <>
+              <Spinner size="small" />
+              Speichern...
+            </>
+          ) : (
+            <>
+              <FaSave /> Als Vorlage speichern
+            </>
+          )}
+        </button>
       ) : (
         <>
-          <div className="share-status share-status--success">
+          <div className="flex items-center gap-2 text-sm text-primary-600">
             <IoCheckmarkOutline />
             <span>Gespeichert</span>
           </div>
 
-          <div className="template-link-display">
-            <label>Link</label>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-foreground-muted">Link</label>
             <input
               type="text"
               value={templateUrl}
               readOnly
-              className="share-textarea"
+              className="w-full py-2 px-3 text-sm text-foreground bg-grey-100 dark:bg-grey-800 border border-grey-200 dark:border-grey-700 rounded-lg outline-none cursor-text"
               onClick={(e) => e.currentTarget.select()}
             />
           </div>
 
-          <button className="btn btn-secondary" onClick={copyTemplateLink} type="button">
+          <button className={secondaryBtn} onClick={copyTemplateLink} type="button">
             Link kopieren
           </button>
         </>
@@ -504,7 +505,6 @@ function TemplateSubsection({
   );
 }
 
-// Instagram Text Subsection
 interface GeneratedPosts {
   instagram?: string;
   [key: string]: string | undefined;
@@ -546,12 +546,12 @@ function InstagramTextSubsection({
   };
 
   return (
-    <div className="share-subsection">
-      <h3 className="share-subsection__title">Instagram Text</h3>
+    <div className="flex flex-col gap-3">
+      <h3 className="text-sm font-semibold text-foreground m-0">Instagram Text</h3>
 
       {!generatedPosts?.instagram ? (
         <button
-          className="btn btn-primary"
+          className={primaryBtn}
           onClick={handleGenerate}
           disabled={loading || !canvasText.trim()}
           type="button"
@@ -573,11 +573,11 @@ function InstagramTextSubsection({
           <textarea
             readOnly
             value={generatedPosts.instagram}
-            className="share-textarea"
+            className="w-full py-2 px-3 text-sm text-foreground bg-grey-100 dark:bg-grey-800 border border-grey-200 dark:border-grey-700 rounded-lg outline-none resize-none leading-relaxed"
             rows={6}
             onClick={(e) => e.currentTarget.select()}
           />
-          <button className="btn btn-secondary" onClick={handleCopy} type="button">
+          <button className={cn(secondaryBtn)} onClick={handleCopy} type="button">
             {copied ? <FaCheck /> : <FaCopy />}
             {copied ? 'Kopiert!' : 'Kopieren'}
           </button>

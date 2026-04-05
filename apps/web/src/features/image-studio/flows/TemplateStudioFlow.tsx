@@ -1,5 +1,6 @@
 import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from 'motion/react';
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import { StatusBadge } from '../../../components/common/StatusBadge';
 import ErrorBoundary from '../../../components/ErrorBoundary';
@@ -11,52 +12,22 @@ import { useImageGeneration } from '../hooks/useImageGeneration';
 import TemplateResultStep from '../steps/TemplateResultStep';
 import { FORM_STEPS, getTypeConfig, getTemplateFieldConfig } from '../utils/typeConfig';
 
-/**
- * TemplateStudioFlow - Unified flow for both template and KI image creation
- * Uses StepFlow for INPUT, then TemplateResultStep for RESULT
- */
 interface TemplateStudioFlowProps {
   onBack: () => void;
 }
 
 const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
-  const {
-    currentStep,
-    setCurrentStep,
-    previousStep,
-    navigationDirection,
-    setIsAnimating,
-    type,
-    flowTitle,
-    flowSubtitle,
-    // Template fields
-    line1,
-    line2,
-    line3,
-    quote,
-    name,
-    header,
-    subheader,
-    body,
-    uploadedImage,
-    selectedImage,
-    fontSize,
-    colorScheme,
-    balkenOffset,
-    balkenGruppenOffset,
-    sunflowerOffset,
-    credit,
-    // KI fields
-    purePrompt,
-    sharepicPrompt,
-    imagineTitle,
-    variant,
-    precisionInstruction,
-    precisionMode,
-    selectedInfrastructure,
-    allyPlacement,
-    setGeneratedImage,
-  } = useImageStudioStore();
+  const { currentStep, previousStep, navigationDirection, type, flowTitle, flowSubtitle } =
+    useImageStudioStore(
+      useShallow((s) => ({
+        currentStep: s.currentStep,
+        previousStep: s.previousStep,
+        navigationDirection: s.navigationDirection,
+        type: s.type,
+        flowTitle: s.flowTitle,
+        flowSubtitle: s.flowSubtitle,
+      }))
+    );
 
   const shouldReduceMotion = useReducedMotion();
   const isGoingBack = navigationDirection === 'back';
@@ -73,12 +44,12 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
   }, []);
 
   const handleAnimationStart = useCallback(() => {
-    setIsAnimating(true);
-  }, [setIsAnimating]);
+    useImageStudioStore.getState().setIsAnimating(true);
+  }, []);
 
   const handleAnimationComplete = useCallback(() => {
-    setIsAnimating(false);
-  }, [setIsAnimating]);
+    useImageStudioStore.getState().setIsAnimating(false);
+  }, []);
 
   const stepVariants = {
     enter: { opacity: isGoingBack ? 1 : 0, scale: isUploadToInput ? 0.98 : 1 },
@@ -102,104 +73,64 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
   const { data: imageLimitData, refetch: refetchImageLimit } = useImageGenerationLimit();
 
   const handleGoBackToCanvas = useCallback(() => {
-    setCurrentStep(FORM_STEPS.CANVAS_EDIT);
-  }, [setCurrentStep]);
+    useImageStudioStore.getState().setCurrentStep(FORM_STEPS.CANVAS_EDIT);
+  }, []);
 
   const handleImageRegenerate = useCallback(async () => {
     setError('');
 
     try {
+      const state = useImageStudioStore.getState();
       let image;
 
       if (typeConfig?.usesFluxApi) {
-        // KI regeneration
         const formData = {
-          purePrompt,
-          sharepicPrompt,
-          imagineTitle,
-          variant,
-          uploadedImage,
-          precisionMode: typeConfig?.alwaysPrecision || precisionMode,
-          precisionInstruction,
-          selectedInfrastructure,
-          allyPlacement,
+          purePrompt: state.purePrompt,
+          sharepicPrompt: state.sharepicPrompt,
+          imagineTitle: state.imagineTitle,
+          variant: state.variant,
+          uploadedImage: state.uploadedImage,
+          precisionMode: typeConfig?.alwaysPrecision || state.precisionMode,
+          precisionInstruction: state.precisionInstruction,
+          selectedInfrastructure: state.selectedInfrastructure,
+          allyPlacement: state.allyPlacement,
         };
 
-        image = await generateImage(type!, formData);
+        image = await generateImage(state.type!, formData);
         refetchImageLimit();
       } else {
-        // Template regeneration
         const formData: Record<string, unknown> = {
-          type: typeConfig?.legacyType || type,
-          line1,
-          line2,
-          line3,
-          quote,
-          name,
-          header,
-          subheader,
-          body,
-          uploadedImage: uploadedImage || selectedImage,
-          fontSize,
-          colorScheme,
-          balkenOffset,
-          balkenGruppenOffset,
-          sunflowerOffset,
-          credit,
+          type: typeConfig?.legacyType || state.type,
+          line1: state.line1,
+          line2: state.line2,
+          line3: state.line3,
+          quote: state.quote,
+          name: state.name,
+          header: state.header,
+          subheader: state.subheader,
+          body: state.body,
+          uploadedImage: state.uploadedImage || state.selectedImage,
+          fontSize: state.fontSize,
+          colorScheme: state.colorScheme,
+          balkenOffset: state.balkenOffset,
+          balkenGruppenOffset: state.balkenGruppenOffset,
+          sunflowerOffset: state.sunflowerOffset,
+          credit: state.credit,
         };
 
-        image = await generateImage(type!, formData);
+        image = await generateImage(state.type!, formData);
       }
 
-      setGeneratedImage(image);
+      state.setGeneratedImage(image);
 
-      // Commit to AI Editor history if type has the feature enabled
       if (typeConfig?.hasAiEditor) {
-        const { commitAiGeneration } = useImageStudioStore.getState();
-
-        // Use appropriate prompt field based on type
-        // Edit types use precisionInstruction, AI_EDITOR uses purePrompt
-        const prompt = precisionInstruction || purePrompt || sharepicPrompt || '';
-
-        commitAiGeneration(image, prompt);
+        const prompt = state.precisionInstruction || state.purePrompt || state.sharepicPrompt || '';
+        state.commitAiGeneration(image, prompt);
       }
     } catch (err) {
       console.error('[TemplateStudioFlow] Image regeneration error:', err);
     }
-  }, [
-    type,
-    typeConfig,
-    // Template deps
-    line1,
-    line2,
-    line3,
-    quote,
-    name,
-    header,
-    subheader,
-    body,
-    uploadedImage,
-    selectedImage,
-    fontSize,
-    colorScheme,
-    balkenOffset,
-    balkenGruppenOffset,
-    sunflowerOffset,
-    credit,
-    // KI deps
-    purePrompt,
-    sharepicPrompt,
-    imagineTitle,
-    variant,
-    precisionMode,
-    precisionInstruction,
-    selectedInfrastructure,
-    allyPlacement,
-    generateImage,
-    setGeneratedImage,
-    setError,
-    refetchImageLimit,
-  ]);
+  }, [typeConfig, generateImage, setError, refetchImageLimit]);
 
   if (!fieldConfig) {
     return <div className="error-message">Konfiguration für diesen Typ nicht gefunden.</div>;
@@ -235,7 +166,8 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
               className={cn(
                 'relative w-full max-w-[700px] mx-auto min-[1200px]:max-w-[900px] max-[768px]:p-0',
                 isWideStep &&
-                  'max-w-[1000px] min-[1200px]:max-w-[1200px] min-[1400px]:max-w-[1400px]'
+                  'max-w-[1000px] min-[1200px]:max-w-[1200px] min-[1400px]:max-w-[1400px]',
+                isCanvasEdit && 'max-w-none min-[1200px]:max-w-none'
               )}
             >
               <AnimatePresence mode="wait">
@@ -259,7 +191,9 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
                     return shouldRenderStepFlow ? (
                       <StepFlow
                         onBack={onBack}
-                        onComplete={() => setCurrentStep(FORM_STEPS.RESULT)}
+                        onComplete={() =>
+                          useImageStudioStore.getState().setCurrentStep(FORM_STEPS.RESULT)
+                        }
                         onStepChange={handleStepChange}
                         imageLimitData={typeConfig?.hasRateLimit ? imageLimitData : null}
                         startAtCanvasEdit={currentStep === FORM_STEPS.CANVAS_EDIT}

@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import { PiArrowLeft } from 'react-icons/pi';
 
+import { IconButton, IconButtonRow } from '@gruenerator/ui';
+
 import useDebounce from '../../../hooks/useDebounce';
 import { ALL_ASSETS, type UniversalAsset } from '../../../utils/canvasAssets';
 import { filterIllustrations, matchesQuery } from '../../../utils/filterUtils';
@@ -22,18 +24,9 @@ import { cn } from '../../../utils/cn';
 
 // --- Sub-components ---
 
-function CategoryCard({ card, onClick }: { card: CategoryCardDef; onClick: () => void }) {
+function CategoryIconButton({ card, onClick }: { card: CategoryCardDef; onClick: () => void }) {
   const { Icon, label } = card;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-secondary-50 dark:bg-secondary-900/20 border border-secondary-100 dark:border-secondary-800 cursor-pointer will-change-transform transition-[transform,box-shadow,border-color] duration-300 ease-out hover:scale-[1.02] hover:shadow-md hover:border-secondary-300 dark:hover:border-secondary-600 active:scale-[0.97] active:duration-100"
-    >
-      <Icon size={28} className="text-secondary-600" />
-      <span className="text-xs font-semibold text-foreground">{label}</span>
-    </button>
-  );
+  return <IconButton size="sm" icon={<Icon />} label={label} onClick={onClick} />;
 }
 
 function DrillDownHeader({ label, onBack }: { label: string; onBack: () => void }) {
@@ -207,15 +200,15 @@ export function BrowseView(props: BrowseViewProps) {
             {availableCategories.length > 0 && (
               <div>
                 <h4 className={cn(SECTION_LABEL, 'mb-3')}>Kategorien durchsuchen</h4>
-                <div className="grid grid-cols-2 gap-3">
+                <IconButtonRow gap="md" padding="none" className="justify-start">
                   {availableCategories.map((card) => (
-                    <CategoryCard
+                    <CategoryIconButton
                       key={card.id}
                       card={card}
                       onClick={() => setActiveView(card.id)}
                     />
                   ))}
-                </div>
+                </IconButtonRow>
               </div>
             )}
           </>

@@ -19,7 +19,7 @@ import { SLIDER_CONFIG, calculateSliderLayout, getSliderColors } from '../utils/
 import { alternativesTab, createAlternativesSection } from './alternativesSection';
 import { createBaseActions } from './factory/commonActions';
 import { injectFeatureProps } from './featureInjector';
-import { shareTab, createShareSection } from './shareSection';
+import { createShareSection } from './shareSection';
 
 import type {
   FullCanvasConfig,
@@ -379,10 +379,9 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
       ariaLabel: 'Dekorative Elemente',
     },
     alternativesTab,
-    shareTab,
   ],
 
-  getVisibleTabs: () => ['background', 'assets', 'share'],
+  getVisibleTabs: () => ['background', 'assets'],
 
   getAutoSwitchTab: (selectedElement) => (selectedElement?.startsWith('frame-') ? 'assets' : null),
 

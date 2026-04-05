@@ -36,7 +36,7 @@ import {
 } from './factory/commonActions';
 import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';
-import { shareTab, createShareSection } from './shareSection';
+import { createShareSection } from './shareSection';
 
 import type {
   DreizeilenFullState,
@@ -189,7 +189,6 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     { id: 'settings', icon: HiCog, label: 'Einstellungen', ariaLabel: 'Balken-Einstellungen' },
     { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Elemente hinzufügen' },
     alternativesTab,
-    shareTab,
   ],
 
   getVisibleTabs: (_state, context) => {

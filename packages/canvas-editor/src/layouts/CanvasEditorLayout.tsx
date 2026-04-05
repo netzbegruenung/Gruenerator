@@ -26,6 +26,8 @@ export interface CanvasEditorLayoutProps {
   tabBar?: ReactNode;
   subsectionBar?: ReactNode;
   templateCreator?: string | null;
+  /** Toolbar rendered at layout level, above the canvas content */
+  toolbar?: ReactNode;
   /** When true, removes mobile bottom padding and sidebar chrome (native handles these) */
   hideMobileChrome?: boolean;
   /** When true, the tab bar is rendered externally (web app sidebar) — panel still renders here */
@@ -39,6 +41,7 @@ export function CanvasEditorLayout({
   tabBar,
   subsectionBar,
   templateCreator,
+  toolbar,
   hideMobileChrome,
   externalSidebar,
 }: CanvasEditorLayoutProps) {
@@ -55,6 +58,7 @@ export function CanvasEditorLayout({
         hideMobileChrome && 'ml-0 pb-0 max-canvas-mobile:pb-0'
       )}
     >
+      {toolbar}
       {hasSidebar && (
         <div
           className="canvas-sidebar flex fixed left-0 top-0 bottom-0 z-[100] max-canvas-mobile:static max-canvas-mobile:contents"

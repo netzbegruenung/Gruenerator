@@ -16,6 +16,7 @@ import Konva from 'konva';
 import { useRef, useEffect, useCallback, memo } from 'react';
 import { Image as KonvaImage, Transformer } from 'react-konva';
 
+import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { calculateElementSnapPosition } from '../utils/snapping';
 
 import type { SnapTarget, SnapLine } from '../utils/snapping';
@@ -90,11 +91,10 @@ function CanvasImageInner({
   const imageRef = useRef<Konva.Image>(null);
   const trRef = useRef<Konva.Transformer>(null);
 
-  // Performance: Track snap state in refs during drag to avoid React re-renders
-  const isDraggingRef = useRef(false);
-  const lastSnapStateRef = useRef({ snapH: false, snapV: false });
-  const lastSnapLinesRef = useRef<SnapLine[]>([]);
-  const rafIdRef = useRef<number | null>(null);
+  const snap = useSnapScheduler({
+    onSnapChange: onSnapChange ?? (() => {}),
+    onSnapLinesChange: onSnapLinesChange ?? (() => {}),
+  });
 
   useEffect(() => {
     if (selected && trRef.current && imageRef.current) {
@@ -111,38 +111,20 @@ function CanvasImageInner({
     }
   }, [image, width, height, color, brightness, grayscale]);
 
-  // Handler for drag start - set dragging flag
-  const handleDragStart = useCallback(() => {
-    isDraggingRef.current = true;
-  }, []);
-
   const handleDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       const node = e.target as Konva.Image;
       const nodeWidth = node.width() * node.scaleX();
       const nodeHeight = node.height() * node.scaleY();
 
-      // Cancel any pending RAF
-      if (rafIdRef.current !== null) {
-        cancelAnimationFrame(rafIdRef.current);
-        rafIdRef.current = null;
-      }
-
-      isDraggingRef.current = false;
-
-      // Clear snap state at end of drag
-      onSnapChange?.(false, false);
-      onSnapLinesChange?.([]);
-      lastSnapStateRef.current = { snapH: false, snapV: false };
-      lastSnapLinesRef.current = [];
-
+      snap.onDragEnd();
       onDragEnd?.(node.x(), node.y());
 
       if (id && onPositionChange) {
         onPositionChange(id, node.x(), node.y(), nodeWidth, nodeHeight);
       }
     },
-    [id, onDragEnd, onSnapChange, onSnapLinesChange, onPositionChange]
+    [id, onDragEnd, onPositionChange, snap]
   );
 
   const clampToBounds = useCallback(
@@ -180,36 +162,6 @@ function CanvasImageInner({
       };
     },
     [constrainToBounds, stageWidth, stageHeight]
-  );
-
-  // Performance: Schedule React state updates via RAF to batch them
-  const scheduleSnapUpdate = useCallback(
-    (snapH: boolean, snapV: boolean, snapLines: SnapLine[]) => {
-      // Only update if snap state actually changed
-      const lastSnap = lastSnapStateRef.current;
-      const snapChanged = lastSnap.snapH !== snapH || lastSnap.snapV !== snapV;
-      const linesChanged = snapLines.length !== lastSnapLinesRef.current.length;
-
-      if (!snapChanged && !linesChanged) return;
-
-      lastSnapStateRef.current = { snapH, snapV };
-      lastSnapLinesRef.current = snapLines;
-
-      // Cancel previous RAF if pending
-      if (rafIdRef.current !== null) {
-        cancelAnimationFrame(rafIdRef.current);
-      }
-
-      // Schedule update for next frame
-      rafIdRef.current = requestAnimationFrame(() => {
-        rafIdRef.current = null;
-        if (isDraggingRef.current) {
-          onSnapChange?.(snapH, snapV);
-          onSnapLinesChange?.(snapLines);
-        }
-      });
-    },
-    [onSnapChange, onSnapLinesChange]
   );
 
   const handleDragMove = useCallback(
@@ -251,9 +203,9 @@ function CanvasImageInner({
       node.position({ x: bounded.x, y: bounded.y });
 
       // Schedule snap state updates via RAF (throttled, batched)
-      scheduleSnapUpdate(snapH, snapV, snapLines);
+      snap.scheduleSnap(snapH, snapV, snapLines);
     },
-    [snapToCenter, stageWidth, stageHeight, snapTargets, clampToBounds, scheduleSnapUpdate]
+    [snapToCenter, stageWidth, stageHeight, snapTargets, clampToBounds, snap]
   );
 
   const handleTransform = useCallback(() => {
@@ -315,7 +267,7 @@ function CanvasImageInner({
         dragBoundFunc={dragBoundFunc}
         onClick={onSelect}
         onTap={onSelect}
-        onDragStart={handleDragStart}
+        onDragStart={snap.onDragStart}
         onDragEnd={handleDragEnd}
         onDragMove={handleDragMove}
         onTransform={handleTransform}
