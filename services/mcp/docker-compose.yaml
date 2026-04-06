@@ -16,6 +16,7 @@ services:
       - PORT=${PORT:-3000}
       # Optional (editierbar im UI)
       - PUBLIC_URL=${PUBLIC_URL}
+      - GRUENERATOR_API_URL=${GRUENERATOR_API_URL}
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
       interval: 30s

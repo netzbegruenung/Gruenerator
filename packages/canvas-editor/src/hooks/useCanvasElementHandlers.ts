@@ -1,10 +1,11 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { resolveValue } from '../utils/canvasValueResolver';
 
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from '../configs/types';
 import type { FrameInstance } from '../utils/frameUtils';
 import type { ShapeInstance } from '../utils/shapes';
+import type { UserImageInstance } from '../utils/userImageUtils';
 
 /**
  * Canvas Element Handlers - Handlers for all element interactions
@@ -77,6 +78,7 @@ export interface OptionalCanvasActions {
   ) => void;
   updateFrame?: (id: string, attrs: Partial<FrameInstance>) => void;
   setFrameImage?: (id: string, file: File, objectUrl: string) => void;
+  updateUserImage?: (id: string, attrs: Partial<UserImageInstance>) => void;
 }
 
 export interface UseCanvasElementHandlersOptions<
@@ -159,6 +161,15 @@ export interface UseCanvasElementHandlersResult {
   ) => void;
   handleFrameChange: (id: string, newAttrs: Partial<FrameInstance>) => void;
   handleFrameImageUpload: (id: string, file: File, objectUrl: string) => void;
+  handleUserImageDragEnd: (id: string, x: number, y: number) => void;
+  handleUserImageTransformEnd: (
+    id: string,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    rotation: number
+  ) => void;
 }
 
 /**
@@ -503,7 +514,27 @@ export function useCanvasElementHandlers<
     [actions]
   );
 
-  return {
+  const handleUserImageDragEnd = useCallback(
+    (id: string, x: number, y: number) => {
+      if (actions.updateUserImage) {
+        actions.updateUserImage(id, { x, y });
+        saveToHistory({ ...state, userImageInstances: getStateArray(state, 'userImageInstances') });
+      }
+    },
+    [actions, saveToHistory, state]
+  );
+
+  const handleUserImageTransformEnd = useCallback(
+    (id: string, x: number, y: number, width: number, height: number, rotation: number) => {
+      if (actions.updateUserImage) {
+        actions.updateUserImage(id, { x, y, width, height, rotation });
+        saveToHistory({ ...state, userImageInstances: getStateArray(state, 'userImageInstances') });
+      }
+    },
+    [actions, saveToHistory, state]
+  );
+
+  return useMemo(() => ({
     handleElementSelect,
     handleTextChange,
     handleFontSizeChange,
@@ -531,5 +562,37 @@ export function useCanvasElementHandlers<
     handleIllustrationTransformEnd,
     handleFrameChange,
     handleFrameImageUpload,
-  };
+    handleUserImageDragEnd,
+    handleUserImageTransformEnd,
+  }), [
+    handleElementSelect,
+    handleTextChange,
+    handleFontSizeChange,
+    handleElementPositionChange,
+    handleImageDragEnd,
+    handleImageTransformEnd,
+    handleBalkenSelect,
+    handleBalkenDragEnd,
+    handleBalkenTransformEnd,
+    handleIconDragEnd,
+    handleIconTransformEnd,
+    handleShapeChange,
+    handleAdditionalTextChange,
+    handleCircleBadgeSelect,
+    handleCircleBadgeDragEnd,
+    handleCircleBadgeTransformEnd,
+    handleCircleBadgeTextLineChange,
+    handlePillBadgeSelect,
+    handlePillBadgeTextChange,
+    handlePillBadgeDragEnd,
+    handlePillBadgeTransformEnd,
+    handleAssetDragEnd,
+    handleAssetTransformEnd,
+    handleIllustrationDragEnd,
+    handleIllustrationTransformEnd,
+    handleFrameChange,
+    handleFrameImageUpload,
+    handleUserImageDragEnd,
+    handleUserImageTransformEnd,
+  ]);
 }

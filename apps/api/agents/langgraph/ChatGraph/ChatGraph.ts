@@ -381,6 +381,7 @@ function routeAfterClassification(
     examples: 'examples',
     image: 'image',
     image_edit: 'image_edit',
+    sharepic: 'sharepic',
     summary: 'summary',
     chart: 'chart',
     save_as_doc: 'save_as_doc',

@@ -16,7 +16,7 @@ function gruenerator_welcome_page() {
     <div class="gruenerator-welcome-page">
         <h2>Willkommen beim Grünerator Setup-Assistenten</h2>
         <p>In wenigen Schritten erstellen wir gemeinsam deine professionelle politische Landingpage. Der Assistent führt dich durch alle wichtigen Einstellungen und hilft dir dabei, deine Präsenz im Web optimal zu gestalten.</p>
-        
+
         <div class="gruenerator-welcome-features">
             <div class="feature">
                 <span class="dashicons dashicons-admin-appearance"></span>
@@ -146,6 +146,7 @@ function gruenerator_css_settings() {
         gruenerator_log("Unzureichende Berechtigungen für Benutzer: " . wp_get_current_user()->user_login, 'error');
         wp_die('Unzureichende Berechtigungen');
     }
+    $design = Gruenerator_Options::get_design();
     ?>
     <div class="gruenerator-step-content">
         <h2>Design-Einstellungen</h2>
@@ -154,7 +155,7 @@ function gruenerator_css_settings() {
             <tr>
                 <th scope="row"><label for="gruenerator_use_css">Standard-Design verwenden</label></th>
                 <td>
-                    <input type="checkbox" id="gruenerator_use_css" name="gruenerator_use_css" value="1" <?php checked(get_option('gruenerator_custom_css_active', false)); ?>>
+                    <input type="checkbox" id="gruenerator_use_css" name="gruenerator_use_css" value="1" <?php checked($design['css_active']); ?>>
                     <p class="description">Aktiviere diese Option, um das optimierte Grüne Design zu verwenden. Deaktiviere sie nur, wenn du ein komplett eigenes Design einsetzen möchtest.</p>
                 </td>
             </tr>
@@ -170,6 +171,21 @@ function gruenerator_social_networks() {
     if (!current_user_can('manage_options')) {
         wp_die('Unzureichende Berechtigungen');
     }
+
+    // Parse current social profiles to extract wizard-relevant URLs
+    $social_data = Gruenerator_Options::get_social();
+    $icon_to_key = array(
+        'fab fa-facebook-f' => 'facebook',
+        'fab fa-twitter'    => 'twitter',
+        'fab fa-instagram'  => 'instagram',
+    );
+    $current_urls = array('facebook' => '', 'twitter' => '', 'instagram' => '');
+    foreach (explode("\n", $social_data) as $line) {
+        $parts = explode(';', $line);
+        if (count($parts) >= 3 && isset($icon_to_key[$parts[0]])) {
+            $current_urls[$icon_to_key[$parts[0]]] = trim($parts[2]);
+        }
+    }
     ?>
     <div class="gruenerator-step-content">
         <h2>Social Media Einbindung</h2>
@@ -178,21 +194,21 @@ function gruenerator_social_networks() {
             <tr>
                 <th scope="row"><label for="gruenerator_social_facebook">Facebook</label></th>
                 <td>
-                    <input type="url" id="gruenerator_social_facebook" name="gruenerator_social_facebook" value="<?php echo esc_url(get_option('gruenerator_social_facebook', '')); ?>" class="regular-text">
+                    <input type="url" id="gruenerator_social_facebook" name="gruenerator_social_facebook" value="<?php echo esc_url($current_urls['facebook']); ?>" class="regular-text">
                     <p class="description">z.B. https://facebook.com/IhrName</p>
                 </td>
             </tr>
             <tr>
                 <th scope="row"><label for="gruenerator_social_twitter">X (Twitter)</label></th>
                 <td>
-                    <input type="url" id="gruenerator_social_twitter" name="gruenerator_social_twitter" value="<?php echo esc_url(get_option('gruenerator_social_twitter', '')); ?>" class="regular-text">
+                    <input type="url" id="gruenerator_social_twitter" name="gruenerator_social_twitter" value="<?php echo esc_url($current_urls['twitter']); ?>" class="regular-text">
                     <p class="description">z.B. https://x.com/IhrName</p>
                 </td>
             </tr>
             <tr>
                 <th scope="row"><label for="gruenerator_social_instagram">Instagram</label></th>
                 <td>
-                    <input type="url" id="gruenerator_social_instagram" name="gruenerator_social_instagram" value="<?php echo esc_url(get_option('gruenerator_social_instagram', '')); ?>" class="regular-text">
+                    <input type="url" id="gruenerator_social_instagram" name="gruenerator_social_instagram" value="<?php echo esc_url($current_urls['instagram']); ?>" class="regular-text">
                     <p class="description">z.B. https://instagram.com/IhrName</p>
                 </td>
             </tr>
@@ -208,6 +224,8 @@ function gruenerator_hero_section() {
     if (!current_user_can('manage_options')) {
         wp_die('Unzureichende Berechtigungen');
     }
+    $content = Gruenerator_Options::get_content();
+    $hero = $content['hero'];
     ?>
     <div class="gruenerator-step-content">
         <h2>Dein persönlicher Hero-Bereich</h2>
@@ -216,14 +234,13 @@ function gruenerator_hero_section() {
             <tr>
                 <th scope="row"><label for="gruenerator_hero_image">Dein Porträtfoto</label></th>
                 <td>
-                    <input type="hidden" id="gruenerator_hero_image" name="gruenerator_hero_image" value="<?php echo esc_attr(get_option('gruenerator_hero_image', '')); ?>">
+                    <input type="hidden" id="gruenerator_hero_image" name="gruenerator_hero_image" value="<?php echo esc_attr($hero['image']); ?>">
                     <button type="button" class="button gruenerator-image-upload">Foto auswählen</button>
                     <button type="button" class="button gruenerator-image-remove">Foto entfernen</button>
                     <div class="gruenerator-image-preview">
                         <?php
-                        $image_id = get_option('gruenerator_hero_image', '');
-                        if ($image_id) {
-                            echo wp_get_attachment_image($image_id, 'medium');
+                        if ($hero['image']) {
+                            echo wp_get_attachment_image($hero['image'], 'medium');
                         }
                         ?>
                     </div>
@@ -233,14 +250,14 @@ function gruenerator_hero_section() {
             <tr>
                 <th scope="row"><label for="gruenerator_hero_heading">Deine Begrüßung</label></th>
                 <td>
-                    <input type="text" id="gruenerator_hero_heading" name="gruenerator_hero_heading" value="<?php echo esc_attr(get_option('gruenerator_hero_heading', 'Hallo, ich bin Maxi Mustermensch')); ?>" class="regular-text">
+                    <input type="text" id="gruenerator_hero_heading" name="gruenerator_hero_heading" value="<?php echo esc_attr($hero['heading'] ? $hero['heading'] : 'Hallo, ich bin Maxi Mustermensch'); ?>" class="regular-text">
                     <p class="description">Eine persönliche Begrüßung macht deine Seite einladend.</p>
                 </td>
             </tr>
             <tr>
                 <th scope="row"><label for="gruenerator_hero_text">Kurze Vorstellung</label></th>
                 <td>
-                    <textarea id="gruenerator_hero_text" name="gruenerator_hero_text" rows="3" class="large-text"><?php echo esc_textarea(get_option('gruenerator_hero_text', 'Kandidat*in für den Wahlkreis Musterstadt-Nord. Ich setze mich für eine nachhaltige und gerechte Zukunft ein.')); ?></textarea>
+                    <textarea id="gruenerator_hero_text" name="gruenerator_hero_text" rows="3" class="large-text"><?php echo esc_textarea($hero['text'] ? $hero['text'] : 'Kandidat*in für den Wahlkreis Musterstadt-Nord. Ich setze mich für eine nachhaltige und gerechte Zukunft ein.'); ?></textarea>
                     <p class="description">Ein kurzer, prägnanter Text über deine politische Rolle und Motivation.</p>
                 </td>
             </tr>
@@ -256,6 +273,8 @@ function gruenerator_about_me() {
     if (!current_user_can('manage_options')) {
         wp_die('Unzureichende Berechtigungen');
     }
+    $content = Gruenerator_Options::get_content();
+    $about = $content['about'];
     ?>
     <div class="gruenerator-step-content">
         <h2>Über mich</h2>
@@ -264,7 +283,7 @@ function gruenerator_about_me() {
             <tr>
                 <th scope="row"><label for="gruenerator_about_me_title">Überschrift</label></th>
                 <td>
-                    <input type="text" id="gruenerator_about_me_title" name="gruenerator_about_me_title" value="<?php echo esc_attr(get_option('gruenerator_about_me_title', 'Wer ich bin')); ?>" class="regular-text">
+                    <input type="text" id="gruenerator_about_me_title" name="gruenerator_about_me_title" value="<?php echo esc_attr($about['title'] ? $about['title'] : 'Wer ich bin'); ?>" class="regular-text">
                     <p class="description">Eine einladende Überschrift für deinen persönlichen Bereich.</p>
                 </td>
             </tr>
@@ -273,9 +292,9 @@ function gruenerator_about_me() {
                 <td>
                     <?php
                     $default_content = "Verwurzelt im Herzen von Musterstadt, mit einem festen Blick in die Zukunft: Dies beschreibt den Kern meiner Kandidatur für das Musterparlament. Als Musterberuf und langjährig engagierte Person in Musterorganisation habe ich stets die Bedeutung von Gemeinschaft, nachhaltiger Entwicklung und solidarischem Handeln aus nächster Nähe miterlebt. Mit einem offenen Ohr für alle Bürger*innen, einer lösungsorientierten Herangehensweise und dem festen Glauben an unsere gemeinsame Zukunft. Es geht darum, heute die Entscheidungen zu treffen, die morgen den Unterschied machen können. Für eine Politik, die auf Ausgleich und Nachhaltigkeit setzt, und für ein Musterstadt, in dem jede Stimme zählt.";
-                    
+
                     wp_editor(
-                        get_option('gruenerator_about_me_content', $default_content),
+                        $about['content'] ? $about['content'] : $default_content,
                         'gruenerator_about_me_content',
                         array(
                             'textarea_name' => 'gruenerator_about_me_content',
@@ -302,6 +321,8 @@ function gruenerator_hero_image_block() {
     if (!current_user_can('manage_options')) {
         wp_die('Unzureichende Berechtigungen');
     }
+    $content = Gruenerator_Options::get_content();
+    $hero_image = $content['hero_image'];
     ?>
     <div class="gruenerator-step-content">
         <h2>Dein Hauptthema</h2>
@@ -310,14 +331,13 @@ function gruenerator_hero_image_block() {
             <tr>
                 <th scope="row"><label for="gruenerator_hero_image_block_image">Themenbild</label></th>
                 <td>
-                    <input type="hidden" id="gruenerator_hero_image_block_image" name="gruenerator_hero_image_block_image" value="<?php echo esc_attr(get_option('gruenerator_hero_image_block_image', '')); ?>">
+                    <input type="hidden" id="gruenerator_hero_image_block_image" name="gruenerator_hero_image_block_image" value="<?php echo esc_attr($hero_image['image']); ?>">
                     <button type="button" class="button gruenerator-image-upload">Bild auswählen</button>
                     <button type="button" class="button gruenerator-image-remove">Bild entfernen</button>
                     <div class="gruenerator-image-preview">
                         <?php
-                        $image_id = get_option('gruenerator_hero_image_block_image', '');
-                        if ($image_id) {
-                            echo wp_get_attachment_image($image_id, 'medium');
+                        if ($hero_image['image']) {
+                            echo wp_get_attachment_image($hero_image['image'], 'medium');
                         }
                         ?>
                     </div>
@@ -327,14 +347,14 @@ function gruenerator_hero_image_block() {
             <tr>
                 <th scope="row"><label for="gruenerator_hero_image_title">Hauptbotschaft</label></th>
                 <td>
-                    <input type="text" id="gruenerator_hero_image_title" name="gruenerator_hero_image_title" value="<?php echo esc_attr(get_option('gruenerator_hero_image_title', 'Gemeinsam für eine nachhaltige Zukunft!')); ?>" class="regular-text">
+                    <input type="text" id="gruenerator_hero_image_title" name="gruenerator_hero_image_title" value="<?php echo esc_attr($hero_image['title'] ? $hero_image['title'] : 'Gemeinsam für eine nachhaltige Zukunft!'); ?>" class="regular-text">
                     <p class="description">Eine prägnante Botschaft, die deine politische Vision zusammenfasst.</p>
                 </td>
             </tr>
             <tr>
                 <th scope="row"><label for="gruenerator_hero_image_subtitle">Erläuterung</label></th>
                 <td>
-                    <textarea id="gruenerator_hero_image_subtitle" name="gruenerator_hero_image_subtitle" rows="3" class="large-text"><?php echo esc_textarea(get_option('gruenerator_hero_image_subtitle', 'Mit deiner Unterstützung können wir unsere Region nachhaltiger, gerechter und lebenswerter gestalten. Lass uns gemeinsam die Herausforderungen angehen.')); ?></textarea>
+                    <textarea id="gruenerator_hero_image_subtitle" name="gruenerator_hero_image_subtitle" rows="3" class="large-text"><?php echo esc_textarea($hero_image['subtitle'] ? $hero_image['subtitle'] : 'Mit deiner Unterstützung können wir unsere Region nachhaltiger, gerechter und lebenswerter gestalten. Lass uns gemeinsam die Herausforderungen angehen.'); ?></textarea>
                     <p class="description">Ergänze deine Hauptbotschaft mit einem motivierenden Aufruf zum Mitmachen.</p>
                 </td>
             </tr>
@@ -351,39 +371,42 @@ function gruenerator_my_themes() {
     if (!current_user_can('manage_options')) {
         wp_die('Unzureichende Berechtigungen');
     }
+    $content = Gruenerator_Options::get_content();
+    $themes_data = $content['themes'];
     ?>
     <div class="gruenerator-step-content">
         <h2>Deine politischen Schwerpunkte</h2>
         <p>Stelle deine drei wichtigsten politischen Themen vor.</p>
-        
-        <?php 
+
+        <?php
         $default_themes = array(
-            1 => array(
+            array(
                 'title' => 'Klimaschutz vor Ort umsetzen',
                 'content' => 'Wir setzen uns für konkrete Klimaschutzmaßnahmen in unserer Kommune ein. Von erneuerbaren Energien bis hin zu nachhaltiger Stadtplanung - gemeinsam gestalten wir eine grüne Zukunft.'
             ),
-            2 => array(
+            array(
                 'title' => 'Nachhaltige Mobilität fördern',
                 'content' => 'Wir machen uns stark für ein modernes Verkehrskonzept: Bessere Radwege, attraktiver ÖPNV und sichere Fußwege für alle. So schaffen wir eine lebenswerte Stadt mit hoher Mobilität.'
             ),
-            3 => array(
+            array(
                 'title' => 'Soziale Gerechtigkeit stärken',
                 'content' => 'Wir kämpfen für bezahlbares Wohnen, gute Bildung und faire Chancen für alle. Denn eine gerechte Gesellschaft ist die Basis für ein harmonisches Zusammenleben.'
             )
         );
 
-        for ($i = 1; $i <= 3; $i++) : 
-            $theme_image = get_option('gruenerator_theme_image_' . $i, '');
-            $theme_title = get_option('gruenerator_theme_title_' . $i, $default_themes[$i]['title']);
-            $theme_content = get_option('gruenerator_theme_content_' . $i, $default_themes[$i]['content']);
+        for ($i = 0; $i < 3; $i++) :
+            $theme_image = $themes_data[$i]['image'];
+            $theme_title = $themes_data[$i]['title'] ? $themes_data[$i]['title'] : $default_themes[$i]['title'];
+            $theme_content = $themes_data[$i]['content'] ? $themes_data[$i]['content'] : $default_themes[$i]['content'];
+            $num = $i + 1;
         ?>
             <div class="gruenerator-theme-section">
-                <h3>Schwerpunkt <?php echo $i; ?></h3>
+                <h3>Schwerpunkt <?php echo $num; ?></h3>
                 <table class="form-table">
                     <tr>
-                        <th scope="row"><label for="gruenerator_theme_image_<?php echo $i; ?>">Bild</label></th>
+                        <th scope="row"><label for="gruenerator_theme_image_<?php echo $num; ?>">Bild</label></th>
                         <td>
-                            <input type="hidden" id="gruenerator_theme_image_<?php echo $i; ?>" name="gruenerator_theme_image_<?php echo $i; ?>" value="<?php echo esc_attr($theme_image); ?>">
+                            <input type="hidden" id="gruenerator_theme_image_<?php echo $num; ?>" name="gruenerator_theme_image_<?php echo $num; ?>" value="<?php echo esc_attr($theme_image); ?>">
                             <button type="button" class="button gruenerator-image-upload">Bild auswählen</button>
                             <button type="button" class="button gruenerator-image-remove">Bild entfernen</button>
                             <div class="gruenerator-image-preview">
@@ -395,16 +418,16 @@ function gruenerator_my_themes() {
                         </td>
                     </tr>
                     <tr>
-                        <th scope="row"><label for="gruenerator_theme_title_<?php echo $i; ?>">Titel</label></th>
+                        <th scope="row"><label for="gruenerator_theme_title_<?php echo $num; ?>">Titel</label></th>
                         <td>
-                            <input type="text" id="gruenerator_theme_title_<?php echo $i; ?>" name="gruenerator_theme_title_<?php echo $i; ?>" value="<?php echo esc_attr($theme_title); ?>" class="regular-text">
+                            <input type="text" id="gruenerator_theme_title_<?php echo $num; ?>" name="gruenerator_theme_title_<?php echo $num; ?>" value="<?php echo esc_attr($theme_title); ?>" class="regular-text">
                             <p class="description">Gib deinem Schwerpunkt einen prägnanten Titel.</p>
                         </td>
                     </tr>
                     <tr>
-                        <th scope="row"><label for="gruenerator_theme_content_<?php echo $i; ?>">Beschreibung</label></th>
+                        <th scope="row"><label for="gruenerator_theme_content_<?php echo $num; ?>">Beschreibung</label></th>
                         <td>
-                            <textarea id="gruenerator_theme_content_<?php echo $i; ?>" name="gruenerator_theme_content_<?php echo $i; ?>" rows="4" class="large-text"><?php echo esc_textarea($theme_content); ?></textarea>
+                            <textarea id="gruenerator_theme_content_<?php echo $num; ?>" name="gruenerator_theme_content_<?php echo $num; ?>" rows="4" class="large-text"><?php echo esc_textarea($theme_content); ?></textarea>
                             <p class="description">Beschreibe kurz und prägnant, wofür du dich in diesem Bereich einsetzt.</p>
                         </td>
                     </tr>
@@ -422,39 +445,45 @@ function gruenerator_image_grid() {
     if (!current_user_can('manage_options')) {
         wp_die('Unzureichende Berechtigungen');
     }
+    $content = Gruenerator_Options::get_content();
+    $actions_data = $content['actions'];
     ?>
     <div class="gruenerator-step-content">
         <h2>Aktionsbereich</h2>
         <p>Gestalte drei Aktionsfelder, die Besucher*innen zum Mitmachen einladen.</p>
         <table class="form-table">
-            <?php 
+            <?php
             $default_actions = array(
-                1 => array(
+                array(
                     'text' => 'Unterstütze uns',
                     'link' => '#spenden'
                 ),
-                2 => array(
+                array(
                     'text' => 'Werde Mitglied',
                     'link' => 'https://www.gruene.de/mitglied-werden'
                 ),
-                3 => array(
+                array(
                     'text' => 'Mach mit',
                     'link' => '#kontakt'
                 )
             );
-            
-            for ($i = 1; $i <= 3; $i++): ?>
+
+            for ($i = 0; $i < 3; $i++):
+                $num = $i + 1;
+                $action_image = $actions_data[$i]['image'];
+                $action_text = $actions_data[$i]['text'] ? $actions_data[$i]['text'] : $default_actions[$i]['text'];
+                $action_link = $actions_data[$i]['link'] ? $actions_data[$i]['link'] : $default_actions[$i]['link'];
+            ?>
                 <tr>
-                    <th scope="row"><label for="gruenerator_action_image_<?php echo $i; ?>">Aktion <?php echo $i; ?> - Bild</label></th>
+                    <th scope="row"><label for="gruenerator_action_image_<?php echo $num; ?>">Aktion <?php echo $num; ?> - Bild</label></th>
                     <td>
-                        <input type="hidden" name="gruenerator_action_image_<?php echo $i; ?>" id="gruenerator_action_image_<?php echo $i; ?>" value="<?php echo esc_attr(get_option('gruenerator_action_image_' . $i, '')); ?>">
+                        <input type="hidden" name="gruenerator_action_image_<?php echo $num; ?>" id="gruenerator_action_image_<?php echo $num; ?>" value="<?php echo esc_attr($action_image); ?>">
                         <button type="button" class="button gruenerator-image-upload">Bild auswählen</button>
                         <button type="button" class="button gruenerator-image-remove">Bild entfernen</button>
                         <div class="gruenerator-image-preview">
                             <?php
-                            $image_id = get_option('gruenerator_action_image_' . $i, '');
-                            if ($image_id) {
-                                echo wp_get_attachment_image($image_id, 'medium');
+                            if ($action_image) {
+                                echo wp_get_attachment_image($action_image, 'medium');
                             }
                             ?>
                         </div>
@@ -462,16 +491,16 @@ function gruenerator_image_grid() {
                     </td>
                 </tr>
                 <tr>
-                    <th scope="row"><label for="gruenerator_action_text_<?php echo $i; ?>">Aktion <?php echo $i; ?> - Text</label></th>
+                    <th scope="row"><label for="gruenerator_action_text_<?php echo $num; ?>">Aktion <?php echo $num; ?> - Text</label></th>
                     <td>
-                        <input type="text" id="gruenerator_action_text_<?php echo $i; ?>" name="gruenerator_action_text_<?php echo $i; ?>" value="<?php echo esc_attr(get_option('gruenerator_action_text_' . $i, $default_actions[$i]['text'])); ?>" class="regular-text">
+                        <input type="text" id="gruenerator_action_text_<?php echo $num; ?>" name="gruenerator_action_text_<?php echo $num; ?>" value="<?php echo esc_attr($action_text); ?>" class="regular-text">
                         <p class="description">Ein kurzer, aktivierender Aufruf.</p>
                     </td>
                 </tr>
                 <tr>
-                    <th scope="row"><label for="gruenerator_action_link_<?php echo $i; ?>">Aktion <?php echo $i; ?> - Link</label></th>
+                    <th scope="row"><label for="gruenerator_action_link_<?php echo $num; ?>">Aktion <?php echo $num; ?> - Link</label></th>
                     <td>
-                        <input type="text" id="gruenerator_action_link_<?php echo $i; ?>" name="gruenerator_action_link_<?php echo $i; ?>" value="<?php echo esc_attr(get_option('gruenerator_action_link_' . $i, $default_actions[$i]['link'])); ?>" class="regular-text">
+                        <input type="text" id="gruenerator_action_link_<?php echo $num; ?>" name="gruenerator_action_link_<?php echo $num; ?>" value="<?php echo esc_attr($action_link); ?>" class="regular-text">
                         <p class="description">Optional: Die Zielseite für die Aktion (z.B. Spendenformular, Mitgliedsantrag). Kann auch später ergänzt werden.</p>
                     </td>
                 </tr>
@@ -489,6 +518,8 @@ function gruenerator_contact_form() {
     if (!current_user_can('manage_options')) {
         wp_die('Unzureichende Berechtigungen');
     }
+    $content = Gruenerator_Options::get_content();
+    $contact = $content['contact'];
     ?>
     <div class="gruenerator-step-content">
         <h2>Kontaktbereich</h2>
@@ -497,21 +528,20 @@ function gruenerator_contact_form() {
             <tr>
                 <th scope="row"><label for="gruenerator_contact_form_title">Überschrift</label></th>
                 <td>
-                    <input type="text" id="gruenerator_contact_form_title" name="gruenerator_contact_form_title" value="<?php echo esc_attr(get_option('gruenerator_contact_form_title', 'Sag Hallo!')); ?>" class="regular-text">
+                    <input type="text" id="gruenerator_contact_form_title" name="gruenerator_contact_form_title" value="<?php echo esc_attr($contact['title'] ? $contact['title'] : 'Sag Hallo!'); ?>" class="regular-text">
                     <p class="description">Eine einladende Überschrift für den Kontaktbereich.</p>
                 </td>
             </tr>
             <tr>
                 <th scope="row"><label for="gruenerator_contact_form_image">Hintergrundbild</label></th>
                 <td>
-                    <input type="hidden" name="gruenerator_contact_form_image" id="gruenerator_contact_form_image" value="<?php echo esc_attr(get_option('gruenerator_contact_form_image', '')); ?>">
+                    <input type="hidden" name="gruenerator_contact_form_image" id="gruenerator_contact_form_image" value="<?php echo esc_attr($contact['image']); ?>">
                     <button type="button" class="button gruenerator-image-upload">Bild auswählen</button>
                     <button type="button" class="button gruenerator-image-remove">Bild entfernen</button>
                     <div class="gruenerator-image-preview">
                         <?php
-                        $image_id = get_option('gruenerator_contact_form_image', '');
-                        if ($image_id) {
-                            echo wp_get_attachment_image($image_id, 'medium');
+                        if ($contact['image']) {
+                            echo wp_get_attachment_image($contact['image'], 'medium');
                         }
                         ?>
                     </div>
@@ -521,7 +551,7 @@ function gruenerator_contact_form() {
             <tr>
                 <th scope="row"><label for="gruenerator_contact_form_email">Deine E-Mail-Adresse</label></th>
                 <td>
-                    <input type="email" id="gruenerator_contact_form_email" name="gruenerator_contact_form_email" value="<?php echo esc_attr(get_option('gruenerator_contact_form_email', get_option('admin_email'))); ?>" class="regular-text">
+                    <input type="email" id="gruenerator_contact_form_email" name="gruenerator_contact_form_email" value="<?php echo esc_attr($contact['email'] ? $contact['email'] : get_option('admin_email')); ?>" class="regular-text">
                     <p class="description">An diese Adresse werden die Kontaktanfragen gesendet.</p>
                 </td>
             </tr>
@@ -541,7 +571,7 @@ function gruenerator_final_step() {
     <div class="gruenerator-step-content">
         <h2>Fertigstellung</h2>
         <p>Herzlichen Glückwunsch! Du hast alle Einstellungen vorgenommen. Klicke auf "Abschließen", um deine Landingpage zu erstellen.</p>
-        
+
         <div class="gruenerator-final-summary">
             <h3>Was als Nächstes passiert:</h3>
             <ul>
@@ -572,9 +602,10 @@ function gruenerator_setup_complete_page() {
         gruenerator_log("Unzureichende Berechtigungen für Benutzer: " . wp_get_current_user()->user_login, 'error');
         wp_die('Unzureichende Berechtigungen');
     }
-    
+
     gruenerator_log("Anzeigen der Erfolgsseite", 'info');
-    $landing_page_id = get_option('gruenerator_landing_page_id');
+    $setup = Gruenerator_Options::get_setup();
+    $landing_page_id = $setup['landing_page_id'];
     $landing_page_url = $landing_page_id ? get_permalink($landing_page_id) : '';
     ?>
     <div class="gruenerator-setup-complete">

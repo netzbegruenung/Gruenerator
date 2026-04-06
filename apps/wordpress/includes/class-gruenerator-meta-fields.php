@@ -30,22 +30,7 @@ function gruenerator_meta_box_callback($post) {
     <p>
         <input type="button" class="button button-secondary" value="<?php _e('Bild auswählen', 'gruenerator'); ?>" id="gruenerator_contact_background_button" />
     </p>
-    <script>
-    jQuery(document).ready(function($){
-        $('#gruenerator_contact_background_button').click(function(e) {
-            e.preventDefault();
-            var image = wp.media({ 
-                title: '<?php _e('Hintergrundbild auswählen', 'gruenerator'); ?>',
-                multiple: false
-            }).open()
-            .on('select', function(e){
-                var uploaded_image = image.state().get('selection').first();
-                var image_url = uploaded_image.toJSON().url;
-                $('#gruenerator_contact_background').val(image_url);
-            });
-        });
-    });
-    </script>
+    <?php // JavaScript is enqueued via gruenerator-meta-fields.js ?>
     <?php
 }
 
@@ -65,7 +50,7 @@ function gruenerator_save_meta_box_data($post_id) {
     if (!isset($_POST['gruenerator_contact_background'])) {
         return;
     }
-    $my_data = sanitize_text_field($_POST['gruenerator_contact_background']);
+    $my_data = esc_url_raw($_POST['gruenerator_contact_background']);
     update_post_meta($post_id, '_gruenerator_contact_background', $my_data);
 }
 add_action('save_post', 'gruenerator_save_meta_box_data');
@@ -76,5 +61,15 @@ function gruenerator_enqueue_admin_scripts_for_meta_fields($hook) {
         return;
     }
     wp_enqueue_media();
+    wp_enqueue_script(
+        'gruenerator-meta-fields',
+        plugin_dir_url(dirname(__FILE__)) . 'admin/js/gruenerator-meta-fields.js',
+        array('jquery'),
+        filemtime(plugin_dir_path(dirname(__FILE__)) . 'admin/js/gruenerator-meta-fields.js'),
+        true
+    );
+    wp_localize_script('gruenerator-meta-fields', 'grueneratorMetaFields', array(
+        'chooseImage' => __('Hintergrundbild auswählen', 'gruenerator'),
+    ));
 }
 add_action('admin_enqueue_scripts', 'gruenerator_enqueue_admin_scripts_for_meta_fields');

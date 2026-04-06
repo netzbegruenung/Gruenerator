@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 
 import { resolveValue } from '../utils/canvasValueResolver';
 
@@ -69,13 +69,30 @@ function getStateArray<T>(state: unknown, key: string | undefined): T[] {
 /**
  * Hook to compute active floating module based on selected element
  */
+function floatingModuleEqual(
+  a: FloatingModuleState | null,
+  b: FloatingModuleState | null
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.type === b.type &&
+    a.data.id === b.data.id &&
+    a.data.fontSize === b.data.fontSize &&
+    a.data.opacity === b.data.opacity &&
+    a.data.fill === b.data.fill &&
+    a.data.color === b.data.color
+  );
+}
+
 export function useFloatingModuleState<
   TState extends Record<string, unknown>,
   TActions = Record<string, unknown>,
 >(options: UseFloatingModuleStateOptions<TState, TActions>): FloatingModuleState | null {
   const { selectedElement, config, state, layout } = options;
+  const prevRef = useRef<FloatingModuleState | null>(null);
 
-  return useMemo(() => {
+  const computed = useMemo(() => {
     if (!selectedElement) return null;
 
     // Check if Text element (from config)
@@ -306,4 +323,11 @@ export function useFloatingModuleState<
 
     return null;
   }, [selectedElement, state, config.elements, layout]);
+
+  // Return stable reference when derived values haven't changed
+  if (floatingModuleEqual(prevRef.current, computed)) {
+    return prevRef.current;
+  }
+  prevRef.current = computed;
+  return computed;
 }

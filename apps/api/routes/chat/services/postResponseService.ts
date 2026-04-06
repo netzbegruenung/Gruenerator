@@ -10,7 +10,9 @@
  */
 
 import { generateThreadTitle } from '../../../services/chat/threadTitleService.js';
+import { shouldExtractMemories } from '../../../services/mem0/gatekeeperService.js';
 import { getMem0Instance } from '../../../services/mem0/index.js';
+import { maybeRecompilePersona } from '../../../services/mem0/personaService.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { saveThreadAttachment } from './attachmentPersistenceService.js';
@@ -178,15 +180,37 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     const mem0 = getMem0Instance();
     if (mem0 && lastUserMessage && fullText) {
       const userText = extractTextContent(lastUserMessage.content);
-      mem0
-        .addMemories(
-          [
-            { role: 'user', content: userText },
-            { role: 'assistant', content: fullText },
-          ],
-          userId,
-          { threadId }
-        )
+
+      // Gatekeeper: check if this conversation contains memorizable info
+      shouldExtractMemories(userText, fullText)
+        .then((decision) => {
+          if (!decision.shouldExtract) {
+            log.info(
+              `[${requestId}] Gatekeeper: skipping memory extraction (${decision.durationMs}ms)`
+            );
+            return;
+          }
+
+          log.info(
+            `[${requestId}] Gatekeeper: extracting [${decision.categories.join(', ')}] (${decision.durationMs}ms)`
+          );
+
+          return mem0
+            .addMemories(
+              [
+                { role: 'user', content: userText },
+                { role: 'assistant', content: fullText },
+              ],
+              userId,
+              { threadId, categories: decision.categories }
+            )
+            .then(() => {
+              // Async persona recompilation (fire-and-forget)
+              maybeRecompilePersona(userId).catch((e) =>
+                log.warn(`[${requestId}] Persona recompilation failed:`, e)
+              );
+            });
+        })
         .catch((memError) => {
           log.warn(`[${requestId}] Async memory save failed:`, memError);
         });

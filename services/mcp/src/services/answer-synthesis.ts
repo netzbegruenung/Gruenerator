@@ -21,7 +21,7 @@ interface SynthesisResult {
   };
 }
 
-const SYSTEM_PROMPT_DETAILED = `Du bist ein Experte für politische Dokumentenanalyse. Stütze dich dabei AUSSCHLIESSLICH auf die bereitgestellten Quellen.
+const SYSTEM_PROMPT_DETAILED = `Du bist ein Experte für politische Dokumentenanalyse. Antworte in der Sprache, in der die Frage gestellt wird. Standardmäßig auf Deutsch. Stütze dich dabei AUSSCHLIESSLICH auf die bereitgestellten Quellen.
 
 ## QUELLENTREUE:
 - Verwende AUSSCHLIESSLICH Informationen aus den bereitgestellten Quellen.
@@ -50,7 +50,7 @@ const SYSTEM_PROMPT_DETAILED = `Du bist ein Experte für politische Dokumentenan
 
 const SYSTEM_PROMPT_FAST = `Du bist ein Experte für politische Dokumentenanalyse. Beantworte die Frage AUSSCHLIESSLICH basierend auf den bereitgestellten Informationen. Füge KEINE Informationen aus eigenem Wissen hinzu.
 
-- Antworte präzise und sachlich auf Deutsch.
+- Antworte präzise und sachlich in der Sprache der Frage (Standard: Deutsch).
 - Fasse die wichtigsten Punkte zusammen.
 - Keine Quellenangaben nötig.
 - Keine Informationen, die nicht aus dem bereitgestellten Kontext stammen.`;

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "gruenerator/hero-image-block",
+  "title": "Titelbild",
+  "category": "gruenerator-category",
+  "icon": "format-image",
+  "description": "Füge ein großes Titelbild mit Überschrift und Untertitel hinzu",
+  "textdomain": "gruenerator",
+  "attributes": {
+    "backgroundImageId": {
+      "type": "integer",
+      "default": 0
+    },
+    "backgroundImageUrl": {
+      "type": "string",
+      "default": ""
+    },
+    "title": {
+      "type": "string",
+      "default": ""
+    },
+    "subtitle": {
+      "type": "string",
+      "default": ""
+    },
+    "items": {
+      "type": "array",
+      "default": [
+        { "imageId": 0, "imageUrl": "", "text": "Spenden für Grün", "link": "" },
+        { "imageId": 0, "imageUrl": "", "text": "Werde Mitglied", "link": "" },
+        { "imageId": 0, "imageUrl": "", "text": "Haustürwahl-kampf", "link": "" }
+      ]
+    }
+  },
+  "supports": {
+    "html": false,
+    "align": true,
+    "alignWide": true,
+    "defaultAlign": "full"
+  },
+  "editorScript": "file:./block.js",
+  "editorStyle": "file:./editor.scss",
+  "style": "file:./style.scss"
+}

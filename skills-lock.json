@@ -26,6 +26,16 @@
       "sourceType": "github",
       "computedHash": "1ec42c9b918b315d8e5c6c856b78c3c4725fc93dea30b9b7e9975c69848fcce6"
     },
+    "together-fine-tuning": {
+      "source": "togethercomputer/skills",
+      "sourceType": "github",
+      "computedHash": "3a2325e168d36463d681dbd11aaf26d5eaeab0acb33b9406108dcd194f7f741d"
+    },
+    "together-gpu-clusters": {
+      "source": "togethercomputer/skills",
+      "sourceType": "github",
+      "computedHash": "bba9df75e798fd2f6b693e3dbf743f81a0cf3966339e7060df9e112d940613ca"
+    },
     "tool-ui": {
       "source": "assistant-ui/tool-ui",
       "sourceType": "github",

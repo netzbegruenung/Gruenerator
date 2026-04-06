@@ -188,7 +188,20 @@ export class Mem0Service {
       });
 
       const allMemories = (response?.results || []).map(toMem0Memory);
-      const memories = allMemories.filter((m) => (m.score ?? 1) >= 0.4);
+
+      // Apply confidence-weighted scoring
+      const weighted = allMemories.map((m) => {
+        const confidence = m.metadata?.confidence;
+        let multiplier = 1.0;
+        if (confidence === 'high') multiplier = 1.2;
+        else if (confidence === 'low') multiplier = 0.8;
+        return { ...m, score: (m.score ?? 1) * multiplier };
+      });
+
+      const memories = weighted
+        .filter((m) => (m.score ?? 1) >= 0.4)
+        .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+
       log.info(
         `[Mem0] Found ${memories.length} relevant memories (${allMemories.length - memories.length} filtered below threshold) for user ${userId}`
       );
@@ -224,6 +237,57 @@ export class Mem0Service {
     } catch (error) {
       log.error('[Mem0] Error getting all memories:', error);
       return [];
+    }
+  }
+
+  /**
+   * Update a specific memory's content.
+   * Deletes the old memory and creates a new one with updated text.
+   * (Mem0 OSS doesn't support in-place updates, so we delete + re-add.)
+   *
+   * @param memoryId - Memory ID to update
+   * @param userId - User ID for verification
+   * @param newContent - Updated memory text
+   */
+  async updateMemory(
+    memoryId: string,
+    userId: string,
+    newContent: string
+  ): Promise<Mem0Memory | null> {
+    try {
+      await this.ensureInitialized();
+
+      if (!this.memory) {
+        log.warn('[Mem0] Memory client not initialized');
+        return null;
+      }
+
+      log.info(`[Mem0] Updating memory ${memoryId} for user ${userId}`);
+
+      await this.memory.delete(memoryId);
+
+      const response = await this.memory.add([{ role: 'user', content: newContent }], { userId });
+
+      const updated = response?.results?.[0];
+      if (!updated) {
+        log.warn('[Mem0] Update re-add returned no results');
+        return null;
+      }
+
+      const mem = toMem0Memory(updated);
+
+      await this.logToHistory({
+        userId,
+        memoryId: updated.id,
+        operation: 'update',
+        memoryText: newContent,
+      });
+
+      log.info(`[Mem0] Updated memory ${memoryId} → ${updated.id}`);
+      return mem;
+    } catch (error) {
+      log.error('[Mem0] Error updating memory:', error);
+      return null;
     }
   }
 

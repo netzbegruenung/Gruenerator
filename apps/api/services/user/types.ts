@@ -38,6 +38,7 @@ export interface UserProfile {
   boards?: boolean;
   bundestag_api_enabled?: boolean;
   memory_enabled?: boolean;
+  wordpress_enabled?: boolean;
   custom_prompt?: string;
 
   // Timestamps

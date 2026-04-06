@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "gruenerator/about-block",
+  "title": "About Block",
+  "category": "gruenerator-category",
+  "icon": "admin-users",
+  "description": "Ein Block zur Darstellung von Informationen über die Kandidatur.",
+  "textdomain": "gruenerator",
+  "attributes": {
+    "title": {
+      "type": "string",
+      "default": ""
+    },
+    "content": {
+      "type": "string",
+      "default": ""
+    }
+  },
+  "supports": {
+    "html": false,
+    "align": ["wide", "full"]
+  },
+  "editorScript": "file:./block.js",
+  "editorStyle": "file:./editor.scss",
+  "style": "file:./style.scss"
+}

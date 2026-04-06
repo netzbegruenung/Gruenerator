@@ -1,51 +1,45 @@
 /**
  * useCanvasInteractions - Shared canvas interaction handlers
- * Extracts common event handlers used across all canvas components
+ *
+ * NOTE: This hook does NOT subscribe to selectedElement reactively.
+ * Selection state is in the Zustand store — read via store.getState().selectedElement
+ * at call time in event handlers. Components that need reactive selection
+ * should use useCanvasStoreSelector((s) => s.selectedElement) directly.
  */
 
-import { useState, useCallback, type RefObject } from 'react';
+import { useCallback } from 'react';
 
-import { useCanvasEditorStore, useElementPositions } from '../stores/canvasEditorStore';
+import { useCanvasStore } from '../stores/CanvasStoreProvider';
 
-import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
 
 export interface UseCanvasInteractionsOptions {
-  stageRef: RefObject<CanvasStageRef | null>;
-  onExport: (base64: string) => void;
-  onSave?: (base64: string) => void;
+  stageRef: React.RefObject<import('../primitives/CanvasStage').CanvasStageRef | null>;
 }
 
-export interface UseCanvasInteractionsResult<T extends string | null> {
-  selectedElement: T;
-  setSelectedElement: (element: T) => void;
+export interface UseCanvasInteractionsResult {
+  setSelectedElement: (element: string | null) => void;
   handleStageClick: (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
   handleSnapChange: (h: boolean, v: boolean) => void;
   handlePositionChange: (id: string, x: number, y: number, width: number, height: number) => void;
-  handleExport: () => void;
-  handleSave: () => void;
   getSnapTargets: (excludeId: string) => SnapTarget[];
 }
 
-export function useCanvasInteractions<T extends string | null = string | null>({
-  stageRef,
-  onExport,
-  onSave,
-}: UseCanvasInteractionsOptions): UseCanvasInteractionsResult<T> {
-  const [selectedElement, setSelectedElement] = useState<T>(null as T);
-
-  const elementPositions = useElementPositions();
-  const { setSnapGuides, updateElementPosition } = useCanvasEditorStore();
+export function useCanvasInteractions({
+  stageRef: _stageRef,
+}: UseCanvasInteractionsOptions): UseCanvasInteractionsResult {
+  const store = useCanvasStore();
+  const { setSelectedElement, setSnapGuides, updateElementPosition } = store.getState();
 
   const handleStageClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
       if (e.target === e.target.getStage()) {
-        setSelectedElement(null as T);
+        setSelectedElement(null);
         setSnapGuides(false, false);
       }
     },
-    [setSnapGuides]
+    [setSelectedElement, setSnapGuides]
   );
 
   const handleSnapChange = useCallback(
@@ -62,40 +56,19 @@ export function useCanvasInteractions<T extends string | null = string | null>({
     [updateElementPosition]
   );
 
-  const handleExport = useCallback(() => {
-    setSelectedElement(null as T);
-    setTimeout(() => {
-      const dataUrl = stageRef.current?.toDataURL({ format: 'png' });
-      if (dataUrl) {
-        onExport(dataUrl);
-      }
-    }, 50);
-  }, [stageRef, onExport]);
-
-  const handleSave = useCallback(() => {
-    if (!onSave) return;
-    setSelectedElement(null as T);
-    setTimeout(() => {
-      const dataUrl = stageRef.current?.toDataURL({ format: 'png' });
-      if (dataUrl) {
-        onSave(dataUrl);
-      }
-    }, 50);
-  }, [stageRef, onSave]);
-
   const getSnapTargets = useCallback(
-    (excludeId: string) => Object.values(elementPositions).filter((t) => t.id !== excludeId),
-    [elementPositions]
+    (excludeId: string) => {
+      const positions = store.getState().elementPositions;
+      return Object.values(positions).filter((t) => t.id !== excludeId);
+    },
+    [store]
   );
 
   return {
-    selectedElement,
     setSelectedElement,
     handleStageClick,
     handleSnapChange,
     handlePositionChange,
-    handleExport,
-    handleSave,
     getSnapTargets,
   };
 }

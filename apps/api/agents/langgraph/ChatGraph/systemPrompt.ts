@@ -397,13 +397,13 @@ Die folgenden Nachrichten sind die aktuellsten im Gespräch.`;
 }
 
 function formatMemoryContext(memoryContext: string): string {
-  return `## ERINNERUNGEN AN DIESEN NUTZER
+  return `## KONTEXT ZUM NUTZER (KEINE QUELLEN – NICHT ZITIEREN)
 
-Du hast folgende Informationen über diesen Nutzer aus früheren Gesprächen:
+Folgende Informationen stammen aus früheren Gesprächen mit diesem Nutzer:
 
 ${memoryContext}
 
-Berücksichtige diese Informationen bei deiner Antwort, aber erwähne sie nur wenn relevant.`;
+Berücksichtige diese nur wenn relevant für die aktuelle Frage. Verwende KEINE Quellenverweise für diese Informationen.`;
 }
 
 function formatAttachmentContext(attachmentContext: string): string {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { FaPuzzlePiece, FaSearch, FaShapes } from 'react-icons/fa';
 import { HiSparkles } from 'react-icons/hi2';
-import { PiFrameCornersFill, PiSmileyWink, PiTagFill, PiTextT } from 'react-icons/pi';
+import { PiFrameCornersFill, PiSmileyWink, PiTagFill } from 'react-icons/pi';
 
 import { ALL_ASSETS, type AssetInstance } from '../../../utils/canvasAssets';
 import { getIconsSync, loadAllIcons } from '../../../utils/canvasIcons';
@@ -37,8 +37,6 @@ import { cn } from '../../../utils/cn';
 loadAllIcons();
 
 export interface ExtendedAssetsSectionProps {
-  onAddHeader?: () => void;
-  onAddText?: () => void;
   recommendedAssetIds?: string[];
   assetInstances?: AssetInstance[];
   selectedAssetId?: string | null;
@@ -83,8 +81,6 @@ export interface ExtendedAssetsSectionProps {
 
 export function AssetsSection(props: ExtendedAssetsSectionProps) {
   const {
-    onAddHeader,
-    onAddText,
     onAddAsset,
     onAddPillBadge,
     onAddCircleBadge,
@@ -106,7 +102,6 @@ export function AssetsSection(props: ExtendedAssetsSectionProps) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const hasTextFeature = onAddHeader !== undefined || onAddText !== undefined;
   const hasAssetsFeature = onAddAsset !== undefined;
   const hasIconsFeature = selectedIcons !== undefined && onIconToggle !== undefined;
   const hasBadgesFeature =
@@ -149,7 +144,6 @@ export function AssetsSection(props: ExtendedAssetsSectionProps) {
       {...{
         ...props,
         search,
-        hasTextFeature,
         hasAssetsFeature,
         hasIconsFeature,
         hasBadgesFeature,
@@ -165,7 +159,6 @@ export function AssetsSection(props: ExtendedAssetsSectionProps) {
 
 interface MobileViewProps extends ExtendedAssetsSectionProps {
   search: ReturnType<typeof useAssetSearch>;
-  hasTextFeature: boolean;
   hasAssetsFeature: boolean;
   hasIconsFeature: boolean;
   hasBadgesFeature: boolean;
@@ -176,15 +169,12 @@ interface MobileViewProps extends ExtendedAssetsSectionProps {
 
 function MobileView({
   search,
-  hasTextFeature,
   hasAssetsFeature,
   hasIconsFeature,
   hasBadgesFeature,
   hasShapesFeature,
   hasIllustrationsFeature,
   hasFramesFeature,
-  onAddHeader,
-  onAddText,
   recommendedAssetIds = [],
   onAddAsset,
   onAddPillBadge,
@@ -222,45 +212,6 @@ function MobileView({
   }, [recommendedAssetIds]);
 
   const subsections: Subsection[] = [];
-
-  if (hasTextFeature) {
-    subsections.push({
-      id: 'text',
-      icon: PiTextT,
-      label: 'Text',
-      content: (
-        <div className={cn(SIDEBAR_SECTION, 'w-full')}>
-          <h4
-            className={cn(
-              SECTION_LABEL,
-              'flex items-center gap-2 mt-5 first:mt-0 max-canvas-mobile:hidden'
-            )}
-          >
-            <PiTextT size={14} />
-            <span>Text hinzufügen</span>
-          </h4>
-          <div className="flex flex-row gap-[var(--spacing-small)] p-0 max-canvas-mobile:gap-[var(--spacing-xsmall)]">
-            {onAddHeader && (
-              <button
-                className="flex flex-col items-center justify-center p-md bg-transparent border border-transparent rounded-lg cursor-pointer transition-all duration-200 text-foreground w-full text-center font-semibold h-20 font-[GrueneTypeNeue,Arial,sans-serif] text-[length:var(--font-size-xl)] hover:bg-hover-alt hover:-translate-y-px active:translate-y-0 max-canvas-mobile:h-14 max-canvas-mobile:p-sm max-canvas-mobile:text-[13px]"
-                onClick={onAddHeader}
-              >
-                <span>Überschrift</span>
-              </button>
-            )}
-            {onAddText && (
-              <button
-                className="flex flex-col items-center justify-center p-md bg-transparent border border-transparent rounded-lg cursor-pointer transition-all duration-200 text-foreground w-full text-center font-semibold h-20 font-[PT_Sans,Arial,sans-serif] text-[length:var(--font-size-lg)] font-normal hover:bg-hover-alt hover:-translate-y-px active:translate-y-0 max-canvas-mobile:h-14 max-canvas-mobile:p-sm max-canvas-mobile:text-[13px]"
-                onClick={onAddText}
-              >
-                <span>Fließtext</span>
-              </button>
-            )}
-          </div>
-        </div>
-      ),
-    });
-  }
 
   subsections.push({
     id: 'suche',
@@ -328,22 +279,21 @@ function MobileView({
               <FaPuzzlePiece size={12} />
               <span>Grafiken</span>
             </h4>
-            <div className={CARD_GRID}>
+            <div className="grid grid-cols-2 gap-2 w-full">
               {sortedAssets.map((asset) => (
                 <button
                   key={asset.id}
-                  className={SELECTABLE_CARD}
+                  className="flex items-center gap-3 p-3 rounded-lg bg-transparent border border-transparent cursor-pointer transition-[background,border-color] duration-150 hover:bg-hover-alt h-14 max-canvas-mobile:h-12 max-canvas-mobile:gap-2 max-canvas-mobile:p-2"
                   onClick={() => onAddAsset!(asset.id)}
                   type="button"
                   title={`${asset.label} hinzufügen`}
                 >
-                  <div className="flex items-center justify-center w-full h-full relative">
-                    <img
-                      src={asset.src}
-                      alt={asset.label}
-                      className="w-[60%] h-[60%] max-w-8 max-h-8 object-contain"
-                    />
-                  </div>
+                  <img
+                    src={asset.src}
+                    alt={asset.label}
+                    className="w-8 h-8 object-contain shrink-0 max-canvas-mobile:w-6 max-canvas-mobile:h-6"
+                  />
+                  <span className="text-xs text-foreground truncate">{asset.label}</span>
                 </button>
               ))}
             </div>
@@ -512,11 +462,9 @@ function MobileView({
     });
   }
 
-  const defaultSubsection = hasTextFeature
-    ? 'text'
-    : hasAssetsFeature
-      ? 'grafiken'
-      : subsections[0]?.id || 'suche';
+  const defaultSubsection = hasAssetsFeature
+    ? 'grafiken'
+    : subsections[0]?.id || 'suche';
 
   return (
     <div className={cn(SIDEBAR_SECTION, 'w-full')}>

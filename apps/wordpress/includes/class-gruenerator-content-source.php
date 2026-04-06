@@ -8,7 +8,7 @@ if (!defined('ABSPATH')) {
  * Klasse für die Verwaltung der Inhaltsquellen
  */
 class Gruenerator_Content_Source {
-    
+
     /**
      * Speichert die Quelle der Inhalte
      */
@@ -16,14 +16,14 @@ class Gruenerator_Content_Source {
         if ($source === 'json' && !empty($json_content)) {
             $decoded_content = json_decode($json_content, true);
             if (json_last_error() === JSON_ERROR_NONE) {
-                update_option('gruenerator_content_source', 'json');
-                update_option('gruenerator_json_content', $json_content);
+                Gruenerator_Options::update_setup('content_source', 'json');
+                Gruenerator_Options::update_setup('json_content', $json_content);
                 return true;
             }
             return false;
         } else {
-            update_option('gruenerator_content_source', 'default');
-            delete_option('gruenerator_json_content');
+            Gruenerator_Options::update_setup('content_source', 'default');
+            Gruenerator_Options::update_setup('json_content', '');
             return true;
         }
     }
@@ -32,28 +32,34 @@ class Gruenerator_Content_Source {
      * Holt die aktuelle Inhaltsquelle
      */
     public static function get_content_source() {
-        return get_option('gruenerator_content_source', 'default');
+        $setup = Gruenerator_Options::get_setup();
+        return $setup['content_source'];
     }
 
     /**
      * Holt den JSON-Inhalt wenn vorhanden
      */
     public static function get_json_content() {
-        return get_option('gruenerator_json_content', '');
+        $setup = Gruenerator_Options::get_setup();
+        return $setup['json_content'];
     }
 
     /**
      * Prüft ob die Inhaltsquelle bereits gewählt wurde
      */
     public static function is_source_selected() {
-        return get_option('gruenerator_content_source_selected', false);
+        $setup = Gruenerator_Options::get_setup();
+        // If content_source is set to something other than the default, it was selected
+        return $setup['content_source'] !== 'default' || !empty($setup['json_content']);
     }
 
     /**
      * Markiert die Inhaltsquelle als ausgewählt
+     *
+     * This is now a no-op since source selection is implicit in the setup state.
      */
     public static function mark_source_selected() {
-        update_option('gruenerator_content_source_selected', true);
+        // No-op: source selection is tracked by content_source/json_content in setup
     }
 
     /**
@@ -154,4 +160,4 @@ class Gruenerator_Content_Source {
         }
         return true;
     }
-} 
+}

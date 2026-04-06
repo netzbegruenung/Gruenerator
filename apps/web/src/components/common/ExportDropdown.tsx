@@ -16,7 +16,7 @@ import {
 } from '@gruenerator/wolke';
 import { type JSX, useState, useEffect, type ReactNode } from 'react';
 import { CiMemoPad } from 'react-icons/ci';
-import { FaFileWord, FaFilePdf } from 'react-icons/fa6';
+import { FaFileWord, FaFilePdf, FaWordpress } from 'react-icons/fa6';
 import { HiRefresh, HiOutlineDocumentText } from 'react-icons/hi';
 import {
   IoDownloadOutline,
@@ -31,6 +31,11 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
+import WordPressSetupModal from '../../features/wordpress/components/WordPressSetupModal';
+import {
+  useWordPressSites,
+  usePublishToWordPress,
+} from '../../features/wordpress/hooks/useWordPress';
 import { awaitDeferredTitle } from '../../hooks/useDeferredTitle';
 import { useAuthStore } from '../../stores/authStore';
 import { useExportStore } from '../../stores/core/exportStore';
@@ -95,6 +100,8 @@ const ExportDropdown = ({
   const [exportIcon, setExportIcon] = useState<string>('share');
   const [textCopyIcon, setTextCopyIcon] = useState<ReactNode>(<IoCopyOutline size={20} />);
   const [showWolkeSetupModal, setShowWolkeSetupModal] = useState<boolean>(false);
+  const [showWordPressSetupModal, setShowWordPressSetupModal] = useState<boolean>(false);
+  const [wpPublishingToSiteId, setWpPublishingToSiteId] = useState<string | null>(null);
   const [canNativeShare, setCanNativeShare] = useState<boolean>(false);
   const [showPastePopup, setShowPastePopup] = useState<boolean>(false);
   const [copySucceeded, setCopySucceeded] = useState<boolean>(false);
@@ -106,6 +113,10 @@ const ExportDropdown = ({
   const { data: shareLinks = [] } = useShareLinks(undefined, undefined, { enabled: false });
   const uploadToWolkeMutation = useUploadToWolke();
   const activeShareLinks = shareLinks.filter((link) => link.is_active);
+  const { data: wpSites = [] } = useWordPressSites({
+    enabled: isAuthenticated && import.meta.env.DEV,
+  });
+  const publishToWordPressMutation = usePublishToWordPress();
   const location = useLocation();
   const navigate = useNavigate();
   const hasChatAccess = isAuthenticated;
@@ -406,6 +417,32 @@ const ExportDropdown = ({
     setShowWolkeSetupModal(false);
   };
 
+  const handleWordPressPublish = async (siteId: string) => {
+    setWpPublishingToSiteId(siteId);
+    try {
+      const formattedContent = await extractFormattedText(content);
+      const freshTitle = await getFreshTitle();
+      const result = await publishToWordPressMutation.mutateAsync({
+        siteId,
+        title: freshTitle || getDocumentType(),
+        content: formattedContent,
+        status: 'draft',
+      });
+      if (result.success) {
+        setExportIcon('checkmark');
+        setTimeout(() => {
+          setExportIcon('share');
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('WordPress publish failed:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      alert('WordPress-Veröffentlichung fehlgeschlagen: ' + errorMessage);
+    } finally {
+      setWpPublishingToSiteId(null);
+    }
+  };
+
   if (!content) {
     return null;
   }
@@ -416,7 +453,8 @@ const ExportDropdown = ({
     editInDocsLoading ||
     editInDocsInlineLoading ||
     uploadingToWolke ||
-    saveToLibraryLoading;
+    saveToLibraryLoading ||
+    !!wpPublishingToSiteId;
 
   return (
     <div className="export-dropdown">
@@ -514,6 +552,42 @@ const ExportDropdown = ({
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
 
+                {import.meta.env.DEV && isAuthenticated && wpSites.length > 0 && (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger disabled={!!wpPublishingToSiteId}>
+                      <FaWordpress />
+                      {wpPublishingToSiteId ? 'Veröffentliche...' : 'WordPress'}
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      {wpSites.map((site) => (
+                        <DropdownMenuItem
+                          key={site.id}
+                          onSelect={() => handleWordPressPublish(site.id)}
+                          disabled={wpPublishingToSiteId === site.id}
+                        >
+                          <FaWordpress />
+                          <div className="flex flex-col gap-0.5">
+                            <span>{site.label || site.site_url.replace(/^https?:\/\//, '')}</span>
+                            <span className="text-xs opacity-70">Als Entwurf speichern</span>
+                          </div>
+                        </DropdownMenuItem>
+                      ))}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={() => setShowWordPressSetupModal(true)}>
+                        <FaWordpress />
+                        Weitere Seite verbinden
+                      </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                )}
+
+                {import.meta.env.DEV && isAuthenticated && wpSites.length === 0 && (
+                  <DropdownMenuItem onSelect={() => setShowWordPressSetupModal(true)}>
+                    <FaWordpress />
+                    WordPress verbinden
+                  </DropdownMenuItem>
+                )}
+
                 {/* Inline editor temporarily disabled
                 {onEditInDocsInline && isAuthenticated && (
                   <DropdownMenuItem onSelect={handleEditInDocsInlineClick} disabled={editInDocsInlineLoading}>
@@ -552,6 +626,14 @@ const ExportDropdown = ({
         <WolkeSetupModal
           onClose={() => setShowWolkeSetupModal(false)}
           onSubmit={handleWolkeSetup}
+        />
+      )}
+
+      {/* WordPress Setup Modal */}
+      {showWordPressSetupModal && (
+        <WordPressSetupModal
+          onClose={() => setShowWordPressSetupModal(false)}
+          onSuccess={() => setShowWordPressSetupModal(false)}
         />
       )}
 

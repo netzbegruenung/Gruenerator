@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { formatRelativeTime } from '@gruenerator/shared/utils';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
@@ -22,24 +23,6 @@ function getInitials(name: string): string {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
   return name.slice(0, 2).toUpperCase();
-}
-
-function formatRelativeTime(timestamp: number): string {
-  const diff = Date.now() - timestamp;
-  const seconds = Math.floor(diff / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-
-  if (seconds < 60) return 'Gerade eben';
-  if (minutes < 60) return `vor ${minutes} Min.`;
-  if (hours < 24) return `vor ${hours} Std.`;
-
-  return new Date(timestamp).toLocaleDateString('de-DE', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }
 
 function MessageBubble({

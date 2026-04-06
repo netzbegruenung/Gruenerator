@@ -18,7 +18,11 @@ import React, {
 } from 'react';
 import { Layer } from 'react-konva';
 
-import { useCanvasEditorStore, useSnapGuides, useSnapLines } from '../stores/canvasEditorStore';
+import {
+  CanvasStoreProvider,
+  useCanvasStore,
+  useCanvasStoreSelector,
+} from '../stores/CanvasStoreProvider';
 import {
   useCanvasInteractions,
   useCanvasStoreSetup,
@@ -28,25 +32,36 @@ import {
 import { useCanvasAutoSave } from '../hooks/useCanvasAutoSave';
 import { useCanvasElementHandlers } from '../hooks/useCanvasElementHandlers';
 import { useCanvasKeyboardHandlers } from '../hooks/useCanvasKeyboardHandlers';
-import { useCanvasLayerControls } from '../hooks/useCanvasLayerControls';
-import { useFloatingModuleHandlers } from '../hooks/useFloatingModuleHandlers';
-import { useFloatingModuleState } from '../hooks/useFloatingModuleState';
 import { CanvasStage, SnapGuidelines, AttributionOverlay } from '../primitives';
 import { alignElementX, alignElementY } from '../utils/alignment';
 import { calculateAttributionOverlay } from '../utils/attributionOverlay';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
 import { getOptimalContainerWidth } from '../utils/viewport';
 
-import { useMobileBridge } from '../hooks/useMobileBridge';
 import { CanvasRenderLayer } from './CanvasRenderLayer';
-import { FloatingToolbar } from './FloatingToolbar';
+import { ToolbarStateBridge } from './ToolbarStateBridge';
 
-import type { AlignmentDirection } from './FloatingToolbar';
+import type { ToolbarBridgeState } from './ToolbarStateBridge';
+
+const EMPTY_CALLBACKS: Record<string, ((val: unknown) => void) | undefined> = {};
+
+import type { AlignmentDirection } from './Toolbar';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { FullCanvasConfig, LayoutResult } from '../configs/types';
 import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
+import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
 import type { MobileBridgeProps } from '../hooks/useMobileBridge';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
+import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
+
+export interface ToolbarStateReport {
+  selectedElement: string | null;
+  activeFloatingModule: FloatingModuleState | null;
+  canUndo: boolean;
+  canRedo: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+}
 
 export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActions> {
   config: FullCanvasConfig<TState, TActions>;
@@ -67,8 +82,10 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
     isExporting: boolean;
     exportProgress: { current: number; total: number };
   };
-  /** Mobile bridge — when provided, hides FloatingToolbar and reports state to native */
+  /** Mobile bridge — when provided, hides Toolbar and reports state to native */
   mobileBridge?: MobileBridgeProps;
+  /** Callback to report toolbar state to parent (for layout-level toolbar rendering) */
+  onToolbarStateChange?: (state: ToolbarStateReport) => void;
 }
 
 export interface GenericCanvasRef {
@@ -80,6 +97,14 @@ export interface GenericCanvasRef {
   getActions: () => Record<string, unknown>;
   /** Get the currently selected element ID (for shared sidebar tab visibility) */
   getSelectedElement?: () => string | null;
+  /** Toolbar handlers — called by parent when toolbar is rendered at layout level */
+  undo?: () => void;
+  redo?: () => void;
+  handleMoveLayer?: (direction: 'up' | 'down') => void;
+  handleColorSelect?: (color: string) => void;
+  handleOpacityChange?: (id: string, opacity: number, type: string) => void;
+  handleFontSizeChange?: (id: string, size: number) => void;
+  handleAlign?: (direction: AlignmentDirection) => void;
 }
 
 // Generic component with forwardRef - uses type assertion pattern for TypeScript compatibility
@@ -90,11 +115,11 @@ function GenericCanvasWithRef<
   const {
     config,
     initialProps,
-    onSave,
-    callbacks = {},
+    callbacks = EMPTY_CALLBACKS,
     onDelete,
     forwardedRef,
     mobileBridge,
+    onToolbarStateChange,
   } = props;
 
   const stageRef = useRef<CanvasStageRef>(null);
@@ -219,43 +244,14 @@ function GenericCanvasWithRef<
   }, [config, layoutKey, isFontAvailable]);
 
   const {
-    selectedElement,
     setSelectedElement,
     handleStageClick,
     handleSnapChange,
-    handleExport: _handleExport, // Not used - we handle export ourselves
-    handleSave: _handleSave,
     getSnapTargets,
-  } = useCanvasInteractions<string | null>({
-    stageRef,
-    onExport: () => {}, // No-op - prevents unwanted navigation to result screen
-    onSave,
-  });
+  } = useCanvasInteractions({ stageRef });
 
-  // Expose ref methods for parent access (multi-page export and shared sidebar)
-  useImperativeHandle(
-    forwardedRef,
-    () => ({
-      toDataURL: (options) => {
-        return stageRef.current?.toDataURL(options);
-      },
-      captureCanvas: async () => {
-        if (selectedElement) {
-          setSelectedElement(null);
-          await new Promise((resolve) => setTimeout(resolve, 50));
-        }
-        return stageRef.current?.toDataURL({ format: 'png', pixelRatio: 2 }) ?? null;
-      },
-      getState: () => state as Record<string, unknown>,
-      getActions: () => actions as unknown as Record<string, unknown>,
-      getSelectedElement: () => selectedElement,
-    }),
-    [state, actions, selectedElement]
-  );
-
-  const snapGuides = useSnapGuides();
-  const snapLines = useSnapLines();
-  const { setSnapLines, updateElementPosition } = useCanvasEditorStore();
+  const store = useCanvasStore();
+  const { setSnapLines, updateElementPosition } = store.getState();
 
   // Auto-save hook for gallery integration
   useCanvasAutoSave(exportedImage, {
@@ -264,19 +260,23 @@ function GenericCanvasWithRef<
     enabled: !mobileBridge,
   });
 
-  // History-synced auto-save: capture canvas whenever undo/redo history changes: capture canvas whenever undo/redo history changes
-  const historyIndex = useCanvasEditorStore((s) => s.historyIndex);
+  // History-synced auto-save: capture canvas whenever undo/redo history changes
+  const historyIndex = useCanvasStoreSelector((s) => s.historyIndex);
   const lastAutoSaveHistoryIndexRef = useRef(-1);
 
   useEffect(() => {
     // Skip initial render, invalid states, and when already exporting
-    if (historyIndex < 0 || isExporting || selectedElement) return;
+    if (historyIndex < 0 || isExporting) return;
+    // Skip if element is selected (read non-reactively — no rerender on selection change)
+    if (store.getState().selectedElement) return;
     // Skip if already saved for this history index
     if (lastAutoSaveHistoryIndexRef.current === historyIndex) return;
 
     // Debounce screenshot capture — toDataURL at pixelRatio:2 is expensive (~100-200ms).
     // 1500ms ensures we only capture after the user stops editing.
     const timer = setTimeout(() => {
+      // Re-check at capture time in case selection changed during debounce
+      if (store.getState().selectedElement) return;
       const dataUrl = stageRef.current?.toDataURL({ format: 'png', pixelRatio: 2 });
       if (dataUrl) {
         setExportedImage(dataUrl);
@@ -286,7 +286,7 @@ function GenericCanvasWithRef<
     }, 1500);
 
     return () => clearTimeout(timer);
-  }, [historyIndex, isExporting, selectedElement]);
+  }, [historyIndex, isExporting, store]);
 
   const elementHandlers = useCanvasElementHandlers({
     config,
@@ -302,7 +302,7 @@ function GenericCanvasWithRef<
   });
 
   useCanvasKeyboardHandlers({
-    selectedElement,
+    store,
     state,
     actions: actions as any, // TActions may have different shape; keyboard handlers check with optional chaining
     setState: setStateWrapper,
@@ -320,47 +320,8 @@ function GenericCanvasWithRef<
     [canvasItems, (state as unknown as Record<string, unknown>).layerOrder]
   );
 
-  const layerControls = useCanvasLayerControls({
-    selectedElement,
-    sortedRenderList,
-    setState: setStateWrapper,
-    saveToHistory,
-    state,
-  });
-
-  const activeFloatingModule = useFloatingModuleState({
-    selectedElement,
-    config,
-    state,
-    layout,
-  });
-
-  const floatingHandlers = useFloatingModuleHandlers({
-    activeFloatingModule,
-    actions,
-    config,
-    state,
-    setState: setStateWrapper,
-    debouncedSaveToHistory,
-  });
-
-  // Mobile bridge: report element/history state and execute native toolbar actions
-  useMobileBridge(mobileBridge, {
-    selectedElement,
-    activeFloatingModule,
-    canUndo,
-    canRedo,
-    canMoveUp: layerControls.canMoveUp,
-    canMoveDown: layerControls.canMoveDown,
-    handlers: {
-      undo,
-      redo,
-      handleMoveLayer: layerControls.handleMoveLayer,
-      handleColorSelect: floatingHandlers.handleColorSelect,
-      handleOpacityChange: floatingHandlers.handleOpacityChange,
-      handleFontSizeChange: elementHandlers.handleFontSizeChange,
-    },
-  });
+  // Bridge ref for ToolbarStateBridge → useImperativeHandle communication
+  const bridgeRef = useRef<ToolbarBridgeState | null>(null);
 
   // Calculate attribution overlay data for export (only when exporting)
   const attributionOverlayData = useMemo(() => {
@@ -384,6 +345,7 @@ function GenericCanvasWithRef<
 
   const handleAlign = useCallback(
     (direction: AlignmentDirection) => {
+      const selectedElement = store.getState().selectedElement;
       if (!selectedElement) return;
       const stage = stageRef.current?.getStage();
       if (!stage) return;
@@ -404,86 +366,125 @@ function GenericCanvasWithRef<
         newY = alignElementY(bounds, config.canvas.height, direction);
       }
 
-      // Update position through the element handler system
       elementHandlers.handleElementPositionChange(selectedElement, newX, newY, w, h);
     },
-    [selectedElement, config.canvas.width, config.canvas.height, elementHandlers]
+    [store, config.canvas.width, config.canvas.height, elementHandlers]
   );
 
-  // In mobile bridge mode, native handles the toolbar — skip rendering the web one
-  const toolbarElement = mobileBridge ? null : (
-    <FloatingToolbar
-      selectedElement={selectedElement}
-      activeFloatingModule={activeFloatingModule}
-      canUndo={canUndo}
-      canRedo={canRedo}
-      canMoveUp={layerControls.canMoveUp}
-      canMoveDown={layerControls.canMoveDown}
-      handlers={{
-        undo,
-        redo,
-        handleMoveLayer: layerControls.handleMoveLayer,
-        handleColorSelect: floatingHandlers.handleColorSelect,
-        handleOpacityChange: floatingHandlers.handleOpacityChange,
-        handleFontSizeChange: elementHandlers.handleFontSizeChange,
-        handleAlign,
-      }}
-      onDelete={onDelete}
-    />
-  );
-
-  const canvasContent = (
-    <CanvasStage
-      ref={stageRef}
-      width={config.canvas.width}
-      height={config.canvas.height}
-      responsive
-      maxContainerWidth={maxWidth}
-      onStageClick={handleStageClick}
-      className={`${config.id}-stage`}
-    >
-      <CanvasRenderLayer
-        sortedRenderList={sortedRenderList}
-        config={config}
-        state={state}
-        layout={layout}
-        selectedElement={selectedElement}
-        handlers={elementHandlers}
-        getSnapTargets={getSnapTargets}
-        handleSnapChange={handleSnapChange}
-        setSnapLines={setSnapLines}
-        stageWidth={config.canvas.width}
-        stageHeight={config.canvas.height}
-        isFontAvailable={isFontAvailable}
-      />
-
-      {/* Attribution overlay - only visible during export */}
-      {attributionOverlayData && (
-        <Layer listening={false}>
-          <AttributionOverlay data={attributionOverlayData} />
-        </Layer>
-      )}
-
-      <SnapGuidelines
-        showH={snapGuides.h}
-        showV={snapGuides.v}
-        stageWidth={config.canvas.width}
-        stageHeight={config.canvas.height}
-        snapLines={snapLines}
-      />
-    </CanvasStage>
+  // Expose ref methods for parent access (multi-page export, shared sidebar, and toolbar handlers)
+  // Bridge handlers are read from bridgeRef.current at call time (set by ToolbarStateBridge)
+  useImperativeHandle(
+    forwardedRef,
+    () => ({
+      toDataURL: (options) => {
+        return stageRef.current?.toDataURL(options);
+      },
+      captureCanvas: async () => {
+        if (store.getState().selectedElement) {
+          setSelectedElement(null);
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        return stageRef.current?.toDataURL({ format: 'png', pixelRatio: 2 }) ?? null;
+      },
+      getState: () => state as Record<string, unknown>,
+      getActions: () => actions as unknown as Record<string, unknown>,
+      getSelectedElement: () => store.getState().selectedElement,
+      undo,
+      redo,
+      handleMoveLayer: (dir) => bridgeRef.current?.handleMoveLayer(dir),
+      handleColorSelect: (color) => bridgeRef.current?.handleColorSelect(color),
+      handleOpacityChange: (id, op, type) => bridgeRef.current?.handleOpacityChange(id, op, type),
+      handleFontSizeChange: elementHandlers.handleFontSizeChange,
+      handleAlign,
+    }),
+    [state, actions, store, setSelectedElement, undo, redo, elementHandlers.handleFontSizeChange, handleAlign]
   );
 
   return (
     <>
-      {toolbarElement}
-      {canvasContent}
+      <CanvasStage
+        ref={stageRef}
+        width={config.canvas.width}
+        height={config.canvas.height}
+        responsive
+        maxContainerWidth={maxWidth}
+        onStageClick={handleStageClick}
+        className={`${config.id}-stage`}
+      >
+        <CanvasRenderLayer
+          sortedRenderList={sortedRenderList}
+          config={config}
+          state={state}
+          layout={layout}
+          handlers={elementHandlers}
+          getSnapTargets={getSnapTargets}
+          handleSnapChange={handleSnapChange}
+          setSnapLines={setSnapLines}
+          stageWidth={config.canvas.width}
+          stageHeight={config.canvas.height}
+          isFontAvailable={isFontAvailable}
+        />
+
+        {/* Attribution overlay - only visible during export */}
+        {attributionOverlayData && (
+          <Layer listening={false}>
+            <AttributionOverlay data={attributionOverlayData} />
+          </Layer>
+        )}
+
+        <SnapGuidelines
+          stageWidth={config.canvas.width}
+          stageHeight={config.canvas.height}
+        />
+      </CanvasStage>
+
+      {/* Renderless bridge: owns all selectedElement-derived computation.
+          Re-renders only this component (returns null) on selection change,
+          NOT GenericCanvasInner or the Konva tree. */}
+      <ToolbarStateBridge
+        bridgeRef={bridgeRef}
+        config={config}
+        state={state}
+        layout={layout}
+        actions={actions}
+        sortedRenderList={sortedRenderList}
+        setState={setStateWrapper}
+        saveToHistory={saveToHistory}
+        debouncedSaveToHistory={debouncedSaveToHistory}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        undo={undo}
+        redo={redo}
+        onToolbarStateChange={onToolbarStateChange}
+        mobileBridge={mobileBridge}
+        handleFontSizeChange={elementHandlers.handleFontSizeChange}
+      />
     </>
   );
 }
 
-GenericCanvasWithRef.displayName = 'GenericCanvas';
+GenericCanvasWithRef.displayName = 'GenericCanvasInner';
 
-export const GenericCanvas = memo(GenericCanvasWithRef) as typeof GenericCanvasWithRef;
+const MemoizedGenericCanvas = memo(GenericCanvasWithRef) as typeof GenericCanvasWithRef;
+
+/**
+ * GenericCanvas — each instance gets its own scoped Zustand store via CanvasStoreProvider.
+ * The provider's context value (store reference) is stable, so wrapping adds zero re-render cost.
+ * Outer component is NOT memo'd — the inner MemoizedGenericCanvas handles prop comparison.
+ */
+function GenericCanvasWithProvider<
+  TState extends Record<string, unknown>,
+  TActions extends OptionalCanvasActions,
+>(props: GenericCanvasProps<TState, TActions> & { forwardedRef?: React.Ref<GenericCanvasRef> }) {
+  return (
+    <CanvasStoreProvider>
+      <MemoizedGenericCanvas {...props} />
+    </CanvasStoreProvider>
+  );
+}
+
+GenericCanvasWithProvider.displayName = 'GenericCanvas';
+
+export const GenericCanvas = GenericCanvasWithProvider;
 
 export default GenericCanvas;

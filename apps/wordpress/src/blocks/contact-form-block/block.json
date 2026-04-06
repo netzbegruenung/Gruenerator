@@ -1,0 +1,59 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "gruenerator/contact-form-block",
+  "title": "Kontaktformular",
+  "category": "gruenerator-category",
+  "icon": "email",
+  "description": "Füge ein Kontaktformular mit Hintergrundbild, Titel und Social Media Icons hinzu",
+  "textdomain": "gruenerator",
+  "attributes": {
+    "backgroundImageId": {
+      "type": "integer",
+      "default": 0
+    },
+    "backgroundImageUrl": {
+      "type": "string",
+      "default": "https://via.placeholder.com/1200x600"
+    },
+    "title": {
+      "type": "string",
+      "default": ""
+    },
+    "email": {
+      "type": "string",
+      "default": ""
+    },
+    "socialMedia": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "object",
+        "properties": {
+          "platform": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "sunflowerFormAttributes": {
+      "type": "object",
+      "default": {}
+    }
+  },
+  "supports": {
+    "html": false,
+    "align": true,
+    "alignWide": true,
+    "defaultAlign": "full"
+  },
+  "editorScript": "file:./block.js",
+  "editorStyle": "file:./editor.scss",
+  "style": "file:./style.scss"
+}

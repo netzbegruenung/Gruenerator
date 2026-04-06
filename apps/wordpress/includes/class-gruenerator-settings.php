@@ -51,7 +51,8 @@ class Gruenerator_Settings {
             return new WP_Error('insufficient_permissions', __('Unzureichende Berechtigungen', 'gruenerator'));
         }
 
-        $landing_page_id = get_option('gruenerator_landing_page_id');
+        $setup = Gruenerator_Options::get_setup();
+        $landing_page_id = $setup['landing_page_id'];
         if (!$landing_page_id) {
             return new WP_Error('no_landing_page', __('Keine Landing Page gefunden. Bitte durchlaufe zuerst den Setup-Assistenten.', 'gruenerator'));
         }
@@ -64,14 +65,14 @@ class Gruenerator_Settings {
 
         update_option('show_on_front', 'page');
         update_option('page_on_front', $landing_page_id);
-        
+
         add_settings_error(
             'gruenerator_messages',
             'gruenerator_message',
             __('Die Landing Page wurde erfolgreich als Startseite festgelegt.', 'gruenerator'),
             'updated'
         );
-        
+
         return true;
     }
 
@@ -85,7 +86,8 @@ class Gruenerator_Settings {
             return new WP_Error('insufficient_permissions', __('Unzureichende Berechtigungen', 'gruenerator'));
         }
 
-        $landing_page_id = get_option('gruenerator_landing_page_id');
+        $setup = Gruenerator_Options::get_setup();
+        $landing_page_id = $setup['landing_page_id'];
         $current_front_page = get_option('page_on_front');
 
         // Überprüfe, ob die Landing Page aktuell als Startseite festgelegt ist
@@ -95,14 +97,14 @@ class Gruenerator_Settings {
 
         update_option('show_on_front', 'posts');
         delete_option('page_on_front');
-        
+
         add_settings_error(
             'gruenerator_messages',
             'gruenerator_message',
             __('Die Startseiten-Einstellung wurde erfolgreich zurückgesetzt.', 'gruenerator'),
             'updated'
         );
-        
+
         return true;
     }
 
@@ -116,44 +118,60 @@ class Gruenerator_Settings {
 
         // Hero Content
         $hero_content = Gruenerator_Default_Content::get_hero_content();
-        update_option('gruenerator_hero_image', '');
-        update_option('gruenerator_hero_heading', $hero_content['heading']);
-        update_option('gruenerator_hero_text', $hero_content['text']);
+        Gruenerator_Options::update_content('hero', array(
+            'heading' => $hero_content['heading'],
+            'text'    => $hero_content['text'],
+            'image'   => '',
+        ));
 
         // About Content
         $about_content = Gruenerator_Default_Content::get_about_content();
-        update_option('gruenerator_about_me_title', $about_content['title']);
-        update_option('gruenerator_about_me_content', $about_content['content']);
+        Gruenerator_Options::update_content('about', array(
+            'title'   => $about_content['title'],
+            'content' => $about_content['content'],
+        ));
 
         // Hero Image Block
         $hero_image_content = Gruenerator_Default_Content::get_hero_image_content();
-        update_option('gruenerator_hero_image_block_image', '');
-        update_option('gruenerator_hero_image_block_title', $hero_image_content['title']);
-        update_option('gruenerator_hero_image_subtitle', $hero_image_content['subtitle']);
+        Gruenerator_Options::update_content('hero_image', array(
+            'image'    => '',
+            'title'    => $hero_image_content['title'],
+            'subtitle' => $hero_image_content['subtitle'],
+        ));
 
         // Themes
-        $themes = Gruenerator_Default_Content::get_themes();
-        for ($i = 1; $i <= 3; $i++) {
-            $theme = isset($themes[$i - 1]) ? $themes[$i - 1] : array();
-            update_option('gruenerator_theme_image_' . $i, '');
-            update_option('gruenerator_theme_title_' . $i, isset($theme['title']) ? $theme['title'] : '');
-            update_option('gruenerator_theme_content_' . $i, isset($theme['content']) ? $theme['content'] : '');
+        $default_themes = Gruenerator_Default_Content::get_themes();
+        $themes = array();
+        for ($i = 0; $i < 3; $i++) {
+            $theme = isset($default_themes[$i]) ? $default_themes[$i] : array();
+            $themes[] = array(
+                'image'   => '',
+                'title'   => isset($theme['title']) ? $theme['title'] : '',
+                'content' => isset($theme['content']) ? $theme['content'] : '',
+            );
         }
+        Gruenerator_Options::update_content('themes', $themes);
 
         // Actions
-        $actions = Gruenerator_Default_Content::get_actions();
-        for ($i = 1; $i <= 3; $i++) {
-            $action = isset($actions[$i - 1]) ? $actions[$i - 1] : array();
-            update_option('gruenerator_action_image_' . $i, '');
-            update_option('gruenerator_action_text_' . $i, isset($action['text']) ? $action['text'] : '');
-            update_option('gruenerator_action_link_' . $i, isset($action['link']) ? $action['link'] : '');
+        $default_actions = Gruenerator_Default_Content::get_actions();
+        $actions = array();
+        for ($i = 0; $i < 3; $i++) {
+            $action = isset($default_actions[$i]) ? $default_actions[$i] : array();
+            $actions[] = array(
+                'image' => '',
+                'text'  => isset($action['text']) ? $action['text'] : '',
+                'link'  => isset($action['link']) ? $action['link'] : '',
+            );
         }
+        Gruenerator_Options::update_content('actions', $actions);
 
         // Contact Form
         $contact_form = Gruenerator_Default_Content::get_contact_form_content();
-        update_option('gruenerator_contact_form_title', $contact_form['title']);
-        update_option('gruenerator_contact_form_email', $contact_form['email']);
-        update_option('gruenerator_contact_form_image', '');
+        Gruenerator_Options::update_content('contact', array(
+            'title' => $contact_form['title'],
+            'email' => $contact_form['email'],
+            'image' => '',
+        ));
 
         add_settings_error(
             'gruenerator_messages',
@@ -172,15 +190,18 @@ class Gruenerator_Settings {
         }
 
         $front_page_id = get_option('page_on_front');
-        $landing_page_id = get_option('gruenerator_landing_page_id');
+        $setup = Gruenerator_Options::get_setup();
+        $landing_page_id = $setup['landing_page_id'];
         $is_landing_page_front = ($front_page_id == $landing_page_id);
-        $css_active = (bool)get_option('gruenerator_custom_css_active', false);
-        $expert_mode = (bool)get_option('gruenerator_expert_mode', false);
-        $hide_topbar = (bool)get_option('gruenerator_hide_topbar', false);
-        $header_color = get_option('gruenerator_header_color', 'original');
-        $navbar_color = get_option('gruenerator_navbar_color', 'sand');
-        $title_color = get_option('gruenerator_title_color', 'black');
-        $navbar_text_color = get_option('gruenerator_navbar_text_color', 'tanne');
+
+        $design = Gruenerator_Options::get_design();
+        $css_active = (bool) $design['css_active'];
+        $expert_mode = (bool) $design['expert_mode'];
+        $hide_topbar = (bool) $design['hide_topbar'];
+        $header_color = $design['header_color'];
+        $navbar_color = $design['navbar_color'];
+        $title_color = $design['title_color'];
+        $navbar_text_color = $design['navbar_text_color'];
 
         ?>
         <div class="wrap">
@@ -190,7 +211,7 @@ class Gruenerator_Settings {
             <div class="gruenerator-settings-section">
                 <h2><?php _e('Startseiten-Einstellung', 'gruenerator'); ?></h2>
                 <p><?php _e('Hier kannst du festlegen, ob die Grünerator Landing Page als Startseite deiner Website angezeigt werden soll.', 'gruenerator'); ?></p>
-                
+
                 <form method="post" action="">
                     <?php wp_nonce_field('gruenerator_frontpage_settings'); ?>
                     <table class="form-table">
@@ -223,10 +244,10 @@ class Gruenerator_Settings {
             <div class="gruenerator-settings-section">
                 <h2><?php _e('Design-Einstellungen', 'gruenerator'); ?></h2>
                 <p><?php _e('Hier kannst du das Design deiner Website anpassen.', 'gruenerator'); ?></p>
-                
+
                 <form id="gruenerator-css-form">
                     <?php wp_nonce_field('gruenerator_toggle_css', 'gruenerator_css_nonce'); ?>
-                    
+
                     <table class="form-table">
                         <tr id="standard-mode-settings">
                             <th scope="row">Grünerator Design</th>
@@ -312,7 +333,7 @@ class Gruenerator_Settings {
             <div class="gruenerator-settings-section">
                 <h2><?php _e('Inhalte zurücksetzen', 'gruenerator'); ?></h2>
                 <p><?php _e('Hier kannst du alle im Setup-Wizard eingegebenen Inhalte auf die Standardwerte zurücksetzen.', 'gruenerator'); ?></p>
-                
+
                 <form method="post" action="">
                     <?php wp_nonce_field('gruenerator_reset_content'); ?>
                     <table class="form-table">
@@ -338,7 +359,7 @@ class Gruenerator_Settings {
             <div class="gruenerator-settings-section">
                 <h2><?php _e('Erweiterte Einstellungen', 'gruenerator'); ?></h2>
                 <p><?php _e('Diese Einstellungen sind für fortgeschrittene Benutzer gedacht.', 'gruenerator'); ?></p>
-                
+
                 <table class="form-table">
                     <tr>
                         <th scope="row">Expertenmodus</th>
@@ -423,7 +444,7 @@ class Gruenerator_Settings {
             $('#expert_mode').on('change', function() {
                 var isChecked = $(this).is(':checked');
                 var nonce = $('#gruenerator_css_nonce').val();
-                
+
                 $.ajax({
                     url: ajaxurl,
                     type: 'POST',
@@ -447,7 +468,7 @@ class Gruenerator_Settings {
             $('#hide_topbar').on('change', function() {
                 var isChecked = $(this).is(':checked');
                 var nonce = $('#gruenerator_css_nonce').val();
-                
+
                 $.ajax({
                     url: ajaxurl,
                     type: 'POST',
@@ -470,7 +491,7 @@ class Gruenerator_Settings {
             $('#toggle_css').on('change', function() {
                 var isChecked = $(this).is(':checked');
                 var nonce = $('#gruenerator_css_nonce').val();
-                
+
                 $.ajax({
                     url: ajaxurl,
                     type: 'POST',
@@ -493,7 +514,7 @@ class Gruenerator_Settings {
             $('#header_color').on('change', function() {
                 var selectedColor = $(this).val();
                 var nonce = $('#gruenerator_css_nonce').val();
-                
+
                 $.ajax({
                     url: ajaxurl,
                     type: 'POST',
@@ -513,7 +534,7 @@ class Gruenerator_Settings {
             $('#navbar_color').on('change', function() {
                 var selectedColor = $(this).val();
                 var nonce = $('#gruenerator_css_nonce').val();
-                
+
                 $.ajax({
                     url: ajaxurl,
                     type: 'POST',
@@ -533,7 +554,7 @@ class Gruenerator_Settings {
             $('#title_color').on('change', function() {
                 var selectedColor = $(this).val();
                 var nonce = $('#gruenerator_css_nonce').val();
-                
+
                 $.ajax({
                     url: ajaxurl,
                     type: 'POST',
@@ -553,7 +574,7 @@ class Gruenerator_Settings {
             $('#navbar_text_color').on('change', function() {
                 var selectedColor = $(this).val();
                 var nonce = $('#gruenerator_css_nonce').val();
-                
+
                 $.ajax({
                     url: ajaxurl,
                     type: 'POST',

@@ -31,6 +31,11 @@ if (!defined('ABSPATH')) {
 // Definiere Konstanten für Pfade
 define('GRUENERATOR_PATH', plugin_dir_path(__FILE__));
 define('GRUENERATOR_URL', plugin_dir_url(__FILE__));
+define('GRUENERATOR_VERSION', '1.0.0');
+
+// Lade die Options-Verwaltung (muss vor allen anderen Klassen geladen werden)
+require_once GRUENERATOR_PATH . 'includes/class-gruenerator-options.php';
+add_action('admin_init', array('Gruenerator_Options', 'maybe_migrate'));
 
 // Lade die Hauptklassen
 require_once GRUENERATOR_PATH . 'includes/class-gruenerator-customizer.php';
@@ -204,7 +209,7 @@ function gruenerator_enqueue_admin_scripts($hook) {
         $hook == 'page-new.php') {
         wp_enqueue_media();
         wp_enqueue_script('jquery');
-        wp_enqueue_script('gruenerator-admin-js', GRUENERATOR_URL . 'admin/js/gruenerator-admin.js', array('jquery'), '1.0.0', true);
+        wp_enqueue_script('gruenerator-admin-js', GRUENERATOR_URL . 'admin/js/gruenerator-admin.js', array('jquery'), GRUENERATOR_VERSION, true);
     }
 }
 add_action('admin_enqueue_scripts', 'gruenerator_enqueue_admin_scripts');
@@ -213,8 +218,13 @@ add_action('admin_enqueue_scripts', 'gruenerator_enqueue_admin_scripts');
  * Enqueue Admin Styles
  */
 function gruenerator_enqueue_admin_styles($hook) {
-    // Fügen Sie hier Bedingungen hinzu, um die Styles nur auf bestimmten Admin-Seiten zu laden
-    wp_enqueue_style('gruenerator-admin-styles', GRUENERATOR_URL . 'build/index.css', array(), '1.0.0');
+    if (strpos($hook, 'gruenerator') !== false ||
+        $hook == 'post.php' ||
+        $hook == 'post-new.php' ||
+        $hook == 'page.php' ||
+        $hook == 'page-new.php') {
+        wp_enqueue_style('gruenerator-admin-styles', GRUENERATOR_URL . 'build/index.css', array(), GRUENERATOR_VERSION);
+    }
 }
 add_action('admin_enqueue_scripts', 'gruenerator_enqueue_admin_styles');
 ?>

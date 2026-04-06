@@ -39,6 +39,7 @@ export type SearchIntent =
   | 'examples' // Social media examples/templates
   | 'image' // Image generation ("erstelle bild", "generiere", "visualisiere")
   | 'image_edit' // Image editing ("stadt begrünen", green urban transformation)
+  | 'sharepic' // Sharepic creation ("erstelle sharepic", "@sharepic")
   | 'summary' // Document summarization ("fasse zusammen", "zusammenfassung")
   | 'chart' // Data visualization ("erstelle Diagramm", "Balkendiagramm")
   | 'save_as_doc' // Save response as document ("speichere als Dokument")

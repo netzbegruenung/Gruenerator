@@ -55,6 +55,7 @@ async function requireAuth(
         interactive_antrag_enabled: false,
         vorlagen: false,
         video_editor: false,
+        wordpress_enabled: true,
         created_at: new Date(),
         updated_at: new Date(),
       };
@@ -124,6 +125,7 @@ function toBetterAuthUser(user: BetterAuthUser): Express.User {
     video_editor: user.video_editor ?? false,
     bundestag_api_enabled: user.bundestag_api_enabled ?? false,
     memory_enabled: user.memory_enabled ?? false,
+    wordpress_enabled: user.wordpress_enabled ?? false,
     created_at: user.createdAt,
     updated_at: user.updatedAt,
   };

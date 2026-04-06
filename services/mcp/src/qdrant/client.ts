@@ -16,8 +16,8 @@ let client: QdrantClient | null = null;
 // Use shared hybrid config with MCP-specific overrides
 const hybridConfig = {
   ...DEFAULT_HYBRID_CONFIG,
-  minFinalScore: 0.01,
-  minVectorOnlyFinalScore: 0.02,
+  minFinalScore: 0.35,
+  minVectorOnlyFinalScore: 0.4,
   confidenceBoost: 1.1,
   confidencePenalty: 0.9,
 };
