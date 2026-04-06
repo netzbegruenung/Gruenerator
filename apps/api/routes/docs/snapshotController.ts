@@ -94,6 +94,53 @@ router.get('/:id/snapshots', async (req: Request<{ id: string }>, res: Response)
       [req.params.id]
     )) as SnapshotRow[];
 
+    const grouped = req.query.grouped !== 'false';
+
+    if (grouped && snapshots.length > 1) {
+      const GROUP_WINDOW_MS = 30 * 60 * 1000;
+      const result: Array<{
+        id: string;
+        version: number;
+        created_at: string;
+        is_auto_save: boolean;
+        label: string | null;
+        created_by_name: string | null;
+        snapshot_count: number;
+        earliest_in_group: string;
+      }> = [];
+
+      // Snapshots are DESC — walk and group consecutive auto-saves within 30min
+      for (const s of snapshots) {
+        const prev = result[result.length - 1];
+        const canGroup =
+          prev &&
+          prev.is_auto_save &&
+          s.is_auto_save &&
+          !s.label &&
+          !prev.label &&
+          new Date(prev.earliest_in_group).getTime() - new Date(s.created_at).getTime() <
+            GROUP_WINDOW_MS;
+
+        if (canGroup) {
+          prev.snapshot_count++;
+          prev.earliest_in_group = s.created_at;
+        } else {
+          result.push({
+            id: s.id,
+            version: s.version,
+            created_at: s.created_at,
+            is_auto_save: s.is_auto_save,
+            label: s.label,
+            created_by_name: s.created_by_name,
+            snapshot_count: 1,
+            earliest_in_group: s.created_at,
+          });
+        }
+      }
+
+      return res.json({ snapshots: result });
+    }
+
     return res.json({
       snapshots: snapshots.map((s) => ({
         id: s.id,
@@ -102,6 +149,7 @@ router.get('/:id/snapshots', async (req: Request<{ id: string }>, res: Response)
         is_auto_save: s.is_auto_save,
         label: s.label,
         created_by_name: s.created_by_name,
+        snapshot_count: 1,
       })),
     });
   } catch (error: unknown) {
