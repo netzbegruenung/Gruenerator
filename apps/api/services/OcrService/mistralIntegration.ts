@@ -184,7 +184,7 @@ export async function extractBase64WithMistralOCR(
   } catch (error) {
     const errorMessage = (error as Error).message;
     const safeFilename = sanitizeFilename(filename, 'unknown');
-    console.error(`[OcrService] Mistral OCR base64 failed for ${safeFilename}:`, errorMessage);
+    console.error('[OcrService] Mistral OCR base64 failed for %s: %s', safeFilename, errorMessage);
     throw new Error(`Mistral OCR extraction failed: ${errorMessage}`);
   }
 }

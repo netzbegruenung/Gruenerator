@@ -146,7 +146,11 @@ router.post(
       }
 
       console.log(
-        `[DocsImport] User ${userId} importing file: ${file.originalname} (${file.mimetype}, ${(file.size / 1024).toFixed(0)}KB)`
+        '[DocsImport] User %s importing file: %s (%s, %dKB)',
+        userId,
+        file.originalname,
+        file.mimetype,
+        Number((file.size / 1024).toFixed(0))
       );
 
       const result = await ocrBufferToDocument(
@@ -207,7 +211,10 @@ router.post('/from-wolke', requireAuth, async (req: AuthenticatedRequest, res: R
     }
 
     console.log(
-      `[DocsImport:Wolke] User ${userId} importing from Wolke: ${fileName} (share=${shareLinkId})`
+      '[DocsImport:Wolke] User %s importing from Wolke: %s (share=%s)',
+      userId,
+      fileName,
+      shareLinkId
     );
 
     const wolkeSyncService = getWolkeSyncService();
@@ -227,7 +234,9 @@ router.post('/from-wolke', requireAuth, async (req: AuthenticatedRequest, res: R
     }
 
     console.log(
-      `[DocsImport:Wolke] Downloaded ${fileName}: ${(downloaded.size / 1024).toFixed(0)}KB`
+      '[DocsImport:Wolke] Downloaded %s: %dKB',
+      fileName,
+      Number((downloaded.size / 1024).toFixed(0))
     );
 
     const result = await ocrBufferToDocument(
