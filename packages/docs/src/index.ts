@@ -5,6 +5,7 @@ export {
   createDocsApiClient,
   type DocsAdapter,
   type DocsApiClient,
+  type DocsRequestOptions,
 } from './context/DocsContext';
 
 // Components — Editor
@@ -46,6 +47,7 @@ export {
 } from './hooks/useDocuments';
 export { useResolveUsers } from './hooks/useResolveUsers';
 export { useIsTouchDevice } from './hooks/useIsTouchDevice';
+export { useVersionHistoryShortcut } from './hooks/useVersionHistoryShortcut';
 
 // Stores
 export { useDocumentStore, type Document } from './stores/documentStore';

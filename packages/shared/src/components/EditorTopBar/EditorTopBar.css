@@ -150,9 +150,25 @@
   background: #f59e0b;
 }
 
+.status-dot.connected {
+  background: #22c55e;
+}
+
+.status-dot.syncing {
+  background: #f59e0b;
+  animation: editorTopBarPulse 1.5s ease-in-out infinite;
+}
+
 @keyframes editorTopBarPulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
+}
+
+.status-label {
+  font-size: 0.6875rem;
+  color: var(--grey-400);
+  white-space: nowrap;
+  user-select: none;
 }
 
 /* ─────────────────────────────────────────────

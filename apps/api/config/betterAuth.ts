@@ -158,6 +158,18 @@ export const auth = betterAuth({
     },
   },
 
+  rateLimit: {
+    enabled: true,
+    window: 60,
+    max: 100,
+    storage: 'secondary-storage',
+    customRules: {
+      '/sign-in/*': { window: 60, max: 10 },
+      '/sign-up/*': { window: 60, max: 5 },
+      '/forget-password': { window: 60, max: 3 },
+    },
+  },
+
   trustedOrigins: [
     'gruenerator://',
 
