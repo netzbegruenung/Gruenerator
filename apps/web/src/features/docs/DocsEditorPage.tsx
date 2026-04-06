@@ -8,6 +8,7 @@ import {
   DocsProvider,
   useDocumentChat,
   BlockNoteEditor as BlockNoteEditorComponent,
+  VersionHistory,
   useDocsAdapter,
   createDocsApiClient,
   lazyWithRetry,
@@ -27,7 +28,7 @@ import {
 import { WolkeSaveModal, uploadToWolke } from '@gruenerator/wolke';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
-import { FiCloud, FiDownload, FiShare2, FiSidebar, FiX } from 'react-icons/fi';
+import { FiClock, FiCloud, FiDownload, FiShare2, FiSidebar, FiX } from 'react-icons/fi';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
@@ -99,6 +100,7 @@ function getOrCreateGuestIdentity(): { guestId: string; guestName: string; guest
 const SIDEBAR_TABS = [
   { label: 'Chat', value: 'chat' as const },
   { label: 'Kommentare', value: 'comments' as const },
+  { label: 'Versionen', value: 'versions' as const },
 ];
 
 function EditorFAB({
@@ -196,7 +198,7 @@ function EditorContent() {
   const [showWolkeModal, setShowWolkeModal] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarTab, setSidebarTab] = useState<'chat' | 'comments'>('chat');
+  const [sidebarTab, setSidebarTab] = useState<'chat' | 'comments' | 'versions'>('chat');
   const [editor, setEditor] = useState<BlockNoteEditor | null>(null);
 
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -519,6 +521,22 @@ function EditorContent() {
                     </button>
                   )}
 
+                  <button
+                    className={`glass-btn ${sidebarOpen && sidebarTab === 'versions' ? 'active' : ''}`}
+                    onClick={() => {
+                      if (sidebarOpen && sidebarTab === 'versions') {
+                        setSidebarOpen(false);
+                      } else {
+                        setSidebarTab('versions');
+                        setSidebarOpen(true);
+                      }
+                    }}
+                    aria-label="Versionshistorie"
+                    title="Versionshistorie"
+                  >
+                    <FiClock />
+                  </button>
+
                   <span className="glass-divider" />
                 </>
               )}
@@ -599,6 +617,10 @@ function EditorContent() {
               <div className="flex-1 overflow-y-auto">
                 <div className="p-2" ref={commentsPortalRef} />
               </div>
+            )}
+
+            {sidebarTab === 'versions' && id && (
+              <VersionHistory documentId={id} apiClient={apiClient} canEdit={canEdit} />
             )}
           </aside>
         )}
