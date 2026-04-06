@@ -37,6 +37,7 @@ import type {
   SearchIntent,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage } from 'ai';
+import type { Request } from 'express';
 
 const log = createLogger('ChatGraphController');
 
@@ -417,7 +418,7 @@ export async function executeIntentPipeline(opts: {
   forcedTool: boolean;
   enabledTools?: Record<string, boolean>;
   imageAttachments: ImageAttachment[];
-  req?: import('express').Request;
+  req?: Request;
 }): Promise<{ finalState: ChatGraphState; generatedImage: GeneratedImageResult | null }> {
   const { classifiedState, sse, forcedTool, enabledTools, imageAttachments } = opts;
 
@@ -538,7 +539,7 @@ export async function executeIntentPipeline(opts: {
             message: 'Sharepic erstellt',
             canvasType,
             initialProps,
-            alternatives: sharepic.alternatives as unknown[] || [],
+            alternatives: (sharepic.alternatives as unknown[]) || [],
           });
         } else {
           sse.send('sharepic_complete', {
