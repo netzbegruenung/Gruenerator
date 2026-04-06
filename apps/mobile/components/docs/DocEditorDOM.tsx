@@ -201,7 +201,7 @@ function createDomAdapter(
     getWebSocketPolyfill: wsBridge
       ? () => {
           (BridgedWebSocket as unknown as { __bridge: WsBridgeProps }).__bridge = wsBridge;
-          return BridgedWebSocket;
+          return BridgedWebSocket as unknown as new (...args: unknown[]) => WebSocket;
         }
       : undefined,
   };

@@ -337,7 +337,7 @@ export const toolMentionables: Mentionable[] = [
     mention: 'stadtbegruenen',
   },
   // Dev-only: sharepic creation via canvas editor (gated on Vite dev mode)
-  ...(import.meta.env.DEV
+  ...((import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV
     ? [
         {
           type: 'tool' as const,
