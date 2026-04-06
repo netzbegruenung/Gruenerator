@@ -19,6 +19,6 @@ export default [
     },
   },
   {
-    ignores: ['.expo/**', 'android/**', 'ios/**', 'metro.config.js'],
+    ignores: ['.expo/**', 'android/**', 'ios/**', 'metro.config.js', 'shims/**'],
   },
 ];
