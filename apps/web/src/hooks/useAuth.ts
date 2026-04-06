@@ -409,6 +409,13 @@ export const useAuth = (options: AuthOptions = {}) => {
   useEffect(() => {
     // Don't process auth data if user recently logged out (unless on login page)
     if (hasRecentlyLoggedOut && !isOnLoginPage) {
+      // Clear stale instant-auth cache to prevent useInstantAuth from
+      // restoring authenticated state after logout
+      try {
+        localStorage.removeItem('authState');
+      } catch {
+        // Ignore localStorage errors
+      }
       // Only clear auth if user is currently authenticated
       // This prevents unnecessary clearAuth calls that would reset the logout timestamp
       const { isAuthenticated: currentIsAuthenticated } = useAuthStore.getState();
@@ -420,7 +427,7 @@ export const useAuth = (options: AuthOptions = {}) => {
       if (!isOnLoginPage && !skipAuth && !lazy) {
         try {
           localStorage.removeItem('gruenerator_logout_timestamp');
-        } catch (error) {
+        } catch {
           // Ignore localStorage errors
         }
       }

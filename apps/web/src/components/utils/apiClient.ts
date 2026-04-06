@@ -6,6 +6,14 @@ import { buildLoginUrl, isPublicPage } from '../../utils/authRedirect';
 import { getDesktopToken } from '../../utils/desktopAuth';
 import { isDesktopApp } from '../../utils/platform';
 
+// Module-level flag to suppress 401 redirects during logout.
+// Set by authStore.logout() to prevent redirect loops.
+// Using a simple flag avoids circular dependency (authStore ↔ apiClient).
+let _isLoggingOut = false;
+export const setLoggingOutFlag = (value: boolean) => {
+  _isLoggingOut = value;
+};
+
 // Use relative URL by default (same as AUTH_BASE_URL in useAuth.js)
 // This works because frontend is served by backend on same port
 const baseURL: string = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -17,7 +25,7 @@ const sharedApiClient = createApiClient({
   authMode: isDesktopApp() ? 'bearer' : 'cookie',
   getAuthToken: isDesktopApp() ? async () => getDesktopToken() : undefined,
   onUnauthorized: () => {
-    if (!isPublicPage() && window.location.pathname !== '/login') {
+    if (!_isLoggingOut && !isPublicPage() && window.location.pathname !== '/login') {
       const currentPath = window.location.pathname + window.location.search;
       window.location.href = buildLoginUrl(currentPath);
     }
@@ -78,7 +86,7 @@ apiClient.interceptors.response.use(
     }
 
     if (error.response && error.response.status === 401) {
-      if (!isPublicPage() && window.location.pathname !== '/login') {
+      if (!_isLoggingOut && !isPublicPage() && window.location.pathname !== '/login') {
         const currentPath = window.location.pathname + window.location.search;
         const loginUrl = buildLoginUrl(currentPath);
         window.location.href = loginUrl;
