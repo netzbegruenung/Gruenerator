@@ -287,7 +287,7 @@ function StepBodyContent({
       if (len === 0) return 0;
       for (let s = 1; s <= len; s++) {
         const idx = (start + direction * s + len) % len;
-        if (!optionStates[idx].isDisabled) return idx;
+        if (!optionStates[idx]!.isDisabled) return idx;
       }
       return start;
     },
@@ -322,7 +322,7 @@ function StepBodyContent({
       if (key === 'End') {
         e.preventDefault();
         for (let i = optionStates.length - 1; i >= 0; i--) {
-          if (!optionStates[i].isDisabled) {
+          if (!optionStates[i]!.isDisabled) {
             focusOptionAt(i);
             return;
           }
@@ -604,15 +604,14 @@ function QuestionFlowUpfront({
   const [exitingStepData, setExitingStepData] = useState<StepBodyData | null>(null);
   const [transitionDirection, setTransitionDirection] = useState<'forward' | 'backward'>('forward');
 
-  const currentStep = steps[currentStepIndex];
+  const currentStep = steps[currentStepIndex]!;
   const isLastStep = currentStepIndex === steps.length - 1;
   const totalSteps = steps.length;
 
   useEffect(() => {
-    if (exitingStepData) {
-      const timer = setTimeout(() => setExitingStepData(null), 250);
-      return () => clearTimeout(timer);
-    }
+    if (!exitingStepData) return;
+    const timer = setTimeout(() => setExitingStepData(null), 250);
+    return () => clearTimeout(timer);
   }, [exitingStepData]);
 
   const currentSelection = useMemo(() => {
@@ -643,7 +642,7 @@ function QuestionFlowUpfront({
 
   const handleBack = useCallback(() => {
     if (currentStepIndex > 0) {
-      const currentStepData = steps[currentStepIndex];
+      const currentStepData = steps[currentStepIndex]!;
       const stepOptions: QuestionFlowOption[] = currentStepData.options.map((opt) => ({
         ...opt,
         icon: undefined,
@@ -660,7 +659,7 @@ function QuestionFlowUpfront({
       setTransitionDirection('backward');
       const prevIndex = currentStepIndex - 1;
       setCurrentStepIndex(prevIndex);
-      onStepChange?.(steps[prevIndex].id);
+      onStepChange?.(steps[prevIndex]!.id);
     }
   }, [answers, currentStepIndex, onStepChange, steps]);
 
@@ -670,7 +669,7 @@ function QuestionFlowUpfront({
     if (isLastStep) {
       onComplete?.(answers);
     } else {
-      const currentStepData = steps[currentStepIndex];
+      const currentStepData = steps[currentStepIndex]!;
       const stepOptions: QuestionFlowOption[] = currentStepData.options.map((opt) => ({
         ...opt,
         icon: undefined,
@@ -687,7 +686,7 @@ function QuestionFlowUpfront({
       setTransitionDirection('forward');
       const nextIndex = currentStepIndex + 1;
       setCurrentStepIndex(nextIndex);
-      onStepChange?.(steps[nextIndex].id);
+      onStepChange?.(steps[nextIndex]!.id);
     }
   }, [
     answers,
