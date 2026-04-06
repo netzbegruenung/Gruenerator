@@ -27,6 +27,8 @@ export interface DocsAdapter {
   navigateToHome(): void;
   /** Optional custom WebSocket constructor for environments where native WS doesn't work (e.g. Expo DOM) */
   getWebSocketPolyfill?(): (new (...args: unknown[]) => WebSocket) | undefined;
+  /** Build a shareable URL path for a document (e.g. '/docs/abc' or '/document/abc') */
+  getDocumentUrl(documentId: string): string;
   /** Get the current user's display name (for personalized sharing) */
   getCurrentUserDisplayName?(): string | null;
 }
