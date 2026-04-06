@@ -76,11 +76,6 @@ function canEditDoc(doc: DocumentRow, userId: string): boolean {
   return false;
 }
 
-/**
- * @route   GET /api/docs/:id/snapshots
- * @desc    List all snapshots for a document
- * @access  Private
- */
 router.get('/:id/snapshots', async (req: Request<{ id: string }>, res: Response) => {
   try {
     const userId = req.user?.id;
@@ -115,11 +110,6 @@ router.get('/:id/snapshots', async (req: Request<{ id: string }>, res: Response)
   }
 });
 
-/**
- * @route   GET /api/docs/:id/snapshots/:version/preview
- * @desc    Get HTML preview of a specific snapshot version
- * @access  Private
- */
 router.get(
   '/:id/snapshots/:version/preview',
   async (req: Request<{ id: string; version: string }>, res: Response) => {
@@ -166,11 +156,6 @@ router.get(
   }
 );
 
-/**
- * @route   POST /api/docs/:id/snapshots/:version/restore
- * @desc    Restore a document to a specific snapshot version
- * @access  Private (owner or editor)
- */
 router.post(
   '/:id/snapshots/:version/restore',
   async (req: Request<{ id: string; version: string }>, res: Response) => {
