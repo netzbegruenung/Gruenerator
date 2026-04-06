@@ -14,6 +14,7 @@ import {
   type Document,
 } from '@gruenerator/docs';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
+import { Skeleton } from '@gruenerator/ui';
 import { WolkeSaveModal, uploadToWolke } from '@gruenerator/wolke';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
@@ -129,18 +130,30 @@ function EditorContent() {
 
   const API_BASE = useMemo(() => adapter.getApiBaseUrl(), [adapter]);
 
-  const { data: docData, isLoading: docIsLoading } = useQuery({
-    queryKey: ['document', id, isGuest ? 'public' : 'auth'],
+  // Public check fires immediately — no auth dependency (parallel pattern like PublicBoardPage)
+  const { data: publicData, isLoading: publicLoading } = useQuery({
+    queryKey: ['document-public', id],
     queryFn: async () => {
-      if (isGuest) {
-        const res = await fetch(`${API_BASE}/docs/public/${id}`);
-        if (!res.ok) return null;
-        return res.json();
-      }
-      return apiClient.get<Document>(`/docs/${id}`);
+      const res = await fetch(`${API_BASE}/docs/public/${id}`);
+      if (!res.ok) return null;
+      return res.json();
     },
-    enabled: !!id && !isAuthLoading,
+    enabled: !!id,
+    retry: false,
+    staleTime: 30_000,
   });
+
+  // Authenticated fetch — only when logged in and auth resolved
+  const { data: authData, isLoading: authDocLoading } = useQuery<Document>({
+    queryKey: ['document-auth', id],
+    queryFn: () => apiClient.get<Document>(`/docs/${id}`),
+    enabled: !!id && !isAuthLoading && !isGuest,
+    retry: false,
+  });
+
+  // Prefer authenticated data (full permissions), fall back to public
+  const docData = authData ?? publicData;
+  const docIsLoading = isGuest ? publicLoading : (isAuthLoading || authDocLoading) && !publicData;
 
   const canEdit = useMemo(() => {
     if (!docData) return false;
@@ -156,15 +169,15 @@ function EditorContent() {
   const handleTitleChange = useCallback(
     async (newTitle: string) => {
       if (!id) return;
-      const queryKey = ['document', id, isGuest ? 'public' : 'auth'];
-      queryClient.setQueryData(queryKey, (old: Document | undefined) =>
+      const activeKey = isGuest ? ['document-public', id] : ['document-auth', id];
+      queryClient.setQueryData(activeKey, (old: Document | undefined) =>
         old ? { ...old, title: newTitle } : old
       );
       document.title = newTitle;
       try {
         await apiClient.put(`/docs/${id}`, { title: newTitle });
       } catch {
-        queryClient.setQueryData(queryKey, docData);
+        queryClient.setQueryData(activeKey, docData);
       }
     },
     [id, isGuest, apiClient, queryClient, docData]
@@ -329,10 +342,44 @@ function EditorContent() {
     : undefined;
 
   if (docIsLoading) {
-    return <div className="flex items-center justify-center h-full" />;
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center gap-sm px-md py-xs border-b border-grey-200 dark:border-grey-700">
+          <Skeleton className="h-5 w-48" />
+          <div className="ml-auto flex gap-xs">
+            <Skeleton className="h-8 w-8 rounded-md" />
+            <Skeleton className="h-8 w-8 rounded-md" />
+          </div>
+        </div>
+        <div className="flex-1 max-w-[720px] mx-auto w-full px-md py-lg">
+          <Skeleton className="h-8 w-3/4 mb-md" />
+          <Skeleton className="h-4 w-full mb-sm" />
+          <Skeleton className="h-4 w-5/6 mb-sm" />
+          <Skeleton className="h-4 w-4/6 mb-md" />
+          <Skeleton className="h-4 w-full mb-sm" />
+          <Skeleton className="h-4 w-3/5" />
+        </div>
+      </div>
+    );
   }
 
   if (!docData) {
+    if (publicData?.share_mode === 'authenticated' && isGuest) {
+      return (
+        <div className="flex items-center justify-center h-full flex-col gap-4 text-grey-500">
+          <span className="text-foreground-heading font-medium">
+            {publicData.title || 'Dokument'}
+          </span>
+          <span>Dieses Dokument erfordert eine Anmeldung.</span>
+          <a
+            href={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+            className="px-4 py-2 text-sm font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 no-underline transition-colors"
+          >
+            Anmelden
+          </a>
+        </div>
+      );
+    }
     return (
       <div className="flex items-center justify-center h-full flex-col gap-4 text-grey-500">
         <span>Dokument nicht gefunden oder nicht öffentlich</span>

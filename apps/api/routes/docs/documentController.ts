@@ -261,7 +261,7 @@ router.get('/:id', async (req: Request, res: Response) => {
         [userId, id]
       )) as { permissions: { read: boolean; write: boolean } | null }[];
 
-      if (groupAccess.length > 0) {
+      if (groupAccess.length > 0 && groupAccess[0].permissions?.read !== false) {
         hasAccess = true;
       }
     }
@@ -504,7 +504,7 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
         [userId, id]
       )) as { permissions: { read: boolean; write: boolean } | null }[];
 
-      if (groupAccess.length > 0) {
+      if (groupAccess.length > 0 && groupAccess[0].permissions?.read !== false) {
         hasAccessToDuplicate = true;
       }
     }
