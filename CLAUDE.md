@@ -46,6 +46,7 @@ pnpm --filter @gruenerator/desktop dev           # Tauri desktop dev
 - **`apps/desktop`** — Tauri 2 wrapper around the web frontend.
 - **`packages/chat`** — Shared chat UI components, runtime adapters (Assistant UI), stores, and hooks. Consumed by `apps/web` at `/chat`.
 - **`packages/shared`** — Shared stores (Zustand), hooks, API clients, and feature modules (sharepic, image-studio, subtitle-editor, media-library, search). Shared components in `src/components/`.
+- **`packages/canvas-editor`** — Config-driven canvas editor using **react-konva** (Konva.js). Per-instance Zustand stores via `CanvasStoreProvider`, selectable wrapper components for O(2) selection rerenders. Konva docs: `https://konvajs.org/llms.txt` (overview + links), `https://konvajs.org/llms-full.txt` (full API reference).
 - **`services/mcp`** — Model Context Protocol server (`https://mcp.gruenerator.eu`). See `CLAUDE-mcp.md` for endpoints, tools, and testing.
 - **`services/comfyui`** — ComfyUI workflows for local GPU image generation.
 ### Page Layout Modes
@@ -88,12 +89,15 @@ Reference implementations: `useCollaborators()` in `packages/docs/src/hooks/useC
 
 Keycloak OIDC via Passport.js. Supports multiple identity providers (.de, .at, .eu domains). Sessions stored in Redis.
 
+**Better Auth (new auth system)**: Config at `apps/api/config/betterAuth.ts`. DB tables use `ba_` prefix with snake_case columns. The `fields` mapping in each model config **must map every camelCase field** to its snake_case column (e.g. `userId: 'user_id'`). Missing mappings cause Kysely to query with camelCase column names, which PostgreSQL rejects.
+
 **Dev Auth Bypass** (for Playwright MCP testing): Set `VITE_E2E_AUTH_BYPASS=true` + `VITE_DEV_AUTH_BYPASS_TOKEN=local-dev-bypass-token` in `apps/web/.env`, and `ALLOW_DEV_AUTH_BYPASS=true` + `DEV_AUTH_BYPASS_TOKEN=local-dev-bypass-token` in root `.env`. Frontend returns mock user, backend skips Keycloak when `x-dev-auth-bypass` header matches, Vite proxy auto-injects the header. Production fail-fast: `ALLOW_DEV_AUTH_BYPASS=true` in prod → HTTP 500 on all requests.
 
 ### AI Providers
 
 - **Mistral AI** — Primary text generation (EU-hosted).
 - **Anthropic Claude via AWS Bedrock** — "Ultra" mode (EU region).
+- **GPT-OSS (OpenAI)** — Fine-tuned with LoRA on party documents via Together AI. Separate adapters for Germany and Austria. See `CLAUDE-finetuning.md` for models, pipeline, data strategy, local testing with ollama, and known issues.
 - **Flux (Black Forest Labs)** — Image generation.
 - **AssemblyAI / Gladia** — Audio transcription.
 
@@ -249,6 +253,17 @@ All user-facing German text **must use gender-neutral language** with the **Gend
 ### Newsletter Writing Style
 
 See `CLAUDE-newsletter.md` for tone, structure, content patterns, and formatting conventions.
+
+### External API Clients & SSRF
+
+When building API clients that connect to user-provided URLs (WordPress, Nextcloud, WebDAV):
+1. **Always validate URLs** via `validateUrlForFetch()` from `utils/validation/urlSecurity.ts` before making requests. Use the validated `url` from the result, not the original input.
+2. **Use `new URL()` for normalization** — never regex-only (`/\/+$/`). Parse with `URL` constructor, check protocol, then build the normalized string.
+3. **CodeQL scans PRs for SSRF** — every `axios.get/post/put` on a user-derived base URL gets flagged. The fix is ensuring the data flow goes through `validateUrlForFetch()` and uses `urlCheck.url`.
+
+### Database Column Type Changes
+
+When changing a column type via migration (e.g. UUID → TEXT), **grep all queries referencing that column** and update type casts. PostgreSQL does not implicitly cast between `text` and `uuid` — a `$1::uuid` cast on a `TEXT` column will fail at runtime.
 
 ### Code Quality
 
