@@ -22,7 +22,7 @@ export default tseslint.config(
             'apps/desktop/eslint.config.mjs',
             'apps/sites/eslint.config.js',
             'apps/gruen-o-mat/eslint.config.js',
-            'apps/mobile/eslint.config.js',
+            'apps/mobile/shims/isomorphic-webcrypto.js',
             'packages/eslint-config/base.js',
             'packages/eslint-config/react.js',
             'packages/shared/eslint.config.js',
