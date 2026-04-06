@@ -84,11 +84,44 @@ export function extractJsonObject<T = Record<string, unknown>>(raw: unknown): T 
   // Replace smart quotes with normal quotes
   text = text.replace(/[""]/g, '"').replace(/['']/g, "'");
 
-  // Find first { and last } to slice out the JSON object if wrapped in prose
+  // Extract the first complete JSON object using brace-depth matching.
+  // The naive "first { to last }" strategy fails when LLMs output
+  // reasoning text between multiple JSON blocks (e.g. chain-of-thought).
   const firstBrace = text.indexOf('{');
-  const lastBrace = text.lastIndexOf('}');
-  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-    text = text.slice(firstBrace, lastBrace + 1);
+  if (firstBrace !== -1) {
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    let endPos = -1;
+
+    for (let i = firstBrace; i < text.length; i++) {
+      const ch = text[i];
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if (ch === '\\') {
+          escaped = true;
+        } else if (ch === '"') {
+          inString = false;
+        }
+      } else {
+        if (ch === '"') {
+          inString = true;
+        } else if (ch === '{') {
+          depth++;
+        } else if (ch === '}') {
+          depth--;
+          if (depth === 0) {
+            endPos = i;
+            break;
+          }
+        }
+      }
+    }
+
+    if (endPos !== -1) {
+      text = text.slice(firstBrace, endPos + 1);
+    }
   }
 
   log.debug('[jsonParser] Parsing JSON preview:', {
