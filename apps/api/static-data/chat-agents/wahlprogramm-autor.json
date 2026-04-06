@@ -7,7 +7,7 @@
   "backgroundColor": "#316049",
   "tags": ["Politik", "Wahlprogramm", "Grüne", "Programmatik"],
   "model": "mistral-large-latest",
-  "defaultModel": "magistral-medium-latest",
+  "defaultModel": "gpt-oss:120b",
   "provider": "mistral",
   "params": {
     "max_tokens": 4000,

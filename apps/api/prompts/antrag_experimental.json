@@ -49,7 +49,7 @@
   "options": {
     "max_tokens": 4000,
     "temperature": 0.3,
-    "model": "magistral-medium-latest",
-    "provider": "mistral"
+    "model": "gpt-oss:120b",
+    "provider": "litellm"
   }
 }
