@@ -33,22 +33,35 @@ export interface DocsAdapter {
   getCurrentUserDisplayName?(): string | null;
 }
 
+export interface DocsRequestOptions {
+  /** When true, 401 responses return null instead of triggering onUnauthorized redirect */
+  skipUnauthorized?: boolean;
+}
+
 /**
  * Typed API client derived from a DocsAdapter.
  * Used by Zustand stores which can't call React hooks.
  */
 export interface DocsApiClient {
   get<T>(url: string): Promise<T>;
+  get<T>(url: string, options: DocsRequestOptions): Promise<T | null>;
   post<T>(url: string, data?: unknown): Promise<T>;
+  post<T>(url: string, data: unknown, options: DocsRequestOptions): Promise<T | null>;
   put<T>(url: string, data?: unknown): Promise<T>;
+  put<T>(url: string, data: unknown, options: DocsRequestOptions): Promise<T | null>;
   delete<T>(url: string): Promise<T>;
+  delete<T>(url: string, options: DocsRequestOptions): Promise<T | null>;
 }
 
 /**
  * Create a DocsApiClient from a DocsAdapter.
  */
 export function createDocsApiClient(adapter: DocsAdapter): DocsApiClient {
-  async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  async function request<T>(
+    endpoint: string,
+    options: RequestInit = {},
+    docsOptions: DocsRequestOptions = {}
+  ): Promise<T> {
     const url = endpoint.startsWith('http') ? endpoint : `${adapter.getApiBaseUrl()}${endpoint}`;
 
     const isRename = options.method === 'PUT' && endpoint.startsWith('/docs/');
@@ -70,6 +83,9 @@ export function createDocsApiClient(adapter: DocsAdapter): DocsApiClient {
     });
 
     if (response.status === 401) {
+      if (docsOptions.skipUnauthorized) {
+        return null as T;
+      }
       if (isRename) console.error('[docs-rename] apiClient: 401 Unauthorized for %s', url);
       adapter.onUnauthorized();
       throw new Error('Unauthorized');
@@ -109,18 +125,22 @@ export function createDocsApiClient(adapter: DocsAdapter): DocsApiClient {
   }
 
   return {
-    get: <T,>(endpoint: string) => request<T>(endpoint, { method: 'GET' }),
-    post: <T,>(endpoint: string, data?: unknown) =>
-      request<T>(endpoint, {
-        method: 'POST',
-        body: data ? JSON.stringify(data) : undefined,
-      }),
-    put: <T,>(endpoint: string, data?: unknown) =>
-      request<T>(endpoint, {
-        method: 'PUT',
-        body: data ? JSON.stringify(data) : undefined,
-      }),
-    delete: <T,>(endpoint: string) => request<T>(endpoint, { method: 'DELETE' }),
+    get: <T,>(endpoint: string, docsOptions?: DocsRequestOptions) =>
+      request<T>(endpoint, { method: 'GET' }, docsOptions),
+    post: <T,>(endpoint: string, data?: unknown, docsOptions?: DocsRequestOptions) =>
+      request<T>(
+        endpoint,
+        { method: 'POST', body: data ? JSON.stringify(data) : undefined },
+        docsOptions
+      ),
+    put: <T,>(endpoint: string, data?: unknown, docsOptions?: DocsRequestOptions) =>
+      request<T>(
+        endpoint,
+        { method: 'PUT', body: data ? JSON.stringify(data) : undefined },
+        docsOptions
+      ),
+    delete: <T,>(endpoint: string, docsOptions?: DocsRequestOptions) =>
+      request<T>(endpoint, { method: 'DELETE' }, docsOptions),
   };
 }
 
