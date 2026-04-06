@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from '@gruenerator/ui';
 import { useState, useEffect } from 'react';
-import QRCode from 'react-qr-code';
+import { QRCode } from 'react-qr-code';
 
 import { cn } from '../../../utils/cn';
 import { canShare, shareContent } from '../../../utils/shareUtils';

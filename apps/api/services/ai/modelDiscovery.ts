@@ -31,8 +31,6 @@ interface OpenAIModelsResponse {
 const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision: boolean }> = {
   'mistral-large-2512': { name: 'Mistral Large', reasoning: false, vision: false },
   'mistral-large-latest': { name: 'Mistral Large', reasoning: false, vision: false },
-  'magistral-medium-latest': { name: 'Magistral Medium', reasoning: true, vision: false },
-  'magistral-small-latest': { name: 'Magistral Small', reasoning: true, vision: false },
   'mistral-small-latest': { name: 'Mistral Small', reasoning: false, vision: false },
   'mistral-small-2503': { name: 'Mistral Small (Vision)', reasoning: false, vision: true },
   'qwen3-vl-32b': { name: 'Qwen3 VL 32B', reasoning: false, vision: true },
@@ -164,11 +162,7 @@ function fetchModelsForProvider(provider: ProviderName): Promise<PlaygroundModel
   return fetchProviderModels(provider, endpoint.url(), process.env[endpoint.envKey] || null);
 }
 
-const FALLBACK_MODELS: PlaygroundModel[] = [
-  'mistral-large-2512',
-  'magistral-medium-latest',
-  'mistral-small-latest',
-]
+const FALLBACK_MODELS: PlaygroundModel[] = ['mistral-large-2512', 'mistral-small-latest']
   .map((id) => enrichModel(id, 'mistral'))
   .concat(
     [

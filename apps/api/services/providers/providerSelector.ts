@@ -19,7 +19,7 @@ import type {
 export function isLiteLLMCompatibleModel(modelName: string = ''): boolean {
   const name = String(modelName || '').toLowerCase();
   // LiteLLM models typically use prefixes like gpt-oss, or are mistral/mixtral variants
-  // Exclude Mistral API models (mistral-large-2512, magistral-*, etc.)
+  // Exclude Mistral API models (mistral-large-2512, etc.)
   if (name.includes('gpt-oss') || name.includes('gpt-4') || name.includes('gpt-3')) {
     return true;
   }
@@ -27,7 +27,7 @@ export function isLiteLLMCompatibleModel(modelName: string = ''): boolean {
     return true;
   }
   // Mistral API models are NOT litellm compatible
-  if (name.includes('mistral-') || name.includes('magistral-')) {
+  if (name.includes('mistral-')) {
     return false;
   }
   return false;
@@ -50,12 +50,11 @@ export function shouldAllowMainLlmOverride(
  */
 export function determineProviderFromModel(modelName: string = ''): ProviderName {
   const name = String(modelName || '').toLowerCase();
-  // Mistral API models (mistral-large, mistral-small, magistral-*)
+  // Mistral API models (mistral-large, mistral-small)
   if (
     name.includes('mistral-medium-') ||
     name.includes('mistral-large-') ||
-    name.includes('mistral-small-') ||
-    name.includes('magistral-')
+    name.includes('mistral-small-')
   ) {
     return 'mistral';
   }
@@ -104,10 +103,10 @@ export function selectProviderAndModel({
     provider = 'ionos';
     model = 'openai/gpt-oss-120b';
   }
-  // Pro mode (useProMode flag) - routes to high-quality Magistral model
+  // Pro mode (useProMode flag) - routes to high-quality reasoning model
   else if (options.useProMode === true) {
-    provider = 'mistral';
-    model = options.model || 'magistral-medium-latest';
+    provider = 'litellm';
+    model = options.model || 'gpt-oss:120b';
   }
 
   // Type-based defaults

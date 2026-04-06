@@ -113,10 +113,10 @@ const NotebooksSection: React.FC = memo(() => {
       {SYSTEM_NOTEBOOKS.length > INITIAL_COUNT && (
         <button
           type="button"
-          onClick={() => navigate('/recherche')}
+          onClick={() => navigate('/research')}
           className="mt-sm text-sm text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 cursor-pointer bg-transparent border-none transition-colors"
         >
-          Alle Notebooks anzeigen
+          Notebook Daten durchsuchen
         </button>
       )}
 

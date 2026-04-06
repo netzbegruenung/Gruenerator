@@ -26,7 +26,6 @@ const MODEL_MAP: Record<string, string> = {
   // Legacy IDs kept for backward compatibility
   'mistral-large': 'mistral-large-latest',
   'mistral-medium': 'mistral-medium-latest',
-  'magistral-medium': 'magistral-medium-latest',
   'pixtral-large': 'pixtral-large-latest',
 };
 

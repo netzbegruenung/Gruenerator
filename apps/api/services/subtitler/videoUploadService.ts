@@ -10,6 +10,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import { createLogger } from '../../utils/logger.js';
+import { sanitizePath } from '../../utils/validation/security.js';
 
 import { ffmpeg, normalizeRotation, type FFprobeMetadata } from './ffmpegWrapper.js';
 
@@ -121,9 +122,14 @@ async function extractAudio(
 ): Promise<string> {
   log.debug('Starte Audio-Extraktion:', { inputPath: videoPath, outputPath });
 
-  const allowedDirs = [path.resolve(__dirname, '../../uploads'), path.resolve(os.tmpdir())];
+  const uploadsDir = path.resolve(__dirname, '../../uploads');
+  const tmpDir = path.resolve(os.tmpdir());
   const resolvedVideoPath = path.resolve(videoPath);
-  if (!allowedDirs.some((dir) => resolvedVideoPath.startsWith(dir + path.sep))) {
+  if (resolvedVideoPath.startsWith(uploadsDir + path.sep)) {
+    sanitizePath(path.relative(uploadsDir, resolvedVideoPath), uploadsDir);
+  } else if (resolvedVideoPath.startsWith(tmpDir + path.sep)) {
+    sanitizePath(path.relative(tmpDir, resolvedVideoPath), tmpDir);
+  } else {
     throw new Error('Video path outside allowed directory');
   }
 

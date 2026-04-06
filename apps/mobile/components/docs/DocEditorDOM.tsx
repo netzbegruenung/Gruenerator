@@ -195,6 +195,7 @@ function createDomAdapter(
     getHocuspocusToken: async () => authToken,
     getAuthHeaders: async () => ({ Authorization: `Bearer ${authToken}` }),
     onUnauthorized: () => {},
+    getDocumentUrl: () => '',
     navigateToDocument: () => {},
     navigateToHome: () => {},
     getWebSocketPolyfill: wsBridge
