@@ -8,7 +8,7 @@ import { withRetry, isRecoverableError, CircuitBreaker } from './searchRetryStra
 let passed = 0;
 let failed = 0;
 
-function test(name: string, fn: () => Promise<void> | void) {
+function test(name: string, fn: () => Promise<void> | void): Promise<void> {
   return Promise.resolve(fn())
     .then(() => {
       passed++;
@@ -23,7 +23,8 @@ function test(name: string, fn: () => Promise<void> | void) {
 function expect(actual: any) {
   return {
     toBe(expected: any) {
-      if (actual !== expected) throw new Error(`Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+      if (actual !== expected)
+        throw new Error(`Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
     },
   };
 }
@@ -60,18 +61,27 @@ async function runTests() {
 
   await test('Succeeds on first try', async () => {
     let calls = 0;
-    const result = await withRetry(async () => { calls++; return 'ok'; }, { maxRetries: 2, delayMs: 10 });
+    const result = await withRetry(
+      async () => {
+        calls++;
+        return 'ok';
+      },
+      { maxRetries: 2, delayMs: 10 }
+    );
     expect(result).toBe('ok');
     expect(calls).toBe(1);
   });
 
   await test('Retries on recoverable error and succeeds', async () => {
     let calls = 0;
-    const result = await withRetry(async () => {
-      calls++;
-      if (calls === 1) throw new Error('Request timed out');
-      return 'ok';
-    }, { maxRetries: 1, delayMs: 10 });
+    const result = await withRetry(
+      async () => {
+        calls++;
+        if (calls === 1) throw new Error('Request timed out');
+        return 'ok';
+      },
+      { maxRetries: 1, delayMs: 10 }
+    );
     expect(result).toBe('ok');
     expect(calls).toBe(2);
   });
@@ -79,10 +89,13 @@ async function runTests() {
   await test('Does not retry on non-recoverable error', async () => {
     let calls = 0;
     try {
-      await withRetry(async () => {
-        calls++;
-        throw new Error('404 Not Found');
-      }, { maxRetries: 2, delayMs: 10 });
+      await withRetry(
+        async () => {
+          calls++;
+          throw new Error('404 Not Found');
+        },
+        { maxRetries: 2, delayMs: 10 }
+      );
       throw new Error('Should have thrown');
     } catch (err: any) {
       expect(calls).toBe(1);
@@ -93,10 +106,13 @@ async function runTests() {
   await test('Exhausts retries on persistent recoverable error', async () => {
     let calls = 0;
     try {
-      await withRetry(async () => {
-        calls++;
-        throw new Error('Request timed out');
-      }, { maxRetries: 2, delayMs: 10 });
+      await withRetry(
+        async () => {
+          calls++;
+          throw new Error('Request timed out');
+        },
+        { maxRetries: 2, delayMs: 10 }
+      );
       throw new Error('Should have thrown');
     } catch {
       expect(calls).toBe(3); // 1 initial + 2 retries
