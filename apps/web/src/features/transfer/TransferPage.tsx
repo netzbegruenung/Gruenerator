@@ -2,7 +2,7 @@ import { Button, FileCard, RetroGrid } from '@gruenerator/ui';
 import { useShareLinks, useWolkePreferencesStore } from '@gruenerator/wolke';
 import { useCallback, useState } from 'react';
 import { PiCheck, PiCopy, PiFile, PiPlus, PiShareNetwork, PiUploadSimple } from 'react-icons/pi';
-import { QRCode } from 'react-qr-code';
+import QRCode from 'react-qr-code';
 import { Link } from 'react-router-dom';
 
 import Spinner from '../../components/common/Spinner';
