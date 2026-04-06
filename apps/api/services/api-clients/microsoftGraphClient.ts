@@ -27,10 +27,20 @@ function authHeaders(token: string) {
   return { Authorization: `Bearer ${token}` };
 }
 
+const GRAPH_ID_PATTERN = /^[a-zA-Z0-9._!-]+$/;
+
+function validateGraphId(id: string, label: string): string {
+  if (!GRAPH_ID_PATTERN.test(id) || id.includes('..')) {
+    throw new Error(`Invalid ${label} format`);
+  }
+  return id;
+}
+
 export async function listDriveItems(
   token: string,
   folderId?: string,
 ): Promise<MicrosoftDriveListResult> {
+  if (folderId) validateGraphId(folderId, 'folder ID');
   const path = folderId
     ? `/me/drive/items/${folderId}/children`
     : '/me/drive/root/children';
@@ -49,6 +59,7 @@ export async function listDriveItems(
 }
 
 export async function getDriveItem(token: string, itemId: string): Promise<MicrosoftDriveItem> {
+  validateGraphId(itemId, 'item ID');
   const response = await axios.get(`${GRAPH_API}/me/drive/items/${itemId}`, {
     headers: authHeaders(token),
     params: {
@@ -59,6 +70,7 @@ export async function getDriveItem(token: string, itemId: string): Promise<Micro
 }
 
 export async function downloadDriveItem(token: string, itemId: string): Promise<Buffer> {
+  validateGraphId(itemId, 'item ID');
   const response = await axios.get(`${GRAPH_API}/me/drive/items/${itemId}/content`, {
     headers: authHeaders(token),
     responseType: 'arraybuffer',
@@ -83,6 +95,8 @@ export async function listSharePointDriveItems(
   siteId: string,
   folderId?: string,
 ): Promise<MicrosoftDriveListResult> {
+  validateGraphId(siteId, 'site ID');
+  if (folderId) validateGraphId(folderId, 'folder ID');
   const path = folderId
     ? `/sites/${siteId}/drive/items/${folderId}/children`
     : `/sites/${siteId}/drive/root/children`;
@@ -104,6 +118,8 @@ export async function listTeamsDriveItems(
   teamId: string,
   channelId?: string,
 ): Promise<MicrosoftDriveListResult> {
+  validateGraphId(teamId, 'team ID');
+  if (channelId) validateGraphId(channelId, 'channel ID');
   const path = channelId
     ? `/teams/${teamId}/channels/${channelId}/filesFolder/children`
     : `/teams/${teamId}/drive/root/children`;

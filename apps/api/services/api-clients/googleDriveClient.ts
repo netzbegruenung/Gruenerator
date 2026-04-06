@@ -25,14 +25,19 @@ function authHeaders(token: string) {
 
 const DRIVE_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
+function validateDriveId(id: string, label: string): string {
+  if (!DRIVE_ID_PATTERN.test(id)) {
+    throw new Error(`Invalid ${label} format`);
+  }
+  return id;
+}
+
 export async function listFiles(
   token: string,
   folderId?: string,
   pageToken?: string,
 ): Promise<GoogleDriveListResult> {
-  if (folderId && !DRIVE_ID_PATTERN.test(folderId)) {
-    throw new Error('Invalid folder ID format');
-  }
+  if (folderId) validateDriveId(folderId, 'folder ID');
   const query = folderId ? `'${folderId}' in parents and trashed = false` : 'trashed = false';
   const response = await axios.get(`${GOOGLE_DRIVE_API}/files`, {
     headers: authHeaders(token),
@@ -51,6 +56,7 @@ export async function listFiles(
 }
 
 export async function getFile(token: string, fileId: string): Promise<GoogleDriveFile> {
+  validateDriveId(fileId, 'file ID');
   const response = await axios.get(`${GOOGLE_DRIVE_API}/files/${fileId}`, {
     headers: authHeaders(token),
     params: {
@@ -61,6 +67,7 @@ export async function getFile(token: string, fileId: string): Promise<GoogleDriv
 }
 
 export async function downloadFile(token: string, fileId: string): Promise<Buffer> {
+  validateDriveId(fileId, 'file ID');
   const response = await axios.get(`${GOOGLE_DRIVE_API}/files/${fileId}`, {
     headers: authHeaders(token),
     params: { alt: 'media' },
@@ -74,6 +81,7 @@ export async function exportDoc(
   docId: string,
   mimeType: string = 'text/plain',
 ): Promise<string> {
+  validateDriveId(docId, 'document ID');
   const response = await axios.get(`${GOOGLE_DRIVE_API}/files/${docId}/export`, {
     headers: authHeaders(token),
     params: { mimeType },
@@ -82,6 +90,7 @@ export async function exportDoc(
 }
 
 export async function getDocContent(token: string, docId: string): Promise<any> {
+  validateDriveId(docId, 'document ID');
   const response = await axios.get(`${GOOGLE_DOCS_API}/documents/${docId}`, {
     headers: authHeaders(token),
   });
@@ -89,6 +98,7 @@ export async function getDocContent(token: string, docId: string): Promise<any> 
 }
 
 export async function getSheetContent(token: string, spreadsheetId: string, range?: string): Promise<any> {
+  validateDriveId(spreadsheetId, 'spreadsheet ID');
   const url = range
     ? `${GOOGLE_SHEETS_API}/spreadsheets/${spreadsheetId}/values/${range}`
     : `${GOOGLE_SHEETS_API}/spreadsheets/${spreadsheetId}`;
