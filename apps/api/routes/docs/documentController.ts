@@ -247,11 +247,19 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     const document = result[0];
 
+    const isOwner = document.created_by === userId;
+    const hasDirectPerm = !!(document.permissions && document.permissions[userId]);
     let hasAccess =
-      document.created_by === userId ||
-      document.is_public ||
-      document.share_mode === 'authenticated' ||
-      (document.permissions && document.permissions[userId]);
+      isOwner || document.is_public || document.share_mode === 'authenticated' || hasDirectPerm;
+    let accessMethod = isOwner
+      ? 'owner'
+      : document.is_public
+        ? 'public'
+        : document.share_mode === 'authenticated'
+          ? 'authenticated'
+          : hasDirectPerm
+            ? `direct:${document.permissions[userId]?.level}`
+            : 'none';
 
     if (!hasAccess) {
       const groupAccess = (await db.query(
@@ -263,10 +271,25 @@ router.get('/:id', async (req: Request, res: Response) => {
 
       if (groupAccess.length > 0 && groupAccess[0].permissions?.read !== false) {
         hasAccess = true;
+        accessMethod = 'group:read';
+      } else if (groupAccess.length > 0) {
+        console.warn(
+          '[Docs] GET /api/docs/%s — group access denied (read=false) for userId=%s',
+          id,
+          userId
+        );
       }
     }
 
     if (!hasAccess) {
+      console.warn(
+        '[Docs] GET /api/docs/%s — 403: userId=%s, accessMethod=%s, share_mode=%s, is_public=%s',
+        id,
+        userId,
+        accessMethod,
+        document.share_mode,
+        document.is_public
+      );
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -506,10 +529,22 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
 
       if (groupAccess.length > 0 && groupAccess[0].permissions?.read !== false) {
         hasAccessToDuplicate = true;
+      } else if (groupAccess.length > 0) {
+        console.warn(
+          '[Docs] POST /api/docs/%s/duplicate — group access denied (read=false) for userId=%s',
+          id,
+          userId
+        );
       }
     }
 
     if (!hasAccessToDuplicate) {
+      console.warn(
+        '[Docs] POST /api/docs/%s/duplicate — 403: userId=%s, share_mode=%s',
+        id,
+        userId,
+        original.share_mode
+      );
       return res.status(403).json({ error: 'Access denied' });
     }
 

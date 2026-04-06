@@ -1,5 +1,6 @@
 import {
   useCollaboration,
+  useCollaborators,
   getAuthErrorMessage,
   type CollaborationConfig,
 } from '@gruenerator/collab';
@@ -13,8 +14,16 @@ import {
   ErrorBoundary,
   type Document,
 } from '@gruenerator/docs';
+import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
-import { Skeleton } from '@gruenerator/ui';
+import {
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  AvatarGroup,
+  AvatarGroupCount,
+  Skeleton,
+} from '@gruenerator/ui';
 import { WolkeSaveModal, uploadToWolke } from '@gruenerator/wolke';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
@@ -124,7 +133,7 @@ function EditorContent() {
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
   const user = useAuthStore((s) => s.user);
   const isAuthLoading = useAuthStore((s) => s.isLoading);
-  const isGuest = !user;
+  const isGuest = !user && !isAuthLoading;
 
   const guestIdentity = useMemo(() => (isGuest ? getOrCreateGuestIdentity() : null), [isGuest]);
 
@@ -207,6 +216,8 @@ function EditorContent() {
     guestId: guestIdentity?.guestId,
     guestName: guestIdentity?.guestName,
   });
+  const collaborators = useCollaborators(provider);
+
   const { messages, sendMessage, getLocalUser, setTyping, typingUsers } = useDocumentChat({
     ydoc,
     provider,
@@ -432,6 +443,26 @@ function EditorContent() {
           onTitleChange={handleTitleChange}
           rightActions={
             <>
+              {collaborators.length > 0 && (
+                <>
+                  <AvatarGroup>
+                    {collaborators.slice(0, 5).map((c) => (
+                      <Avatar key={c.id} size="sm" title={c.name}>
+                        {c.avatarRobotId ? (
+                          <AvatarImage src={getRobotAvatarPath(c.avatarRobotId)} alt={c.name} />
+                        ) : null}
+                        <AvatarFallback style={{ backgroundColor: c.color, color: 'white' }}>
+                          {c.name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    ))}
+                    {collaborators.length > 5 && (
+                      <AvatarGroupCount>+{collaborators.length - 5}</AvatarGroupCount>
+                    )}
+                  </AvatarGroup>
+                  <span className="glass-divider" />
+                </>
+              )}
               {!isGuest && (
                 <>
                   <div ref={exportMenuRef} className="relative">

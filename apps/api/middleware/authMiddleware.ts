@@ -71,8 +71,8 @@ async function requireAuth(
       req.user = toBetterAuthUser(session.user);
       return next();
     }
-  } catch {
-    // Session check failed
+  } catch (err) {
+    console.warn('[Auth] Session check failed for %s: %s', req.originalUrl, (err as Error).message);
   }
 
   if (
@@ -80,6 +80,7 @@ async function requireAuth(
     req.headers.accept === 'application/json' ||
     req.originalUrl.startsWith('/api/')
   ) {
+    console.warn('[Auth] 401 — %s %s (no valid session)', req.method, req.originalUrl);
     res.status(401).json({
       error: 'Authentication required',
       redirectUrl: '/auth/login',
