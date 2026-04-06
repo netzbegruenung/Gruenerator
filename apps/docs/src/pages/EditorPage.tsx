@@ -502,7 +502,18 @@ export const EditorPage = () => {
             )}
 
             {sidebarTab === 'versions' && id && (
-              <VersionHistory documentId={id} apiClient={apiClient} canEdit={canEdit} />
+              <VersionHistory
+                documentId={id}
+                apiClient={apiClient}
+                canEdit={canEdit}
+                onRestore={(html) => {
+                  if (!editor) return;
+                  const blocks = editor.tryParseHTMLToBlocks(html);
+                  if (blocks && blocks.length > 0) {
+                    editor.replaceBlocks(editor.document, blocks);
+                  }
+                }}
+              />
             )}
           </aside>
         )}
