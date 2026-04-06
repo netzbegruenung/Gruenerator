@@ -1,7 +1,7 @@
+import { useActionSheet } from '@expo/react-native-action-sheet';
+import { Ionicons } from '@expo/vector-icons';
 import { type Project, getVideoUrl, useProjectsStore } from '@gruenerator/shared';
 import { kiTypeRequiresImage, typeHasTextGeneration } from '@gruenerator/shared/image-studio';
-import { Ionicons } from '@expo/vector-icons';
-import { useActionSheet } from '@expo/react-native-action-sheet';
 import { router } from 'expo-router';
 import { useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, useColorScheme, Pressable } from 'react-native';
@@ -57,9 +57,9 @@ export default function MediaDashboard() {
         options: ['Neues Reel', 'KI-Bild erstellen', 'Abbrechen'],
         cancelButtonIndex: 2,
         icons: [
-          <Ionicons name="videocam-outline" size={20} color={colors.primary[600]} />,
-          <Ionicons name="sparkles-outline" size={20} color={colors.primary[600]} />,
-          <Ionicons name="close-outline" size={20} color={colors.grey[400]} />,
+          <Ionicons key="videocam" name="videocam-outline" size={20} color={colors.primary[600]} />,
+          <Ionicons key="sparkles" name="sparkles-outline" size={20} color={colors.primary[600]} />,
+          <Ionicons key="close" name="close-outline" size={20} color={colors.grey[400]} />,
         ],
       },
       (index) => {

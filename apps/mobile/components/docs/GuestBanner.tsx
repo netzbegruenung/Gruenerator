@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 
-import { colors } from '../../theme';
 import { useDocsEditorBridgeStore } from '../../stores/docsEditorBridgeStore';
+import { colors } from '../../theme';
 
 export function GuestBanner() {
   const isGuest = useDocsEditorBridgeStore((s) => s.isGuest);

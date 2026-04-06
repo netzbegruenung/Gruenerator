@@ -4,8 +4,8 @@ import { useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { lightTheme, darkTheme, colors } from '../../theme';
 import { useDocsEditorBridgeStore } from '../../stores/docsEditorBridgeStore';
+import { lightTheme, darkTheme, colors } from '../../theme';
 
 const STATUS_COLORS = {
   connected: '#22c55e',

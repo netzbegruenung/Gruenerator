@@ -11,14 +11,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 
-import { BottomSheet } from '../common/BottomSheet';
-
 import {
   pickDocument,
   validatePickedDocument,
   uploadDocumentToChat,
 } from '../../services/documentPicker';
 import { colors, spacing, borderRadius } from '../../theme';
+import { BottomSheet } from '../common/BottomSheet';
 
 import type { Theme } from '../../theme/colors';
 import type { DocumentSearchResult, NotebookCollectionItem } from '@gruenerator/chat';
@@ -124,96 +123,94 @@ export function DocumentBrowserSheet({
 
   return (
     <BottomSheet visible={visible} onClose={onDismiss} maxHeight="80%">
-        <View style={[styles.header, { borderBottomColor: theme.border }]}>
-          {level.type === 'collection' ? (
-            <Pressable
-              onPress={() => {
-                setLevel({ type: 'root' });
-                setSearchQuery('');
-                setSearchResults([]);
-              }}
-              style={styles.backButton}
-              hitSlop={8}
-            >
-              <Ionicons name="chevron-back" size={22} color={theme.text} />
-              <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
-                {level.name}
-              </Text>
-            </Pressable>
-          ) : (
-            <Text style={[styles.headerTitle, { color: theme.text }]}>Dokumente</Text>
-          )}
-          <Pressable onPress={onDismiss} hitSlop={8}>
-            <Ionicons name="close" size={22} color={theme.textSecondary} />
+      <View style={[styles.header, { borderBottomColor: theme.border }]}>
+        {level.type === 'collection' ? (
+          <Pressable
+            onPress={() => {
+              setLevel({ type: 'root' });
+              setSearchQuery('');
+              setSearchResults([]);
+            }}
+            style={styles.backButton}
+            hitSlop={8}
+          >
+            <Ionicons name="chevron-back" size={22} color={theme.text} />
+            <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
+              {level.name}
+            </Text>
           </Pressable>
-        </View>
-
-        {level.type === 'collection' && (
-          <View style={[styles.searchRow, { backgroundColor: theme.surface }]}>
-            <Ionicons name="search" size={16} color={theme.textSecondary} />
-            <TextInput
-              style={[styles.searchInput, { color: theme.text }]}
-              placeholder="Suchen..."
-              placeholderTextColor={theme.textSecondary}
-              value={searchQuery}
-              onChangeText={handleSearch}
-              autoFocus
-            />
-            {searching && <ActivityIndicator size="small" color={colors.primary[600]} />}
-          </View>
-        )}
-
-        {isLoading || uploading ? (
-          <View style={styles.loading}>
-            <ActivityIndicator size="large" color={colors.primary[600]} />
-            {uploading && (
-              <Text style={[styles.loadingLabel, { color: theme.textSecondary }]}>
-                Wird hochgeladen…
-              </Text>
-            )}
-          </View>
-        ) : level.type === 'root' ? (
-          <RootLevel
-            collections={collections}
-            documents={documents}
-            texts={texts}
-            theme={theme}
-            onSelectCollection={(c) => setLevel({ type: 'collection', id: c.id, name: c.name })}
-            onSelectDoc={handleDocSelect}
-            onUpload={handleUpload}
-          />
-        ) : searchQuery.length >= 2 ? (
-          <FlatList
-            data={searchResults}
-            keyExtractor={(item) => item.documentId}
-            keyboardShouldPersistTaps="handled"
-            renderItem={({ item }) => (
-              <DocRow
-                title={item.title}
-                subtitle={item.excerpt}
-                theme={theme}
-                onPress={() =>
-                  handleDocSelect(
-                    { id: item.documentId, title: item.title, sourceType: 'document' },
-                    level.id,
-                    level.name
-                  )
-                }
-              />
-            )}
-            ListEmptyComponent={
-              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-                Keine Ergebnisse
-              </Text>
-            }
-          />
         ) : (
-          <CollectionDocs
-            collection={collections.find((c) => c.id === level.id)}
-            theme={theme}
-            onSelect={(doc) => handleDocSelect(doc, level.id, level.name)}
-          />
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Dokumente</Text>
         )}
+        <Pressable onPress={onDismiss} hitSlop={8}>
+          <Ionicons name="close" size={22} color={theme.textSecondary} />
+        </Pressable>
+      </View>
+
+      {level.type === 'collection' && (
+        <View style={[styles.searchRow, { backgroundColor: theme.surface }]}>
+          <Ionicons name="search" size={16} color={theme.textSecondary} />
+          <TextInput
+            style={[styles.searchInput, { color: theme.text }]}
+            placeholder="Suchen..."
+            placeholderTextColor={theme.textSecondary}
+            value={searchQuery}
+            onChangeText={handleSearch}
+            autoFocus
+          />
+          {searching && <ActivityIndicator size="small" color={colors.primary[600]} />}
+        </View>
+      )}
+
+      {isLoading || uploading ? (
+        <View style={styles.loading}>
+          <ActivityIndicator size="large" color={colors.primary[600]} />
+          {uploading && (
+            <Text style={[styles.loadingLabel, { color: theme.textSecondary }]}>
+              Wird hochgeladen…
+            </Text>
+          )}
+        </View>
+      ) : level.type === 'root' ? (
+        <RootLevel
+          collections={collections}
+          documents={documents}
+          texts={texts}
+          theme={theme}
+          onSelectCollection={(c) => setLevel({ type: 'collection', id: c.id, name: c.name })}
+          onSelectDoc={handleDocSelect}
+          onUpload={handleUpload}
+        />
+      ) : searchQuery.length >= 2 ? (
+        <FlatList
+          data={searchResults}
+          keyExtractor={(item) => item.documentId}
+          keyboardShouldPersistTaps="handled"
+          renderItem={({ item }) => (
+            <DocRow
+              title={item.title}
+              subtitle={item.excerpt}
+              theme={theme}
+              onPress={() =>
+                handleDocSelect(
+                  { id: item.documentId, title: item.title, sourceType: 'document' },
+                  level.id,
+                  level.name
+                )
+              }
+            />
+          )}
+          ListEmptyComponent={
+            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>Keine Ergebnisse</Text>
+          }
+        />
+      ) : (
+        <CollectionDocs
+          collection={collections.find((c) => c.id === level.id)}
+          theme={theme}
+          onSelect={(doc) => handleDocSelect(doc, level.id, level.name)}
+        />
+      )}
     </BottomSheet>
   );
 }

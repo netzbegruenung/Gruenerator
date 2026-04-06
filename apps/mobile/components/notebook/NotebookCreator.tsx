@@ -11,7 +11,6 @@ import {
   ScrollView,
 } from 'react-native';
 
-import { BottomSheet } from '../common/BottomSheet';
 import {
   pickDocument,
   validatePickedDocument,
@@ -20,6 +19,7 @@ import {
   type UploadedDocument,
 } from '../../services/documentPicker';
 import { colors, spacing, borderRadius, typography, lightTheme, darkTheme } from '../../theme';
+import { BottomSheet } from '../common/BottomSheet';
 
 interface Props {
   visible: boolean;
@@ -196,7 +196,11 @@ export function NotebookCreator({ visible, onClose, createCollection }: Props) {
             <TextInput
               style={[
                 styles.input,
-                { color: theme.text, borderColor: theme.cardBorder, backgroundColor: theme.surface },
+                {
+                  color: theme.text,
+                  borderColor: theme.cardBorder,
+                  backgroundColor: theme.surface,
+                },
               ]}
               value={name}
               onChangeText={setName}
@@ -212,7 +216,11 @@ export function NotebookCreator({ visible, onClose, createCollection }: Props) {
               style={[
                 styles.input,
                 styles.multilineInput,
-                { color: theme.text, borderColor: theme.cardBorder, backgroundColor: theme.surface },
+                {
+                  color: theme.text,
+                  borderColor: theme.cardBorder,
+                  backgroundColor: theme.surface,
+                },
               ]}
               value={description}
               onChangeText={setDescription}

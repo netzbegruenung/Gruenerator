@@ -2,11 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { memo } from 'react';
 import { View, ScrollView, Pressable, Text, StyleSheet, useColorScheme } from 'react-native';
 
+import { useDocsEditorBridgeStore, type FormatStyle } from '../../stores/docsEditorBridgeStore';
 import { lightTheme, darkTheme, colors } from '../../theme';
-import {
-  useDocsEditorBridgeStore,
-  type FormatStyle,
-} from '../../stores/docsEditorBridgeStore';
 
 interface ToolbarButton {
   id: string;
@@ -47,29 +44,100 @@ export const NativeFormattingToolbar = memo(function NativeFormattingToolbar() {
   const headingLevel = blockType === 'heading' ? (blockProps?.level as number) : 0;
 
   const items: ToolbarItem[] = [
-    { id: 'bold', label: 'B', action: () => toggleStyle('bold'), isActive: !!activeFormatting.bold },
-    { id: 'italic', label: 'I', action: () => toggleStyle('italic'), isActive: !!activeFormatting.italic },
-    { id: 'underline', label: 'U', action: () => toggleStyle('underline'), isActive: !!activeFormatting.underline },
-    { id: 'strike', label: 'S', action: () => toggleStyle('strike'), isActive: !!activeFormatting.strike },
+    {
+      id: 'bold',
+      label: 'B',
+      action: () => toggleStyle('bold'),
+      isActive: !!activeFormatting.bold,
+    },
+    {
+      id: 'italic',
+      label: 'I',
+      action: () => toggleStyle('italic'),
+      isActive: !!activeFormatting.italic,
+    },
+    {
+      id: 'underline',
+      label: 'U',
+      action: () => toggleStyle('underline'),
+      isActive: !!activeFormatting.underline,
+    },
+    {
+      id: 'strike',
+      label: 'S',
+      action: () => toggleStyle('strike'),
+      isActive: !!activeFormatting.strike,
+    },
     { id: 'd1', divider: true },
-    { id: 'h1', label: 'H1', action: () => setBlockType(headingLevel === 1 ? 'paragraph' : 'heading', { level: 1 }), isActive: headingLevel === 1 },
-    { id: 'h2', label: 'H2', action: () => setBlockType(headingLevel === 2 ? 'paragraph' : 'heading', { level: 2 }), isActive: headingLevel === 2 },
-    { id: 'h3', label: 'H3', action: () => setBlockType(headingLevel === 3 ? 'paragraph' : 'heading', { level: 3 }), isActive: headingLevel === 3 },
+    {
+      id: 'h1',
+      label: 'H1',
+      action: () => setBlockType(headingLevel === 1 ? 'paragraph' : 'heading', { level: 1 }),
+      isActive: headingLevel === 1,
+    },
+    {
+      id: 'h2',
+      label: 'H2',
+      action: () => setBlockType(headingLevel === 2 ? 'paragraph' : 'heading', { level: 2 }),
+      isActive: headingLevel === 2,
+    },
+    {
+      id: 'h3',
+      label: 'H3',
+      action: () => setBlockType(headingLevel === 3 ? 'paragraph' : 'heading', { level: 3 }),
+      isActive: headingLevel === 3,
+    },
     { id: 'd2', divider: true },
-    { id: 'bullet', icon: 'list', action: () => setBlockType(blockType === 'bulletListItem' ? 'paragraph' : 'bulletListItem'), isActive: blockType === 'bulletListItem' },
-    { id: 'number', icon: 'list-outline', action: () => setBlockType(blockType === 'numberedListItem' ? 'paragraph' : 'numberedListItem'), isActive: blockType === 'numberedListItem' },
-    { id: 'check', icon: 'checkbox-outline', action: () => setBlockType(blockType === 'checkListItem' ? 'paragraph' : 'checkListItem'), isActive: blockType === 'checkListItem' },
+    {
+      id: 'bullet',
+      icon: 'list',
+      action: () => setBlockType(blockType === 'bulletListItem' ? 'paragraph' : 'bulletListItem'),
+      isActive: blockType === 'bulletListItem',
+    },
+    {
+      id: 'number',
+      icon: 'list-outline',
+      action: () =>
+        setBlockType(blockType === 'numberedListItem' ? 'paragraph' : 'numberedListItem'),
+      isActive: blockType === 'numberedListItem',
+    },
+    {
+      id: 'check',
+      icon: 'checkbox-outline',
+      action: () => setBlockType(blockType === 'checkListItem' ? 'paragraph' : 'checkListItem'),
+      isActive: blockType === 'checkListItem',
+    },
     { id: 'd3', divider: true },
-    { id: 'left', icon: 'menu-outline', action: () => setAlignment('left'), isActive: alignment === 'left' },
-    { id: 'center', icon: 'reorder-two-outline', action: () => setAlignment('center'), isActive: alignment === 'center' },
-    { id: 'right', icon: 'menu-outline', action: () => setAlignment('right'), isActive: alignment === 'right' },
+    {
+      id: 'left',
+      icon: 'menu-outline',
+      action: () => setAlignment('left'),
+      isActive: alignment === 'left',
+    },
+    {
+      id: 'center',
+      icon: 'reorder-two-outline',
+      action: () => setAlignment('center'),
+      isActive: alignment === 'center',
+    },
+    {
+      id: 'right',
+      icon: 'menu-outline',
+      action: () => setAlignment('right'),
+      isActive: alignment === 'right',
+    },
   ];
 
   const activeColor = colorScheme === 'dark' ? colors.primary[800] : colors.primary[100];
   const buttonColor = colorScheme === 'dark' ? colors.grey[100] : colors.grey[700];
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background, borderBottomColor: theme.border }]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: theme.background, borderBottomColor: theme.border },
+      ]}
+    >
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -78,10 +146,7 @@ export const NativeFormattingToolbar = memo(function NativeFormattingToolbar() {
         {items.map((item) => {
           if (isDivider(item)) {
             return (
-              <View
-                key={item.id}
-                style={[styles.divider, { backgroundColor: theme.border }]}
-              />
+              <View key={item.id} style={[styles.divider, { backgroundColor: theme.border }]} />
             );
           }
 
@@ -89,10 +154,7 @@ export const NativeFormattingToolbar = memo(function NativeFormattingToolbar() {
             <Pressable
               key={item.id}
               onPress={item.action}
-              style={[
-                styles.button,
-                item.isActive && { backgroundColor: activeColor },
-              ]}
+              style={[styles.button, item.isActive && { backgroundColor: activeColor }]}
             >
               {item.icon ? (
                 <Ionicons

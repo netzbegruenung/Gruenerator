@@ -65,7 +65,9 @@ export default function NotificationsScreen() {
       if (notification.action_url) {
         try {
           router.push(notification.action_url as never);
-        } catch {}
+        } catch {
+          /* navigation may fail */
+        }
       }
     },
     [markAsRead, router]
@@ -79,14 +81,23 @@ export default function NotificationsScreen() {
           style={[
             styles.item,
             {
-              backgroundColor: item.is_read ? 'transparent' : (colorScheme === 'dark' ? colors.primary[900] + '30' : colors.primary[50]),
+              backgroundColor: item.is_read
+                ? 'transparent'
+                : colorScheme === 'dark'
+                  ? colors.primary[900] + '30'
+                  : colors.primary[50],
               borderBottomColor: theme.border,
             },
           ]}
           onPress={() => handlePress(item)}
           activeOpacity={0.6}
         >
-          <View style={[styles.iconCircle, { backgroundColor: colorScheme === 'dark' ? colors.grey[800] : colors.grey[100] }]}>
+          <View
+            style={[
+              styles.iconCircle,
+              { backgroundColor: colorScheme === 'dark' ? colors.grey[800] : colors.grey[100] },
+            ]}
+          >
             <Ionicons name={icon} size={18} color={colors.primary[600]} />
           </View>
           <View style={styles.itemContent}>
@@ -102,11 +113,7 @@ export default function NotificationsScreen() {
               {formatTimeAgo(item.created_at)}
             </Text>
           </View>
-          <TouchableOpacity
-            onPress={() => dismiss(item.id)}
-            hitSlop={8}
-            style={styles.dismissBtn}
-          >
+          <TouchableOpacity onPress={() => dismiss(item.id)} hitSlop={8} style={styles.dismissBtn}>
             <Ionicons name="close" size={16} color={theme.textSecondary} />
           </TouchableOpacity>
         </TouchableOpacity>
@@ -138,7 +145,11 @@ export default function NotificationsScreen() {
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={refresh} tintColor={colors.primary[600]} />
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={refresh}
+            tintColor={colors.primary[600]}
+          />
         }
         onEndReached={hasMore ? loadMore : undefined}
         onEndReachedThreshold={0.3}

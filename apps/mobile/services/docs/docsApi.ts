@@ -1,8 +1,7 @@
+import { apiRequest } from '@gruenerator/shared/api';
 import { fetch as expoFetch } from 'expo/fetch';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-
-import { apiRequest } from '@gruenerator/shared/api';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_DOCS_API_URL || 'https://docs.gruenerator.eu/api';
 
