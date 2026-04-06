@@ -118,6 +118,7 @@ export const auth = betterAuth({
   account: {
     modelName: 'ba_accounts',
     fields: {
+      userId: 'user_id',
       accountId: 'account_id',
       providerId: 'provider_id',
       accessToken: 'access_token',
