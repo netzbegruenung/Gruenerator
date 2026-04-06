@@ -1,7 +1,7 @@
 import { Button } from '@gruenerator/ui';
 import React, { useState, useEffect, useCallback } from 'react';
 import { FaInstagram } from 'react-icons/fa';
-import { QRCode } from 'react-qr-code';
+import QRCode from 'react-qr-code';
 import { useParams } from 'react-router-dom';
 
 import LoginRequired from '../../../components/common/LoginRequired/LoginRequired';
