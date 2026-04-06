@@ -38,15 +38,23 @@ router.get('/:id', async (req: Request, res: Response) => {
     }[];
 
     if (result.length === 0) {
+      console.warn('[Docs] Public check 404: docId=%s — not found, deleted, or private', id);
       return res.status(404).json({ error: 'Document not found or not publicly accessible' });
     }
 
     const doc = result[0];
 
     if (doc.share_mode === 'authenticated') {
+      console.log('[Docs] Public check: docId=%s — authenticated mode, returning title only', id);
       return res.json({ share_mode: 'authenticated', title: doc.title });
     }
 
+    console.log(
+      '[Docs] Public check: docId=%s — share_mode=%s, subtype=%s',
+      id,
+      doc.share_mode,
+      doc.document_subtype
+    );
     return res.json(doc);
   } catch (error: any) {
     console.error('[Docs] Error checking public document:', error);
