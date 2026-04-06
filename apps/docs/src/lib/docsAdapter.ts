@@ -27,6 +27,8 @@ export const webDocsAdapter: DocsAdapter = {
     window.location.href = `/login?redirectTo=${encodeURIComponent(currentPath)}`;
   },
 
+  getDocumentUrl: (id) => `/document/${id}`,
+
   navigateToDocument: (id) => {
     window.location.href = `/document/${id}`;
   },
