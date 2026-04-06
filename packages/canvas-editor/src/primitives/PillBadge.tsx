@@ -15,6 +15,7 @@ import { useRef, useCallback, useEffect, useState, memo } from 'react';
 import { Group, Rect, Text, Transformer } from 'react-konva';
 
 import { calculatePillBadgeDimensions } from '../utils/pillBadgeUtils';
+import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { calculateElementSnapPosition } from '../utils/snapping';
 
 import type { PillBadgeFontStyle } from '../utils/pillBadgeUtils';
@@ -82,7 +83,7 @@ function PillBadgeInner({
   const transformerRef = useRef<Konva.Transformer>(null);
   const [isEditing, setIsEditing] = useState(false);
 
-  const lastSnapRef = useRef({ h: false, v: false, linesCount: 0 });
+  const snap = useSnapScheduler({ onSnapChange, onSnapLinesChange });
 
   const dimensions = calculatePillBadgeDimensions(
     text,
@@ -122,31 +123,17 @@ function PillBadgeInner({
       );
 
       node.position({ x: result.x, y: result.y });
-
-      const snapChanged =
-        lastSnapRef.current.h !== result.snapH || lastSnapRef.current.v !== result.snapV;
-      const linesChanged = lastSnapRef.current.linesCount !== result.snapLines.length;
-
-      if (snapChanged || linesChanged) {
-        lastSnapRef.current = {
-          h: result.snapH,
-          v: result.snapV,
-          linesCount: result.snapLines.length,
-        };
-        onSnapChange(result.snapH, result.snapV);
-        onSnapLinesChange(result.snapLines);
-      }
+      snap.scheduleSnap(result.snapH, result.snapV, result.snapLines);
     },
-    [id, dimensions, getSnapTargets, stageWidth, stageHeight, onSnapChange, onSnapLinesChange]
+    [id, dimensions, getSnapTargets, stageWidth, stageHeight, snap]
   );
 
   const handleDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
-      onSnapChange(false, false);
-      onSnapLinesChange([]);
+      snap.onDragEnd();
       onDragEnd(e.target.x(), e.target.y());
     },
-    [onDragEnd, onSnapChange, onSnapLinesChange]
+    [onDragEnd, snap]
   );
 
   const handleTransformEnd = useCallback(() => {
@@ -264,6 +251,7 @@ function PillBadgeInner({
         rotation={rotation}
         opacity={opacity}
         draggable={!isEditing}
+        onDragStart={snap.onDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
         onTransformEnd={handleTransformEnd}

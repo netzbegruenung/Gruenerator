@@ -160,11 +160,20 @@ export interface DocumentResponse {
 }
 
 // === MEMORY TYPES ===
+export type MemoryCategory = 'identity' | 'activity' | 'context' | 'experience' | 'preference';
+export type MemoryConfidence = 'high' | 'medium' | 'low';
+export type MemorySource = 'manual' | 'extracted' | 'explicit';
+
 export interface Memory {
   id: string | number;
   content: string;
   topic?: string;
+  category: MemoryCategory | null;
+  confidence: MemoryConfidence;
+  source: MemorySource;
   created_at?: string;
+  updated_at?: string;
+  score?: number;
   [key: string]: unknown;
 }
 
@@ -695,6 +704,39 @@ export const profileApiService = {
     }
 
     return result;
+  },
+
+  async updateMemory(memoryId: string | number, content: string): Promise<MemoryResponse> {
+    const response = await apiClient.put(`/mem0/${memoryId}`, { content });
+    const result = response.data;
+
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to update memory');
+    }
+
+    return result;
+  },
+
+  async searchMemories(
+    query: string,
+    category?: MemoryCategory,
+    limit?: number
+  ): Promise<Memory[]> {
+    const response = await apiClient.post('/mem0/search', { query, category, limit });
+    const result = response.data;
+
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to search memories');
+    }
+
+    return result.memories || [];
+  },
+
+  async exportMemories(userId: string): Promise<Blob> {
+    const response = await apiClient.get(`/mem0/user/${userId}/export`, {
+      responseType: 'blob',
+    });
+    return response.data;
   },
 
   // === PROFILE MUTATIONS (moved from profileUtils.js) ===

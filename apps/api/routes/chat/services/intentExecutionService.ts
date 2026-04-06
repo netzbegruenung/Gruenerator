@@ -16,6 +16,10 @@ import {
   summarizeNode,
   buildCitations,
 } from '../../../agents/langgraph/ChatGraph/index.js';
+import {
+  generateSharepicForChat,
+  type ExpressRequest as SharepicExpressRequest,
+} from '../../../services/chat/sharepicGenerationService.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { CONFIRM_ACTION_CONFIG } from './confirmActionService.js';
@@ -413,6 +417,7 @@ export async function executeIntentPipeline(opts: {
   forcedTool: boolean;
   enabledTools?: Record<string, boolean>;
   imageAttachments: ImageAttachment[];
+  req?: import('express').Request;
 }): Promise<{ finalState: ChatGraphState; generatedImage: GeneratedImageResult | null }> {
   const { classifiedState, sse, forcedTool, enabledTools, imageAttachments } = opts;
 
@@ -485,6 +490,72 @@ export async function executeIntentPipeline(opts: {
             });
           }
         }
+      }
+    } else if (currentIntent === 'sharepic') {
+      sse.send('image_start', { message: 'Erstelle Sharepic...' });
+      try {
+        const sharepicType = finalState.contentType || 'dreizeilen';
+        const message = finalState.messages?.[finalState.messages.length - 1]?.content || '';
+        const messageText = typeof message === 'string' ? message : '';
+
+        if (!opts.req) throw new Error('Express request required for sharepic generation');
+        const result = await generateSharepicForChat(
+          opts.req as SharepicExpressRequest,
+          sharepicType,
+          {
+            text: messageText,
+            subject: messageText,
+            count: 1,
+          }
+        );
+
+        if (result.success) {
+          const { sharepic } = result.content;
+          const canvasTypeMap: Record<string, string> = {
+            info: 'info',
+            zitat_pure: 'zitat-pure',
+            zitat: 'zitat',
+            dreizeilen: 'dreizeilen',
+          };
+          const canvasType = canvasTypeMap[sharepic.type] || 'dreizeilen';
+
+          const initialProps: Record<string, unknown> = {};
+          if (sharepic.textData) {
+            if (sharepic.type === 'dreizeilen') {
+              initialProps.zeile1 = sharepic.textData.line1 || '';
+              initialProps.zeile2 = sharepic.textData.line2 || '';
+              initialProps.zeile3 = sharepic.textData.line3 || '';
+            } else if (sharepic.type === 'zitat_pure' || sharepic.type === 'zitat') {
+              initialProps.quote = sharepic.textData.quote || '';
+              initialProps.name = sharepic.textData.name || '';
+            } else if (sharepic.type === 'info') {
+              initialProps.headline = sharepic.textData.header || '';
+              initialProps.subtext = sharepic.textData.subheader || sharepic.textData.body || '';
+            }
+          }
+
+          sse.send('sharepic_complete', {
+            message: 'Sharepic erstellt',
+            canvasType,
+            initialProps,
+            alternatives: sharepic.alternatives as unknown[] || [],
+          });
+        } else {
+          sse.send('sharepic_complete', {
+            message: 'Sharepic-Erstellung fehlgeschlagen',
+            canvasType: 'dreizeilen',
+            initialProps: {},
+            error: 'Generation failed',
+          });
+        }
+      } catch (error) {
+        log.error('[ChatGraph] Sharepic generation failed:', error);
+        sse.send('sharepic_complete', {
+          message: 'Sharepic-Erstellung fehlgeschlagen',
+          canvasType: 'dreizeilen',
+          initialProps: {},
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
       }
     } else if (currentIntent === 'summary') {
       const docCount =

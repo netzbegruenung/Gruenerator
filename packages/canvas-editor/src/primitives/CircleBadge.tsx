@@ -13,6 +13,7 @@
 import { useRef, useCallback, useEffect, useState, memo } from 'react';
 import { Group, Circle, Text, Rect, Transformer } from 'react-konva';
 
+import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { calculateElementSnapPosition } from '../utils/snapping';
 
 import type { SnapTarget } from '../utils/snapping';
@@ -89,7 +90,7 @@ function CircleBadgeInner({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
-  const lastSnapRef = useRef({ h: false, v: false, linesCount: 0 });
+  const snap = useSnapScheduler({ onSnapChange, onSnapLinesChange });
 
   useEffect(() => {
     if (selected && editingIndex === null && groupRef.current && transformerRef.current) {
@@ -129,31 +130,17 @@ function CircleBadgeInner({
       );
 
       node.position({ x: result.x + contentWidth / 2, y: result.y + contentHeight / 2 });
-
-      const snapChanged =
-        lastSnapRef.current.h !== result.snapH || lastSnapRef.current.v !== result.snapV;
-      const linesChanged = lastSnapRef.current.linesCount !== result.snapLines.length;
-
-      if (snapChanged || linesChanged) {
-        lastSnapRef.current = {
-          h: result.snapH,
-          v: result.snapV,
-          linesCount: result.snapLines.length,
-        };
-        onSnapChange(result.snapH, result.snapV);
-        onSnapLinesChange(result.snapLines);
-      }
+      snap.scheduleSnap(result.snapH, result.snapV, result.snapLines);
     },
-    [id, radius, getSnapTargets, stageWidth, stageHeight, onSnapChange, onSnapLinesChange]
+    [id, radius, getSnapTargets, stageWidth, stageHeight, snap]
   );
 
   const handleDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
-      onSnapChange(false, false);
-      onSnapLinesChange([]);
+      snap.onDragEnd();
       onDragEnd(e.target.x(), e.target.y());
     },
-    [onDragEnd, onSnapChange, onSnapLinesChange]
+    [onDragEnd, snap]
   );
 
   const handleTransformEnd = useCallback(() => {
@@ -267,6 +254,7 @@ function CircleBadgeInner({
         rotation={rotation}
         opacity={opacity}
         draggable={editingIndex === null}
+        onDragStart={snap.onDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
         onTransformEnd={handleTransformEnd}

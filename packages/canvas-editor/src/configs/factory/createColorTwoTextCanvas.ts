@@ -21,7 +21,7 @@ import {
 } from '../alternativesSection';
 import { injectFeatureProps } from '../featureInjector';
 import { getPlaceholder } from '../placeholders';
-import { shareTab, createShareSection } from '../shareSection';
+import { createShareSection } from '../shareSection';
 
 import { createBaseActions } from './commonActions';
 
@@ -34,6 +34,7 @@ import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
 import type { IllustrationInstance } from '../../utils/illustrations/types';
 import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../../utils/shapes';
+import type { UserImageInstance } from '../../utils/userImageUtils';
 import type { FullCanvasConfig, LayoutResult, CanvasElementConfig, AdditionalText } from '../types';
 
 // ============================================================================
@@ -68,6 +69,7 @@ export interface ColorTwoTextState {
   circleBadgeInstances: CircleBadgeInstance[];
   balkenInstances: BalkenInstance[];
   frameInstances: FrameInstance[];
+  userImageInstances: UserImageInstance[];
 }
 
 // ============================================================================
@@ -253,7 +255,6 @@ export function createColorTwoTextCanvas(
         ariaLabel: 'Dekorative Elemente',
       },
       alternativesTab,
-      shareTab,
     ],
 
     getVisibleTabs: () => ['background', 'assets', 'alternatives', 'share'],
@@ -333,6 +334,7 @@ export function createColorTwoTextCanvas(
       circleBadgeInstances: [],
       balkenInstances: [],
       frameInstances: [],
+      userImageInstances: [],
     }),
 
     createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {

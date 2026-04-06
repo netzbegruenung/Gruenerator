@@ -82,7 +82,7 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
       // Search in Qdrant
       const results = await qdrant.search(COLLECTION_NAME, {
         vector: embedding,
-        limit: limit,
+        limit: Math.min(limit * 2, 40),
         with_payload: true,
         score_threshold: DEFAULT_THRESHOLD,
         ...(filter ? { filter: filter as Record<string, unknown> } : {}),
@@ -106,12 +106,26 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
         },
       }));
 
+      const seen = new Set<string>();
+      const dedupedExamples = examples
+        .filter((ex) => {
+          const key = String(ex.content)
+            .slice(0, 250)
+            .toLowerCase()
+            .replace(/\s+/g, ' ')
+            .slice(0, 200);
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .slice(0, limit);
+
       return {
         query,
         platform,
         country,
-        resultsCount: examples.length,
-        examples,
+        resultsCount: dedupedExamples.length,
+        examples: dedupedExamples,
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

@@ -23,7 +23,7 @@ export async function canAccessThread(threadId: string, userId: string): Promise
     `SELECT 1 FROM group_content_shares gcs
      INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id
      WHERE gcs.content_type = 'chat_threads'
-     AND gcs.content_id = $1::uuid
+     AND gcs.content_id = $1::text
      AND gm.user_id = $2::uuid
      LIMIT 1`,
     [threadId, userId]

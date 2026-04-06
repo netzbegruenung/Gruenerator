@@ -23,6 +23,28 @@ const createRedirect = (to: string): FC<Record<string, unknown>> => {
   return () => createElement(Navigate, { to, replace: true });
 };
 
+// Redirects for /image-studio/* routes to /studio/*
+const ImageStudioRedirect = lazy(() =>
+  Promise.resolve({ default: createRedirect('/studio') })
+);
+const ImageStudioCategoryRedirectComponent: FC<Record<string, unknown>> = () => {
+  const { category } = useParams();
+  return createElement(Navigate, { to: `/studio/${category || ''}`, replace: true });
+};
+const ImageStudioCategoryRedirect = lazy(() =>
+  Promise.resolve({ default: ImageStudioCategoryRedirectComponent })
+);
+const ImageStudioCategoryTypeRedirectComponent: FC<Record<string, unknown>> = () => {
+  const { category, type } = useParams();
+  return createElement(Navigate, {
+    to: `/studio/${category || ''}/${type || ''}`,
+    replace: true,
+  });
+};
+const ImageStudioCategoryTypeRedirect = lazy(() =>
+  Promise.resolve({ default: ImageStudioCategoryTypeRedirectComponent })
+);
+
 // Redirects for image-studio/ki routes to /imagine
 const ImageStudioKiRedirect = lazy(() =>
   Promise.resolve({
@@ -355,6 +377,10 @@ const standardRoutes: RouteConfig[] = [
   { path: '/apps', component: AppsPage },
   // Media Library Route
   { path: '/media-library', component: MediaLibraryPage },
+  // Legacy /image-studio/* redirects to /studio/*
+  { path: '/image-studio', component: ImageStudioRedirect },
+  { path: '/image-studio/:category', component: ImageStudioCategoryRedirect },
+  { path: '/image-studio/:category/:type', component: ImageStudioCategoryTypeRedirect },
   // Studio Routes - KI routes redirect to /imagine
   { path: '/imagine', component: ImaginePage, withForm: true },
   { path: '/imagine/:type', component: ImaginePage, withForm: true },

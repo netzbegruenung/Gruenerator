@@ -11,6 +11,8 @@ import { ProgressTracker } from '../tool-ui/progress-tracker/ProgressTracker';
 import { SkillBadge } from '../message-parts/SkillBadge';
 import { TypingIndicator } from '../message-parts/TypingIndicator';
 import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
+import { SharepicImageDisplay } from '../message-parts/SharepicImageDisplay';
+import { MemoryIndicator } from '../message-parts/MemoryIndicator';
 import { MessageActions } from '../message-parts/MessageActions';
 import { SearchResultsSection, type AdditionalSource } from '../message-parts/SearchResultsSection';
 import { CitationProvider, useFetchFullText } from '../../context/CitationContext';
@@ -137,6 +139,9 @@ export const AssistantMessage = memo(function AssistantMessage() {
             />
           ))}
 
+        {custom?.sharepicData && !custom?.generatedImage && (
+          <SharepicImageDisplay sharepicData={custom.sharepicData} />
+        )}
         {custom?.generatedImage && <GeneratedImageDisplay image={custom.generatedImage} />}
 
         <CitationProvider citations={citations} fetchFullText={fetchFullText}>
@@ -157,6 +162,10 @@ export const AssistantMessage = memo(function AssistantMessage() {
 
         {!isStreaming && textContent && (
           <MessageActions content={textContent} metadata={actionsMetadata} />
+        )}
+
+        {!isStreaming && custom?.progress?.memoryContext && (
+          <MemoryIndicator memoryContext={custom.progress.memoryContext} />
         )}
       </div>
     </MessagePrimitive.Root>

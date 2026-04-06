@@ -64,9 +64,8 @@ Wähle den besten Hintergrund aus (gib die Nummer an).`;
         systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
         options: {
-          temperature: 0.6, // Increased for more variety
+          temperature: 0.6,
           max_tokens: 200,
-          provider: 'mistral',
         },
       },
       req

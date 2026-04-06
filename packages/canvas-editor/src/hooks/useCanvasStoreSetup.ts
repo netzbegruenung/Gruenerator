@@ -6,7 +6,7 @@
 import { useEffect, type RefObject } from 'react';
 
 import { canvasRefRegistry } from '../stores/canvasEditorRefs';
-import { useCanvasEditorStore } from '../stores/canvasEditorStore';
+import { useCanvasStore } from '../stores/CanvasStoreProvider';
 
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 
@@ -19,14 +19,14 @@ export function useCanvasStoreSetup(
   componentId: string,
   stageRef: RefObject<CanvasStageRef | null>
 ): void {
-  const { resetStore } = useCanvasEditorStore();
+  const store = useCanvasStore();
 
   useEffect(() => {
     canvasRefRegistry.setStageRef(componentId, () => stageRef.current?.getStage() ?? null);
 
     return () => {
       canvasRefRegistry.unregister(componentId);
-      resetStore();
+      store.getState().resetStore();
     };
-  }, [componentId, stageRef, resetStore]);
+  }, [componentId, stageRef, store]);
 }

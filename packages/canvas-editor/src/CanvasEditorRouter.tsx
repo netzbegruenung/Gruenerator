@@ -92,11 +92,17 @@ export function ControllableCanvasWrapper({
       'dreizeilen',
       'slider',
       'freeform',
+      'pres-title',
+      'pres-image',
+      'pres-content',
+      'presentation',
     ].includes(type);
 
-    if (needsConfig && isValidCanvasType(type)) {
+    // 'presentation' is an alias — load the default pres-title config
+    const configType = type === 'presentation' ? 'pres-title' : type;
+    if (needsConfig && isValidCanvasType(configType)) {
       setConfigLoading(true);
-      loadCanvasConfig(type)
+      loadCanvasConfig(configType)
         .then(setConfig)
         .catch((error) => {
           console.error(`Failed to load canvas config for type "${type}":`, error);
@@ -228,6 +234,18 @@ export function ControllableCanvasWrapper({
             backgroundColor: internalState.backgroundColor || '#005538',
             currentImageSrc: imageSrc || '',
           };
+        case 'pres-title':
+        case 'pres-image':
+        case 'pres-content':
+        case 'presentation':
+          return {
+            title: internalState.title || '',
+            subtitle: internalState.subtitle || '',
+            bodyText: internalState.bodyText || '',
+            bodyText2: internalState.bodyText2 || '',
+            currentImageSrc: imageSrc || '',
+            alternatives: internalState.alternatives || [],
+          };
         default:
           return internalState;
       }
@@ -251,6 +269,11 @@ export function ControllableCanvasWrapper({
           return createCallbacks(['line1', 'line2', 'line3']);
         case 'freeform':
           return {};
+        case 'pres-title':
+        case 'pres-image':
+        case 'pres-content':
+        case 'presentation':
+          return createCallbacks(['title', 'subtitle', 'bodyText', 'bodyText2']);
         default:
           return {};
       }
@@ -266,17 +289,21 @@ export function ControllableCanvasWrapper({
       case 'slider':
       case 'dreizeilen':
       case 'freeform':
+      case 'pres-title':
+      case 'pres-image':
+      case 'pres-content':
+      case 'presentation':
         if (!config) return <div>Lädt Konfiguration...</div>;
 
         return (
           <CanvasEditor
             key={componentKey}
-            initialConfigId={type as CanvasConfigId}
+            initialConfigId={(type === 'presentation' ? 'pres-title' : type) as CanvasConfigId}
             initialProps={buildInitialProps()}
             onExport={onExport}
             onCancel={onCancel}
             callbacks={buildCallbacks()}
-            maxPages={config.multiPage?.maxPages ?? 10}
+            maxPages={config.multiPage?.maxPages ?? 30}
             initialPages={initialPages}
             mobileBridge={mobileBridge}
             externalSidebar={externalSidebar}

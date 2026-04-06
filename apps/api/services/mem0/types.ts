@@ -1,33 +1,24 @@
-/**
- * Mem0 Service Type Definitions
- *
- * TypeScript interfaces for the mem0 memory service.
- * Used for cross-thread, per-user memory persistence.
- */
+import type { MemoryCategory } from './categories.js';
 
-/**
- * A message in the conversation for memory extraction.
- */
 export interface Mem0Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
 }
 
-/**
- * Metadata attached to a memory.
- */
+export type MemoryConfidence = 'high' | 'medium' | 'low';
+export type MemorySource = 'manual' | 'extracted' | 'explicit';
+
 export interface Mem0MemoryMetadata {
   threadId?: string;
   messageId?: string;
-  source?: string;
-  memoryType?: 'preference' | 'fact' | 'context' | 'instruction';
+  source?: MemorySource;
+  /** Raw category string from mem0 extraction — use normalizeCategory() to get typed MemoryCategory */
+  memoryType?: string;
+  confidence?: MemoryConfidence;
+  categories?: MemoryCategory[];
   [key: string]: unknown;
 }
 
-/**
- * A single memory stored by mem0.
- * This is our wrapper type around mem0ai's MemoryItem.
- */
 export interface Mem0Memory {
   id: string;
   memory: string;
@@ -39,9 +30,6 @@ export interface Mem0Memory {
   user_id?: string;
 }
 
-/**
- * Memory history record for GDPR compliance.
- */
 export interface Mem0HistoryRecord {
   id?: string;
   userId: string;

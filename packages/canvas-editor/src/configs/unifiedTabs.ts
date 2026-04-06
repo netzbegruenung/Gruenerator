@@ -20,7 +20,6 @@
  * | share       | GenericShareSection      | GenericShareSection       |
  */
 
-import { FaShare } from 'react-icons/fa';
 import { HiPhotograph, HiSparkles } from 'react-icons/hi';
 import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
@@ -34,7 +33,7 @@ import type { SidebarTab } from '../sidebar/types';
  * Standard tab IDs used across all templates in unified mode.
  * These replace template-specific IDs like 'image-background', 'position', etc.
  */
-export type UnifiedTabId = 'background' | 'text' | 'elements' | 'alternatives' | 'share';
+export type UnifiedTabId = 'background' | 'text' | 'elements' | 'alternatives';
 
 // ============================================================================
 // UNIFIED TAB DEFINITIONS
@@ -68,12 +67,6 @@ export const UNIFIED_TABS: SidebarTab[] = [
     icon: HiSparkles,
     label: 'Varianten',
     ariaLabel: 'Alternative Texte anzeigen',
-  },
-  {
-    id: 'share',
-    icon: FaShare,
-    label: 'Teilen',
-    ariaLabel: 'Bild teilen und exportieren',
   },
 ];
 
@@ -141,7 +134,6 @@ export const STANDARD_VISIBLE_TABS: UnifiedTabId[] = [
   'text',
   'elements',
   'alternatives',
-  'share',
 ];
 
 /**
@@ -154,7 +146,6 @@ export const DREIZEILEN_VISIBLE_TABS = [
   'text',
   'elements',
   'alternatives',
-  'share',
 ] as const;
 
 // ============================================================================

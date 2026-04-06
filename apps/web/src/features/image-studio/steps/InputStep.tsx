@@ -4,10 +4,10 @@ import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { HiArrowLeft, HiArrowUp } from 'react-icons/hi';
 
 import Button from '../../../components/common/SubmitButton';
+import useImageStudioStore from '../../../stores/imageStudioStore';
 import { cn } from '../../../utils/cn';
 import { slideVariants } from '../components/StepFlow';
 
-// Props Interface (copied from StepFlow.tsx)
 interface FieldOption {
   value: string;
   label: string;
@@ -29,7 +29,6 @@ interface FormField {
 
 export interface InputStepProps {
   field: FormField | undefined;
-  value: string;
   onChange: (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => void;
@@ -43,7 +42,6 @@ export interface InputStepProps {
 
 const InputStep: React.FC<InputStepProps> = ({
   field,
-  value,
   onChange,
   onNext,
   onBack,
@@ -52,6 +50,12 @@ const InputStep: React.FC<InputStepProps> = ({
   error,
   direction,
 }) => {
+  const fieldName = field?.name ?? '';
+  const value = useImageStudioStore((s) => {
+    if (!fieldName) return '';
+    const val = s[fieldName as keyof typeof s];
+    return typeof val === 'string' ? val : '';
+  });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const selectRef = useRef<HTMLSelectElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);

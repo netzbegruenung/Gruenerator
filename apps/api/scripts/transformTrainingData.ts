@@ -16,6 +16,8 @@
  *   --split RATIO       Train/validation split ratio (default: 0.9)
  *   --window-size N     Chunks per window for large docs (default: 4)
  *   --max-per-type N    Cap examples per content_type (random sample)
+ *   --max-per-bucket N  Cap examples per collection × content_type pair (recency-preferred)
+ *   --min-date DATE     Only include documents published on or after DATE (e.g. 2023-01-01)
  *   --dry-run           Show stats without writing output
  */
 
@@ -107,6 +109,8 @@ interface TrainingExample {
     content: string;
   }>;
   _contentType?: string;
+  _collection?: string;
+  _publishedAt?: string | null;
 }
 
 interface TransformStats {
@@ -144,7 +148,32 @@ const GENERIC_TITLES = new Set([
 ]);
 
 function isGenericTitle(title: string): boolean {
-  return GENERIC_TITLES.has(title.toLowerCase().trim());
+  const t = title.toLowerCase().trim();
+  if (GENERIC_TITLES.has(t)) return true;
+  // Filter titles that are just numbers, markdown headings, or too short to be meaningful
+  if (/^\d+$/.test(t)) return true;
+  if (/^#+\s/.test(t)) return true;
+  if (t.length < 5) return true;
+  return false;
+}
+
+/**
+ * Common website navigation/header boilerplate patterns found in scraped content.
+ * These appear at the start of documents and should be stripped before training.
+ */
+const BOILERPLATE_PATTERNS = [
+  /^KontaktPresseJobsTermine.*?\d{2}\.\d{2}\.\d{2}\s*[–—-]\s*/s,
+  /^(?:Zum Inhalt springen|Skip to content|Navigation überspringen)\s*/i,
+  /^(?:Suche|Menü|Menu)\s*(?:öffnen|schließen)?\s*/i,
+  /^(?:Startseite|Home)\s*[>»›]\s*/i,
+];
+
+function stripBoilerplate(content: string): string {
+  let cleaned = content;
+  for (const pattern of BOILERPLATE_PATTERNS) {
+    cleaned = cleaned.replace(pattern, '');
+  }
+  return cleaned.trim();
 }
 
 function getSystemPrompt(doc: RawDocument): string {
@@ -182,7 +211,7 @@ function createTrainingExample(
     messages: [
       { role: 'system', content: getSystemPrompt(doc) },
       { role: 'user', content: promptOverride || selectPromptTemplate(doc) },
-      { role: 'assistant', content },
+      { role: 'assistant', content: stripBoilerplate(content) },
     ],
   };
 }
@@ -212,12 +241,16 @@ function createSlidingWindowExamples(
     if (windowText.length < 200) continue;
     if (windowText.length > maxLength) continue;
 
-    // Use section-specific prompt if we can extract a heading
+    // Use section-specific prompt if we can extract a usable heading
     const firstLine = windowParagraphs[0].trim();
-    const isHeading =
-      firstLine.length < 120 && !firstLine.endsWith('.') && !firstLine.endsWith(',');
+    const isUsableHeading =
+      firstLine.length < 120 &&
+      firstLine.length >= 5 &&
+      !firstLine.endsWith('.') &&
+      !firstLine.endsWith(',') &&
+      !isGenericTitle(firstLine);
 
-    const prompt = isHeading
+    const prompt = isUsableHeading
       ? selectPromptTemplate({
           ...doc,
           title: firstLine,
@@ -259,8 +292,8 @@ function transformDocuments(
   const lengths: number[] = [];
 
   for (const doc of documents) {
-    // Skip documents without usable title
-    if (!doc.title && !doc.primary_category) {
+    // Skip documents without usable title (social media posts are exempt — content is the post)
+    if (!doc.title && !doc.primary_category && !doc.platform) {
       stats.skipped.noTitle++;
       continue;
     }
@@ -271,8 +304,9 @@ function transformDocuments(
       continue;
     }
 
-    // Skip too-short documents
-    if (doc.content.length < minLength) {
+    // Skip too-short documents (social media has a lower threshold — short posts are the norm)
+    const effectiveMinLength = doc.platform ? Math.min(minLength, 100) : minLength;
+    if (doc.content.length < effectiveMinLength) {
       stats.skipped.tooShort++;
       continue;
     }
@@ -299,6 +333,8 @@ function transformDocuments(
 
     for (const example of docExamples) {
       example._contentType = ct;
+      example._collection = doc.collection;
+      example._publishedAt = doc.published_at;
       examples.push(example);
 
       const responseLength = example.messages[2].content.length;
@@ -358,6 +394,79 @@ function sampleByContentType(
   return { sampled, droppedByType };
 }
 
+/**
+ * Cap examples per collection × content_type pair.
+ * Prevents a single collection from dominating any content type.
+ * Within each bucket, prefers newer documents (by published_at).
+ */
+function sampleByCollectionType(
+  examples: TrainingExample[],
+  maxPerBucket: number
+): { sampled: TrainingExample[]; droppedByBucket: Record<string, number> } {
+  const byBucket = new Map<string, TrainingExample[]>();
+  for (const ex of examples) {
+    const key = `${ex._collection || 'unknown'}:${ex._contentType || 'unknown'}`;
+    if (!byBucket.has(key)) byBucket.set(key, []);
+    byBucket.get(key)!.push(ex);
+  }
+
+  const sampled: TrainingExample[] = [];
+  const droppedByBucket: Record<string, number> = {};
+
+  for (const [key, bucketExamples] of byBucket) {
+    // Sort by recency (newest first), undated documents go last
+    bucketExamples.sort((a, b) => {
+      const dateA = a._publishedAt;
+      const dateB = b._publishedAt;
+      if (!dateA && !dateB) return 0;
+      if (!dateA) return 1;
+      if (!dateB) return -1;
+      return dateB.localeCompare(dateA);
+    });
+
+    if (bucketExamples.length <= maxPerBucket) {
+      sampled.push(...bucketExamples);
+    } else {
+      // Take the newest maxPerBucket examples
+      sampled.push(...bucketExamples.slice(0, maxPerBucket));
+      droppedByBucket[key] = bucketExamples.length - maxPerBucket;
+    }
+  }
+
+  return { sampled, droppedByBucket };
+}
+
+/**
+ * Sort all examples by recency (newest first) and take the top N.
+ * Documents without published_at are placed at the end.
+ */
+function filterByRecency(
+  examples: TrainingExample[],
+  maxAge?: string
+): { filtered: TrainingExample[]; droppedByAge: number } {
+  if (!maxAge) return { filtered: examples, droppedByAge: 0 };
+
+  const cutoff = new Date(maxAge);
+  const filtered: TrainingExample[] = [];
+  let droppedByAge = 0;
+
+  for (const ex of examples) {
+    if (!ex._publishedAt) {
+      // Keep undated documents (grundsatz, wahlprogramm — always relevant)
+      filtered.push(ex);
+    } else {
+      const pubDate = new Date(ex._publishedAt);
+      if (pubDate >= cutoff) {
+        filtered.push(ex);
+      } else {
+        droppedByAge++;
+      }
+    }
+  }
+
+  return { filtered, droppedByAge };
+}
+
 // ============================================================================
 // CLI
 // ============================================================================
@@ -373,6 +482,8 @@ function parseArgs() {
     split: 0.9,
     windowSize: 4,
     maxPerType: undefined as number | undefined,
+    maxPerBucket: undefined as number | undefined,
+    minDate: undefined as string | undefined,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -383,6 +494,9 @@ function parseArgs() {
     if (args[i] === '--split' && args[i + 1]) result.split = parseFloat(args[++i]);
     if (args[i] === '--window-size' && args[i + 1]) result.windowSize = parseInt(args[++i], 10);
     if (args[i] === '--max-per-type' && args[i + 1]) result.maxPerType = parseInt(args[++i], 10);
+    if (args[i] === '--max-per-bucket' && args[i + 1])
+      result.maxPerBucket = parseInt(args[++i], 10);
+    if (args[i] === '--min-date' && args[i + 1]) result.minDate = args[++i];
   }
 
   return result;
@@ -438,6 +552,8 @@ async function main(): Promise<void> {
   console.log(`Min length: ${args.minLength}, Max length: ${args.maxLength}`);
   console.log(`Window size: ${args.windowSize} paragraphs`);
   if (args.maxPerType) console.log(`Max per type: ${args.maxPerType}`);
+  if (args.maxPerBucket) console.log(`Max per collection×type bucket: ${args.maxPerBucket}`);
+  if (args.minDate) console.log(`Min date: ${args.minDate}`);
   console.log(`Train/validation split: ${args.split}/${(1 - args.split).toFixed(2)}\n`);
 
   // Read raw documents
@@ -456,12 +572,44 @@ async function main(): Promise<void> {
     windowSize: args.windowSize,
   });
 
+  // Apply recency filter if requested
+  if (args.minDate) {
+    const { filtered, droppedByAge } = filterByRecency(examples, args.minDate);
+    console.log(
+      `Recency filter (>=${args.minDate}): ${examples.length} → ${filtered.length} examples (${droppedByAge} dropped, undated kept)`
+    );
+    console.log();
+
+    examples.length = 0;
+    examples.push(...filtered);
+  }
+
+  // Apply per-bucket sampling if requested (collection × content_type, recency-preferred)
+  if (args.maxPerBucket) {
+    const { sampled, droppedByBucket } = sampleByCollectionType(examples, args.maxPerBucket);
+    const totalDropped = Object.values(droppedByBucket).reduce((a, b) => a + b, 0);
+    console.log(
+      `Bucket balanced: ${examples.length} → ${sampled.length} examples (${totalDropped} dropped)`
+    );
+    const sortedBuckets = Object.entries(droppedByBucket).sort((a, b) => b[1] - a[1]);
+    for (const [bucket, dropped] of sortedBuckets.slice(0, 15)) {
+      console.log(`  ${bucket}: capped at ${args.maxPerBucket} (-${dropped})`);
+    }
+    if (sortedBuckets.length > 15) {
+      console.log(`  ... and ${sortedBuckets.length - 15} more buckets`);
+    }
+    console.log();
+
+    examples.length = 0;
+    examples.push(...sampled);
+  }
+
   // Apply per-type sampling if requested
   if (args.maxPerType) {
     const { sampled, droppedByType } = sampleByContentType(examples, args.maxPerType);
     const totalDropped = Object.values(droppedByType).reduce((a, b) => a + b, 0);
     console.log(
-      `Balanced: ${examples.length} → ${sampled.length} examples (${totalDropped} dropped)`
+      `Type balanced: ${examples.length} → ${sampled.length} examples (${totalDropped} dropped)`
     );
     for (const [ct, dropped] of Object.entries(droppedByType).sort((a, b) => b[1] - a[1])) {
       console.log(`  ${ct}: capped at ${args.maxPerType} (-${dropped})`);
@@ -470,19 +618,24 @@ async function main(): Promise<void> {
 
     examples.length = 0;
     examples.push(...sampled);
-
-    // Update stats to reflect balanced counts
-    stats.outputExamples = examples.length;
-    stats.byContentType = {};
-    for (const ex of examples) {
-      const ct = ex._contentType || 'unknown';
-      stats.byContentType[ct] = (stats.byContentType[ct] || 0) + 1;
-    }
   }
 
-  // Strip internal _contentType before serialization
+  // Update stats to reflect final counts after all sampling
+  stats.outputExamples = examples.length;
+  stats.byContentType = {};
+  stats.byCollection = {};
+  for (const ex of examples) {
+    const ct = ex._contentType || 'unknown';
+    stats.byContentType[ct] = (stats.byContentType[ct] || 0) + 1;
+    const col = ex._collection || 'unknown';
+    stats.byCollection[col] = (stats.byCollection[col] || 0) + 1;
+  }
+
+  // Strip internal metadata before serialization
   for (const ex of examples) {
     delete ex._contentType;
+    delete ex._collection;
+    delete ex._publishedAt;
   }
 
   // Shuffle deterministically (Fisher-Yates with seeded-ish approach)

@@ -18,16 +18,4 @@ export {
 export { default as useGeneratedTextStore } from './core/generatedTextStore';
 export { extractEditableText } from './hooks/useTextEditActions';
 
-// Canvas Editor
-export {
-  useCanvasEditorStore,
-  useCanvasLayers,
-  useCanvasSelection,
-  useCanvasConfig,
-  useCanvasContainerSize,
-  useRenderVersion,
-  useSnapGuides,
-  useSnapLines,
-  useCanvasHistory,
-} from './canvasEditorStore';
-export { canvasRefRegistry, CanvasRefRegistry } from './canvasEditorRefs';
+// Canvas Editor — import directly from @gruenerator/canvas-editor/stores

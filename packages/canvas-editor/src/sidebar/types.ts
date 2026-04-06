@@ -24,13 +24,15 @@ export type SidebarTabId =
   | 'elements'
   | 'alternatives'
   | 'share'
+  | 'uploads'
   // Legacy/template-specific tab IDs (for backwards compatibility)
   | 'fontsize'
   | 'assets'
   | 'image'
   | 'position'
   | 'settings'
-  | 'image-background';
+  | 'image-background'
+  | 'design';
 
 export interface SidebarTab {
   id: SidebarTabId;
@@ -133,7 +135,7 @@ export interface SidebarPanelProps {
 export interface AdditionalText {
   id: string;
   text: string;
-  type: 'header' | 'body';
+  type: 'header' | 'subheader' | 'body';
   x?: number;
   y?: number;
   width?: number;

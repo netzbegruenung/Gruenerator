@@ -143,6 +143,7 @@ export function selectProviderAndModel({
   }
   // Fast helper tasks — Intermediate model (Regolo)
   else if (
+    type === 'image_picker' ||
     type === 'antrag_question_generation' ||
     type === 'antrag_qa_summary' ||
     type === 'gruenerator_ask' ||

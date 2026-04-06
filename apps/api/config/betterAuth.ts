@@ -44,6 +44,7 @@ export const auth = betterAuth({
     fields: {
       name: 'display_name',
       image: 'avatar_url',
+      emailVerified: 'email_verified',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
     },
@@ -87,6 +88,7 @@ export const auth = betterAuth({
       boards: { type: 'boolean', required: false, defaultValue: false },
       bundestag_api_enabled: { type: 'boolean', required: false, defaultValue: false },
       memory_enabled: { type: 'boolean', required: false, defaultValue: false },
+      wordpress_enabled: { type: 'boolean', required: false, defaultValue: false },
     },
   },
 
@@ -117,12 +119,23 @@ export const auth = betterAuth({
   account: {
     modelName: 'ba_accounts',
     fields: {
+      userId: 'user_id',
       accountId: 'account_id',
       providerId: 'provider_id',
       accessToken: 'access_token',
       refreshToken: 'refresh_token',
       accessTokenExpiresAt: 'access_token_expires_at',
       idToken: 'id_token',
+      scope: 'scope',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+    },
+  },
+
+  verification: {
+    modelName: 'ba_verification',
+    fields: {
+      expiresAt: 'expires_at',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
     },

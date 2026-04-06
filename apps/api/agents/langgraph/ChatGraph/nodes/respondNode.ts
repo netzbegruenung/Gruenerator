@@ -372,7 +372,8 @@ Beantworte Fragen basierend auf dem Inhalt dieser Dokumente.`;
 
 /**
  * Format memory context from mem0 cross-thread memories.
- * These are persistent facts and preferences about the user.
+ * These are persistent facts and preferences about the user,
+ * grouped by category (identity, preference, context, etc.).
  */
 function formatMemoryContext(memoryContext: string | null): string {
   if (!memoryContext || memoryContext.trim() === '') {

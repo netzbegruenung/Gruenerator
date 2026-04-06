@@ -82,170 +82,45 @@ add_action('wp_enqueue_scripts', 'gruenerator_enqueue_block_frontend_assets');
 
 /**
  * Registriert alle Blöcke in der gewünschten Reihenfolge.
+ *
+ * Attributes are now defined in each block's block.json file and loaded
+ * automatically by register_block_type(). Only render callbacks and shared
+ * asset handles are specified here.
  */
 function gruenerator_register_all_blocks() {
     if (!function_exists('register_block_type')) {
         return;
     }
 
-    // Liste der Blöcke mit ihren Attributen
+    $blocks_dir = GRUENERATOR_PATH . 'src/blocks/';
+
+    // Map block directory names to their render callback functions.
+    // The link-kacheln block uses a different block name (link-tile-block)
+    // but lives in the link-kacheln directory — block.json handles the name.
     $blocks = array(
-        // 1. Hero Block
-        'hero-block' => array(
-            'attributes' => array(
-                'heroImageUrl' => array(
-                    'type' => 'string',
-                    'default' => Gruenerator_Default_Content::get_hero_content()['image'] ?? '',
-                ),
-                'heroHeading' => array(
-                    'type' => 'string',
-                    'default' => Gruenerator_Default_Content::get_hero_content()['heading'] ?? '',
-                ),
-                'heroText' => array(
-                    'type' => 'string',
-                    'default' => Gruenerator_Default_Content::get_hero_content()['text'] ?? '',
-                ),
-            ),
-        ),
-        // 2. About Block
-        'about-block' => array(
-            'attributes' => array(
-                'title' => array(
-                    'type' => 'string',
-                    'default' => Gruenerator_Default_Content::get_about_content()['title'] ?? '',
-                ),
-                'content' => array(
-                    'type' => 'string',
-                    'default' => Gruenerator_Default_Content::get_about_content()['content'] ?? '',
-                ),
-            ),
-        ),
-        // 3. Hero Image Block
-        'hero-image-block' => array(
-            'attributes' => array(
-                'backgroundImageId' => array(
-                    'type' => 'integer',
-                    'default' => 0,
-                ),
-                'backgroundImageUrl' => array(
-                    'type' => 'string',
-                    'default' => Gruenerator_Default_Content::get_hero_image_content()['image'] ?? '',
-                ),
-                'title' => array(
-                    'type' => 'string',
-                    'default' => Gruenerator_Default_Content::get_hero_image_content()['title'] ?? '',
-                ),
-                'subtitle' => array(
-                    'type' => 'string',
-                    'default' => Gruenerator_Default_Content::get_hero_image_content()['subtitle'] ?? '',
-                ),
-            ),
-        ),
-        // 4. Meine Themen Block
-        'meine-themen-block' => array(
-            'attributes' => array(
-                'title' => array(
-                    'type' => 'string',
-                    'default' => 'Meine Themen',
-                ),
-                'themes' => array(
-                    'type' => 'array',
-                    'default' => Gruenerator_Default_Content::get_themes(),
-                    'items' => array(
-                        'type' => 'object',
-                        'properties' => array(
-                            'imageId' => array(
-                                'type' => 'integer',
-                                'default' => 0,
-                            ),
-                            'imageUrl' => array(
-                                'type' => 'string',
-                                'default' => 'https://via.placeholder.com/600x400',
-                            ),
-                            'title' => array(
-                                'type' => 'string',
-                                'default' => '',
-                            ),
-                            'content' => array(
-                                'type' => 'string',
-                                'default' => '',
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-        // 5. Image Grid Block
-        'image-grid-block' => array(
-            'attributes' => array(
-                'items' => array(
-                    'type' => 'array',
-                    'default' => Gruenerator_Default_Content::get_actions(),
-                ),
-            ),
-        ),
-        // 6. Contact Form Block
-        'contact-form-block' => array(
-            'attributes' => array(
-                'backgroundImageId' => array(
-                    'type' => 'integer',
-                    'default' => 0,
-                ),
-                'backgroundImageUrl' => array(
-                    'type' => 'string',
-                    'default' => 'https://via.placeholder.com/1200x600',
-                ),
-                'title' => array(
-                    'type' => 'string',
-                    'default' => Gruenerator_Default_Content::get_contact_form_content()['title'] ?? '',
-                ),
-                'email' => array(
-                    'type' => 'string',
-                    'default' => Gruenerator_Default_Content::get_contact_form_content()['email'] ?? '',
-                ),
-                'socialMedia' => array(
-                    'type' => 'array',
-                    'default' => array(),
-                    'items' => array(
-                        'type' => 'object',
-                        'properties' => array(
-                            'platform' => array(
-                                'type' => 'string',
-                            ),
-                            'url' => array(
-                                'type' => 'string',
-                            ),
-                            'icon' => array(
-                                'type' => 'string',
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
+        'hero-block'         => 'gruenerator_render_hero_block',
+        'about-block'        => 'gruenerator_render_about_block',
+        'hero-image-block'   => 'gruenerator_render_hero_image_block',
+        'meine-themen-block' => 'gruenerator_render_meine_themen_block',
+        'image-grid-block'   => 'gruenerator_render_image_grid_block',
+        'contact-form-block' => 'gruenerator_render_contact_form_block',
     );
 
-    foreach ($blocks as $block => $options) {
-        // Ersetzen von Bindestrichen durch Unterstriche für Funktionsnamen
-        $function_name = 'gruenerator_render_' . str_replace('-', '_', $block);
-
-        // Stellen Sie sicher, dass 'render_callback' nicht bereits in $options definiert ist
-        if (!isset($options['render_callback'])) {
-            $options['render_callback'] = $function_name;
-        }
-
-        $result = register_block_type(
-            "gruenerator/$block",
-            array_merge(
-                $options,
-                array(
-                    'style'           => 'gruenerator-blocks-frontend',
-                    'editor_style'    => 'gruenerator-blocks-editor',
-                    'editor_script'   => 'gruenerator-blocks',
-                )
-            )
-        );
+    foreach ($blocks as $block_dir => $render_callback) {
+        register_block_type($blocks_dir . $block_dir, array(
+            'render_callback' => $render_callback,
+            'style'           => 'gruenerator-blocks-frontend',
+            'editor_style'    => 'gruenerator-blocks-editor',
+            'editor_script'   => 'gruenerator-blocks',
+        ));
     }
+
+    // Link-Kacheln block (no server-side render callback)
+    register_block_type($blocks_dir . 'link-kacheln', array(
+        'style'         => 'gruenerator-blocks-frontend',
+        'editor_style'  => 'gruenerator-blocks-editor',
+        'editor_script' => 'gruenerator-blocks',
+    ));
 }
 add_action('init', 'gruenerator_register_all_blocks', 10);
 

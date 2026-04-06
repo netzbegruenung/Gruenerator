@@ -1,4 +1,5 @@
 import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
+import { formatRelativeTime } from '@gruenerator/shared/utils';
 import { Button } from '@gruenerator/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { memo, useCallback, useRef, useState } from 'react';
@@ -58,17 +59,10 @@ interface TrackedMention {
 const REACTION_EMOJI = ['👍', '❤️', '🎉', '👀', '🚀', '💡'];
 
 function formatCommentDate(isoString: string): string {
-  const date = new Date(isoString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60_000);
-  if (diffMin < 1) return 'gerade eben';
-  if (diffMin < 60) return `vor ${diffMin} Min.`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `vor ${diffH} Std.`;
-  const diffD = Math.floor(diffH / 24);
-  if (diffD < 7) return `vor ${diffD} ${diffD === 1 ? 'Tag' : 'Tagen'}`;
-  return date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' });
+  return formatRelativeTime(isoString, {
+    maxDays: 7,
+    dateFallback: { day: '2-digit', month: 'short' },
+  });
 }
 
 function parseTextToBlocks(text: string, mentions: TrackedMention[]): CommentBlock[] {
