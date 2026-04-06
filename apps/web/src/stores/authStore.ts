@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import apiClient from '../components/utils/apiClient';
+import apiClient, { setLoggingOutFlag } from '../components/utils/apiClient';
 import { openDesktopLogin, type AuthSource } from '../utils/desktopAuth';
 import { isDesktopApp } from '../utils/platform';
 
@@ -266,6 +266,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     localStorage.removeItem(AUTH_STORAGE_KEY);
     localStorage.removeItem(AUTH_VERSION_KEY);
 
+    // Clear the instant-auth cache used by useInstantAuth() / getCachedAuthState()
+    // Without this, LoginPage reads stale cached auth and causes redirect loops
+    localStorage.removeItem('authState');
+
     // Clear React Query cache to prevent stale auth data
     if (
       typeof window !== 'undefined' &&
@@ -388,6 +392,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       // Step 1: Set logging out state immediately for smooth UX
       set({ isLoggingOut: true });
+      setLoggingOutFlag(true);
 
       // Step 2: Call backend logout API FIRST (before clearing local state)
       let backendResponse: Record<string, unknown> | null = null;
@@ -472,7 +477,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       // Step 6: Verify logout completion (optional verification)
       try {
         console.log('[AuthStore] Verifying logout completion...');
-        const statusResponse = await apiClient.get('/auth/status');
+        const statusResponse = await apiClient.get('/auth/status', { skipAuthRedirect: true });
 
         const statusData = statusResponse.data;
         if (statusData.isAuthenticated) {
@@ -509,6 +514,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     } finally {
       // Always reset the logging out state
       set({ isLoggingOut: false });
+      setLoggingOutFlag(false);
     }
   },
 
