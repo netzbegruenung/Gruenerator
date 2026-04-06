@@ -336,14 +336,19 @@ export class AuthService {
       );
 
       if (groupResult.length > 0) {
-        hasAccess = true;
         const groupPerms = (
           typeof groupResult[0].permissions === 'string'
             ? JSON.parse(groupResult[0].permissions)
             : groupResult[0].permissions
         ) as { read?: boolean; write?: boolean } | null;
-        groupCanEdit = groupPerms?.write === true;
-        log.info(`[Auth] Group access granted (canEdit: ${groupCanEdit})`);
+
+        if (groupPerms?.read !== false) {
+          hasAccess = true;
+          groupCanEdit = groupPerms?.write === true;
+          log.info(`[Auth] Group access granted (canEdit: ${groupCanEdit})`);
+        } else {
+          log.warn(`[Auth] Group share found but read=false for user ${userId}, denying`);
+        }
       }
     }
 
