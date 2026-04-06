@@ -8,7 +8,7 @@ import {
 } from '../../services/docs/DocGenerationService.js';
 import { createLogger } from '../../utils/logger.js';
 
-import { DOCS_SUBTYPES } from './constants.js';
+import { DOCS_SUBTYPES, GRANTED_BY_SHARE_LINK } from './constants.js';
 
 const log = createLogger('DocsGenerate');
 
@@ -305,7 +305,7 @@ router.get('/:id', async (req: Request, res: Response) => {
         [userId]: {
           level: permissionLevel,
           granted_at: new Date().toISOString(),
-          granted_by: 'auto:share_link',
+          granted_by: GRANTED_BY_SHARE_LINK,
         },
       });
 

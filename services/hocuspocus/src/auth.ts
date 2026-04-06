@@ -14,6 +14,8 @@ import type {
 
 const log = createLogger('HocuspocusAuth');
 
+const GRANTED_BY_SHARE_LINK = 'auto:share_link';
+
 export class AuthService {
   private readonly db: DbQueryFn;
   private readonly redis: RedisLike;
@@ -362,7 +364,7 @@ export class AuthService {
         [userId]: {
           level: sharePermission,
           granted_at: new Date().toISOString(),
-          granted_by: 'auto:share_link',
+          granted_by: GRANTED_BY_SHARE_LINK,
         },
       });
 

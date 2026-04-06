@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 
-import { DOCS_SUBTYPES } from './constants.js';
+import { DOCS_SUBTYPES, GRANTED_BY_SHARE_LINK } from './constants.js';
 
 interface DocumentRow {
   id: string;
@@ -123,21 +123,16 @@ router.post('/:id/share/disable', async (req: Request<{ id: string }>, res: Resp
 
     await db.query(
       `UPDATE collaborative_documents
-       SET is_public = false, share_mode = 'private', updated_at = CURRENT_TIMESTAMP
+       SET is_public = false,
+           share_mode = 'private',
+           permissions = (
+             SELECT COALESCE(jsonb_object_agg(key, value), '{}'::jsonb)
+             FROM jsonb_each(COALESCE(permissions, '{}'::jsonb))
+             WHERE value->>'granted_by' IS DISTINCT FROM $2
+           ),
+           updated_at = CURRENT_TIMESTAMP
        WHERE id = $1`,
-      [req.params.id]
-    );
-
-    await db.query(
-      `UPDATE collaborative_documents
-       SET permissions = (
-         SELECT COALESCE(jsonb_object_agg(key, value), '{}'::jsonb)
-         FROM jsonb_each(COALESCE(permissions, '{}'::jsonb))
-         WHERE value->>'granted_by' IS DISTINCT FROM 'auto:share_link'
-       ),
-       updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1`,
-      [req.params.id]
+      [req.params.id, GRANTED_BY_SHARE_LINK]
     );
 
     return res.json({
@@ -209,24 +204,27 @@ router.put('/:id/share/mode', async (req: Request<{ id: string }>, res: Response
 
     const isPublic = mode === 'public';
 
-    await db.query(
-      `UPDATE collaborative_documents
-       SET share_mode = $1, is_public = $2, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $3`,
-      [mode, isPublic, req.params.id]
-    );
-
-    if (mode !== 'authenticated') {
+    if (mode === 'authenticated') {
       await db.query(
         `UPDATE collaborative_documents
-         SET permissions = (
-           SELECT COALESCE(jsonb_object_agg(key, value), '{}'::jsonb)
-           FROM jsonb_each(COALESCE(permissions, '{}'::jsonb))
-           WHERE value->>'granted_by' IS DISTINCT FROM 'auto:share_link'
-         ),
-         updated_at = CURRENT_TIMESTAMP
-         WHERE id = $1`,
-        [req.params.id]
+         SET share_mode = $1, is_public = $2, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $3`,
+        [mode, isPublic, req.params.id]
+      );
+    } else {
+      // Revoke auto-granted permissions when leaving authenticated mode
+      await db.query(
+        `UPDATE collaborative_documents
+         SET share_mode = $1,
+             is_public = $2,
+             permissions = (
+               SELECT COALESCE(jsonb_object_agg(key, value), '{}'::jsonb)
+               FROM jsonb_each(COALESCE(permissions, '{}'::jsonb))
+               WHERE value->>'granted_by' IS DISTINCT FROM $4
+             ),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $3`,
+        [mode, isPublic, req.params.id, GRANTED_BY_SHARE_LINK]
       );
     }
 
