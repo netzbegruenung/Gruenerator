@@ -19,7 +19,8 @@ export interface CanvasItem {
     | 'illustration'
     | 'asset'
     | 'circle-badge'
-    | 'pill-badge';
+    | 'pill-badge'
+    | 'user-image';
   data?: Record<string, unknown>;
 }
 
@@ -33,6 +34,7 @@ interface StateWithFeatures {
   frameInstances?: Array<Record<string, unknown>>;
   circleBadgeInstances?: Array<Record<string, unknown>>;
   pillBadgeInstances?: Array<Record<string, unknown>>;
+  userImageInstances?: Array<Record<string, unknown>>;
 }
 
 /**
@@ -109,6 +111,13 @@ export function buildCanvasItems<
   if (state.pillBadgeInstances) {
     state.pillBadgeInstances.forEach((p) =>
       items.push({ id: String(p.id), type: 'pill-badge', data: p })
+    );
+  }
+
+  // 10. User-uploaded images
+  if (state.userImageInstances) {
+    state.userImageInstances.forEach((u) =>
+      items.push({ id: String(u.id), type: 'user-image', data: u })
     );
   }
 

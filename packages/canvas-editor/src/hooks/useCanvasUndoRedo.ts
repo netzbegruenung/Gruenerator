@@ -1,6 +1,10 @@
 import { useEffect, useCallback, useRef } from 'react';
 
-import { useCanvasEditorStore } from '../stores/canvasEditorStore';
+import { useStore } from 'zustand';
+
+import { useCanvasStore } from '../stores/CanvasStoreProvider';
+
+import type { CanvasEditorStoreState } from '../stores/createCanvasEditorStore';
 
 interface UseCanvasUndoRedoReturn {
   undo: () => void;
@@ -12,8 +16,8 @@ interface UseCanvasUndoRedoReturn {
 }
 
 // Stable selectors defined outside component
-const selectCanUndo = (s: ReturnType<typeof useCanvasEditorStore.getState>) => s.historyIndex > 0;
-const selectCanRedo = (s: ReturnType<typeof useCanvasEditorStore.getState>) =>
+const selectCanUndo = (s: CanvasEditorStoreState) => s.historyIndex > 0;
+const selectCanRedo = (s: CanvasEditorStoreState) =>
   s.historyIndex < s.history.length - 1;
 
 /**
@@ -28,16 +32,16 @@ export function useCanvasUndoRedo(
   debounceMs = 500,
   onRestore?: (state: Record<string, unknown>) => void
 ): UseCanvasUndoRedoReturn {
+  const store = useCanvasStore();
   // Use individual selectors to avoid subscribing to entire store
-  const canUndo = useCanvasEditorStore(selectCanUndo);
-  const canRedo = useCanvasEditorStore(selectCanRedo);
+  const canUndo = useStore(store, selectCanUndo);
+  const canRedo = useStore(store, selectCanRedo);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const onRestoreRef = useRef(onRestore);
   onRestoreRef.current = onRestore;
 
   // Use getState() for stable access to store actions without subscription
-  // This avoids re-renders when store state changes
-  const getStore = useCanvasEditorStore.getState;
+  const getStore = store.getState;
 
   // Register restoration callback on mount (using ref for stable callback)
   useEffect(() => {

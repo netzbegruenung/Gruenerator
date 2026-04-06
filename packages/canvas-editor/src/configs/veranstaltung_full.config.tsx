@@ -4,9 +4,10 @@
  */
 
 import { HiPhotograph } from 'react-icons/hi';
-import { PiSquaresFourFill } from 'react-icons/pi';
+import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { ImageBackgroundSection, AssetsSection } from '../sidebar/sections';
+import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { CANVAS_RECOMMENDED_ASSETS, type AssetInstance } from '../utils/canvasAssets';
 import { VERANSTALTUNG_CONFIG, calculateVeranstaltungLayout } from '../utils/veranstaltungLayout';
 
@@ -126,6 +127,7 @@ export interface VeranstaltungFullActions {
   removeIllustration: (id: string) => void;
   // Additional Text actions
   addHeader: () => void;
+  addSubheader: () => void;
   addText: () => void;
   updateAdditionalText: (id: string, partial: Partial<AdditionalText>) => void;
   removeAdditionalText: (id: string) => void;
@@ -290,11 +292,12 @@ export const veranstaltungFullConfig: FullCanvasConfig<
 
   tabs: [
     { id: 'image', icon: HiPhotograph, label: 'Bild', ariaLabel: 'Bild anpassen' },
+    { id: 'text', icon: PiTextAa, label: 'Text', ariaLabel: 'Texte hinzufügen' },
     { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Dekorative Elemente' },
     alternativesTab,
   ],
 
-  getVisibleTabs: () => ['image', 'assets', 'alternatives'],
+  getVisibleTabs: () => ['image', 'text', 'assets', 'alternatives'],
 
   getAutoSwitchTab: (selectedElement) => (selectedElement?.startsWith('frame-') ? 'assets' : null),
 
@@ -320,13 +323,20 @@ export const veranstaltungFullConfig: FullCanvasConfig<
         onToggleLock: actions.toggleBackgroundLock,
       }),
     },
+    text: {
+      component: CombinedTextSection,
+      propsFactory: (state, actions) => ({
+        additionalTexts: state.additionalTexts,
+        onAddHeader: actions.addHeader,
+        onAddSubheader: actions.addSubheader,
+        onAddText: actions.addText,
+        onUpdateText: actions.updateAdditionalText,
+        onRemoveText: actions.removeAdditionalText,
+      }),
+    },
     assets: {
       component: AssetsSection,
       propsFactory: (state, actions, context) => ({
-        // Text creation callbacks
-        onAddHeader: actions.addHeader,
-        onAddText: actions.addText,
-
         // Asset instance props
         onAddAsset: actions.addAsset,
         recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['veranstaltung'],
@@ -481,6 +491,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       pillBadgeInstances: [],
       balkenInstances: [],
       frameInstances: [],
+      userImageInstances: [],
       imageAttribution: null,
     };
   },
@@ -623,6 +634,31 @@ export const veranstaltungFullConfig: FullCanvasConfig<
           y: CANVAS_HEIGHT / 2,
           width: 400,
           fontSize: VERANSTALTUNG_CONFIG.eventTitle.fontSize,
+          fontFamily: 'GrueneTypeNeue, Arial, sans-serif',
+          fontStyle: 'normal',
+          fill: VERANSTALTUNG_CONFIG.text.color,
+          rotation: 0,
+          scale: 1,
+        };
+        setState((prev) => ({
+          ...prev,
+          additionalTexts: [...(prev.additionalTexts || []), newText],
+        }));
+        saveToHistory({
+          ...getState(),
+          additionalTexts: [...(getState().additionalTexts || []), newText],
+        });
+      },
+      addSubheader: () => {
+        const id = `text-${Date.now()}`;
+        const newText: AdditionalText = {
+          id,
+          text: 'Neuer Untertitel',
+          type: 'subheader',
+          x: CANVAS_WIDTH / 2,
+          y: CANVAS_HEIGHT / 2 + 50,
+          width: 400,
+          fontSize: 36,
           fontFamily: 'GrueneTypeNeue, Arial, sans-serif',
           fontStyle: 'normal',
           fill: VERANSTALTUNG_CONFIG.text.color,

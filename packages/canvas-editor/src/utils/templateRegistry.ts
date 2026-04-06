@@ -66,6 +66,24 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     description: 'Leere Leinwand zum freien Gestalten',
     previewImage: '/imagine/previews/freeform-preview.webp',
   },
+  'pres-title': {
+    id: 'pres-title',
+    label: 'Nur Titel',
+    description: 'Titelfolie mit Sonnenblume',
+    previewImage: '/imagine/previews/pres-title-preview.webp',
+  },
+  'pres-image': {
+    id: 'pres-image',
+    label: 'Bild mit Überschrift',
+    description: 'Vollbild-Foto mit Textoverlay',
+    previewImage: '/imagine/previews/pres-image-preview.webp',
+  },
+  'pres-content': {
+    id: 'pres-content',
+    label: 'Inhalt',
+    description: 'Titel mit Text, optional zweispaltig',
+    previewImage: '/imagine/previews/pres-content-preview.webp',
+  },
 };
 
 /**
@@ -87,12 +105,12 @@ export function getAllTemplates(): TemplateInfo[] {
  * Used to determine if background can be inherited
  */
 export function templateSupportsImageBackground(configId: CanvasConfigId): boolean {
-  return ['zitat', 'simple', 'veranstaltung', 'dreizeilen', 'freeform'].includes(configId);
+  return ['zitat', 'simple', 'veranstaltung', 'dreizeilen', 'freeform', 'pres-image'].includes(configId);
 }
 
 /**
  * Check if a template supports solid color backgrounds
  */
 export function templateSupportsSolidBackground(configId: CanvasConfigId): boolean {
-  return ['info', 'zitat-pure', 'slider', 'freeform'].includes(configId);
+  return ['info', 'zitat-pure', 'slider', 'freeform', 'pres-title', 'pres-content'].includes(configId);
 }

@@ -27,16 +27,24 @@ export type SearchIntent =
   | 'examples'
   | 'image'
   | 'image_edit'
+  | 'sharepic'
   | 'summary'
   | 'direct';
+
+export interface SharepicData {
+  canvasType: string;
+  initialProps: Record<string, unknown>;
+  alternatives?: unknown[];
+}
 
 export interface GeneratedImage {
   base64: string;
   url: string;
   filename: string;
   prompt: string;
-  style: 'illustration' | 'realistic' | 'pixel' | 'green-edit';
+  style: 'illustration' | 'realistic' | 'pixel' | 'green-edit' | 'sharepic';
   generationTimeMs: number;
+  sharepicData?: SharepicData;
 }
 
 export interface ProgressStep {

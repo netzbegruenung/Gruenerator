@@ -28,6 +28,7 @@ export type SSEEventType =
   | 'summary_complete'
   | 'image_start'
   | 'image_complete'
+  | 'sharepic_complete'
   | 'response_start'
   | 'thinking_step'
   | 'text_delta'
@@ -103,6 +104,13 @@ export interface SSEEventPayloads {
     image?: GeneratedImageResult | null;
     error?: string;
   };
+  sharepic_complete: {
+    message: string;
+    canvasType: string;
+    initialProps: Record<string, unknown>;
+    alternatives?: unknown[];
+    error?: string;
+  };
   response_start: { message: string };
   thinking_step: ThinkingStepPayload;
   text_delta: { text: string };
@@ -172,6 +180,7 @@ export const INTENT_MESSAGES: Record<SearchIntent, string> = {
   examples: 'Suche Social-Media-Beispiele...',
   image: 'Generiere Bild...',
   image_edit: 'Bearbeite Bild...',
+  sharepic: 'Erstelle Sharepic...',
   summary: 'Fasse Dokument(e) zusammen...',
   chart: 'Erstelle Diagramm...',
   save_as_doc: 'Erstelle Dokument aus Antwort...',

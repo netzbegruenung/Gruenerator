@@ -336,6 +336,22 @@ export const toolMentionables: Mentionable[] = [
     backgroundColor: '#059669',
     mention: 'stadtbegruenen',
   },
+  // Dev-only: sharepic creation via canvas editor (gated on Vite dev mode)
+  ...(import.meta.env.DEV
+    ? [
+        {
+          type: 'tool' as const,
+          category: 'function' as const,
+          trigger: '@' as const,
+          identifier: 'sharepic',
+          title: 'Sharepic',
+          description: 'Sharepic erstellen und bearbeiten',
+          avatar: '🖼️',
+          backgroundColor: '#46962b',
+          mention: 'sharepic',
+        },
+      ]
+    : []),
 ];
 
 export interface BoardMentionable {

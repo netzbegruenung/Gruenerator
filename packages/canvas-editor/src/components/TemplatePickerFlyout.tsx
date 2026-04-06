@@ -19,6 +19,8 @@ interface TemplatePickerFlyoutProps {
   isOpen: boolean;
   anchorRef?: React.RefObject<HTMLElement | null>;
   onAddSliderVariant?: (variant: 'cover' | 'content' | 'last') => void;
+  /** Filter templates by prefix (e.g. 'pres-' to show only presentation layouts) */
+  templateFilter?: string;
 }
 
 interface TemplateCardProps {
@@ -75,13 +77,17 @@ export function TemplatePickerFlyout({
   isOpen,
   anchorRef,
   onAddSliderVariant,
+  templateFilter,
 }: TemplatePickerFlyoutProps) {
   const flyoutRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number; maxHeight?: number }>({
     top: 0,
     left: 0,
   });
-  const templates = getAllTemplates();
+  const allTemplates = getAllTemplates();
+  const templates = templateFilter
+    ? allTemplates.filter((t) => t.id.startsWith(templateFilter))
+    : allTemplates;
 
   useEffect(() => {
     if (isOpen && anchorRef?.current && flyoutRef.current) {
@@ -266,6 +272,7 @@ interface AddPageButtonProps {
   currentTemplateId?: CanvasConfigId;
   disabled?: boolean;
   onAddSliderVariant?: (variant: 'cover' | 'content' | 'last') => void;
+  templateFilter?: string;
 }
 
 export function AddPageButton({
@@ -274,6 +281,7 @@ export function AddPageButton({
   currentTemplateId,
   disabled = false,
   onAddSliderVariant,
+  templateFilter,
 }: AddPageButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -300,6 +308,7 @@ export function AddPageButton({
         onClose={() => setIsOpen(false)}
         currentTemplateId={currentTemplateId}
         onAddSliderVariant={onAddSliderVariant}
+        templateFilter={templateFilter}
       />
     </>
   );

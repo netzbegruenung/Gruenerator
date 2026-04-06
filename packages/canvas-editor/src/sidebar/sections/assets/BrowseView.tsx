@@ -1,24 +1,37 @@
 import { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import { PiArrowLeft } from 'react-icons/pi';
 
-import { IconButton, IconButtonRow } from '@gruenerator/ui';
+import { IconButton } from '@gruenerator/ui';
 
 import useDebounce from '../../../hooks/useDebounce';
+import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { ALL_ASSETS, type UniversalAsset } from '../../../utils/canvasAssets';
 import { filterIllustrations, matchesQuery } from '../../../utils/filterUtils';
-import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/registry';
-import { CARD_GRID, SELECTABLE_CARD, SIDEBAR_SECTION, SECTION_LABEL } from '../../primitives';
+import {
+  ALL_ILLUSTRATIONS,
+  getIllustrationThumbPath,
+  getIllustrationPath,
+} from '../../../utils/illustrations/registry';
+import { SIDEBAR_SECTION, SECTION_LABEL } from '../../primitives';
 import { BadgeSection } from '../BadgeSection';
 import { FormenSection } from '../FormenSection';
 import { IconsSection } from '../IconsSection';
 import { IllustrationenSection } from '../IllustrationenSection';
 import { RahmenSection } from '../RahmenSection';
 
-import { CATEGORY_CARDS, type AssetView, type CategoryCardDef } from './constants';
+import { CATEGORY_CARDS, PREVIEW_COMPONENTS, type AssetView, type CategoryCardDef } from './constants';
 import { SearchInput, SearchResultsGrid } from './SearchResultsGrid';
 
 import type { ExtendedAssetsSectionProps } from './AssetsSection';
 import type { AssetSearchState } from './useAssetSearch';
+import type { AssetInstance } from '../../../utils/canvasAssets';
+import type { ShapeInstance, ShapeType } from '../../../utils/shapes';
+import type {
+  IllustrationInstance,
+  KawaiiIllustrationType,
+  KawaiiInstance,
+  SvgDef,
+} from '../../../utils/illustrations/types';
 
 import { cn } from '../../../utils/cn';
 
@@ -27,6 +40,93 @@ import { cn } from '../../../utils/cn';
 function CategoryIconButton({ card, onClick }: { card: CategoryCardDef; onClick: () => void }) {
   const { Icon, label } = card;
   return <IconButton size="sm" icon={<Icon />} label={label} onClick={onClick} />;
+}
+
+interface RecentItem {
+  id: string;
+  type: 'asset' | 'shape' | 'illustration';
+  label: string;
+  src?: string;
+  color?: string;
+  shapeType?: string;
+  kawaiiType?: KawaiiIllustrationType;
+  svgDef?: SvgDef;
+}
+
+function RecentItemThumbnail({ item, assetBaseUrl }: { item: RecentItem; assetBaseUrl: string }) {
+  if (item.kawaiiType) {
+    const KawaiiComponent = PREVIEW_COMPONENTS[item.kawaiiType];
+    if (KawaiiComponent) {
+      return <KawaiiComponent size={36} mood="happy" color="#005437" />;
+    }
+  }
+
+  if (item.svgDef) {
+    return (
+      <img
+        src={getIllustrationThumbPath(item.svgDef, assetBaseUrl)}
+        alt={item.label}
+        className="w-3/5 h-3/5 object-contain"
+        loading="lazy"
+        onError={(e) => {
+          const img = e.currentTarget;
+          if (!img.dataset.fallback && item.svgDef) {
+            img.dataset.fallback = '1';
+            img.src = getIllustrationPath(item.svgDef, assetBaseUrl);
+          }
+        }}
+      />
+    );
+  }
+
+  if (item.src) {
+    return <img src={item.src} alt={item.label} className="w-3/5 h-3/5 object-contain" />;
+  }
+
+  return (
+    <div
+      className="w-3/5 h-3/5 rounded"
+      style={{ backgroundColor: item.color ?? 'var(--color-grey-400)' }}
+    />
+  );
+}
+
+function RecentlyUsedGrid({
+  items,
+  assetBaseUrl,
+  onAddAsset,
+  onAddShape,
+  onAddIllustration,
+}: {
+  items: RecentItem[];
+  assetBaseUrl: string;
+  onAddAsset?: (id: string) => void;
+  onAddShape?: (type: ShapeType) => void;
+  onAddIllustration?: (id: string) => void;
+}) {
+  if (items.length === 0) return null;
+
+  const handleClick = (item: RecentItem) => {
+    if (item.type === 'asset' && onAddAsset) onAddAsset(item.id);
+    else if (item.type === 'shape' && onAddShape && item.shapeType) onAddShape(item.shapeType as ShapeType);
+    else if (item.type === 'illustration' && onAddIllustration) onAddIllustration(item.id);
+  };
+
+  return (
+    <div className="grid grid-cols-3 gap-1.5 w-full">
+      {items.slice(0, 6).map((item) => (
+        <button
+          key={`${item.type}-${item.id}`}
+          type="button"
+          className="aspect-square rounded-lg bg-background-alt border border-transparent cursor-pointer transition-all duration-150 flex items-center justify-center hover:bg-hover-alt hover:border-grey-300 dark:hover:border-grey-600"
+          onClick={() => handleClick(item)}
+          title={item.label}
+        >
+          <RecentItemThumbnail item={item} assetBaseUrl={assetBaseUrl} />
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function DrillDownHeader({ label, onBack }: { label: string; onBack: () => void }) {
@@ -50,22 +150,21 @@ function AssetGrid({
   onAddAsset: (id: string) => void;
 }) {
   return (
-    <div className={CARD_GRID}>
+    <div className="grid grid-cols-2 gap-2 w-full">
       {assets.map((asset) => (
         <button
           key={asset.id}
-          className={SELECTABLE_CARD}
+          className="flex items-center gap-3 p-3 rounded-lg bg-transparent border border-transparent cursor-pointer transition-[background,border-color] duration-150 hover:bg-hover-alt h-16"
           onClick={() => onAddAsset(asset.id)}
           type="button"
           title={`${asset.label} hinzufügen`}
         >
-          <div className="flex items-center justify-center w-full h-full relative">
-            <img
-              src={asset.src}
-              alt={asset.label}
-              className="w-[70%] h-[70%] max-w-12 max-h-12 object-contain"
-            />
-          </div>
+          <img
+            src={asset.src}
+            alt={asset.label}
+            className="w-10 h-10 object-contain shrink-0"
+          />
+          <span className="text-xs text-foreground truncate">{asset.label}</span>
         </button>
       ))}
     </div>
@@ -95,8 +194,6 @@ export function BrowseView(props: BrowseViewProps) {
     }
   }, [sectionProps.selectedFrameId]);
 
-  const hasTextFeature =
-    sectionProps.onAddHeader !== undefined || sectionProps.onAddText !== undefined;
   const hasAssetsFeature = sectionProps.onAddAsset !== undefined;
   const hasIconsFeature =
     sectionProps.selectedIcons !== undefined && sectionProps.onIconToggle !== undefined;
@@ -132,6 +229,51 @@ export function BrowseView(props: BrowseViewProps) {
     hasIconsFeature,
   ]);
 
+  const { assetBaseUrl = '' } = useCanvasEditorServices();
+
+  const recentItems = useMemo<RecentItem[]>(() => {
+    const items: RecentItem[] = [];
+    if (sectionProps.assetInstances) {
+      for (const inst of sectionProps.assetInstances) {
+        const def = ALL_ASSETS.find((a) => a.id === (inst as AssetInstance).assetId);
+        if (def) items.push({ id: def.id, type: 'asset', src: def.src, label: def.label });
+      }
+    }
+    if (sectionProps.shapeInstances) {
+      for (const shape of sectionProps.shapeInstances as ShapeInstance[]) {
+        items.push({
+          id: shape.id,
+          type: 'shape',
+          label: shape.type,
+          color: shape.fill,
+          shapeType: shape.type,
+        });
+      }
+    }
+    if (sectionProps.illustrationInstances) {
+      for (const ill of sectionProps.illustrationInstances as IllustrationInstance[]) {
+        const def = ALL_ILLUSTRATIONS.find((d) => d.id === ill.illustrationId);
+        if (!def) continue;
+        if (def.source === 'kawaii') {
+          items.push({
+            id: def.id,
+            type: 'illustration',
+            label: def.name,
+            kawaiiType: def.id as KawaiiIllustrationType,
+          });
+        } else {
+          items.push({
+            id: def.id,
+            type: 'illustration',
+            label: def.name,
+            svgDef: def as SvgDef,
+          });
+        }
+      }
+    }
+    return items;
+  }, [sectionProps.assetInstances, sectionProps.shapeInstances, sectionProps.illustrationInstances]);
+
   if (activeView !== 'browse') {
     return renderDrillDown();
   }
@@ -142,7 +284,7 @@ export function BrowseView(props: BrowseViewProps) {
 
   function renderBrowse() {
     return (
-      <div className="flex flex-col gap-6 w-full min-w-0">
+      <div className="flex flex-col gap-4 w-full min-w-0">
         <SearchInput
           value={search.searchQuery}
           onChange={search.setSearchQuery}
@@ -174,33 +316,25 @@ export function BrowseView(props: BrowseViewProps) {
           </div>
         ) : (
           <>
-            {hasTextFeature && (
-              <div className="flex gap-3">
-                {sectionProps.onAddHeader && (
-                  <button
-                    type="button"
-                    className="flex-1 py-2.5 rounded-lg bg-background-alt border border-transparent cursor-pointer transition-all duration-200 text-foreground text-center font-semibold font-[GrueneTypeNeue,Arial,sans-serif] text-base hover:bg-hover-alt hover:-translate-y-px active:translate-y-0"
-                    onClick={sectionProps.onAddHeader}
-                  >
-                    Überschrift
-                  </button>
-                )}
-                {sectionProps.onAddText && (
-                  <button
-                    type="button"
-                    className="flex-1 py-2.5 rounded-lg bg-background-alt border border-transparent cursor-pointer transition-all duration-200 text-foreground text-center font-[PT_Sans,Arial,sans-serif] text-sm hover:bg-hover-alt hover:-translate-y-px active:translate-y-0"
-                    onClick={sectionProps.onAddText}
-                  >
-                    Fließtext
-                  </button>
-                )}
+            {recentItems.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className={cn(SECTION_LABEL, 'mb-0')}>Zuletzt verwendet</h4>
+                </div>
+                <RecentlyUsedGrid
+                  items={recentItems}
+                  assetBaseUrl={assetBaseUrl}
+                  onAddAsset={sectionProps.onAddAsset}
+                  onAddShape={sectionProps.onAddShape}
+                  onAddIllustration={sectionProps.onAddIllustration}
+                />
               </div>
             )}
 
             {availableCategories.length > 0 && (
               <div>
-                <h4 className={cn(SECTION_LABEL, 'mb-3')}>Kategorien durchsuchen</h4>
-                <IconButtonRow gap="md" padding="none" className="justify-start">
+                <h4 className={cn(SECTION_LABEL, 'mb-2')}>Kategorien durchsuchen</h4>
+                <div className="grid grid-cols-3 gap-x-2 gap-y-3 justify-items-center">
                   {availableCategories.map((card) => (
                     <CategoryIconButton
                       key={card.id}
@@ -208,7 +342,7 @@ export function BrowseView(props: BrowseViewProps) {
                       onClick={() => setActiveView(card.id)}
                     />
                   ))}
-                </IconButtonRow>
+                </div>
               </div>
             )}
           </>

@@ -18,35 +18,40 @@ type StageRefGetter = () => Konva.Stage | null;
 
 class CanvasRefRegistry {
   private stageRefs: Map<string, StageRefGetter> = new Map();
-  private defaultCanvasId = 'default';
 
   /**
    * Register a stage ref getter for a canvas instance
-   * @param canvasId - Unique identifier for the canvas (optional, uses 'default')
+   * @param canvasId - Unique identifier for the canvas (e.g., config.id)
    * @param refGetter - Function that returns the Konva.Stage or null
    */
-  setStageRef(canvasId: string | undefined, refGetter: StageRefGetter): void {
-    this.stageRefs.set(canvasId ?? this.defaultCanvasId, refGetter);
+  setStageRef(canvasId: string, refGetter: StageRefGetter): void {
+    if (process.env.NODE_ENV !== 'production' && this.stageRefs.has(canvasId)) {
+      console.warn(
+        `[CanvasRefRegistry] Overwriting existing stage ref for canvasId="${canvasId}". ` +
+        'This may indicate two canvas instances sharing the same ID.'
+      );
+    }
+    this.stageRefs.set(canvasId, refGetter);
   }
 
   /**
    * Get the Konva.Stage for a canvas instance
-   * @param canvasId - Unique identifier for the canvas (optional, uses 'default')
+   * @param canvasId - Unique identifier for the canvas
    */
-  getStage(canvasId?: string): Konva.Stage | null {
-    const getter = this.stageRefs.get(canvasId ?? this.defaultCanvasId);
+  getStage(canvasId: string): Konva.Stage | null {
+    const getter = this.stageRefs.get(canvasId);
     return getter?.() ?? null;
   }
 
   /**
    * Export canvas to data URL
-   * @param options - Export options (format, quality, pixelRatio)
    * @param canvasId - Canvas instance to export
+   * @param options - Export options (format, quality, pixelRatio)
    */
-  exportCanvas(options: ExportOptions = { format: 'png' }, canvasId?: string): ExportResult | null {
+  exportCanvas(canvasId: string, options: ExportOptions = { format: 'png' }): ExportResult | null {
     const stage = this.getStage(canvasId);
     if (!stage) {
-      console.warn('[CanvasRefRegistry] No stage registered for export');
+      console.warn(`[CanvasRefRegistry] No stage registered for canvasId="${canvasId}"`);
       return null;
     }
 
@@ -71,8 +76,8 @@ class CanvasRefRegistry {
    * Unregister a stage ref
    * @param canvasId - Canvas instance to unregister
    */
-  unregister(canvasId?: string): void {
-    this.stageRefs.delete(canvasId ?? this.defaultCanvasId);
+  unregister(canvasId: string): void {
+    this.stageRefs.delete(canvasId);
   }
 
   /**

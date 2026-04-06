@@ -12,6 +12,7 @@ import { Group, Rect, Circle, Text } from 'react-konva';
 import useImage from 'use-image';
 
 import { CanvasText, CanvasImage, CanvasBackground } from '../primitives';
+import { useIsElementSelected } from '../stores/CanvasStoreProvider';
 import {
   assertAsString,
   assertAsNumber,
@@ -449,7 +450,6 @@ export interface GenericCanvasElementProps<
   config: CanvasElementConfig<TState>;
   state: TState;
   layout: LayoutResult;
-  selectedElement: string | null;
   onSelect: (id: string) => void;
   onTextChange: (id: string, text: string) => void;
   onFontSizeChange: (id: string, size: number) => void;
@@ -469,7 +469,6 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
   config,
   state,
   layout,
-  selectedElement,
   onSelect,
   onTextChange,
   onFontSizeChange,
@@ -487,7 +486,7 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
     return null;
   }
 
-  const selected = selectedElement === config.id;
+  const selected = useIsElementSelected(config.id);
 
   switch (config.type) {
     case 'text':
@@ -574,7 +573,6 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
               config={child}
               state={state}
               layout={layout}
-              selectedElement={selectedElement}
               onSelect={onSelect}
               onTextChange={onTextChange}
               onFontSizeChange={onFontSizeChange}

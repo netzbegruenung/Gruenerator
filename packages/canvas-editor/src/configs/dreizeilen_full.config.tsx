@@ -6,9 +6,10 @@
  */
 
 import { HiCog, HiPhotograph } from 'react-icons/hi';
-import { PiSquaresFourFill } from 'react-icons/pi';
+import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { AssetsSection, ImageBackgroundSection } from '../sidebar';
+import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
 import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../utils/canvasAssets';
 import {
@@ -187,13 +188,15 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       ariaLabel: 'Hintergrundbild ändern',
     },
     { id: 'settings', icon: HiCog, label: 'Einstellungen', ariaLabel: 'Balken-Einstellungen' },
+    { id: 'text', icon: PiTextAa, label: 'Text', ariaLabel: 'Texte hinzufügen' },
     { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Elemente hinzufügen' },
     alternativesTab,
   ],
 
   getVisibleTabs: (_state, context) => {
-    const base: ('image-background' | 'settings' | 'assets' | 'alternatives' | 'share')[] = [
+    const base: ('image-background' | 'settings' | 'text' | 'assets' | 'alternatives' | 'share')[] = [
       'image-background',
+      'text',
       'assets',
       'alternatives',
       'share',
@@ -249,13 +252,21 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       }),
     },
 
+    text: {
+      component: CombinedTextSection,
+      propsFactory: (state, actions) => ({
+        additionalTexts: state.additionalTexts,
+        onAddHeader: actions.addHeader,
+        onAddSubheader: actions.addSubheader,
+        onAddText: actions.addText,
+        onUpdateText: actions.updateAdditionalText,
+        onRemoveText: actions.removeAdditionalText,
+      }),
+    },
+
     assets: {
       component: AssetsSection,
       propsFactory: (state, actions, context) => ({
-        // Text creation callbacks
-        onAddHeader: actions.addHeader,
-        onAddText: actions.addText,
-
         // Asset instance props
         onAddAsset: actions.addAsset,
         recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['dreizeilen'],
@@ -438,6 +449,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     pillBadgeInstances: (props.pillBadgeInstances as PillBadgeInstance[] | undefined) ?? [],
     circleBadgeInstances: (props.circleBadgeInstances as CircleBadgeInstance[] | undefined) ?? [],
     frameInstances: [],
+    userImageInstances: [],
 
     // Layer Ordering
     layerOrder: (props.layerOrder as string[] | undefined) ?? [],
@@ -735,6 +747,38 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
           fontSize: ADDITIONAL_TEXT_DEFAULTS.header.fontSize,
           fontFamily: 'GrueneTypeNeue, Arial, sans-serif',
           fontStyle: ADDITIONAL_TEXT_DEFAULTS.header.fontStyle,
+          fill: colorScheme?.fontColor ?? '#FFFFFF',
+          rotation: 0,
+          scale: 1,
+        };
+
+        setState((prev) => ({
+          ...prev,
+          additionalTexts: [...prev.additionalTexts, newText],
+        }));
+        saveToHistory({
+          ...getState(),
+          additionalTexts: [...getState().additionalTexts, newText],
+        });
+      },
+
+      addSubheader: () => {
+        const id = `text-${Date.now()}`;
+        const layout = calculateLayout(getState());
+        const colorScheme = (layout._meta as Record<string, unknown>)?.colorScheme as
+          | { fontColor?: string }
+          | undefined;
+
+        const newText = {
+          id,
+          text: ADDITIONAL_TEXT_DEFAULTS.subheader.defaultText,
+          type: 'subheader' as const,
+          x: CANVAS_WIDTH / 2,
+          y: ADDITIONAL_TEXT_DEFAULTS.subheader.offsetY,
+          width: ADDITIONAL_TEXT_DEFAULTS.subheader.width,
+          fontSize: ADDITIONAL_TEXT_DEFAULTS.subheader.fontSize,
+          fontFamily: 'GrueneTypeNeue, Arial, sans-serif',
+          fontStyle: ADDITIONAL_TEXT_DEFAULTS.subheader.fontStyle,
           fill: colorScheme?.fontColor ?? '#FFFFFF',
           rotation: 0,
           scale: 1,

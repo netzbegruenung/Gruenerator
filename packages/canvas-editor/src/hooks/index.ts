@@ -64,6 +64,9 @@ export type {
   ExportProgress,
 } from './useMultiPageExport';
 
+export { usePresentationExport } from './usePresentationExport';
+export type { UsePresentationExportReturn } from './usePresentationExport';
+
 export { usePageManager } from './usePageManager';
 export type { InitialPageDef, UsePageManagerOptions, UsePageManagerReturn } from './usePageManager';
 

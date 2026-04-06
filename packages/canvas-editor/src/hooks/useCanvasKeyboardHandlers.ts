@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 
 import { CanvasClipboard } from '../utils/canvasClipboard';
 
+import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 import type { BalkenInstance } from '../primitives';
 import type { ShapeInstance } from '../utils/shapes';
 
@@ -26,10 +27,11 @@ export interface CanvasActions {
   removePillBadge?: (id: string) => void;
   removeFrame?: (id: string) => void;
   setFrameImage?: (id: string, file: File, objectUrl: string) => void;
+  removeUserImage?: (id: string) => void;
 }
 
 export interface UseCanvasKeyboardHandlersOptions<TState> {
-  selectedElement: string | null;
+  store: CanvasEditorStoreApi;
   state: TState;
   actions: CanvasActions;
   setState: (partial: Partial<TState> | ((prev: TState) => TState)) => void;
@@ -51,7 +53,7 @@ function getStateArray<T>(state: unknown, key: string): T[] {
 export function useCanvasKeyboardHandlers<TState>(
   options: UseCanvasKeyboardHandlersOptions<TState>
 ): void {
-  const { selectedElement, state, actions, setState, setSelectedElement } = options;
+  const { store, state, actions, setState, setSelectedElement } = options;
 
   // Use refs for values that the handler reads but shouldn't trigger re-attachment
   const stateRef = useRef(state);
@@ -63,6 +65,7 @@ export function useCanvasKeyboardHandlers<TState>(
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const selectedElement = store.getState().selectedElement;
       const isCtrlOrCmd = e.ctrlKey || e.metaKey;
       const currentState = stateRef.current;
       const currentActions = actionsRef.current;
@@ -140,6 +143,19 @@ export function useCanvasKeyboardHandlers<TState>(
             (newState as Record<string, unknown>).assetInstances = [
               ...assets,
               { ...asset, id: newId, x: asset.x + offset, y: asset.y + offset },
+            ];
+            return newState as TState;
+          }
+
+          const userImages = getStateArray<{ id: string; x: number; y: number }>(
+            prevState,
+            'userImageInstances'
+          );
+          const userImage = userImages.find((u) => u.id === selectedElement);
+          if (userImage) {
+            (newState as Record<string, unknown>).userImageInstances = [
+              ...userImages,
+              { ...userImage, id: newId, x: userImage.x + offset, y: userImage.y + offset },
             ];
             return newState as TState;
           }
@@ -232,6 +248,16 @@ export function useCanvasKeyboardHandlers<TState>(
             };
             const existing = getStateArray<unknown>(prevState, 'frameInstances');
             (newState as Record<string, unknown>).frameInstances = [...existing, newFrame];
+          } else if (type === 'user-image' && typeof data === 'object' && data !== null) {
+            const imgData = data as { x: number; y: number };
+            const newImg = {
+              ...imgData,
+              id: newId,
+              x: imgData.x + offset,
+              y: imgData.y + offset,
+            };
+            const existing = getStateArray<unknown>(prevState, 'userImageInstances');
+            (newState as Record<string, unknown>).userImageInstances = [...existing, newImg];
           }
 
           return newState as TState;
@@ -303,6 +329,16 @@ export function useCanvasKeyboardHandlers<TState>(
         });
         if (frame) {
           CanvasClipboard.copy('frame', frame);
+          return;
+        }
+
+        const userImages = getStateArray<unknown>(currentState, 'userImageInstances');
+        const userImage = userImages.find((u: unknown) => {
+          const imgObj = u as { id?: string };
+          return imgObj.id === selectedElement;
+        });
+        if (userImage) {
+          CanvasClipboard.copy('user-image', userImage);
           return;
         }
 
@@ -435,10 +471,25 @@ export function useCanvasKeyboardHandlers<TState>(
             return;
           }
         }
+
+        // Remove User Image
+        const userImageInstances = getStateArray<unknown>(currentState, 'userImageInstances');
+        if (
+          userImageInstances.find((u: unknown) => {
+            const imgObj = u as { id?: string };
+            return imgObj.id === selectedElement;
+          })
+        ) {
+          if (currentActions.removeUserImage) {
+            currentActions.removeUserImage(selectedElement);
+            setSelectedElement(null);
+            return;
+          }
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedElement, setState, setSelectedElement]);
+  }, [store, setState, setSelectedElement]);
 }

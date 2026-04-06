@@ -11,6 +11,7 @@ import { ProgressTracker } from '../tool-ui/progress-tracker/ProgressTracker';
 import { SkillBadge } from '../message-parts/SkillBadge';
 import { TypingIndicator } from '../message-parts/TypingIndicator';
 import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
+import { SharepicImageDisplay } from '../message-parts/SharepicImageDisplay';
 import { MemoryIndicator } from '../message-parts/MemoryIndicator';
 import { MessageActions } from '../message-parts/MessageActions';
 import { SearchResultsSection, type AdditionalSource } from '../message-parts/SearchResultsSection';
@@ -138,6 +139,9 @@ export const AssistantMessage = memo(function AssistantMessage() {
             />
           ))}
 
+        {custom?.sharepicData && !custom?.generatedImage && (
+          <SharepicImageDisplay sharepicData={custom.sharepicData} />
+        )}
         {custom?.generatedImage && <GeneratedImageDisplay image={custom.generatedImage} />}
 
         <CitationProvider citations={citations} fetchFullText={fetchFullText}>

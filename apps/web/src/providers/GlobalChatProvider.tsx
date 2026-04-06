@@ -17,7 +17,10 @@ import {
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import { renderSharepicToImage } from '../features/image-studio/renderSharepicToImage';
+import { FORM_STEPS } from '../features/image-studio/utils/typeConfig/constants';
 import { useNotebookChatStore } from '../features/notebook/stores/notebookChatStore';
+import useImageStudioStore from '../stores/imageStudioStore';
 import useNotebookStore from '../features/notebook/stores/notebookStore';
 import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookChatResolver';
 import { useAuthStore } from '../stores/authStore';
@@ -137,6 +140,13 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
           const currentPath = window.location.pathname + window.location.search;
           window.location.href = buildLoginUrl(currentPath);
         }
+      },
+      renderSharepic: renderSharepicToImage,
+      onEditSharepic: (data: { canvasType: string; initialProps: Record<string, unknown>; alternatives?: unknown[] }) => {
+        const store = useImageStudioStore.getState();
+        store.loadFromAIGeneration(data.canvasType, data.initialProps as Record<string, string>);
+        store.setCurrentStep(FORM_STEPS.CANVAS_EDIT);
+        navigate(`/studio/vorlagen/${data.canvasType}`);
       },
       onEditInDocs: async (content: string, title?: string, existingDocId?: string) => {
         if (existingDocId) {

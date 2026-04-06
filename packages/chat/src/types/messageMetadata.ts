@@ -2,6 +2,7 @@ import type {
   ChatProgress,
   Citation,
   GeneratedImage,
+  SharepicData,
   SearchResult,
   StreamMetadata,
 } from '../hooks/useChatGraphStream';
@@ -39,6 +40,7 @@ export type ChatMessageMetadata = {
   // Regular chat specific
   searchResults?: SearchResult[];
   generatedImage?: GeneratedImage;
+  sharepicData?: SharepicData;
   streamMetadata?: StreamMetadata;
   threadId?: string;
   followUpSuggestions?: string[];

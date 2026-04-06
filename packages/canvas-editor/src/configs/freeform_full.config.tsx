@@ -9,10 +9,11 @@
  */
 
 import { HiPhotograph } from 'react-icons/hi';
+import { HiArrowUpTray } from 'react-icons/hi2';
 import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
-import { AssetsSection, BackgroundSection } from '../sidebar';
-import { FreeformTextSection } from '../sidebar/sections/FreeformTextSection';
+import { AssetsSection, BackgroundSection, UploadsSection } from '../sidebar';
+import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
 
 import { createBaseActions } from './factory/commonActions';
@@ -114,9 +115,15 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
       label: 'Elemente',
       ariaLabel: 'Elemente hinzufügen',
     },
+    {
+      id: 'uploads',
+      icon: HiArrowUpTray,
+      label: 'Uploads',
+      ariaLabel: 'Bilder hochladen',
+    },
   ],
 
-  getVisibleTabs: () => ['background', 'text', 'elements'],
+  getVisibleTabs: () => ['background', 'text', 'elements', 'uploads'],
 
   getAutoSwitchTab: (selectedElement) =>
     selectedElement?.startsWith('frame-') ? 'elements' : null,
@@ -149,10 +156,11 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
     },
 
     text: {
-      component: FreeformTextSection,
+      component: CombinedTextSection,
       propsFactory: (state, actions) => ({
         additionalTexts: state.additionalTexts,
         onAddHeader: actions.addHeader,
+        onAddSubheader: actions.addSubheader,
         onAddText: actions.addText,
         onUpdateText: actions.updateAdditionalText,
         onRemoveText: actions.removeAdditionalText,
@@ -162,11 +170,23 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
     elements: {
       component: AssetsSection,
       propsFactory: (state, actions, context) => ({
-        onAddHeader: actions.addHeader,
-        onAddText: actions.addText,
         onAddAsset: actions.addAsset,
         recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['dreizeilen'],
         ...injectFeatureProps(state, actions, context),
+      }),
+    },
+
+    uploads: {
+      component: UploadsSection as unknown as React.ComponentType<Record<string, unknown>>,
+      propsFactory: (state, actions) => ({
+        userImages: state.userImageInstances,
+        onAddImage: actions.addUserImage,
+        onRemoveImage: actions.removeUserImage,
+        onSelectImage: (id: string) => {
+          // Selection is handled by clicking on the canvas element directly
+          // but clicking a sidebar thumbnail should also work
+          actions.selectElement?.(id);
+        },
       }),
     },
 
@@ -232,6 +252,7 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
     circleBadgeInstances: [],
     balkenInstances: [],
     frameInstances: [],
+    userImageInstances: [],
 
     // Layer ordering
     layerOrder: [],
