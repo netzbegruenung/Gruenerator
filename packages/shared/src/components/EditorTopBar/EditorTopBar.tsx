@@ -121,7 +121,17 @@ export const EditorTopBar = ({
             )}
           </>
         )}
-        {connectionStatus && <div className={`status-dot ${connectionStatus}`} />}
+        {connectionStatus && (
+          <>
+            <div className={`status-dot ${connectionStatus}`} />
+            <span className="status-label">
+              {connectionStatus === 'connected' && 'Gespeichert'}
+              {connectionStatus === 'syncing' && 'Speichert...'}
+              {connectionStatus === 'disconnected' && 'Offline'}
+              {connectionStatus === 'offline-cached' && 'Lokal gespeichert'}
+            </span>
+          </>
+        )}
       </div>
 
       {rightActions && <div className="editor-topbar__right">{rightActions}</div>}

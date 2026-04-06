@@ -9,6 +9,7 @@ import {
   useDocumentChat,
   BlockNoteEditor as BlockNoteEditorComponent,
   VersionHistory,
+  useVersionHistoryShortcut,
   useDocsAdapter,
   createDocsApiClient,
   lazyWithRetry,
@@ -154,10 +155,12 @@ function EditorContent() {
     staleTime: 30_000,
   });
 
-  // Authenticated fetch — only when logged in and auth resolved
-  const { data: authData, isLoading: authDocLoading } = useQuery<Document>({
+  // Authenticated fetch — only when logged in and auth resolved.
+  // skipUnauthorized: expired sessions return null instead of redirecting to login,
+  // allowing fallback to publicData for shared documents.
+  const { data: authData, isLoading: authDocLoading } = useQuery<Document | null>({
     queryKey: ['document-auth', id],
-    queryFn: () => apiClient.get<Document>(`/docs/${id}`),
+    queryFn: () => apiClient.get<Document>(`/docs/${id}`, { skipUnauthorized: true }),
     enabled: !!id && !isAuthLoading && !isGuest,
     retry: false,
   });
@@ -329,6 +332,8 @@ function EditorContent() {
   const toggleSidebar = useCallback(() => {
     setSidebarOpen((prev) => !prev);
   }, []);
+
+  useVersionHistoryShortcut(sidebarOpen, sidebarTab, setSidebarOpen, setSidebarTab);
 
   useEffect(() => {
     setCommentsPortalTarget(

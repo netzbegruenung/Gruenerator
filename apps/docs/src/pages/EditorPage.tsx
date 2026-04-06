@@ -7,6 +7,7 @@ import {
   useDocumentChat,
   BlockNoteEditor as BlockNoteEditorComponent,
   VersionHistory,
+  useVersionHistoryShortcut,
   useDocsAdapter,
   createDocsApiClient,
   lazyWithRetry,
@@ -285,6 +286,8 @@ export const EditorPage = () => {
   const toggleSidebar = useCallback(() => {
     setSidebarOpen((prev) => !prev);
   }, []);
+
+  useVersionHistoryShortcut(sidebarOpen, sidebarTab, setSidebarOpen, setSidebarTab);
 
   useEffect(() => {
     setCommentsPortalTarget(

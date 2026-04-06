@@ -40,7 +40,7 @@ pnpm --filter @gruenerator/desktop dev           # Tauri desktop dev
 
 - **`apps/web`** — React 19 + Vite 7 frontend. Feature-sliced design with 26 feature modules in `src/features/`. Routes defined in `src/config/routes.ts`.
 - **`apps/api`** — Express 5 backend running in Node.js cluster mode. AI calls are offloaded to a dedicated worker pool (`workers/aiWorkerPool.ts`). Routes in `routes/`, business logic in `services/`. See [Express 5 Route Typing](#express-5-route-typing) below.
-- **`apps/docs`** — Collaborative document editor with Hocuspocus real-time sync.
+- **`apps/docs`** — Standalone collaborative document editor with Hocuspocus real-time sync. **Deprecated** — being replaced by the docs editor in `apps/web`. New docs features should be added to `apps/web/src/features/docs/` (and `packages/docs/`), not `apps/docs`.
 - **`apps/sites`** — Site builder/management interface.
 - **`apps/mobile`** — Expo 55 / React Native 0.83 app with Expo Router.
 - **`apps/desktop`** — Tauri 2 wrapper around the web frontend.
