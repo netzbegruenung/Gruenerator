@@ -1,4 +1,16 @@
-import { Badge, Button, cn } from '@gruenerator/ui';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  Badge,
+  Button,
+  cn,
+} from '@gruenerator/ui';
 import { formatRelativeTime } from '@gruenerator/shared/utils';
 import { useCallback, useEffect, useState } from 'react';
 import { FiArrowLeft, FiClock, FiRotateCcw } from 'react-icons/fi';
@@ -12,6 +24,7 @@ interface Snapshot {
   is_auto_save: boolean;
   label: string | null;
   created_by_name: string | null;
+  snapshot_count?: number;
 }
 
 interface SnapshotsResponse {
@@ -40,6 +53,7 @@ export function VersionHistory({ documentId, apiClient, canEdit, onRestore }: Ve
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -126,10 +140,37 @@ export function VersionHistory({ documentId, apiClient, canEdit, onRestore }: Ve
             </div>
             {canEdit && (
               <div className="border-t border-grey-200 p-md dark:border-grey-700">
-                <Button onClick={handleRestore} disabled={restoring} className="w-full" size="sm">
+                <Button
+                  onClick={() => setConfirmOpen(true)}
+                  disabled={restoring}
+                  className="w-full"
+                  size="sm"
+                >
                   <FiRotateCcw size={14} />
                   {restoring ? 'Wird wiederhergestellt...' : 'Diese Version wiederherstellen'}
                 </Button>
+                <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+                  <AlertDialogContent size="sm">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Version wiederherstellen?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Der aktuelle Inhalt wird durch Version {selectedVersion} ersetzt. Eine
+                        Sicherungskopie wird automatisch als neue Version gespeichert.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => {
+                          setConfirmOpen(false);
+                          handleRestore();
+                        }}
+                      >
+                        Wiederherstellen
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             )}
           </div>
@@ -178,6 +219,9 @@ export function VersionHistory({ documentId, apiClient, canEdit, onRestore }: Ve
                   <div className="text-xs text-grey-500 dark:text-grey-400">
                     {formatRelativeTime(s.created_at)}
                     {s.created_by_name && ` · ${s.created_by_name}`}
+                    {s.snapshot_count &&
+                      s.snapshot_count > 1 &&
+                      ` · ${s.snapshot_count} Änderungen`}
                   </div>
                 </div>
               </button>

@@ -49,8 +49,11 @@ function extractAutoTitle(html: string): string | null {
  */
 export class PostgresPersistence {
   private readonly UPDATE_BATCH_SIZE = 100;
-  private readonly SNAPSHOT_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+  private readonly SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+  private readonly SNAPSHOT_RETENTION_DAYS = 90;
   private readonly db: DbQueryFn;
+  private lastSnapshotSizes = new Map<string, number>();
+  private snapshotCounter = 0;
 
   constructor(db: DbQueryFn) {
     this.db = db;
@@ -156,6 +159,12 @@ export class PostgresPersistence {
 
   private async maybeCreateSnapshot(documentId: string, state: Uint8Array): Promise<void> {
     try {
+      // Skip if document state hasn't meaningfully changed
+      const lastSize = this.lastSnapshotSizes.get(documentId);
+      if (lastSize !== undefined && Math.abs(state.length - lastSize) < 50) {
+        return;
+      }
+
       const result = await this.db(
         `SELECT created_at, version
          FROM yjs_document_snapshots
@@ -179,11 +188,40 @@ export class PostgresPersistence {
           [documentId, compressed, nextVersion]
         );
 
+        this.lastSnapshotSizes.set(documentId, state.length);
         log.info(`[Snapshot] Created snapshot for ${documentId}, version ${nextVersion}`);
+
+        this.snapshotCounter++;
+        if (this.snapshotCounter % 100 === 0) {
+          this.cleanupOldSnapshots().catch((err) => {
+            log.error(`[Cleanup] Snapshot retention cleanup failed: ${err}`);
+          });
+        }
       }
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       log.error(`[Snapshot] Error creating snapshot: ${err.message}`);
+    }
+  }
+
+  private async cleanupOldSnapshots(): Promise<void> {
+    try {
+      const result = await this.db(
+        `DELETE FROM yjs_document_snapshots
+         WHERE is_auto_save = true
+           AND label IS NULL
+           AND created_at < CURRENT_TIMESTAMP - interval '${this.SNAPSHOT_RETENTION_DAYS} days'
+         RETURNING id`,
+        []
+      );
+      if (result.length > 0) {
+        log.info(
+          `[Cleanup] Deleted ${result.length} auto-snapshots older than ${this.SNAPSHOT_RETENTION_DAYS} days`
+        );
+      }
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      log.error(`[Cleanup] Error cleaning old snapshots: ${err.message}`);
     }
   }
 
