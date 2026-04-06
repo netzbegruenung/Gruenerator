@@ -25,6 +25,9 @@ export { ChatComposer } from './components/chat/ChatComposer';
 // Components — Permissions
 export { ShareModal } from './components/permissions/ShareModal';
 
+// Components — Version History
+export { VersionHistory } from './components/version/VersionHistory';
+
 // Components — Common
 export { ErrorBoundary } from './components/common/ErrorBoundary';
 
