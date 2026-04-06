@@ -10,7 +10,7 @@
  * For the full editing experience with sidebar/toolbar, use ControllableCanvasWrapper.
  */
 
-import { useState, useCallback, useRef, memo } from 'react';
+import { useState, useRef, memo } from 'react';
 
 import type React from 'react';
 
