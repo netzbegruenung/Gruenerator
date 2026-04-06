@@ -13,6 +13,13 @@ interface ThreadItem {
   lastMessage?: { content: string; role: string; created_at: string } | null;
 }
 
+interface Props {
+  thread: ThreadItem;
+  theme: Theme;
+  onPress: (id: string) => void;
+  onDelete: (id: string) => void;
+}
+
 export function ThreadListItem({ thread, theme, onPress, onDelete }: Props) {
   const preview = thread.lastMessage?.content || '';
   const time = formatRelativeTime(thread.updatedAt);
@@ -26,7 +33,7 @@ export function ThreadListItem({ thread, theme, onPress, onDelete }: Props) {
           borderBottomColor: theme.border,
         },
       ]}
-      onPress={onPress}
+      onPress={() => onPress(thread.id)}
     >
       <View style={styles.content}>
         <View style={styles.header}>
@@ -43,7 +50,7 @@ export function ThreadListItem({ thread, theme, onPress, onDelete }: Props) {
       </View>
       <Pressable
         style={({ pressed }) => [styles.deleteButton, { opacity: pressed ? 0.5 : 1 }]}
-        onPress={onDelete}
+        onPress={() => onDelete(thread.id)}
         hitSlop={8}
       >
         <Ionicons name="trash-outline" size={18} color={colors.error[500]} />
