@@ -369,6 +369,7 @@ const BlockNoteEditorInner = ({
 
   useEffect(() => {
     if (!editor || hasInitialized.current) return;
+    let aborted = false;
 
     // In collaboration mode, Yjs is the sole source of truth.
     // Only inject template content for brand-new documents (empty Yjs fragment
@@ -383,7 +384,7 @@ const BlockNoteEditorInner = ({
           (async () => {
             try {
               const blocks = await editor.tryParseHTMLToBlocks(templateContent);
-              if (blocks && blocks.length > 0 && fragment.length === 0) {
+              if (!aborted && blocks && blocks.length > 0 && fragment.length === 0) {
                 editor.replaceBlocks(editor.document, blocks);
               }
             } catch (error) {
@@ -393,7 +394,9 @@ const BlockNoteEditorInner = ({
         }
       }
       hasInitialized.current = true;
-      return;
+      return () => {
+        aborted = true;
+      };
     }
 
     // Non-collaborative (standalone) editor: use initialContent or template
@@ -402,10 +405,10 @@ const BlockNoteEditorInner = ({
       ? initialContent
       : templateContent || defaultDocumentContent;
 
-    const initializeWithContent = async () => {
+    (async () => {
       try {
         const blocks = await editor.tryParseHTMLToBlocks(contentToUse);
-        if (blocks && blocks.length > 0) {
+        if (!aborted && blocks && blocks.length > 0) {
           editor.replaceBlocks(editor.document, blocks);
         }
         hasInitialized.current = true;
@@ -413,9 +416,11 @@ const BlockNoteEditorInner = ({
         console.error('[BlockNoteEditor] Failed to parse initial content:', error);
         hasInitialized.current = true;
       }
-    };
+    })();
 
-    initializeWithContent();
+    return () => {
+      aborted = true;
+    };
   }, [editor, initialContent, documentSubtype, isSynced, ydoc, fragment, provider]);
 
   const handleUploadFile = useCallback(async (file: File) => {
