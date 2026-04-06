@@ -158,6 +158,74 @@ router.get('/:id/snapshots', async (req: Request<{ id: string }>, res: Response)
   }
 });
 
+router.post('/:id/snapshots', async (req: Request<{ id: string }>, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'User not authenticated' });
+
+    const doc = await getAccessibleDocument(req.params.id, userId, res);
+    if (!doc) return;
+
+    if (!canEditDoc(doc, userId)) {
+      return res.status(403).json({ error: 'Edit permission required' });
+    }
+
+    const { label } = req.body as { label?: string };
+
+    // Load current document state from latest snapshot + updates
+    const snapshotResult = (await db.query(
+      `SELECT snapshot_data, version, created_at
+       FROM yjs_document_snapshots WHERE document_id = $1
+       ORDER BY version DESC LIMIT 1`,
+      [req.params.id]
+    )) as { snapshot_data: Buffer; version: number; created_at: string }[];
+
+    const ydoc = new Y.Doc();
+
+    if (snapshotResult.length > 0) {
+      const decompressed = gunzipSync(snapshotResult[0].snapshot_data);
+      Y.applyUpdate(ydoc, decompressed);
+
+      const updates = (await db.query(
+        `SELECT update_data FROM yjs_document_updates
+         WHERE document_id = $1 AND created_at > $2
+         ORDER BY created_at ASC`,
+        [req.params.id, snapshotResult[0].created_at]
+      )) as { update_data: Buffer }[];
+
+      for (const u of updates) {
+        Y.applyUpdate(ydoc, gunzipSync(u.update_data));
+      }
+    }
+
+    const state = Y.encodeStateAsUpdate(ydoc);
+    const compressed = gzipSync(Buffer.from(state));
+
+    const versionResult = (await db.query(
+      `SELECT COALESCE(MAX(version), 0) + 1 as next_version
+       FROM yjs_document_snapshots WHERE document_id = $1`,
+      [req.params.id]
+    )) as { next_version: number }[];
+
+    const nextVersion = versionResult[0].next_version;
+
+    await db.query(
+      `INSERT INTO yjs_document_snapshots
+        (document_id, snapshot_data, version, created_at, is_auto_save, label, created_by)
+       VALUES ($1, $2, $3, CURRENT_TIMESTAMP, false, $4, $5)`,
+      [req.params.id, compressed, nextVersion, label || null, userId]
+    );
+
+    return res.status(201).json({
+      version: nextVersion,
+      created_at: new Date().toISOString(),
+    });
+  } catch (error: unknown) {
+    console.error('[Docs] Error creating snapshot:', error);
+    return res.status(500).json({ error: 'Failed to create snapshot' });
+  }
+});
+
 router.get(
   '/:id/snapshots/:version/preview',
   async (req: Request<{ id: string; version: string }>, res: Response) => {
