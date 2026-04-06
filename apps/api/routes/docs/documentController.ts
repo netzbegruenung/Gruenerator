@@ -258,7 +258,7 @@ router.get('/:id', async (req: Request, res: Response) => {
         : document.share_mode === 'authenticated'
           ? 'authenticated'
           : hasDirectPerm
-            ? `direct:${document.permissions[userId]?.level}`
+            ? `direct:${document.permissions?.[userId]?.level}`
             : 'none';
 
     if (!hasAccess) {
