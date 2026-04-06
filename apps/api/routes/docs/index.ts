@@ -8,6 +8,7 @@ import groupShareController from './groupShareController.js';
 import importController from './importController.js';
 import permissionsController from './permissionsController.js';
 import shareController from './shareController.js';
+import snapshotController from './snapshotController.js';
 
 const router = Router();
 
@@ -19,6 +20,7 @@ router.use('/', shareController);
 router.use('/', exportController);
 router.use('/', exportToDocsController);
 router.use('/', importController);
+router.use('/', snapshotController);
 router.use('/', aiController);
 router.use('/', documentController);
 

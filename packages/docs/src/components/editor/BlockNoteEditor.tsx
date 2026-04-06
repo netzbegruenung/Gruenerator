@@ -369,27 +369,46 @@ const BlockNoteEditorInner = ({
 
   useEffect(() => {
     if (!editor || hasInitialized.current) return;
+    let aborted = false;
 
+    // In collaboration mode, Yjs is the sole source of truth.
+    // Only inject template content for brand-new documents (empty Yjs fragment
+    // after server sync). Check fragment.length directly — never trust
+    // editor.document which may lag behind the Yjs state.
     if (ydoc) {
       if (!provider || !isSynced) return;
-    }
 
-    if (ydoc && fragment) {
-      if (!isEditorEmpty(editor as unknown as BlockNoteEditorCore)) {
-        hasInitialized.current = true;
-        return;
+      if (fragment && fragment.length === 0 && documentSubtype !== 'blank') {
+        const templateContent = getTemplateContent(documentSubtype);
+        if (templateContent) {
+          (async () => {
+            try {
+              const blocks = await editor.tryParseHTMLToBlocks(templateContent);
+              if (!aborted && blocks && blocks.length > 0 && fragment.length === 0) {
+                editor.replaceBlocks(editor.document, blocks);
+              }
+            } catch (error) {
+              console.error('[BlockNoteEditor] Failed to apply template:', error);
+            }
+          })();
+        }
       }
+      hasInitialized.current = true;
+      return () => {
+        aborted = true;
+      };
     }
 
+    // Non-collaborative (standalone) editor: use initialContent or template
     const templateContent = getTemplateContent(documentSubtype);
     const contentToUse = initialContent?.trim()
       ? initialContent
       : templateContent || defaultDocumentContent;
 
-    const initializeWithContent = async () => {
+    (async () => {
       try {
         const blocks = await editor.tryParseHTMLToBlocks(contentToUse);
-        if (blocks && blocks.length > 0) {
+        if (!aborted && blocks && blocks.length > 0) {
           editor.replaceBlocks(editor.document, blocks);
         }
         hasInitialized.current = true;
@@ -397,9 +416,11 @@ const BlockNoteEditorInner = ({
         console.error('[BlockNoteEditor] Failed to parse initial content:', error);
         hasInitialized.current = true;
       }
-    };
+    })();
 
-    initializeWithContent();
+    return () => {
+      aborted = true;
+    };
   }, [editor, initialContent, documentSubtype, isSynced, ydoc, fragment, provider]);
 
   const handleUploadFile = useCallback(async (file: File) => {
