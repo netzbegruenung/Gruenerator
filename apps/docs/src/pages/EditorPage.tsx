@@ -7,6 +7,7 @@ import {
   useDocumentChat,
   BlockNoteEditor as BlockNoteEditorComponent,
   VersionHistory,
+  useVersionHistoryShortcut,
   useDocsAdapter,
   createDocsApiClient,
   lazyWithRetry,
@@ -286,21 +287,7 @@ export const EditorPage = () => {
     setSidebarOpen((prev) => !prev);
   }, []);
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'h') {
-        e.preventDefault();
-        if (sidebarOpen && sidebarTab === 'versions') {
-          setSidebarOpen(false);
-        } else {
-          setSidebarTab('versions');
-          setSidebarOpen(true);
-        }
-      }
-    };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [sidebarOpen, sidebarTab]);
+  useVersionHistoryShortcut(sidebarOpen, sidebarTab, setSidebarOpen, setSidebarTab);
 
   useEffect(() => {
     setCommentsPortalTarget(

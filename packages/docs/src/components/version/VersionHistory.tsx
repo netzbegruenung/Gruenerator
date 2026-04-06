@@ -47,6 +47,8 @@ interface VersionHistoryProps {
 
 export function VersionHistory({ documentId, apiClient, canEdit, onRestore }: VersionHistoryProps) {
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
+  const snapshotsRef = useRef(snapshots);
+  snapshotsRef.current = snapshots;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -105,7 +107,7 @@ export function VersionHistory({ documentId, apiClient, canEdit, onRestore }: Ve
 
   const handleRestore = useCallback(async () => {
     if (selectedVersion === null || !preview) return;
-    const previousLatest = snapshots[0]?.version;
+    const previousLatest = snapshotsRef.current[0]?.version;
     setRestoring(true);
     try {
       await apiClient.post(`/docs/${documentId}/snapshots/${selectedVersion}/restore`);
@@ -141,7 +143,7 @@ export function VersionHistory({ documentId, apiClient, canEdit, onRestore }: Ve
       setError('Wiederherstellung fehlgeschlagen');
       setRestoring(false);
     }
-  }, [documentId, selectedVersion, apiClient, preview, onRestore, snapshots, fetchSnapshots]);
+  }, [documentId, selectedVersion, apiClient, preview, onRestore, fetchSnapshots]);
 
   if (selectedVersion !== null) {
     return (
