@@ -44,6 +44,7 @@ export const auth = betterAuth({
     fields: {
       name: 'display_name',
       image: 'avatar_url',
+      emailVerified: 'email_verified',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
     },
@@ -125,6 +126,16 @@ export const auth = betterAuth({
       refreshToken: 'refresh_token',
       accessTokenExpiresAt: 'access_token_expires_at',
       idToken: 'id_token',
+      scope: 'scope',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+    },
+  },
+
+  verification: {
+    modelName: 'ba_verification',
+    fields: {
+      expiresAt: 'expires_at',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
     },
