@@ -420,21 +420,25 @@ export class OCRService {
       };
     }
 
+    const safeFilename = sanitizeFilename(filename, 'unknown');
+
     // Try Docling first — self-hosted, no token cost
     const doclingReady = await checkDocling();
     if (doclingReady) {
       try {
-        console.log(`[OCRService] Using Docling for base64 attachment: ${filename} (${mimeType})`);
+        console.log(
+          `[OCRService] Using Docling for base64 attachment: ${safeFilename} (${mimeType})`
+        );
         return await extractBase64Docling(base64Data, filename);
       } catch (doclingError) {
         console.warn(
-          `[OCRService] Docling base64 failed for ${filename}, falling back to Mistral OCR:`,
+          `[OCRService] Docling base64 failed for ${safeFilename}, falling back to Mistral OCR:`,
           (doclingError as Error).message
         );
       }
     } else {
       console.log(
-        `[OCRService] Docling unavailable, using Mistral OCR for: ${filename} (${mimeType})`
+        `[OCRService] Docling unavailable, using Mistral OCR for: ${safeFilename} (${mimeType})`
       );
     }
 
@@ -445,7 +449,7 @@ export class OCRService {
       // Last resort for PDFs: PDF.js (basic text extraction, no OCR)
       if (mimeType === 'application/pdf') {
         console.warn(
-          `[OCRService] Mistral OCR failed for ${filename}, trying PDF.js as last resort:`,
+          `[OCRService] Mistral OCR failed for ${safeFilename}, trying PDF.js as last resort:`,
           (mistralError as Error).message
         );
         return this.extractTextFromBase64PDF(base64Data, filename);

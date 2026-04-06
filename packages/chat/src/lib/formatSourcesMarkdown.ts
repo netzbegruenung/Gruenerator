@@ -1,7 +1,7 @@
 import type { Citation } from '../hooks/useChatGraphStream';
 
 function escapeMarkdown(text: string): string {
-  return text.replace(/[*_`~\[\]]/g, '\\$&');
+  return text.replace(/[\\*_`~\[\]#!()<>|]/g, '\\$&');
 }
 
 function truncate(text: string, max: number): string {
