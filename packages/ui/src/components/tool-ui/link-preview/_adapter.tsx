@@ -1,3 +1,3 @@
 'use client';
 
-export { cn } from 'src/lib/utils';
+export { cn } from '../../../lib/cn';
