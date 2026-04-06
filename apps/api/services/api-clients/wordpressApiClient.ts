@@ -78,7 +78,17 @@ class WordPressApiClient {
     username: string,
     appPassword: string
   ): Promise<WordPressApiClient> {
-    const normalizedUrl = siteUrl.replace(/\/+$/, '');
+    let parsed: URL;
+    try {
+      parsed = new URL(siteUrl.trim());
+    } catch {
+      throw new Error('Invalid WordPress site URL');
+    }
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      throw new Error('Only HTTP(S) URLs are allowed for WordPress sites');
+    }
+    const normalizedUrl =
+      `${parsed.origin}${parsed.pathname === '/' ? '' : parsed.pathname}`.replace(/\/+$/, '');
 
     const urlCheck = await validateUrlForFetch(normalizedUrl, {
       allowedProtocols: ['https:', 'http:'],
@@ -87,8 +97,10 @@ class WordPressApiClient {
       throw new Error(`WordPress URL failed SSRF validation: ${urlCheck.error}`);
     }
 
+    const validatedBaseUrl = urlCheck.url!.href.replace(/\/+$/, '');
+
     const client = axios.create({
-      baseURL: `${normalizedUrl}/wp-json`,
+      baseURL: `${validatedBaseUrl}/wp-json`,
       auth: { username, password: appPassword },
       timeout: 15000,
       headers: { 'Content-Type': 'application/json' },
@@ -107,10 +119,10 @@ class WordPressApiClient {
     );
 
     log.info('WordPressApiClient initialized', {
-      siteUrl: normalizedUrl,
+      siteUrl: validatedBaseUrl,
     });
 
-    return new WordPressApiClient(normalizedUrl, client);
+    return new WordPressApiClient(validatedBaseUrl, client);
   }
 
   async testConnection(): Promise<ConnectionResult> {
