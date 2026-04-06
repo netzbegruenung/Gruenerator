@@ -25,14 +25,18 @@ const withAuthRequired = <P extends Record<string, unknown>>(
     const user = useAuthStore((s) => s.user);
 
     if (!user) {
-      return (
-        <>
-          <div className="protected-content-blur">
-            {fallback ?? <Component {...props} user={null} />}
-          </div>
-          <LoginRequired title={title} message={message} variant="fullpage" />
-        </>
-      );
+      if (fallback) {
+        return (
+          <>
+            <div className="protected-content-blur">{fallback}</div>
+            <LoginRequired title={title} message={message} variant="fullpage" />
+          </>
+        );
+      }
+      // Don't render <Component> when unauthenticated — it mounts the full tree,
+      // triggers API calls that return 401, and the interceptor redirects to /login,
+      // causing redirect loops during auth initialization
+      return <LoginRequired title={title} message={message} variant="fullpage" />;
     }
 
     return <Component {...props} user={user} />;
