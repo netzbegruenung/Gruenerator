@@ -287,6 +287,22 @@ export const EditorPage = () => {
   }, []);
 
   useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'h') {
+        e.preventDefault();
+        if (sidebarOpen && sidebarTab === 'versions') {
+          setSidebarOpen(false);
+        } else {
+          setSidebarTab('versions');
+          setSidebarOpen(true);
+        }
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [sidebarOpen, sidebarTab]);
+
+  useEffect(() => {
     setCommentsPortalTarget(
       sidebarOpen && sidebarTab === 'comments' ? commentsPortalRef.current : null
     );

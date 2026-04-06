@@ -12,8 +12,9 @@ import {
   cn,
 } from '@gruenerator/ui';
 import { formatRelativeTime } from '@gruenerator/shared/utils';
-import { useCallback, useEffect, useState } from 'react';
-import { FiArrowLeft, FiClock, FiRotateCcw } from 'react-icons/fi';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { FiArrowLeft, FiClock, FiRotateCcw, FiSave } from 'react-icons/fi';
+import { toast } from 'sonner';
 
 import type { DocsApiClient } from '../../context/DocsContext';
 
@@ -54,8 +55,11 @@ export function VersionHistory({ documentId, apiClient, canEdit, onRestore }: Ve
   const [previewLoading, setPreviewLoading] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [showLabelInput, setShowLabelInput] = useState(false);
+  const labelInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  const fetchSnapshots = useCallback(() => {
     setLoading(true);
     setError(null);
     apiClient
@@ -64,6 +68,10 @@ export function VersionHistory({ documentId, apiClient, canEdit, onRestore }: Ve
       .catch(() => setError('Versionen konnten nicht geladen werden'))
       .finally(() => setLoading(false));
   }, [documentId, apiClient]);
+
+  useEffect(() => {
+    fetchSnapshots();
+  }, [fetchSnapshots]);
 
   const handleSelectVersion = useCallback(
     (version: number) => {
@@ -79,8 +87,25 @@ export function VersionHistory({ documentId, apiClient, canEdit, onRestore }: Ve
     [documentId, apiClient]
   );
 
+  const handleSaveVersion = useCallback(async () => {
+    setSaving(true);
+    const label = labelInputRef.current?.value.trim() || null;
+    try {
+      await apiClient.post(`/docs/${documentId}/snapshots`, { label });
+      setShowLabelInput(false);
+      if (labelInputRef.current) labelInputRef.current.value = '';
+      fetchSnapshots();
+      toast.success('Version gespeichert');
+    } catch {
+      setError('Version konnte nicht gespeichert werden');
+    } finally {
+      setSaving(false);
+    }
+  }, [documentId, apiClient, fetchSnapshots]);
+
   const handleRestore = useCallback(async () => {
     if (selectedVersion === null || !preview) return;
+    const previousLatest = snapshots[0]?.version;
     setRestoring(true);
     try {
       await apiClient.post(`/docs/${documentId}/snapshots/${selectedVersion}/restore`);
@@ -90,11 +115,33 @@ export function VersionHistory({ documentId, apiClient, canEdit, onRestore }: Ve
       setSelectedVersion(null);
       setPreview(null);
       setRestoring(false);
+      fetchSnapshots();
+      toast.success('Version wiederhergestellt', {
+        action: previousLatest
+          ? {
+              label: 'Rückgängig',
+              onClick: async () => {
+                try {
+                  const prev = await apiClient.get<PreviewResponse>(
+                    `/docs/${documentId}/snapshots/${previousLatest}/preview`
+                  );
+                  await apiClient.post(`/docs/${documentId}/snapshots/${previousLatest}/restore`);
+                  if (onRestore) onRestore(prev.html);
+                  fetchSnapshots();
+                  toast.success('Wiederherstellung rückgängig gemacht');
+                } catch {
+                  toast.error('Rückgängig fehlgeschlagen');
+                }
+              },
+            }
+          : undefined,
+        duration: 10000,
+      });
     } catch {
       setError('Wiederherstellung fehlgeschlagen');
       setRestoring(false);
     }
-  }, [documentId, selectedVersion, apiClient, preview, onRestore]);
+  }, [documentId, selectedVersion, apiClient, preview, onRestore, snapshots, fetchSnapshots]);
 
   if (selectedVersion !== null) {
     return (
@@ -181,6 +228,38 @@ export function VersionHistory({ documentId, apiClient, canEdit, onRestore }: Ve
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
+      {canEdit && (
+        <div className="border-b border-grey-200 px-md py-sm dark:border-grey-700">
+          {showLabelInput ? (
+            <div className="flex gap-xs">
+              <input
+                ref={labelInputRef}
+                type="text"
+                placeholder="Bezeichnung (optional)"
+                className="flex-1 rounded-md border border-grey-200 bg-background px-2 py-1 text-sm text-foreground placeholder:text-grey-400 dark:border-grey-600"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveVersion();
+                  if (e.key === 'Escape') setShowLabelInput(false);
+                }}
+                autoFocus
+              />
+              <Button size="sm" onClick={handleSaveVersion} disabled={saving}>
+                {saving ? '...' : 'Speichern'}
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => setShowLabelInput(true)}
+            >
+              <FiSave size={14} />
+              Version speichern
+            </Button>
+          )}
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center py-12">
