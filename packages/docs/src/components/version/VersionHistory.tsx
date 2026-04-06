@@ -28,9 +28,10 @@ interface VersionHistoryProps {
   documentId: string;
   apiClient: DocsApiClient;
   canEdit: boolean;
+  onRestore?: (html: string) => void;
 }
 
-export function VersionHistory({ documentId, apiClient, canEdit }: VersionHistoryProps) {
+export function VersionHistory({ documentId, apiClient, canEdit, onRestore }: VersionHistoryProps) {
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,16 +66,21 @@ export function VersionHistory({ documentId, apiClient, canEdit }: VersionHistor
   );
 
   const handleRestore = useCallback(async () => {
-    if (selectedVersion === null) return;
+    if (selectedVersion === null || !preview) return;
     setRestoring(true);
     try {
       await apiClient.post(`/docs/${documentId}/snapshots/${selectedVersion}/restore`);
-      window.location.reload();
+      if (onRestore) {
+        onRestore(preview.html);
+      }
+      setSelectedVersion(null);
+      setPreview(null);
+      setRestoring(false);
     } catch {
       setError('Wiederherstellung fehlgeschlagen');
       setRestoring(false);
     }
-  }, [documentId, selectedVersion, apiClient]);
+  }, [documentId, selectedVersion, apiClient, preview, onRestore]);
 
   if (selectedVersion !== null) {
     return (
