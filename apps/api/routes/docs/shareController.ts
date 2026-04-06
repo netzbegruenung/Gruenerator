@@ -128,6 +128,18 @@ router.post('/:id/share/disable', async (req: Request<{ id: string }>, res: Resp
       [req.params.id]
     );
 
+    await db.query(
+      `UPDATE collaborative_documents
+       SET permissions = (
+         SELECT COALESCE(jsonb_object_agg(key, value), '{}'::jsonb)
+         FROM jsonb_each(COALESCE(permissions, '{}'::jsonb))
+         WHERE value->>'granted_by' IS DISTINCT FROM 'auto:share_link'
+       ),
+       updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [req.params.id]
+    );
+
     return res.json({
       is_public: false,
       share_permission: doc.share_permission || 'editor',
@@ -203,6 +215,20 @@ router.put('/:id/share/mode', async (req: Request<{ id: string }>, res: Response
        WHERE id = $3`,
       [mode, isPublic, req.params.id]
     );
+
+    if (mode !== 'authenticated') {
+      await db.query(
+        `UPDATE collaborative_documents
+         SET permissions = (
+           SELECT COALESCE(jsonb_object_agg(key, value), '{}'::jsonb)
+           FROM jsonb_each(COALESCE(permissions, '{}'::jsonb))
+           WHERE value->>'granted_by' IS DISTINCT FROM 'auto:share_link'
+         ),
+         updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1`,
+        [req.params.id]
+      );
+    }
 
     return res.json({
       is_public: isPublic,

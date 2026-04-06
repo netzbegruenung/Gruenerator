@@ -173,6 +173,7 @@ router.get('/', async (req: Request, res: Response) => {
             FROM group_content_shares gcs
             INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
             WHERE gcs.content_type = 'collaborative_documents'
+              AND (gcs.permissions->>'read')::boolean IS NOT FALSE
           ) THEN 'group'
         END AS access_type,
         COALESCE(
@@ -198,6 +199,7 @@ router.get('/', async (req: Request, res: Response) => {
             FROM group_content_shares gcs
             INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
             WHERE gcs.content_type = 'collaborative_documents'
+              AND (gcs.permissions->>'read')::boolean IS NOT FALSE
           )
         )
        ORDER BY cd.updated_at DESC
