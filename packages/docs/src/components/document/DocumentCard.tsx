@@ -4,13 +4,15 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
-import { memo } from 'react';
-import { FiEdit2, FiMoreVertical, FiShare2, FiTrash2 } from 'react-icons/fi';
+import { memo, useState } from 'react';
+import { FiEdit2, FiInfo, FiMoreVertical, FiShare2, FiTrash2 } from 'react-icons/fi';
 
 import type { Document } from '../../stores/documentStore';
 import { templates, getTemplateContent } from '../../lib/templates';
+import { MetadataDialog } from './MetadataDialog';
 
 interface DocumentCardProps {
   doc: Document;
@@ -22,6 +24,7 @@ interface DocumentCardProps {
 
 export const DocumentCard = memo(
   ({ doc, onNavigate, onRename, onDelete, onShare }: DocumentCardProps) => {
+    const [metadataOpen, setMetadataOpen] = useState(false);
     const template = templates.find((t) => t.id === doc.document_subtype);
     const emoji = template?.icon || '📄';
     const templateHtml = getTemplateContent(doc.document_subtype);
@@ -106,6 +109,16 @@ export const DocumentCard = memo(
                   Teilen
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  onClick={(e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    setMetadataOpen(true);
+                  }}
+                >
+                  <FiInfo size={14} />
+                  Metadaten
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
                   variant="destructive"
                   onClick={(e: React.MouseEvent) => onDelete(doc.id, e)}
                 >
@@ -114,6 +127,7 @@ export const DocumentCard = memo(
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <MetadataDialog doc={doc} open={metadataOpen} onOpenChange={setMetadataOpen} />
           </div>
           <div className="mt-0.5 flex items-center gap-1 text-xs text-grey-500 dark:text-grey-400">
             <span>
