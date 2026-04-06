@@ -24,8 +24,13 @@ const createRedirect = (to: string): FC<Record<string, unknown>> => {
 };
 
 // Redirects for /image-studio/* routes to /studio/*
-const ImageStudioRedirect = lazy(() =>
-  Promise.resolve({ default: createRedirect('/studio') })
+const ImageStudioRedirect = lazy(() => Promise.resolve({ default: createRedirect('/studio') }));
+const DocumentToDocsRedirectComponent: FC<Record<string, unknown>> = () => {
+  const { id } = useParams();
+  return createElement(Navigate, { to: `/docs/${id || ''}`, replace: true });
+};
+const DocumentToDocsRedirect = lazy(() =>
+  Promise.resolve({ default: DocumentToDocsRedirectComponent })
 );
 const ImageStudioCategoryRedirectComponent: FC<Record<string, unknown>> = () => {
   const { category } = useParams();
@@ -325,6 +330,7 @@ const standardRoutes: RouteConfig[] = [
     path: '/notebooks',
     component: lazy(() => Promise.resolve({ default: createRedirect('/recherche') })),
   },
+  { path: '/document/:id', component: DocumentToDocsRedirect },
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
   { path: '/reel', component: GrueneratorenBundle.Reel },
   { path: '/reel/beta', component: SubtitlerBetaPage },
