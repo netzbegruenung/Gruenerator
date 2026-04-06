@@ -17,6 +17,8 @@ export { FreeformTextSection } from './FreeformTextSection';
 export type { FreeformTextSectionProps } from './FreeformTextSection';
 export { UnifiedTextSection } from './UnifiedTextSection';
 export type { UnifiedTextSectionProps } from './UnifiedTextSection';
+export { CombinedTextSection } from './CombinedTextSection';
+export type { CombinedTextSectionProps } from './CombinedTextSection';
 export { AlternativesSection } from './AlternativesSection';
 export type { AlternativesSectionProps } from './AlternativesSection';
 export const IconsSection = lazy(() =>
@@ -52,3 +54,13 @@ export const GenericShareSection = lazy(() =>
   import('./GenericShareSection').then((m) => ({ default: m.GenericShareSection }))
 );
 export type { GenericShareSectionProps } from './GenericShareSection';
+
+export const PresentationDesignSection = lazy(() =>
+  import('./PresentationDesignSection').then((m) => ({ default: m.PresentationDesignSection }))
+);
+export type { PresentationDesignSectionProps } from './PresentationDesignSection';
+
+export const UploadsSection = lazy(() =>
+  import('./UploadsSection').then((m) => ({ default: m.UploadsSection }))
+);
+export type { UploadsSectionProps } from './UploadsSection';

@@ -85,52 +85,8 @@ export const useStepFlow = ({
   const [bgRemovalProgress, setBgRemovalProgress] = useState<BgRemovalProgress | null>(null);
   const hasInitializedCanvasEditRef = useRef(false);
 
-  const {
-    type,
-    thema,
-    name,
-    line1,
-    line2,
-    line3,
-    quote,
-    header,
-    subheader,
-    body,
-    headline,
-    subtext,
-    label,
-    uploadedImage,
-    selectedImage,
-    fontSize,
-    colorScheme,
-    balkenOffset,
-    balkenGruppenOffset,
-    sunflowerOffset,
-    credit,
-    eventTitle,
-    beschreibung,
-    weekday,
-    date,
-    time,
-    locationName,
-    address,
-    purePrompt,
-    sharepicPrompt,
-    imagineTitle,
-    variant,
-    precisionInstruction,
-    precisionMode,
-    selectedInfrastructure,
-    allyPlacement,
-    updateFormData,
-    setSloganAlternatives,
-    setGeneratedImage,
-    setCurrentStep,
-    setFlowTitle,
-    setFlowSubtitle,
-    transparentImage,
-    setTransparentImage,
-  } = useImageStudioStore();
+  const type = useImageStudioStore((s) => s.type);
+  const transparentImage = useImageStudioStore((s) => s.transparentImage);
 
   const { setPreloadedImageResult, setSlogansReady } = usePreloadStore();
 
@@ -279,39 +235,38 @@ export const useStepFlow = ({
   }, [startAtCanvasEdit, flowSteps]);
 
   useEffect(() => {
-    // Always update title - set to null when stepTitle is null/undefined (e.g., canvas edit)
-    setFlowTitle(currentStep?.stepTitle || null);
-    setFlowSubtitle(currentStep?.stepSubtitle || null);
-  }, [currentStep, setFlowTitle, setFlowSubtitle]);
+    const state = useImageStudioStore.getState();
+    state.setFlowTitle(currentStep?.stepTitle || null);
+    state.setFlowSubtitle(currentStep?.stepSubtitle || null);
+  }, [currentStep]);
 
   const executeTextGeneration = useCallback(async (): Promise<boolean> => {
     setError('');
     setIsProcessing(true);
 
     try {
-      // For SLIDER: use smartCount to let AI determine optimal slide count
-      const isSlider = type === IMAGE_STUDIO_TYPES.SLIDER;
+      const state = useImageStudioStore.getState();
+      const currentType = state.type;
+      const isSlider = currentType === IMAGE_STUDIO_TYPES.SLIDER;
       const formData = {
-        thema,
-        name,
+        thema: state.thema,
+        name: state.name,
         ...(isSlider ? { smartCount: true } : { count: 1 }),
       };
-      const result = await generateText(type!, formData);
+      const result = await generateText(currentType!, formData);
 
       if (result && fieldConfig?.responseMapping) {
         const mappedData = fieldConfig.responseMapping(
           result as unknown as Record<string, unknown>
         );
-        updateFormData(mappedData as Record<string, unknown>);
+        state.updateFormData(mappedData as Record<string, unknown>);
 
-        // Store original as first alternative (index 0)
         const originalAlternative: SloganAlternative = fieldConfig.alternativesMapping
           ? fieldConfig.alternativesMapping(mappedData as Record<string, unknown>, 0)
           : (mappedData as SloganAlternative);
-        setSloganAlternatives([originalAlternative]);
+        state.setSloganAlternatives([originalAlternative]);
 
         if (isSlider && result.alternatives && result.alternatives.length > 0) {
-          // Slider: all slides returned in initial call — store them all
           const allSlides = [
             originalAlternative,
             ...result.alternatives.map((alt, idx) =>
@@ -320,22 +275,19 @@ export const useStepFlow = ({
                 : (alt as SloganAlternative)
             ),
           ];
-          setSloganAlternatives(allSlides);
+          state.setSloganAlternatives(allSlides);
         } else if (!isSlider) {
-          // Non-slider: fetch alternatives in background as before
           setTimeout(() => {
             void fetchAlternativesInBackground(
-              type!,
+              currentType!,
               formData,
               (alternatives) => {
-                // Map each alternative through alternativesMapping to add ids (index starts at 1)
                 const mappedAlternatives = fieldConfig.alternativesMapping
                   ? alternatives.map((alt, idx) =>
                       fieldConfig.alternativesMapping!(alt as Record<string, unknown>, idx + 1)
                     )
                   : alternatives;
-                // Prepend original to alternatives list
-                setSloganAlternatives([originalAlternative, ...mappedAlternatives]);
+                useImageStudioStore.getState().setSloganAlternatives([originalAlternative, ...mappedAlternatives]);
               },
               (error) => {
                 console.error('[StepFlow] Alternatives error:', error);
@@ -351,32 +303,23 @@ export const useStepFlow = ({
     } finally {
       setIsProcessing(false);
     }
-  }, [
-    type,
-    thema,
-    name,
-    fieldConfig,
-    generateText,
-    fetchAlternativesInBackground,
-    updateFormData,
-    setSloganAlternatives,
-    setError,
-  ]);
+  }, [fieldConfig, generateText, fetchAlternativesInBackground, setError]);
 
   const executeTemplateImageGeneration = useCallback(async (): Promise<boolean> => {
     setError('');
     setIsProcessing(true);
 
     try {
-      // Validate that we have text content for text-based types
+      const state = useImageStudioStore.getState();
+
       if (typeConfig?.hasTextGeneration) {
         const hasText =
-          line1?.trim() ||
-          line2?.trim() ||
-          line3?.trim() ||
-          quote?.trim() ||
-          header?.trim() ||
-          headline?.trim();
+          state.line1?.trim() ||
+          state.line2?.trim() ||
+          state.line3?.trim() ||
+          state.quote?.trim() ||
+          state.header?.trim() ||
+          state.headline?.trim();
 
         if (!hasText) {
           setError('Kein Text generiert. Bitte starte die Generierung erneut.');
@@ -385,35 +328,35 @@ export const useStepFlow = ({
       }
 
       const formData = {
-        type: typeConfig?.legacyType || type,
-        line1,
-        line2,
-        line3,
-        quote,
-        name,
-        header,
-        subheader,
-        body,
-        headline,
-        subtext,
-        uploadedImage: (uploadedImage || selectedImage) as File | Blob | null,
-        fontSize,
-        colorScheme,
-        balkenOffset,
-        balkenGruppenOffset,
-        sunflowerOffset,
-        credit,
-        eventTitle,
-        beschreibung,
-        weekday,
-        date,
-        time,
-        locationName,
-        address,
+        type: typeConfig?.legacyType || state.type,
+        line1: state.line1,
+        line2: state.line2,
+        line3: state.line3,
+        quote: state.quote,
+        name: state.name,
+        header: state.header,
+        subheader: state.subheader,
+        body: state.body,
+        headline: state.headline,
+        subtext: state.subtext,
+        uploadedImage: (state.uploadedImage || state.selectedImage) as File | Blob | null,
+        fontSize: state.fontSize,
+        colorScheme: state.colorScheme,
+        balkenOffset: state.balkenOffset,
+        balkenGruppenOffset: state.balkenGruppenOffset,
+        sunflowerOffset: state.sunflowerOffset,
+        credit: state.credit,
+        eventTitle: state.eventTitle,
+        beschreibung: state.beschreibung,
+        weekday: state.weekday,
+        date: state.date,
+        time: state.time,
+        locationName: state.locationName,
+        address: state.address,
       };
 
-      const image = await generateImage(type!, formData);
-      setGeneratedImage(image);
+      const image = await generateImage(state.type!, formData);
+      state.setGeneratedImage(image);
       return true;
     } catch (err) {
       console.error('[useStepFlow] Template image generation error:', err);
@@ -421,63 +364,32 @@ export const useStepFlow = ({
     } finally {
       setIsProcessing(false);
     }
-  }, [
-    type,
-    typeConfig,
-    line1,
-    line2,
-    line3,
-    quote,
-    name,
-    header,
-    subheader,
-    body,
-    headline,
-    subtext,
-    uploadedImage,
-    selectedImage,
-    fontSize,
-    colorScheme,
-    balkenOffset,
-    balkenGruppenOffset,
-    sunflowerOffset,
-    credit,
-    eventTitle,
-    beschreibung,
-    weekday,
-    date,
-    time,
-    locationName,
-    address,
-    generateImage,
-    setGeneratedImage,
-    setError,
-  ]);
+  }, [typeConfig, generateImage, setError]);
 
   const executeKiImageGeneration = useCallback(async (): Promise<boolean> => {
     setError('');
     setIsProcessing(true);
 
     try {
+      const state = useImageStudioStore.getState();
+
       const formData = {
-        purePrompt,
-        sharepicPrompt,
-        imagineTitle,
-        variant,
-        uploadedImage,
-        precisionMode: typeConfig?.alwaysPrecision || precisionMode,
-        precisionInstruction,
-        selectedInfrastructure,
-        allyPlacement,
+        purePrompt: state.purePrompt,
+        sharepicPrompt: state.sharepicPrompt,
+        imagineTitle: state.imagineTitle,
+        variant: state.variant,
+        uploadedImage: state.uploadedImage,
+        precisionMode: typeConfig?.alwaysPrecision || state.precisionMode,
+        precisionInstruction: state.precisionInstruction,
+        selectedInfrastructure: state.selectedInfrastructure,
+        allyPlacement: state.allyPlacement,
       };
 
-      const image = await generateImage(type!, formData);
-      setGeneratedImage(image);
+      const image = await generateImage(state.type!, formData);
+      state.setGeneratedImage(image);
 
-      // Commit to AI Editor history if applicable
-      if (type === IMAGE_STUDIO_TYPES.AI_EDITOR) {
-        const { commitAiGeneration } = useImageStudioStore.getState();
-        commitAiGeneration(image, purePrompt);
+      if (state.type === IMAGE_STUDIO_TYPES.AI_EDITOR) {
+        state.commitAiGeneration(image, state.purePrompt);
       }
 
       return true;
@@ -487,22 +399,7 @@ export const useStepFlow = ({
     } finally {
       setIsProcessing(false);
     }
-  }, [
-    type,
-    typeConfig,
-    purePrompt,
-    sharepicPrompt,
-    imagineTitle,
-    variant,
-    uploadedImage,
-    precisionMode,
-    precisionInstruction,
-    selectedInfrastructure,
-    allyPlacement,
-    generateImage,
-    setGeneratedImage,
-    setError,
-  ]);
+  }, [typeConfig, generateImage, setError]);
 
   const executeBackgroundRemoval = useCallback(async (): Promise<boolean> => {
     setError('');
@@ -524,7 +421,7 @@ export const useStepFlow = ({
         (progress: BgRemovalProgress) => setBgRemovalProgress(progress)
       );
 
-      setTransparentImage(transparentUrl);
+      useImageStudioStore.getState().setTransparentImage(transparentUrl);
       return true;
     } catch (err) {
       console.error('[useStepFlow] Background removal error:', err);
@@ -534,28 +431,21 @@ export const useStepFlow = ({
       setIsProcessing(false);
       setBgRemovalProgress(null);
     }
-  }, [setError, setTransparentImage]);
+  }, [setError]);
 
-  const handleCanvasExport = useCallback(
-    (dataUrl: string) => {
-      setGeneratedImage(dataUrl);
-      setCurrentStep(FORM_STEPS.RESULT);
-    },
-    [setGeneratedImage, setCurrentStep]
-  );
+  const handleCanvasExport = useCallback((dataUrl: string) => {
+    const state = useImageStudioStore.getState();
+    state.setGeneratedImage(dataUrl);
+    state.setCurrentStep(FORM_STEPS.RESULT);
+  }, []);
 
-  const handleCanvasSave = useCallback(
-    (dataUrl: string) => {
-      // Just update the image, don't change step
-      // This triggers useTemplateResultAutoSave or useTemplateResultActions logic
-      setGeneratedImage(dataUrl);
-    },
-    [setGeneratedImage]
-  );
+  const handleCanvasSave = useCallback((dataUrl: string) => {
+    useImageStudioStore.getState().setGeneratedImage(dataUrl);
+  }, []);
 
   const goBackToCanvas = useCallback(() => {
-    setCurrentStep(FORM_STEPS.CANVAS_EDIT);
-  }, [setCurrentStep]);
+    useImageStudioStore.getState().setCurrentStep(FORM_STEPS.CANVAS_EDIT);
+  }, []);
 
   const fetchAiImageSuggestion = useCallback(
     async (text: string): Promise<AiImageSuggestionResult | null> => {
@@ -583,7 +473,8 @@ export const useStepFlow = ({
     setIsProcessing(true);
 
     try {
-      const textForSuggestion = thema || '';
+      const state = useImageStudioStore.getState();
+      const textForSuggestion = state.thema || '';
       if (!textForSuggestion.trim()) {
         setIsProcessing(false);
         return true;
@@ -593,34 +484,31 @@ export const useStepFlow = ({
 
       const textPromise = (async () => {
         try {
-          const formData = { thema, name, count: 1 };
-          const result = await generateText(type!, formData);
+          const formData = { thema: state.thema, name: state.name, count: 1 };
+          const result = await generateText(state.type!, formData);
 
           if (result && fieldConfig?.responseMapping) {
             const mappedData = fieldConfig.responseMapping(
               result as unknown as Record<string, unknown>
             );
-            updateFormData(mappedData as Record<string, unknown>);
+            useImageStudioStore.getState().updateFormData(mappedData as Record<string, unknown>);
 
-            // Store original as first alternative (index 0)
             const originalAlternative: SloganAlternative = fieldConfig.alternativesMapping
               ? fieldConfig.alternativesMapping(mappedData as Record<string, unknown>, 0)
               : (mappedData as SloganAlternative);
-            setSloganAlternatives([originalAlternative]);
+            useImageStudioStore.getState().setSloganAlternatives([originalAlternative]);
 
             setTimeout(() => {
               void fetchAlternativesInBackground(
-                type!,
+                state.type!,
                 formData,
                 (alternatives) => {
-                  // Map each alternative through alternativesMapping to add ids (index starts at 1)
                   const mappedAlternatives = fieldConfig.alternativesMapping
                     ? alternatives.map((alt, idx) =>
                         fieldConfig.alternativesMapping!(alt as Record<string, unknown>, idx + 1)
                       )
                     : alternatives;
-                  // Prepend original to alternatives list
-                  setSloganAlternatives([originalAlternative, ...mappedAlternatives]);
+                  useImageStudioStore.getState().setSloganAlternatives([originalAlternative, ...mappedAlternatives]);
                 },
                 (error) => {
                   console.error('[ParallelPreload] Alternatives error:', error);
@@ -637,7 +525,6 @@ export const useStepFlow = ({
         }
       })();
 
-      // Wait for both image and text to complete
       const [imageResult, textResult] = await Promise.all([imagePromise, textPromise]);
 
       if (imageResult) {
@@ -657,15 +544,10 @@ export const useStepFlow = ({
       setIsProcessing(false);
     }
   }, [
-    thema,
-    name,
-    type,
     fieldConfig,
     fetchAiImageSuggestion,
     generateText,
     fetchAlternativesInBackground,
-    updateFormData,
-    setSloganAlternatives,
     setError,
     setPreloadedImageResult,
     setSlogansReady,
@@ -701,7 +583,7 @@ export const useStepFlow = ({
         ? await executeKiImageGeneration()
         : await executeTemplateImageGeneration();
       if (!success) return false;
-      setCurrentStep(FORM_STEPS.RESULT);
+      useImageStudioStore.getState().setCurrentStep(FORM_STEPS.RESULT);
       return true;
     }
 
@@ -723,7 +605,6 @@ export const useStepFlow = ({
     executeKiImageGeneration,
     executeBackgroundRemoval,
     executeParallelPreload,
-    setCurrentStep,
   ]);
 
   const goBack = useCallback((): boolean => {
@@ -741,63 +622,36 @@ export const useStepFlow = ({
     setIsProcessing(false);
   }, []);
 
-  const getFieldValue = useCallback(
-    (fieldName: string): string => {
-      const values: Record<string, string> = {
-        thema,
-        name,
-        line1,
-        line2,
-        line3,
-        quote,
-        header,
-        subheader,
-        body,
-        headline,
-        subtext,
-        label,
-        eventTitle,
-        beschreibung,
-        weekday,
-        date,
-        time,
-        locationName,
-        address,
-        purePrompt,
-        sharepicPrompt,
-        imagineTitle,
-        precisionInstruction,
-        allyPlacement: allyPlacement || '',
-      };
-      return values[fieldName] || '';
-    },
-    [
-      thema,
-      name,
-      line1,
-      line2,
-      line3,
-      quote,
-      header,
-      subheader,
-      body,
-      headline,
-      subtext,
-      label,
-      eventTitle,
-      beschreibung,
-      weekday,
-      date,
-      time,
-      locationName,
-      address,
-      purePrompt,
-      sharepicPrompt,
-      imagineTitle,
-      precisionInstruction,
-      allyPlacement,
-    ]
-  );
+  const getFieldValue = useCallback((fieldName: string): string => {
+    const s = useImageStudioStore.getState();
+    const values: Record<string, string> = {
+      thema: s.thema,
+      name: s.name,
+      line1: s.line1,
+      line2: s.line2,
+      line3: s.line3,
+      quote: s.quote,
+      header: s.header,
+      subheader: s.subheader,
+      body: s.body,
+      headline: s.headline,
+      subtext: s.subtext,
+      label: s.label,
+      eventTitle: s.eventTitle,
+      beschreibung: s.beschreibung,
+      weekday: s.weekday,
+      date: s.date,
+      time: s.time,
+      locationName: s.locationName,
+      address: s.address,
+      purePrompt: s.purePrompt,
+      sharepicPrompt: s.sharepicPrompt,
+      imagineTitle: s.imagineTitle,
+      precisionInstruction: s.precisionInstruction,
+      allyPlacement: s.allyPlacement || '',
+    };
+    return values[fieldName] || '';
+  }, []);
 
   return {
     stepIndex,

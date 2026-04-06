@@ -10,10 +10,12 @@ export { profilbildTypeConfig, profilbildFieldConfig } from './profilbild';
 export { simpleTypeConfig, simpleFieldConfig } from './simple';
 export { sliderTypeConfig, sliderFieldConfig } from './slider';
 export { freeformTypeConfig, freeformFieldConfig } from './freeform';
+export { presentationTypeConfig, presentationFieldConfig } from './presentation';
 
 import { dreizeilenTypeConfig, dreizeilenFieldConfig } from './dreizeilen';
 import { freeformTypeConfig, freeformFieldConfig } from './freeform';
 import { infoTypeConfig, infoFieldConfig } from './info';
+import { presentationTypeConfig, presentationFieldConfig } from './presentation';
 import { profilbildTypeConfig, profilbildFieldConfig } from './profilbild';
 import { simpleTypeConfig, simpleFieldConfig } from './simple';
 import { sliderTypeConfig, sliderFieldConfig } from './slider';
@@ -33,6 +35,7 @@ export const templateTypeConfigs: Record<string, TypeConfig> = {
   [simpleTypeConfig.id]: simpleTypeConfig,
   [sliderTypeConfig.id]: sliderTypeConfig,
   [freeformTypeConfig.id]: freeformTypeConfig,
+  [presentationTypeConfig.id]: presentationTypeConfig,
 };
 
 export const templateFieldConfigs: Record<string, TemplateFieldConfig> = {
@@ -45,4 +48,5 @@ export const templateFieldConfigs: Record<string, TemplateFieldConfig> = {
   [simpleTypeConfig.id]: simpleFieldConfig,
   [sliderTypeConfig.id]: sliderFieldConfig,
   [freeformTypeConfig.id]: freeformFieldConfig,
+  [presentationTypeConfig.id]: presentationFieldConfig,
 };

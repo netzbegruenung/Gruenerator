@@ -26,7 +26,7 @@ import React, {
 } from 'react';
 
 import Spinner from '../common/Spinner';
-import { usePageManager, useMultiPageExport } from '../hooks';
+import { usePageManager, useMultiPageExport, usePresentationExport } from '../hooks';
 import { useMobileBridge } from '../hooks/useMobileBridge';
 import { CanvasEditorLayout } from '../layouts';
 import { MobileSubsectionBridgeContext } from '../sidebar/MobileSubsectionBridgeContext';
@@ -151,10 +151,13 @@ const PageWrapper = memo(function PageWrapper({
   onToolbarStateChange,
   mobileBridge,
 }: PageWrapperProps) {
-  // Report state/actions to parent when ref is ready or changes
-  // This uses an effect to properly sync state up to the parent
+  const lastReportedRef = useRef<{
+    state: Record<string, unknown> | null;
+    actions: Record<string, unknown> | null;
+    selectedElement: string | null;
+  }>({ state: null, actions: null, selectedElement: null });
+
   useEffect(() => {
-    // Guard: canvasRef might be undefined during initialization
     if (!canvasRef) return undefined;
 
     const checkRef = () => {
@@ -164,17 +167,19 @@ const PageWrapper = memo(function PageWrapper({
         const actions = ref.getActions?.();
         const selectedElement = ref.getSelectedElement?.() ?? null;
         if (state && actions) {
-          onStateChange(page.id, state, actions, selectedElement);
+          const last = lastReportedRef.current;
+          if (last.state !== state || last.actions !== actions || last.selectedElement !== selectedElement) {
+            lastReportedRef.current = { state, actions, selectedElement };
+            onStateChange(page.id, state, actions, selectedElement);
+          }
         }
       }
     };
 
-    // Check immediately
     checkRef();
 
-    // Re-check periodically while active (handles canvas state updates)
     if (isActive) {
-      const interval = setInterval(checkRef, 100);
+      const interval = setInterval(checkRef, 200);
       return () => clearInterval(interval);
     }
     return undefined;
@@ -352,6 +357,9 @@ export function CanvasEditor({
     return canvasRefsRef.current.slice(0, pages.length);
   }, [pages.length]);
 
+  // Detect presentation mode from initial config
+  const isPresentationMode = initialConfigId.startsWith('pres-');
+
   // Multi-page export hook
   const {
     exportAllPages,
@@ -360,8 +368,16 @@ export function CanvasEditor({
     exportProgress,
   } = useMultiPageExport({
     canvasRefs,
-    canvasType: 'heterogeneous',
+    canvasType: isPresentationMode ? 'presentation' : 'heterogeneous',
   });
+
+  // Presentation-specific export (PPTX + PDF)
+  const {
+    exportAsPptx,
+    exportAsPdf,
+    isExporting: isPresentationExporting,
+    exportProgress: presentationExportProgress,
+  } = usePresentationExport(pages, canvasRefs);
 
   // Stable callback using functional pattern (Rule 5.5)
   const handleExport = useCallback(
@@ -724,10 +740,15 @@ export function CanvasEditor({
       pageCount,
       onDownloadAllZip: downloadAllAsZip,
       onShareAllPages: shareAllPages,
-      isMultiExporting,
-      exportProgress,
+      isMultiExporting: isMultiExporting || isPresentationExporting,
+      exportProgress: isPresentationExporting
+        ? { current: presentationExportProgress.current, total: presentationExportProgress.total }
+        : exportProgress,
+      onDownloadPptx: isPresentationMode ? exportAsPptx : undefined,
+      onDownloadPdf: isPresentationMode ? exportAsPdf : undefined,
     }),
-    [pageCount, downloadAllAsZip, shareAllPages, isMultiExporting, exportProgress, currentPageIndex]
+    [pageCount, downloadAllAsZip, shareAllPages, isMultiExporting, exportProgress, currentPageIndex,
+     isPresentationMode, isPresentationExporting, presentationExportProgress, exportAsPptx, exportAsPdf]
   );
 
   // Render the active section based on configuration
@@ -957,6 +978,7 @@ export function CanvasEditor({
               onAddSliderVariant={
                 pages[0]?.configId === 'slider' ? handleAddSliderVariant : undefined
               }
+              templateFilter={isPresentationMode ? 'pres-' : undefined}
             />
           </div>
         )}

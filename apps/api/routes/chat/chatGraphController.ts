@@ -393,8 +393,8 @@ router.post('/stream', async (req, res) => {
 
       const TOOL_PRIORITY =
         isCompound && hasSearchTool
-          ? (['research', 'web', 'search', 'image', 'image_edit', 'summary'] as const)
-          : (['image', 'image_edit', 'summary', 'research', 'web', 'search'] as const);
+          ? (['research', 'web', 'search', 'sharepic', 'image', 'image_edit', 'summary'] as const)
+          : (['sharepic', 'image', 'image_edit', 'summary', 'research', 'web', 'search'] as const);
 
       const forced = TOOL_PRIORITY.find((t) => forcedTools.includes(t));
       if (forced) {
@@ -580,6 +580,7 @@ router.post('/stream', async (req, res) => {
       forcedTool,
       enabledTools,
       imageAttachments,
+      req,
     });
 
     // === Stage 3: Response generation ===

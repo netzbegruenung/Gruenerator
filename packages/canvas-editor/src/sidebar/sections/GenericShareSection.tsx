@@ -10,6 +10,8 @@ import {
   FaCopy,
   FaFileArchive,
   FaFileImage,
+  FaFilePowerpoint,
+  FaFilePdf,
 } from 'react-icons/fa';
 import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
 import { MdTextFields } from 'react-icons/md';
@@ -34,6 +36,8 @@ export interface GenericShareSectionProps {
   onShareAllPages?: () => Promise<void>;
   isMultiExporting?: boolean;
   exportProgress?: { current: number; total: number };
+  onDownloadPptx?: () => Promise<void>;
+  onDownloadPdf?: () => Promise<void>;
 }
 
 const iconBtn =
@@ -114,6 +118,8 @@ function DownloadShareSubsection({
   onShareAllPages,
   isMultiExporting = false,
   exportProgress,
+  onDownloadPptx,
+  onDownloadPdf,
 }: Omit<GenericShareSectionProps, 'canvasType'>) {
   const [downloadState, setDownloadState] = useState<'idle' | 'capturing' | 'success'>('idle');
   const [isSharing, setIsSharing] = useState(false);
@@ -295,6 +301,30 @@ function DownloadShareSubsection({
                     </>
                   )}
                 </button>
+                {onDownloadPptx && (
+                  <button
+                    className={dropdownOption}
+                    onClick={onDownloadPptx}
+                    disabled={isMultiExporting}
+                    role="menuitem"
+                    type="button"
+                  >
+                    <FaFilePowerpoint />
+                    <span>PowerPoint (PPTX)</span>
+                  </button>
+                )}
+                {onDownloadPdf && (
+                  <button
+                    className={dropdownOption}
+                    onClick={onDownloadPdf}
+                    disabled={isMultiExporting}
+                    role="menuitem"
+                    type="button"
+                  >
+                    <FaFilePdf />
+                    <span>PDF</span>
+                  </button>
+                )}
               </div>,
               document.body
             )}
@@ -600,6 +630,8 @@ export function GenericShareSection({
   onShareAllPages,
   isMultiExporting,
   exportProgress,
+  onDownloadPptx,
+  onDownloadPdf,
 }: GenericShareSectionProps) {
   const subsections = useMemo(
     () => [
@@ -620,6 +652,8 @@ export function GenericShareSection({
             onShareAllPages={onShareAllPages}
             isMultiExporting={isMultiExporting}
             exportProgress={exportProgress}
+            onDownloadPptx={onDownloadPptx}
+            onDownloadPdf={onDownloadPdf}
           />
         ),
       },

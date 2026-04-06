@@ -14,6 +14,7 @@ import { createFrameInstance } from '../../utils/frameUtils';
 import { createIllustration } from '../../utils/illustrations/registry';
 import { createPillBadgeInstance } from '../../utils/pillBadgeUtils';
 import { BRAND_COLORS, createShape } from '../../utils/shapes';
+import { createUserImageInstance } from '../../utils/userImageUtils';
 
 import type { IconState, BaseCanvasState } from './baseTypes';
 import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
@@ -23,6 +24,7 @@ import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
 import type { IllustrationInstance } from '../../utils/illustrations/types';
 import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../../utils/shapes';
+import type { UserImageInstance } from '../../utils/userImageUtils';
 import type { AdditionalText } from '../types';
 
 // ============================================================================
@@ -275,6 +277,12 @@ const ADDITIONAL_TEXT_DEFAULTS = {
     fontStyle: 'normal' as const,
     width: 400,
   },
+  subheader: {
+    fontSize: 36,
+    fontFamily: 'GrueneTypeNeue, Arial, sans-serif',
+    fontStyle: 'normal' as const,
+    width: 400,
+  },
   body: {
     fontSize: 32,
     fontFamily: 'PT Sans, Arial, sans-serif',
@@ -299,6 +307,22 @@ export function createAdditionalTextActions<TState extends { additionalTexts: Ad
         x: canvasWidth / 2 - 200,
         y: canvasHeight / 3,
         ...ADDITIONAL_TEXT_DEFAULTS.header,
+        fill: fontColor,
+      };
+      setState((prev) => ({
+        ...prev,
+        additionalTexts: [...prev.additionalTexts, newText],
+      }));
+      saveToHistory(getState());
+    },
+    addSubheader: () => {
+      const newText: AdditionalText = {
+        id: uuid(),
+        text: 'Untertitel',
+        type: 'subheader',
+        x: canvasWidth / 2 - 200,
+        y: canvasHeight * 0.4,
+        ...ADDITIONAL_TEXT_DEFAULTS.subheader,
         fill: fontColor,
       };
       setState((prev) => ({
@@ -525,6 +549,49 @@ export function createFrameActions<TState extends { frameInstances: FrameInstanc
 }
 
 // ============================================================================
+// USER IMAGE ACTIONS
+// ============================================================================
+
+export function createUserImageActions<TState extends { userImageInstances: UserImageInstance[] }>(
+  getState: () => TState,
+  setState: StateSetter<TState>,
+  saveToHistory: HistorySaver<TState>,
+  canvasWidth: number,
+  canvasHeight: number
+) {
+  return {
+    addUserImage: (file: File, objectUrl: string) => {
+      void createUserImageInstance(file, objectUrl, canvasWidth, canvasHeight).then((instance) => {
+        setState((prev) => ({
+          ...prev,
+          userImageInstances: [...prev.userImageInstances, instance],
+        }));
+        saveToHistory(getState());
+      });
+    },
+    updateUserImage: (id: string, partial: Partial<UserImageInstance>) => {
+      setState((prev) => ({
+        ...prev,
+        userImageInstances: prev.userImageInstances.map((u) =>
+          u.id === id ? { ...u, ...partial } : u
+        ),
+      }));
+    },
+    removeUserImage: (id: string) => {
+      const instance = getState().userImageInstances.find((u) => u.id === id);
+      if (instance?.src) {
+        URL.revokeObjectURL(instance.src);
+      }
+      setState((prev) => ({
+        ...prev,
+        userImageInstances: prev.userImageInstances.filter((u) => u.id !== id),
+      }));
+      saveToHistory(getState());
+    },
+  };
+}
+
+// ============================================================================
 // COMBINED BASE ACTIONS
 // ============================================================================
 
@@ -568,5 +635,6 @@ export function createBaseActions<TState extends BaseCanvasState>(
     ...createCircleBadgeActions(getState, setState, saveToHistory, debouncedSaveToHistory),
     ...createBalkenActions(getState, setState, saveToHistory, debouncedSaveToHistory),
     ...createFrameActions(getState, setState, saveToHistory, canvasWidth, canvasHeight),
+    ...createUserImageActions(getState, setState, saveToHistory, canvasWidth, canvasHeight),
   };
 }

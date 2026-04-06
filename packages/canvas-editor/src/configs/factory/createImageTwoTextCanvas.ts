@@ -33,6 +33,7 @@ import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
 import type { IllustrationInstance } from '../../utils/illustrations/types';
 import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../../utils/shapes';
+import type { UserImageInstance } from '../../utils/userImageUtils';
 import type { FullCanvasConfig, LayoutResult, CanvasElementConfig, AdditionalText } from '../types';
 
 // ============================================================================
@@ -73,6 +74,7 @@ export interface ImageTwoTextState {
   circleBadgeInstances: CircleBadgeInstance[];
   balkenInstances: BalkenInstance[];
   frameInstances: FrameInstance[];
+  userImageInstances: UserImageInstance[];
 }
 
 // ============================================================================
@@ -358,6 +360,7 @@ export function createImageTwoTextCanvas(
       circleBadgeInstances: [],
       balkenInstances: [],
       frameInstances: [],
+      userImageInstances: [],
     }),
 
     createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {

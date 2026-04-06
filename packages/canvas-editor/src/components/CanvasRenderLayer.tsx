@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, type ComponentProps } from 'react';
 
 import { CanvasText } from '../primitives';
 import { AssetPrimitive } from '../primitives/AssetPrimitive';
@@ -9,6 +9,8 @@ import { IconPrimitive } from '../primitives/IconPrimitive';
 import { IllustrationPrimitive } from '../primitives/IllustrationPrimitive';
 import { PillBadge } from '../primitives/PillBadge';
 import { ShapePrimitive } from '../primitives/ShapePrimitive';
+import { UserImagePrimitive } from '../primitives/UserImagePrimitive';
+import { useIsElementSelected } from '../stores/CanvasStoreProvider';
 import { getIconMapSync } from '../utils/canvasIcons';
 
 import { GenericCanvasElement } from './GenericCanvasElement';
@@ -22,6 +24,7 @@ import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
 import type { SnapLine, SnapTarget } from '../utils/snapping';
+import type { UserImageInstance } from '../utils/userImageUtils';
 
 /**
  * CanvasRenderLayer - Renders all canvas elements in layer order
@@ -82,7 +85,6 @@ interface CanvasRenderLayerProps<
   config: FullCanvasConfig<TState, TActions>;
   state: TState;
   layout: LayoutResult;
-  selectedElement: string | null;
   handlers: {
     handleElementSelect: (id: string) => void;
     handleTextChange: (id: string, text: string) => void;
@@ -147,6 +149,15 @@ interface CanvasRenderLayerProps<
     ) => void;
     handleFrameChange: (id: string, newAttrs: Partial<FrameInstance>) => void;
     handleFrameImageUpload: (id: string, file: File, objectUrl: string) => void;
+    handleUserImageDragEnd: (id: string, x: number, y: number) => void;
+    handleUserImageTransformEnd: (
+      id: string,
+      x: number,
+      y: number,
+      width: number,
+      height: number,
+      rotation: number
+    ) => void;
   };
   getSnapTargets: (id: string) => SnapTarget[];
   handleSnapChange: (h: boolean, v: boolean) => void;
@@ -156,6 +167,31 @@ interface CanvasRenderLayerProps<
   isFontAvailable?: boolean;
 }
 
+// Selectable wrapper factory: each wrapper subscribes to the store for its
+// element's selected state, so only 2 elements re-render per click.
+// Primitives keep their selected/isSelected prop for testability.
+function createSelectableWrapper<P extends object>(
+  Component: React.ComponentType<P>,
+  propName: 'selected' | 'isSelected' = 'selected',
+) {
+  type WrapperProps = Omit<P, 'selected' | 'isSelected'> & { elementId: string };
+  return memo(function SelectableWrapper({ elementId, ...rest }: WrapperProps) {
+    const selected = useIsElementSelected(elementId);
+    return <Component {...({ ...rest, [propName]: selected } as P)} />;
+  });
+}
+
+const SelectableBalkenGroup = createSelectableWrapper(BalkenGroup);
+const SelectableIconPrimitive = createSelectableWrapper(IconPrimitive);
+const SelectableShapePrimitive = createSelectableWrapper(ShapePrimitive, 'isSelected');
+const SelectableFramePrimitive = createSelectableWrapper(FramePrimitive, 'isSelected');
+const SelectableIllustrationPrimitive = createSelectableWrapper(IllustrationPrimitive, 'isSelected');
+const SelectableAssetPrimitive = createSelectableWrapper(AssetPrimitive, 'isSelected');
+const SelectableCircleBadge = createSelectableWrapper(CircleBadge);
+const SelectablePillBadge = createSelectableWrapper(PillBadge);
+const SelectableCanvasText = createSelectableWrapper(CanvasText);
+const SelectableUserImagePrimitive = createSelectableWrapper(UserImagePrimitive, 'isSelected');
+
 function CanvasRenderLayerInner<
   TState extends Record<string, unknown> = Record<string, unknown>,
   TActions = Record<string, unknown>,
@@ -164,7 +200,6 @@ function CanvasRenderLayerInner<
   config: _config,
   state,
   layout,
-  selectedElement,
   handlers,
   getSnapTargets,
   handleSnapChange,
@@ -185,7 +220,6 @@ function CanvasRenderLayerInner<
               config={elementConfig}
               state={state}
               layout={layout}
-              selectedElement={selectedElement}
               onSelect={handlers.handleElementSelect}
               onTextChange={handlers.handleTextChange}
               onFontSizeChange={handlers.handleFontSizeChange}
@@ -205,8 +239,9 @@ function CanvasRenderLayerInner<
         if (item.type === 'balken') {
           const balken = item.data as unknown as BalkenInstance;
           return (
-            <BalkenGroup
+            <SelectableBalkenGroup
               key={balken.id}
+              elementId={balken.id}
               mode={balken.mode}
               colorSchemeId={balken.colorSchemeId}
               offset={balken.offset}
@@ -215,7 +250,6 @@ function CanvasRenderLayerInner<
               texts={balken.texts}
               rotation={balken.rotation}
               barOffsets={balken.barOffsets}
-              selected={selectedElement === balken.id}
               onSelect={() => handlers.handleBalkenSelect(balken.id)}
               onTextChange={(idx, txt) => {
                 const stateWithActions = state as unknown as Record<string, unknown>;
@@ -267,8 +301,9 @@ function CanvasRenderLayerInner<
           if (!iconDef) return null;
 
           return (
-            <IconPrimitive
+            <SelectableIconPrimitive
               key={iconId}
+              elementId={iconId}
               id={iconId}
               icon={iconDef.id}
               x={x}
@@ -277,7 +312,6 @@ function CanvasRenderLayerInner<
               rotation={rotation}
               color={color}
               opacity={iconState?.opacity ?? 1}
-              selected={selectedElement === iconId}
               onSelect={() => handlers.handleElementSelect(iconId)}
               onDragEnd={(nx, ny) => handlers.handleIconDragEnd(iconId, nx, ny)}
               onTransformEnd={(nx, ny, ns, nr) =>
@@ -291,10 +325,10 @@ function CanvasRenderLayerInner<
         if (item.type === 'shape') {
           const shape = item.data as unknown as ShapeInstance;
           return (
-            <ShapePrimitive
+            <SelectableShapePrimitive
               key={shape.id}
+              elementId={shape.id}
               shape={shape}
-              isSelected={selectedElement === shape.id}
               onSelect={handlers.handleElementSelect}
               onChange={(attrs) => handlers.handleShapeChange(shape.id, attrs)}
               draggable={true}
@@ -306,10 +340,10 @@ function CanvasRenderLayerInner<
         if (item.type === 'frame') {
           const frame = item.data as unknown as FrameInstance;
           return (
-            <FramePrimitive
+            <SelectableFramePrimitive
               key={frame.id}
+              elementId={frame.id}
               frame={frame}
-              isSelected={selectedElement === frame.id}
               onSelect={handlers.handleElementSelect}
               onChange={(attrs) => handlers.handleFrameChange(frame.id, attrs)}
               onImageUpload={handlers.handleFrameImageUpload}
@@ -322,10 +356,10 @@ function CanvasRenderLayerInner<
         if (item.type === 'illustration') {
           const ill = item.data as unknown as IllustrationInstance;
           return (
-            <IllustrationPrimitive
+            <SelectableIllustrationPrimitive
               key={ill.id}
+              elementId={ill.id}
               illustration={ill}
-              isSelected={selectedElement === ill.id}
               onSelect={() => handlers.handleElementSelect(ill.id)}
               onDragEnd={(x: number, y: number) => handlers.handleIllustrationDragEnd(ill.id, x, y)}
               onTransformEnd={(x: number, y: number, scale: number, rotation: number) =>
@@ -344,10 +378,10 @@ function CanvasRenderLayerInner<
         if (item.type === 'asset') {
           const asset = item.data as unknown as AssetInstance;
           return (
-            <AssetPrimitive
+            <SelectableAssetPrimitive
               key={asset.id}
+              elementId={asset.id}
               asset={asset}
-              isSelected={selectedElement === asset.id}
               onSelect={() => handlers.handleElementSelect(asset.id)}
               onDragEnd={(x: number, y: number) => handlers.handleAssetDragEnd(asset.id, x, y)}
               onTransformEnd={(x: number, y: number, scale: number, rotation: number) =>
@@ -361,8 +395,9 @@ function CanvasRenderLayerInner<
         if (item.type === 'circle-badge') {
           const badge = item.data as unknown as CircleBadgeInstance;
           return (
-            <CircleBadge
+            <SelectableCircleBadge
               key={badge.id}
+              elementId={badge.id}
               id={badge.id}
               x={badge.x}
               y={badge.y}
@@ -373,7 +408,6 @@ function CanvasRenderLayerInner<
               scale={badge.scale}
               opacity={badge.opacity ?? 1}
               textLines={badge.textLines}
-              selected={selectedElement === badge.id}
               onSelect={() => handlers.handleCircleBadgeSelect(badge.id)}
               onDragEnd={(x, y) => handlers.handleCircleBadgeDragEnd(badge.id, x, y)}
               onTransformEnd={(x, y, s, r) =>
@@ -395,8 +429,9 @@ function CanvasRenderLayerInner<
         if (item.type === 'pill-badge') {
           const pill = item.data as unknown as PillBadgeInstance;
           return (
-            <PillBadge
+            <SelectablePillBadge
               key={pill.id}
+              elementId={pill.id}
               id={pill.id}
               text={pill.text}
               x={pill.x}
@@ -412,7 +447,6 @@ function CanvasRenderLayerInner<
               paddingX={pill.paddingX}
               paddingY={pill.paddingY}
               cornerRadius={pill.cornerRadius}
-              selected={selectedElement === pill.id}
               onSelect={() => handlers.handlePillBadgeSelect(pill.id)}
               onTextChange={(text) => handlers.handlePillBadgeTextChange(pill.id, text)}
               onDragEnd={(x, y) => handlers.handlePillBadgeDragEnd(pill.id, x, y)}
@@ -429,13 +463,33 @@ function CanvasRenderLayerInner<
           );
         }
 
+        // Render User Image
+        if (item.type === 'user-image') {
+          const userImage = item.data as unknown as UserImageInstance;
+          return (
+            <SelectableUserImagePrimitive
+              key={userImage.id}
+              elementId={userImage.id}
+              userImage={userImage}
+              onSelect={() => handlers.handleElementSelect(userImage.id)}
+              onDragEnd={(x: number, y: number) =>
+                handlers.handleUserImageDragEnd(userImage.id, x, y)
+              }
+              onTransformEnd={(x: number, y: number, w: number, h: number, r: number) =>
+                handlers.handleUserImageTransformEnd(userImage.id, x, y, w, h, r)
+              }
+            />
+          );
+        }
+
         // Render Additional Text
         if (item.type === 'additional-text') {
           const textItem = item.data as unknown as AdditionalTextItem;
           if (!textItem) return null;
           return (
-            <CanvasText
+            <SelectableCanvasText
               key={textItem.id}
+              elementId={textItem.id}
               id={textItem.id}
               text={textItem.text}
               x={textItem.x}
@@ -451,7 +505,6 @@ function CanvasRenderLayerInner<
               scaleX={textItem.scale || 1}
               scaleY={textItem.scale || 1}
               draggable={true}
-              selected={selectedElement === textItem.id}
               onSelect={() => handlers.handleElementSelect(textItem.id)}
               onTextChange={(val) =>
                 handlers.handleAdditionalTextChange(textItem.id, { text: val })

@@ -26,6 +26,7 @@ export type GrueneratorMessageMetadata = {
   searchResults?: SearchResult[];
   citations?: Citation[];
   generatedImage?: GeneratedImage;
+  sharepicData?: import('../hooks/useChatGraphStream').SharepicData;
   streamMetadata?: StreamMetadata;
   threadId?: string;
   followUpSuggestions?: string[];
@@ -149,6 +150,7 @@ async function* parseSSEStream(
   let receivedSearchResults: SearchResult[] = [];
   let receivedCitations: Citation[] = [];
   let receivedImage: GeneratedImage | null = null;
+  let receivedSharepicData: import('../hooks/useChatGraphStream').SharepicData | null = null;
   let receivedFollowUpSuggestions: string[] = [];
   let receivedMetadata: StreamMetadata | null = null;
   let receivedConfirmAction: ConfirmActionData | null = null;
@@ -192,6 +194,7 @@ async function* parseSSEStream(
     if (receivedSearchResults.length > 0) custom.searchResults = receivedSearchResults;
     if (receivedCitations.length > 0) custom.citations = receivedCitations;
     if (receivedImage) custom.generatedImage = receivedImage;
+    if (receivedSharepicData) custom.sharepicData = receivedSharepicData;
     if (receivedMetadata) custom.streamMetadata = receivedMetadata;
     if (receivedFollowUpSuggestions.length > 0)
       custom.followUpSuggestions = receivedFollowUpSuggestions;
@@ -256,7 +259,7 @@ async function* parseSSEStream(
           };
           let stage: ProgressStage = 'searching';
           if (intent === 'direct') stage = 'generating';
-          else if (intent === 'image') stage = 'generating_image';
+          else if (intent === 'image' || intent === 'sharepic') stage = 'generating_image';
           else if (intent === 'summary') stage = 'summarizing';
           transitionStep(stage);
           currentProgress = { stage, message, intent, reasoning };
@@ -388,6 +391,33 @@ async function* parseSSEStream(
           currentProgress = {
             ...currentProgress,
             stage: imageError ? 'error' : 'generating',
+            message,
+          };
+          yield buildResult();
+          break;
+        }
+
+        case 'sharepic_complete': {
+          const {
+            message,
+            canvasType,
+            initialProps,
+            alternatives,
+            error: sharepicError,
+          } = data as {
+            message: string;
+            canvasType: string;
+            initialProps: Record<string, unknown>;
+            alternatives?: unknown[];
+            error?: string;
+          };
+          if (!sharepicError && canvasType && initialProps) {
+            receivedSharepicData = { canvasType, initialProps, alternatives };
+          }
+          transitionStep(sharepicError ? 'error' : 'generating');
+          currentProgress = {
+            ...currentProgress,
+            stage: sharepicError ? 'error' : 'generating',
             message,
           };
           yield buildResult();

@@ -488,6 +488,7 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
       circleBadgeInstances: [],
       balkenInstances: [],
       frameInstances: [],
+      userImageInstances: [],
 
       // Base state
       assetInstances: [],

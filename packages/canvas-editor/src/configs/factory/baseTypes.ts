@@ -13,6 +13,7 @@ import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
 import type { IllustrationInstance } from '../../utils/illustrations/types';
 import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../../utils/shapes';
+import type { UserImageInstance } from '../../utils/userImageUtils';
 import type { AdditionalText, LayoutResult } from '../types';
 
 // ============================================================================
@@ -39,6 +40,7 @@ export interface BaseCanvasState {
   circleBadgeInstances: CircleBadgeInstance[];
   balkenInstances: BalkenInstance[];
   frameInstances: FrameInstance[];
+  userImageInstances: UserImageInstance[];
   [key: string]: unknown;
 }
 
@@ -134,6 +136,11 @@ export interface BaseCanvasActions {
   updateFrame: (id: string, partial: Partial<FrameInstance>) => void;
   removeFrame: (id: string) => void;
   setFrameImage: (id: string, file: File, objectUrl: string) => void;
+
+  // User image management
+  addUserImage: (file: File, objectUrl: string) => void;
+  updateUserImage: (id: string, partial: Partial<UserImageInstance>) => void;
+  removeUserImage: (id: string) => void;
 
   // Alternatives
   handleSelectAlternative: (alt: AlternativeItem) => void;

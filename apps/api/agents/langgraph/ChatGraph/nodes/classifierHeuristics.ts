@@ -23,7 +23,7 @@ const log = createLogger('ChatGraph:Classifier');
 export const INTENT_KEYWORDS: Record<
   Exclude<
     SearchIntent,
-    'direct' | 'image_edit' | 'save_as_doc' | 'modify_doc' | 'modify_board' | 'share_doc'
+    'direct' | 'image_edit' | 'sharepic' | 'save_as_doc' | 'modify_doc' | 'modify_board' | 'share_doc'
   >,
   string[]
 > = {

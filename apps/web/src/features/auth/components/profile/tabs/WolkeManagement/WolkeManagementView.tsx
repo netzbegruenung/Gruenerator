@@ -1,6 +1,6 @@
 import { useShareLinks } from '@gruenerator/wolke';
 import { motion } from 'motion/react';
-import { memo, useCallback, useState } from 'react';
+import { lazy, memo, useCallback, useState } from 'react';
 import { FaWordpress } from 'react-icons/fa6';
 import { FiCloud } from 'react-icons/fi';
 
@@ -15,6 +15,10 @@ import {
   useWordPressSites,
   useDeleteWordPressSite,
 } from '../../../../../wordpress/hooks/useWordPress';
+
+const ConnectedAccountsSection = lazy(
+  () => import('../../../../../connections/components/ConnectedAccountsSection')
+);
 
 import { cn } from '@/utils/cn';
 import './clouds.css';
@@ -206,6 +210,12 @@ const WolkeManagementView = memo(
           </div>
         </CloudCard>
         {import.meta.env.DEV && <WordPressSection />}
+        {import.meta.env.DEV && (
+          <ConnectedAccountsSection
+            onSuccess={onSuccessMessage}
+            onError={onErrorMessage}
+          />
+        )}
       </motion.div>
     );
   }

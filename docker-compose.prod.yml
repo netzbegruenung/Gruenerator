@@ -187,6 +187,42 @@ services:
       retries: 3
       start_period: 120s
 
+  # Nango - Self-hosted OAuth connector middleware (Google, Microsoft, Atlassian)
+  # Pre-built image, no custom build needed. Dashboard at nango.* subdomain.
+  nango:
+    image: nangohq/nango-server:hosted
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - NANGO_DB_HOST=host.docker.internal
+      - NANGO_DB_PORT=5432
+      - NANGO_DB_USER=${POSTGRES_USER:-gruenerator}
+      - NANGO_DB_PASSWORD=${POSTGRES_PASSWORD}
+      - NANGO_DB_NAME=nango
+      - NANGO_SERVER_URL=${NANGO_PUBLIC_URL}
+      - NANGO_ENCRYPTION_KEY=${NANGO_ENCRYPTION_KEY}
+      - FLAG_SERVE_CONNECT_UI=true
+      - FLAG_AUTH_ENABLED=false
+      - NANGO_DASHBOARD_USERNAME=${NANGO_DASHBOARD_USERNAME:-admin}
+      - NANGO_DASHBOARD_PASSWORD=${NANGO_DASHBOARD_PASSWORD}
+      - SERVER_PORT=3003
+      - CONNECT_UI_PORT=3009
+      - TELEMETRY=false
+    networks:
+      - gruenerator
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    labels:
+      - 'com.gruenerator.service=nango'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3003/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
   # ComfyUI - Local GPU-based image generation (optional, requires NVIDIA GPU)
   # Start with: docker compose --profile gpu up -d comfyui
   comfyui:

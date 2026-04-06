@@ -20,6 +20,13 @@ export const ADDITIONAL_TEXT_DEFAULTS = {
     offsetY: 0,
     width: 400,
   },
+  subheader: {
+    defaultText: 'Neuer Untertitel',
+    fontSize: 42,
+    fontStyle: 'normal' as const,
+    offsetY: 60,
+    width: 400,
+  },
   body: {
     defaultText: 'Neuer Text',
     fontSize: 30,

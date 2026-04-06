@@ -43,7 +43,7 @@ export interface BaseElementConfig<TState = Record<string, unknown>> {
 export interface AdditionalText {
   id: string;
   text: string;
-  type: 'header' | 'body';
+  type: 'header' | 'subheader' | 'body';
   x: number;
   y: number;
   width: number;
@@ -276,7 +276,10 @@ export type CanvasConfigId =
   | 'simple'
   | 'dreizeilen'
   | 'slider'
-  | 'freeform';
+  | 'freeform'
+  | 'pres-title'
+  | 'pres-image'
+  | 'pres-content';
 
 /** A page in a heterogeneous multi-page document */
 export interface HeterogeneousPage {

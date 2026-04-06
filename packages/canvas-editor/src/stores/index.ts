@@ -1,5 +1,5 @@
+// Context-aware selector hooks (primary API)
 export {
-  useCanvasEditorStore,
   useCanvasLayers,
   useCanvasSelection,
   useCanvasConfig,
@@ -7,7 +7,33 @@ export {
   useRenderVersion,
   useCanvasHistory,
   useElementPositions,
+  useSnapGuides,
+  useSnapLines,
 } from './canvasEditorStore';
+
+// Store factory and provider
+export {
+  createCanvasEditorStore,
+  defaultCanvasEditorStore,
+} from './createCanvasEditorStore';
+export type {
+  CanvasEditorStoreApi,
+  CanvasEditorStoreState,
+  CanvasEditorState,
+  CanvasEditorActions,
+} from './createCanvasEditorStore';
+
+export {
+  CanvasStoreProvider,
+  useCanvasStore,
+  useCanvasStoreSelector,
+  useCanvasStoreShallow,
+  useIsElementSelected,
+} from './CanvasStoreProvider';
+
+// Ref registry
 export { canvasRefRegistry } from './canvasEditorRefs';
+
+// Auto-save store
 export { useAutoSaveStore } from './useAutoSaveStore';
 export type { AutoSaveStore } from './useAutoSaveStore';

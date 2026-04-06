@@ -190,6 +190,7 @@ export interface DreizeilenFullActions {
 
   // === Additional Text Actions ===
   addHeader: () => void;
+  addSubheader: () => void;
   addText: () => void;
   updateAdditionalText: (textId: string, partial: Partial<AdditionalText>) => void;
   removeAdditionalText: (textId: string) => void;

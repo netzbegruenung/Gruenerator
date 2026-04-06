@@ -64,14 +64,14 @@ export function FreeformTextSection({
               className="flex items-center gap-sm p-sm bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg"
             >
               <span className="text-xs text-foreground-muted shrink-0 w-5">
-                {text.type === 'header' ? <PiTextHBold size={14} /> : <PiTextAa size={14} />}
+                {text.type === 'header' || text.type === 'subheader' ? <PiTextHBold size={14} /> : <PiTextAa size={14} />}
               </span>
               <input
                 type="text"
                 value={text.text}
                 onChange={(e) => onUpdateText(text.id, { text: e.target.value })}
                 className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-foreground-muted"
-                placeholder={text.type === 'header' ? 'Überschrift...' : 'Text...'}
+                placeholder={text.type === 'header' ? 'Überschrift...' : text.type === 'subheader' ? 'Untertitel...' : 'Text...'}
               />
               <button
                 type="button"
