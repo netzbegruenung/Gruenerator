@@ -18,3 +18,6 @@ export const COLLAB_SUBTYPES = [
 
 /** @deprecated Use COLLAB_SUBTYPES instead */
 export const DOCS_SUBTYPES = COLLAB_SUBTYPES;
+
+/** Marker for permissions auto-granted when a user visits an 'authenticated' share link */
+export const GRANTED_BY_SHARE_LINK = 'auto:share_link';
