@@ -112,7 +112,7 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
   }, [documentId]);
 
   const copyShareLink = async () => {
-    const shareUrl = `${window.location.origin}/document/${documentId}`;
+    const shareUrl = `${window.location.origin}${adapter.getDocumentUrl(documentId)}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
       setCopySuccess(true);
@@ -124,7 +124,7 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
   };
 
   const directShare = async () => {
-    const shareUrl = `${window.location.origin}/document/${documentId}`;
+    const shareUrl = `${window.location.origin}${adapter.getDocumentUrl(documentId)}`;
     const title = documentTitle || 'Dokument';
     const message = userDisplayName
       ? `${userDisplayName} möchte „${title}" mit dir teilen:\n${shareUrl}`

@@ -10,6 +10,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { sanitizePath } from '../../utils/validation/security.js';
 
 import type {
   SubtitlerProject,
@@ -220,16 +221,10 @@ export class SubtitlerProjectService {
         throw new Error('Invalid uploadId format');
       }
       const tusVideoPath = path.join(__dirname, '../../uploads/tus-temp', uploadId);
-      const sourceVideoPath = videoSourcePath || tusVideoPath;
-
-      const allowedDirs = [
-        path.resolve(__dirname, '../../uploads/tus-temp'),
-        path.resolve(PROJECT_STORAGE_PATH),
-      ];
-      const resolvedSource = path.resolve(sourceVideoPath);
-      if (!allowedDirs.some((dir) => resolvedSource.startsWith(dir + path.sep))) {
-        throw new Error('Video source path outside allowed directory');
-      }
+      const uploadsDir = path.resolve(__dirname, '../../uploads');
+      const sourceVideoPath = videoSourcePath
+        ? sanitizePath(videoSourcePath, uploadsDir)
+        : tusVideoPath;
       const targetVideoPath = path.join(projectDir, 'video.mp4');
       const thumbnailPath = path.join(projectDir, 'thumbnail.jpg');
       const relativeVideoPath = `${userId}/${projectId}/video.mp4`;

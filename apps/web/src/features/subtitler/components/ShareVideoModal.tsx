@@ -9,7 +9,7 @@ import {
 } from '@gruenerator/ui';
 import React, { useState, useEffect } from 'react';
 import { FaCheck, FaCopy, FaShareAlt } from 'react-icons/fa';
-import QRCode from 'react-qr-code';
+import { QRCode } from 'react-qr-code';
 
 import EnhancedSelect from '../../../components/common/EnhancedSelect/EnhancedSelect';
 import { useSubtitlerShareStore, getShareUrl } from '../../../stores/subtitlerShareStore';

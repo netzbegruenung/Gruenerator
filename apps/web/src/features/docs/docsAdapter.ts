@@ -50,6 +50,8 @@ export const webAppDocsAdapter: DocsAdapter = {
     window.location.href = buildLoginUrl(currentPath);
   },
 
+  getDocumentUrl: (id) => `/docs/${id}`,
+
   navigateToDocument: (id) => {
     window.location.href = `/docs/${id}`;
   },

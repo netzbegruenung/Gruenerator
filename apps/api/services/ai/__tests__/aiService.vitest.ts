@@ -126,16 +126,16 @@ describe('AIService', () => {
     );
   });
 
-  it('routes pro mode to Mistral', async () => {
+  it('routes pro mode to LiteLLM', async () => {
     mockSelectProviderAndModel.mockReturnValue({
-      provider: 'mistral',
-      model: 'magistral-medium-latest',
+      provider: 'litellm',
+      model: 'gpt-oss:120b',
     });
     const data = makeRequest({ options: { useProMode: true } });
     await service.processRequest(data);
 
     expect(mockExecuteProvider).toHaveBeenCalledWith(
-      'mistral',
+      'litellm',
       expect.any(String),
       expect.objectContaining({
         options: expect.objectContaining({ useProMode: true }),

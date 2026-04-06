@@ -248,7 +248,7 @@ export function applyProModeConfig(
   config: GenerationConfig,
   model: string
 ): GenerationConfig & { promptMode?: string } {
-  if (model.includes('magistral')) {
+  if (model.includes('gpt-oss')) {
     return {
       ...config,
       maxTokens: Math.max(config.maxTokens, 6000),
