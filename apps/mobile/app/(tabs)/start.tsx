@@ -186,9 +186,7 @@ export default function StartScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.welcomeSection}>
-          <Text style={[styles.welcomeText, { color: theme.text }]}>
-            Hallo {firstName},
-          </Text>
+          <Text style={[styles.welcomeText, { color: theme.text }]}>Hallo {firstName},</Text>
           <Text style={[styles.welcomeSubtitle, { color: theme.textSecondary }]}>
             wie kann ich dir helfen?
           </Text>
@@ -226,8 +224,12 @@ export default function StartScreen() {
                       {
                         borderColor: colorScheme === 'dark' ? colors.grey[600] : colors.grey[300],
                         backgroundColor: pressed
-                          ? (colorScheme === 'dark' ? colors.grey[700] : colors.grey[100])
-                          : (colorScheme === 'dark' ? colors.grey[800] : colors.white),
+                          ? colorScheme === 'dark'
+                            ? colors.grey[700]
+                            : colors.grey[100]
+                          : colorScheme === 'dark'
+                            ? colors.grey[800]
+                            : colors.white,
                       },
                     ]}
                   >
@@ -239,7 +241,10 @@ export default function StartScreen() {
                 ))}
                 <Pressable
                   onPress={() => router.push('/(fullscreen)/all-threads' as Href)}
-                  style={[styles.threadChip, { borderColor: colorScheme === 'dark' ? colors.grey[700] : colors.grey[300] }]}
+                  style={[
+                    styles.threadChip,
+                    { borderColor: colorScheme === 'dark' ? colors.grey[700] : colors.grey[300] },
+                  ]}
                 >
                   <Text style={{ fontSize: 12, color: colors.primary[600], fontWeight: '500' }}>
                     Alle ›
@@ -252,15 +257,14 @@ export default function StartScreen() {
 
         {/* Boards — only shown when boards exist */}
         {!boardsLoading && boards.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Boards</Text>
-            <Pressable onPress={() => Linking.openURL(BOARDS_URL)} hitSlop={8}>
-              <Ionicons name="open-outline" size={16} color={theme.textSecondary} />
-            </Pressable>
-          </View>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Boards</Text>
+              <Pressable onPress={() => Linking.openURL(BOARDS_URL)} hitSlop={8}>
+                <Ionicons name="open-outline" size={16} color={theme.textSecondary} />
+              </Pressable>
+            </View>
 
-          {(
             <View style={styles.boardGrid}>
               {boards.map((board) => {
                 const isWhiteboard = getBoardType(board) === 'whiteboard';
@@ -315,8 +319,7 @@ export default function StartScreen() {
                 );
               })}
             </View>
-          )}
-        </View>
+          </View>
         )}
 
         {/* Tools */}
@@ -327,17 +330,9 @@ export default function StartScreen() {
               <Pressable
                 key={tool.id}
                 onPress={() => router.push(tool.route as Href)}
-                style={({ pressed }) => [
-                  styles.toolItem,
-                  { opacity: pressed ? 0.6 : 1 },
-                ]}
+                style={({ pressed }) => [styles.toolItem, { opacity: pressed ? 0.6 : 1 }]}
               >
-                <View
-                  style={[
-                    styles.toolCircle,
-                    { backgroundColor: colors.primary[600] },
-                  ]}
-                >
+                <View style={[styles.toolCircle, { backgroundColor: colors.primary[600] }]}>
                   <Ionicons name={tool.icon} size={22} color={colors.white} />
                 </View>
                 <Text style={[styles.toolLabel, { color: theme.text }]} numberOfLines={1}>

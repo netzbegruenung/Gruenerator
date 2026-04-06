@@ -48,7 +48,9 @@ export default function AllThreadsScreen() {
               const client = getMobileChatApiClient();
               await client.delete(`/api/chat-service/threads?threadId=${threadId}`);
               refetch();
-            } catch {}
+            } catch {
+              /* delete may fail silently */
+            }
           },
         },
       ]);
@@ -61,14 +63,17 @@ export default function AllThreadsScreen() {
       <TouchableOpacity
         style={[styles.item, { borderBottomColor: theme.border }]}
         onPress={() =>
-          router.push(
-            routeWithParams('/(focused)/chat-conversation', { threadId: item.id })
-          )
+          router.push(routeWithParams('/(focused)/chat-conversation', { threadId: item.id }))
         }
         onLongPress={() => handleDelete(item.id, item.title || 'Neue Unterhaltung')}
         activeOpacity={0.6}
       >
-        <View style={[styles.iconCircle, { backgroundColor: colorScheme === 'dark' ? colors.grey[800] : colors.grey[100] }]}>
+        <View
+          style={[
+            styles.iconCircle,
+            { backgroundColor: colorScheme === 'dark' ? colors.grey[800] : colors.grey[100] },
+          ]}
+        >
           <Ionicons name="chatbubble-outline" size={18} color={colors.primary[600]} />
         </View>
         <View style={styles.content}>
@@ -98,9 +103,7 @@ export default function AllThreadsScreen() {
         <Text style={[styles.headerTitle, { color: theme.text }]}>Unterhaltungen</Text>
         <TouchableOpacity
           onPress={() =>
-            router.push(
-              routeWithParams('/(focused)/chat-conversation', { threadId: 'new' })
-            )
+            router.push(routeWithParams('/(focused)/chat-conversation', { threadId: 'new' }))
           }
           hitSlop={8}
         >
@@ -113,7 +116,11 @@ export default function AllThreadsScreen() {
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={colors.primary[600]} />
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={refetch}
+            tintColor={colors.primary[600]}
+          />
         }
         ListEmptyComponent={
           !isLoading ? (

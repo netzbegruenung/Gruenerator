@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@gruenerator/shared/stores';
+import { useLocalSearchParams, useRouter, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Pressable, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter, type ErrorBoundaryProps } from 'expo-router';
 
 import DocEditorDOM from '../../components/docs/DocEditorDOM';
 import { GuestBanner } from '../../components/docs/GuestBanner';
@@ -12,9 +12,9 @@ import { NativeChatSidebar } from '../../components/docs/NativeChatSidebar';
 import { NativeDocTopBar } from '../../components/docs/NativeDocTopBar';
 import { NativeFormattingToolbar } from '../../components/docs/NativeFormattingToolbar';
 import { NativeShareModal } from '../../components/docs/NativeShareModal';
-import { secureStorage } from '../../services/storage';
 import { docsService } from '../../services/docs/docsApi';
 import { trackDocumentOpen } from '../../services/docs/recentDocs';
+import { secureStorage } from '../../services/storage';
 import { useDocsEditorBridgeStore } from '../../stores/docsEditorBridgeStore';
 import { useDocsStore } from '../../stores/docsStore';
 import { lightTheme, darkTheme, colors } from '../../theme';
@@ -117,7 +117,7 @@ export default function DocumentScreen() {
       }
     },
     [id]
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const handleCanEditChange = useCallback(async (canEdit: boolean) => {
     store.getState().setCanEdit(canEdit);

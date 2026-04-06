@@ -1,7 +1,7 @@
 import { useAui, useAuiState } from '@assistant-ui/react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '@gruenerator/shared/hooks';
 import { useAgentStore, MODEL_OPTIONS } from '@gruenerator/chat';
+import { useAuth } from '@gruenerator/shared/hooks';
 import { useNavigation } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, useColorScheme, ScrollView } from 'react-native';
@@ -151,19 +151,14 @@ export default function ChatScreen() {
                   { borderColor: theme.border, opacity: pressed ? 0.6 : 1 },
                 ]}
               >
-                <Text style={[styles.promptLabel, { color: theme.textSecondary }]}>
-                  {p.label}
-                </Text>
+                <Text style={[styles.promptLabel, { color: theme.textSecondary }]}>{p.label}</Text>
               </Pressable>
             ))}
           </View>
         </ScrollView>
       )}
 
-      <ChatSettingsSheet
-        visible={settingsVisible}
-        onDismiss={() => setSettingsVisible(false)}
-      />
+      <ChatSettingsSheet visible={settingsVisible} onDismiss={() => setSettingsVisible(false)} />
     </View>
   );
 }

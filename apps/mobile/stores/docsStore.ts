@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+
 import { docsService, type Document, type UpdateDocumentPayload } from '../services/docs/docsApi';
 import { getRecentDocIds } from '../services/docs/recentDocs';
 

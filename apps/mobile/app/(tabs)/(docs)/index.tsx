@@ -1,3 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
+import { templates, type DocumentTemplate } from '@gruenerator/docs/templates';
+import { useAuth } from '@gruenerator/shared/hooks';
+import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect, useCallback, useState, useMemo } from 'react';
 import {
   View,
@@ -10,18 +15,14 @@ import {
   Alert,
   Platform,
   TextInput,
+  useColorScheme,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useColorScheme } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
-import { useAuth } from '@gruenerator/shared/hooks';
-import { useDocsStore } from '../../../stores/docsStore';
-import { lightTheme, darkTheme, colors } from '../../../theme';
-import { templates, type DocumentTemplate } from '@gruenerator/docs/templates';
+
 import { BottomSheet } from '../../../components/common/BottomSheet';
 import { NativeShareModal } from '../../../components/docs/NativeShareModal';
+import { useDocsStore } from '../../../stores/docsStore';
+import { lightTheme, darkTheme, colors } from '../../../theme';
 
 export default function DocumentsScreen() {
   const router = useRouter();
@@ -237,22 +238,62 @@ export default function DocumentsScreen() {
         <View style={styles.gridContent}>
           <View style={styles.gridRow}>
             {[0, 1].map((i) => (
-              <View key={i} style={[styles.gridCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+              <View
+                key={i}
+                style={[
+                  styles.gridCard,
+                  { backgroundColor: theme.card, borderColor: theme.cardBorder },
+                ]}
+              >
                 <View style={[styles.cardThumbnail, { backgroundColor: theme.surface }]} />
                 <View style={{ paddingHorizontal: 10, paddingVertical: 10, gap: 6 }}>
-                  <View style={{ height: 12, width: '75%', borderRadius: 4, backgroundColor: theme.surface }} />
-                  <View style={{ height: 10, width: '40%', borderRadius: 4, backgroundColor: theme.surface }} />
+                  <View
+                    style={{
+                      height: 12,
+                      width: '75%',
+                      borderRadius: 4,
+                      backgroundColor: theme.surface,
+                    }}
+                  />
+                  <View
+                    style={{
+                      height: 10,
+                      width: '40%',
+                      borderRadius: 4,
+                      backgroundColor: theme.surface,
+                    }}
+                  />
                 </View>
               </View>
             ))}
           </View>
           <View style={styles.gridRow}>
             {[2, 3].map((i) => (
-              <View key={i} style={[styles.gridCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+              <View
+                key={i}
+                style={[
+                  styles.gridCard,
+                  { backgroundColor: theme.card, borderColor: theme.cardBorder },
+                ]}
+              >
                 <View style={[styles.cardThumbnail, { backgroundColor: theme.surface }]} />
                 <View style={{ paddingHorizontal: 10, paddingVertical: 10, gap: 6 }}>
-                  <View style={{ height: 12, width: '60%', borderRadius: 4, backgroundColor: theme.surface }} />
-                  <View style={{ height: 10, width: '35%', borderRadius: 4, backgroundColor: theme.surface }} />
+                  <View
+                    style={{
+                      height: 12,
+                      width: '60%',
+                      borderRadius: 4,
+                      backgroundColor: theme.surface,
+                    }}
+                  />
+                  <View
+                    style={{
+                      height: 10,
+                      width: '35%',
+                      borderRadius: 4,
+                      backgroundColor: theme.surface,
+                    }}
+                  />
                 </View>
               </View>
             ))}

@@ -74,7 +74,9 @@ export function useNotifications() {
       const items = await fetchPage(notifications.length);
       setNotifications((prev) => [...prev, ...items]);
       setHasMore(items.length >= PAGE_SIZE);
-    } catch {} finally {
+    } catch {
+      /* ignore */
+    } finally {
       setIsLoadingMore(false);
     }
   }, [fetchPage, notifications.length, isLoadingMore, hasMore]);
@@ -88,9 +90,13 @@ export function useNotifications() {
       const client = getGlobalApiClient();
       await client.patch(`/notifications/${id}/read`);
       setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, is_read: true, read_at: new Date().toISOString() } : n))
+        prev.map((n) =>
+          n.id === id ? { ...n, is_read: true, read_at: new Date().toISOString() } : n
+        )
       );
-    } catch {}
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const markAllAsRead = useCallback(async () => {
@@ -100,7 +106,9 @@ export function useNotifications() {
       setNotifications((prev) =>
         prev.map((n) => ({ ...n, is_read: true, read_at: new Date().toISOString() }))
       );
-    } catch {}
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const dismiss = useCallback(async (id: string) => {
@@ -108,7 +116,9 @@ export function useNotifications() {
       const client = getGlobalApiClient();
       await client.delete(`/notifications/${id}`);
       setNotifications((prev) => prev.filter((n) => n.id !== id));
-    } catch {}
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   return {

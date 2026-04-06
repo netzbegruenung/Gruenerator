@@ -41,7 +41,9 @@ export function useAppInitialization() {
       if (data?.action_url && typeof data.action_url === 'string') {
         try {
           router.push(data.action_url as never);
-        } catch {}
+        } catch {
+          /* navigation may fail */
+        }
       }
     });
     return () => subscription.remove();

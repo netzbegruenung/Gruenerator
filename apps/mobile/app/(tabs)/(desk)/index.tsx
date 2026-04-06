@@ -114,15 +114,14 @@ export default function DeskDashboard() {
       >
         {/* Boards Section — hidden when empty/loading */}
         {!isLoading && boards.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Boards</Text>
-            <Pressable onPress={() => Linking.openURL(BOARDS_URL)}>
-              <Ionicons name="open-outline" size={18} color={theme.textSecondary} />
-            </Pressable>
-          </View>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Boards</Text>
+              <Pressable onPress={() => Linking.openURL(BOARDS_URL)}>
+                <Ionicons name="open-outline" size={18} color={theme.textSecondary} />
+              </Pressable>
+            </View>
 
-          {(
             <View style={styles.boardGrid}>
               {boards.map((board) => {
                 const isWhiteboard = getBoardType(board) === 'whiteboard';
@@ -166,10 +165,7 @@ export default function DeskDashboard() {
                         </Text>
                       </View>
                     </View>
-                    <Text
-                      style={[styles.boardTitle, { color: theme.text }]}
-                      numberOfLines={2}
-                    >
+                    <Text style={[styles.boardTitle, { color: theme.text }]} numberOfLines={2}>
                       {board.title}
                     </Text>
                     <Text style={[styles.boardMeta, { color: theme.textSecondary }]}>
@@ -180,8 +176,7 @@ export default function DeskDashboard() {
                 );
               })}
             </View>
-          )}
-        </View>
+          </View>
         )}
 
         {/* Tools Section */}
