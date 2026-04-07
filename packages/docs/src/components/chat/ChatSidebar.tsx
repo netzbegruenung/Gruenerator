@@ -3,6 +3,7 @@ import { useRef, useEffect, useCallback } from 'react';
 import { FiX, FiMessageCircle } from 'react-icons/fi';
 import { ChatMessageComponent } from './ChatMessage';
 import { ChatComposer } from './ChatComposer';
+import { useMobileKeyboardOffset } from '../../hooks/useMobileKeyboardOffset';
 import type { ChatMessage } from '../../hooks/useDocumentChat';
 
 interface ChatSidebarProps {
@@ -28,6 +29,8 @@ export const ChatSidebar = ({
   onTypingChange,
   embedded = false,
 }: ChatSidebarProps) => {
+  const keyboardRef = useRef<HTMLDivElement>(null);
+  useMobileKeyboardOffset(keyboardRef);
   const viewportRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
 
@@ -45,12 +48,14 @@ export const ChatSidebar = ({
 
   return (
     <div
+      ref={keyboardRef}
       className={cn(
         'flex flex-col overflow-hidden',
         embedded
           ? 'w-full min-w-0 max-w-none flex-1 border-l-0'
           : 'w-80 min-w-80 max-w-80 border-l border-grey-200 bg-background dark:border-grey-700 dark:bg-background max-md:fixed max-md:inset-0 max-md:z-[200] max-md:w-full max-md:min-w-full max-md:max-w-full max-md:border-l-0'
       )}
+      style={{ paddingBottom: 'var(--mobile-keyboard-offset, 0px)' }}
     >
       {!hideHeader && (
         <>
