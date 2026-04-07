@@ -29,7 +29,8 @@ export const ChatSidebar = ({
   onTypingChange,
   embedded = false,
 }: ChatSidebarProps) => {
-  const keyboardRef = useMobileKeyboardOffset<HTMLDivElement>();
+  const keyboardRef = useRef<HTMLDivElement>(null);
+  useMobileKeyboardOffset(keyboardRef);
   const viewportRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
 
