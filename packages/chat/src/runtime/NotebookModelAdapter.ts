@@ -180,6 +180,34 @@ export function createNotebookModelAdapter(
       let lastYieldTime = 0;
       const YIELD_INTERVAL = 50; // ms — yields at most 20 times/sec
 
+      let completionCitations: ChatCitation[] = [];
+      let rawCitationsAccum: Citation[] = [];
+      let sourcesAccum: Source[] = [];
+      let additionalSourcesAccum: unknown[] = [];
+      let sourcesByCollectionAccum: Record<string, unknown> | undefined;
+      let resultIdAccum: string | undefined;
+      let linkConfigAccum: LinkConfig | undefined;
+
+      function buildResult(): ChatModelRunResult {
+        const custom: Record<string, unknown> = {};
+        if (currentProgress) custom.progress = currentProgress;
+        if (completionCitations.length > 0) custom.citations = completionCitations;
+        if (rawCitationsAccum.length > 0) custom.rawCitations = rawCitationsAccum;
+        if (completionCitations.length > 0) custom.chatCitations = completionCitations;
+        if (sourcesAccum.length > 0) custom.sources = sourcesAccum;
+        if (additionalSourcesAccum.length > 0) custom.additionalSources = additionalSourcesAccum;
+        if (linkConfigAccum) custom.linkConfig = linkConfigAccum;
+        if (resultIdAccum) custom.resultId = resultIdAccum;
+        if (sourcesByCollectionAccum) custom.sourcesByCollection = sourcesByCollectionAccum;
+        custom.question = question;
+        custom.answerText = accumulatedText;
+
+        return {
+          content: [{ type: 'text' as const, text: normalizeCiteMarkers(accumulatedText) }],
+          metadata: { custom },
+        };
+      }
+
       try {
         while (true) {
           const { done, value } = await reader.read();
@@ -207,10 +235,7 @@ export function createNotebookModelAdapter(
                   `[Notebook] ⏱ Search started: ${Math.round(performance.now() - c0)}ms (network + auth)`
                 );
                 currentProgress = { stage: 'searching', message };
-                yield {
-                  content: [{ type: 'text' as const, text: '' }],
-                  metadata: { custom: { progress: currentProgress } },
-                };
+                yield buildResult();
                 break;
               }
 
@@ -220,10 +245,7 @@ export function createNotebookModelAdapter(
                   `[Notebook] ⏱ Search done: ${Math.round(performance.now() - c0)}ms, ${resultCount} results`
                 );
                 currentProgress = { stage: 'searching', ...currentProgress, message, resultCount };
-                yield {
-                  content: [{ type: 'text' as const, text: '' }],
-                  metadata: { custom: { progress: currentProgress } },
-                };
+                yield buildResult();
                 break;
               }
 
@@ -231,10 +253,7 @@ export function createNotebookModelAdapter(
                 const { message } = data as { message: string };
                 console.debug(`[Notebook] ⏱ Model ready: ${Math.round(performance.now() - c0)}ms`);
                 currentProgress = { stage: 'generating', message };
-                yield {
-                  content: [{ type: 'text' as const, text: '' }],
-                  metadata: { custom: { progress: currentProgress } },
-                };
+                yield buildResult();
                 break;
               }
 
@@ -248,24 +267,14 @@ export function createNotebookModelAdapter(
                     `[Notebook] ⏱ First token: ${Math.round(performance.now() - c0)}ms`
                   );
                   lastYieldTime = performance.now();
-                  yield {
-                    content: [
-                      { type: 'text' as const, text: normalizeCiteMarkers(accumulatedText) },
-                    ],
-                    metadata: { custom: { progress: currentProgress } },
-                  };
+                  yield buildResult();
                   break;
                 }
 
                 const now = performance.now();
                 if (now - lastYieldTime >= YIELD_INTERVAL) {
                   lastYieldTime = now;
-                  yield {
-                    content: [
-                      { type: 'text' as const, text: normalizeCiteMarkers(accumulatedText) },
-                    ],
-                    metadata: { custom: { progress: currentProgress } },
-                  };
+                  yield buildResult();
                 }
                 break;
               }
@@ -288,10 +297,7 @@ export function createNotebookModelAdapter(
           // Flush any buffered text between read chunks
           if (accumulatedText && performance.now() - lastYieldTime >= YIELD_INTERVAL) {
             lastYieldTime = performance.now();
-            yield {
-              content: [{ type: 'text' as const, text: normalizeCiteMarkers(accumulatedText) }],
-              metadata: { custom: { progress: currentProgress } },
-            };
+            yield buildResult();
           }
         }
       } catch (readError: unknown) {
@@ -308,52 +314,51 @@ export function createNotebookModelAdapter(
       }
 
       if (completionData) {
-        const resultId = `qa-notebook-${Date.now()}`;
-        const citations = completionData.citations || [];
-        const sources = completionData.sources || [];
-        const additionalSources = completionData.allSources || [];
-        const sourcesByCollection = completionData.sourcesByCollection;
+        resultIdAccum = `qa-notebook-${Date.now()}`;
+        rawCitationsAccum = completionData.citations || [];
+        sourcesAccum = completionData.sources || [];
+        additionalSourcesAccum = completionData.allSources || [];
+        sourcesByCollectionAccum = completionData.sourcesByCollection;
 
-        let linkConfig: LinkConfig;
         if (isMulti || config.collectionLinkType === 'url') {
-          linkConfig = {
+          linkConfigAccum = {
             type: 'external',
             linkKey: 'document_id',
             titleKey: 'document_title',
             urlKey: 'url',
           };
         } else {
-          linkConfig = {
+          linkConfigAccum = {
             type: 'vectorDocument',
             linkKey: 'document_id',
             titleKey: 'document_title',
           };
         }
 
-        const chatCitations = mapToChatCitations(citations);
+        completionCitations = mapToChatCitations(rawCitationsAccum);
         console.debug(
           '[Notebook] Completion: %d rawCitations, %d citations, answer length: %d',
-          citations.length,
-          chatCitations.length,
+          rawCitationsAccum.length,
+          completionCitations.length,
           completionData.answer.length
         );
+        currentProgress = { stage: 'complete', message: '' };
+        accumulatedText = completionData.answer;
+
+        yield buildResult();
+
         const metadata: NotebookMessageMetadata = {
-          citations: chatCitations,
-          rawCitations: citations,
-          chatCitations,
-          sources,
-          additionalSources,
-          linkConfig,
+          citations: completionCitations,
+          rawCitations: rawCitationsAccum,
+          chatCitations: completionCitations,
+          sources: sourcesAccum,
+          additionalSources: additionalSourcesAccum,
+          linkConfig: linkConfigAccum,
           question,
-          resultId,
+          resultId: resultIdAccum,
           answerText: completionData.answer,
           progress: { stage: 'complete', message: '' },
-          ...(sourcesByCollection && { sourcesByCollection }),
-        };
-
-        yield {
-          content: [{ type: 'text' as const, text: normalizeCiteMarkers(completionData.answer) }],
-          metadata: { custom: metadata },
+          ...(sourcesByCollectionAccum && { sourcesByCollection: sourcesByCollectionAccum }),
         };
 
         const tCb0 = performance.now();
@@ -361,18 +366,11 @@ export function createNotebookModelAdapter(
         console.debug('[Notebook] ⏱ onComplete callback: %.1fms', performance.now() - tCb0);
         console.debug(`[Notebook] ⏱ Total: ${Math.round(performance.now() - c0)}ms`);
       } else if (accumulatedText) {
-        yield {
-          content: [{ type: 'text' as const, text: accumulatedText }],
-        };
+        yield buildResult();
       } else {
-        yield {
-          content: [
-            {
-              type: 'text' as const,
-              text: 'Leider konnte ich keine passende Antwort finden. Bitte versuche es mit einer anderen Frage.',
-            },
-          ],
-        };
+        accumulatedText =
+          'Leider konnte ich keine passende Antwort finden. Bitte versuche es mit einer anderen Frage.';
+        yield buildResult();
       }
     },
   };

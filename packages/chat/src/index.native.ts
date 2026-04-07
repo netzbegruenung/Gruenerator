@@ -159,7 +159,9 @@ export {
 export {
   convertToThreadMessageLike,
   transformMessageLike,
+  type ConvertedMessage,
 } from './adapters/messageTransform.native';
+export { extractContent } from './adapters/messageTransform';
 export {
   registerDocumentSlug,
   resolveDocumentSlug,
