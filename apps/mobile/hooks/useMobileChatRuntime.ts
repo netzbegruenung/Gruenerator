@@ -15,12 +15,27 @@ interface MobileChatRuntimeOptions {
 }
 
 export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
-  const { selectedAgentId, selectedModel, enabledTools, selectedNotebookId } = useAgentStore(
+  const {
+    selectedAgentId,
+    selectedModel,
+    enabledTools,
+    selectedNotebookId,
+    threadMode,
+    searchMode,
+    customSystemPrompt,
+    customRoleName,
+    customEnabledTools,
+  } = useAgentStore(
     useShallow((s) => ({
       selectedAgentId: s.selectedAgentId,
       selectedModel: s.selectedModel,
       enabledTools: s.enabledTools,
       selectedNotebookId: s.selectedNotebookId,
+      threadMode: s.threadMode,
+      searchMode: s.searchMode,
+      customSystemPrompt: s.customSystemPrompt,
+      customRoleName: s.customRoleName,
+      customEnabledTools: s.customEnabledTools,
     }))
   );
   const incrementMessageCount = useAgentStore((s) => s.incrementMessageCount);
@@ -35,8 +50,23 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       enabledTools,
       threadId: useAgentStore.getState().currentThreadId,
       selectedNotebookId,
+      threadMode,
+      searchMode,
+      customSystemPrompt,
+      customRoleName,
+      customEnabledTools,
     }),
-    [selectedAgentId, selectedModel, enabledTools, selectedNotebookId]
+    [
+      selectedAgentId,
+      selectedModel,
+      enabledTools,
+      selectedNotebookId,
+      threadMode,
+      searchMode,
+      customSystemPrompt,
+      customRoleName,
+      customEnabledTools,
+    ]
   );
 
   const onThreadCreated = useCallback((newThreadId: string) => {
