@@ -137,32 +137,42 @@ export async function executeDirectSearch(params: {
     });
 
     if (!response.success || !response.results || response.results.length === 0) {
-      // If we had user filters, retry without them (over-filtering fallback)
+      // If we had user filters, consider retrying without them
       if (userFilter) {
-        log.info(
-          `[Direct Search] No results with filters, retrying without user filters for "${query}" in ${collection}`
-        );
-        const fallbackFilter = collectionDefault;
-        const fallbackResponse = await documentSearchService.search({
-          query,
-          userId: undefined,
-          options: {
-            limit: Math.min(limit * 2, 30),
-            mode: 'hybrid',
-            vectorWeight: searchParams.vectorWeight,
-            textWeight: searchParams.textWeight,
-            threshold: searchParams.threshold,
-            searchCollection: qdrantCollection,
-            recallLimit: searchParams.recallLimit,
-            qualityMin: searchParams.qualityMin,
-            additionalFilter: fallbackFilter,
-          },
-        });
-        if (fallbackResponse.success && fallbackResponse.results?.length > 0) {
-          log.info(
-            `[Direct Search] Fallback without filters found ${fallbackResponse.results.length} results`
+        const hasExplicitFilters = filters && Object.keys(filters).length > 0;
+        if (hasExplicitFilters) {
+          // Explicit user-selected filters (e.g. notebook source filter) — respect them
+          console.warn(
+            `[Direct Search] No results with explicit user filters for "${query}" in ${collection}. ` +
+              `NOT falling back to unfiltered search. Filters: ${JSON.stringify(filters)}`
           );
-          response = fallbackResponse;
+        } else {
+          // Auto-detected/heuristic filters — safe to retry without
+          log.info(
+            `[Direct Search] No results with auto-detected filters, retrying without for "${query}" in ${collection}`
+          );
+          const fallbackFilter = collectionDefault;
+          const fallbackResponse = await documentSearchService.search({
+            query,
+            userId: undefined,
+            options: {
+              limit: Math.min(limit * 2, 30),
+              mode: 'hybrid',
+              vectorWeight: searchParams.vectorWeight,
+              textWeight: searchParams.textWeight,
+              threshold: searchParams.threshold,
+              searchCollection: qdrantCollection,
+              recallLimit: searchParams.recallLimit,
+              qualityMin: searchParams.qualityMin,
+              additionalFilter: fallbackFilter,
+            },
+          });
+          if (fallbackResponse.success && fallbackResponse.results?.length > 0) {
+            log.info(
+              `[Direct Search] Fallback without auto-detected filters found ${fallbackResponse.results.length} results`
+            );
+            response = fallbackResponse;
+          }
         }
       }
 

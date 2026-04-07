@@ -368,6 +368,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'content_type', type: 'keyword' },
       { field: 'primary_category', type: 'keyword' },
       { field: 'landesverband', type: 'keyword' },
+      { field: 'source_id', type: 'keyword' },
       { field: 'published_at', type: 'keyword' },
       { field: 'indexed_at', type: 'keyword' },
       { field: 'chunk_text', type: 'text' },

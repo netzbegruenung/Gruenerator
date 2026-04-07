@@ -111,6 +111,7 @@ export interface SearchResultInput {
   source_url?: string;
   url?: string;
   document_id?: string;
+  source_id?: string | null;
   similarity_score?: number;
   relevant_content?: string;
   chunk_text?: string;
@@ -120,6 +121,7 @@ export interface SearchResultInput {
 export interface ExpandedChunkResult {
   document_id: string;
   source_url: string | null;
+  source_id?: string | null;
   title: string;
   snippet: string;
   filename: string | null;
