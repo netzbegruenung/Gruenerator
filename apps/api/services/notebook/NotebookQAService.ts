@@ -302,7 +302,7 @@ export class NotebookQAService {
     };
 
     if (Object.keys(effectiveFilters).length > 0) {
-      log.debug(`[QA Single] Subcategory filters: ${JSON.stringify(effectiveFilters)}`);
+      log.info(`[QA Single] Effective filters: ${JSON.stringify(effectiveFilters)}`);
     }
 
     // Search
@@ -327,7 +327,11 @@ export class NotebookQAService {
 
     const collectionName = systemConfig?.name || collection?.name || collectionId;
     const expanded = expandResultsToChunks(searchResults, collectionId, collectionName);
-    const deduped = deduplicateResults(expanded, false);
+
+    // Post-filter: validate results match requested source_id filter (defense-in-depth)
+    const postFiltered = this._applySourceIdPostFilter(expanded, effectiveFilters);
+
+    const deduped = deduplicateResults(postFiltered, false);
     const sorted = filterAndSortResults(deduped, { threshold: 0.35, limit: 30 });
 
     if (sorted.length === 0) {
@@ -575,7 +579,11 @@ export class NotebookQAService {
 
     const singleCollectionName = systemConfig?.name || collection?.name || collectionId;
     const expanded = expandResultsToChunks(searchResults, collectionId, singleCollectionName);
-    const deduped = deduplicateResults(expanded, false);
+
+    // Post-filter: validate results match requested source_id filter (defense-in-depth)
+    const postFiltered = this._applySourceIdPostFilter(expanded, effectiveFilters);
+
+    const deduped = deduplicateResults(postFiltered, false);
     const sortedResults = filterAndSortResults(deduped, { threshold: 0.35, limit: 30 });
 
     if (sortedResults.length === 0) {
@@ -662,15 +670,44 @@ export class NotebookQAService {
         },
       });
 
-      return expandResultsToChunks(
+      const expanded = expandResultsToChunks(
         (resp.results as unknown as Parameters<typeof expandResultsToChunks>[0]) || [],
         collectionId,
         config.name
       );
+
+      // Post-filter: validate results match requested source_id filter (defense-in-depth)
+      return this._applySourceIdPostFilter(expanded, filters);
     } catch (error: any) {
       log.error(`[QA] Search error for ${collectionId}:`, error);
       return [];
     }
+  }
+
+  /**
+   * Post-filter: validate results match requested source_id filter.
+   * Defense-in-depth — catches any leakage from Qdrant or hybrid search edge cases.
+   */
+  private _applySourceIdPostFilter(
+    results: ExpandedChunkResult[],
+    filters: RequestFilters
+  ): ExpandedChunkResult[] {
+    const sourceIdFilter = filters.source_id;
+    if (!sourceIdFilter) return results;
+
+    const allowedSourceIds: string[] = Array.isArray(sourceIdFilter)
+      ? sourceIdFilter
+      : [sourceIdFilter];
+
+    const before = results.length;
+    const filtered = results.filter((r) => !r.source_id || allowedSourceIds.includes(r.source_id));
+    if (filtered.length < before) {
+      console.warn(
+        `[NotebookQA] Post-filter removed ${before - filtered.length} results ` +
+          `not matching source_id: ${JSON.stringify(allowedSourceIds)}`
+      );
+    }
+    return filtered;
   }
 
   /**

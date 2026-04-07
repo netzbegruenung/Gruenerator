@@ -102,6 +102,7 @@ export interface TransformedChunk {
   similarity: number;
   token_count?: number;
   created_at?: string;
+  source_id?: string | null;
   documents: {
     id: string;
     title?: string;
@@ -153,6 +154,7 @@ export interface DocumentData {
   filename?: string;
   created_at?: string;
   source_url?: string;
+  source_id?: string | null;
   chunks: ChunkData[];
   maxSimilarity: number;
   avgSimilarity: number;
@@ -175,6 +177,7 @@ export interface DocumentResult {
   filename?: string;
   created_at?: string;
   source_url?: string;
+  source_id?: string | null;
   relevant_content: string;
   similarity_score: number;
   max_similarity: number;

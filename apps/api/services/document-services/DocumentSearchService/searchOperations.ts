@@ -244,6 +244,7 @@ export async function findSimilarChunks(
     content_type: (result.payload.content_type as string) ?? null,
     page_number: (result.payload.page_number as number) ?? null,
     created_at: result.payload.created_at as string | undefined,
+    source_id: (result.payload.source_id as string) ?? null,
     url: (result.payload.source_url as string) || (result.payload.url as string) || undefined,
     documents: {
       id:
@@ -343,6 +344,7 @@ export async function findHybridChunks(
       content_type: (result.payload.content_type as string) ?? null,
       page_number: (result.payload.page_number as number) ?? null,
       created_at: result.payload.created_at as string | undefined,
+      source_id: (result.payload.source_id as string) ?? null,
       url: (result.payload.source_url as string) || (result.payload.url as string) || undefined,
       searchMethod: result.searchMethod || 'hybrid',
       originalVectorScore: result.originalVectorScore ?? null,

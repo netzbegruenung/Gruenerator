@@ -42,6 +42,7 @@ export function expandResultsToChunks(
         expanded.push({
           document_id: docId,
           source_url: sourceUrl,
+          source_id: r.source_id ?? null,
           title,
           snippet: chunk.preview || '',
           filename: r.filename || null,
@@ -56,6 +57,7 @@ export function expandResultsToChunks(
       expanded.push({
         document_id: docId,
         source_url: sourceUrl,
+        source_id: r.source_id ?? null,
         title,
         snippet: r.relevant_content || r.chunk_text || '',
         filename: r.filename || null,
