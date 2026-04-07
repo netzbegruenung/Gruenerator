@@ -6,6 +6,7 @@ import pg from 'pg';
 import { loadConfig } from '../database/services/PostgresService/config.js';
 import { mobileTokenExchange } from '../plugins/mobileTokenExchange.js';
 import { redisClient } from '../utils/redis/client.js';
+import { createLogger } from '../utils/logger.js';
 
 const KC_BASE = process.env.KEYCLOAK_BASE_URL || 'https://user.netzbegruenung.de';
 const KC_REALM = process.env.KEYCLOAK_REALM || 'gruenerator';
@@ -31,6 +32,8 @@ function keycloakProvider(id: string, idpHint: string, locale: 'de-DE' | 'de-AT'
     }),
   };
 }
+
+const log = createLogger('BetterAuth');
 
 const pgConfig = loadConfig();
 const pool = new pg.Pool(pgConfig);
@@ -183,10 +186,42 @@ export const auth = betterAuth({
       ipAddressHeaders: ['x-forwarded-for', 'x-real-ip'],
     },
     cookiePrefix: 'ba',
-    generateId: false,
+    database: {
+      generateId: false,
+    },
     crossSubDomainCookies: {
       enabled: true,
       domain: process.env.NODE_ENV === 'production' ? '.gruenerator.eu' : undefined,
+    },
+  },
+
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => {
+          log.info(`[Auth] Creating user: email=${user.email}, name=${user.name}`);
+          return { data: user };
+        },
+        after: async (user) => {
+          log.info(`[Auth] User created: id=${user.id}, email=${user.email}`);
+        },
+      },
+    },
+    session: {
+      create: {
+        before: async (session) => {
+          log.info(`[Auth] Creating session for user_id=${session.userId}`);
+          return { data: session };
+        },
+      },
+    },
+    account: {
+      create: {
+        before: async (account) => {
+          log.info(`[Auth] Linking account: provider=${account.providerId}, accountId=${account.accountId}, userId=${account.userId}`);
+          return { data: account };
+        },
+      },
     },
   },
 

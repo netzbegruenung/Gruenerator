@@ -551,7 +551,11 @@ async function startWorker(): Promise<void> {
     });
 
     if (req.path.startsWith('/api/auth/v2/')) {
-      log.warn(`[BetterAuth] Error on ${req.path}: ${err.message}`);
+      log.error(`[BetterAuth] Error on ${req.path}: ${err.message}`, {
+        stack: err.stack,
+        query: req.query,
+        params: req.params,
+      });
       res.redirect('/auth/login?error=auth_failed');
       return;
     }
