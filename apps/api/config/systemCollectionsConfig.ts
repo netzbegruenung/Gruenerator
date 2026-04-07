@@ -418,12 +418,8 @@ export function buildSubcategoryFilter(
   subcategoryFilters: SubcategoryFilters | null | undefined
 ): QdrantFilter | undefined {
   if (!subcategoryFilters || Object.keys(subcategoryFilters).length === 0) {
-    console.log(`[buildSubcategoryFilter] No filters provided, returning undefined`);
     return undefined;
   }
-  console.log(
-    `[buildSubcategoryFilter] Input keys: ${Object.keys(subcategoryFilters).join(', ')} values: ${JSON.stringify(subcategoryFilters)}`
-  );
 
   const must: Array<{
     key: string;
