@@ -125,6 +125,10 @@ export async function handleNotebookStream(
 
     sse.send('search_start', { message: 'Suche in Dokumenten...' });
 
+    console.log(
+      `[NotebookStreamCore] filters=${JSON.stringify(filters)} collectionId=${collectionId} collectionIds=${JSON.stringify(collectionIds)}`
+    );
+
     let searchContext: SearchContext | null;
     try {
       searchContext = await notebookQAService.getSearchContext({

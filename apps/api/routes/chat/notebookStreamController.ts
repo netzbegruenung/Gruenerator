@@ -88,6 +88,10 @@ router.post('/', async (req, res) => {
         )
       : null;
 
+  console.log(
+    `[NotebookStream] REQUEST filters=${JSON.stringify(filters)} collectionId=${collectionId} collectionIds=${JSON.stringify(collectionIds)}`
+  );
+
   const result = await handleNotebookStream({
     req,
     res,
