@@ -84,7 +84,7 @@ export function SourceCard(props: SourceMessagePartProps) {
           </span>
 
           {metaLine && (
-            <span className="text-xs text-foreground-muted mt-0.5 block">{metaLine}</span>
+            <span className="text-xs text-foreground-muted mt-0.5 block truncate">{metaLine}</span>
           )}
 
           {citation?.snippet && (

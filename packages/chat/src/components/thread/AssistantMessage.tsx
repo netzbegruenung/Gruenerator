@@ -23,7 +23,7 @@ import type { ChatMessageMetadata } from '../../types/messageMetadata';
 
 function AssistantMessageTextPart() {
   return (
-    <div className="prose prose-sm max-w-none break-words">
+    <div className="prose prose-sm max-w-none min-w-0 break-words">
       <CitationMarkdownText />
     </div>
   );
