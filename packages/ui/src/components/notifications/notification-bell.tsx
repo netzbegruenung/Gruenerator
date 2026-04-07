@@ -50,7 +50,7 @@ function NotificationBell({
         </TooltipTrigger>
         <TooltipContent>{label}</TooltipContent>
       </Tooltip>
-      <PopoverContent align="end" className="w-[380px] p-0" sideOffset={8}>
+      <PopoverContent align="end" className="w-[calc(100vw-2rem)] sm:w-[380px] p-0" sideOffset={8}>
         {children}
       </PopoverContent>
     </Popover>

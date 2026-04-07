@@ -87,7 +87,7 @@ export const ToolCallUI = memo(function ToolCallUI({
         )}
         <span className="font-medium text-foreground">{config.label}</span>
         {query && (
-          <span className="text-foreground-muted max-w-[200px] truncate">
+          <span className="text-foreground-muted max-w-[120px] sm:max-w-[200px] truncate">
             &bdquo;{query}&ldquo;
           </span>
         )}
