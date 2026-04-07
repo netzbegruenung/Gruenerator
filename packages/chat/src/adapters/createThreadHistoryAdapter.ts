@@ -1,48 +1,24 @@
-import {
-  type ThreadMessageLike,
-  type ThreadMessage,
-  type ThreadHistoryAdapter,
-} from '@assistant-ui/react';
-
-export type { ThreadHistoryAdapter };
-
 import { type ChatApiClient } from '../context/ChatContext';
 
-export interface LoadedMessage {
-  id: string;
-  role: string;
-  content: string;
-  created_at: string;
-  metadata?: {
-    intent?: string;
-    searchCount?: number;
-    citations?: Array<{
-      id: number;
-      title: string;
-      url: string;
-      snippet?: string;
-      domain?: string;
-    }>;
-    searchResults?: Array<{ title: string; url: string; snippet?: string }>;
-    toolCalls?: Array<{
-      toolCallId: string;
-      toolName: string;
-      args: Record<string, unknown>;
-      result?: unknown;
-    }>;
-  };
+export { type LoadedMessage } from './messageTransform';
+
+export interface ThreadHistoryAdapter<TMessage extends { id: string } = { id: string }> {
+  load(): Promise<{
+    messages: Array<{ parentId: string | null; message: TMessage }>;
+  }>;
+  append(): Promise<void>;
 }
 
-export function createThreadHistoryAdapter(
+export function createThreadHistoryAdapter<TMessageLike, TMessage extends { id: string }>(
   remoteId: string,
   apiClient: ChatApiClient,
-  convertFn: (msgs: LoadedMessage[]) => ThreadMessageLike[],
-  transformFn: (msg: ThreadMessageLike) => ThreadMessage
-): ThreadHistoryAdapter {
+  convertFn: (msgs: import('./messageTransform').LoadedMessage[]) => TMessageLike[],
+  transformFn: (msg: TMessageLike) => TMessage
+): ThreadHistoryAdapter<TMessage> {
   return {
     async load() {
       try {
-        const msgs = await apiClient.get<LoadedMessage[]>(
+        const msgs = await apiClient.get<import('./messageTransform').LoadedMessage[]>(
           `/api/chat-service/messages?threadId=${remoteId}`
         );
         const converted = convertFn(msgs);
