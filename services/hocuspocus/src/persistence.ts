@@ -4,7 +4,9 @@ import { gzip, gunzip } from 'zlib';
 import * as Y from 'yjs';
 
 import { blockNoteXmlToHtml } from './blockNoteXmlToHtml.js';
+import { injectHtmlIntoFragment } from './htmlToYjsXml.js';
 import { createLogger } from './logger.js';
+import { TEMPLATE_CONTENT } from './templateContent.js';
 
 import type { DbQueryFn } from './types.js';
 
@@ -133,6 +135,27 @@ export class PostgresPersistence {
       const err = error instanceof Error ? error : new Error(String(error));
       log.error(`[Load] Error loading document ${documentId}: ${err.message}`);
       return null;
+    }
+  }
+
+  async initializeWithTemplate(documentId: string, ydoc: Y.Doc): Promise<void> {
+    try {
+      const result = await this.db(
+        'SELECT document_subtype FROM collaborative_documents WHERE id = $1',
+        [documentId]
+      );
+      if (result.length === 0) return;
+
+      const subtype = result[0].document_subtype as string;
+      const html = TEMPLATE_CONTENT[subtype];
+      if (!html) return;
+
+      const fragment = ydoc.getXmlFragment('document-store');
+      injectHtmlIntoFragment(fragment, html);
+      log.info(`[Template] Injected '${subtype}' template for ${documentId}`);
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      log.error(`[Template] Error injecting template for ${documentId}: ${err.message}`);
     }
   }
 

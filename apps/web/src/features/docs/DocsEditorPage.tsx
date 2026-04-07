@@ -567,7 +567,7 @@ function EditorContent() {
             documentSubtype={docData.document_subtype}
             ydoc={ydoc}
             provider={provider}
-            isSynced={isLocalLoaded || isSynced}
+            isSynced={isSynced}
             editable={canEdit}
             commentsPortalTarget={commentsPortalTarget}
             onEditorReady={handleEditorReady}

@@ -89,7 +89,8 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
             `[Load] Document ${documentName} loaded successfully (${documentData.length} bytes)`
           );
         } else {
-          log.info(`[Load] Document ${documentName} not found, will create new`);
+          log.info(`[Load] Document ${documentName} not found, initializing`);
+          await persistence.initializeWithTemplate(documentName, document);
         }
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
