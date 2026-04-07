@@ -44,7 +44,6 @@ import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 
 import { useEditorStore } from '../../stores/editorStore';
-import { isEditorEmpty } from '../../lib/blockNoteUtils';
 import { useBlockNoteComments } from '../../hooks/useBlockNoteComments';
 import { useResolveUsers } from '../../hooks/useResolveUsers';
 import { useMentionUsers } from '../../hooks/useMentionUsers';
