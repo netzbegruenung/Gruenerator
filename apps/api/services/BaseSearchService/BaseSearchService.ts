@@ -352,6 +352,7 @@ export class BaseSearchService {
           filename: this.extractDocumentFilename(chunk),
           created_at: this.extractDocumentCreatedAt(chunk),
           source_url: (chunk as any).url || undefined,
+          source_id: chunk.source_id ?? null,
           chunks: [],
           maxSimilarity: 0,
           avgSimilarity: 0,
@@ -361,6 +362,9 @@ export class BaseSearchService {
       const docData = documentMap.get(docId)!;
       if (!docData.source_url && (chunk as any).url) {
         docData.source_url = (chunk as any).url;
+      }
+      if (!docData.source_id && chunk.source_id) {
+        docData.source_id = chunk.source_id;
       }
       const chunkData = this.extractChunkData(chunk);
 
@@ -443,6 +447,7 @@ export class BaseSearchService {
         filename: doc.filename,
         created_at: doc.created_at,
         source_url: doc.source_url,
+        source_id: doc.source_id ?? null,
         relevant_content: relevantContent,
         similarity_score: enhancedScore.finalScore - noTermMatchPenalty,
         max_similarity: enhancedScore.maxSimilarity,
@@ -714,6 +719,7 @@ export class BaseSearchService {
           filename: this.extractDocumentFilename(chunk),
           created_at: this.extractDocumentCreatedAt(chunk),
           source_url: (chunk as any).url || undefined,
+          source_id: chunk.source_id ?? null,
           chunks: [],
           maxSimilarity: 0,
           avgSimilarity: 0,
@@ -730,6 +736,9 @@ export class BaseSearchService {
       const docData = documentMap.get(docId)!;
       if (!docData.source_url && (chunk as any).url) {
         docData.source_url = (chunk as any).url;
+      }
+      if (!docData.source_id && chunk.source_id) {
+        docData.source_id = chunk.source_id;
       }
       const chunkData = this.extractChunkData(chunk);
 
@@ -835,6 +844,7 @@ export class BaseSearchService {
         filename: doc.filename,
         created_at: doc.created_at,
         source_url: doc.source_url,
+        source_id: doc.source_id ?? null,
         relevant_content: relevantContent,
         similarity_score: Math.max(0, enhancedScore.finalScore - noTermMatchPenalty),
         max_similarity: enhancedScore.maxSimilarity,
