@@ -12,7 +12,7 @@ export function makeCitationComponents(citationMap: Map<number, Citation>) {
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-primary underline hover:text-primary-dark break-words"
+        className="text-primary underline hover:text-primary-dark break-words [overflow-wrap:anywhere]"
       >
         {children}
       </a>
