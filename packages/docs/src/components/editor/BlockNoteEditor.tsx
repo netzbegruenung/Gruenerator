@@ -44,8 +44,6 @@ import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 
 import { useEditorStore } from '../../stores/editorStore';
-import { defaultDocumentContent } from '../../lib/defaultContent';
-import { getTemplateContent } from '../../lib/templates';
 import { isEditorEmpty } from '../../lib/blockNoteUtils';
 import { useBlockNoteComments } from '../../hooks/useBlockNoteComments';
 import { useResolveUsers } from '../../hooks/useResolveUsers';
@@ -369,59 +367,37 @@ const BlockNoteEditorInner = ({
 
   useEffect(() => {
     if (!editor || hasInitialized.current) return;
-    let aborted = false;
 
-    // In collaboration mode, Yjs is the sole source of truth.
-    // Only inject template content for brand-new documents (empty Yjs fragment
-    // after server sync). Check fragment.length directly — never trust
-    // editor.document which may lag behind the Yjs state.
+    // Collaborative mode: Yjs is the sole source of truth.
+    // Templates are injected server-side in Hocuspocus onLoadDocument.
     if (ydoc) {
-      if (!provider || !isSynced) return;
-
-      if (fragment && fragment.length === 0 && documentSubtype !== 'blank') {
-        const templateContent = getTemplateContent(documentSubtype);
-        if (templateContent) {
-          (async () => {
-            try {
-              const blocks = await editor.tryParseHTMLToBlocks(templateContent);
-              if (!aborted && blocks && blocks.length > 0 && fragment.length === 0) {
-                editor.replaceBlocks(editor.document, blocks);
-              }
-            } catch (error) {
-              console.error('[BlockNoteEditor] Failed to apply template:', error);
-            }
-          })();
-        }
-      }
       hasInitialized.current = true;
-      return () => {
-        aborted = true;
-      };
+      return;
     }
 
-    // Non-collaborative (standalone) editor: use initialContent or template
-    const templateContent = getTemplateContent(documentSubtype);
-    const contentToUse = initialContent?.trim()
-      ? initialContent
-      : templateContent || defaultDocumentContent;
+    // Non-collaborative (standalone) editor: use initialContent if provided
+    if (!initialContent?.trim()) {
+      hasInitialized.current = true;
+      return;
+    }
 
+    let aborted = false;
     (async () => {
       try {
-        const blocks = await editor.tryParseHTMLToBlocks(contentToUse);
+        const blocks = await editor.tryParseHTMLToBlocks(initialContent);
         if (!aborted && blocks && blocks.length > 0) {
           editor.replaceBlocks(editor.document, blocks);
         }
-        hasInitialized.current = true;
       } catch (error) {
         console.error('[BlockNoteEditor] Failed to parse initial content:', error);
-        hasInitialized.current = true;
       }
+      hasInitialized.current = true;
     })();
 
     return () => {
       aborted = true;
     };
-  }, [editor, initialContent, documentSubtype, isSynced, ydoc, fragment, provider]);
+  }, [editor, initialContent, ydoc]);
 
   const handleUploadFile = useCallback(async (file: File) => {
     await new Promise((resolve) => setTimeout(resolve, 1000));
