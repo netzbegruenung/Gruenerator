@@ -1,4 +1,3 @@
-export { useChatStore } from './chatStore';
 export { useContentStore } from './contentStore';
 export { useInstructionsStore, INSTRUCTION_TYPES } from './instructionsStore';
 export {
