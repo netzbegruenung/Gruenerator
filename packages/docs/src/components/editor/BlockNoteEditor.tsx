@@ -184,6 +184,12 @@ const BlockNoteEditorInner = ({
       wrapperRef.current?.style.setProperty('--mobile-keyboard-offset', px > 0 ? `${px}px` : '0px');
     };
 
+    const updateSelectionClass = () => {
+      const sel = window.getSelection();
+      const hasSelection = !!sel && !sel.isCollapsed && sel.toString().length > 0;
+      wrapperRef.current?.classList.toggle('has-selection', hasSelection);
+    };
+
     let scrollTimer: ReturnType<typeof setTimeout>;
 
     const scrollSelectionIntoView = () => {
@@ -212,7 +218,10 @@ const BlockNoteEditorInner = ({
         scrollTimer = setTimeout(scrollSelectionIntoView, 100);
       };
       vk.addEventListener('geometrychange', onGeometryChange);
-      const onSelectionChange = () => scrollSelectionIntoView();
+      const onSelectionChange = () => {
+        updateSelectionClass();
+        scrollSelectionIntoView();
+      };
       document.addEventListener('selectionchange', onSelectionChange);
       return () => {
         vk.removeEventListener('geometrychange', onGeometryChange);
@@ -249,7 +258,10 @@ const BlockNoteEditorInner = ({
       setOffset(0);
     };
 
-    const onSelectionChange = () => scrollSelectionIntoView();
+    const onSelectionChange = () => {
+      updateSelectionClass();
+      scrollSelectionIntoView();
+    };
 
     vp.addEventListener('resize', update);
     vp.addEventListener('scroll', update);
