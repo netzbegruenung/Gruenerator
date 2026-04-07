@@ -301,16 +301,18 @@ export class NotebookQAService {
       ...requestFilters,
     };
 
-    if (Object.keys(effectiveFilters).length > 0) {
-      log.info(`[QA Single] Effective filters: ${JSON.stringify(effectiveFilters)}`);
-    }
-
     // Search
     const searchParams = getSearchParams(collectionId);
     const subcategoryFilter = buildSubcategoryFilter(effectiveFilters);
     const additionalFilter = isSystem
       ? applyDefaultFilter(collectionId, subcategoryFilter)
       : subcategoryFilter;
+
+    if (Object.keys(effectiveFilters).length > 0) {
+      log.info(
+        `[QA Single] collection=${collectionId} filters=${JSON.stringify(effectiveFilters)} qdrantMust=${additionalFilter?.must?.length ?? 0} clauses`
+      );
+    }
 
     const searchResults = await this._performSearch({
       query: trimmedQuestion,
@@ -563,6 +565,12 @@ export class NotebookQAService {
     const additionalFilter = isSystem
       ? applyDefaultFilter(collectionId, subcategoryFilter)
       : subcategoryFilter;
+
+    if (Object.keys(effectiveFilters).length > 0) {
+      log.info(
+        `[QA Stream] collection=${collectionId} filters=${JSON.stringify(effectiveFilters)} qdrantMust=${additionalFilter?.must?.length ?? 0} clauses`
+      );
+    }
 
     const searchResults = await this._performSearch({
       query: question,
