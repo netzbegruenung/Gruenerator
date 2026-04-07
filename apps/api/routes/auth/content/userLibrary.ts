@@ -3,6 +3,7 @@
  * Handles saving texts to library, saved texts CRUD, and semantic search
  */
 
+import { stripHtmlTags } from '@gruenerator/shared/utils';
 import express, { type Router, type Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -28,24 +29,6 @@ const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 const router: Router = express.Router();
 
 const MAX_CONTENT_LENGTH = 1024 * 1024;
-
-function stripHtmlTags(html: string): string {
-  if (!html) return '';
-  const safeHtml = html.length > MAX_CONTENT_LENGTH ? html.slice(0, MAX_CONTENT_LENGTH) : html;
-  let result = '';
-  let inTag = false;
-  for (let i = 0; i < safeHtml.length; i++) {
-    const char = safeHtml[i];
-    if (char === '<') {
-      inTag = true;
-    } else if (char === '>') {
-      inTag = false;
-    } else if (!inTag) {
-      result += char;
-    }
-  }
-  return result;
-}
 
 function extractHeading(html: string, tag: string): string | null {
   const openTag = `<${tag}`;

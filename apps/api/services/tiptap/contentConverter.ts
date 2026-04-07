@@ -9,26 +9,9 @@
  * the existing frontend editor infrastructure.
  */
 
-const MAX_HTML_LENGTH = 1024 * 1024;
+import { stripHtmlTags } from '@gruenerator/shared/utils';
 
-function stripTags(html: string): string {
-  if (html.length > MAX_HTML_LENGTH) {
-    html = html.slice(0, MAX_HTML_LENGTH);
-  }
-  let result = '';
-  let inTag = false;
-  for (let i = 0; i < html.length; i++) {
-    const char = html[i];
-    if (char === '<') {
-      inTag = true;
-    } else if (char === '>') {
-      inTag = false;
-    } else if (!inTag) {
-      result += char;
-    }
-  }
-  return result;
-}
+const MAX_HTML_LENGTH = 1024 * 1024;
 
 /**
  * Validates and sanitizes HTML content for storage
@@ -65,13 +48,13 @@ export function extractTitleFromHtml(html: string): string {
   }
   const headingMatch = html.match(/<h[1-6][^>]{0,100}>([\s\S]{0,500}?)<\/h[1-6]>/i);
   if (headingMatch && headingMatch[1]) {
-    const title = stripTags(headingMatch[1]).trim();
+    const title = stripHtmlTags(headingMatch[1]);
     if (title.length > 0) {
       return title.length > 100 ? title.substring(0, 97) + '...' : title;
     }
   }
 
-  const textContent = stripTags(html).trim();
+  const textContent = stripHtmlTags(html);
   if (textContent.length > 0) {
     return textContent.length > 50 ? textContent.substring(0, 47) + '...' : textContent;
   }
@@ -79,11 +62,5 @@ export function extractTitleFromHtml(html: string): string {
   return 'Untitled Document';
 }
 
-/**
- * Strips HTML tags to get plain text (fallback)
- * @param html - HTML string
- * @returns Plain text
- */
-export function stripHtmlTags(html: string): string {
-  return stripTags(html).trim();
-}
+// Re-export shared utility for backwards compatibility
+export { stripHtmlTags } from '@gruenerator/shared/utils';
