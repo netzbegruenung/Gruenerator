@@ -1,3 +1,5 @@
+import { stripHtmlTags } from '@gruenerator/shared/utils';
+
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { getQdrantDocumentService } from '../../../services/document-services/DocumentSearchService/index.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -82,14 +84,6 @@ export interface TextContextResult {
   text: string | null;
   totalChars: number;
   count: number;
-}
-
-function stripHtmlTags(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
 }
 
 /**

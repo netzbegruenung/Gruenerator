@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 
+import { stripHtmlTags } from '@gruenerator/shared/utils';
 import * as Y from 'yjs';
 
 import { createLogger } from './logger.js';
@@ -56,14 +57,14 @@ export function injectHtmlIntoFragment(fragment: Y.XmlFragment, html: string): v
 
     if (tag.startsWith('h')) {
       const level = tag[1];
-      const text = stripTags(extractInnerContent(fullMatch));
+      const text = stripHtmlTags(extractInnerContent(fullMatch));
       addBlock(group, 'heading', text, { level });
       continue;
     }
 
     if (tag === 'blockquote') {
       const inner = extractInnerContent(fullMatch);
-      const text = stripTags(inner);
+      const text = stripHtmlTags(inner);
       addBlock(group, 'paragraph', text, { backgroundColor: 'gray' });
       continue;
     }
@@ -73,7 +74,7 @@ export function injectHtmlIntoFragment(fragment: Y.XmlFragment, html: string): v
       const rows = fullMatch.match(/<tr>([\s\S]*?)<\/tr>/gi) || [];
       for (const row of rows) {
         const cells = (row.match(/<t[dh]>([\s\S]*?)<\/t[dh]>/gi) || [])
-          .map((c) => stripTags(extractInnerContent(c)))
+          .map((c) => stripHtmlTags(extractInnerContent(c)))
           .filter(Boolean);
         if (cells.length > 0) {
           addBlock(group, 'paragraph', cells.join(' | '), {});
@@ -83,7 +84,7 @@ export function injectHtmlIntoFragment(fragment: Y.XmlFragment, html: string): v
     }
 
     if (tag === 'p') {
-      const text = stripTags(extractInnerContent(fullMatch));
+      const text = stripHtmlTags(extractInnerContent(fullMatch));
       if (text) {
         addBlock(group, 'paragraph', text, {});
       }
@@ -132,23 +133,8 @@ function extractListItems(listContent: string): string[] {
   const liPattern = /<li[^>]*>([\s\S]*?)<\/li>/gi;
   let m;
   while ((m = liPattern.exec(listContent)) !== null) {
-    const text = stripTags(m[1]);
+    const text = stripHtmlTags(m[1]);
     if (text) items.push(text);
   }
   return items;
-}
-
-function stripTags(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#34;/g, '"')
-    .replace(/&ldquo;/g, '\u201C')
-    .replace(/&rdquo;/g, '\u201D')
-    .replace(/\s+/g, ' ')
-    .trim();
 }

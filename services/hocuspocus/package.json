@@ -22,6 +22,7 @@
   "author": "Moritz Wächter",
   "license": "MIT",
   "dependencies": {
+    "@gruenerator/shared": "workspace:*",
     "@hocuspocus/extension-logger": "^3.4.4",
     "@hocuspocus/server": "^3.4.4",
     "cookie": "^1.1.1",
