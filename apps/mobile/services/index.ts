@@ -11,20 +11,6 @@ export {
   type AuthSource,
 } from './auth';
 export {
-  sendChatMessage,
-  clearChatHistory,
-  normalizeResponse,
-  createUserMessage,
-  buildContextFromMessages,
-  type ChatRequest,
-  type ChatResponse,
-  type ChatContext,
-  type ChatAttachment,
-  type ChatSource,
-  type GrueneratorChatMessage,
-  type GrueneratorMessageType,
-} from './chat';
-export {
   queryNotebook,
   queryMultiNotebook,
   type NotebookQueryParams,
