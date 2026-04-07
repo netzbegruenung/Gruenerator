@@ -59,9 +59,10 @@ export async function rerankNotebookResults({
 
     const rerankTimeMs = Date.now() - startTime;
 
-    // Map back to candidates and filter low-relevance results
+    // Map back to candidates, keeping at least MIN_KEEP results for LLM breadth
+    const MIN_KEEP = Math.min(5, rerankResults.length);
     const scored = rerankResults
-      .filter((r) => r.relevanceScore > 0.2)
+      .filter((r, i) => r.relevanceScore > 0.05 || i < MIN_KEEP)
       .map((r) => ({
         result: candidates[r.originalIndex],
         relevanceScore: r.relevanceScore,
@@ -112,7 +113,7 @@ function buildContextSummary(referencesMap: Record<string, any>): string {
     .map((id) => {
       const ref = referencesMap[id];
       const snippet = ref.snippets[0]?.[0] || '';
-      const short = snippet.slice(0, 150).replace(/\s+/g, ' ').trim();
+      const short = snippet.slice(0, 400).replace(/\s+/g, ' ').trim();
       const collectionTag = ref.collection_name ? `[${ref.collection_name}] ` : '';
       return `${id}. ${collectionTag}${ref.title} — "${short}"`;
     })

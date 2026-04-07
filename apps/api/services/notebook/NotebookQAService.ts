@@ -610,7 +610,7 @@ export class NotebookQAService {
       .map((id) => {
         const ref = referencesMap[id];
         const snippet = ref.snippets[0]?.[0] || '';
-        const short = snippet.slice(0, 150).replace(/\s+/g, ' ').trim();
+        const short = snippet.slice(0, 400).replace(/\s+/g, ' ').trim();
         const collectionTag = ref.collection_name ? `[${ref.collection_name}] ` : '';
         return `${id}. ${collectionTag}${ref.title} — "${short}"`;
       })
@@ -762,7 +762,7 @@ export class NotebookQAService {
       .map((id) => {
         const ref = referencesMap[id];
         const snippet = ref.snippets[0]?.[0] || '';
-        const short = snippet.slice(0, 150).replace(/\s+/g, ' ').trim();
+        const short = snippet.slice(0, 400).replace(/\s+/g, ' ').trim();
         const collectionTag = ref.collection_name ? `[${ref.collection_name}] ` : '';
         return `${id}. ${collectionTag}${ref.title} — "${short}"`;
       })
