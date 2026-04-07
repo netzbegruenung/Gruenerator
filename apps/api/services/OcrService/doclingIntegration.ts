@@ -121,11 +121,11 @@ export async function extractTextWithDocling(filePath: string): Promise<Extracti
   if (!matchedBase) {
     throw new Error('File path outside allowed directories');
   }
-  sanitizePath(path.relative(matchedBase, resolvedPath), matchedBase);
+  const safePath = sanitizePath(path.relative(matchedBase, resolvedPath), matchedBase);
 
-  console.log(`[DoclingOCR] Starting extraction:`, { filePath });
-  const fileBuffer = await fs.readFile(resolvedPath);
-  const fileName = path.basename(filePath);
+  console.log(`[DoclingOCR] Starting extraction:`, { filePath: safePath });
+  const fileBuffer = await fs.readFile(safePath);
+  const fileName = path.basename(safePath);
   return sendBufferToDocling(fileBuffer, fileName, '[DoclingOCR]');
 }
 
