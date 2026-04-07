@@ -301,12 +301,6 @@ export class NotebookQAService {
       ...requestFilters,
     };
 
-    console.log(
-      `[NotebookQA:askSingle] requestFilters=${JSON.stringify(requestFilters)} ` +
-        `detectedScope=${JSON.stringify(documentScope.subcategoryFilters)} ` +
-        `effectiveFilters=${JSON.stringify(effectiveFilters)}`
-    );
-
     // Search
     const searchParams = getSearchParams(collectionId);
     const subcategoryFilter = buildSubcategoryFilter(effectiveFilters);
@@ -314,10 +308,11 @@ export class NotebookQAService {
       ? applyDefaultFilter(collectionId, subcategoryFilter)
       : subcategoryFilter;
 
-    console.log(
-      `[NotebookQA:askSingle] subcategoryFilter=${JSON.stringify(subcategoryFilter)} ` +
-        `additionalFilter=${JSON.stringify(additionalFilter)}`
-    );
+    if (Object.keys(effectiveFilters).length > 0) {
+      log.info(
+        `[QA Single] collection=${collectionId} filters=${JSON.stringify(effectiveFilters)} qdrantMust=${additionalFilter?.must?.length ?? 0} clauses`
+      );
+    }
 
     const searchResults = await this._performSearch({
       query: trimmedQuestion,
@@ -334,16 +329,6 @@ export class NotebookQAService {
 
     const collectionName = systemConfig?.name || collection?.name || collectionId;
     const expanded = expandResultsToChunks(searchResults, collectionId, collectionName);
-
-    // Debug: show source_id values in results
-    const sourceIdCounts: Record<string, number> = {};
-    for (const r of expanded) {
-      const sid = r.source_id || 'MISSING';
-      sourceIdCounts[sid] = (sourceIdCounts[sid] || 0) + 1;
-    }
-    console.log(
-      `[NotebookQA:askSingle] ${expanded.length} results, source_id distribution: ${JSON.stringify(sourceIdCounts)}`
-    );
 
     // Post-filter: validate results match requested source_id filter (defense-in-depth)
     const postFiltered = this._applySourceIdPostFilter(expanded, effectiveFilters);
@@ -446,10 +431,6 @@ export class NotebookQAService {
     }
 
     const isMulti = !!collectionIds && collectionIds.length > 0;
-
-    console.log(
-      `[NotebookQA:getSearchContext] isMulti=${isMulti} collectionId=${collectionId} collectionIds=${JSON.stringify(collectionIds)} requestFilters=${JSON.stringify(requestFilters)}`
-    );
 
     if (isMulti) {
       return this._getMultiCollectionSearchContext(trimmedQuestion, collectionIds!, requestFilters);
@@ -578,12 +559,6 @@ export class NotebookQAService {
       ...requestFilters,
     };
 
-    console.log(
-      `[NotebookQA:SingleCtx] requestFilters=${JSON.stringify(requestFilters)} ` +
-        `detectedScope=${JSON.stringify(documentScope.subcategoryFilters)} ` +
-        `effectiveFilters=${JSON.stringify(effectiveFilters)}`
-    );
-
     // Search
     const searchParams = getSearchParams(collectionId);
     const subcategoryFilter = buildSubcategoryFilter(effectiveFilters);
@@ -591,10 +566,11 @@ export class NotebookQAService {
       ? applyDefaultFilter(collectionId, subcategoryFilter)
       : subcategoryFilter;
 
-    console.log(
-      `[NotebookQA:SingleCtx] subcategoryFilter=${JSON.stringify(subcategoryFilter)} ` +
-        `additionalFilter=${JSON.stringify(additionalFilter)}`
-    );
+    if (Object.keys(effectiveFilters).length > 0) {
+      log.info(
+        `[QA Stream] collection=${collectionId} filters=${JSON.stringify(effectiveFilters)} qdrantMust=${additionalFilter?.must?.length ?? 0} clauses`
+      );
+    }
 
     const searchResults = await this._performSearch({
       query: question,
@@ -611,16 +587,6 @@ export class NotebookQAService {
 
     const singleCollectionName = systemConfig?.name || collection?.name || collectionId;
     const expanded = expandResultsToChunks(searchResults, collectionId, singleCollectionName);
-
-    // Debug: show source_id values in results
-    const sourceIdCounts: Record<string, number> = {};
-    for (const r of expanded) {
-      const sid = r.source_id || 'MISSING';
-      sourceIdCounts[sid] = (sourceIdCounts[sid] || 0) + 1;
-    }
-    console.log(
-      `[NotebookQA:SingleCtx] ${expanded.length} results, source_id distribution: ${JSON.stringify(sourceIdCounts)}`
-    );
 
     // Post-filter: validate results match requested source_id filter (defense-in-depth)
     const postFiltered = this._applySourceIdPostFilter(expanded, effectiveFilters);
