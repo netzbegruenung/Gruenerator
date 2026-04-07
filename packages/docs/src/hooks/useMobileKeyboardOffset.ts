@@ -1,22 +1,37 @@
-import { useEffect, useRef, type RefObject } from 'react';
+import { useEffect, useRef } from 'react';
 import { useIsTouchDevice } from './useIsTouchDevice';
 
+import type { RefObject } from 'react';
+
+interface MobileKeyboardOffsetOptions {
+  /** Called (debounced 100ms) when the keyboard offset changes. */
+  onOffsetChange?: () => void;
+}
+
 /**
- * Sets CSS custom property `--mobile-keyboard-offset` on the target element
+ * Sets CSS custom property `--mobile-keyboard-offset` on the referenced element
  * to reflect the virtual keyboard height. Uses VirtualKeyboard API (Chrome/Edge)
  * with VisualViewport fallback (Safari/Firefox).
- *
- * Returns a ref to attach to the container element.
  */
-export function useMobileKeyboardOffset<T extends HTMLElement>(): RefObject<T | null> {
-  const ref = useRef<T | null>(null);
+export function useMobileKeyboardOffset<T extends HTMLElement>(
+  ref: RefObject<T | null>,
+  options?: MobileKeyboardOffsetOptions
+): void {
   const isTouchDevice = useIsTouchDevice();
+  const callbackRef = useRef(options?.onOffsetChange);
+  callbackRef.current = options?.onOffsetChange;
 
   useEffect(() => {
     if (!isTouchDevice) return;
 
+    let debounceTimer: ReturnType<typeof setTimeout>;
+
     const setOffset = (px: number) => {
       ref.current?.style.setProperty('--mobile-keyboard-offset', px > 0 ? `${px}px` : '0px');
+      if (callbackRef.current) {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => callbackRef.current?.(), 100);
+      }
     };
 
     // Prefer VirtualKeyboard API (Chrome/Edge 94+)
@@ -25,7 +40,10 @@ export function useMobileKeyboardOffset<T extends HTMLElement>(): RefObject<T | 
       vk.overlaysContent = true;
       const onGeometryChange = () => setOffset(vk.boundingRect.height);
       vk.addEventListener('geometrychange', onGeometryChange);
-      return () => vk.removeEventListener('geometrychange', onGeometryChange);
+      return () => {
+        vk.removeEventListener('geometrychange', onGeometryChange);
+        clearTimeout(debounceTimer);
+      };
     }
 
     // Fallback: Visual Viewport API (Safari, older browsers)
@@ -61,8 +79,7 @@ export function useMobileKeyboardOffset<T extends HTMLElement>(): RefObject<T | 
       vp.removeEventListener('scroll', update);
       document.removeEventListener('focusin', onFocusIn);
       document.removeEventListener('focusout', onFocusOut);
+      clearTimeout(debounceTimer);
     };
-  }, [isTouchDevice]);
-
-  return ref;
+  }, [isTouchDevice, ref]);
 }

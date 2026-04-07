@@ -176,9 +176,28 @@ const BlockNoteEditorInner = ({
   const getMentionMenuItems = useMentionUsers(provider ?? null);
   const hasInitialized = useRef(false);
   const [isReady, setIsReady] = useState(false);
-  const wrapperRef = useMobileKeyboardOffset<HTMLDivElement>();
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Editor-specific: toggle selection class + scroll selection into view
+  const scrollSelectionIntoView = useCallback(() => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const rect = sel.getRangeAt(0).getBoundingClientRect();
+    const vp = window.visualViewport;
+    if (!vp) return;
+    const toolbarHeight =
+      wrapperRef.current?.querySelector('.bn-formatting-toolbar')?.getBoundingClientRect().height ||
+      44;
+    const visibleBottom = vp.offsetTop + vp.height - toolbarHeight;
+    if (rect.bottom > visibleBottom) {
+      window.scrollBy({ top: rect.bottom - visibleBottom + 16, behavior: 'smooth' });
+    } else if (rect.top < vp.offsetTop) {
+      window.scrollBy({ top: rect.top - vp.offsetTop - 16, behavior: 'smooth' });
+    }
+  }, []);
+
+  useMobileKeyboardOffset(wrapperRef, { onOffsetChange: scrollSelectionIntoView });
+
+  // Editor-specific: toggle selection class + scroll selection into view on text select
   useEffect(() => {
     if (!isTouchDevice) return;
 
@@ -189,23 +208,6 @@ const BlockNoteEditorInner = ({
     };
 
     let scrollTimer: ReturnType<typeof setTimeout>;
-
-    const scrollSelectionIntoView = () => {
-      const sel = window.getSelection();
-      if (!sel || sel.rangeCount === 0) return;
-      const rect = sel.getRangeAt(0).getBoundingClientRect();
-      const vp = window.visualViewport;
-      if (!vp) return;
-      const toolbarHeight =
-        wrapperRef.current?.querySelector('.bn-formatting-toolbar')?.getBoundingClientRect()
-          .height || 44;
-      const visibleBottom = vp.offsetTop + vp.height - toolbarHeight;
-      if (rect.bottom > visibleBottom) {
-        window.scrollBy({ top: rect.bottom - visibleBottom + 16, behavior: 'smooth' });
-      } else if (rect.top < vp.offsetTop) {
-        window.scrollBy({ top: rect.top - vp.offsetTop - 16, behavior: 'smooth' });
-      }
-    };
 
     const onSelectionChange = () => {
       updateSelectionClass();
@@ -218,7 +220,7 @@ const BlockNoteEditorInner = ({
       document.removeEventListener('selectionchange', onSelectionChange);
       clearTimeout(scrollTimer);
     };
-  }, [isTouchDevice, wrapperRef]);
+  }, [isTouchDevice, scrollSelectionIntoView]);
 
   const collaborationUser = useMemo(() => {
     if (!provider?.awareness) return null;
