@@ -12,6 +12,7 @@ package-lock.json
 
 # Testing
 coverage
+__manual_tests__
 
 # Production build outputs
 build/
