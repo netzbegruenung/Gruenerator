@@ -3,6 +3,7 @@
  * Handles all markdown to HTML/plain text conversions
  */
 
+import { stripHtmlTags } from '@gruenerator/shared/utils';
 import { marked } from 'marked';
 
 // Configure marked with consistent settings
@@ -39,14 +40,7 @@ export class MarkdownService {
 
     try {
       const html = marked.parse(markdown) as string;
-      return html
-        .replace(/<[^>]*>/g, '')
-        .replace(/&nbsp;/gi, ' ')
-        .replace(/&amp;/gi, '&')
-        .replace(/&lt;/gi, '<')
-        .replace(/&gt;/gi, '>')
-        .replace(/&quot;/gi, '"')
-        .trim();
+      return stripHtmlTags(html);
     } catch (error) {
       console.error('Error converting markdown to plain text:', error);
       // Return original content on error

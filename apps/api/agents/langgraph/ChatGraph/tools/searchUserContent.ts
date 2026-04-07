@@ -7,6 +7,7 @@
  * explicit @datei mention.
  */
 
+import { stripHtmlTags } from '@gruenerator/shared/utils';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 
@@ -17,14 +18,6 @@ import { createLogger } from '../../../../utils/logger.js';
 import type { ToolDependencies } from './registry.js';
 
 const log = createLogger('Tool:SearchUserContent');
-
-function stripHtmlTags(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
 
 export function createSearchUserContentTool(deps: ToolDependencies): DynamicStructuredTool | null {
   const userId = deps.userId || deps.agentConfig.userId;
