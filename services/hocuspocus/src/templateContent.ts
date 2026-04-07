@@ -1,9 +1,8 @@
 /**
- * Template HTML content for document subtypes.
- * Injected once during first-ever document load in Hocuspocus.
- *
- * Source of truth: packages/docs/src/lib/templates.ts
- * Keep in sync when template content changes.
+ * Simplified template HTML for server-side Yjs injection.
+ * Intentionally stripped-down: inline marks (bold, italic), blockquotes,
+ * checkboxes, and tables are converted to plain text by htmlToYjsXml.ts.
+ * Full rich templates live in packages/docs/src/lib/templates.ts (frontend only).
  */
 export const TEMPLATE_CONTENT: Record<string, string> = {
   antrag: `
