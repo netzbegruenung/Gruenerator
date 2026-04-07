@@ -125,25 +125,26 @@ async function extractAudio(
   const uploadsDir = path.resolve(__dirname, '../../uploads');
   const tmpDir = path.resolve(os.tmpdir());
   const resolvedVideoPath = path.resolve(videoPath);
+  let safeVideoPath: string;
   if (resolvedVideoPath.startsWith(uploadsDir + path.sep)) {
-    sanitizePath(path.relative(uploadsDir, resolvedVideoPath), uploadsDir);
+    safeVideoPath = sanitizePath(path.relative(uploadsDir, resolvedVideoPath), uploadsDir);
   } else if (resolvedVideoPath.startsWith(tmpDir + path.sep)) {
-    sanitizePath(path.relative(tmpDir, resolvedVideoPath), tmpDir);
+    safeVideoPath = sanitizePath(path.relative(tmpDir, resolvedVideoPath), tmpDir);
   } else {
     throw new Error('Video path outside allowed directory');
   }
 
-  if (!fs.existsSync(videoPath)) {
-    throw new Error(`Video-Datei nicht gefunden: ${videoPath}`);
+  if (!fs.existsSync(safeVideoPath)) {
+    throw new Error(`Video-Datei nicht gefunden: ${safeVideoPath}`);
   }
 
-  const duration = await getDuration(videoPath);
+  const duration = await getDuration(safeVideoPath);
   if (duration) {
     log.debug(`Video-Dauer: ${duration.toFixed(1)}s`);
   }
 
   return new Promise((resolve, reject) => {
-    const command = ffmpeg(videoPath).outputOptions([
+    const command = ffmpeg(safeVideoPath).outputOptions([
       '-vn',
       '-ar',
       '16000',

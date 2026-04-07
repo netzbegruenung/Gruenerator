@@ -214,14 +214,14 @@ export class SubtitlerProjectService {
 
       const projectId = crypto.randomUUID();
       validatePathId(userId, 'userId');
-      const projectDir = path.join(PROJECT_STORAGE_PATH, userId, projectId);
+      const projectDir = sanitizePath(path.join(userId, projectId), PROJECT_STORAGE_PATH);
       await fs.mkdir(projectDir, { recursive: true });
 
       if (!/^[a-zA-Z0-9_-]+$/.test(uploadId)) {
         throw new Error('Invalid uploadId format');
       }
-      const tusVideoPath = path.join(__dirname, '../../uploads/tus-temp', uploadId);
       const uploadsDir = path.resolve(__dirname, '../../uploads');
+      const tusVideoPath = sanitizePath(path.join('tus-temp', uploadId), uploadsDir);
       const sourceVideoPath = videoSourcePath
         ? sanitizePath(videoSourcePath, uploadsDir)
         : tusVideoPath;
@@ -416,7 +416,7 @@ export class SubtitlerProjectService {
 
       validatePathId(userId, 'userId');
       validatePathId(projectId, 'projectId');
-      const projectDir = path.join(PROJECT_STORAGE_PATH, userId, projectId);
+      const projectDir = sanitizePath(path.join(userId, projectId), PROJECT_STORAGE_PATH);
       try {
         await fs.rm(projectDir, { recursive: true, force: true });
         console.log(`[SubtitlerProjectService] Deleted project files at ${projectDir}`);
