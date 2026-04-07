@@ -1713,6 +1713,9 @@ importers:
 
   services/hocuspocus:
     dependencies:
+      '@gruenerator/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@hocuspocus/extension-logger':
         specifier: ^3.4.4
         version: 3.4.4(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)
@@ -30782,9 +30785,7 @@ snapshots:
       metro-runtime: 0.83.5
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
     optional: true
 
   '@react-native/normalize-colors@0.74.89':
