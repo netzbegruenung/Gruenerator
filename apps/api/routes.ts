@@ -192,7 +192,8 @@ export async function setupRoutes(app: Application): Promise<void> {
     interactionRouter: notebookInteractionRouter,
   } = await import('./routes/notebook/index.js');
   const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.js');
-  const { default: connectionsRouter } = await import('./routes/connections/connectionsController.js');
+  const { default: connectionsRouter } =
+    await import('./routes/connections/connectionsController.js');
   const { default: wordpressApiRouter } = await import('./routes/wordpress/wordpressApi.js');
   const { urlController: crawlUrlRouter } = await import('./routes/crawl/index.js');
   const { default: grueneratorChatRoute } = await import('./routes/chat/grueneratorChat.js');
@@ -209,6 +210,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: docsRouter } = await import('./routes/docs/index.js');
 
   const { default: publicDocRouter } = await import('./routes/docs/publicDocController.js');
+  const { default: ogDocsRouter } = await import('./routes/docs/ogController.js');
   const { default: boardsRouter } = await import('./routes/boards/boardsController.js');
   const { default: boardCommentsRouter } =
     await import('./routes/boards/boardCommentsController.js');
@@ -375,6 +377,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/recent-activity', publicReadLimiter, recentActivityRouter);
   app.use('/api/notifications', requireAuth, publicReadLimiter, notificationsRouter);
   app.use('/api/media', requireAuth, standardMutationLimiter, mediaRouter);
+  app.use('/api/og/docs', publicReadLimiter, ogDocsRouter);
   app.use('/api/docs/public', publicReadLimiter, publicDocRouter);
   app.use('/api/docs', requireAuth, standardMutationLimiter, docsRouter);
 
