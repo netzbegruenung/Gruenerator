@@ -477,6 +477,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
 
   setActiveFilter: (collectionId, field, value) => {
     if (!collectionId) return;
+    console.debug('[NotebookStore] 🔍 setActiveFilter called:', { collectionId, field, value });
 
     set((state: NotebookState) => {
       // Handle date range objects (for date_range filter type)
@@ -538,7 +539,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
         } as Partial<NotebookState>;
       }
 
-      return {
+      const updated = {
         activeFilters: {
           ...state.activeFilters,
           [collectionId]: {
@@ -547,6 +548,11 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
           },
         },
       } as Partial<NotebookState>;
+      console.debug(
+        '[NotebookStore] 🔍 activeFilters after toggle:',
+        JSON.stringify(updated.activeFilters)
+      );
+      return updated;
     });
   },
 
