@@ -17,8 +17,10 @@ const MAX_CONNECTIONS = 10;
 
 export function useGroupPresenceManager(groupIds: string[], user: PresenceUser | null) {
   const connectionsRef = useRef<Map<string, GroupPresenceEntry>>(new Map());
-  const [onlineCounts, setOnlineCounts] = useState<Record<string, number>>({});
-  const [onlineMembers, setOnlineMembers] = useState<Record<string, CollaborationUser[]>>({});
+  const [presenceState, setPresenceState] = useState<{
+    counts: Record<string, number>;
+    members: Record<string, CollaborationUser[]>;
+  }>({ counts: {}, members: {} });
 
   useEffect(() => {
     if (!user) return;
@@ -71,13 +73,9 @@ export function useGroupPresenceManager(groupIds: string[], user: PresenceUser |
             return true;
           });
 
-          setOnlineCounts((prev) => {
-            if (prev[gid] === unique.length) return prev;
-            return { ...prev, [gid]: unique.length };
-          });
-
-          setOnlineMembers((prev) => {
-            const prevIds = (prev[gid] || [])
+          setPresenceState((prev) => {
+            const prevCount = prev.counts[gid] || 0;
+            const prevIds = (prev.members[gid] || [])
               .map((u) => u.id)
               .sort()
               .join(',');
@@ -85,8 +83,11 @@ export function useGroupPresenceManager(groupIds: string[], user: PresenceUser |
               .map((u) => u.id)
               .sort()
               .join(',');
-            if (prevIds === newIds) return prev;
-            return { ...prev, [gid]: unique };
+            if (prevCount === unique.length && prevIds === newIds) return prev;
+            return {
+              counts: { ...prev.counts, [gid]: unique.length },
+              members: { ...prev.members, [gid]: unique },
+            };
           });
         }, 0);
       };
@@ -106,13 +107,13 @@ export function useGroupPresenceManager(groupIds: string[], user: PresenceUser |
   }, [groupIds.join(','), user?.id]);
 
   const getOnlineCount = useCallback(
-    (groupId: string) => onlineCounts[groupId] || 0,
-    [onlineCounts]
+    (groupId: string) => presenceState.counts[groupId] || 0,
+    [presenceState.counts]
   );
 
   const getOnlineMembers = useCallback(
-    (groupId: string): CollaborationUser[] => onlineMembers[groupId] || [],
-    [onlineMembers]
+    (groupId: string): CollaborationUser[] => presenceState.members[groupId] || [],
+    [presenceState.members]
   );
 
   return { getOnlineCount, getOnlineMembers };
