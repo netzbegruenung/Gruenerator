@@ -430,8 +430,8 @@ export class NotebookQAService {
       throw new Error('Question is required');
     }
 
-    console.log(
-      '[NotebookQA] 🔍 getSearchContext requestFilters:',
+    log.debug(
+      '[NotebookQA] getSearchContext requestFilters:',
       JSON.stringify(requestFilters),
       'collectionId:',
       collectionId,
