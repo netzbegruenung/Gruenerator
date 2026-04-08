@@ -236,8 +236,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     log.info(`[Search] Applying metadata filters: ${JSON.stringify(detectedFilters)}`);
   }
 
+  const displayQuery = searchQuery || state.researchBrief || '(no query)';
   log.info(
-    `[Search] Executing ${intent} search: "${searchQuery?.slice(0, 50)}..." (locale=${state.userLocale})`
+    `[Search] Executing ${intent} search: "${displayQuery.slice(0, 50)}..." (locale=${state.userLocale})`
   );
 
   try {

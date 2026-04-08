@@ -15,7 +15,7 @@ const LITELLM_DEFAULT_MODEL = 'gpt-oss:120b';
 
 export const VISION_MODEL = {
   provider: 'regolo' as const,
-  model: process.env.VISION_DEFAULT_MODEL || 'qwen3-vl-32b',
+  model: process.env.VISION_DEFAULT_MODEL || 'gemma4-31b',
 };
 
 export { INTERMEDIATE_MODEL, getIntermediateModel } from '../../../services/ai/providers.js';
