@@ -56,6 +56,7 @@ services:
     environment:
       - PORT=3001
       - NODE_ENV=production
+      - WEB_BASE_URL=${WEB_BASE_URL:-https://www.gruenerator.de}
     volumes:
       - api-uploads:/app/apps/api/uploads
       - api-logs:/app/apps/api/logs
