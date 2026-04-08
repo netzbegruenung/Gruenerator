@@ -138,7 +138,7 @@ function EditorContent() {
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
   const user = useAuthStore((s) => s.user);
   const isAuthLoading = useAuthStore((s) => s.isLoading);
-  const isGuest = !user;
+  const isGuest = !isAuthLoading && !user;
   const [darkMode, toggleDarkMode] = useDarkMode();
 
   const guestIdentity = useMemo(() => (isGuest ? getOrCreateGuestIdentity() : null), [isGuest]);
