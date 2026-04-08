@@ -193,11 +193,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
           profileApiService.getNotebookCollections().catch((): ContentItem[] => []),
         ]);
 
-        const collabDocs = Array.isArray(collabDocsRaw)
-          ? collabDocsRaw.filter(
-              (d: { document_subtype?: string }) => d.document_subtype !== 'boards'
-            )
-          : [];
+        const collabDocs = Array.isArray(collabDocsRaw) ? collabDocsRaw : [];
         const boards = Array.isArray(boardsRaw) ? boardsRaw : [];
 
         const systemNotebookItems: ContentItem[] = SYSTEM_NOTEBOOKS.map((nb) => ({

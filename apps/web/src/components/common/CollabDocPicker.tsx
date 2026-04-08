@@ -26,11 +26,7 @@ export function CollabDocPicker({ onSelect, excludeIds = [], children }: CollabD
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => {
         if (Array.isArray(data)) {
-          setDocs(
-            data
-              .filter((d: { document_subtype?: string }) => d.document_subtype !== 'boards')
-              .map((d: { id: string; title: string }) => ({ id: d.id, title: d.title }))
-          );
+          setDocs(data.map((d: { id: string; title: string }) => ({ id: d.id, title: d.title })));
         }
       })
       .catch(() => setDocs([]))
