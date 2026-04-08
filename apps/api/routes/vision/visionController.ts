@@ -56,7 +56,7 @@ router.post('/analyze', async (req: Request, res: Response): Promise<void> => {
       textDetection: result.textDetection,
       extractedText: result.extractedText,
       ocrMethod: result.ocrMethod ?? null,
-      model: options.model ?? process.env.VISION_DEFAULT_MODEL ?? 'qwen3-vl-32b',
+      model: options.model ?? process.env.VISION_DEFAULT_MODEL ?? 'gemma4-31b',
       provider: options.provider ?? 'regolo',
     });
   } catch (error: unknown) {
@@ -148,7 +148,7 @@ router.post('/alt-text', async (req: Request, res: Response): Promise<void> => {
 
     res.json({
       altText,
-      model: options.model ?? process.env.VISION_DEFAULT_MODEL ?? 'qwen3-vl-32b',
+      model: options.model ?? process.env.VISION_DEFAULT_MODEL ?? 'gemma4-31b',
       provider: options.provider ?? 'regolo',
     });
   } catch (error: unknown) {
