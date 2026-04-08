@@ -139,9 +139,6 @@ export function createNotebookModelAdapter(
         ...config.extraParams,
       };
 
-      console.debug('[Notebook] 🔍 config.filters:', JSON.stringify(config.filters));
-      console.debug('[Notebook] 🔍 payload.filters:', JSON.stringify(payload.filters));
-
       const { fetch: configFetch } = useChatConfigStore.getState();
       const endpoint = config.endpoint || '/api/chat-service/notebook/stream';
       const c0 = performance.now();

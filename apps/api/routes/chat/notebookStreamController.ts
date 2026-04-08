@@ -46,8 +46,6 @@ router.post('/', async (req, res) => {
     threadId: existingThreadId,
   } = req.body;
 
-  console.log('[NotebookController] 🔍 req.body.filters:', JSON.stringify(filters));
-
   const lastUserMessage = Array.isArray(messages)
     ? messages.filter((m: { role: string }) => m.role === 'user').pop()
     : null;
