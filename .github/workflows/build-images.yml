@@ -139,6 +139,7 @@ jobs:
               - 'packages/wolke/**'
             hocuspocus:
               - 'services/hocuspocus/**'
+              - 'packages/shared/**'
             mcp:
               - 'services/mcp/**'
               - 'packages/shared/**'

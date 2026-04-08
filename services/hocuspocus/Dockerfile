@@ -13,12 +13,14 @@ WORKDIR /app
 # Copy workspace config
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY services/hocuspocus/package.json ./services/hocuspocus/
+COPY packages/shared/package.json ./packages/shared/
 
 # Install dependencies
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --filter @gruenerator/hocuspocus...
 
 # Copy source and compile
+COPY packages/shared ./packages/shared
 COPY services/hocuspocus ./services/hocuspocus
 
 WORKDIR /app/services/hocuspocus
@@ -54,6 +56,7 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/pnpm-lock.yaml ./
 
 # Copy package.json for workspace structure
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/package.json ./services/hocuspocus/
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/package.json ./packages/shared/
 
 # Switch to non-root user before install (files written as gruenerator, no chown needed)
 USER gruenerator
@@ -62,8 +65,9 @@ USER gruenerator
 RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/store \
     pnpm install --prod --frozen-lockfile --filter @gruenerator/hocuspocus
 
-# Copy compiled server
+# Copy compiled server and workspace dependencies
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/dist ./services/hocuspocus/dist
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared ./packages/shared
 
 # Set working directory
 WORKDIR /app/services/hocuspocus
