@@ -89,12 +89,23 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
             `[Load] Document ${documentName} loaded successfully (${documentData.length} bytes)`
           );
         } else {
-          log.info(`[Load] Document ${documentName} not found, initializing`);
+          log.warn(`[Load] No persisted state for ${documentName} — new document`);
+        }
+
+        // Yjs-native safety check: only inject template when the fragment is truly empty.
+        // BlockNote always maintains ≥1 block even when the user clears content,
+        // so fragment.length === 0 means this document was never initialized.
+        const fragment = document.getXmlFragment('document-store');
+        log.info(`[Load] Fragment check for ${documentName}: ${fragment.length} children`);
+        if (fragment.length === 0) {
+          log.info(`[Load] Document ${documentName} fragment empty, injecting template`);
           await persistence.initializeWithTemplate(documentName, document);
         }
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
-        log.error(`[Load] Error loading document ${documentName}: ${err.message}`);
+        log.error(
+          `[Load] Error loading document ${documentName}: ${err.message} — rejecting connection`
+        );
         throw err;
       }
     },
