@@ -45,6 +45,14 @@ export type { ExpandedQuery } from './QueryExpansionService.js';
 // Export diversity reranker (MMR)
 export { applyMMR } from './DiversityReranker.js';
 
+// Export shared rerank pipeline
+export { rerankPipeline } from './rerankPipeline.js';
+export type {
+  RerankableItem,
+  RerankPipelineOptions,
+  RerankPipelineResult,
+} from './rerankPipeline.js';
+
 // Export citation grounder
 export { validateCitations, stripUngroundedCitations } from './CitationGrounder.js';
 export type { GroundingResult } from './CitationGrounder.js';
