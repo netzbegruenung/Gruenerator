@@ -83,7 +83,7 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
         'Grünerator',
         'KI-Assistent für grüne Politik',
         `${WEB_BASE_URL}/docs/${encodeURIComponent(id)}`,
-        `${WEB_BASE_URL}/og-image.svg`
+        `${WEB_BASE_URL}/og-image.png`
       );
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.setHeader('Cache-Control', 'no-store');
@@ -128,7 +128,7 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
     }
 
     const url = `${WEB_BASE_URL}/docs/${encodeURIComponent(id)}`;
-    const imageUrl = `${WEB_BASE_URL}/og-image.svg`;
+    const imageUrl = `${WEB_BASE_URL}/og-image.png`;
     const html = buildOgHtml(doc.title || 'Grünerator Docs', previewText, url, imageUrl);
 
     ogCache.set(id, { html, expires: Date.now() + OG_CACHE_TTL });
@@ -142,7 +142,7 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
       'Grünerator',
       'KI-Assistent für grüne Politik',
       WEB_BASE_URL,
-      `${WEB_BASE_URL}/og-image.svg`
+      `${WEB_BASE_URL}/og-image.png`
     );
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
