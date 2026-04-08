@@ -15,12 +15,12 @@ const TINY_RED_PNG =
 describe('Vision — unit tests', () => {
   describe('isVisionCapable', () => {
     it('returns true for known vision models', () => {
-      expect(isVisionCapable('qwen3-vl-32b')).toBe(true);
+      expect(isVisionCapable('gemma4-31b')).toBe(true);
       expect(isVisionCapable('pixtral-large-latest')).toBe(true);
+      expect(isVisionCapable('qwen3.5-122b')).toBe(true);
     });
 
     it('returns false for non-vision models', () => {
-      expect(isVisionCapable('qwen3.5-122b')).toBe(false);
       expect(isVisionCapable('mistral-large-2512')).toBe(false);
       expect(isVisionCapable('gpt-oss-120b')).toBe(false);
     });
@@ -70,7 +70,7 @@ describe('Regolo adapter — multimodal message handling', () => {
         },
       ],
       type: 'vision-test',
-      options: { max_tokens: 50, model: 'qwen3-vl-32b', temperature: 0.1 },
+      options: { max_tokens: 50, model: 'gemma4-31b', temperature: 0.1 },
       metadata: {},
     });
 
@@ -98,7 +98,7 @@ describe('Regolo adapter — multimodal message handling', () => {
         },
       ],
       type: 'vision-test',
-      options: { max_tokens: 50, model: 'qwen3-vl-32b', temperature: 0.1 },
+      options: { max_tokens: 50, model: 'gemma4-31b', temperature: 0.1 },
       metadata: {},
     });
 
@@ -121,7 +121,7 @@ describe('Regolo adapter — multimodal message handling', () => {
         },
       ],
       type: 'text-test',
-      options: { max_tokens: 50, model: 'qwen3-vl-32b', temperature: 0.1 },
+      options: { max_tokens: 50, model: 'gemma4-31b', temperature: 0.1 },
       metadata: {},
     });
 

@@ -8,7 +8,7 @@ import type { ExtractionResult } from '../OcrService/types.js';
 const log = createLogger('VisionService');
 
 const DEFAULT_VISION_PROVIDER: ProviderName = 'regolo';
-const DEFAULT_VISION_MODEL = process.env.VISION_DEFAULT_MODEL || 'qwen3-vl-32b';
+const DEFAULT_VISION_MODEL = process.env.VISION_DEFAULT_MODEL || 'gemma4-31b';
 
 export interface VisionOptions {
   provider?: ProviderName;
