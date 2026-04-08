@@ -49,6 +49,12 @@ vi.mock('../../utils/keycloak/index.js', async () => {
   return { createAuthenticatedRouter: () => Router() };
 });
 
+vi.mock('../../middleware/rateLimitMiddleware.js', () => ({
+  rateLimitMiddleware: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+
+vi.mock('../../middleware/types.js', () => ({}));
+
 // ─── Import handler after mocks are in place ──────────────────
 
 const { handleAiRequest } = await import('./aiController.js');
