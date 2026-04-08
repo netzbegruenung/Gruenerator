@@ -3,14 +3,18 @@
  * Handles AI-powered document editing via BlockNote xl-ai extension
  */
 
+import { TransformStream } from 'node:stream/web';
+
 import {
   aiDocumentFormats,
   injectDocumentStateMessages,
   toolDefinitionsToToolSet,
 } from '@blocknote/xl-ai/server';
 import { streamText, convertToModelMessages, type UIMessage } from 'ai';
-import { Router, type Request, type Response } from 'express';
+import { type Response } from 'express';
 
+import { rateLimitMiddleware } from '../../middleware/rateLimitMiddleware.js';
+import { type RateLimitRequest } from '../../middleware/types.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { getModel, isProviderConfigured } from '../chat/agents/providers.js';
@@ -109,7 +113,7 @@ interface AIRequestBody {
  * @desc    Process AI requests for document editing
  * @access  Private
  */
-export async function handleAiRequest(req: Request, res: Response) {
+export async function handleAiRequest(req: RateLimitRequest, res: Response) {
   try {
     const { messages, toolDefinitions } = req.body as AIRequestBody;
 
@@ -215,6 +219,6 @@ export async function handleAiRequest(req: Request, res: Response) {
   }
 }
 
-router.post('/ai', handleAiRequest);
+router.post('/ai', rateLimitMiddleware('docs_ai', { autoIncrement: true }), handleAiRequest);
 
 export default router;
