@@ -30,8 +30,10 @@ import { WolkeSaveModal, uploadToWolke } from '@gruenerator/wolke';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
 import { FiClock, FiCloud, FiDownload, FiShare2, FiSidebar, FiX } from 'react-icons/fi';
+import { PiSun, PiMoon } from 'react-icons/pi';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
+import useDarkMode from '../../components/hooks/useDarkMode';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useAuthStore } from '../../stores/authStore';
 
@@ -137,6 +139,7 @@ function EditorContent() {
   const user = useAuthStore((s) => s.user);
   const isAuthLoading = useAuthStore((s) => s.isLoading);
   const isGuest = !user;
+  const [darkMode, toggleDarkMode] = useDarkMode();
 
   const guestIdentity = useMemo(() => (isGuest ? getOrCreateGuestIdentity() : null), [isGuest]);
 
@@ -545,6 +548,15 @@ function EditorContent() {
                   <span className="glass-divider" />
                 </>
               )}
+
+              <button
+                className="glass-btn"
+                onClick={toggleDarkMode}
+                aria-label={darkMode ? 'Zum hellen Modus wechseln' : 'Zum dunklen Modus wechseln'}
+                title={darkMode ? 'Heller Modus' : 'Dunkler Modus'}
+              >
+                {darkMode ? <PiMoon /> : <PiSun />}
+              </button>
 
               <button
                 className={`glass-btn ${sidebarOpen ? 'active' : ''}`}
