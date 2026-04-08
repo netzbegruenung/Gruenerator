@@ -12,21 +12,14 @@ WORKDIR /app
 
 # Copy workspace config
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
-COPY tsconfig.base.json ./
 COPY services/hocuspocus/package.json ./services/hocuspocus/
-COPY packages/shared/package.json ./packages/shared/
 
 # Install dependencies
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --filter @gruenerator/hocuspocus...
+    pnpm install --frozen-lockfile --filter @gruenerator/hocuspocus
 
 # Copy source and compile
-COPY packages/shared ./packages/shared
 COPY services/hocuspocus ./services/hocuspocus
-
-# Compile shared package (hocuspocus imports @gruenerator/shared/utils at runtime)
-WORKDIR /app/packages/shared
-RUN pnpm exec tsc --project tsconfig.json
 
 WORKDIR /app/services/hocuspocus
 RUN pnpm exec tsc --project tsconfig.build.json
@@ -61,7 +54,6 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/pnpm-lock.yaml ./
 
 # Copy package.json for workspace structure
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/package.json ./services/hocuspocus/
-COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/package.json ./packages/shared/
 
 # Switch to non-root user before install (files written as gruenerator, no chown needed)
 USER gruenerator
@@ -70,12 +62,8 @@ USER gruenerator
 RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/store \
     pnpm install --prod --frozen-lockfile --filter @gruenerator/hocuspocus
 
-# Copy compiled server and workspace dependencies
+# Copy compiled server
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/dist ./services/hocuspocus/dist
-COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/dist ./packages/shared/dist
-
-# Redirect shared package exports from ./src/*.ts to ./dist/*.js for Node.js
-RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' packages/shared/package.json
 
 # Set working directory
 WORKDIR /app/services/hocuspocus
