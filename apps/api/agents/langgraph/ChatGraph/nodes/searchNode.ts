@@ -17,6 +17,13 @@ import { selectAndCrawlTopUrls } from '../../../../services/search/CrawlingServi
 import { expandQuery } from '../../../../services/search/QueryExpansionService.js';
 import { DEFAULT_RELEVANCE } from '../../../../services/search/rerankPipeline.js';
 import { createLogger } from '../../../../utils/logger.js';
+import {
+  SOURCE_PREFIX,
+  type ChatGraphState,
+  type SearchResult,
+  type SearchSource,
+  type Citation,
+} from '../types.js';
 
 import {
   COLLECTION_LABELS,
@@ -29,7 +36,6 @@ import {
 
 import type { SubcategoryFilters } from '../../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../../routes/chat/agents/types.js';
-import type { ChatGraphState, SearchResult, SearchSource, Citation } from '../types.js';
 
 // Re-export for backward compatibility and reuse by SearchGraph
 export {
@@ -42,19 +48,6 @@ export {
 };
 
 const log = createLogger('ChatGraph:Search');
-
-/**
- * Convert various search result formats to unified SearchResult structure.
- */
-function normalizeResults(results: any[], source: string): SearchResult[] {
-  return results.map((r: any, i: number) => ({
-    source,
-    title: r.title || r.name || r.source || 'Unknown',
-    content: r.content || r.snippet || r.excerpt || r.text || '',
-    url: r.url || r.source_url || undefined,
-    relevance: r.relevance || r.score || r.similarity || 1 - i * 0.1,
-  }));
-}
 
 /**
  * Return default Qdrant collections based on user locale.
@@ -215,15 +208,15 @@ export async function executeWebSearchParallel(
 export function normalizeScore(r: SearchResult): number {
   const { webScoreCeiling } = vectorConfig.get('rerank');
 
-  if (r.similarityScore != null && r.source.startsWith('gruenerator:')) {
+  if (r.similarityScore != null && r.source.startsWith(SOURCE_PREFIX.GRUENERATOR)) {
     return Math.min(1.0, r.similarityScore * 1.05);
   }
 
-  if (r.source.startsWith('document')) {
+  if (r.source.startsWith(SOURCE_PREFIX.DOCUMENT)) {
     return r.relevance ?? DEFAULT_RELEVANCE;
   }
 
-  if (r.source === 'web') {
+  if (r.source === SOURCE_PREFIX.WEB) {
     const raw = r.relevance ?? DEFAULT_RELEVANCE;
     return Math.min(webScoreCeiling, raw * webScoreCeiling);
   }

@@ -15,17 +15,16 @@ import {
   type RerankableItem,
 } from '../../../../services/search/rerankPipeline.js';
 import { createLogger } from '../../../../utils/logger.js';
-
-import type { ChatGraphState } from '../types.js';
+import { SOURCE_PREFIX, type ChatGraphState } from '../types.js';
 
 const log = createLogger('ChatGraph:Rerank');
 
 function getSourceTag(source: string): string {
-  if (source.startsWith('gruenerator:')) return 'Parteidokument';
-  if (source.startsWith('document')) return 'Nutzerdokument';
-  if (source === 'web') return 'Web';
-  if (source === 'examples') return 'Beispiel';
-  if (source === 'research') return 'Recherche';
+  if (source.startsWith(SOURCE_PREFIX.GRUENERATOR)) return 'Parteidokument';
+  if (source.startsWith(SOURCE_PREFIX.DOCUMENT)) return 'Nutzerdokument';
+  if (source === SOURCE_PREFIX.WEB) return 'Web';
+  if (source === SOURCE_PREFIX.EXAMPLES) return 'Beispiel';
+  if (source === SOURCE_PREFIX.RESEARCH) return 'Recherche';
   return 'Quelle';
 }
 
