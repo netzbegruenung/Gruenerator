@@ -9,6 +9,14 @@ import {
   type TemplateType,
 } from '@gruenerator/docs';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   Button,
   CardGrid,
   DismissableBanner,
@@ -124,6 +132,10 @@ function DocumentsContent() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showWolkeImport, setShowWolkeImport] = useState(false);
   const [shareDoc, setShareDoc] = useState<{ id: string; title: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    kind: 'document' | 'board';
+  } | null>(null);
 
   const isLoading = docsLoading || boardsLoading;
 
@@ -204,18 +216,17 @@ function DocumentsContent() {
     [createDocumentMutation, adapter]
   );
 
-  const handleDeleteDoc = useCallback(
-    async (id: string, e: React.MouseEvent) => {
+  const handleDelete = useCallback(
+    (id: string, kind: 'document' | 'board', e: React.MouseEvent) => {
       e.stopPropagation();
-      if (window.confirm('Dokument wirklich löschen?')) {
-        try {
-          await deleteDocumentMutation.mutateAsync(id);
-        } catch (err) {
-          console.error('Failed to delete document:', err);
-        }
-      }
+      setDeleteTarget({ id, kind });
     },
-    [deleteDocumentMutation]
+    []
+  );
+
+  const handleDeleteDoc = useCallback(
+    (id: string, e: React.MouseEvent) => handleDelete(id, 'document', e),
+    [handleDelete]
   );
 
   const handleRenameDoc = useCallback(
@@ -237,14 +248,24 @@ function DocumentsContent() {
   );
 
   const handleDeleteBoard = useCallback(
-    (id: string, e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (window.confirm('Board wirklich löschen?')) {
-        deleteBoard.mutate(id);
-      }
-    },
-    [deleteBoard]
+    (id: string, e: React.MouseEvent) => handleDelete(id, 'board', e),
+    [handleDelete]
   );
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deleteTarget) return;
+    const { id, kind } = deleteTarget;
+    setDeleteTarget(null);
+    try {
+      if (kind === 'document') {
+        await deleteDocumentMutation.mutateAsync(id);
+      } else {
+        await deleteBoard.mutateAsync(id);
+      }
+    } catch (err) {
+      console.error(`Failed to delete ${kind}:`, err);
+    }
+  }, [deleteTarget, deleteDocumentMutation, deleteBoard]);
 
   const handleRenameBoard = useCallback(
     (board: { id: string; title: string }, e: React.MouseEvent) => {
@@ -442,6 +463,29 @@ function DocumentsContent() {
           <LazyWolkeImportModal open={showWolkeImport} onOpenChange={setShowWolkeImport} />
         </Suspense>
       )}
+
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {deleteTarget?.kind === 'board' ? 'Board' : 'Dokument'} löschen
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Dieses {deleteTarget?.kind === 'board' ? 'Board' : 'Dokument'} wird unwiderruflich
+              gelöscht.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={handleConfirmDelete}>
+              Löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

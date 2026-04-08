@@ -189,7 +189,9 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
     });
 
     const stream = result.toUIMessageStream();
-    const normalizedStream = stream.pipeThrough(createNormalizingTransform());
+
+    // types are incompatible with the AI SDK's AsyncIterableStream pipeThrough signature.
+    const normalizedStream = stream.pipeThrough(createNormalizingTransform() as any);
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
