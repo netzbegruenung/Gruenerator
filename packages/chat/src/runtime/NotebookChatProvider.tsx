@@ -81,23 +81,22 @@ function NotebookChatProviderInner({
     [onThreadCreated]
   );
 
-  const getConfig = useCallback((): NotebookAdapterConfig => {
-    // Prefer getFilters() (reads directly from store) over static filters prop
-    const resolvedFilters = getFiltersRef.current?.() ?? filtersRef.current;
-    return {
+  const getConfig = useCallback(
+    (): NotebookAdapterConfig => ({
       ...(isMulti
         ? { collectionIds: collections.map((c) => c.id) }
         : { collectionId: collections[0]?.id }),
       collectionLinkType: isMulti ? 'url' : collections[0]?.linkType,
-      filters: resolvedFilters,
+      filters: getFiltersRef.current?.() ?? filtersRef.current,
       locale,
       extraParams,
       mode,
       endpoint,
       documentIds,
       threadId: threadIdRef.current,
-    };
-  }, [collections, isMulti, locale, extraParams, mode, endpoint, documentIds]);
+    }),
+    [collections, isMulti, locale, extraParams, mode, endpoint, documentIds]
+  );
 
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
