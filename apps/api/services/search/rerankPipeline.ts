@@ -44,6 +44,7 @@ export interface RerankPipelineResult {
 }
 
 const SKIP_THRESHOLD = 2;
+export const DEFAULT_RELEVANCE = 0.5;
 
 export async function rerankPipeline(
   options: RerankPipelineOptions
@@ -69,7 +70,7 @@ export async function rerankPipeline(
     log.info(`Skipping — only ${items.length} items`);
     return {
       rankedIndices: items.map((_, i) => i),
-      scores: new Map(items.map((item, i) => [i, item.relevance ?? 0.5])),
+      scores: new Map(items.map((item, i) => [i, item.relevance ?? DEFAULT_RELEVANCE])),
       rerankTimeMs: Date.now() - startTime,
     };
   }
@@ -97,7 +98,7 @@ export async function rerankPipeline(
     // Build scored items with original indices for filtering + MMR
     const scored = candidates.map((item, i) => ({
       index: i,
-      relevance: scoreMap.get(i) ?? item.relevance ?? 0.5,
+      relevance: scoreMap.get(i) ?? item.relevance ?? DEFAULT_RELEVANCE,
       title: item.title,
       content: item.content,
     }));
@@ -110,18 +111,18 @@ export async function rerankPipeline(
     let finalOrder: typeof filtered;
 
     if (applyDiversity && filtered.length > 3) {
-      const mmrInput = filtered.map((s) => ({
-        title: s.title,
-        content: s.content,
-        relevance: s.relevance,
-        _originalIndex: s.index,
-      }));
+      const indexByIdentity = new Map(filtered.map((s) => [`${s.title}\0${s.content}`, s.index]));
 
-      const mmrResult = applyMMR(mmrInput, mmrLambda, mmrKeepTop);
+      const mmrResult = applyMMR(
+        filtered.map((s) => ({ title: s.title, content: s.content, relevance: s.relevance })),
+        mmrLambda,
+        mmrKeepTop
+      );
+
       finalOrder = mmrResult.map((r) => ({
-        index: r._originalIndex,
-        relevance: r.relevance,
-        title: r.title,
+        index: indexByIdentity.get(`${r.title}\0${r.content}`) ?? 0,
+        relevance: r.relevance ?? DEFAULT_RELEVANCE,
+        title: r.title ?? '',
         content: r.content,
       }));
     } else {
@@ -144,7 +145,7 @@ export async function rerankPipeline(
     log.error('Rerank error:', error.message);
     return {
       rankedIndices: candidates.map((_, i) => i).slice(0, outputLimit),
-      scores: new Map(candidates.map((item, i) => [i, item.relevance ?? 0.5])),
+      scores: new Map(candidates.map((item, i) => [i, item.relevance ?? DEFAULT_RELEVANCE])),
       rerankTimeMs: Date.now() - startTime,
     };
   }

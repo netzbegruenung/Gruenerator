@@ -49,61 +49,50 @@ export async function rerankNotebookResults({
 
   const candidates = results.slice(0, inputLimit);
 
-  try {
-    const items = candidates.map((r) => ({
-      title: r.title,
-      content: r.snippet.slice(0, 300),
-      relevance: r.similarity,
-    }));
+  const items = candidates.map((r) => ({
+    title: r.title,
+    content: r.snippet.slice(0, 300),
+    relevance: r.similarity,
+  }));
 
-    const { rankedIndices, rerankTimeMs } = await rerankPipeline({
-      query: question,
-      items,
-      inputLimit,
-      outputLimit: limit,
-      minRelevance: 0.05,
-      minKeep: Math.min(5, candidates.length),
-      applyDiversity: true,
-    });
+  // Pipeline handles errors internally with graceful degradation
+  const { rankedIndices, rerankTimeMs } = await rerankPipeline({
+    query: question,
+    items,
+    inputLimit,
+    outputLimit: limit,
+    minRelevance: 0.05,
+    minKeep: Math.min(5, candidates.length),
+    applyDiversity: true,
+  });
 
-    const rerankedResults = rankedIndices.map((i) => candidates[i]);
+  const rerankedResults = rankedIndices.map((i) => candidates[i]);
 
-    // Build a set of kept document_ids to filter the referencesMap
-    const keptDocIds = new Set(rerankedResults.map((r) => r.document_id));
-    const filteredReferencesMap: Record<string, any> = {};
-    for (const [key, ref] of Object.entries(referencesMap)) {
-      if (keptDocIds.has(ref.document_id)) {
-        filteredReferencesMap[key] = ref;
-      }
+  const keptDocIds = new Set(rerankedResults.map((r) => r.document_id));
+  const filteredReferencesMap: Record<string, any> = {};
+  for (const [key, ref] of Object.entries(referencesMap)) {
+    if (keptDocIds.has(ref.document_id)) {
+      filteredReferencesMap[key] = ref;
     }
-
-    // Renumber references 1..N sequentially
-    const renumberedMap: Record<string, any> = {};
-    let newIndex = 1;
-    for (const ref of Object.values(filteredReferencesMap)) {
-      renumberedMap[String(newIndex)] = ref;
-      newIndex++;
-    }
-
-    log.info(
-      `[Rerank] ${candidates.length} → ${rerankedResults.length} results in ${rerankTimeMs}ms`
-    );
-
-    return {
-      results: rerankedResults,
-      referencesMap: renumberedMap,
-      contextSummary: buildContextSummary(renumberedMap),
-      rerankTimeMs,
-    };
-  } catch (error: any) {
-    log.error('[Rerank] Error:', error.message);
-    return {
-      results,
-      referencesMap,
-      contextSummary: buildContextSummary(referencesMap),
-      rerankTimeMs: Date.now() - startTime,
-    };
   }
+
+  const renumberedMap: Record<string, any> = {};
+  let newIndex = 1;
+  for (const ref of Object.values(filteredReferencesMap)) {
+    renumberedMap[String(newIndex)] = ref;
+    newIndex++;
+  }
+
+  log.info(
+    `[Rerank] ${candidates.length} → ${rerankedResults.length} results in ${rerankTimeMs}ms`
+  );
+
+  return {
+    results: rerankedResults,
+    referencesMap: renumberedMap,
+    contextSummary: buildContextSummary(renumberedMap),
+    rerankTimeMs,
+  };
 }
 
 function buildContextSummary(referencesMap: Record<string, any>): string {
