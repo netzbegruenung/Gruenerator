@@ -61,98 +61,117 @@ export class PostgresPersistence {
     this.db = db;
   }
 
+  /** Throws on DB error — callers must handle. Returns null only for genuinely new documents. */
   async loadDocument(documentId: string): Promise<Uint8Array | null> {
-    try {
-      const snapshotResult = await this.db(
-        `SELECT snapshot_data, version, created_at
-         FROM yjs_document_snapshots
-         WHERE document_id = $1
-         ORDER BY version DESC
-         LIMIT 1`,
-        [documentId]
-      );
+    const snapshotResult = await this.db(
+      `SELECT snapshot_data, version, created_at
+       FROM yjs_document_snapshots
+       WHERE document_id = $1
+       ORDER BY version DESC
+       LIMIT 1`,
+      [documentId]
+    );
+
+    if (snapshotResult.length > 0) {
+      const snapshot = snapshotResult[0];
+      log.debug(`[Load] Found snapshot for ${documentId}, version ${snapshot.version}`);
 
       const ydoc = new Y.Doc();
 
-      if (snapshotResult.length > 0) {
-        const snapshot = snapshotResult[0];
-        log.debug(`[Load] Found snapshot for ${documentId}, version ${snapshot.version}`);
+      try {
+        const decompressed = await gunzipAsync(snapshot.snapshot_data as Buffer);
+        Y.applyUpdate(ydoc, decompressed);
+        log.debug(`[Load] Applied snapshot (${decompressed.length} bytes)`);
+      } catch (error) {
+        log.error(`[Load] Failed to decompress/apply snapshot: ${error}`);
+      }
 
+      const updatesResult = await this.db(
+        `SELECT update_data
+         FROM yjs_document_updates
+         WHERE document_id = $1
+           AND created_at > $2
+         ORDER BY created_at ASC`,
+        [documentId, snapshot.created_at]
+      );
+
+      log.debug(`[Load] Found ${updatesResult.length} updates after snapshot`);
+
+      for (const row of updatesResult) {
         try {
-          const decompressed = await gunzipAsync(snapshot.snapshot_data as Buffer);
+          const decompressed = await gunzipAsync(row.update_data as Buffer);
           Y.applyUpdate(ydoc, decompressed);
-          log.debug(`[Load] Applied snapshot (${decompressed.length} bytes)`);
         } catch (error) {
-          log.error(`[Load] Failed to decompress/apply snapshot: ${error}`);
-        }
-
-        const updatesResult = await this.db(
-          `SELECT update_data
-           FROM yjs_document_updates
-           WHERE document_id = $1
-             AND created_at > $2
-           ORDER BY created_at ASC`,
-          [documentId, snapshot.created_at]
-        );
-
-        log.debug(`[Load] Found ${updatesResult.length} updates after snapshot`);
-
-        for (const row of updatesResult) {
-          try {
-            const decompressed = await gunzipAsync(row.update_data as Buffer);
-            Y.applyUpdate(ydoc, decompressed);
-          } catch (error) {
-            log.error(`[Load] Failed to apply update: ${error}`);
-          }
-        }
-      } else {
-        log.debug(`[Load] No snapshot found for ${documentId}, loading all updates`);
-
-        const updatesResult = await this.db(
-          `SELECT update_data
-           FROM yjs_document_updates
-           WHERE document_id = $1
-           ORDER BY created_at ASC`,
-          [documentId]
-        );
-
-        log.debug(`[Load] Found ${updatesResult.length} total updates`);
-
-        for (const row of updatesResult) {
-          try {
-            const decompressed = await gunzipAsync(row.update_data as Buffer);
-            Y.applyUpdate(ydoc, decompressed);
-          } catch (error) {
-            log.error(`[Load] Failed to apply update: ${error}`);
-          }
+          log.error(`[Load] Failed to apply update: ${error}`);
         }
       }
 
       const state = Y.encodeStateAsUpdate(ydoc);
       log.info(`[Load] Document ${documentId} loaded (${state.length} bytes)`);
       return state;
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      log.error(`[Load] Error loading document ${documentId}: ${err.message}`);
+    }
+
+    const updatesResult = await this.db(
+      `SELECT update_data
+       FROM yjs_document_updates
+       WHERE document_id = $1
+       ORDER BY created_at ASC`,
+      [documentId]
+    );
+
+    if (updatesResult.length === 0) {
+      log.info(`[Load] No stored state for ${documentId}`);
       return null;
     }
+
+    log.debug(`[Load] Found ${updatesResult.length} total updates (no snapshot)`);
+
+    const ydoc = new Y.Doc();
+
+    for (const row of updatesResult) {
+      try {
+        const decompressed = await gunzipAsync(row.update_data as Buffer);
+        Y.applyUpdate(ydoc, decompressed);
+      } catch (error) {
+        log.error(`[Load] Failed to apply update: ${error}`);
+      }
+    }
+
+    const state = Y.encodeStateAsUpdate(ydoc);
+    log.info(`[Load] Document ${documentId} loaded (${state.length} bytes)`);
+    return state;
   }
 
   async initializeWithTemplate(documentId: string, ydoc: Y.Doc): Promise<void> {
     try {
+      const fragment = ydoc.getXmlFragment('document-store');
+      if (fragment.length > 0) {
+        log.warn(
+          `[Template] Skipped for ${documentId} — fragment already has ${fragment.length} children`
+        );
+        return;
+      }
+
       const result = await this.db(
         'SELECT document_subtype FROM collaborative_documents WHERE id = $1',
         [documentId]
       );
-      if (result.length === 0) return;
+      if (result.length === 0) {
+        log.warn(`[Template] No document record found for ${documentId} — skipping`);
+        return;
+      }
 
       const subtype = result[0].document_subtype as string;
       const html = TEMPLATE_CONTENT[subtype];
-      if (!html) return;
+      if (!html) {
+        log.info(`[Template] No template for subtype '${subtype}' on ${documentId} — skipping`);
+        return;
+      }
 
-      const fragment = ydoc.getXmlFragment('document-store');
       injectHtmlIntoFragment(fragment, html);
-      log.info(`[Template] Injected '${subtype}' template for ${documentId}`);
+      log.info(
+        `[Template] Injected '${subtype}' template for ${documentId} (${fragment.length} blocks)`
+      );
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       log.error(`[Template] Error injecting template for ${documentId}: ${err.message}`);
