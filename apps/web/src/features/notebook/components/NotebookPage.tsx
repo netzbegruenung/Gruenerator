@@ -183,7 +183,9 @@ const NotebookPageContent = ({
     return {};
   }, [config.useSystemUserId, config.systemUserId]);
 
-  const filters = useMemo(() => {
+  // Getter that reads filters directly from the Zustand store at call time,
+  // bypassing React's render pipeline which can produce stale values
+  const getFilters = useCallback((): Record<string, unknown> | undefined => {
     if (isMulti) {
       const aggregated: Record<string, unknown> = {};
       selectedCollections.forEach((c) => {
@@ -194,7 +196,7 @@ const NotebookPageContent = ({
     }
     const f = getFiltersForCollection(selectedCollections[0]?.id);
     return Object.keys(f).length > 0 ? f : undefined;
-  }, [isMulti, selectedCollections, getFiltersForCollection, activeFiltersStore]);
+  }, [isMulti, selectedCollections, getFiltersForCollection]);
 
   const { initialMessages, onComplete } = useNotebookChatBridge({
     collections: selectedCollections,
@@ -283,7 +285,7 @@ const NotebookPageContent = ({
     <NotebookChatProvider
       collections={providerCollections}
       locale={locale}
-      filters={filters}
+      getFilters={getFilters}
       extraParams={extraParams}
       initialMessages={initialMessages}
       onComplete={onComplete as (metadata: NotebookMessageMetadata) => void}
