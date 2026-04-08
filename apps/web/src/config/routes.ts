@@ -255,6 +255,11 @@ export const GrueneratorenBundle = {
   Transfer: TransferPage,
 } as const;
 
+const notebookRoute = (
+  path: string,
+  component: LazyExoticComponent<ComponentType<Record<string, unknown>>>
+): RouteConfig => ({ path, component, withForm: true, layoutMode: 'sidebarOnly' });
+
 // Route Konfigurationen
 const standardRoutes: RouteConfig[] = [
   // Desktop app always shows DesktopHome dashboard; web redirects auth'd users to /desk
@@ -280,90 +285,23 @@ const standardRoutes: RouteConfig[] = [
   { path: '/datenbank/vorlagen', component: GrueneratorenBundle.VorlagenListe },
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
   { path: '/kommunal', component: GrueneratorenBundle.Oparl },
-  {
-    path: '/gruene-notebook',
-    component: GrueneratorenBundle.GrueneNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
-  },
-  {
-    path: '/gruene-bundestag',
-    component: GrueneratorenBundle.BundestagsfraktionNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
-  },
-  {
-    path: '/gruenerator-notebook',
-    component: GrueneratorenBundle.GrueneratorNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
-  },
-  {
-    path: '/gruene-oesterreich',
-    component: GrueneratorenBundle.OesterreichGrueneNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
-  },
-  {
-    path: '/gruene-hamburg',
-    component: GrueneratorenBundle.HamburgNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
-  },
-  {
-    path: '/gruene-schleswig-holstein',
-    component: GrueneratorenBundle.SchleswigHolsteinNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
-  },
-  {
-    path: '/gruene-thueringen',
-    component: GrueneratorenBundle.ThueringenNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
-  },
-  {
-    path: '/gruene-bayern',
-    component: GrueneratorenBundle.BayernNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
-  },
-  {
-    path: '/gruene-berlin',
-    component: GrueneratorenBundle.BerlinNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
-  },
-  {
-    path: '/gruene-mecklenburg-vorpommern',
-    component: GrueneratorenBundle.MecklenburgVorpommernNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
-  },
-  {
-    path: '/gruene-brandenburg',
-    component: GrueneratorenBundle.BrandenburgNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
-  },
-  {
-    path: '/kommunalwiki',
-    component: GrueneratorenBundle.KommunalwikiNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
-  },
-  {
-    path: '/boell-stiftung',
-    component: GrueneratorenBundle.BoellStiftungNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
-  },
-  {
-    path: '/gruenblog',
-    component: GrueneratorenBundle.GruenblogNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
-  },
+  notebookRoute('/gruene-notebook', GrueneratorenBundle.GrueneNotebook),
+  notebookRoute('/gruene-bundestag', GrueneratorenBundle.BundestagsfraktionNotebook),
+  notebookRoute('/gruenerator-notebook', GrueneratorenBundle.GrueneratorNotebook),
+  notebookRoute('/gruene-oesterreich', GrueneratorenBundle.OesterreichGrueneNotebook),
+  notebookRoute('/gruene-hamburg', GrueneratorenBundle.HamburgNotebook),
+  notebookRoute('/gruene-schleswig-holstein', GrueneratorenBundle.SchleswigHolsteinNotebook),
+  notebookRoute('/gruene-thueringen', GrueneratorenBundle.ThueringenNotebook),
+  notebookRoute('/gruene-bayern', GrueneratorenBundle.BayernNotebook),
+  notebookRoute('/gruene-berlin', GrueneratorenBundle.BerlinNotebook),
+  notebookRoute(
+    '/gruene-mecklenburg-vorpommern',
+    GrueneratorenBundle.MecklenburgVorpommernNotebook
+  ),
+  notebookRoute('/gruene-brandenburg', GrueneratorenBundle.BrandenburgNotebook),
+  notebookRoute('/kommunalwiki', GrueneratorenBundle.KommunalwikiNotebook),
+  notebookRoute('/boell-stiftung', GrueneratorenBundle.BoellStiftungNotebook),
+  notebookRoute('/gruenblog', GrueneratorenBundle.GruenblogNotebook),
   {
     path: '/notebook',
     component: lazy(() => Promise.resolve({ default: createRedirect('/recherche') })),
