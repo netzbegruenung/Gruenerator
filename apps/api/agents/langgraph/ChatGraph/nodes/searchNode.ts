@@ -5,6 +5,7 @@
  * Uses the direct search functions from the chat agents module.
  */
 
+import { vectorConfig } from '../../../../config/vectorConfig.js';
 import {
   executeDirectSearch,
   // executeDirectPersonSearch, // DISABLED: Person search not production ready
@@ -14,7 +15,15 @@ import {
 } from '../../../../routes/chat/agents/directSearch.js';
 import { selectAndCrawlTopUrls } from '../../../../services/search/CrawlingService.js';
 import { expandQuery } from '../../../../services/search/QueryExpansionService.js';
+import { DEFAULT_RELEVANCE } from '../../../../services/search/rerankPipeline.js';
 import { createLogger } from '../../../../utils/logger.js';
+import {
+  SOURCE_PREFIX,
+  type ChatGraphState,
+  type SearchResult,
+  type SearchSource,
+  type Citation,
+} from '../types.js';
 
 import {
   COLLECTION_LABELS,
@@ -27,7 +36,6 @@ import {
 
 import type { SubcategoryFilters } from '../../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../../routes/chat/agents/types.js';
-import type { ChatGraphState, SearchResult, SearchSource, Citation } from '../types.js';
 
 // Re-export for backward compatibility and reuse by SearchGraph
 export {
@@ -40,19 +48,6 @@ export {
 };
 
 const log = createLogger('ChatGraph:Search');
-
-/**
- * Convert various search result formats to unified SearchResult structure.
- */
-function normalizeResults(results: any[], source: string): SearchResult[] {
-  return results.map((r: any, i: number) => ({
-    source,
-    title: r.title || r.name || r.source || 'Unknown',
-    content: r.content || r.snippet || r.excerpt || r.text || '',
-    url: r.url || r.source_url || undefined,
-    relevance: r.relevance || r.score || r.similarity || 1 - i * 0.1,
-  }));
-}
 
 /**
  * Return default Qdrant collections based on user locale.
@@ -203,10 +198,40 @@ export async function executeWebSearchParallel(
 }
 
 /**
+ * Normalize relevance scores across source types to a comparable [0, 1] scale.
+ *
+ * Documents: uses raw similarityScore (from Qdrant hybrid search) when available,
+ * avoiding the lossy text-label mapping (0.5/0.7/0.9).
+ * Web: compresses rank-decay scores with a configurable ceiling so web results
+ * don't dominate over high-quality docs before the cross-encoder runs.
+ */
+export function normalizeScore(r: SearchResult): number {
+  const { webScoreCeiling } = vectorConfig.get('rerank');
+
+  if (r.similarityScore != null && r.source.startsWith(SOURCE_PREFIX.GRUENERATOR)) {
+    return Math.min(1.0, r.similarityScore * 1.05);
+  }
+
+  if (r.source.startsWith(SOURCE_PREFIX.DOCUMENT)) {
+    return r.relevance ?? DEFAULT_RELEVANCE;
+  }
+
+  if (r.source === SOURCE_PREFIX.WEB) {
+    const raw = r.relevance ?? DEFAULT_RELEVANCE;
+    return Math.min(webScoreCeiling, raw * webScoreCeiling);
+  }
+
+  return r.relevance ?? DEFAULT_RELEVANCE;
+}
+
+/**
  * Merge results from multiple search sources, deduplicating by URL.
- * Returns top results sorted by relevance for the reranker.
+ * Normalizes scores across source types before sorting so the cross-encoder
+ * receives a fair set of candidates. Over-fetches (default 16) to give the
+ * reranker more candidates — inspired by SurfSense's 2x retrieval pattern.
  */
 export function mergeSearchResults(...resultSets: SearchResult[][]): SearchResult[] {
+  const { mergeOverfetch } = vectorConfig.get('rerank');
   const seenUrls = new Set<string>();
   const merged: SearchResult[] = [];
 
@@ -214,12 +239,12 @@ export function mergeSearchResults(...resultSets: SearchResult[][]): SearchResul
     for (const r of results) {
       if (r.url && seenUrls.has(r.url)) continue;
       if (r.url) seenUrls.add(r.url);
-      merged.push(r);
+      merged.push({ ...r, relevance: normalizeScore(r) });
     }
   }
 
   merged.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
-  return merged.slice(0, 12);
+  return merged.slice(0, mergeOverfetch);
 }
 
 /**
