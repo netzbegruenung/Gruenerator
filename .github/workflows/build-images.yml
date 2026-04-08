@@ -123,13 +123,16 @@ jobs:
               - 'packages/ui/**'
               - 'packages/collab/**'
               - 'packages/wolke/**'
+              - 'pnpm-lock.yaml'
             api:
               - 'apps/api/**'
               - 'packages/shared/**'
+              - 'pnpm-lock.yaml'
             sites:
               - 'apps/sites/**'
               - 'packages/shared/**'
               - 'packages/sites-design/**'
+              - 'pnpm-lock.yaml'
             docs:
               - 'apps/docs/**'
               - 'packages/shared/**'
@@ -137,12 +140,15 @@ jobs:
               - 'packages/collab/**'
               - 'packages/ui/**'
               - 'packages/wolke/**'
+              - 'pnpm-lock.yaml'
             hocuspocus:
               - 'services/hocuspocus/**'
               - 'packages/shared/**'
+              - 'pnpm-lock.yaml'
             mcp:
               - 'services/mcp/**'
               - 'packages/shared/**'
+              - 'pnpm-lock.yaml'
             gruen-o-mat:
               - 'apps/gruen-o-mat/**'
               - 'packages/chat/**'
@@ -150,6 +156,7 @@ jobs:
               - 'packages/shared/**'
               - 'packages/ui/**'
               - 'packages/collab/**'
+              - 'pnpm-lock.yaml'
             voxtral:
               - 'services/voxtral/**'
             nlp:
