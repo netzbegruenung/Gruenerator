@@ -17,10 +17,16 @@ const HEALTH_PORT = parseInt(process.env.HEALTH_PORT || '1241', 10);
 async function main(): Promise<void> {
   log.info('Starting Hocuspocus service...');
 
-  // 1. Create database pool
+  // 1. Create database pool and verify connectivity
   const pool = createPool();
   const dbQuery = wrapPoolAsQueryFn(pool);
-  log.info('PostgreSQL pool created');
+  try {
+    await pool.query('SELECT 1');
+    log.info('PostgreSQL pool created and verified');
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`PostgreSQL not reachable: ${msg}`);
+  }
 
   // 2. Create and connect Redis client
   const redis = createRedisClient();
@@ -46,7 +52,7 @@ async function main(): Promise<void> {
   log.info(`Hocuspocus WebSocket server started on ${HOCUSPOCUS_HOST}:${HOCUSPOCUS_PORT}`);
 
   // 5. Start health check HTTP server
-  startHealthServer(HEALTH_PORT);
+  startHealthServer(HEALTH_PORT, { pool, redis });
 
   // 6. Graceful shutdown
   const shutdown = async () => {

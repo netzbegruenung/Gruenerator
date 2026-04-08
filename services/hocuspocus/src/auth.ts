@@ -30,30 +30,21 @@ export class AuthService {
   async authenticateConnection(data: AuthenticationData): Promise<AuthenticationResult> {
     const { documentName, requestHeaders, requestParameters, token } = data;
 
-    log.info(`[Auth] ========== Starting authentication ==========`);
-    log.info(`[Auth] Document: ${documentName}, hasToken: ${!!token}`);
+    log.debug(`[Auth] Starting authentication for ${documentName}, hasToken: ${!!token}`);
 
     try {
       if (token) {
-        log.info(`[Auth] Using token-based authentication`);
+        log.debug(`[Auth] Trying token-based auth`);
         const result = await this.authenticateByToken(token, documentName);
-        if (result.authenticated) {
-          log.info(`[Auth] ========== Authentication complete ==========`);
-          return result;
-        }
+        if (result.authenticated) return result;
       }
 
-      log.info(`[Auth] Using cookie-based authentication`);
+      log.debug(`[Auth] Trying cookie-based auth`);
       const cookieResult = await this.authenticateByCookie(requestHeaders, documentName);
-      if (cookieResult.authenticated) {
-        log.info(`[Auth] ========== Authentication complete ==========`);
-        return cookieResult;
-      }
+      if (cookieResult.authenticated) return cookieResult;
 
-      log.info(`[Auth] Auth methods failed, trying guest access for public document`);
-      const guestResult = await this.authenticateAsGuest(documentName, requestParameters);
-      log.info(`[Auth] ========== Authentication complete ==========`);
-      return guestResult;
+      log.debug(`[Auth] Trying guest access`);
+      return this.authenticateAsGuest(documentName, requestParameters);
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       log.error(`[Auth] EXCEPTION: ${err.message}`);
@@ -185,7 +176,7 @@ export class AuthService {
     threadId: string,
     userId: string
   ): Promise<AuthenticationResult> {
-    log.info(`[Auth-Chat] Checking thread access: ${threadId} for user: ${userId}`);
+    log.debug(`[Auth-Chat] Checking thread access: ${threadId} for user: ${userId}`);
 
     const directAccess = await this.db(
       `SELECT user_id, permissions, is_public FROM chat_threads
@@ -210,8 +201,8 @@ export class AuthService {
 
     if (isOwner || hasDirectPermission || isPublic) {
       const userResult = await this.db('SELECT display_name FROM profiles WHERE id = $1', [userId]);
-      log.info(
-        `[Auth-Chat] SUCCESS: User ${userId} has ${isOwner ? 'owner' : 'direct/public'} access to thread ${threadId}`
+      log.debug(
+        `[Auth-Chat] User ${userId} has ${isOwner ? 'owner' : 'direct/public'} access to thread ${threadId}`
       );
       return {
         authenticated: true,
@@ -233,7 +224,7 @@ export class AuthService {
 
     if ((groupAccess as unknown[]).length > 0) {
       const userResult = await this.db('SELECT display_name FROM profiles WHERE id = $1', [userId]);
-      log.info(`[Auth-Chat] SUCCESS: User ${userId} has group access to thread ${threadId}`);
+      log.debug(`[Auth-Chat] User ${userId} has group access to thread ${threadId}`);
       return {
         authenticated: true,
         userId,
@@ -250,7 +241,7 @@ export class AuthService {
     groupId: string,
     userId: string
   ): Promise<AuthenticationResult> {
-    log.info(`[Auth-Presence] Checking group presence: ${groupId} for user: ${userId}`);
+    log.debug(`[Auth-Presence] Checking group presence: ${groupId} for user: ${userId}`);
 
     const membership = await this.db(
       'SELECT 1 FROM group_memberships WHERE group_id = $1 AND user_id = $2::uuid LIMIT 1',
@@ -263,7 +254,7 @@ export class AuthService {
     }
 
     const userResult = await this.db('SELECT display_name FROM profiles WHERE id = $1', [userId]);
-    log.info(`[Auth-Presence] SUCCESS: User ${userId} authenticated for group presence ${groupId}`);
+    log.debug(`[Auth-Presence] User ${userId} authenticated for group presence ${groupId}`);
     return {
       authenticated: true,
       userId,
@@ -276,7 +267,7 @@ export class AuthService {
     documentName: string,
     userId: string
   ): Promise<AuthenticationResult> {
-    log.info(`[Auth] Checking document permissions for: ${documentName}`);
+    log.debug(`[Auth] Checking document permissions for: ${documentName}`);
     const docResult = await this.db(
       `SELECT created_by, permissions, is_public, share_mode, share_permission, is_deleted
        FROM collaborative_documents
@@ -284,16 +275,12 @@ export class AuthService {
       [documentName]
     );
 
-    log.info(`[Auth] Document query returned ${docResult.length} results`);
+    log.debug(`[Auth] Document query returned ${docResult.length} results`);
 
     if (docResult.length === 0) {
-      log.info(
-        `[Auth] Document ${documentName} doesn't exist, allowing authenticated user ${userId} to create it`
-      );
+      log.debug(`[Auth] Document ${documentName} not found, allowing user ${userId} to create it`);
 
       const userResult = await this.db('SELECT display_name FROM profiles WHERE id = $1', [userId]);
-
-      log.info(`[Auth] SUCCESS: User ${userId} authenticated for new document (read-write)`);
       return {
         authenticated: true,
         userId,
@@ -303,7 +290,7 @@ export class AuthService {
     }
 
     const document = docResult[0];
-    log.info(
+    log.debug(
       `[Auth] Document owner: ${document.created_by}, is_public: ${document.is_public}, is_deleted: ${document.is_deleted}`
     );
 
@@ -322,7 +309,7 @@ export class AuthService {
     >;
     const userPermission = permissions[userId];
 
-    log.info(
+    log.debug(
       `[Auth] isOwner: ${isOwner}, isPublic: ${isPublic}, shareMode: ${shareMode}, userPermission: ${JSON.stringify(userPermission)}`
     );
 
@@ -347,7 +334,7 @@ export class AuthService {
         if (groupPerms?.read !== false) {
           hasAccess = true;
           groupCanEdit = groupPerms?.write === true;
-          log.info(`[Auth] Group access granted (canEdit: ${groupCanEdit})`);
+          log.debug(`[Auth] Group access granted (canEdit: ${groupCanEdit})`);
         } else {
           log.warn(`[Auth] Group share found but read=false for user ${userId}, denying`);
         }
@@ -396,8 +383,8 @@ export class AuthService {
 
     const userResult = await this.db('SELECT display_name FROM profiles WHERE id = $1', [userId]);
 
-    log.info(
-      `[Auth] SUCCESS: User ${userId} authenticated for document ${documentName} (${readOnly ? 'read-only' : 'read-write'})`
+    log.debug(
+      `[Auth] User ${userId} authenticated for document ${documentName} (${readOnly ? 'read-only' : 'read-write'})`
     );
 
     return {
@@ -424,7 +411,7 @@ export class AuthService {
       }
 
       const userId = payload.sub as string;
-      log.info(`[Auth-Token] Token validated for user: ${userId}`);
+      log.debug(`[Auth-Token] Token validated for user: ${userId}`);
 
       return this.checkRoomAccess(documentName, userId);
     } catch (error) {
@@ -439,13 +426,13 @@ export class AuthService {
     documentName: string
   ): Promise<AuthenticationResult> {
     const cookieHeader = requestHeaders.cookie;
-    log.info(`[Auth-Cookie] Cookie header exists: ${!!cookieHeader}`);
+    log.debug(`[Auth-Cookie] Cookie header exists: ${!!cookieHeader}`);
 
     if (!cookieHeader || typeof cookieHeader !== 'string') {
       return { authenticated: false, reason: 'No session cookie provided' };
     }
 
-    log.info(`[Auth-Cookie] Verifying session via API`);
+    log.debug(`[Auth-Cookie] Verifying session via API`);
 
     const apiBase = process.env.API_INTERNAL_URL || 'http://api:3001';
     let userId: string;
@@ -476,7 +463,7 @@ export class AuthService {
       return { authenticated: false, reason: 'Session verification failed' };
     }
 
-    log.info(`[Auth-Cookie] User ID from session: ${userId}`);
+    log.debug(`[Auth-Cookie] User ID from session: ${userId}`);
     return this.checkRoomAccess(documentName, userId);
   }
 }
