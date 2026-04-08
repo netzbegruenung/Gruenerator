@@ -77,6 +77,7 @@ export async function shouldExtractMemories(
       prompt: `## Nutzer-Nachricht\n${userMessage}\n\n## Assistenten-Antwort\n${assistantMessage.slice(0, 1000)}`,
       maxOutputTokens: 500,
       temperature: 0,
+      abortSignal: AbortSignal.timeout(8000),
     });
 
     const categories: MemoryCategory[] = [];

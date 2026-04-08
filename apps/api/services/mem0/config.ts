@@ -9,10 +9,13 @@
 import OpenAI from 'openai';
 
 import { createQdrantClient } from '../../database/services/QdrantService/connection.js';
-import { extractJsonObject } from '../../utils/jsonParser.js';
+import { extractJsonObject, extractLastJsonObject } from '../../utils/jsonParser.js';
+import { createLogger } from '../../utils/logger.js';
 import { MistralEmbeddingService } from '../mistral/MistralEmbeddingService/MistralEmbeddingService.js';
 
 import type { MemoryConfig } from 'mem0ai/oss';
+
+const log = createLogger('Mem0Config');
 
 // Singleton embedding service instance
 let embeddingServiceInstance: MistralEmbeddingService | null = null;
@@ -103,9 +106,18 @@ class LiteLLMAdapter {
 
     const raw = response.choices[0]?.message?.content || '';
 
-    // GPT-OSS often outputs chain-of-thought reasoning before JSON.
-    // Use shared extractJsonObject utility to robustly extract JSON from prose.
-    const parsed = extractJsonObject(raw);
+    // GPT-OSS often outputs chain-of-thought reasoning before JSON,
+    // sometimes with literal `...` ellipsis tokens in arrays.
+    // extractLastJsonObject tries all JSON blocks last-to-first with ellipsis repair.
+    let parsed = extractJsonObject(raw);
+
+    if (!parsed) {
+      parsed = extractLastJsonObject(raw);
+      if (parsed) {
+        log.debug('[LiteLLMAdapter] Recovered JSON from last block in chain-of-thought response');
+      }
+    }
+
     const content = parsed ? JSON.stringify(parsed) : raw;
 
     return { content };
@@ -140,6 +152,9 @@ function createMem0QdrantClient() {
  * - Existing Qdrant client (with proper basic auth handling)
  */
 export function buildMem0Config(): Partial<MemoryConfig> {
+  // Disable mem0ai's built-in PostHog telemetry to avoid HTTP/2 GOAWAY errors
+  process.env.MEM0_TELEMETRY = 'false';
+
   const litellmBaseUrl =
     process.env.LITELLM_BASE_URL || 'https://litellm.netzbegruenung.verdigado.net';
   const litellmApiKey = process.env.LITELLM_API_KEY || '';

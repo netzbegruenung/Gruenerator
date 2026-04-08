@@ -19,5 +19,8 @@ export const COLLAB_SUBTYPES = [
 /** @deprecated Use COLLAB_SUBTYPES instead */
 export const DOCS_SUBTYPES = COLLAB_SUBTYPES;
 
+/** Document-only subtypes (excludes boards). Use for listing endpoints. */
+export const DOCS_ONLY_SUBTYPES = COLLAB_SUBTYPES.filter((s) => s !== 'boards');
+
 /** Marker for permissions auto-granted when a user visits an 'authenticated' share link */
 export const GRANTED_BY_SHARE_LINK = 'auto:share_link';
