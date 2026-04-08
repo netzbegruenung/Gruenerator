@@ -327,7 +327,7 @@ describe('aiController – POST /api/docs/ai', () => {
       const opts = mockStreamText.mock.calls[0][0];
       expect(opts.model).toEqual({ modelId: 'gpt-oss:120b' });
       expect(opts.system).toContain('You are a document editor.');
-      expect(opts.system).toContain('CRITICAL');
+      expect(opts.system).toContain('VALID SHAPES');
       expect(opts.toolChoice).toBe('auto');
       expect(opts.maxOutputTokens).toBe(4096);
       expect(opts.temperature).toBe(0.3);
@@ -586,11 +586,12 @@ describe('aiController – POST /api/docs/ai', () => {
 
       const opts = mockStreamText.mock.calls[0][0];
       expect(opts.system).toContain('You are a document editor.');
-      expect(opts.system).toContain('"add"');
-      expect(opts.system).toContain('"update"');
-      expect(opts.system).toContain('"delete"');
-      expect(opts.system).toContain('"replace"');
-      expect(opts.system).toContain('"insert"');
+      expect(opts.system).toContain('VALID SHAPES');
+      expect(opts.system).toContain('"type":"update"');
+      expect(opts.system).toContain('"type":"add"');
+      expect(opts.system).toContain('"type":"delete"');
+      expect(opts.system).toContain('"block" MUST be a STRING');
+      expect(opts.system).toContain('Do NOT use "replace"');
     });
 
     it('captures the exact tool definitions sent to the model', async () => {

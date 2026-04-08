@@ -64,6 +64,41 @@ function createNormalizingTransform(): TransformStream<string, string> {
   });
 }
 
+/**
+ * Strict prompt for BlockNote document operations.
+ * Modeled after suitenumerique/docs (github.com/suitenumerique/docs).
+ * Explicitly lists valid operation shapes so the LLM doesn't hallucinate types.
+ */
+const BLOCKNOTE_TOOL_STRICT_PROMPT = `
+You are editing a BlockNote document via the tool applyDocumentOperations.
+
+You MUST respond ONLY by calling applyDocumentOperations.
+The tool input MUST be valid JSON:
+{ "operations": [ ... ] }
+
+Each operation MUST include "type" and it MUST be one of:
+- "update" (requires: id, block)
+- "add"    (requires: referenceId, position, blocks)
+- "delete" (requires: id)
+
+VALID SHAPES (FOLLOW EXACTLY):
+
+Update:
+{ "type":"update", "id":"<id$>", "block":"<p>...</p>" }
+IMPORTANT: "block" MUST be a STRING containing a SINGLE valid HTML element.
+
+Add:
+{ "type":"add", "referenceId":"<id$>", "position":"before|after", "blocks":["<p>...</p>"] }
+IMPORTANT: "blocks" MUST be an ARRAY OF STRINGS.
+Each item MUST be a STRING containing a SINGLE valid HTML element.
+
+Delete:
+{ "type":"delete", "id":"<id$>" }
+
+IDs ALWAYS end with "$". Use ids EXACTLY as provided.
+Do NOT use "replace", "insert", "modify", or any other type value.
+Return ONLY the JSON tool input. No prose, no markdown.`;
+
 interface AIRequestBody {
   messages: UIMessage[];
   toolDefinitions: Record<string, unknown>;
@@ -117,17 +152,9 @@ export async function handleAiRequest(req: Request, res: Response) {
       `[DocsAI] Streaming response with ${Object.keys(tools).length} tools: ${Object.keys(tools).join(', ')}`
     );
 
-    const systemPromptSuffix = `
-
-CRITICAL: Each operation in the "operations" array MUST use a "type" value that is EXACTLY one of these three strings: "add", "update", or "delete".
-- To modify or replace a block's content, use "type": "update" (NOT "replace", "modify", or "edit").
-- To insert new blocks, use "type": "add" (NOT "insert", "append", or "addBlock").
-- To remove a block, use "type": "delete" (NOT "remove" or "deleteBlock").
-No other type values are valid.`;
-
     const result = streamText({
       model,
-      system: aiDocumentFormats.html.systemPrompt + systemPromptSuffix,
+      system: aiDocumentFormats.html.systemPrompt + '\n\n' + BLOCKNOTE_TOOL_STRICT_PROMPT,
       messages: await convertToModelMessages(messagesWithDocState),
       tools,
       toolChoice: 'auto',
