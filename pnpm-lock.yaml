@@ -602,8 +602,8 @@ importers:
   apps/mobile:
     dependencies:
       '@assistant-ui/react-native':
-        specifier: ^0.1.9
-        version: 0.1.9(@types/react@19.2.14)(assistant-cloud@0.1.25)(immer@11.1.4)(react-native@0.83.2(@babel/core@7.29.0)(@react-native/metro-config@0.84.1(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
+        specifier: ^0.1.10
+        version: 0.1.10(@types/react@19.2.14)(assistant-cloud@0.1.25)(immer@11.1.4)(react-native@0.83.2(@babel/core@7.29.0)(@react-native/metro-config@0.84.1(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
       '@expo-google-fonts/raleway':
         specifier: ^0.4.2
         version: 0.4.2
@@ -2074,8 +2074,8 @@ packages:
       '@types/react':
         optional: true
 
-  '@assistant-ui/react-native@0.1.9':
-    resolution: {integrity: sha512-UG52dWOsX9npRqfIIwZogg6VX3gHg2jqw9z772tcFs8njZlz5xB/SeYY4zy+QARd994uGrKxH5XVOKRiZwsvVA==}
+  '@assistant-ui/react-native@0.1.10':
+    resolution: {integrity: sha512-99TV0M2flDZBrpVLF/aUYrn7Bdb9aw0XLcPYQIpLTaG0ip4KNK5E6XBZLU7uh7DLTyOHuUaE15CpgNaSQMjTdQ==}
     peerDependencies:
       '@types/react': ^19.2.14
       react: 19.2.4
@@ -22032,23 +22032,11 @@ snapshots:
     dependencies:
       '@assistant-ui/store': 0.2.6(@assistant-ui/tap@0.5.6(@types/react@19.2.14)(react@19.2.4))(@types/react@19.2.14)(react@19.2.4)
       '@assistant-ui/tap': 0.5.6(@types/react@19.2.14)(react@19.2.4)
-      assistant-stream: 0.3.9
+      assistant-stream: 0.3.10
       nanoid: 5.1.7
     optionalDependencies:
       '@types/react': 19.2.14
       assistant-cloud: 0.1.24
-      react: 19.2.4
-      zustand: 5.0.12(@types/react@19.2.14)(immer@11.1.4)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
-
-  '@assistant-ui/core@0.1.10(@assistant-ui/store@0.2.6(@assistant-ui/tap@0.5.6(@types/react@19.2.14)(react@19.2.4))(@types/react@19.2.14)(react@19.2.4))(@assistant-ui/tap@0.5.6(@types/react@19.2.14)(react@19.2.4))(@types/react@19.2.14)(assistant-cloud@0.1.25)(react@19.2.4)(zustand@5.0.12(@types/react@19.2.14)(immer@11.1.4)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4)))':
-    dependencies:
-      '@assistant-ui/store': 0.2.6(@assistant-ui/tap@0.5.6(@types/react@19.2.14)(react@19.2.4))(@types/react@19.2.14)(react@19.2.4)
-      '@assistant-ui/tap': 0.5.6(@types/react@19.2.14)(react@19.2.4)
-      assistant-stream: 0.3.9
-      nanoid: 5.1.7
-    optionalDependencies:
-      '@types/react': 19.2.14
-      assistant-cloud: 0.1.25
       react: 19.2.4
       zustand: 5.0.12(@types/react@19.2.14)(immer@11.1.4)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
 
@@ -22079,12 +22067,12 @@ snapshots:
       - react-dom
       - supports-color
 
-  '@assistant-ui/react-native@0.1.9(@types/react@19.2.14)(assistant-cloud@0.1.25)(immer@11.1.4)(react-native@0.83.2(@babel/core@7.29.0)(@react-native/metro-config@0.84.1(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))':
+  '@assistant-ui/react-native@0.1.10(@types/react@19.2.14)(assistant-cloud@0.1.25)(immer@11.1.4)(react-native@0.83.2(@babel/core@7.29.0)(@react-native/metro-config@0.84.1(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))':
     dependencies:
-      '@assistant-ui/core': 0.1.10(@assistant-ui/store@0.2.6(@assistant-ui/tap@0.5.6(@types/react@19.2.14)(react@19.2.4))(@types/react@19.2.14)(react@19.2.4))(@assistant-ui/tap@0.5.6(@types/react@19.2.14)(react@19.2.4))(@types/react@19.2.14)(assistant-cloud@0.1.25)(react@19.2.4)(zustand@5.0.12(@types/react@19.2.14)(immer@11.1.4)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4)))
-      '@assistant-ui/store': 0.2.6(@assistant-ui/tap@0.5.6(@types/react@19.2.14)(react@19.2.4))(@types/react@19.2.14)(react@19.2.4)
-      '@assistant-ui/tap': 0.5.6(@types/react@19.2.14)(react@19.2.4)
-      assistant-stream: 0.3.9
+      '@assistant-ui/core': 0.1.13(@assistant-ui/store@0.2.6(@assistant-ui/tap@0.5.7(@types/react@19.2.14)(react@19.2.4))(@types/react@19.2.14)(react@19.2.4))(@assistant-ui/tap@0.5.7(@types/react@19.2.14)(react@19.2.4))(@types/react@19.2.14)(assistant-cloud@0.1.25)(react@19.2.4)(zustand@5.0.12(@types/react@19.2.14)(immer@11.1.4)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4)))
+      '@assistant-ui/store': 0.2.6(@assistant-ui/tap@0.5.7(@types/react@19.2.14)(react@19.2.4))(@types/react@19.2.14)(react@19.2.4)
+      '@assistant-ui/tap': 0.5.7(@types/react@19.2.14)(react@19.2.4)
+      assistant-stream: 0.3.10
       react: 19.2.4
       react-native: 0.83.2(@babel/core@7.29.0)(@react-native/metro-config@0.84.1(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.4)
       zustand: 5.0.12(@types/react@19.2.14)(immer@11.1.4)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
@@ -31000,9 +30988,7 @@ snapshots:
       metro-runtime: 0.83.5
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
     optional: true
 
   '@react-native/normalize-colors@0.74.89':
@@ -34584,7 +34570,7 @@ snapshots:
 
   assistant-cloud@0.1.24:
     dependencies:
-      assistant-stream: 0.3.9
+      assistant-stream: 0.3.10
 
   assistant-cloud@0.1.25:
     dependencies:
