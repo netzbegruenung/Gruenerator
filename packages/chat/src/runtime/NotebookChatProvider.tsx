@@ -63,6 +63,9 @@ function NotebookChatProviderInner({
   const isMulti = collections.length > 1;
   // Use a ref for threadId so adapter is not recreated when it changes mid-conversation
   const threadIdRef = useRef<string | null>(initialThreadId || null);
+  // Use a ref for filters so adapter is not recreated when filters change mid-conversation
+  const filtersRef = useRef(filters);
+  filtersRef.current = filters;
 
   const handleThreadCreated = useCallback(
     (newThreadId: string) => {
@@ -78,7 +81,7 @@ function NotebookChatProviderInner({
         ? { collectionIds: collections.map((c) => c.id) }
         : { collectionId: collections[0]?.id }),
       collectionLinkType: isMulti ? 'url' : collections[0]?.linkType,
-      filters,
+      filters: filtersRef.current,
       locale,
       extraParams,
       mode,
@@ -86,7 +89,7 @@ function NotebookChatProviderInner({
       documentIds,
       threadId: threadIdRef.current,
     }),
-    [collections, isMulti, filters, locale, extraParams, mode, endpoint, documentIds]
+    [collections, isMulti, locale, extraParams, mode, endpoint, documentIds]
   );
 
   const onCompleteRef = useRef(onComplete);
