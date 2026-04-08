@@ -1,12 +1,13 @@
 /**
  * Rerank utility for notebook search results.
  *
- * Uses Regolo's dedicated Rerank API (Qwen3-Reranker-4B cross-encoder)
- * to score search results by relevance, then filters and returns the top N.
+ * Uses the shared rerankPipeline (Regolo cross-encoder + MMR diversity)
+ * to score search results by relevance, then filters, applies diversity
+ * reranking, and renumbers citations.
  */
 
 import { createLogger } from '../../utils/logger.js';
-import { regoloRerankService } from '../search/RegoloRerankService.js';
+import { rerankPipeline } from '../search/rerankPipeline.js';
 
 import type { ExpandedChunkResult } from '../search/types.js';
 
@@ -49,26 +50,23 @@ export async function rerankNotebookResults({
   const candidates = results.slice(0, inputLimit);
 
   try {
-    const documents = candidates.map((r) => `${r.title}\n${r.snippet.slice(0, 300)}`);
+    const items = candidates.map((r) => ({
+      title: r.title,
+      content: r.snippet.slice(0, 300),
+      relevance: r.similarity,
+    }));
 
-    const rerankResults = await regoloRerankService.rerank({
+    const { rankedIndices, rerankTimeMs } = await rerankPipeline({
       query: question,
-      documents,
-      topN: limit,
+      items,
+      inputLimit,
+      outputLimit: limit,
+      minRelevance: 0.05,
+      minKeep: Math.min(5, candidates.length),
+      applyDiversity: true,
     });
 
-    const rerankTimeMs = Date.now() - startTime;
-
-    // Map back to candidates, keeping at least MIN_KEEP results for LLM breadth
-    const MIN_KEEP = Math.min(5, rerankResults.length);
-    const scored = rerankResults
-      .filter((r, i) => r.relevanceScore > 0.05 || i < MIN_KEEP)
-      .map((r) => ({
-        result: candidates[r.originalIndex],
-        relevanceScore: r.relevanceScore,
-      }));
-
-    const rerankedResults = scored.map((s) => s.result);
+    const rerankedResults = rankedIndices.map((i) => candidates[i]);
 
     // Build a set of kept document_ids to filter the referencesMap
     const keptDocIds = new Set(rerankedResults.map((r) => r.document_id));
