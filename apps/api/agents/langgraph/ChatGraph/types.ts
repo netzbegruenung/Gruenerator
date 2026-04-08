@@ -86,6 +86,20 @@ export interface GeneratedImageResult {
 }
 
 /**
+ * Source prefixes used in SearchResult.source to identify result provenance.
+ * Use these instead of raw strings to avoid silent mismatches across the pipeline.
+ */
+export const SOURCE_PREFIX = {
+  GRUENERATOR: 'gruenerator:',
+  WEB: 'web',
+  EXAMPLES: 'examples',
+  RESEARCH: 'research',
+  RESEARCH_SYNTHESIS: 'research_synthesis',
+  DOCUMENT: 'document',
+  DOCUMENT_CHAT: 'documentchat:',
+} as const;
+
+/**
  * Unified search result structure from any tool.
  */
 export interface SearchResult {
