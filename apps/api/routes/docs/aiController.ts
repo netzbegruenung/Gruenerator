@@ -19,6 +19,51 @@ import { type AgentConfig } from '../chat/agents/types.js';
 const log = createLogger('DocsAI');
 const router = createAuthenticatedRouter();
 
+/**
+ * Deterministic mapping of common LLM synonym types to BlockNote's valid types.
+ * GPT-OSS consistently generates "replace" instead of "update" and "insert" instead of "add".
+ * BlockNote xl-ai only accepts: "add", "update", "delete".
+ */
+const OPERATION_TYPE_ALIASES: Record<string, string> = {
+  replace: 'update',
+  replaceBlock: 'update',
+  modify: 'update',
+  edit: 'update',
+  insert: 'add',
+  insertBlock: 'add',
+  addBlock: 'add',
+  append: 'add',
+  remove: 'delete',
+  removeBlock: 'delete',
+  deleteBlock: 'delete',
+};
+
+/**
+ * Normalizes LLM operation types in SSE stream chunks before they reach BlockNote.
+ * Transforms known synonyms to the three valid types: add, update, delete.
+ */
+function normalizeOperationTypes(text: string): string {
+  return text.replace(/"type"\s*:\s*"(\w+)"/g, (match, type: string) => {
+    const normalized = OPERATION_TYPE_ALIASES[type];
+    if (normalized) {
+      log.info(`[DocsAI] Normalized operation type "${type}" → "${normalized}"`);
+      return `"type":"${normalized}"`;
+    }
+    return match;
+  });
+}
+
+/**
+ * Creates a TransformStream that normalizes operation types in the SSE stream.
+ */
+function createNormalizingTransform(): TransformStream<string, string> {
+  return new TransformStream({
+    transform(chunk, controller) {
+      controller.enqueue(normalizeOperationTypes(chunk));
+    },
+  });
+}
+
 interface AIRequestBody {
   messages: UIMessage[];
   toolDefinitions: Record<string, unknown>;
@@ -72,12 +117,20 @@ export async function handleAiRequest(req: Request, res: Response) {
       `[DocsAI] Streaming response with ${Object.keys(tools).length} tools: ${Object.keys(tools).join(', ')}`
     );
 
+    const systemPromptSuffix = `
+
+CRITICAL: Each operation in the "operations" array MUST use a "type" value that is EXACTLY one of these three strings: "add", "update", or "delete".
+- To modify or replace a block's content, use "type": "update" (NOT "replace", "modify", or "edit").
+- To insert new blocks, use "type": "add" (NOT "insert", "append", or "addBlock").
+- To remove a block, use "type": "delete" (NOT "remove" or "deleteBlock").
+No other type values are valid.`;
+
     const result = streamText({
       model,
-      system: aiDocumentFormats.html.systemPrompt,
+      system: aiDocumentFormats.html.systemPrompt + systemPromptSuffix,
       messages: await convertToModelMessages(messagesWithDocState),
       tools,
-      toolChoice: 'required',
+      toolChoice: 'auto',
       maxOutputTokens: 4096,
       temperature: 0.3,
       onFinish: ({ toolCalls, text, finishReason, usage }) => {
@@ -104,7 +157,28 @@ export async function handleAiRequest(req: Request, res: Response) {
       },
     });
 
-    result.pipeUIMessageStreamToResponse(res);
+    const stream = result.toUIMessageStream();
+    const normalizedStream = stream.pipeThrough(createNormalizingTransform());
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    const reader = normalizedStream.getReader();
+    const pump = async () => {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          res.end();
+          break;
+        }
+        res.write(value);
+      }
+    };
+    pump().catch((err) => {
+      log.error('[DocsAI] Stream pipe error:', err);
+      res.end();
+    });
   } catch (error) {
     log.error('[DocsAI] Error processing AI request:', error);
     return res.status(500).json({
