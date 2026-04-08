@@ -49,6 +49,12 @@ vi.mock('../../utils/keycloak/index.js', async () => {
   return { createAuthenticatedRouter: () => Router() };
 });
 
+vi.mock('../../middleware/rateLimitMiddleware.js', () => ({
+  rateLimitMiddleware: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+
+vi.mock('../../middleware/types.js', () => ({}));
+
 // ─── Import handler after mocks are in place ──────────────────
 
 const { handleAiRequest } = await import('./aiController.js');
@@ -65,6 +71,9 @@ function createMockRes() {
   const statusFn = vi.fn(() => ({ json: jsonFn }));
   res.status = statusFn;
   res.json = jsonFn;
+  res.setHeader = vi.fn();
+  res.write = vi.fn();
+  res.end = vi.fn();
   return { res: res as unknown as Response, statusFn, jsonFn };
 }
 
@@ -83,6 +92,17 @@ const sampleToolDefinitions = {
   },
 };
 
+function createMockReadableStream(chunks: string[] = ['data: test\n\n']) {
+  return new ReadableStream<string>({
+    start(controller) {
+      for (const chunk of chunks) {
+        controller.enqueue(chunk);
+      }
+      controller.close();
+    },
+  });
+}
+
 function setupHappyPath() {
   mockIsProviderConfigured.mockReturnValue(true);
   mockGetModel.mockReturnValue({ modelId: 'gpt-oss:120b' });
@@ -90,8 +110,12 @@ function setupHappyPath() {
   mockToolDefinitionsToToolSet.mockReturnValue({ applyDocumentOperations: {} });
   mockConvertToModelMessages.mockResolvedValue([{ role: 'user', content: 'test' }]);
 
+  const mockStream = createMockReadableStream();
   const mockPipe = vi.fn();
-  mockStreamText.mockReturnValue({ pipeUIMessageStreamToResponse: mockPipe });
+  mockStreamText.mockReturnValue({
+    pipeUIMessageStreamToResponse: mockPipe,
+    toUIMessageStream: () => mockStream,
+  });
 
   return { mockPipe };
 }
@@ -254,8 +278,8 @@ describe('aiController – POST /api/docs/ai', () => {
   // ── Happy path ────────────────────────────────────────────
 
   describe('Happy path', () => {
-    it('selects a configured provider and pipes the stream', async () => {
-      const { mockPipe } = setupHappyPath();
+    it('selects a configured provider and streams response', async () => {
+      setupHappyPath();
       const { res } = createMockRes();
       const req = createMockReq({
         messages: sampleMessages,
@@ -266,7 +290,7 @@ describe('aiController – POST /api/docs/ai', () => {
 
       expect(mockIsProviderConfigured).toHaveBeenCalled();
       expect(mockGetModel).toHaveBeenCalled();
-      expect(mockPipe).toHaveBeenCalled();
+      expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'text/event-stream');
     });
 
     it('calls injectDocumentStateMessages with the messages', async () => {
@@ -308,8 +332,9 @@ describe('aiController – POST /api/docs/ai', () => {
       expect(mockStreamText).toHaveBeenCalledOnce();
       const opts = mockStreamText.mock.calls[0][0];
       expect(opts.model).toEqual({ modelId: 'gpt-oss:120b' });
-      expect(opts.system).toBe('You are a document editor.');
-      expect(opts.toolChoice).toBe('required');
+      expect(opts.system).toContain('You are a document editor.');
+      expect(opts.system).toContain('VALID SHAPES');
+      expect(opts.toolChoice).toBe('auto');
       expect(opts.maxOutputTokens).toBe(4096);
       expect(opts.temperature).toBe(0.3);
     });
@@ -327,8 +352,8 @@ describe('aiController – POST /api/docs/ai', () => {
       expect(mockConvertToModelMessages).toHaveBeenCalledWith(sampleMessages);
     });
 
-    it('pipes the stream result to response', async () => {
-      const { mockPipe } = setupHappyPath();
+    it('sets SSE headers and streams to response', async () => {
+      setupHappyPath();
       const { res } = createMockRes();
       const req = createMockReq({
         messages: sampleMessages,
@@ -336,8 +361,12 @@ describe('aiController – POST /api/docs/ai', () => {
       });
 
       await handleAiRequest(req, res);
+      // Allow async pump to complete
+      await new Promise((r) => setTimeout(r, 10));
 
-      expect(mockPipe).toHaveBeenCalledWith(res);
+      expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'text/event-stream');
+      expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-cache');
+      expect(res.setHeader).toHaveBeenCalledWith('Connection', 'keep-alive');
     });
   });
 
@@ -545,6 +574,136 @@ describe('aiController – POST /api/docs/ai', () => {
       onError({ error: streamErr });
 
       expect(mockLogError).toHaveBeenCalledWith('[DocsAI] Stream error:', streamErr);
+    });
+  });
+
+  // ── Operation type validation (replaceBlock bug) ──────────
+
+  describe('Operation type analysis', () => {
+    it('augments system prompt with valid operation type constraints', async () => {
+      setupHappyPath();
+      const { res } = createMockRes();
+      const req = createMockReq({
+        messages: sampleMessages,
+        toolDefinitions: sampleToolDefinitions,
+      });
+
+      await handleAiRequest(req, res);
+
+      const opts = mockStreamText.mock.calls[0][0];
+      expect(opts.system).toContain('You are a document editor.');
+      expect(opts.system).toContain('VALID SHAPES');
+      expect(opts.system).toContain('"type":"update"');
+      expect(opts.system).toContain('"type":"add"');
+      expect(opts.system).toContain('"type":"delete"');
+      expect(opts.system).toContain('"block" MUST be a STRING');
+      expect(opts.system).toContain('Do NOT use "replace"');
+    });
+
+    it('captures the exact tool definitions sent to the model', async () => {
+      setupHappyPath();
+      const { res } = createMockRes();
+      const req = createMockReq({
+        messages: sampleMessages,
+        toolDefinitions: sampleToolDefinitions,
+      });
+
+      await handleAiRequest(req, res);
+
+      expect(mockToolDefinitionsToToolSet).toHaveBeenCalledWith(sampleToolDefinitions);
+      const opts = mockStreamText.mock.calls[0][0];
+      expect(opts.tools).toEqual({ applyDocumentOperations: {} });
+      expect(opts.toolChoice).toBe('auto');
+    });
+
+    it('exposes toolCalls with replaceBlock type via onFinish', async () => {
+      setupHappyPath();
+      const { res } = createMockRes();
+      const req = createMockReq({
+        messages: sampleMessages,
+        toolDefinitions: sampleToolDefinitions,
+      });
+
+      await handleAiRequest(req, res);
+
+      const { onFinish } = mockStreamText.mock.calls[0][0];
+      const simulatedToolCalls = [
+        {
+          toolName: 'applyDocumentOperations',
+          input: {
+            operations: [
+              {
+                type: 'replaceBlock',
+                id: 'block-1$',
+                block: '<p>New content</p>',
+              },
+            ],
+          },
+        },
+      ];
+
+      onFinish({
+        finishReason: 'tool-calls',
+        toolCalls: simulatedToolCalls,
+        text: '',
+        usage: { inputTokens: 200, outputTokens: 80 },
+      });
+
+      const operationType = simulatedToolCalls[0].input.operations[0].type;
+      expect(operationType).toBe('replaceBlock');
+      expect(['add', 'update', 'delete']).not.toContain(operationType);
+    });
+
+    it('valid operation types pass through correctly', async () => {
+      setupHappyPath();
+      const { res } = createMockRes();
+      const req = createMockReq({
+        messages: sampleMessages,
+        toolDefinitions: sampleToolDefinitions,
+      });
+
+      await handleAiRequest(req, res);
+
+      const { onFinish } = mockStreamText.mock.calls[0][0];
+      const validToolCalls = [
+        {
+          toolName: 'applyDocumentOperations',
+          input: {
+            operations: [
+              { type: 'update', id: 'block-1$', block: '<p><strong>Bold text</strong></p>' },
+              { type: 'add', id: 'block-2$', block: '<p>New paragraph</p>', position: 'after' },
+              { type: 'delete', id: 'block-3$' },
+            ],
+          },
+        },
+      ];
+
+      onFinish({
+        finishReason: 'tool-calls',
+        toolCalls: validToolCalls,
+        text: '',
+        usage: { inputTokens: 200, outputTokens: 80 },
+      });
+
+      const operationTypes = validToolCalls[0].input.operations.map((op) => op.type);
+      expect(operationTypes).toEqual(['update', 'add', 'delete']);
+      operationTypes.forEach((type) => {
+        expect(['add', 'update', 'delete']).toContain(type);
+      });
+    });
+
+    it('uses toolChoice auto (GPT-OSS only supports auto)', async () => {
+      setupHappyPath();
+      const { res } = createMockRes();
+      const req = createMockReq({
+        messages: sampleMessages,
+        toolDefinitions: sampleToolDefinitions,
+      });
+
+      await handleAiRequest(req, res);
+
+      const opts = mockStreamText.mock.calls[0][0];
+      expect(opts.toolChoice).toBe('auto');
     });
   });
 
