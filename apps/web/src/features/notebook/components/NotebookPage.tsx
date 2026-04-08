@@ -183,34 +183,20 @@ const NotebookPageContent = ({
     return {};
   }, [config.useSystemUserId, config.systemUserId]);
 
-  const filters = useMemo(() => {
-    console.debug(
-      '[NotebookPage] 🔍 filters useMemo recalculating, activeFiltersStore:',
-      JSON.stringify(activeFiltersStore)
-    );
+  // Getter that reads filters directly from the Zustand store at call time,
+  // bypassing React's render pipeline which can produce stale values
+  const getFilters = useCallback((): Record<string, unknown> | undefined => {
     if (isMulti) {
       const aggregated: Record<string, unknown> = {};
       selectedCollections.forEach((c) => {
         const f = getFiltersForCollection(c.id);
         if (Object.keys(f).length > 0) aggregated[c.id] = f;
       });
-      const result = Object.keys(aggregated).length > 0 ? aggregated : undefined;
-      console.debug('[NotebookPage] 🔍 multi filters result:', JSON.stringify(result));
-      return result;
+      return Object.keys(aggregated).length > 0 ? aggregated : undefined;
     }
-    const collectionId = selectedCollections[0]?.id;
-    const f = getFiltersForCollection(collectionId);
-    const result = Object.keys(f).length > 0 ? f : undefined;
-    console.debug(
-      '[NotebookPage] 🔍 single filters for',
-      collectionId,
-      ':',
-      JSON.stringify(f),
-      '→ result:',
-      JSON.stringify(result)
-    );
-    return result;
-  }, [isMulti, selectedCollections, getFiltersForCollection, activeFiltersStore]);
+    const f = getFiltersForCollection(selectedCollections[0]?.id);
+    return Object.keys(f).length > 0 ? f : undefined;
+  }, [isMulti, selectedCollections, getFiltersForCollection]);
 
   const { initialMessages, onComplete } = useNotebookChatBridge({
     collections: selectedCollections,
@@ -299,7 +285,7 @@ const NotebookPageContent = ({
     <NotebookChatProvider
       collections={providerCollections}
       locale={locale}
-      filters={filters}
+      getFilters={getFilters}
       extraParams={extraParams}
       initialMessages={initialMessages}
       onComplete={onComplete as (metadata: NotebookMessageMetadata) => void}
