@@ -9,7 +9,11 @@
  */
 
 import { vectorConfig } from '../../../../config/vectorConfig.js';
-import { rerankPipeline, type RerankableItem } from '../../../../services/search/rerankPipeline.js';
+import {
+  DEFAULT_RELEVANCE,
+  rerankPipeline,
+  type RerankableItem,
+} from '../../../../services/search/rerankPipeline.js';
 import { createLogger } from '../../../../utils/logger.js';
 
 import type { ChatGraphState } from '../types.js';
@@ -70,7 +74,7 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
 
   const reranked = rankedIndices.map((i) => ({
     ...candidates[i],
-    relevance: scores.get(i) ?? candidates[i].relevance ?? 0.5,
+    relevance: scores.get(i) ?? candidates[i].relevance ?? DEFAULT_RELEVANCE,
   }));
 
   log.info(

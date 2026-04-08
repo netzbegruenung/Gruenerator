@@ -15,6 +15,7 @@ import {
 } from '../../../../routes/chat/agents/directSearch.js';
 import { selectAndCrawlTopUrls } from '../../../../services/search/CrawlingService.js';
 import { expandQuery } from '../../../../services/search/QueryExpansionService.js';
+import { DEFAULT_RELEVANCE } from '../../../../services/search/rerankPipeline.js';
 import { createLogger } from '../../../../utils/logger.js';
 
 import {
@@ -219,15 +220,15 @@ export function normalizeScore(r: SearchResult): number {
   }
 
   if (r.source.startsWith('document')) {
-    return r.relevance ?? 0.5;
+    return r.relevance ?? DEFAULT_RELEVANCE;
   }
 
   if (r.source === 'web') {
-    const raw = r.relevance ?? 0.5;
+    const raw = r.relevance ?? DEFAULT_RELEVANCE;
     return Math.min(webScoreCeiling, raw * webScoreCeiling);
   }
 
-  return r.relevance ?? 0.5;
+  return r.relevance ?? DEFAULT_RELEVANCE;
 }
 
 /**

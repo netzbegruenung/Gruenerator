@@ -46,7 +46,7 @@ export type { ExpandedQuery } from './QueryExpansionService.js';
 export { applyMMR } from './DiversityReranker.js';
 
 // Export shared rerank pipeline
-export { rerankPipeline } from './rerankPipeline.js';
+export { DEFAULT_RELEVANCE, rerankPipeline } from './rerankPipeline.js';
 export type {
   RerankableItem,
   RerankPipelineOptions,
