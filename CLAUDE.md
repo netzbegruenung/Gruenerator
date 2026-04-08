@@ -293,6 +293,16 @@ When creating or extracting a new `packages/*` workspace, **three files must be 
 2. **`.github/workflows/build-images.yml`** — add `'packages/<name>/**'` to `dorny/paths-filter` entries.
 3. **`.gitignore`** — verify the path isn't matched by a broad pattern (e.g., `docs/` matches `*/docs/`; use `/docs/`).
 
+#### `packages/shared` in Dockerfiles — Runtime `.ts` Trap
+
+`packages/shared` exports raw `.ts` files (no build step in dev). Node.js **cannot import `.ts` files** at runtime, so any Dockerfile whose service imports from `@gruenerator/shared/*` must:
+
+1. **Build shared** in the builder stage: `WORKDIR /app/packages/shared && RUN pnpm exec tsc --project tsconfig.json` (requires `COPY tsconfig.base.json ./` since shared extends it).
+2. **Copy only compiled output** in production: `COPY --from=builder .../packages/shared/dist ./packages/shared/dist` (NOT the full `packages/shared` directory).
+3. **Rewrite exports** to point to compiled JS: `RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' packages/shared/package.json`.
+
+See `apps/api/Dockerfile` and `services/hocuspocus/Dockerfile` for reference implementations.
+
 ### Deploying to Test
 1. Merge changes into `test-branch` (e.g. via PR from `master`)
 2. Build images run automatically on push, or trigger manually: `gh workflow run "Build and Push Docker Images" --ref test-branch`

@@ -12,6 +12,7 @@ WORKDIR /app
 
 # Copy workspace config
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
+COPY tsconfig.base.json ./
 COPY services/hocuspocus/package.json ./services/hocuspocus/
 COPY packages/shared/package.json ./packages/shared/
 
@@ -22,6 +23,10 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 # Copy source and compile
 COPY packages/shared ./packages/shared
 COPY services/hocuspocus ./services/hocuspocus
+
+# Compile shared package (hocuspocus imports @gruenerator/shared/utils at runtime)
+WORKDIR /app/packages/shared
+RUN pnpm exec tsc --project tsconfig.json
 
 WORKDIR /app/services/hocuspocus
 RUN pnpm exec tsc --project tsconfig.build.json
@@ -67,7 +72,10 @@ RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/s
 
 # Copy compiled server and workspace dependencies
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/dist ./services/hocuspocus/dist
-COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared ./packages/shared
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/dist ./packages/shared/dist
+
+# Redirect shared package exports from ./src/*.ts to ./dist/*.js for Node.js
+RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' packages/shared/package.json
 
 # Set working directory
 WORKDIR /app/services/hocuspocus
