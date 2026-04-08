@@ -153,7 +153,7 @@ export class PostgresPersistence {
       }
 
       const result = await this.db(
-        'SELECT document_subtype FROM collaborative_documents WHERE id = $1',
+        'SELECT document_subtype, content FROM collaborative_documents WHERE id = $1',
         [documentId]
       );
       if (result.length === 0) {
@@ -162,15 +162,19 @@ export class PostgresPersistence {
       }
 
       const subtype = result[0].document_subtype as string;
-      const html = TEMPLATE_CONTENT[subtype];
+      const storedContent = result[0].content as string | null;
+
+      const html = storedContent?.trim() || TEMPLATE_CONTENT[subtype];
       if (!html) {
-        log.info(`[Template] No template for subtype '${subtype}' on ${documentId} — skipping`);
+        log.info(
+          `[Template] No content or template for subtype '${subtype}' on ${documentId} — skipping`
+        );
         return;
       }
 
       injectHtmlIntoFragment(fragment, html);
       log.info(
-        `[Template] Injected '${subtype}' template for ${documentId} (${fragment.length} blocks)`
+        `[Template] Injected ${storedContent ? 'stored content' : `'${subtype}' template`} for ${documentId} (${fragment.length} blocks)`
       );
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
