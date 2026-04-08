@@ -57,6 +57,92 @@ function escapeBareNewlinesInStrings(input: string): string {
 }
 
 /**
+ * Find the first brace-balanced JSON object substring starting from a given offset.
+ * Returns the substring or null if no complete object is found.
+ */
+function findBraceBalancedObject(text: string, startFrom = 0): string | null {
+  const braceStart = text.indexOf('{', startFrom);
+  if (braceStart === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = braceStart; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+    } else {
+      if (ch === '"') inString = true;
+      else if (ch === '{') depth++;
+      else if (ch === '}') {
+        depth--;
+        if (depth === 0) return text.slice(braceStart, i + 1);
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Find all brace-balanced JSON object substrings in text.
+ */
+function findAllBraceBalancedObjects(text: string): string[] {
+  const objects: string[] = [];
+  let offset = 0;
+
+  while (offset < text.length) {
+    const obj = findBraceBalancedObject(text, offset);
+    if (!obj) break;
+    objects.push(obj);
+    offset = text.indexOf(obj, offset) + obj.length;
+  }
+
+  return objects;
+}
+
+/**
+ * Remove literal `...` / `…` tokens from JSON arrays.
+ * LLMs often output `["item1", ...]` or `["item1", …]` as shorthand.
+ */
+export function repairJsonEllipsis(text: string): string {
+  return text
+    .replace(/,\s*\.{3}\s*]/g, ']')
+    .replace(/,\s*…\s*]/g, ']')
+    .replace(/\[\s*\.{3}\s*,/g, '[')
+    .replace(/\[\s*…\s*,/g, '[')
+    .replace(/,\s*\.{3}\s*,/g, ',')
+    .replace(/,\s*…\s*,/g, ',');
+}
+
+/**
+ * Extract the last parseable JSON object from text.
+ * When LLMs produce chain-of-thought, the final JSON block is often the correct one.
+ * Applies ellipsis repair to each candidate before parsing.
+ */
+export function extractLastJsonObject<T = Record<string, unknown>>(text: string): T | null {
+  const objects = findAllBraceBalancedObjects(text);
+
+  for (let k = objects.length - 1; k >= 0; k--) {
+    const repaired = repairJsonEllipsis(objects[k]);
+    try {
+      return JSON.parse(repaired) as T;
+    } catch {
+      // try next
+    }
+  }
+
+  return null;
+}
+
+/**
  * Extract and parse a JSON object from potentially messy AI response
  * Handles:
  * - Markdown code fences (```json ... ```)
@@ -85,43 +171,9 @@ export function extractJsonObject<T = Record<string, unknown>>(raw: unknown): T 
   text = text.replace(/[""]/g, '"').replace(/['']/g, "'");
 
   // Extract the first complete JSON object using brace-depth matching.
-  // The naive "first { to last }" strategy fails when LLMs output
-  // reasoning text between multiple JSON blocks (e.g. chain-of-thought).
-  const firstBrace = text.indexOf('{');
-  if (firstBrace !== -1) {
-    let depth = 0;
-    let inString = false;
-    let escaped = false;
-    let endPos = -1;
-
-    for (let i = firstBrace; i < text.length; i++) {
-      const ch = text[i];
-      if (inString) {
-        if (escaped) {
-          escaped = false;
-        } else if (ch === '\\') {
-          escaped = true;
-        } else if (ch === '"') {
-          inString = false;
-        }
-      } else {
-        if (ch === '"') {
-          inString = true;
-        } else if (ch === '{') {
-          depth++;
-        } else if (ch === '}') {
-          depth--;
-          if (depth === 0) {
-            endPos = i;
-            break;
-          }
-        }
-      }
-    }
-
-    if (endPos !== -1) {
-      text = text.slice(firstBrace, endPos + 1);
-    }
+  const firstObj = findBraceBalancedObject(text);
+  if (firstObj) {
+    text = firstObj;
   }
 
   log.debug('[jsonParser] Parsing JSON preview:', {
