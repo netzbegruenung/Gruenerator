@@ -75,8 +75,19 @@ function NotebookChatProviderInner({
     [onThreadCreated]
   );
 
-  const getConfig = useCallback(
-    (): NotebookAdapterConfig => ({
+  console.debug(
+    '[NotebookProvider] 🔍 render: filters prop =',
+    JSON.stringify(filters),
+    'filtersRef.current =',
+    JSON.stringify(filtersRef.current)
+  );
+
+  const getConfig = useCallback((): NotebookAdapterConfig => {
+    console.debug(
+      '[NotebookProvider] 🔍 getConfig called: filtersRef.current =',
+      JSON.stringify(filtersRef.current)
+    );
+    return {
       ...(isMulti
         ? { collectionIds: collections.map((c) => c.id) }
         : { collectionId: collections[0]?.id }),
@@ -88,9 +99,8 @@ function NotebookChatProviderInner({
       endpoint,
       documentIds,
       threadId: threadIdRef.current,
-    }),
-    [collections, isMulti, locale, extraParams, mode, endpoint, documentIds]
-  );
+    };
+  }, [collections, isMulti, locale, extraParams, mode, endpoint, documentIds]);
 
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
