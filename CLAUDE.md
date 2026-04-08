@@ -47,6 +47,7 @@ pnpm --filter @gruenerator/desktop dev           # Tauri desktop dev
 - **`packages/chat`** — Shared chat UI components, runtime adapters (Assistant UI), stores, and hooks. Consumed by `apps/web` at `/chat`.
 - **`packages/shared`** — Shared stores (Zustand), hooks, API clients, and feature modules (sharepic, image-studio, subtitle-editor, media-library, search). Shared components in `src/components/`.
 - **`packages/canvas-editor`** — Config-driven canvas editor using **react-konva** (Konva.js). Per-instance Zustand stores via `CanvasStoreProvider`, selectable wrapper components for O(2) selection rerenders. Konva docs: `https://konvajs.org/llms.txt` (overview + links), `https://konvajs.org/llms-full.txt` (full API reference).
+- **`services/hocuspocus`** — Standalone Hocuspocus WebSocket server for real-time Yjs collaboration. **Zero cross-package runtime deps** — utility functions are inlined, not imported from `packages/shared`, to keep the Docker image lightweight and avoid barrel-export dependency cascades.
 - **`services/mcp`** — Model Context Protocol server (`https://mcp.gruenerator.eu`). See `CLAUDE-mcp.md` for endpoints, tools, and testing.
 - **`services/comfyui`** — ComfyUI workflows for local GPU image generation.
 ### Page Layout Modes
@@ -292,6 +293,13 @@ When creating or extracting a new `packages/*` workspace, **three files must be 
 1. **Every Dockerfile that transitively depends on the new package** — add `COPY packages/<name>/package.json` and `COPY packages/<name>`. Use `pnpm --filter <app> list --depth 1 --json | grep @gruenerator` for the full dependency tree.
 2. **`.github/workflows/build-images.yml`** — add `'packages/<name>/**'` to `dorny/paths-filter` entries.
 3. **`.gitignore`** — verify the path isn't matched by a broad pattern (e.g., `docs/` matches `*/docs/`; use `/docs/`).
+
+#### `packages/shared` in Dockerfiles — Runtime `.ts` Trap
+
+`packages/shared` exports raw `.ts` files (no build step in dev). Node.js **cannot import `.ts` files** at runtime. Standalone Docker services (not bundled by Vite) that need shared utilities have two options:
+
+1. **Inline the function** (preferred for small utils) — copy the function into the service. Avoids shared's transitive dependency tree (`clsx`, React, etc.) leaking into lightweight services. Example: `stripHtmlTags` in `services/hocuspocus/src/htmlToYjsXml.ts`.
+2. **Build + rewrite exports** (for heavy shared usage) — build shared in Docker, copy `dist/`, `sed`-rewrite `package.json` exports from `.ts` → `.js`. See `apps/api/Dockerfile` for this pattern. Beware: barrel re-exports pull in ALL transitive deps.
 
 ### Deploying to Test
 1. Merge changes into `test-branch` (e.g. via PR from `master`)

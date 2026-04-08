@@ -1,9 +1,34 @@
 import { randomUUID } from 'crypto';
 
-import { stripHtmlTags } from '@gruenerator/shared/utils';
 import * as Y from 'yjs';
 
 import { createLogger } from './logger.js';
+
+/** Strip HTML tags and decode common entities. Inlined to avoid @gruenerator/shared runtime dep in Docker. */
+function stripHtmlTags(html: string | null | undefined): string {
+  if (!html) return '';
+  let result = html.replace(/<br\s*\/?>/gi, '\n');
+  let prev: string;
+  do {
+    prev = result;
+    result = result.replace(/<[^>]+>/g, '');
+  } while (result !== prev);
+  result = result
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#34;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&ldquo;/gi, '\u201C')
+    .replace(/&rdquo;/gi, '\u201D')
+    .replace(/&amp;/gi, '&');
+  do {
+    prev = result;
+    result = result.replace(/<[^>]+>/g, '');
+  } while (result !== prev);
+  return result.replace(/\s+/g, ' ').trim();
+}
 
 const log = createLogger('HtmlToYjs');
 
