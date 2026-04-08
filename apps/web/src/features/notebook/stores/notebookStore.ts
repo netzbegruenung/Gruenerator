@@ -538,7 +538,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
         } as Partial<NotebookState>;
       }
 
-      return {
+      const updated = {
         activeFilters: {
           ...state.activeFilters,
           [collectionId]: {
@@ -547,6 +547,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
           },
         },
       } as Partial<NotebookState>;
+      return updated;
     });
   },
 

@@ -430,6 +430,15 @@ export class NotebookQAService {
       throw new Error('Question is required');
     }
 
+    log.debug(
+      '[NotebookQA] getSearchContext requestFilters:',
+      JSON.stringify(requestFilters),
+      'collectionId:',
+      collectionId,
+      'collectionIds:',
+      collectionIds
+    );
+
     const isMulti = !!collectionIds && collectionIds.length > 0;
 
     if (isMulti) {

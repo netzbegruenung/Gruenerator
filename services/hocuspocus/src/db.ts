@@ -14,9 +14,9 @@ export function createPool(): InstanceType<typeof Pool> {
     database: process.env.POSTGRES_DB || 'gruenerator',
     user: process.env.POSTGRES_USER || 'postgres',
     password: process.env.POSTGRES_PASSWORD,
-    max: 5,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,
+    max: parseInt(process.env.DB_POOL_SIZE || '20', 10),
+    idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT_MS || '30000', 10),
+    connectionTimeoutMillis: parseInt(process.env.DB_CONNECT_TIMEOUT_MS || '5000', 10),
   });
 
   pool.on('error', (err) => {
