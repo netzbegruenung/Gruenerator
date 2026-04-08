@@ -5,6 +5,7 @@
  * Resource Types:
  * - image: AI image generation (Flux)
  * - text: AI text generation (Claude)
+ * - docs_ai: AI document editing (BlockNote xl-ai)
  * - pdf_export: PDF document export
  * - gruen_o_mat: Public Gruen-O-Mat chat (IP-based)
  *
@@ -39,6 +40,7 @@ export interface RateLimitConfig {
   resources: {
     image: ResourceConfig;
     text: ResourceConfig;
+    docs_ai: ResourceConfig;
     pdf_export: ResourceConfig;
     gruen_o_mat: ResourceConfig;
   };
@@ -64,6 +66,13 @@ const rateLimitConfig: RateLimitConfig = {
       anonymous: { limit: 5, window: 'daily' }, // Anonymous: 5 total generations per day
       authenticated: { limit: Infinity, window: 'daily' }, // Unlimited for logged-in users
       premium: { limit: Infinity, window: 'daily' }, // Unlimited for premium users
+    },
+
+    // AI Document Editing (BlockNote xl-ai)
+    docs_ai: {
+      anonymous: { limit: 0, window: 'daily' },
+      authenticated: { limit: 50, window: 'daily' },
+      premium: { limit: 200, window: 'daily' },
     },
 
     // PDF Export

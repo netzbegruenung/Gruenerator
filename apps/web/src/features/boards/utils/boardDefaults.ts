@@ -121,18 +121,36 @@ export function createDefaultRow(statusOptionId: string, userId: string): Row {
   };
 }
 
-export const DEFAULT_ROWS: Row[] = DEFAULT_STATUS_OPTIONS.map((opt) => ({
-  id: `row-sample-${opt.id}`,
-  cells: {
-    [FIELD_IDS.TITLE]: 'Neue Aufgabe',
-    [FIELD_IDS.STATUS]: opt.id,
-    [FIELD_IDS.DESCRIPTION]: '',
-    [FIELD_IDS.DUE_DATE]: null,
-    [FIELD_IDS.LABELS]: [],
-    [FIELD_IDS.ASSIGNEE]: '',
-    [FIELD_IDS.LINKED_DOCS]: '[]',
-    [FIELD_IDS.COMMENTS]: '[]',
+export const DEFAULT_ROWS: Row[] = [
+  {
+    id: 'row-sample-status-todo',
+    cells: {
+      [FIELD_IDS.TITLE]: 'Erste Aufgabe erstellen',
+      [FIELD_IDS.STATUS]: 'status-todo',
+      [FIELD_IDS.DESCRIPTION]:
+        'Aufgaben lassen sich per Drag & Drop zwischen Spalten verschieben. Klicke auf eine Karte, um Details zu bearbeiten.',
+      [FIELD_IDS.DUE_DATE]: null,
+      [FIELD_IDS.LABELS]: [],
+      [FIELD_IDS.ASSIGNEE]: '',
+      [FIELD_IDS.LINKED_DOCS]: '[]',
+      [FIELD_IDS.COMMENTS]: '[]',
+    },
+    createdBy: 'system',
+    createdAt: new Date().toISOString(),
   },
-  createdBy: 'system',
-  createdAt: new Date().toISOString(),
-}));
+  {
+    id: 'row-sample-status-in-progress',
+    cells: {
+      [FIELD_IDS.TITLE]: 'Ideen sammeln',
+      [FIELD_IDS.STATUS]: 'status-in-progress',
+      [FIELD_IDS.DESCRIPTION]: '',
+      [FIELD_IDS.DUE_DATE]: null,
+      [FIELD_IDS.LABELS]: [],
+      [FIELD_IDS.ASSIGNEE]: '',
+      [FIELD_IDS.LINKED_DOCS]: '[]',
+      [FIELD_IDS.COMMENTS]: '[]',
+    },
+    createdBy: 'system',
+    createdAt: new Date().toISOString(),
+  },
+];

@@ -63,7 +63,7 @@ export const useBoardState = (
       yRows.unobserveDeep(syncState);
       yViews.unobserveDeep(syncState);
     };
-  }, [ydoc, isSynced, yFields, yRows, yViews]);
+  }, [ydoc, isSynced, yFields, yRows, yViews, initialStructure]);
 
   // --- Row CRUD ---
 
