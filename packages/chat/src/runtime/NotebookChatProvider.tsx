@@ -26,6 +26,8 @@ export interface NotebookChatProviderProps {
   collections: NotebookCollection[];
   locale?: string;
   filters?: Record<string, unknown>;
+  /** Getter that reads filters directly from the store at request time — bypasses React render pipeline */
+  getFilters?: () => Record<string, unknown> | undefined;
   extraParams?: Record<string, unknown>;
   initialMessages?: readonly ThreadMessageLike[];
   onComplete?: (metadata: NotebookMessageMetadata) => void;
@@ -51,6 +53,7 @@ function NotebookChatProviderInner({
   collections,
   locale,
   filters,
+  getFilters,
   extraParams,
   initialMessages,
   onComplete,
@@ -63,6 +66,12 @@ function NotebookChatProviderInner({
   const isMulti = collections.length > 1;
   // Use a ref for threadId so adapter is not recreated when it changes mid-conversation
   const threadIdRef = useRef<string | null>(initialThreadId || null);
+  // Use a ref for getFilters so adapter reads latest filters directly from store at request time
+  const getFiltersRef = useRef(getFilters);
+  getFiltersRef.current = getFilters;
+  // Keep filters ref as fallback for consumers that pass static filters prop
+  const filtersRef = useRef(filters);
+  filtersRef.current = filters;
 
   const handleThreadCreated = useCallback(
     (newThreadId: string) => {
@@ -78,7 +87,7 @@ function NotebookChatProviderInner({
         ? { collectionIds: collections.map((c) => c.id) }
         : { collectionId: collections[0]?.id }),
       collectionLinkType: isMulti ? 'url' : collections[0]?.linkType,
-      filters,
+      filters: getFiltersRef.current?.() ?? filtersRef.current,
       locale,
       extraParams,
       mode,
@@ -86,7 +95,7 @@ function NotebookChatProviderInner({
       documentIds,
       threadId: threadIdRef.current,
     }),
-    [collections, isMulti, filters, locale, extraParams, mode, endpoint, documentIds]
+    [collections, isMulti, locale, extraParams, mode, endpoint, documentIds]
   );
 
   const onCompleteRef = useRef(onComplete);
