@@ -1715,9 +1715,6 @@ importers:
 
   services/hocuspocus:
     dependencies:
-      '@gruenerator/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       '@hocuspocus/extension-logger':
         specifier: ^3.4.4
         version: 3.4.4(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)
