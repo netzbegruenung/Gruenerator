@@ -15,7 +15,7 @@ export interface BoardTemplate {
   structure: BoardInitialStructure;
 }
 
-function makeRow(statusId: string, title: string): Row {
+function makeRow(statusId: string, title: string, overrides?: Record<string, unknown>): Row {
   return {
     id: `row-tpl-${statusId}-${Math.random().toString(36).slice(2, 7)}`,
     cells: {
@@ -27,6 +27,7 @@ function makeRow(statusId: string, title: string): Row {
       [FIELD_IDS.ASSIGNEE]: '',
       [FIELD_IDS.LINKED_DOCS]: '[]',
       [FIELD_IDS.COMMENTS]: '[]',
+      ...overrides,
     },
     createdBy: 'system',
     createdAt: new Date().toISOString(),
@@ -126,7 +127,18 @@ const redaktionTemplate: BoardTemplate = {
   defaultTitle: 'Neuer Redaktionsplan',
   structure: {
     fields: redaktionFields,
-    rows: redaktionStatusOptions.map((opt) => makeRow(opt.id, 'Neuer Beitrag')),
+    rows: [
+      makeRow('status-idee', 'Instagram-Post: Klimaschutz im Alltag', {
+        'field-plattform': 'plattform-instagram',
+        [FIELD_IDS.DESCRIPTION]:
+          'Tipps für klimafreundliches Verhalten im Alltag — kurze Karussell-Slides mit konkreten Handlungsempfehlungen.',
+      }),
+      makeRow('status-entwurf', 'Newsletter: Rückblick Kreisparteitag', {
+        'field-plattform': 'plattform-newsletter',
+        [FIELD_IDS.DESCRIPTION]:
+          'Zusammenfassung der wichtigsten Beschlüsse und nächsten Schritte vom letzten Kreisparteitag.',
+      }),
+    ],
     views: [makeKanbanView(redaktionFields)],
   },
 };
@@ -179,7 +191,16 @@ const eventTemplate: BoardTemplate = {
   defaultTitle: 'Neue Eventplanung',
   structure: {
     fields: eventFields,
-    rows: eventStatusOptions.map((opt) => makeRow(opt.id, 'Neue Aufgabe')),
+    rows: [
+      makeRow('status-planung', 'Infostand Wochenmarkt', {
+        'field-ort': 'Marktplatz',
+        [FIELD_IDS.DESCRIPTION]: 'Infostand mit Flyern und Gesprächsangeboten zu aktuellen Themen.',
+      }),
+      makeRow('status-planung', 'Mitgliederversammlung Q2', {
+        [FIELD_IDS.DESCRIPTION]:
+          'Quartalstreffen mit Berichten aus den Arbeitsgruppen und Abstimmung über anstehende Aktionen.',
+      }),
+    ],
     views: [makeKanbanView(eventFields)],
   },
 };
@@ -244,7 +265,18 @@ const wahlkampfTemplate: BoardTemplate = {
   defaultTitle: 'Neue Wahlkampfplanung',
   structure: {
     fields: wahlkampfFields,
-    rows: wahlkampfStatusOptions.map((opt) => makeRow(opt.id, 'Neue Aufgabe')),
+    rows: [
+      makeRow('status-diese-woche', 'Haustürwahlkampf Innenstadt', {
+        'field-prioritaet': 'prio-hoch',
+        [FIELD_IDS.DESCRIPTION]:
+          'Gebiete aufteilen, Flyer und Gesprächsleitfaden vorbereiten. Teams zu zweit losschicken.',
+      }),
+      makeRow('status-backlog', 'Flyer-Verteilung Neubaugebiet', {
+        'field-prioritaet': 'prio-mittel',
+        [FIELD_IDS.DESCRIPTION]:
+          'Neue Flyer zu Verkehrs- und Klimapolitik im Neubaugebiet verteilen.',
+      }),
+    ],
     views: [makeKanbanView(wahlkampfFields)],
   },
 };
