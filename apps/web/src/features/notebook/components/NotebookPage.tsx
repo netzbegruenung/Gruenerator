@@ -183,8 +183,6 @@ const NotebookPageContent = ({
     return {};
   }, [config.useSystemUserId, config.systemUserId]);
 
-  // Getter that reads filters directly from the Zustand store at call time,
-  // bypassing React's render pipeline which can produce stale values
   const getFilters = useCallback((): Record<string, unknown> | undefined => {
     if (isMulti) {
       const aggregated: Record<string, unknown> = {};
