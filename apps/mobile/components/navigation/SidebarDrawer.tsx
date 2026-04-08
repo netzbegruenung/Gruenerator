@@ -159,10 +159,6 @@ export const SidebarDrawer = memo(function SidebarDrawer({ navigation, theme: th
   const [sheetVisible, setSheetVisible] = useState(false);
   const aui = useAui();
 
-  const closeDrawer = useCallback(() => {
-    navigation.closeDrawer();
-  }, [navigation]);
-
   const navigateTo = useCallback(
     (screen: string, href?: string) => {
       if (href) {
