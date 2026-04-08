@@ -16,8 +16,7 @@ function useRecentDocs(limit = 5, enabled = true) {
     queryKey: ['workplace-recent-docs', limit],
     queryFn: async () => {
       const response = await apiClient.get(`/docs?limit=${limit}`);
-      const docs = (response.data as RecentDoc[]).filter((d) => d.document_subtype !== 'boards');
-      return docs;
+      return response.data as RecentDoc[];
     },
     staleTime: 5 * 60 * 1000,
     enabled,

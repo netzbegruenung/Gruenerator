@@ -8,7 +8,7 @@ import {
 } from '../../services/docs/DocGenerationService.js';
 import { createLogger } from '../../utils/logger.js';
 
-import { DOCS_SUBTYPES, GRANTED_BY_SHARE_LINK } from './constants.js';
+import { DOCS_ONLY_SUBTYPES, DOCS_SUBTYPES, GRANTED_BY_SHARE_LINK } from './constants.js';
 
 const log = createLogger('DocsGenerate');
 
@@ -157,7 +157,7 @@ router.get('/', async (req: Request, res: Response) => {
     const limitParam = Number(req.query.limit);
     const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 200) : null;
 
-    const params: unknown[] = [userId, userId, DOCS_SUBTYPES];
+    const params: unknown[] = [userId, userId, DOCS_ONLY_SUBTYPES];
     const limitClause = limit ? `LIMIT $${params.push(limit)}` : '';
 
     const result = (await db.query(
