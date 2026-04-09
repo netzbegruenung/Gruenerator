@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { selectAndCrawlTopUrls } from '../../../../services/search/CrawlingService.js';
 import { createLogger } from '../../../../utils/logger.js';
 
+import type { CrawledResult } from '../../../../services/search/CrawlingService.js';
 import type { ToolDependencies } from './registry.js';
 
 const log = createLogger('Tool:ScrapeUrl');
@@ -34,12 +35,9 @@ export function createScrapeUrlTool(_deps: ToolDependencies): DynamicStructuredT
           { maxUrls: 1, timeout: 8000 }
         );
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const crawled = results.find((r) => (r as any).crawled);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if (crawled && (crawled as any).fullContent) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const content = (crawled as any).fullContent as string;
+        const crawled = (results as CrawledResult[]).find((r) => r.crawled);
+        if (crawled && crawled.fullContent) {
+          const content = crawled.fullContent;
           const truncated =
             content.length > 4000 ? content.slice(0, 4000) + '\n\n[...gekürzt]' : content;
           return `Inhalt von ${url}:\n\n${truncated}`;

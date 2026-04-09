@@ -34,7 +34,7 @@ export function analyzeParameterConfidence(
   const requiredForAgent = requiredFields[agent] || [];
 
   for (const field of requiredForAgent) {
-    const value = (params as unknown as Record<string, unknown>)[field];
+    const value = (params as Record<string, unknown>)[field];
     const confidence = params._parameterConfidence?.[field] || 0;
     const threshold = confidenceThresholds[field] || 0.5;
 

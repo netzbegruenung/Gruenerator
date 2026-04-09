@@ -131,20 +131,20 @@ class FluxImageService {
       console.log('[FluxImageService] Using local ComfyUI backend');
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore - comfyui module is excluded from Docker build
-      const mod = await import('../comfyui/ComfyUIImageService.js');
-      return new mod.default() as unknown as FluxImageService;
+      const mod = (await import('../comfyui/ComfyUIImageService.js')) as { default: new () => FluxImageService };
+      return new mod.default();
     }
 
     if (useBackend === 'regolo') {
       console.log('[FluxImageService] Using Regolo Qwen-Image backend');
-      const { RegoloImageService } = await import('./RegoloImageService.js');
-      return new RegoloImageService() as unknown as FluxImageService;
+      const mod = await import('./RegoloImageService.js');
+      return new mod.RegoloImageService() as unknown as FluxImageService;
     }
 
     if (useBackend === 'ionos') {
       console.log('[FluxImageService] Using IONOS FLUX.1-schnell backend');
-      const { IonosImageService } = await import('./IonosImageService.js');
-      return new IonosImageService() as unknown as FluxImageService;
+      const mod = await import('./IonosImageService.js');
+      return new mod.IonosImageService() as unknown as FluxImageService;
     }
 
     console.log('[FluxImageService] Using hosted BFL API backend');
