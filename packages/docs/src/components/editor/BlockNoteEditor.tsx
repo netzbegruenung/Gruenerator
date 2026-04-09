@@ -378,6 +378,65 @@ const BlockNoteEditorInner = ({
     console.log(`[DocsAI:Frontend] Editor ready | doc: ${documentId} | ${blockIds.length} blocks`);
     console.log('[DocsAI:Frontend] Block IDs (actual values):', JSON.stringify(blockIds));
 
+    // DEBUG: Watch AI extension state transitions + log document text at each phase
+    const aiExt = editor.getExtension('ai' as never);
+    if (aiExt) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const store = (aiExt as any).store;
+      if (store) {
+        const getTextSnapshot = () => {
+          try {
+            return editor.document
+              .map((b) => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const content = (b as any).content;
+                if (Array.isArray(content)) {
+                  return content.map((c: { text?: string }) => c.text || '').join('');
+                }
+                return '';
+              })
+              .join(' | ');
+          } catch {
+            return '[error reading text]';
+          }
+        };
+
+        const getMarksSnapshot = () => {
+          try {
+            const state = editor.prosemirrorState;
+            let insertionCount = 0;
+            let deletionCount = 0;
+            state.doc.descendants((node) => {
+              for (const mark of node.marks) {
+                if (mark.type.name === 'insertion') insertionCount++;
+                if (mark.type.name === 'deletion') deletionCount++;
+              }
+            });
+            return { insertionCount, deletionCount };
+          } catch {
+            return { insertionCount: -1, deletionCount: -1 };
+          }
+        };
+
+        let prevStatus = '';
+        store.subscribe(() => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const menuState = (store as any).state?.aiMenuState;
+          const status = menuState === 'closed' ? 'closed' : menuState?.status;
+          if (status !== prevStatus) {
+            const marks = getMarksSnapshot();
+            console.log(
+              `[DocsAI:State] ${prevStatus || 'init'} → ${status}`,
+              `| marks: ins=${marks.insertionCount} del=${marks.deletionCount}`,
+              `| text: "${getTextSnapshot().substring(0, 200)}"`
+            );
+            prevStatus = status;
+          }
+        });
+        console.log('[DocsAI:Frontend] AI state watcher attached');
+      }
+    }
+
     const timeoutId = setTimeout(() => {
       if (onEditorReady) {
         onEditorReady(editor as unknown as BlockNoteEditorCore);
