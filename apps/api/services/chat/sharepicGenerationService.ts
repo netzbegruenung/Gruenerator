@@ -44,8 +44,8 @@ interface AIWorkerPool {
 }
 
 interface ExpressRequest extends Request {
-  user?: UserProfile;
-  correlationId?: string;
+  user?: UserProfile | undefined;
+  correlationId?: string | undefined;
   app: Request['app'] & {
     locals?: {
       sharepicImageManager?: SharepicImageManager;

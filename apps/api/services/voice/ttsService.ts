@@ -11,10 +11,10 @@ const DEFAULT_VOICE_ID =
 const VOXTRAL_SAMPLE_RATE = 24000;
 
 interface TTSOptions {
-  modelId?: string;
-  voiceId?: string;
-  refAudio?: string;
-  language?: string;
+  modelId?: string | undefined;
+  voiceId?: string | undefined;
+  refAudio?: string | undefined;
+  language?: string | undefined;
 }
 
 interface TTSStreamCallbacks {

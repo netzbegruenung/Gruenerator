@@ -382,7 +382,13 @@ router.post('/', upload.single('image'), async (req: Request, res: Response): Pr
 
     log.debug('Validated slider params:', sliderValidatedParams);
 
-    const processedText = await processSliderText({ label, headline, subtext, subtext2 });
+    const textDataForProcessing: Partial<SliderTextData> = {};
+    if (label !== undefined) textDataForProcessing.label = label;
+    if (headline !== undefined) textDataForProcessing.headline = headline;
+    if (subtext !== undefined) textDataForProcessing.subtext = subtext;
+    if (subtext2 !== undefined) textDataForProcessing.subtext2 = subtext2;
+
+    const processedText = await processSliderText(textDataForProcessing);
     log.debug('Processed text:', processedText);
 
     const generatedImageBuffer = await createSliderImage(processedText, sliderValidatedParams);

@@ -33,7 +33,7 @@ router.use('/generate-system-prompt', promptGeneratorRouter);
 router.use('/confirm', confirmRouter);
 router.use('/search', searchRouter);
 
-router.get('/agents', async (req: Request & RequestWithLocale, res: Response) => {
+router.get('/agents', (async (req: Request & RequestWithLocale, res: Response) => {
   try {
     const agents = await loadAgents();
     const defaultId = getDefaultAgentId();
@@ -57,9 +57,9 @@ router.get('/agents', async (req: Request & RequestWithLocale, res: Response) =>
     console.error('Error loading agents:', error);
     res.status(500).json({ error: 'Failed to load agents' });
   }
-});
+}) as any);
 
-router.get('/agents/:identifier', async (req: Request & RequestWithLocale, res: Response) => {
+router.get('/agents/:identifier', (async (req: Request & RequestWithLocale, res: Response) => {
   try {
     const identifier = getParam(req.params, 'identifier');
     const agent = await getAgent(identifier);
@@ -80,7 +80,7 @@ router.get('/agents/:identifier', async (req: Request & RequestWithLocale, res: 
     console.error('Error loading agent:', error);
     res.status(500).json({ error: 'Failed to load agent' });
   }
-});
+}) as any);
 
 router.get('/health', (_req, res) => {
   res.json({

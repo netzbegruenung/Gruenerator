@@ -340,7 +340,7 @@ async function transcribeBuffer(
 router.post(
   '/transcribe',
   upload.single('audio'),
-  async (req: TranscribeRequest, res: Response<TranscribeResponse>) => {
+  (async (req: TranscribeRequest, res: Response<TranscribeResponse>) => {
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -397,7 +397,7 @@ router.post(
         error: 'Fehler bei der Transkription: ' + (error as Error).message,
       });
     }
-  }
+  }) as any
 );
 
 /**
@@ -410,7 +410,7 @@ router.post(
 router.post(
   '/transcribe/stream',
   upload.single('audio'),
-  async (req: TranscribeRequest, res: Response) => {
+  (async (req: TranscribeRequest, res: Response) => {
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -495,7 +495,7 @@ router.post(
     }
 
     sse.end();
-  }
+  }) as any
 );
 
 // ============================================================================
@@ -725,7 +725,7 @@ router.post(
 router.post(
   '/chat',
   upload.single('audio'),
-  async (req: ChatRequest, res: Response<ChatResponse>) => {
+  (async (req: ChatRequest, res: Response<ChatResponse>) => {
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -759,7 +759,7 @@ router.post(
         error: 'Fehler beim Audio-Chat: ' + (error as Error).message,
       });
     }
-  }
+  }) as any
 );
 
 /**
