@@ -269,8 +269,9 @@ export async function processGraphRequestStreaming(
       if (typeof msg.content === 'string') {
         content = msg.content;
       } else if (Array.isArray(msg.content)) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        content = msg.content.map((c: any) => c.text || c.content || '').join('\n');
+        content = msg.content
+          .map((c) => ('text' in c ? (c as { text: string }).text : ''))
+          .join('\n');
       } else {
         content = String(msg.content);
       }

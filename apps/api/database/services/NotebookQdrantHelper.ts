@@ -140,7 +140,7 @@ class NotebookQdrantHelper {
    * Generate dummy vector for non-vector collections
    */
   generateDummyVector(): number[] {
-    return new Array(this.qdrant.vectorSize || 1024).fill(0.1);
+    return new Array<number>(this.qdrant.vectorSize || 1024).fill(0.1);
   }
 
   /**

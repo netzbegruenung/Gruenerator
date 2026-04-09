@@ -72,13 +72,13 @@ export class SimpleTemplateEngine {
     // Pre-process {{#if field}}...{{/if}} conditional blocks
     const processed = template.replace(
       /\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g,
-      (_match, field, content) => {
+      (_match: string, field: string, content: string) => {
         const value = this.getValue(field, data);
         return value !== undefined && value !== null && value !== '' ? content : '';
       }
     );
 
-    return processed.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+    return processed.replace(/\{\{([^}]+)\}\}/g, (match: string, key: string) => {
       const cleanKey = key.trim();
 
       // Handle special cases
@@ -124,7 +124,7 @@ export class SimpleTemplateEngine {
    * @returns Value at key path or undefined
    */
   static getValue(key: string, data: TemplateContext): unknown {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return
     return key.split('.').reduce((obj: any, prop: string) => obj?.[prop], data);
   }
 
@@ -219,8 +219,10 @@ export function loadPromptConfig(type: string): PromptConfig {
  * @param slug - Generator slug
  * @returns Generator data from database
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function loadCustomGeneratorPrompt(slug: string): Promise<Record<string, unknown> | null> {
+
+export async function loadCustomGeneratorPrompt(
+  slug: string
+): Promise<Record<string, unknown> | null> {
   const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
   const postgresService = getPostgresInstance();
   const generators = await postgresService.query(
@@ -326,7 +328,7 @@ export function buildSystemRole(
     );
   }
 
-  let systemRole = generatorData?.prompt || config.systemRole;
+  let systemRole: string = generatorData?.prompt || config.systemRole;
 
   // Apply extensions based on request data
   if (config.systemRoleExtensions) {

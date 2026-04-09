@@ -108,7 +108,7 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .filter((p: any) => p.type === 'text')
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .map((p: any) => p.text)
+          .map((p: any) => p.text as string)
           .join(' ');
         return { role: m.role, content: text || '' };
       }
