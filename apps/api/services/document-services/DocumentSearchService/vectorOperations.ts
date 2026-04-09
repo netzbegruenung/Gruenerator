@@ -148,7 +148,7 @@ export async function searchUserDocuments(
           score: r.score,
           payload: r.payload,
         })),
-        metadata: hybridResult.metadata as Record<string, unknown>,
+        metadata: hybridResult.metadata as unknown as Record<string, unknown>,
       };
     } else {
       console.log(`[VectorOperations] Performing vector search for user ${userId}`);

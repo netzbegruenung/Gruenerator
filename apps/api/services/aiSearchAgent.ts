@@ -611,7 +611,7 @@ Antworte NUR mit diesem JSON (keine Markdown-Blöcke):
   /**
    * Get cached enhancement
    */
-  private getCachedEnhancement(cacheKey: string): EnhancementResult | undefined {
+  private getCachedEnhancement(cacheKey: string): EnhancementResult | null {
     return this.enhancementCache.get(cacheKey);
   }
 
