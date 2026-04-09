@@ -1,9 +1,13 @@
 /**
  * Docs AI Controller
  * Handles AI-powered document editing via BlockNote xl-ai extension
+ *
+ * Uses the Vercel AI SDK's pipeUIMessageStreamToResponse() to stream SSE-framed
+ * UIMessageChunks directly to Express. This matches the format that
+ * DefaultChatTransport's EventSourceParserStream expects on the frontend.
  */
 
-import { TransformStream } from 'node:stream/web';
+import { type ServerResponse } from 'node:http';
 
 import {
   aiDocumentFormats,
@@ -22,94 +26,6 @@ import { type AgentConfig } from '../chat/agents/types.js';
 
 const log = createLogger('DocsAI');
 const router = createAuthenticatedRouter();
-
-/**
- * Deterministic mapping of common LLM synonym types to BlockNote's valid types.
- * GPT-OSS consistently generates "replace" instead of "update" and "insert" instead of "add".
- * BlockNote xl-ai only accepts: "add", "update", "delete".
- */
-const OPERATION_TYPE_ALIASES: Record<string, string> = {
-  replace: 'update',
-  replaceBlock: 'update',
-  modify: 'update',
-  edit: 'update',
-  insert: 'add',
-  insertBlock: 'add',
-  addBlock: 'add',
-  append: 'add',
-  remove: 'delete',
-  removeBlock: 'delete',
-  deleteBlock: 'delete',
-};
-
-/**
- * Recursively normalizes LLM operation types in a UIMessageChunk object.
- * Fixes tool call inputs where the LLM generates "replace" instead of "update", etc.
- * Works on the parsed JSON object level (before SSE serialization).
- */
-function normalizeChunkOperationTypes(chunk: Record<string, unknown>): Record<string, unknown> {
-  // Only process tool-input-delta and tool-input-available chunks
-  const chunkType = chunk.type as string;
-
-  if (chunkType === 'tool-input-delta') {
-    const delta = chunk.inputTextDelta as string | undefined;
-    if (delta) {
-      const normalized = delta.replace(/"type"\s*:\s*"(\w+)"/g, (match, type: string) => {
-        const alias = OPERATION_TYPE_ALIASES[type];
-        if (alias) {
-          log.info(`[DocsAI] Normalized operation type "${type}" → "${alias}"`);
-          return `"type":"${alias}"`;
-        }
-        return match;
-      });
-      if (normalized !== delta) {
-        return { ...chunk, inputTextDelta: normalized };
-      }
-    }
-  }
-
-  if (chunkType === 'tool-input-available') {
-    const input = chunk.input as { operations?: Array<{ type?: string }> } | undefined;
-    if (input?.operations) {
-      let changed = false;
-      const normalizedOps = input.operations.map((op) => {
-        const alias = op.type ? OPERATION_TYPE_ALIASES[op.type] : null;
-        if (alias) {
-          log.info(`[DocsAI] Normalized operation type "${op.type}" → "${alias}"`);
-          changed = true;
-          return { ...op, type: alias };
-        }
-        return op;
-      });
-      if (changed) {
-        return { ...chunk, input: { ...input, operations: normalizedOps } };
-      }
-    }
-  }
-
-  return chunk;
-}
-
-/**
- * Creates a TransformStream that normalizes operation types in UIMessageChunk objects.
- * Operates on JSON objects before SSE serialization.
- */
-function createNormalizingTransform(): TransformStream<
-  Record<string, unknown>,
-  Record<string, unknown>
-> {
-  return new TransformStream({
-    transform(chunk: Record<string, unknown>, controller) {
-      const chunkType = chunk.type as string;
-      if (chunkType === 'tool-input-delta' || chunkType === 'tool-input-available') {
-        log.info(
-          `[DocsAI] Stream chunk (${chunkType}): ${JSON.stringify(chunk).substring(0, 500)}`
-        );
-      }
-      controller.enqueue(normalizeChunkOperationTypes(chunk));
-    },
-  });
-}
 
 /**
  * Strict prompt for BlockNote document operations.
@@ -163,9 +79,6 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
     log.info(
       `[DocsAI] Request received: ${messages?.length || 0} messages, ${Object.keys(toolDefinitions || {}).length} tools`
     );
-    log.info(
-      `[DocsAI] Tool definitions received: ${Object.keys(toolDefinitions || {}).join(', ') || 'NONE'}`
-    );
 
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: 'Messages array is required' });
@@ -191,26 +104,8 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
       `[DocsAI] Messages after doc state injection: ${messagesWithDocState.length} messages`
     );
 
-    // DEBUG: Log document state sent to LLM (block IDs for cross-reference with tool call args)
-    for (const msg of messagesWithDocState) {
-      const parts = Array.isArray(msg.parts) ? msg.parts : [];
-      const content = parts
-        .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
-        .map((p) => p.text)
-        .join('');
-      const idMatches = content.match(/data-id="([^"]+)"/g);
-      if (idMatches && idMatches.length > 0) {
-        const ids = idMatches.map((m: string) => m.replace(/data-id="|"/g, ''));
-        log.info(`[DocsAI] Document block IDs sent to LLM (${ids.length}): ${ids.join(', ')}`);
-      }
-    }
-
     const tools = toolDefinitionsToToolSet(
       toolDefinitions as Parameters<typeof toolDefinitionsToToolSet>[0]
-    );
-
-    log.info(
-      `[DocsAI] Streaming response with ${Object.keys(tools).length} tools: ${Object.keys(tools).join(', ')}`
     );
 
     const result = streamText({
@@ -227,14 +122,8 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
         );
         if (toolCalls?.length) {
           toolCalls.forEach((tc, i) => {
-            const argsJson = JSON.stringify(tc.input);
-            log.info(`[DocsAI]   Tool[${i}]: ${tc.toolName}, args size: ${argsJson.length} chars`);
-            log.info(`[DocsAI]   Tool[${i}] full args: ${argsJson}`);
+            log.info(`[DocsAI]   Tool[${i}]: ${tc.toolName}, args: ${JSON.stringify(tc.input)}`);
           });
-        } else {
-          log.warn(
-            '[DocsAI] NO tool calls in response — model may not support tool calling properly'
-          );
         }
         if (usage) {
           log.info(`[DocsAI] Tokens — input: ${usage.inputTokens}, output: ${usage.outputTokens}`);
@@ -245,48 +134,12 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
       },
     });
 
-    // toUIMessageStream() produces JSON objects (UIMessageChunks).
-    // DefaultChatTransport expects SSE format (data: {...}\n\n).
-    // Pipeline: JSON chunks → normalize operation types → SSE framing → response
-    const stream = result.toUIMessageStream();
-
-    // @ts-expect-error Node.js TransformStream vs Web API TransformStream type mismatch
-    const normalizedStream = stream.pipeThrough(createNormalizingTransform());
-
-    // Convert JSON objects to SSE format: data: ${JSON.stringify(chunk)}\n\n
-    // @ts-expect-error Node.js TransformStream vs Web API TransformStream type mismatch
-    const sseStream = normalizedStream.pipeThrough(
-      new TransformStream({
-        transform(chunk: unknown, controller) {
-          controller.enqueue(`data: ${JSON.stringify(chunk)}\n\n`);
-        },
-        flush(controller) {
-          controller.enqueue('data: [DONE]\n\n');
-        },
-      })
-    );
-
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no');
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const reader = (sseStream as ReadableStream<any>).getReader();
-    const pump = async () => {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-          res.end();
-          break;
-        }
-        res.write(value);
-      }
-    };
-    pump().catch((err) => {
-      log.error('[DocsAI] Stream pipe error:', err);
-      res.end();
-    });
+    // pipeUIMessageStreamToResponse handles:
+    // 1. SSE framing (data: {...}\n\n) required by DefaultChatTransport's EventSourceParserStream
+    // 2. Correct Content-Type and cache headers
+    // 3. TextEncoder stream for binary transport
+    // 4. [DONE] sentinel on stream end
+    result.pipeUIMessageStreamToResponse(res as unknown as ServerResponse);
   } catch (error) {
     log.error('[DocsAI] Error processing AI request:', error);
     return res.status(500).json({
