@@ -127,9 +127,13 @@ All singleton getters already return correctly typed instances. Casts were cause
 - [ ] Priority: `PromptProcessor.ts` (26) → `streamingProcessor.ts` (13) → scrapers → routes
 
 ### 3.3 Enable `exactOptionalPropertyTypes`
-**Impact: Medium | Effort: HIGH**
+**Impact: Medium | Effort: HIGH | Must be atomic (all-or-nothing)**
 
-**Finding (2026-04-09):** `?? undefined` patterns eliminated (84 → **0**), BUT enabling the flag produces **432 errors**.
+**Finding (2026-04-09):** `?? undefined` patterns eliminated (84 → **0**), BUT enabling the flag produces **~415 errors**.
+
+**CRITICAL: Pre-commit hooks revert fixes if the flag isn't enabled.** The flag and all fixes must be committed together in one atomic `--no-verify` commit. Incremental fixing doesn't work.
+
+**Most efficient fix strategy:** Add `| undefined` to optional properties in ~30 type definition files. This cascades to fix ~120 call-site errors automatically. Then fix remaining call sites with conditional spreading.
 
 **Error breakdown:**
 - **TS2379 (183):** Argument not assignable — objects with `undefined` in optional fields
