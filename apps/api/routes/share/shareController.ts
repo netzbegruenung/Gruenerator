@@ -179,6 +179,11 @@ interface ShareTokenParams {
   [key: string]: string;
 }
 
+/** Request extended with pre-fetched share data passed between middleware handlers */
+interface RequestWithShare extends Request<ShareTokenParams> {
+  _share?: SharedMediaRow;
+}
+
 type UpdateImageRequest = Request<
   ShareTokenParams,
   unknown,
@@ -296,6 +301,7 @@ async function triggerBackgroundRender(
 
     log.info(`Background render starting for share ${shareToken}`);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await processProjectExport(project as any, projService);
 
     const subtitledVideoRelativePath = `${userId}/${projectId}/subtitled_${Date.now()}.mp4`;
@@ -568,7 +574,7 @@ router.post(
           projectId: projectId,
         });
 
-        triggerBackgroundRender(userId, projectId, share.shareToken, project);
+        void triggerBackgroundRender(userId, projectId, share.shareToken, project);
 
         log.info(
           `Video share created (rendering): ${share.shareToken} for project ${projectId} by user ${userId}`
@@ -606,7 +612,7 @@ router.post(
           projectId: projectId,
         });
 
-        triggerBackgroundRender(userId, projectId, share.shareToken, project);
+        void triggerBackgroundRender(userId, projectId, share.shareToken, project);
 
         log.info(
           `Video share created (re-rendering): ${share.shareToken} for project ${projectId} by user ${userId}`
@@ -1167,7 +1173,7 @@ router.get(
           }
         }
 
-        const ipAddress = req.ip || (req as any).connection?.remoteAddress || 'unknown';
+        const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
         await service.recordDownload(shareToken as string, null, ipAddress, share.id);
 
         try {
@@ -1196,7 +1202,7 @@ router.get(
       }
 
       // Image/video downloads: require auth — pass share to avoid re-fetch
-      (req as any)._share = share;
+      (req as RequestWithShare)._share = share;
       next();
     } catch (error) {
       log.error('Failed to process download:', error);
@@ -1214,8 +1220,7 @@ router.get(
 
       const service = await getSharedMediaService();
       const share =
-        ((req as any)._share as SharedMediaRow | undefined) ??
-        (await service.getShareByToken(shareToken as string));
+        (req as RequestWithShare)._share ?? (await service.getShareByToken(shareToken as string));
 
       if (!share) {
         res.status(404).json({ success: false, error: 'Geteiltes Medium nicht gefunden' });
@@ -1241,7 +1246,7 @@ router.get(
         return;
       }
 
-      const ipAddress = req.ip || (req as any).connection?.remoteAddress || 'unknown';
+      const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
       await service.recordDownload(shareToken as string, userEmail, ipAddress);
 
       const mediaPath = service.getMediaFilePath(share.file_path);

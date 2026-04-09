@@ -28,4 +28,21 @@ declare global {
   }
 }
 
+declare module 'react-lazy-load-image-component' {
+  import { type ComponentType } from 'react';
+  export const LazyLoadImage: ComponentType<{
+    src: string;
+    alt?: string;
+    effect?: string;
+    className?: string;
+    width?: number | string;
+    height?: number | string;
+    style?: React.CSSProperties;
+    wrapperClassName?: string;
+    placeholderSrc?: string;
+    threshold?: number;
+    onError?: (e: React.SyntheticEvent<HTMLImageElement>) => void;
+  }>;
+}
+
 export {};

@@ -62,7 +62,7 @@ export class ErrorHandler {
     // Detect error type based on message patterns
     const message = error.message || 'Unknown error';
 
-    if (message.includes('timeout') || (error as any).code === 'ETIMEDOUT') {
+    if (message.includes('timeout') || (error as NodeJS.ErrnoException).code === 'ETIMEDOUT') {
       return new TimeoutError(message, context.timeout || 0);
     }
 
@@ -73,7 +73,7 @@ export class ErrorHandler {
     if (
       message.includes('database') ||
       message.includes('RPC') ||
-      (error as any).code === 'PGRST'
+      (error as NodeJS.ErrnoException).code === 'PGRST'
     ) {
       return new DatabaseError(message, 'DATABASE_ERROR', {
         operation: context.operation,
@@ -186,12 +186,12 @@ export function createErrorHandler(
 /**
  * Wrap async functions with error handling
  */
-export function withErrorHandling<T extends (...args: any[]) => Promise<any>>(
+export function withErrorHandling<T extends (...args: unknown[]) => Promise<unknown>>(
   fn: T,
   errorHandler: ErrorHandler,
   context: ErrorContext = {}
 ): T {
-  return (async (...args: Parameters<T>): Promise<any> => {
+  return (async (...args: Parameters<T>): Promise<unknown> => {
     try {
       return await fn(...args);
     } catch (error) {

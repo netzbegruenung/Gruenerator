@@ -26,7 +26,7 @@ interface RenderJob {
   id: string;
   status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
   progress: number;
-  design: any;
+  design: Record<string, unknown>;
   options: {
     fps: number;
     size: { width: number; height: number };
@@ -90,8 +90,10 @@ router.post('/render', async (req: AuthenticatedRequest, res: Response): Promise
     res.json({
       render: { id },
     });
-  } catch (error: any) {
-    log.error(`Failed to create render job: ${error.message}`);
+  } catch (error: unknown) {
+    log.error(
+      `Failed to create render job: ${error instanceof Error ? error.message : String(error)}`
+    );
     res.status(500).json({ error: 'Failed to create render job' });
   }
 });
@@ -128,8 +130,10 @@ router.get(
           error: job.error,
         },
       });
-    } catch (error: any) {
-      log.error(`Failed to get render status: ${error.message}`);
+    } catch (error: unknown) {
+      log.error(
+        `Failed to get render status: ${error instanceof Error ? error.message : String(error)}`
+      );
       res.status(500).json({ error: 'Failed to get render status' });
     }
   }
@@ -170,8 +174,10 @@ router.delete(
 
       log.info(`Render job cancelled: ${id}`);
       res.json({ success: true });
-    } catch (error: any) {
-      log.error(`Failed to cancel render: ${error.message}`);
+    } catch (error: unknown) {
+      log.error(
+        `Failed to cancel render: ${error instanceof Error ? error.message : String(error)}`
+      );
       res.status(500).json({ error: 'Failed to cancel render' });
     }
   }

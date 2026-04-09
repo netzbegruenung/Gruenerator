@@ -44,6 +44,7 @@ const AntragAgentAnnotation = Annotation.Root({
   searchQuery: Annotation<string>({
     reducer: (x, y) => y ?? x,
   }),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   req: Annotation<any>({
     reducer: (x, y) => y ?? x,
   }),
@@ -99,6 +100,7 @@ const AntragAgentAnnotation = Annotation.Root({
 });
 
 function createAntragAgentGraph() {
+  /* eslint-disable @typescript-eslint/no-explicit-any -- LangGraph node type coercions */
   const graph = new StateGraph(AntragAgentAnnotation)
     .addNode('research', researchNode as any)
     .addNode('strategize', strategizeNode as any)
@@ -110,6 +112,7 @@ function createAntragAgentGraph() {
     .addEdge('strategize', 'generate')
     .addEdge('generate', 'format')
     .addEdge('format', '__end__');
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   return graph.compile();
 }
@@ -188,7 +191,7 @@ export async function runAntragAgentGraph(input: AntragAgentInput): Promise<Antr
         argumentsFound: result.arguments.length,
       },
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.error('[runAntragAgentGraph] Fatal error:', error);
     return {
       success: false,
@@ -202,7 +205,7 @@ export async function runAntragAgentGraph(input: AntragAgentInput): Promise<Antr
         totalTimeMs: 0,
         argumentsFound: 0,
       },
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 }

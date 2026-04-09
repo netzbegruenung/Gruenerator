@@ -3,7 +3,6 @@
  * Searches Green Party knowledge bases for relevant arguments using Qdrant
  */
 
-import { SYSTEM_COLLECTIONS } from '../../../../config/systemCollectionsConfig.js';
 import { getQdrantInstance } from '../../../../database/services/QdrantService/index.js';
 import { mistralEmbeddingService } from '../../../../services/mistral/MistralEmbeddingService/index.js';
 

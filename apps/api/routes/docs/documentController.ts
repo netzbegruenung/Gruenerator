@@ -8,48 +8,11 @@ import {
 } from '../../services/docs/DocGenerationService.js';
 import { createLogger } from '../../utils/logger.js';
 
-import { DOCS_ONLY_SUBTYPES, DOCS_SUBTYPES, GRANTED_BY_SHARE_LINK } from './constants.js';
+import { DOCS_ONLY_SUBTYPES, DOCS_SUBTYPES } from './constants.js';
+import { checkDocumentAccess, autoGrantSharePermission } from './documentAccess.js';
+import { type CollaborativeDocument } from './types.js';
 
 const log = createLogger('DocsGenerate');
-
-/**
- * Permission entry for a user on a document
- */
-interface PermissionEntry {
-  level: 'owner' | 'editor' | 'viewer';
-  granted_at: string;
-  granted_by?: string;
-}
-
-/**
- * Permissions object mapping user IDs to their permission entries
- */
-interface DocumentPermissions {
-  [userId: string]: PermissionEntry;
-}
-
-/**
- * Collaborative document row from database
- */
-interface CollaborativeDocument {
-  id: string;
-  title: string;
-  content?: string;
-  created_by: string;
-  last_edited_by: string;
-  document_subtype: string;
-  folder_id: string | null;
-  permissions: DocumentPermissions | null;
-  is_public: boolean;
-  share_mode?: 'private' | 'authenticated' | 'public';
-  share_permission?: 'editor' | 'viewer';
-  is_deleted: boolean;
-  created_at: string;
-  updated_at: string;
-  creator_name?: string;
-  last_editor_name?: string;
-  [key: string]: unknown;
-}
 
 const router = Router();
 const db = getPostgresInstance();
@@ -85,9 +48,10 @@ router.post('/', async (req: Request, res: Response) => {
     )) as CollaborativeDocument[];
 
     return res.status(201).json(result[0]);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('[Docs] Error creating document:', error);
-    return res.status(500).json({ error: 'Failed to create document', details: error.message });
+    return res.status(500).json({ error: 'Failed to create document', details: message });
   }
 });
 
@@ -135,9 +99,10 @@ router.post('/generate', async (req: Request, res: Response) => {
 
     log.info(`Document created: ${document.id}, subtype: ${generated.subtype}`);
     return res.status(201).json(document);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('[Docs] Error generating document:', error);
-    return res.status(500).json({ error: 'Failed to generate document', details: error.message });
+    return res.status(500).json({ error: 'Failed to generate document', details: message });
   }
 });
 
@@ -208,9 +173,10 @@ router.get('/', async (req: Request, res: Response) => {
     )) as CollaborativeDocument[];
 
     return res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('[Docs] Error listing documents:', error);
-    return res.status(500).json({ error: 'Failed to list documents', details: error.message });
+    return res.status(500).json({ error: 'Failed to list documents', details: message });
   }
 });
 
@@ -249,39 +215,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     const document = result[0];
 
-    const isOwner = document.created_by === userId;
-    const hasDirectPerm = !!(document.permissions && document.permissions[userId]);
-    let hasAccess =
-      isOwner || document.is_public || document.share_mode === 'authenticated' || hasDirectPerm;
-    let accessMethod = isOwner
-      ? 'owner'
-      : document.is_public
-        ? 'public'
-        : document.share_mode === 'authenticated'
-          ? 'authenticated'
-          : hasDirectPerm
-            ? `direct:${document.permissions?.[userId]?.level}`
-            : 'none';
-
-    if (!hasAccess) {
-      const groupAccess = (await db.query(
-        `SELECT gcs.permissions FROM group_content_shares gcs
-         INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
-         WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2 LIMIT 1`,
-        [userId, id]
-      )) as { permissions: { read: boolean; write: boolean } | null }[];
-
-      if (groupAccess.length > 0 && groupAccess[0].permissions?.read !== false) {
-        hasAccess = true;
-        accessMethod = 'group:read';
-      } else if (groupAccess.length > 0) {
-        console.warn(
-          '[Docs] GET /api/docs/%s — group access denied (read=false) for userId=%s',
-          id,
-          userId
-        );
-      }
-    }
+    const { hasAccess, accessMethod } = await checkDocumentAccess(document, userId);
 
     if (!hasAccess) {
       console.warn(
@@ -295,36 +229,13 @@ router.get('/:id', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    if (
-      document.share_mode === 'authenticated' &&
-      document.created_by !== userId &&
-      !(document.permissions && document.permissions[userId])
-    ) {
-      const permissionLevel = document.share_permission || 'editor';
-      const permissionEntry = JSON.stringify({
-        [userId]: {
-          level: permissionLevel,
-          granted_at: new Date().toISOString(),
-          granted_by: GRANTED_BY_SHARE_LINK,
-        },
-      });
-
-      db.query(
-        `UPDATE collaborative_documents
-         SET permissions = COALESCE(permissions, '{}')::jsonb || $1::jsonb,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = $2
-           AND NOT (COALESCE(permissions, '{}')::jsonb ? $3)`,
-        [permissionEntry, id, userId]
-      ).catch((err: any) => {
-        console.error('[Docs] Error auto-adding user to permissions:', err.message);
-      });
-    }
+    autoGrantSharePermission(document, userId);
 
     return res.json(document);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('[Docs] Error fetching document:', error);
-    return res.status(500).json({ error: 'Failed to fetch document', details: error.message });
+    return res.status(500).json({ error: 'Failed to fetch document', details: message });
   }
 });
 
@@ -440,9 +351,10 @@ router.put('/:id', async (req: Request, res: Response) => {
       accessMethod
     );
     return res.json(result[0]);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('[Docs] Error updating document:', error);
-    return res.status(500).json({ error: 'Failed to update document', details: error.message });
+    return res.status(500).json({ error: 'Failed to update document', details: message });
   }
 });
 
@@ -484,9 +396,10 @@ router.delete('/:id', async (req: Request, res: Response) => {
     );
 
     return res.json({ message: 'Document deleted successfully' });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('[Docs] Error deleting document:', error);
-    return res.status(500).json({ error: 'Failed to delete document', details: error.message });
+    return res.status(500).json({ error: 'Failed to delete document', details: message });
   }
 });
 
@@ -515,30 +428,7 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
 
     const original = checkResult[0];
 
-    let hasAccessToDuplicate =
-      original.created_by === userId ||
-      original.is_public ||
-      original.share_mode === 'authenticated' ||
-      (original.permissions && original.permissions[userId]);
-
-    if (!hasAccessToDuplicate) {
-      const groupAccess = (await db.query(
-        `SELECT gcs.permissions FROM group_content_shares gcs
-         INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
-         WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2 LIMIT 1`,
-        [userId, id]
-      )) as { permissions: { read: boolean; write: boolean } | null }[];
-
-      if (groupAccess.length > 0 && groupAccess[0].permissions?.read !== false) {
-        hasAccessToDuplicate = true;
-      } else if (groupAccess.length > 0) {
-        console.warn(
-          '[Docs] POST /api/docs/%s/duplicate — group access denied (read=false) for userId=%s',
-          id,
-          userId
-        );
-      }
-    }
+    const { hasAccess: hasAccessToDuplicate } = await checkDocumentAccess(original, userId);
 
     if (!hasAccessToDuplicate) {
       console.warn(
@@ -566,9 +456,10 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
     )) as CollaborativeDocument[];
 
     return res.status(201).json(newDoc[0]);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('[Docs] Error duplicating document:', error);
-    return res.status(500).json({ error: 'Failed to duplicate document', details: error.message });
+    return res.status(500).json({ error: 'Failed to duplicate document', details: message });
   }
 });
 

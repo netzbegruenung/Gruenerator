@@ -12,10 +12,10 @@ export interface AIWorkerResult {
   content?: string;
   metadata?: {
     webSearchSources?: WebSearchSource[];
-    [key: string]: any;
+    [key: string]: unknown;
   };
   agent?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -25,7 +25,7 @@ export interface WebSearchSource {
   url: string;
   title: string;
   snippet?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -47,7 +47,7 @@ export interface AttachmentSummary {
  */
 export interface EnrichmentSummary {
   webSearchSources?: WebSearchSource[];
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -57,7 +57,7 @@ export interface AttachmentInfo {
   hasAttachments: boolean;
   summary?: AttachmentSummary;
   enrichmentSummary?: EnrichmentSummary;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -68,7 +68,7 @@ export interface SuccessResponse {
   content: string;
   metadata: {
     timestamp: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   agent?: string;
 }
@@ -97,7 +97,7 @@ export interface ErrorResponseWithStatus {
 export interface MessageContentBlock {
   text?: string;
   content?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -105,7 +105,7 @@ export interface MessageContentBlock {
  */
 export interface Message {
   role: string;
-  content: string | MessageContentBlock[] | any;
+  content: string | MessageContentBlock[] | unknown;
 }
 
 /**

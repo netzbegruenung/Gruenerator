@@ -351,7 +351,7 @@ export class BaseSearchService {
           title: this.extractDocumentTitle(chunk),
           filename: this.extractDocumentFilename(chunk),
           created_at: this.extractDocumentCreatedAt(chunk),
-          source_url: (chunk as any).url || undefined,
+          source_url: chunk.url || undefined,
           source_id: chunk.source_id ?? null,
           chunks: [],
           maxSimilarity: 0,
@@ -360,8 +360,8 @@ export class BaseSearchService {
       }
 
       const docData = documentMap.get(docId)!;
-      if (!docData.source_url && (chunk as any).url) {
-        docData.source_url = (chunk as any).url;
+      if (!docData.source_url && chunk.url) {
+        docData.source_url = chunk.url;
       }
       if (!docData.source_id && chunk.source_id) {
         docData.source_id = chunk.source_id;
@@ -718,7 +718,7 @@ export class BaseSearchService {
           title: this.extractDocumentTitle(chunk),
           filename: this.extractDocumentFilename(chunk),
           created_at: this.extractDocumentCreatedAt(chunk),
-          source_url: (chunk as any).url || undefined,
+          source_url: chunk.url || undefined,
           source_id: chunk.source_id ?? null,
           chunks: [],
           maxSimilarity: 0,
@@ -734,8 +734,8 @@ export class BaseSearchService {
       }
 
       const docData = documentMap.get(docId)!;
-      if (!docData.source_url && (chunk as any).url) {
-        docData.source_url = (chunk as any).url;
+      if (!docData.source_url && chunk.url) {
+        docData.source_url = chunk.url;
       }
       if (!docData.source_id && chunk.source_id) {
         docData.source_id = chunk.source_id;
@@ -1047,7 +1047,7 @@ export class BaseSearchService {
           title: chunk.documents?.title || chunk.document_title || 'Untitled',
           filename: chunk.documents?.filename || chunk.document_filename || '',
           created_at: chunk.documents?.created_at || chunk.document_created_at,
-          source_url: (chunk as any).url || undefined,
+          source_url: chunk.url || undefined,
           chunks: [],
           maxSimilarity: 0,
           avgSimilarity: 0,
@@ -1056,8 +1056,8 @@ export class BaseSearchService {
       }
 
       const doc = documentMap.get(docId)!;
-      if (!doc.source_url && (chunk as any).url) {
-        doc.source_url = (chunk as any).url;
+      if (!doc.source_url && chunk.url) {
+        doc.source_url = chunk.url;
       }
       const chunkData: ChunkData = {
         chunk_id: chunk.id,

@@ -34,6 +34,8 @@ pnpm --filter @gruenerator/desktop dev           # Tauri desktop dev
 
 > **WSL RAM constraint**: `pnpm typecheck` is expensive. Only run typechecks on **newly created files** (`npx tsc --noEmit <file>`) or **before pushing**. Do not run full-project typechecks during routine edits.
 
+> **Always log typecheck and lint output to a file**: These take several minutes. Never run the same command multiple times. Use `npx tsc --noEmit --project <tsconfig> 2>&1 > /tmp/typecheck-api.txt` and `pnpm --filter <pkg> lint 2>&1 > /tmp/lint-api.txt`, then read/grep the output file for analysis.
+
 ## Architecture
 
 ### Monorepo Layout

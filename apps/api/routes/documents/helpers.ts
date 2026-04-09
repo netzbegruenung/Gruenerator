@@ -10,12 +10,12 @@ const log = createLogger('documents:helpers');
  * Safely parse document metadata that may be an object (from PostgreSQL JSONB)
  * or a string (from serialization)
  */
-export function parseMetadata(metadata: unknown): Record<string, any> {
+export function parseMetadata(metadata: unknown): Record<string, unknown> {
   if (!metadata) return {};
 
   // Already an object (from PostgreSQL JSONB)
   if (typeof metadata === 'object' && metadata !== null) {
-    return metadata as Record<string, any>;
+    return metadata as Record<string, unknown>;
   }
 
   // String that needs parsing
@@ -66,22 +66,34 @@ export function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
+interface DocumentWithMetadata {
+  id: string;
+  metadata?: unknown;
+  full_content?: string | null;
+  [key: string]: unknown;
+}
+
 /**
  * Enrich document with content preview from multiple sources
  * Consolidates enrichment logic used throughout the original file
  */
-export function enrichDocumentWithPreview(doc: any, firstChunks: Record<string, string> = {}): any {
+export function enrichDocumentWithPreview(
+  doc: DocumentWithMetadata,
+  firstChunks: Record<string, string> = {}
+): DocumentWithMetadata & { content_preview: string | null; full_content: string | null } {
   const meta = parseMetadata(doc.metadata);
+  const metaPreview = typeof meta.content_preview === 'string' ? meta.content_preview : null;
+  const metaFullText = typeof meta.full_text === 'string' ? meta.full_text : null;
 
   // Try multiple sources for content preview
   const preview =
-    meta.content_preview ||
-    (meta.full_text ? generateContentPreview(meta.full_text) : null) ||
+    metaPreview ||
+    (metaFullText ? generateContentPreview(metaFullText) : null) ||
     (firstChunks[doc.id] ? generateContentPreview(firstChunks[doc.id]) : null);
 
   return {
     ...doc,
     content_preview: preview,
-    full_content: meta.full_text || doc.full_content || null,
+    full_content: metaFullText || doc.full_content || null,
   };
 }

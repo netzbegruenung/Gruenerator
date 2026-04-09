@@ -20,7 +20,7 @@ function containsDangerousChars(input: string): boolean {
  * Sanitize and validate a path to prevent directory traversal attacks
  */
 export function sanitizePath(
-  userInput: any,
+  userInput: unknown,
   baseDir: string,
   options: PathSanitizationOptions = {}
 ): string {
@@ -65,7 +65,7 @@ export function sanitizePath(
 /**
  * Sanitize a filename for safe filesystem use
  */
-export function sanitizeFilename(filename: any, fallback: string = 'file'): string {
+export function sanitizeFilename(filename: unknown, fallback: string = 'file'): string {
   if (!filename || typeof filename !== 'string') {
     return fallback;
   }

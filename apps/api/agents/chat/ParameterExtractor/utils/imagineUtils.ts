@@ -96,7 +96,7 @@ export function extractImagineSubject(
     const titleSubjectMatch = subject.match(
       /mit\s+(?:dem\s+)?titel\s+\S+\s+(?:über|von|zu)\s+(.+)/i
     );
-    if (titleSubjectMatch) {
+    if (titleSubjectMatch && titleSubjectMatch[1]) {
       subject = titleSubjectMatch[1];
     } else {
       subject = subject.replace(/mit\s+(?:dem\s+)?titel\s+\S+\s*/i, '');

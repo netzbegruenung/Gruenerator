@@ -7,11 +7,21 @@ import crypto from 'crypto';
 
 import type { Attachment, StoredDocument, ClearUserDataResult } from './types.js';
 
+type RedisClient = {
+  get: (key: string) => Promise<string | null>;
+  setEx: (key: string, ttl: number, value: string) => Promise<void>;
+  lPush: (key: string, ...values: string[]) => Promise<void>;
+  lTrim: (key: string, start: number, stop: number) => Promise<void>;
+  lRange: (key: string, start: number, stop: number) => Promise<string[]>;
+  del: (key: string | string[]) => Promise<number>;
+  keys: (pattern: string) => Promise<string[]>;
+};
+
 /**
  * Retrieve documents from Redis by IDs
  */
 export async function getDocumentsFromRedis(
-  redis: any,
+  redis: RedisClient,
   documentIds: string[],
   userId: string
 ): Promise<StoredDocument[]> {
@@ -44,7 +54,7 @@ export async function getDocumentsFromRedis(
  * Store raw attachment in Redis with 24-hour TTL
  */
 export async function storeAttachment(
-  redis: any,
+  redis: RedisClient,
   userId: string,
   attachment: Attachment
 ): Promise<string> {
@@ -72,7 +82,7 @@ export async function storeAttachment(
  * Store multiple attachments and update user's recent documents list
  */
 export async function storeAttachments(
-  redis: any,
+  redis: RedisClient,
   userId: string,
   attachments: Attachment[]
 ): Promise<string[]> {
@@ -86,7 +96,7 @@ export async function storeAttachments(
     try {
       const docId = await storeAttachment(redis, userId, attachment);
       documentIds.push(docId);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`[DocumentQnAService] Error storing attachment ${attachment.name}:`, error);
     }
   }
@@ -105,7 +115,7 @@ export async function storeAttachments(
  * Get user's recent document IDs for conversation memory
  */
 export async function getRecentDocuments(
-  redis: any,
+  redis: RedisClient,
   userId: string,
   limit: number = 5
 ): Promise<string[]> {
@@ -121,7 +131,10 @@ export async function getRecentDocuments(
 /**
  * Clear all user documents and caches from Redis
  */
-export async function clearUserDocuments(redis: any, userId: string): Promise<ClearUserDataResult> {
+export async function clearUserDocuments(
+  redis: RedisClient,
+  userId: string
+): Promise<ClearUserDataResult> {
   if (!userId) {
     return {
       success: false,

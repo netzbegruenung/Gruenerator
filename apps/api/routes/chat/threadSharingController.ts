@@ -29,8 +29,13 @@ router.get('/:id/groups', async (req: Request<{ id: string }>, res: Response) =>
     );
 
     return res.json(shares);
-  } catch (error: any) {
-    return res.status(500).json({ error: 'Failed to fetch thread shares', details: error.message });
+  } catch (error: unknown) {
+    return res
+      .status(500)
+      .json({
+        error: 'Failed to fetch thread shares',
+        details: error instanceof Error ? error.message : String(error),
+      });
   }
 });
 
@@ -72,8 +77,13 @@ router.post('/:id/groups', async (req: Request<{ id: string }>, res: Response) =
     );
 
     return res.status(201).json({ message: 'Thread shared' });
-  } catch (error: any) {
-    return res.status(500).json({ error: 'Failed to share thread', details: error.message });
+  } catch (error: unknown) {
+    return res
+      .status(500)
+      .json({
+        error: 'Failed to share thread',
+        details: error instanceof Error ? error.message : String(error),
+      });
   }
 });
 
@@ -98,8 +108,13 @@ router.delete(
       );
 
       return res.json({ message: 'Share removed' });
-    } catch (error: any) {
-      return res.status(500).json({ error: 'Failed to remove share', details: error.message });
+    } catch (error: unknown) {
+      return res
+        .status(500)
+        .json({
+          error: 'Failed to remove share',
+          details: error instanceof Error ? error.message : String(error),
+        });
     }
   }
 );
@@ -119,8 +134,13 @@ router.get('/user-groups', async (req: Request, res: Response) => {
     );
 
     return res.json(groups);
-  } catch (error: any) {
-    return res.status(500).json({ error: 'Failed to fetch groups', details: error.message });
+  } catch (error: unknown) {
+    return res
+      .status(500)
+      .json({
+        error: 'Failed to fetch groups',
+        details: error instanceof Error ? error.message : String(error),
+      });
   }
 });
 

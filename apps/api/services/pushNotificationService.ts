@@ -3,6 +3,7 @@
  * Sends Expo Push Notifications to mobile devices registered via app_refresh_tokens.
  */
 
+import { type AppRefreshTokenRow } from '../database/types.js';
 import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('push');
@@ -15,13 +16,10 @@ export interface PushPayload {
   data?: Record<string, unknown>;
 }
 
-interface DeviceRow {
-  id: string;
-  device_name: string | null;
-  device_type: string;
-  push_token: string;
-  last_used_at: string | null;
-}
+type DeviceRow = Pick<
+  AppRefreshTokenRow,
+  'id' | 'device_name' | 'device_type' | 'push_token' | 'last_used_at'
+>;
 
 interface ExpoPushResponse {
   data: Array<{

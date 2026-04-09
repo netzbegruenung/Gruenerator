@@ -22,7 +22,7 @@ import type { GeneratedImageResult, ImageStyle } from '../types.js';
 
 const log = createLogger('Tool:GenerateImage');
 
-const imageCounter = new ImageGenerationCounter(redisClient as any);
+const imageCounter = new ImageGenerationCounter(redisClient);
 
 function detectStyle(description: string): ImageStyle {
   const q = description.toLowerCase();
@@ -103,12 +103,14 @@ export function createGenerateImageTool(deps: ToolDependencies): DynamicStructur
         deps._generatedImage = imageResult;
 
         return `Bild erfolgreich generiert!\nStil: ${imageStyle}\nDatei: ${stored.filename}\nURL: ${imageUrl}`;
-      } catch (error: any) {
-        log.error('[GenerateImage] Error:', error.message);
-        if (error.type === 'billing') {
+      } catch (error: unknown) {
+        const errMsg = error instanceof Error ? error.message : String(error);
+        const typed = error as { type?: string };
+        log.error('[GenerateImage] Error:', errMsg);
+        if (typed.type === 'billing') {
           return 'Bildgenerierungs-Credits aufgebraucht. Bitte kontaktiere den Administrator.';
         }
-        return `Bildgenerierung fehlgeschlagen: ${error.message}`;
+        return `Bildgenerierung fehlgeschlagen: ${errMsg}`;
       }
     },
   });

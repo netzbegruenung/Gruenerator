@@ -77,7 +77,7 @@ router.post(
 );
 
 // Handle multer errors (file too large, wrong type)
-router.use((err: any, _req: Request, res: Response, next: NextFunction): void => {
+router.use((err: Error, _req: Request, res: Response, next: NextFunction): void => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
       res.status(413).json({ error: 'Die Datei ist zu groß. Maximal 20 MB erlaubt.' });

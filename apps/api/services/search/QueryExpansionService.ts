@@ -40,7 +40,11 @@ Antworte NUR mit JSON:
  * Expand a search query into multiple alternative formulations.
  * Uses the AI worker pool for a fast Mistral-small call.
  */
-export async function expandQuery(query: string, aiWorkerPool: any): Promise<ExpandedQuery> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function expandQuery(
+  query: string,
+  aiWorkerPool: { processRequest: (...args: any[]) => Promise<{ content?: string | null }> }
+): Promise<ExpandedQuery> {
   // Check cache first
   const cacheKey = query.toLowerCase().trim();
   const cached = expansionCache.get(cacheKey);
@@ -81,8 +85,10 @@ export async function expandQuery(query: string, aiWorkerPool: any): Promise<Exp
 
     log.info(`[Expand] Generated ${parsed.length} alternatives for: "${query.slice(0, 50)}"`);
     return result;
-  } catch (error: any) {
-    log.warn(`[Expand] Failed for "${query.slice(0, 50)}": ${error.message}`);
+  } catch (error: unknown) {
+    log.warn(
+      `[Expand] Failed for "${query.slice(0, 50)}": ${error instanceof Error ? error.message : String(error)}`
+    );
     return { primary: query, alternatives: [] };
   }
 }
@@ -96,7 +102,7 @@ function parseExpansionResponse(content: string): string[] {
     const parsed = JSON.parse(content);
     if (parsed.alternatives && Array.isArray(parsed.alternatives)) {
       return parsed.alternatives
-        .filter((a: any) => typeof a === 'string' && a.trim().length > 3)
+        .filter((a: unknown) => typeof a === 'string' && a.trim().length > 3)
         .slice(0, 2);
     }
   } catch {
@@ -107,7 +113,7 @@ function parseExpansionResponse(content: string): string[] {
         const parsed = JSON.parse(jsonMatch[0]);
         if (parsed.alternatives && Array.isArray(parsed.alternatives)) {
           return parsed.alternatives
-            .filter((a: any) => typeof a === 'string' && a.trim().length > 3)
+            .filter((a: unknown) => typeof a === 'string' && a.trim().length > 3)
             .slice(0, 2);
         }
       } catch {

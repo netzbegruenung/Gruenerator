@@ -145,7 +145,7 @@ class AIWorkerPool {
     const oldWorker = this.workers[index]?.instance;
     if (oldWorker) {
       try {
-        oldWorker.terminate();
+        void oldWorker.terminate();
       } catch (e) {
         console.warn(`Could not terminate worker ${index}:`, e);
       }

@@ -25,6 +25,7 @@ interface SubtitlerProject {
   title: string;
   style_preference: string;
   height_preference: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   style_settings: Record<string, any> | null;
   video_path: string | null;
   video_metadata: { width?: number; height?: number; duration?: number } | null;

@@ -375,8 +375,11 @@ Regeln:
       answer: result.text,
       confidence,
     };
-  } catch (error: any) {
-    log.error('[Research] LLM synthesis failed:', error.message);
+  } catch (error: unknown) {
+    log.error(
+      '[Research] LLM synthesis failed:',
+      error instanceof Error ? error.message : String(error)
+    );
     throw error;
   }
 }
@@ -397,9 +400,9 @@ async function synthesizeWithFallback(
 
   try {
     return await synthesizeAnswerWithLLM(question, sources, strategy);
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.warn('[Research] LLM synthesis failed, falling back to template', {
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
     });
     return synthesizeAnswer(question, sources, strategy);
   }

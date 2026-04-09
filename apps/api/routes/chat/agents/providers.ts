@@ -132,7 +132,7 @@ export function isProviderConfigured(provider: string): boolean {
         `[providers] Checking mistral: MISTRAL_API_KEY=${configured ? 'set' : 'NOT SET'}`
       );
       return configured;
-    case 'litellm':
+    case 'litellm': {
       const hasBaseUrl = !!process.env.LITELLM_BASE_URL;
       const hasApiKey = !!process.env.LITELLM_API_KEY;
       configured = hasBaseUrl && hasApiKey;
@@ -140,6 +140,7 @@ export function isProviderConfigured(provider: string): boolean {
         `[providers] Checking litellm: BASE_URL=${hasBaseUrl ? 'set' : 'NOT SET'}, API_KEY=${hasApiKey ? 'set' : 'NOT SET'}`
       );
       return configured;
+    }
     case 'regolo':
       configured = !!process.env.REGOLO_API_KEY;
       console.log(`[providers] Checking regolo: REGOLO_API_KEY=${configured ? 'set' : 'NOT SET'}`);

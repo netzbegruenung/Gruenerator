@@ -107,6 +107,7 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
    * Retrieve a checkpoint tuple for given configuration
    * Required by BaseCheckpointSaver interface
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getTuple(config: any): Promise<any> {
     const threadId = config?.configurable?.thread_id as string | undefined;
     const checkpointNs = (config?.configurable?.checkpoint_ns as string | undefined) || '';
@@ -126,9 +127,9 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
 
       if (!checkpointData) return undefined;
 
-      const checkpoint = JSON.parse(checkpointData as string);
-      const metadata = metadataData ? JSON.parse(metadataData as string) : {};
-      const pendingWrites = writesData ? JSON.parse(writesData as string) : [];
+      const checkpoint = JSON.parse(checkpointData);
+      const metadata = metadataData ? JSON.parse(metadataData) : {};
+      const pendingWrites = writesData ? JSON.parse(writesData) : [];
 
       return { config, checkpoint, metadata, pendingWrites };
     } catch (error) {
@@ -142,6 +143,7 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
    * Store a checkpoint with configuration and metadata
    * Required by BaseCheckpointSaver interface
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async put(config: any, checkpoint: any, metadata: any): Promise<any> {
     const threadId = config?.configurable?.thread_id as string | undefined;
     const checkpointNs = (config?.configurable?.checkpoint_ns as string | undefined) || '';
@@ -174,7 +176,8 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
    * Store intermediate writes (pending writes) linked to checkpoint
    * Required by BaseCheckpointSaver interface
    */
-  async putWrites(config: any, writes: any[], taskId: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async putWrites(config: any, writes: any[], _taskId: string): Promise<void> {
     const threadId = config?.configurable?.thread_id as string | undefined;
     const checkpointNs = (config?.configurable?.checkpoint_ns as string | undefined) || '';
 
@@ -183,7 +186,7 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
     try {
       const writesKey = this._getWritesKey(threadId, checkpointNs);
       const existingData = await this.client.get(writesKey);
-      const existingWrites = existingData ? JSON.parse(existingData as string) : [];
+      const existingWrites = existingData ? JSON.parse(existingData) : [];
       const allWrites = [...existingWrites, ...writes];
 
       await this.client.setEx(
@@ -201,7 +204,8 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
    * List checkpoints matching configuration and filter criteria
    * Required by BaseCheckpointSaver interface
    */
-  async *list(config: any, filter: any = {}): AsyncGenerator<any> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async *list(config: any, _filter: any = {}): AsyncGenerator<any> {
     const threadId = config?.configurable?.thread_id;
     if (!threadId) return;
 
@@ -211,7 +215,9 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
 
       let cursor = 0;
       do {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const result = await this.client.scan(cursor as any, { MATCH: pattern, COUNT: 100 });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         cursor = result.cursor as any;
         keys.push(...result.keys);
       } while (cursor !== 0);
@@ -219,7 +225,7 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
       for (const key of keys) {
         const checkpointData = await this.client.get(key);
         if (checkpointData) {
-          const checkpoint = JSON.parse(checkpointData as string);
+          const checkpoint = JSON.parse(checkpointData);
           yield { config, checkpoint, metadata: {}, pendingWrites: [] };
         }
       }
@@ -244,7 +250,9 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
       for (const pattern of patterns) {
         let cursor = 0;
         do {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const result = await this.client.scan(cursor as any, { MATCH: pattern, COUNT: 100 });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           cursor = result.cursor as any;
           if (result.keys.length > 0) await this.client.del(result.keys);
         } while (cursor !== 0);

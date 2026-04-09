@@ -5,7 +5,6 @@
  */
 
 import type { SearchPatternResult } from './keyword-extractor-types.js';
-import type { Request } from 'express';
 
 // ============ Search Parameters ============
 
@@ -61,6 +60,7 @@ export interface RawChunk {
   created_at?: string;
   content_type?: string;
   page_number?: number;
+  url?: string;
   metadata?: {
     content_type?: string;
     page_number?: number;
@@ -103,6 +103,7 @@ export interface TransformedChunk {
   token_count?: number;
   created_at?: string;
   source_id?: string | null;
+  url?: string;
   documents: {
     id: string;
     title?: string;
@@ -297,6 +298,7 @@ export interface ErrorHandler {
       returnResponse?: boolean;
       [key: string]: unknown;
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- returns APIErrorResponse or SearchResponse depending on context
   ): any;
 }
 

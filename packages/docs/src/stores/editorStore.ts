@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { BlockNoteEditor } from '@blocknote/core';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type EditorInstance = BlockNoteEditor | any;
 
 interface EditorStore {

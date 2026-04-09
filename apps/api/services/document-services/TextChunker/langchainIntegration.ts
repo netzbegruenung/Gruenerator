@@ -28,7 +28,7 @@ export class LangChainChunker {
   /**
    * Get LangChain text splitter with fallback strategies
    */
-  private async getSplitter(): Promise<any | null> {
+  private async getSplitter(): Promise<{ splitText(text: string): Promise<string[]> } | null> {
     const opts = {
       chunkSize: this.chunkSize,
       chunkOverlap: this.chunkOverlap,
@@ -62,7 +62,7 @@ export class LangChainChunker {
   /**
    * Chunk document using LangChain or fallback
    */
-  async chunkDocument(text: string, baseMetadata: Record<string, any> = {}): Promise<Chunk[]> {
+  async chunkDocument(text: string, baseMetadata: Record<string, unknown> = {}): Promise<Chunk[]> {
     if (!text || typeof text !== 'string') return [];
 
     const input = cleanTextForEmbedding(text);
@@ -134,7 +134,7 @@ export class LangChainChunker {
    * Merge small chunks to improve context
    */
   private mergeSmallChunks<
-    T extends { text: string; index: number; tokens: number; metadata: any },
+    T extends { text: string; index: number; tokens: number; metadata: Record<string, unknown> },
   >(chunks: T[], { minChars = 800, maxMergedChars = 2400 } = {}): T[] {
     if (!Array.isArray(chunks) || chunks.length === 0) return chunks;
 

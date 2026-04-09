@@ -13,14 +13,17 @@ function test(name: string, fn: () => void) {
     fn();
     passed++;
     console.log(`  ✓ ${name}`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     failed++;
     console.error(`  ✗ ${name}: ${err.message}`);
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function expect(actual: any) {
   return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     toBe(expected: any) {
       if (actual !== expected)
         throw new Error(`Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);

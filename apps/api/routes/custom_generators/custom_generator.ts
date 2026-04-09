@@ -23,7 +23,7 @@ interface CustomGeneratorRow {
   slug: string;
   title: string;
   description: string;
-  form_schema: Record<string, any>;
+  form_schema: Record<string, unknown>;
   prompt: string;
   contact_email: string;
   created_at: string;
@@ -135,7 +135,7 @@ router.get(
 router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   log.debug('[custom_generator] Request received via promptProcessor');
   if (req.query.stream === 'true' || req.headers.accept === 'text/event-stream') {
-    return processGraphRequestStreaming('custom_generator', req as any, res);
+    return processGraphRequestStreaming('custom_generator', req, res);
   }
   await processGraphRequest('custom_generator', req, res);
 });

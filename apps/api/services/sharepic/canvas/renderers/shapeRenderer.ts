@@ -130,7 +130,7 @@ export function renderShape(ctx: CanvasRenderingContext2D, shape: ShapeLayer): v
       renderCloud(ctx, shape);
       break;
     default:
-      console.warn(`Unknown shape type: ${(shape as any).type}`);
+      console.warn(`Unknown shape type: ${shape.type as string}`);
   }
 
   ctx.restore();

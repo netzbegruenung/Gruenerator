@@ -85,6 +85,7 @@ router.post(
       const { Document, Paragraph, TextRun, HeadingLevel, AlignmentType, Packer, BorderStyle } =
         docx;
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const children: any[] = [];
       const roleLabel = getRoleLabel(role || 'assistant');
       const formattedTime = formatTimestamp(timestamp);

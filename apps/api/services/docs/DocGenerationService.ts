@@ -19,8 +19,8 @@ Regeln:
 - subtype muss einer dieser Werte sein: ${DOC_SUBTYPES.join(', ')}
 - Wähle den passenden subtype basierend auf der Beschreibung
 - content muss valides HTML sein, geeignet für einen Texteditor
-- Erlaubte HTML-Tags: h1, h2, h3, p, ul, ol, li, blockquote, strong, em, hr, br
-- Für Checklisten verwende: <ul><li><input type="checkbox">Aufgabe</li></ul>
+- Erlaubte HTML-Tags: h1, h2, h3, p, ul, ol, li, blockquote, strong, em, hr, br, input
+- Für Checklisten/Todo-Listen verwende IMMER: <ul><li><input type="checkbox">Aufgabe</li></ul>
 - Erstelle realistische, vollständige Platzhalterinhalte (Musterstadt, Maxi Mustermensch, etc.)
 - Schreibe auf Deutsch mit geschlechtergerechter Sprache (Genderstern *)
 - Orientiere dich inhaltlich an den Themen und Werten der Grünen

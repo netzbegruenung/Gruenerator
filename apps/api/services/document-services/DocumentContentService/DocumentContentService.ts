@@ -26,8 +26,8 @@ import type { ContentSearchOptions, ContentSearchResponse } from './types.js';
  * Delegates operations to specialized modules
  */
 export class DocumentContentService {
-  private postgresDocumentService: any;
-  private documentSearchService: any;
+  private postgresDocumentService: ReturnType<typeof getPostgresDocumentService>;
+  private documentSearchService: ReturnType<typeof getQdrantDocumentService>;
 
   constructor() {
     this.postgresDocumentService = getPostgresDocumentService();
@@ -101,7 +101,7 @@ export class DocumentContentService {
   /**
    * Determine the best content strategy for a document based on multiple factors
    */
-  determineContentStrategy(doc: any, query: string): boolean {
+  determineContentStrategy(doc: Record<string, unknown>, query: string): boolean {
     return determineContentStrategy(doc, query);
   }
 

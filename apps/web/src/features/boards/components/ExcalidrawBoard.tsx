@@ -77,6 +77,7 @@ export function ExcalidrawBoard({ ydoc, provider, isSynced }: ExcalidrawBoardPro
     const yAssets = ydoc.getMap('assets');
 
     const binding = new ExcalidrawBinding(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       yElements as any,
       yAssets,
       api,

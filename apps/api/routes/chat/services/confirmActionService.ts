@@ -125,6 +125,17 @@ export function buildPendingAction(opts: {
         title: 'Board aktualisieren',
         payload: { boardId: boardIds[0], rows: [], responseText: fullText },
       };
+    case 'sharepic':
+    case 'search':
+    case 'research':
+    case 'examples':
+    case 'web':
+    case 'image':
+    case 'image_edit':
+    case 'summary':
+    case 'chart':
+    case 'share_doc':
+    case 'direct':
     default:
       return null;
   }

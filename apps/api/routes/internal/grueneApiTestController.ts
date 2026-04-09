@@ -27,10 +27,16 @@ async function proxyGet(path: string, params?: Record<string, string>) {
   try {
     const res = await apiClient.get(path, { params });
     return { status: res.status, data: res.data };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const axiosErr =
+      error instanceof Error && 'response' in error
+        ? (error as { response?: { status?: number; data?: unknown } })
+        : null;
     return {
-      status: error.response?.status || 500,
-      data: error.response?.data || { error: error.message },
+      status: axiosErr?.response?.status || 500,
+      data: axiosErr?.response?.data || {
+        error: error instanceof Error ? error.message : String(error),
+      },
     };
   }
 }
@@ -47,7 +53,7 @@ router.get('/test', async (_req: Request, res: Response) => {
 
   log.info('Running Grüne API test suite');
 
-  const results: Record<string, any> = {};
+  const results: Record<string, unknown> = {};
 
   // Test all interesting endpoints
   const endpoints: Array<{ key: string; path: string; params?: Record<string, string> }> = [

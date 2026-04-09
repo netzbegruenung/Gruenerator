@@ -32,6 +32,7 @@ export interface SearchResult {
     length: number;
     hasContent: boolean;
   };
+  [key: string]: unknown;
 }
 
 export interface ContentStats {
@@ -57,8 +58,8 @@ export interface FormattedSearchResults {
   };
   contentStats: ContentStats;
   suggestions: string[];
-  infoboxes: any[];
-  answers: any[];
+  infoboxes: Record<string, unknown>[];
+  answers: string[];
 }
 
 export interface SearxngSummary {
@@ -194,7 +195,7 @@ export interface DedupeOptions {
 
 export interface CollectionConfig {
   name: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface CollectionSources {

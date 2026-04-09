@@ -16,8 +16,8 @@ async function runCleanup(): Promise<void> {
     if (deleted > 0) {
       log.info(`Deleted ${deleted} notifications older than ${MAX_AGE_DAYS} days`);
     }
-  } catch (err: any) {
-    log.error(`Notification cleanup failed: ${err.message}`);
+  } catch (err: unknown) {
+    log.error(`Notification cleanup failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 

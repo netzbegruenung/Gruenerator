@@ -8,6 +8,7 @@ import {
 
 import type { EnrichedState } from '../../../../utils/types/requestEnrichment.js';
 import type { PRAgentRequest, SocialPlatformConfig } from '../types.js';
+import type { Request } from 'express';
 
 /**
  * Generates content for a specific platform using existing config
@@ -18,7 +19,7 @@ import type { PRAgentRequest, SocialPlatformConfig } from '../types.js';
 export async function generatePlatformContent(
   platform: string,
   enrichedState: EnrichedState,
-  req: any
+  req: Request
 ): Promise<string> {
   console.log(`[PR Agent] Generating ${platform} content`);
 

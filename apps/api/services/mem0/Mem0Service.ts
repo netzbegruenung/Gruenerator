@@ -15,6 +15,7 @@
 import { Memory, type MemoryItem, type SearchResult } from 'mem0ai/oss';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { getErrorMessage } from '../../utils/errors/handlers.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { buildMem0Config, isMem0Available, validateMem0Environment } from './config.js';
@@ -127,11 +128,12 @@ export class Mem0Service {
       try {
         response = await this.memory.add(messages, {
           userId,
-          metadata: metadata as Record<string, any>,
+          metadata: metadata as Record<string, unknown>,
         });
-      } catch (addError: any) {
-        if (addError?.name === 'ZodError') {
-          log.debug(`[Mem0] Zod parse error in mem0ai SDK (non-fatal), skipping memory extraction`);
+      } catch (addError: unknown) {
+        const errName = addError instanceof Error ? addError.name : '';
+        if (errName === 'ZodError' || errName === 'SyntaxError') {
+          log.debug(`[Mem0] ${errName} in mem0ai SDK (non-fatal), skipping memory extraction`);
           return [];
         }
         throw addError;
@@ -159,7 +161,7 @@ export class Mem0Service {
       log.info(`[Mem0] Added ${addedMemories.length} memories for user ${userId}`);
       return addedMemories;
     } catch (error) {
-      log.error('[Mem0] Error adding memories:', error);
+      log.warn(`[Mem0] Error adding memories for user ${userId}: ${getErrorMessage(error)}`);
       return [];
     }
   }
@@ -208,7 +210,7 @@ export class Mem0Service {
 
       return memories;
     } catch (error) {
-      log.error('[Mem0] Error searching memories:', error);
+      log.warn(`[Mem0] Error searching memories for user ${userId}: ${getErrorMessage(error)}`);
       return [];
     }
   }
@@ -235,7 +237,7 @@ export class Mem0Service {
       log.info(`[Mem0] Retrieved ${memories.length} memories for user ${userId}`);
       return memories;
     } catch (error) {
-      log.error('[Mem0] Error getting all memories:', error);
+      log.warn(`[Mem0] Error getting all memories for user ${userId}: ${getErrorMessage(error)}`);
       return [];
     }
   }
@@ -376,6 +378,7 @@ export class Mem0Service {
         [userId]
       );
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return (results as any[]).map((row) => ({
         id: row.id as string,
         userId: row.user_id as string,

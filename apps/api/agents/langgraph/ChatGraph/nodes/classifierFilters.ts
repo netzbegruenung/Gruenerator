@@ -8,7 +8,6 @@
 import { createLogger } from '../../../../utils/logger.js';
 
 import type { SubcategoryFilters } from '../../../../config/systemCollectionsConfig.js';
-import type { SearchSource } from '../types.js';
 
 const log = createLogger('ChatGraph:Classifier');
 

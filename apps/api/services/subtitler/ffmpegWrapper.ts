@@ -45,7 +45,7 @@ interface FFprobeStream {
 interface FFprobeFormat {
   duration?: string;
   bit_rate?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface FFprobeMetadata {
@@ -59,6 +59,7 @@ class FFmpegCommand {
   private outputOpts: string[] = [];
   private filters: string[] = [];
   private duration: number | null = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private listeners: Record<EventType, Array<(...args: any[]) => void>> = {
     start: [],
     progress: [],
@@ -109,6 +110,7 @@ class FFmpegCommand {
     return this;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   on(event: EventType, callback: (...args: any[]) => void): this {
     if (this.listeners[event]) {
       this.listeners[event].push(callback);
@@ -116,12 +118,12 @@ class FFmpegCommand {
     return this;
   }
 
-  private emit(event: EventType, ...args: any[]): void {
+  private emit(event: EventType, ...args: unknown[]): void {
     for (const cb of this.listeners[event]) {
       try {
         cb(...args);
-      } catch (e: any) {
-        log.warn(`Error in ${event} listener:`, e.message);
+      } catch (e: unknown) {
+        log.warn(`Error in ${event} listener:`, e instanceof Error ? e.message : String(e));
       }
     }
   }
@@ -236,8 +238,12 @@ async function ffprobe(inputPath: string): Promise<FFprobeMetadata> {
       if (code === 0) {
         try {
           resolve(JSON.parse(stdout));
-        } catch (e: any) {
-          reject(new Error(`Failed to parse ffprobe output: ${e.message}`));
+        } catch (e: unknown) {
+          reject(
+            new Error(
+              `Failed to parse ffprobe output: ${e instanceof Error ? e.message : String(e)}`
+            )
+          );
         }
       } else {
         reject(new Error(`ffprobe exited with code ${code}: ${stderr}`));

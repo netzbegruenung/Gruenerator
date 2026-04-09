@@ -28,20 +28,13 @@ import { processAutomatischPR } from './PRAgent/index.js';
 import { assemblePromptGraphAsync } from './promptAssemblyGraph.js';
 
 // Import types
-import type {
-  RequestData,
-  EnrichedState,
-  PromptConfig,
-  AIOptions,
-  AssembledPrompt,
-  TemplateContext,
-  ProcessingResult,
-} from './types/index.js';
+import type { PromptConfig, AIOptions, TemplateContext } from './types/index.js';
 
 /**
  * Generation stats logging (lazy-loaded ES module)
  * Lazy loading prevents circular dependencies
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let generationStatsService: any = null;
 
 async function logGeneration(data: {
@@ -57,7 +50,7 @@ async function logGeneration(data: {
       generationStatsService = module.getGenerationStatsService();
     }
     await generationStatsService.logGeneration(data);
-  } catch (err) {
+  } catch (_err) {
     // Silent failure - stats logging should not affect generation
   }
 }
@@ -131,6 +124,7 @@ export class SimpleTemplateEngine {
    * @returns Value at key path or undefined
    */
   static getValue(key: string, data: TemplateContext): unknown {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return key.split('.').reduce((obj: any, prop: string) => obj?.[prop], data);
   }
 
@@ -225,6 +219,7 @@ export function loadPromptConfig(type: string): PromptConfig {
  * @param slug - Generator slug
  * @returns Generator data from database
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function loadCustomGeneratorPrompt(slug: string): Promise<any> {
   const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
   const postgresService = getPostgresInstance();
@@ -247,6 +242,7 @@ export async function loadCustomGeneratorPrompt(slug: string): Promise<any> {
  * @param config - Prompt configuration
  * @returns Error message or null if valid
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function validateRequest(requestBody: any, config: PromptConfig): string | null {
   const { validation } = config;
   if (!validation?.required) return null;
@@ -273,6 +269,7 @@ export function validateRequest(requestBody: any, config: PromptConfig): string 
  * @param type - Request type
  * @returns Modified request data
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function applyProfileDefaults(requestData: any, req: any, type: string): Promise<any> {
   if (!req?.user?.id) return requestData;
   try {
@@ -281,7 +278,9 @@ export async function applyProfileDefaults(requestData: any, req: any, type: str
     const profile = await profileService.getProfileById(req.user.id);
     if (!profile) return requestData;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if ((profile as any).custom_prompt?.trim()) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       requestData.customPrompt = (profile as any).custom_prompt;
     }
 
@@ -309,7 +308,9 @@ export async function applyProfileDefaults(requestData: any, req: any, type: str
  */
 export function buildSystemRole(
   config: PromptConfig,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   requestData: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   generatorData: any = null
 ): string {
   // Handle sharepic multi-type case
@@ -362,8 +363,11 @@ export function buildSystemRole(
  */
 export function buildRequestContent(
   config: PromptConfig,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   requestData: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   generatorData: any = null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): any {
   const { customPrompt } = requestData;
 
@@ -436,6 +440,7 @@ export function buildRequestContent(
  * @param requestData - Request data
  * @returns Web search query or null
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function buildWebSearchQuery(config: PromptConfig, requestData: any): string | null {
   if (!config.features?.webSearch || !requestData.useWebSearchTool || !config.webSearchQuery) {
     return null;
@@ -465,6 +470,7 @@ export function getFormattingInstructions(config: PromptConfig): string | null {
  * @param requestData - Request data
  * @returns Formatted platform guidelines or null
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function buildPlatformGuidelines(config: PromptConfig, requestData: any): string | null {
   if (!requestData.platforms || !Array.isArray(requestData.platforms) || !config.platforms) {
     return null;
@@ -496,6 +502,7 @@ export function buildPlatformGuidelines(config: PromptConfig, requestData: any):
  * @param requestData - Request data
  * @returns Task instructions or null
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getTaskInstructions(config: PromptConfig, requestData: any): string | null {
   const parts: string[] = [];
 
@@ -524,6 +531,7 @@ export function getTaskInstructions(config: PromptConfig, requestData: any): str
  * @param requestData - Request data
  * @returns Output format instructions or null
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getOutputFormat(config: PromptConfig, requestData: any): string | null {
   if (!config.outputFormat) return null;
   return SimpleTemplateEngine.render(config.outputFormat, {
@@ -538,11 +546,12 @@ export function getOutputFormat(config: PromptConfig, requestData: any): string 
  * @param requestData - Request data
  * @returns Constraint string or null
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function buildConstraints(config: PromptConfig, requestData: any): string | null {
   const { platforms } = requestData;
   if (!platforms || !Array.isArray(platforms)) return null;
 
-  const shortFormThreshold = config.shortFormThreshold || 300;
+  const _shortFormThreshold = config.shortFormThreshold || 300;
   const limits: string[] = [];
 
   for (const platform of platforms) {
@@ -567,7 +576,9 @@ export function buildConstraints(config: PromptConfig, requestData: any): string
  */
 export function getAIOptions(
   config: PromptConfig,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   requestData: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   typeConfig: any = null
 ): AIOptions {
   // For sharepic multi-type, get type-specific options
@@ -607,12 +618,13 @@ export function getAIOptions(
  * @param req - Express request object
  * @param res - Express response object
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function processGraphRequest(routeType: string, req: any, res: any): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return withErrorHandler(async (req: any, res: any) => {
     const requestData = req.body;
     const {
       customPrompt,
-      useWebSearchTool,
       usePrivacyMode,
       provider,
       knowledgeContent,
@@ -678,6 +690,7 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
     }
 
     // Handle custom_generator special case
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let generatorData: any = null;
     if (config.features?.customPromptFromDb) {
       generatorData = await loadCustomGeneratorPrompt(requestData.slug);
@@ -746,6 +759,7 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
 
     // Assemble prompt using enriched state
     // Note: EnrichedState is compatible with PromptAssemblyState at runtime
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const promptResult = await assemblePromptGraphAsync(enrichedState as any);
     console.log(`[promptProcessor] LangGraph assembly complete for ${routeType}`);
 
@@ -787,7 +801,7 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
     if (!result.success) {
       console.error(`[promptProcessor] AI Worker error for ${routeType}:`, result.error);
       // Log failed generation
-      logGeneration({
+      void logGeneration({
         userId: req.user?.id || null,
         generationType: routeType,
         platform: requestData.platforms?.[0] || null,
@@ -798,7 +812,7 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
     }
 
     // Log successful generation (fire-and-forget)
-    logGeneration({
+    void logGeneration({
       userId: req.user?.id || null,
       generationType: routeType,
       platform: requestData.platforms?.[0] || null,
@@ -822,8 +836,10 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
             documentsUsed:
               enrichedState.documents
                 ?.filter(
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   (d: any) => d.type === 'text' && d.source?.metadata?.contentSource === 'url_crawl'
                 )
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 .map((d: any) => ({
                   title: d.source.metadata?.title || 'Document',
                   url: d.source.metadata?.url || null,
@@ -859,6 +875,7 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
           title: 'Gescrapte Website',
           url: url,
         })),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...(enrichedState.enrichmentMetadata?.webSearchSources || []).map((source: any) => ({
           type: 'websearch',
           title: source.title || source.url,

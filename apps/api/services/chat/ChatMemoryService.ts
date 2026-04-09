@@ -549,8 +549,8 @@ export async function getUserExperimentalSessions(userId: string): Promise<Sessi
           const summary: SessionSummary = {
             sessionId: session.sessionId,
             conversationState: session.conversationState,
-            thema: session.thema,
-            requestType: session.requestType,
+            thema: session.thema as string | undefined,
+            requestType: session.requestType as string | undefined,
             createdAt: session.createdAt,
             expiresAt: session.expiresAt,
           };

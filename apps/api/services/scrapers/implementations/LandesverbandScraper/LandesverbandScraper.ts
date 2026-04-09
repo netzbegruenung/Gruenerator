@@ -48,6 +48,7 @@ import type { ScraperResult } from '../../types.js';
  * Reduced from 1,139 lines to ~400 lines through modularization
  */
 export class LandesverbandScraper extends BaseScraper {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private qdrantClient: any;
   private searchOps!: SearchOperations;
   private documentProcessor!: DocumentProcessor;
@@ -122,7 +123,9 @@ export class LandesverbandScraper extends BaseScraper {
    * Delegates to specialized processors based on content type
    */
   async #scrapeContentPath(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     source: any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     contentPath: any,
     options: LandesverbandScrapeOptions = {}
   ): Promise<ContentPathResult> {
@@ -469,7 +472,7 @@ export class LandesverbandScraper extends BaseScraper {
     const startTime = Date.now();
     const { sourceType = null, landesverband = null, contentType = null } = options;
 
-    let sources = (LANDESVERBAENDE_CONFIG as any).sources;
+    let sources = LANDESVERBAENDE_CONFIG.sources;
 
     if (sourceType) {
       sources = getSourcesByType(sourceType as SourceType);
@@ -575,6 +578,7 @@ export class LandesverbandScraper extends BaseScraper {
   /**
    * Search documents (delegates to SearchOperations)
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async searchDocuments(query: string, options: LandesverbandSearchOptions = {}): Promise<any> {
     return this.searchOps.searchDocuments(query, options);
   }
@@ -582,6 +586,7 @@ export class LandesverbandScraper extends BaseScraper {
   /**
    * Get stats (delegates to SearchOperations)
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getStats(): Promise<any> {
     return this.searchOps.getStats();
   }
@@ -611,15 +616,16 @@ export class LandesverbandScraper extends BaseScraper {
   /**
    * Get list of available sources
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getSources(): any[] {
-    return (LANDESVERBAENDE_CONFIG as any).sources.map((s: any) => ({
+    return LANDESVERBAENDE_CONFIG.sources.map((s) => ({
       id: s.id,
       name: s.name,
       shortName: s.shortName,
       type: s.type,
       baseUrl: s.baseUrl,
       cms: s.cms,
-      contentTypes: s.contentPaths.map((cp: any) => cp.type),
+      contentTypes: s.contentPaths.map((cp) => cp.type),
     }));
   }
 

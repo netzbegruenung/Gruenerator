@@ -6,6 +6,7 @@
 import { createLogger } from '../../utils/logger.js';
 
 import type { EditContext, EditOperationType, AIWorkerPool } from '../../agents/chat/types.js';
+import type express from 'express';
 
 const log = createLogger('EditIntentService');
 
@@ -143,7 +144,7 @@ async function applyTextEdit(
   instruction: string,
   editType: EditOperationType,
   aiWorkerPool: AIWorkerPool,
-  req?: any
+  req?: express.Request
 ): Promise<{ success: boolean; editedText?: string; error?: string }> {
   const fullInstruction = buildEditInstruction(editType, instruction);
 
@@ -233,7 +234,7 @@ export async function processEditIntent(
   message: string,
   userId: string,
   aiWorkerPool: AIWorkerPool,
-  req?: any,
+  req?: express.Request,
   editContext?: EditContext
 ): Promise<EditResponse> {
   log.debug('[EditIntentService] Processing edit intent for user:', userId);

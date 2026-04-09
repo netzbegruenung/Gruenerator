@@ -13,7 +13,7 @@ export type AIProvider = 'mistral' | 'litellm' | 'ionos' | 'regolo';
 export interface ClaudeTool {
   name: string;
   description: string;
-  input_schema: Record<string, any>;
+  input_schema: Record<string, unknown>;
 }
 
 /**
@@ -24,7 +24,7 @@ export interface OpenAITool {
   function: {
     name: string;
     description: string;
-    parameters: Record<string, any>;
+    parameters: Record<string, unknown>;
   };
 }
 
@@ -39,7 +39,7 @@ export type Tool = ClaudeTool | OpenAITool;
 export interface ToolCall {
   id: string;
   name: string;
-  input: Record<string, any>;
+  input: Record<string, unknown>;
 }
 
 /**
@@ -49,7 +49,7 @@ export interface ToolUseContentBlock {
   type: 'tool_use';
   id: string;
   name: string;
-  input: Record<string, any>;
+  input: Record<string, unknown>;
 }
 
 /**
@@ -101,7 +101,7 @@ export interface ToolPayload {
 export interface WebSearchResult {
   success: boolean;
   resultCount?: number;
-  results?: any[];
+  results?: Record<string, unknown>[];
   error?: string;
 }
 
@@ -122,5 +122,5 @@ export interface AIResponseWithTools {
   raw_content_blocks?: ContentBlock[];
   tool_calls?: ToolCall[];
   error?: string;
-  metadata?: ToolUsageMetadata & Record<string, any>;
+  metadata?: ToolUsageMetadata & Record<string, unknown>;
 }

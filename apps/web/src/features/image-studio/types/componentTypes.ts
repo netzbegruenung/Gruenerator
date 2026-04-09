@@ -34,6 +34,7 @@ export interface ImageStudioFormSectionProps {
   typeConfig: TypeConfig | null;
   formErrors: FormErrors;
   handleChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   updateFormData: (data: Record<string, any>) => void;
 }
 

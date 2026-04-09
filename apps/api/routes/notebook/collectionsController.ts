@@ -384,7 +384,7 @@ router.put(
         allDocumentIds = document_ids;
       }
 
-      const updateData: Record<string, any> = {
+      const updateData: Record<string, unknown> = {
         name: name.trim(),
         description: description?.trim() || null,
         custom_prompt: custom_prompt?.trim() || null,
@@ -556,11 +556,11 @@ router.get(
         },
       });
 
-      const results = (response.results || []).slice(0, 8).map((r: any) => ({
-        documentId: r.document_id || r.documentId,
-        title: r.title || r.source || 'Unbekannt',
-        excerpt: (r.chunk_text || r.excerpt || '').slice(0, 200),
-        score: r.score ?? r.relevance ?? 0,
+      const results = (response.results || []).slice(0, 8).map((r) => ({
+        documentId: r.document_id,
+        title: r.title || r.source_url || 'Unbekannt',
+        excerpt: (r.relevant_content || '').slice(0, 200),
+        score: r.similarity_score ?? 0,
       }));
 
       return res.json(results);

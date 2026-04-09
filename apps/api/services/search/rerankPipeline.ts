@@ -141,8 +141,8 @@ export async function rerankPipeline(
       scores: scoreMap,
       rerankTimeMs,
     };
-  } catch (error: any) {
-    log.error('Rerank error:', error.message);
+  } catch (error: unknown) {
+    log.error('Rerank error:', error instanceof Error ? error.message : String(error));
     return {
       rankedIndices: candidates.map((_, i) => i).slice(0, outputLimit),
       scores: new Map(candidates.map((item, i) => [i, item.relevance ?? DEFAULT_RELEVANCE])),

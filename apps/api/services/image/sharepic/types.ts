@@ -12,7 +12,7 @@ import type { Request } from 'express';
 export interface DefaultSharepic {
   id: string;
   createdAt: string;
-  [key: string]: any; // Additional sharepic properties from chat service
+  [key: string]: unknown; // Additional sharepic properties from chat service
 }
 
 /**
@@ -42,5 +42,5 @@ export interface SharepicRequestBody {
   details?: string;
   name?: string;
   preserveName?: boolean;
-  [key: string]: any; // Additional properties
+  [key: string]: unknown; // Additional properties
 }

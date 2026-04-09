@@ -21,7 +21,8 @@ const iconCache = new Map<string, string>();
  * @param iconId - Format: "{library}-{name}" e.g. "pi-heartfill"
  * @returns Icon component or null if not found
  */
-async function getIconComponent(iconId: string): Promise<any | null> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getIconComponent(iconId: string): Promise<((...args: any[]) => any) | null> {
   const [library, iconName] = iconId.split('-');
 
   if (!iconName) {
@@ -31,27 +32,31 @@ async function getIconComponent(iconId: string): Promise<any | null> {
 
   const pascalCaseName = iconName.charAt(0).toUpperCase() + iconName.slice(1);
 
+  // Icon libraries export named components dynamically - need Record access
+  const getFromModule = (mod: Record<string, unknown>, key: string) =>
+    (mod[key] as ((...args: unknown[]) => unknown) | undefined) ?? null;
+
   try {
     switch (library) {
       case 'pi': {
         const piIcons = await import('react-icons/pi');
-        return (piIcons as any)[`Pi${pascalCaseName}`] || null;
+        return getFromModule(piIcons as Record<string, unknown>, `Pi${pascalCaseName}`);
       }
       case 'fa': {
         const faIcons = await import('react-icons/fa');
-        return (faIcons as any)[`Fa${pascalCaseName}`] || null;
+        return getFromModule(faIcons as Record<string, unknown>, `Fa${pascalCaseName}`);
       }
       case 'hi': {
         const hiIcons = await import('react-icons/hi');
-        return (hiIcons as any)[`Hi${pascalCaseName}`] || null;
+        return getFromModule(hiIcons as Record<string, unknown>, `Hi${pascalCaseName}`);
       }
       case 'md': {
         const mdIcons = await import('react-icons/md');
-        return (mdIcons as any)[`Md${pascalCaseName}`] || null;
+        return getFromModule(mdIcons as Record<string, unknown>, `Md${pascalCaseName}`);
       }
       case 'io': {
         const ioIcons = await import('react-icons/io5');
-        return (ioIcons as any)[`Io${pascalCaseName}`] || null;
+        return getFromModule(ioIcons as Record<string, unknown>, `Io${pascalCaseName}`);
       }
       default:
         console.warn(`Unsupported icon library: ${library}`);

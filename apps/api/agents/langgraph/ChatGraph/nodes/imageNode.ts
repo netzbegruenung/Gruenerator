@@ -18,7 +18,7 @@ import type { ChatGraphState, ImageStyle, GeneratedImageResult } from '../types.
 
 const log = createLogger('ChatGraph:ImageNode');
 
-const imageCounter = new ImageGenerationCounter(redisClient as any);
+const imageCounter = new ImageGenerationCounter(redisClient);
 
 /**
  * Detect image style from German prompt keywords.
@@ -53,6 +53,7 @@ function styleToVariant(style: ImageStyle): VariantKey {
       return 'realistic-pure';
     case 'pixel':
       return 'pixel-pure';
+    case 'green-edit':
     case 'illustration':
     default:
       return 'illustration-pure';
@@ -195,18 +196,22 @@ export async function imageNode(state: ChatGraphState): Promise<Partial<ChatGrap
       imageStyle: style,
       imageTimeMs,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     const imageTimeMs = Date.now() - startTime;
-    log.error('[ImageNode] Error generating image:', error.message);
+    log.error(
+      '[ImageNode] Error generating image:',
+      error instanceof Error ? error.message : String(error)
+    );
 
     // Handle specific error types
     let errorMessage = 'Bildgenerierung fehlgeschlagen. Bitte versuche es erneut.';
 
-    if (error.type === 'billing') {
+    const errObj = error as Record<string, unknown>;
+    if (errObj.type === 'billing') {
       errorMessage = 'Bildgenerierungs-Credits aufgebraucht. Bitte kontaktiere den Administrator.';
-    } else if (error.type === 'network') {
+    } else if (errObj.type === 'network') {
       errorMessage = 'Netzwerkfehler bei der Bildgenerierung. Bitte versuche es erneut.';
-    } else if (error.type === 'validation') {
+    } else if (errObj.type === 'validation') {
       errorMessage = 'Ungültige Anfrage für Bildgenerierung.';
     }
 

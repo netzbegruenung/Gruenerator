@@ -9,7 +9,9 @@ import type { DocumentRecord } from '../PostgresDocumentService/types.js';
  * Verify user owns requested documents and return accessible ones
  */
 export async function getAccessibleDocuments(
-  postgresDocumentService: any,
+  postgresDocumentService: {
+    getDocumentById: (docId: string, userId: string) => Promise<DocumentRecord | null>;
+  },
   userId: string,
   documentIds: string[]
 ): Promise<DocumentRecord[]> {
@@ -21,8 +23,11 @@ export async function getAccessibleDocuments(
       if (doc) {
         accessibleDocuments.push(doc);
       }
-    } catch (error: any) {
-      console.warn(`[DocumentContentService] Document ${docId} not accessible:`, error.message);
+    } catch (error: unknown) {
+      console.warn(
+        `[DocumentContentService] Document ${docId} not accessible:`,
+        error instanceof Error ? error.message : String(error)
+      );
     }
   }
 

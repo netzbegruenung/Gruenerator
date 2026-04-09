@@ -2,18 +2,20 @@
  * Type definitions for Notebook QA Service
  */
 
+import type { QdrantFilter } from '../QueryIntentService/types.js';
 import type {
   ExpandedChunkResult,
   Citation as SearchCitation,
   Source as SearchSource,
   SourcesByCollection as SearchSourcesByCollection,
+  ReferencesMap,
 } from '../search/types.js';
 
 /**
  * Request filters for search
  */
 export interface RequestFilters {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -47,7 +49,7 @@ export interface MultiCollectionMetadata {
   collections_queried: string[];
   document_scope_detected: string | null;
   document_title_filter: string | null;
-  subcategory_filters_applied: Record<string, any> | null;
+  subcategory_filters_applied: Record<string, unknown> | null;
   total_results: number;
   citations_count: number;
   fast_mode?: boolean;
@@ -62,7 +64,7 @@ export interface SingleCollectionMetadata {
   response_time_ms: number;
   sources_count: number;
   citations_count: number;
-  subcategory_filters_applied: Record<string, any> | null;
+  subcategory_filters_applied: Record<string, unknown> | null;
   fast_mode?: boolean;
 }
 
@@ -110,7 +112,11 @@ export interface QAMultiCollectionParams {
   question: string;
   collectionIds?: string[];
   requestFilters?: RequestFilters;
-  aiWorkerPool: any;
+  aiWorkerPool: {
+    processRequest: (
+      request: unknown
+    ) => Promise<{ content?: string; raw_content_blocks?: Array<{ text?: string }> }>;
+  };
   fastMode?: boolean;
 }
 
@@ -122,8 +128,14 @@ export interface QASingleCollectionParams {
   question: string;
   userId: string;
   requestFilters?: RequestFilters;
-  aiWorkerPool: any;
-  getCollectionFn?: (collectionId: string) => Promise<any>;
+  aiWorkerPool: {
+    processRequest: (
+      request: unknown
+    ) => Promise<{ content?: string; raw_content_blocks?: Array<{ text?: string }> }>;
+  };
+  getCollectionFn?: (
+    collectionId: string
+  ) => Promise<{ name: string; user_id: string | null } | null>;
   getDocumentIdsFn?: (collectionId: string) => Promise<string[]>;
   fastMode?: boolean;
 }
@@ -150,7 +162,7 @@ export interface InternalSearchOptions {
   userId: string | null;
   documentIds?: string[];
   titleFilter?: string;
-  additionalFilter?: any;
+  additionalFilter?: QdrantFilter;
   searchParams: SearchParams;
 }
 
@@ -160,7 +172,7 @@ export interface InternalSearchOptions {
 export interface DocumentScope {
   detectedPhrase?: string;
   collections: string[];
-  subcategoryFilters: Record<string, any>;
+  subcategoryFilters: Record<string, string | string[] | undefined>;
   documentTitleFilter?: string;
 }
 
@@ -169,7 +181,7 @@ export interface DocumentScope {
  * Contains all the data needed to generate an answer without the AI generation step
  */
 export interface SearchContext {
-  referencesMap: Record<string, any>;
+  referencesMap: ReferencesMap;
   sortedResults: ExpandedChunkResult[];
   systemPrompt: string;
   contextSummary: string;
@@ -189,6 +201,8 @@ export interface GetSearchContextParams {
   collectionIds?: string[];
   userId?: string;
   requestFilters?: RequestFilters;
-  getCollectionFn?: (collectionId: string) => Promise<any>;
+  getCollectionFn?: (
+    collectionId: string
+  ) => Promise<{ name: string; user_id: string | null } | null>;
   getDocumentIdsFn?: (collectionId: string) => Promise<string[]>;
 }

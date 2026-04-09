@@ -8,9 +8,7 @@ import dreizeilenCanvasRouter from '../../routes/sharepic/sharepic_canvas/dreize
 import infoCanvasRouter from '../../routes/sharepic/sharepic_canvas/info_canvas.js';
 import zitatCanvasRouter from '../../routes/sharepic/sharepic_canvas/zitat_canvas.js';
 import zitatPureCanvasRouter from '../../routes/sharepic/sharepic_canvas/zitat_pure_canvas.js';
-import sharepicClaudeRouter, {
-  handleClaudeRequest as sharepicClaudeHandler,
-} from '../../routes/sharepic/sharepic_claude/index.js';
+import { handleClaudeRequest as sharepicClaudeHandler } from '../../routes/sharepic/sharepic_claude/index.js';
 import {
   getFirstImageAttachment,
   convertToBuffer,
@@ -26,14 +24,14 @@ import type {
   Attachment,
 } from '../../services/attachments/types.js';
 import type { UserProfile } from '../../services/user/types.js';
-import type { Request, Response, Router } from 'express';
+import type { Request, Router } from 'express';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const log = createLogger('sharepicGenerat');
 
 const SHAREPIC_TYPES = new Set(['info', 'zitat_pure', 'zitat', 'dreizeilen']);
-const IMAGE_REQUIRED_TYPES = new Set(['zitat', 'dreizeilen']);
+const _IMAGE_REQUIRED_TYPES = new Set(['zitat', 'dreizeilen']);
 
 interface SharepicImageManager {
   retrieveAndConsume(requestId: string): Promise<AttachmentsImageAttachment | null>;
@@ -290,7 +288,7 @@ const getRouteHandler = (router: Router): ((...args: unknown[]) => unknown) => {
 
 const createMockResponse = (
   resolve: (value: CanvasResult) => void,
-  reject: (reason?: unknown) => void
+  _reject: (reason?: unknown) => void
 ): MockResponse => {
   const res: MockResponse = {
     statusCode: 200,
@@ -333,6 +331,7 @@ const callSharepicClaude = async (
 
   return new Promise<CanvasResult>((resolve, reject) => {
     const res = createMockResponse(resolve, reject);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const maybePromise = sharepicClaudeHandler(mockReq as any, res as any, type as any) as
       | Promise<unknown>
       | undefined;
@@ -489,7 +488,7 @@ const generateZitatPureSharepic = async (
   };
 };
 
-const generateDreizeilenSharepic = async (
+const _generateDreizeilenSharepic = async (
   expressReq: ExpressRequest,
   requestBody: RequestBody
 ): Promise<SharepicResult> => {

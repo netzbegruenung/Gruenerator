@@ -13,19 +13,6 @@ import type { Logger } from 'winston';
 
 const logger = createLogger('QdrantService:random');
 
-interface ScrollParams {
-  filter?: QdrantFilter;
-  limit: number;
-  offset?: number | string | null;
-  with_payload: boolean | string[];
-  with_vector: boolean;
-}
-
-interface CountParams {
-  filter?: QdrantFilter;
-  exact: boolean;
-}
-
 interface QdrantFilter {
   must?: FilterCondition[];
   must_not?: FilterCondition[];

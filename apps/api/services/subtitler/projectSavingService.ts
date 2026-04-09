@@ -20,14 +20,14 @@ interface SubtitleSegment {
   text: string;
   start: number;
   end: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface VideoMetadata {
   width: number;
   height: number;
   duration?: string | number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface FileStats {
@@ -50,12 +50,16 @@ interface AutoSaveParams {
 }
 
 interface ProjectData {
+  uploadId?: string;
   videoFilename: string;
   subtitles: SubtitleSegment[];
   title?: string;
   stylePreference?: string;
   heightPreference?: string;
-  [key: string]: any;
+  modePreference?: string;
+  videoMetadata?: Record<string, unknown>;
+  videoSize?: number;
+  [key: string]: unknown;
 }
 
 interface SaveResult {
@@ -64,18 +68,11 @@ interface SaveResult {
   isNew?: boolean;
 }
 
-interface ProjectService {
-  ensureInitialized(): Promise<void>;
-  updateSubtitledVideoPath(userId: string, projectId: string, path: string): Promise<any>;
-  getProject(userId: string, projectId: string): Promise<any>;
-  findProjectByVideoFilename(userId: string, filename: string): Promise<any>;
-  createProject(userId: string, data: any): Promise<any>;
-  updateProject(userId: string, projectId: string, data: any): Promise<any>;
-}
+import type { SubtitlerProjectService } from './ProjectService.js';
 
-let projectService: ProjectService | null = null;
+let projectService: SubtitlerProjectService | null = null;
 
-async function getProjectService(): Promise<ProjectService> {
+async function getProjectService(): Promise<SubtitlerProjectService> {
   if (!projectService) {
     const { getSubtitlerProjectService } = await import('./index.js');
     projectService = getSubtitlerProjectService();
@@ -148,12 +145,12 @@ async function autoSaveProject(params: AutoSaveParams): Promise<SaveResult & { i
   const service = await getProjectService();
   const existingProject = await service.findProjectByVideoFilename(userId, originalFilename);
 
-  if (existingProject) {
+  if (existingProject?.id) {
     const result = await saveSubtitledVideo(
       userId,
       existingProject.id,
       outputPath,
-      existingProject.subtitled_video_path
+      existingProject.subtitled_video_path ?? null
     );
 
     log.info(`Updated existing project ${existingProject.id} for export ${exportToken}`);
@@ -165,7 +162,7 @@ async function autoSaveProject(params: AutoSaveParams): Promise<SaveResult & { i
   const newProject = await service.createProject(userId, {
     uploadId,
     title: projectTitle,
-    subtitles: segments,
+    subtitles: JSON.stringify(segments),
     stylePreference,
     heightPreference,
     modePreference: subtitlePreference,
@@ -184,13 +181,13 @@ async function autoSaveProject(params: AutoSaveParams): Promise<SaveResult & { i
 async function saveOrUpdateProject(
   userId: string,
   projectData: ProjectData
-): Promise<{ project: any; isNew: boolean }> {
+): Promise<{ project: unknown; isNew: boolean }> {
   const service = await getProjectService();
   const existing = await service.findProjectByVideoFilename(userId, projectData.videoFilename);
 
-  if (existing) {
+  if (existing?.id) {
     await service.updateProject(userId, existing.id, {
-      subtitles: projectData.subtitles,
+      subtitles: JSON.stringify(projectData.subtitles),
       title: projectData.title,
       style_preference: projectData.stylePreference,
       height_preference: projectData.heightPreference,
@@ -199,7 +196,17 @@ async function saveOrUpdateProject(
     return { project: { ...existing, ...projectData }, isNew: false };
   }
 
-  const project = await service.createProject(userId, projectData);
+  const project = await service.createProject(userId, {
+    uploadId: projectData.uploadId || '',
+    title: projectData.title,
+    subtitles: JSON.stringify(projectData.subtitles),
+    stylePreference: projectData.stylePreference,
+    heightPreference: projectData.heightPreference,
+    modePreference: projectData.modePreference,
+    videoMetadata: projectData.videoMetadata,
+    videoFilename: projectData.videoFilename,
+    videoSize: projectData.videoSize,
+  });
   log.info(`Created new project ${project.id} for video ${projectData.videoFilename}`);
   return { project, isNew: true };
 }

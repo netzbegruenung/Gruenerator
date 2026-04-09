@@ -56,12 +56,14 @@ const VIDEO_UPLOAD_DIR = path.join(__dirname, '../../uploads/video-media');
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
 
 // Ensure upload directory exists
-(async () => {
+void (async () => {
   try {
     await fs.promises.mkdir(VIDEO_UPLOAD_DIR, { recursive: true });
     log.debug(`Video upload directory: ${VIDEO_UPLOAD_DIR}`);
-  } catch (err: any) {
-    log.error(`Failed to create video upload directory: ${err.message}`);
+  } catch (err: unknown) {
+    log.error(
+      `Failed to create video upload directory: ${err instanceof Error ? err.message : String(err)}`
+    );
   }
 })();
 
@@ -115,9 +117,10 @@ router.post(
 
       log.info(`File uploaded: ${file.originalname} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
       res.json({ success: true, uploads: [uploadData] });
-    } catch (error: any) {
-      log.error(`Upload failed: ${error.message}`);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      log.error(`Upload failed: ${errMsg}`);
+      res.status(500).json({ error: errMsg });
     }
   }
 );
@@ -179,9 +182,10 @@ router.post('/from-url', async (req: AuthenticatedRequest, res: Response): Promi
 
     log.info(`URL upload: ${uploads.length} files downloaded`);
     res.json({ success: true, uploads });
-  } catch (error: any) {
-    log.error(`URL upload failed: ${error.message}`);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    log.error(`URL upload failed: ${errMsg}`);
+    res.status(500).json({ error: errMsg });
   }
 });
 
@@ -256,9 +260,10 @@ router.get(
       }
 
       res.json({ url: getPublicUrl(req as Request, match) });
-    } catch (error: any) {
-      log.error(`URL lookup failed: ${error.message}`);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      log.error(`URL lookup failed: ${errMsg}`);
+      res.status(500).json({ error: errMsg });
     }
   }
 );

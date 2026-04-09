@@ -21,7 +21,7 @@
 //   exp: number;
 //   iss: string;
 //   aud: string;
-//   [key: string]: any;
+//   [key: string]: unknown;
 // }
 //
 // /**
@@ -57,7 +57,7 @@ export interface KeycloakTokenPayload {
   exp: number;
   iss: string;
   aud: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**

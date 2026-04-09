@@ -20,7 +20,7 @@ export interface CrawlableResult {
   content?: string;
   snippet?: string;
   relevance?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface CrawledResult extends CrawlableResult {

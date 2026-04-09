@@ -19,16 +19,33 @@ console.log('\n--- Test 1: Generation Config ---');
 try {
   // Sharepic should have low temperature
   const sharepicConfig = getGenerationConfig({ type: 'sharepic_zitat' });
-  console.log('Sharepic temp (expected 0.1):', sharepicConfig.temperature === 0.1 ? '✅' : '❌', sharepicConfig.temperature);
+  console.log(
+    'Sharepic temp (expected 0.1):',
+    sharepicConfig.temperature === 0.1 ? '✅' : '❌',
+    sharepicConfig.temperature
+  );
 
   // Press release should have professional temperature
   const presseConfig = getGenerationConfig({ type: 'presse' });
-  console.log('Presse temp (expected 0.3):', presseConfig.temperature === 0.3 ? '✅' : '❌', presseConfig.temperature);
+  console.log(
+    'Presse temp (expected 0.3):',
+    presseConfig.temperature === 0.3 ? '✅' : '❌',
+    presseConfig.temperature
+  );
 
   // Social media with Twitter
   const twitterConfig = getGenerationConfig({ type: 'social', platforms: ['twitter'] });
-  console.log('Twitter temp (expected 0.5):', twitterConfig.temperature === 0.5 ? '✅' : '❌', twitterConfig.temperature);
-  console.log('Twitter maxTokens (expected 120):', twitterConfig.maxTokens === 120 ? '✅' : '❌', twitterConfig.maxTokens);
+  console.log(
+    'Twitter temp (expected 0.5):',
+    twitterConfig.temperature === 0.5 ? '✅' : '❌',
+    twitterConfig.temperature
+  );
+  console.log(
+    'Twitter maxTokens (expected 120):',
+    twitterConfig.maxTokens === 120 ? '✅' : '❌',
+    twitterConfig.maxTokens
+  );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } catch (error: any) {
   console.log('Test 1 failed:', error.message);
 }
@@ -39,6 +56,7 @@ try {
   console.log('Mistral configured:', isProviderConfigured('mistral') ? '✅' : '⚠️ Not configured');
   console.log('LiteLLM configured:', isProviderConfigured('litellm') ? '✅' : '⚠️ Not configured');
   console.log('IONOS configured:', isProviderConfigured('ionos') ? '✅' : '⚠️ Not configured');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } catch (error: any) {
   console.log('Test 2 failed:', error.message);
 }
@@ -49,6 +67,7 @@ try {
   console.log('Mistral default:', getDefaultModel('mistral'));
   console.log('LiteLLM default:', getDefaultModel('litellm'));
   console.log('IONOS default:', getDefaultModel('ionos'));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } catch (error: any) {
   console.log('Test 3 failed:', error.message);
 }
@@ -59,9 +78,21 @@ try {
   console.log('mistral adapter exported:', providers.mistral ? '✅' : '❌');
   console.log('litellm adapter exported:', providers.litellm ? '✅' : '❌');
   console.log('ionos adapter exported:', providers.ionos ? '✅' : '❌');
-  console.log('executeProvider function:', typeof providers.executeProvider === 'function' ? '✅' : '❌');
-  console.log('claude adapter (should be undefined):', (providers as any).claude === undefined ? '✅' : '❌');
-  console.log('telekom adapter (should be undefined):', (providers as any).telekom === undefined ? '✅' : '❌');
+  console.log(
+    'executeProvider function:',
+    typeof providers.executeProvider === 'function' ? '✅' : '❌'
+  );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  console.log(
+    'claude adapter (should be undefined):',
+    (providers as any).claude === undefined ? '✅' : '❌'
+  );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  console.log(
+    'telekom adapter (should be undefined):',
+    (providers as any).telekom === undefined ? '✅' : '❌'
+  );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } catch (error: any) {
   console.log('Test 4 failed:', error.message);
 }
@@ -89,6 +120,7 @@ try {
   } else {
     console.log('IONOS model instance: ⚠️ Skipped (not configured)');
   }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } catch (error: any) {
   console.log('Test 5 failed:', error.message);
 }
@@ -109,6 +141,7 @@ if (isProviderConfigured('mistral')) {
     console.log('Provider:', result.metadata?.provider);
     console.log('Content:', result.content?.substring(0, 100) || '(no content)');
     console.log('Stop reason:', result.stop_reason);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.log('Test 6 failed:', error.message);
   }
@@ -132,6 +165,7 @@ if (isProviderConfigured('litellm')) {
     console.log('Provider:', result.metadata?.provider);
     console.log('Content:', result.content?.substring(0, 100) || '(no content)');
     console.log('Stop reason:', result.stop_reason);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.log('Test 7 failed:', error.message);
   }

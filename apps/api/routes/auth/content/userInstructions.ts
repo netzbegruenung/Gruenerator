@@ -10,7 +10,7 @@ import { getKnowledgeService as getUserKnowledgeService } from '../../../service
 import { getProfileService } from '../../../services/user/ProfileService.js';
 import { createLogger } from '../../../utils/logger.js';
 
-import type { AuthRequest, InstructionsUpdateBody } from '../types.js';
+import type { AuthRequest } from '../types.js';
 
 const log = createLogger('userInstructions');
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
@@ -23,7 +23,7 @@ const router: Router = express.Router();
 
 router.get(
   '/anweisungen-wissen',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -36,8 +36,12 @@ router.get(
 
       res.json({
         success: true,
-        customPrompt: (profileData as any)?.custom_prompt || '',
-        presseabbinder: (profileData as any)?.presseabbinder || '',
+        customPrompt:
+          (profileData as { custom_prompt?: string; presseabbinder?: string } | null)
+            ?.custom_prompt || '',
+        presseabbinder:
+          (profileData as { custom_prompt?: string; presseabbinder?: string } | null)
+            ?.presseabbinder || '',
         knowledge:
           knowledgeEntries?.map((entry) => ({
             id: entry.id,
@@ -62,7 +66,7 @@ router.get(
 
 router.put(
   '/anweisungen-wissen',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -95,13 +99,15 @@ router.put(
           const existingKnowledge = await userKnowledgeService.getUserKnowledge(userId);
           const existingIds = existingKnowledge.map((k) => k.id);
 
-          const validEntries = knowledge.filter(
-            (entry: any) => (entry.title || '').trim() || (entry.content || '').trim()
-          );
+          const validEntries = (
+            knowledge as Array<{ id?: string; title?: string; content?: string }>
+          ).filter((entry) => (entry.title || '').trim() || (entry.content || '').trim());
 
           const submittedIds = validEntries
-            .map((entry: any) => entry.id)
-            .filter((id: any) => id && !(typeof id === 'string' && id.startsWith('new-')));
+            .map((entry) => entry.id)
+            .filter(
+              (id): id is string => !!id && !(typeof id === 'string' && id.startsWith('new-'))
+            );
 
           const toDelete = existingIds.filter((id) => !submittedIds.includes(id));
           for (const deleteId of toDelete) {
@@ -110,7 +116,11 @@ router.put(
           }
 
           for (const entry of validEntries) {
-            await userKnowledgeService.saveUserKnowledge(userId, entry);
+            await userKnowledgeService.saveUserKnowledge(userId, {
+              id: entry.id,
+              title: (entry.title || '').trim() || 'Unbenannter Eintrag',
+              content: (entry.content || '').trim() || '',
+            });
             knowledgeResults.processed++;
           }
 
@@ -147,7 +157,7 @@ router.put(
 
 router.delete(
   '/anweisungen-wissen/:id',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ id: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;

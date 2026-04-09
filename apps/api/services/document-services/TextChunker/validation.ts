@@ -19,7 +19,10 @@ export function estimateTokens(text: string): number {
  * Validate chunking options
  * Ensures options are within acceptable ranges
  */
-export function validateChunkingOptions(options: any): void {
+export function validateChunkingOptions(options: {
+  maxTokens?: number;
+  overlapTokens?: number;
+}): void {
   if (options.maxTokens && (options.maxTokens < 50 || options.maxTokens > 10000)) {
     throw new Error('maxTokens must be between 50 and 10000');
   }

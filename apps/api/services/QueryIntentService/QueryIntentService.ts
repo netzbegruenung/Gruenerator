@@ -3,11 +3,9 @@
  */
 
 import { getDefaultMultiCollectionIds } from '../../config/systemCollectionsConfig.js';
-import { vectorConfig } from '../../config/vectorConfig.js';
 
 import type {
   IntentDetectionResult,
-  IntentType,
   Language,
   ContentPreferences,
   QdrantFilter,

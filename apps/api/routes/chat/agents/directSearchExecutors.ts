@@ -189,6 +189,7 @@ export async function executeDirectSearch(params: {
       }
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const formattedResults = response.results.slice(0, limit).map((result: any, index: number) => ({
       rank: index + 1,
       relevance: formatRelevance(result.score || result.similarity || 0),
@@ -220,8 +221,9 @@ export async function executeDirectSearch(params: {
       resultsCount: formattedResults.length,
       results: formattedResults,
     };
-  } catch (error: any) {
-    log.error(`[Direct Search] Error searching ${collection}:`, error.message);
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    log.error(`[Direct Search] Error searching ${collection}:`, errMsg);
     return {
       collection,
       query,
@@ -229,7 +231,7 @@ export async function executeDirectSearch(params: {
       resultsCount: 0,
       results: [],
       error: true,
-      message: `Suche fehlgeschlagen: ${error.message}`,
+      message: `Suche fehlgeschlagen: ${errMsg}`,
     };
   }
 }
@@ -278,6 +280,7 @@ export async function executeDirectExamplesSearch(params: {
         };
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const examples = randomResults.map((result: any) => ({
         id: String(result.id),
         platform: result.platform || platform || 'unknown',
@@ -294,6 +297,7 @@ export async function executeDirectExamplesSearch(params: {
       };
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const examples = results.map((result: any) => ({
       id: String(result.id),
       platform: result.platform || platform || 'unknown',
@@ -309,13 +313,14 @@ export async function executeDirectExamplesSearch(params: {
       resultsCount: examples.length,
       examples,
     };
-  } catch (error: any) {
-    log.error(`[Direct Examples Search] Error:`, error.message);
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    log.error(`[Direct Examples Search] Error:`, errMsg);
     return {
       resultsCount: 0,
       examples: [],
       error: true,
-      message: `Beispielsuche fehlgeschlagen: ${error.message}`,
+      message: `Beispielsuche fehlgeschlagen: ${errMsg}`,
     };
   }
 }
@@ -336,7 +341,7 @@ export async function executeDirectWebSearch(params: {
   log.info(`[Direct Web Search] query="${query}" type="${searchType}" max=${maxResults}`);
 
   try {
-    const searchOptions: Record<string, any> = {
+    const searchOptions: Record<string, unknown> = {
       maxResults: Math.min(maxResults, 10),
       language: 'de-DE',
       safesearch: 0,
@@ -364,6 +369,7 @@ export async function executeDirectWebSearch(params: {
       };
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const formattedResults = searchResults.results.slice(0, maxResults).map((result: any) => ({
       rank: result.rank,
       title: result.title || 'Unbekannt',
@@ -382,15 +388,16 @@ export async function executeDirectWebSearch(params: {
       results: formattedResults,
       suggestions: searchResults.suggestions?.slice(0, 3),
     };
-  } catch (error: any) {
-    log.error(`[Direct Web Search] Error:`, error.message);
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    log.error(`[Direct Web Search] Error:`, errMsg);
     return {
       query,
       searchType,
       resultsCount: 0,
       results: [],
       error: true,
-      message: `Websuche fehlgeschlagen: ${error.message}`,
+      message: `Websuche fehlgeschlagen: ${errMsg}`,
     };
   }
 }

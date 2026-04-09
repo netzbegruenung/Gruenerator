@@ -38,6 +38,7 @@ export class DocumentProcessor {
    * @param maxAgeYears - Optional max age in years (default: 10)
    */
   async processAndStoreDocument(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     source: any,
     contentType: string,
     url: string,
@@ -98,7 +99,8 @@ export class DocumentProcessor {
 
     // STEP 5: Build document title
     const documentTitle =
-      title || `${source.name} - ${(CONTENT_TYPE_LABELS as any)[contentType] || contentType}`;
+      title ||
+      `${source.name} - ${(CONTENT_TYPE_LABELS as Record<string, string>)[contentType] || contentType}`;
 
     // STEP 6: Chunk document
     const chunks = await smartChunkDocument(text, {
@@ -114,7 +116,9 @@ export class DocumentProcessor {
     }
 
     // STEP 7: Generate embeddings
-    const chunkTexts = chunks.map((c: any) => c.text || c.chunk_text);
+    const chunkTexts = chunks.map(
+      (c: { text?: string; chunk_text?: string }) => c.text || c.chunk_text || ''
+    );
     const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
 
     // STEP 8: Build Qdrant points (with quality scoring)
@@ -129,7 +133,8 @@ export class DocumentProcessor {
         landesverband: source.shortName,
         source_type: source.type,
         content_type: contentType,
-        content_type_label: (CONTENT_TYPE_LABELS as any)[contentType] || contentType,
+        content_type_label:
+          (CONTENT_TYPE_LABELS as Record<string, string>)[contentType] || contentType,
         content_hash: contentHash,
         chunk_index: index,
         chunk_text: chunkTexts[index],

@@ -33,6 +33,7 @@ export async function grundsatzNode(state: WebSearchState): Promise<Partial<WebS
       },
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const formattedResults = (searchResults.results || []).map((result: any) => ({
       document_id: result.document_id,
       title: result.title || result.document_title,
