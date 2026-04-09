@@ -545,7 +545,7 @@ function evaluatePipelineQuality() {
     {
       input: 'Schreib eine Pressemitteilung über die Klimapolitik der Grünen',
       expectOptimizedQuery: true,
-      expectResearchIntent: true,
+      expectResearchIntent: false, // Creative task → direct (not research)
       description: 'Task-oriented query about climate policy',
     },
     {
