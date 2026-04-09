@@ -25,7 +25,7 @@ interface ResourceLimit {
   window: 'daily' | 'hourly' | 'monthly';
 }
 
-interface ResourceConfig {
+interface ResourceConfig extends Record<string, ResourceLimit> {
   anonymous: ResourceLimit;
   authenticated: ResourceLimit;
   premium: ResourceLimit;

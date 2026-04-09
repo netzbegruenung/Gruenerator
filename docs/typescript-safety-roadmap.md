@@ -16,15 +16,32 @@ Long-term plan for making the Gruenerator codebase as type-safe as possible. Goa
 
 ## Phase 2: Eliminate Unsafe Patterns (Next)
 
-### 2.1 Type the database layer
-**Impact: High | Effort: Medium**
+### 2.1 Type the database layer with Drizzle ORM
+**Impact: High | Effort: Medium-High | ~57 files, ~1865 lines**
 
-The biggest source of `as unknown as X` casts is untyped SQL query results. Kysely is already used for Better Auth — extend it to all queries.
+The biggest source of `as unknown as X` casts (~85 across 35 files) is untyped SQL query results from `PostgresService.query()` returning `Record<string, unknown>`. Drizzle ORM replaces raw SQL with a type-safe query builder AND eliminates the dual source of truth (`schema.sql` + `types.ts`) by making schema-as-code the single source.
 
-- [ ] Create Kysely database interface covering all tables in `schema.sql`
-- [ ] Migrate `PostgresService.query()` calls to Kysely typed queries
-- [ ] Remove `as unknown as SomeRow[]` casts from controllers (estimated ~40 casts)
-- [ ] Files most affected: `sitesController.ts`, `NotificationService.ts`, `WolkeSyncService.ts`, `publicDocController.ts`, `ogController.ts`, all `userCustom*.ts`
+#### Phase 2A: Foundation + Safe Services [DONE]
+
+**Setup:**
+- [x] Install `drizzle-orm` + `drizzle-kit` (dev) in `apps/api/package.json`
+- [x] Create `apps/api/database/services/DrizzleService.ts` — singleton wrapping existing `pg.Pool`
+- [x] Create `apps/api/drizzle.config.ts` — for future `drizzle-kit generate`
+- [x] Create `apps/api/database/schema/index.ts` — barrel re-export
+
+**Schema files:**
+- [x] `database/schema/notifications.ts` — `notifications` (11 columns)
+- [x] `database/schema/generators.ts` — `custom_prompts`, `saved_prompts`, `custom_generators`, `saved_generators`, `custom_generator_documents` (5 tables)
+- [x] `database/schema/subtitler.ts` — `subtitler_projects`, `subtitler_shared_videos`, `subtitler_share_downloads` (3 tables)
+
+**Service migrations:**
+- [x] `services/notifications/NotificationService.ts` — 5 casts → 0
+- [x] `routes/auth/userCustomPrompts.ts` — 5 casts → 0 (deleted stale local `CustomPromptRow` duplicate)
+- [x] `services/subtitler/ProjectService.ts` — 7 casts → 0
+
+#### Phase 2B–2D: Remaining tables + services (TODO)
+
+See detailed plan in git history for Phase 2B (ProfileService, high-risk), 2C (all remaining tables), 2D (infrastructure switch).
 
 ### 2.2 Type AI SDK tool calls with Zod
 **Impact: High | Effort: Low**
@@ -140,16 +157,17 @@ Steps:
 
 ## Metrics
 
-| Metric | Before (2026-04-09) | After Phase 1 | Target |
-|--------|---------------------|---------------|--------|
-| `no-explicit-any` lint errors | ~200 (warnings) | **0** (now errors) | 0 |
-| `eslint-disable no-explicit-any` | 0 | ~150 | ~30 (LangGraph only) |
-| `catch (error: any)` | ~250 | **0** | 0 |
-| `Record<string, any>` | ~100 | **0** | 0 |
-| `as unknown as X` casts | 241 | ~180 | < 30 |
-| `@ts-expect-error` | 9 | 7 | < 5 |
-| `?? undefined` patterns | 86 | 86 | 0 |
-| Untyped DB queries | ~50 | ~40 (Kysely started) | 0 |
+| Metric | Before (2026-04-09) | After Phase 1 | After Phase 2A | Target |
+|--------|---------------------|---------------|----------------|--------|
+| `no-explicit-any` lint errors | ~200 (warnings) | **0** (now errors) | 0 | 0 |
+| `eslint-disable no-explicit-any` | 0 | ~150 | ~150 | ~30 (LangGraph only) |
+| `catch (error: any)` | ~250 | **0** | 0 | 0 |
+| `Record<string, any>` | ~100 | **0** | 0 | 0 |
+| `as unknown as X` casts | 241 | 133 (61 files) | **116** (17 eliminated) | ≤ 6 |
+| `@ts-expect-error` | 9 | 7 | 7 | < 5 |
+| `?? undefined` patterns | 86 | 86 | 86 | 0 |
+| Untyped DB queries | ~50 | ~50 | ~35 (Drizzle started) | 0 |
+| Schema sources of truth | 2 (`schema.sql` + `types.ts`) | 2 | 2 (Drizzle coexists) | **1** |
 
 ## Principles
 

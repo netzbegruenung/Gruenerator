@@ -25,6 +25,7 @@ export interface ProviderResult {
 }
 
 export interface PrivacyProviderData {
+  type?: string;
   options: ProviderOptions;
   [key: string]: unknown;
 }

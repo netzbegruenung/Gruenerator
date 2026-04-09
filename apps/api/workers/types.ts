@@ -115,6 +115,7 @@ export interface AIRequestData {
   platforms?: string[];
   documents?: DocumentReference[];
   tools?: Tool[];
+  [key: string]: unknown;
 }
 
 export interface DocumentReference {

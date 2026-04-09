@@ -197,11 +197,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
       };
       const fallbackResult = await fallbackFn(
         async (providerName: ProviderName, privacyData) => {
-          return providers.executeProvider(
-            providerName,
-            requestId,
-            privacyData as unknown as AIRequestData
-          );
+          return providers.executeProvider(providerName, requestId, privacyData as AIRequestData);
         },
         requestId,
         fallbackData
@@ -233,11 +229,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
           console.log(
             `[AI Worker ${requestId}] Trying fallback provider: ${providerName} with temperature: ${temp ?? 'default'}`
           );
-          return providers.executeProvider(
-            providerName,
-            requestId,
-            privacyData as unknown as AIRequestData
-          );
+          return providers.executeProvider(providerName, requestId, privacyData as AIRequestData);
         },
         requestId,
         errorFallbackData

@@ -34,9 +34,7 @@ export async function storeBridgeCode(code: string, data: BridgeCodeData): Promi
 export async function consumeBridgeCode(code: string): Promise<BridgeCodeData | null> {
   const key = `${KEY_PREFIX}${code}`;
 
-  const results = await client.multi().get(key).del(key).exec();
-
-  const raw = results[0] as unknown as string | null;
+  const raw = await client.getDel(key);
   if (!raw) return null;
 
   return JSON.parse(raw) as BridgeCodeData;
