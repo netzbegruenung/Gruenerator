@@ -448,19 +448,19 @@
   color: var(--grey-300, #d1d5db);
 }
 
-/* Floating composer - for creating new comments */
-.bn-floating-composer {
-  background: var(--background-color, #ffffff);
-  border: 1px solid var(--grey-300, #d1d5db);
+/* Floating composer / thread — applies to both floating and sidebar threads */
+.blocknote-wrapper .bn-thread {
+  border: 1px solid var(--grey-200, #e5e7eb);
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  padding: 0.75rem;
-  min-width: 280px;
-  max-width: 360px;
+  min-width: min(360px, 90vw);
+  max-width: min(360px, 90vw);
+  max-height: min(500px, 60vh);
+  overflow: auto;
+  padding: 0.5rem;
 }
 
-[data-theme="dark"] .bn-floating-composer {
-  background: var(--grey-800, #1f2937);
+[data-theme="dark"] .blocknote-wrapper .bn-thread {
   border-color: var(--grey-600, #4b5563);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }

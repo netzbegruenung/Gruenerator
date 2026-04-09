@@ -224,16 +224,18 @@ const BlockNoteEditorInner = ({
       {
         key: 'checkboxClickFix',
         mount({ dom, signal }: { dom: HTMLElement; signal: AbortSignal }) {
-          dom.addEventListener(
-            'pointerdown',
-            (e: PointerEvent) => {
-              const target = e.target as HTMLElement;
-              if (target instanceof HTMLInputElement && target.type === 'checkbox') {
-                e.preventDefault();
-              }
-            },
-            { signal, capture: true }
-          );
+          for (const eventType of ['pointerdown', 'pointerup', 'mousedown', 'mouseup'] as const) {
+            dom.addEventListener(
+              eventType,
+              (e: Event) => {
+                const target = e.target as HTMLElement;
+                if (target instanceof HTMLInputElement && target.type === 'checkbox') {
+                  e.stopPropagation();
+                }
+              },
+              { signal, capture: true }
+            );
+          }
         },
       },
     ];
