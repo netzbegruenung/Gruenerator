@@ -622,15 +622,13 @@ export class KommunalwikiScraper extends BaseScraper {
       filter.must.push({ key: 'content_type', match: { value: articleType } });
     }
 
-    const searchParams: Record<string, unknown> = {
+    const searchParams = {
       vector: queryVector,
       limit: limit * 3,
       score_threshold: threshold,
-      with_payload: true,
+      with_payload: true as const,
+      ...(filter.must.length > 0 ? { filter } : {}),
     };
-    if (filter.must.length > 0) {
-      searchParams.filter = filter;
-    }
     const searchResult = await this.qdrant!.client!.search(
       this.config.collectionName,
       searchParams

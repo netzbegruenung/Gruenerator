@@ -190,7 +190,7 @@ export async function runWebSearch(input: WebSearchInput): Promise<WebSearchOutp
   console.log(`[WebSearchGraph] Starting ${mode} search for: "${query}"`);
 
   try {
-    const initialState: Partial<WebSearchState> = {
+    const initialState = {
       query,
       mode,
       user_id,
@@ -200,10 +200,10 @@ export async function runWebSearch(input: WebSearchInput): Promise<WebSearchOutp
       metadata: {
         startTime: Date.now(),
         searchMode: mode,
-      },
+      } as SearchMetadata,
     };
 
-    const result = await webSearchGraph.invoke(initialState);
+    const result = await webSearchGraph.invoke(initialState as unknown as typeof SearchState.State);
 
     // Format final output based on mode
     if (mode === 'normal') {

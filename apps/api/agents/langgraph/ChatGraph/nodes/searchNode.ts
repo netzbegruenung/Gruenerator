@@ -17,6 +17,7 @@ import { selectAndCrawlTopUrls } from '../../../../services/search/CrawlingServi
 import { expandQuery } from '../../../../services/search/QueryExpansionService.js';
 import { DEFAULT_RELEVANCE } from '../../../../services/search/rerankPipeline.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { type AIWorkerPool } from '../../../../workers/types.js';
 import { SOURCE_PREFIX, type ChatGraphState, type SearchResult, type Citation } from '../types.js';
 
 import {
@@ -108,14 +109,12 @@ export async function executeDocumentSearchParallel(
       if (searchFilters != null) {
         params.filters = searchFilters;
       }
-      return executeDirectSearch(params).catch(
-        (err: unknown) => {
-          log.warn(
-            `[Search] Collection ${collection} failed for query "${sq}": ${err instanceof Error ? err.message : String(err)}`
-          );
-          return null;
-        }
-      );
+      return executeDirectSearch(params).catch((err: unknown) => {
+        log.warn(
+          `[Search] Collection ${collection} failed for query "${sq}": ${err instanceof Error ? err.message : String(err)}`
+        );
+        return null;
+      });
     })
   );
 
@@ -154,9 +153,7 @@ export async function executeDocumentSearchParallel(
  */
 export async function executeWebSearchParallel(
   query: string,
-  aiWorkerPool: {
-    processRequest(data: unknown, req?: unknown): Promise<{ content?: string | null }>;
-  }
+  aiWorkerPool: AIWorkerPool
 ): Promise<SearchResult[]> {
   let allWebQueries = [query];
   try {
@@ -373,7 +370,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       const webResults = results.filter((r) => r.source === 'web' && r.url);
       if (webResults.length > 0) {
         try {
-          const crawled = await selectAndCrawlTopUrls(webResults as any, query, {
+          const crawled = await selectAndCrawlTopUrls(webResults, query, {
             maxUrls: 2,
             timeout: 3000,
           });
@@ -745,10 +742,14 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
         // A1: Crawl top 2 web results for full content
         try {
-          const crawled = await selectAndCrawlTopUrls(results.filter(r => r.url) as any, query, {
-            maxUrls: 2,
-            timeout: 3000,
-          });
+          const crawled = await selectAndCrawlTopUrls(
+            results.filter((r) => r.url),
+            query,
+            {
+              maxUrls: 2,
+              timeout: 3000,
+            }
+          );
           results = crawled.map((r) => ({
             ...r,
             content: r.fullContent || r.content || '',

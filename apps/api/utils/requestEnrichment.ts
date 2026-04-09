@@ -908,7 +908,7 @@ class RequestEnricher {
                 (res) =>
                   (res.ok ? res.json() : { success: false, results: [] }) as Promise<{
                     success: boolean;
-                    results: unknown[];
+                    results: VectorSearchResult[];
                   }>
               )
               .then((result) => (result.success ? result.results : []))

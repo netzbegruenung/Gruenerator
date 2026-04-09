@@ -91,15 +91,17 @@ export async function runImageSelection(input: ImageSelectionInput): Promise<Ima
   console.log(`[ImageSelectionGraph] Starting image selection for: "${text.substring(0, 50)}..."`);
 
   try {
-    const initialState: Partial<ImageSelectionState> = {
+    const initialState = {
       text,
       sharepicType,
       aiWorkerPool,
       req,
-      metadata: {},
+      metadata: {} as SelectionMetadata,
     };
 
-    const result = await imageSelectionGraph.invoke(initialState);
+    const result = await imageSelectionGraph.invoke(
+      initialState as unknown as typeof ImageSelectionStateAnnotation.State
+    );
 
     // Format final output
     if (result.error && !result.selectedImage) {

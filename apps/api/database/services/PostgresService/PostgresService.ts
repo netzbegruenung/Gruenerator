@@ -400,7 +400,7 @@ export class PostgresService {
     const client = await this.pool!.connect();
     try {
       const result = await client.query(sql, params);
-      return result.rows as Record<string, unknown>[];
+      return result.rows as T[];
     } catch (error) {
       console.error('[PostgresService] Query error:', error, { sql, params });
 
