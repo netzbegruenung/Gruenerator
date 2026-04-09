@@ -507,9 +507,13 @@ async function exportWithEnhancements(
     originalFormat: metadata.originalFormat
       ? {
           codec: metadata.originalFormat.codec,
-          videoBitrate: metadata.originalFormat.videoBitrate ?? undefined,
+          ...(metadata.originalFormat.videoBitrate != null && {
+            videoBitrate: metadata.originalFormat.videoBitrate,
+          }),
           audioCodec: metadata.originalFormat.audioCodec,
-          audioBitrate: metadata.originalFormat.audioBitrate ?? undefined,
+          ...(metadata.originalFormat.audioBitrate != null && {
+            audioBitrate: metadata.originalFormat.audioBitrate,
+          }),
         }
       : undefined,
   };

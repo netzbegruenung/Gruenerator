@@ -940,11 +940,10 @@ router.get(
 router.put(
   '/:shareToken/image',
   requireAuth,
-  async (req: Request<ShareTokenParams>, res: Response<ShareResponse>) => {
+  async (req: AuthenticatedRequest<ShareTokenParams>, res: Response<ShareResponse>) => {
     try {
       const { shareToken } = req.params;
-      const authReq = req as unknown as AuthenticatedRequest;
-      const userId = authReq.user!.id;
+      const userId = req.user!.id;
       const { imageBase64, title, metadata, originalImage } = req.body as {
         imageBase64: string;
         title?: string;

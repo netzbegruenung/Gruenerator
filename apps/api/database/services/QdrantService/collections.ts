@@ -187,10 +187,10 @@ export async function getCollectionStats(
     const segmentsCount = info.segments_count as number | null | undefined;
     return {
       name: collectionName,
-      vectors_count: vectorsCount ?? undefined,
-      indexed_vectors_count: indexedVectorsCount ?? undefined,
-      points_count: pointsCount ?? undefined,
-      segments_count: segmentsCount ?? undefined,
+      ...(vectorsCount != null && { vectors_count: vectorsCount }),
+      ...(indexedVectorsCount != null && { indexed_vectors_count: indexedVectorsCount }),
+      ...(pointsCount != null && { points_count: pointsCount }),
+      ...(segmentsCount != null && { segments_count: segmentsCount }),
       status: info.status,
       optimizer_status:
         typeof info.optimizer_status === 'object'

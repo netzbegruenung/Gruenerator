@@ -168,9 +168,9 @@ export async function getCollectionStats(
     const pointsCount = info.points_count as number | null | undefined;
     return {
       name: collection,
-      vectors_count: vectorsCount ?? undefined,
-      indexed_vectors_count: indexedVectorsCount ?? undefined,
-      points_count: pointsCount ?? undefined,
+      ...(vectorsCount != null && { vectors_count: vectorsCount }),
+      ...(indexedVectorsCount != null && { indexed_vectors_count: indexedVectorsCount }),
+      ...(pointsCount != null && { points_count: pointsCount }),
       status: info.status,
     };
   } catch (error) {

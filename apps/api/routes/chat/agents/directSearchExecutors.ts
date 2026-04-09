@@ -207,7 +207,9 @@ export async function executeDirectSearch(params: {
       searchMethod: result.searchMethod || 'hybrid',
       contentType: result.top_chunks?.[0]?.content_type || result.content_type || undefined,
       documentId: result.document_id || undefined,
-      chunkIndex: result.chunk_index ?? result.top_chunks?.[0]?.chunk_index ?? undefined,
+      ...(result.chunk_index != null || result.top_chunks?.[0]?.chunk_index != null
+        ? { chunkIndex: result.chunk_index ?? result.top_chunks?.[0]?.chunk_index }
+        : {}),
       score: result.score || result.similarity || result.similarity_score || undefined,
       collectionId: collection,
     }));

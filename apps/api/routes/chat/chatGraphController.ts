@@ -74,7 +74,7 @@ import type {
   ChatGraphInput,
   ProcessedAttachment,
 } from '../../agents/langgraph/ChatGraph/types.js';
-import type { UIMessage } from 'ai';
+import type { ModelMessage, UIMessage } from 'ai';
 
 const log = createLogger('ChatGraphController');
 const router = createAuthenticatedRouter();
@@ -165,11 +165,9 @@ router.post('/stream', async (req, res) => {
     // === Convert messages ===
     let modelMessages: ChatGraphInput['messages'];
     try {
-      // Cast via unknown: convertToModelMessages resolves ModelMessage from a different
-      // @ai-sdk/provider-utils resolution than what ChatGraph types import.
       modelMessages = (await convertToModelMessages(
         clientMessages
-      )) as unknown as ChatGraphInput['messages'];
+      )) as ModelMessage[] as ChatGraphInput['messages'];
     } catch (convertError) {
       log.error('[ChatGraph] Error converting messages:', convertError);
       sse.send('error', { error: 'Failed to process messages' });
@@ -184,8 +182,8 @@ router.post('/stream', async (req, res) => {
     }
 
     const validMessages = filterEmptyAssistantMessages(
-      modelMessages
-    ) as unknown as ChatGraphInput['messages'];
+      modelMessages as ModelMessage[]
+    ) as ChatGraphInput['messages'];
     log.info(
       `[ChatGraph] Converted ${clientMessages.length} → ${validMessages.length} valid messages`
     );
@@ -407,8 +405,8 @@ router.post('/stream', async (req, res) => {
       intent: classifiedState.intent,
       message: getIntentMessage(classifiedState.intent),
       reasoning: classifiedState.reasoning,
-      searchQuery: classifiedState.searchQuery ?? undefined,
-      subQueries: classifiedState.subQueries ?? undefined,
+      ...(classifiedState.searchQuery != null && { searchQuery: classifiedState.searchQuery }),
+      ...(classifiedState.subQueries != null && { subQueries: classifiedState.subQueries }),
       searchSources: classifiedState.searchSources?.length
         ? classifiedState.searchSources
         : undefined,
@@ -617,7 +615,7 @@ router.post('/stream', async (req, res) => {
       classifiedState,
       generatedImage,
       isNewThread,
-      lastUserMessage: lastUserMessage as unknown as PersistParams['lastUserMessage'],
+      lastUserMessage: lastUserMessage as ModelMessage,
       processedMeta,
       aiWorkerPool,
       requestId,
@@ -768,8 +766,8 @@ router.post('/resume', async (req, res) => {
       intent: classifiedState.intent,
       message: getIntentMessage(classifiedState.intent),
       reasoning: `Resumed: ${userAnswer}`,
-      searchQuery: classifiedState.searchQuery ?? undefined,
-      subQueries: classifiedState.subQueries ?? undefined,
+      ...(classifiedState.searchQuery != null && { searchQuery: classifiedState.searchQuery }),
+      ...(classifiedState.subQueries != null && { subQueries: classifiedState.subQueries }),
       searchSources: classifiedState.searchSources?.length
         ? classifiedState.searchSources
         : undefined,
