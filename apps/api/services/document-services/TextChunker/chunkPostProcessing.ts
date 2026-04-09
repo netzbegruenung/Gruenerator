@@ -19,7 +19,7 @@ import {
 } from './sentenceSegmentation.js';
 import { estimateTokens } from './validation.js';
 
-import type { Chunk, SentenceSegment, PageMarker } from './types.js';
+import type { Chunk, SentenceSegment } from './types.js';
 
 /** Intermediate result with position info before final mapping to Chunk */
 interface PositionedChunk {
@@ -46,8 +46,8 @@ export function sentenceRepack(
     baseMetadata = {},
     targetChars = 1600,
     overlapChars = 400,
-    originalRawText,
-    pageRanges,
+    originalRawText: _originalRawText,
+    pageRanges: _pageRanges,
   } = options;
 
   if (!Array.isArray(chunks) || chunks.length === 0) return [];
