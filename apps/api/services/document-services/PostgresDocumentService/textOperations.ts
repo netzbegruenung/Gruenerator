@@ -142,7 +142,7 @@ export async function createDocumentWithText(
     const document = await postgres.insert('documents', documentData);
     console.log(`[PostgresDocumentService] Created document with text: ${document.id}`);
 
-    return document as unknown as DocumentRecord;
+    return document as DocumentRecord;
   } catch (error) {
     console.error('[PostgresDocumentService] Error creating document with text:', error);
     throw new Error('Failed to create document with text');

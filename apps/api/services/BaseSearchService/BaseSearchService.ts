@@ -532,7 +532,7 @@ export class BaseSearchService {
   validateSearchParams(params: SearchParams): ValidatedSearchParams {
     // Handle already-structured params (with userId, filters, options)
     if ('userId' in params && 'filters' in params && 'options' in params) {
-      return params as unknown as ValidatedSearchParams;
+      return params as ValidatedSearchParams;
     }
 
     // Convert flat params to SearchParamsInput format for InputValidator

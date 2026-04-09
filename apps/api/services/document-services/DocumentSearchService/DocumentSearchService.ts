@@ -322,10 +322,10 @@ export class DocumentSearchService extends BaseSearchService {
 
       if (mode === 'hybrid') {
         console.log('[DocumentSearchService] Executing hybrid search mode');
-        return await this.performHybridSearch(validated as unknown as SearchParams);
+        return await this.performHybridSearch(validated as SearchParams);
       }
 
-      return await this.performSimilaritySearch(validated as unknown as SearchParams);
+      return await this.performSimilaritySearch(validated as SearchParams);
     } catch (error) {
       const _errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[DocumentSearchService] Search error:', error);
@@ -879,7 +879,7 @@ export class DocumentSearchService extends BaseSearchService {
 
   override buildRelevanceInfo(doc: DocumentData, enhancedScore: DocumentEnhancedScore): string {
     return scoring.buildRelevanceInfo(
-      doc as unknown as { similarity_score: number },
+      { similarity_score: doc.maxSimilarity || doc.avgSimilarity || 0 },
       enhancedScore
     );
   }

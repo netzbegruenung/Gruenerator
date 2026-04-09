@@ -84,12 +84,12 @@ export interface SessionSummary {
  * Recent form value record
  */
 export interface RecentValue {
-  id?: number;
-  user_id: string;
+  id: string;
+  user_id: string | null;
   field_type: string;
   field_value: string;
-  form_name?: string | null;
-  created_at?: Date;
+  form_name: string | null;
+  created_at: Date;
 }
 
 /**
