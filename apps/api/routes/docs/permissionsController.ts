@@ -238,10 +238,12 @@ router.post('/:id/permissions', async (req: Request<{ id: string }>, res: Respon
       // Fire-and-forget: email notification (respects recipient's preferences)
       import('../../services/email/index.js')
         .then(async ({ sendDocumentShareEmail, shouldSendNotification }) => {
+          // Convert ProfileRow to UserProfile by casting
+          const recipientProfile = recipient as unknown as UserProfile;
           const shouldSend = await shouldSendNotification(
             user_id,
             'document_shared',
-            recipient as unknown as UserProfile
+            recipientProfile
           );
           if (!shouldSend) return;
           return sendDocumentShareEmail({

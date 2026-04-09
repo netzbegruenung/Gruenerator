@@ -53,7 +53,7 @@ async function resolveWolkeLinksToDocuments(
   }
 
   try {
-    const documents = (await postgres.query(
+    const documents = await postgres.query<DocumentRecord>(
       `
             SELECT id, title, page_count, created_at, source_type, wolke_share_link_id
             FROM documents
@@ -64,7 +64,7 @@ async function resolveWolkeLinksToDocuments(
             ORDER BY created_at DESC
         `,
       [userId, wolkeShareLinkIds]
-    )) as unknown as DocumentRecord[];
+    );
 
     log.debug(
       `[Notebook Collections] Resolved ${wolkeShareLinkIds.length} Wolke links to ${documents.length} documents`
@@ -123,10 +123,10 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =>
 
         let documents: DocumentRecord[] = [];
         if (documentIds.length > 0) {
-          documents = (await postgres.query(
+          documents = await postgres.query<DocumentRecord>(
             'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id FROM documents WHERE id = ANY($1)',
             [documentIds]
-          )) as unknown as DocumentRecord[];
+          );
         }
 
         let wolke_share_links: WolkeShareLink[] = [];

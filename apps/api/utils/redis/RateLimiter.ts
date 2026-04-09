@@ -86,6 +86,13 @@ class RateLimiter {
   }
 
   /**
+   * Get rate limiter configuration (for admin/debugging)
+   */
+  getConfig(): RateLimiterConfig {
+    return this.config;
+  }
+
+  /**
    * Check current rate limit status for a resource
    */
   async checkLimit(
@@ -306,7 +313,7 @@ class RateLimiter {
   private async trackUsage(
     resourceType: string,
     userType: string,
-    identifier: string
+    _identifier: string
   ): Promise<void> {
     try {
       const analyticsKey = `${this.config.redisKeyPrefix}:analytics:${resourceType}:${userType}:${this.getDateStringForWindow('daily')}`;

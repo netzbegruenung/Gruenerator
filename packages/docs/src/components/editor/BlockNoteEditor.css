@@ -371,7 +371,18 @@
    Comment Thread Styles (used by portal target)
    ============================================ */
 
-/* Thread card styling */
+/* Thread card — override shadcn bg-card which inherits wrong color in docs context */
+.bn-thread {
+  background: var(--background-color, #ffffff);
+  color: var(--font-color, #1a1a1a);
+}
+
+[data-theme="dark"] .bn-thread {
+  background: var(--grey-800, #1f2937);
+  color: var(--grey-100, #f3f4f6);
+}
+
+/* Thread card styling in sidebar */
 .comments-portal-content .bn-thread {
   margin-bottom: 0.75rem;
   border: 1px solid var(--grey-200, #e5e7eb);
@@ -448,48 +459,6 @@
   color: var(--grey-300, #d1d5db);
 }
 
-/* Floating composer - for creating new comments */
-.bn-floating-composer {
-  background: var(--background-color, #ffffff);
-  border: 1px solid var(--grey-300, #d1d5db);
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  padding: 0.75rem;
-  min-width: 280px;
-  max-width: 360px;
-}
-
-[data-theme="dark"] .bn-floating-composer {
-  background: var(--grey-800, #1f2937);
-  border-color: var(--grey-600, #4b5563);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-}
-
-/* Comment input styling */
-.bn-comment-input {
-  width: 100%;
-  min-height: 60px;
-  border: 1px solid var(--grey-300, #d1d5db);
-  border-radius: 6px;
-  padding: 0.5rem;
-  font-size: 0.875rem;
-  resize: vertical;
-  background: var(--background-color, #ffffff);
-  color: var(--font-color, #1f2937);
-}
-
-[data-theme="dark"] .bn-comment-input {
-  background: var(--grey-900, #111827);
-  border-color: var(--grey-600, #4b5563);
-  color: var(--grey-100, #f3f4f6);
-}
-
-.bn-comment-input:focus {
-  outline: none;
-  border-color: var(--secondary-500, #6A9583);
-  box-shadow: 0 0 0 2px rgba(95, 133, 117, 0.2);
-}
-
 /* Comment highlight in editor - marks commented text */
 .bn-inline-comment-mark {
   background-color: rgba(255, 214, 0, 0.25);
@@ -519,60 +488,6 @@
   background-color: rgba(255, 214, 0, 0.3);
 }
 
-/* Comment action toolbar — hover toolbar with emoji, resolve, delete buttons */
-.bn-action-toolbar.bn-comment-actions {
-  background-color: var(--background-color, #ffffff);
-  border: 1px solid var(--grey-300, #d1d5db);
-  border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-  padding: 2px;
-  gap: 2px;
-}
-
-[data-theme="dark"] .bn-action-toolbar.bn-comment-actions {
-  background-color: var(--grey-800, #1f2937);
-  border-color: var(--grey-600, #4b5563);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-/* Force SVG icons inside action toolbar to inherit color */
-.bn-action-toolbar.bn-comment-actions svg {
-  color: inherit;
-}
-
-/* Reactions on comments */
-.bn-comment-reactions {
-  display: flex;
-  gap: 0.25rem;
-  margin-top: 0.375rem;
-  flex-wrap: wrap;
-}
-
-.bn-comment-reaction {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.125rem 0.375rem;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  background: var(--grey-100, #f3f4f6);
-  border: 1px solid var(--grey-200, #e5e7eb);
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-.bn-comment-reaction:hover {
-  background: var(--grey-200, #e5e7eb);
-}
-
-[data-theme="dark"] .bn-comment-reaction {
-  background: var(--grey-700, #374151);
-  border-color: var(--grey-600, #4b5563);
-}
-
-[data-theme="dark"] .bn-comment-reaction:hover {
-  background: var(--grey-600, #4b5563);
-}
 
 /* ============================================
    @Mention Badge Styles

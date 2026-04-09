@@ -1,9 +1,9 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  useCallback,
   useSyncExternalStore,
   memo,
 } from 'react';
@@ -24,7 +24,6 @@ import {
   SuggestionMenuController,
   getDefaultReactSlashMenuItems,
   getFormattingToolbarItems,
-  FloatingComposerController,
   ThreadsSidebar,
 } from '@blocknote/react';
 import { filterSuggestionItems } from '@blocknote/core/extensions';
@@ -102,56 +101,6 @@ const schema = BlockNoteSchema.create({
   },
   styleSpecs: defaultStyleSpecs,
 });
-
-const StableFloatingComposer = () => {
-  useEffect(() => {
-    const isInsideFloatingComposer = (target: HTMLElement) => {
-      const thread = target.closest('.bn-thread');
-      if (!thread) return false;
-      if (thread.closest('.comments-sidebar') || thread.closest('.bn-threads-sidebar'))
-        return false;
-      return true;
-    };
-
-    const handlePointerDown = (e: PointerEvent) => {
-      const target = e.target as HTMLElement;
-      const inside = isInsideFloatingComposer(target);
-      if (inside) {
-        if (target.closest('button')) {
-          e.stopPropagation();
-          return;
-        }
-        e.preventDefault();
-        e.stopPropagation();
-        const focusTarget =
-          target.closest('[contenteditable="true"]') || target.closest('input, textarea');
-        if (focusTarget instanceof HTMLElement) {
-          focusTarget.focus();
-        }
-      }
-    };
-
-    const handleMouseDown = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!isInsideFloatingComposer(target)) return;
-      if (target.closest('button')) {
-        e.stopPropagation();
-        return;
-      }
-      e.preventDefault();
-      e.stopPropagation();
-    };
-
-    document.addEventListener('pointerdown', handlePointerDown, true);
-    document.addEventListener('mousedown', handleMouseDown, true);
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown, true);
-      document.removeEventListener('mousedown', handleMouseDown, true);
-    };
-  }, []);
-
-  return <FloatingComposerController />;
-};
 
 const BlockNoteEditorInner = ({
   documentId,
@@ -270,67 +219,25 @@ const BlockNoteEditorInner = ({
         transport: new DefaultChatTransport({
           api: aiApiUrl,
           credentials: 'include',
-          // DEBUG: Log outgoing AI requests
-          prepareSendMessagesRequest: async (opts) => {
-            console.log('[DocsAI:Frontend] Sending request:', {
-              messageCount: opts.messages.length,
-              bodyKeys: opts.body ? Object.keys(opts.body) : [],
-            });
-            // Log the last user message
-            const lastMsg = opts.messages[opts.messages.length - 1];
-            if (lastMsg) {
-              console.log('[DocsAI:Frontend] Last message role:', lastMsg.role);
-            }
-            return {
-              body: { ...opts.body, messages: opts.messages },
-              credentials: 'include' as const,
-            };
-          },
-          // DEBUG: Log fetch request/response for AI calls
-          fetch: async (url, init) => {
-            console.log('[DocsAI:Frontend] Fetch:', url);
-            const response = await fetch(url as string, {
-              ...(init as RequestInit),
-              credentials: 'include',
-            });
-            // Clone to log response without consuming it
-            const cloned = response.clone();
-            cloned.text().then((text) => {
-              console.log(
-                '[DocsAI:Frontend] Response status:',
-                response.status,
-                'body (first 2000 chars):',
-                text.substring(0, 2000)
-              );
-              // Extract and log operation types and block IDs from response
-              const typeMatches = text.match(/"type"\s*:\s*"(\w+)"/g);
-              const idMatches = text.match(/"id"\s*:\s*"([^"]+)"/g);
-              const refIdMatches = text.match(/"referenceId"\s*:\s*"([^"]+)"/g);
-              if (typeMatches) {
-                const types = typeMatches.map((m) => m.match(/"type"\s*:\s*"(\w+)"/)?.[1]);
-                console.log('[DocsAI:Frontend] Operation types extracted:', JSON.stringify(types));
-              }
-              if (idMatches) {
-                const ids = idMatches.map((m) => m.match(/"id"\s*:\s*"([^"]+)"/)?.[1]);
-                console.log(
-                  '[DocsAI:Frontend] Block IDs extracted from response:',
-                  JSON.stringify(ids)
-                );
-              }
-              if (refIdMatches) {
-                const refIds = refIdMatches.map(
-                  (m) => m.match(/"referenceId"\s*:\s*"([^"]+)"/)?.[1]
-                );
-                console.log(
-                  '[DocsAI:Frontend] Reference IDs extracted from response:',
-                  JSON.stringify(refIds)
-                );
-              }
-            });
-            return response;
-          },
         }),
       }),
+      {
+        key: 'checkboxClickFix',
+        mount({ dom, signal }: { dom: HTMLElement; signal: AbortSignal }) {
+          for (const eventType of ['pointerdown', 'pointerup', 'mousedown', 'mouseup'] as const) {
+            dom.addEventListener(
+              eventType,
+              (e: Event) => {
+                const target = e.target as HTMLElement;
+                if (target instanceof HTMLInputElement && target.type === 'checkbox') {
+                  e.stopPropagation();
+                }
+              },
+              { signal, capture: true }
+            );
+          }
+        },
+      },
     ];
 
     if (showComments && threadStore) {
@@ -372,70 +279,6 @@ const BlockNoteEditorInner = ({
 
     setEditorInStore(documentId, editor);
     setIsReady(true);
-
-    // DEBUG: Log document block IDs for cross-reference with AI operations
-    const blockIds = editor.document.map((b) => b.id);
-    console.log(`[DocsAI:Frontend] Editor ready | doc: ${documentId} | ${blockIds.length} blocks`);
-    console.log('[DocsAI:Frontend] Block IDs (actual values):', JSON.stringify(blockIds));
-
-    // DEBUG: Watch AI extension state transitions + log document text at each phase
-    const aiExt = editor.getExtension('ai' as never);
-    if (aiExt) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const store = (aiExt as any).store;
-      if (store) {
-        const getTextSnapshot = () => {
-          try {
-            return editor.document
-              .map((b) => {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const content = (b as any).content;
-                if (Array.isArray(content)) {
-                  return content.map((c: { text?: string }) => c.text || '').join('');
-                }
-                return '';
-              })
-              .join(' | ');
-          } catch {
-            return '[error reading text]';
-          }
-        };
-
-        const getMarksSnapshot = () => {
-          try {
-            const state = editor.prosemirrorState;
-            let insertionCount = 0;
-            let deletionCount = 0;
-            state.doc.descendants((node) => {
-              for (const mark of node.marks) {
-                if (mark.type.name === 'insertion') insertionCount++;
-                if (mark.type.name === 'deletion') deletionCount++;
-              }
-            });
-            return { insertionCount, deletionCount };
-          } catch {
-            return { insertionCount: -1, deletionCount: -1 };
-          }
-        };
-
-        let prevStatus = '';
-        store.subscribe(() => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const menuState = (store as any).state?.aiMenuState;
-          const status = menuState === 'closed' ? 'closed' : menuState?.status;
-          if (status !== prevStatus) {
-            const marks = getMarksSnapshot();
-            console.log(
-              `[DocsAI:State] ${prevStatus || 'init'} → ${status}`,
-              `| marks: ins=${marks.insertionCount} del=${marks.deletionCount}`,
-              `| text: "${getTextSnapshot().substring(0, 200)}"`
-            );
-            prevStatus = status;
-          }
-        });
-        console.log('[DocsAI:Frontend] AI state watcher attached');
-      }
-    }
 
     const timeoutId = setTimeout(() => {
       if (onEditorReady) {
@@ -504,6 +347,8 @@ const BlockNoteEditorInner = ({
           editable={editable}
           formattingToolbar={false}
           slashMenu={false}
+          sideMenu={false}
+          tableHandles={false}
         >
           <AIMenuController />
           {hideFormattingToolbar ? null : staticToolbar ? (
@@ -534,7 +379,6 @@ const BlockNoteEditorInner = ({
             triggerCharacter="@"
             getItems={async (query) => getMentionMenuItems(editor, query)}
           />
-          {showComments && threadStore && <StableFloatingComposer />}
           {commentsPortalTarget &&
             showComments &&
             threadStore &&

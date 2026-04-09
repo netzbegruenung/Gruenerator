@@ -1,9 +1,13 @@
 /**
  * Docs AI Controller
  * Handles AI-powered document editing via BlockNote xl-ai extension
+ *
+ * Uses the Vercel AI SDK's pipeUIMessageStreamToResponse() to stream SSE-framed
+ * UIMessageChunks directly to Express. This matches the format that
+ * DefaultChatTransport's EventSourceParserStream expects on the frontend.
  */
 
-import { TransformStream } from 'node:stream/web';
+import { type ServerResponse } from 'node:http';
 
 import {
   aiDocumentFormats,
@@ -22,64 +26,6 @@ import { type AgentConfig } from '../chat/agents/types.js';
 
 const log = createLogger('DocsAI');
 const router = createAuthenticatedRouter();
-
-/**
- * Deterministic mapping of common LLM synonym types to BlockNote's valid types.
- * GPT-OSS consistently generates "replace" instead of "update" and "insert" instead of "add".
- * BlockNote xl-ai only accepts: "add", "update", "delete".
- */
-const OPERATION_TYPE_ALIASES: Record<string, string> = {
-  replace: 'update',
-  replaceBlock: 'update',
-  modify: 'update',
-  edit: 'update',
-  insert: 'add',
-  insertBlock: 'add',
-  addBlock: 'add',
-  append: 'add',
-  remove: 'delete',
-  removeBlock: 'delete',
-  deleteBlock: 'delete',
-};
-
-/**
- * Normalizes LLM operation types in SSE stream chunks before they reach BlockNote.
- * Transforms known synonyms to the three valid types: add, update, delete.
- */
-function normalizeOperationTypes(chunk: unknown): string {
-  const text =
-    typeof chunk === 'string'
-      ? chunk
-      : chunk !== null && typeof chunk === 'object'
-        ? JSON.stringify(chunk)
-        : String(chunk);
-
-  return text.replace(/"type"\s*:\s*"(\w+)"/g, (match, type: string) => {
-    const normalized = OPERATION_TYPE_ALIASES[type];
-    if (normalized) {
-      log.info(`[DocsAI] Normalized operation type "${type}" → "${normalized}"`);
-      return `"type":"${normalized}"`;
-    }
-    return match;
-  });
-}
-
-/**
- * Creates a TransformStream that normalizes operation types in the SSE stream.
- */
-function createNormalizingTransform(): TransformStream<unknown, string> {
-  return new TransformStream({
-    transform(chunk, controller) {
-      const normalized = normalizeOperationTypes(chunk);
-      // DEBUG: Log stream chunks containing tool call data
-      const chunkStr = String(chunk);
-      if (chunkStr.includes('tool') || chunkStr.includes('operations')) {
-        log.info(`[DocsAI] Stream chunk: ${chunkStr.substring(0, 500)}`);
-      }
-      controller.enqueue(normalized);
-    },
-  });
-}
 
 /**
  * Strict prompt for BlockNote document operations.
@@ -133,9 +79,6 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
     log.info(
       `[DocsAI] Request received: ${messages?.length || 0} messages, ${Object.keys(toolDefinitions || {}).length} tools`
     );
-    log.info(
-      `[DocsAI] Tool definitions received: ${Object.keys(toolDefinitions || {}).join(', ') || 'NONE'}`
-    );
 
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: 'Messages array is required' });
@@ -161,30 +104,8 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
       `[DocsAI] Messages after doc state injection: ${messagesWithDocState.length} messages`
     );
 
-    // DEBUG: Log document state sent to LLM (block IDs for cross-reference with tool call args)
-    for (const msg of messagesWithDocState) {
-      const content =
-        typeof msg.content === 'string'
-          ? msg.content
-          : Array.isArray(msg.parts)
-            ? msg.parts
-                .filter((p: { type: string }) => p.type === 'text')
-                .map((p: { text: string }) => p.text)
-                .join('')
-            : '';
-      const idMatches = content.match(/data-id="([^"]+)"/g);
-      if (idMatches && idMatches.length > 0) {
-        const ids = idMatches.map((m: string) => m.replace(/data-id="|"/g, ''));
-        log.info(`[DocsAI] Document block IDs sent to LLM (${ids.length}): ${ids.join(', ')}`);
-      }
-    }
-
     const tools = toolDefinitionsToToolSet(
       toolDefinitions as Parameters<typeof toolDefinitionsToToolSet>[0]
-    );
-
-    log.info(
-      `[DocsAI] Streaming response with ${Object.keys(tools).length} tools: ${Object.keys(tools).join(', ')}`
     );
 
     const result = streamText({
@@ -201,14 +122,8 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
         );
         if (toolCalls?.length) {
           toolCalls.forEach((tc, i) => {
-            const argsJson = JSON.stringify(tc.input);
-            log.info(`[DocsAI]   Tool[${i}]: ${tc.toolName}, args size: ${argsJson.length} chars`);
-            log.info(`[DocsAI]   Tool[${i}] full args: ${argsJson}`);
+            log.info(`[DocsAI]   Tool[${i}]: ${tc.toolName}, args: ${JSON.stringify(tc.input)}`);
           });
-        } else {
-          log.warn(
-            '[DocsAI] NO tool calls in response — model may not support tool calling properly'
-          );
         }
         if (usage) {
           log.info(`[DocsAI] Tokens — input: ${usage.inputTokens}, output: ${usage.outputTokens}`);
@@ -219,30 +134,12 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
       },
     });
 
-    const stream = result.toUIMessageStream();
-
-    // @ts-expect-error Node.js TransformStream vs Web API TransformStream type mismatch
-    const normalizedStream = stream.pipeThrough(createNormalizingTransform());
-
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-
-    const reader = normalizedStream.getReader();
-    const pump = async () => {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-          res.end();
-          break;
-        }
-        res.write(value);
-      }
-    };
-    pump().catch((err) => {
-      log.error('[DocsAI] Stream pipe error:', err);
-      res.end();
-    });
+    // pipeUIMessageStreamToResponse handles:
+    // 1. SSE framing (data: {...}\n\n) required by DefaultChatTransport's EventSourceParserStream
+    // 2. Correct Content-Type and cache headers
+    // 3. TextEncoder stream for binary transport
+    // 4. [DONE] sentinel on stream end
+    result.pipeUIMessageStreamToResponse(res as unknown as ServerResponse);
   } catch (error) {
     log.error('[DocsAI] Error processing AI request:', error);
     return res.status(500).json({

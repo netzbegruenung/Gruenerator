@@ -8,7 +8,10 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 
+import { eq, and } from 'drizzle-orm';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
+import { wolkeSyncStatus } from '../../database/schema/index.js';
 import { type WolkeSyncStatusRow } from '../../database/types.js';
 import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
 import NextcloudApiClient from '../api-clients/nextcloudApiClient.js';
@@ -63,29 +66,40 @@ export class WolkeSyncService {
   ): Promise<WolkeSyncStatusRow> {
     try {
       await this.ensureInitialized();
+      const db = getDrizzleInstance();
 
-      const existing = await this.postgres.queryOne(
-        'SELECT * FROM wolke_sync_status WHERE user_id = $1 AND share_link_id = $2 AND folder_path = $3',
-        [userId, shareLinkId, folderPath]
-      );
+      const existing = await db
+        .select()
+        .from(wolkeSyncStatus)
+        .where(
+          and(
+            eq(wolkeSyncStatus.userId, userId),
+            eq(wolkeSyncStatus.shareLinkId, shareLinkId),
+            eq(wolkeSyncStatus.folderPath, folderPath)
+          )
+        )
+        .limit(1);
 
-      if (existing) {
-        return existing as unknown as WolkeSyncStatusRow;
+      if (existing.length > 0) {
+        return existing[0] as unknown as WolkeSyncStatusRow;
       }
 
       // Create new sync status
-      const syncStatus = await this.postgres.insert('wolke_sync_status', {
-        user_id: userId,
-        share_link_id: shareLinkId,
-        folder_path: folderPath,
-        sync_status: 'idle',
-        files_processed: 0,
-        files_failed: 0,
-        auto_sync_enabled: false,
-      });
+      const created = await db
+        .insert(wolkeSyncStatus)
+        .values({
+          userId,
+          shareLinkId,
+          folderPath,
+          syncStatus: 'idle',
+          filesProcessed: 0,
+          filesFailed: 0,
+          autoSyncEnabled: false,
+        })
+        .returning();
 
-      console.log(`[WolkeSyncService] Created sync status record: ${syncStatus.id}`);
-      return syncStatus as unknown as WolkeSyncStatusRow;
+      console.log(`[WolkeSyncService] Created sync status record: ${created[0].id}`);
+      return created[0] as unknown as WolkeSyncStatusRow;
     } catch (error: unknown) {
       console.error('[WolkeSyncService] Error getting/creating sync status:', error);
       throw error;
@@ -107,30 +121,32 @@ export class WolkeSyncService {
   ): Promise<WolkeSyncStatusRow> {
     try {
       await this.ensureInitialized();
+      const db = getDrizzleInstance();
 
-      const updateData: Record<string, unknown> = { ...updates };
+      const updateValues: Partial<typeof wolkeSyncStatus.$inferInsert> = {};
       if (updates.lastSyncAt !== undefined) {
-        updateData.last_sync_at = updates.lastSyncAt;
-        delete updateData.lastSyncAt;
+        updateValues.lastSyncAt = updates.lastSyncAt;
       }
       if (updates.syncStatus !== undefined) {
-        updateData.sync_status = updates.syncStatus;
-        delete updateData.syncStatus;
+        updateValues.syncStatus = updates.syncStatus;
       }
       if (updates.filesProcessed !== undefined) {
-        updateData.files_processed = updates.filesProcessed;
-        delete updateData.filesProcessed;
+        updateValues.filesProcessed = updates.filesProcessed;
       }
       if (updates.filesFailed !== undefined) {
-        updateData.files_failed = updates.filesFailed;
-        delete updateData.filesFailed;
+        updateValues.filesFailed = updates.filesFailed;
+      }
+      if (updates.auto_sync_enabled !== undefined) {
+        updateValues.autoSyncEnabled = updates.auto_sync_enabled;
       }
 
-      const result = await this.postgres.update('wolke_sync_status', updateData, {
-        id: syncStatusId,
-      });
+      const result = await db
+        .update(wolkeSyncStatus)
+        .set(updateValues)
+        .where(eq(wolkeSyncStatus.id, syncStatusId))
+        .returning();
 
-      return result.data[0] as unknown as WolkeSyncStatusRow;
+      return result[0] as unknown as WolkeSyncStatusRow;
     } catch (error: unknown) {
       console.error('[WolkeSyncService] Error updating sync status:', error);
       throw error;
@@ -584,11 +600,13 @@ export class WolkeSyncService {
   async getUserSyncStatus(userId: string): Promise<WolkeSyncStatusRow[]> {
     try {
       await this.ensureInitialized();
+      const db = getDrizzleInstance();
 
-      const syncStatuses = await this.postgres.query(
-        'SELECT * FROM wolke_sync_status WHERE user_id = $1 ORDER BY last_sync_at DESC',
-        [userId]
-      );
+      const syncStatuses = await db
+        .select()
+        .from(wolkeSyncStatus)
+        .where(eq(wolkeSyncStatus.userId, userId))
+        .orderBy(wolkeSyncStatus.lastSyncAt);
 
       return syncStatuses as unknown as WolkeSyncStatusRow[];
     } catch (error: unknown) {
@@ -640,16 +658,26 @@ export class WolkeSyncService {
   }> {
     try {
       await this.ensureInitialized();
+      const db = getDrizzleInstance();
 
       // Get sync status
-      const syncStatus = await this.postgres.queryOne(
-        'SELECT * FROM wolke_sync_status WHERE user_id = $1 AND share_link_id = $2 AND folder_path = $3',
-        [userId, shareLinkId, folderPath]
-      );
+      const syncStatusRows = await db
+        .select()
+        .from(wolkeSyncStatus)
+        .where(
+          and(
+            eq(wolkeSyncStatus.userId, userId),
+            eq(wolkeSyncStatus.shareLinkId, shareLinkId),
+            eq(wolkeSyncStatus.folderPath, folderPath)
+          )
+        )
+        .limit(1);
 
-      if (!syncStatus) {
+      if (syncStatusRows.length === 0) {
         throw new Error('Sync folder not found');
       }
+
+      const syncStatusId = syncStatusRows[0].id;
 
       // Get all documents from this sync folder
       const documents = await this.postgres.query<{ id: string }>(
@@ -671,7 +699,7 @@ export class WolkeSyncService {
       );
 
       // Delete sync status
-      await this.postgres.delete('wolke_sync_status', { id: String(syncStatus.id) });
+      await db.delete(wolkeSyncStatus).where(eq(wolkeSyncStatus.id, syncStatusId));
 
       console.log(
         `[WolkeSyncService] Deleted sync folder and ${documents.length} associated documents`
@@ -680,7 +708,7 @@ export class WolkeSyncService {
       return {
         success: true,
         deletedDocuments: documents.length,
-        syncStatusId: String(syncStatus.id),
+        syncStatusId,
       };
     } catch (error: unknown) {
       console.error('[WolkeSyncService] Error deleting sync folder:', error);
