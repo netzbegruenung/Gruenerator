@@ -17,17 +17,17 @@ export interface AntragWorkflowInput {
   userId: string;
 
   // Optional
-  gliederung?: string;
-  locale?: 'de-DE' | 'de-AT';
-  useWebSearch?: boolean;
-  usePrivacyMode?: boolean;
-  selectedDocumentIds?: string[];
-  selectedTextIds?: string[];
+  gliederung?: string | undefined;
+  locale?: 'de-DE' | 'de-AT' | undefined;
+  useWebSearch?: boolean | undefined;
+  usePrivacyMode?: boolean | undefined;
+  selectedDocumentIds?: string[] | undefined;
+  selectedTextIds?: string[] | undefined;
 
   // Context
   aiWorkerPool: AIWorkerPool;
   req: Request;
-  workflowId?: string;
+  workflowId?: string | undefined;
 }
 
 export interface AntragWorkflowOutput {
@@ -35,10 +35,10 @@ export interface AntragWorkflowOutput {
   workflowId: string;
 
   // Phase outputs
-  plan?: PlanData;
-  questions?: QuestionsData;
-  revisedPlan?: string;
-  productionContent?: ProductionData;
+  plan?: PlanData | undefined;
+  questions?: QuestionsData | undefined;
+  revisedPlan?: string | undefined;
+  productionContent?: ProductionData | undefined;
 
   // Metadata
   metadata: {
@@ -47,7 +47,7 @@ export interface AntragWorkflowOutput {
     totalAICalls: number;
   };
 
-  error?: string;
+  error?: string | undefined;
 }
 
 // ============================================================================
@@ -64,22 +64,22 @@ export interface AntragWorkflowState {
 
   // Enrichment results (cached from Phase 1)
   enrichedState?: {
-    documents?: Record<string, unknown>[];
-    webSearchResults?: Record<string, unknown>[];
-    knowledgeBase?: Record<string, unknown>[];
-    greenFraming?: string[];
-    enrichmentMetadata?: Record<string, unknown>;
+    documents?: Record<string, unknown>[] | undefined;
+    webSearchResults?: Record<string, unknown>[] | undefined;
+    knowledgeBase?: Record<string, unknown>[] | undefined;
+    greenFraming?: string[] | undefined;
+    enrichmentMetadata?: Record<string, unknown> | undefined;
   };
 
   // Phase 1: Plan Generation
-  planData?: PlanData;
-  planGenerationTimeMs?: number;
+  planData?: PlanData | undefined;
+  planGenerationTimeMs?: number | undefined;
 
   // Phase 2: Questions
-  questionsData?: QuestionsData;
-  questionsGenerationTimeMs?: number;
-  userAnswers?: Record<string, string | string[]>;
-  skipQuestions?: boolean;
+  questionsData?: QuestionsData | undefined;
+  questionsGenerationTimeMs?: number | undefined;
+  userAnswers?: Record<string, string | string[]> | undefined;
+  skipQuestions?: boolean | undefined;
 
   // Phase 3: Revision
   revisedPlanData?: {
@@ -89,8 +89,8 @@ export interface AntragWorkflowState {
   };
 
   // Phase 4: Production
-  productionData?: ProductionData;
-  productionTimeMs?: number;
+  productionData?: ProductionData | undefined;
+  productionTimeMs?: number | undefined;
 
   // Metadata & tracking
   startTime: number;
@@ -98,7 +98,7 @@ export interface AntragWorkflowState {
   totalAICalls: number;
 
   // Error handling
-  error?: string;
+  error?: string | undefined;
   success: boolean;
 }
 
@@ -110,7 +110,7 @@ export interface PlanData {
   originalPlan: string;
   planSummary: string;
   confidenceScore: number;
-  enrichmentMetadata?: Record<string, unknown>;
+  enrichmentMetadata?: Record<string, unknown> | undefined;
 }
 
 export interface QuestionsData {
@@ -126,7 +126,7 @@ export interface GeneratedQuestion {
   questionType: 'verstaendnis' | 'rueckfrage';
   why: string;
   options: string[];
-  clarificationPurpose?: string;
+  clarificationPurpose?: string | undefined;
 }
 
 export interface ProductionData {
@@ -154,10 +154,10 @@ export type ProductionNodeOutput = Partial<AntragWorkflowState>;
 export interface PromptConfig {
   systemPrompt: string;
   generationPrompt: string;
-  toolSchema?: Record<string, unknown>;
+  toolSchema?: Record<string, unknown> | undefined;
   options?: {
-    max_tokens?: number;
-    temperature?: number;
-    tool_choice?: string | Record<string, unknown>;
+    max_tokens?: number | undefined;
+    temperature?: number | undefined;
+    tool_choice?: string | Record<string, unknown> | undefined;
   };
 }

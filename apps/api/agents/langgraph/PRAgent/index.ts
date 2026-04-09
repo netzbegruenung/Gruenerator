@@ -22,6 +22,7 @@ import {
 
 import type { PRAgentRequest } from './types.js';
 import type { Request, Response } from 'express';
+import type { RequestWithLocale } from '../../../services/localization/index.js';
 
 /**
  * PR Agent Main Orchestrator
@@ -39,7 +40,7 @@ export async function processAutomatischPR(
   try {
     const request = requestData as PRAgentRequest;
 
-    const locale = extractLocaleFromRequest(req);
+    const locale = extractLocaleFromRequest(req as RequestWithLocale);
     const partySearchTerm = locale === 'de-AT' ? 'Die Grünen Österreich' : 'Bündnis 90/Die Grünen';
 
     const enrichedState = await enrichRequest(
@@ -164,7 +165,7 @@ export async function processStrategyGeneration(
     const workflowId = await prAgentWorkflow.create(req.user?.id || 'anonymous', requestData);
 
     // 2. Enrich request (documents, URLs, web search)
-    const locale = extractLocaleFromRequest(req);
+    const locale = extractLocaleFromRequest(req as RequestWithLocale);
     const partySearchTerm = locale === 'de-AT' ? 'Die Grünen Österreich' : 'Bündnis 90/Die Grünen';
     const argumentCollections =
       locale === 'de-AT'
@@ -217,18 +218,27 @@ export async function processStrategyGeneration(
     );
 
     // 6. Format strategy as markdown for display
+    const metadata: Parameters<typeof formatStrategyApprovalResponse>[4] = {
+      argumentsFound: args.length,
+    };
+    if (enrichedState.enrichmentMetadata?.totalDocuments) {
+      metadata.documentsCount = enrichedState.enrichmentMetadata.totalDocuments;
+    }
+    if (enrichedState.enrichmentMetadata?.webSearchSources?.length) {
+      metadata.webSourcesCount = enrichedState.enrichmentMetadata.webSearchSources.length;
+    }
+    if (executionTimeMs) {
+      metadata.executionTimeMs = executionTimeMs;
+    }
+    if (enrichedState.enrichmentMetadata) {
+      metadata.enrichmentMetadata = enrichedState.enrichmentMetadata;
+    }
     const formattedContent = formatStrategyApprovalResponse(
       framing,
       argumentsSummary,
       args.slice(0, 5), // Top 5 for display
       requestData.inhalt,
-      {
-        documentsCount: enrichedState.enrichmentMetadata?.totalDocuments || 0,
-        webSourcesCount: enrichedState.enrichmentMetadata?.webSearchSources?.length || 0,
-        executionTimeMs,
-        argumentsFound: args.length,
-        enrichmentMetadata: enrichedState.enrichmentMetadata, // Pass full metadata for bibliography
-      }
+      metadata
     );
 
     // 7. Return formatted content for user approval

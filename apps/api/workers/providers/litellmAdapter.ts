@@ -127,8 +127,8 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
       maxOutputTokens: options.max_tokens || 4096,
       temperature: options.temperature || 0.7,
       topP: options.top_p || 1.0,
-      tools,
-      toolChoice,
+      ...(tools != null && { tools }),
+      ...(toolChoice != null && { toolChoice }),
     });
 
     // Extract text content
@@ -187,13 +187,13 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
         model: model,
         timestamp: new Date().toISOString(),
         requestId,
-        usage: result.usage
-          ? {
-              prompt_tokens: result.usage.inputTokens,
-              completion_tokens: result.usage.outputTokens,
-              total_tokens: result.usage.totalTokens,
-            }
-          : undefined,
+        ...(result.usage && {
+          usage: {
+            prompt_tokens: result.usage.inputTokens,
+            completion_tokens: result.usage.outputTokens,
+            total_tokens: result.usage.totalTokens,
+          }
+        }),
       }),
     };
   } catch (error: unknown) {

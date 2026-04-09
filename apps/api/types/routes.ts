@@ -28,10 +28,10 @@ export interface ToolResult {
 
 export interface ContentBlock {
   type: 'text' | 'tool_use' | 'image';
-  text?: string;
-  id?: string;
-  name?: string;
-  input?: Record<string, unknown>;
+  text?: string | undefined;
+  id?: string | undefined;
+  name?: string | undefined;
+  input?: Record<string, unknown> | undefined;
   source?: {
     type: 'base64';
     media_type: string;
@@ -53,9 +53,9 @@ export interface SearchResult {
   title: string;
   content: string;
   similarity_score: number;
-  filename?: string;
-  chunk_index?: number;
-  relevance_info?: string;
+  filename?: string | undefined;
+  chunk_index?: number | undefined;
+  relevance_info?: string | undefined;
 }
 
 export interface DocumentContext {
@@ -66,7 +66,7 @@ export interface DocumentContext {
     document_id: string;
     similarity_score: number;
     chunk_index: number;
-    filename?: string;
+    filename?: string | undefined;
     [key: string]: unknown;
   };
 }
@@ -84,7 +84,7 @@ export interface Citation {
 export interface Source {
   document_id: string;
   title: string;
-  filename?: string;
+  filename?: string | undefined;
 }
 
 export interface CitationResult {
@@ -94,9 +94,9 @@ export interface CitationResult {
 }
 
 export interface EditChange {
-  text_to_find?: string;
+  text_to_find?: string | undefined;
   replacement_text: string;
-  full_replace?: boolean;
+  full_replace?: boolean | undefined;
 }
 
 export interface EditSuggestionResult {
@@ -111,13 +111,13 @@ export interface EditSuggestionResult {
 export interface WebsiteTheme {
   title: string;
   content: string;
-  imageUrl?: string;
+  imageUrl?: string | undefined;
 }
 
 export interface WebsiteAction {
   text: string;
   link: string;
-  imageUrl?: string;
+  imageUrl?: string | undefined;
 }
 
 export interface WebsiteContent {
@@ -132,14 +132,14 @@ export interface WebsiteContent {
   hero_image: {
     title: string;
     subtitle: string;
-    imageUrl?: string;
+    imageUrl?: string | undefined;
   };
   themes: WebsiteTheme[];
   actions: WebsiteAction[];
   contact: {
     title: string;
     email: string;
-    backgroundImageUrl?: string;
+    backgroundImageUrl?: string | undefined;
   };
 }
 
@@ -156,8 +156,8 @@ export type JsonParsable = string | Record<string, unknown> | null;
  * Generic generation context for session-based features
  */
 export interface GenerationContext {
-  prompt?: string;
-  type?: string;
-  timestamp?: string;
+  prompt?: string | undefined;
+  type?: string | undefined;
+  timestamp?: string | undefined;
   [key: string]: unknown;
 }

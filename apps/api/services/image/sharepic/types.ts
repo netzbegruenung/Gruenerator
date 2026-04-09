@@ -36,9 +36,9 @@ export interface DefaultSharepicResult {
  * Request body for sharepic generation
  */
 export interface SharepicRequestBody {
-  thema?: string;
-  details?: string;
-  name?: string;
-  preserveName?: boolean;
+  thema?: string | undefined;
+  details?: string | undefined;
+  name?: string | undefined;
+  preserveName?: boolean | undefined;
   [key: string]: unknown; // Additional properties
 }

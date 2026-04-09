@@ -22,10 +22,10 @@ import type { ParamsDictionary } from 'express-serve-static-core';
  * Base authenticated request with user attached
  */
 export interface AuthenticatedRequest<P = ParamsDictionary> extends Request<P> {
-  user?: UserProfile;
+  user?: UserProfile | undefined;
   app: Request['app'] & {
     locals: {
-      aiWorkerPool?: AIWorkerPool;
+      aiWorkerPool?: AIWorkerPool | undefined;
     };
   };
 }
@@ -43,7 +43,7 @@ export interface GenerationStatusResponse {
     timeUntilReset: string;
     userId: string;
   };
-  error?: string;
+  error?: string | undefined;
 }
 
 /**
@@ -51,8 +51,8 @@ export interface GenerationStatusResponse {
  */
 export interface GenerationIncrementResponse {
   success: boolean;
-  data?: ImageGenerationResult;
-  error?: string;
+  data?: ImageGenerationResult | undefined;
+  error?: string | undefined;
 }
 
 /**
@@ -60,8 +60,8 @@ export interface GenerationIncrementResponse {
  */
 export interface GenerationResetResponse {
   success: boolean;
-  message?: string;
-  error?: string;
+  message?: string | undefined;
+  error?: string | undefined;
 }
 
 // ============================================================================
@@ -73,9 +73,9 @@ export interface GenerationResetResponse {
  */
 export interface ImageSelectRequestBody {
   text: string;
-  type?: string;
-  tags?: string[];
-  maxCandidates?: number;
+  type?: string | undefined;
+  tags?: string[] | undefined;
+  maxCandidates?: number | undefined;
 }
 
 /**
@@ -101,10 +101,10 @@ export interface SelectedImageResponse {
  */
 export interface ImageSelectResponse {
   success: boolean;
-  selectedImage?: SelectedImageResponse;
-  confidence?: number;
-  reasoning?: string;
-  alternatives?: SelectedImageResponse[];
+  selectedImage?: SelectedImageResponse | undefined;
+  confidence?: number | undefined;
+  reasoning?: string | undefined;
+  alternatives?: SelectedImageResponse[] | undefined;
   metadata?: {
     totalImages: number;
     candidatesFound: number;
@@ -112,9 +112,9 @@ export interface ImageSelectResponse {
     extractedKeywords: string[];
     processingTime: string;
   };
-  error?: string;
-  code?: string;
-  message?: string;
+  error?: string | undefined;
+  code?: string | undefined;
+  message?: string | undefined;
 }
 
 /**
@@ -127,8 +127,8 @@ export interface ImagePickerStatsResponse {
     timestamp: string;
     [key: string]: unknown;
   };
-  error?: string;
-  code?: string;
+  error?: string | undefined;
+  code?: string | undefined;
 }
 
 /**
@@ -140,10 +140,10 @@ export interface ImageCatalogResponse {
     images: ImageCatalogEntry[];
     [key: string]: unknown;
   };
-  count?: number;
-  timestamp?: string;
-  error?: string;
-  code?: string;
+  count?: number | undefined;
+  timestamp?: string | undefined;
+  error?: string | undefined;
+  code?: string | undefined;
 }
 
 /**
@@ -151,14 +151,14 @@ export interface ImageCatalogResponse {
  */
 export interface StockCatalogResponse {
   success: boolean;
-  images?: Record<string, unknown>[];
-  count?: number;
-  totalCount?: number;
-  categories?: string[];
-  timestamp?: string;
-  error?: string;
-  code?: string;
-  message?: string;
+  images?: Record<string, unknown>[] | undefined;
+  count?: number | undefined;
+  totalCount?: number | undefined;
+  categories?: string[] | undefined;
+  timestamp?: string | undefined;
+  error?: string | undefined;
+  code?: string | undefined;
+  message?: string | undefined;
 }
 
 /**
@@ -166,10 +166,10 @@ export interface StockCatalogResponse {
  */
 export interface CacheClearResponse {
   success: boolean;
-  message?: string;
-  timestamp?: string;
-  error?: string;
-  code?: string;
+  message?: string | undefined;
+  timestamp?: string | undefined;
+  error?: string | undefined;
+  code?: string | undefined;
 }
 
 /**
@@ -177,25 +177,25 @@ export interface CacheClearResponse {
  */
 export interface ImageValidateResponse {
   success: boolean;
-  filename?: string;
-  exists?: boolean;
-  path?: string | null;
-  fullPath?: string;
-  timestamp?: string;
-  error?: string;
-  code?: string;
+  filename?: string | undefined;
+  exists?: boolean | undefined;
+  path?: string | null | undefined;
+  fullPath?: string | undefined;
+  timestamp?: string | undefined;
+  error?: string | undefined;
+  code?: string | undefined;
 }
 
 /**
  * Query params for stock catalog
  */
 export interface StockCatalogQuery {
-  category?: string;
+  category?: string | undefined;
 }
 
 /**
  * Query params for stock image serving
  */
 export interface StockImageQuery {
-  size?: 'thumb' | string;
+  size?: 'thumb' | string | undefined;
 }

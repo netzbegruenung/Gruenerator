@@ -11,11 +11,11 @@ import { type ClaudeTool } from '../../../services/tools/types.js';
 export interface RequestData {
   type: string;
   thema: string;
-  details?: string;
-  requestType?: string;
-  locale?: string;
-  userId?: string;
-  sessionId?: string;
+  details?: string | undefined;
+  requestType?: string | undefined;
+  locale?: string | undefined;
+  userId?: string | undefined;
+  sessionId?: string | undefined;
   [key: string]: unknown;
 }
 
@@ -26,13 +26,13 @@ export interface EnrichedState {
   documents?: Array<{
     title: string;
     content: string;
-    source_url?: string;
-    metadata?: Record<string, unknown>;
+    source_url?: string | undefined;
+    metadata?: Record<string, unknown> | undefined;
   }>;
   knowledge?: Array<{
     title: string;
     snippet: string;
-    content?: string;
+    content?: string | undefined;
   }>;
   [key: string]: unknown;
 }
@@ -41,55 +41,55 @@ export interface EnrichedState {
  * Prompt configuration loaded from JSON files
  */
 export interface PromptConfig {
-  id?: string;
+  id?: string | undefined;
   name: string;
-  description?: string;
+  description?: string | undefined;
   systemRole: string;
-  systemRoleExtensions?: Record<string, string>;
-  systemRoleAppendix?: string;
-  userPromptTemplate?: string;
-  requestTemplate?: string;
-  customPromptTemplate?: string;
-  webSearchQuery?: string;
-  formatting?: string;
-  taskInstructions?: string;
-  outputFormat?: string;
-  requestTypeMapping?: Record<string, string>;
-  shortFormThreshold?: number;
+  systemRoleExtensions?: Record<string, string> | undefined;
+  systemRoleAppendix?: string | undefined;
+  userPromptTemplate?: string | undefined;
+  requestTemplate?: string | undefined;
+  customPromptTemplate?: string | undefined;
+  webSearchQuery?: string | undefined;
+  formatting?: string | undefined;
+  taskInstructions?: string | undefined;
+  outputFormat?: string | undefined;
+  requestTypeMapping?: Record<string, string> | undefined;
+  shortFormThreshold?: number | undefined;
   options?: {
-    max_tokens?: number;
-    temperature?: number;
+    max_tokens?: number | undefined;
+    temperature?: number | undefined;
     [key: string]: unknown;
   };
   validation?: {
-    required?: string[];
-    errorMessage?: string;
+    required?: string[] | undefined;
+    errorMessage?: string | undefined;
   };
   features?: {
-    webSearch?: boolean;
-    urlCrawl?: boolean;
-    docQnA?: boolean;
-    customPromptFromDb?: boolean;
-    notebookEnrich?: boolean;
+    webSearch?: boolean | undefined;
+    urlCrawl?: boolean | undefined;
+    docQnA?: boolean | undefined;
+    customPromptFromDb?: boolean | undefined;
+    notebookEnrich?: boolean | undefined;
   };
   platforms?: Record<
     string,
     {
-      style?: string;
-      focus?: string;
-      additionalGuidelines?: string;
-      maxLength?: number;
+      style?: string | undefined;
+      focus?: string | undefined;
+      additionalGuidelines?: string | undefined;
+      maxLength?: number | undefined;
     }
   >;
   types?: Record<
     string,
     {
-      systemRole?: string;
-      requestTemplate?: string;
-      options?: Record<string, unknown>;
+      systemRole?: string | undefined;
+      requestTemplate?: string | undefined;
+      options?: Record<string, unknown> | undefined;
     }
   >;
-  tools?: ClaudeTool[];
+  tools?: ClaudeTool[] | undefined;
   [key: string]: unknown;
 }
 
@@ -97,9 +97,9 @@ export interface PromptConfig {
  * AI generation options
  */
 export interface AIOptions {
-  max_tokens?: number;
-  temperature?: number;
-  tools?: ClaudeTool[];
+  max_tokens?: number | undefined;
+  temperature?: number | undefined;
+  tools?: ClaudeTool[] | undefined;
   [key: string]: unknown;
 }
 
@@ -109,7 +109,7 @@ export interface AIOptions {
 export interface AssembledPrompt {
   system: string;
   messages: Array<{ role: string; content: string }>;
-  tools?: Array<Record<string, unknown>>;
+  tools?: Array<Record<string, unknown>> | undefined;
 }
 
 /**
@@ -124,10 +124,10 @@ export interface TemplateContext {
  */
 export interface ProcessingResult {
   success: boolean;
-  content?: string;
-  error?: string;
+  content?: string | undefined;
+  error?: string | undefined;
   usage?: {
-    input_tokens?: number;
-    output_tokens?: number;
+    input_tokens?: number | undefined;
+    output_tokens?: number | undefined;
   };
 }

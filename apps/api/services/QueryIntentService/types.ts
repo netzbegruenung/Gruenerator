@@ -30,7 +30,7 @@ export type Language = 'de' | 'en' | 'unknown';
  */
 export interface IntentFlags {
   /** Query contains numeric values */
-  hasNumbers?: boolean;
+  hasNumbers?: boolean | undefined;
   /** Additional custom flags */
   [key: string]: unknown;
 }
@@ -46,9 +46,9 @@ export interface IntentDetectionResult {
   /** Confidence score 0-1 */
   confidence: number;
   /** Extracted keywords from query */
-  keywords?: string[];
+  keywords?: string[] | undefined;
   /** Additional flags detected */
-  flags?: IntentFlags;
+  flags?: IntentFlags | undefined;
 }
 
 /**
@@ -70,9 +70,9 @@ export interface FilterCondition {
   /** Match criteria */
   match?: {
     /** Single value to match */
-    value?: string | number | boolean;
+    value?: string | number | boolean | undefined;
     /** Array of values to match any of */
-    any?: Array<string | number | boolean>;
+    any?: Array<string | number | boolean> | undefined;
   };
 }
 
@@ -81,11 +81,11 @@ export interface FilterCondition {
  */
 export interface QdrantFilter {
   /** Conditions that must all match */
-  must?: FilterCondition[];
+  must?: FilterCondition[] | undefined;
   /** Conditions where at least one must match */
-  should?: FilterCondition[];
+  should?: FilterCondition[] | undefined;
   /** Conditions that must not match */
-  must_not?: FilterCondition[];
+  must_not?: FilterCondition[] | undefined;
 }
 
 /**
@@ -93,11 +93,11 @@ export interface QdrantFilter {
  */
 export interface SubcategoryFilters {
   /** Article type (e.g., 'literatur', 'praxishilfe', 'faq') */
-  article_type?: string;
+  article_type?: string | undefined;
   /** Category or topic */
-  category?: string;
+  category?: string | undefined;
   /** Section within a source */
-  section?: string;
+  section?: string | undefined;
   [key: string]: string | undefined;
 }
 

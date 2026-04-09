@@ -42,6 +42,7 @@ function styleToVariant(style: ImageStyle): VariantKey {
 }
 
 export function createGenerateImageTool(deps: ToolDependencies): DynamicStructuredTool {
+    // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'generate_image',
     description:
@@ -55,7 +56,7 @@ export function createGenerateImageTool(deps: ToolDependencies): DynamicStructur
         .enum(['illustration', 'realistic', 'pixel'])
         .optional()
         .describe('Bildstil (Standard: wird aus Beschreibung erkannt)'),
-    }),
+    }).describe('Bildgenerierung Tool'),
     func: async (input: { description: string; style?: 'illustration' | 'realistic' | 'pixel' }) => {
       const { description, style: requestedStyle } = input;
       const userId = deps.agentConfig.userId;

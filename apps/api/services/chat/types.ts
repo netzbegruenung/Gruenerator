@@ -14,7 +14,7 @@ export interface ConversationMessage {
   role: MessageRole;
   content: string;
   timestamp: number;
-  agent?: string;
+  agent?: string | undefined;
 }
 
 /**
@@ -30,10 +30,10 @@ export interface PendingRequest {
  * Conversation metadata
  */
 export interface ConversationMetadata {
-  lastAgent?: string;
-  lastUpdated?: number;
-  messageCount?: number;
-  pendingRequest?: PendingRequest;
+  lastAgent?: string | undefined;
+  lastUpdated?: number | undefined;
+  messageCount?: number | undefined;
+  pendingRequest?: PendingRequest | undefined;
 }
 
 /**
@@ -74,8 +74,8 @@ export interface ExperimentalSession {
 export interface SessionSummary {
   sessionId: string;
   conversationState: string;
-  thema?: string;
-  requestType?: string;
+  thema?: string | undefined;
+  requestType?: string | undefined;
   createdAt: number;
   expiresAt: number;
 }

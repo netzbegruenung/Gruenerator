@@ -16,7 +16,7 @@ import type { ParamsDictionary } from 'express-serve-static-core';
  * Authenticated request with user attached
  */
 export interface AuthRequest<P = ParamsDictionary> extends Request<P> {
-  user?: UserProfile;
+  user?: UserProfile | undefined;
 }
 
 // ============================================================================
@@ -28,9 +28,9 @@ export interface LocaleUpdateBody {
 }
 
 export interface ProfileUpdateBody {
-  display_name?: string;
-  username?: string;
-  avatar_robot_id?: number;
+  display_name?: string | undefined;
+  username?: string | undefined;
+  avatar_robot_id?: number | undefined;
 }
 
 export interface AvatarUpdateBody {
@@ -61,26 +61,26 @@ export interface DeleteAccountBody {
 
 export interface SaveToLibraryBody {
   content: string;
-  generatorType?: string;
-  title?: string;
-  metadata?: Record<string, unknown>;
+  generatorType?: string | undefined;
+  title?: string | undefined;
+  metadata?: Record<string, unknown> | undefined;
 }
 
 export interface InstructionsUpdateBody {
-  instructions?: string;
+  instructions?: string | undefined;
   knowledge?: Array<{
-    id?: string;
+    id?: string | undefined;
     title: string;
     content: string;
-    knowledge_type?: string;
-    tags?: string[];
+    knowledge_type?: string | undefined;
+    tags?: string[] | undefined;
   }>;
 }
 
 export interface SavedTextMetadataBody {
-  title?: string;
-  generator_type?: string;
-  metadata?: Record<string, unknown>;
+  title?: string | undefined;
+  generator_type?: string | undefined;
+  metadata?: Record<string, unknown> | undefined;
 }
 
 export interface SavedTextContentBody {
@@ -93,8 +93,8 @@ export interface BulkDeleteBody {
 
 export interface SearchSavedTextsBody {
   query: string;
-  limit?: number;
-  threshold?: number;
+  limit?: number | undefined;
+  threshold?: number | undefined;
 }
 
 // ============================================================================
@@ -103,11 +103,11 @@ export interface SearchSavedTextsBody {
 
 export interface CustomGeneratorCreateBody {
   name: string;
-  description?: string;
+  description?: string | undefined;
   prompt_template: string;
-  category?: string;
-  icon?: string;
-  is_public?: boolean;
+  category?: string | undefined;
+  icon?: string | undefined;
+  is_public?: boolean | undefined;
 }
 
 export interface CustomGeneratorUpdateBody extends Partial<CustomGeneratorCreateBody> {
@@ -120,12 +120,12 @@ export interface CustomGeneratorUpdateBody extends Partial<CustomGeneratorCreate
 
 export interface GroupCreateBody {
   name: string;
-  description?: string;
+  description?: string | undefined;
 }
 
 export interface GroupUpdateBody {
-  name?: string;
-  description?: string;
+  name?: string | undefined;
+  description?: string | undefined;
 }
 
 export interface GroupJoinBody {
@@ -145,14 +145,14 @@ export interface GroupContentShareBody {
     | 'database';
   contentId: string;
   permissions?: {
-    canEdit?: boolean;
-    canDelete?: boolean;
+    canEdit?: boolean | undefined;
+    canDelete?: boolean | undefined;
   };
 }
 
 export interface GroupContentPermissionsBody {
-  canEdit?: boolean;
-  canDelete?: boolean;
+  canEdit?: boolean | undefined;
+  canDelete?: boolean | undefined;
 }
 
 // ============================================================================
@@ -161,7 +161,7 @@ export interface GroupContentPermissionsBody {
 
 export interface WolkeShareLinkBody {
   shareLink: string;
-  label?: string;
+  label?: string | undefined;
 }
 
 export interface WolkeTestConnectionBody {
@@ -183,25 +183,25 @@ export interface WolkeAutoSyncBody {
 
 export interface UserTemplateCreateBody {
   name: string;
-  description?: string;
+  description?: string | undefined;
   template_type: string;
   template_data: Record<string, unknown>;
-  tags?: string[];
-  is_public?: boolean;
+  tags?: string[] | undefined;
+  is_public?: boolean | undefined;
 }
 
 export type UserTemplateUpdateBody = Partial<UserTemplateCreateBody>;
 
 export interface TemplateFromUrlBody {
   url: string;
-  name?: string;
-  description?: string;
+  name?: string | undefined;
+  description?: string | undefined;
 }
 
 export interface TemplateMetadataBody {
-  name?: string;
-  description?: string;
-  tags?: string[];
+  name?: string | undefined;
+  description?: string | undefined;
+  tags?: string[] | undefined;
 }
 
 // ============================================================================
@@ -215,13 +215,13 @@ export interface AuthStatusResponse {
 
 export interface SuccessResponse {
   success: boolean;
-  message?: string;
+  message?: string | undefined;
 }
 
 export interface ErrorResponse {
   success: false;
   error: string;
-  message?: string;
+  message?: string | undefined;
 }
 
 // ============================================================================

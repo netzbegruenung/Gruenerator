@@ -80,7 +80,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response<CrawlResponse>)
       log.debug(`[crawl-url] URL validation failed: ${validation.error}`);
       return res.status(400).json({
         success: false,
-        error: validation.error,
+        ...(validation.error && { error: validation.error }),
       });
     }
 
@@ -97,7 +97,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response<CrawlResponse>)
       log.debug(`[crawl-url] Crawling failed: ${result.error}`);
       return res.status(400).json({
         success: false,
-        error: result.error,
+        ...(result.error && { error: result.error }),
       });
     }
 
@@ -121,10 +121,10 @@ router.post('/', async (req: AuthenticatedRequest, res: Response<CrawlResponse>)
         contentSource: result.data.contentSource,
         extractedAt: result.data.extractedAt,
         processingTimeMs: Date.now() - startTime,
-        previewImage: result.data.previewImage,
-        dimensions: result.data.dimensions,
-        categories: result.data.categories,
-        structuredData: result.data.structuredData,
+        ...(result.data.previewImage && { previewImage: result.data.previewImage }),
+        ...(result.data.dimensions && { dimensions: result.data.dimensions }),
+        ...(result.data.categories && { categories: result.data.categories }),
+        ...(result.data.structuredData && { structuredData: result.data.structuredData }),
       },
     };
 
@@ -158,7 +158,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response<CrawlResponse>)
     return res.status(500).json({
       success: false,
       error: userError,
-      details: process.env.NODE_ENV === 'development' ? err.message : undefined,
+      ...(process.env.NODE_ENV === 'development' && { details: err.message }),
     });
   }
 });

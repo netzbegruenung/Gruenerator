@@ -139,7 +139,7 @@ export class BaseSearchService {
         embedding: queryEmbedding,
         userId,
         filters,
-        limit: Math.round(options.limit * this.chunkMultiplier),
+        limit: Math.round((options.limit ?? 10) * this.chunkMultiplier),
         threshold,
         query,
       });
@@ -151,7 +151,7 @@ export class BaseSearchService {
       }
 
       // Group and rank results
-      const results = await this.groupAndRankResults(chunks, options.limit, query);
+      const results = await this.groupAndRankResults(chunks, options.limit ?? 10, query);
 
       // Build response
       const response: SearchResponse = {
@@ -227,7 +227,7 @@ export class BaseSearchService {
         searchPatterns,
         userId,
         filters,
-        limit: Math.round(options.limit * this.chunkMultiplier),
+        limit: Math.round((options.limit ?? 10) * this.chunkMultiplier),
         threshold,
         hybridOptions: {
           vectorWeight: options.vectorWeight ?? 0.4,
@@ -244,7 +244,7 @@ export class BaseSearchService {
       }
 
       // Group and rank results with hybrid scoring
-      const results = await this.groupAndRankHybridResults(chunks, options.limit, query, {
+      const results = await this.groupAndRankHybridResults(chunks, options.limit ?? 10, query, {
         applyMMR: true,
         mmrLambda: 0.7,
       });
@@ -309,8 +309,8 @@ export class BaseSearchService {
     const rpcFunction = this.getRPCFunction(filters);
     const rpcParams = this.buildRPCParams({
       embeddingString,
-      userId,
-      filters,
+      ...(userId != null && { userId }),
+      ...(filters != null && { filters }),
       limit,
       threshold,
     });

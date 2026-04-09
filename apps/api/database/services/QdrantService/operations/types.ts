@@ -7,23 +7,23 @@ import type { QdrantFilter, CollectionStats } from '../types.js';
 
 // Search options
 export interface VectorSearchOptions {
-  limit?: number;
-  threshold?: number;
-  withPayload?: boolean;
-  withVector?: boolean;
-  ef?: number | null;
+  limit?: number | undefined;
+  threshold?: number | undefined;
+  withPayload?: boolean | undefined;
+  withVector?: boolean | undefined;
+  ef?: number | null | undefined;
 }
 
 export interface HybridSearchOptions extends VectorSearchOptions {
-  vectorWeight?: number;
-  textWeight?: number;
-  useRRF?: boolean;
-  rrfK?: number;
-  recallLimit?: number;
+  vectorWeight?: number | undefined;
+  textWeight?: number | undefined;
+  useRRF?: boolean | undefined;
+  rrfK?: number | undefined;
+  recallLimit?: number | undefined;
 }
 
 export interface ContextOptions {
-  window?: number;
+  window?: number | undefined;
 }
 
 // Search results
@@ -31,22 +31,22 @@ export interface VectorSearchResult {
   id: string | number;
   score: number;
   payload: Record<string, unknown>;
-  vector?: number[] | null;
+  vector?: number[] | null | undefined;
 }
 
 export interface TextSearchResult extends VectorSearchResult {
   searchMethod: 'text';
   searchTerm: string;
-  matchedVariant?: string;
-  matchType?: 'exact' | 'variant' | 'token_fallback' | 'none' | 'error';
+  matchedVariant?: string | undefined;
+  matchType?: 'exact' | 'variant' | 'token_fallback' | 'none' | 'error' | undefined;
 }
 
 export interface HybridSearchResult extends VectorSearchResult {
   searchMethod: 'vector' | 'text' | 'hybrid';
-  originalVectorScore?: number | null;
-  originalTextScore?: number | null;
-  confidence?: number;
-  rawRRFScore?: number;
+  originalVectorScore?: number | null | undefined;
+  originalTextScore?: number | null | undefined;
+  confidence?: number | undefined;
+  rawRRFScore?: number | undefined;
 }
 
 export interface HybridSearchMetadata {
@@ -82,8 +82,8 @@ export interface ChunkWithContext {
 
 // Batch operations
 export interface BatchUpsertOptions {
-  wait?: boolean;
-  maxRetries?: number;
+  wait?: boolean | undefined;
+  maxRetries?: number | undefined;
 }
 
 export interface BatchUpsertResult {
@@ -98,16 +98,16 @@ export interface BatchDeleteResult {
 }
 
 export interface ScrollOptions {
-  limit?: number;
-  withPayload?: boolean;
-  withVector?: boolean;
-  offset?: string | number | null;
+  limit?: number | undefined;
+  withPayload?: boolean | undefined;
+  withVector?: boolean | undefined;
+  offset?: string | number | null | undefined;
 }
 
 export interface ScrollPoint {
   id: string | number;
   payload: Record<string, unknown>;
-  vector?: number[] | null;
+  vector?: number[] | null | undefined;
 }
 
 // Hybrid config interface (from vectorConfig)
@@ -126,9 +126,9 @@ export interface HybridConfig {
 // Quality config interface
 export interface QualityConfig {
   retrieval?: {
-    enableQualityFilter?: boolean;
-    minRetrievalQuality?: number;
-    qualityBoostFactor?: number;
+    enableQualityFilter?: boolean | undefined;
+    minRetrievalQuality?: number | undefined;
+    qualityBoostFactor?: number | undefined;
   };
 }
 
@@ -142,7 +142,7 @@ export interface RRFScoringItem {
   originalTextScore: number | null;
   searchMethod: 'vector' | 'text' | 'hybrid';
   confidence: number;
-  finalScore?: number;
+  finalScore?: number | undefined;
 }
 
 // Weighted scoring intermediate

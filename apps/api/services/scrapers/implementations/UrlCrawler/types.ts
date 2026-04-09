@@ -8,7 +8,7 @@
  */
 export interface ValidationResult {
   isValid: boolean;
-  error?: string;
+  error?: string | undefined;
 }
 
 /**
@@ -27,12 +27,12 @@ export interface CrawlerConfig {
  * Crawl options (user-provided)
  */
 export interface CrawlOptions {
-  timeout?: number;
-  maxRetries?: number;
-  enhancedMetadata?: boolean;
-  headless?: boolean;
-  userAgent?: string;
-  metadataOnly?: boolean;
+  timeout?: number | undefined;
+  maxRetries?: number | undefined;
+  enhancedMetadata?: boolean | undefined;
+  headless?: boolean | undefined;
+  userAgent?: string | undefined;
+  metadataOnly?: boolean | undefined;
 }
 
 /**
@@ -42,21 +42,21 @@ export interface RawCrawlResult {
   html: string;
   finalUrl: string;
   statusCode: number;
-  isPdf?: boolean;
-  pdfText?: string;
+  isPdf?: boolean | undefined;
+  pdfText?: string | undefined;
 }
 
 /**
  * Enhanced metadata extracted from HTML
  */
 export interface EnhancedMetadata {
-  previewImage?: string;
+  previewImage?: string | undefined;
   dimensions?: {
     width: number;
     height: number;
   };
-  categories?: string[];
-  structuredData?: Record<string, unknown>;
+  categories?: string[] | undefined;
+  structuredData?: Record<string, unknown> | undefined;
 }
 
 /**
@@ -74,10 +74,10 @@ export interface ContentData {
   wordCount: number;
   characterCount: number;
   extractedAt: string;
-  previewImage?: string;
+  previewImage?: string | undefined;
   dimensions?: { width: number; height: number };
-  categories?: string[];
-  structuredData?: Record<string, unknown>;
+  categories?: string[] | undefined;
+  structuredData?: Record<string, unknown> | undefined;
 }
 
 /**
@@ -90,7 +90,7 @@ export interface CrawlResult {
     statusCode: number;
     processingTimeMs: number;
   };
-  error?: string;
+  error?: string | undefined;
 }
 
 /**
@@ -105,7 +105,7 @@ export interface PreviewResult {
     contentType: string | null;
     preview: string;
   };
-  error?: string;
+  error?: string | undefined;
 }
 
 /**

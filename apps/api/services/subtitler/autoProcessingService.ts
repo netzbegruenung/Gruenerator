@@ -171,8 +171,8 @@ async function getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
     fps: parseFrameRate(videoStream?.r_frame_rate || '30/1'),
     rotation: String(rotationDegrees),
     originalFormat: {
-      codec: videoStream?.codec_name,
-      audioCodec: audioStream?.codec_name,
+      ...(videoStream?.codec_name && { codec: videoStream.codec_name }),
+      ...(audioStream?.codec_name && { audioCodec: audioStream.codec_name }),
       audioBitrate: audioStream?.bit_rate ? parseInt(audioStream.bit_rate) / 1000 : null,
     },
   };
@@ -506,11 +506,11 @@ async function exportWithEnhancements(
     rotation: metadata.rotation,
     originalFormat: metadata.originalFormat
       ? {
-          codec: metadata.originalFormat.codec,
+          ...(metadata.originalFormat.codec && { codec: metadata.originalFormat.codec }),
           ...(metadata.originalFormat.videoBitrate != null && {
             videoBitrate: metadata.originalFormat.videoBitrate,
           }),
-          audioCodec: metadata.originalFormat.audioCodec,
+          ...(metadata.originalFormat.audioCodec && { audioCodec: metadata.originalFormat.audioCodec }),
           ...(metadata.originalFormat.audioBitrate != null && {
             audioBitrate: metadata.originalFormat.audioBitrate,
           }),

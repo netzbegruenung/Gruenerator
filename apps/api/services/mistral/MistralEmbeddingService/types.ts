@@ -8,19 +8,19 @@ export interface ModelInfo {
   dimensions: number;
   maxSequenceLength: number;
   isInitialized: boolean;
-  serverConnected?: boolean;
+  serverConnected?: boolean | undefined;
 }
 
 export interface EmbeddingOptions {
-  model?: string;
-  useCache?: boolean;
-  inputType?: 'search_document' | 'search_query';
+  model?: string | undefined;
+  useCache?: boolean | undefined;
+  inputType?: 'search_document' | 'search_query' | undefined;
 }
 
 export interface EmbeddingResult {
   embedding: number[];
   cached: boolean;
-  processingTime?: number;
+  processingTime?: number | undefined;
   dimensions: number;
 }
 
@@ -39,8 +39,8 @@ export interface CacheConfig {
 export interface CacheStats {
   enabled: boolean;
   keys: number;
-  memoryInfo?: string;
-  error?: string;
+  memoryInfo?: string | undefined;
+  error?: string | undefined;
 }
 
 export interface RedisClient {

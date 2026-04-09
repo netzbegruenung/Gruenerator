@@ -14,6 +14,7 @@ import { PrivacyCounter } from '../../services/counters/index.js';
 import {
   localizePromptObject,
   extractLocaleFromRequest,
+  type RequestWithLocale,
 } from '../../services/localization/index.js';
 import { selectProviderAndModel } from '../../services/providers/providerSelector.js';
 import { createLogger } from '../../utils/logger.js';
@@ -114,7 +115,7 @@ export async function processGraphRequestStreaming(
 
     // Load configuration and localize
     const baseConfig = loadPromptConfig(routeType);
-    const userLocale = extractLocaleFromRequest(req);
+    const userLocale = extractLocaleFromRequest(req as RequestWithLocale);
     const config = localizePromptObject(baseConfig, userLocale);
 
     // Validate request

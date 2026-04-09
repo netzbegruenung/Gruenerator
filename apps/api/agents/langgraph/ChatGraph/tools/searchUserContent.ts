@@ -25,6 +25,7 @@ export function createSearchUserContentTool(deps: ToolDependencies): DynamicStru
     return null;
   }
 
+    // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'search_user_content',
     description:
@@ -39,7 +40,7 @@ export function createSearchUserContentTool(deps: ToolDependencies): DynamicStru
         .describe(
           'documents=hochgeladene Dateien, texts=gespeicherte Texte, all=beides (Standard)'
         ),
-    }),
+    }).describe('Nutzerinhalte durchsuchen'),
     func: async (input: { query: string; source_type?: string }) => {
       const { query, source_type } = input;
       const effectiveSourceType = source_type || 'all';

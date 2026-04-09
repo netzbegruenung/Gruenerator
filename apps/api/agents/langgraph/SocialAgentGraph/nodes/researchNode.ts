@@ -13,7 +13,7 @@ export async function researchNode(state: SocialAgentState): Promise<Partial<Soc
   log.debug('[researchNode] Starting research for topic:', state.inhalt.substring(0, 100));
 
   try {
-    const locale = extractLocaleFromRequest(state.req);
+    const locale = extractLocaleFromRequest(state.req as any);
     const argumentCollections =
       locale === 'de-AT'
         ? ['oesterreich_gruene_documents', 'gruene_at_documents']

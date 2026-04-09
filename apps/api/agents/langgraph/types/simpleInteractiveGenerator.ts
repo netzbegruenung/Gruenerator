@@ -25,9 +25,9 @@ export interface AIWorkerRequest {
   messages: Array<{ role: string; content: string }>;
   /** Additional options for the AI request */
   options?: {
-    max_tokens?: number;
-    temperature?: number;
-    tools?: ToolSchema[];
+    max_tokens?: number | undefined;
+    temperature?: number | undefined;
+    tools?: ToolSchema[] | undefined;
     [key: string]: unknown;
   };
 }
@@ -39,17 +39,17 @@ export interface AIWorkerResponse {
   /** Whether the request was successful */
   success: boolean;
   /** Content returned from the AI */
-  content?: string;
+  content?: string | undefined;
   /** Error message if failed */
-  error?: string;
+  error?: string | undefined;
   /** Tool calls made by the AI */
-  tool_calls?: ToolCall[];
+  tool_calls?: ToolCall[] | undefined;
   /** Usage statistics */
   metadata?: {
     usage?: {
-      input_tokens?: number;
-      output_tokens?: number;
-      total_tokens?: number;
+      input_tokens?: number | undefined;
+      output_tokens?: number | undefined;
+      total_tokens?: number | undefined;
     };
   };
 }
@@ -67,7 +67,7 @@ export interface ToolSchema {
  * Tool call from AI response
  */
 export interface ToolCall {
-  id?: string;
+  id?: string | undefined;
   name: string;
   input: string | Record<string, unknown>;
 }
@@ -79,13 +79,13 @@ export interface GeneratedQuestion {
   id: string;
   text: string;
   type: string;
-  uncertainty?: string;
+  uncertainty?: string | undefined;
   questionFormat: 'multiple_choice' | 'text' | 'number';
-  options?: string[];
-  optionEmojis?: string[];
-  allowCustom?: boolean;
-  allowMultiSelect?: boolean;
-  skipOption?: string | boolean;
+  options?: string[] | undefined;
+  optionEmojis?: string[] | undefined;
+  allowCustom?: boolean | undefined;
+  allowMultiSelect?: boolean | undefined;
+  skipOption?: string | boolean | undefined;
 }
 
 /**
@@ -93,13 +93,13 @@ export interface GeneratedQuestion {
  */
 export interface QuestionGenerationArgs {
   needsClarification: boolean;
-  confidenceReason?: string;
+  confidenceReason?: string | undefined;
   questions?: Array<{
-    id?: string;
+    id?: string | undefined;
     text: string;
-    uncertainty?: string;
-    options?: string[];
-    emojis?: string[];
+    uncertainty?: string | undefined;
+    options?: string[] | undefined;
+    emojis?: string[] | undefined;
   }>;
 }
 
@@ -116,10 +116,10 @@ export interface QuestionGenerationResult {
  * Question defaults from config
  */
 export interface QuestionDefaults {
-  questionFormat?: 'multiple_choice' | 'text' | 'number';
-  allowCustom?: boolean;
-  allowMultiSelect?: boolean;
-  skipOption?: string | boolean;
+  questionFormat?: 'multiple_choice' | 'text' | 'number' | undefined;
+  allowCustom?: boolean | undefined;
+  allowMultiSelect?: boolean | undefined;
+  skipOption?: string | boolean | undefined;
 }
 
 /**
@@ -129,10 +129,10 @@ export interface QuestionPromptConfig {
   systemPrompt: string;
   generationPrompt: string;
   toolSchema: ToolSchema;
-  questionDefaults?: QuestionDefaults;
+  questionDefaults?: QuestionDefaults | undefined;
   options?: {
-    max_tokens?: number;
-    temperature?: number;
+    max_tokens?: number | undefined;
+    temperature?: number | undefined;
     [key: string]: unknown;
   };
 }
@@ -178,8 +178,8 @@ export interface WebSearchResult {
   results: Array<{
     title: string;
     url: string;
-    content_snippets?: string;
-    snippet?: string;
+    content_snippets?: string | undefined;
+    snippet?: string | undefined;
   }>;
   sources: Array<{
     title: string;
@@ -195,16 +195,16 @@ export interface SearxngService {
   performWebSearch(
     query: string,
     options: {
-      maxResults?: number;
-      language?: string;
+      maxResults?: number | undefined;
+      language?: string | undefined;
     }
   ): Promise<{
     success: boolean;
     results?: Array<{
       title: string;
       url: string;
-      content_snippets?: string;
-      snippet?: string;
+      content_snippets?: string | undefined;
+      snippet?: string | undefined;
     }>;
   }>;
 }
@@ -215,7 +215,7 @@ export interface SearxngService {
 export interface EnrichmentRequest {
   inhalt: string;
   requestType: string;
-  userClarifications?: StructuredAnswers;
+  userClarifications?: StructuredAnswers | undefined;
 }
 
 /**
@@ -225,10 +225,10 @@ export interface EnrichedContext {
   documents?: Array<{
     title: string;
     content: string;
-    source_url?: string;
-    metadata?: Record<string, unknown>;
+    source_url?: string | undefined;
+    metadata?: Record<string, unknown> | undefined;
   }>;
-  knowledge?: string[];
+  knowledge?: string[] | undefined;
 }
 
 /**
@@ -244,8 +244,8 @@ export interface PromptContext {
   documents: Array<{
     title: string;
     content: string;
-    source_url?: string;
-    metadata?: Record<string, unknown>;
+    source_url?: string | undefined;
+    metadata?: Record<string, unknown> | undefined;
   }>;
   knowledge: string[];
   locale: Locale;
@@ -263,9 +263,9 @@ export interface GenerationResult {
   content: string;
   metadata?: {
     usage?: {
-      input_tokens?: number;
-      output_tokens?: number;
-      total_tokens?: number;
+      input_tokens?: number | undefined;
+      output_tokens?: number | undefined;
+      total_tokens?: number | undefined;
     };
   };
 }
@@ -283,14 +283,14 @@ export interface InteractiveSession {
   questionRound: number;
   questions: GeneratedQuestion[];
   answers: {
-    round1?: QuestionAnswers;
+    round1?: QuestionAnswers | undefined;
   };
-  finalResult?: string;
+  finalResult?: string | undefined;
   metadata: {
     startTime: number;
-    completedAt?: number;
-    duration?: number;
-    confidenceReason?: string;
+    completedAt?: number | undefined;
+    duration?: number | undefined;
+    confidenceReason?: string | undefined;
   };
   [key: string]: unknown;
 }
@@ -302,8 +302,8 @@ export interface InitiateGeneratorParams {
   userId: string;
   inhalt: string;
   requestType: string;
-  generatorType?: string;
-  locale?: Locale;
+  generatorType?: string | undefined;
+  locale?: Locale | undefined;
   aiWorkerPool: AIWorkerPool;
   req: Request;
 }
@@ -315,16 +315,16 @@ export interface InitiateGeneratorResult {
   status: 'success' | 'completed' | 'error';
   sessionId: string;
   conversationState: 'questions_asked' | 'completed';
-  questions?: GeneratedQuestion[];
-  questionRound?: number;
-  finalResult?: string;
+  questions?: GeneratedQuestion[] | undefined;
+  questionRound?: number | undefined;
+  finalResult?: string | undefined;
   metadata?: {
-    questionCount?: number;
-    skippedQuestions?: boolean;
-    confidenceReason?: string;
+    questionCount?: number | undefined;
+    skippedQuestions?: boolean | undefined;
+    confidenceReason?: string | undefined;
   };
-  message?: string;
-  error?: string;
+  message?: string | undefined;
+  error?: string | undefined;
 }
 
 /**
@@ -345,13 +345,13 @@ export interface ContinueGeneratorResult {
   status: 'completed' | 'error';
   sessionId: string;
   conversationState: 'completed';
-  finalResult?: string;
+  finalResult?: string | undefined;
   metadata?: {
     completedAt: number;
     duration: number;
   };
-  message?: string;
-  error?: string;
+  message?: string | undefined;
+  error?: string | undefined;
 }
 
 /**
@@ -362,10 +362,10 @@ export interface GenerateFinalResultParams {
   sessionId: string;
   inhalt: string;
   requestType: string;
-  generatorType?: string;
-  locale?: Locale;
-  questions?: GeneratedQuestion[];
-  answers?: QuestionAnswers;
+  generatorType?: string | undefined;
+  locale?: Locale | undefined;
+  questions?: GeneratedQuestion[] | undefined;
+  answers?: QuestionAnswers | undefined;
   aiWorkerPool: AIWorkerPool;
   req: Request;
 }
@@ -375,11 +375,11 @@ export interface GenerateFinalResultParams {
  */
 export interface GeneratorConfig {
   systemRole: string;
-  systemRoleExtensions?: Record<string, string>;
-  systemRoleAppendix?: string;
+  systemRoleExtensions?: Record<string, string> | undefined;
+  systemRoleAppendix?: string | undefined;
   options?: {
-    max_tokens?: number;
-    temperature?: number;
+    max_tokens?: number | undefined;
+    temperature?: number | undefined;
     [key: string]: unknown;
   };
 }

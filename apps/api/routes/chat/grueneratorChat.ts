@@ -217,8 +217,8 @@ router.post(
         const result = await processConversationRequest({
           message,
           userId,
-          locale: user?.locale,
-          subIntent: intentResult.subIntent,
+          ...(user?.locale && { locale: user.locale }),
+          ...(intentResult.subIntent && { subIntent: intentResult.subIntent }),
           messageHistory: trimmedHistory,
           aiWorkerPool: req.app.locals.aiWorkerPool,
           req,
@@ -269,7 +269,7 @@ router.post(
         log.debug('[Chat] Processing single intent');
         const intent = {
           ...intentResult.intents[0],
-          requestType: intentResult.requestType,
+          ...(intentResult.requestType && { requestType: intentResult.requestType }),
         };
 
         await processSingleIntentRequest(intent, req, res, baseContext as any);
@@ -602,7 +602,9 @@ function setupResponseCapture(res: CapturedResponse, intentResult: unknown): voi
   const originalJson = res.json.bind(res);
 
   res.json = function (data: CapturedResponse['_responseContent']) {
-    res._responseContent = data;
+    if (data) {
+      res._responseContent = data;
+    }
     return originalJson(data);
   };
 }

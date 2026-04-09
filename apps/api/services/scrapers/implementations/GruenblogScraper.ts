@@ -588,9 +588,9 @@ export class GruenblogScraper extends BaseScraper {
       const stats = await getCollectionStats(this.qdrant.client, this.config.collectionName);
       return {
         collection: this.config.collectionName,
-        vectors_count: stats.vectors_count,
-        points_count: stats.points_count,
-        status: stats.status,
+        ...(stats.vectors_count !== undefined && { vectors_count: stats.vectors_count }),
+        ...(stats.points_count !== undefined && { points_count: stats.points_count }),
+        ...(stats.status !== undefined && { status: stats.status }),
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

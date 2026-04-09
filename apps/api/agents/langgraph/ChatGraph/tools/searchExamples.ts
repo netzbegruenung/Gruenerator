@@ -16,6 +16,7 @@ import type { ToolDependencies } from './registry.js';
 const log = createLogger('Tool:SearchExamples');
 
 export function createSearchExamplesTool(deps: ToolDependencies): DynamicStructuredTool {
+    // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'search_examples',
     description:
@@ -27,7 +28,7 @@ export function createSearchExamplesTool(deps: ToolDependencies): DynamicStructu
         .enum(['facebook', 'instagram'])
         .optional()
         .describe('Optionale Plattform-Filterung'),
-    }),
+    }).describe('Beispielsuche'),
     func: async (input: { query: string; platform?: string }) => {
       const { query, platform } = input;
       const country =
@@ -35,11 +36,16 @@ export function createSearchExamplesTool(deps: ToolDependencies): DynamicStructu
         (deps.userLocale === 'de-AT' ? 'AT' : undefined);
       log.info(`[SearchExamples] query="${query.slice(0, 60)}" platform=${platform || 'all'}`);
 
-      const result = await executeDirectExamplesSearch({
+      const params: Parameters<typeof executeDirectExamplesSearch>[0] = {
         query,
-        platform,
-        country,
-      });
+      };
+      if (platform != null) {
+        params.platform = platform;
+      }
+      if (country != null) {
+        params.country = country;
+      }
+      const result = await executeDirectExamplesSearch(params);
 
       if (!result.examples || result.examples.length === 0) {
         return 'Keine Social-Media-Beispiele gefunden.';

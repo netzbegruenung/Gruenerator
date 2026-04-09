@@ -562,7 +562,7 @@ export class DocumentSearchService extends BaseSearchService {
             success: true,
             fullText,
             chunkCount: 1,
-            title: typeof payload.title === 'string' ? payload.title : undefined,
+            ...(typeof payload.title === 'string' && { title: payload.title }),
           };
         }
       }
@@ -598,7 +598,7 @@ export class DocumentSearchService extends BaseSearchService {
         success: true,
         fullText: sorted.join('\n\n'),
         chunkCount: sorted.length,
-        title,
+        ...(title && { title }),
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

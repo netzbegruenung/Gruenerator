@@ -9,36 +9,36 @@ import type { SearchPatternResult } from './keyword-extractor-types.js';
 // ============ Search Parameters ============
 
 export interface SearchFilters {
-  documentType?: string;
+  documentType?: string | undefined;
   dateRange?: {
-    start?: Date;
-    end?: Date;
+    start?: Date | undefined;
+    end?: Date | undefined;
   };
-  tags?: string[];
+  tags?: string[] | undefined;
   [key: string]: unknown;
 }
 
 export interface SearchOptions {
-  limit?: number;
-  threshold?: number;
-  useCache?: boolean;
-  vectorWeight?: number;
-  textWeight?: number;
-  useRRF?: boolean;
-  rrfK?: number;
-  recallLimit?: number;
+  limit?: number | undefined;
+  threshold?: number | undefined;
+  useCache?: boolean | undefined;
+  vectorWeight?: number | undefined;
+  textWeight?: number | undefined;
+  useRRF?: boolean | undefined;
+  rrfK?: number | undefined;
+  recallLimit?: number | undefined;
   [key: string]: unknown;
 }
 
 export interface SearchParams {
   query: string;
-  userId?: string;
-  filters?: SearchFilters;
-  options?: SearchOptions;
+  userId?: string | undefined;
+  filters?: SearchFilters | undefined;
+  options?: SearchOptions | undefined;
   /** Flat parameter support for backwards compatibility */
-  limit?: number;
-  group_id?: string | null;
-  mode?: 'vector' | 'hybrid' | 'text' | 'keyword';
+  limit?: number | undefined;
+  group_id?: string | null | undefined;
+  mode?: 'vector' | 'hybrid' | 'text' | 'keyword' | undefined;
 }
 
 export interface ValidatedSearchParams {
@@ -56,42 +56,42 @@ export interface RawChunk {
   chunk_index: number;
   chunk_text: string;
   similarity: number;
-  token_count?: number;
-  created_at?: string;
-  content_type?: string;
-  page_number?: number;
-  url?: string;
+  token_count?: number | undefined;
+  created_at?: string | undefined;
+  content_type?: string | undefined;
+  page_number?: number | undefined;
+  url?: string | undefined;
   metadata?: {
-    content_type?: string;
-    page_number?: number;
+    content_type?: string | undefined;
+    page_number?: number | undefined;
     [key: string]: unknown;
   };
   documents?: {
     id: string;
-    title?: string;
-    filename?: string;
-    created_at?: string;
+    title?: string | undefined;
+    filename?: string | undefined;
+    created_at?: string | undefined;
   };
-  document_title?: string;
-  document_filename?: string;
-  document_created_at?: string;
+  document_title?: string | undefined;
+  document_filename?: string | undefined;
+  document_created_at?: string | undefined;
 }
 
 export interface ChunkData {
   chunk_id: string;
   chunk_index: number;
   text: string;
-  content_type?: string | null;
-  page_number?: number | null;
+  content_type?: string | null | undefined;
+  page_number?: number | null | undefined;
   similarity: number;
-  similarity_adjusted?: number;
-  has_term?: boolean;
-  is_toc?: boolean;
-  token_count?: number;
-  quality_score?: number;
-  searchMethod?: string;
-  originalVectorScore?: number | null;
-  originalTextScore?: number | null;
+  similarity_adjusted?: number | undefined;
+  has_term?: boolean | undefined;
+  is_toc?: boolean | undefined;
+  token_count?: number | undefined;
+  quality_score?: number | undefined;
+  searchMethod?: string | undefined;
+  originalVectorScore?: number | null | undefined;
+  originalTextScore?: number | null | undefined;
 }
 
 export interface TransformedChunk {
@@ -100,19 +100,19 @@ export interface TransformedChunk {
   chunk_index: number;
   chunk_text: string;
   similarity: number;
-  token_count?: number;
-  created_at?: string;
-  source_id?: string | null;
-  url?: string;
+  token_count?: number | undefined;
+  created_at?: string | undefined;
+  source_id?: string | null | undefined;
+  url?: string | undefined;
   documents: {
     id: string;
-    title?: string;
-    filename?: string;
-    created_at?: string;
+    title?: string | undefined;
+    filename?: string | undefined;
+    created_at?: string | undefined;
   };
-  searchMethod?: string;
-  originalVectorScore?: number | null;
-  originalTextScore?: number | null;
+  searchMethod?: string | undefined;
+  originalVectorScore?: number | null | undefined;
+  originalTextScore?: number | null | undefined;
 }
 
 // ============ Scoring ============
@@ -123,19 +123,19 @@ export interface EnhancedScore {
   avgSimilarity: number;
   positionScore: number;
   diversityBonus: number;
-  hybridBonus?: number;
-  qualityAvg?: number;
+  hybridBonus?: number | undefined;
+  qualityAvg?: number | undefined;
 }
 
 export interface ScoringConfig {
-  maxSimilarityWeight?: number;
-  avgSimilarityWeight?: number;
-  positionWeight?: number;
-  minPositionWeight?: number;
-  positionDecayRate?: number;
+  maxSimilarityWeight?: number | undefined;
+  avgSimilarityWeight?: number | undefined;
+  positionWeight?: number | undefined;
+  minPositionWeight?: number | undefined;
+  positionDecayRate?: number | undefined;
   maxDiversityBonus: number;
   diversityBonusRate: number;
-  maxFinalScore?: number;
+  maxFinalScore?: number | undefined;
   [key: string]: unknown;
 }
 
@@ -151,47 +151,47 @@ export interface HybridMetadata {
 
 export interface DocumentData {
   document_id: string;
-  title?: string;
-  filename?: string;
-  created_at?: string;
-  source_url?: string;
-  source_id?: string | null;
+  title?: string | undefined;
+  filename?: string | undefined;
+  created_at?: string | undefined;
+  source_url?: string | undefined;
+  source_id?: string | null | undefined;
   chunks: ChunkData[];
   maxSimilarity: number;
   avgSimilarity: number;
-  totalScore?: number;
-  hybridMetadata?: HybridMetadata;
+  totalScore?: number | undefined;
+  hybridMetadata?: HybridMetadata | undefined;
 }
 
 export interface TopChunk {
   chunk_index: number;
-  content_type?: string | null;
-  page_number?: number | null;
-  quality_score?: number | null;
-  has_term?: boolean;
+  content_type?: string | null | undefined;
+  page_number?: number | null | undefined;
+  quality_score?: number | null | undefined;
+  has_term?: boolean | undefined;
   preview: string;
 }
 
 export interface DocumentResult {
   document_id: string;
-  title?: string;
-  filename?: string;
-  created_at?: string;
-  source_url?: string;
-  source_id?: string | null;
+  title?: string | undefined;
+  filename?: string | undefined;
+  created_at?: string | undefined;
+  source_url?: string | undefined;
+  source_id?: string | null | undefined;
   relevant_content: string;
   similarity_score: number;
   max_similarity: number;
   avg_similarity: number;
-  position_score?: number;
-  diversity_bonus?: number;
-  hybrid_bonus?: number;
-  quality_avg?: number | null;
-  chunk_index?: number | null;
+  position_score?: number | undefined;
+  diversity_bonus?: number | undefined;
+  hybrid_bonus?: number | undefined;
+  quality_avg?: number | null | undefined;
+  chunk_index?: number | null | undefined;
   top_chunks: TopChunk[];
   chunk_count: number;
   relevance_info: string;
-  search_methods?: string[];
+  search_methods?: string[] | undefined;
   hybrid_metadata?: {
     hasVectorMatch: boolean;
     hasTextMatch: boolean;
@@ -208,35 +208,35 @@ export interface SearchResponse {
   query: string;
   searchType: string;
   message: string;
-  error?: string;
-  code?: string;
+  error?: string | undefined;
+  code?: string | undefined;
   metadata?: {
-    searchService?: string;
-    totalChunks?: number;
-    threshold?: number;
-    cached?: boolean;
-    searchPatterns?: string[];
-    hybridMethod?: string;
-    processedDocuments?: number;
+    searchService?: string | undefined;
+    totalChunks?: number | undefined;
+    threshold?: number | undefined;
+    cached?: boolean | undefined;
+    searchPatterns?: string[] | undefined;
+    hybridMethod?: string | undefined;
+    processedDocuments?: number | undefined;
   };
 }
 
 // ============ Hybrid Search ============
 
 export interface HybridOptions {
-  vectorWeight?: number;
-  textWeight?: number;
-  useRRF?: boolean;
-  rrfK?: number;
-  recallLimit?: number;
+  vectorWeight?: number | undefined;
+  textWeight?: number | undefined;
+  useRRF?: boolean | undefined;
+  rrfK?: number | undefined;
+  recallLimit?: number | undefined;
 }
 
 export interface HybridChunkParams {
   embedding: number[];
   query: string;
-  searchPatterns?: SearchPatternResult;
-  userId?: string | null;
-  filters?: SearchFilters;
+  searchPatterns?: SearchPatternResult | undefined;
+  userId?: string | null | undefined;
+  filters?: SearchFilters | undefined;
   limit: number;
   threshold: number;
   hybridOptions: HybridOptions;
@@ -244,18 +244,18 @@ export interface HybridChunkParams {
 
 export interface SimilarChunkParams {
   embedding: number[];
-  userId?: string | null;
-  filters?: SearchFilters;
+  userId?: string | null | undefined;
+  filters?: SearchFilters | undefined;
   limit: number;
   threshold: number;
-  query?: string;
+  query?: string | undefined;
 }
 
 // ============ RPC Parameters ============
 
 export interface RPCParams {
   query_embedding: string;
-  user_id_filter?: string | null;
+  user_id_filter?: string | null | undefined;
   similarity_threshold: number;
   match_count: number;
   [key: string]: unknown;
@@ -280,8 +280,8 @@ export interface Cache {
 // ============ Error Handler ============
 
 export interface ErrorHandlerOptions {
-  enableTelemetry?: boolean;
-  logLevel?: string;
+  enableTelemetry?: boolean | undefined;
+  logLevel?: string | undefined;
 }
 
 /**
@@ -293,9 +293,9 @@ export interface ErrorHandler {
     error: Error,
     context: {
       operation: string;
-      query?: string;
-      userId?: string | null;
-      returnResponse?: boolean;
+      query?: string | undefined;
+      userId?: string | null | undefined;
+      returnResponse?: boolean | undefined;
       [key: string]: unknown;
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- returns APIErrorResponse or SearchResponse depending on context
@@ -307,20 +307,20 @@ export interface ErrorHandler {
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
 
 export interface BaseSearchServiceOptions {
-  serviceName?: string;
-  defaultLimit?: number;
-  defaultThreshold?: number;
-  enableTelemetry?: boolean;
-  logLevel?: LogLevel;
-  cacheType?: string;
-  cacheSize?: number;
-  cacheTTL?: number;
+  serviceName?: string | undefined;
+  defaultLimit?: number | undefined;
+  defaultThreshold?: number | undefined;
+  enableTelemetry?: boolean | undefined;
+  logLevel?: LogLevel | undefined;
+  cacheType?: string | undefined;
+  cacheSize?: number | undefined;
+  cacheTTL?: number | undefined;
 }
 
 // ============ MMR Options ============
 
 export interface MMROptions {
-  applyMMR?: boolean;
-  mmrLambda?: number;
-  dossierMode?: boolean;
+  applyMMR?: boolean | undefined;
+  mmrLambda?: number | undefined;
+  dossierMode?: boolean | undefined;
 }

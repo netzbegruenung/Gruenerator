@@ -220,7 +220,7 @@ async function processVideoExport(exportParams: ExportParams, res: Response): Pr
       rotation: metadata.rotation,
       originalFormat: metadata.originalFormat
         ? {
-            codec: metadata.originalFormat.codec,
+            ...(metadata.originalFormat.codec && { codec: metadata.originalFormat.codec }),
             ...(metadata.originalFormat.audioCodec != null && {
               audioCodec: metadata.originalFormat.audioCodec,
             }),

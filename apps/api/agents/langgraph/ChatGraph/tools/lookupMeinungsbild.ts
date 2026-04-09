@@ -9,6 +9,7 @@ import type { ToolDependencies } from './registry.js';
 const log = createLogger('Tool:Meinungsbild');
 
 export function createLookupMeinungsbildTool(_deps: ToolDependencies): DynamicStructuredTool {
+    // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'lookup_meinungsbild',
     description:
@@ -20,7 +21,7 @@ export function createLookupMeinungsbildTool(_deps: ToolDependencies): DynamicSt
       topic: z
         .string()
         .describe('Das Thema der Meinungsumfrage, z.B. "Bürgergeld", "Klimaschutz", "Tempolimit"'),
-    }),
+    }).describe('Meinungsbild Lookup'),
     func: async (input: { topic: string }) => {
       const { topic } = input;
       log.info(`[Meinungsbild] Lookup: "${topic}"`);

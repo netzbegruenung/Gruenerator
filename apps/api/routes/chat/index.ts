@@ -3,11 +3,12 @@
  * Combined router for AI chat streaming, threads, and messages
  */
 
-import express from 'express';
+import express, { type Request, type Response } from 'express';
 
 import {
   extractLocaleFromRequest,
   localizePlaceholders,
+  type RequestWithLocale,
 } from '../../services/localization/index.js';
 
 import { getAgent, loadAgents, getDefaultAgentId } from './agents/agentLoader.js';
@@ -31,7 +32,7 @@ router.use('/generate-system-prompt', promptGeneratorRouter);
 router.use('/confirm', confirmRouter);
 router.use('/search', searchRouter);
 
-router.get('/agents', async (req, res) => {
+router.get('/agents', async (req: Request & RequestWithLocale, res: Response) => {
   try {
     const agents = await loadAgents();
     const defaultId = getDefaultAgentId();
@@ -57,7 +58,7 @@ router.get('/agents', async (req, res) => {
   }
 });
 
-router.get('/agents/:identifier', async (req, res) => {
+router.get('/agents/:identifier', async (req: Request & RequestWithLocale, res: Response) => {
   try {
     const agent = await getAgent(req.params.identifier);
     if (!agent) {

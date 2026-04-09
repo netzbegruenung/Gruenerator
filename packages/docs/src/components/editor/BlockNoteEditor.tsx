@@ -1,4 +1,5 @@
 import {
+  type ComponentProps,
   useCallback,
   useEffect,
   useMemo,
@@ -39,6 +40,7 @@ import { DefaultChatTransport } from 'ai';
 import '@blocknote/core/fonts/inter.css';
 import '@blocknote/shadcn/style.css';
 import '@blocknote/xl-ai/style.css';
+import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 
@@ -101,6 +103,17 @@ const schema = BlockNoteSchema.create({
   },
   styleSpecs: defaultStyleSpecs,
 });
+
+// BlockNote's shadcn Tooltip wraps each instance in its own TooltipProvider,
+// creating triple-nested providers inside the Toolbar. This override removes
+// the redundant inner provider — the Toolbar already provides one.
+function ToolbarTooltip(props: ComponentProps<typeof TooltipPrimitive.Root>) {
+  return <TooltipPrimitive.Root data-slot="tooltip" {...props} />;
+}
+
+const shadCNComponentOverrides = {
+  Tooltip: { Tooltip: ToolbarTooltip },
+};
 
 const BlockNoteEditorInner = ({
   documentId,
@@ -335,6 +348,15 @@ const BlockNoteEditorInner = ({
     return '/images/tiptap-ui-placeholder-image.jpg';
   }, []);
 
+  const toolbarItems = useMemo(() => getFormattingToolbarItems(), []);
+
+  const formattingToolbar = useCallback(() => (
+    <FormattingToolbar>
+      {toolbarItems}
+      <AIToolbarButton />
+    </FormattingToolbar>
+  ), [toolbarItems]);
+
   if (!editor) {
     return <div className="blocknote-loading">Lädt Editor...</div>;
   }
@@ -349,6 +371,7 @@ const BlockNoteEditorInner = ({
           editor={editor}
           theme={theme}
           editable={editable}
+          shadCNComponents={shadCNComponentOverrides}
           formattingToolbar={false}
           slashMenu={false}
           sideMenu={false}
@@ -357,18 +380,11 @@ const BlockNoteEditorInner = ({
           <AIMenuController />
           {hideFormattingToolbar ? null : staticToolbar ? (
             <FormattingToolbar>
-              {getFormattingToolbarItems()}
+              {toolbarItems}
               {!isTouchDevice && <AIToolbarButton />}
             </FormattingToolbar>
           ) : (
-            <FormattingToolbarController
-              formattingToolbar={() => (
-                <FormattingToolbar>
-                  {getFormattingToolbarItems()}
-                  <AIToolbarButton />
-                </FormattingToolbar>
-              )}
-            />
+            <FormattingToolbarController formattingToolbar={formattingToolbar} />
           )}
           <SuggestionMenuController
             triggerCharacter="/"

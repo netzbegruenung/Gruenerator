@@ -201,7 +201,7 @@ export class VisionService {
         description,
         textDetection,
         extractedText: ocrResult?.text || null,
-        ocrMethod: ocrResult?.method,
+        ...(ocrResult?.method && { ocrMethod: ocrResult.method }),
       };
     }
 

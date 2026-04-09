@@ -3,15 +3,15 @@ import type { Request, Response, NextFunction } from 'express';
 
 interface UserProfileShape {
   id: string;
-  keycloak_id?: string;
+  keycloak_id?: string | undefined;
   email: string;
-  username?: string;
-  display_name?: string;
+  username?: string | undefined;
+  display_name?: string | undefined;
   avatar_robot_id: number;
-  chat_color?: string;
+  chat_color?: string | undefined;
   beta_features: Record<string, boolean>;
   user_defaults: Record<string, Record<string, unknown>>;
-  locale?: 'de-DE' | 'de-AT';
+  locale?: 'de-DE' | 'de-AT' | undefined;
   groups_enabled: boolean;
   custom_generators: boolean;
   database_access: boolean;
@@ -25,12 +25,12 @@ interface UserProfileShape {
   interactive_antrag_enabled: boolean;
   vorlagen: boolean;
   video_editor: boolean;
-  bundestag_api_enabled?: boolean;
-  memory_enabled?: boolean;
-  wordpress_enabled?: boolean;
+  bundestag_api_enabled?: boolean | undefined;
+  memory_enabled?: boolean | undefined;
+  wordpress_enabled?: boolean | undefined;
   created_at: Date | string;
   updated_at: Date | string;
-  last_login?: Date | string;
+  last_login?: Date | string | undefined;
 }
 
 declare global {
@@ -39,39 +39,39 @@ declare global {
     interface User extends UserProfileShape {}
 
     interface Request {
-      user?: User;
-      subdomain?: string;
+      user?: User | undefined;
+      subdomain?: string | undefined;
       siteData?: {
         id: string;
         user_id: string;
         subdomain: string;
         site_title: string;
-        tagline?: string;
-        bio?: string;
-        contact_email?: string;
-        social_links?: Record<string, string>;
-        accent_color?: string;
-        theme?: string;
-        profile_image?: string;
-        background_image?: string;
+        tagline?: string | undefined;
+        bio?: string | undefined;
+        contact_email?: string | undefined;
+        social_links?: Record<string, string> | undefined;
+        accent_color?: string | undefined;
+        theme?: string | undefined;
+        profile_image?: string | undefined;
+        background_image?: string | undefined;
         sections?: Array<{
           type: 'text' | 'contact' | string;
-          title?: string;
-          content?: string;
+          title?: string | undefined;
+          content?: string | undefined;
         }>;
-        meta_description?: string;
-        meta_keywords?: string[];
+        meta_description?: string | undefined;
+        meta_keywords?: string[] | undefined;
         is_published: boolean;
-        last_published?: string;
-        visit_count?: number;
+        last_published?: string | undefined;
+        visit_count?: number | undefined;
         created_at: string;
         updated_at: string;
       };
-      mobileAuth?: boolean;
+      mobileAuth?: boolean | undefined;
     }
 
     interface Locals {
-      aiWorkerPool?: AIWorkerPool;
+      aiWorkerPool?: AIWorkerPool | undefined;
     }
   }
 }

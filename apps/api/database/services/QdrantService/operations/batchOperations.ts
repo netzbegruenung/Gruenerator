@@ -73,7 +73,7 @@ export async function batchDelete(
   filter: QdrantFilter
 ): Promise<BatchDeleteResult> {
   try {
-    await client.delete(collection, { filter });
+    await client.delete(collection, { filter } as any);
 
     logger.info(`Batch deleted points from ${collection}`);
     return { success: true, collection };

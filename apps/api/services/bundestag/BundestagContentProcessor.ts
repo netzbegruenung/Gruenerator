@@ -121,9 +121,9 @@ class BundestagContentProcessor {
 
       // Chunk the text
       const chunks = await this.chunkText(cleanedText, {
-        title,
+        ...(title && { title }),
         url,
-        section,
+        ...(section && { section }),
       });
 
       if (chunks.length === 0) {
@@ -169,10 +169,10 @@ class BundestagContentProcessor {
 
         results.pages.push({
           url: page.url,
-          title: page.title,
-          section: page.section,
-          content_hash: page.content_hash,
-          published_at: page.published_at,
+          ...(page.title && { title: page.title }),
+          ...(page.section && { section: page.section }),
+          ...(page.content_hash && { content_hash: page.content_hash }),
+          ...(page.published_at && { published_at: page.published_at }),
           chunks: chunks,
         });
 

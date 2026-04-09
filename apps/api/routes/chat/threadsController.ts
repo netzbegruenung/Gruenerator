@@ -286,8 +286,8 @@ router.patch('/:threadId/settings', async (req, res) => {
     };
 
     const updated = await updateThreadSettings(threadId, user.id, {
-      customSystemPrompt,
-      customEnabledTools,
+      ...(customSystemPrompt !== undefined && { customSystemPrompt }),
+      ...(customEnabledTools !== undefined && { customEnabledTools }),
     });
 
     if (!updated) {
