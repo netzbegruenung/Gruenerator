@@ -177,12 +177,13 @@ export class BaseSearchService {
       console.log(`[${this.serviceName}] Found ${results.length} results for: "${query}"`);
       return response;
     } catch (error) {
-      return this.errorHandler.handle(error as Error, {
+      const errorResponse: SearchResponse = this.errorHandler.handle(error as Error, {
         operation: 'similarity_search',
         query: params.query,
         userId: params.userId,
         returnResponse: true,
-      });
+      }) as SearchResponse;
+      return errorResponse;
     }
   }
 
@@ -278,12 +279,13 @@ export class BaseSearchService {
       console.log(`[${this.serviceName}] Found ${results.length} hybrid results for: "${query}"`);
       return response;
     } catch (error) {
-      return this.errorHandler.handle(error as Error, {
+      const errorResponse: SearchResponse = this.errorHandler.handle(error as Error, {
         operation: 'hybrid_search',
         query: params.query,
         userId: params.userId,
         returnResponse: true,
-      });
+      }) as SearchResponse;
+      return errorResponse;
     }
   }
 

@@ -392,8 +392,7 @@ export class GruenblogScraper extends BaseScraper {
       return { stored: false, reason: 'no_chunks' };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const chunkTexts = chunks.map((c: any) => c.text || c.chunk_text);
+    const chunkTexts = chunks.map((c) => c.text);
     const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
 
     const points = chunks.map((chunk, index) => ({

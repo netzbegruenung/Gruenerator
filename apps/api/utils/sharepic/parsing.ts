@@ -21,14 +21,14 @@ export function extractCleanJSON(
   const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     try {
-      const parsed = JSON.parse(jsonMatch[0]);
+      const parsed = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
       return parsed;
     } catch (parseError) {
       log.warn('[extractCleanJSON] Parse error:', (parseError as Error).message);
       const fallbackMatch = cleanedContent.match(/\{[^{}]*\}/);
       if (fallbackMatch) {
         try {
-          return JSON.parse(fallbackMatch[0]);
+          return JSON.parse(fallbackMatch[0]) as Record<string, unknown>;
         } catch (fallbackError) {
           log.warn('[extractCleanJSON] Fallback parse error:', (fallbackError as Error).message);
         }
@@ -56,9 +56,9 @@ export function extractCleanJSONArray(content: string | null | undefined): unkno
   const jsonMatch = cleanedContent.match(/\[[\s\S]*\]/);
   if (jsonMatch) {
     try {
-      const parsed = JSON.parse(jsonMatch[0]);
+      const parsed: unknown = JSON.parse(jsonMatch[0]);
       if (Array.isArray(parsed)) {
-        return parsed;
+        return parsed as unknown[];
       }
     } catch (parseError) {
       log.warn('[extractCleanJSONArray] Parse error:', (parseError as Error).message);

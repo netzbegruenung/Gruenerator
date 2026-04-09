@@ -502,7 +502,8 @@ async function getCompressionStatus(uploadId: string): Promise<CompressionStatus
       return { status: 'not_started' };
     }
 
-    return JSON.parse(statusData);
+    const status: CompressionStatus = JSON.parse(statusData) as CompressionStatus;
+    return status;
   } catch (error: unknown) {
     log.error(`[BackgroundCompression] Error getting status for ${uploadId}:`, error);
     return { status: 'error', error: error instanceof Error ? error.message : String(error) };

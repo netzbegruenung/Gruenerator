@@ -81,9 +81,9 @@ export async function canExtractTextDirectly(
       try {
         const page = await pdfDoc.getPage(pageNum);
         const textContent = await page.getTextContent();
-        const pageText = textContent.items
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .map((item: any) => item.str || '')
+        const textItems = textContent.items as Array<{ str?: string }>;
+        const pageText = textItems
+          .map((item: { str?: string }) => item.str || '')
           .join(' ')
           .trim();
 
@@ -224,8 +224,8 @@ export async function extractPageTextDirectly(
     const textContent = await page.getTextContent();
 
     // Extract text items with proper spacing
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const textItems = textContent.items.map((item: any) => item.str || '');
+    const items = textContent.items as Array<{ str?: string }>;
+    const textItems: string[] = items.map((item: { str?: string }) => item.str || '');
     const rawText = textItems.join(' ').trim();
 
     // Apply markdown formatting
@@ -281,9 +281,9 @@ export async function extractTextFromBase64PDF(
       try {
         const page = await pdfDoc.getPage(pageNum);
         const textContent = await page.getTextContent();
-        const pageText = textContent.items
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .map((item: any) => item.str || '')
+        const textItems = textContent.items as Array<{ str?: string }>;
+        const pageText = textItems
+          .map((item: { str?: string }) => item.str || '')
           .join(' ')
           .trim();
 

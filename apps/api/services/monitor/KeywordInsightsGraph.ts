@@ -204,7 +204,7 @@ export async function generateKeywordInsights(
   // Check cache
   try {
     const cached = await redisClient.get(cacheKey);
-    if (cached) return JSON.parse(cached);
+    if (cached) return JSON.parse(cached) as KeywordInsightsResult;
   } catch {
     // Fall through
   }

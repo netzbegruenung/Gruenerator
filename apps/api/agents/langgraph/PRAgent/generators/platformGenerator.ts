@@ -7,6 +7,7 @@ import {
 } from '../../PromptProcessor.js';
 
 import type { EnrichedState } from '../../../../utils/types/requestEnrichment.js';
+import type { AIWorkerResult } from '../../../../workers/types.js';
 import type { PRAgentRequest, SocialPlatformConfig } from '../types.js';
 import type { Request } from 'express';
 
@@ -57,7 +58,7 @@ export async function generatePlatformContent(
         : null,
     });
 
-    const aiResult = await req.app.locals.aiWorkerPool.processRequest(
+    const aiResult: AIWorkerResult = await req.app.locals.aiWorkerPool.processRequest(
       {
         type: 'social',
         usePrivacyMode: request.usePrivacyMode || false,
@@ -72,7 +73,7 @@ export async function generatePlatformContent(
       req
     );
 
-    const content = aiResult.content || aiResult.data?.content || '';
+    const content = aiResult.content || '';
     console.log(
       `[PR Agent] ${platform} content generated: length=${content.length}, preview="${content.substring(0, 200)}"`
     );

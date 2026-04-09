@@ -294,7 +294,7 @@ export async function generateMonitorBriefing(
     const cached = await redisClient.get(cacheKey);
     if (cached) {
       log.info(`generateMonitorBriefing: cache HIT for ${locale}`);
-      return JSON.parse(cached);
+      return JSON.parse(cached) as MonitorBriefingResult;
     }
   } catch {
     // Fall through

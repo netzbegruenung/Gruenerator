@@ -66,6 +66,7 @@ const ChatStateAnnotation = Annotation.Root({
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- LangGraph untyped: aiWorkerPool has no shared interface
   aiWorkerPool: Annotation<any>({
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     reducer: (x, y) => y ?? x,
   }),
   userLocale: Annotation<UserLocale>({

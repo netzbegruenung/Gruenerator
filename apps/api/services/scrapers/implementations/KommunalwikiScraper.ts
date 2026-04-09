@@ -174,7 +174,7 @@ export class KommunalwikiScraper extends BaseScraper {
       headers: { Accept: 'application/json' },
     });
 
-    return await response.json();
+    return (await response.json()) as MediaWikiQueryResponse;
   }
 
   /**
@@ -622,7 +622,7 @@ export class KommunalwikiScraper extends BaseScraper {
       filter.must.push({ key: 'content_type', match: { value: articleType } });
     }
 
-    const searchParams: any = {
+    const searchParams: Record<string, unknown> = {
       vector: queryVector,
       limit: limit * 3,
       score_threshold: threshold,
@@ -631,7 +631,10 @@ export class KommunalwikiScraper extends BaseScraper {
     if (filter.must.length > 0) {
       searchParams.filter = filter;
     }
-    const searchResult = await this.qdrant!.client!.search(this.config.collectionName, searchParams);
+    const searchResult = await this.qdrant!.client!.search(
+      this.config.collectionName,
+      searchParams
+    );
 
     const articlesMap = new Map<string, Record<string, unknown>>();
     for (const hit of searchResult) {

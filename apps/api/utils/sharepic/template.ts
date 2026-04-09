@@ -64,7 +64,7 @@ export function replaceTemplate(template: string | null | undefined, data: Templ
     );
   }
 
-  result = result.replace(/\{\{([^#/}][^}]*)\}\}/g, (match, key) => {
+  result = result.replace(/\{\{([^#/}][^}]*)\}\}/g, (_match: string, key: string) => {
     const cleanKey = key.trim();
 
     if (cleanKey.includes('|default:')) {

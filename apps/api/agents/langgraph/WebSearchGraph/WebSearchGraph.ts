@@ -4,6 +4,7 @@
  */
 
 import { StateGraph, Annotation } from '@langchain/langgraph';
+import { type Request } from 'express';
 
 import { aggregatorNode } from './nodes/AggregatorNode.js';
 import { contentEnricherNode } from './nodes/ContentEnricherNode.js';
@@ -13,98 +14,110 @@ import { intelligentCrawlerNode } from './nodes/IntelligentCrawlerNode.js';
 import { plannerNode } from './nodes/PlannerNode.js';
 import { searxngNode } from './nodes/SearxngNode.js';
 import { summaryNode } from './nodes/SummaryNode.js';
-
-import type {
-  WebSearchState,
-  WebSearchInput,
-  WebSearchOutput,
-  NormalSearchOutput,
-  DeepSearchOutput,
+import {
+  type WebSearchState,
+  type WebSearchInput,
+  type WebSearchOutput,
+  type NormalSearchOutput,
+  type DeepSearchOutput,
+  type SearchOptions,
+  type SearchMetadata,
+  type CrawlMetadata,
+  type CategorizedSources,
+  type CrawlDecision,
+  type EnrichedResult,
+  type WebSearchBatch,
+  type GrundsatzResult,
+  type SearchResult,
+  type ReferencesMap,
+  type ResearchDossier,
+  type Citation,
+  type Source,
 } from './types.js';
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- LangGraph untyped Annotation reducers */
+import type AIWorkerPool from '../../../workers/aiWorkerPool.js';
+
 // State schema for the search graph
 const SearchState = Annotation.Root({
   // Input parameters
-  query: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  query: Annotation<string>({
+    reducer: (x, y) => y ?? x,
   }),
-  mode: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  mode: Annotation<'normal' | 'deep'>({
+    reducer: (x, y) => y ?? x,
   }),
-  user_id: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  user_id: Annotation<string>({
+    reducer: (x, y) => y ?? x,
   }),
-  searchOptions: Annotation({
-    reducer: (x: any, y: any) => ({ ...x, ...y }),
+  searchOptions: Annotation<SearchOptions>({
+    reducer: (x, y) => ({ ...x, ...y }),
   }),
-  aiWorkerPool: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  aiWorkerPool: Annotation<AIWorkerPool>({
+    reducer: (x, y) => y ?? x,
   }),
-  req: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  req: Annotation<Request>({
+    reducer: (x, y) => y ?? x,
   }),
 
   // Intermediate state
-  subqueries: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  subqueries: Annotation<string[] | null>({
+    reducer: (x, y) => y ?? x,
   }),
-  webResults: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  webResults: Annotation<WebSearchBatch[] | null>({
+    reducer: (x, y) => y ?? x,
   }),
-  grundsatzResults: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  grundsatzResults: Annotation<GrundsatzResult | null>({
+    reducer: (x, y) => y ?? x,
   }),
-  aggregatedResults: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  aggregatedResults: Annotation<SearchResult[] | null>({
+    reducer: (x, y) => y ?? x,
   }),
-  categorizedSources: Annotation({
-    reducer: (x: any, y: any) => ({ ...x, ...y }),
+  categorizedSources: Annotation<CategorizedSources>({
+    reducer: (x, y) => ({ ...x, ...y }),
   }),
 
   // Citation support
-  referencesMap: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  referencesMap: Annotation<ReferencesMap | null>({
+    reducer: (x, y) => y ?? x,
   }),
-  citations: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  citations: Annotation<Citation[] | null>({
+    reducer: (x, y) => y ?? x,
   }),
-  citationSources: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  citationSources: Annotation<Source[] | null>({
+    reducer: (x, y) => y ?? x,
   }),
 
   // Intelligent crawling support
-  crawlDecisions: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  crawlDecisions: Annotation<CrawlDecision[] | null>({
+    reducer: (x, y) => y ?? x,
   }),
-  enrichedResults: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  enrichedResults: Annotation<EnrichedResult[] | null>({
+    reducer: (x, y) => y ?? x,
   }),
-  crawlMetadata: Annotation({
-    reducer: (x: any, y: any) => ({ ...x, ...y }),
+  crawlMetadata: Annotation<CrawlMetadata>({
+    reducer: (x, y) => ({ ...x, ...y }),
   }),
 
   // Output
-  finalResults: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  finalResults: Annotation<SearchResult[] | null>({
+    reducer: (x, y) => y ?? x,
   }),
-  summary: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  summary: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
   }),
-  dossier: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  dossier: Annotation<ResearchDossier | null>({
+    reducer: (x, y) => y ?? x,
   }),
-  metadata: Annotation({
-    reducer: (x: any, y: any) => ({ ...x, ...y }),
+  metadata: Annotation<SearchMetadata>({
+    reducer: (x, y) => ({ ...x, ...y }),
   }),
-  success: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  success: Annotation<boolean | null>({
+    reducer: (x, y) => y ?? x,
   }),
-  error: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  error: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
   }),
 });
-/* eslint-enable @typescript-eslint/no-explicit-any */
 
 /**
  * Create the web search graph
@@ -239,14 +252,17 @@ export async function runWebSearch(input: WebSearchInput): Promise<WebSearchOutp
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[WebSearchGraph] Execution error:', errorMessage);
     return {
-      status: 'error',
+      status: 'error' as const,
+      query: input.query,
+      results: [],
+      citations: [],
+      citationSources: [],
       message: 'Fehler bei der Suche',
       error: errorMessage,
       metadata: {
         searchType: mode,
         errorOccurred: true,
-      },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any;
+      } as SearchMetadata,
+    } satisfies NormalSearchOutput;
   }
 }
