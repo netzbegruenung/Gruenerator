@@ -7,7 +7,7 @@ import { documentStructureDetector } from '../../DocumentStructureDetector/index
 
 import { estimateTokens } from './validation.js';
 
-import type { Chunk, ChunkContext, SemanticBoundary } from './types.js';
+import type { Chunk, ChunkContext } from './types.js';
 import type {
   DocumentStructure,
   SemanticBoundary as DetectorSemanticBoundary,
@@ -166,7 +166,7 @@ function createSemanticChunks(
 function updateContext(
   context: ChunkContext,
   boundary: DetectorSemanticBoundary,
-  structure: DocumentStructure
+  _structure: DocumentStructure
 ): void {
   if (boundary.type === 'chapter') {
     context.chapter = boundary.title;
@@ -235,12 +235,12 @@ function createChunkWithMetadata(
   context: ChunkContext,
   startPos: number,
   endPos: number,
-  structure: DocumentStructure
+  _structure: DocumentStructure
 ): Chunk {
   // Detect chunk characteristics
   const chunkType = detectChunkType(text);
-  const containsLists = /^[\s]*[•\-*\d+]/m.test(text);
-  const containsTables = /\|.*\|/.test(text) || /\t.*\t/.test(text);
+  const _containsLists = /^[\s]*[•\-*\d+]/m.test(text);
+  const _containsTables = /\|.*\|/.test(text) || /\t.*\t/.test(text);
 
   return {
     text,
@@ -307,7 +307,7 @@ function addChunkRelationships(chunks: Chunk[]): Chunk[] {
 /**
  * Check if chunk contains a complete section
  */
-function isCompleteSection(chunk: Chunk, allChunks: Chunk[]): boolean {
+function _isCompleteSection(chunk: Chunk, allChunks: Chunk[]): boolean {
   if (!chunk.metadata.sectionTitle) return false;
 
   // Check if other chunks share the same section

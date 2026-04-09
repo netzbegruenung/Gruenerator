@@ -9,7 +9,7 @@ import { cleanTextForEmbedding } from '../../text/index.js';
 import { GERMAN_SEPARATORS } from './germanLanguageRules.js';
 import { estimateTokens } from './validation.js';
 
-import type { Chunk, ChunkingOptions, LangChainChunkerOptions } from './types.js';
+import type { Chunk, LangChainChunkerOptions } from './types.js';
 
 /**
  * LangChain-based chunker implementation
@@ -20,7 +20,7 @@ export class LangChainChunker {
   private chunkOverlap: number;
 
   constructor(options: LangChainChunkerOptions = {}) {
-    const chunking = vectorConfig.get('chunking');
+    const _chunking = vectorConfig.get('chunking');
     this.chunkSize = options.chunkSize || 1600;
     this.chunkOverlap = options.chunkOverlap || 400;
   }
@@ -39,17 +39,17 @@ export class LangChainChunker {
       // @ts-expect-error - LangChain is an optional dependency
       const { RecursiveCharacterTextSplitter } = await import('langchain/text_splitter');
       return new RecursiveCharacterTextSplitter(opts);
-    } catch (err1) {
+    } catch (_err1) {
       try {
         // @ts-expect-error - LangChain is an optional dependency
         const { RecursiveCharacterTextSplitter } = await import('@langchain/core/text_splitter');
         return new RecursiveCharacterTextSplitter(opts);
-      } catch (err2) {
+      } catch (_err2) {
         try {
           // @ts-expect-error - LangChain is an optional dependency
           const { RecursiveCharacterTextSplitter } = await import('@langchain/textsplitters');
           return new RecursiveCharacterTextSplitter(opts);
-        } catch (err3) {
+        } catch (_err3) {
           if (vectorConfig.isVerboseMode()) {
             console.warn('[LangChainChunker] LangChain not available; using fallback');
           }

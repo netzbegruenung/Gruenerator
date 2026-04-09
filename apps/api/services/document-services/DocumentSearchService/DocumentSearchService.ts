@@ -275,7 +275,7 @@ export class DocumentSearchService extends BaseSearchService {
           max: 1,
         });
       }
-    } catch (e) {
+    } catch (_e) {
       // ignore
     }
     return {
@@ -327,7 +327,7 @@ export class DocumentSearchService extends BaseSearchService {
 
       return await this.performSimilaritySearch(validated as unknown as SearchParams);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const _errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[DocumentSearchService] Search error:', error);
       return this.createErrorResponse(error as Error, searchParams.query);
     }
@@ -362,7 +362,7 @@ export class DocumentSearchService extends BaseSearchService {
         this.groupAndRankHybridResults.bind(this)
       );
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const _errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[DocumentSearchService] Text search error:', error);
       return this.createErrorResponse(error as Error, query);
     }
@@ -410,7 +410,7 @@ export class DocumentSearchService extends BaseSearchService {
         },
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const _errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[DocumentSearchService] Hybrid search error:', error);
       return this.createErrorResponse(error as Error, query);
     }

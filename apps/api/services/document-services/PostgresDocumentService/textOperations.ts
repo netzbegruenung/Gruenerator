@@ -3,7 +3,7 @@
  * Handles storing and retrieving full text content in document metadata
  */
 
-import type { DocumentMetadata, DocumentRecord, DocumentWithText } from './types.js';
+import type { DocumentMetadata, DocumentRecord } from './types.js';
 import type { PostgresService } from '../../../database/services/PostgresService/PostgresService.js';
 
 /**
@@ -33,7 +33,7 @@ export async function storeDocumentText(
     let existingMetadata: Record<string, unknown> = {};
     try {
       existingMetadata = document.metadata ? JSON.parse(document.metadata) : {};
-    } catch (e) {
+    } catch (_e) {
       existingMetadata = {};
     }
 
@@ -89,7 +89,7 @@ export async function getDocumentText(
     let metadata: Record<string, unknown> = {};
     try {
       metadata = document.metadata ? JSON.parse(document.metadata) : {};
-    } catch (e) {
+    } catch (_e) {
       metadata = {};
     }
 
