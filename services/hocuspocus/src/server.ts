@@ -146,8 +146,12 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
     async onUpgrade(_data) {},
 
     async onChange(data) {
-      const { documentName } = data;
-      log.debug(`[Change] Document ${documentName} changed`);
+      const { documentName, document } = data;
+      const stateSize = Y.encodeStateAsUpdate(document).length;
+      const fragment = document.getXmlFragment('document-store');
+      log.info(
+        `[Change] Document ${documentName} changed | stateSize=${stateSize} bytes | fragments=${fragment.length}`
+      );
     },
 
     async onListen() {
