@@ -307,13 +307,24 @@ const BlockNoteEditorInner = ({
               const idMatches = text.match(/"id"\s*:\s*"([^"]+)"/g);
               const refIdMatches = text.match(/"referenceId"\s*:\s*"([^"]+)"/g);
               if (typeMatches) {
-                console.log('[DocsAI:Frontend] Operation types in response:', typeMatches);
+                const types = typeMatches.map((m) => m.match(/"type"\s*:\s*"(\w+)"/)?.[1]);
+                console.log('[DocsAI:Frontend] Operation types extracted:', JSON.stringify(types));
               }
               if (idMatches) {
-                console.log('[DocsAI:Frontend] Block IDs in response:', idMatches);
+                const ids = idMatches.map((m) => m.match(/"id"\s*:\s*"([^"]+)"/)?.[1]);
+                console.log(
+                  '[DocsAI:Frontend] Block IDs extracted from response:',
+                  JSON.stringify(ids)
+                );
               }
               if (refIdMatches) {
-                console.log('[DocsAI:Frontend] Reference IDs in response:', refIdMatches);
+                const refIds = refIdMatches.map(
+                  (m) => m.match(/"referenceId"\s*:\s*"([^"]+)"/)?.[1]
+                );
+                console.log(
+                  '[DocsAI:Frontend] Reference IDs extracted from response:',
+                  JSON.stringify(refIds)
+                );
               }
             });
             return response;
@@ -365,7 +376,7 @@ const BlockNoteEditorInner = ({
     // DEBUG: Log document block IDs for cross-reference with AI operations
     const blockIds = editor.document.map((b) => b.id);
     console.log(`[DocsAI:Frontend] Editor ready | doc: ${documentId} | ${blockIds.length} blocks`);
-    console.log('[DocsAI:Frontend] Block IDs:', blockIds);
+    console.log('[DocsAI:Frontend] Block IDs (actual values):', JSON.stringify(blockIds));
 
     const timeoutId = setTimeout(() => {
       if (onEditorReady) {
