@@ -34,7 +34,7 @@ export async function getEntitySummary(
   // Check cache
   try {
     const cached = await redisClient.get(cacheKey(entity.id, locale));
-    if (cached) return JSON.parse(cached);
+    if (cached) return JSON.parse(cached) as EntitySummaryResult;
   } catch {
     // Fall through
   }
