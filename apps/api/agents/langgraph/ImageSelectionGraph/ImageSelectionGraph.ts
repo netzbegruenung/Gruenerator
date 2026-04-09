@@ -10,51 +10,58 @@ import { StateGraph, Annotation } from '@langchain/langgraph';
 import { loadCatalogNode } from './nodes/LoadCatalogNode.js';
 import { selectImageNode } from './nodes/SelectImageNode.js';
 
-import type { ImageSelectionState, ImageSelectionInput, ImageSelectionOutput } from './types.js';
+import type {
+  ImageSelectionState,
+  ImageSelectionInput,
+  ImageSelectionOutput,
+  CatalogImage,
+  ImageCatalog,
+  SelectionMetadata,
+} from './types.js';
+import type AIWorkerPool from '../../../workers/aiWorkerPool.js';
+import type { Request } from 'express';
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- LangGraph untyped Annotation reducers */
 // State schema for the image selection graph
 const ImageSelectionStateAnnotation = Annotation.Root({
   // Input
-  text: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  text: Annotation<string>({
+    reducer: (x, y) => y ?? x,
   }),
-  sharepicType: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  sharepicType: Annotation<string>({
+    reducer: (x, y) => y ?? x,
   }),
-  aiWorkerPool: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  aiWorkerPool: Annotation<AIWorkerPool>({
+    reducer: (x, y) => y ?? x,
   }),
-  req: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  req: Annotation<Request>({
+    reducer: (x, y) => y ?? x,
   }),
 
   // Core data
-  imageCatalog: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  imageCatalog: Annotation<ImageCatalog | null>({
+    reducer: (x, y) => y ?? x,
   }),
 
   // Output
-  selectedImage: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  selectedImage: Annotation<CatalogImage | null>({
+    reducer: (x, y) => y ?? x,
   }),
-  confidence: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  confidence: Annotation<number | null>({
+    reducer: (x, y) => y ?? x,
   }),
-  reasoning: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  reasoning: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
   }),
-  alternatives: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  alternatives: Annotation<CatalogImage[] | null>({
+    reducer: (x, y) => y ?? x,
   }),
-  metadata: Annotation({
-    reducer: (x: any, y: any) => ({ ...x, ...y }),
+  metadata: Annotation<SelectionMetadata>({
+    reducer: (x, y) => ({ ...x, ...y }),
   }),
-  error: Annotation({
-    reducer: (x: any, y: any) => y ?? x,
+  error: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
   }),
 });
-/* eslint-enable @typescript-eslint/no-explicit-any */
 
 /**
  * Create and configure the graph

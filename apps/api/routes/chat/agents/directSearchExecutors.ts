@@ -283,8 +283,7 @@ export async function executeDirectExamplesSearch(params: {
         };
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const examples = randomResults.map((result: any) => ({
+      const examples = randomResults.map((result) => ({
         id: String(result.id),
         platform: result.platform || platform || 'unknown',
         content: truncateText(result.content || '', 500),
@@ -299,8 +298,7 @@ export async function executeDirectExamplesSearch(params: {
       };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const examples = results.map((result: any) => ({
+    const examples = results.map((result) => ({
       id: String(result.id),
       platform: result.platform || platform || 'unknown',
       content: truncateText(result.content || '', 500),

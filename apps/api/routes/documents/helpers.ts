@@ -21,7 +21,7 @@ export function parseMetadata(metadata: unknown): Record<string, unknown> {
   // String that needs parsing
   if (typeof metadata === 'string') {
     try {
-      return JSON.parse(metadata);
+      return JSON.parse(metadata) as Record<string, unknown>;
     } catch (e) {
       log.warn('Failed to parse document metadata:', e);
       return {};

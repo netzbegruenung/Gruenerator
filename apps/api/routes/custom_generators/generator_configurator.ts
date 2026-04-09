@@ -248,7 +248,12 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
         requestPayload.provider = providerOverride;
       }
 
-      const result = await req.app.locals.aiWorkerPool.processRequest(requestPayload);
+      const result = (await req.app.locals.aiWorkerPool.processRequest(requestPayload)) as {
+        success: boolean;
+        content: string;
+        error?: string;
+        metadata?: { provider?: string; model?: string };
+      };
 
       if (!result.success) {
         throw new Error(result.error || 'AI worker failed to generate configuration.');

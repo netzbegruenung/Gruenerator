@@ -85,7 +85,7 @@ export async function generateBatchEmbeddings(
  * Used as fallback when embedding server is unavailable
  */
 export function generateMockEmbedding(text: string, dimensions: number = 1024): number[] {
-  const mockEmbedding = new Array(dimensions);
+  const mockEmbedding = new Array<number>(dimensions);
 
   // Simple hash function to generate consistent mock values
   let hash = 0;
