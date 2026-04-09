@@ -1,8 +1,10 @@
-import {
-  type PostgresService,
-  type DeleteResult,
-  getPostgresInstance,
-} from '../../database/services/PostgresService.js';
+import { eq, sql } from 'drizzle-orm';
+
+import { profiles } from '../../database/schema/core.js';
+import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
+import { type DeleteResult, getPostgresInstance } from '../../database/services/PostgresService.js';
+
+import { toUserProfile } from './profileMapper.js';
 
 import type {
   UserProfile,
@@ -15,21 +17,14 @@ import type {
 
 /**
  * ProfileService - Centralized service for user profile operations
- * Handles profile CRUD operations with PostgreSQL
+ * Handles profile CRUD operations with PostgreSQL via Drizzle ORM
  */
 class ProfileService {
-  private db: PostgresService;
-  private readonly tableName: string = 'profiles';
-
-  constructor() {
-    this.db = getPostgresInstance();
-  }
-
   /**
    * Initialize the service
    */
   async init(): Promise<void> {
-    await this.db.init();
+    await getPostgresInstance().init();
   }
 
   /**
@@ -37,11 +32,14 @@ class ProfileService {
    */
   async getProfileById(userId: string): Promise<UserProfile | null> {
     try {
-      await this.db.ensureInitialized();
-      const profile = await this.db.queryOne('SELECT * FROM profiles WHERE id = $1', [userId], {
-        table: this.tableName,
-      });
-      return profile as unknown as UserProfile | null;
+      const db = getDrizzleInstance();
+      const rows = await db
+        .select()
+        .from(profiles)
+        .where(eq(profiles.id, userId))
+        .limit(1);
+      const row = rows[0];
+      return row ? toUserProfile(row) : null;
     } catch (error: unknown) {
       console.error('[ProfileService] Error getting profile by ID:', error);
       throw error;
@@ -53,13 +51,14 @@ class ProfileService {
    */
   async getProfileByKeycloakId(keycloakId: string): Promise<UserProfile | null> {
     try {
-      await this.db.ensureInitialized();
-      const profile = await this.db.queryOne(
-        'SELECT * FROM profiles WHERE keycloak_id = $1',
-        [keycloakId],
-        { table: this.tableName }
-      );
-      return profile as unknown as UserProfile | null;
+      const db = getDrizzleInstance();
+      const rows = await db
+        .select()
+        .from(profiles)
+        .where(eq(profiles.keycloak_id, keycloakId))
+        .limit(1);
+      const row = rows[0];
+      return row ? toUserProfile(row) : null;
     } catch (error: unknown) {
       console.error('[ProfileService] Error getting profile by Keycloak ID:', error);
       throw error;
@@ -71,11 +70,14 @@ class ProfileService {
    */
   async getProfileByEmail(email: string): Promise<UserProfile | null> {
     try {
-      await this.db.ensureInitialized();
-      const profile = await this.db.queryOne('SELECT * FROM profiles WHERE email = $1', [email], {
-        table: this.tableName,
-      });
-      return profile as unknown as UserProfile | null;
+      const db = getDrizzleInstance();
+      const rows = await db
+        .select()
+        .from(profiles)
+        .where(eq(profiles.email, email))
+        .limit(1);
+      const row = rows[0];
+      return row ? toUserProfile(row) : null;
     } catch (error: unknown) {
       console.error('[ProfileService] Error getting profile by email:', error);
       throw error;
@@ -87,23 +89,32 @@ class ProfileService {
    */
   async createProfile(profileData: ProfileCreateData): Promise<UserProfile> {
     try {
-      const newProfile = {
-        ...profileData,
-        beta_features: profileData.beta_features || {},
-        groups_enabled: profileData.groups_enabled || false,
-        custom_generators: profileData.custom_generators || false,
-        database_access: profileData.database_access || false,
-        collab: profileData.collab || false,
-        notebook: profileData.notebook || false,
-        sharepic: profileData.sharepic || false,
-        anweisungen: profileData.anweisungen || false,
-        avatar_robot_id: profileData.avatar_robot_id || 1,
+      const db = getDrizzleInstance();
+
+      const insertValues: typeof profiles.$inferInsert = {
+        ...(profileData.id ? { id: profileData.id } : {}),
+        keycloak_id: profileData.keycloak_id,
+        email: profileData.email,
+        username: profileData.username,
+        display_name: profileData.display_name,
+        avatar_robot_id: profileData.avatar_robot_id ?? 1,
+        chat_color: profileData.chat_color,
+        beta_features: profileData.beta_features ?? {},
+        user_defaults: profileData.user_defaults ?? {},
+        locale: profileData.locale ?? 'de-DE',
+        last_login: profileData.last_login ? new Date(profileData.last_login) : null,
+        groups_enabled: profileData.groups_enabled ?? false,
+        custom_generators: profileData.custom_generators ?? false,
+        database_access: profileData.database_access ?? false,
+        collab: profileData.collab ?? false,
+        notebook: profileData.notebook ?? false,
+        sharepic: profileData.sharepic ?? false,
+        anweisungen: profileData.anweisungen ?? false,
         interactive_antrag_enabled: profileData.interactive_antrag_enabled ?? true,
       };
 
-      await this.db.ensureInitialized();
-      const result = await this.db.insert(this.tableName, newProfile);
-      return result as unknown as UserProfile;
+      const rows = await db.insert(profiles).values(insertValues).returning();
+      return toUserProfile(rows[0]);
     } catch (error: unknown) {
       console.error('[ProfileService] Error creating profile:', error);
       throw error;
@@ -115,13 +126,59 @@ class ProfileService {
    */
   async updateProfile(userId: string, updateData: ProfileUpdateData): Promise<UserProfile> {
     try {
-      const dataToUpdate = {
-        ...updateData,
-      };
+      const db = getDrizzleInstance();
 
-      await this.db.ensureInitialized();
-      const result = await this.db.update(this.tableName, dataToUpdate, { id: userId });
-      return result.data[0] as unknown as UserProfile;
+      // Build a type-safe update object from the ProfileUpdateData
+      // ProfileUpdateData uses snake_case column names matching the schema
+      const setValues: Partial<typeof profiles.$inferInsert> = {};
+
+      if (updateData.email !== undefined) setValues.email = updateData.email;
+      if (updateData.username !== undefined) setValues.username = updateData.username;
+      if (updateData.display_name !== undefined) setValues.display_name = updateData.display_name;
+      if (updateData.avatar_robot_id !== undefined) setValues.avatar_robot_id = updateData.avatar_robot_id;
+      if (updateData.chat_color !== undefined) setValues.chat_color = updateData.chat_color;
+      if (updateData.beta_features !== undefined) setValues.beta_features = updateData.beta_features;
+      if (updateData.user_defaults !== undefined) setValues.user_defaults = updateData.user_defaults;
+
+      // Handle the dynamic keys from ProfileUpdateData's index signature
+      // These correspond to feature flag columns (boolean) and other columns
+      const knownBooleanColumns = [
+        'groups_enabled', 'custom_generators', 'database_access', 'collab', 'notebook',
+        'sharepic', 'anweisungen', 'labor_enabled', 'sites_enabled', 'chat',
+        'interactive_antrag_enabled', 'vorlagen', 'video_editor', 'scanner', 'prompts',
+        'docs', 'boards', 'bundestag_api_enabled', 'memory_enabled', 'wordpress_enabled',
+        'deutschlandmodus', 'is_admin', 'content_management', 'sites', 'website',
+        'ai_sharepic', 'groups',
+      ] as const;
+
+      for (const col of knownBooleanColumns) {
+        if (updateData[col] !== undefined) {
+          (setValues as Record<string, unknown>)[col] = Boolean(updateData[col]);
+        }
+      }
+
+      const knownTextColumns = [
+        'locale', 'custom_prompt', 'presseabbinder', 'custom_antrag_gliederung',
+        'auth_source', 'document_mode',
+      ] as const;
+
+      for (const col of knownTextColumns) {
+        if (updateData[col] !== undefined) {
+          (setValues as Record<string, unknown>)[col] = updateData[col];
+        }
+      }
+
+      const rows = await db
+        .update(profiles)
+        .set(setValues)
+        .where(eq(profiles.id, userId))
+        .returning();
+
+      if (!rows[0]) {
+        throw new Error(`Profile not found for userId: ${userId}`);
+      }
+
+      return toUserProfile(rows[0]);
     } catch (error: unknown) {
       console.error('[ProfileService] Error updating profile:', error);
       throw error;
@@ -133,13 +190,61 @@ class ProfileService {
    */
   async upsertProfile(profileData: ProfileCreateData | ProfileUpdateData): Promise<UserProfile> {
     try {
-      const dataToUpsert = {
-        ...profileData,
+      const db = getDrizzleInstance();
+
+      const data = profileData as ProfileCreateData;
+      const insertValues: typeof profiles.$inferInsert = {
+        ...(data.id ? { id: data.id } : {}),
+        keycloak_id: data.keycloak_id,
+        email: data.email,
+        username: data.username,
+        display_name: data.display_name,
+        avatar_robot_id: data.avatar_robot_id ?? 1,
+        chat_color: data.chat_color,
+        beta_features: data.beta_features ?? {},
+        user_defaults: data.user_defaults ?? {},
+        locale: data.locale ?? 'de-DE',
+        last_login: data.last_login ? new Date(data.last_login) : null,
+        groups_enabled: data.groups_enabled ?? false,
+        custom_generators: data.custom_generators ?? false,
+        database_access: data.database_access ?? false,
+        collab: data.collab ?? false,
+        notebook: data.notebook ?? false,
+        sharepic: data.sharepic ?? false,
+        anweisungen: data.anweisungen ?? false,
+        interactive_antrag_enabled: data.interactive_antrag_enabled ?? true,
       };
 
-      await this.db.ensureInitialized();
-      const result = await this.db.upsert(this.tableName, dataToUpsert, ['id']);
-      return result as unknown as UserProfile;
+      const rows = await db
+        .insert(profiles)
+        .values(insertValues)
+        .onConflictDoUpdate({
+          target: profiles.id,
+          set: {
+            keycloak_id: sql`EXCLUDED.keycloak_id`,
+            email: sql`EXCLUDED.email`,
+            username: sql`EXCLUDED.username`,
+            display_name: sql`EXCLUDED.display_name`,
+            avatar_robot_id: sql`EXCLUDED.avatar_robot_id`,
+            chat_color: sql`EXCLUDED.chat_color`,
+            beta_features: sql`EXCLUDED.beta_features`,
+            user_defaults: sql`EXCLUDED.user_defaults`,
+            locale: sql`EXCLUDED.locale`,
+            last_login: sql`EXCLUDED.last_login`,
+            groups_enabled: sql`EXCLUDED.groups_enabled`,
+            custom_generators: sql`EXCLUDED.custom_generators`,
+            database_access: sql`EXCLUDED.database_access`,
+            collab: sql`EXCLUDED.collab`,
+            notebook: sql`EXCLUDED.notebook`,
+            sharepic: sql`EXCLUDED.sharepic`,
+            anweisungen: sql`EXCLUDED.anweisungen`,
+            interactive_antrag_enabled: sql`EXCLUDED.interactive_antrag_enabled`,
+            updated_at: sql`NOW()`,
+          },
+        })
+        .returning();
+
+      return toUserProfile(rows[0]);
     } catch (error: unknown) {
       console.error('[ProfileService] Error upserting profile:', error);
       throw error;
@@ -327,23 +432,30 @@ class ProfileService {
   async deleteProfile(userId: string): Promise<DeleteResult> {
     try {
       console.log(`[ProfileService] Starting profile deletion for user ${userId}`);
-      await this.db.ensureInitialized();
 
-      const userInfo = await this.db.queryOne(
-        'SELECT email, username FROM profiles WHERE id = $1',
-        [userId],
-        { table: this.tableName }
-      );
+      // Look up basic info before deletion for logging purposes
+      const db = getDrizzleInstance();
+      const userInfoRows = await db
+        .select({ email: profiles.email, username: profiles.username })
+        .from(profiles)
+        .where(eq(profiles.id, userId))
+        .limit(1);
+
+      const userInfo = userInfoRows[0];
       if (userInfo) {
         console.log(
-          `[ProfileService] Deleting user profile: ${userInfo.email || 'N/A'} (${userInfo.username || 'N/A'})`
+          `[ProfileService] Deleting user profile: ${userInfo.email ?? 'N/A'} (${userInfo.username ?? 'N/A'})`
         );
       } else {
         console.warn(`[ProfileService] User ${userId} not found in profiles table`);
       }
 
-      console.log(`[ProfileService] Executing DELETE from ${this.tableName} WHERE id = ${userId}`);
-      const result = await this.db.delete(this.tableName, { id: userId });
+      console.log(`[ProfileService] Executing DELETE from profiles WHERE id = ${userId}`);
+
+      // Use the legacy PostgresService delete for DeleteResult compatibility
+      const postgres = getPostgresInstance();
+      await postgres.ensureInitialized();
+      const result = await postgres.delete('profiles', { id: userId });
 
       if (result && result.changes > 0) {
         console.log(
@@ -378,13 +490,14 @@ class ProfileService {
    */
   async getAllProfiles(limit: number = 100, offset: number = 0): Promise<UserProfile[]> {
     try {
-      await this.db.ensureInitialized();
-      const profiles = await this.db.query(
-        'SELECT * FROM profiles ORDER BY created_at DESC LIMIT $1 OFFSET $2',
-        [limit, offset],
-        { table: this.tableName }
-      );
-      return profiles as unknown as UserProfile[];
+      const db = getDrizzleInstance();
+      const rows = await db
+        .select()
+        .from(profiles)
+        .orderBy(sql`${profiles.created_at} DESC`)
+        .limit(limit)
+        .offset(offset);
+      return rows.map(toUserProfile);
     } catch (error: unknown) {
       console.error('[ProfileService] Error getting all profiles:', error);
       throw error;
@@ -396,34 +509,34 @@ class ProfileService {
    */
   async getProfileStats(): Promise<ProfileStats> {
     try {
-      await this.db.ensureInitialized();
+      const db = getDrizzleInstance();
       try {
-        const stats = await this.db.queryOne(`
-          SELECT
-            COUNT(*) as total_profiles,
-            COUNT(*) FILTER (WHERE bundestag_api_enabled = true) as bundestag_users,
-            COUNT(*) FILTER (WHERE memory_enabled = true) as memory_users,
-            COUNT(*) FILTER (WHERE last_login > NOW() - INTERVAL '30 days') as active_users
-          FROM profiles
-        `);
-        return stats as unknown as ProfileStats;
+        const result = await db
+          .select({
+            total_profiles: sql<number>`COUNT(*)`,
+            bundestag_users: sql<number>`COUNT(*) FILTER (WHERE ${profiles.bundestag_api_enabled} = true)`,
+            memory_users: sql<number>`COUNT(*) FILTER (WHERE ${profiles.memory_enabled} = true)`,
+            active_users: sql<number>`COUNT(*) FILTER (WHERE ${profiles.last_login} > NOW() - INTERVAL '30 days')`,
+          })
+          .from(profiles);
+        return result[0];
       } catch (innerError: unknown) {
-        // PostgreSQL error 42703 = undefined_column
+        // PostgreSQL error 42703 = undefined_column (e.g. bundestag_api_enabled not yet added)
         if (
           innerError instanceof Error &&
           'code' in innerError &&
           (innerError as { code: string }).code === '42703'
         ) {
           console.warn('[ProfileService] Column missing in getProfileStats, using fallback query');
-          const stats = await this.db.queryOne(`
-            SELECT
-              COUNT(*) as total_profiles,
-              0 as bundestag_users,
-              0 as memory_users,
-              COUNT(*) FILTER (WHERE last_login > NOW() - INTERVAL '30 days') as active_users
-            FROM profiles
-          `);
-          return stats as unknown as ProfileStats;
+          const result = await db
+            .select({
+              total_profiles: sql<number>`COUNT(*)`,
+              bundestag_users: sql<number>`0`,
+              memory_users: sql<number>`0`,
+              active_users: sql<number>`COUNT(*) FILTER (WHERE ${profiles.last_login} > NOW() - INTERVAL '30 days')`,
+            })
+            .from(profiles);
+          return result[0];
         }
         throw innerError;
       }
@@ -516,12 +629,12 @@ class ProfileService {
    */
   async healthCheck(): Promise<HealthCheckResult> {
     try {
-      await this.db.ensureInitialized();
-      const result = await this.db.query('SELECT COUNT(*) as count FROM profiles LIMIT 1');
+      const db = getDrizzleInstance();
+      const result = await db.select({ count: sql<number>`COUNT(*)` }).from(profiles).limit(1);
       return {
         status: 'healthy',
         database: 'postgresql',
-        profileCount: (result[0]?.count as number) || 0,
+        profileCount: result[0]?.count ?? 0,
       };
     } catch (error: unknown) {
       return {
