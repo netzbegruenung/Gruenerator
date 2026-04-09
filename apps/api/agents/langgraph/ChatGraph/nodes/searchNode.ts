@@ -268,6 +268,15 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     `[Search] Executing ${intent} search: "${displayQuery.slice(0, 50)}..." (locale=${state.userLocale})`
   );
 
+  // Cap search queries to prevent multi-KB content from hitting embedding APIs
+  const MAX_SEARCH_QUERY_LENGTH = 500;
+  const truncateQuery = (q: string): string => {
+    if (q.length <= MAX_SEARCH_QUERY_LENGTH) return q;
+    const truncated = q.slice(0, MAX_SEARCH_QUERY_LENGTH);
+    const lastSpace = truncated.lastIndexOf(' ');
+    return lastSpace > MAX_SEARCH_QUERY_LENGTH * 0.8 ? truncated.slice(0, lastSpace) : truncated;
+  };
+
   try {
     let results: SearchResult[] = [];
     let citations: Citation[] = [];
@@ -277,7 +286,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
     // Parallel multi-source search when classifier requests multiple backends
     if (searchSources.length > 1) {
-      const query = searchQuery || '';
+      const query = truncateQuery(searchQuery || '');
       log.info(`[Search] Multi-source parallel search: ${searchSources.join(' + ')}`);
 
       const sourcePromises: Promise<{ results: SearchResult[]; collections: string[] }>[] = [];
@@ -545,7 +554,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         const isNotebookScoped =
           state.notebookCollectionIds && state.notebookCollectionIds.length > 0;
 
-        const query = searchQuery || '';
+        const query = truncateQuery(searchQuery || '');
 
         // Expand queries for broader document coverage (short timeout to avoid blocking)
         let expandedQueries: string[] = [];
@@ -663,7 +672,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
       case 'web': {
         // Web search with query expansion and content crawling
-        const query = searchQuery || '';
+        const query = truncateQuery(searchQuery || '');
 
         // A2: Expand query for broader coverage (web and research intents)
         let allWebQueries = [query];
