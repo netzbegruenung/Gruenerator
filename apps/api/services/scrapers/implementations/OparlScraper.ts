@@ -19,7 +19,7 @@ import { ocrService } from '../../ocrService.js';
 import { BaseScraper } from '../base/BaseScraper.js';
 
 import type { OparlPaper } from '../../api-clients/oparlApiClient.js';
-import type { ScraperResult, OparlFile, OparlEndpoint } from '../types.js';
+import type { ScraperResult, OparlEndpoint } from '../types.js';
 
 /**
  * City scraping result
@@ -417,7 +417,7 @@ export class OparlScraper extends BaseScraper {
         with_vector: false,
       });
       return result.points && result.points.length > 0;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }
@@ -539,7 +539,7 @@ export class OparlScraper extends BaseScraper {
       } while (offset);
 
       return Array.from(cities).sort();
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }

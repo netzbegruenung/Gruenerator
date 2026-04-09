@@ -530,7 +530,7 @@ export class SatzungenScraper extends BaseScraper {
   /**
    * Extract content from HTML
    */
-  #extractContentFromHtml(html: string, url: string): { title: string; text: string } {
+  #extractContentFromHtml(html: string, _url: string): { title: string; text: string } {
     const $ = cheerio.load(html);
 
     // Remove unwanted elements using shared utility
@@ -725,7 +725,7 @@ export class SatzungenScraper extends BaseScraper {
       // Clean up temp file
       try {
         await fs.unlink(tempPath);
-      } catch (e) {
+      } catch (_e) {
         // Ignore cleanup errors
       }
     }
