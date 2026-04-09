@@ -69,7 +69,7 @@ Drizzle ORM wraps the existing `pg.Pool` from PostgresService and infers types f
 - [x] `streamingProcessor.ts` — 13 suppressions → 0 (used `AuthRequest`, `PromptAssemblyState`, proper discriminated unions)
 
 **Sequencing:**
-1. [ ] `no-unsafe-return` as `warn` — only ~4 violations
+1. [x] `no-unsafe-return` as `warn` — 134 violations found, 133 fixed (1 in gitignored test file) (2026-04-10)
 2. [ ] Fix `searchGraphController.ts` + `PRAgent/responseFormatter.ts`, then `no-unsafe-member-access` as `warn`
 3. [ ] `no-unsafe-assignment` as `warn`
 4. [ ] `no-unsafe-call` + `no-unsafe-argument` last
