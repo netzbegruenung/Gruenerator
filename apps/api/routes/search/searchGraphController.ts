@@ -44,9 +44,31 @@ import {
   touchThread,
 } from '../chat/services/threadPersistenceService.js';
 
+import type { ChatGraphState, UserLocale } from '../../agents/langgraph/ChatGraph/types.js';
 import type { SearchGraphState } from '../../agents/langgraph/SearchGraph/types.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
+import type { AIWorkerPool } from '../../workers/types.js';
+import type { ModelMessage } from 'ai';
 import type { Response } from 'express';
+
+interface MessagePart {
+  type: string;
+  text: string;
+}
+
+interface IncomingMessage {
+  role: string;
+  content?: string;
+  parts?: MessagePart[];
+}
+
+interface SearchStreamBody {
+  query?: string;
+  messages?: IncomingMessage[];
+  threadId?: string;
+  searchMode?: string;
+  locale?: string;
+}
 
 const log = createLogger('SearchGraphController');
 const router = Router();
@@ -88,7 +110,7 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
   req.on('close', () => abortController.abort());
 
   try {
-    const { query, messages, threadId, searchMode = 'web', locale } = req.body;
+    const { query, messages, threadId, searchMode = 'web', locale } = req.body as SearchStreamBody;
 
     if (!query && (!messages || messages.length === 0)) {
       sse.sendRaw('error', { error: 'Query or messages required' });
@@ -100,15 +122,13 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
 
     // Normalize messages from frontend format { role, parts: [{ type, text }] }
     // to AI SDK format { role, content: string }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const normalizedMessages = (messages || [{ role: 'user', content: query }]).map((m: any) => {
+    const inputMessages: IncomingMessage[] = messages || [{ role: 'user', content: query ?? '' }];
+    const normalizedMessages = inputMessages.map((m) => {
       if (m.content) return { role: m.role, content: m.content };
       if (m.parts) {
         const text = m.parts
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .filter((p: any) => p.type === 'text')
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .map((p: any) => p.text as string)
+          .filter((p) => p.type === 'text')
+          .map((p) => p.text)
           .join(' ');
         return { role: m.role, content: text || '' };
       }
@@ -118,11 +138,11 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
     // Initialize state
     let state = await initializeSearchState({
       query: query || '',
-      messages: normalizedMessages,
+      messages: normalizedMessages as ModelMessage[],
       threadId,
       searchMode: searchMode === 'deep' ? 'deep' : 'web',
-      aiWorkerPool: req.app.locals.aiWorkerPool,
-      userLocale: locale || 'de-DE',
+      aiWorkerPool: req.app.locals.aiWorkerPool as AIWorkerPool,
+      userLocale: (locale || 'de-DE') as UserLocale,
     });
 
     // Thread persistence: create or reuse
@@ -206,8 +226,10 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
 
     // ── Step 3: Rerank ──
     if (state.searchResults.length > 3) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      state = mergeState(state, (await rerankNode(state as any)) as Partial<SearchGraphState>);
+      state = mergeState(
+        state,
+        (await rerankNode(state as unknown as ChatGraphState)) as Partial<SearchGraphState>
+      );
     }
 
     if (abortController.signal.aborted) {
@@ -216,8 +238,10 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
     }
 
     // ── Step 4: Quality Gate (with loop) ──
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    state = mergeState(state, (await qualityGateNode(state as any)) as Partial<SearchGraphState>);
+    state = mergeState(
+      state,
+      (await qualityGateNode(state as unknown as ChatGraphState)) as Partial<SearchGraphState>
+    );
 
     // Quality gate loop
     if (state.qualityScore > 0 && state.qualityScore < 3 && state.searchCount < state.maxSearches) {
@@ -231,8 +255,10 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
       }
 
       if (state.searchResults.length > 3) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        state = mergeState(state, (await rerankNode(state as any)) as Partial<SearchGraphState>);
+        state = mergeState(
+          state,
+          (await rerankNode(state as unknown as ChatGraphState)) as Partial<SearchGraphState>
+        );
       }
 
       // Updated sources preview after refinement
