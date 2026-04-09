@@ -41,6 +41,7 @@ const SocialAgentAnnotation = Annotation.Root({
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   req: Annotation<any>({
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     reducer: (x, y) => y ?? x,
   }),
 

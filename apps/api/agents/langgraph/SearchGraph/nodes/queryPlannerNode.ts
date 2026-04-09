@@ -100,7 +100,7 @@ ${context}`,
       null
     );
     if (result.success && result.content) {
-      const reformulated = result.content.replace(/^["']|["']$/g, '').trim();
+      const reformulated: string = result.content.replace(/^["']|["']$/g, '').trim();
       if (reformulated.length > 3) return reformulated;
     }
   } catch (err: unknown) {

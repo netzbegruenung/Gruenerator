@@ -252,14 +252,17 @@ export async function runWebSearch(input: WebSearchInput): Promise<WebSearchOutp
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[WebSearchGraph] Execution error:', errorMessage);
     return {
-      status: 'error',
+      status: 'error' as const,
+      query: input.query,
+      results: [],
+      citations: [],
+      citationSources: [],
       message: 'Fehler bei der Suche',
       error: errorMessage,
       metadata: {
         searchType: mode,
         errorOccurred: true,
-      },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any;
+      } as SearchMetadata,
+    } satisfies NormalSearchOutput;
   }
 }

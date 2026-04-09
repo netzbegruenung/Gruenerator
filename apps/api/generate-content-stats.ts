@@ -68,7 +68,7 @@ async function getCollectionCount(collection: string): Promise<number | null> {
       signal: AbortSignal.timeout(10000),
     });
     if (!resp.ok) return null;
-    const data = await resp.json();
+    const data = (await resp.json()) as { result?: { count?: number } };
     return data.result?.count ?? null;
   } catch {
     return null;
@@ -86,7 +86,7 @@ async function getLvCount(code: string): Promise<number | null> {
       signal: AbortSignal.timeout(10000),
     });
     if (!resp.ok) return null;
-    const data = await resp.json();
+    const data = (await resp.json()) as { result?: { count?: number } };
     return data.result?.count ?? null;
   } catch {
     return null;
