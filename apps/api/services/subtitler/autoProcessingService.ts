@@ -18,6 +18,7 @@ import {
   calculateScaleFilter,
   buildFFmpegOutputOptions,
   buildVideoFilters,
+  type VideoMetadata as FFmpegVideoMetadata,
 } from './ffmpegExportUtils.js';
 import { ffmpegPool } from './ffmpegPool.js';
 import { ffmpeg, ffprobe, normalizeRotation, FFprobeMetadata } from './ffmpegWrapper.js';
@@ -519,7 +520,7 @@ async function exportWithEnhancements(
       }
     : undefined;
 
-  const compatibleMetadata: Record<string, unknown> = {
+  const compatibleMetadata: FFmpegVideoMetadata = {
     width: metadata.width,
     height: metadata.height,
     rotation: metadata.rotation,

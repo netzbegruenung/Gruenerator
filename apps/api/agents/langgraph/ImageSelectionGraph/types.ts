@@ -78,12 +78,12 @@ export interface ImageSelectionInput {
  */
 export interface ImageSelectionOutput {
   status: 'success' | 'error';
-  selectedImage?: CatalogImage | undefined;
-  confidence?: number | undefined;
-  reasoning?: string | undefined;
-  alternatives?: CatalogImage[] | undefined;
-  metadata?: SelectionMetadata | undefined;
-  error?: string | undefined;
+  selectedImage?: CatalogImage | null;
+  confidence?: number | null;
+  reasoning?: string | null;
+  alternatives?: CatalogImage[] | null;
+  metadata?: SelectionMetadata | null;
+  error?: string | null;
 }
 
 /**

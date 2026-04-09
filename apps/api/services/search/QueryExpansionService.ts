@@ -13,6 +13,7 @@
 
 import { INTERMEDIATE_MODEL } from '../../routes/chat/agents/providers.js';
 import { createLogger } from '../../utils/logger.js';
+import { type AIWorkerPool } from '../../workers/types.js';
 
 const log = createLogger('QueryExpansion');
 
@@ -42,7 +43,7 @@ Antworte NUR mit JSON:
  */
 export async function expandQuery(
   query: string,
-  aiWorkerPool: { processRequest: (...args: unknown[]) => Promise<{ content?: string | null }> }
+  aiWorkerPool: AIWorkerPool
 ): Promise<ExpandedQuery> {
   // Check cache first
   const cacheKey = query.toLowerCase().trim();
