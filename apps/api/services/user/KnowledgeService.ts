@@ -3,6 +3,7 @@ import {
   getPostgresInstance,
 } from '../../database/services/PostgresService.js';
 import { type QdrantService, getQdrantInstance } from '../../database/services/QdrantService.js';
+import { userKnowledge } from '../../database/schema/index.js';
 import { generateContentHash, generatePointId } from '../../utils/validation/index.js';
 import { smartChunkDocument } from '../document-services/index.js';
 import { mistralEmbeddingService } from '../mistral/index.js';
@@ -137,9 +138,23 @@ class KnowledgeService {
           throw new Error('Knowledge entry not found or access denied');
         }
 
-        savedEntry = updateResult.data[0] as unknown as UserKnowledgeEntry;
+        const row = updateResult.data[0] as Record<string, unknown>;
+        savedEntry = {
+          id: row.id as string,
+          user_id: row.user_id as string,
+          title: row.title as string,
+          content: row.content as string,
+          knowledge_type: row.knowledge_type as string,
+          created_at: row.created_at as Date | string,
+          updated_at: row.updated_at as Date | string,
+          tags: row.tags as string[] | null,
+          is_active: row.is_active as boolean,
+          embedding_id: row.embedding_id as string | undefined,
+          embedding_hash: row.embedding_hash as string | undefined,
+          vector_indexed_at: row.vector_indexed_at as Date | string | null | undefined,
+        };
       } else {
-        savedEntry = (await this.postgres!.insert('user_knowledge', {
+        const insertedRow = await this.postgres!.insert('user_knowledge', {
           user_id: userId,
           title: title?.trim() || 'Unbenannter Eintrag',
           content: content?.trim() || '',
@@ -147,7 +162,22 @@ class KnowledgeService {
           tags,
           embedding_hash: contentHash,
           is_active: true,
-        })) as unknown as UserKnowledgeEntry;
+        });
+        const row = insertedRow as Record<string, unknown>;
+        savedEntry = {
+          id: row.id as string,
+          user_id: row.user_id as string,
+          title: row.title as string,
+          content: row.content as string,
+          knowledge_type: row.knowledge_type as string,
+          created_at: row.created_at as Date | string,
+          updated_at: row.updated_at as Date | string,
+          tags: row.tags as string[] | null,
+          is_active: row.is_active as boolean,
+          embedding_id: row.embedding_id as string | undefined,
+          embedding_hash: row.embedding_hash as string | undefined,
+          vector_indexed_at: row.vector_indexed_at as Date | string | null | undefined,
+        };
         isNew = true;
       }
 
