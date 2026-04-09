@@ -39,7 +39,9 @@ export class EmbeddingService {
     this.apiKey = config.apiKey;
     this.model = config.model || EMBEDDING_DEFAULTS.model;
     this.maxRetries = config.maxRetries || EMBEDDING_DEFAULTS.maxRetries;
-    this.client = config.client;
+    if (config.client != null) {
+      this.client = config.client;
+    }
   }
 
   /**

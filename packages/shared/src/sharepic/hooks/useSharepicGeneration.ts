@@ -90,7 +90,7 @@ export function useSharepicGeneration(
 
       const requestData: Partial<SharepicRequest> = {
         thema: options.thema,
-        details: options.details,
+        ...(options.details != null && { details: options.details }),
       };
 
       if (options.usePrivacyMode) {
@@ -124,7 +124,7 @@ export function useSharepicGeneration(
       const requestData: SharepicRequest = {
         type: backendType,
         thema: options.thema,
-        details: options.details,
+        ...(options.details != null && { details: options.details }),
       };
 
       // Add author for quote types
@@ -165,8 +165,8 @@ export function useSharepicGeneration(
         image: data.image,
         text: data.text,
         type: data.type,
-        originalImage: data.originalImage,
-        alternatives: data.alternatives,
+        ...(data.originalImage != null && { originalImage: data.originalImage }),
+        ...(data.alternatives != null && { alternatives: data.alternatives }),
         id: `sharepic-${Date.now()}-${Math.random().toString(16).slice(2)}`,
         createdAt: new Date().toISOString(),
       };
