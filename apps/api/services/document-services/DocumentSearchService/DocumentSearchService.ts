@@ -28,6 +28,7 @@ import * as vectorOps from './vectorOperations.js';
 import type {
   DocumentSearchParams,
   DocumentSearchOptions,
+  DocumentSearchFilters,
   HybridConfig,
   ChunkWithMetadata,
   VectorMetadata,
@@ -56,6 +57,7 @@ import type { SearchParamsInput } from '../../../utils/validation/types.js';
 import type {
   SearchParams,
   SearchResponse,
+  SearchOptions,
   HybridMetadata,
   DocumentData,
 } from '../../BaseSearchService/types.js';
