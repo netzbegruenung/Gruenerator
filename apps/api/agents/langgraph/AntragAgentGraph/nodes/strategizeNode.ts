@@ -5,6 +5,7 @@ import { LOCALE_CONTEXT, REQUEST_TYPE_DISPLAY_NAMES } from '../types.js';
 
 import type { EnrichedState } from '../../../../utils/types/requestEnrichment.js';
 import type { PRAgentRequest } from '../../PRAgent/types.js';
+import type { ContentExample } from '../../types/promptAssembly.js';
 import type { AntragAgentState } from '../types.js';
 
 const log = createLogger('AntragAgent:strategize');
@@ -23,7 +24,10 @@ export async function strategizeNode(state: AntragAgentState): Promise<Partial<A
 
   try {
     const locale = extractLocaleFromRequest(state.req);
-    const localeCtx = LOCALE_CONTEXT[locale] || LOCALE_CONTEXT['de-DE'];
+    const localeCtx = LOCALE_CONTEXT[locale] ?? LOCALE_CONTEXT['de-DE'];
+    if (!localeCtx) {
+      throw new Error(`No locale context found for locale "${locale}" or fallback "de-DE"`);
+    }
     const requestTypeDisplay = REQUEST_TYPE_DISPLAY_NAMES[state.requestType];
 
     const enrichedWithContext: EnrichedState = {
@@ -45,7 +49,7 @@ export async function strategizeNode(state: AntragAgentState): Promise<Partial<A
       case 'grosse_anfrage':
         strategyFocus = `Entwickle eine Argumentationsstrategie für eine Große Anfrage mit Debatte im ${localeCtx.municipalBody}. Fokus: Politisches Framing, übergeordnete Themeneinordnung, Verbindung zu grünen Kernwerten und strategische Fragengruppierung.`;
         break;
-      default:
+      case 'antrag':
         strategyFocus = `Entwickle eine Argumentationsstrategie für einen kommunalpolitischen Antrag. Fokus: Rechtliche Grundlage (${localeCtx.legalBasis}), Kosten-Nutzen-Abwägung, kommunale Präzedenzfälle und politische Argumente.`;
     }
 
@@ -57,8 +61,11 @@ Verknüpfe mit grünen Kernwerten (Klimaschutz, soziale Gerechtigkeit, Nachhalti
 
 Schreibe überwiegend als Fließtext. Nutze Markdown sparsam — nur einzelne **fettgedruckte** Schlüsselbegriffe wo sinnvoll. Keine Überschriften, keine nummerierten Listen.`;
 
+    const { examples: _examples, ...enrichedWithoutExamples } = enrichedWithContext;
+
     const promptResult = await assemblePromptGraphAsync({
-      ...enrichedWithContext,
+      ...enrichedWithoutExamples,
+      examples: enrichedWithContext.examples as ContentExample[],
       systemRole,
       request: `Thema: ${request.inhalt}\n${state.gliederung ? `Gremium/Gliederung: ${state.gliederung}\n` : ''}\nEntwickle die Argumentationsstrategie als Fließtext.`,
       constraints: 'Maximal 800 Zeichen. Überwiegend Fließtext.',

@@ -27,7 +27,6 @@ import * as vectorOps from './vectorOperations.js';
 
 import type {
   DocumentSearchParams,
-  DocumentSearchFilters,
   DocumentSearchOptions,
   HybridConfig,
   ChunkWithMetadata,
@@ -49,13 +48,16 @@ import type {
   DocumentEnhancedScore,
   FindSimilarChunksParams,
   FindHybridChunksParams,
+  QdrantFilter,
 } from './types.js';
-import type { QdrantFilter } from '../../../database/services/QdrantService/types.js';
+import type { QdrantFilter as QdrantServiceFilter } from '../../../database/services/QdrantService/types.js';
 import type { QdrantService } from '../../../database/services/QdrantService.js';
+import type { SearchParamsInput } from '../../../utils/validation/types.js';
 import type {
   SearchParams,
   SearchResponse,
   HybridMetadata,
+  DocumentData,
 } from '../../BaseSearchService/types.js';
 
 /**
@@ -135,48 +137,52 @@ export class DocumentSearchService extends BaseSearchService {
    * @param params - Raw search parameters
    * @returns Validated and normalized parameters
    */
-  override validateSearchParams(params: any): DocumentSearchParams {
-    if (params && (params.userId || params.filters || params.options)) {
-      const query = InputValidator.validateSearchQuery(params.query);
-      const searchCollection = params.filters?.searchCollection || params.options?.searchCollection;
-      const isSystemSearch = isSystemQdrantCollection(searchCollection);
+  override validateSearchParams(params: SearchParams): DocumentSearchParams {
+    const p = params as unknown as Record<string, unknown>;
+    const pFilters = p.filters as Record<string, unknown> | undefined;
+    const pOptions = p.options as Record<string, unknown> | undefined;
+    if (p && (p.userId || pFilters || pOptions)) {
+      const query = InputValidator.validateSearchQuery(p.query);
+      const searchCollection = (pFilters?.searchCollection || pOptions?.searchCollection) as
+        | string
+        | undefined;
+      const isSystemSearch =
+        typeof searchCollection === 'string' && isSystemQdrantCollection(searchCollection);
       const userId =
-        isSystemSearch && (params.userId === null || params.userId === undefined)
+        isSystemSearch && (p.userId === null || p.userId === undefined)
           ? null
-          : InputValidator.validateUserId(params.userId);
+          : InputValidator.validateUserId(p.userId as string);
 
       const documentIds =
-        params.filters?.documentIds || params.options?.documentIds
-          ? InputValidator.validateDocumentIds(
-              params.filters?.documentIds || params.options?.documentIds
-            )
+        pFilters?.documentIds || pOptions?.documentIds
+          ? InputValidator.validateDocumentIds(pFilters?.documentIds || pOptions?.documentIds)
           : undefined;
-      const sourceType = params.filters?.sourceType;
-      const group_id = params.filters?.group_id;
-      const titleFilter = params.filters?.titleFilter || params.options?.titleFilter;
-      const additionalFilter = params.filters?.additionalFilter || params.options?.additionalFilter;
+      const sourceType = pFilters?.sourceType as string | undefined;
+      const group_id = pFilters?.group_id as string | undefined;
+      const titleFilter = (pFilters?.titleFilter || pOptions?.titleFilter) as string | undefined;
+      const additionalFilter = (pFilters?.additionalFilter || pOptions?.additionalFilter) as
+        | QdrantFilter
+        | undefined;
 
-      const limit = InputValidator.validateNumber(
-        params.options?.limit || this.defaultLimit,
-        'limit',
-        { min: 1, max: 100 }
-      );
-      const threshold = InputValidator.validateNumber(params.options?.threshold, 'threshold', {
+      const limit = InputValidator.validateNumber(pOptions?.limit || this.defaultLimit, 'limit', {
+        min: 1,
+        max: 100,
+      });
+      const threshold = InputValidator.validateNumber(pOptions?.threshold, 'threshold', {
         min: 0,
         max: 1,
         allowNull: true,
       });
 
-      const options = {
+      const validatedOptions = {
         limit: limit ?? this.defaultLimit,
         threshold: threshold ?? this.defaultThreshold,
-        useCache: params.options?.useCache !== false,
-        vectorWeight: params.options?.vectorWeight,
-        textWeight: params.options?.textWeight,
-        useRRF: params.options?.useRRF,
-        rrfK: params.options?.rrfK,
-        qualityMin:
-          typeof params.options?.qualityMin === 'number' ? params.options.qualityMin : undefined,
+        useCache: pOptions?.useCache !== false,
+        vectorWeight: pOptions?.vectorWeight as number | undefined,
+        textWeight: pOptions?.textWeight as number | undefined,
+        useRRF: pOptions?.useRRF as boolean | undefined,
+        rrfK: pOptions?.rrfK as number | undefined,
+        qualityMin: typeof pOptions?.qualityMin === 'number' ? pOptions.qualityMin : undefined,
       };
 
       return {
@@ -190,42 +196,43 @@ export class DocumentSearchService extends BaseSearchService {
           titleFilter,
           additionalFilter,
         },
-        options,
+        options: validatedOptions,
       };
     }
 
-    const isSystemCollection = params && isSystemQdrantCollection(params.searchCollection);
-    if (isSystemCollection && (params.user_id === null || params.user_id === undefined)) {
-      const query = InputValidator.validateSearchQuery(params.query);
-      const limit = InputValidator.validateNumber(params.limit || this.defaultLimit, 'limit', {
+    const isSystemCollection =
+      p && typeof p.searchCollection === 'string' && isSystemQdrantCollection(p.searchCollection);
+    if (isSystemCollection && (p.user_id === null || p.user_id === undefined)) {
+      const query = InputValidator.validateSearchQuery(p.query);
+      const limit = InputValidator.validateNumber(p.limit || this.defaultLimit, 'limit', {
         min: 1,
         max: 100,
       });
-      const threshold = InputValidator.validateNumber(params.threshold, 'threshold', {
+      const threshold = InputValidator.validateNumber(p.threshold, 'threshold', {
         min: 0,
         max: 1,
         allowNull: true,
       });
       let documentIds;
-      if (params.documentIds) {
-        documentIds = InputValidator.validateDocumentIds(params.documentIds);
+      if (p.documentIds) {
+        documentIds = InputValidator.validateDocumentIds(p.documentIds);
       }
       let vectorWeightOpt;
       let textWeightOpt;
       try {
-        if (typeof params.vectorWeight === 'number') {
-          vectorWeightOpt = InputValidator.validateNumber(params.vectorWeight, 'vectorWeight', {
+        if (typeof p.vectorWeight === 'number') {
+          vectorWeightOpt = InputValidator.validateNumber(p.vectorWeight, 'vectorWeight', {
             min: 0,
             max: 1,
           });
         }
-        if (typeof params.textWeight === 'number') {
-          textWeightOpt = InputValidator.validateNumber(params.textWeight, 'textWeight', {
+        if (typeof p.textWeight === 'number') {
+          textWeightOpt = InputValidator.validateNumber(p.textWeight, 'textWeight', {
             min: 0,
             max: 1,
           });
         }
-      } catch (e) {
+      } catch (_e) {
         // ignore invalid weights
       }
       return {
@@ -233,42 +240,42 @@ export class DocumentSearchService extends BaseSearchService {
         userId: null,
         filters: {
           documentIds,
-          sourceType: params.sourceType,
-          group_id: params.group_id,
-          searchCollection: params.searchCollection,
-          titleFilter: params.titleFilter,
-          additionalFilter: params.additionalFilter,
+          sourceType: p.sourceType as string | undefined,
+          group_id: p.group_id as string | undefined,
+          searchCollection: p.searchCollection as string | undefined,
+          titleFilter: p.titleFilter as string | undefined,
+          additionalFilter: p.additionalFilter as QdrantFilter | undefined,
         },
         options: {
           limit: limit ?? this.defaultLimit,
           threshold: threshold ?? this.defaultThreshold,
           useCache: true,
-          mode: params.mode,
+          mode: p.mode as DocumentSearchParams['options']['mode'],
           ...(vectorWeightOpt !== undefined ? { vectorWeight: vectorWeightOpt ?? undefined } : {}),
           ...(textWeightOpt !== undefined ? { textWeight: textWeightOpt ?? undefined } : {}),
-          ...(typeof params.qualityMin === 'number' ? { qualityMin: params.qualityMin } : {}),
-          ...(typeof params.recallLimit === 'number' ? { recallLimit: params.recallLimit } : {}),
+          ...(typeof p.qualityMin === 'number' ? { qualityMin: p.qualityMin } : {}),
+          ...(typeof p.recallLimit === 'number' ? { recallLimit: p.recallLimit } : {}),
         },
       };
     }
 
-    const validated = InputValidator.validateSearchParams(params);
+    const validated = InputValidator.validateSearchParams(p as unknown as SearchParamsInput);
     let vectorWeightOpt;
     let textWeightOpt;
     try {
-      if (typeof params.vectorWeight === 'number') {
-        vectorWeightOpt = InputValidator.validateNumber(params.vectorWeight, 'vectorWeight', {
+      if (typeof p.vectorWeight === 'number') {
+        vectorWeightOpt = InputValidator.validateNumber(p.vectorWeight, 'vectorWeight', {
           min: 0,
           max: 1,
         });
       }
-      if (typeof params.textWeight === 'number') {
-        textWeightOpt = InputValidator.validateNumber(params.textWeight, 'textWeight', {
+      if (typeof p.textWeight === 'number') {
+        textWeightOpt = InputValidator.validateNumber(p.textWeight, 'textWeight', {
           min: 0,
           max: 1,
         });
       }
-    } catch (e) {
+    } catch (_e) {
       // ignore
     }
     return {
@@ -278,9 +285,9 @@ export class DocumentSearchService extends BaseSearchService {
         documentIds: validated.documentIds,
         sourceType: validated.sourceType,
         group_id: validated.group_id,
-        searchCollection: params.searchCollection,
-        titleFilter: params.titleFilter,
-        additionalFilter: params.additionalFilter,
+        searchCollection: p.searchCollection as string | undefined,
+        titleFilter: p.titleFilter as string | undefined,
+        additionalFilter: p.additionalFilter as QdrantFilter | undefined,
       },
       options: {
         limit: validated.limit,
@@ -289,8 +296,8 @@ export class DocumentSearchService extends BaseSearchService {
         mode: validated.mode,
         ...(vectorWeightOpt !== undefined ? { vectorWeight: vectorWeightOpt ?? undefined } : {}),
         ...(textWeightOpt !== undefined ? { textWeight: textWeightOpt ?? undefined } : {}),
-        ...(typeof params.qualityMin === 'number' ? { qualityMin: params.qualityMin } : {}),
-        ...(typeof params.recallLimit === 'number' ? { recallLimit: params.recallLimit } : {}),
+        ...(typeof p.qualityMin === 'number' ? { qualityMin: p.qualityMin } : {}),
+        ...(typeof p.recallLimit === 'number' ? { recallLimit: p.recallLimit } : {}),
       },
     };
   }
@@ -320,7 +327,7 @@ export class DocumentSearchService extends BaseSearchService {
 
       return await this.performSimilaritySearch(validated as unknown as SearchParams);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const _errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[DocumentSearchService] Search error:', error);
       return this.createErrorResponse(error as Error, searchParams.query);
     }
@@ -355,7 +362,7 @@ export class DocumentSearchService extends BaseSearchService {
         this.groupAndRankHybridResults.bind(this)
       );
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const _errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[DocumentSearchService] Text search error:', error);
       return this.createErrorResponse(error as Error, query);
     }
@@ -403,7 +410,7 @@ export class DocumentSearchService extends BaseSearchService {
         },
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const _errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[DocumentSearchService] Hybrid search error:', error);
       return this.createErrorResponse(error as Error, query);
     }
@@ -522,7 +529,7 @@ export class DocumentSearchService extends BaseSearchService {
   async getSystemDocumentFullTextByUrl(
     qdrantCollection: string,
     sourceUrl: string,
-    defaultFilter?: QdrantFilter
+    defaultFilter?: QdrantServiceFilter
   ): Promise<DocumentFullTextResult & { title?: string }> {
     await this.ensureInitialized();
     if (!this.qdrantOps) {
@@ -531,7 +538,7 @@ export class DocumentSearchService extends BaseSearchService {
 
     try {
       // Step 1: Try to get full_text from chunk_index=0
-      const chunk0Filter: QdrantFilter = {
+      const chunk0Filter: QdrantServiceFilter = {
         must: [
           { key: 'source_url', match: { value: sourceUrl } },
           { key: 'chunk_index', match: { value: 0 } },
@@ -559,7 +566,7 @@ export class DocumentSearchService extends BaseSearchService {
       }
 
       // Step 2: Fallback — scroll all chunks for this URL and concatenate
-      const allChunksFilter: QdrantFilter = {
+      const allChunksFilter: QdrantServiceFilter = {
         must: [{ key: 'source_url', match: { value: sourceUrl } }, ...(defaultFilter?.must || [])],
       };
 
@@ -870,8 +877,11 @@ export class DocumentSearchService extends BaseSearchService {
     return scoring.calculateHybridDocumentScore(chunks, hybridMetadata);
   }
 
-  override buildRelevanceInfo(doc: any, enhancedScore: DocumentEnhancedScore): string {
-    return scoring.buildRelevanceInfo(doc, enhancedScore);
+  override buildRelevanceInfo(doc: DocumentData, enhancedScore: DocumentEnhancedScore): string {
+    return scoring.buildRelevanceInfo(
+      doc as unknown as { similarity_score: number },
+      enhancedScore
+    );
   }
 
   override getSearchType(): string {
@@ -880,7 +890,17 @@ export class DocumentSearchService extends BaseSearchService {
 
   // ========== Legacy Methods for Backward Compatibility ==========
 
-  async searchDocuments(query: string, userId: string, options: any = {}): Promise<SearchResponse> {
+  async searchDocuments(
+    query: string,
+    userId: string,
+    options: {
+      documentIds?: string[];
+      searchCollection?: string;
+      limit?: number;
+      mode?: string;
+      threshold?: number;
+    } = {}
+  ): Promise<SearchResponse> {
     return await this.search({
       query,
       userId: userId,

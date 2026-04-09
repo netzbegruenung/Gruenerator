@@ -11,6 +11,8 @@ import { detectTextType, TEXT_TYPE_MAPPINGS } from '../../services/texte/index.j
 import { withErrorHandler } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 
+import type { AIWorkerPool } from '../../types/workers.js';
+
 const log = createLogger('smart_texte');
 
 /**
@@ -50,10 +52,10 @@ smartRouter.post(
 
     try {
       // Get AI worker pool from app locals
-      const aiWorkerPool = (req as any).app?.locals?.aiWorkerPool || null;
+      const aiWorkerPool = (req.app.locals.aiWorkerPool as AIWorkerPool | undefined) || null;
 
       // Detect text type
-      const detection = await detectTextType(userPrompt, aiWorkerPool);
+      const detection = await detectTextType(userPrompt, aiWorkerPool!);
 
       log.info('[smart_texte] Detected type:', {
         type: detection.detectedType,

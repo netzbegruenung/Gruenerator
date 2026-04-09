@@ -93,7 +93,7 @@ export interface TextOverlay {
   type: 'header' | 'subheader' | 'custom';
   startTime: number;
   endTime: number;
-  style?: Record<string, any>;
+  style?: Record<string, unknown>;
 }
 
 export interface VideoSegment {
@@ -183,7 +183,7 @@ export interface CreateProjectRequestBody {
   stylePreference?: string;
   heightPreference?: string;
   modePreference?: string;
-  videoMetadata?: Record<string, any>;
+  videoMetadata?: Record<string, unknown>;
   videoFilename?: string;
   videoSize?: number;
 }
@@ -240,7 +240,7 @@ export interface GenerateSocialRequestBody {
 
 export interface SocialMediaResult {
   content: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 // ============================================================================
@@ -249,7 +249,7 @@ export interface SocialMediaResult {
 
 export interface RedisJobData {
   status: 'processing' | 'complete' | 'error';
-  data?: any;
+  data?: Record<string, unknown>;
 }
 
 // ============================================================================
@@ -277,6 +277,6 @@ export interface AIWorkerPool {
     success: boolean;
     content?: string;
     error?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }>;
 }

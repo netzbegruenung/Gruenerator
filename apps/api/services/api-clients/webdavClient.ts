@@ -56,7 +56,7 @@ function parseMultiStatus(xml: string): WebDAVFile[] {
     const isDirectory = block.includes('<d:collection');
 
     const nameMatch = block.match(/<d:displayname>([^<]*)<\/d:displayname>/);
-    const name = nameMatch ? nameMatch[1] : href.split('/').filter(Boolean).pop() ?? '';
+    const name = nameMatch ? nameMatch[1] : (href.split('/').filter(Boolean).pop() ?? '');
 
     const sizeMatch = block.match(/<d:getcontentlength>(\d+)<\/d:getcontentlength>/);
     const size = sizeMatch ? parseInt(sizeMatch[1], 10) : null;
@@ -75,7 +75,7 @@ function parseMultiStatus(xml: string): WebDAVFile[] {
 
 export async function listFiles(
   credentials: WebDAVCredentials,
-  path: string = '/',
+  path: string = '/'
 ): Promise<WebDAVFile[]> {
   const client = createClient(credentials);
   const response = await client.request({
@@ -92,10 +92,7 @@ export async function listFiles(
   return files.slice(1);
 }
 
-export async function downloadFile(
-  credentials: WebDAVCredentials,
-  path: string,
-): Promise<Buffer> {
+export async function downloadFile(credentials: WebDAVCredentials, path: string): Promise<Buffer> {
   const client = createClient(credentials);
   const response = await client.get(path, { responseType: 'arraybuffer' });
   return Buffer.from(response.data);
@@ -103,7 +100,7 @@ export async function downloadFile(
 
 export async function getFileInfo(
   credentials: WebDAVCredentials,
-  path: string,
+  path: string
 ): Promise<WebDAVFile | null> {
   const client = createClient(credentials);
   const response = await client.request({
@@ -121,7 +118,7 @@ export async function getFileInfo(
 }
 
 export async function testConnection(
-  credentials: WebDAVCredentials,
+  credentials: WebDAVCredentials
 ): Promise<WebDAVConnectionTestResult> {
   try {
     const client = createClient(credentials);
@@ -135,10 +132,11 @@ export async function testConnection(
 </d:propfind>`,
     });
     return { success: true, message: 'Verbindung erfolgreich' };
-  } catch (error: any) {
-    const status = error.response?.status;
+  } catch (error: unknown) {
+    const axiosErr = error as { response?: { status?: number }; message?: string };
+    const status = axiosErr.response?.status;
     if (status === 401) return { success: false, message: 'Authentifizierung fehlgeschlagen' };
     if (status === 404) return { success: false, message: 'Server nicht gefunden' };
-    return { success: false, message: error.message ?? 'Verbindung fehlgeschlagen' };
+    return { success: false, message: axiosErr.message ?? 'Verbindung fehlgeschlagen' };
   }
 }

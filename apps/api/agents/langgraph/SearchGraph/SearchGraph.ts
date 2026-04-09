@@ -12,7 +12,7 @@
  * Reuses nodes from ChatGraph (rerank, qualityGate) and WebSearchGraph (planner, searxng, crawler, enricher, aggregator).
  */
 
-import { StateGraph, Annotation, END } from '@langchain/langgraph';
+import { StateGraph, Annotation } from '@langchain/langgraph';
 
 import { getAllCollectionIds } from '../../../config/notebookCollectionMap.js';
 import { getDefaultAgentId, getAgent } from '../../../routes/chat/agents/agentLoader.js';
@@ -236,6 +236,7 @@ function routeAfterQualityGate(state: SearchState): 'searchExecutor' | 'searchRe
  * Create the SearchGraph.
  */
 function createSearchGraph() {
+  /* eslint-disable @typescript-eslint/no-explicit-any -- LangGraph node type coercions */
   const graph = new StateGraph(SearchStateAnnotation)
     .addNode('queryPlanner', queryPlannerNode as any)
     .addNode('searchExecutor', searchExecutorNode as any)
@@ -245,6 +246,7 @@ function createSearchGraph() {
     .addNode('qualityGate', qualityGateNode as any)
     .addNode('searchRespond', searchRespondNode as any)
     .addNode('suggestFollowUps', suggestFollowUpsNode as any)
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     // START → queryPlanner
     .addEdge('__start__', 'queryPlanner')

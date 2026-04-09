@@ -49,7 +49,10 @@ export function extractLeichteSpracheParams(
   // Check if user is referring to previous content
   if (context.messageHistory && context.messageHistory.length > 0) {
     const lastMessage = context.messageHistory[context.messageHistory.length - 1];
-    if (message.includes('das') || message.includes('daraus') || message.includes('übersetze')) {
+    if (
+      lastMessage &&
+      (message.includes('das') || message.includes('daraus') || message.includes('übersetze'))
+    ) {
       originalText = lastMessage.content;
     }
   }

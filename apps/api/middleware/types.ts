@@ -19,7 +19,7 @@ import type { ParamsDictionary } from 'express-serve-static-core';
 export interface AuthenticatedRequest<P = ParamsDictionary> extends Request<P> {
   user?: UserProfile;
   mobileAuth?: boolean;
-  jwtToken?: any;
+  jwtToken?: string;
 }
 
 /**
@@ -36,7 +36,7 @@ export interface RateLimitRequest extends AuthenticatedRequest {
   rateLimitInfo?: RateLimitStatus;
   rateLimitWarning?: {
     message: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   rateLimitError?: Error;
 }

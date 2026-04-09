@@ -7,13 +7,7 @@
  */
 
 import type { ImageAttachment, ImageStorageSession, ImageStorageStats } from './types.js';
-
-interface RedisClient {
-  setEx(key: string, seconds: number, value: string): Promise<string>;
-  get(key: string): Promise<string | null>;
-  del(key: string): Promise<number>;
-  exists(key: string): Promise<number>;
-}
+import type { RedisClient } from '../../utils/redis/types.js';
 
 class TemporaryImageStorage {
   private redis: RedisClient;
@@ -168,7 +162,7 @@ class TemporaryImageStorage {
     console.log('[TemporaryImageStorage] Clearing all active sessions...');
 
     let deletedCount = 0;
-    for (const [requestId, session] of this.activeSessions) {
+    for (const [_requestId, session] of this.activeSessions) {
       const deleted = await this.redis.del(session.key);
       if (deleted > 0) deletedCount++;
     }

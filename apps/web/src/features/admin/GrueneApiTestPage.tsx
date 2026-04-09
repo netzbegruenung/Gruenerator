@@ -43,6 +43,7 @@ function GrueneApiTestPage() {
     try {
       const res = await apiClient.get('/internal/gruene-api/test');
       setResults(res.data);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError(err.message || 'Failed to call test endpoint');
     } finally {
@@ -115,8 +116,11 @@ function GrueneApiTestPage() {
                 const expanded = expandedKeys.has(key);
                 const itemCount =
                   result.data && typeof result.data === 'object'
-                    ? ((result.data as any).data?.length ??
+                    ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      ((result.data as any).data?.length ??
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       (result.data as any).items?.length ??
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       (result.data as any).count ??
                       null)
                     : null;

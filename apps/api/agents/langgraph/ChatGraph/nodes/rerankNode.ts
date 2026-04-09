@@ -71,10 +71,17 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
     sourceTagFn: (item) => getSourceTag(item.source || ''),
   });
 
-  const reranked = rankedIndices.map((i) => ({
-    ...candidates[i],
-    relevance: scores.get(i) ?? candidates[i].relevance ?? DEFAULT_RELEVANCE,
-  }));
+  const reranked = rankedIndices.flatMap((i) => {
+    const candidate = candidates[i];
+    if (!candidate) return [];
+    return [
+      {
+        ...candidate,
+        source: candidate.source ?? '',
+        relevance: scores.get(i) ?? candidate.relevance ?? DEFAULT_RELEVANCE,
+      },
+    ];
+  });
 
   log.info(
     `[Rerank] Complete: ${candidates.length} → ${reranked.length} results (diversity applied) in ${rerankTimeMs}ms`

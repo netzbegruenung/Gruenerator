@@ -5,7 +5,7 @@
 
 import type { CacheEntry, CacheOptions, CacheStats } from './types.js';
 
-class LRUCache<T = any> {
+class LRUCache<T = unknown> {
   private maxSize: number;
   private ttl: number;
   private cache: Map<string, CacheEntry<T>>;
@@ -193,7 +193,7 @@ const createCache = {
   /**
    * Create search query enhancement cache
    */
-  searchEnhancement: (): LRUCache<any> =>
+  searchEnhancement: (): LRUCache<unknown> =>
     new LRUCache({
       name: 'SearchEnhancement',
       maxSize: parseInt(process.env.SEARCH_CACHE_SIZE || '100'),
@@ -203,7 +203,7 @@ const createCache = {
   /**
    * Create autonomous search results cache
    */
-  searchResults: (): LRUCache<any> =>
+  searchResults: (): LRUCache<unknown> =>
     new LRUCache({
       name: 'SearchResults',
       maxSize: parseInt(process.env.RESULTS_CACHE_SIZE || '200'),
@@ -213,7 +213,7 @@ const createCache = {
   /**
    * Create embedding cache
    */
-  embeddings: (): LRUCache<any> =>
+  embeddings: (): LRUCache<unknown> =>
     new LRUCache({
       name: 'Embeddings',
       maxSize: parseInt(process.env.EMBEDDING_CACHE_SIZE || '500'),
@@ -223,7 +223,7 @@ const createCache = {
   /**
    * Create general purpose cache
    */
-  general: (options: CacheOptions = {}): LRUCache<any> =>
+  general: (options: CacheOptions = {}): LRUCache<unknown> =>
     new LRUCache({
       name: options.name || 'General',
       maxSize: options.maxSize || 50,

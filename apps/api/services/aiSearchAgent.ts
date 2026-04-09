@@ -155,6 +155,25 @@ interface SearchExamplesParams {
   user_id?: string;
 }
 
+function parseSearchExamplesParams(input: Record<string, unknown>): SearchExamplesParams {
+  const query = typeof input.query === 'string' ? input.query : '';
+  const content_type = typeof input.content_type === 'string' ? input.content_type : '';
+  return {
+    query,
+    content_type,
+    ...(typeof input.limit === 'number' ? { limit: input.limit } : {}),
+    ...(typeof input.threshold === 'number' ? { threshold: input.threshold } : {}),
+    ...(typeof input.user_id === 'string' ? { user_id: input.user_id } : {}),
+  };
+}
+
+function parseAnalyzeAndRankParams(input: Record<string, unknown>): AnalyzeAndRankParams {
+  const results = Array.isArray(input.results) ? (input.results as SearchResultItem[]) : [];
+  const criteria = typeof input.criteria === 'string' ? input.criteria : '';
+  const target_count = typeof input.target_count === 'number' ? input.target_count : 5;
+  return { results, criteria, target_count };
+}
+
 interface CacheInstance {
   get: (key: string) => EnhancementResult | null;
   set: (key: string, value: EnhancementResult) => void;
@@ -849,13 +868,13 @@ Nach der Suche erkläre deine Keyword-Wahl und begründe die Relevanz der Ergebn
         switch (toolCall.name) {
           case 'search_database_examples':
             toolResult = await this.handleSearchDatabaseExamples(
-              toolCall.input as unknown as SearchExamplesParams
+              parseSearchExamplesParams(toolCall.input)
             );
             break;
 
           case 'analyze_and_rank_results':
             toolResult = await this.handleAnalyzeAndRankResults(
-              toolCall.input as unknown as AnalyzeAndRankParams
+              parseAnalyzeAndRankParams(toolCall.input)
             );
             break;
           default:

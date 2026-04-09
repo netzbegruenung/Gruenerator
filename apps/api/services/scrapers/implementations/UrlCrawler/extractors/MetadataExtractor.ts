@@ -166,7 +166,7 @@ export class MetadataExtractor {
   /**
    * Extracts structured data (JSON-LD, microdata) from HTML
    */
-  private static extractStructuredData($: CheerioAPI): Record<string, any> | null {
+  private static extractStructuredData($: CheerioAPI): Record<string, unknown> | null {
     try {
       // Look for JSON-LD structured data
       const jsonLdScript = $('script[type="application/ld+json"]').first();

@@ -70,12 +70,16 @@ async function ensureSession(): Promise<void> {
 
 function parseToolResult<T>(result: unknown): T {
   const content = (result as { result?: { content?: Array<{ text?: string }> } })?.result?.content;
+  const firstText = Array.isArray(content) && content.length > 0 ? content[0]?.text : null;
 
-  if (Array.isArray(content) && content.length > 0 && content[0].text) {
+  if (firstText) {
     try {
-      return JSON.parse(content[0].text) as T;
+      return JSON.parse(firstText) as T;
     } catch {
-      return content[0].text as unknown as T;
+      // JSON.parse failed — the text is a plain string, not a structured object.
+      // Return it as T (callers using string-based T will work; object-based T
+      // would have failed on the JSON.parse above and this is the best-effort path).
+      return firstText as T;
     }
   }
 

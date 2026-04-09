@@ -65,9 +65,9 @@ async function cleanupOldExports(): Promise<CleanupStats> {
           stats.freedBytes += fileStats.size;
           log.debug(`Deleted old export: ${file} (age: ${Math.round(age / 3600000)}h)`);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         stats.errors++;
-        log.warn(`Failed to process ${file}: ${err.message}`);
+        log.warn(`Failed to process ${file}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
 
@@ -77,8 +77,8 @@ async function cleanupOldExports(): Promise<CleanupStats> {
         `Export cleanup: deleted ${stats.deleted}/${stats.checked} files, freed ${freedMB}MB`
       );
     }
-  } catch (err: any) {
-    log.error(`Export cleanup failed: ${err.message}`);
+  } catch (err: unknown) {
+    log.error(`Export cleanup failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   return stats;
@@ -90,7 +90,7 @@ function startCleanupScheduler(): void {
     return;
   }
 
-  cleanupOldExports();
+  void cleanupOldExports();
 
   cleanupIntervalId = setInterval(cleanupOldExports, CLEANUP_CONFIG.CLEANUP_INTERVAL_MS);
 

@@ -460,7 +460,9 @@ const SATZUNGEN_SOURCES: readonly SatzungSource[] = [
  */
 export class SatzungenScraper extends BaseScraper {
   private landesverband: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private qdrant: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private mistralClient: any;
   private crawlDelay: number;
   private batchSize: number;
@@ -494,7 +496,7 @@ export class SatzungenScraper extends BaseScraper {
 
     // Import Mistral client dynamically
     const mod = await import('../../../workers/mistralClient.js');
-    this.mistralClient = (mod as any).default || mod;
+    this.mistralClient = (mod as { default?: unknown }).default || mod;
 
     this.log('Service initialized');
   }
@@ -528,7 +530,7 @@ export class SatzungenScraper extends BaseScraper {
   /**
    * Extract content from HTML
    */
-  #extractContentFromHtml(html: string, url: string): { title: string; text: string } {
+  #extractContentFromHtml(html: string, _url: string): { title: string; text: string } {
     const $ = cheerio.load(html);
 
     // Remove unwanted elements using shared utility
@@ -666,7 +668,9 @@ export class SatzungenScraper extends BaseScraper {
       return { stored: false, reason: 'no_chunks' };
     }
 
-    const chunkTexts = chunks.map((c: any) => c.text || c.chunk_text);
+    const chunkTexts = chunks.map(
+      (c: { text?: string; chunk_text?: string }) => c.text || c.chunk_text || ''
+    );
     const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
 
     const points = chunks.map((chunk, index) => ({
@@ -721,7 +725,7 @@ export class SatzungenScraper extends BaseScraper {
       // Clean up temp file
       try {
         await fs.unlink(tempPath);
-      } catch (e) {
+      } catch (_e) {
         // Ignore cleanup errors
       }
     }
@@ -865,7 +869,7 @@ export class SatzungenScraper extends BaseScraper {
 
     const queryVector = await mistralEmbeddingService.generateQueryEmbedding(query);
 
-    const filter: any = { must: [] };
+    const filter: { must: Array<Record<string, unknown>> } = { must: [] };
     if (gremium) {
       filter.must.push({ key: 'gremium', match: { value: gremium } });
     }
@@ -909,6 +913,7 @@ export class SatzungenScraper extends BaseScraper {
   /**
    * Get collection statistics
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getStats(): Promise<any> {
     try {
       const stats = await getCollectionStats(this.qdrant.client, this.config.collectionName);

@@ -8,7 +8,7 @@
  * - POST /hybrid-test - Hybrid search testing endpoint
  */
 
-import express, { type Router, Request, type Response } from 'express';
+import express, { type Router, type Response } from 'express';
 
 import { getDocumentContentService } from '../../services/document-services/DocumentContentService/index.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
@@ -253,6 +253,7 @@ router.post('/hybrid-test', async (req: DocumentRequest, res: Response): Promise
         results: hybridResult.results,
         search_type: hybridResult.searchType,
         message: hybridResult.message,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         stats: (hybridResult as any).stats,
       },
     };

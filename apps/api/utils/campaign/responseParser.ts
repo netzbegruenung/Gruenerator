@@ -210,7 +210,7 @@ export const multiLineExtractor = (
 export const jsonExtractor = (rawResponse: string, config: JsonExtractorConfig): ParsedResponse => {
   const { fieldMapping = {}, strict = false } = config;
 
-  let parsedJson: any;
+  let parsedJson: Record<string, unknown>;
 
   try {
     // Try to parse the response as JSON
@@ -238,7 +238,7 @@ export const jsonExtractor = (rawResponse: string, config: JsonExtractorConfig):
       throw new Error(`Missing required field: ${sourceField}`);
     }
 
-    result[outputField] = value || '';
+    result[outputField] = (value || '') as string;
   }
 
   return result;
@@ -317,6 +317,7 @@ export const parseResponse = (
       return regexExtractor(rawResponse, config);
 
     default:
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       throw new Error(`Unknown parser type: ${(parserConfig as any).type}`);
   }
 };

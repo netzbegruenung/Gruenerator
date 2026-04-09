@@ -13,6 +13,7 @@ export class CrawleeCrawler {
    * Crawls URL using Crawlee with memory-only storage
    */
   async crawlWithCrawlee(url: string, options: CrawlOptions = {}): Promise<RawCrawlResult> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let crawlee: any;
     try {
       crawlee = await import('crawlee');
@@ -78,8 +79,11 @@ export class CrawleeCrawler {
    */
   private async runCheerioCrawler(
     url: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     options: any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     CheerioCrawler: any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     crawlerConfig: any
   ): Promise<RawCrawlResult> {
     const results: RawCrawlResult[] = [];
@@ -93,6 +97,7 @@ export class CrawleeCrawler {
         persistCookiesPerSession: false,
         useSessionPool: false,
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         requestHandler: async ({
           request,
           response,
@@ -143,12 +148,14 @@ export class CrawleeCrawler {
           }
         },
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         errorHandler: ({ request, error }: { request: any; error: Error }) => {
           console.error(`[CrawleeCrawler] CheerioCrawler error for ${request.url}:`, error.message);
         },
 
         // Custom headers
         preNavigationHooks: [
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           async ({ request }: { request: any }) => {
             request.headers = {
               ...request.headers,
@@ -191,8 +198,11 @@ export class CrawleeCrawler {
    */
   private async runPlaywrightCrawler(
     url: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     options: any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     PlaywrightCrawler: any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     crawlerConfig: any
   ): Promise<RawCrawlResult> {
     const results: RawCrawlResult[] = [];
@@ -211,6 +221,7 @@ export class CrawleeCrawler {
           userAgent: options.userAgent,
         },
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         requestHandler: async ({ request, page }: { request: any; page: any }) => {
           try {
             // Wait for page to load
@@ -241,6 +252,7 @@ export class CrawleeCrawler {
           }
         },
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         errorHandler: ({ request, error }: { request: any; error: Error }) => {
           console.error(
             `[CrawleeCrawler] PlaywrightCrawler error for ${request.url}:`,

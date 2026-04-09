@@ -33,7 +33,7 @@ interface QueryStats {
 /**
  * Generic batch processor for async operations
  */
-export class BatchProcessor<T = any, R = any> {
+export class BatchProcessor<T = unknown, R = unknown> {
   protected batchSize: number;
   protected maxConcurrent: number;
   protected maxRetries: number;
@@ -210,10 +210,16 @@ export class BatchProcessor<T = any, R = any> {
 /**
  * Specialized batch processor for embedding generation
  */
-export class EmbeddingBatchProcessor extends BatchProcessor {
-  private embeddingService: any;
+export class EmbeddingBatchProcessor extends BatchProcessor<
+  string,
+  { query: string; embedding: number[]; dimensions: number }
+> {
+  private embeddingService: { generateQueryEmbedding(query: string): Promise<number[]> };
 
-  constructor(embeddingService: any, options: BatchProcessorOptions = {}) {
+  constructor(
+    embeddingService: { generateQueryEmbedding(query: string): Promise<number[]> },
+    options: BatchProcessorOptions = {}
+  ) {
     super({
       batchSize: options.batchSize || 5,
       maxConcurrent: options.maxConcurrent || 3,
@@ -245,10 +251,26 @@ export class EmbeddingBatchProcessor extends BatchProcessor {
 /**
  * Specialized batch processor for database chunk expansion
  */
-export class ChunkExpansionBatchProcessor extends BatchProcessor {
-  private vectorSearchService: any;
+export class ChunkExpansionBatchProcessor extends BatchProcessor<
+  Record<string, unknown>,
+  Record<string, unknown>
+> {
+  private vectorSearchService: {
+    expandSingleChunk(
+      chunk: Record<string, unknown>,
+      options: Record<string, unknown>
+    ): Promise<Record<string, unknown>>;
+  };
 
-  constructor(vectorSearchService: any, options: BatchProcessorOptions = {}) {
+  constructor(
+    vectorSearchService: {
+      expandSingleChunk(
+        chunk: Record<string, unknown>,
+        options: Record<string, unknown>
+      ): Promise<Record<string, unknown>>;
+    },
+    options: BatchProcessorOptions = {}
+  ) {
     super({
       batchSize: options.batchSize || 10,
       maxConcurrent: options.maxConcurrent || 5,
@@ -261,14 +283,14 @@ export class ChunkExpansionBatchProcessor extends BatchProcessor {
   /**
    * Expand chunks with context in batches
    */
-  async expandChunks(chunks: any[], options: any = {}) {
+  async expandChunks(chunks: Record<string, unknown>[], options: Record<string, unknown> = {}) {
     return await this.processBatches(chunks, async (batch) => {
       const expandedChunks = await Promise.all(
         batch.map((chunk) =>
           this.vectorSearchService.expandSingleChunk(chunk, options).catch((error: Error) => ({
             ...chunk,
             expansion_error: error.message,
-            expanded_content: chunk.chunk_text,
+            expanded_content: (chunk as Record<string, unknown>).chunk_text,
           }))
         )
       );
@@ -283,8 +305,17 @@ export class ChunkExpansionBatchProcessor extends BatchProcessor {
  */
 export const createBatchProcessor = {
   general: (options: BatchProcessorOptions = {}) => new BatchProcessor(options),
-  embeddings: (embeddingService: any, options: BatchProcessorOptions = {}) =>
-    new EmbeddingBatchProcessor(embeddingService, options),
-  chunkExpansion: (vectorSearchService: any, options: BatchProcessorOptions = {}) =>
-    new ChunkExpansionBatchProcessor(vectorSearchService, options),
+  embeddings: (
+    embeddingService: { generateQueryEmbedding(query: string): Promise<number[]> },
+    options: BatchProcessorOptions = {}
+  ) => new EmbeddingBatchProcessor(embeddingService, options),
+  chunkExpansion: (
+    vectorSearchService: {
+      expandSingleChunk(
+        chunk: Record<string, unknown>,
+        options: Record<string, unknown>
+      ): Promise<Record<string, unknown>>;
+    },
+    options: BatchProcessorOptions = {}
+  ) => new ChunkExpansionBatchProcessor(vectorSearchService, options),
 };

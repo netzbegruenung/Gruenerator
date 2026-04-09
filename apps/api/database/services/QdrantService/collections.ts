@@ -8,15 +8,14 @@ import { type QdrantClient } from '@qdrant/js-client-rest';
 import { createLogger } from '../../../utils/logger.js';
 
 import type { CollectionStats, CollectionNames, CollectionKey } from './types.js';
+import type {
+  CollectionSchema,
+  CollectionConfig,
+} from '../../../config/qdrantCollectionsSchema.js';
 import type { Logger } from 'winston';
 
 // Re-export types from qdrantCollectionsSchema for consistency
 export type {
-  CollectionSchema,
-  CollectionConfig,
-} from '../../../config/qdrantCollectionsSchema.js';
-
-import type {
   CollectionSchema,
   CollectionConfig,
 } from '../../../config/qdrantCollectionsSchema.js';
@@ -69,7 +68,7 @@ export async function createCollections(
     const existingCollections = await client.getCollections();
     const existingNames = new Set(existingCollections.collections.map((c) => c.name));
 
-    for (const [key, schema] of Object.entries(COLLECTION_SCHEMAS)) {
+    for (const [_key, schema] of Object.entries(COLLECTION_SCHEMAS)) {
       if (existingNames.has(schema.name)) {
         log.debug(`Collection ${schema.name} already exists, skipping`);
         continue;

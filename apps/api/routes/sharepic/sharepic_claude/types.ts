@@ -40,6 +40,7 @@ export interface SharepicRequestBody {
   name?: string;
   preserveName?: boolean;
   _campaignPrompt?: PromptConfig;
+  [key: string]: unknown;
 }
 
 export interface PromptConfig {

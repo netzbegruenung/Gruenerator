@@ -59,8 +59,11 @@ export class OffboardingService {
         if (!after) {
           break;
         }
-      } catch (error: any) {
-        log.error('Failed to fetch users from API:', error.message);
+      } catch (error: unknown) {
+        log.error(
+          'Failed to fetch users from API:',
+          error instanceof Error ? error.message : String(error)
+        );
         break;
       }
     }
@@ -92,8 +95,11 @@ export class OffboardingService {
           yield [...upserts];
           upserts.length = 0; // Clear array
         }
-      } catch (error: any) {
-        log.error(`Error processing user ${user.username}:`, error.message);
+      } catch (error: unknown) {
+        log.error(
+          `Error processing user ${user.username}:`,
+          error instanceof Error ? error.message : String(error)
+        );
         break;
       }
     }
@@ -117,8 +123,8 @@ export class OffboardingService {
 
     try {
       retriesProcessed = await RetryManager.processRetries(this.apiClient);
-    } catch (error: any) {
-      log.error('Retry processing failed:', error.message);
+    } catch (error: unknown) {
+      log.error('Retry processing failed:', error instanceof Error ? error.message : String(error));
       success = false;
     }
 
@@ -130,15 +136,21 @@ export class OffboardingService {
       try {
         await this.apiClient.batchUpdateOffboardingUsers(batch);
         log.info(`Successfully reported ${batch.length} processed users to API`);
-      } catch (error: any) {
-        log.error('Failed to report processed users to API:', error.message);
+      } catch (error: unknown) {
+        log.error(
+          'Failed to report processed users to API:',
+          error instanceof Error ? error.message : String(error)
+        );
         success = false;
 
         try {
           await RetryManager.saveRetries(batch);
           log.info('Saved failed batch for retry');
-        } catch (retryError: any) {
-          log.error('Failed to save retry data:', retryError.message);
+        } catch (retryError: unknown) {
+          log.error(
+            'Failed to save retry data:',
+            retryError instanceof Error ? retryError.message : String(retryError)
+          );
         }
         break;
       }
@@ -194,8 +206,11 @@ export async function runOffboardingCLI(): Promise<void> {
     const service = new OffboardingService();
     const result = await service.runOffboarding();
     process.exit(result.success ? 0 : 1);
-  } catch (error: any) {
-    log.error('Offboarding service failed:', error.message);
+  } catch (error: unknown) {
+    log.error(
+      'Offboarding service failed:',
+      error instanceof Error ? error.message : String(error)
+    );
     process.exit(1);
   }
 }

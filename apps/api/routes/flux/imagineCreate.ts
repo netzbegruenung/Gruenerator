@@ -19,7 +19,7 @@ import type { AuthenticatedRequest } from '../../middleware/types.js';
 
 const log = createLogger('imagineCreate');
 const router = express.Router();
-const imageCounter = new ImageGenerationCounter(redisClient as any);
+const imageCounter = new ImageGenerationCounter(redisClient);
 
 // ============================================================================
 // Type Definitions
@@ -63,6 +63,7 @@ interface FluxGenerationResult {
 // Helper Functions
 // ============================================================================
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function buildCreatePrompt(userPrompt: string, variant: ImageVariant = 'light-top'): any {
   return buildFluxPrompt({
     variant,
@@ -258,32 +259,34 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
         limit: updatedLimitStatus.limit,
       },
     });
-  } catch (error: any) {
-    log.error('[ImagineCreate] Error during image creation:', error.message);
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const typed = error as { type?: string; retryable?: boolean; response?: { status?: number } };
+    log.error('[ImagineCreate] Error during image creation:', errMsg);
 
-    if (error.response?.status) {
-      log.error('[ImagineCreate] API response status:', error.response.status);
+    if (typed.response?.status) {
+      log.error('[ImagineCreate] API response status:', typed.response.status);
     }
 
     const statusCode =
-      error.type === 'validation'
+      typed.type === 'validation'
         ? 400
-        : error.type === 'billing'
+        : typed.type === 'billing'
           ? 402
-          : error.retryable === false
+          : typed.retryable === false
             ? 400
             : 500;
 
     return res.status(statusCode).json({
       success: false,
-      error: error.message || 'Failed to create image',
-      type: error.type || 'unknown',
-      retryable: error.retryable ?? true,
-      ...(error.type === 'network' && {
+      error: errMsg || 'Failed to create image',
+      type: typed.type || 'unknown',
+      retryable: typed.retryable ?? true,
+      ...(typed.type === 'network' && {
         hint: 'Please check your internet connection and try again',
       }),
-      ...(error.type === 'billing' && { hint: 'Please add credits to your BFL account' }),
-      ...(error.type === 'server' && {
+      ...(typed.type === 'billing' && { hint: 'Please add credits to your BFL account' }),
+      ...(typed.type === 'server' && {
         hint: 'The service is temporarily unavailable. Please try again in a few minutes',
       }),
     });

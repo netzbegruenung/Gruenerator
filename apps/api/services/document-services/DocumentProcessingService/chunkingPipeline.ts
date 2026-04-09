@@ -31,7 +31,7 @@ export async function chunkAndEmbedText(
     throw new Error('Text could not be processed into chunks');
   }
 
-  const texts = chunks.map((chunk: any) => chunk.text);
+  const texts = chunks.map((chunk) => chunk.text);
   const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
     texts,
     'search_document'

@@ -100,6 +100,7 @@ export class GruenblogScraper extends BaseScraper {
   private timeout: number;
   private maxRetries: number;
   private userAgent: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private qdrant: any;
 
   constructor() {
@@ -196,10 +197,11 @@ export class GruenblogScraper extends BaseScraper {
   /**
    * Extract content from HTML using Rank Math JSON-LD and .entry-content
    */
-  #extractContent(html: string, url: string): ExtractedContent {
+  #extractContent(html: string, _url: string): ExtractedContent {
     const $ = cheerio.load(html);
 
     // Parse JSON-LD metadata (Rank Math uses @graph array)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let jsonLdData: any = null;
     $('script[type="application/ld+json"]').each((_, el) => {
       try {
@@ -207,6 +209,7 @@ export class GruenblogScraper extends BaseScraper {
         if (data['@graph']) {
           // Rank Math pattern: find the Article node in @graph
           jsonLdData = data['@graph'].find(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (node: any) =>
               node['@type'] === 'Article' ||
               node['@type'] === 'BlogPosting' ||
@@ -389,6 +392,7 @@ export class GruenblogScraper extends BaseScraper {
       return { stored: false, reason: 'no_chunks' };
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const chunkTexts = chunks.map((c: any) => c.text || c.chunk_text);
     const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
 

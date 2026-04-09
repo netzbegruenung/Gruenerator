@@ -506,14 +506,14 @@ router.post('/transcribe-upload', async (req: Request, res: Response<TranscribeR
 
   const filePath = getFilePathFromUploadId(uploadId);
   if (!(await checkFileExists(filePath))) {
-    scheduleImmediateCleanup(uploadId, 'file not found');
+    void scheduleImmediateCleanup(uploadId, 'file not found');
     return res.status(404).json({ success: false, error: 'Upload nicht gefunden' });
   }
 
   try {
     markUploadAsProcessed(uploadId);
     const uploadStatus = await getUploadStatus(uploadId);
-    const meta = uploadStatus.metadata?.metadata;
+    const meta = uploadStatus.metadata?.metadata as Record<string, string> | undefined;
     let audioBuffer: Buffer = Buffer.from(await fs.promises.readFile(filePath));
     let filename = sanitizeFilename(meta?.filename || 'audio.mp3', 'audio.mp3');
     const filetype = meta?.filetype || '';
@@ -539,7 +539,7 @@ router.post('/transcribe-upload', async (req: Request, res: Response<TranscribeR
       speakerMap = await identifySpeakers(result.text);
     }
 
-    scheduleImmediateCleanup(uploadId, 'transcription complete');
+    void scheduleImmediateCleanup(uploadId, 'transcription complete');
 
     return res.json({
       success: true,
@@ -551,7 +551,7 @@ router.post('/transcribe-upload', async (req: Request, res: Response<TranscribeR
     });
   } catch (error) {
     log.error('[Voice] TUS transcription error:', error);
-    scheduleImmediateCleanup(uploadId, 'transcription error');
+    void scheduleImmediateCleanup(uploadId, 'transcription error');
     return res.status(500).json({
       success: false,
       error: 'Fehler bei der Transkription: ' + (error as Error).message,
@@ -572,7 +572,7 @@ router.post('/transcribe-upload/stream', async (req: Request, res: Response) => 
 
   const filePath = getFilePathFromUploadId(uploadId);
   if (!(await checkFileExists(filePath))) {
-    scheduleImmediateCleanup(uploadId, 'file not found');
+    void scheduleImmediateCleanup(uploadId, 'file not found');
     return res.status(404).json({ success: false, error: 'Upload nicht gefunden' });
   }
 
@@ -581,7 +581,7 @@ router.post('/transcribe-upload/stream', async (req: Request, res: Response) => 
   try {
     markUploadAsProcessed(uploadId);
     const uploadStatus = await getUploadStatus(uploadId);
-    const meta = uploadStatus.metadata?.metadata;
+    const meta = uploadStatus.metadata?.metadata as Record<string, string> | undefined;
     let audioBuffer: Buffer = Buffer.from(await fs.promises.readFile(filePath));
     let filename = sanitizeFilename(meta?.filename || 'audio.mp3', 'audio.mp3');
     const filetype = meta?.filetype || '';
@@ -635,10 +635,10 @@ router.post('/transcribe-upload/stream', async (req: Request, res: Response) => 
       }
     }
 
-    scheduleImmediateCleanup(uploadId, 'transcription complete');
+    void scheduleImmediateCleanup(uploadId, 'transcription complete');
   } catch (error) {
     log.error('[Voice] TUS streaming transcription error:', error);
-    scheduleImmediateCleanup(uploadId, 'transcription error');
+    void scheduleImmediateCleanup(uploadId, 'transcription error');
     sse.sendRaw('error', { type: 'error', text: (error as Error).message });
   }
 

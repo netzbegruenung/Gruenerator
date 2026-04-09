@@ -1,5 +1,6 @@
 import type { EnrichedState, EnrichmentMetadata } from '../../../utils/types/requestEnrichment.js';
 import type { ArgumentResult } from '../PRAgent/generators/argumentsGenerator.js';
+import type { Request } from 'express';
 
 export type AntragRequestType = 'antrag' | 'kleine_anfrage' | 'grosse_anfrage';
 
@@ -17,7 +18,7 @@ export interface AntragAgentInput {
   selectedTextIds: string[];
   attachments: unknown[];
   searchQuery: string;
-  req: any;
+  req: Request;
 }
 
 export interface AntragAgentState {
@@ -35,7 +36,7 @@ export interface AntragAgentState {
   selectedTextIds: string[];
   attachments: unknown[];
   searchQuery: string;
-  req: any;
+  req: Request;
 
   // Research output
   enrichedState: EnrichedState | null;

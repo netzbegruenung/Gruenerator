@@ -13,15 +13,18 @@ import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
+import type { SubtitlerProjectService } from '../../services/subtitler/ProjectService.js';
+import type SubtitlerShareService from '../../services/subtitler/shareService.js';
+import type { SubtitlerProject } from '../../services/subtitler/types.js';
 
 const fsPromises = fs.promises;
 const log = createLogger('subtitler-share');
 const router: Router = express.Router();
 
-let shareService: any = null;
-let projectService: any = null;
+let shareService: SubtitlerShareService | null = null;
+let projectService: SubtitlerProjectService | null = null;
 
-async function getShareService() {
+async function getShareService(): Promise<SubtitlerShareService> {
   if (!shareService) {
     const { getSubtitlerShareService } = await import('../../services/subtitler/shareService.js');
     shareService = getSubtitlerShareService();
@@ -30,7 +33,7 @@ async function getShareService() {
   return shareService;
 }
 
-async function getProjectService() {
+async function getProjectService(): Promise<SubtitlerProjectService> {
   if (!projectService) {
     const { getSubtitlerProjectService } = await import('../../services/subtitler/index.js');
     projectService = getSubtitlerProjectService();
@@ -43,14 +46,23 @@ async function triggerBackgroundRender(
   userId: string,
   projectId: string,
   shareToken: string,
-  project: any
+  project: SubtitlerProject
 ): Promise<void> {
   try {
     const projService = await getProjectService();
     const { processProjectExport } = await import('../../services/subtitler/exportService.js');
 
     log.info(`Background render starting for share ${shareToken}`);
-    const result = await processProjectExport(project, projService);
+    const result = await processProjectExport(
+      {
+        id: project.id,
+        video_path: project.video_path,
+        subtitles: project.subtitles,
+        style_preference: project.style_preference,
+        height_preference: project.height_preference,
+      },
+      projService
+    );
 
     const subtitledVideoRelativePath = `${userId}/${projectId}/subtitled_${Date.now()}.mp4`;
     const subtitledVideoFullPath = projService.getSubtitledVideoPath(subtitledVideoRelativePath);
@@ -68,7 +80,7 @@ async function triggerBackgroundRender(
       /* ignore cleanup error */
     }
     log.info(`Background render complete for share ${shareToken}`);
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.error(`Background render failed for ${shareToken}:`, error);
     const service = await getShareService();
     await service.markShareFailed(shareToken);
@@ -109,9 +121,9 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response): 
     const share = await service.createShare(userId, {
       videoPath: exportData.outputPath,
       title: title || 'Untertiteltes Video',
-      thumbnailPath: null,
-      duration: exportData.duration || null,
-      projectId: projectId || null,
+      thumbnailPath: undefined,
+      duration: exportData.duration || undefined,
+      projectId: projectId || undefined,
       expiresInDays,
     });
 
@@ -120,7 +132,7 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response): 
       success: true,
       share: { shareToken: share.shareToken, shareUrl: share.shareUrl, expiresAt: share.expiresAt },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.error('Failed to create share:', error);
     res.status(500).json({ success: false, error: 'Share konnte nicht erstellt werden' });
   }
@@ -180,15 +192,16 @@ router.post(
           return;
         }
 
+        const videoDuration = project.video_metadata?.duration;
         const share = await service.createPendingShare(userId, {
           title: title || project.title || 'Untertiteltes Video',
-          thumbnailPath,
-          duration: project.video_metadata?.duration || null,
+          thumbnailPath: thumbnailPath || undefined,
+          duration: typeof videoDuration === 'number' ? videoDuration : undefined,
           projectId,
           expiresInDays,
         });
 
-        triggerBackgroundRender(userId, projectId, share.shareToken, project);
+        void triggerBackgroundRender(userId, projectId, share.shareToken, project);
         res.json({
           success: true,
           share: {
@@ -215,15 +228,16 @@ router.post(
           return;
         }
 
+        const videoDuration2 = project.video_metadata?.duration;
         const share = await service.createPendingShare(userId, {
           title: title || project.title || 'Untertiteltes Video',
-          thumbnailPath,
-          duration: project.video_metadata?.duration || null,
+          thumbnailPath: thumbnailPath || undefined,
+          duration: typeof videoDuration2 === 'number' ? videoDuration2 : undefined,
           projectId,
           expiresInDays,
         });
 
-        triggerBackgroundRender(userId, projectId, share.shareToken, project);
+        void triggerBackgroundRender(userId, projectId, share.shareToken, project);
         res.json({
           success: true,
           share: {
@@ -236,11 +250,12 @@ router.post(
         return;
       }
 
+      const videoDuration3 = project.video_metadata?.duration;
       const share = await service.createShare(userId, {
         videoPath,
         title: title || project.title || 'Untertiteltes Video',
-        thumbnailPath,
-        duration: project.video_metadata?.duration || null,
+        thumbnailPath: thumbnailPath || undefined,
+        duration: typeof videoDuration3 === 'number' ? videoDuration3 : undefined,
         projectId,
         expiresInDays,
       });
@@ -254,7 +269,7 @@ router.post(
           status: 'ready',
         },
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       log.error('Failed to create share from project:', error);
       res.status(500).json({ success: false, error: 'Share konnte nicht erstellt werden' });
     }
@@ -268,50 +283,55 @@ router.get('/my', requireAuth, async (req: AuthenticatedRequest, res: Response):
     const service = await getShareService();
     const shares = await service.getUserShares(userId);
     res.json({ success: true, shares });
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.error('Failed to get user shares:', error);
     res.status(500).json({ success: false, error: 'Geteilte Videos konnten nicht geladen werden' });
   }
 });
 
 // GET /:shareToken - Get share info (public)
-router.get('/:shareToken', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  try {
-    const { shareToken } = req.params;
-    const service = await getShareService();
-    const share = await service.getShareByToken(shareToken);
+router.get(
+  '/:shareToken',
+  async (req: AuthenticatedRequest<{ shareToken: string }>, res: Response): Promise<void> => {
+    try {
+      const { shareToken } = req.params;
+      const service = await getShareService();
+      const share = await service.getShareByToken(shareToken);
 
-    if (!share) {
-      res.status(404).json({ success: false, error: 'Geteiltes Video nicht gefunden' });
-      return;
-    }
-    if (share.expired) {
-      res.status(410).json({ success: false, error: 'Link abgelaufen', expired: true });
-      return;
-    }
+      if (!share) {
+        res.status(404).json({ success: false, error: 'Geteiltes Video nicht gefunden' });
+        return;
+      }
+      if (share.expired) {
+        res.status(410).json({ success: false, error: 'Link abgelaufen', expired: true });
+        return;
+      }
 
-    res.json({
-      success: true,
-      share: {
-        title: share.title,
-        duration: share.duration,
-        thumbnailUrl: share.thumbnail_path ? `/api/subtitler/share/${shareToken}/thumbnail` : null,
-        expiresAt: share.expires_at,
-        downloadCount: share.download_count,
-        sharerName: share.sharer_name,
-        status: share.status || 'ready',
-      },
-    });
-  } catch (error: any) {
-    log.error('Failed to get share info:', error);
-    res.status(500).json({ success: false, error: 'Fehler beim Laden des geteilten Videos' });
+      res.json({
+        success: true,
+        share: {
+          title: share.title,
+          duration: share.duration,
+          thumbnailUrl: share.thumbnail_path
+            ? `/api/subtitler/share/${shareToken}/thumbnail`
+            : null,
+          expiresAt: share.expires_at,
+          downloadCount: share.download_count,
+          sharerName: share.sharer_name,
+          status: share.status || 'ready',
+        },
+      });
+    } catch (error: unknown) {
+      log.error('Failed to get share info:', error);
+      res.status(500).json({ success: false, error: 'Fehler beim Laden des geteilten Videos' });
+    }
   }
-});
+);
 
 // GET /:shareToken/thumbnail (public)
 router.get(
   '/:shareToken/thumbnail',
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  async (req: AuthenticatedRequest<{ shareToken: string }>, res: Response): Promise<void> => {
     try {
       const { shareToken } = req.params;
       const service = await getShareService();
@@ -323,13 +343,17 @@ router.get(
       }
 
       const thumbnailPath = service.getThumbnailFilePath(share.thumbnail_path);
+      if (!thumbnailPath) {
+        res.status(404).json({ error: 'Thumbnail nicht gefunden' });
+        return;
+      }
       try {
         await fsPromises.access(thumbnailPath);
         res.sendFile(thumbnailPath);
       } catch {
         res.status(404).json({ error: 'Thumbnail-Datei nicht gefunden' });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       log.error('Failed to get thumbnail:', error);
       res.status(500).json({ error: 'Fehler beim Laden des Thumbnails' });
     }
@@ -339,7 +363,7 @@ router.get(
 // GET /:shareToken/preview (public)
 router.get(
   '/:shareToken/preview',
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  async (req: AuthenticatedRequest<{ shareToken: string }>, res: Response): Promise<void> => {
     try {
       const { shareToken } = req.params;
       const service = await getShareService();
@@ -390,7 +414,7 @@ router.get(
       } catch {
         res.status(404).json({ error: 'Video-Datei nicht gefunden' });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       log.error('Failed to stream preview:', error);
       res.status(500).json({ error: 'Fehler beim Laden der Vorschau' });
     }
@@ -401,7 +425,7 @@ router.get(
 router.get(
   '/:shareToken/download',
   requireAuth,
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  async (req: AuthenticatedRequest<{ shareToken: string }>, res: Response): Promise<void> => {
     try {
       const { shareToken } = req.params;
       const userId = req.user!.id;
@@ -433,7 +457,7 @@ router.get(
         return;
       }
 
-      const ipAddress = req.ip || (req as any).connection?.remoteAddress;
+      const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
       await service.recordDownload(shareToken, userEmail, ipAddress);
 
       const videoPath = service.getVideoFilePath(share.video_path);
@@ -451,7 +475,7 @@ router.get(
       } catch {
         res.status(404).json({ success: false, error: 'Video-Datei nicht gefunden' });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       log.error('Failed to download share:', error);
       if (!res.headersSent) res.status(500).json({ success: false, error: 'Fehler beim Download' });
     }
@@ -462,7 +486,7 @@ router.get(
 router.delete(
   '/:shareToken',
   requireAuth,
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  async (req: AuthenticatedRequest<{ shareToken: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { shareToken } = req.params;
@@ -471,9 +495,10 @@ router.delete(
       await service.deleteShare(userId, shareToken);
       log.info(`Share deleted: ${shareToken} by user ${userId}`);
       res.json({ success: true, message: 'Geteiltes Video gelöscht' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       log.error('Failed to delete share:', error);
-      if (error.message.includes('not found') || error.message.includes('not owned')) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      if (errMsg.includes('not found') || errMsg.includes('not owned')) {
         res.status(404).json({
           success: false,
           error: 'Geteiltes Video nicht gefunden oder keine Berechtigung',

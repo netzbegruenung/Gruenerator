@@ -339,11 +339,11 @@ router.post('/:threadId/generate-title', async (req, res) => {
 
     log.info(
       `[generate-title] Found ${messages.length} messages for thread ${threadId}:`,
-      messages.map((m: any) => ({ role: m.role, contentLen: String(m.content).length }))
+      messages.map((m) => ({ role: m.role as string, contentLen: String(m.content).length }))
     );
 
-    const userMsg = messages.find((m: any) => m.role === 'user');
-    const assistantMsg = messages.find((m: any) => m.role === 'assistant');
+    const userMsg = messages.find((m) => m.role === 'user');
+    const assistantMsg = messages.find((m) => m.role === 'assistant');
 
     if (!userMsg || !assistantMsg) {
       log.warn(`[generate-title] Skipping — userMsg=${!!userMsg}, assistantMsg=${!!assistantMsg}`);

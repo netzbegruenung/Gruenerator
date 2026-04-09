@@ -21,7 +21,8 @@ import {
   buildMethodologySection,
 } from '../utilities/dossierBuilder.js';
 
-import type { WebSearchState, Citation, ResearchDossier, SearchResult } from '../types.js';
+import type { ExpandedChunkResult, ReferencesMap } from '../../../../services/search/types.js';
+import type { WebSearchState, ResearchDossier, SearchResult } from '../types.js';
 
 /**
  * Dossier Node: Generate comprehensive research dossier with citations
@@ -35,7 +36,7 @@ export async function dossierNode(state: WebSearchState): Promise<Partial<WebSea
 
   try {
     // Combine all sources for citation reference building
-    const allSources: any[] = [];
+    const allSources: Array<ExpandedChunkResult & { source_type?: string }> = [];
 
     // Add web search results
     if (state.aggregatedResults && state.aggregatedResults.length > 0) {
@@ -131,8 +132,8 @@ ${refsSummary}`;
 
     // Process the AI response for citations
     const { cleanDraft, citations, sources, errors } = validateAndInjectCitations(
-      result.content,
-      referencesMap
+      result.content || '',
+      referencesMap as ReferencesMap
     );
 
     // Log citation validation errors if any

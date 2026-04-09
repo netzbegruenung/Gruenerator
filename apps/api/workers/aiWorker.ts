@@ -191,15 +191,20 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
         ? providerFallback.trySharepicFallbackProviders
         : providerFallback.tryPrivacyModeProviders;
 
+      const fallbackData: PrivacyProviderData = {
+        ...data,
+        options: data.options || {},
+      };
       const fallbackResult = await fallbackFn(
         async (providerName: ProviderName, privacyData) => {
-          return providers.executeProvider(providerName, requestId, privacyData as AIRequestData);
+          return providers.executeProvider(
+            providerName,
+            requestId,
+            privacyData as unknown as AIRequestData
+          );
         },
         requestId,
-        {
-          ...data,
-          options: data.options || {},
-        } as unknown as PrivacyProviderData
+        fallbackData
       );
       result = { ...fallbackResult, success: true } as AIWorkerResult;
     }
@@ -218,19 +223,24 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
       console.log(
         `[AI Worker ${requestId}] Falling back to ${isSharepicType ? 'sharepic' : 'privacy mode'} providers`
       );
+      const errorFallbackData: PrivacyProviderData = {
+        ...data,
+        options: data.options || {},
+      };
       const fallbackResult = await fallbackFn(
         async (providerName: ProviderName, privacyData) => {
-          const temp = (privacyData.options as unknown as { temperature?: number })?.temperature;
+          const temp = (privacyData.options as AIRequestOptions | undefined)?.temperature;
           console.log(
             `[AI Worker ${requestId}] Trying fallback provider: ${providerName} with temperature: ${temp ?? 'default'}`
           );
-          return providers.executeProvider(providerName, requestId, privacyData as AIRequestData);
+          return providers.executeProvider(
+            providerName,
+            requestId,
+            privacyData as unknown as AIRequestData
+          );
         },
         requestId,
-        {
-          ...data,
-          options: data.options || {},
-        } as unknown as PrivacyProviderData
+        errorFallbackData
       );
       return { ...fallbackResult, success: true } as AIWorkerResult;
     } catch {

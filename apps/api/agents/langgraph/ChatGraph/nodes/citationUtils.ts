@@ -67,8 +67,9 @@ export function deriveCitationTitle(
       const pathSegments = urlObj.pathname
         .split('/')
         .filter((s) => s.length > 0 && !s.match(/^\d+$/));
-      if (pathSegments.length > 0) {
-        const lastSegment = pathSegments[pathSegments.length - 1]
+      const lastPathSegment = pathSegments[pathSegments.length - 1];
+      if (lastPathSegment) {
+        const lastSegment = lastPathSegment
           .replace(/\.[^.]+$/, '')
           .replace(/[-_]+/g, ' ')
           .trim();

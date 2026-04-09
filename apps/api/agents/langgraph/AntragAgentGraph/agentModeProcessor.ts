@@ -62,7 +62,7 @@ export async function processAntragAgentStreaming(req: Request, res: Response): 
     });
 
     let fullOutput = '';
-    let finalState: any = null;
+    let finalState: Record<string, unknown> | null = null;
 
     for await (const update of stream) {
       if (abortController.signal.aborted) {
@@ -71,7 +71,7 @@ export async function processAntragAgentStreaming(req: Request, res: Response): 
       }
 
       for (const [nodeName, nodeOutput] of Object.entries(update)) {
-        const output = nodeOutput as Record<string, any>;
+        const output = nodeOutput as Record<string, unknown>;
 
         switch (nodeName) {
           case 'research': {
@@ -82,7 +82,7 @@ export async function processAntragAgentStreaming(req: Request, res: Response): 
 
             if (output.argumentsSummary) {
               log.debug(
-                `[agentMode] Research complete: ${output.arguments?.length || 0} arguments found`
+                `[agentMode] Research complete: ${(output.arguments as unknown[] | undefined)?.length || 0} arguments found`
               );
             }
             break;
@@ -98,12 +98,13 @@ export async function processAntragAgentStreaming(req: Request, res: Response): 
 
           case 'generate': {
             if (output.generatedContent) {
+              const generatedContent = output.generatedContent as string;
               log.debug(
-                `[agentMode] generate text_delta: ${output.generatedContent.length} chars, ` +
-                  `starts with fence: ${/^[\s]*```/.test(output.generatedContent)}`
+                `[agentMode] generate text_delta: ${generatedContent.length} chars, ` +
+                  `starts with fence: ${/^[\s]*```/.test(generatedContent)}`
               );
-              fullOutput += output.generatedContent;
-              sse.sendRaw('text_delta', { text: output.generatedContent });
+              fullOutput += generatedContent;
+              sse.sendRaw('text_delta', { text: generatedContent });
             }
 
             sse.sendRaw('progress', {
@@ -117,7 +118,7 @@ export async function processAntragAgentStreaming(req: Request, res: Response): 
             finalState = output;
 
             if (output.formattedOutput) {
-              const suffix = output.formattedOutput.substring(fullOutput.length);
+              const suffix = (output.formattedOutput as string).substring(fullOutput.length);
               log.debug(
                 `[agentMode] format suffix: ${suffix.length} chars, ` +
                   `fullOutput so far: ${fullOutput.length} chars`
@@ -138,7 +139,7 @@ export async function processAntragAgentStreaming(req: Request, res: Response): 
     }
 
     if (!abortController.signal.aborted) {
-      const finalContent = fullOutput || finalState?.formattedOutput || '';
+      const finalContent = fullOutput || (finalState?.formattedOutput as string) || '';
       log.debug(
         `[agentMode] Final output: ${finalContent.length} chars, ` +
           `starts with fence: ${/^[\s]*```/.test(finalContent)}, ` +
@@ -151,17 +152,19 @@ export async function processAntragAgentStreaming(req: Request, res: Response): 
         metadata: {
           requestType: input.requestType,
           strategy: finalState?.strategy || null,
-          argumentsFound: finalState?.arguments?.length || 0,
+          argumentsFound: (finalState?.arguments as unknown[] | undefined)?.length || 0,
           researchTimeMs: finalState?.researchTimeMs || 0,
           strategyTimeMs: finalState?.strategyTimeMs || 0,
           generationTimeMs: finalState?.generationTimeMs || 0,
         },
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.error('[agentMode] Streaming error:', error);
     if (!abortController.signal.aborted) {
-      sse.sendRaw('error', { error: error.message || 'Interner Fehler' });
+      sse.sendRaw('error', {
+        error: (error instanceof Error ? error.message : String(error)) || 'Interner Fehler',
+      });
     }
   } finally {
     sse.end();
@@ -198,7 +201,7 @@ export async function processAntragAgentRequest(req: Request, res: Response): Pr
         metadata: result.metadata,
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.error('[agentMode] Request error:', error);
     res.status(500).json({
       success: false,

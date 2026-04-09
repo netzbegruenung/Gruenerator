@@ -5,14 +5,18 @@
 
 import { chunkAndEmbedText } from './chunkingPipeline.js';
 
-import type { UrlProcessingResult } from './types.js';
+import type {
+  UrlProcessingResult,
+  PostgresDocumentServiceLike,
+  QdrantDocumentServiceLike,
+} from './types.js';
 
 /**
  * Process crawled URL content
  */
 export async function processUrlContent(
-  postgresDocumentService: any,
-  qdrantDocumentService: any,
+  postgresDocumentService: PostgresDocumentServiceLike,
+  qdrantDocumentService: QdrantDocumentServiceLike,
   userId: string,
   url: string,
   title: string,
@@ -64,7 +68,7 @@ export async function processUrlContent(
     vectorCount: chunks.length,
     sourceUrl: url.trim(),
     status: 'completed',
-    created_at: documentMetadata.created_at,
+    created_at: (documentMetadata.created_at as string) || new Date().toISOString(),
     sourceType: sourceType,
   };
 }

@@ -15,7 +15,7 @@ export interface UserProfile {
   avatar_robot_id: number;
   chat_color?: string;
   beta_features: Record<string, boolean>;
-  user_defaults: Record<string, Record<string, any>>;
+  user_defaults: Record<string, Record<string, unknown>>;
   locale?: 'de-DE' | 'de-AT';
 
   // Feature flags
@@ -56,7 +56,7 @@ export interface ProfileCreateData {
   avatar_robot_id?: number;
   chat_color?: string;
   beta_features?: Record<string, boolean>;
-  user_defaults?: Record<string, Record<string, any>>;
+  user_defaults?: Record<string, Record<string, unknown>>;
   locale?: string;
   last_login?: string;
   groups_enabled?: boolean;
@@ -76,8 +76,8 @@ export interface ProfileUpdateData {
   avatar_robot_id?: number;
   chat_color?: string;
   beta_features?: Record<string, boolean>;
-  user_defaults?: Record<string, Record<string, any>>;
-  [key: string]: any;
+  user_defaults?: Record<string, Record<string, unknown>>;
+  [key: string]: unknown;
 }
 
 export interface BetaFeatures {
@@ -99,6 +99,7 @@ export interface BetaFeatures {
   docs: boolean;
   boards: boolean;
   memories: boolean;
+  [key: string]: boolean;
 }
 
 export interface ProfileStats {
@@ -165,6 +166,7 @@ export interface QdrantPoint {
     chunk_tokens: number;
     knowledge_type: string;
     created_at: string;
+    [key: string]: unknown;
   };
 }
 

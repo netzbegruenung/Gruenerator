@@ -12,7 +12,6 @@ import {
   extractLeichteSpracheParams,
 } from './extractors/UniversalExtractor.js';
 import { extractParametersWithMistral } from './mistral/MistralExtractor.js';
-import { analyzeParameterConfidence } from './utils/confidenceAnalyzer.js';
 
 import type { ChatContext } from '../types.js';
 import type { ExtractedParameters, BaseParameters } from './types.js';

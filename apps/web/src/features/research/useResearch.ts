@@ -71,6 +71,7 @@ export function useResearch(): UseResearchReturn {
 
       setResults(response.data.results);
       setMetadata(response.data.metadata);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       const message = err.response?.data?.error || 'Suche fehlgeschlagen. Bitte erneut versuchen.';
       setError(message);
@@ -93,6 +94,7 @@ export function useResearch(): UseResearchReturn {
 
       setResults(response.data.results);
       setMetadata(response.data.metadata);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       const message =
         err.response?.data?.error || 'Ähnliche Dokumente konnten nicht geladen werden.';

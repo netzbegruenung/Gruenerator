@@ -79,7 +79,7 @@ export async function getPostgresAndCheckMembership(
 // Get user groups
 router.get(
   '/groups',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -101,7 +101,7 @@ router.get(
         return;
       }
 
-      const groupIds = memberships.map((m: any) => m.group_id);
+      const groupIds = (memberships as Array<{ group_id: string }>).map((m) => m.group_id);
 
       // Get group details
       const groupsData = await postgres.query(
@@ -111,9 +111,26 @@ router.get(
       );
 
       // Build a lookup map to avoid repeated .find() calls
-      const membershipByGroupId = new Map(memberships.map((m: any) => [m.group_id, m]));
+      const membershipByGroupId = new Map(
+        (memberships as Array<{ group_id: string; role: string; joined_at: string }>).map((m) => [
+          m.group_id,
+          m,
+        ])
+      );
 
-      const combinedGroups = (groupsData || []).map((group: any) => {
+      const combinedGroups = (
+        (groupsData || []) as Array<{
+          id: string;
+          name: string;
+          description: string;
+          created_at: string;
+          created_by: string;
+          join_token: string;
+          settings: unknown;
+          avatar_url: string;
+          links: unknown;
+        }>
+      ).map((group) => {
         const membership = membershipByGroupId.get(group.id);
         const role = membership?.role || 'member';
         return {
@@ -142,7 +159,7 @@ router.get(
 // Create a new group
 router.post(
   '/groups',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { name } = req.body;
@@ -162,7 +179,7 @@ router.post(
       await postgres.ensureInitialized();
 
       // Create group, membership and instructions in a transaction
-      const newGroup = await postgres.transaction(async (client: any) => {
+      const newGroup = await postgres.transaction(async (client) => {
         // 1. Create the group
         const group = await postgres.transactionQueryOne(
           client,
@@ -209,7 +226,7 @@ router.post(
 // Delete a group
 router.delete(
   '/groups/:groupId',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
@@ -263,7 +280,7 @@ router.delete(
       });
 
       // Delete in correct order using transaction to ensure data integrity
-      await postgres.transaction(async (client: any) => {
+      await postgres.transaction(async (client) => {
         // 1. Delete group instructions (deprecated table, clean up remaining rows)
         await postgres.transactionExec(
           client,
@@ -318,7 +335,7 @@ router.delete(
 // Verify join token (for JoinGroupPage)
 router.get(
   '/groups/verify-token/:joinToken',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ joinToken: string }>, res: Response): Promise<void> => {
     try {
       const { joinToken } = req.params;
@@ -375,7 +392,7 @@ router.get(
 // Join a group with token
 router.post(
   '/groups/join',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { joinToken } = req.body;
@@ -462,7 +479,7 @@ router.post(
 // Get group details (info, instructions, knowledge)
 router.get(
   '/groups/:groupId/details',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
@@ -525,7 +542,7 @@ router.get(
 // Update group name and description
 router.put(
   '/groups/:groupId/info',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
@@ -565,7 +582,7 @@ router.put(
 
       // Build update object
       const updateFields: string[] = [];
-      const updateValues: any[] = [];
+      const updateValues: Array<string | number | boolean | null> = [];
       let paramIndex = 1;
 
       if (name !== undefined) {
@@ -657,7 +674,7 @@ router.put(
 // Legacy endpoint for backward compatibility
 router.put(
   '/groups/:groupId/name',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
@@ -701,7 +718,7 @@ router.put(
 // Get group members
 router.get(
   '/groups/:groupId/members',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
@@ -727,7 +744,16 @@ router.get(
         { table: 'group_memberships' }
       );
 
-      const formattedMembers = (members || []).map((member: any) => ({
+      const formattedMembers = (
+        (members || []) as Array<{
+          user_id: string;
+          role: string;
+          joined_at: string;
+          first_name: string | null;
+          display_name: string | null;
+          avatar_robot_id: number | null;
+        }>
+      ).map((member) => ({
         user_id: member.user_id,
         role: member.role,
         joined_at: member.joined_at,
@@ -754,7 +780,7 @@ router.get(
 // Update member role
 router.put(
   '/groups/:groupId/members/:memberId/role',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string; memberId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId, memberId } = req.params;
@@ -879,21 +905,34 @@ const ALLOWED_LINK_ICONS = new Set([
 ]);
 const MAX_LINKS = 20;
 
-function validateGroupLink(link: any): string | null {
+interface GroupLink {
+  id: string;
+  title: string;
+  url: string;
+  description?: string;
+  icon: string;
+}
+
+function validateGroupLink(link: unknown): string | null {
   if (!link || typeof link !== 'object') return 'Link muss ein Objekt sein.';
-  if (typeof link.title !== 'string' || link.title.trim().length === 0 || link.title.length > 100) {
+  const l = link as Record<string, unknown>;
+  if (
+    typeof l.title !== 'string' ||
+    (l.title as string).trim().length === 0 ||
+    (l.title as string).length > 100
+  ) {
     return 'Titel ist erforderlich (max. 100 Zeichen).';
   }
-  if (typeof link.url !== 'string' || !/^https?:\/\/.+/.test(link.url)) {
+  if (typeof l.url !== 'string' || !/^https?:\/\/.+/.test(l.url as string)) {
     return 'URL muss mit http:// oder https:// beginnen.';
   }
   if (
-    link.description != null &&
-    (typeof link.description !== 'string' || link.description.length > 300)
+    l.description != null &&
+    (typeof l.description !== 'string' || (l.description as string).length > 300)
   ) {
     return 'Beschreibung darf max. 300 Zeichen haben.';
   }
-  if (typeof link.icon !== 'string' || !ALLOWED_LINK_ICONS.has(link.icon)) {
+  if (typeof l.icon !== 'string' || !ALLOWED_LINK_ICONS.has(l.icon as string)) {
     return `Ungültiges Icon. Erlaubt: ${[...ALLOWED_LINK_ICONS].join(', ')}`;
   }
   return null;
@@ -901,7 +940,7 @@ function validateGroupLink(link: any): string | null {
 
 router.post(
   '/groups/:groupId/links',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
@@ -917,7 +956,7 @@ router.post(
 
       const group = (await postgres.queryOne('SELECT links FROM groups WHERE id = $1', [groupId], {
         table: 'groups',
-      })) as { links: any[] | null } | null;
+      })) as { links: GroupLink[] | null } | null;
 
       const links = group?.links || [];
       if (links.length >= MAX_LINKS) {
@@ -941,10 +980,11 @@ router.post(
       );
 
       res.json({ success: true, link: newLink });
-    } catch (err: any) {
+    } catch (err: unknown) {
       log.error('[Group Links POST] Error:', err);
-      if (err.message.includes('Mitglied') || err.message.includes('Admin')) {
-        res.status(403).json({ success: false, message: err.message });
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (errMsg.includes('Mitglied') || errMsg.includes('Admin')) {
+        res.status(403).json({ success: false, message: errMsg });
         return;
       }
       res.status(500).json({ success: false, message: 'Fehler beim Hinzufügen des Links.' });
@@ -954,7 +994,7 @@ router.post(
 
 router.put(
   '/groups/:groupId/links/:linkId',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string; linkId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId, linkId } = req.params;
@@ -970,10 +1010,10 @@ router.put(
 
       const group = (await postgres.queryOne('SELECT links FROM groups WHERE id = $1', [groupId], {
         table: 'groups',
-      })) as { links: any[] | null } | null;
+      })) as { links: GroupLink[] | null } | null;
 
       const links = group?.links || [];
-      const idx = links.findIndex((l: any) => l.id === linkId);
+      const idx = links.findIndex((l: GroupLink) => l.id === linkId);
       if (idx === -1) {
         res.status(404).json({ success: false, message: 'Link nicht gefunden.' });
         return;
@@ -994,10 +1034,11 @@ router.put(
       );
 
       res.json({ success: true, link: links[idx] });
-    } catch (err: any) {
+    } catch (err: unknown) {
       log.error('[Group Links PUT] Error:', err);
-      if (err.message.includes('Mitglied') || err.message.includes('Admin')) {
-        res.status(403).json({ success: false, message: err.message });
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (errMsg.includes('Mitglied') || errMsg.includes('Admin')) {
+        res.status(403).json({ success: false, message: errMsg });
         return;
       }
       res.status(500).json({ success: false, message: 'Fehler beim Aktualisieren des Links.' });
@@ -1007,7 +1048,7 @@ router.put(
 
 router.delete(
   '/groups/:groupId/links/:linkId',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string; linkId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId, linkId } = req.params;
@@ -1017,9 +1058,9 @@ router.delete(
 
       const group = (await postgres.queryOne('SELECT links FROM groups WHERE id = $1', [groupId], {
         table: 'groups',
-      })) as { links: any[] | null } | null;
+      })) as { links: GroupLink[] | null } | null;
 
-      const links = (group?.links || []).filter((l: any) => l.id !== linkId);
+      const links = (group?.links || []).filter((l: GroupLink) => l.id !== linkId);
 
       await postgres.exec(
         'UPDATE groups SET links = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
@@ -1027,10 +1068,11 @@ router.delete(
       );
 
       res.json({ success: true });
-    } catch (err: any) {
+    } catch (err: unknown) {
       log.error('[Group Links DELETE] Error:', err);
-      if (err.message.includes('Mitglied') || err.message.includes('Admin')) {
-        res.status(403).json({ success: false, message: err.message });
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (errMsg.includes('Mitglied') || errMsg.includes('Admin')) {
+        res.status(403).json({ success: false, message: errMsg });
         return;
       }
       res.status(500).json({ success: false, message: 'Fehler beim Löschen des Links.' });

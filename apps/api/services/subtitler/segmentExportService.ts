@@ -335,8 +335,9 @@ export async function exportWithSegments(
           .on('start', () => {
             log.debug('FFmpeg segment export started');
           })
-          .on('progress', async (progress: { percent?: number }) => {
-            const progressPercent = progress.percent ? Math.round(progress.percent) : 0;
+          .on('progress', async (progress: unknown) => {
+            const prog = progress as { percent?: number };
+            const progressPercent = prog.percent ? Math.round(prog.percent) : 0;
             try {
               await redisClient.set(
                 `export:${exportToken}`,
@@ -352,8 +353,9 @@ export async function exportWithSegments(
               /* ignore progress update error */
             }
           })
-          .on('error', (err: Error) => {
-            log.error(`FFmpeg segment export error: ${err.message}`);
+          .on('error', (err: unknown) => {
+            const error = err as Error;
+            log.error(`FFmpeg segment export error: ${error.message}`);
             reject(err);
           })
           .on('end', () => {
@@ -384,14 +386,14 @@ export async function exportWithSegments(
       duration: totalDuration,
       segmentCount: validSegments.length,
     };
-  } catch (error: any) {
-    log.error(`Segment export failed: ${error.message}`);
+  } catch (error: unknown) {
+    log.error(`Segment export failed: ${error instanceof Error ? error.message : String(error)}`);
 
     await redisClient.set(
       `export:${exportToken}`,
       JSON.stringify({
         status: 'error',
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         type: 'segment-cut',
       }),
       { EX: 60 * 60 }
@@ -490,8 +492,10 @@ export async function exportWithSegmentsAndSubtitles(
 
     try {
       await fs.copyFile(sourceFontPath, tempFontPath);
-    } catch (fontCopyError: any) {
-      log.warn(`Font copy failed: ${fontCopyError.message}`);
+    } catch (fontCopyError: unknown) {
+      log.warn(
+        `Font copy failed: ${fontCopyError instanceof Error ? fontCopyError.message : String(fontCopyError)}`
+      );
     }
 
     const referenceDimension = isVertical ? metadata.width : metadata.height;
@@ -579,8 +583,9 @@ export async function exportWithSegmentsAndSubtitles(
           .on('start', () => {
             log.debug('FFmpeg segment+subtitle export started');
           })
-          .on('progress', async (progress: { percent?: number }) => {
-            const progressPercent = progress.percent ? Math.round(progress.percent) : 0;
+          .on('progress', async (progress: unknown) => {
+            const prog = progress as { percent?: number };
+            const progressPercent = prog.percent ? Math.round(prog.percent) : 0;
             try {
               await redisClient.set(
                 `export:${exportToken}`,
@@ -596,8 +601,9 @@ export async function exportWithSegmentsAndSubtitles(
               /* ignore progress update error */
             }
           })
-          .on('error', (err: Error) => {
-            log.error(`FFmpeg error: ${err.message}`);
+          .on('error', (err: unknown) => {
+            const error = err as Error;
+            log.error(`FFmpeg error: ${error.message}`);
             reject(err);
           })
           .on('end', () => {
@@ -633,14 +639,16 @@ export async function exportWithSegmentsAndSubtitles(
       duration: totalDuration,
       segmentCount: validSegments.length,
     };
-  } catch (error: any) {
-    log.error(`Segment+subtitle export failed: ${error.message}`);
+  } catch (error: unknown) {
+    log.error(
+      `Segment+subtitle export failed: ${error instanceof Error ? error.message : String(error)}`
+    );
 
     await redisClient.set(
       `export:${exportToken}`,
       JSON.stringify({
         status: 'error',
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         type: 'segment-cut-subtitles',
       }),
       { EX: 60 * 60 }

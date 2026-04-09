@@ -208,8 +208,10 @@ async function cleanupFiles(...filePaths: (string | null | undefined)[]): Promis
           log.debug('Temporäre Datei gelöscht:', filePath);
         }
       }
-    } catch (err: any) {
-      if (err.code !== 'ENOENT') {
+    } catch (err: unknown) {
+      if (
+        (err instanceof Error && 'code' in err ? (err as { code: string }).code : '') !== 'ENOENT'
+      ) {
         log.warn('Fehler beim Löschen der temporären Datei:', filePath, err);
       }
     }

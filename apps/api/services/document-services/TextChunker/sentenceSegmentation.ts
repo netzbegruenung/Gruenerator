@@ -43,7 +43,7 @@ export function sentenceSegments(text: string): SentenceSegment[] {
       // Decide if this is a real sentence boundary
       const isAbbreviation =
         GERMAN_ABBREVIATIONS.has(lastWord) || GERMAN_ABBREVIATIONS.has(lastWord.replace(/\./g, ''));
-      const nextStartsWithLower = afterPunctuation && /^[a-zäöüß]/.test(afterPunctuation);
+      const _nextStartsWithLower = afterPunctuation && /^[a-zäöüß]/.test(afterPunctuation);
       const isRealSentenceEnd = !isAbbreviation && isNewSentenceStart(afterPunctuation);
 
       if (isRealSentenceEnd || i === potentialSentences.length - 1) {

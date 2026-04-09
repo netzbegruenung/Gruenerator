@@ -4,8 +4,8 @@
  * Extracted from server.mjs for better modularity
  */
 
+import type { RedisClient } from '../utils/redis/types.js';
 import type { Request, Response, NextFunction } from 'express';
-import type { RedisClientType } from 'redis';
 
 export interface CacheOptions {
   ttl?: number;
@@ -25,7 +25,7 @@ const DEFAULT_PREFIX = 'cache:';
  * Create cache middleware with Redis backend
  */
 export function createCacheMiddleware(
-  redisClient: RedisClientType,
+  redisClient: RedisClient,
   options: CacheOptions = {}
 ): (req: CacheMiddlewareRequest, res: Response, next: NextFunction) => Promise<void> {
   const ttl = options.ttl ?? DEFAULT_TTL;
@@ -83,7 +83,7 @@ export function createCacheMiddleware(
  * Invalidate cache entries matching a pattern
  */
 export async function invalidateCache(
-  redisClient: RedisClientType,
+  redisClient: RedisClient,
   pattern: string,
   keyPrefix: string = DEFAULT_PREFIX
 ): Promise<number> {

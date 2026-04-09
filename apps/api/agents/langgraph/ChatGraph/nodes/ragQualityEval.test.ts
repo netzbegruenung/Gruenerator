@@ -214,9 +214,10 @@ async function evaluateBudgetAllocation() {
       model: 'test',
       name: 'test',
       description: 'test',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any,
     enabledTools: {},
-    aiWorkerPool: null,
+    aiWorkerPool: null as never,
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],
@@ -544,7 +545,7 @@ function evaluatePipelineQuality() {
     {
       input: 'Schreib eine Pressemitteilung über die Klimapolitik der Grünen',
       expectOptimizedQuery: true,
-      expectResearchIntent: true,
+      expectResearchIntent: false, // Creative task → direct (not research)
       description: 'Task-oriented query about climate policy',
     },
     {

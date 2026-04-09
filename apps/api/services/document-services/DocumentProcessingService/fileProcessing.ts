@@ -8,14 +8,19 @@ import fs from 'fs';
 import { chunkAndEmbedText } from './chunkingPipeline.js';
 import { extractTextFromFile, generateContentPreview } from './textExtraction.js';
 
-import type { UploadedFile, FileUploadResult } from './types.js';
+import type {
+  UploadedFile,
+  FileUploadResult,
+  PostgresDocumentServiceLike,
+  QdrantDocumentServiceLike,
+} from './types.js';
 
 /**
  * Process a file upload (handles extraction and processing)
  */
 export async function processFileUpload(
-  postgresDocumentService: any,
-  qdrantDocumentService: any,
+  postgresDocumentService: PostgresDocumentServiceLike,
+  qdrantDocumentService: QdrantDocumentServiceLike,
   userId: string,
   file: UploadedFile,
   title: string,
@@ -73,8 +78,8 @@ export async function processFileUpload(
  * Updates the document status throughout the process.
  */
 export async function processUploadedDocument(
-  postgresDocumentService: any,
-  qdrantDocumentService: any,
+  postgresDocumentService: PostgresDocumentServiceLike,
+  qdrantDocumentService: QdrantDocumentServiceLike,
   documentId: string,
   userId: string
 ): Promise<FileUploadResult> {

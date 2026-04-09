@@ -1,4 +1,8 @@
-import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import {
+  type PostgresService,
+  type DeleteResult,
+  getPostgresInstance,
+} from '../../database/services/PostgresService.js';
 
 import type {
   UserProfile,
@@ -8,18 +12,6 @@ import type {
   ProfileStats,
   HealthCheckResult,
 } from './types.js';
-import type { DeleteResult } from '../../database/services/PostgresService/types.js';
-
-interface PostgresService {
-  init(): Promise<void>;
-  ensureInitialized(): Promise<void>;
-  query(sql: string, params?: any[], options?: any): Promise<any[]>;
-  queryOne(sql: string, params?: any[], options?: any): Promise<any | null>;
-  insert(table: string, data: any): Promise<any>;
-  update(table: string, data: any, where: any): Promise<{ data: any[] }>;
-  upsert(table: string, data: any, conflictKey: string[]): Promise<any>;
-  delete(table: string, where: any): Promise<DeleteResult>;
-}
 
 /**
  * ProfileService - Centralized service for user profile operations
@@ -30,7 +22,7 @@ class ProfileService {
   private readonly tableName: string = 'profiles';
 
   constructor() {
-    this.db = getPostgresInstance() as unknown as PostgresService;
+    this.db = getPostgresInstance();
   }
 
   /**
@@ -49,8 +41,8 @@ class ProfileService {
       const profile = await this.db.queryOne('SELECT * FROM profiles WHERE id = $1', [userId], {
         table: this.tableName,
       });
-      return profile as UserProfile | null;
-    } catch (error: any) {
+      return profile as unknown as UserProfile | null;
+    } catch (error: unknown) {
       console.error('[ProfileService] Error getting profile by ID:', error);
       throw error;
     }
@@ -67,8 +59,8 @@ class ProfileService {
         [keycloakId],
         { table: this.tableName }
       );
-      return profile as UserProfile | null;
-    } catch (error: any) {
+      return profile as unknown as UserProfile | null;
+    } catch (error: unknown) {
       console.error('[ProfileService] Error getting profile by Keycloak ID:', error);
       throw error;
     }
@@ -83,8 +75,8 @@ class ProfileService {
       const profile = await this.db.queryOne('SELECT * FROM profiles WHERE email = $1', [email], {
         table: this.tableName,
       });
-      return profile as UserProfile | null;
-    } catch (error: any) {
+      return profile as unknown as UserProfile | null;
+    } catch (error: unknown) {
       console.error('[ProfileService] Error getting profile by email:', error);
       throw error;
     }
@@ -111,8 +103,8 @@ class ProfileService {
 
       await this.db.ensureInitialized();
       const result = await this.db.insert(this.tableName, newProfile);
-      return result as UserProfile;
-    } catch (error: any) {
+      return result as unknown as UserProfile;
+    } catch (error: unknown) {
       console.error('[ProfileService] Error creating profile:', error);
       throw error;
     }
@@ -129,8 +121,8 @@ class ProfileService {
 
       await this.db.ensureInitialized();
       const result = await this.db.update(this.tableName, dataToUpdate, { id: userId });
-      return result.data[0] as UserProfile;
-    } catch (error: any) {
+      return result.data[0] as unknown as UserProfile;
+    } catch (error: unknown) {
       console.error('[ProfileService] Error updating profile:', error);
       throw error;
     }
@@ -147,8 +139,8 @@ class ProfileService {
 
       await this.db.ensureInitialized();
       const result = await this.db.upsert(this.tableName, dataToUpsert, ['id']);
-      return result as UserProfile;
-    } catch (error: any) {
+      return result as unknown as UserProfile;
+    } catch (error: unknown) {
       console.error('[ProfileService] Error upserting profile:', error);
       throw error;
     }
@@ -204,7 +196,7 @@ class ProfileService {
         `[ProfileService] Beta feature updated: ${feature} = ${enabled} for user ${userId}`
       );
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[ProfileService] Error updating beta features:', error);
       throw error;
     }
@@ -246,7 +238,7 @@ class ProfileService {
         `[ProfileService] 🎨 Avatar updated for user ${userId}: avatar_robot_id=${avatarRobotId} (verified in PostgreSQL)`
       );
       return verifiedProfile;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[ProfileService] Error updating avatar:', error);
       throw error;
     }
@@ -264,7 +256,7 @@ class ProfileService {
       const result = await this.updateProfile(userId, { chat_color: color });
       console.log(`[ProfileService] Chat color updated for user ${userId}: ${color}`);
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[ProfileService] Error updating chat color:', error);
       throw error;
     }
@@ -277,7 +269,7 @@ class ProfileService {
     userId: string,
     generator: string,
     key: string,
-    value: any
+    value: unknown
   ): Promise<UserProfile> {
     try {
       if (!generator || !key) {
@@ -304,7 +296,7 @@ class ProfileService {
         `[ProfileService] User default updated: ${generator}.${key} = ${value} for user ${userId}`
       );
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[ProfileService] Error updating user default:', error);
       throw error;
     }
@@ -313,7 +305,7 @@ class ProfileService {
   /**
    * Get user defaults from profile
    */
-  getUserDefaults(profile: UserProfile | null): Record<string, Record<string, any>> {
+  getUserDefaults(profile: UserProfile | null): Record<string, Record<string, unknown>> {
     return profile?.user_defaults || {};
   }
 
@@ -324,8 +316,8 @@ class ProfileService {
     profile: UserProfile | null,
     generator: string,
     key: string,
-    defaultValue: any = null
-  ): any {
+    defaultValue: unknown = null
+  ): unknown {
     return profile?.user_defaults?.[generator]?.[key] ?? defaultValue;
   }
 
@@ -368,13 +360,15 @@ class ProfileService {
       }
 
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`[ProfileService] ❌ Error deleting profile for user ${userId}:`, error);
-      console.error(`[ProfileService] Error details:`, {
-        message: error.message,
-        code: error.code,
-        stack: error.stack,
-      });
+      if (error instanceof Error) {
+        console.error(`[ProfileService] Error details:`, {
+          message: error.message,
+          code: 'code' in error ? (error as { code: string }).code : undefined,
+          stack: error.stack,
+        });
+      }
       throw error;
     }
   }
@@ -390,8 +384,8 @@ class ProfileService {
         [limit, offset],
         { table: this.tableName }
       );
-      return profiles as UserProfile[];
-    } catch (error: any) {
+      return profiles as unknown as UserProfile[];
+    } catch (error: unknown) {
       console.error('[ProfileService] Error getting all profiles:', error);
       throw error;
     }
@@ -412,10 +406,14 @@ class ProfileService {
             COUNT(*) FILTER (WHERE last_login > NOW() - INTERVAL '30 days') as active_users
           FROM profiles
         `);
-        return stats as ProfileStats;
-      } catch (innerError: any) {
+        return stats as unknown as ProfileStats;
+      } catch (innerError: unknown) {
         // PostgreSQL error 42703 = undefined_column
-        if (innerError?.code === '42703') {
+        if (
+          innerError instanceof Error &&
+          'code' in innerError &&
+          (innerError as { code: string }).code === '42703'
+        ) {
           console.warn('[ProfileService] Column missing in getProfileStats, using fallback query');
           const stats = await this.db.queryOne(`
             SELECT
@@ -425,11 +423,11 @@ class ProfileService {
               COUNT(*) FILTER (WHERE last_login > NOW() - INTERVAL '30 days') as active_users
             FROM profiles
           `);
-          return stats as ProfileStats;
+          return stats as unknown as ProfileStats;
         }
         throw innerError;
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[ProfileService] Error getting profile stats:', error);
       throw error;
     }
@@ -471,7 +469,7 @@ class ProfileService {
    * Update session user object with profile changes
    */
   updateUserSession(
-    sessionUser: any,
+    sessionUser: { beta_features?: Record<string, boolean>; [key: string]: unknown },
     profile: UserProfile,
     feature: string | null = null,
     enabled: boolean | null = null
@@ -523,13 +521,13 @@ class ProfileService {
       return {
         status: 'healthy',
         database: 'postgresql',
-        profileCount: result[0]?.count || 0,
+        profileCount: (result[0]?.count as number) || 0,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         status: 'unhealthy',
         database: 'postgresql',
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   }

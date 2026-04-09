@@ -31,6 +31,7 @@ const Icon: React.FC<IconProps> = ({
     return null;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const iconProps: Record<string, any> = {
     size,
     className: `icon ${className}`.trim(),

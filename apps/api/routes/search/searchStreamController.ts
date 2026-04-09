@@ -42,7 +42,7 @@ import type {
   EnrichedResult,
 } from '../../agents/langgraph/WebSearchGraph/types.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
-import type { ReferencesMap } from '../../services/search/types.js';
+import type { ReferencesMap, ExpandedChunkResult } from '../../services/search/types.js';
 import type { Response } from 'express';
 
 const log = createLogger('search-stream');
@@ -450,7 +450,7 @@ export async function streamDeepSearch(req: AuthenticatedRequest, res: Response)
     });
 
     // Combine all sources (mirrors DossierNode logic)
-    const allSources: any[] = [];
+    const allSources: Array<ExpandedChunkResult & { source_type?: string }> = [];
 
     if (state.aggregatedResults && state.aggregatedResults.length > 0) {
       allSources.push(...state.aggregatedResults.map(normalizeSearchResult));

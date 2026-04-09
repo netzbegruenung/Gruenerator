@@ -21,7 +21,7 @@ export interface JiraIssue {
     status: { name: string };
     issuetype: { name: string };
     updated: string;
-    description?: any;
+    description?: unknown;
   };
 }
 
@@ -33,13 +33,10 @@ export interface JiraAttachment {
   content: string;
 }
 
-export async function listJiraProjects(
-  token: string,
-  cloudId: string,
-): Promise<JiraProject[]> {
+export async function listJiraProjects(token: string, cloudId: string): Promise<JiraProject[]> {
   const response = await axios.get(
     `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/project`,
-    { headers: authHeaders(token) },
+    { headers: authHeaders(token) }
   );
   return response.data;
 }
@@ -48,7 +45,7 @@ export async function listJiraIssues(
   token: string,
   cloudId: string,
   projectKey: string,
-  query?: string,
+  query?: string
 ): Promise<JiraIssue[]> {
   const jql = query
     ? `project = ${projectKey} AND text ~ "${query}" ORDER BY updated DESC`
@@ -58,7 +55,7 @@ export async function listJiraIssues(
     {
       headers: authHeaders(token),
       params: { jql, maxResults: 50, fields: 'summary,status,issuetype,updated,description' },
-    },
+    }
   );
   return response.data.issues;
 }
@@ -66,14 +63,14 @@ export async function listJiraIssues(
 export async function getJiraIssue(
   token: string,
   cloudId: string,
-  issueKey: string,
+  issueKey: string
 ): Promise<JiraIssue> {
   const response = await axios.get(
     `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue/${issueKey}`,
     {
       headers: authHeaders(token),
       params: { fields: 'summary,status,issuetype,updated,description,attachment' },
-    },
+    }
   );
   return response.data;
 }
@@ -81,9 +78,10 @@ export async function getJiraIssue(
 export async function getJiraIssueAttachments(
   token: string,
   cloudId: string,
-  issueKey: string,
+  issueKey: string
 ): Promise<JiraAttachment[]> {
   const issue = await getJiraIssue(token, cloudId, issueKey);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (issue.fields as any).attachment ?? [];
 }
 
@@ -115,14 +113,14 @@ export interface ConfluencePageContent {
 
 export async function listConfluenceSpaces(
   token: string,
-  cloudId: string,
+  cloudId: string
 ): Promise<ConfluenceSpace[]> {
   const response = await axios.get(
     `https://api.atlassian.com/ex/confluence/${cloudId}/wiki/api/v2/spaces`,
     {
       headers: authHeaders(token),
       params: { limit: 50 },
-    },
+    }
   );
   return response.data.results;
 }
@@ -130,14 +128,14 @@ export async function listConfluenceSpaces(
 export async function listConfluencePages(
   token: string,
   cloudId: string,
-  spaceId: string,
+  spaceId: string
 ): Promise<ConfluencePage[]> {
   const response = await axios.get(
     `https://api.atlassian.com/ex/confluence/${cloudId}/wiki/api/v2/spaces/${spaceId}/pages`,
     {
       headers: authHeaders(token),
       params: { limit: 50, sort: '-modified-date' },
-    },
+    }
   );
   return response.data.results;
 }
@@ -145,14 +143,14 @@ export async function listConfluencePages(
 export async function getConfluencePageContent(
   token: string,
   cloudId: string,
-  pageId: string,
+  pageId: string
 ): Promise<ConfluencePageContent> {
   const response = await axios.get(
     `https://api.atlassian.com/ex/confluence/${cloudId}/wiki/api/v2/pages/${pageId}`,
     {
       headers: authHeaders(token),
       params: { 'body-format': 'view' },
-    },
+    }
   );
   return response.data;
 }
@@ -160,23 +158,24 @@ export async function getConfluencePageContent(
 export async function searchConfluenceContent(
   token: string,
   cloudId: string,
-  query: string,
+  query: string
 ): Promise<ConfluencePage[]> {
   const response = await axios.get(
     `https://api.atlassian.com/ex/confluence/${cloudId}/wiki/api/v2/search`,
     {
       headers: authHeaders(token),
       params: { query, limit: 20 },
-    },
+    }
   );
-  return response.data.results?.map((r: any) => r.content) ?? [];
+  return response.data.results?.map((r: { content: unknown }) => r.content) ?? [];
 }
 
 // Helper: Get accessible Atlassian Cloud sites for a token
-export async function getAccessibleResources(token: string): Promise<Array<{ id: string; name: string; url: string }>> {
-  const response = await axios.get(
-    'https://api.atlassian.com/oauth/token/accessible-resources',
-    { headers: authHeaders(token) },
-  );
+export async function getAccessibleResources(
+  token: string
+): Promise<Array<{ id: string; name: string; url: string }>> {
+  const response = await axios.get('https://api.atlassian.com/oauth/token/accessible-resources', {
+    headers: authHeaders(token),
+  });
   return response.data;
 }

@@ -64,7 +64,7 @@ export async function processAgentModeStreaming(req: Request, res: Response): Pr
     });
 
     let fullOutput = '';
-    let finalState: any = null;
+    let finalState: Record<string, unknown> | null = null;
 
     for await (const update of stream) {
       if (abortController.signal.aborted) {
@@ -73,7 +73,7 @@ export async function processAgentModeStreaming(req: Request, res: Response): Pr
       }
 
       for (const [nodeName, nodeOutput] of Object.entries(update)) {
-        const output = nodeOutput as Record<string, any>;
+        const output = nodeOutput as Record<string, unknown>;
 
         switch (nodeName) {
           case 'research': {
@@ -84,7 +84,7 @@ export async function processAgentModeStreaming(req: Request, res: Response): Pr
 
             if (output.argumentsSummary) {
               log.debug(
-                `[agentMode] Research complete: ${output.arguments?.length || 0} arguments found`
+                `[agentMode] Research complete: ${(output.arguments as unknown[] | undefined)?.length || 0} arguments found`
               );
             }
             break;
@@ -110,7 +110,7 @@ export async function processAgentModeStreaming(req: Request, res: Response): Pr
           case 'generate': {
             if (output.platformContent) {
               for (const platform of input.platforms) {
-                const content = output.platformContent[platform];
+                const content = (output.platformContent as Record<string, string>)[platform];
                 if (content) {
                   const displayName = PLATFORM_DISPLAY_NAMES[platform] || platform;
                   const section = `\n\n---\n\n## ${displayName}\n\n${content}`;
@@ -149,20 +149,22 @@ export async function processAgentModeStreaming(req: Request, res: Response): Pr
 
     if (!abortController.signal.aborted) {
       sse.sendRaw('done', {
-        content: fullOutput || finalState?.formattedOutput || '',
+        content: fullOutput || (finalState?.formattedOutput as string) || '',
         metadata: {
           platforms: input.platforms,
-          argumentsFound: finalState?.arguments?.length || 0,
+          argumentsFound: (finalState?.arguments as unknown[] | undefined)?.length || 0,
           researchTimeMs: finalState?.researchTimeMs || 0,
           strategyTimeMs: finalState?.strategyTimeMs || 0,
           generationTimeMs: finalState?.generationTimeMs || 0,
         },
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.error('[agentMode] Streaming error:', error);
     if (!abortController.signal.aborted) {
-      sse.sendRaw('error', { error: error.message || 'Interner Fehler' });
+      sse.sendRaw('error', {
+        error: (error instanceof Error ? error.message : String(error)) || 'Interner Fehler',
+      });
     }
   } finally {
     sse.end();
@@ -202,7 +204,7 @@ export async function processAgentModeRequest(req: Request, res: Response): Prom
         metadata: result.metadata,
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.error('[agentMode] Request error:', error);
     res.status(500).json({
       success: false,

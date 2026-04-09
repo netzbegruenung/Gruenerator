@@ -18,7 +18,7 @@ import {
 } from './batchOperations.js';
 import { getChunkWithContext } from './contextRetrieval.js';
 import { mergeFilters } from './filterUtils.js';
-import { hybridSearch, performTextSearch, calculateTextSearchScore } from './hybridSearch.js';
+import { hybridSearch, performTextSearch } from './hybridSearch.js';
 import { vectorSearch, searchWithQuality, searchWithIntent } from './vectorSearch.js';
 
 // Import types
@@ -40,7 +40,7 @@ import type {
   TextSearchResult,
 } from './types.js';
 
-const logger = createLogger('QdrantOperations');
+const _logger = createLogger('QdrantOperations');
 
 interface QdrantPoint {
   id: number;

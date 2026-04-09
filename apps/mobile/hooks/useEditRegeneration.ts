@@ -85,6 +85,7 @@ export function useEditRegeneration(
       if (templateType === 'zitat' || templateType === 'zitat-pure') {
         return {
           ...baseRequest,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           fontSize: (mods as any).fontSize,
         };
       }

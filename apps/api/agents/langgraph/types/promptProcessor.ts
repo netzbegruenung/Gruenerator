@@ -3,6 +3,8 @@
  * Core types for prompt configuration, assembly, and processing
  */
 
+import { type ClaudeTool } from '../../../services/tools/types.js';
+
 /**
  * Request data for prompt processing
  */
@@ -87,7 +89,7 @@ export interface PromptConfig {
       options?: Record<string, unknown>;
     }
   >;
-  tools?: Array<Record<string, unknown>>;
+  tools?: ClaudeTool[];
   [key: string]: unknown;
 }
 
@@ -97,7 +99,7 @@ export interface PromptConfig {
 export interface AIOptions {
   max_tokens?: number;
   temperature?: number;
-  tools?: Array<Record<string, unknown>>;
+  tools?: ClaudeTool[];
   [key: string]: unknown;
 }
 

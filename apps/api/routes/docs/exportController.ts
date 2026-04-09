@@ -234,9 +234,10 @@ router.get('/:id/export/html', async (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${document.title}.html"`);
     return res.send(html);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('[Export] Error exporting HTML:', error);
-    return res.status(500).json({ error: 'Failed to export document', details: error.message });
+    return res.status(500).json({ error: 'Failed to export document', details: message });
   }
 });
 
@@ -303,9 +304,10 @@ router.get('/:id/export/markdown', async (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${document.title}.md"`);
     return res.send(markdown);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('[Export] Error exporting Markdown:', error);
-    return res.status(500).json({ error: 'Failed to export document', details: error.message });
+    return res.status(500).json({ error: 'Failed to export document', details: message });
   }
 });
 
@@ -378,9 +380,10 @@ router.get('/:id/export/text', async (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${document.title}.txt"`);
     return res.send(text);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('[Export] Error exporting text:', error);
-    return res.status(500).json({ error: 'Failed to export document', details: error.message });
+    return res.status(500).json({ error: 'Failed to export document', details: message });
   }
 });
 

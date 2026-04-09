@@ -9,13 +9,13 @@
 import { createLogger } from '../../utils/logger.js';
 import { rerankPipeline } from '../search/rerankPipeline.js';
 
-import type { ExpandedChunkResult } from '../search/types.js';
+import type { ExpandedChunkResult, ReferencesMap } from '../search/types.js';
 
 const log = createLogger('NotebookRerank');
 
 export interface RerankOptions {
   results: ExpandedChunkResult[];
-  referencesMap: Record<string, any>;
+  referencesMap: ReferencesMap;
   question: string;
   limit?: number;
   inputLimit?: number;
@@ -23,7 +23,7 @@ export interface RerankOptions {
 
 export interface RerankResult {
   results: ExpandedChunkResult[];
-  referencesMap: Record<string, any>;
+  referencesMap: ReferencesMap;
   contextSummary: string;
   rerankTimeMs: number;
 }
@@ -69,14 +69,14 @@ export async function rerankNotebookResults({
   const rerankedResults = rankedIndices.map((i) => candidates[i]);
 
   const keptDocIds = new Set(rerankedResults.map((r) => r.document_id));
-  const filteredReferencesMap: Record<string, any> = {};
+  const filteredReferencesMap: ReferencesMap = {};
   for (const [key, ref] of Object.entries(referencesMap)) {
     if (keptDocIds.has(ref.document_id)) {
       filteredReferencesMap[key] = ref;
     }
   }
 
-  const renumberedMap: Record<string, any> = {};
+  const renumberedMap: ReferencesMap = {};
   let newIndex = 1;
   for (const ref of Object.values(filteredReferencesMap)) {
     renumberedMap[String(newIndex)] = ref;
@@ -95,7 +95,7 @@ export async function rerankNotebookResults({
   };
 }
 
-function buildContextSummary(referencesMap: Record<string, any>): string {
+function buildContextSummary(referencesMap: ReferencesMap): string {
   return Object.keys(referencesMap)
     .map((id) => {
       const ref = referencesMap[id];

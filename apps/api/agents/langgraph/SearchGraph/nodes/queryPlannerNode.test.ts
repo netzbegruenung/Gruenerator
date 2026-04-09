@@ -40,8 +40,10 @@ function makeState(overrides: Partial<SearchGraphState> = {}): SearchGraphState 
     messages: [{ role: 'user', content: 'Verkehrswende in Kommunen' }],
     threadId: null,
     searchMode: 'web',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     aiWorkerPool: null as any,
     userLocale: 'de-DE',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     agentConfig: {} as any,
     searchQuery: null,
     subQueries: null,
@@ -111,6 +113,7 @@ describe('queryPlannerNode', () => {
 
   it('classifies news queries and detects temporal', async () => {
     const { analyzeTemporality } = await import('../../../../services/search/TemporalAnalyzer.js');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (analyzeTemporality as any).mockReturnValueOnce({
       urgency: 'current',
       expressions: ['aktuell'],

@@ -4,11 +4,7 @@ import { fileURLToPath } from 'url';
 
 import { Router, type Request, type Response } from 'express';
 
-import {
-  parseResponse,
-  type ParserConfig,
-  type ParsedResponse,
-} from '../../../utils/campaign/responseParser.js';
+import { parseResponse, type ParserConfig } from '../../../utils/campaign/responseParser.js';
 import {
   validateCampaignInputsOrThrow,
   ValidationError,
@@ -297,6 +293,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
           location: thema,
           details: details,
         };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         validateCampaignInputsOrThrow(inputs, fullCampaign as any);
       } catch (validationError) {
         if (validationError instanceof ValidationError) {

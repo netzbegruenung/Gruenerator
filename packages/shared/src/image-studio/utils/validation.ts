@@ -190,6 +190,10 @@ export function validateCanvasInput(
         return { valid: false, error: ERROR_MESSAGES.EVENT_LOCATION_REQUIRED };
       }
       break;
+
+    case 'profilbild':
+    case 'simple':
+      break;
   }
 
   return { valid: true };
@@ -230,6 +234,7 @@ export function validateFormData(
  */
 export function validateTextResponse(
   type: ImageStudioTemplateType,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   response: any
 ): ImageStudioValidationResult {
   if (!response) {
@@ -256,11 +261,16 @@ export function validateTextResponse(
       }
       break;
 
-    case 'veranstaltung':
+    case 'veranstaltung': {
       const mainEvent = response.mainEvent || response;
       if (!mainEvent.eventTitle) {
         return { valid: false, error: ERROR_MESSAGES.UNEXPECTED_RESPONSE };
       }
+      break;
+    }
+
+    case 'profilbild':
+    case 'simple':
       break;
   }
 
@@ -270,6 +280,7 @@ export function validateTextResponse(
 /**
  * Validate canvas generation response
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function validateCanvasResponse(response: any): ImageStudioValidationResult {
   if (!response || !response.image) {
     return { valid: false, error: ERROR_MESSAGES.NO_IMAGE_DATA };

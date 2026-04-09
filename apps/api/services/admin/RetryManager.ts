@@ -24,8 +24,12 @@ export class RetryManager {
     try {
       const data = await fs.readFile(RETRY_FILE, 'utf8');
       return JSON.parse(data);
-    } catch (error: any) {
-      if (error.code === 'ENOENT') {
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        (error as { code: string }).code === 'ENOENT'
+      ) {
         return null; // File doesn't exist
       }
       throw error;
@@ -39,8 +43,11 @@ export class RetryManager {
   static async saveRetries(data: BatchUpdateEntry[]): Promise<void> {
     try {
       await fs.writeFile(RETRY_FILE, JSON.stringify(data, null, 2));
-    } catch (error: any) {
-      log.error('Failed to save retry data:', error.message);
+    } catch (error: unknown) {
+      log.error(
+        'Failed to save retry data:',
+        error instanceof Error ? error.message : String(error)
+      );
       throw error;
     }
   }
@@ -60,8 +67,11 @@ export class RetryManager {
       await this.saveRetries([]);
       log.info(`Successfully processed ${retries.length} retry entries`);
       return retries.length;
-    } catch (error: any) {
-      log.error('Failed to process retries:', error.message);
+    } catch (error: unknown) {
+      log.error(
+        'Failed to process retries:',
+        error instanceof Error ? error.message : String(error)
+      );
       throw error;
     }
   }

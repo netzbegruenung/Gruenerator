@@ -169,6 +169,7 @@ export class GrueneAtScraper extends BaseScraper {
   private timeout: number;
   private maxRetries: number;
   private userAgent: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private qdrant: any;
 
   constructor() {
@@ -266,12 +267,14 @@ export class GrueneAtScraper extends BaseScraper {
     const $ = cheerio.load(html);
 
     // Parse JSON-LD metadata (Yoast uses @graph array)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let jsonLdData: any = null;
     $('script[type="application/ld+json"]').each((_, el) => {
       try {
         const data = JSON.parse($(el).html() || '');
         if (data['@graph']) {
           jsonLdData = data['@graph'].find(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (node: any) =>
               node['@type'] === 'Article' ||
               node['@type'] === 'BlogPosting' ||
@@ -427,6 +430,7 @@ export class GrueneAtScraper extends BaseScraper {
       return { stored: false, reason: 'no_chunks' };
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const chunkTexts = chunks.map((c: any) => c.text || c.chunk_text);
     const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
 

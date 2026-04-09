@@ -14,10 +14,7 @@ import { getSharedMediaService } from '../../services/sharedMediaService.js';
 import AssSubtitleService from '../../services/subtitler/assSubtitleService.js';
 import { processVideoAutomatically } from '../../services/subtitler/autoProcessingService.js';
 import { getCompressionStatus } from '../../services/subtitler/backgroundCompressionService.js';
-import {
-  processVideoExportInBackground,
-  setRedisStatus,
-} from '../../services/subtitler/backgroundExportService.js';
+import { processVideoExportInBackground } from '../../services/subtitler/backgroundExportService.js';
 import {
   generateDownloadToken,
   processDirectDownload,
@@ -34,7 +31,7 @@ import {
   scheduleImmediateCleanup,
   getOriginalFilename,
 } from '../../services/subtitler/tusService.js';
-import { getVideoMetadata, cleanupFiles } from '../../services/subtitler/videoUploadService.js';
+import { getVideoMetadata } from '../../services/subtitler/videoUploadService.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -50,14 +47,16 @@ const FONT_PATH = path.resolve(__dirname, '../../public/fonts/GrueneTypeNeue-Reg
 const assService = new AssSubtitleService();
 
 interface SubtitlerRequest<P = ParamsDictionary> extends AuthenticatedRequest<P> {
-  app: AuthenticatedRequest['app'] & { locals: { aiWorkerPool?: any } };
+  app: AuthenticatedRequest['app'] & { locals: { aiWorkerPool?: unknown } };
 }
 
 async function checkFont(): Promise<void> {
   try {
     await fsPromises.access(FONT_PATH);
-  } catch (err: any) {
-    log.warn(`Font not found, using system fallback: ${err.message}`);
+  } catch (err: unknown) {
+    log.warn(
+      `Font not found, using system fallback: ${err instanceof Error ? err.message : String(err)}`
+    );
   }
 }
 
@@ -79,7 +78,7 @@ router.post('/process', async (req: SubtitlerRequest, res: Response): Promise<vo
 
   try {
     await redisClient.set(jobKey, JSON.stringify({ status: 'processing' }), { EX: 86400 });
-  } catch (e: any) {
+  } catch (_e: unknown) {
     res.status(500).json({ error: 'Redis error' });
     return;
   }
@@ -87,7 +86,7 @@ router.post('/process', async (req: SubtitlerRequest, res: Response): Promise<vo
   try {
     const videoPath = getFilePathFromUploadId(uploadId);
     if (!(await checkFileExists(videoPath))) {
-      scheduleImmediateCleanup(uploadId, 'file not found');
+      void scheduleImmediateCleanup(uploadId, 'file not found');
       await redisClient.set(
         jobKey,
         JSON.stringify({ status: 'error', data: 'Video nicht gefunden' }),
@@ -107,18 +106,19 @@ router.post('/process', async (req: SubtitlerRequest, res: Response): Promise<vo
         });
       })
       .catch(async (error: Error) => {
-        scheduleImmediateCleanup(uploadId, 'transcription error');
+        void scheduleImmediateCleanup(uploadId, 'transcription error');
         await redisClient.set(jobKey, JSON.stringify({ status: 'error', data: error.message }), {
           EX: 86400,
         });
       });
 
     res.status(202).json({ success: true, status: 'processing', uploadId });
-  } catch (error: any) {
-    await redisClient.set(jobKey, JSON.stringify({ status: 'error', data: error.message }), {
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    await redisClient.set(jobKey, JSON.stringify({ status: 'error', data: errMsg }), {
       EX: 86400,
     });
-    if (!res.headersSent) res.status(500).json({ error: error.message });
+    if (!res.headersSent) res.status(500).json({ error: errMsg });
   }
 });
 
@@ -148,8 +148,8 @@ router.get(
         compression,
         error: job.status === 'error' ? job.data : undefined,
       });
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
+    } catch (e: unknown) {
+      res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
     }
   }
 );
@@ -166,8 +166,8 @@ router.get(
         return;
       }
       res.json(JSON.parse(data));
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
+    } catch (e: unknown) {
+      res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
     }
   }
 );
@@ -179,8 +179,8 @@ router.get(
     const { uploadId } = req.params;
     try {
       res.json(await getCompressionStatus(uploadId));
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
+    } catch (e: unknown) {
+      res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
     }
   }
 );
@@ -197,10 +197,10 @@ async function handleCleanup(
   }
   try {
     await redisClient.set(`cancel:${uploadId}`, 'true', { EX: 300 });
-    scheduleImmediateCleanup(uploadId, 'manual cleanup');
+    void scheduleImmediateCleanup(uploadId, 'manual cleanup');
     res.json({ success: true });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
+  } catch (e: unknown) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 }
 router.delete('/cleanup/:uploadId', handleCleanup);
@@ -210,8 +210,8 @@ router.post('/cleanup/:uploadId', handleCleanup);
 router.post('/export-token', async (req: SubtitlerRequest, res: Response): Promise<void> => {
   try {
     res.json({ success: true, ...(await generateDownloadToken(req.body)) });
-  } catch (e: any) {
-    res.status(400).json({ error: e.message });
+  } catch (e: unknown) {
+    res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
 
@@ -221,8 +221,9 @@ router.get(
   async (req: SubtitlerRequest<{ token: string }>, res: Response): Promise<void> => {
     try {
       await processDirectDownload(req.params.token, res);
-    } catch (e: any) {
-      if (!res.headersSent) res.status(500).json({ error: e.message });
+    } catch (e: unknown) {
+      if (!res.headersSent)
+        res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
     }
   }
 );
@@ -236,8 +237,9 @@ router.get(
   ): Promise<void> => {
     try {
       await processChunkedDownload(req.params.uploadId, parseInt(req.params.chunkIndex), res);
-    } catch (e: any) {
-      if (!res.headersSent) res.status(404).json({ error: e.message });
+    } catch (e: unknown) {
+      if (!res.headersSent)
+        res.status(404).json({ error: e instanceof Error ? e.message : String(e) });
     }
   }
 );
@@ -281,8 +283,9 @@ router.get(
         log.error(`Stream error for export ${exportToken}: ${err.message}`);
         if (!res.headersSent) res.status(500).end();
       });
-    } catch (e: any) {
-      if (!res.headersSent) res.status(500).json({ error: e.message });
+    } catch (e: unknown) {
+      if (!res.headersSent)
+        res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
     }
   }
 );
@@ -321,8 +324,9 @@ router.get(
         });
         fs.createReadStream(videoPath).pipe(res);
       }
-    } catch (e: any) {
-      if (!res.headersSent) res.status(500).json({ error: e.message });
+    } catch (e: unknown) {
+      if (!res.headersSent)
+        res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
     }
   }
 );
@@ -464,11 +468,13 @@ router.post('/export', async (req: SubtitlerRequest, res: Response): Promise<voi
     );
     res.status(202).json({ status: 'exporting', exportToken });
 
-    const exportSegments = segments.map((s: any) => ({
-      text: s.text,
-      start: s.startTime,
-      end: s.endTime,
-    }));
+    const exportSegments = segments.map(
+      (s: { text: string; startTime: number; endTime: number }) => ({
+        text: s.text,
+        start: s.startTime,
+        end: s.endTime,
+      })
+    );
     const exportMetadata = {
       width: metadata.width,
       height: metadata.height,
@@ -495,8 +501,9 @@ router.post('/export', async (req: SubtitlerRequest, res: Response): Promise<voi
       userId,
       textOverlays,
     }).catch((e) => log.error(`Background export failed: ${e.message}`));
-  } catch (e: any) {
-    if (!res.headersSent) res.status(500).json({ error: e.message });
+  } catch (e: unknown) {
+    if (!res.headersSent)
+      res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
 
@@ -540,8 +547,8 @@ router.post('/export-segments', async (req: SubtitlerRequest, res: Response): Pr
           })
         : await svc.exportWithSegments(videoPath, segments, { projectId: projectId || uploadId });
     res.status(202).json({ exportToken: result.exportToken, segmentCount: result.segmentCount });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
+  } catch (e: unknown) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
 
@@ -577,6 +584,7 @@ router.post('/process-auto', async (req: SubtitlerRequest, res: Response): Promi
       userId,
       originalFilename,
     })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .then(async (result: any) => {
         let projectId: string | null = null;
         if (userId) {
@@ -630,8 +638,9 @@ router.post('/process-auto', async (req: SubtitlerRequest, res: Response): Promi
         );
       })
       .catch((e: Error) => log.error(`Auto-process failed: ${e.message}`));
-  } catch (e: any) {
-    if (!res.headersSent) res.status(500).json({ error: e.message });
+  } catch (e: unknown) {
+    if (!res.headersSent)
+      res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
 
@@ -647,8 +656,8 @@ router.get(
         return;
       }
       res.json(JSON.parse(data));
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
+    } catch (e: unknown) {
+      res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
     }
   }
 );
@@ -682,8 +691,9 @@ router.get(
         `attachment; filename=video_${uploadId}_gruenerator.mp4`
       );
       fs.createReadStream(parsed.outputPath).pipe(res);
-    } catch (e: any) {
-      if (!res.headersSent) res.status(500).json({ error: e.message });
+    } catch (e: unknown) {
+      if (!res.headersSent)
+        res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
     }
   }
 );

@@ -23,7 +23,7 @@ export function formatStrategyApprovalResponse(
     webSourcesCount?: number;
     executionTimeMs?: number;
     argumentsFound?: number;
-    enrichmentMetadata?: any;
+    enrichmentMetadata?: Record<string, unknown>;
   }
 ): string {
   let content = `## Strategische Positionierung\n\n${framing}`;
@@ -92,7 +92,7 @@ export function formatStrategyApprovalResponse(
  * Includes examples used as inspiration
  */
 export function formatPRAgentResponse(
-  result: PRAgentResult & { metadata?: Record<string, any> }
+  result: PRAgentResult & { metadata?: Record<string, unknown> }
 ): FormattedPRResponse {
   const contentSections = [
     `# Strategisches Framing\n\n${result.framing}`,
@@ -112,9 +112,10 @@ export function formatPRAgentResponse(
   }
 
   // Add examples section (keep as-is with 300 char truncation)
-  const examples = result.metadata?.examplesUsed || [];
+  const examples = (result.metadata?.examplesUsed || []) as unknown[];
   if (examples.length > 0) {
-    const examplesSection = formatExamplesSection(examples);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const examplesSection = formatExamplesSection(examples as any[]);
     contentSections.push(examplesSection);
   }
 
@@ -133,6 +134,7 @@ export function formatPRAgentResponse(
 /**
  * Formats examples into user-friendly display
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function formatExamplesSection(examples: any[]): string {
   let section = '# Diese Beispiele dienten als Inspiration\n\n';
   section +=
@@ -162,6 +164,7 @@ function formatExamplesSection(examples: any[]): string {
  * Formats enrichment sources as a bibliography-style list
  * Shows all documents, texts, and web sources used
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function formatSourcesBibliography(metadata: any): string {
   if (!metadata) return '';
 
@@ -170,6 +173,7 @@ export function formatSourcesBibliography(metadata: any): string {
   // Documents section
   if (metadata.documentsReferences && metadata.documentsReferences.length > 0) {
     let docSection = '### Dokumente\n\n';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metadata.documentsReferences.forEach((doc: any, idx: number) => {
       docSection += `${idx + 1}. **${doc.title}**\n`;
       docSection += `   - Datei: ${doc.filename}\n`;
@@ -188,6 +192,7 @@ export function formatSourcesBibliography(metadata: any): string {
   // Saved texts section
   if (metadata.textsReferences && metadata.textsReferences.length > 0) {
     let textsSection = '### Gespeicherte Texte\n\n';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metadata.textsReferences.forEach((text: any, idx: number) => {
       textsSection += `${idx + 1}. **${text.title}**\n`;
       textsSection += `   - Typ: ${text.type}\n`;
@@ -205,6 +210,7 @@ export function formatSourcesBibliography(metadata: any): string {
   // Web search sources section
   if (metadata.webSearchSources && metadata.webSearchSources.length > 0) {
     let webSection = '### Web-Quellen\n\n';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metadata.webSearchSources.forEach((source: any, idx: number) => {
       webSection += `${idx + 1}. **${source.title}**\n`;
       webSection += `   - URL: ${source.url}\n`;

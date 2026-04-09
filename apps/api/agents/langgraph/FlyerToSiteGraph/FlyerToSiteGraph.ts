@@ -23,6 +23,7 @@ const FlyerToSiteAnnotation = Annotation.Root({
   pdfBuffer: Annotation<Buffer>({ reducer: (x, y) => y ?? x }),
   originalFilename: Annotation<string>({ reducer: (x, y) => y ?? x }),
   email: Annotation<string>({ reducer: (x, y) => y ?? x }),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   req: Annotation<any>({ reducer: (x, y) => y ?? x }),
 
   // extractNode output
@@ -56,6 +57,7 @@ function routeAfterExtraction(state: FlyerToSiteState): string {
 }
 
 function createFlyerToSiteGraph() {
+  /* eslint-disable @typescript-eslint/no-explicit-any -- LangGraph node type coercions */
   const graph = new StateGraph(FlyerToSiteAnnotation)
     .addNode('extract', extractNode as any)
     .addNode('analyze', analyzeNode as any)
@@ -69,6 +71,7 @@ function createFlyerToSiteGraph() {
     .addEdge('analyze', 'generate')
     .addEdge('generate', 'selectImages')
     .addEdge('selectImages', '__end__');
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   return graph.compile();
 }

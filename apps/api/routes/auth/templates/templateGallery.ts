@@ -24,8 +24,27 @@ const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 const router: Router = express.Router();
 
 // Load system templates and files from JSON file
-let systemTemplates: any[] = [];
-let systemFiles: any[] = [];
+interface SystemTemplate {
+  id: string;
+  title: string;
+  description: string;
+  template_type: string;
+  thumbnail_url: string;
+  preview_image?: string;
+  external_url: string;
+  images: unknown[];
+  categories: string[];
+  tags: string[];
+  content_data: unknown;
+  metadata: unknown;
+  created_at: string;
+  updated_at: string;
+  similarity?: number;
+  similarity_score?: number;
+}
+
+let systemTemplates: SystemTemplate[] = [];
+let systemFiles: Array<Record<string, unknown>> = [];
 const apiRoot = process.cwd();
 const systemFilesDir = path.resolve(apiRoot, 'static-data/files');
 const templatePreviewsDir = path.resolve(apiRoot, 'config/templates/previews');
@@ -34,10 +53,14 @@ try {
   const systemTemplatesPath = path.resolve(apiRoot, 'config/templates/system-templates.json');
   const data = fs.readFileSync(systemTemplatesPath, 'utf-8');
   const parsed = JSON.parse(data);
-  systemTemplates = (parsed.templates || []).map((t: any) => ({
-    ...t,
-    thumbnail_url: t.preview_image ? `/auth/template-previews/${t.preview_image}` : t.thumbnail_url,
-  }));
+  systemTemplates = (parsed.templates || []).map(
+    (t: SystemTemplate & { preview_image?: string }) => ({
+      ...t,
+      thumbnail_url: t.preview_image
+        ? `/auth/template-previews/${t.preview_image}`
+        : t.thumbnail_url,
+    })
+  );
   systemFiles = parsed.files || [];
   log.info(
     `[Template Gallery] Loaded ${systemTemplates.length} system templates and ${systemFiles.length} system files`
@@ -57,7 +80,7 @@ const getFileDownloadUrl = (fileName: string) =>
 // Get examples (templates marked as examples)
 router.get(
   '/examples',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { type, limit = '20' } = req.query;
@@ -69,12 +92,12 @@ router.get(
       let sql = `SELECT id, title, description, content_data, metadata, categories, tags, thumbnail_url, external_url, type, created_at, updated_at
                FROM user_templates
                WHERE is_example = $1 AND status = $2`;
-      const params: any[] = [true, 'published'];
+      const params: unknown[] = [true, 'published'];
 
       // Filter by type if specified
       if (type) {
         sql += ` AND type = $3`;
-        params.push(type);
+        params.push(type as string);
       }
 
       sql += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
@@ -83,7 +106,23 @@ router.get(
       const examples = await postgres.query(sql, params, { table: 'user_templates' });
 
       // Transform data to match frontend expectations
-      const formattedExamples = (examples || []).map((example: any) => ({
+      const formattedExamples = (
+        (examples || []) as Array<{
+          id: string;
+          title: string;
+          description: string;
+          type: string;
+          template_type: string;
+          external_url: string;
+          thumbnail_url: string;
+          content_data: unknown;
+          metadata: unknown;
+          categories: string[];
+          tags: string[];
+          created_at: string;
+          updated_at: string;
+        }>
+      ).map((example) => ({
         id: example.id,
         title: example.title,
         description: example.description,
@@ -119,7 +158,7 @@ router.get(
 // Find similar examples using vector search
 router.post(
   '/examples/similar',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -141,7 +180,7 @@ router.post(
         await import('../../../services/document-services/DocumentSearchService/DocumentSearchService.js');
       const documentSearchService = new DocumentSearchService();
 
-      let vectorResults: any[] = [];
+      let vectorResults: Array<Record<string, unknown>> = [];
       try {
         const search = await documentSearchService.search({
           query: String(query).trim(),
@@ -150,7 +189,7 @@ router.post(
           options: { threshold: 0.25 },
         });
         if (search.success && Array.isArray(search.results)) {
-          vectorResults = search.results;
+          vectorResults = search.results as unknown as Array<Record<string, unknown>>;
         }
       } catch (vecErr) {
         const err = vecErr as Error;
@@ -165,7 +204,7 @@ router.post(
         let fallbackSql = `SELECT id, title, description, content_data, metadata, categories, tags, thumbnail_url, external_url, type, created_at, updated_at
                          FROM user_templates
                          WHERE is_example = $1 AND status = $2 AND title ILIKE $3`;
-        const fallbackParams: any[] = [true, 'published', `%${String(query).trim()}%`];
+        const fallbackParams: unknown[] = [true, 'published', `%${String(query).trim()}%`];
 
         if (type) {
           fallbackSql += ` AND type = $4`;
@@ -189,8 +228,8 @@ router.post(
       }
 
       // Fetch full database rows to ensure consistent shape for frontend
-      const ids = vectorResults.map((r: any) => r.id).filter(Boolean);
-      let fullRows: any[] = [];
+      const ids = vectorResults.map((r) => r.id).filter(Boolean);
+      let fullRows: Array<Record<string, unknown>> = [];
       if (ids.length > 0) {
         const rows = await postgres.query(
           `SELECT id, title, description, content_data, metadata, categories, tags, thumbnail_url, external_url, type, created_at, updated_at
@@ -202,13 +241,17 @@ router.post(
 
         if (Array.isArray(rows)) {
           // Keep the vector order
-          const rowMap = new Map(rows.map((r: any) => [r.id, r]));
-          fullRows = ids.map((id: string) => rowMap.get(id)).filter(Boolean);
+          const rowMap = new Map(
+            (rows as Array<Record<string, unknown>>).map((r) => [r.id as string, r])
+          );
+          fullRows = ids
+            .map((id) => rowMap.get(id as string))
+            .filter((r): r is Record<string, unknown> => r != null);
         }
       }
 
       const formattedResults = (fullRows.length > 0 ? fullRows : vectorResults).map(
-        (example: any) => ({
+        (example: Record<string, unknown>) => ({
           id: example.id,
           title: example.title,
           description: example.description,
@@ -252,7 +295,7 @@ router.post(
 // Get dynamic template type categories for Vorlagen gallery
 router.get(
   '/vorlagen-categories',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (_req: AuthRequest, res: Response): Promise<void> => {
     try {
       const postgres = getPostgresInstance();
@@ -268,7 +311,7 @@ router.get(
       );
 
       const categories = (data || [])
-        .map((row: any) => row.template_type)
+        .map((row: Record<string, unknown>) => row.template_type as string)
         .filter(Boolean)
         .map((type: string) => ({
           id: type,
@@ -291,7 +334,7 @@ router.get(
 // List all published templates for Vorlagen gallery
 router.get(
   '/vorlagen',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     log.debug('>>> /vorlagen endpoint HIT <<<');
     try {
@@ -301,7 +344,7 @@ router.get(
       await postgres.ensureInitialized();
 
       const conditions = ['is_private = $1', 'status = $2'];
-      const params: any[] = [false, 'published'];
+      const params: unknown[] = [false, 'published'];
       let paramIndex = 3;
 
       if (templateType && templateType !== 'all') {
@@ -344,7 +387,23 @@ router.get(
 
       const data = await postgres.query(query, params, { table: 'user_templates' });
 
-      const userVorlagen = (data || []).map((item: any) => {
+      const userVorlagen = (
+        (data || []) as Array<{
+          id: string;
+          title: string;
+          description: string;
+          template_type: string;
+          thumbnail_url: string;
+          external_url: string;
+          images: unknown[];
+          categories: string[];
+          tags: string[];
+          content_data: unknown;
+          metadata: unknown;
+          created_at: string;
+          updated_at: string;
+        }>
+      ).map((item) => {
         log.debug(
           `[Vorlagen DEBUG] Item: id=${item.id}, title=${item.title}, external_url=${item.external_url}`
         );
@@ -393,10 +452,16 @@ router.get(
       // Filter system files with same logic
       let filteredSystemFiles = systemFiles.map((f) => ({
         ...f,
-        template_type: f.file_type,
-        download_url: getFileDownloadUrl(f.file_name),
-        external_url: null,
-      }));
+        template_type: f.file_type as unknown,
+        download_url: getFileDownloadUrl(f.file_name as string),
+        external_url: null as null,
+      })) as Array<
+        Record<string, unknown> & {
+          template_type: unknown;
+          download_url: string;
+          external_url: null;
+        }
+      >;
 
       if (templateType && templateType !== 'all') {
         filteredSystemFiles = filteredSystemFiles.filter((f) => f.file_type === templateType);
@@ -405,7 +470,8 @@ router.get(
         const term = String(searchTerm).trim().toLowerCase();
         filteredSystemFiles = filteredSystemFiles.filter(
           (f) =>
-            f.title?.toLowerCase().includes(term) || f.description?.toLowerCase().includes(term)
+            (f.title as string | undefined)?.toLowerCase().includes(term) ||
+            (f.description as string | undefined)?.toLowerCase().includes(term)
         );
       }
       if (tags) {
@@ -413,7 +479,9 @@ router.get(
           const tagsArray = JSON.parse(tags as string);
           if (Array.isArray(tagsArray) && tagsArray.length > 0) {
             filteredSystemFiles = filteredSystemFiles.filter((f) =>
-              tagsArray.every((tag: string) => f.tags?.includes(tag.toLowerCase()))
+              tagsArray.every((tag: string) =>
+                (f.tags as string[] | undefined)?.includes(tag.toLowerCase())
+              )
             );
           }
         } catch {
@@ -589,7 +657,7 @@ router.get(
 // Get user's liked template IDs
 router.get(
   '/vorlagen/likes',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -619,7 +687,7 @@ router.get(
 // Like a template
 router.post(
   '/vorlagen/:templateId/like',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ templateId: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -655,7 +723,7 @@ router.post(
 // Unlike a template
 router.delete(
   '/vorlagen/:templateId/like',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ templateId: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;

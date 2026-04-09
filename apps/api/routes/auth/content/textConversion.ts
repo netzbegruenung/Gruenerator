@@ -21,7 +21,7 @@ function contentToHtml(content: string): string {
 
 router.post(
   '/saved-texts/:id/convert-to-doc',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ id: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -87,7 +87,7 @@ router.post(
       log.info(`[Convert] Text ${textId} → Doc ${docId} for user ${userId}`);
 
       res.json({ success: true, documentId: docId, url: `/docs/${docId}` });
-    } catch (err: any) {
+    } catch (err: unknown) {
       log.error('[Convert Text to Doc] Error:', err);
       res.status(500).json({ success: false, message: 'Konvertierung fehlgeschlagen' });
     }
@@ -96,7 +96,7 @@ router.post(
 
 router.post(
   '/saved-texts/migrate-all-to-docs',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -141,14 +141,16 @@ router.post(
           );
 
           converted++;
-        } catch (err: any) {
-          log.warn(`[Migrate] Failed to convert text ${text.id}: ${err.message}`);
+        } catch (err: unknown) {
+          log.warn(
+            `[Migrate] Failed to convert text ${text.id}: ${err instanceof Error ? err.message : String(err)}`
+          );
         }
       }
 
       log.info(`[Migrate] User ${userId}: ${converted}/${texts.length} texts converted to docs`);
       res.json({ success: true, converted, total: texts.length });
-    } catch (err: any) {
+    } catch (err: unknown) {
       log.error('[Migrate All Texts] Error:', err);
       res.status(500).json({ success: false, message: 'Migration fehlgeschlagen' });
     }

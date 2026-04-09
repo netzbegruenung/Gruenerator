@@ -13,6 +13,7 @@ export async function aggregatorNode(state: WebSearchState): Promise<Partial<Web
 
   try {
     const allSources: SearchResult[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sourceMap = new Map<string, any>(); // URL -> source object
 
     // Process web search results
@@ -51,6 +52,7 @@ export async function aggregatorNode(state: WebSearchState): Promise<Partial<Web
     if (state.grundsatzResults?.success && state.grundsatzResults.results?.length > 0) {
       categorizedSources['official'] = state.grundsatzResults.results.map((result) => ({
         ...result,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         url: `#grundsatz-${(result as any).document_id}`,
         title: result.title,
         content: result.content || '',
@@ -60,6 +62,7 @@ export async function aggregatorNode(state: WebSearchState): Promise<Partial<Web
 
     // Categorize external sources
     allSources.forEach((source) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const categories = (source as any).categories || [];
       categories.forEach((category: string) => {
         if (!categorizedSources[category]) {
@@ -67,6 +70,7 @@ export async function aggregatorNode(state: WebSearchState): Promise<Partial<Web
         }
         categorizedSources[category].push({
           ...source,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           content: (source as any).content_snippets || source.content || '',
         });
       });

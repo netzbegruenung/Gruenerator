@@ -66,7 +66,7 @@ interface UpdatePostBody {
 
 const router: Router = Router();
 
-router.use(requireAuth as any);
+router.use(requireAuth);
 
 router.get('/status', async (req: Request, res: Response): Promise<void> => {
   try {

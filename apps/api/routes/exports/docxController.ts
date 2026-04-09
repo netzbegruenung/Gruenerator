@@ -41,6 +41,7 @@ router.post(
       const docx = await import('docx');
       const { Document, Paragraph, TextRun, HeadingLevel, AlignmentType, Packer } = docx;
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const children: any[] = [];
       const docTitle = title || 'Dokument';
 
@@ -87,6 +88,7 @@ router.post(
           );
         } else {
           // Create regular paragraph with formatting and citation support
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const textRuns: any[] = [];
 
           for (const segment of paragraph.segments) {

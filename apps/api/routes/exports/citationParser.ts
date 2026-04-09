@@ -4,6 +4,13 @@
  */
 
 import type { CitationSegment, Citation } from './types.js';
+import type { Paragraph, TextRun, HeadingLevel } from 'docx';
+
+interface DocxLib {
+  Paragraph: typeof Paragraph;
+  TextRun: typeof TextRun;
+  HeadingLevel: typeof HeadingLevel;
+}
 
 /**
  * Parse citation markers ([cite:1], [cite:2], etc.) from text
@@ -50,11 +57,11 @@ export function parseCitationMarkers(text: string | null | undefined): CitationS
  * @param docxLib - The docx library module
  * @param citations - Array of citations
  */
-export function createSourcesSection(docxLib: any, citations: Citation[]): any[] {
+export function createSourcesSection(docxLib: DocxLib, citations: Citation[]): unknown[] {
   if (!citations || citations.length === 0) return [];
 
   const { Paragraph, TextRun, HeadingLevel } = docxLib;
-  const children: any[] = [];
+  const children: unknown[] = [];
 
   children.push(
     new Paragraph({

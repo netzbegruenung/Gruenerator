@@ -1,7 +1,8 @@
 /**
  * Simplified template HTML for server-side Yjs injection.
  * Intentionally stripped-down: inline marks (bold, italic), blockquotes,
- * checkboxes, and tables are converted to plain text by htmlToYjsXml.ts.
+ * and tables are converted to plain text by htmlToYjsXml.ts.
+ * Checkboxes (<input type="checkbox">) in <li> items are converted to checkListItem blocks.
  * Full rich templates live in packages/docs/src/lib/templates.ts (frontend only).
  */
 export const TEMPLATE_CONTENT: Record<string, string> = {
@@ -80,9 +81,9 @@ export const TEMPLATE_CONTENT: Record<string, string> = {
 <h1>Checkliste</h1>
 <h2>Aufgaben</h2>
 <ul>
-  <li>Aufgabe 1</li>
-  <li>Aufgabe 2</li>
-  <li>Aufgabe 3</li>
+  <li><input type="checkbox">Aufgabe 1</li>
+  <li><input type="checkbox">Aufgabe 2</li>
+  <li><input type="checkbox">Aufgabe 3</li>
 </ul>`,
 
   einladung: `

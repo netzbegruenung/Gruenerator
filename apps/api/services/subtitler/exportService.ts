@@ -241,8 +241,10 @@ async function processProjectExport(
 
     try {
       await fs.copyFile(sourceFontPath, tempFontPath);
-    } catch (fontCopyError: any) {
-      log.warn(`Font copy failed: ${fontCopyError.message}`);
+    } catch (fontCopyError: unknown) {
+      log.warn(
+        `Font copy failed: ${fontCopyError instanceof Error ? fontCopyError.message : String(fontCopyError)}`
+      );
     }
 
     const { ffmpegPool } = await import('./ffmpegPool.js');
@@ -346,14 +348,14 @@ async function processProjectExport(
       outputPath,
       duration: metadata.duration,
     };
-  } catch (error: any) {
-    log.error(`Project export failed: ${error.message}`);
+  } catch (error: unknown) {
+    log.error(`Project export failed: ${error instanceof Error ? error.message : String(error)}`);
 
     await redisClient.set(
       `export:${exportToken}`,
       JSON.stringify({
         status: 'error',
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       }),
       { EX: 60 * 60 }
     );
