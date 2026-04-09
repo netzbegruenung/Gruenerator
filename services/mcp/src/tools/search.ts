@@ -124,7 +124,7 @@ async function searchSingleCollection({
   searchMode,
   limit,
   filters,
-  useCache,
+  useCache: _useCache,
   sharedEmbedding,
 }: {
   collectionKey: string;

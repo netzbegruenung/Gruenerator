@@ -3,9 +3,9 @@
  * Handles CRUD operations for canvas layers with unique ID generation
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 
-import type { Layer, ImageLayer, TextLayer, ShapeLayer } from '../types.js';
+import type { Layer } from '../types.js';
 
 export interface UseCanvasLayersOptions {
   initialLayers?: Layer[];

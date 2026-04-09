@@ -31,7 +31,7 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
     async onAuthenticate(data) {
       try {
         const { documentName, requestHeaders, requestParameters, token } = data;
-        const connection = (data as any).connection;
+        const connection = (data as unknown as { connection: unknown }).connection;
 
         log.info(
           `[Auth-Hook] onAuthenticate called for document: ${documentName}, hasToken: ${!!token}`
@@ -128,7 +128,7 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
         log.error(`[Store] Error storing document ${documentName}: ${err.message}`);
       }
 
-      persistence.updateContentPreview(documentName, document);
+      void persistence.updateContentPreview(documentName, document);
     },
 
     async onConnect(data) {

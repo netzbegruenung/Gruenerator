@@ -47,9 +47,9 @@ export function createApiClient(options: CreateApiClientOptions): AxiosInstance 
         error.response?.status === 401 &&
         onUnauthorized &&
         originalRequest &&
-        !(originalRequest as any)._retried
+        !(originalRequest as InternalAxiosRequestConfig & { _retried?: boolean })._retried
       ) {
-        (originalRequest as any)._retried = true;
+        (originalRequest as InternalAxiosRequestConfig & { _retried?: boolean })._retried = true;
         const refreshed = await onUnauthorized();
         if (refreshed) {
           if (authMode === 'bearer' && getAuthToken) {
