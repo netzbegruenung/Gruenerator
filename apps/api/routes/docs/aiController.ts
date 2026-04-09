@@ -70,7 +70,13 @@ function normalizeOperationTypes(chunk: unknown): string {
 function createNormalizingTransform(): TransformStream<unknown, string> {
   return new TransformStream({
     transform(chunk, controller) {
-      controller.enqueue(normalizeOperationTypes(chunk));
+      const normalized = normalizeOperationTypes(chunk);
+      // DEBUG: Log stream chunks containing tool call data
+      const chunkStr = String(chunk);
+      if (chunkStr.includes('tool') || chunkStr.includes('operations')) {
+        log.info(`[DocsAI] Stream chunk: ${chunkStr.substring(0, 500)}`);
+      }
+      controller.enqueue(normalized);
     },
   });
 }
@@ -155,6 +161,24 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
       `[DocsAI] Messages after doc state injection: ${messagesWithDocState.length} messages`
     );
 
+    // DEBUG: Log document state sent to LLM (block IDs for cross-reference with tool call args)
+    for (const msg of messagesWithDocState) {
+      const content =
+        typeof msg.content === 'string'
+          ? msg.content
+          : Array.isArray(msg.parts)
+            ? msg.parts
+                .filter((p: { type: string }) => p.type === 'text')
+                .map((p: { text: string }) => p.text)
+                .join('')
+            : '';
+      const idMatches = content.match(/data-id="([^"]+)"/g);
+      if (idMatches && idMatches.length > 0) {
+        const ids = idMatches.map((m: string) => m.replace(/data-id="|"/g, ''));
+        log.info(`[DocsAI] Document block IDs sent to LLM (${ids.length}): ${ids.join(', ')}`);
+      }
+    }
+
     const tools = toolDefinitionsToToolSet(
       toolDefinitions as Parameters<typeof toolDefinitionsToToolSet>[0]
     );
@@ -177,9 +201,9 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
         );
         if (toolCalls?.length) {
           toolCalls.forEach((tc, i) => {
-            log.info(
-              `[DocsAI]   Tool[${i}]: ${tc.toolName}, args size: ${JSON.stringify(tc.input).length} chars`
-            );
+            const argsJson = JSON.stringify(tc.input);
+            log.info(`[DocsAI]   Tool[${i}]: ${tc.toolName}, args size: ${argsJson.length} chars`);
+            log.info(`[DocsAI]   Tool[${i}] full args: ${argsJson}`);
           });
         } else {
           log.warn(
