@@ -13,7 +13,10 @@ import {
   executeDirectWebSearch,
   executeResearch,
 } from '../../../../routes/chat/agents/directSearch.js';
-import { selectAndCrawlTopUrls } from '../../../../services/search/CrawlingService.js';
+import {
+  selectAndCrawlTopUrls,
+  type CrawlableResult,
+} from '../../../../services/search/CrawlingService.js';
 import { expandQuery } from '../../../../services/search/QueryExpansionService.js';
 import { DEFAULT_RELEVANCE } from '../../../../services/search/rerankPipeline.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -370,7 +373,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       const webResults = results.filter((r) => r.source === 'web' && r.url);
       if (webResults.length > 0) {
         try {
-          const crawled = await selectAndCrawlTopUrls(webResults, query, {
+          const crawled = await selectAndCrawlTopUrls(webResults as CrawlableResult[], query, {
             maxUrls: 2,
             timeout: 3000,
           });
@@ -743,7 +746,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // A1: Crawl top 2 web results for full content
         try {
           const crawled = await selectAndCrawlTopUrls(
-            results.filter((r) => r.url),
+            results.filter((r) => r.url) as CrawlableResult[],
             query,
             {
               maxUrls: 2,

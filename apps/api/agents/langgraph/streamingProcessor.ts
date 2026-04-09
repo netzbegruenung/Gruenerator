@@ -127,14 +127,18 @@ export async function processGraphRequestStreaming(
     }
 
     // Apply profile defaults
-    await applyProfileDefaults(requestData, req, routeType);
+    await applyProfileDefaults(
+      requestData,
+      req as Parameters<typeof applyProfileDefaults>[1],
+      routeType
+    );
 
     if (!extractedInstructions && requestData.customPrompt) {
       extractedInstructions = requestData.customPrompt;
     }
 
     // Handle custom_generator special case
-    let generatorData: Record<string, unknown> | null = null;
+    let generatorData: Awaited<ReturnType<typeof loadCustomGeneratorPrompt>> = null;
     if (config.features?.customPromptFromDb) {
       generatorData = await loadCustomGeneratorPrompt(requestData.slug);
     }
