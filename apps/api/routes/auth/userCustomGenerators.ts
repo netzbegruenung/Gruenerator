@@ -32,7 +32,7 @@ interface CustomGeneratorCreateBody {
   slug: string;
   title: string;
   description?: string;
-  form_schema: any;
+  form_schema: Record<string, unknown>;
   prompt: string;
   contact_email?: string;
 }
@@ -73,7 +73,7 @@ async function generateUniqueSlug(baseSlug: string): Promise<string> {
 
 router.get(
   '/custom_generator',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -104,7 +104,7 @@ router.get(
 
 router.post(
   '/custom_generator/create',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -156,7 +156,7 @@ router.post(
 
 router.put(
   '/custom_generator/:id',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -237,7 +237,7 @@ router.put(
 
 router.delete(
   '/custom_generator/:id',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -296,7 +296,7 @@ router.delete(
 
 router.get(
   '/custom_generator/:id/documents',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -351,7 +351,7 @@ router.get(
 
 router.post(
   '/custom_generator/:id/documents',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -449,7 +449,7 @@ router.post(
 
 router.delete(
   '/custom_generator/:id/documents/:documentId',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -517,7 +517,7 @@ router.delete(
 
 router.get(
   '/saved_generators',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -555,7 +555,7 @@ router.get(
 
 router.post(
   '/saved_generators/:generatorId',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -632,7 +632,7 @@ router.post(
 
 router.delete(
   '/saved_generators/:generatorId',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;

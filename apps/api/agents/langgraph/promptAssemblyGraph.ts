@@ -61,9 +61,9 @@ const EXAMPLES_ALLOWED_PLATFORMS: ReadonlySet<Platform> = new Set(['facebook', '
 
 function buildSystemText({
   systemRole,
-  toolInstructions = [],
-  constraints = null,
-  formatting = null,
+  toolInstructions: _toolInstructions = [],
+  constraints: _constraints = null,
+  formatting: _formatting = null,
   locale = 'de-DE',
 }: BuildSystemTextParams): string {
   if (!systemRole) throw new Error('System role is required');
@@ -285,6 +285,7 @@ function assemblePromptGraph(state: PromptAssemblyState): PromptAssemblyResult {
   const docBlocks = buildDocumentBlocks(state.documents as DocumentBlock[]);
   if (docBlocks && docBlocks.length > 0) {
     console.log(`📋 [PromptAssembly] Added ${docBlocks.length} document blocks`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     messages.push({ role: 'user', content: docBlocks as any });
   }
 
@@ -490,7 +491,7 @@ async function runDocumentQnA(
 
 async function assemblePromptGraphAsync(
   enrichedState: PromptAssemblyState,
-  flags: PromptAssemblyFlags = {}
+  _flags: PromptAssemblyFlags = {}
 ): Promise<PromptAssemblyResult> {
   console.log('📋 [PromptAssemblyAsync] Starting assembly with pre-enriched state...');
 
@@ -567,6 +568,7 @@ async function assemblePromptGraphAsync(
       console.log(
         '📋 [PromptAssemblyAsync] No Doc URLs prepared; falling back to direct documents for DocQnA'
       );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       knowledgeCapsule = await runDocumentQnA(enrichedState, fileAttachmentDocs as any);
       if (knowledgeCapsule) {
         console.log(
@@ -685,6 +687,7 @@ async function assemblePromptGraphAsync(
 
   if (effectiveDocuments.length > 0) {
     console.log(`📋 [PromptAssemblyAsync] Adding ${effectiveDocuments.length} effective documents`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     messages.push({ role: 'user', content: buildDocumentBlocks(effectiveDocuments) as any });
   }
 

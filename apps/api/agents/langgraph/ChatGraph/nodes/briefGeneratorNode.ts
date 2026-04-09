@@ -107,8 +107,10 @@ Erstelle einen klaren, fokussierten Recherche-Auftrag.`;
     log.debug(`[BriefGenerator] Brief: "${brief.slice(0, 100)}..."`);
 
     return { researchBrief: brief };
-  } catch (error: any) {
-    log.error(`[BriefGenerator] Error: ${error.message}, falling back to searchQuery`);
+  } catch (error: unknown) {
+    log.error(
+      `[BriefGenerator] Error: ${error instanceof Error ? error.message : String(error)}, falling back to searchQuery`
+    );
     return {};
   }
 }

@@ -29,14 +29,14 @@ import type {
 interface QdrantSearchResult {
   id: string | number;
   score?: number;
-  payload?: Record<string, any>;
+  payload?: Record<string, unknown>;
   searchMethod?: string;
 }
 
 interface QdrantScrollResult {
   points?: Array<{
     id: string | number;
-    payload?: Record<string, any>;
+    payload?: Record<string, unknown>;
   }>;
 }
 
@@ -118,8 +118,11 @@ export class EnrichedPersonSearchService {
     try {
       const result = await this.mcpClient.getPerson(personId);
       return result;
-    } catch (error: any) {
-      console.error('[EnrichedPersonSearch] Failed to fetch person details:', error.message);
+    } catch (error: unknown) {
+      console.error(
+        '[EnrichedPersonSearch] Failed to fetch person details:',
+        error instanceof Error ? error.message : String(error)
+      );
       return null;
     }
   }
@@ -191,8 +194,11 @@ export class EnrichedPersonSearchService {
 
       // Sort by score and limit
       return merged.sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, limit);
-    } catch (error: any) {
-      console.error('[EnrichedPersonSearch] bundestag_content search failed:', error.message);
+    } catch (error: unknown) {
+      console.error(
+        '[EnrichedPersonSearch] bundestag_content search failed:',
+        error instanceof Error ? error.message : String(error)
+      );
       return [];
     }
   }
@@ -208,8 +214,11 @@ export class EnrichedPersonSearchService {
         limit,
       });
       return result;
-    } catch (error: any) {
-      console.error('[EnrichedPersonSearch] Drucksachen search failed:', error.message);
+    } catch (error: unknown) {
+      console.error(
+        '[EnrichedPersonSearch] Drucksachen search failed:',
+        error instanceof Error ? error.message : String(error)
+      );
       return { documents: [] };
     }
   }
@@ -230,8 +239,11 @@ export class EnrichedPersonSearchService {
         limit,
       });
       return result;
-    } catch (error: any) {
-      console.error('[EnrichedPersonSearch] Aktivitäten search failed:', error.message);
+    } catch (error: unknown) {
+      console.error(
+        '[EnrichedPersonSearch] Aktivitäten search failed:',
+        error instanceof Error ? error.message : String(error)
+      );
       return { documents: [] };
     }
   }
@@ -243,21 +255,21 @@ export class EnrichedPersonSearchService {
     basicPerson: Person,
     detailedPerson: SearchResult | null
   ): PersonProfile {
-    const details: any = detailedPerson || {};
+    const details: Record<string, unknown> = (detailedPerson || {}) as Record<string, unknown>;
     return {
       id: basicPerson.id,
-      vorname: basicPerson.vorname || details.vorname,
-      nachname: basicPerson.nachname || details.nachname,
+      vorname: (basicPerson.vorname || details.vorname) as string,
+      nachname: (basicPerson.nachname || details.nachname) as string,
       name: `${basicPerson.vorname || details.vorname || ''} ${basicPerson.nachname || details.nachname || ''}`.trim(),
-      titel: basicPerson.titel || details.titel,
-      fraktion: basicPerson.fraktion || details.fraktion,
-      wahlkreis: details.wahlkreis,
-      geburtsdatum: details.geburtsdatum,
-      geburtsort: details.geburtsort,
-      beruf: details.beruf,
-      biografie: details.biografie || details.vita_kurz,
-      vita: details.vita_kurz,
-      wahlperioden: details.wahlperioden,
+      titel: (basicPerson.titel || details.titel) as string | undefined,
+      fraktion: (basicPerson.fraktion || details.fraktion) as string | string[] | undefined,
+      wahlkreis: details.wahlkreis as string | undefined,
+      geburtsdatum: details.geburtsdatum as string | undefined,
+      geburtsort: details.geburtsort as string | undefined,
+      beruf: details.beruf as string | undefined,
+      biografie: (details.biografie || details.vita_kurz) as string | undefined,
+      vita: details.vita_kurz as string | undefined,
+      wahlperioden: details.wahlperioden as Record<string, unknown>[] | undefined,
       source: 'DIP',
     };
   }
@@ -267,13 +279,13 @@ export class EnrichedPersonSearchService {
    */
   private _formatContentMentions(results: QdrantSearchResult[]): ContentMention[] {
     return (results || []).map((r) => ({
-      title: r.payload?.title || 'Unbekannt',
-      url: r.payload?.source_url || r.payload?.url,
-      snippet: this._truncateSnippet(r.payload?.chunk_text, 300),
+      title: (r.payload?.title as string) || 'Unbekannt',
+      url: (r.payload?.source_url || r.payload?.url) as string | undefined,
+      snippet: this._truncateSnippet(r.payload?.chunk_text as string | undefined, 300),
       similarity: r.score || 0,
       searchMethod: r.searchMethod,
-      category: r.payload?.primary_category,
-      publishedAt: r.payload?.published_at,
+      category: r.payload?.primary_category as string | undefined,
+      publishedAt: r.payload?.published_at as string | undefined,
       source: 'bundestag_content',
     }));
   }
@@ -282,15 +294,15 @@ export class EnrichedPersonSearchService {
    * Format Drucksachen results
    */
   private _formatDrucksachen(result: SearchResult): FormattedDrucksache[] {
-    return (result?.documents || []).map((d: any) => ({
-      id: d.id,
-      dokumentnummer: d.dokumentnummer,
-      titel: d.titel,
-      drucksachetyp: d.drucksachetyp,
-      datum: d.datum,
-      wahlperiode: d.wahlperiode,
-      urheber: d.urheber,
-      fundstelle: d.fundstelle,
+    return (result?.documents || []).map((d: Record<string, unknown>) => ({
+      id: d.id as string | undefined,
+      dokumentnummer: d.dokumentnummer as string | undefined,
+      titel: d.titel as string | undefined,
+      drucksachetyp: d.drucksachetyp as string | undefined,
+      datum: d.datum as string | undefined,
+      wahlperiode: d.wahlperiode as number | undefined,
+      urheber: d.urheber as string | undefined,
+      fundstelle: d.fundstelle as string | undefined,
       source: 'DIP_Drucksachen',
     }));
   }
@@ -299,13 +311,13 @@ export class EnrichedPersonSearchService {
    * Format Aktivitäten results
    */
   private _formatAktivitaeten(result: SearchResult): FormattedAktivitaet[] {
-    return (result?.documents || []).map((a: any) => ({
-      id: a.id,
-      aktivitaetsart: a.aktivitaetsart,
-      titel: a.titel,
-      datum: a.datum,
-      wahlperiode: a.wahlperiode,
-      vorgangsbezug: a.vorgangsbezug,
+    return (result?.documents || []).map((a: Record<string, unknown>) => ({
+      id: a.id as string | undefined,
+      aktivitaetsart: a.aktivitaetsart as string | undefined,
+      titel: a.titel as string | undefined,
+      datum: a.datum as string | undefined,
+      wahlperiode: a.wahlperiode as number | undefined,
+      vorgangsbezug: a.vorgangsbezug as Record<string, unknown> | undefined,
       source: 'DIP_Aktivitaeten',
     }));
   }
@@ -313,7 +325,7 @@ export class EnrichedPersonSearchService {
   /**
    * Truncate snippet to max length
    */
-  private _truncateSnippet(text: any, maxLength: number = 300): string {
+  private _truncateSnippet(text: unknown, maxLength: number = 300): string {
     if (!text) return '';
     const str = String(text);
     if (str.length <= maxLength) return str;

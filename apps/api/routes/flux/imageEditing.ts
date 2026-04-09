@@ -17,7 +17,7 @@ const log = createLogger('imageEditing');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
-const imageCounter = new ImageGenerationCounter(redisClient as any);
+const imageCounter = new ImageGenerationCounter(redisClient);
 
 // ============================================================================
 // Type Definitions
@@ -192,7 +192,7 @@ function buildGreenEditPrompt(userText: string, isPrecision = false): string {
   return JSON.stringify(promptStructure, null, 2);
 }
 
-function buildAllyMakerPrompt(placementText: string, isPrecision = false): string {
+function buildAllyMakerPrompt(placementText: string, _isPrecision = false): string {
   const trimmed = (placementText || '').toString().trim();
   const hasPlacement = trimmed.length > 0;
 
@@ -356,32 +356,38 @@ router.post(
         },
         mode: 'pro',
       });
-    } catch (error: any) {
-      log.error('[Image Edit] Error during image generation:', error.message);
-      if (error.response?.status) {
-        log.error('[Image Edit] API response status:', error.response.status);
-        log.error('[Image Edit] API response data:', error.response.data);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      const typed = error as {
+        type?: string;
+        retryable?: boolean;
+        response?: { status?: number; data?: unknown };
+      };
+      log.error('[Image Edit] Error during image generation:', errMsg);
+      if (typed.response?.status) {
+        log.error('[Image Edit] API response status:', typed.response.status);
+        log.error('[Image Edit] API response data:', typed.response.data);
       }
 
       const statusCode =
-        error.type === 'validation'
+        typed.type === 'validation'
           ? 400
-          : error.type === 'billing'
+          : typed.type === 'billing'
             ? 402
-            : error.retryable === false
+            : typed.retryable === false
               ? 400
               : 500;
 
       return res.status(statusCode).json({
         success: false,
-        error: error.message || 'Failed to generate image',
-        type: error.type || 'unknown',
-        retryable: error.retryable || false,
-        ...(error.type === 'network' && {
+        error: errMsg || 'Failed to generate image',
+        type: typed.type || 'unknown',
+        retryable: typed.retryable || false,
+        ...(typed.type === 'network' && {
           hint: 'Please check your internet connection and try again',
         }),
-        ...(error.type === 'billing' && { hint: 'Please add credits to your BFL account' }),
-        ...(error.type === 'server' && {
+        ...(typed.type === 'billing' && { hint: 'Please add credits to your BFL account' }),
+        ...(typed.type === 'server' && {
           hint: 'The service is temporarily unavailable. Please try again in a few minutes',
         }),
       });
@@ -504,32 +510,38 @@ router.post(
         },
         mode: 'pro',
       });
-    } catch (error: any) {
-      log.error('[Image Edit Generate] Error during image generation:', error.message);
-      if (error.response?.status) {
-        log.error('[Image Edit Generate] API response status:', error.response.status);
-        log.error('[Image Edit Generate] API response data:', error.response.data);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      const typed = error as {
+        type?: string;
+        retryable?: boolean;
+        response?: { status?: number; data?: unknown };
+      };
+      log.error('[Image Edit Generate] Error during image generation:', errMsg);
+      if (typed.response?.status) {
+        log.error('[Image Edit Generate] API response status:', typed.response.status);
+        log.error('[Image Edit Generate] API response data:', typed.response.data);
       }
 
       const statusCode =
-        error.type === 'validation'
+        typed.type === 'validation'
           ? 400
-          : error.type === 'billing'
+          : typed.type === 'billing'
             ? 402
-            : error.retryable === false
+            : typed.retryable === false
               ? 400
               : 500;
 
       return res.status(statusCode).json({
         success: false,
-        error: error.message || 'Failed to generate image',
-        type: error.type || 'unknown',
-        retryable: error.retryable || false,
-        ...(error.type === 'network' && {
+        error: errMsg || 'Failed to generate image',
+        type: typed.type || 'unknown',
+        retryable: typed.retryable || false,
+        ...(typed.type === 'network' && {
           hint: 'Please check your internet connection and try again',
         }),
-        ...(error.type === 'billing' && { hint: 'Please add credits to your BFL account' }),
-        ...(error.type === 'server' && {
+        ...(typed.type === 'billing' && { hint: 'Please add credits to your BFL account' }),
+        ...(typed.type === 'server' && {
           hint: 'The service is temporarily unavailable. Please try again in a few minutes',
         }),
       });

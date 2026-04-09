@@ -40,7 +40,7 @@ export function findSemanticBoundaries(
  */
 export function findParagraphBoundaries(
   text: string,
-  structure: DocumentStructure
+  _structure: DocumentStructure
 ): SemanticBoundary[] {
   const boundaries: SemanticBoundary[] = [];
   const lines = text.split('\n');

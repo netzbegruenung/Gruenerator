@@ -162,7 +162,7 @@ router.post(
       );
 
       return res.status(201).json({ ...result, success: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[DocsImport] Error importing file:', error);
 
       if (error instanceof OcrImportError) {
@@ -248,7 +248,7 @@ router.post('/from-wolke', requireAuth, async (req: AuthenticatedRequest, res: R
     );
 
     return res.status(201).json({ ...result, success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DocsImport:Wolke] Error:', error);
 
     if (error instanceof OcrImportError) {

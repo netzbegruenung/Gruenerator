@@ -37,9 +37,9 @@ const log = createLogger('HtmlToYjs');
  *
  * BlockNote format: blockGroup > blockContainer[id] > (heading|paragraph|bulletListItem|numberedListItem)
  *
- * Supports: h1-h3, p, ul/li, ol/li, blockquote, hr.
+ * Supports: h1-h3, p, ul/li (with checkbox detection → checkListItem), ol/li, blockquote, hr.
  * Inline marks (strong, em) are converted to plain text (Yjs XmlText doesn't support marks in this context).
- * Tables and checkboxes are converted to plain paragraphs.
+ * Tables are converted to plain paragraphs.
  */
 export function injectHtmlIntoFragment(fragment: Y.XmlFragment, html: string): void {
   const group = new Y.XmlElement('blockGroup');
@@ -55,11 +55,15 @@ export function injectHtmlIntoFragment(fragment: Y.XmlFragment, html: string): v
   while ((match = blockPattern.exec(normalized)) !== null) {
     const fullMatch = match[0];
 
-    // Unordered list
+    // Unordered list (with checkbox detection)
     if (match[3] !== undefined) {
       const items = extractListItems(match[3]);
       for (const item of items) {
-        addBlock(group, 'bulletListItem', item, {});
+        if (item.isCheckbox) {
+          addBlock(group, 'checkListItem', item.text, { checked: item.checked ? 'true' : 'false' });
+        } else {
+          addBlock(group, 'bulletListItem', item.text, {});
+        }
       }
       continue;
     }
@@ -68,7 +72,7 @@ export function injectHtmlIntoFragment(fragment: Y.XmlFragment, html: string): v
     if (match[4] !== undefined) {
       const items = extractListItems(match[4]);
       for (const item of items) {
-        addBlock(group, 'numberedListItem', item, {});
+        addBlock(group, 'numberedListItem', item.text, {});
       }
       continue;
     }
@@ -153,13 +157,22 @@ function extractInnerContent(html: string): string {
   return match ? match[1] : html;
 }
 
-function extractListItems(listContent: string): string[] {
-  const items: string[] = [];
+interface ListItem {
+  text: string;
+  isCheckbox: boolean;
+  checked: boolean;
+}
+
+function extractListItems(listContent: string): ListItem[] {
+  const items: ListItem[] = [];
   const liPattern = /<li[^>]*>([\s\S]*?)<\/li>/gi;
   let m;
   while ((m = liPattern.exec(listContent)) !== null) {
-    const text = stripHtmlTags(m[1]);
-    if (text) items.push(text);
+    const raw = m[1];
+    const hasCheckbox = /<input\s[^>]*type\s*=\s*["']?checkbox["']?[^>]*>/i.test(raw);
+    const isChecked = hasCheckbox && /\bchecked\b/i.test(raw);
+    const text = stripHtmlTags(raw);
+    if (text) items.push({ text, isCheckbox: hasCheckbox, checked: isChecked });
   }
   return items;
 }

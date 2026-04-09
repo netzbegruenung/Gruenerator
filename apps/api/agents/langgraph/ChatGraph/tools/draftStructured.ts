@@ -31,10 +31,7 @@ const ANTRAG_SCHEMA = z.object({
     .describe('Konkreter Beschlusstext ("Die Verwaltung wird beauftragt...")'),
   sachverhalt: z.string().describe('Beschreibung der Ausgangslage (Ist-Zustand)'),
   begruendung: z.string().describe('Argumente und Fakten (Soll-Zustand, Nutzen)'),
-  kosten: z
-    .string()
-    .optional()
-    .describe('Kostenabschätzung oder Hinweis auf Kostenermittlung'),
+  kosten: z.string().optional().describe('Kostenabschätzung oder Hinweis auf Kostenermittlung'),
 });
 
 const REDE_SCHEMA = z.object({
@@ -49,22 +46,14 @@ const REDE_SCHEMA = z.object({
       z.object({
         argument: z.string().describe('Das Kernargument'),
         beleg: z.string().describe('Fakten oder Beispiele zur Unterstützung'),
-      }),
+      })
     )
     .min(2)
     .max(4)
     .describe('2-3 Kernargumente mit Belegen'),
-  schlussideen: z
-    .array(z.string())
-    .min(2)
-    .max(3)
-    .describe('2-3 Ideen für ein starkes Ende'),
+  schlussideen: z.array(z.string()).min(2).max(3).describe('2-3 Ideen für ein starkes Ende'),
   redetext: z.string().describe('Der vollständige Redetext'),
-  rednerhinweise: z
-    .array(z.string())
-    .min(2)
-    .max(3)
-    .describe('2-3 Tipps für die*den Redner*in'),
+  rednerhinweise: z.array(z.string()).min(2).max(3).describe('2-3 Tipps für die*den Redner*in'),
 });
 
 const WAHLPROGRAMM_SCHEMA = z.object({
@@ -75,7 +64,7 @@ const WAHLPROGRAMM_SCHEMA = z.object({
       z.object({
         ueberschrift: z.string().describe('Aussagekräftige Überschrift'),
         inhalt: z.string().describe('2-3 Absätze mit mindestens einer konkreten Forderung'),
-      }),
+      })
     )
     .min(3)
     .max(5)
@@ -86,10 +75,7 @@ const WAHLPROGRAMM_SCHEMA = z.object({
 // Schema map + formatting
 // ---------------------------------------------------------------------------
 
-type AgentSchema =
-  | typeof ANTRAG_SCHEMA
-  | typeof REDE_SCHEMA
-  | typeof WAHLPROGRAMM_SCHEMA;
+type AgentSchema = typeof ANTRAG_SCHEMA | typeof REDE_SCHEMA | typeof WAHLPROGRAMM_SCHEMA;
 
 const SCHEMA_MAP: Record<string, AgentSchema> = {
   'gruenerator-antrag': ANTRAG_SCHEMA,
@@ -142,17 +128,14 @@ function formatRede(data: z.infer<typeof REDE_SCHEMA>): string {
 }
 
 function formatWahlprogramm(data: z.infer<typeof WAHLPROGRAMM_SCHEMA>): string {
-  const lines = [
-    `# ${data.kapitel_titel}`,
-    '',
-    data.einleitung,
-  ];
+  const lines = [`# ${data.kapitel_titel}`, '', data.einleitung];
   for (const uk of data.unterkapitel) {
     lines.push('', `## ${uk.ueberschrift}`, '', uk.inhalt);
   }
   return lines.join('\n');
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Formatter = (data: any) => string;
 
 const FORMATTER_MAP: Record<string, Formatter> = {
@@ -187,14 +170,18 @@ export function createDraftStructuredTool(deps: ToolDependencies): DynamicStruct
 
       try {
         const formatted = formatter(input);
-        log.info(`[DraftStructured] Agent=${agentId} sections validated, ${formatted.length} chars`);
+        log.info(
+          `[DraftStructured] Agent=${agentId} sections validated, ${formatted.length} chars`
+        );
 
         return formatted;
-      } catch (err: any) {
-        log.warn(`[DraftStructured] Formatting failed: ${err.message}`);
+      } catch (err: unknown) {
+        log.warn(
+          `[DraftStructured] Formatting failed: ${err instanceof Error ? err.message : String(err)}`
+        );
         return JSON.stringify({
           error: 'Strukturvalidierung fehlgeschlagen',
-          details: err.message,
+          details: err instanceof Error ? err.message : String(err),
         });
       }
     },

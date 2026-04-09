@@ -69,8 +69,10 @@ export async function generateDefaultSharepics(
         timestamp: new Date().toISOString(),
       },
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DefaultSharepicService] Error generating default sharepics:', error);
-    throw new Error(`Failed to generate default sharepics: ${error.message}`);
+    throw new Error(
+      `Failed to generate default sharepics: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }

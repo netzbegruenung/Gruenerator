@@ -19,7 +19,15 @@ import {
 } from './sentenceSegmentation.js';
 import { estimateTokens } from './validation.js';
 
-import type { Chunk, SentenceSegment, PageMarker } from './types.js';
+import type { Chunk, SentenceSegment } from './types.js';
+
+/** Intermediate result with position info before final mapping to Chunk */
+interface PositionedChunk {
+  text: string;
+  start: number;
+  end: number;
+  page_number: number | null;
+}
 
 /**
  * Repack chunks into sentence-aligned chunks with proper overlap
@@ -27,32 +35,33 @@ import type { Chunk, SentenceSegment, PageMarker } from './types.js';
 export function sentenceRepack(
   chunks: Chunk[],
   options: {
-    baseMetadata?: Record<string, any>;
+    baseMetadata?: Record<string, unknown>;
     targetChars?: number;
     overlapChars?: number;
     originalRawText?: string;
-    pageRanges?: any[];
+    pageRanges?: Array<{ start: number; end: number }>;
   } = {}
 ): Chunk[] {
   const {
     baseMetadata = {},
     targetChars = 1600,
     overlapChars = 400,
-    originalRawText,
-    pageRanges,
+    originalRawText: _originalRawText,
+    pageRanges: _pageRanges,
   } = options;
 
   if (!Array.isArray(chunks) || chunks.length === 0) return [];
 
   // Concatenate texts in order; prefer page-aware metadata from first chunk
-  const pageNum = chunks[0]?.metadata?.page_number ?? baseMetadata.page_number ?? null;
+  const rawPageNum = chunks[0]?.metadata?.page_number ?? baseMetadata.page_number ?? null;
+  const pageNum = typeof rawPageNum === 'number' ? rawPageNum : null;
   const text = chunks
     .map((c) => c.text)
     .join(' ')
     .trim();
   const sentences = sentenceSegments(text);
   const markers = findPageMarkers(text);
-  const results: any[] = [];
+  const results: PositionedChunk[] = [];
 
   // Helper: split oversized text into targetChars-sized sub-chunks at word boundaries
   const splitOversizedText = (
@@ -168,7 +177,7 @@ export function sentenceRepack(
  */
 export function enrichChunkWithMetadata(
   chunk: Chunk,
-  baseMetadata: Record<string, any> = {}
+  baseMetadata: Record<string, unknown> = {}
 ): Chunk {
   const contentType = detectContentType(chunk.text);
   const md = detectMarkdownStructure(chunk.text);

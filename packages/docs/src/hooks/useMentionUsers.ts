@@ -18,6 +18,7 @@ export function useMentionUsers(provider: HocuspocusProvider | null) {
 
   const getMentionMenuItems = useCallback(
     async (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       editor: BlockNoteEditor<any, any, any>,
       query: string
     ): Promise<DefaultReactSuggestionItem[]> => {
@@ -78,6 +79,7 @@ export function useMentionUsers(provider: HocuspocusProvider | null) {
               });
             }
           }
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
           if (err.name !== 'AbortError') {
             console.error('[MentionUsers] Search failed:', err);

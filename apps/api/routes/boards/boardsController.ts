@@ -63,9 +63,14 @@ router.get('/', async (req: Request, res: Response) => {
     )) as BoardDocument[];
 
     return res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Boards] Error listing boards:', error);
-    return res.status(500).json({ error: 'Failed to list boards', details: error.message });
+    return res
+      .status(500)
+      .json({
+        error: 'Failed to list boards',
+        details: error instanceof Error ? error.message : String(error),
+      });
   }
 });
 
@@ -107,9 +112,14 @@ router.post('/generate', async (req: Request, res: Response) => {
     const generatedStructure = postProcessBoardStructure(structure, userId);
 
     return res.status(201).json({ board, generatedStructure });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Boards] Error generating board:', error);
-    return res.status(500).json({ error: 'Failed to generate board', details: error.message });
+    return res
+      .status(500)
+      .json({
+        error: 'Failed to generate board',
+        details: error instanceof Error ? error.message : String(error),
+      });
   }
 });
 
@@ -124,9 +134,14 @@ router.post('/', async (req: Request, res: Response) => {
 
     const board = await createBoardDocument(title, userId, boardType);
     return res.status(201).json(board);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Boards] Error creating board:', error);
-    return res.status(500).json({ error: 'Failed to create board', details: error.message });
+    return res
+      .status(500)
+      .json({
+        error: 'Failed to create board',
+        details: error instanceof Error ? error.message : String(error),
+      });
   }
 });
 
@@ -175,9 +190,14 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
     }
 
     return res.json(board);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Boards] Error fetching board:', error);
-    return res.status(500).json({ error: 'Failed to fetch board', details: error.message });
+    return res
+      .status(500)
+      .json({
+        error: 'Failed to fetch board',
+        details: error instanceof Error ? error.message : String(error),
+      });
   }
 });
 
@@ -196,9 +216,14 @@ router.get('/:id/state', async (req: Request<{ id: string }>, res: Response) => 
     }
 
     return res.json(state);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Boards] Error fetching board state:', error);
-    return res.status(500).json({ error: 'Failed to fetch board state', details: error.message });
+    return res
+      .status(500)
+      .json({
+        error: 'Failed to fetch board state',
+        details: error instanceof Error ? error.message : String(error),
+      });
   }
 });
 
@@ -257,9 +282,14 @@ router.put('/:id', async (req: Request<{ id: string }>, res: Response) => {
     )) as BoardDocument[];
 
     return res.json(result[0]);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Boards] Error updating board:', error);
-    return res.status(500).json({ error: 'Failed to update board', details: error.message });
+    return res
+      .status(500)
+      .json({
+        error: 'Failed to update board',
+        details: error instanceof Error ? error.message : String(error),
+      });
   }
 });
 
@@ -295,9 +325,14 @@ router.delete('/:id', async (req: Request<{ id: string }>, res: Response) => {
     );
 
     return res.json({ message: 'Board deleted successfully' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Boards] Error deleting board:', error);
-    return res.status(500).json({ error: 'Failed to delete board', details: error.message });
+    return res
+      .status(500)
+      .json({
+        error: 'Failed to delete board',
+        details: error instanceof Error ? error.message : String(error),
+      });
   }
 });
 

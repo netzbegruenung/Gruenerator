@@ -2,11 +2,18 @@ import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
 
-import axios, { AxiosResponse } from 'axios';
+import axios, { type AxiosRequestConfig } from 'axios';
 
 const sleep = promisify(setTimeout);
 
+type AxiosConfigWithFamily = AxiosRequestConfig & { family?: 4 | 6 };
+
 export type FluxBackend = 'hosted' | 'local' | 'regolo' | 'ionos';
+
+type FluxApiError = Error & {
+  code?: string;
+  response?: { status?: number; data?: { detail?: string; message?: string } };
+};
 
 export interface FluxImageServiceOptions {
   apiKey?: string;
@@ -203,11 +210,11 @@ class FluxImageService {
     console.log(`[FluxImageService] Submitting text-to-image request to ${url}`);
 
     return await this.executeWithRetry(async (family?: number) => {
-      const axiosConfig: any = {
+      const axiosConfig: AxiosConfigWithFamily = {
         headers,
         timeout: this.retryConfig.networkTimeoutMs,
       };
-      if (family) axiosConfig.family = family;
+      if (family) axiosConfig.family = family as 4 | 6;
 
       const res = await axios.post<SubmitResponse>(url, body, axiosConfig);
       console.log(
@@ -227,7 +234,7 @@ class FluxImageService {
       );
     }
 
-    let lastError: any;
+    let lastError!: FluxApiError;
     const networkPreferences = [undefined, 4, 6];
 
     for (let attempt = 0; attempt <= this.retryConfig.maxRetries; attempt++) {
@@ -244,9 +251,9 @@ class FluxImageService {
             );
           }
           return result;
-        } catch (error: any) {
-          lastError = error;
-          const errorInfo = this.classifyError(error);
+        } catch (error: unknown) {
+          lastError = error as typeof lastError;
+          const errorInfo = this.classifyError(lastError);
 
           if (
             errorInfo.type === 'network' &&
@@ -258,13 +265,15 @@ class FluxImageService {
             continue;
           }
 
+          const errMsg = error instanceof Error ? error.message : String(error);
+          const axiosErr = error as { response?: { data?: unknown } };
           console.log(
-            `[FluxImageService] ${operationType} failed (attempt ${attempt + 1}/${this.retryConfig.maxRetries + 1}), error: ${errorInfo.type} - ${error.message}`
+            `[FluxImageService] ${operationType} failed (attempt ${attempt + 1}/${this.retryConfig.maxRetries + 1}), error: ${errorInfo.type} - ${errMsg}`
           );
-          if (error.response?.data) {
+          if (axiosErr.response?.data) {
             console.log(
               `[FluxImageService] API response body:`,
-              JSON.stringify(error.response.data)
+              JSON.stringify(axiosErr.response.data)
             );
           }
           break;
@@ -287,7 +296,7 @@ class FluxImageService {
     throw finalError;
   }
 
-  private classifyError(error: any): ErrorInfo {
+  private classifyError(error: FluxApiError): ErrorInfo {
     const status = error.response?.status?.toString();
     const code = error.code;
 
@@ -339,7 +348,7 @@ class FluxImageService {
     this.circuitBreaker.lastFailureTime = null;
   }
 
-  private createUserFriendlyError(originalError: any): FluxError {
+  private createUserFriendlyError(originalError: FluxApiError): FluxError {
     const errorInfo = this.classifyError(originalError);
     const apiMessage =
       originalError.response?.data?.detail || originalError.response?.data?.message;
@@ -368,12 +377,12 @@ class FluxImageService {
 
       try {
         const data = await this.executeWithRetry(async (family?: number) => {
-          const axiosConfig: any = {
+          const axiosConfig: AxiosConfigWithFamily = {
             headers,
             params: requestId ? { id: requestId } : undefined,
             timeout: 30000,
           };
-          if (family) axiosConfig.family = family;
+          if (family) axiosConfig.family = family as 4 | 6;
 
           const res = await axios.get<PollResponse>(pollingUrl, axiosConfig);
           return res.data;
@@ -383,8 +392,11 @@ class FluxImageService {
         if (data?.status === 'Error' || data?.status === 'Failed') {
           throw new Error(data?.message || 'Generation failed');
         }
-      } catch (error: any) {
-        if (error.message.includes('Generation failed') || error.message.includes('timed out')) {
+      } catch (error: unknown) {
+        if (
+          error instanceof Error &&
+          (error.message.includes('Generation failed') || error.message.includes('timed out'))
+        ) {
           throw error;
         }
         throw error;
@@ -407,13 +419,13 @@ class FluxImageService {
     fs.mkdirSync(baseDir, { recursive: true });
 
     const response = await this.executeWithRetry(async (family?: number) => {
-      const axiosConfig: any = {
+      const axiosConfig: AxiosConfigWithFamily = {
         method: 'GET',
         url: resultUrl,
         responseType: 'stream',
         timeout: this.retryConfig.networkTimeoutMs,
       };
-      if (family) axiosConfig.family = family;
+      if (family) axiosConfig.family = family as 4 | 6;
 
       return await axios(axiosConfig);
     }, 'download');
@@ -478,11 +490,11 @@ class FluxImageService {
     );
 
     const request = await this.executeWithRetry(async (family?: number) => {
-      const axiosConfig: any = {
+      const axiosConfig: AxiosConfigWithFamily = {
         headers,
         timeout: this.retryConfig.networkTimeoutMs,
       };
-      if (family) axiosConfig.family = family;
+      if (family) axiosConfig.family = family as 4 | 6;
 
       const res = await axios.post<SubmitResponse>(url, body, axiosConfig);
       return res.data;

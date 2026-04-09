@@ -28,8 +28,8 @@ import type {
  * Delegates operations to specialized modules
  */
 export class DocumentProcessingService {
-  private postgresDocumentService: any;
-  private qdrantDocumentService: any;
+  private postgresDocumentService: ReturnType<typeof getPostgresDocumentService>;
+  private qdrantDocumentService: ReturnType<typeof getQdrantDocumentService>;
 
   constructor() {
     this.postgresDocumentService = getPostgresDocumentService();

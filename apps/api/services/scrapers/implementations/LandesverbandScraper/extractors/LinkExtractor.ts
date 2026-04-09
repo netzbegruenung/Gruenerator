@@ -30,7 +30,9 @@ export class LinkExtractor {
    *      Required for CMS with signed pagination URLs (e.g., Typo3 cHash)
    */
   async extractArticleLinks(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     source: any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     contentPath: any,
     log: (msg: string) => void
   ): Promise<string[]> {
@@ -181,6 +183,7 @@ export class LinkExtractor {
    * Returns links with title and context for date extraction
    * Deduplicates by URL (pages may list the same PDF in multiple sections)
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async extractPdfLinks(source: any, contentPath: any): Promise<PdfLink[]> {
     const pageUrl = source.baseUrl + contentPath.path;
     const response = await this.fetchUrl(pageUrl);

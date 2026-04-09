@@ -27,7 +27,7 @@ interface TranscriptionResult {
 }
 
 interface AIWorkerPool {
-  processRequest(request: any): Promise<any>;
+  processRequest(request: unknown): Promise<{ content?: string }>;
 }
 
 /**
@@ -45,8 +45,10 @@ async function transcribeWithProvider(
     log.debug('Using Regolo (faster-whisper) for transcription');
     try {
       return await transcribeWithRegolo(audioPath, requestWordTimestamps, uploadId);
-    } catch (error: any) {
-      log.warn(`Regolo transcription failed: ${error.message}`);
+    } catch (error: unknown) {
+      log.warn(
+        `Regolo transcription failed: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -54,8 +56,10 @@ async function transcribeWithProvider(
     log.debug('Using Voxtral for transcription');
     try {
       return await transcribeWithVoxtral(audioPath, requestWordTimestamps, uploadId);
-    } catch (error: any) {
-      log.warn(`Voxtral transcription failed: ${error.message}`);
+    } catch (error: unknown) {
+      log.warn(
+        `Voxtral transcription failed: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -83,8 +87,10 @@ async function transcribeVideo(
     try {
       startBackgroundCompression(videoPath, uploadId);
       log.debug(`Background compression started for: ${uploadId}`);
-    } catch (compressionError: any) {
-      log.warn(`Background compression failed for ${uploadId}: ${compressionError.message}`);
+    } catch (compressionError: unknown) {
+      log.warn(
+        `Background compression failed for ${uploadId}: ${compressionError instanceof Error ? compressionError.message : String(compressionError)}`
+      );
     }
 
     let finalTranscription: string | null = null;
@@ -124,8 +130,8 @@ async function transcribeVideo(
 
     try {
       await fs.unlink(audioPath);
-    } catch (err: any) {
-      log.warn(`Audio cleanup failed: ${err.message}`);
+    } catch (err: unknown) {
+      log.warn(`Audio cleanup failed: ${err instanceof Error ? err.message : String(err)}`);
     }
 
     if (!finalTranscription) {
@@ -136,8 +142,10 @@ async function transcribeVideo(
     log.info(`Finale Segmente: ${segments.length}`);
 
     return finalTranscription;
-  } catch (error: any) {
-    log.error(`Fehler (Modus: ${subtitlePreference}): ${error.message}`);
+  } catch (error: unknown) {
+    log.error(
+      `Fehler (Modus: ${subtitlePreference}): ${error instanceof Error ? error.message : String(error)}`
+    );
     throw error;
   }
 }

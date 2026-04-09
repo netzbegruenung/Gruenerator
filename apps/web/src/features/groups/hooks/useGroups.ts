@@ -328,6 +328,7 @@ export const useUpdateMemberRole = (groupId: string) => {
 };
 
 interface GroupContentData {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any[];
 }
 

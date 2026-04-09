@@ -337,8 +337,10 @@ async function processVideoAutomatically(
         }
         log.info(`Pre-scaled video ready: ${metadata.width}x${metadata.height}`);
       }
-    } catch (transcriptionError: any) {
-      log.error(`Transcription/scaling failed: ${transcriptionError.message}`);
+    } catch (transcriptionError: unknown) {
+      log.error(
+        `Transcription/scaling failed: ${transcriptionError instanceof Error ? transcriptionError.message : String(transcriptionError)}`
+      );
       if (preScaledTempPath) {
         await fs.unlink(preScaledTempPath).catch(() => {});
       }
@@ -415,8 +417,10 @@ async function processVideoAutomatically(
       subtitles,
       metadata,
     };
-  } catch (error: any) {
-    log.error(`Automatic processing failed: ${error.message}`);
+  } catch (error: unknown) {
+    log.error(
+      `Automatic processing failed: ${error instanceof Error ? error.message : String(error)}`
+    );
 
     if (preScaledTempPath) {
       await fs.unlink(preScaledTempPath).catch(() => {});
@@ -424,7 +428,8 @@ async function processVideoAutomatically(
 
     await updateProgress(uploadId, {
       status: 'error',
-      error: error.message || 'Verarbeitung fehlgeschlagen',
+      error:
+        (error instanceof Error ? error.message : String(error)) || 'Verarbeitung fehlgeschlagen',
     });
 
     throw error;
@@ -487,8 +492,10 @@ async function exportWithEnhancements(
 
   try {
     await fs.copyFile(sourceFontPath, tempFontPath);
-  } catch (fontCopyError: any) {
-    log.warn(`Font copy failed: ${fontCopyError.message}`);
+  } catch (fontCopyError: unknown) {
+    log.warn(
+      `Font copy failed: ${fontCopyError instanceof Error ? fontCopyError.message : String(fontCopyError)}`
+    );
   }
 
   const useHwAccel = await hwaccel.detectVaapi();

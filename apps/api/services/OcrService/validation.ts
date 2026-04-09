@@ -13,6 +13,7 @@ import type { DocumentLimits } from './types.js';
 export async function validateDocumentLimits(
   filePath: string,
   fileExtension: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   openPdfDocument: (path: string) => Promise<any>,
   maxPages: number = 1000
 ): Promise<DocumentLimits> {

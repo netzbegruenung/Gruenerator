@@ -31,14 +31,6 @@ const StimmungSummarySchema = z.object({
 
 export type StimmungSummary = z.infer<typeof StimmungSummarySchema>;
 
-interface EmotionArticle {
-  title: string;
-  excerpt: string;
-  source: string;
-  primary_topic: string | null;
-  emotion_score: number;
-}
-
 function findDominantEmotion(overall: Record<string, number>): string {
   let max = 0;
   let dominant = 'angst';

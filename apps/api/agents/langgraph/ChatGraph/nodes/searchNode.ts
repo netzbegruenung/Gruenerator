@@ -5,6 +5,7 @@
  * Uses the direct search functions from the chat agents module.
  */
 
+import { vectorConfig } from '../../../../config/vectorConfig.js';
 import {
   executeDirectSearch,
   // executeDirectPersonSearch, // DISABLED: Person search not production ready
@@ -14,7 +15,9 @@ import {
 } from '../../../../routes/chat/agents/directSearch.js';
 import { selectAndCrawlTopUrls } from '../../../../services/search/CrawlingService.js';
 import { expandQuery } from '../../../../services/search/QueryExpansionService.js';
+import { DEFAULT_RELEVANCE } from '../../../../services/search/rerankPipeline.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { SOURCE_PREFIX, type ChatGraphState, type SearchResult, type Citation } from '../types.js';
 
 import {
   COLLECTION_LABELS,
@@ -27,7 +30,6 @@ import {
 
 import type { SubcategoryFilters } from '../../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../../routes/chat/agents/types.js';
-import type { ChatGraphState, SearchResult, SearchSource, Citation } from '../types.js';
 
 // Re-export for backward compatibility and reuse by SearchGraph
 export {
@@ -40,19 +42,6 @@ export {
 };
 
 const log = createLogger('ChatGraph:Search');
-
-/**
- * Convert various search result formats to unified SearchResult structure.
- */
-function normalizeResults(results: any[], source: string): SearchResult[] {
-  return results.map((r: any, i: number) => ({
-    source,
-    title: r.title || r.name || r.source || 'Unknown',
-    content: r.content || r.snippet || r.excerpt || r.text || '',
-    url: r.url || r.source_url || undefined,
-    relevance: r.relevance || r.score || r.similarity || 1 - i * 0.1,
-  }));
-}
 
 /**
  * Return default Qdrant collections based on user locale.
@@ -112,8 +101,10 @@ export async function executeDocumentSearchParallel(
   const searchPromises = uniqueCollections.flatMap((collection) =>
     queries.map((sq) =>
       executeDirectSearch({ query: sq, collection, limit: 3, filters: searchFilters }).catch(
-        (err: any) => {
-          log.warn(`[Search] Collection ${collection} failed for query "${sq}": ${err.message}`);
+        (err: unknown) => {
+          log.warn(
+            `[Search] Collection ${collection} failed for query "${sq}": ${err instanceof Error ? err.message : String(err)}`
+          );
           return null;
         }
       )
@@ -155,7 +146,9 @@ export async function executeDocumentSearchParallel(
  */
 export async function executeWebSearchParallel(
   query: string,
-  aiWorkerPool: any
+  aiWorkerPool: {
+    processRequest(data: unknown, req?: unknown): Promise<{ content?: string | null }>;
+  }
 ): Promise<SearchResult[]> {
   let allWebQueries = [query];
   try {
@@ -164,8 +157,10 @@ export async function executeWebSearchParallel(
       allWebQueries = [query, ...expanded.alternatives];
       log.info(`[Search] Expanded web query into ${allWebQueries.length} variants`);
     }
-  } catch (err: any) {
-    log.warn(`[Search] Query expansion failed, using original: ${err.message}`);
+  } catch (err: unknown) {
+    log.warn(
+      `[Search] Query expansion failed, using original: ${err instanceof Error ? err.message : String(err)}`
+    );
   }
 
   const webPromises = allWebQueries.map((q) =>
@@ -173,8 +168,10 @@ export async function executeWebSearchParallel(
       query: q,
       searchType: 'general',
       maxResults: 5,
-    }).catch((err: any) => {
-      log.warn(`[Search] Web search failed for variant "${q}": ${err.message}`);
+    }).catch((err: unknown) => {
+      log.warn(
+        `[Search] Web search failed for variant "${q}": ${err instanceof Error ? err.message : String(err)}`
+      );
       return null;
     })
   );
@@ -203,10 +200,40 @@ export async function executeWebSearchParallel(
 }
 
 /**
+ * Normalize relevance scores across source types to a comparable [0, 1] scale.
+ *
+ * Documents: uses raw similarityScore (from Qdrant hybrid search) when available,
+ * avoiding the lossy text-label mapping (0.5/0.7/0.9).
+ * Web: compresses rank-decay scores with a configurable ceiling so web results
+ * don't dominate over high-quality docs before the cross-encoder runs.
+ */
+export function normalizeScore(r: SearchResult): number {
+  const { webScoreCeiling } = vectorConfig.get('rerank');
+
+  if (r.similarityScore != null && r.source.startsWith(SOURCE_PREFIX.GRUENERATOR)) {
+    return Math.min(1.0, r.similarityScore * 1.05);
+  }
+
+  if (r.source.startsWith(SOURCE_PREFIX.DOCUMENT)) {
+    return r.relevance ?? DEFAULT_RELEVANCE;
+  }
+
+  if (r.source === SOURCE_PREFIX.WEB) {
+    const raw = r.relevance ?? DEFAULT_RELEVANCE;
+    return Math.min(webScoreCeiling, raw * webScoreCeiling);
+  }
+
+  return r.relevance ?? DEFAULT_RELEVANCE;
+}
+
+/**
  * Merge results from multiple search sources, deduplicating by URL.
- * Returns top results sorted by relevance for the reranker.
+ * Normalizes scores across source types before sorting so the cross-encoder
+ * receives a fair set of candidates. Over-fetches (default 16) to give the
+ * reranker more candidates — inspired by SurfSense's 2x retrieval pattern.
  */
 export function mergeSearchResults(...resultSets: SearchResult[][]): SearchResult[] {
+  const { mergeOverfetch } = vectorConfig.get('rerank');
   const seenUrls = new Set<string>();
   const merged: SearchResult[] = [];
 
@@ -214,12 +241,12 @@ export function mergeSearchResults(...resultSets: SearchResult[][]): SearchResul
     for (const r of results) {
       if (r.url && seenUrls.has(r.url)) continue;
       if (r.url) seenUrls.add(r.url);
-      merged.push(r);
+      merged.push({ ...r, relevance: normalizeScore(r) });
     }
   }
 
   merged.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
-  return merged.slice(0, 12);
+  return merged.slice(0, mergeOverfetch);
 }
 
 /**
@@ -241,6 +268,15 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     `[Search] Executing ${intent} search: "${displayQuery.slice(0, 50)}..." (locale=${state.userLocale})`
   );
 
+  // Cap search queries to prevent multi-KB content from hitting embedding APIs
+  const MAX_SEARCH_QUERY_LENGTH = 500;
+  const truncateQuery = (q: string): string => {
+    if (q.length <= MAX_SEARCH_QUERY_LENGTH) return q;
+    const truncated = q.slice(0, MAX_SEARCH_QUERY_LENGTH);
+    const lastSpace = truncated.lastIndexOf(' ');
+    return lastSpace > MAX_SEARCH_QUERY_LENGTH * 0.8 ? truncated.slice(0, lastSpace) : truncated;
+  };
+
   try {
     let results: SearchResult[] = [];
     let citations: Citation[] = [];
@@ -250,7 +286,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
     // Parallel multi-source search when classifier requests multiple backends
     if (searchSources.length > 1) {
-      const query = searchQuery || '';
+      const query = truncateQuery(searchQuery || '');
       log.info(`[Search] Multi-source parallel search: ${searchSources.join(' + ')}`);
 
       const sourcePromises: Promise<{ results: SearchResult[]; collections: string[] }>[] = [];
@@ -268,7 +304,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           )
             .then((r) => ({ results: r.results, collections: r.searchedCollections }))
             .catch((err) => {
-              log.warn(`[Search] Document search failed in multi-source: ${err.message}`);
+              log.warn(
+                `[Search] Document search failed in multi-source: ${err instanceof Error ? err.message : String(err)}`
+              );
               return { results: [], collections: [] };
             })
         );
@@ -279,7 +317,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           executeWebSearchParallel(query, state.aiWorkerPool)
             .then((r) => ({ results: r, collections: ['web'] }))
             .catch((err) => {
-              log.warn(`[Search] Web search failed in multi-source: ${err.message}`);
+              log.warn(
+                `[Search] Web search failed in multi-source: ${err instanceof Error ? err.message : String(err)}`
+              );
               return { results: [], collections: [] };
             })
         );
@@ -292,16 +332,18 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         sourcePromises.push(
           executeDirectExamplesSearch({ query, platform: undefined, country })
             .then((r) => ({
-              results: (r.examples || []).map((e: any) => ({
-                source: 'examples',
+              results: (r.examples || []).map((e) => ({
+                source: 'examples' as const,
                 title: `${e.platform} Beispiel${e.author ? ` von ${e.author}` : ''}`,
                 content: e.content || '',
                 relevance: 0.8,
               })),
               collections: ['examples'],
             }))
-            .catch((err) => {
-              log.warn(`[Search] Examples search failed in multi-source: ${err.message}`);
+            .catch((err: unknown) => {
+              log.warn(
+                `[Search] Examples search failed in multi-source: ${err instanceof Error ? (err as Error).message : String(err)}`
+              );
               return { results: [], collections: [] };
             })
         );
@@ -332,8 +374,10 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           if (crawledCount > 0) {
             log.info(`[Search] Crawled ${crawledCount} web results for full content`);
           }
-        } catch (err: any) {
-          log.warn(`[Search] Crawling failed in multi-source: ${err.message}`);
+        } catch (err: unknown) {
+          log.warn(
+            `[Search] Crawling failed in multi-source: ${err instanceof Error ? err.message : String(err)}`
+          );
         }
       }
 
@@ -380,7 +424,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
         // Convert research citations to SearchResult format
         results =
-          researchResult.citations?.map((c: any, i: number) => ({
+          researchResult.citations?.map((c, i) => ({
             source: 'research',
             title: c.title,
             content: c.snippet || '',
@@ -436,8 +480,10 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
               });
             }
             searchedCollections.push('documentchat');
-          } catch (err: any) {
-            log.warn(`[Search] Document-chat search failed: ${err.message}`);
+          } catch (err: unknown) {
+            log.warn(
+              `[Search] Document-chat search failed: ${err instanceof Error ? err.message : String(err)}`
+            );
           }
           break;
         }
@@ -472,8 +518,10 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
               });
             }
             searchedCollections.push('user-documents');
-          } catch (err: any) {
-            log.warn(`[Search] Document-scoped search failed: ${err.message}`);
+          } catch (err: unknown) {
+            log.warn(
+              `[Search] Document-scoped search failed: ${err instanceof Error ? err.message : String(err)}`
+            );
           }
           break;
         }
@@ -506,7 +554,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         const isNotebookScoped =
           state.notebookCollectionIds && state.notebookCollectionIds.length > 0;
 
-        const query = searchQuery || '';
+        const query = truncateQuery(searchQuery || '');
 
         // Expand queries for broader document coverage (short timeout to avoid blocking)
         let expandedQueries: string[] = [];
@@ -535,9 +583,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
               collection,
               limit: perCollectionLimit,
               filters: detectedFilters || undefined,
-            }).catch((err: any) => {
+            }).catch((err: unknown) => {
               log.warn(
-                `[Search] Collection ${collection} failed for query "${sq}": ${err.message}`
+                `[Search] Collection ${collection} failed for query "${sq}": ${err instanceof Error ? err.message : String(err)}`
               );
               return null;
             })
@@ -624,7 +672,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
       case 'web': {
         // Web search with query expansion and content crawling
-        const query = searchQuery || '';
+        const query = truncateQuery(searchQuery || '');
 
         // A2: Expand query for broader coverage (web and research intents)
         let allWebQueries = [query];
@@ -634,8 +682,10 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             allWebQueries = [query, ...expanded.alternatives];
             log.info(`[Search] Expanded web query into ${allWebQueries.length} variants`);
           }
-        } catch (err: any) {
-          log.warn(`[Search] Query expansion failed, using original: ${err.message}`);
+        } catch (err: unknown) {
+          log.warn(
+            `[Search] Query expansion failed, using original: ${err instanceof Error ? err.message : String(err)}`
+          );
         }
 
         // Search all query variants in parallel
@@ -644,8 +694,10 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             query: q,
             searchType: 'general',
             maxResults: 5,
-          }).catch((err: any) => {
-            log.warn(`[Search] Web search failed for variant "${q}": ${err.message}`);
+          }).catch((err: unknown) => {
+            log.warn(
+              `[Search] Web search failed for variant "${q}": ${err instanceof Error ? err.message : String(err)}`
+            );
             return null;
           })
         );
@@ -682,14 +734,18 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           });
           results = crawled.map((r) => ({
             ...r,
-            content: r.fullContent || r.content,
+            content: r.fullContent || r.content || '',
+            source: (r.source as string) || 'web',
+            title: r.title || '',
           }));
           const crawledCount = crawled.filter((r) => r.crawled).length;
           if (crawledCount > 0) {
             log.info(`[Search] Crawled ${crawledCount} web results for full content`);
           }
-        } catch (err: any) {
-          log.warn(`[Search] Crawling failed, using snippets: ${err.message}`);
+        } catch (err: unknown) {
+          log.warn(
+            `[Search] Crawling failed, using snippets: ${err instanceof Error ? err.message : String(err)}`
+          );
         }
 
         citations = buildCitations(results);
@@ -708,7 +764,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         });
 
         results =
-          examplesResult.examples?.map((e: any) => ({
+          examplesResult.examples?.map((e) => ({
             source: 'examples',
             title: `${e.platform} Beispiel${e.author ? ` von ${e.author}` : ''}`,
             content: e.content || '',
@@ -719,6 +775,19 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         citations = [];
         break;
       }
+
+      case 'image':
+      case 'image_edit':
+      case 'sharepic':
+      case 'summary':
+      case 'chart':
+      case 'save_as_doc':
+      case 'modify_doc':
+      case 'modify_board':
+      case 'share_doc':
+      case 'direct':
+        // These intents are handled by other graph nodes; no search needed.
+        break;
 
       default:
         // Should not reach here due to graph routing
@@ -736,15 +805,18 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       searchTimeMs,
       ...(searchedCollections.length > 0 && { searchedCollections }),
     };
-  } catch (error: any) {
-    log.error(`[Search] Error during ${intent} search:`, error.message);
+  } catch (error: unknown) {
+    log.error(
+      `[Search] Error during ${intent} search:`,
+      error instanceof Error ? error.message : String(error)
+    );
 
     return {
       searchResults: [],
       citations: [],
       searchCount: 1,
       searchTimeMs: Date.now() - startTime,
-      error: `Search failed: ${error.message}`,
+      error: `Search failed: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }

@@ -4,6 +4,8 @@ import { getPostgresInstance } from '../../database/services/PostgresService/Pos
 
 import { DOCS_SUBTYPES } from './constants.js';
 
+import type { UserProfile } from '../../services/user/types.js';
+
 /**
  * Permission entry for a user on a document
  */
@@ -138,9 +140,10 @@ router.get('/:id/permissions', async (req: Request<{ id: string }>, res: Respons
     }));
 
     return res.json([...permissionsList, ...groupEntries]);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('[Docs] Error listing permissions:', error);
-    return res.status(500).json({ error: 'Failed to list permissions', details: error.message });
+    return res.status(500).json({ error: 'Failed to list permissions', details: message });
   }
 });
 
@@ -238,7 +241,7 @@ router.post('/:id/permissions', async (req: Request<{ id: string }>, res: Respon
           const shouldSend = await shouldSendNotification(
             user_id,
             'document_shared',
-            recipient as any
+            recipient as unknown as UserProfile
           );
           if (!shouldSend) return;
           return sendDocumentShareEmail({
@@ -258,9 +261,10 @@ router.post('/:id/permissions', async (req: Request<{ id: string }>, res: Respon
       user_id,
       permission_level,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('[Docs] Error granting permission:', error);
-    return res.status(500).json({ error: 'Failed to grant permission', details: error.message });
+    return res.status(500).json({ error: 'Failed to grant permission', details: message });
   }
 });
 
@@ -349,9 +353,10 @@ router.put(
         user_id: targetUserId,
         permission_level,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error('[Docs] Error updating permission:', error);
-      return res.status(500).json({ error: 'Failed to update permission', details: error.message });
+      return res.status(500).json({ error: 'Failed to update permission', details: message });
     }
   }
 );
@@ -422,9 +427,10 @@ router.delete(
         .catch(() => {});
 
       return res.json({ message: 'Permission revoked successfully' });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error('[Docs] Error revoking permission:', error);
-      return res.status(500).json({ error: 'Failed to revoke permission', details: error.message });
+      return res.status(500).json({ error: 'Failed to revoke permission', details: message });
     }
   }
 );

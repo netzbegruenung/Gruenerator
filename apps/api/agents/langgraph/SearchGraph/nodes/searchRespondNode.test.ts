@@ -14,6 +14,7 @@ function makeState(overrides: Partial<SearchGraphState> = {}): SearchGraphState 
     messages: [{ role: 'user', content: 'test query' }],
     threadId: null,
     searchMode: 'web',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     aiWorkerPool: null as any,
     userLocale: 'de-DE',
     agentConfig: {
@@ -22,6 +23,7 @@ function makeState(overrides: Partial<SearchGraphState> = {}): SearchGraphState 
       model: 'mistral',
       provider: 'mistral',
       params: { max_tokens: 2000 },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any,
     searchQuery: 'Verkehrswende in Kommunen',
     subQueries: null,

@@ -248,6 +248,7 @@ router.post(
       // Streaming mode: delegate to SSE streaming controller
       if (req.query.stream === 'true') {
         const { streamNormalSearch } = await import('./searchStreamController.js');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return streamNormalSearch(req, res as any);
       }
 
@@ -320,11 +321,13 @@ router.post(
           processingTimeMs: processingTime,
           timestamp: new Date().toISOString(),
           searchType: 'normal',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           includedSummary: !!(searchResults.summary as any)?.generated,
         },
       };
 
       if (searchResults.summary) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         response.summary = searchResults.summary as any;
       }
 
@@ -396,6 +399,7 @@ router.post(
       // Streaming mode: delegate to SSE streaming controller
       if (req.query.stream === 'true') {
         const { streamDeepSearch } = await import('./searchStreamController.js');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return streamDeepSearch(req, res as any);
       }
 

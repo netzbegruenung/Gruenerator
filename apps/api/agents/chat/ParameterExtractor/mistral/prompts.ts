@@ -11,7 +11,7 @@ import type { ChatContext } from '../../types.js';
 export function createExtractionPrompt(
   message: string,
   agent: string,
-  context: ChatContext
+  _context: ChatContext
 ): string {
   const basePrompt = `Extrahiere Parameter aus dieser deutschen Nachricht für die Erstellung eines ${agent}-Sharepics.
 

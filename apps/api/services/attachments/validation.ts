@@ -40,46 +40,50 @@ export function extractBase64FromDataUrl(data: string): string {
  * Throws error if validation fails
  */
 export function validateAttachmentStructure(
-  attachment: any,
+  attachment: unknown,
   index: number
 ): asserts attachment is Attachment {
+  if (!attachment || typeof attachment !== 'object') {
+    throw new Error(`Attachment ${index + 1}: Must be an object`);
+  }
+  const att = attachment as Record<string, unknown>;
   // Check required fields
-  if (!attachment.name || typeof attachment.name !== 'string') {
+  if (!att.name || typeof att.name !== 'string') {
     throw new Error(`Attachment ${index + 1}: Missing or invalid name`);
   }
 
-  if (!attachment.type || typeof attachment.type !== 'string') {
+  if (!att.type || typeof att.type !== 'string') {
     throw new Error(`Attachment ${index + 1}: Missing or invalid type`);
   }
 
-  if (!attachment.data || typeof attachment.data !== 'string') {
+  if (!att.data || typeof att.data !== 'string') {
     throw new Error(`Attachment ${index + 1}: Missing or invalid data`);
   }
 
-  if (typeof attachment.size !== 'number' || attachment.size <= 0) {
+  if (typeof att.size !== 'number' || att.size <= 0) {
     throw new Error(`Attachment ${index + 1}: Missing or invalid size`);
   }
 
   // Validate attachment type
-  if (!ALLOWED_ATTACHMENT_TYPES.includes(attachment.type as any)) {
+  if (!ALLOWED_ATTACHMENT_TYPES.includes(att.type as (typeof ALLOWED_ATTACHMENT_TYPES)[number])) {
     throw new Error(
-      `Attachment ${index + 1}: Unsupported file type '${attachment.type}'. Allowed: ${ALLOWED_ATTACHMENT_TYPES.join(', ')}`
+      `Attachment ${index + 1}: Unsupported file type '${String(att.type)}'. Allowed: ${ALLOWED_ATTACHMENT_TYPES.join(', ')}`
     );
   }
 
   // Handle different validation for crawled URLs vs files
-  if (attachment.type === 'crawled_url') {
+  if (att.type === 'crawled_url') {
     // Crawled URLs have content instead of base64 data
-    if (!attachment.content || typeof attachment.content !== 'string') {
+    if (!att.content || typeof att.content !== 'string') {
       throw new Error(`Attachment ${index + 1}: Missing or invalid content for crawled URL`);
     }
 
-    if (!attachment.url || typeof attachment.url !== 'string') {
+    if (!att.url || typeof att.url !== 'string') {
       throw new Error(`Attachment ${index + 1}: Missing or invalid URL for crawled URL`);
     }
 
     // Use content length as size for crawled URLs
-    const contentSize = attachment.content.length;
+    const contentSize = (att.content as string).length;
     if (contentSize > MAX_FILE_SIZE) {
       const sizeMB = Math.round(contentSize / (1024 * 1024));
       const maxSizeMB = Math.round(MAX_FILE_SIZE / (1024 * 1024));
@@ -89,8 +93,8 @@ export function validateAttachmentStructure(
     }
   } else {
     // Regular file validation
-    if (attachment.size > MAX_FILE_SIZE) {
-      const sizeMB = Math.round(attachment.size / (1024 * 1024));
+    if ((att.size as number) > MAX_FILE_SIZE) {
+      const sizeMB = Math.round((att.size as number) / (1024 * 1024));
       const maxSizeMB = Math.round(MAX_FILE_SIZE / (1024 * 1024));
       throw new Error(
         `Attachment ${index + 1}: File too large (${sizeMB}MB). Maximum: ${maxSizeMB}MB`
@@ -98,7 +102,7 @@ export function validateAttachmentStructure(
     }
 
     // Validate base64 data format
-    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(attachment.data)) {
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(att.data as string)) {
       throw new Error(`Attachment ${index + 1}: Invalid base64 data format`);
     }
   }

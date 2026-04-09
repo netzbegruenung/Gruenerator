@@ -1,4 +1,4 @@
-import { StateGraph, Annotation, END } from '@langchain/langgraph';
+import { StateGraph, Annotation } from '@langchain/langgraph';
 
 import { createLogger } from '../../../utils/logger.js';
 
@@ -39,6 +39,7 @@ const SocialAgentAnnotation = Annotation.Root({
   searchQuery: Annotation<string>({
     reducer: (x, y) => y ?? x,
   }),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   req: Annotation<any>({
     reducer: (x, y) => y ?? x,
   }),
@@ -91,6 +92,7 @@ const SocialAgentAnnotation = Annotation.Root({
 });
 
 function createSocialAgentGraph() {
+  /* eslint-disable @typescript-eslint/no-explicit-any -- LangGraph node type coercions */
   const graph = new StateGraph(SocialAgentAnnotation)
     .addNode('research', researchNode as any)
     .addNode('strategize', strategizeNode as any)
@@ -102,6 +104,7 @@ function createSocialAgentGraph() {
     .addEdge('strategize', 'generate')
     .addEdge('generate', 'format')
     .addEdge('format', '__end__');
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   return graph.compile();
 }
@@ -177,7 +180,7 @@ export async function runSocialAgentGraph(input: SocialAgentInput): Promise<Soci
         argumentsFound: result.arguments.length,
       },
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.error('[runSocialAgentGraph] Fatal error:', error);
     return {
       success: false,
@@ -191,7 +194,7 @@ export async function runSocialAgentGraph(input: SocialAgentInput): Promise<Soci
         totalTimeMs: 0,
         argumentsFound: 0,
       },
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 }

@@ -2,6 +2,9 @@
  * Type definitions for RequestEnrichment service
  */
 
+import { type ContentExample } from '../../agents/langgraph/types/promptAssembly.js';
+import { type ClaudeTool } from '../../services/tools/types.js';
+
 export type Locale = 'de-DE' | 'de-AT';
 
 export interface EnrichmentOptions {
@@ -17,7 +20,7 @@ export interface EnrichmentOptions {
   formatting?: string | null;
   taskInstructions?: string | null;
   outputFormat?: string | null;
-  examples?: any[];
+  examples?: ContentExample[];
   toolInstructions?: string[];
   knowledgeContent?: string | null;
   instructions?: string | null;
@@ -25,8 +28,8 @@ export interface EnrichmentOptions {
   selectedTextIds?: string[];
   searchQuery?: string | null;
   provider?: string;
-  aiWorkerPool?: any;
-  req?: any;
+  aiWorkerPool?: { processRequest: (request: unknown) => Promise<unknown> };
+  req?: unknown;
   enableNotebookEnrich?: boolean;
   notebookEnrichPrompt?: string;
 }
@@ -46,17 +49,19 @@ export interface Document {
       type: string;
       data?: string;
     };
-    metadata?: {
-      title: string;
-      url?: string;
-      wordCount?: number;
-      extractedAt?: string;
-      contentSource: 'url_crawl' | 'attachment' | 'database';
-      filename?: string;
-      fileSize?: number;
-      pageCount?: number;
-      chunkCount?: number;
-    };
+    metadata?:
+      | Record<string, unknown>
+      | {
+          title: string;
+          url?: string;
+          wordCount?: number;
+          extractedAt?: string;
+          contentSource: 'url_crawl' | 'attachment' | 'database';
+          filename?: string;
+          fileSize?: number;
+          pageCount?: number;
+          chunkCount?: number;
+        };
   };
 }
 
@@ -108,8 +113,8 @@ export interface EnrichedState {
   documents: Document[];
   knowledge: string[];
   instructions: string | null;
-  request: any;
-  examples: any[];
+  request: Record<string, unknown>;
+  examples: ContentExample[];
   toolInstructions: string[];
   selectedDocumentIds: string[];
   selectedTextIds: string[];
@@ -117,7 +122,7 @@ export interface EnrichedState {
   useProMode: boolean;
   enrichmentMetadata?: EnrichmentMetadata;
   requestFormatted?: string;
-  tools?: any[];
+  tools?: ClaudeTool[];
 }
 
 export interface VectorSearchResult {
@@ -169,7 +174,7 @@ export interface SavedText {
 
 export interface AttachmentProcessingResult {
   hasAttachments?: boolean;
-  summary?: any | null;
+  summary?: unknown | null;
   validated?: boolean;
   error?: string | null;
   documents?: Document[];
@@ -182,9 +187,9 @@ export interface WebSearchResult {
 
 export interface DocumentSearchResult {
   knowledge: string[];
-  metadata?: any;
-  documentReferences?: any[];
-  textReferences?: any[];
+  metadata?: unknown;
+  documentReferences?: DocumentReference[];
+  textReferences?: TextReference[];
 }
 
 /**

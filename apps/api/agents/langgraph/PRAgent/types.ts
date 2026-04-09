@@ -9,11 +9,12 @@ export interface PRAgentRequest {
   selectedDocumentIds?: string[];
   selectedTextIds?: string[];
   searchQuery?: string;
-  attachments?: any[];
+  attachments?: unknown[];
   useWebSearchTool?: boolean;
   usePrivacyMode?: boolean;
   useProMode?: boolean;
   useUltraMode?: boolean;
+  [key: string]: unknown;
 }
 
 export interface SocialPlatformConfig {
@@ -31,7 +32,7 @@ export interface PRAgentResult {
     instagram: string;
     facebook: string;
   };
-  sharepics: any[];
+  sharepics: Record<string, unknown>[];
   riskAnalysis: string;
   visualBriefing: string;
 }
@@ -39,15 +40,16 @@ export interface PRAgentResult {
 export interface FormattedPRResponse {
   success: boolean;
   content: string;
-  sharepic: any[];
-  metadata: Record<string, any>;
+  sharepic: Record<string, unknown>[];
+  metadata: Record<string, unknown>;
   selectedPlatforms: string[];
   onEditSharepic: () => Promise<void>;
+  [key: string]: unknown;
 }
 
 export interface ContentExample {
   platform: string;
   content: string;
   relevanceScore?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }

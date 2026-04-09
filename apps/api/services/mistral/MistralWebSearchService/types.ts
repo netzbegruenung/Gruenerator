@@ -13,7 +13,7 @@ export interface SearchSource {
 export interface SearchResults {
   success: boolean;
   query: string;
-  results: any[];
+  results: SearchSource[];
   resultCount: number;
   searchEngine: string;
   agentType: string;
@@ -27,7 +27,7 @@ export interface AgentConfig {
   name: string;
   instructions: string;
   description: string;
-  tools: Array<{ type: string }>;
+  tools: Array<{ type: 'web_search' | 'web_search_premium' | 'code_interpreter' }>;
   includeSources: boolean;
 }
 

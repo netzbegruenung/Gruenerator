@@ -9,6 +9,17 @@
 
 import type { Message as TokenCounterMessage } from '../../../services/counters/types.js';
 
+interface ContentPart {
+  type: string;
+  text?: string;
+}
+
+interface ModelMessage {
+  role: string;
+  content: string | ContentPart[];
+  [key: string]: unknown;
+}
+
 export const CONTEXT_CONFIG = {
   MAX_CONTEXT_TOKENS: 40000,
   RESPONSE_RESERVE: 2000,
@@ -40,22 +51,22 @@ export function extractTextContent(content: unknown): string {
  * Convert an AI SDK ModelMessage to TokenCounter-compatible format.
  * Handles both string content and AI SDK v6 parts array format.
  */
-export function toTokenCounterMessage(msg: any): TokenCounterMessage {
+export function toTokenCounterMessage(msg: ModelMessage): TokenCounterMessage {
   let content: string;
 
   if (typeof msg.content === 'string') {
     content = msg.content;
   } else if (Array.isArray(msg.content)) {
     content = msg.content
-      .filter((part: any) => part && typeof part === 'object' && part.type === 'text')
-      .map((part: any) => part.text || '')
+      .filter((part: ContentPart) => part && typeof part === 'object' && part.type === 'text')
+      .map((part: ContentPart) => part.text || '')
       .join('');
   } else {
     content = '';
   }
 
   return {
-    role: msg.role,
+    role: msg.role as 'user' | 'assistant' | 'system',
     content,
   };
 }
@@ -66,17 +77,18 @@ export function toTokenCounterMessage(msg: any): TokenCounterMessage {
  * so we check actual text content, not just array length.
  * Mistral rejects empty assistant messages with code 3240.
  */
-export function filterEmptyAssistantMessages(messages: any[]): any[] {
+export function filterEmptyAssistantMessages(messages: ModelMessage[]): ModelMessage[] {
   return messages.filter((msg) => {
     if (msg.role === 'assistant') {
       if (Array.isArray(msg.content)) {
         const textContent = msg.content
-          .filter((part: any) => part?.type === 'text')
-          .map((part: any) => part.text || '')
+          .filter((part: ContentPart) => part?.type === 'text')
+          .map((part: ContentPart) => part.text || '')
           .join('')
           .trim();
         return (
-          textContent.length > 0 || msg.content.some((part: any) => part?.type === 'tool-call')
+          textContent.length > 0 ||
+          msg.content.some((part: ContentPart) => part?.type === 'tool-call')
         );
       }
       return msg.content && String(msg.content).trim().length > 0;
@@ -94,7 +106,7 @@ export function filterEmptyAssistantMessages(messages: any[]): any[] {
  * File content is not lost — it's already extracted by processAttachments() into
  * attachmentContext, which respondNode injects into the system prompt.
  */
-export function sanitizeContentPartsForModel(messages: any[]): any[] {
+export function sanitizeContentPartsForModel(messages: ModelMessage[]): ModelMessage[] {
   const VALID_USER_PART_TYPES = new Set(['text', 'image']);
   const VALID_ASSISTANT_PART_TYPES = new Set([
     'text',
@@ -109,8 +121,8 @@ export function sanitizeContentPartsForModel(messages: any[]): any[] {
     const allowedTypes =
       msg.role === 'assistant' ? VALID_ASSISTANT_PART_TYPES : VALID_USER_PART_TYPES;
 
-    const filtered = msg.content.filter(
-      (part: any) => part && typeof part === 'object' && allowedTypes.has(part.type)
+    const filtered = (msg.content as ContentPart[]).filter(
+      (part: ContentPart) => part && typeof part === 'object' && allowedTypes.has(part.type)
     );
 
     if (filtered.length === msg.content.length) return msg;
@@ -123,13 +135,14 @@ export function sanitizeContentPartsForModel(messages: any[]): any[] {
  * Strip assistant messages with no effective content from the final messages array.
  * Defense-in-depth before sending to the model API.
  */
-export function stripEmptyAssistantMessages(messages: any[]): any[] {
-  return messages.filter((msg: any) => {
+export function stripEmptyAssistantMessages(messages: ModelMessage[]): ModelMessage[] {
+  return messages.filter((msg: ModelMessage) => {
     if (msg.role !== 'assistant') return true;
     if (typeof msg.content === 'string') return msg.content.trim().length > 0;
     if (Array.isArray(msg.content)) {
       return msg.content.some(
-        (part: any) => (part?.type === 'text' && part.text?.trim()) || part?.type === 'tool-call'
+        (part: ContentPart) =>
+          (part?.type === 'text' && part.text?.trim()) || part?.type === 'tool-call'
       );
     }
     return false;

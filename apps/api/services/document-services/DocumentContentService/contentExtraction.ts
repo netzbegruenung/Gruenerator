@@ -3,12 +3,15 @@
  * Handles intelligent excerpt creation and text extraction
  */
 
-import type { TextMatch, ExcerptOptions } from './types.js';
+import type { TextMatch } from './types.js';
 
 /**
  * Determine the best content strategy for a document based on multiple factors
  */
-export function determineContentStrategy(doc: any, query: string): boolean {
+export function determineContentStrategy(
+  doc: { ocr_text?: string; page_count?: number; title?: string; filename?: string },
+  query: string
+): boolean {
   const text = doc.ocr_text || '';
   const pageCount = doc.page_count || 0;
   const charCount = text.length;

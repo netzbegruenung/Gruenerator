@@ -6,14 +6,7 @@
 
 import { getBundestagMCPClient } from './BundestagMCPClient.js';
 
-import type {
-  Person,
-  PersonDetectionResult,
-  PersonPattern,
-  PersonSearchParams,
-  PersonSearchResult,
-  CacheStats,
-} from './types.js';
+import type { Person, PersonDetectionResult, PersonPattern, CacheStats } from './types.js';
 
 // MP cache: normalizedName -> person object
 const mpCache = new Map<string, Person>();
@@ -76,7 +69,7 @@ const KNOWN_GREEN_MPS = [
 ];
 
 export class PersonDetectionService {
-  private mcpClient: any;
+  private mcpClient: ReturnType<typeof getBundestagMCPClient>;
 
   constructor() {
     this.mcpClient = getBundestagMCPClient();
@@ -122,14 +115,15 @@ export class PersonDetectionService {
 
     // Fallback: Query bundestag-mcp for person search
     try {
-      const result: PersonSearchResult = await this.mcpClient.searchPersonen({
+      const result = await this.mcpClient.searchPersonen({
         query: extractedName,
         fraktion: 'GRÜNE',
         limit: 5,
       });
 
-      if (result.documents && result.documents.length > 0) {
-        const bestMatch = result.documents[0];
+      const docs = (result.documents || []) as Person[];
+      if (docs.length > 0) {
+        const bestMatch = docs[0];
         const fullName = `${bestMatch.vorname} ${bestMatch.nachname}`;
         const confidence = this.calculateNameSimilarity(extractedName, fullName);
 
@@ -148,8 +142,11 @@ export class PersonDetectionService {
           };
         }
       }
-    } catch (error: any) {
-      console.error('[PersonDetection] API search failed:', error.message);
+    } catch (error: unknown) {
+      console.error(
+        '[PersonDetection] API search failed:',
+        error instanceof Error ? error.message : String(error)
+      );
     }
 
     // Weak cache match (0.7-0.85) as last resort
@@ -359,13 +356,14 @@ export class PersonDetectionService {
     try {
       console.log('[PersonDetection] Refreshing MP cache...');
 
-      const result: PersonSearchResult = await this.mcpClient.searchPersonen({
+      const result = await this.mcpClient.searchPersonen({
         fraktion: 'GRÜNE',
         wahlperiode: 20,
         limit: 100,
       });
 
-      if (result.documents && result.documents.length > 0) {
+      const refreshDocs = (result.documents || []) as Person[];
+      if (refreshDocs.length > 0) {
         mpCache.clear();
 
         // First add known MPs to ensure they're in cache
@@ -376,7 +374,7 @@ export class PersonDetectionService {
         }
 
         // Then add from API, filtering to GRÜNE only
-        for (const person of result.documents) {
+        for (const person of refreshDocs) {
           const isGruene = this._isGrueneFraktion(person);
           if (!isGruene) continue;
 
@@ -393,8 +391,11 @@ export class PersonDetectionService {
         cacheLastUpdated = Date.now();
         console.log(`[PersonDetection] Cached ${mpCache.size} entries for Green MPs`);
       }
-    } catch (error: any) {
-      console.error('[PersonDetection] Failed to refresh MP cache:', error.message);
+    } catch (error: unknown) {
+      console.error(
+        '[PersonDetection] Failed to refresh MP cache:',
+        error instanceof Error ? error.message : String(error)
+      );
       // Populate with known MPs as fallback
       for (const name of KNOWN_GREEN_MPS) {
         const normalized = this.normalizeForCache(name);

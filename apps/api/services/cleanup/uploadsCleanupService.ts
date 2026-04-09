@@ -102,9 +102,11 @@ async function cleanAgeBasedDir(dirName: string, maxAgeDays: number): Promise<Cl
         stats.deleted++;
         stats.freedBytes += fileStat.size;
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       stats.errors++;
-      log.warn(`Failed to process ${filePath}: ${err.message}`);
+      log.warn(
+        `Failed to process ${filePath}: ${err instanceof Error ? err.message : String(err)}`
+      );
     }
   }
 
@@ -167,17 +169,21 @@ async function cleanOrphanedSubtitlerProjects(): Promise<CleanupStats> {
             stats.freedBytes += size;
             log.debug(`Deleted orphaned project: ${userId}/${projectId}`);
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           stats.errors++;
-          log.warn(`Failed to check project ${projectId}: ${err.message}`);
+          log.warn(
+            `Failed to check project ${projectId}: ${err instanceof Error ? err.message : String(err)}`
+          );
         }
       }
 
       // Clean empty user directories
       await removeEmptyDirs(userPath, projectsDir);
     }
-  } catch (err: any) {
-    log.error(`Subtitler project cleanup failed: ${err.message}`);
+  } catch (err: unknown) {
+    log.error(
+      `Subtitler project cleanup failed: ${err instanceof Error ? err.message : String(err)}`
+    );
   }
 
   return stats;
@@ -219,13 +225,15 @@ async function cleanOrphanedSharedMedia(): Promise<CleanupStats> {
           stats.freedBytes += size;
           log.debug(`Deleted orphaned shared media: ${shareToken}`);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         stats.errors++;
-        log.warn(`Failed to check shared media ${shareToken}: ${err.message}`);
+        log.warn(
+          `Failed to check shared media ${shareToken}: ${err instanceof Error ? err.message : String(err)}`
+        );
       }
     }
-  } catch (err: any) {
-    log.error(`Shared media cleanup failed: ${err.message}`);
+  } catch (err: unknown) {
+    log.error(`Shared media cleanup failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   return stats;

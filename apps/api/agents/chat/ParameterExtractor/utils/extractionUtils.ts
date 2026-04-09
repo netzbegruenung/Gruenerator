@@ -24,7 +24,7 @@ export function extractTheme(message: string, context: ChatContext): string | nu
 
   for (const pattern of themePatterns) {
     const match = message.match(pattern);
-    if (match) {
+    if (match && match[1]) {
       return match[1].trim();
     }
   }
@@ -197,7 +197,7 @@ export function extractStructure(message: string): string | null {
 
   for (const pattern of structurePatterns) {
     const match = message.match(pattern);
-    if (match) {
+    if (match && match[1]) {
       return match[1].trim();
     }
   }

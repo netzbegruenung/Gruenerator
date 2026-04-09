@@ -16,7 +16,6 @@ import type {
   BaseScore,
   DocumentEnhancedScore,
   HybridMetadata,
-  RawChunk,
   DocumentRawChunk,
 } from './types.js';
 

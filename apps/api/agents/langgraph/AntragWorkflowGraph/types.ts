@@ -64,11 +64,11 @@ export interface AntragWorkflowState {
 
   // Enrichment results (cached from Phase 1)
   enrichedState?: {
-    documents?: any[];
-    webSearchResults?: any[];
-    knowledgeBase?: any[];
+    documents?: Record<string, unknown>[];
+    webSearchResults?: Record<string, unknown>[];
+    knowledgeBase?: Record<string, unknown>[];
     greenFraming?: string[];
-    enrichmentMetadata?: any;
+    enrichmentMetadata?: Record<string, unknown>;
   };
 
   // Phase 1: Plan Generation
@@ -110,7 +110,7 @@ export interface PlanData {
   originalPlan: string;
   planSummary: string;
   confidenceScore: number;
-  enrichmentMetadata?: any;
+  enrichmentMetadata?: Record<string, unknown>;
 }
 
 export interface QuestionsData {
@@ -154,10 +154,10 @@ export type ProductionNodeOutput = Partial<AntragWorkflowState>;
 export interface PromptConfig {
   systemPrompt: string;
   generationPrompt: string;
-  toolSchema?: any;
+  toolSchema?: Record<string, unknown>;
   options?: {
     max_tokens?: number;
     temperature?: number;
-    tool_choice?: any;
+    tool_choice?: string | Record<string, unknown>;
   };
 }

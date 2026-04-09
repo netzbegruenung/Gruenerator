@@ -355,8 +355,9 @@ export async function exportMultiClipWithSegments(
           .on('start', () => {
             log.debug('FFmpeg multi-clip export started');
           })
-          .on('progress', async (progress: { percent?: number }) => {
-            const progressPercent = progress.percent ? Math.round(progress.percent) : 0;
+          .on('progress', async (progress: unknown) => {
+            const prog = progress as { percent?: number };
+            const progressPercent = prog.percent ? Math.round(prog.percent) : 0;
             try {
               await redisClient.set(
                 `export:${exportToken}`,
@@ -372,8 +373,9 @@ export async function exportMultiClipWithSegments(
               /* ignore progress update error */
             }
           })
-          .on('error', (err: Error) => {
-            log.error(`FFmpeg multi-clip export error: ${err.message}`);
+          .on('error', (err: unknown) => {
+            const error = err as Error;
+            log.error(`FFmpeg multi-clip export error: ${error.message}`);
             reject(err);
           })
           .on('end', () => {
@@ -405,14 +407,16 @@ export async function exportMultiClipWithSegments(
       segmentCount: validSegments.length,
       clipCount: clips.length,
     };
-  } catch (error: any) {
-    log.error(`Multi-clip export failed: ${error.message}`);
+  } catch (error: unknown) {
+    log.error(
+      `Multi-clip export failed: ${error instanceof Error ? error.message : String(error)}`
+    );
 
     await redisClient.set(
       `export:${exportToken}`,
       JSON.stringify({
         status: 'error',
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         type: 'multi-clip-cut',
       }),
       { EX: 60 * 60 }
@@ -524,8 +528,10 @@ export async function exportMultiClipWithSegmentsAndSubtitles(
 
     try {
       await fs.copyFile(sourceFontPath, tempFontPath);
-    } catch (fontCopyError: any) {
-      log.warn(`Font copy failed: ${fontCopyError.message}`);
+    } catch (fontCopyError: unknown) {
+      log.warn(
+        `Font copy failed: ${fontCopyError instanceof Error ? fontCopyError.message : String(fontCopyError)}`
+      );
     }
 
     const referenceDimension = isVertical ? firstClipMetadata.width : firstClipMetadata.height;
@@ -621,8 +627,9 @@ export async function exportMultiClipWithSegmentsAndSubtitles(
           .on('start', () => {
             log.debug('FFmpeg multi-clip+subtitle export started');
           })
-          .on('progress', async (progress: { percent?: number }) => {
-            const progressPercent = progress.percent ? Math.round(progress.percent) : 0;
+          .on('progress', async (progress: unknown) => {
+            const prog = progress as { percent?: number };
+            const progressPercent = prog.percent ? Math.round(prog.percent) : 0;
             try {
               await redisClient.set(
                 `export:${exportToken}`,
@@ -638,8 +645,9 @@ export async function exportMultiClipWithSegmentsAndSubtitles(
               /* ignore progress update error */
             }
           })
-          .on('error', (err: Error) => {
-            log.error(`FFmpeg error: ${err.message}`);
+          .on('error', (err: unknown) => {
+            const error = err as Error;
+            log.error(`FFmpeg error: ${error.message}`);
             reject(err);
           })
           .on('end', () => {
@@ -676,14 +684,16 @@ export async function exportMultiClipWithSegmentsAndSubtitles(
       segmentCount: validSegments.length,
       clipCount: clips.length,
     };
-  } catch (error: any) {
-    log.error(`Multi-clip+subtitle export failed: ${error.message}`);
+  } catch (error: unknown) {
+    log.error(
+      `Multi-clip+subtitle export failed: ${error instanceof Error ? error.message : String(error)}`
+    );
 
     await redisClient.set(
       `export:${exportToken}`,
       JSON.stringify({
         status: 'error',
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         type: 'multi-clip-cut-subtitles',
       }),
       { EX: 60 * 60 }

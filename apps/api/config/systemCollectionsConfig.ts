@@ -56,6 +56,7 @@ export interface SubcategoryFilters {
   source_id?: string | string[];
   date_from?: string;
   date_to?: string;
+  [key: string]: string | string[] | undefined;
 }
 
 export interface SystemCollectionObject {
@@ -67,6 +68,7 @@ export interface SystemCollectionObject {
     system_collection: true;
     min_quality: number;
   };
+  [key: string]: unknown;
 }
 
 // =============================================================================
@@ -426,7 +428,7 @@ export function buildSubcategoryFilter(
     match?: { value?: string; any?: string[] };
     range?: { gte?: string; lte?: string };
   }> = [];
-  const filterKeys: (keyof SubcategoryFilters)[] = [
+  const filterKeys: string[] = [
     'primary_category',
     'content_type',
     'subcategories',
@@ -437,8 +439,9 @@ export function buildSubcategoryFilter(
     'source_id',
   ];
 
-  for (const key of filterKeys) {
-    const filterValue = subcategoryFilters[key];
+  for (const filterKey of filterKeys) {
+    const key = filterKey;
+    const filterValue = subcategoryFilters[filterKey];
     if (!filterValue) continue;
 
     if (Array.isArray(filterValue) && filterValue.length > 0) {

@@ -144,7 +144,7 @@ const VALID_TYPES = [
 
 router.post(
   '/save-to-library',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -236,17 +236,22 @@ router.post(
             if (chunks.length === 0) return;
 
             const batchSize = 10;
-            const allChunksWithEmbeddings: any[] = [];
+            const allChunksWithEmbeddings: Array<{
+              text: string;
+              embedding: number[];
+              token_count: number;
+              metadata: Record<string, unknown>;
+            }> = [];
 
             for (let i = 0; i < chunks.length; i += batchSize) {
               const batch = chunks.slice(i, i + batchSize);
-              const texts = batch.map((chunk: any) => chunk.text);
+              const texts = batch.map((chunk) => chunk.text);
               const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
                 texts,
                 'search_document'
               );
 
-              const chunksWithEmbeddings = batch.map((chunk: any, idx: number) => ({
+              const chunksWithEmbeddings = batch.map((chunk, idx) => ({
                 text: chunk.text,
                 embedding: embeddings[idx],
                 token_count: chunk.tokens,
@@ -311,7 +316,7 @@ router.post(
 
 router.get(
   '/saved-texts',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -321,7 +326,7 @@ router.get(
       await postgres.ensureInitialized();
 
       const conditions = ['user_id = $1'];
-      const params: any[] = [userId];
+      const params: unknown[] = [userId];
       let paramIndex = 2;
 
       if (type) {
@@ -343,7 +348,15 @@ router.get(
       const data = await postgres.query(query, params, { table: 'user_documents' });
 
       const transformedData =
-        data?.map((item: any) => {
+        (
+          data as Array<{
+            document_id: string;
+            title: string;
+            content: string;
+            document_type: string;
+            created_at: string;
+          }>
+        )?.map((item) => {
           const plainText = stripHtmlTags(item.content || '').trim();
           const wordCount = plainText.split(/\s+/).filter((word: string) => word.length > 0).length;
           const characterCount = plainText.length;
@@ -381,7 +394,7 @@ router.get(
 
 router.get(
   '/saved-texts/:id',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ id: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -433,7 +446,7 @@ router.get(
 
 router.delete(
   '/saved-texts/:id',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ id: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -483,7 +496,7 @@ router.delete(
 
 router.post(
   '/saved-texts/:id/metadata',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ id: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -517,7 +530,7 @@ router.post(
         return;
       }
 
-      const updateData: Record<string, any> = {};
+      const updateData: Record<string, unknown> = {};
       if (title) updateData.title = title.trim();
       if (document_type) updateData.document_type = document_type;
       updateData.updated_at = new Date();
@@ -542,7 +555,7 @@ router.post(
 
 router.put(
   '/saved-texts/:id/content',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ id: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -576,7 +589,7 @@ router.put(
 
       const doc = existingDoc[0];
 
-      const updateData: Record<string, any> = {
+      const updateData: Record<string, unknown> = {
         content: content.trim(),
         updated_at: new Date(),
       };
@@ -627,17 +640,22 @@ router.put(
             if (chunks.length === 0) return;
 
             const batchSize = 10;
-            const allChunksWithEmbeddings: any[] = [];
+            const allChunksWithEmbeddings: Array<{
+              text: string;
+              embedding: number[];
+              token_count: number;
+              metadata: Record<string, unknown>;
+            }> = [];
 
             for (let i = 0; i < chunks.length; i += batchSize) {
               const batch = chunks.slice(i, i + batchSize);
-              const texts = batch.map((chunk: any) => chunk.text);
+              const texts = batch.map((chunk) => chunk.text);
               const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
                 texts,
                 'search_document'
               );
 
-              const chunksWithEmbeddings = batch.map((chunk: any, idx: number) => ({
+              const chunksWithEmbeddings = batch.map((chunk, idx) => ({
                 text: chunk.text,
                 embedding: embeddings[idx],
                 token_count: chunk.tokens,
@@ -688,7 +706,7 @@ router.put(
 
 router.delete(
   '/saved-texts/bulk',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -719,7 +737,7 @@ router.delete(
         { table: 'user_documents' }
       );
 
-      const ownedIds = verifyTexts.map((text: any) => text.id);
+      const ownedIds = (verifyTexts as Array<{ id: string }>).map((text) => text.id);
       const unauthorizedIds = ids.filter((id) => !ownedIds.includes(id));
 
       if (unauthorizedIds.length > 0) {
@@ -737,7 +755,7 @@ router.delete(
         { table: 'user_documents' }
       );
 
-      const deletedIds = result.map((row: any) => row.id);
+      const deletedIds = (result as Array<{ id: string }>).map((row) => row.id);
       const failedIds = ownedIds.filter((id: string) => !deletedIds.includes(id));
 
       if (deletedIds.length > 0) {
@@ -792,7 +810,7 @@ router.delete(
 
 router.post(
   '/search-saved-texts',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -833,7 +851,7 @@ router.post(
       });
 
       const documentScores = new Map<string, number>();
-      const documentChunks = new Map<string, any[]>();
+      const documentChunks = new Map<string, Array<{ text: string; score: number }>>();
 
       for (const result of searchResults.results) {
         const docId = result.document_id;
@@ -849,7 +867,7 @@ router.post(
         }
 
         documentChunks.get(docId)!.push({
-          text: result.chunk_text,
+          text: result.chunk_text || '',
           score: result.score,
         });
       }
@@ -876,8 +894,8 @@ router.post(
       );
 
       const finalResults = documents
-        .map((doc: any) => {
-          const plainText = stripHtmlTags(doc.content || '').trim();
+        .map((doc: Record<string, unknown>) => {
+          const plainText = stripHtmlTags((doc.content as string) || '').trim();
           const wordCount = plainText.split(/\s+/).filter((word: string) => word.length > 0).length;
           const characterCount = plainText.length;
 
@@ -885,14 +903,14 @@ router.post(
             ...doc,
             word_count: wordCount,
             character_count: characterCount,
-            relevance_score: documentScores.get(doc.document_id),
+            relevance_score: documentScores.get(doc.document_id as string),
             matching_chunks: documentChunks
-              .get(doc.document_id)
+              .get(doc.document_id as string)
               ?.sort((a, b) => b.score - a.score)
               .slice(0, 2),
           };
         })
-        .sort((a: any, b: any) => b.relevance_score - a.relevance_score)
+        .sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0))
         .slice(0, limit);
 
       res.json({

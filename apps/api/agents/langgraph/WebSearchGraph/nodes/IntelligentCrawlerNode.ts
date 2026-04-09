@@ -123,8 +123,10 @@ Respond with JSON:
       })),
       reasoning: 'Fallback due to JSON parsing error',
     };
-    const decision = parseAIJsonResponse(crawlDecision.content, fallbackDecision) as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const decision = parseAIJsonResponse(crawlDecision.content || '', fallbackDecision) as any;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const crawlDecisions: CrawlDecision[] = decision.selections.map((sel: any) => ({
       url: sel.url,
       shouldCrawl: true,
@@ -137,6 +139,7 @@ Respond with JSON:
     );
 
     // Log selected URLs for debugging
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     decision.selections.forEach((sel: any) => {
       console.log(`[IntelligentCrawler] Will crawl [${sel.index}]: ${sel.url} - ${sel.reason}`);
     });

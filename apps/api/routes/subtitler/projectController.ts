@@ -12,14 +12,15 @@ import { saveOrUpdateProject } from '../../services/subtitler/projectSavingServi
 import { createLogger } from '../../utils/logger.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
+import type { SubtitlerProjectService } from '../../services/subtitler/ProjectService.js';
 
 const fsPromises = fs.promises;
 const log = createLogger('subtitler-projects');
 const router: Router = express.Router();
 
-let projectService: any = null;
+let projectService: SubtitlerProjectService | null = null;
 
-async function getProjectService() {
+async function getProjectService(): Promise<SubtitlerProjectService> {
   if (!projectService) {
     const { getSubtitlerProjectService } = await import('../../services/subtitler/index.js');
     projectService = getSubtitlerProjectService();
@@ -35,7 +36,7 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): P
     const service = await getProjectService();
     const projects = await service.getUserProjects(userId);
     res.json({ success: true, projects });
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.error('Failed to get projects:', error);
     res.status(500).json({ success: false, error: 'Projekte konnten nicht geladen werden' });
   }
@@ -45,16 +46,17 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): P
 router.get(
   '/:projectId',
   requireAuth,
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  async (req: AuthenticatedRequest<{ projectId: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { projectId } = req.params;
       const service = await getProjectService();
       const project = await service.getProject(userId, projectId);
       res.json({ success: true, project });
-    } catch (error: any) {
+    } catch (error: unknown) {
       log.error('Failed to get project:', error);
-      if (error.message.includes('not found')) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      if (errMsg.includes('not found')) {
         res.status(404).json({ success: false, error: 'Projekt nicht gefunden' });
       } else {
         res.status(500).json({ success: false, error: 'Projekt konnte nicht geladen werden' });
@@ -97,11 +99,16 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response): 
     });
 
     res.status(isNew ? 201 : 200).json({ success: true, project, isNew });
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.error('Failed to create project:', error);
     res
       .status(500)
-      .json({ success: false, error: error.message || 'Projekt konnte nicht erstellt werden' });
+      .json({
+        success: false,
+        error:
+          (error instanceof Error ? error.message : String(error)) ||
+          'Projekt konnte nicht erstellt werden',
+      });
   }
 });
 
@@ -109,7 +116,7 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response): 
 router.put(
   '/:projectId',
   requireAuth,
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  async (req: AuthenticatedRequest<{ projectId: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { projectId } = req.params;
@@ -119,9 +126,10 @@ router.put(
       const project = await service.updateProject(userId, projectId, updates);
       log.info(`Updated project ${projectId}`);
       res.json({ success: true, project });
-    } catch (error: any) {
+    } catch (error: unknown) {
       log.error('Failed to update project:', error);
-      if (error.message.includes('not found') || error.message.includes('access denied')) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      if (errMsg.includes('not found') || errMsg.includes('access denied')) {
         res.status(404).json({ success: false, error: 'Projekt nicht gefunden' });
       } else {
         res.status(500).json({ success: false, error: 'Projekt konnte nicht aktualisiert werden' });
@@ -134,7 +142,7 @@ router.put(
 router.delete(
   '/:projectId',
   requireAuth,
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  async (req: AuthenticatedRequest<{ projectId: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { projectId } = req.params;
@@ -143,9 +151,9 @@ router.delete(
       await service.deleteProject(userId, projectId);
       log.info(`Deleted project ${projectId}`);
       res.json({ success: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
       log.error('Failed to delete project:', error);
-      if (error.message.includes('not found')) {
+      if ((error instanceof Error ? error.message : String(error)).includes('not found')) {
         res.status(404).json({ success: false, error: 'Projekt nicht gefunden' });
       } else {
         res.status(500).json({ success: false, error: 'Projekt konnte nicht gelöscht werden' });
@@ -158,7 +166,7 @@ router.delete(
 router.get(
   '/:projectId/video',
   requireAuth,
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  async (req: AuthenticatedRequest<{ projectId: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { projectId } = req.params;
@@ -202,7 +210,7 @@ router.get(
         res.writeHead(200, { 'Content-Length': fileSize, 'Content-Type': 'video/mp4' });
         fs.createReadStream(videoPath).pipe(res);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       log.error('Failed to stream video:', error);
       if (!res.headersSent) {
         res.status(500).json({ success: false, error: 'Video konnte nicht gestreamt werden' });
@@ -215,7 +223,7 @@ router.get(
 router.get(
   '/:projectId/thumbnail',
   requireAuth,
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  async (req: AuthenticatedRequest<{ projectId: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { projectId } = req.params;
@@ -240,7 +248,7 @@ router.get(
       res.setHeader('Content-Type', 'image/jpeg');
       res.setHeader('Cache-Control', 'public, max-age=86400');
       fs.createReadStream(thumbnailPath).pipe(res);
-    } catch (error: any) {
+    } catch (error: unknown) {
       log.error('Failed to get thumbnail:', error);
       if (!res.headersSent) {
         res.status(500).json({ success: false, error: 'Thumbnail konnte nicht geladen werden' });
@@ -253,7 +261,7 @@ router.get(
 router.post(
   '/:projectId/export',
   requireAuth,
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  async (req: AuthenticatedRequest<{ projectId: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { projectId } = req.params;
@@ -261,7 +269,7 @@ router.post(
       const service = await getProjectService();
       await service.incrementExportCount(userId, projectId);
       res.json({ success: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
       log.error('Failed to track export:', error);
       res.status(500).json({ success: false, error: 'Export konnte nicht getrackt werden' });
     }

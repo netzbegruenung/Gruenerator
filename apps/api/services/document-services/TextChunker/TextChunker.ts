@@ -58,7 +58,7 @@ export async function smartChunkDocument(
 
     // Reindex chunks globally and enrich metadata
     return all.map((c, i) => enrichChunkWithMetadata({ ...c, index: i }, baseMetadata));
-  } catch (e) {
+  } catch (_e) {
     // Minimal safety fallback to avoid hard failure if LangChain is unavailable
     const { maxTokens = 600, overlapTokens = 150 } = options;
     const cleaned = cleanTextForEmbedding(text);

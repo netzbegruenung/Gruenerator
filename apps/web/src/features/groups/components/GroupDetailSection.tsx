@@ -79,12 +79,15 @@ const GroupDetailSection = memo(
     const sharedContent = useMemo(() => {
       const allCollabDocs = groupContent?.collaborative_documents || [];
       return {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         collabDocs: allCollabDocs.filter((d: any) => d.document_subtype !== 'boards'),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         boards: allCollabDocs.filter((d: any) => d.document_subtype === 'boards'),
         documents: groupContent?.documents || [],
         generators: groupContent?.generators || [],
         notebooks: [
           ...(groupContent?.notebooks || []),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...(groupContent?.system_notebooks || []).map((nb: any) => {
             const config = getNotebookById(nb.id);
             return { ...nb, name: config?.title ?? nb.id };

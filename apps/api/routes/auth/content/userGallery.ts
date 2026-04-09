@@ -22,12 +22,12 @@ const router: Router = express.Router();
 
 router.get(
   '/database',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const {
         searchTerm = '',
-        searchMode = 'title',
+        searchMode: _searchMode = 'title',
         category,
         types,
         onlyExamples = 'true',
@@ -105,7 +105,7 @@ router.get(
       await postgres.ensureInitialized();
 
       const conditions: string[] = [];
-      const params: any[] = [];
+      const params: unknown[] = [];
       let paramIndex = 1;
 
       if (status) {
@@ -145,13 +145,14 @@ router.get(
         const prefixRe = new RegExp(`\\b${escaped}\\w+`, 'i');
         const substringRe = new RegExp(escaped, 'i');
 
-        const scoreItem = (row: any) => {
+        const scoreItem = (row: Record<string, unknown>) => {
+          const contentData = (row?.content_data || {}) as Record<string, unknown>;
           const textParts = [
-            row?.title || '',
-            row?.description || '',
-            row?.content_data?.content || '',
-            row?.content_data?.caption || '',
-            row?.content_data?.text || '',
+            (row?.title as string) || '',
+            (row?.description as string) || '',
+            (contentData.content as string) || '',
+            (contentData.caption as string) || '',
+            (contentData.text as string) || '',
           ];
           const combined = textParts.join(' ');
           if (wordRe.test(combined)) return 0;
@@ -161,14 +162,14 @@ router.get(
         };
 
         responseData = responseData
-          .map((r: any) => ({ r, s: scoreItem(r) }))
-          .sort((a: any, b: any) => {
+          .map((r) => ({ r, s: scoreItem(r) }))
+          .sort((a, b) => {
             if (a.s !== b.s) return a.s - b.s;
-            const at = new Date(a.r.created_at).getTime();
-            const bt = new Date(b.r.created_at).getTime();
+            const at = new Date(a.r.created_at as string).getTime();
+            const bt = new Date(b.r.created_at as string).getTime();
             return bt - at;
           })
-          .map((x: any) => x.r);
+          .map((x) => x.r);
       }
 
       res.json({ success: true, data: responseData });
@@ -191,7 +192,7 @@ router.get(
 
 router.get(
   '/antraege-categories',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (_req: AuthRequest, res: Response): Promise<void> => {
     try {
       const postgres = getPostgresInstance();
@@ -204,7 +205,9 @@ router.get(
       );
 
       const allCategories = (data || [])
-        .flatMap((row: any) => (Array.isArray(row.categories) ? row.categories : []))
+        .flatMap((row: Record<string, unknown>) =>
+          Array.isArray(row.categories) ? (row.categories as string[]) : []
+        )
         .filter(Boolean);
 
       const unique = [...new Set(allCategories)].sort();
@@ -225,7 +228,7 @@ router.get(
 
 router.get(
   '/antraege',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { searchTerm = '', searchMode = 'title', categoryId } = req.query;
@@ -234,7 +237,7 @@ router.get(
       await postgres.ensureInitialized();
 
       const conditions = ['type = $1', 'status = $2', 'is_private = $3'];
-      const params: any[] = ['antrag', 'published', false];
+      const params: Array<string | number | boolean> = ['antrag', 'published', false];
       let paramIndex = 4;
 
       if (categoryId && categoryId !== 'all') {
@@ -282,7 +285,7 @@ router.get(
 
 router.get(
   '/custom-generators',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -292,7 +295,7 @@ router.get(
       await postgres.ensureInitialized();
 
       const conditions = ['is_active = true'];
-      const params: any[] = [];
+      const params: unknown[] = [];
       let paramIndex = 1;
 
       if (category === 'own') {
@@ -315,7 +318,7 @@ router.get(
 
       const data = await postgres.query(query, params, { table: 'custom_generators' });
 
-      const generators = (data || []).map((g: any) => ({
+      const generators = (data || []).map((g: Record<string, unknown>) => ({
         id: g.id,
         name: g.name,
         slug: g.slug,
@@ -343,7 +346,7 @@ router.get(
 
 router.get(
   '/pr-texts',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { searchTerm = '', searchMode = 'title', categoryId } = req.query;
@@ -361,7 +364,7 @@ router.get(
       await postgres.ensureInitialized();
 
       const conditions = ['type = ANY($1)', 'status = $2', 'is_example = $3'];
-      const params: any[] = [prTypes, 'published', true];
+      const params: unknown[] = [prTypes, 'published', true];
       let paramIndex = 4;
 
       if (categoryId && categoryId !== 'all') {
@@ -394,11 +397,12 @@ router.get(
 
       const data = await postgres.query(query, params, { table: 'database' });
 
-      const results = (data || []).map((row: any) => {
+      const results = (data || []).map((row: Record<string, unknown>) => {
+        const contentData = (row?.content_data || {}) as Record<string, unknown>;
         let content = '';
-        if (row?.content_data?.content) content = row.content_data.content;
-        else if (row?.content_data?.caption) content = row.content_data.caption;
-        else if (row?.description) content = row.description;
+        if (contentData.content) content = contentData.content as string;
+        else if (contentData.caption) content = contentData.caption as string;
+        else if (row?.description) content = row.description as string;
         else if (typeof row?.content_data === 'string') content = row.content_data;
         return {
           id: row.id,
@@ -426,7 +430,7 @@ router.get(
 
 router.get(
   '/pr-texts/categories',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (_req: AuthRequest, res: Response): Promise<void> => {
     try {
       const prTypes = [
@@ -447,7 +451,9 @@ router.get(
         { table: 'database' }
       );
 
-      const presentTypes = [...new Set((data || []).map((r: any) => r.type))];
+      const presentTypes = [
+        ...new Set((data || []).map((r: Record<string, unknown>) => r.type as string)),
+      ];
       const labelMap: Record<string, string> = {
         instagram: 'Instagram',
         facebook: 'Facebook',

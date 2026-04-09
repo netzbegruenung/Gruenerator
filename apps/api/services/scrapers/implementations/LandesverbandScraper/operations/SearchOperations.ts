@@ -14,6 +14,7 @@ import type { LandesverbandSearchOptions, LandesverbandSearchResult } from '../t
  */
 export class SearchOperations {
   constructor(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private qdrant: any,
     private collectionName: string
   ) {}
@@ -39,7 +40,7 @@ export class SearchOperations {
     const queryVector = await mistralEmbeddingService.generateQueryEmbedding(query);
 
     // Build filter from options
-    const filter: any = { must: [] };
+    const filter: { must: Array<Record<string, unknown>> } = { must: [] };
     if (sourceId) filter.must.push({ key: 'source_id', match: { value: sourceId } });
     if (landesverband) filter.must.push({ key: 'landesverband', match: { value: landesverband } });
     if (sourceType) filter.must.push({ key: 'source_type', match: { value: sourceType } });
@@ -88,13 +89,14 @@ export class SearchOperations {
    * Get collection statistics
    * Returns vector count, points count, and per-source stats
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getStats(): Promise<any> {
     try {
       const info = await this.qdrant.client.getCollection(this.collectionName);
 
       // Collect per-source statistics
-      const sourceStats: Record<string, any> = {};
-      for (const source of (LANDESVERBAENDE_CONFIG as any).sources) {
+      const sourceStats: Record<string, unknown> = {};
+      for (const source of LANDESVERBAENDE_CONFIG.sources) {
         try {
           const result = await this.qdrant.client.count(this.collectionName, {
             filter: {

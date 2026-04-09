@@ -42,7 +42,7 @@ interface CrawledAttachment {
     previewImage?: string;
     dimensions?: { width: number; height: number };
     categories?: string[];
-    structuredData?: Record<string, any>;
+    structuredData?: Record<string, unknown>;
   };
 }
 

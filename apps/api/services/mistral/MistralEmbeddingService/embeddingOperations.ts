@@ -56,7 +56,7 @@ export async function generateSingleEmbedding(
 export async function generateBatchEmbeddings(
   client: MistralEmbeddingClient,
   texts: string[],
-  inputType: string = 'search_document'
+  _inputType: string = 'search_document'
 ): Promise<number[][]> {
   validateTexts(texts);
 

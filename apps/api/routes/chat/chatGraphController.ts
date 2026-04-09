@@ -58,6 +58,7 @@ import { pipelineStateStore } from './services/pipelineStateStore.js';
 import {
   persistAssistantResponse,
   persistResumedResponse,
+  type PersistParams,
 } from './services/postResponseService.js';
 import {
   resolveModel,
@@ -66,20 +67,12 @@ import {
 } from './services/responseStreamingService.js';
 import { createSSEStream, getIntentMessage, PROGRESS_MESSAGES } from './services/sseHelpers.js';
 import { canAccessThread } from './services/threadAccessService.js';
-import {
-  getUser,
-  createThread,
-  createMessage,
-  touchThread,
-} from './services/threadPersistenceService.js';
+import { getUser, createThread, createMessage } from './services/threadPersistenceService.js';
 
-import type { ProcessedAttachmentMeta } from './services/attachmentProcessingService.js';
 import type {
   ChatGraphState,
-  GeneratedImageResult,
+  ChatGraphInput,
   ProcessedAttachment,
-  ImageAttachment,
-  SearchIntent,
 } from '../../agents/langgraph/ChatGraph/types.js';
 import type { UIMessage } from 'ai';
 
@@ -170,9 +163,13 @@ router.post('/stream', async (req, res) => {
     }
 
     // === Convert messages ===
-    let modelMessages;
+    let modelMessages: ChatGraphInput['messages'];
     try {
-      modelMessages = await convertToModelMessages(clientMessages);
+      // Cast via unknown: convertToModelMessages resolves ModelMessage from a different
+      // @ai-sdk/provider-utils resolution than what ChatGraph types import.
+      modelMessages = (await convertToModelMessages(
+        clientMessages
+      )) as unknown as ChatGraphInput['messages'];
     } catch (convertError) {
       log.error('[ChatGraph] Error converting messages:', convertError);
       sse.send('error', { error: 'Failed to process messages' });
@@ -186,7 +183,9 @@ router.post('/stream', async (req, res) => {
       return;
     }
 
-    const validMessages = filterEmptyAssistantMessages(modelMessages);
+    const validMessages = filterEmptyAssistantMessages(
+      modelMessages
+    ) as unknown as ChatGraphInput['messages'];
     log.info(
       `[ChatGraph] Converted ${clientMessages.length} → ${validMessages.length} valid messages`
     );
@@ -536,29 +535,6 @@ router.post('/stream', async (req, res) => {
       if (created) return;
     }
 
-    // === Handle save_as_doc intent ===
-    if (classifiedState.intent === 'save_as_doc') {
-      const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-      const conversationContext = validMessages
-        .slice(-6)
-        .map((m) => `${m.role}: ${extractTextContent(m.content)}`)
-        .join('\n');
-
-      const created = await generateAndCreateDocument({
-        sse,
-        classifiedState,
-        aiWorkerPool,
-        req,
-        actualThreadId,
-        userId,
-        userContent: lastUserText,
-        subtypeOverride: classifiedState.documentSubtype,
-        conversationContext,
-        intent: 'save_as_doc',
-      });
-      if (created) return;
-    }
-
     // === Handle share_doc intent ===
     if (classifiedState.intent === 'share_doc' && actualThreadId) {
       const handled = await handleShareDoc({
@@ -591,7 +567,7 @@ router.post('/stream', async (req, res) => {
       hasImages: imageAttachments.length > 0,
     });
 
-    const prunedValidMessages = pruneMessages(validMessages);
+    const prunedValidMessages = pruneMessages(validMessages as Parameters<typeof pruneMessages>[0]);
     const finalSystemMessage = actualThreadId
       ? await applyCompaction(
           actualThreadId,
@@ -601,12 +577,19 @@ router.post('/stream', async (req, res) => {
         )
       : systemMessage;
 
-    let messagesForAI = buildMessagesForAI(finalSystemMessage, prunedValidMessages);
-    messagesForAI = injectImageAttachments(messagesForAI, imageAttachments, requestId);
+    let messagesForAI = buildMessagesForAI(
+      finalSystemMessage,
+      prunedValidMessages as Parameters<typeof buildMessagesForAI>[1]
+    );
+    messagesForAI = injectImageAttachments(
+      messagesForAI as Parameters<typeof injectImageAttachments>[0],
+      imageAttachments,
+      requestId
+    );
 
     const fullText = await streamAndAccumulate({
       model: aiModel,
-      messages: messagesForAI,
+      messages: messagesForAI as Parameters<typeof streamAndAccumulate>[0]['messages'],
       maxTokens: finalState.agentConfig.params.max_tokens,
       temperature: finalState.agentConfig.params.temperature,
       sse,
@@ -634,14 +617,15 @@ router.post('/stream', async (req, res) => {
       classifiedState,
       generatedImage,
       isNewThread,
-      lastUserMessage,
+      lastUserMessage: lastUserMessage as unknown as PersistParams['lastUserMessage'],
       processedMeta,
       aiWorkerPool,
       requestId,
     });
 
     // === Stage 4b: Emit confirm_action for intents that need user approval ===
-    if (actualThreadId) {
+    // Skip confirm_action when save_as_doc is primary intent — Stage 4c auto-creates the document
+    if (actualThreadId && classifiedState.intent !== 'save_as_doc') {
       await emitConfirmAction({
         sse,
         actualThreadId,
@@ -654,12 +638,10 @@ router.post('/stream', async (req, res) => {
       });
     }
 
-    // === Stage 4c: Handle save_as_doc as secondary intent ===
-    if (
-      classifiedState.secondaryIntent === 'save_as_doc' &&
-      classifiedState.intent !== 'save_as_doc' &&
-      fullText
-    ) {
+    // === Stage 4c: Handle save_as_doc (primary or secondary intent) ===
+    const isSaveAsDoc =
+      classifiedState.intent === 'save_as_doc' || classifiedState.secondaryIntent === 'save_as_doc';
+    if (isSaveAsDoc && fullText) {
       const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
       const conversationContext = [
         ...validMessages.slice(-4).map((m) => `${m.role}: ${extractTextContent(m.content)}`),
@@ -722,7 +704,7 @@ router.post('/stream', async (req, res) => {
  */
 router.post('/resume', async (req, res) => {
   const sse = createSSEStream(res);
-  const requestId = `resume_${Date.now()}`;
+  const _requestId = `resume_${Date.now()}`;
 
   try {
     const { threadId, resume: userAnswer } = req.body as {

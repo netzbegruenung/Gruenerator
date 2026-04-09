@@ -22,13 +22,13 @@ export interface Workflow {
   id: string;
   user_id: string;
   workflow_type: WorkflowType;
-  input_data: Record<string, any>;
-  strategy_data: Record<string, any> | null;
-  enrichment_metadata: Record<string, any> | null;
+  input_data: Record<string, unknown>;
+  strategy_data: Record<string, unknown> | null;
+  enrichment_metadata: Record<string, unknown> | null;
   status: WorkflowStatus;
   user_feedback: string | null;
-  approval_config: Record<string, any> | null;
-  production_data: Record<string, any> | null;
+  approval_config: Record<string, unknown> | null;
+  production_data: Record<string, unknown> | null;
   created_at: string;
   strategy_generated_at: string | null;
   approved_at: string | null;
@@ -56,7 +56,7 @@ export class WorkflowService {
   async createWorkflow(
     workflowType: WorkflowType,
     userId: string,
-    inputData: Record<string, any>,
+    inputData: Record<string, unknown>,
     tags: string[] = []
   ): Promise<string> {
     const workflowId = uuidv4();
@@ -91,8 +91,8 @@ export class WorkflowService {
    */
   async saveStrategy(
     workflowId: string,
-    strategyData: Record<string, any>,
-    enrichmentMetadata: Record<string, any>,
+    strategyData: Record<string, unknown>,
+    enrichmentMetadata: Record<string, unknown>,
     executionTimeMs: number
   ): Promise<void> {
     const workflow = await this.getWorkflow(workflowId);
@@ -114,7 +114,7 @@ export class WorkflowService {
    */
   async approveWorkflow(
     workflowId: string,
-    approvalConfig: Record<string, any>,
+    approvalConfig: Record<string, unknown>,
     userFeedback?: string
   ): Promise<void> {
     const workflow = await this.getWorkflow(workflowId);
@@ -135,7 +135,7 @@ export class WorkflowService {
    */
   async saveProduction(
     workflowId: string,
-    productionData: Record<string, any>,
+    productionData: Record<string, unknown>,
     executionTimeMs: number,
     totalAICalls: number
   ): Promise<void> {
@@ -197,14 +197,14 @@ export const workflowService = new WorkflowService();
 
 // Type-specific wrapper for PR Agent (optional - for cleaner API)
 export const prAgentWorkflow = {
-  create: (userId: string, inputData: Record<string, any>) =>
+  create: (userId: string, inputData: Record<string, unknown>) =>
     workflowService.createWorkflow('pr_agent', userId, inputData, ['pr', 'social']),
 
   saveStrategy: (
     workflowId: string,
     framing: string,
-    args: any[],
-    enrichmentMetadata: any,
+    args: string[],
+    enrichmentMetadata: Record<string, unknown>,
     executionTimeMs: number
   ) =>
     workflowService.saveStrategy(
@@ -219,8 +219,8 @@ export const prAgentWorkflow = {
 
   saveProduction: (
     workflowId: string,
-    content: any,
-    sharepics: any[],
+    content: Record<string, unknown>,
+    sharepics: Array<Record<string, unknown>>,
     riskAnalysis: string,
     visualBriefing: string,
     executionTimeMs: number,

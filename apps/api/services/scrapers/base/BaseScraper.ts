@@ -5,7 +5,7 @@
 
 import { generateContentHash } from '../../../utils/validation/index.js';
 
-import type { ScraperConfig, ScraperResult, ScrapedDocument } from '../types.js';
+import type { ScraperConfig, ScraperResult } from '../types.js';
 
 /**
  * Abstract base class for all scrapers
@@ -134,7 +134,7 @@ export abstract class BaseScraper {
       // Sort query parameters
       urlObj.searchParams.sort();
       return urlObj.toString();
-    } catch (e) {
+    } catch (_e) {
       return url;
     }
   }
@@ -146,7 +146,7 @@ export abstract class BaseScraper {
     try {
       const urlObj = new URL(url);
       return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
-    } catch (e) {
+    } catch (_e) {
       return false;
     }
   }
@@ -158,7 +158,7 @@ export abstract class BaseScraper {
     try {
       const urlObj = new URL(url);
       return urlObj.hostname;
-    } catch (e) {
+    } catch (_e) {
       return '';
     }
   }

@@ -451,8 +451,10 @@ export const useAuth = (options: AuthOptions = {}) => {
         }
 
         // Prevent infinite loop by only setting state if user is different
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         if ((authData.user as any)?.id !== currentUser?.id) {
           setAuthState({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             user: authData.user as any,
             isAuthenticated: authData.isAuthenticated,
           });

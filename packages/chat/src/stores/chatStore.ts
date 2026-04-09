@@ -340,6 +340,7 @@ export const useAgentStore = create<AgentState>()(
         };
       }),
       version: 4,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
           const old = persisted.selectedModel;

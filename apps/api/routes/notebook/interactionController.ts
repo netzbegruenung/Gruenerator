@@ -21,17 +21,16 @@ import { notebookQAService } from '../../services/notebook/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { NotebookRequest, AskQuestionBody, PublicAccessRecord } from './types.js';
-import type { AuthenticatedRequest } from '../../middleware/types.js';
 
 const log = createLogger('notebookInteraction');
 const { requireAuth } = authMiddleware;
 
 const router = express.Router();
-const postgres = getPostgresInstance();
+const _postgres = getPostgresInstance();
 const notebookHelper = new NotebookQdrantHelper();
 
 // Initialize system collections on startup
-(async () => {
+void (async () => {
   try {
     await notebookHelper.ensureSystemGrundsatzCollection();
     log.debug('[QA Interaction] System collections initialized');

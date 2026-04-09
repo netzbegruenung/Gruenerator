@@ -44,7 +44,7 @@ export interface ErrorClassification {
  */
 export interface ErrorDetails {
   field?: string;
-  value?: any;
+  value?: unknown;
   searchType?: string;
   userId?: string;
   embeddingDimensions?: number;
@@ -58,7 +58,7 @@ export interface ErrorDetails {
   timeoutMs?: number;
   resource?: string;
   originalError?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -100,7 +100,7 @@ export interface ErrorHandlerOptions {
  */
 export interface ErrorContext {
   field?: string;
-  value?: any;
+  value?: unknown;
   searchType?: string;
   userId?: string;
   provider?: string;
@@ -111,7 +111,7 @@ export interface ErrorContext {
   cacheType?: string;
   embeddingDimensions?: number;
   returnResponse?: boolean;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -135,5 +135,5 @@ export interface RequestWithCorrelation extends Request {
 export interface AIWorkerErrorResult {
   success: false;
   error: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }

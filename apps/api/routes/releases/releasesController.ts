@@ -235,6 +235,7 @@ router.get('/info', (_req: Request, res: Response) => {
 
 // Debug: List all registered routes
 console.log('[Releases] Registered routes:');
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 router.stack.forEach((r: any) => {
   if (r.route) {
     console.log(`[Releases]   ${Object.keys(r.route.methods).join(',')} ${r.route.path}`);

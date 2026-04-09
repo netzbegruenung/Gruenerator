@@ -34,177 +34,161 @@ const requireAdmin = (req: AdminRequest, res: Response, next: NextFunction): voi
  * POST /internal/offboarding/run
  * Manually trigger the offboarding process
  */
-router.post(
-  '/run',
-  requireAdmin as any,
-  async (req: AdminRequest, res: Response): Promise<void> => {
-    try {
-      OffboardingService.validateConfig();
+router.post('/run', requireAdmin, async (req: AdminRequest, res: Response): Promise<void> => {
+  try {
+    OffboardingService.validateConfig();
 
-      const service = new OffboardingService();
+    const service = new OffboardingService();
 
-      res.status(202).json({
-        message: 'Offboarding process started',
-        startTime: new Date().toISOString(),
-        status: 'running',
+    res.status(202).json({
+      message: 'Offboarding process started',
+      startTime: new Date().toISOString(),
+      status: 'running',
+    });
+
+    const result = await service.runOffboarding();
+
+    log.debug(
+      `Offboarding process completed in ${result.durationMs}ms: ${result.processed} processed`
+    );
+  } catch (error) {
+    const err = error as Error;
+    log.error('Offboarding process failed:', err.message);
+
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'Configuration error',
+        message: err.message,
       });
-
-      const result = await service.runOffboarding();
-
-      log.debug(
-        `Offboarding process completed in ${result.durationMs}ms: ${result.processed} processed`
-      );
-    } catch (error) {
-      const err = error as Error;
-      log.error('Offboarding process failed:', err.message);
-
-      if (!res.headersSent) {
-        res.status(500).json({
-          error: 'Configuration error',
-          message: err.message,
-        });
-      }
     }
   }
-);
+});
 
 /**
  * POST /internal/offboarding/run-sync
  * Trigger offboarding and wait for completion. Returns anonymized counts only.
  * Used by GitHub Actions daily cron for protocol/summary.
  */
-router.post(
-  '/run-sync',
-  requireAdmin as any,
-  async (req: AdminRequest, res: Response): Promise<void> => {
-    try {
-      OffboardingService.validateConfig();
+router.post('/run-sync', requireAdmin, async (req: AdminRequest, res: Response): Promise<void> => {
+  try {
+    OffboardingService.validateConfig();
 
-      const service = new OffboardingService();
-      const result = await service.runOffboarding();
+    const service = new OffboardingService();
+    const result = await service.runOffboarding();
 
-      res.json(result);
-    } catch (error) {
-      const err = error as Error;
-      log.error('Offboarding sync run failed:', err.message);
+    res.json(result);
+  } catch (error) {
+    const err = error as Error;
+    log.error('Offboarding sync run failed:', err.message);
 
-      res.status(500).json({
-        success: false,
-        error: err.message,
-      });
-    }
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
   }
-);
+});
 
 /**
  * GET /internal/offboarding/status
  * Check the status of the offboarding service configuration
  */
-router.get(
-  '/status',
-  requireAdmin as any,
-  async (req: AdminRequest, res: Response): Promise<void> => {
-    try {
-      OffboardingService.validateConfig();
+router.get('/status', requireAdmin, async (req: AdminRequest, res: Response): Promise<void> => {
+  try {
+    OffboardingService.validateConfig();
 
-      res.json({
-        status: 'ready',
-        message: 'Offboarding service is properly configured',
-        config: {
-          apiBaseUrl: process.env.GRUENE_API_BASEURL || 'https://app.gruene.de',
-          hasAuthentication: !!(
-            process.env.GRUENE_API_KEY ||
-            (process.env.GRUENE_API_USERNAME && process.env.GRUENE_API_PASSWORD)
-          ),
-        },
-      });
-    } catch (error) {
-      const err = error as Error;
-      res.status(500).json({
-        status: 'error',
-        message: err.message,
-        config: {
-          apiBaseUrl: process.env.GRUENE_API_BASEURL || 'https://app.gruene.de',
-          hasAuthentication: !!(
-            process.env.GRUENE_API_KEY ||
-            (process.env.GRUENE_API_USERNAME && process.env.GRUENE_API_PASSWORD)
-          ),
-        },
-      });
-    }
+    res.json({
+      status: 'ready',
+      message: 'Offboarding service is properly configured',
+      config: {
+        apiBaseUrl: process.env.GRUENE_API_BASEURL || 'https://app.gruene.de',
+        hasAuthentication: !!(
+          process.env.GRUENE_API_KEY ||
+          (process.env.GRUENE_API_USERNAME && process.env.GRUENE_API_PASSWORD)
+        ),
+      },
+    });
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({
+      status: 'error',
+      message: err.message,
+      config: {
+        apiBaseUrl: process.env.GRUENE_API_BASEURL || 'https://app.gruene.de',
+        hasAuthentication: !!(
+          process.env.GRUENE_API_KEY ||
+          (process.env.GRUENE_API_USERNAME && process.env.GRUENE_API_PASSWORD)
+        ),
+      },
+    });
   }
-);
+});
 
 /**
  * POST /internal/offboarding/dry-run
  * Perform a dry run to see which users would be affected
  */
-router.post(
-  '/dry-run',
-  requireAdmin as any,
-  async (req: AdminRequest, res: Response): Promise<void> => {
-    try {
-      OffboardingService.validateConfig();
+router.post('/dry-run', requireAdmin, async (req: AdminRequest, res: Response): Promise<void> => {
+  try {
+    OffboardingService.validateConfig();
 
-      const { limit = 10 } = req.body as DryRunBody;
-      const service = new OffboardingService();
+    const { limit = 10 } = req.body as DryRunBody;
+    const service = new OffboardingService();
 
-      const results: Array<{
+    const results: Array<{
+      grueneNetUser: {
+        id: string;
+        username: string | undefined;
+        email: string | undefined;
+        sherpa_id: string | undefined;
+      };
+      grueneratorUser: {
+        id: string;
+        email: string | undefined;
+        username: string | undefined;
+      } | null;
+      action: string;
+    }> = [];
+
+    let count = 0;
+
+    for await (const user of service.fetchOffboardingUsers()) {
+      if (count >= limit) break;
+
+      const grueneratorUser = await service.grueneratorOffboarding.findUserInGruenerator(user);
+
+      results.push({
         grueneNetUser: {
-          id: string;
-          username: string | undefined;
-          email: string | undefined;
-          sherpa_id: string | undefined;
-        };
-        grueneratorUser: {
-          id: string;
-          email: string | undefined;
-          username: string | undefined;
-        } | null;
-        action: string;
-      }> = [];
-
-      let count = 0;
-
-      for await (const user of service.fetchOffboardingUsers()) {
-        if (count >= limit) break;
-
-        const grueneratorUser = await service.grueneratorOffboarding.findUserInGruenerator(user);
-
-        results.push({
-          grueneNetUser: {
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            sherpa_id: user.sherpa_id,
-          },
-          grueneratorUser: grueneratorUser
-            ? {
-                id: grueneratorUser.id,
-                email: grueneratorUser.email,
-                username: grueneratorUser.username,
-              }
-            : null,
-          action: grueneratorUser ? 'would_be_processed' : 'not_found',
-        });
-
-        count++;
-      }
-
-      res.json({
-        message: `Dry run completed for ${results.length} users`,
-        limit,
-        results,
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          sherpa_id: user.sherpa_id,
+        },
+        grueneratorUser: grueneratorUser
+          ? {
+              id: grueneratorUser.id,
+              email: grueneratorUser.email,
+              username: grueneratorUser.username,
+            }
+          : null,
+        action: grueneratorUser ? 'would_be_processed' : 'not_found',
       });
-    } catch (error) {
-      const err = error as Error;
-      res.status(500).json({
-        error: 'Dry run failed',
-        message: err.message,
-      });
+
+      count++;
     }
+
+    res.json({
+      message: `Dry run completed for ${results.length} users`,
+      limit,
+      results,
+    });
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({
+      error: 'Dry run failed',
+      message: err.message,
+    });
   }
-);
+});
 
 /**
  * GET /internal/offboarding/documentation

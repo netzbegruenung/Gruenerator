@@ -35,6 +35,7 @@ export function useMobileKeyboardOffset<T extends HTMLElement>(
     };
 
     // Prefer VirtualKeyboard API (Chrome/Edge 94+)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const vk = (navigator as any).virtualKeyboard;
     if (vk) {
       vk.overlaysContent = true;

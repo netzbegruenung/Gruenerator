@@ -173,7 +173,7 @@ async function shouldCompressVideo(videoPath: string): Promise<boolean> {
     });
 
     return true;
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.error('[BackgroundCompression] Error analyzing video for compression:', error);
     return false;
   }
@@ -371,8 +371,11 @@ async function compressVideoInBackground(
                 }),
                 { EX: COMPRESSION_CONFIG.REDIS_TTL }
               );
-            } catch (redisError: any) {
-              log.warn('[BackgroundCompression] Redis update failed:', redisError.message);
+            } catch (redisError: unknown) {
+              log.warn(
+                '[BackgroundCompression] Redis update failed:',
+                redisError instanceof Error ? redisError.message : String(redisError)
+              );
             }
           })
           .on('end', () => {
@@ -434,8 +437,11 @@ async function compressVideoInBackground(
       try {
         await fsPromises.unlink(backupPath);
         log.debug(`[BackgroundCompression] Backup cleaned up for ${uploadId}`);
-      } catch (err: any) {
-        log.warn(`[BackgroundCompression] Backup cleanup failed for ${uploadId}:`, err.message);
+      } catch (err: unknown) {
+        log.warn(
+          `[BackgroundCompression] Backup cleanup failed for ${uploadId}:`,
+          err instanceof Error ? err.message : String(err)
+        );
       }
     }, 60000);
 
@@ -466,7 +472,7 @@ async function compressVideoInBackground(
       compressedSize: compressedSizeMB,
       spaceSaved: originalSizeMB - compressedSizeMB,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.error(`[BackgroundCompression] Error compressing ${uploadId}:`, error);
 
     try {
@@ -474,7 +480,7 @@ async function compressVideoInBackground(
         compressionKey,
         JSON.stringify({
           status: 'error',
-          error: error.message,
+          error: error instanceof Error ? error.message : String(error),
           progress: 0,
         }),
         { EX: COMPRESSION_CONFIG.REDIS_TTL }
@@ -497,9 +503,9 @@ async function getCompressionStatus(uploadId: string): Promise<CompressionStatus
     }
 
     return JSON.parse(statusData);
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.error(`[BackgroundCompression] Error getting status for ${uploadId}:`, error);
-    return { status: 'error', error: error.message };
+    return { status: 'error', error: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -534,14 +540,17 @@ function startBackgroundCompression(videoPath: string, uploadId: string): void {
             }
           })
           .catch((error) => {
-            log.warn(`[BackgroundCompression] Compression failed for ${uploadId}:`, error.message);
+            log.warn(
+              `[BackgroundCompression] Compression failed for ${uploadId}:`,
+              error instanceof Error ? error.message : String(error)
+            );
           });
       });
     })
     .catch((error) => {
       log.warn(
         `[BackgroundCompression] Redis check failed for ${uploadId}, skipping compression:`,
-        error.message
+        error instanceof Error ? error.message : String(error)
       );
     });
 }

@@ -29,7 +29,7 @@ interface ChunkMetadata {
   section?: string;
   chunk_index?: number;
   total_chunks?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -106,7 +106,7 @@ class BundestagContentProcessor {
    * @returns Array of chunks with embeddings
    */
   async processPage(pageData: PageData): Promise<TextChunk[]> {
-    const { url, text, title, section, content_hash } = pageData;
+    const { url, text, title, section, content_hash: _content_hash } = pageData;
 
     if (!text || text.trim().length < 50) {
       log.debug(`Skipping page with insufficient content: ${url}`);
@@ -252,10 +252,10 @@ class BundestagContentProcessor {
 
       if (Array.isArray(chunks) && chunks.length > 0) {
         return chunks.map(
-          (chunk: any, index: number): TextChunk => ({
-            text: chunk.text || chunk,
+          (chunk, index: number): TextChunk => ({
+            text: chunk.text,
             chunk_index: index,
-            token_count: chunk.tokens || estimateTokens(chunk.text || chunk),
+            token_count: chunk.tokens || estimateTokens(chunk.text),
             metadata: {
               ...metadata,
               ...chunk.metadata,
@@ -279,10 +279,10 @@ class BundestagContentProcessor {
 
       if (Array.isArray(chunks) && chunks.length > 0) {
         return chunks.map(
-          (chunk: any, index: number): TextChunk => ({
-            text: chunk.text || chunk,
+          (chunk, index: number): TextChunk => ({
+            text: chunk.text,
             chunk_index: index,
-            token_count: chunk.tokens || estimateTokens(chunk.text || chunk),
+            token_count: chunk.tokens || estimateTokens(chunk.text),
             metadata: {
               ...metadata,
               chunk_index: index,

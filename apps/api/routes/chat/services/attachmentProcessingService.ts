@@ -132,17 +132,19 @@ export function injectImageAttachments(
         ? lastUserMsg.content
         : Array.isArray(lastUserMsg.content)
           ? lastUserMsg.content
-              .filter((p: any) => p.type === 'text')
-              .map((p: any) => p.text)
+              .filter((p: { type: string; text?: string }) => p.type === 'text')
+              .map((p: { type: string; text?: string }) => p.text)
               .join('')
           : '';
 
-    const multimodalContent: any[] = [{ type: 'text', text: textContent }];
+    const multimodalContent: Array<
+      { type: 'text'; text: string } | { type: 'image'; image: string; mimeType?: string }
+    > = [{ type: 'text' as const, text: textContent }];
 
     for (const img of imageAttachments) {
       multimodalContent.push({
-        type: 'image',
-        image: Buffer.from(img.data, 'base64'),
+        type: 'image' as const,
+        image: Buffer.from(img.data, 'base64').toString('base64'),
         mimeType: img.type,
       });
     }

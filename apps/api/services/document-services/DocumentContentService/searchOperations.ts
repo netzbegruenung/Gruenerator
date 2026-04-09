@@ -10,26 +10,49 @@ import type {
   ContentSearchResponse,
   ContentSearchMetadata,
 } from './types.js';
+import type { SearchParams, SearchResponse } from '../../BaseSearchService/types.js';
 import type { DocumentRecord } from '../PostgresDocumentService/types.js';
 
 /**
  * Perform vector search within user's accessible documents
  */
+interface SearchResult {
+  document_id: string;
+  relevant_content?: string;
+  chunk_text?: string;
+  similarity_score?: number;
+  title?: string;
+  filename?: string;
+  relevance_info?: string;
+}
+
+interface DocumentSearchServiceLike {
+  search: (params: SearchParams) => Promise<SearchResponse>;
+  getDocumentFullText: (
+    userId: string,
+    docId: string
+  ) => Promise<{ success: boolean; fullText: string; chunkCount: number; error?: string }>;
+}
+
 export async function performVectorSearch(
-  documentSearchService: any,
+  documentSearchService: Pick<DocumentSearchServiceLike, 'search'>,
   userId: string,
   query: string,
   documentIds: string[],
   limit: number,
   mode: string
-): Promise<any[]> {
+): Promise<SearchResult[]> {
   try {
     const searchResponse = await documentSearchService.search({
       query: query,
-      user_id: userId,
-      documentIds: documentIds,
-      limit: limit * 2, // Get more results for better aggregation
-      mode: mode,
+      userId: userId,
+      filters: {
+        documentIds: documentIds,
+      },
+      options: {
+        limit: limit * 2, // Get more results for better aggregation
+      },
+      mode: mode as SearchParams['mode'],
     });
 
     const results = searchResponse.results || [];
@@ -45,12 +68,12 @@ export async function performVectorSearch(
  * Process vector search results into document content map
  */
 export function processVectorSearchResults(
-  searchResults: any[],
+  searchResults: SearchResult[],
   accessibleDocuments: DocumentRecord[]
 ): Map<string, DocumentContentResult> {
   const documentContents = new Map<string, DocumentContentResult>();
 
-  searchResults.forEach((result: any) => {
+  searchResults.forEach((result) => {
     const docId = result.document_id;
     const content = result.relevant_content || result.chunk_text || '';
 
@@ -64,7 +87,7 @@ export function processVectorSearchResults(
         vector_count: docInfo?.vector_count || 0,
         content_type: 'vector_search',
         content: content,
-        similarity_score: result.similarity_score,
+        similarity_score: result.similarity_score ?? null,
         search_info: result.relevance_info || 'Vector search found relevant content',
       });
     } else {
@@ -72,8 +95,8 @@ export function processVectorSearchResults(
       const existing = documentContents.get(docId)!;
       existing.content += '\n\n---\n\n' + content;
       // Keep the higher similarity score
-      if (result.similarity_score > existing.similarity_score!) {
-        existing.similarity_score = result.similarity_score;
+      if ((result.similarity_score ?? 0) > (existing.similarity_score ?? 0)) {
+        existing.similarity_score = result.similarity_score ?? null;
       }
     }
   });
@@ -85,7 +108,7 @@ export function processVectorSearchResults(
  * Fill in missing documents with full text or excerpts
  */
 export async function fillMissingDocuments(
-  documentSearchService: any,
+  documentSearchService: Pick<DocumentSearchServiceLike, 'getDocumentFullText'>,
   userId: string,
   query: string,
   accessibleDocuments: DocumentRecord[],

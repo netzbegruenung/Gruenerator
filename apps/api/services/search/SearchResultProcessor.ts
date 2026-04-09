@@ -358,22 +358,21 @@ export function groupSourcesByCollection(
 /**
  * Normalize a single search result for consistent processing
  */
-export function normalizeSearchResult(r: any): ExpandedChunkResult {
-  const title = r.title || r.document_title || r.filename || 'Unbenanntes Dokument';
-  const snippet = (r.relevant_content || r.chunk_text || r.content || r.snippet || '').slice(
-    0,
-    500
-  );
-  const top = r.top_chunks?.[0] || {};
+export function normalizeSearchResult(r: Record<string, unknown>): ExpandedChunkResult {
+  const title = (r.title || r.document_title || r.filename || 'Unbenanntes Dokument') as string;
+  const rawSnippet = (r.relevant_content || r.chunk_text || r.content || r.snippet || '') as string;
+  const snippet = rawSnippet.slice(0, 500);
+  const topChunks = r.top_chunks as Array<Record<string, unknown>> | undefined;
+  const top = topChunks?.[0] || ({} as Record<string, unknown>);
   return {
-    document_id: r.document_id || '',
+    document_id: (r.document_id || '') as string,
     title,
     snippet,
-    filename: r.filename || null,
+    filename: (r.filename || null) as string | null,
     similarity: typeof r.similarity_score === 'number' ? r.similarity_score : 0,
-    chunk_index: (top.chunk_index ?? r.chunk_index) || 0,
-    page_number: top.page_number ?? null,
-    source_url: r.source_url || r.url || null,
+    chunk_index: ((top.chunk_index ?? r.chunk_index) || 0) as number,
+    page_number: (top.page_number ?? null) as number | null,
+    source_url: (r.source_url || r.url || null) as string | null,
   };
 }
 
@@ -430,7 +429,7 @@ export function summarizeReferencesForPrompt(
 /**
  * Parse AI JSON response with code fence stripping and fallback
  */
-export function parseAIJsonResponse(content: string, fallback: any = {}): any {
+export function parseAIJsonResponse(content: string, fallback: unknown = {}): unknown {
   try {
     if (!content) return fallback;
     const clean = content

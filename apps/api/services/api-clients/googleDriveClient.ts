@@ -35,7 +35,7 @@ function validateDriveId(id: string, label: string): string {
 export async function listFiles(
   token: string,
   folderId?: string,
-  pageToken?: string,
+  pageToken?: string
 ): Promise<GoogleDriveListResult> {
   if (folderId) validateDriveId(folderId, 'folder ID');
   const query = folderId ? `'${folderId}' in parents and trashed = false` : 'trashed = false';
@@ -79,7 +79,7 @@ export async function downloadFile(token: string, fileId: string): Promise<Buffe
 export async function exportDoc(
   token: string,
   docId: string,
-  mimeType: string = 'text/plain',
+  mimeType: string = 'text/plain'
 ): Promise<string> {
   validateDriveId(docId, 'document ID');
   const response = await axios.get(`${GOOGLE_DRIVE_API}/files/${docId}/export`, {
@@ -89,6 +89,7 @@ export async function exportDoc(
   return response.data;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getDocContent(token: string, docId: string): Promise<any> {
   validateDriveId(docId, 'document ID');
   const response = await axios.get(`${GOOGLE_DOCS_API}/documents/${docId}`, {
@@ -97,7 +98,12 @@ export async function getDocContent(token: string, docId: string): Promise<any> 
   return response.data;
 }
 
-export async function getSheetContent(token: string, spreadsheetId: string, range?: string): Promise<any> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getSheetContent(
+  token: string,
+  spreadsheetId: string,
+  range?: string
+): Promise<any> {
   validateDriveId(spreadsheetId, 'spreadsheet ID');
   const url = range
     ? `${GOOGLE_SHEETS_API}/spreadsheets/${spreadsheetId}/values/${range}`

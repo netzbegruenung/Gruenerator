@@ -27,6 +27,7 @@ import type {
   DocumentReference,
   WebSearchSource,
 } from './types/requestEnrichment.js';
+import type { RequestWithLocale } from '../services/localization/types.js';
 
 // Lazy import to avoid circular dependency issues
 const getQdrantDocumentService = async () => {
@@ -185,7 +186,7 @@ class RequestEnricher {
    */
   formatFullDocuments(
     fullTextResults: FullTextResult[],
-    docsMetadata: any[]
+    docsMetadata: Array<{ id: string; title?: string; filename?: string }>
   ): {
     formatted: string[];
     references: DocumentReference[];
@@ -217,7 +218,7 @@ class RequestEnricher {
 
       // Add reference metadata for bibliography display
       references.push({
-        title: meta.title,
+        title: meta.title || 'Unbekannt',
         filename: meta.filename || 'Unbekannt',
         pageCount: estimatedPages,
         retrievalMethod: 'full_text',
@@ -236,7 +237,7 @@ class RequestEnricher {
    * @returns {Object|null} { preAnswer: string, timeMs: number } or null if disabled/failed
    */
   async generateNotebookEnrich(
-    requestData: any,
+    requestData: Record<string, unknown>,
     options: Partial<EnrichmentOptions>
   ): Promise<{ preAnswer: string; timeMs: number } | null> {
     if (!options.enableNotebookEnrich || !options.aiWorkerPool) {
@@ -246,10 +247,14 @@ class RequestEnricher {
     const startTime = Date.now();
 
     // Build minimal context from request
-    const theme =
-      requestData.thema || requestData.theme || requestData.details || requestData.inhalt || '';
-    const platforms = requestData.platforms?.join(', ') || '';
-    const requestType = requestData.requestType || options.type || '';
+    const theme = (requestData.thema ||
+      requestData.theme ||
+      requestData.details ||
+      requestData.inhalt ||
+      '') as string;
+    const platforms =
+      (Array.isArray(requestData.platforms) ? requestData.platforms.join(', ') : '') || '';
+    const requestType = (requestData.requestType || options.type || '') as string;
 
     if (!theme.trim()) {
       console.log('🎯 [NotebookEnrich] Skipped: no theme/content found in request');
@@ -267,12 +272,12 @@ class RequestEnricher {
         `🎯 [NotebookEnrich] Generating preliminary draft for: "${theme.substring(0, 50)}..."`
       );
 
-      const result = await options.aiWorkerPool.processRequest({
+      const result = (await options.aiWorkerPool.processRequest({
         type: 'notebook_enrich',
         messages: [{ role: 'user', content: userPrompt }],
         systemPrompt,
         options: { max_tokens: 500, temperature: 0.4, top_p: 0.9 },
-      });
+      })) as { content?: string };
 
       const content = result.content || '';
       if (!content || content.length < 20) {
@@ -302,9 +307,9 @@ class RequestEnricher {
    * @returns {Object} Enriched state ready for prompt assembly
    */
   async enrichRequest(
-    requestBody: any,
+    requestBody: Record<string, unknown>,
     options: Partial<EnrichmentOptions> = {},
-    req: any = null
+    req: unknown = null
   ): Promise<EnrichedState> {
     const {
       type = 'universal',
@@ -332,7 +337,7 @@ class RequestEnricher {
     } = options;
 
     // Extract user locale for localization
-    const userLocale = req ? extractLocaleFromRequest(req) : 'de-DE';
+    const userLocale = req ? extractLocaleFromRequest(req as RequestWithLocale) : 'de-DE';
     console.log(
       `🎯 [RequestEnricher] Starting enrichment (type=${type}, urls=${enableUrls}, search=${enableWebSearch}, privacy=${usePrivacyMode}, vectorSearch=${selectedDocumentIds.length > 0}, locale=${userLocale})`
     );
@@ -366,7 +371,7 @@ class RequestEnricher {
     // Check if document knowledge was already processed (from chat route)
     if (requestBody.documentKnowledge) {
       console.log('🎯 [RequestEnricher] Using pre-processed document knowledge from chat');
-      state.knowledge.push(requestBody.documentKnowledge);
+      state.knowledge.push(requestBody.documentKnowledge as string);
       // Mark that documents were pre-processed - full metadata will be set at the end
       (state as { _documentsPreProcessed?: boolean })._documentsPreProcessed = true;
       // Skip attachment processing since documents were already handled
@@ -376,7 +381,7 @@ class RequestEnricher {
         requestBody.attachments,
         usePrivacyMode,
         type,
-        requestBody.userId || 'unknown'
+        (requestBody.userId as string) || 'unknown'
       );
 
       if (attachmentResult.error) {
@@ -422,7 +427,14 @@ class RequestEnricher {
     // KnowledgeSelector document vector search (if documents selected)
     if (selectedDocumentIds.length > 0 && searchQuery && !usePrivacyMode) {
       enrichmentTasks.push(
-        this.performDocumentVectorSearch(selectedDocumentIds, searchQuery, options.req)
+        this.performDocumentVectorSearch(
+          selectedDocumentIds,
+          searchQuery,
+          options.req as {
+            user?: { id: string };
+            headers?: Record<string, string | string[] | undefined>;
+          }
+        )
           .then((result) => ({
             type: 'vectorsearch' as const,
             knowledge: result.knowledge,
@@ -442,7 +454,7 @@ class RequestEnricher {
     // Fetch saved texts by IDs (if texts selected)
     if (selectedTextIds.length > 0) {
       enrichmentTasks.push(
-        this.fetchTextsByIds(selectedTextIds, options.req)
+        this.fetchTextsByIds(selectedTextIds, options.req as { user?: { id: string } })
           .then((result) => ({
             type: 'texts' as const,
             knowledge: result.knowledge,
@@ -582,7 +594,7 @@ class RequestEnricher {
    * Process attachments using existing attachment utilities
    */
   async processRequestAttachments(
-    attachments: any,
+    attachments: unknown,
     usePrivacyMode: boolean,
     routeName: string,
     userId?: string
@@ -598,7 +610,7 @@ class RequestEnricher {
    * Detect URLs in request and crawl them
    */
   async detectAndCrawlUrls(
-    requestBody: any,
+    requestBody: Record<string, unknown>,
     existingDocuments: Document[] = []
   ): Promise<Document[]> {
     if (!urlCrawlerService) {
@@ -696,8 +708,8 @@ class RequestEnricher {
    */
   async performWebSearch(
     searchQuery: string,
-    aiWorkerPool: any,
-    req: any
+    aiWorkerPool: unknown,
+    req: unknown
   ): Promise<WebSearchResult> {
     if (!searxngWebSearchService) {
       console.log('🎯 [RequestEnricher] Web search skipped: service not available');
@@ -765,7 +777,7 @@ class RequestEnricher {
   async performDocumentVectorSearch(
     selectedDocumentIds: string[],
     searchQuery: string,
-    req: any
+    req: { user?: { id: string }; headers?: Record<string, string | string[] | undefined> }
   ): Promise<DocumentSearchResult> {
     if (!selectedDocumentIds || selectedDocumentIds.length === 0 || !searchQuery) {
       console.log('🎯 [RequestEnricher] Document search skipped: no documents or query');
@@ -821,8 +833,12 @@ class RequestEnricher {
 
       // Step 2: Classify documents by size (threshold: 13 chunks ~= 5000 tokens)
       const CHUNK_THRESHOLD = 13;
-      const smallDocs = validDocs.filter((doc: any) => (doc.vector_count || 0) <= CHUNK_THRESHOLD);
-      const largeDocs = validDocs.filter((doc: any) => (doc.vector_count || 0) > CHUNK_THRESHOLD);
+      const smallDocs = validDocs.filter(
+        (doc: { vector_count?: number }) => (doc.vector_count || 0) <= CHUNK_THRESHOLD
+      );
+      const largeDocs = validDocs.filter(
+        (doc: { vector_count?: number }) => (doc.vector_count || 0) > CHUNK_THRESHOLD
+      );
 
       console.log(
         `🎯 [RequestEnricher] Document classification: ${smallDocs.length} small (full text), ${largeDocs.length} large (vector search)`
@@ -837,7 +853,7 @@ class RequestEnricher {
           ? documentSearchService
               .getMultipleDocumentsFullText(
                 userId,
-                smallDocs.map((d: any) => d.id)
+                smallDocs.map((d) => d.id as string)
               )
               .catch((error) => {
                 console.warn('🎯 [RequestEnricher] Full text retrieval failed:', error.message);
@@ -851,8 +867,10 @@ class RequestEnricher {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                ...(req?.headers?.cookie && { Cookie: req.headers.cookie }),
-                ...(req?.headers?.authorization && { Authorization: req.headers.authorization }),
+                ...(req?.headers?.cookie && { Cookie: String(req.headers.cookie) }),
+                ...(req?.headers?.authorization && {
+                  Authorization: String(req.headers.authorization),
+                }),
               },
               body: JSON.stringify({
                 query: searchQuery.trim(),
@@ -871,7 +889,10 @@ class RequestEnricher {
       ]);
 
       // Step 4: Format results consistently
-      const fullDocsResult = this.formatFullDocuments(fullTextResults.documents, smallDocs);
+      const fullDocsResult = this.formatFullDocuments(
+        fullTextResults.documents,
+        smallDocs as Array<{ id: string; title?: string; filename?: string }>
+      );
       const vectorDocsResult = this.formatVectorSearchResults(vectorSearchResults);
 
       // Step 5: Merge results
@@ -901,7 +922,10 @@ class RequestEnricher {
   /**
    * Fetch knowledge entries by IDs from the database
    */
-  async fetchKnowledgeByIds(knowledgeIds: string[], req: any): Promise<DocumentSearchResult> {
+  async fetchKnowledgeByIds(
+    knowledgeIds: string[],
+    req: { user?: { id: string } }
+  ): Promise<DocumentSearchResult> {
     if (!knowledgeIds || knowledgeIds.length === 0) {
       console.log('🎯 [RequestEnricher] Knowledge fetch skipped: no IDs provided');
       return { knowledge: [] };
@@ -946,7 +970,10 @@ class RequestEnricher {
   /**
    * Fetch saved texts by IDs from the database
    */
-  async fetchTextsByIds(textIds: string[], req: any): Promise<DocumentSearchResult> {
+  async fetchTextsByIds(
+    textIds: string[],
+    req: { user?: { id: string } }
+  ): Promise<DocumentSearchResult> {
     if (!textIds || textIds.length === 0) {
       console.log('🎯 [RequestEnricher] Texts fetch skipped: no IDs provided');
       return { knowledge: [] };
@@ -1000,7 +1027,7 @@ async function enrichRequest(
   req: unknown = null
 ): Promise<EnrichedState> {
   const enricher = new RequestEnricher();
-  return await enricher.enrichRequest(requestBody, options, req);
+  return await enricher.enrichRequest(requestBody as Record<string, unknown>, options, req);
 }
 
 export { enrichRequest, RequestEnricher };

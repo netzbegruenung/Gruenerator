@@ -20,7 +20,13 @@ import {
 import { ERROR_TYPES } from './constants.js';
 
 import type { ErrorClassification, RequestWithCorrelation, AIWorkerErrorResult } from './types.js';
+import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { Request, Response, NextFunction } from 'express';
+
+/** Request that may carry a session ID (set by session middleware) */
+interface RequestWithSession extends Request {
+  sessionID?: string;
+}
 
 /**
  * Classify error and determine HTTP status code
@@ -94,6 +100,7 @@ export function classifyError(error: Error | VectorBackendError): ErrorClassific
   if (
     message.includes('unauthorized') ||
     message.includes('authentication') ||
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (error as any).status === 401
   ) {
     return { type: 'AUTHENTICATION_ERROR', statusCode: 401 };
@@ -103,6 +110,7 @@ export function classifyError(error: Error | VectorBackendError): ErrorClassific
   if (
     message.includes('forbidden') ||
     message.includes('authorization') ||
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (error as any).status === 403
   ) {
     return { type: 'AUTHORIZATION_ERROR', statusCode: 403 };
@@ -122,6 +130,7 @@ export function classifyError(error: Error | VectorBackendError): ErrorClassific
   if (
     message.includes('rate limit') ||
     message.includes('too many') ||
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (error as any).status === 429
   ) {
     return { type: 'RATE_LIMIT_ERROR', statusCode: 429 };
@@ -146,9 +155,11 @@ export function handleRouteError(
 
   // Add request context for detailed logging
   const routeName = routePath.replace('/api/', '').replace('/', '_');
-  const userId = (req as any)?.user?.id || 'unknown';
+  const userId = (req as AuthenticatedRequest)?.user?.id || 'unknown';
   const requestId =
-    (req as RequestWithCorrelation)?.correlationId || (req as any)?.sessionID || 'unknown';
+    (req as RequestWithCorrelation)?.correlationId ||
+    (req as RequestWithSession)?.sessionID ||
+    'unknown';
 
   // Enhanced logging with context
   console.error(`[${routeName}] Error Details:`, {
@@ -215,7 +226,7 @@ export function addCorrelationId(req: Request, res: Response, next: NextFunction
   const extendedReq = req as RequestWithCorrelation;
   extendedReq.correlationId =
     (req.headers['x-correlation-id'] as string) ||
-    (req as any).sessionID ||
+    (req as RequestWithSession).sessionID ||
     `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   next();
 }

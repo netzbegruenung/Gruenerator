@@ -150,6 +150,16 @@ interface RetrievalConfig {
   };
 }
 
+interface RerankConfig {
+  inputLimit: number;
+  outputLimit: number;
+  minRelevance: number;
+  mmrLambda: number;
+  mmrKeepTop: number;
+  mergeOverfetch: number;
+  webScoreCeiling: number;
+}
+
 interface FullConfig {
   [key: string]: unknown;
   search: SearchConfig;
@@ -166,6 +176,7 @@ interface FullConfig {
   metadata: MetadataConfig;
   chunking: ChunkingConfig;
   retrieval: RetrievalConfig;
+  rerank: RerankConfig;
 }
 
 class VectorConfig {
@@ -321,6 +332,16 @@ class VectorConfig {
           germanPatterns: process.env.USE_GERMAN_PATTERNS !== 'false',
         },
       },
+
+      rerank: {
+        inputLimit: parseInt(process.env.RERANK_INPUT_LIMIT || '16'),
+        outputLimit: parseInt(process.env.RERANK_OUTPUT_LIMIT || '8'),
+        minRelevance: parseFloat(process.env.RERANK_MIN_RELEVANCE || '0.2'),
+        mmrLambda: parseFloat(process.env.RERANK_MMR_LAMBDA || '0.7'),
+        mmrKeepTop: parseInt(process.env.RERANK_MMR_KEEP_TOP || '2'),
+        mergeOverfetch: parseInt(process.env.RERANK_MERGE_OVERFETCH || '16'),
+        webScoreCeiling: parseFloat(process.env.RERANK_WEB_SCORE_CEILING || '0.80'),
+      },
     };
   }
 
@@ -377,6 +398,18 @@ class VectorConfig {
       ) {
         throw new Error('QUALITY_MIN_RETRIEVAL must be between 0 and 1');
       }
+    }
+
+    if (config.rerank.mmrLambda < 0 || config.rerank.mmrLambda > 1) {
+      throw new Error('RERANK_MMR_LAMBDA must be between 0 and 1');
+    }
+
+    if (config.rerank.mergeOverfetch < config.rerank.outputLimit) {
+      console.warn('[VectorConfig] RERANK_MERGE_OVERFETCH should be >= RERANK_OUTPUT_LIMIT');
+    }
+
+    if (config.rerank.webScoreCeiling < 0 || config.rerank.webScoreCeiling > 1) {
+      throw new Error('RERANK_WEB_SCORE_CEILING must be between 0 and 1');
     }
 
     const positiveValues = [
@@ -472,4 +505,4 @@ class VectorConfig {
 const vectorConfig = new VectorConfig();
 
 export { vectorConfig, VectorConfig };
-export type { FullConfig, SearchConfig, HybridConfig, CacheConfig, CacheEntry };
+export type { FullConfig, SearchConfig, HybridConfig, RerankConfig, CacheConfig, CacheEntry };

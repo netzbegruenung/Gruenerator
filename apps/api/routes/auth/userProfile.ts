@@ -102,7 +102,7 @@ router.put(
         return;
       }
 
-      const updateData: Record<string, any> = {};
+      const updateData: Record<string, string | number | null | undefined> = {};
 
       if (display_name !== undefined) updateData.display_name = display_name || null;
       if (username !== undefined) updateData.username = username || null;
@@ -267,7 +267,15 @@ router.patch(
       );
 
       if (req.user) {
-        profileService.updateUserSession(req.user, updatedProfile, feature, enabled);
+        profileService.updateUserSession(
+          req.user as unknown as {
+            beta_features?: Record<string, boolean>;
+            [key: string]: unknown;
+          },
+          updatedProfile,
+          feature,
+          enabled
+        );
       }
 
       res.json({
@@ -366,7 +374,11 @@ router.patch(
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const profileService = getProfileService();
-      const { generator, key, value } = req.body as { generator: string; key: string; value: any };
+      const { generator, key, value } = req.body as {
+        generator: string;
+        key: string;
+        value: unknown;
+      };
 
       if (!generator || !key) {
         res.status(400).json({
@@ -447,7 +459,7 @@ router.patch(
       }
 
       const { ALL_NOTIFICATION_TYPES } = await import('../../services/notifications/types.js');
-      if (!ALL_NOTIFICATION_TYPES.includes(category as any)) {
+      if (!(ALL_NOTIFICATION_TYPES as readonly string[]).includes(category)) {
         res.status(400).json({
           success: false,
           message: `Unbekannter Benachrichtigungstyp: ${category}`,
@@ -580,7 +592,10 @@ router.delete(
           await keycloakClient.deleteUser(keycloakId);
           log.debug(`[User Delete] ✅ Successfully deleted user from Keycloak: ${keycloakId}`);
         } catch (keycloakErr) {
-          const err = keycloakErr as any;
+          const err = keycloakErr as Error & {
+            code?: string;
+            response?: { status?: number; statusText?: string; data?: unknown };
+          };
           log.error(`[User Delete] ❌ Error deleting user from Keycloak ${keycloakId}:`, err);
           log.error(`[User Delete] Keycloak error details:`, {
             message: err.message,
