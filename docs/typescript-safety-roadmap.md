@@ -140,18 +140,16 @@ Steps:
 
 ## Metrics
 
-Track these to measure progress:
-
-| Metric | Current | Target |
-|--------|---------|--------|
-| Metric | Baseline (2026-04-09) | Target |
-|--------|---------|--------|
-| `eslint-disable no-explicit-any` | 329 | < 50 |
-| `as unknown as X` casts | 241 | < 30 |
-| `@ts-expect-error` | 7 | < 5 |
-| `?? undefined` patterns | 86 (44 files) | 0 |
-| Untyped DB queries | ~50 | 0 (via Kysely) |
-| Unvalidated API inputs | 0 (already done) | 0 |
+| Metric | Before (2026-04-09) | After Phase 1 | Target |
+|--------|---------------------|---------------|--------|
+| `no-explicit-any` lint errors | ~200 (warnings) | **0** (now errors) | 0 |
+| `eslint-disable no-explicit-any` | 0 | ~150 | ~30 (LangGraph only) |
+| `catch (error: any)` | ~250 | **0** | 0 |
+| `Record<string, any>` | ~100 | **0** | 0 |
+| `as unknown as X` casts | 241 | ~180 | < 30 |
+| `@ts-expect-error` | 9 | 7 | < 5 |
+| `?? undefined` patterns | 86 | 86 | 0 |
+| Untyped DB queries | ~50 | ~40 (Kysely started) | 0 |
 
 ## Principles
 

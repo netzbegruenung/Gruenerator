@@ -110,6 +110,16 @@ const standardMutationLimiter = isRateLimitDisabled
       message: { error: 'Too many requests, please try again later.' },
     });
 
+const authenticatedReadLimiter = isRateLimitDisabled
+  ? (_req: Request, _res: Response, next: NextFunction) => next()
+  : rateLimit({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 1000, // ~66/min — generous for authenticated page loads with many parallel fetches
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'Too many requests, please try again later.' },
+    });
+
 const publicReadLimiter = isRateLimitDisabled
   ? (_req: Request, _res: Response, next: NextFunction) => next()
   : rateLimit({
@@ -228,9 +238,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: visionRouter } = await import('./routes/vision/visionController.js');
 
   // Auth routes — authLimiter applied inside authCore.ts to login/callback only
-  app.use('/api/auth', standardMutationLimiter, authRouter);
-  app.use('/api/auth/notebook-collections', standardMutationLimiter, notebookCollectionsRouter);
-  app.use('/api/auth/notebook', standardMutationLimiter, notebookInteractionRouter);
+  app.use('/api/auth', authenticatedReadLimiter, authRouter);
+  app.use('/api/auth/notebook-collections', authenticatedReadLimiter, notebookCollectionsRouter);
+  app.use('/api/auth/notebook', authenticatedReadLimiter, notebookInteractionRouter);
   // Public read endpoints — soft limiter prevents scraping
   app.use('/api/documents', publicReadLimiter, documentsRouter);
   app.use('/api/crawl-url', requireAuth, standardMutationLimiter, crawlUrlRouter);
@@ -248,8 +258,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/claude_buergeranfragen', aiGenerationLimiter, buergeranfragenRouter);
   app.use('/api/claude_text_improver', aiGenerationLimiter, claudeTextImproverRoute);
   app.use('/api/chat', aiGenerationLimiter, grueneratorChatRoute);
-  app.use('/api/chat-service', standardMutationLimiter, chatServiceRouter);
-  app.use('/api/chat-service/threads', standardMutationLimiter, threadSharingRouter);
+  app.use('/api/chat-service', authenticatedReadLimiter, chatServiceRouter);
+  app.use('/api/chat-service/threads', authenticatedReadLimiter, threadSharingRouter);
   app.use('/api/chat-graph', aiGenerationLimiter, chatGraphRouter);
   app.use('/api/gruen-o-mat', gruenOMatRouter);
   app.use('/api/dreizeilen_canvas', standardMutationLimiter, sharepicDreizeilenCanvasRoute);
@@ -378,15 +388,15 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/auth/init', publicReadLimiter, authInitRouter);
   app.use('/api/recent-activity', publicReadLimiter, recentActivityRouter);
   app.use('/api/notifications', requireAuth, publicReadLimiter, notificationsRouter);
-  app.use('/api/media', requireAuth, standardMutationLimiter, mediaRouter);
+  app.use('/api/media', requireAuth, authenticatedReadLimiter, mediaRouter);
   app.use('/api/og/docs', publicReadLimiter, ogDocsRouter);
   app.use('/api/docs/resolve', optionalAuth, publicReadLimiter, docResolveRouter);
   app.use('/api/docs/public', publicReadLimiter, publicDocRouter);
-  app.use('/api/docs', requireAuth, standardMutationLimiter, docsRouter);
+  app.use('/api/docs', requireAuth, authenticatedReadLimiter, docsRouter);
 
   app.use('/api/boards/public', publicReadLimiter, publicBoardRouter);
-  app.use('/api/boards', requireAuth, standardMutationLimiter, boardsRouter);
-  app.use('/api/board-comments', requireAuth, standardMutationLimiter, boardCommentsRouter);
+  app.use('/api/boards', requireAuth, authenticatedReadLimiter, boardsRouter);
+  app.use('/api/board-comments', requireAuth, authenticatedReadLimiter, boardCommentsRouter);
   app.use('/api/users', requireAuth, publicReadLimiter, usersRouter);
   app.use('/api/voice', publicReadLimiter, voiceRouter);
   app.use('/api/voice/tts', requireAuth, standardMutationLimiter, ttsRouter);
@@ -408,7 +418,7 @@ export async function setupRoutes(app: Application): Promise<void> {
     next();
   });
   app.use('/api/releases', publicReadLimiter, releasesRouter);
-  app.use('/api/exports', requireAuth, standardMutationLimiter, exportDocumentsRouter);
+  app.use('/api/exports', requireAuth, authenticatedReadLimiter, exportDocumentsRouter);
   app.use('/api/markdown', publicReadLimiter, markdownRouter);
   app.use('/api/database', publicReadLimiter, databaseTestRouter);
 

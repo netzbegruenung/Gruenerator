@@ -14,7 +14,7 @@ export function extractDomainFromUrl(url: string): string {
   try {
     const urlObject = new URL(url);
     return urlObject.hostname.replace('www.', '');
-  } catch (error) {
+  } catch (_error) {
     return url;
   }
 }
@@ -25,7 +25,7 @@ export function extractDomainFromUrl(url: string): string {
  * @param title - Reference title for context
  * @returns Relevant snippet
  */
-export function extractSnippetFromContent(fullText: string, title: string): string {
+export function extractSnippetFromContent(fullText: string, _title: string): string {
   if (!fullText || fullText.length < 50) {
     return fullText || 'No content available';
   }

@@ -86,7 +86,7 @@ REGELN:
       researchQuery: result.object.researchQuery,
       secondaryTopics: result.object.secondaryTopics,
     };
-  } catch (error) {
+  } catch (_error) {
     // Fallback: use top 3 keywords as query
     const fallbackQuery = top10
       .slice(0, 3)
