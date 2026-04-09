@@ -17,9 +17,9 @@ import type { ParamsDictionary } from 'express-serve-static-core';
  * Extends Express Request to maintain compatibility with router handlers
  */
 export interface AuthenticatedRequest<P = ParamsDictionary> extends Request<P> {
-  user?: UserProfile;
-  mobileAuth?: boolean;
-  jwtToken?: string;
+  user?: UserProfile | undefined;
+  mobileAuth?: boolean | undefined;
+  jwtToken?: string | undefined;
 }
 
 /**
@@ -33,20 +33,20 @@ export interface RateLimitRequest extends AuthenticatedRequest {
     shouldIncrement: boolean;
     status: RateLimitStatus;
   };
-  rateLimitInfo?: RateLimitStatus;
+  rateLimitInfo?: RateLimitStatus | undefined;
   rateLimitWarning?: {
     message: string;
     [key: string]: unknown;
   };
-  rateLimitError?: Error;
+  rateLimitError?: Error | undefined;
 }
 
 /**
  * Request with subdomain information
  */
 export interface SubdomainRequest extends AuthenticatedRequest {
-  subdomain?: string;
-  siteData?: UserSiteData;
+  subdomain?: string | undefined;
+  siteData?: UserSiteData | undefined;
 }
 
 // ============================================================================
@@ -59,16 +59,16 @@ export interface SubdomainRequest extends AuthenticatedRequest {
  */
 export interface RateLimitStatus {
   canGenerate: boolean;
-  count?: number;
-  limit?: number;
-  remaining?: number;
-  window?: string;
-  unlimited?: boolean;
-  error?: string | boolean;
-  resourceType?: string;
-  userType?: string;
-  identifier?: string;
-  development?: boolean;
+  count?: number | undefined;
+  limit?: number | undefined;
+  remaining?: number | undefined;
+  window?: string | undefined;
+  unlimited?: boolean | undefined;
+  error?: string | boolean | undefined;
+  resourceType?: string | undefined;
+  userType?: string | undefined;
+  identifier?: string | undefined;
+  development?: boolean | undefined;
 }
 
 /**
@@ -80,24 +80,24 @@ export interface UserSiteData {
   user_id: string;
   subdomain: string;
   site_title: string;
-  tagline?: string;
-  bio?: string;
-  contact_email?: string;
-  social_links?: Record<string, string>;
-  accent_color?: string;
-  theme?: string;
-  profile_image?: string;
-  background_image?: string;
+  tagline?: string | undefined;
+  bio?: string | undefined;
+  contact_email?: string | undefined;
+  social_links?: Record<string, string> | undefined;
+  accent_color?: string | undefined;
+  theme?: string | undefined;
+  profile_image?: string | undefined;
+  background_image?: string | undefined;
   sections?: Array<{
     type: 'text' | 'contact' | string;
-    title?: string;
-    content?: string;
+    title?: string | undefined;
+    content?: string | undefined;
   }>;
-  meta_description?: string;
-  meta_keywords?: string[];
+  meta_description?: string | undefined;
+  meta_keywords?: string[] | undefined;
   is_published: boolean;
-  last_published?: string;
-  visit_count?: number;
+  last_published?: string | undefined;
+  visit_count?: number | undefined;
   created_at: string;
   updated_at: string;
 }
@@ -106,8 +106,8 @@ export interface UserSiteData {
  * Rate limit middleware options
  */
 export interface RateLimitMiddlewareOptions {
-  autoIncrement?: boolean;
-  soft?: boolean;
+  autoIncrement?: boolean | undefined;
+  soft?: boolean | undefined;
 }
 
 /**
@@ -120,14 +120,14 @@ export interface DatabaseHealth {
   isInitialized: boolean;
   lastError: string | null;
   pool?: {
-    total?: number;
-    idle?: number;
-    waiting?: number;
-    active?: number;
-    maxConnections?: number;
-    totalCount?: number;
-    idleCount?: number;
-    waitingCount?: number;
-    initialized?: boolean;
+    total?: number | undefined;
+    idle?: number | undefined;
+    waiting?: number | undefined;
+    active?: number | undefined;
+    maxConnections?: number | undefined;
+    totalCount?: number | undefined;
+    idleCount?: number | undefined;
+    waitingCount?: number | undefined;
+    initialized?: boolean | undefined;
   } | null;
 }

@@ -20,7 +20,7 @@ export interface RedisClient {
 export interface Message {
   role: 'system' | 'user' | 'assistant';
   content: string;
-  timestamp?: string;
+  timestamp?: string | undefined;
   [key: string]: unknown;
 }
 

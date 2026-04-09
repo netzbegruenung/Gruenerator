@@ -10,7 +10,7 @@ export interface QualityCalculationOptions {
   /** Text to score */
   text: string;
   /** Optional metadata (e.g., contentType) */
-  metadata?: ChunkMetadata;
+  metadata?: ChunkMetadata | undefined;
 }
 
 /**
@@ -18,7 +18,7 @@ export interface QualityCalculationOptions {
  */
 export interface ChunkMetadata {
   /** Content type of the chunk (heading, paragraph, list, etc.) */
-  contentType?: string;
+  contentType?: string | undefined;
   /** Additional metadata fields */
   [key: string]: unknown;
 }
@@ -82,13 +82,13 @@ export interface MarkdownStructure {
   /** Detected headers with level and text */
   headers?: Array<{ level: number; text: string }>;
   /** Number of lists found */
-  lists?: number;
+  lists?: number | undefined;
   /** Number of code blocks found */
-  codeBlocks?: number;
+  codeBlocks?: number | undefined;
   /** Number of tables found */
-  tables?: number;
+  tables?: number | undefined;
   /** Whether blockquotes are present */
-  blockquotes?: boolean;
+  blockquotes?: boolean | undefined;
 }
 
 /**

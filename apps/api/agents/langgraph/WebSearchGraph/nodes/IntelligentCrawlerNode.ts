@@ -104,7 +104,7 @@ Respond with JSON:
           temperature: 0.1,
         },
       },
-      state.req
+      state.req as any
     );
 
     if (!crawlDecision.success) {

@@ -43,21 +43,21 @@ export interface ErrorClassification {
  * Error details metadata
  */
 export interface ErrorDetails {
-  field?: string;
-  value?: unknown;
-  searchType?: string;
-  userId?: string;
-  embeddingDimensions?: number;
-  provider?: string;
-  operation?: string;
-  table?: string;
-  rpcFunction?: string;
-  model?: string;
-  requestType?: string;
-  cacheType?: string;
-  timeoutMs?: number;
-  resource?: string;
-  originalError?: string;
+  field?: string | undefined;
+  value?: unknown | undefined;
+  searchType?: string | undefined;
+  userId?: string | undefined;
+  embeddingDimensions?: number | undefined;
+  provider?: string | undefined;
+  operation?: string | undefined;
+  table?: string | undefined;
+  rpcFunction?: string | undefined;
+  model?: string | undefined;
+  requestType?: string | undefined;
+  cacheType?: string | undefined;
+  timeoutMs?: number | undefined;
+  resource?: string | undefined;
+  originalError?: string | undefined;
   [key: string]: unknown;
 }
 
@@ -69,9 +69,9 @@ export interface APIErrorResponse {
   error: string;
   code: ErrorCode;
   timestamp: string;
-  field?: string;
-  message?: string;
-  details?: ErrorDetails;
+  field?: string | undefined;
+  message?: string | undefined;
+  details?: ErrorDetails | undefined;
 }
 
 /**
@@ -83,34 +83,34 @@ export interface ErrorLogEntry {
   code: ErrorCode;
   details: ErrorDetails;
   timestamp: string;
-  stack?: string;
+  stack?: string | undefined;
 }
 
 /**
  * Error handler options
  */
 export interface ErrorHandlerOptions {
-  serviceName?: string;
-  enableTelemetry?: boolean;
-  logLevel?: 'error' | 'warn' | 'info' | 'debug';
+  serviceName?: string | undefined;
+  enableTelemetry?: boolean | undefined;
+  logLevel?: 'error' | 'warn' | 'info' | 'debug' | undefined;
 }
 
 /**
  * Error handling context
  */
 export interface ErrorContext {
-  field?: string;
-  value?: unknown;
-  searchType?: string;
-  userId?: string;
-  provider?: string;
-  model?: string;
-  operation?: string;
-  rpcFunction?: string;
-  timeout?: number;
-  cacheType?: string;
-  embeddingDimensions?: number;
-  returnResponse?: boolean;
+  field?: string | undefined;
+  value?: unknown | undefined;
+  searchType?: string | undefined;
+  userId?: string | undefined;
+  provider?: string | undefined;
+  model?: string | undefined;
+  operation?: string | undefined;
+  rpcFunction?: string | undefined;
+  timeout?: number | undefined;
+  cacheType?: string | undefined;
+  embeddingDimensions?: number | undefined;
+  returnResponse?: boolean | undefined;
   [key: string]: unknown;
 }
 
@@ -126,7 +126,7 @@ export type ExpressErrorHandler = (
  * Request with correlation ID
  */
 export interface RequestWithCorrelation extends Request {
-  correlationId?: string;
+  correlationId?: string | undefined;
 }
 
 /**

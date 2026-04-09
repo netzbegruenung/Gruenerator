@@ -7,6 +7,7 @@ import type { EnrichedState } from '../../../../utils/types/requestEnrichment.js
 import type { PRAgentRequest } from '../../PRAgent/types.js';
 import type { ContentExample } from '../../types/promptAssembly.js';
 import type { AntragAgentState } from '../types.js';
+import type { RequestWithLocale } from '../../../../services/localization/index.js';
 
 const log = createLogger('AntragAgent:generate');
 
@@ -62,7 +63,7 @@ export async function generateNode(state: AntragAgentState): Promise<Partial<Ant
   }
 
   try {
-    const locale = extractLocaleFromRequest(state.req);
+    const locale = extractLocaleFromRequest(state.req as RequestWithLocale);
     const localeCtx = LOCALE_CONTEXT[locale] ?? LOCALE_CONTEXT['de-DE'];
     if (!localeCtx) {
       throw new Error(`No locale context found for locale "${locale}" or fallback "de-DE"`);

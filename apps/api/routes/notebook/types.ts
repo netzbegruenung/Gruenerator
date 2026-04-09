@@ -16,14 +16,14 @@ import type { ParamsDictionary } from 'express-serve-static-core';
  */
 export interface CreateCollectionBody {
   name: string;
-  description?: string;
-  custom_prompt?: string;
-  selection_mode?: 'documents' | 'wolke';
-  document_ids?: string[];
-  wolke_share_link_ids?: string[];
-  auto_sync?: boolean;
-  remove_missing_on_sync?: boolean;
-  labels?: string[];
+  description?: string | undefined;
+  custom_prompt?: string | undefined;
+  selection_mode?: 'documents' | 'wolke' | undefined;
+  document_ids?: string[] | undefined;
+  wolke_share_link_ids?: string[] | undefined;
+  auto_sync?: boolean | undefined;
+  remove_missing_on_sync?: boolean | undefined;
+  labels?: string[] | undefined;
 }
 
 /**
@@ -31,14 +31,14 @@ export interface CreateCollectionBody {
  */
 export interface UpdateCollectionBody {
   name: string;
-  description?: string;
-  custom_prompt?: string;
-  selection_mode?: 'documents' | 'wolke';
-  document_ids?: string[];
-  wolke_share_link_ids?: string[];
-  auto_sync?: boolean;
-  remove_missing_on_sync?: boolean;
-  labels?: string[];
+  description?: string | undefined;
+  custom_prompt?: string | undefined;
+  selection_mode?: 'documents' | 'wolke' | undefined;
+  document_ids?: string[] | undefined;
+  wolke_share_link_ids?: string[] | undefined;
+  auto_sync?: boolean | undefined;
+  remove_missing_on_sync?: boolean | undefined;
+  labels?: string[] | undefined;
 }
 
 /**
@@ -53,9 +53,9 @@ export interface BulkDeleteBody {
  */
 export interface AskQuestionBody {
   question: string;
-  filters?: Record<string, unknown>;
-  collectionIds?: string[];
-  fastMode?: boolean;
+  filters?: Record<string, unknown> | undefined;
+  collectionIds?: string[] | undefined;
+  fastMode?: boolean | undefined;
 }
 
 // =============================================================================
@@ -75,10 +75,10 @@ export interface WolkeShareLink {
 export interface DocumentRecord {
   id: string;
   title: string;
-  page_count?: number;
+  page_count?: number | undefined;
   created_at: string;
-  source_type?: string;
-  wolke_share_link_id?: string;
+  source_type?: string | undefined;
+  wolke_share_link_id?: string | undefined;
 }
 
 /**
@@ -91,7 +91,7 @@ export interface TransformedCollection {
   description: string | null;
   custom_prompt: string | null;
   selection_mode: string;
-  wolke_share_link_ids?: string[] | null;
+  wolke_share_link_ids?: string[] | null | undefined;
   auto_sync: boolean;
   remove_missing_on_sync: boolean;
   created_at: string;
@@ -188,8 +188,8 @@ export interface FilterValuesResponse {
       label: string;
       type: string;
       values?: Array<{ value: string; count: number }>;
-      min?: string;
-      max?: string;
+      min?: string | undefined;
+      max?: string | undefined;
     }
   >;
 }
@@ -219,13 +219,13 @@ export interface NotebookCollectionFromQdrant {
   name: string;
   description: string | null;
   custom_prompt: string | null;
-  selection_mode?: string;
-  wolke_share_link_ids?: string[] | null;
-  auto_sync?: boolean;
-  remove_missing_on_sync?: boolean;
+  selection_mode?: string | undefined;
+  wolke_share_link_ids?: string[] | null | undefined;
+  auto_sync?: boolean | undefined;
+  remove_missing_on_sync?: boolean | undefined;
   created_at: string;
   updated_at: string;
-  settings?: Record<string, unknown>;
+  settings?: Record<string, unknown> | undefined;
   notebook_collection_documents?: Array<{ document_id: string }>;
 }
 
@@ -246,7 +246,7 @@ export interface PublicAccessRecord {
 export interface NotebookRequest<P = ParamsDictionary> extends AuthenticatedRequest<P> {
   app: {
     locals: {
-      aiWorkerPool?: AIWorkerPool;
+      aiWorkerPool?: AIWorkerPool | undefined;
     };
   } & AuthenticatedRequest['app'];
 }

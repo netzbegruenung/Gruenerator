@@ -13,7 +13,7 @@ export interface NextcloudShareLink {
   share_token: string | null;
   is_active: boolean;
   created_at: string;
-  updated_at?: string;
+  updated_at?: string | undefined;
 }
 
 /**
@@ -21,8 +21,8 @@ export interface NextcloudShareLink {
  */
 export interface ShareLinkValidation {
   isValid: boolean;
-  shareToken?: string;
-  baseUrl?: string;
+  shareToken?: string | undefined;
+  baseUrl?: string | undefined;
   error: string | null;
 }
 
@@ -66,9 +66,9 @@ export interface DatabaseStateCheck {
  * Share link updates
  */
 export interface ShareLinkUpdates {
-  share_link?: string;
-  label?: string | null;
-  base_url?: string | null;
-  share_token?: string | null;
-  is_active?: boolean;
+  share_link?: string | undefined;
+  label?: string | null | undefined;
+  base_url?: string | null | undefined;
+  share_token?: string | null | undefined;
+  is_active?: boolean | undefined;
 }

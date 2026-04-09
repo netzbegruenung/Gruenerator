@@ -5,26 +5,26 @@
 import type { Pool, PoolClient, PoolConfig } from 'pg';
 
 export interface PostgresConfig extends PoolConfig {
-  connectionString?: string;
-  host?: string;
-  port?: number;
-  user?: string;
-  password?: string;
-  database?: string;
+  connectionString?: string | undefined;
+  host?: string | undefined;
+  port?: number | undefined;
+  user?: string | undefined;
+  password?: string | undefined;
+  database?: string | undefined;
   ssl?: boolean | { rejectUnauthorized: boolean };
-  max?: number;
-  idleTimeoutMillis?: number;
-  connectionTimeoutMillis?: number;
+  max?: number | undefined;
+  idleTimeoutMillis?: number | undefined;
+  connectionTimeoutMillis?: number | undefined;
 }
 
 export interface SafeConfigForLog {
-  mode?: string;
-  host?: string;
-  port?: number;
-  user?: string;
-  database?: string;
+  mode?: string | undefined;
+  host?: string | undefined;
+  port?: number | undefined;
+  user?: string | undefined;
+  database?: string | undefined;
   ssl: boolean;
-  autoCreateDb?: boolean;
+  autoCreateDb?: boolean | undefined;
 }
 
 export interface HealthStatus {
@@ -39,15 +39,15 @@ export interface PoolStatus {
   totalCount: number;
   idleCount: number;
   waitingCount: number;
-  initialized?: boolean;
+  initialized?: boolean | undefined;
 }
 
 export interface ColumnDefinition {
   name: string;
   type: string;
-  constraints?: string;
-  nullable?: boolean;
-  default?: string | null;
+  constraints?: string | undefined;
+  nullable?: boolean | undefined;
+  default?: string | null | undefined;
 }
 
 export interface SchemaCache {
@@ -56,7 +56,7 @@ export interface SchemaCache {
 
 export interface ExecResult {
   changes: number;
-  lastID?: string | number;
+  lastID?: string | number | undefined;
 }
 
 export interface UpdateResult {
@@ -77,14 +77,14 @@ export interface AlterStatement {
 
 export interface TransactionQuery {
   sql: string;
-  params?: unknown[];
+  params?: unknown[] | undefined;
 }
 
 export interface DatabaseStats {
   tables: TableStat[];
   database_size: string;
   connections: PoolStatus;
-  error?: string;
+  error?: string | undefined;
 }
 
 export interface TableStat {
@@ -106,7 +106,7 @@ export interface RouteUsageStat {
 }
 
 export interface QueryOptions {
-  table?: string;
+  table?: string | undefined;
 }
 
 export type TransactionCallback<T> = (client: PoolClient) => Promise<T>;

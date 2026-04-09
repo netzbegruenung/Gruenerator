@@ -314,14 +314,8 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
         temperature: config.temperature,
         maxOutputTokens: config.maxTokens,
         topP: config.topP,
-        tools,
-        toolChoice,
-        // Response format for specific types
-        ...(type === 'image_picker' || type === 'text_adjustment'
-          ? {
-              experimental_output: undefined, // JSON mode handled by Mistral model
-            }
-          : {}),
+        ...(tools != null && { tools }),
+        ...(toolChoice != null && { toolChoice }),
       });
 
       connectionMetrics.successes++;
@@ -374,13 +368,13 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
           model: model,
           timestamp: new Date().toISOString(),
           requestId,
-          usage: result.usage
-            ? {
-                prompt_tokens: result.usage.inputTokens,
-                completion_tokens: result.usage.outputTokens,
-                total_tokens: result.usage.totalTokens,
-              }
-            : undefined,
+          ...(result.usage && {
+            usage: {
+              prompt_tokens: result.usage.inputTokens,
+              completion_tokens: result.usage.outputTokens,
+              total_tokens: result.usage.totalTokens,
+            }
+          }),
         }),
       };
     } catch (error: unknown) {

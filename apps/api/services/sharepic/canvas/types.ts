@@ -34,25 +34,25 @@ export interface CanvasParams {
   MIN_BALKEN_OFFSET: number;
   MAX_SUNFLOWER_OFFSET: number;
   MIN_SUNFLOWER_OFFSET: number;
-  MAX_CREDIT_LENGTH?: number;
+  MAX_CREDIT_LENGTH?: number | undefined;
 }
 
 export type SunflowerPosition = 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
 
 export interface SharepicInputParams {
-  balkenGruppenOffset?: [number?, number?];
-  fontSize?: number | string;
-  colors?: ColorPair[];
-  credit?: string;
-  balkenOffset?: [number?, number?, number?];
-  sunflowerPosition?: string;
-  sunflowerOffset?: [number?, number?];
-  text?: string[];
-  canvasSize?: number;
-  balkenHeightFactor?: number;
-  textPaddingFactor?: number;
-  sunflowerSizeFactor?: number;
-  sunflowerOverlapFactor?: number;
+  balkenGruppenOffset?: [number?, number?] | undefined;
+  fontSize?: number | string | undefined;
+  colors?: ColorPair[] | undefined;
+  credit?: string | undefined;
+  balkenOffset?: [number?, number?, number?] | undefined;
+  sunflowerPosition?: string | undefined;
+  sunflowerOffset?: [number?, number?] | undefined;
+  text?: string[] | undefined;
+  canvasSize?: number | undefined;
+  balkenHeightFactor?: number | undefined;
+  textPaddingFactor?: number | undefined;
+  sunflowerSizeFactor?: number | undefined;
+  sunflowerOverlapFactor?: number | undefined;
 }
 
 export interface ValidatedSharepicParams {
@@ -74,7 +74,7 @@ export interface ValidatedSharepicParams {
 export type ImageFormat = 'png' | 'webp';
 
 export interface ImageOptimizationOptions {
-  format?: ImageFormat;
-  quality?: number;
-  compressionLevel?: number;
+  format?: ImageFormat | undefined;
+  quality?: number | undefined;
+  compressionLevel?: number | undefined;
 }

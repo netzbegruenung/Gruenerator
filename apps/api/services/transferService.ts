@@ -261,9 +261,9 @@ class TransferService {
       mimeType,
       wolkeShareLinkId,
       wolkeFilePath,
-      passwordHash,
-      expiresAt,
-      message: options?.message,
+      ...(passwordHash && { passwordHash }),
+      ...(expiresAt && { expiresAt }),
+      ...(options?.message && { message: options.message }),
     });
   }
 
@@ -331,9 +331,9 @@ class TransferService {
       mimeType,
       wolkeShareLinkId,
       wolkeFilePath,
-      passwordHash,
-      expiresAt,
-      message: options?.message,
+      ...(passwordHash && { passwordHash }),
+      ...(expiresAt && { expiresAt }),
+      ...(options?.message && { message: options.message }),
     });
   }
 }

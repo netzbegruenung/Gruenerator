@@ -11,7 +11,7 @@ import { createLogger } from '../../utils/logger.js';
 
 import type { RequestWithUser } from '../../utils/redis/types.js';
 
-type RequestWithUserAndBody = RequestWithUser & Request;
+type ReqWithUser = Request & RequestWithUser;
 
 const log = createLogger('rateLimit');
 const router: Router = express.Router();
@@ -31,7 +31,7 @@ interface LimitConfig {
   window?: string;
 }
 
-router.get('/:resourceType', async (req: RequestWithUser & { params: { resourceType: string } }, res: Response) => {
+router.get('/:resourceType', async (req: ReqWithUser, res: Response) => {
   try {
     const { resourceType } = req.params;
 
@@ -69,7 +69,7 @@ router.get('/:resourceType', async (req: RequestWithUser & { params: { resourceT
   }
 });
 
-router.post('/bulk', async (req: RequestWithUserAndBody, res: Response) => {
+router.post('/bulk', async (req: ReqWithUser, res: Response) => {
   try {
     const { resourceTypes } = req.body;
 
@@ -126,7 +126,7 @@ router.post('/bulk', async (req: RequestWithUserAndBody, res: Response) => {
 
 router.post(
   '/reset/:resourceType',
-  async (req: RequestWithUser & { params: { resourceType: string } }, res: Response) => {
+  async (req: ReqWithUser, res: Response) => {
     try {
       const { resourceType } = req.params;
 
@@ -167,7 +167,7 @@ router.post(
 );
 
 if (process.env.NODE_ENV === 'development') {
-  router.get('/config/:resourceType', (req: RequestWithUser & { params: { resourceType: string } }, res: Response) => {
+  router.get('/config/:resourceType', (req: ReqWithUser, res: Response) => {
     const { resourceType } = req.params;
     const userType = rateLimiter.getUserType(req);
     const config = rateLimiter.getLimitConfig(resourceType, userType);

@@ -386,15 +386,15 @@ export async function searchContentExamples(
       return {
         id: payload.example_id as string,
         score: hit.score,
-        title: payload.title as string | undefined,
-        content: payload.content as string | undefined,
-        type: payload.type as string | undefined,
-        categories: payload.categories as string[] | undefined,
-        tags: payload.tags as string[] | undefined,
-        description: payload.description as string | undefined,
-        content_data: payload.content_data as Record<string, unknown> | undefined,
-        metadata: payload.metadata as Record<string, unknown> | undefined,
-        created_at: payload.created_at as string | undefined,
+        title: (payload.title as string) || '',
+        content: (payload.content as string) || '',
+        type: (payload.type as string) || '',
+        categories: (payload.categories as string[]) || [],
+        tags: (payload.tags as string[]) || [],
+        description: (payload.description as string) || '',
+        content_data: (payload.content_data as Record<string, unknown>) || {},
+        metadata: (payload.metadata as Record<string, unknown>) || {},
+        created_at: (payload.created_at as string) || '',
         similarity_score: hit.score,
       };
     });
@@ -451,10 +451,10 @@ export async function searchSocialMediaExamples(
         id: (payload.example_id as string | number) || hit.id,
         score: hit.score,
         content: extractMultiFieldContent(payload),
-        platform: payload.platform as string | undefined,
+        platform: (payload.platform as string) || '',
         country: (payload.country as string) || null,
         source_account: (payload.source_account as string) || null,
-        created_at: payload.created_at as string | undefined,
+        created_at: (payload.created_at as string) || '',
         _debug_payload: payload,
       };
     });

@@ -32,7 +32,7 @@ const ANTRAG_SCHEMA = z.object({
   sachverhalt: z.string().describe('Beschreibung der Ausgangslage (Ist-Zustand)'),
   begruendung: z.string().describe('Argumente und Fakten (Soll-Zustand, Nutzen)'),
   kosten: z.string().optional().describe('Kostenabschätzung oder Hinweis auf Kostenermittlung'),
-});
+}).describe('Antrag Schema');
 
 const REDE_SCHEMA = z.object({
   anlass: z.string().describe('Anlass und Kontext der Rede'),
@@ -54,7 +54,7 @@ const REDE_SCHEMA = z.object({
   schlussideen: z.array(z.string()).min(2).max(3).describe('2-3 Ideen für ein starkes Ende'),
   redetext: z.string().describe('Der vollständige Redetext'),
   rednerhinweise: z.array(z.string()).min(2).max(3).describe('2-3 Tipps für die*den Redner*in'),
-});
+}).describe('Rede Schema');
 
 const WAHLPROGRAMM_SCHEMA = z.object({
   kapitel_titel: z.string().describe('Titel des Wahlprogramm-Kapitels'),
@@ -69,7 +69,7 @@ const WAHLPROGRAMM_SCHEMA = z.object({
     .min(3)
     .max(5)
     .describe('3-4 Unterkapitel'),
-});
+}).describe('Wahlprogramm Schema');
 
 // ---------------------------------------------------------------------------
 // Schema map + formatting
@@ -156,6 +156,7 @@ export function createDraftStructuredTool(deps: ToolDependencies): DynamicStruct
     return null;
   }
 
+  // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'draft_structured',
     description:

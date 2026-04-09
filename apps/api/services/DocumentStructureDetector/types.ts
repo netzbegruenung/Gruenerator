@@ -20,10 +20,10 @@ export interface Chapter {
   number: string;
   startLine: number;
   startPosition: number;
-  endLine?: number;
-  endPosition?: number;
-  contentLength?: number;
-  content?: string;
+  endLine?: number | undefined;
+  endPosition?: number | undefined;
+  contentLength?: number | undefined;
+  content?: string | undefined;
   sections: Section[];
 }
 
@@ -34,11 +34,11 @@ export interface Section {
   number: string;
   startLine: number;
   startPosition: number;
-  endLine?: number;
-  endPosition?: number;
-  contentLength?: number;
-  content?: string;
-  parentChapter?: string;
+  endLine?: number | undefined;
+  endPosition?: number | undefined;
+  contentLength?: number | undefined;
+  content?: string | undefined;
+  parentChapter?: string | undefined;
 }
 
 export interface ListItem {
@@ -47,16 +47,16 @@ export interface ListItem {
   listType: 'ordered' | 'alpha' | 'unordered';
   startLine: number;
   startPosition: number;
-  parentSection?: string;
-  parentChapter?: string;
+  parentSection?: string | undefined;
+  parentChapter?: string | undefined;
 }
 
 export interface TableItem {
   type: 'table';
   startLine: number;
   startPosition: number;
-  parentSection?: string;
-  parentChapter?: string;
+  parentSection?: string | undefined;
+  parentChapter?: string | undefined;
 }
 
 export interface PageBreak {
@@ -92,7 +92,7 @@ export interface SemanticBoundary {
   position: number;
   type: 'chapter' | 'section' | 'subsection' | 'paragraph' | 'list' | 'table';
   level: number;
-  title?: string;
+  title?: string | undefined;
   importance: number;
 }
 

@@ -128,7 +128,7 @@ Crawl-Statistik: ${state.crawlMetadata?.crawledUrls || 0} erfolgreich gecrawlt`;
           temperature: 0.2,
         },
       },
-      state.req
+      state.req as any
     );
 
     if (!result.success) {

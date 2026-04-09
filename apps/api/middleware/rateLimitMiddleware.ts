@@ -52,8 +52,8 @@ function rateLimitMiddleware(resourceType: string, options: RateLimitMiddlewareO
   return async (req: RateLimitRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       // Determine user type and identifier
-      const userType = rateLimiter.getUserType(req);
-      const identifier = rateLimiter.getIdentifier(req, userType);
+      const userType = rateLimiter.getUserType(req as any);
+      const identifier = rateLimiter.getIdentifier(req as any, userType);
 
       // Check current rate limit status
       const status = await rateLimiter.checkLimit(resourceType, identifier, userType);
@@ -184,8 +184,8 @@ async function incrementRateLimit(req: RateLimitRequest): Promise<RateLimitIncre
 function rateLimitInfo(resourceType: string) {
   return async (req: RateLimitRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userType = rateLimiter.getUserType(req);
-      const identifier = rateLimiter.getIdentifier(req, userType);
+      const userType = rateLimiter.getUserType(req as any);
+      const identifier = rateLimiter.getIdentifier(req as any, userType);
       const status = await rateLimiter.checkLimit(resourceType, identifier, userType);
 
       req.rateLimitInfo = status;

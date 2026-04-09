@@ -91,8 +91,8 @@ export type ToolChoice = 'auto' | 'required' | { type: 'tool'; name: string };
  * Tool payload for API requests
  */
 export interface ToolPayload {
-  tools?: Tool[];
-  tool_choice?: ToolChoice;
+  tools?: Tool[] | undefined;
+  tool_choice?: ToolChoice | undefined;
 }
 
 /**
@@ -100,9 +100,9 @@ export interface ToolPayload {
  */
 export interface WebSearchResult {
   success: boolean;
-  resultCount?: number;
-  results?: Record<string, unknown>[];
-  error?: string;
+  resultCount?: number | undefined;
+  results?: Record<string, unknown>[] | undefined;
+  error?: string | undefined;
 }
 
 /**
@@ -118,9 +118,9 @@ export interface ToolUsageMetadata {
  */
 export interface AIResponseWithTools {
   success: boolean;
-  content?: string;
-  raw_content_blocks?: ContentBlock[];
-  tool_calls?: ToolCall[];
-  error?: string;
-  metadata?: ToolUsageMetadata & Record<string, unknown>;
+  content?: string | undefined;
+  raw_content_blocks?: ContentBlock[] | undefined;
+  tool_calls?: ToolCall[] | undefined;
+  error?: string | undefined;
+  metadata?: ToolUsageMetadata & Record<string, unknown> | undefined;
 }

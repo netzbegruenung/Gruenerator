@@ -8,15 +8,15 @@
 
 export interface UserProfile {
   id: string;
-  keycloak_id?: string;
+  keycloak_id?: string | undefined;
   email: string;
-  username?: string;
-  display_name?: string;
+  username?: string | undefined;
+  display_name?: string | undefined;
   avatar_robot_id: number;
-  chat_color?: string;
+  chat_color?: string | undefined;
   beta_features: Record<string, boolean>;
   user_defaults: Record<string, Record<string, unknown>>;
-  locale?: 'de-DE' | 'de-AT';
+  locale?: 'de-DE' | 'de-AT' | undefined;
 
   // Feature flags
   groups_enabled: boolean;
@@ -32,51 +32,51 @@ export interface UserProfile {
   interactive_antrag_enabled: boolean;
   vorlagen: boolean;
   video_editor: boolean;
-  scanner?: boolean;
-  prompts?: boolean;
-  docs?: boolean;
-  boards?: boolean;
-  bundestag_api_enabled?: boolean;
-  memory_enabled?: boolean;
-  wordpress_enabled?: boolean;
-  custom_prompt?: string;
+  scanner?: boolean | undefined;
+  prompts?: boolean | undefined;
+  docs?: boolean | undefined;
+  boards?: boolean | undefined;
+  bundestag_api_enabled?: boolean | undefined;
+  memory_enabled?: boolean | undefined;
+  wordpress_enabled?: boolean | undefined;
+  custom_prompt?: string | undefined;
 
   // Timestamps
   created_at: Date | string;
   updated_at: Date | string;
-  last_login?: Date | string;
+  last_login?: Date | string | undefined;
 }
 
 export interface ProfileCreateData {
-  id?: string;
-  keycloak_id?: string;
-  email?: string;
-  username?: string;
-  display_name?: string;
-  avatar_robot_id?: number;
-  chat_color?: string;
-  beta_features?: Record<string, boolean>;
-  user_defaults?: Record<string, Record<string, unknown>>;
-  locale?: string;
-  last_login?: string;
-  groups_enabled?: boolean;
-  custom_generators?: boolean;
-  database_access?: boolean;
-  collab?: boolean;
-  notebook?: boolean;
-  sharepic?: boolean;
-  anweisungen?: boolean;
-  interactive_antrag_enabled?: boolean;
+  id?: string | undefined;
+  keycloak_id?: string | undefined;
+  email?: string | undefined;
+  username?: string | undefined;
+  display_name?: string | undefined;
+  avatar_robot_id?: number | undefined;
+  chat_color?: string | undefined;
+  beta_features?: Record<string, boolean> | undefined;
+  user_defaults?: Record<string, Record<string, unknown>> | undefined;
+  locale?: string | undefined;
+  last_login?: string | undefined;
+  groups_enabled?: boolean | undefined;
+  custom_generators?: boolean | undefined;
+  database_access?: boolean | undefined;
+  collab?: boolean | undefined;
+  notebook?: boolean | undefined;
+  sharepic?: boolean | undefined;
+  anweisungen?: boolean | undefined;
+  interactive_antrag_enabled?: boolean | undefined;
 }
 
 export interface ProfileUpdateData {
-  email?: string;
-  username?: string;
-  display_name?: string;
-  avatar_robot_id?: number;
-  chat_color?: string;
-  beta_features?: Record<string, boolean>;
-  user_defaults?: Record<string, Record<string, unknown>>;
+  email?: string | undefined;
+  username?: string | undefined;
+  display_name?: string | undefined;
+  avatar_robot_id?: number | undefined;
+  chat_color?: string | undefined;
+  beta_features?: Record<string, boolean> | undefined;
+  user_defaults?: Record<string, Record<string, unknown>> | undefined;
   [key: string]: unknown;
 }
 
@@ -112,8 +112,8 @@ export interface ProfileStats {
 export interface HealthCheckResult {
   status: 'healthy' | 'unhealthy';
   database: string;
-  profileCount?: number;
-  error?: string;
+  profileCount?: number | undefined;
+  error?: string | undefined;
 }
 
 // ============================================================================
@@ -122,25 +122,25 @@ export interface HealthCheckResult {
 
 export interface UserKnowledgeEntry {
   id: string;
-  user_id?: string;
+  user_id?: string | undefined;
   title: string;
   content: string;
   knowledge_type: string;
   tags: string[] | null;
-  is_active?: boolean;
-  embedding_id?: string;
-  embedding_hash?: string;
-  vector_indexed_at?: Date | string | null;
-  created_at?: Date | string;
-  updated_at?: Date | string;
+  is_active?: boolean | undefined;
+  embedding_id?: string | undefined;
+  embedding_hash?: string | undefined;
+  vector_indexed_at?: Date | string | null | undefined;
+  created_at?: Date | string | undefined;
+  updated_at?: Date | string | undefined;
 }
 
 export interface KnowledgeSaveData {
-  id?: string;
+  id?: string | undefined;
   title: string;
   content: string;
-  knowledge_type?: string;
-  tags?: string[] | null;
+  knowledge_type?: string | undefined;
+  tags?: string[] | null | undefined;
 }
 
 export interface VectorizationResult {
@@ -171,8 +171,8 @@ export interface QdrantPoint {
 }
 
 export interface SearchOptions {
-  limit?: number;
-  threshold?: number;
+  limit?: number | undefined;
+  threshold?: number | undefined;
 }
 
 export interface SearchResult {
@@ -191,14 +191,14 @@ export interface SearchResponse {
 }
 
 export interface ChunkingOptions {
-  chunkSize?: number;
-  chunkOverlap?: number;
-  respectSentences?: boolean;
+  chunkSize?: number | undefined;
+  chunkOverlap?: number | undefined;
+  respectSentences?: boolean | undefined;
 }
 
 export interface DocumentChunk {
   text: string;
   tokens: number;
-  start?: number;
-  end?: number;
+  start?: number | undefined;
+  end?: number | undefined;
 }

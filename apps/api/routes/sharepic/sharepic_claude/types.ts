@@ -8,13 +8,13 @@ export interface AIWorkerPayload {
   type: string;
   systemPrompt: string;
   messages: Array<{ role: string; content: string }>;
-  options?: Record<string, unknown>;
+  options?: Record<string, unknown> | undefined;
 }
 
 export interface AIWorkerResult {
   success: boolean;
-  content?: string;
-  error?: string;
+  content?: string | undefined;
+  error?: string | undefined;
 }
 
 export interface SharepicRequest extends Request {
@@ -27,29 +27,29 @@ export interface SharepicRequest extends Request {
 }
 
 export interface SharepicRequestBody {
-  type?: string;
-  thema?: string;
-  details?: string;
-  line1?: string;
-  line2?: string;
-  line3?: string;
-  count?: number;
-  smartCount?: boolean;
-  source?: string;
-  quote?: string;
-  name?: string;
-  preserveName?: boolean;
-  _campaignPrompt?: PromptConfig;
+  type?: string | undefined;
+  thema?: string | undefined;
+  details?: string | undefined;
+  line1?: string | undefined;
+  line2?: string | undefined;
+  line3?: string | undefined;
+  count?: number | undefined;
+  smartCount?: boolean | undefined;
+  source?: string | undefined;
+  quote?: string | undefined;
+  name?: string | undefined;
+  preserveName?: boolean | undefined;
+  _campaignPrompt?: PromptConfig | undefined;
   [key: string]: unknown;
 }
 
 export interface PromptConfig {
   systemRole: string;
-  requestTemplate?: string;
-  singleItemTemplate?: string;
-  alternativesTemplate?: string;
-  options?: Record<string, unknown>;
-  alternativesOptions?: Record<string, unknown>;
+  requestTemplate?: string | undefined;
+  singleItemTemplate?: string | undefined;
+  alternativesTemplate?: string | undefined;
+  options?: Record<string, unknown> | undefined;
+  alternativesOptions?: Record<string, unknown> | undefined;
 }
 
 export interface DreizeilenResponse {
@@ -64,17 +64,17 @@ export interface DreizeilenResponse {
     line2: string;
     line3: string;
   }>;
-  searchTerms?: string[];
-  error?: string;
-  debug?: Record<string, unknown>;
+  searchTerms?: string[] | undefined;
+  error?: string | undefined;
+  debug?: Record<string, unknown> | undefined;
 }
 
 export interface ZitatResponse {
   success: boolean;
-  quote?: string;
+  quote?: string | undefined;
   alternatives?: Array<{ quote: string }>;
-  name?: string;
-  error?: string;
+  name?: string | undefined;
+  error?: string | undefined;
 }
 
 export interface InfoResponse {
@@ -89,8 +89,8 @@ export interface InfoResponse {
     subheader: string;
     body: string;
   }>;
-  searchTerms?: string[];
-  error?: string;
+  searchTerms?: string[] | undefined;
+  error?: string | undefined;
 }
 
 export interface EventResponse {
@@ -113,15 +113,15 @@ export interface EventResponse {
     locationName: string;
     address: string;
   }>;
-  searchTerms?: string[];
-  error?: string;
+  searchTerms?: string[] | undefined;
+  error?: string | undefined;
 }
 
 export interface DefaultResponse {
   success: boolean;
-  sharepics?: unknown[];
-  metadata?: Record<string, unknown>;
-  error?: string;
+  sharepics?: unknown[] | undefined;
+  metadata?: Record<string, unknown> | undefined;
+  error?: string | undefined;
 }
 
 export type SharepicHandler = (req: SharepicRequest, res: Response) => Promise<void>;

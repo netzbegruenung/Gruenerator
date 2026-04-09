@@ -9,8 +9,8 @@ export interface BundestagSourceConfig {
 }
 
 export interface BundestagScrapeOptions {
-  forceUpdate?: boolean;
-  sourceId?: string;
+  forceUpdate?: boolean | undefined;
+  sourceId?: string | undefined;
 }
 
 export interface BundestagScrapeResult {

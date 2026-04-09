@@ -181,7 +181,7 @@ export async function performTextSearch(
 
       try {
         const scrollResult = await client.scroll(collection, {
-          filter: textFilter,
+          filter: textFilter as any,
           limit: Math.ceil(limit / variants.length) + 5,
           with_payload: true,
           with_vector: false,
@@ -242,7 +242,7 @@ export async function performTextSearch(
           tokFilter.must!.push({ key: 'chunk_text', match: { text: tok } });
           try {
             const tokRes = await client.scroll(collection, {
-              filter: tokFilter,
+              filter: tokFilter as any,
               limit: Math.ceil(limit / tokens.length) + 3,
               with_payload: true,
               with_vector: false,

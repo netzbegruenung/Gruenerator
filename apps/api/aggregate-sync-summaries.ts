@@ -80,14 +80,17 @@ async function main() {
     const runUrl = runId && repo ? `${server}/${repo}/actions/runs/${runId}` : undefined;
 
     try {
-      const sent = await sendContentSyncEmail(emailTo, {
+      const params: Parameters<typeof sendContentSyncEmail>[1] = {
         timestamp: merged.timestamp,
         totalDuration: merged.totalDuration,
         sources: merged.sources,
         totals: merged.totals,
-        runUrl,
         dryRun: merged.dryRun,
-      });
+      };
+      if (runUrl != null) {
+        params.runUrl = runUrl;
+      }
+      const sent = await sendContentSyncEmail(emailTo, params);
       console.log(
         sent ? `Email sent to ${emailTo}` : 'Email sending skipped (SMTP not configured)'
       );

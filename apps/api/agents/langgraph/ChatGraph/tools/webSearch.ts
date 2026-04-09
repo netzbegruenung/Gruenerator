@@ -22,6 +22,7 @@ import type { ToolDependencies } from './registry.js';
 const log = createLogger('Tool:WebSearch');
 
 export function createWebSearchTool(deps: ToolDependencies): DynamicStructuredTool {
+    // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'web_search',
     description:
@@ -40,7 +41,7 @@ export function createWebSearchTool(deps: ToolDependencies): DynamicStructuredTo
         .max(10)
         .optional()
         .describe('Anzahl gewünschter Ergebnisse (Standard: 5, max: 10)'),
-    }),
+    }).describe('Web-Suche'),
     func: async (input: { query: string; time_range?: string; max_results?: number }) => {
       const { query, time_range, max_results } = input;
       const effectiveMaxResults = max_results ?? 5;
@@ -75,19 +76,23 @@ export function createWebSearchTool(deps: ToolDependencies): DynamicStructuredTo
       }
 
       // Search all variants in parallel
-      const webPromises = allQueries.map((q) =>
-        executeDirectWebSearch({
+      const webPromises = allQueries.map((q) => {
+        const params: Parameters<typeof executeDirectWebSearch>[0] = {
           query: q,
-          searchType: 'general',
-          maxResults: effectiveMaxResults,
-          timeRange: effectiveTimeRange,
-        }).catch((err: unknown) => {
+        };
+        if (effectiveMaxResults != null) {
+          params.maxResults = effectiveMaxResults;
+        }
+        if (effectiveTimeRange != null) {
+          params.timeRange = effectiveTimeRange;
+        }
+        return executeDirectWebSearch(params).catch((err: unknown) => {
           log.warn(
             `[WebSearch] Failed for variant "${q}": ${err instanceof Error ? err.message : String(err)}`
           );
           return null;
-        })
-      );
+        });
+      });
       const webResults = await Promise.all(webPromises);
 
       // Merge and deduplicate

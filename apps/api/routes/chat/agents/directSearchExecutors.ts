@@ -288,9 +288,8 @@ export async function executeDirectExamplesSearch(params: {
         id: String(result.id),
         platform: result.platform || platform || 'unknown',
         content: truncateText(result.content || '', 500),
-        imageUrl: undefined,
-        author: result.source_account || undefined,
-        date: result.created_at || undefined,
+        ...(result.source_account && { author: result.source_account }),
+        ...(result.created_at && { date: result.created_at }),
       }));
 
       log.info(`[Direct Examples Search] Found ${examples.length} random examples`);
@@ -305,9 +304,8 @@ export async function executeDirectExamplesSearch(params: {
       id: String(result.id),
       platform: result.platform || platform || 'unknown',
       content: truncateText(result.content || '', 500),
-      imageUrl: undefined,
-      author: result.source_account || undefined,
-      date: result.created_at || undefined,
+      ...(result.source_account && { author: result.source_account }),
+      ...(result.created_at && { date: result.created_at }),
     }));
 
     log.info(`[Direct Examples Search] Found ${examples.length} examples`);

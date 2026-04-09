@@ -407,18 +407,16 @@ router.post('/stream', async (req, res) => {
       reasoning: classifiedState.reasoning,
       ...(classifiedState.searchQuery != null && { searchQuery: classifiedState.searchQuery }),
       ...(classifiedState.subQueries != null && { subQueries: classifiedState.subQueries }),
-      searchSources: classifiedState.searchSources?.length
-        ? classifiedState.searchSources
-        : undefined,
+      ...(classifiedState.searchSources?.length && { searchSources: classifiedState.searchSources }),
       ...(classifiedState.secondaryIntent != null && { secondaryIntent: classifiedState.secondaryIntent }),
-      compound: isCompound || undefined,
+      ...(isCompound && { compound: true }),
     });
 
     // === Chat history context enrichment ===
     if (classifiedState.searchSources?.includes('chat_history') && classifiedState.searchQuery) {
       try {
         const chatResults = await searchChatHistory(userId, classifiedState.searchQuery, {
-          excludeThreadId: actualThreadId || undefined,
+          ...(actualThreadId != null && { excludeThreadId: actualThreadId }),
           limit: 3,
         });
         if (chatResults.length > 0) {
@@ -464,8 +462,8 @@ router.post('/stream', async (req, res) => {
       sse.send('interrupt', {
         interruptType: 'clarification',
         question: classifiedState.clarificationQuestion!,
-        options: classifiedState.clarificationOptions || undefined,
-        threadId: actualThreadId,
+        ...(classifiedState.clarificationOptions != null && { options: classifiedState.clarificationOptions }),
+        ...(actualThreadId != null && { threadId: actualThreadId }),
       });
 
       await pipelineStateStore.store(actualThreadId!, {
@@ -474,8 +472,8 @@ router.post('/stream', async (req, res) => {
           userId,
           agentId: agentId || 'gruenerator-universal',
           enabledTools: enabledTools || {},
-          modelId,
-          actualThreadId,
+          ...(modelId != null && { modelId }),
+          ...(actualThreadId != null && { actualThreadId }),
           isNewThread,
           processedMeta,
           imageAttachments,
@@ -483,12 +481,12 @@ router.post('/stream', async (req, res) => {
           memoryRetrieveTimeMs,
           validMessages,
           forcedTool,
-          rawDocumentIds,
+          ...(rawDocumentIds != null && { rawDocumentIds }),
         },
       });
 
       sse.send('done', {
-        threadId: actualThreadId,
+        ...(actualThreadId != null && { threadId: actualThreadId }),
         citations: [],
         interrupted: true,
         metadata: {
@@ -511,7 +509,7 @@ router.post('/stream', async (req, res) => {
         lastUserMessage,
         aiWorkerPool,
         req,
-        actualThreadId,
+        ...(actualThreadId != null && { actualThreadId }),
         userId,
       });
       if (created) return;
@@ -525,7 +523,7 @@ router.post('/stream', async (req, res) => {
         classifiedState,
         aiWorkerPool,
         req,
-        actualThreadId,
+        ...(actualThreadId != null && { actualThreadId }),
         userId,
         userContent: lastUserText as string,
         intent: 'direct',
@@ -540,9 +538,9 @@ router.post('/stream', async (req, res) => {
         classifiedState,
         actualThreadId,
         userId,
-        lastUserMessage,
-        rawDocMentionIds,
-        rawDocumentChatIds: rawDocumentChatIds,
+        ...(lastUserMessage != null && { lastUserMessage }),
+        ...(rawDocMentionIds != null && { rawDocMentionIds }),
+        ...(rawDocumentChatIds != null && { rawDocumentChatIds }),
       });
       if (handled) return;
     }
@@ -552,7 +550,7 @@ router.post('/stream', async (req, res) => {
       classifiedState,
       sse,
       forcedTool,
-      enabledTools,
+      ...(enabledTools != null && { enabledTools }),
       imageAttachments,
       req,
     });
@@ -631,8 +629,8 @@ router.post('/stream', async (req, res) => {
         fullText,
         finalState,
         classifiedState,
-        rawDocMentionIds,
-        rawBoardIds,
+        ...(rawDocMentionIds != null && { rawDocMentionIds }),
+        ...(rawBoardIds != null && { rawBoardIds }),
       });
     }
 
@@ -651,7 +649,7 @@ router.post('/stream', async (req, res) => {
         classifiedState,
         aiWorkerPool,
         req,
-        actualThreadId,
+        ...(actualThreadId != null && { actualThreadId }),
         userId,
         userContent: lastUserText,
         subtypeOverride: classifiedState.documentSubtype,
@@ -663,18 +661,18 @@ router.post('/stream', async (req, res) => {
 
     const totalTimeMs = Date.now() - finalState.startTime;
     sse.send('done', {
-      threadId: actualThreadId,
+      ...(actualThreadId != null && { threadId: actualThreadId }),
       citations: finalState.citations,
       generatedImage,
       metadata: {
         intent: finalState.intent,
         searchCount: finalState.searchCount || 0,
         totalTimeMs,
-        classificationTimeMs: finalState.classificationTimeMs,
-        searchTimeMs: finalState.searchTimeMs || 0,
-        imageTimeMs: finalState.imageTimeMs || undefined,
-        summaryTimeMs: finalState.summaryTimeMs || undefined,
-        memoryRetrieveTimeMs: memoryRetrieveTimeMs > 0 ? memoryRetrieveTimeMs : undefined,
+        ...(finalState.classificationTimeMs != null && { classificationTimeMs: finalState.classificationTimeMs }),
+        ...(finalState.searchTimeMs != null && { searchTimeMs: finalState.searchTimeMs }),
+        ...(finalState.imageTimeMs != null && { imageTimeMs: finalState.imageTimeMs }),
+        ...(finalState.summaryTimeMs != null && { summaryTimeMs: finalState.summaryTimeMs }),
+        ...(memoryRetrieveTimeMs > 0 && { memoryRetrieveTimeMs }),
       },
     });
 
@@ -768,9 +766,7 @@ router.post('/resume', async (req, res) => {
       reasoning: `Resumed: ${userAnswer}`,
       ...(classifiedState.searchQuery != null && { searchQuery: classifiedState.searchQuery }),
       ...(classifiedState.subQueries != null && { subQueries: classifiedState.subQueries }),
-      searchSources: classifiedState.searchSources?.length
-        ? classifiedState.searchSources
-        : undefined,
+      ...(classifiedState.searchSources?.length && { searchSources: classifiedState.searchSources }),
     });
 
     // === Search ===
@@ -802,7 +798,13 @@ router.post('/resume', async (req, res) => {
         sse.send('search_complete', {
           message: PROGRESS_MESSAGES.searchComplete(resultCount),
           resultCount,
-          results: finalState.searchResults?.slice(0, 10) || [],
+          results: finalState.searchResults?.slice(0, 10).map((r) => ({
+            source: r.document_id,
+            title: r.title || 'Untitled',
+            content: r.chunk_text,
+            ...(r.url != null && { url: r.url }),
+            ...(r.score != null && { relevance: r.score }),
+          })) || [],
         });
       }
     }
@@ -841,14 +843,14 @@ router.post('/resume', async (req, res) => {
 
     const totalTimeMs = Date.now() - startTime;
     sse.send('done', {
-      threadId: requestContext.actualThreadId,
+      ...(requestContext.actualThreadId != null && { threadId: requestContext.actualThreadId }),
       citations: finalState.citations,
       metadata: {
         intent: finalState.intent,
         searchCount: finalState.searchCount || 0,
         totalTimeMs,
-        classificationTimeMs: classifiedState.classificationTimeMs,
-        searchTimeMs: finalState.searchTimeMs || 0,
+        ...(classifiedState.classificationTimeMs != null && { classificationTimeMs: classifiedState.classificationTimeMs }),
+        ...(finalState.searchTimeMs != null && { searchTimeMs: finalState.searchTimeMs }),
       },
     });
 
