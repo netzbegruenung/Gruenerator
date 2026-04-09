@@ -68,5 +68,5 @@ export function extractSharepicParams(
       break;
   }
 
-  return params as unknown as SharepicParameters | ZitatParameters | DreiZeilenParameters;
+  return params as SharepicParameters | ZitatParameters | DreiZeilenParameters;
 }

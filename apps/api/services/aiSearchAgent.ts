@@ -6,7 +6,7 @@
  */
 
 import { createLogger } from '../utils/logger.js';
-import { createCache } from '../utils/redis/index.js';
+import { createCache, type LRUCache } from '../utils/redis/index.js';
 import { InputValidator, ValidationError, simpleHash } from '../utils/validation/index.js';
 
 const log = createLogger('AISearchAgent');
@@ -174,14 +174,8 @@ function parseAnalyzeAndRankParams(input: Record<string, unknown>): AnalyzeAndRa
   return { results, criteria, target_count };
 }
 
-interface CacheInstance {
-  get: (key: string) => EnhancementResult | null;
-  set: (key: string, value: EnhancementResult) => void;
-  getStats: () => Record<string, unknown>;
-}
-
 interface AgentStats {
-  enhancementCache: Record<string, unknown>;
+  enhancementCache: unknown;
   defaultTimeout: number;
   toolsAvailable: number;
 }
@@ -220,12 +214,12 @@ interface AIWorkerRequest {
 
 class AISearchAgent {
   private defaultTimeout: number;
-  private enhancementCache: CacheInstance;
+  private enhancementCache: LRUCache<EnhancementResult>;
   private searchTools: SearchTool[];
 
   constructor() {
     this.defaultTimeout = 15000;
-    this.enhancementCache = createCache.searchEnhancement() as unknown as CacheInstance;
+    this.enhancementCache = createCache.searchEnhancement() as LRUCache<EnhancementResult>;
     this.searchTools = this.defineSearchTools();
   }
 

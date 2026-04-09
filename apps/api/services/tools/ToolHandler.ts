@@ -5,6 +5,7 @@
 
 import { MistralWebSearchService } from '../mistral/index.js';
 
+import type { SearchResults } from '../mistral/MistralWebSearchService/types.js';
 import type {
   AIProvider,
   ClaudeTool,
@@ -14,7 +15,6 @@ import type {
   ToolChoice,
   ToolPayload,
   Message,
-  ContentBlock,
   AIResponseWithTools,
   WebSearchResult,
 } from './types.js';
@@ -311,16 +311,14 @@ export class ToolHandler {
     for (const toolCall of initialResult.tool_calls) {
       console.log(`[ToolHandler] Processing tool call: ${toolCall.name}`, toolCall.input);
 
-      let toolResult: WebSearchResult;
+      let toolResult: SearchResults | WebSearchResult;
 
       if (toolCall.name === 'web_search') {
         // Use Mistral Web Search Service for real search results
         console.log(`[ToolHandler] Starting real web search for query: "${toolCall.input.query}"`);
 
         const searchService = new MistralWebSearchService();
-        toolResult = (await searchService.performWebSearch(
-          toolCall.input.query as string
-        )) as unknown as WebSearchResult;
+        toolResult = await searchService.performWebSearch(toolCall.input.query as string);
 
         console.log(`[ToolHandler] Web search completed: ${toolResult.resultCount} results found`);
         console.log(`[ToolHandler] Search results:`, JSON.stringify(toolResult, null, 2));

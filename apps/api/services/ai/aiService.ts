@@ -209,11 +209,7 @@ class AIService implements AIWorkerPool {
 
     const fallbackResult = await fallbackFn(
       async (providerName: ProviderName, privacyData) => {
-        return providers.executeProvider(
-          providerName,
-          requestId,
-          privacyData as unknown as AIRequestData
-        );
+        return providers.executeProvider(providerName, requestId, privacyData as AIRequestData);
       },
       requestId,
       {

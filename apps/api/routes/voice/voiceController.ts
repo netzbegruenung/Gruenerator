@@ -294,11 +294,16 @@ async function transcribeBuffer(
 
   if (needsVoxtral) {
     log.debug('[Voice] Using Voxtral (diarize/contextBias requested)');
-    return (await mistralVoiceService.transcribeFromBuffer(
+    const result = await mistralVoiceService.transcribeFromBuffer(
       audioBuffer,
       filename,
       options
-    )) as unknown as TranscriptionResult;
+    );
+    return {
+      text: result.text,
+      segments: result.segments,
+      hasTimestamps: !!result.segments?.length,
+    };
   }
 
   if (process.env.REGOLO_API_KEY) {
@@ -311,11 +316,16 @@ async function transcribeBuffer(
     }
   }
 
-  return (await mistralVoiceService.transcribeFromBuffer(
+  const result = await mistralVoiceService.transcribeFromBuffer(
     audioBuffer,
     filename,
     options
-  )) as unknown as TranscriptionResult;
+  );
+  return {
+    text: result.text,
+    segments: result.segments,
+    hasTimestamps: !!result.segments?.length,
+  };
 }
 
 // ============================================================================
@@ -679,10 +689,15 @@ router.post(
     try {
       log.debug('[Voice] Starting URL transcription for:', url, 'Options:', options);
 
-      const result = (await mistralVoiceService.transcribeFromUrl(
+      const voxtralResult = await mistralVoiceService.transcribeFromUrl(
         url,
         options
-      )) as unknown as TranscriptionResult;
+      );
+      const result: TranscriptionResult = {
+        text: voxtralResult.text,
+        segments: voxtralResult.segments,
+        hasTimestamps: !!voxtralResult.segments?.length,
+      };
 
       return res.json({
         success: true,
