@@ -221,23 +221,6 @@ const BlockNoteEditorInner = ({
           credentials: 'include',
         }),
       }),
-      {
-        key: 'checkboxClickFix',
-        mount({ dom, signal }: { dom: HTMLElement; signal: AbortSignal }) {
-          for (const eventType of ['pointerdown', 'pointerup', 'mousedown', 'mouseup'] as const) {
-            dom.addEventListener(
-              eventType,
-              (e: Event) => {
-                const target = e.target as HTMLElement;
-                if (target instanceof HTMLInputElement && target.type === 'checkbox') {
-                  e.stopPropagation();
-                }
-              },
-              { signal, capture: true }
-            );
-          }
-        },
-      },
     ];
 
     if (showComments && threadStore) {
@@ -280,6 +263,26 @@ const BlockNoteEditorInner = ({
     setEditorInStore(documentId, editor);
     setIsReady(true);
 
+    // Fix checkbox multi-click: intercept click on checkbox inputs and
+    // toggle the block directly via editor API, bypassing ProseMirror's
+    // slow event pipeline that drops native change events.
+    const editorDom = editor.prosemirrorView?.dom;
+    const handleCheckboxClick = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (!(target instanceof HTMLInputElement && target.type === 'checkbox')) return;
+      const blockEl = target.closest('[data-id]');
+      if (!blockEl) return;
+      const blockId = blockEl.getAttribute('data-id');
+      if (!blockId) return;
+      const block = editor.getBlock(blockId);
+      if (block && block.type === 'checkListItem') {
+        e.preventDefault();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        editor.updateBlock(blockId, { props: { checked: !(block.props as any).checked } });
+      }
+    };
+    editorDom?.addEventListener('click', handleCheckboxClick);
+
     const timeoutId = setTimeout(() => {
       if (onEditorReady) {
         onEditorReady(editor as unknown as BlockNoteEditorCore);
@@ -287,6 +290,7 @@ const BlockNoteEditorInner = ({
     }, 0);
 
     return () => {
+      editorDom?.removeEventListener('click', handleCheckboxClick);
       clearTimeout(timeoutId);
       removeEditor(documentId);
     };
