@@ -22,10 +22,10 @@ import type {
   BuildMainUserContentParams,
   PromptAssemblyFlags,
   MistralClient,
-  ContentExamplesService,
   Locale,
   Platform,
 } from './types/promptAssembly.js';
+import type { contentExamplesService as ContentExamplesServiceInstance } from '../../services/contentExamplesService.js';
 import type { ClaudeMessage } from '../../services/attachments/types.js';
 
 // ============================================================================
@@ -40,11 +40,10 @@ try {
   mistralClient = null;
 }
 
-let contentExamplesService: ContentExamplesService | null = null;
+let contentExamplesService: typeof ContentExamplesServiceInstance | null = null;
 try {
   const imported = await import('../../services/contentExamplesService.js');
-  contentExamplesService =
-    (imported.contentExamplesService as unknown as ContentExamplesService) || null;
+  contentExamplesService = imported.contentExamplesService || null;
 } catch {
   contentExamplesService = null;
 }
@@ -641,10 +640,16 @@ async function assemblePromptGraphAsync(
       if (EXAMPLES_ALLOWED_PLATFORMS.has(platform)) {
         console.log(`📋 [PromptAssemblyAsync] Fetching ${platform} examples...`);
         examplePromises.push(
-          contentExamplesService.getExamples(platform, searchQuery, {
-            limit: 2, // 2 examples per platform
-            fallbackToRandom: true,
-          })
+          contentExamplesService
+            .getExamples(platform, searchQuery, {
+              limit: 2, // 2 examples per platform
+              fallbackToRandom: true,
+            })
+            .then((items) =>
+              items
+                .filter((item): item is typeof item & { content: string } => typeof item.content === 'string')
+                .map((item) => ({ ...item, content: item.content }))
+            )
         );
       }
     }

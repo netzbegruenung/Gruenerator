@@ -323,7 +323,9 @@ export class OparlScraper extends BaseScraper {
         source_url: paper.id,
         main_file_url: pdfUrl,
         detection_method:
-          (paper as unknown as { _detectionMethod?: string })._detectionMethod || null,
+          '_detectionMethod' in paper && typeof paper._detectionMethod === 'string'
+            ? paper._detectionMethod
+            : null,
         created_at: new Date().toISOString(),
       },
     }));

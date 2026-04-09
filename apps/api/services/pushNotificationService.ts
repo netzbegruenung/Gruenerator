@@ -3,6 +3,9 @@
  * Sends Expo Push Notifications to mobile devices registered via app_refresh_tokens.
  */
 
+import { eq, and, isNotNull, isNull, gt, sql } from 'drizzle-orm';
+import { getDrizzleInstance } from '../database/services/DrizzleService.js';
+import { appRefreshTokens } from '../database/schema/index.js';
 import { type AppRefreshTokenRow } from '../database/types.js';
 import { createLogger } from '../utils/logger.js';
 
@@ -30,11 +33,6 @@ interface ExpoPushResponse {
   }>;
 }
 
-async function getDb() {
-  const { getPostgresInstance } = await import('../database/services/PostgresService.js');
-  return getPostgresInstance();
-}
-
 /**
  * Register or update an Expo push token for a device (identified by refresh token hash).
  */
@@ -43,15 +41,19 @@ export async function registerPushToken(
   refreshTokenHash: string,
   expoPushToken: string
 ): Promise<void> {
-  const db = await getDb();
+  const db = getDrizzleInstance();
 
-  const result = await db.query(
-    `UPDATE app_refresh_tokens
-     SET push_token = $1, push_token_updated_at = NOW()
-     WHERE token_hash = $2 AND user_id = $3 AND revoked_at IS NULL
-     RETURNING id`,
-    [expoPushToken, refreshTokenHash, userId]
-  );
+  const result = await db
+    .update(appRefreshTokens)
+    .set({ pushToken: expoPushToken, pushTokenUpdatedAt: new Date() })
+    .where(
+      and(
+        eq(appRefreshTokens.tokenHash, refreshTokenHash),
+        eq(appRefreshTokens.userId, userId),
+        isNull(appRefreshTokens.revokedAt)
+      )
+    )
+    .returning({ id: appRefreshTokens.id });
 
   if (result.length === 0) {
     log.warn('[Push] No matching active refresh token found for push registration', { userId });
@@ -65,18 +67,28 @@ export async function registerPushToken(
  * Get all devices with active push tokens for a user.
  */
 export async function getUserDevicesWithPush(userId: string): Promise<DeviceRow[]> {
-  const db = await getDb();
+  const db = getDrizzleInstance();
 
-  return db.query(
-    `SELECT id, device_name, device_type, push_token, last_used_at
-     FROM app_refresh_tokens
-     WHERE user_id = $1
-       AND push_token IS NOT NULL
-       AND revoked_at IS NULL
-       AND expires_at > NOW()
-     ORDER BY last_used_at DESC NULLS LAST`,
-    [userId]
-  ) as unknown as DeviceRow[];
+  const result = await db
+    .select({
+      id: appRefreshTokens.id,
+      device_name: appRefreshTokens.deviceName,
+      device_type: appRefreshTokens.deviceType,
+      push_token: appRefreshTokens.pushToken,
+      last_used_at: appRefreshTokens.lastUsedAt,
+    })
+    .from(appRefreshTokens)
+    .where(
+      and(
+        eq(appRefreshTokens.userId, userId),
+        isNotNull(appRefreshTokens.pushToken),
+        isNull(appRefreshTokens.revokedAt),
+        gt(appRefreshTokens.expiresAt, new Date())
+      )
+    )
+    .orderBy(appRefreshTokens.lastUsedAt);
+
+  return result as unknown as DeviceRow[];
 }
 
 /**
@@ -91,17 +103,27 @@ interface DeviceInfo {
 }
 
 export async function getUserDevices(userId: string): Promise<DeviceInfo[]> {
-  const db = await getDb();
+  const db = getDrizzleInstance();
 
-  return db.query(
-    `SELECT id, device_name, device_type, (push_token IS NOT NULL) as has_push_token, last_used_at
-     FROM app_refresh_tokens
-     WHERE user_id = $1
-       AND revoked_at IS NULL
-       AND expires_at > NOW()
-     ORDER BY last_used_at DESC NULLS LAST`,
-    [userId]
-  ) as unknown as DeviceInfo[];
+  const result = await db
+    .select({
+      id: appRefreshTokens.id,
+      device_name: appRefreshTokens.deviceName,
+      device_type: appRefreshTokens.deviceType,
+      has_push_token: sql<boolean>`(${appRefreshTokens.pushToken} IS NOT NULL)`,
+      last_used_at: appRefreshTokens.lastUsedAt,
+    })
+    .from(appRefreshTokens)
+    .where(
+      and(
+        eq(appRefreshTokens.userId, userId),
+        isNull(appRefreshTokens.revokedAt),
+        gt(appRefreshTokens.expiresAt, new Date())
+      )
+    )
+    .orderBy(appRefreshTokens.lastUsedAt);
+
+  return result as unknown as DeviceInfo[];
 }
 
 /**
@@ -174,9 +196,9 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
 }
 
 async function clearPushToken(deviceId: string): Promise<void> {
-  const db = await getDb();
-  await db.query(
-    `UPDATE app_refresh_tokens SET push_token = NULL, push_token_updated_at = NOW() WHERE id = $1`,
-    [deviceId]
-  );
+  const db = getDrizzleInstance();
+  await db
+    .update(appRefreshTokens)
+    .set({ pushToken: null, pushTokenUpdatedAt: new Date() })
+    .where(eq(appRefreshTokens.id, deviceId));
 }

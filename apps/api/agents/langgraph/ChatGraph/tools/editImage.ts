@@ -14,6 +14,7 @@ import { FluxImageService } from '../../../../services/flux/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { redisClient } from '../../../../utils/redis/index.js';
 
+import type { GenerateResult } from '../../../../services/flux/FluxImageService.js';
 import type { ToolDependencies } from './registry.js';
 import type { GeneratedImageResult } from '../types.js';
 
@@ -57,11 +58,10 @@ export function createEditImageTool(deps: ToolDependencies): DynamicStructuredTo
         const mimeType = imageAttachment.type || 'image/jpeg';
 
         const flux = await FluxImageService.create();
-        const { stored } = (await flux.generateFromImage(prompt, imageBuffer, mimeType, {
+        const { stored }: GenerateResult = await flux.generateFromImage(prompt, imageBuffer, mimeType, {
           output_format: 'jpeg',
           safety_tolerance: 2,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        })) as any;
+        });
 
         await imageCounter.incrementCount(userId);
 

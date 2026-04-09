@@ -529,7 +529,7 @@ export async function handleInformationRequest(
     // Check if there's already a pending request
     const existingPendingRequest = (await chatMemory.getPendingRequest(
       userId
-    )) as unknown as PendingRequest | null;
+    )) as PendingRequest | null;
 
     if (existingPendingRequest && existingPendingRequest.type === 'missing_information') {
       console.log(
