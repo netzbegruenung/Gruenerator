@@ -173,7 +173,7 @@ export class MetadataExtractor {
       if (jsonLdScript.length > 0) {
         const jsonLdText = jsonLdScript.html();
         if (jsonLdText) {
-          return JSON.parse(jsonLdText);
+          return JSON.parse(jsonLdText) as Record<string, unknown>;
         }
       }
     } catch (error) {
