@@ -193,15 +193,11 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
 
     // DEBUG: Log document state sent to LLM (block IDs for cross-reference with tool call args)
     for (const msg of messagesWithDocState) {
-      const content =
-        typeof msg.content === 'string'
-          ? msg.content
-          : Array.isArray(msg.parts)
-            ? msg.parts
-                .filter((p: { type: string }) => p.type === 'text')
-                .map((p: { text: string }) => p.text)
-                .join('')
-            : '';
+      const parts = Array.isArray(msg.parts) ? msg.parts : [];
+      const content = parts
+        .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+        .map((p) => p.text)
+        .join('');
       const idMatches = content.match(/data-id="([^"]+)"/g);
       if (idMatches && idMatches.length > 0) {
         const ids = idMatches.map((m: string) => m.replace(/data-id="|"/g, ''));
@@ -258,6 +254,7 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
     const normalizedStream = stream.pipeThrough(createNormalizingTransform());
 
     // Convert JSON objects to SSE format: data: ${JSON.stringify(chunk)}\n\n
+    // @ts-expect-error Node.js TransformStream vs Web API TransformStream type mismatch
     const sseStream = normalizedStream.pipeThrough(
       new TransformStream({
         transform(chunk: unknown, controller) {
@@ -274,7 +271,8 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
 
-    const reader = sseStream.getReader();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const reader = (sseStream as ReadableStream<any>).getReader();
     const pump = async () => {
       while (true) {
         const { done, value } = await reader.read();
