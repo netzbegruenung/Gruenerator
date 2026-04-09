@@ -72,7 +72,7 @@ router.get(
         `[custom_generator] GET /:slug - Fetching generator with slug: ${slug} for user: ${userId}`
       );
 
-      const generator = (await postgres.queryOne(
+      const generator = await postgres.queryOne<CustomGeneratorRow>(
         `SELECT cg.id, cg.name, cg.slug, cg.title, cg.description, cg.form_schema, cg.prompt, cg.contact_email,
               cg.created_at, cg.updated_at, cg.is_active, cg.usage_count, cg.user_id as owner_id,
               p.first_name as owner_first_name, p.last_name as owner_last_name, p.email as owner_email
@@ -81,7 +81,7 @@ router.get(
        WHERE cg.slug = $1 AND cg.is_active = true`,
         [slug],
         { table: 'custom_generators' }
-      )) as unknown as CustomGeneratorRow | null;
+      );
 
       if (!generator) {
         log.debug(`[custom_generator] Generator not found for slug: ${slug}`);
@@ -96,11 +96,11 @@ router.get(
 
       let isSaved = false;
       if (!isOwner) {
-        const savedCheck = (await postgres.queryOne(
+        const savedCheck = await postgres.queryOne<SavedGeneratorRow>(
           `SELECT id FROM saved_generators WHERE user_id = $1 AND generator_id = $2`,
           [userId, generator.id],
           { table: 'saved_generators' }
-        )) as unknown as SavedGeneratorRow | null;
+        );
         isSaved = !!savedCheck;
       }
 

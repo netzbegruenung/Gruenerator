@@ -70,6 +70,7 @@ async function rerankResults(results: ScoredResult[], query: string): Promise<Sc
 }
 
 export function createSearchDocumentsTool(deps: ToolDependencies): DynamicStructuredTool {
+    // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'search_documents',
     description:
@@ -91,8 +92,9 @@ export function createSearchDocumentsTool(deps: ToolDependencies): DynamicStruct
         .optional()
         .describe('Optionale Dokument-IDs zur Einschränkung der Suche auf bestimmte Dokumente'),
       topK: z.number().optional().describe('Maximale Ergebnisanzahl pro Collection (Standard: 3)'),
-    }),
-    func: async ({ query, collections, document_ids, topK }) => {
+    }).describe('Dokumentensuche'),
+    func: async (input: { query: string; collections?: string[]; document_ids?: string[]; topK?: number }) => {
+      const { query, collections, document_ids, topK } = input;
       // Document-scoped search: filter by specific document IDs
       if (document_ids?.length) {
         const userId = deps.agentConfig.userId;
@@ -185,13 +187,14 @@ export function createSearchDocumentsTool(deps: ToolDependencies): DynamicStruct
           if (r.url && seenUrls.has(r.url)) continue;
           if (r.url) seenUrls.add(r.url);
 
-          allResults.push({
+          const scored: ScoredResult = {
             source: `gruenerator:${result.collection}`,
             title: r.source || result.collection,
             content: r.excerpt || '',
-            url: r.url || undefined,
             relevance: r.relevance === 'Sehr hoch' ? 0.9 : r.relevance === 'Hoch' ? 0.7 : 0.5,
-          });
+            ...(r.url != null && { url: r.url }),
+          };
+          allResults.push(scored);
         }
       }
 

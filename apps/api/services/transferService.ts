@@ -43,9 +43,9 @@ interface CreateTransferParams {
 }
 
 interface TransferOptions {
-  password?: string;
-  expiresInDays?: number;
-  message?: string;
+  password?: string | undefined;
+  expiresInDays?: number | undefined;
+  message?: string | undefined;
 }
 
 class TransferService {
@@ -261,9 +261,9 @@ class TransferService {
       mimeType,
       wolkeShareLinkId,
       wolkeFilePath,
-      passwordHash,
-      expiresAt,
-      message: options?.message,
+      ...(passwordHash && { passwordHash }),
+      ...(expiresAt && { expiresAt }),
+      ...(options?.message && { message: options.message }),
     });
   }
 
@@ -331,9 +331,9 @@ class TransferService {
       mimeType,
       wolkeShareLinkId,
       wolkeFilePath,
-      passwordHash,
-      expiresAt,
-      message: options?.message,
+      ...(passwordHash && { passwordHash }),
+      ...(expiresAt && { expiresAt }),
+      ...(options?.message && { message: options.message }),
     });
   }
 }

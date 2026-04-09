@@ -290,7 +290,7 @@ class ContentExamplesService {
         if (contentType === 'facebook' || contentType === 'instagram') {
           const result = await this.qdrant.searchSocialMediaExamples(queryEmbedding, {
             platform: contentType,
-            country: country || undefined,
+            ...(country && { country }),
             limit,
             threshold,
           });
@@ -300,8 +300,8 @@ class ContentExamplesService {
             contentType,
             limit,
             threshold,
-            categories: categories || undefined,
-            tags: tags || undefined,
+            ...(categories && { categories }),
+            ...(tags && { tags }),
           });
           searchResult = result as SearchResponse<ContentExampleResult>;
         }
@@ -348,15 +348,15 @@ class ContentExamplesService {
         if (contentType === 'facebook' || contentType === 'instagram') {
           results = await this.qdrant.getRandomSocialMediaExamples({
             platform: contentType,
-            country: country || undefined,
+            ...(country && { country }),
             limit,
           });
         } else {
           results = await this.qdrant.getRandomContentExamples({
             contentType,
             limit,
-            categories: categories || undefined,
-            tags: tags || undefined,
+            ...(categories && { categories }),
+            ...(tags && { tags }),
           });
         }
       } catch (qdrantError) {
@@ -559,8 +559,8 @@ class ContentExamplesService {
       const queryEmbedding = await mistralEmbeddingService.generateEmbedding(query);
 
       const searchResult = await this.qdrant.searchSocialMediaExamples(queryEmbedding, {
-        platform: platform || undefined,
-        country: resolvedCountry || undefined,
+        ...(platform && { platform }),
+        ...(resolvedCountry && { country: resolvedCountry }),
         limit,
         threshold,
       });
@@ -600,8 +600,8 @@ class ContentExamplesService {
       );
 
       const results = await this.qdrant.getRandomSocialMediaExamples({
-        platform: (platform as 'facebook' | 'instagram') || undefined,
-        country: resolvedCountry || undefined,
+        ...(platform && { platform: platform as 'facebook' | 'instagram' }),
+        ...(resolvedCountry && { country: resolvedCountry }),
         limit,
       });
 

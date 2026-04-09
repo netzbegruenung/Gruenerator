@@ -49,13 +49,13 @@ export interface ClassificationResult {
   /** Method used for classification */
   method: 'ai' | 'keyword' | 'context' | 'fallback';
   /** Overall confidence score */
-  confidence?: number;
+  confidence?: number | undefined;
   /** Type of request (conversation, content creation, document query, or text edit) */
-  requestType?: 'conversation' | 'document_query' | 'content_creation' | 'text_edit';
+  requestType?: 'conversation' | 'document_query' | 'content_creation' | 'text_edit' | undefined;
   /** Sub-intent for conversation requests */
-  subIntent?: 'summarize' | 'translate' | 'compare' | 'explain' | 'brainstorm' | 'general';
+  subIntent?: 'summarize' | 'translate' | 'compare' | 'explain' | 'brainstorm' | 'general' | undefined;
   /** Context for text edit requests */
-  editContext?: EditContext;
+  editContext?: EditContext | undefined;
 }
 
 /**
@@ -65,13 +65,13 @@ export interface ChatContext {
   /** Recent message history for context */
   messageHistory?: Array<{ role: string; content: string }>;
   /** Whether an image is attached to the current message */
-  hasImageAttachment?: boolean;
+  hasImageAttachment?: boolean | undefined;
   /** Last agent used in the conversation */
-  lastAgent?: string;
+  lastAgent?: string | undefined;
   /** Current topic of conversation */
-  topic?: string;
+  topic?: string | undefined;
   /** When true, AI returns only the single best intent (used by Image Studio) */
-  singleIntentOnly?: boolean;
+  singleIntentOnly?: boolean | undefined;
 }
 
 /**
@@ -93,8 +93,8 @@ export interface AIWorkerRequest {
   messages: Array<{ role: string; content: string }>;
   /** Additional options for the AI request */
   options?: {
-    max_tokens?: number;
-    temperature?: number;
+    max_tokens?: number | undefined;
+    temperature?: number | undefined;
     [key: string]: unknown;
   };
 }
@@ -108,7 +108,7 @@ export interface AIWorkerResponse {
   /** Content returned from the AI */
   content: string;
   /** Error message if failed */
-  error?: string;
+  error?: string | undefined;
 }
 
 /**
@@ -118,11 +118,11 @@ export interface AIClassificationResponse {
   /** Type of request */
   requestType: 'conversation' | 'document_query' | 'content_creation' | 'text_edit';
   /** Sub-intent for conversation requests */
-  subIntent?: 'summarize' | 'translate' | 'compare' | 'explain' | 'brainstorm' | 'general';
+  subIntent?: 'summarize' | 'translate' | 'compare' | 'explain' | 'brainstorm' | 'general' | undefined;
   /** Detected intents (fully enriched with routes and params) */
   intents: Intent[];
   /** Context for text edit requests */
-  editContext?: EditContext;
+  editContext?: EditContext | undefined;
 }
 
 /**

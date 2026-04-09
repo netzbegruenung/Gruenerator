@@ -107,13 +107,13 @@ export interface SearchResult {
   source: string;
   title: string;
   content: string;
-  url?: string;
-  relevance?: number;
-  contentType?: string;
-  documentId?: string;
-  chunkIndex?: number;
-  similarityScore?: number;
-  collectionId?: string;
+  url?: string | undefined;
+  relevance?: number | undefined;
+  contentType?: string | undefined;
+  documentId?: string | undefined;
+  chunkIndex?: number | undefined;
+  similarityScore?: number | undefined;
+  collectionId?: string | undefined;
   [key: string]: unknown;
 }
 
@@ -126,16 +126,16 @@ export interface Citation {
   title: string;
   url: string;
   snippet: string;
-  citedText?: string;
+  citedText?: string | undefined;
   source: string;
-  collectionName?: string;
-  domain?: string;
-  relevance?: number;
-  contentType?: string;
-  documentId?: string;
-  chunkIndex?: number;
-  similarityScore?: number;
-  collectionId?: string;
+  collectionName?: string | undefined;
+  domain?: string | undefined;
+  relevance?: number | undefined;
+  contentType?: string | undefined;
+  documentId?: string | undefined;
+  chunkIndex?: number | undefined;
+  similarityScore?: number | undefined;
+  collectionId?: string | undefined;
 }
 
 /**
@@ -159,24 +159,24 @@ export interface ThreadAttachment {
  */
 export interface ChatGraphInput {
   messages: ModelMessage[];
-  threadId?: string;
+  threadId?: string | undefined;
   agentId: string;
   enabledTools: Record<string, boolean>;
   aiWorkerPool: AIWorkerPool;
-  attachmentContext?: string;
-  imageAttachments?: ImageAttachment[];
-  threadAttachments?: ThreadAttachment[];
-  notebookIds?: string[];
-  defaultNotebookId?: string;
-  documentIds?: string[];
-  textIds?: string[];
-  documentChatIds?: string[];
-  boardIds?: string[];
-  docMentionIds?: string[];
-  userLocale?: UserLocale;
-  customSystemPrompt?: string;
-  userInstructions?: string;
-  contextWindowTokens?: number;
+  attachmentContext?: string | undefined;
+  imageAttachments?: ImageAttachment[] | undefined;
+  threadAttachments?: ThreadAttachment[] | undefined;
+  notebookIds?: string[] | undefined;
+  defaultNotebookId?: string | undefined;
+  documentIds?: string[] | undefined;
+  textIds?: string[] | undefined;
+  documentChatIds?: string[] | undefined;
+  boardIds?: string[] | undefined;
+  docMentionIds?: string[] | undefined;
+  userLocale?: UserLocale | undefined;
+  customSystemPrompt?: string | undefined;
+  userInstructions?: string | undefined;
+  contextWindowTokens?: number | undefined;
 }
 
 /**
@@ -311,21 +311,21 @@ export interface ChatGraphOutput {
   threadId: string | null;
   responseText: string;
   citations: Citation[];
-  generatedImage?: GeneratedImageResult | null;
+  generatedImage?: GeneratedImageResult | null | undefined;
   metadata: {
     intent: SearchIntent;
     searchCount: number;
     totalTimeMs: number;
     classificationTimeMs: number;
     searchTimeMs: number;
-    rerankTimeMs?: number;
-    searchedCollections?: string[];
-    appliedFilters?: SubcategoryFilters | null;
-    imageTimeMs?: number;
-    memoryRetrieveTimeMs?: number;
+    rerankTimeMs?: number | undefined;
+    searchedCollections?: string[] | undefined;
+    appliedFilters?: SubcategoryFilters | null | undefined;
+    imageTimeMs?: number | undefined;
+    memoryRetrieveTimeMs?: number | undefined;
     responseTimeMs: number;
   };
-  error?: string;
+  error?: string | undefined;
 }
 
 /**
@@ -340,19 +340,19 @@ export type GatherSource = 'notebook-search' | 'web-search' | 'research';
  */
 export interface ClassificationResult {
   intent: SearchIntent;
-  secondaryIntent?: SearchIntent | null;
-  searchSources?: SearchSource[];
+  secondaryIntent?: SearchIntent | null | undefined;
+  searchSources?: SearchSource[] | undefined;
   searchQuery: string | null;
-  subQueries?: string[] | null;
-  filters?: SubcategoryFilters | null;
+  subQueries?: string[] | null | undefined;
+  filters?: SubcategoryFilters | null | undefined;
   reasoning: string;
-  contentType?: string | null;
-  needsClarification?: boolean;
-  clarificationQuestion?: string;
-  clarificationOptions?: string[];
-  gatherSources?: GatherSource[];
-  documentSubtype?: string | null;
-  targetGroupName?: string | null;
+  contentType?: string | null | undefined;
+  needsClarification?: boolean | undefined;
+  clarificationQuestion?: string | undefined;
+  clarificationOptions?: string[] | undefined;
+  gatherSources?: GatherSource[] | undefined;
+  documentSubtype?: string | null | undefined;
+  targetGroupName?: string | null | undefined;
 }
 
 /**
@@ -365,7 +365,7 @@ export interface ChartData {
   data: Array<Record<string, string | number>>;
   xKey: string;
   yKeys: string[];
-  colors?: string[];
+  colors?: string[] | undefined;
 }
 
 /**

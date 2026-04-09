@@ -7,9 +7,9 @@
  */
 export interface GrueneApiConfig {
   GRUENE_API_BASEURL: string;
-  GRUENE_API_USERNAME?: string;
-  GRUENE_API_PASSWORD?: string;
-  GRUENE_API_KEY?: string;
+  GRUENE_API_USERNAME?: string | undefined;
+  GRUENE_API_PASSWORD?: string | undefined;
+  GRUENE_API_KEY?: string | undefined;
   BATCH_SIZE: number;
   REQUEST_LIMIT: number;
 }
@@ -19,9 +19,9 @@ export interface GrueneApiConfig {
  */
 export interface OffboardingUser {
   id: string;
-  email?: string;
-  username?: string;
-  sherpa_id?: string;
+  email?: string | undefined;
+  username?: string | undefined;
+  sherpa_id?: string | undefined;
   [key: string]: unknown;
 }
 
@@ -31,7 +31,7 @@ export interface OffboardingUser {
 export interface OffboardingUsersResponse {
   data: OffboardingUser[];
   meta?: {
-    cursorNext?: string;
+    cursorNext?: string | undefined;
     [key: string]: unknown;
   };
 }
@@ -62,15 +62,15 @@ export interface BatchUpdateEntry {
  */
 export interface UserProfile {
   id: string;
-  email?: string;
-  username?: string;
-  display_name?: string;
-  keycloak_id?: string;
-  sherpa_id?: string;
-  first_name?: string;
-  last_name?: string;
-  avatar_url?: string;
-  anonymized_at?: string;
+  email?: string | undefined;
+  username?: string | undefined;
+  display_name?: string | undefined;
+  keycloak_id?: string | undefined;
+  sherpa_id?: string | undefined;
+  first_name?: string | undefined;
+  last_name?: string | undefined;
+  avatar_url?: string | undefined;
+  anonymized_at?: string | undefined;
   [key: string]: unknown;
 }
 

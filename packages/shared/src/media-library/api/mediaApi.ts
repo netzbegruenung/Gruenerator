@@ -6,6 +6,7 @@
 import { getGlobalApiClient } from '../../api/client.js';
 import { MEDIA_ENDPOINTS } from '../constants.js';
 
+import type { AxiosProgressEvent } from 'axios';
 import type {
   MediaFilters,
   MediaListResponse,
@@ -83,18 +84,30 @@ export async function uploadMedia(
     formData.append('uploadSource', options.uploadSource);
   }
 
-  const response = await client.post<MediaUploadResponse>(MEDIA_ENDPOINTS.UPLOAD, formData, {
+  const uploadConfig: { headers: { 'Content-Type': string }; onUploadProgress?: (progressEvent: AxiosProgressEvent) => void } = {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
-    onUploadProgress: options.onProgress
-      ? (progressEvent) => {
-          const total = progressEvent.total || 1;
-          const progress = Math.round((progressEvent.loaded * 100) / total);
-          options.onProgress!(progress);
-        }
-      : undefined,
-  });
+  };
+
+  if (options.onProgress) {
+    uploadConfig.onUploadProgress = (progressEvent) => {
+      const total = progressEvent.total || 1;
+      const progress = Math.round((progressEvent.loaded * 100) / total);
+      options.onProgress!(progress);
+    };
+  }
+
+  const response = await client.post<MediaUploadResponse>(
+    MEDIA_ENDPOINTS.UPLOAD,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      ...(options.onProgress != null && { onUploadProgress: uploadConfig.onUploadProgress }),
+    }
+  );
 
   return response.data;
 }

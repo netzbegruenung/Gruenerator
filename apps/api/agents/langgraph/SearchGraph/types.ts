@@ -122,12 +122,12 @@ export interface SearchGraphState {
  */
 export interface SearchGraphInput {
   query: string;
-  messages?: ModelMessage[];
-  threadId?: string;
+  messages?: ModelMessage[] | undefined;
+  threadId?: string | undefined;
   searchMode: SearchMode;
   aiWorkerPool: AIWorkerPool;
-  userLocale?: UserLocale;
-  locale?: string;
+  userLocale?: UserLocale | undefined;
+  locale?: string | undefined;
 }
 
 /**
@@ -151,5 +151,5 @@ export interface SearchGraphOutput {
     searchedCollections: string[];
     responseTimeMs: number;
   };
-  error?: string;
+  error?: string | undefined;
 }

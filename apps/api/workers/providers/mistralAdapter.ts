@@ -265,8 +265,16 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   // Convert messages to Vercel AI SDK format
   const modelMessages = await convertMessages(messages, systemPrompt);
 
-  // Prepare tools
-  const toolsPayload = ToolHandler.prepareToolsPayload(options, 'mistral', requestId, type);
+  // Prepare tools - only include options that are not null/undefined
+  const toolsPayload = ToolHandler.prepareToolsPayload(
+    {
+      ...(options.tools != null && { tools: options.tools as any }),
+      ...(options.tool_choice != null && { tool_choice: options.tool_choice }),
+    },
+    'mistral',
+    requestId,
+    type
+  );
   const tools = convertTools(toolsPayload);
 
   // Determine tool choice
@@ -314,14 +322,8 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
         temperature: config.temperature,
         maxOutputTokens: config.maxTokens,
         topP: config.topP,
-        tools,
-        toolChoice,
-        // Response format for specific types
-        ...(type === 'image_picker' || type === 'text_adjustment'
-          ? {
-              experimental_output: undefined, // JSON mode handled by Mistral model
-            }
-          : {}),
+        ...(tools != null && { tools }),
+        ...(toolChoice != null && { toolChoice }),
       });
 
       connectionMetrics.successes++;
@@ -374,13 +376,13 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
           model: model,
           timestamp: new Date().toISOString(),
           requestId,
-          usage: result.usage
-            ? {
-                prompt_tokens: result.usage.inputTokens,
-                completion_tokens: result.usage.outputTokens,
-                total_tokens: result.usage.totalTokens,
-              }
-            : undefined,
+          ...(result.usage && {
+            usage: {
+              prompt_tokens: result.usage.inputTokens,
+              completion_tokens: result.usage.outputTokens,
+              total_tokens: result.usage.totalTokens,
+            }
+          }),
         }),
       };
     } catch (error: unknown) {

@@ -62,7 +62,7 @@ export async function getUniqueFieldValues(
     while (iterations < maxIterations && uniqueValues.size < maxValues) {
       const scrollResult = await client.scroll(collectionName, {
         limit: 100,
-        offset: offset ?? undefined,
+        ...(offset != null && { offset }),
         with_payload: [fieldName],
         with_vector: false,
       });
@@ -125,7 +125,7 @@ export async function getFieldValueCounts(
     const result = await client.facet(collectionName, {
       key: fieldName,
       limit: maxValues,
-      filter: baseFilter ?? undefined,
+      ...(baseFilter != null && { filter: baseFilter }),
       exact: false,
     });
     return result.hits.map((hit) => ({
@@ -164,7 +164,7 @@ export async function getDateRange(
       limit: 1,
       with_payload: [fieldName] as string[],
       with_vector: false,
-      filter: baseFilter ?? undefined,
+      ...(baseFilter != null && { filter: baseFilter }),
     };
 
     // Fetch min and max in parallel using order_by
@@ -221,7 +221,7 @@ export async function getAllUrls(
     while (true) {
       const scrollResult = await client.scroll(collectionName, {
         limit: 100,
-        offset: offset ?? undefined,
+        ...(offset != null && { offset }),
         with_payload: payloadFields,
         with_vector: false,
       });

@@ -7,7 +7,11 @@
  */
 
 // Main class
-export { DocumentQnAService } from './DocumentQnAService.js';
+export {
+  DocumentQnAService,
+  type DocumentQnARedisClient,
+  type DocumentQnAMistralClient,
+} from './DocumentQnAService.js';
 
 // Re-export all types
 export type {

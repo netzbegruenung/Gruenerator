@@ -8,6 +8,22 @@ import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { userRecentValues } from '../../database/schema/index.js';
 import type { RecentValue, FieldTypeWithCount } from './types.js';
 
+type DrizzleRecentValueRow = typeof userRecentValues.$inferSelect;
+
+/**
+ * Map Drizzle result (camelCase fields) to RecentValue (snake_case fields)
+ */
+function toRecentValue(row: DrizzleRecentValueRow): RecentValue {
+  return {
+    id: row.id,
+    user_id: row.userId || null,
+    field_type: row.fieldType,
+    field_value: row.fieldValue,
+    form_name: row.formName || null,
+    created_at: row.createdAt,
+  };
+}
+
 /**
  * Saves a recent value for a user and field type
  * @param userId - The user ID
@@ -55,7 +71,7 @@ export async function saveRecentValue(
       })
       .returning();
 
-    return result[0] as unknown as RecentValue;
+    return toRecentValue(result[0]);
   } catch (error: unknown) {
     console.error('[RecentValuesService] Error saving recent value:', error);
     const errMsg = error instanceof Error ? error.message : String(error);
@@ -104,7 +120,14 @@ export async function getRecentValues(
       .orderBy(desc(userRecentValues.createdAt))
       .limit(safeLimit);
 
-    return (result || []) as unknown as Partial<RecentValue>[];
+    return (result || []).map((row) => ({
+      id: '',
+      user_id: null,
+      field_type: '',
+      field_value: row.fieldValue,
+      form_name: row.formName || null,
+      created_at: row.createdAt,
+    })) as Partial<RecentValue>[];
   } catch (error: unknown) {
     console.error(`[RecentValuesService] Error retrieving recent values for ${fieldType}:`, error);
     throw new Error(

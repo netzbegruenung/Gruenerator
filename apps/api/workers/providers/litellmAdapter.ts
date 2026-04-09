@@ -100,8 +100,16 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   // Convert messages to Vercel AI SDK format
   const modelMessages = convertMessages(messages, systemPrompt);
 
-  // Prepare tools
-  const toolsPayload = ToolHandler.prepareToolsPayload(options, 'litellm', requestId, type);
+  // Prepare tools - only include options that are not null/undefined
+  const toolsPayload = ToolHandler.prepareToolsPayload(
+    {
+      ...(options.tools != null && { tools: options.tools as any }),
+      ...(options.tool_choice != null && { tool_choice: options.tool_choice }),
+    },
+    'litellm',
+    requestId,
+    type
+  );
   const tools = convertTools(toolsPayload);
 
   // Determine tool choice
@@ -127,8 +135,8 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
       maxOutputTokens: options.max_tokens || 4096,
       temperature: options.temperature || 0.7,
       topP: options.top_p || 1.0,
-      tools,
-      toolChoice,
+      ...(tools != null && { tools }),
+      ...(toolChoice != null && { toolChoice }),
     });
 
     // Extract text content
@@ -187,13 +195,13 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
         model: model,
         timestamp: new Date().toISOString(),
         requestId,
-        usage: result.usage
-          ? {
-              prompt_tokens: result.usage.inputTokens,
-              completion_tokens: result.usage.outputTokens,
-              total_tokens: result.usage.totalTokens,
-            }
-          : undefined,
+        ...(result.usage && {
+          usage: {
+            prompt_tokens: result.usage.inputTokens,
+            completion_tokens: result.usage.outputTokens,
+            total_tokens: result.usage.totalTokens,
+          }
+        }),
       }),
     };
   } catch (error: unknown) {

@@ -11,8 +11,8 @@ import type { ParamsDictionary } from 'express-serve-static-core';
  * Note: Using `any` for Express compatibility with router handlers
  */
 export type SitesRequest<P = ParamsDictionary> = Request<P> & {
-  user?: UserProfile;
-  siteData?: UserSite;
+  user?: UserProfile | undefined;
+  siteData?: UserSite | undefined;
 };
 
 export interface UserSite {
@@ -20,28 +20,28 @@ export interface UserSite {
   user_id: string;
   subdomain: string;
   site_title: string;
-  tagline?: string;
-  bio?: string;
-  contact_email?: string;
-  social_links?: Record<string, string>;
-  accent_color?: string;
-  theme?: string;
-  profile_image?: string;
-  background_image?: string;
-  sections?: SiteSection[];
-  meta_description?: string;
-  meta_keywords?: string[];
+  tagline?: string | undefined;
+  bio?: string | undefined;
+  contact_email?: string | undefined;
+  social_links?: Record<string, string> | undefined;
+  accent_color?: string | undefined;
+  theme?: string | undefined;
+  profile_image?: string | undefined;
+  background_image?: string | undefined;
+  sections?: SiteSection[] | undefined;
+  meta_description?: string | undefined;
+  meta_keywords?: string[] | undefined;
   is_published: boolean;
-  last_published?: string;
-  visit_count?: number;
+  last_published?: string | undefined;
+  visit_count?: number | undefined;
   created_at: string;
   updated_at: string;
 }
 
 export interface SiteSection {
   type: 'text' | 'contact' | string;
-  title?: string;
-  content?: string;
+  title?: string | undefined;
+  content?: string | undefined;
 }
 
 export interface ThemeColors {
@@ -62,22 +62,22 @@ export interface Theme {
 export interface CreateSiteBody {
   subdomain: string;
   site_title: string;
-  tagline?: string;
-  theme?: string;
+  tagline?: string | undefined;
+  theme?: string | undefined;
 }
 
 export interface UpdateSiteBody {
-  site_title?: string;
-  tagline?: string;
-  bio?: string;
-  contact_email?: string;
-  social_links?: Record<string, string>;
-  accent_color?: string;
-  profile_image?: string;
-  background_image?: string;
-  sections?: SiteSection[];
-  meta_description?: string;
-  meta_keywords?: string[];
+  site_title?: string | undefined;
+  tagline?: string | undefined;
+  bio?: string | undefined;
+  contact_email?: string | undefined;
+  social_links?: Record<string, string> | undefined;
+  accent_color?: string | undefined;
+  profile_image?: string | undefined;
+  background_image?: string | undefined;
+  sections?: SiteSection[] | undefined;
+  meta_description?: string | undefined;
+  meta_keywords?: string[] | undefined;
 }
 
 export interface PublishBody {
@@ -85,12 +85,12 @@ export interface PublishBody {
 }
 
 export interface CheckSubdomainQuery {
-  subdomain?: string;
+  subdomain?: string | undefined;
 }
 
 export interface SiteResponse {
   site: UserSite | null;
-  error?: string;
+  error?: string | undefined;
 }
 
 export interface SitesErrorResponse {
@@ -99,8 +99,8 @@ export interface SitesErrorResponse {
 
 export interface SubdomainCheckResponse {
   available: boolean;
-  reason?: 'invalid' | 'reserved';
-  error?: string;
+  reason?: 'invalid' | 'reserved' | undefined;
+  error?: string | undefined;
 }
 
 export interface ThemesResponse {
@@ -109,7 +109,7 @@ export interface ThemesResponse {
 
 export interface SuccessResponse {
   success: boolean;
-  error?: string;
+  error?: string | undefined;
 }
 
 export const RESERVED_SUBDOMAINS = [

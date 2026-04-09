@@ -186,7 +186,7 @@ export class EnrichedPersonSearchService {
           merged.push({
             id: point.id,
             score: 0.8, // Fixed score for text matches
-            payload: point.payload,
+            ...(point.payload ? { payload: point.payload } : {}),
             searchMethod: 'text',
           });
         }

@@ -135,9 +135,9 @@ export async function sendContentDeliveryEmail(
   if (!isConfigured()) return false;
 
   const templateParams: ContentDeliveryTemplateParams = {
-    recipientName: params.recipientName,
+    ...(params.recipientName && { recipientName: params.recipientName }),
     contentTitle: params.contentTitle,
-    contentDescription: params.contentDescription,
+    ...(params.contentDescription && { contentDescription: params.contentDescription }),
     hasAttachment: !!params.attachment,
   };
 
@@ -148,7 +148,7 @@ export async function sendContentDeliveryEmail(
     subject: `${params.contentTitle} — ${BRAND.name}`,
     html,
     text,
-    attachments: params.attachment ? [params.attachment] : undefined,
+    ...(params.attachment && { attachments: [params.attachment] }),
   });
 }
 

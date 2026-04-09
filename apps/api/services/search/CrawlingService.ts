@@ -111,14 +111,17 @@ export async function selectAndCrawlTopUrls<T extends CrawlableResult>(
           ...result,
           fullContent: crawled.fullContent,
           crawled: true,
-        };
+        } as T & CrawledResult;
       }
-      return {
+      const failedResult: any = {
         ...result,
         crawled: false,
-        crawlError: crawled?.crawlError,
       };
+      if (crawled?.crawlError) {
+        failedResult.crawlError = crawled.crawlError;
+      }
+      return failedResult;
     }
-    return { ...result, crawled: false };
+    return { ...result, crawled: false } as T & CrawledResult;
   });
 }

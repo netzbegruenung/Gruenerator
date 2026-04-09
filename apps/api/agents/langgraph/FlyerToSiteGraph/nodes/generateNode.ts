@@ -4,7 +4,7 @@ import {
 } from '../../../../services/localization/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 
-import type { Locale } from '../../../../services/localization/index.js';
+import type { Locale, RequestWithLocale } from '../../../../services/localization/index.js';
 import type { WebsiteContent } from '../../../../types/routes.js';
 import type { FlyerToSiteState } from '../types.js';
 
@@ -94,7 +94,7 @@ export async function generateNode(state: FlyerToSiteState): Promise<Partial<Fly
   try {
     const analysis = state.flyerAnalysis;
     const email = analysis.contactInfo?.email || state.email || 'kontakt@example.com';
-    const locale = extractLocaleFromRequest(state.req);
+    const locale = extractLocaleFromRequest(state.req as RequestWithLocale);
     const systemPrompt = buildWebsiteSystemPrompt(email, locale);
 
     const themesInfo = analysis.themes?.length

@@ -138,7 +138,7 @@ export interface ContentSyncTemplateParams {
     skipped: number;
     errors: number;
   };
-  runUrl?: string;
+  runUrl?: string | undefined;
   dryRun: boolean;
 }
 

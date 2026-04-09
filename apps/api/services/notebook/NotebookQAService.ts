@@ -63,7 +63,12 @@ import type {
   FormattedDrucksache,
   FormattedAktivitaet,
 } from '../bundestag/types.js';
-import type { CollectionConfig, ReferencesMap, ExpandedChunkResult } from '../search/types.js';
+import type {
+  SearchResultInput,
+  CollectionConfig,
+  ReferencesMap,
+  ExpandedChunkResult,
+} from '../search/types.js';
 
 const log = createLogger('NotebookQAService');
 const documentSearchService = new DocumentSearchService();
@@ -93,8 +98,10 @@ export class NotebookQAService {
     const documentScope: DocumentScope = {
       collections: detectedScope.collections,
       subcategoryFilters: detectedScope.subcategoryFilters,
-      detectedPhrase: detectedScope.detectedPhrase ?? undefined,
-      documentTitleFilter: detectedScope.documentTitleFilter ?? undefined,
+      ...(detectedScope.detectedPhrase && { detectedPhrase: detectedScope.detectedPhrase }),
+      ...(detectedScope.documentTitleFilter && {
+        documentTitleFilter: detectedScope.documentTitleFilter,
+      }),
     };
     const effectiveCollectionIds = documentScope.detectedPhrase
       ? documentScope.collections.filter((c) =>
@@ -298,8 +305,12 @@ export class NotebookQAService {
     const documentScope: DocumentScope = {
       collections: detectedScopeSingle.collections,
       subcategoryFilters: detectedScopeSingle.subcategoryFilters,
-      detectedPhrase: detectedScopeSingle.detectedPhrase ?? undefined,
-      documentTitleFilter: detectedScopeSingle.documentTitleFilter ?? undefined,
+      ...(detectedScopeSingle.detectedPhrase && {
+        detectedPhrase: detectedScopeSingle.detectedPhrase,
+      }),
+      ...(detectedScopeSingle.documentTitleFilter && {
+        documentTitleFilter: detectedScopeSingle.documentTitleFilter,
+      }),
     };
     const effectiveFilters: RequestFilters = {
       ...documentScope.subcategoryFilters,
@@ -475,8 +486,10 @@ export class NotebookQAService {
     const documentScope: DocumentScope = {
       collections: detectedScope.collections,
       subcategoryFilters: detectedScope.subcategoryFilters,
-      detectedPhrase: detectedScope.detectedPhrase ?? undefined,
-      documentTitleFilter: detectedScope.documentTitleFilter ?? undefined,
+      ...(detectedScope.detectedPhrase && { detectedPhrase: detectedScope.detectedPhrase }),
+      ...(detectedScope.documentTitleFilter && {
+        documentTitleFilter: detectedScope.documentTitleFilter,
+      }),
     };
 
     const effectiveCollectionIds = documentScope.detectedPhrase
@@ -569,8 +582,12 @@ export class NotebookQAService {
     const documentScope: DocumentScope = {
       collections: detectedScopeSingle.collections,
       subcategoryFilters: detectedScopeSingle.subcategoryFilters,
-      detectedPhrase: detectedScopeSingle.detectedPhrase ?? undefined,
-      documentTitleFilter: detectedScopeSingle.documentTitleFilter ?? undefined,
+      ...(detectedScopeSingle.detectedPhrase && {
+        detectedPhrase: detectedScopeSingle.detectedPhrase,
+      }),
+      ...(detectedScopeSingle.documentTitleFilter && {
+        documentTitleFilter: detectedScopeSingle.documentTitleFilter,
+      }),
     };
     const effectiveFilters: RequestFilters = {
       ...documentScope.subcategoryFilters,
@@ -697,7 +714,7 @@ export class NotebookQAService {
       });
 
       const expanded = expandResultsToChunks(
-        (resp.results as unknown as Parameters<typeof expandResultsToChunks>[0]) || [],
+        (resp.results as unknown as SearchResultInput[]) || [],
         collectionId,
         config.name
       );
@@ -793,7 +810,7 @@ export class NotebookQAService {
   }: InternalSearchOptions): Promise<any[]> {
     const resp = await documentSearchService.search({
       query,
-      userId: userId ?? undefined,
+      ...(userId != null && { userId }),
       options: {
         documentIds,
         limit: searchParams.limit,

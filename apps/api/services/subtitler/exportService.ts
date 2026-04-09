@@ -89,8 +89,8 @@ async function getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
         duration: parseFloat(metadata.format.duration || '0') || 0,
         rotation: String(rotationDegrees),
         originalFormat: {
-          codec: videoStream?.codec_name,
-          audioCodec: audioStream?.codec_name,
+          ...(videoStream?.codec_name && { codec: videoStream.codec_name }),
+          ...(audioStream?.codec_name && { audioCodec: audioStream.codec_name }),
           audioBitrate: audioStream?.bit_rate ? parseInt(audioStream.bit_rate) / 1000 : null,
           videoBitrate: videoStream?.bit_rate ? parseInt(videoStream.bit_rate) : null,
         },
@@ -251,20 +251,28 @@ async function processProjectExport(
 
     const useHwAccel = await hwaccel.detectVaapi();
 
+    const originalFormatObj = metadata.originalFormat
+      ? {
+          ...(metadata.originalFormat.codec ? { codec: metadata.originalFormat.codec } : {}),
+          ...(metadata.originalFormat.videoBitrate != null ? {
+            videoBitrate: metadata.originalFormat.videoBitrate,
+          } : {}),
+          ...(metadata.originalFormat.audioCodec ? { audioCodec: metadata.originalFormat.audioCodec } : {}),
+          ...(metadata.originalFormat.audioBitrate != null ? {
+            audioBitrate: metadata.originalFormat.audioBitrate,
+          } : {}),
+        }
+      : undefined;
+
+    const metadataObj: any = {
+      width: metadata.width,
+      height: metadata.height,
+      rotation: metadata.rotation,
+      ...(originalFormatObj ? { originalFormat: originalFormatObj } : {}),
+    };
+
     const { outputOptions, inputOptions } = buildFFmpegOutputOptions({
-      metadata: {
-        width: metadata.width,
-        height: metadata.height,
-        rotation: metadata.rotation,
-        originalFormat: metadata.originalFormat
-          ? {
-              codec: metadata.originalFormat.codec,
-              videoBitrate: metadata.originalFormat.videoBitrate ?? undefined,
-              audioCodec: metadata.originalFormat.audioCodec,
-              audioBitrate: metadata.originalFormat.audioBitrate ?? undefined,
-            }
-          : undefined,
-      },
+      metadata: metadataObj,
       fileStats,
       useHwAccel,
       includeTune: true,

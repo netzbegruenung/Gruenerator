@@ -31,10 +31,10 @@ export interface CrawledUrlAttachment extends BaseAttachment {
   type: 'crawled_url';
   content: string;
   url: string;
-  displayUrl?: string;
+  displayUrl?: string | undefined;
   metadata?: {
-    wordCount?: number;
-    extractedAt?: string;
+    wordCount?: number | undefined;
+    extractedAt?: string | undefined;
   };
 }
 
@@ -49,9 +49,9 @@ export type Attachment = FileAttachment | CrawledUrlAttachment;
 export interface ImageAttachment {
   type: 'image/jpeg' | 'image/jpg' | 'image/png' | 'image/webp' | 'image/gif';
   data: string; // Base64 or data URL
-  name?: string;
-  size?: number;
-  source?: string;
+  name?: string | undefined;
+  size?: number | undefined;
+  source?: string | undefined;
 }
 
 // ============================================================================
@@ -66,7 +66,7 @@ export interface AttachmentProcessingResult {
   summary: AttachmentSummary | null;
   validated: boolean;
   error: string | null;
-  documents?: ClaudeDocument[];
+  documents?: ClaudeDocument[] | undefined;
 }
 
 /**
@@ -139,10 +139,10 @@ export interface ClaudeDocument {
   type: 'text' | 'image' | 'document';
   source: {
     type: 'base64' | 'text';
-    media_type?: string;
-    data?: string;
-    text?: string;
-    metadata?: Record<string, unknown>;
+    media_type?: string | undefined;
+    data?: string | undefined;
+    text?: string | undefined;
+    metadata?: Record<string, unknown> | undefined;
   };
 }
 

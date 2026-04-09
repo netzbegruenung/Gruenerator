@@ -14,6 +14,7 @@ import { PrivacyCounter } from '../../services/counters/index.js';
 import {
   localizePromptObject,
   extractLocaleFromRequest,
+  type RequestWithLocale,
 } from '../../services/localization/index.js';
 import { selectProviderAndModel } from '../../services/providers/providerSelector.js';
 import { createLogger } from '../../utils/logger.js';
@@ -114,7 +115,7 @@ export async function processGraphRequestStreaming(
 
     // Load configuration and localize
     const baseConfig = loadPromptConfig(routeType);
-    const userLocale = extractLocaleFromRequest(req);
+    const userLocale = extractLocaleFromRequest(req as RequestWithLocale);
     const config = localizePromptObject(baseConfig, userLocale);
 
     // Validate request
@@ -133,8 +134,7 @@ export async function processGraphRequestStreaming(
     }
 
     // Handle custom_generator special case
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let generatorData: any = null;
+    let generatorData: Record<string, unknown> | null = null;
     if (config.features?.customPromptFromDb) {
       generatorData = await loadCustomGeneratorPrompt(requestData.slug);
     }
@@ -180,7 +180,9 @@ export async function processGraphRequestStreaming(
       req
     );
 
-    enrichedState.requestFormatted = requestContent;
+    if (typeof requestContent === 'string') {
+      enrichedState.requestFormatted = requestContent;
+    }
     if (config.tools) {
       enrichedState.tools = config.tools;
     }
@@ -230,7 +232,8 @@ export async function processGraphRequestStreaming(
 
     // Explicit provider + model override (from request data, e.g. playground)
     if (requestData.provider) {
-      effectiveProvider = requestData.provider;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      effectiveProvider = requestData.provider as any;
     }
     if (requestData.model) {
       effectiveModel = requestData.model;

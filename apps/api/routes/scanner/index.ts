@@ -58,7 +58,7 @@ router.post(
   '/extract',
   authMiddleware.requireAuth,
   upload.single('file'),
-  async (req: MulterRequest, res: Response<ScannerResponse>): Promise<void> => {
+  (async (req: MulterRequest & Request, res: Response<ScannerResponse>) => {
     const startTime = Date.now();
     let tempFilePath: string | null = null;
 
@@ -152,7 +152,7 @@ router.post(
         }
       }
     }
-  }
+  }) as any
 );
 
 export default router;

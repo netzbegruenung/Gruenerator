@@ -273,12 +273,12 @@ async function generateSharepicImage(
     success: true,
     agent: 'imagine_sharepic',
     content: {
-      text: `Hier ist dein KI-Sharepic mit dem Titel "${title}".`,
+      text: `Hier ist dein KI-Sharepic mit dem Titel "${title || ''}".`,
       type: 'imagine',
       sharepic: {
         image: base64,
         type: 'imagine_sharepic',
-        title: title,
+        ...(title != null && { title }),
       },
       metadata: {
         mode: 'sharepic',

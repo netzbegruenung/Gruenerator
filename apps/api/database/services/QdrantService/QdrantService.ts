@@ -83,7 +83,7 @@ import type { CollectionNames, CollectionKey, CollectionStats } from './types.js
 
 const log = createLogger('Qdrant');
 
-dotenv.config({ path: undefined });
+dotenv.config();
 
 /**
  * Qdrant Vector Database Service
@@ -161,6 +161,10 @@ export class QdrantService {
 
       if (!apiKey || apiKey.trim() === '') {
         throw new Error('QDRANT_API_KEY environment variable is required but not set or empty');
+      }
+
+      if (!qdrantUrl) {
+        throw new Error('QDRANT_URL environment variable is required but not set');
       }
 
       log.debug(`Connecting to ${qdrantUrl}`);

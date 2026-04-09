@@ -42,17 +42,17 @@ export interface ResourceLimitConfig {
  * Rate limit check status
  */
 export interface RateLimitStatus {
-  count?: number;
-  limit?: number;
-  remaining?: number;
+  count?: number | undefined;
+  limit?: number | undefined;
+  remaining?: number | undefined;
   canGenerate: boolean;
   unlimited: boolean;
-  resourceType?: string;
-  userType?: string;
-  window?: string;
-  identifier?: string;
-  error?: boolean;
-  development?: boolean;
+  resourceType?: string | undefined;
+  userType?: string | undefined;
+  window?: string | undefined;
+  identifier?: string | undefined;
+  error?: boolean | undefined;
+  development?: boolean | undefined;
 }
 
 /**
@@ -60,16 +60,16 @@ export interface RateLimitStatus {
  */
 export interface RateLimitIncrementResult {
   success: boolean;
-  count?: number;
-  limit?: number;
-  remaining?: number;
-  canGenerate?: boolean;
-  resourceType?: string;
-  userType?: string;
-  window?: string;
-  unlimited?: boolean;
-  limitReached?: boolean;
-  error?: boolean;
+  count?: number | undefined;
+  limit?: number | undefined;
+  remaining?: number | undefined;
+  canGenerate?: boolean | undefined;
+  resourceType?: string | undefined;
+  userType?: string | undefined;
+  window?: string | undefined;
+  unlimited?: boolean | undefined;
+  limitReached?: boolean | undefined;
+  error?: boolean | undefined;
 }
 
 /**
@@ -77,10 +77,10 @@ export interface RateLimitIncrementResult {
  */
 export interface OAuthStateData {
   userId: string;
-  codeVerifier?: string;
-  returnUrl?: string;
-  createdAt?: number;
-  expiresAt?: number;
+  codeVerifier?: string | undefined;
+  returnUrl?: string | undefined;
+  createdAt?: number | undefined;
+  expiresAt?: number | undefined;
   [key: string]: unknown;
 }
 
@@ -90,8 +90,8 @@ export interface OAuthStateData {
 export interface OAuthStats {
   available: boolean;
   count: number;
-  connected?: boolean;
-  error?: string;
+  connected?: boolean | undefined;
+  error?: string | undefined;
 }
 
 /**
@@ -101,7 +101,7 @@ export interface DesktopOAuthStateData {
   state_id: string;
   code_challenge: string;
   code_challenge_method: 'S256';
-  user_agent?: string;
+  user_agent?: string | undefined;
   created_at: number;
   expires_at: number;
 }
@@ -118,9 +118,9 @@ export interface CacheEntry<T = unknown> {
  * LRU Cache options
  */
 export interface CacheOptions {
-  name?: string;
-  maxSize?: number;
-  ttl?: number;
+  name?: string | undefined;
+  maxSize?: number | undefined;
+  ttl?: number | undefined;
 }
 
 /**
@@ -146,8 +146,8 @@ export interface RequestWithUser {
   user?: {
     id: string;
   };
-  sessionID?: string;
-  ip?: string;
+  sessionID?: string | undefined;
+  ip?: string | undefined;
   headers: {
     [key: string]: string | string[] | undefined;
   };

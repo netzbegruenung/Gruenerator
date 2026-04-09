@@ -3,12 +3,14 @@
  * Combined router for AI chat streaming, threads, and messages
  */
 
-import express from 'express';
+import express, { type Request, type Response } from 'express';
 
 import {
   extractLocaleFromRequest,
   localizePlaceholders,
+  type RequestWithLocale,
 } from '../../services/localization/index.js';
+import { getParam } from '../../utils/params.js';
 
 import { getAgent, loadAgents, getDefaultAgentId } from './agents/agentLoader.js';
 import chatStreamRouter from './chatStreamController.js';
@@ -31,11 +33,11 @@ router.use('/generate-system-prompt', promptGeneratorRouter);
 router.use('/confirm', confirmRouter);
 router.use('/search', searchRouter);
 
-router.get('/agents', async (req, res) => {
+router.get('/agents', (async (req: Request & RequestWithLocale, res: Response) => {
   try {
     const agents = await loadAgents();
     const defaultId = getDefaultAgentId();
-    const locale = extractLocaleFromRequest(req);
+    const locale = extractLocaleFromRequest(req as Request & RequestWithLocale);
     const clientAgents = agents
       .filter((agent) => agent.identifier !== defaultId)
       .map((agent) => ({
@@ -55,15 +57,16 @@ router.get('/agents', async (req, res) => {
     console.error('Error loading agents:', error);
     res.status(500).json({ error: 'Failed to load agents' });
   }
-});
+}) as any);
 
-router.get('/agents/:identifier', async (req, res) => {
+router.get('/agents/:identifier', (async (req: Request & RequestWithLocale, res: Response) => {
   try {
-    const agent = await getAgent(req.params.identifier);
+    const identifier = getParam(req.params, 'identifier');
+    const agent = await getAgent(identifier);
     if (!agent) {
       return res.status(404).json({ error: 'Agent not found' });
     }
-    const locale = extractLocaleFromRequest(req);
+    const locale = extractLocaleFromRequest(req as Request & RequestWithLocale);
     res.json({
       identifier: agent.identifier,
       title: agent.title,
@@ -77,7 +80,7 @@ router.get('/agents/:identifier', async (req, res) => {
     console.error('Error loading agent:', error);
     res.status(500).json({ error: 'Failed to load agent' });
   }
-});
+}) as any);
 
 router.get('/health', (_req, res) => {
   res.json({

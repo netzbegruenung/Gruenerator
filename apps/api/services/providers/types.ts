@@ -5,18 +5,18 @@ export type ProviderName = 'ionos' | 'litellm' | 'mistral' | 'regolo';
 export type ModelName = string;
 
 export interface ProviderOptions {
-  provider?: ProviderName;
-  model?: ModelName;
-  useUltraMode?: boolean;
-  useProMode?: boolean;
-  privacyMode?: boolean;
-  disableExternalProviders?: boolean;
-  explicitProvider?: ProviderName;
+  provider?: ProviderName | undefined;
+  model?: ModelName | undefined;
+  useUltraMode?: boolean | undefined;
+  useProMode?: boolean | undefined;
+  privacyMode?: boolean | undefined;
+  disableExternalProviders?: boolean | undefined;
+  explicitProvider?: ProviderName | undefined;
 }
 
 export interface RequestMetadata {
-  privacyMode?: boolean;
-  requiresPrivacy?: boolean;
+  privacyMode?: boolean | undefined;
+  requiresPrivacy?: boolean | undefined;
 }
 
 export interface ProviderResult {
@@ -25,7 +25,7 @@ export interface ProviderResult {
 }
 
 export interface PrivacyProviderData {
-  type?: string;
+  type?: string | undefined;
   options: ProviderOptions;
   [key: string]: unknown;
 }
@@ -36,7 +36,7 @@ export type ProviderExecutor = (
 ) => Promise<ExecutionResponse>;
 
 export interface ExecutionResponse {
-  content?: unknown;
-  stop_reason?: string;
+  content?: unknown | undefined;
+  stop_reason?: string | undefined;
   [key: string]: unknown;
 }

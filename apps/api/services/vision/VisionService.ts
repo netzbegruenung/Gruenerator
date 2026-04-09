@@ -11,10 +11,10 @@ const DEFAULT_VISION_PROVIDER: ProviderName = 'regolo';
 const DEFAULT_VISION_MODEL = process.env.VISION_DEFAULT_MODEL || 'gemma4-31b';
 
 export interface VisionOptions {
-  provider?: ProviderName;
-  model?: string;
-  maxTokens?: number;
-  temperature?: number;
+  provider?: ProviderName | undefined;
+  model?: string | undefined;
+  maxTokens?: number | undefined;
+  temperature?: number | undefined;
 }
 
 export interface TextDetectionResult {
@@ -201,7 +201,7 @@ export class VisionService {
         description,
         textDetection,
         extractedText: ocrResult?.text || null,
-        ocrMethod: ocrResult?.method,
+        ...(ocrResult?.method && { ocrMethod: ocrResult.method }),
       };
     }
 

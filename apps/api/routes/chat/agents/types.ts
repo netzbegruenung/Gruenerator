@@ -9,19 +9,19 @@
  */
 export interface ToolRestrictions {
   /** Restrict gruenerator_search to specific collections */
-  allowedCollections?: string[];
+  allowedCollections?: string[] | undefined;
   /** Default collection when not specified in query */
-  defaultCollection?: string;
+  defaultCollection?: string | undefined;
   /** Filter social media examples by country (DE = Germany, AT = Austria) */
-  examplesCountry?: 'DE' | 'AT';
+  examplesCountry?: 'DE' | 'AT' | undefined;
   /** Disable person search tool (e.g., no Austrian politician DB exists) */
-  personSearchEnabled?: boolean;
+  personSearchEnabled?: boolean | undefined;
 }
 
 export interface FewShotExample {
   input: string;
   output: string;
-  reasoning?: string;
+  reasoning?: string | undefined;
 }
 
 export interface AgentConfig {
@@ -33,7 +33,7 @@ export interface AgentConfig {
   backgroundColor: string;
   tags: string[];
   model: string;
-  defaultModel?: string;
+  defaultModel?: string | undefined;
   provider: 'mistral' | 'anthropic' | 'litellm' | 'regolo';
   params: {
     max_tokens: number;
@@ -43,15 +43,15 @@ export interface AgentConfig {
   openingQuestions: string[];
   locale: string;
   author: string;
-  plugins?: string[];
+  plugins?: string[] | undefined;
   /** Tool restrictions for per-agent collection/country filtering */
-  toolRestrictions?: ToolRestrictions;
+  toolRestrictions?: ToolRestrictions | undefined;
   /** Whitelist of tool registry keys this agent can use. undefined = all tools. */
-  enabledTools?: string[];
+  enabledTools?: string[] | undefined;
   /** Few-shot examples injected into the system prompt to guide output quality */
-  fewShotExamples?: FewShotExample[];
+  fewShotExamples?: FewShotExample[] | undefined;
   /** Runtime-only: set by controller, not by agent YAML files */
-  userId?: string;
+  userId?: string | undefined;
 }
 
 export interface Thread {

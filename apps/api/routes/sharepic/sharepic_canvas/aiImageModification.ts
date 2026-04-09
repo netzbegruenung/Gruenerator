@@ -38,9 +38,9 @@ interface FlattenedParams {
   sunflowerPosition: string;
   balkenGruppenOffset_x: number;
   balkenGruppenOffset_y: number;
-  text_0?: string;
-  text_1?: string;
-  text_2?: string;
+  text_0?: string | undefined;
+  text_1?: string | undefined;
+  text_2?: string | undefined;
 }
 
 interface ImageModificationRequest {

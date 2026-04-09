@@ -173,7 +173,16 @@ export class PostgresService {
   }
 
   async createDatabaseIfNotExists(): Promise<void> {
-    await createDatabaseIfNotExists(this.config);
+    const { host, port, user, password, database, ssl, connectionString } = this.config;
+    await createDatabaseIfNotExists({
+      ...(host != null ? { host } : {}),
+      ...(port != null ? { port } : {}),
+      ...(user != null ? { user } : {}),
+      ...(password != null ? { password } : {}),
+      ...(database != null ? { database } : {}),
+      ...(ssl != null ? { ssl } : {}),
+      ...(connectionString != null ? { connectionString } : {}),
+    });
   }
 
   async testConnection(): Promise<void> {
@@ -616,7 +625,7 @@ export class PostgresService {
 
   async getStats(): Promise<DatabaseStats> {
     try {
-      const stats = await this.query(`
+      const stats = await this.query<DatabaseStats['tables'][number]>(`
         SELECT
           schemaname,
           tablename,
@@ -634,7 +643,7 @@ export class PostgresService {
       `);
 
       return {
-        tables: stats as unknown as DatabaseStats['tables'],
+        tables: stats,
         database_size: (dbSize?.size as string) || 'unknown',
         connections: {
           totalCount: this.pool?.totalCount || 0,
@@ -716,7 +725,7 @@ export class PostgresService {
         LIMIT $1
       `;
 
-      return (await this.query(sql, [limit])) as unknown as RouteUsageStat[];
+      return await this.query<RouteUsageStat>(sql, [limit]);
     } catch (error) {
       console.error('[PostgresService] Failed to get route stats:', error);
       return [];

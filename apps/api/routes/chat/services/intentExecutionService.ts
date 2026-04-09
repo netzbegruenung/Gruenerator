@@ -28,7 +28,7 @@ import { pendingActionStore } from './pendingActionStore.js';
 import { PROGRESS_MESSAGES } from './sseHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 
-import type { SSEWriter } from './sseHelpers.js';
+import type { SSEWriter, SearchResultPayload } from './sseHelpers.js';
 import type {
   ChatGraphState,
   GeneratedImageResult,
@@ -75,7 +75,7 @@ export async function handleBoardCreation(opts: {
         messages: [{ role: 'user', content: lastUserText }],
         options: { temperature: 0.7, max_tokens: 2000 },
       },
-      req
+      req as Express.Request & { user?: { id?: string }; sessionID?: string }
     );
 
     const boardStructure =
@@ -189,7 +189,7 @@ export async function generateAndCreateDocument(opts: {
         messages: [{ role: 'user', content: userMessage }],
         options: { temperature: 0.7, max_tokens: 4000 },
       },
-      req
+      req as Express.Request & { user?: { id?: string }; sessionID?: string }
     );
 
     const generated =
@@ -264,7 +264,7 @@ export async function handleShareDoc(opts: {
   classifiedState: ChatGraphState;
   actualThreadId: string;
   userId: string;
-  lastUserMessage: ModelMessage | undefined;
+  lastUserMessage?: ModelMessage;
   rawDocMentionIds?: string[];
   rawDocumentChatIds?: string[];
 }): Promise<boolean> {
@@ -592,7 +592,7 @@ export async function executeIntentPipeline(opts: {
 
         sse.send('search_start', {
           message: PROGRESS_MESSAGES.searchStart,
-          subQueries: finalState.subQueries?.length ? finalState.subQueries : undefined,
+          ...(finalState.subQueries?.length && { subQueries: finalState.subQueries }),
         });
         const searchResult = await searchNode(searchInputState);
         finalState = { ...searchInputState, ...searchResult } as ChatGraphState;
@@ -606,10 +606,20 @@ export async function executeIntentPipeline(opts: {
         }
 
         const resultCount = finalState.searchResults?.length || 0;
+        const payloadResults = finalState.searchResults?.slice(0, 10).map((r) => {
+          const result: SearchResultPayload = {
+            source: r.source,
+            title: r.title,
+            content: r.content,
+          };
+          if (r.url != null) result.url = r.url;
+          if (r.relevance != null) result.relevance = r.relevance;
+          return result;
+        }) || [];
         sse.send('search_complete', {
           message: PROGRESS_MESSAGES.searchComplete(resultCount),
           resultCount,
-          results: finalState.searchResults?.slice(0, 10) || [],
+          results: payloadResults,
         });
       }
     }

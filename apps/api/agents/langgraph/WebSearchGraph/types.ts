@@ -24,8 +24,8 @@ export interface SearchResult {
   title: string;
   content: string;
   snippet: string;
-  domain?: string;
-  score?: number;
+  domain?: string | undefined;
+  score?: number | undefined;
   [key: string]: unknown;
 }
 
@@ -37,7 +37,7 @@ export interface WebSearchBatch {
   results: SearchResult[];
   provider: 'searxng' | 'mistral';
   success: boolean;
-  error?: string;
+  error?: string | undefined;
 }
 
 /**
@@ -63,20 +63,20 @@ export interface CrawlDecision {
  * Enriched result with crawled content
  */
 export interface EnrichedResult extends SearchResult {
-  crawled?: boolean;
-  fullContent?: string;
-  keyParagraphs?: string;
-  crawlError?: string;
+  crawled?: boolean | undefined;
+  fullContent?: string | undefined;
+  keyParagraphs?: string | undefined;
+  crawlError?: string | undefined;
 }
 
 /**
  * Categorized sources
  */
 export interface CategorizedSources {
-  official?: SearchResult[];
-  news?: SearchResult[];
-  academic?: SearchResult[];
-  other?: SearchResult[];
+  official?: SearchResult[] | undefined;
+  news?: SearchResult[] | undefined;
+  academic?: SearchResult[] | undefined;
+  other?: SearchResult[] | undefined;
   [key: string]: SearchResult[] | undefined;
 }
 
@@ -89,20 +89,20 @@ export interface ResearchDossier {
   detailedAnalysis: string;
   methodology: string;
   sources: SearchResult[];
-  grundsatzPosition?: string;
-  recommendations?: string;
+  grundsatzPosition?: string | undefined;
+  recommendations?: string | undefined;
 }
 
 /**
  * Search options for configuring search behavior
  */
 export interface SearchOptions {
-  maxResults?: number;
-  language?: string;
-  engines?: string[];
+  maxResults?: number | undefined;
+  language?: string | undefined;
+  engines?: string[] | undefined;
   categories?: string; // Comma-separated string (e.g., 'general,news') - matches SearxngSearchOptions
-  time_range?: string;
-  safesearch?: number;
+  time_range?: string | undefined;
+  safesearch?: number | undefined;
 }
 
 /**
@@ -110,11 +110,11 @@ export interface SearchOptions {
  */
 export interface CrawlMetadata {
   // Core metrics
-  totalUrls?: number;
-  crawledUrls?: number;
-  skippedUrls?: number;
-  failedUrls?: number;
-  strategy?: string;
+  totalUrls?: number | undefined;
+  crawledUrls?: number | undefined;
+  skippedUrls?: number | undefined;
+  failedUrls?: number | undefined;
+  strategy?: string | undefined;
 
   // Operational properties used by nodes
   crawledCount?: number; // ContentEnricherNode: successful crawl count
@@ -132,17 +132,17 @@ export interface CrawlMetadata {
  * Search metadata
  */
 export interface SearchMetadata {
-  startTime?: number;
-  searchMode?: string;
-  planningStrategy?: string;
-  queryOptimization?: boolean;
-  generatedQuestions?: number;
-  searchType?: string;
-  duration?: number;
-  totalResults?: number;
-  hasOfficialPosition?: boolean;
-  citationsEnabled?: boolean;
-  errorOccurred?: boolean;
+  startTime?: number | undefined;
+  searchMode?: string | undefined;
+  planningStrategy?: string | undefined;
+  queryOptimization?: boolean | undefined;
+  generatedQuestions?: number | undefined;
+  searchType?: string | undefined;
+  duration?: number | undefined;
+  totalResults?: number | undefined;
+  hasOfficialPosition?: boolean | undefined;
+  citationsEnabled?: boolean | undefined;
+  errorOccurred?: boolean | undefined;
   [key: string]: unknown;
 }
 
@@ -160,29 +160,29 @@ export interface WebSearchState {
   req: Request;
 
   // Intermediate state
-  subqueries?: string[];
-  webResults?: WebSearchBatch[];
-  grundsatzResults?: GrundsatzResult | null;
-  aggregatedResults?: SearchResult[];
-  categorizedSources?: CategorizedSources;
+  subqueries?: string[] | undefined;
+  webResults?: WebSearchBatch[] | undefined;
+  grundsatzResults?: GrundsatzResult | null | undefined;
+  aggregatedResults?: SearchResult[] | undefined;
+  categorizedSources?: CategorizedSources | undefined;
 
   // Citation support
-  referencesMap?: ReferencesMap;
-  citations?: Citation[];
-  citationSources?: Source[];
+  referencesMap?: ReferencesMap | undefined;
+  citations?: Citation[] | undefined;
+  citationSources?: Source[] | undefined;
 
   // Intelligent crawling support
-  crawlDecisions?: CrawlDecision[];
-  enrichedResults?: EnrichedResult[];
-  crawlMetadata?: CrawlMetadata;
+  crawlDecisions?: CrawlDecision[] | undefined;
+  enrichedResults?: EnrichedResult[] | undefined;
+  crawlMetadata?: CrawlMetadata | undefined;
 
   // Output
-  finalResults?: SearchResult[];
-  summary?: string;
-  dossier?: ResearchDossier | null;
+  finalResults?: SearchResult[] | undefined;
+  summary?: string | undefined;
+  dossier?: ResearchDossier | null | undefined;
   metadata: SearchMetadata;
-  success?: boolean;
-  error?: string;
+  success?: boolean | undefined;
+  error?: string | undefined;
 }
 
 /**
@@ -190,9 +190,9 @@ export interface WebSearchState {
  */
 export interface WebSearchInput {
   query: string;
-  mode?: 'normal' | 'deep';
-  user_id?: string;
-  searchOptions?: SearchOptions;
+  mode?: 'normal' | 'deep' | undefined;
+  user_id?: string | undefined;
+  searchOptions?: SearchOptions | undefined;
   aiWorkerPool: AIWorkerPool;
   req: Request;
 }
@@ -204,12 +204,12 @@ export interface NormalSearchOutput {
   status: 'success' | 'error';
   query: string;
   results: SearchResult[];
-  summary?: string;
+  summary?: string | undefined;
   citations: Citation[];
   citationSources: Source[];
   metadata: SearchMetadata;
-  message?: string;
-  error?: string;
+  message?: string | undefined;
+  error?: string | undefined;
 }
 
 /**
@@ -226,8 +226,8 @@ export interface DeepSearchOutput {
   citations: Citation[];
   citationSources: Source[];
   metadata: SearchMetadata;
-  message?: string;
-  error?: string;
+  message?: string | undefined;
+  error?: string | undefined;
 }
 
 /**

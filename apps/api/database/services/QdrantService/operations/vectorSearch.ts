@@ -64,7 +64,7 @@ export async function vectorSearch(
       score_threshold: threshold,
       with_payload: withPayload,
       with_vector: withVector,
-      params: ef && ef > 0 ? { ef } : undefined,
+      ...(ef && ef > 0 && { params: { ef } }),
     };
 
     logger.info(
@@ -72,7 +72,7 @@ export async function vectorSearch(
     );
     logger.info(`DEBUG - filter: ${JSON.stringify(sanitizedFilter)}`);
 
-    const results = await client.search(collection, searchOptions);
+    const results = await client.search(collection, searchOptions as any);
 
     // If no results, try without threshold to see if it's a threshold issue
     if (results.length === 0) {
@@ -80,7 +80,7 @@ export async function vectorSearch(
         ...searchOptions,
         score_threshold: 0.0,
         limit: 3,
-      });
+      } as any);
       if (noThresholdResults.length > 0) {
         logger.warn(
           `DEBUG - Found ${noThresholdResults.length} results WITHOUT threshold! Top scores: ${noThresholdResults.map((r) => r.score.toFixed(4)).join(', ')}`

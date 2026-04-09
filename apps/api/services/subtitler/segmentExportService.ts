@@ -101,8 +101,8 @@ async function getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
     fps: parseFrameRate(videoStream?.r_frame_rate || '30/1'),
     rotation: String(rotationDegrees),
     originalFormat: {
-      codec: videoStream?.codec_name,
-      audioCodec: audioStream?.codec_name,
+      ...(videoStream?.codec_name && { codec: videoStream.codec_name }),
+      ...(audioStream?.codec_name && { audioCodec: audioStream.codec_name }),
       audioBitrate: audioStream?.bit_rate ? parseInt(audioStream.bit_rate) / 1000 : null,
       videoBitrate: videoStream?.bit_rate ? parseInt(videoStream.bit_rate) : null,
     },

@@ -235,13 +235,16 @@ export function checkForMissingInformation(
     ) {
       console.log(`[InformationRequestHandler] Missing required field: ${fieldKey}`);
 
-      return {
+      const result: MissingFieldInfo = {
         field: fieldConfig.field,
         fieldKey: fieldKey,
         displayName: fieldConfig.displayName,
         questions: fieldConfig.questions ?? [],
-        extractionPattern: fieldConfig.extractionPattern,
       };
+      if (fieldConfig.extractionPattern != null) {
+        result.extractionPattern = fieldConfig.extractionPattern;
+      }
+      return result;
     }
   }
 
@@ -292,18 +295,26 @@ export function createInformationRequest(
         fieldDisplayName: missingFieldInfo.displayName,
       },
     },
-    pendingRequest: {
-      type: 'missing_information',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      agent: classifiedIntent?.agent || (originalRequest as any).agent,
-      route: classifiedIntent?.route,
-      params: classifiedIntent?.params || {},
-      missingField: missingFieldInfo.field,
-      extractionPattern: missingFieldInfo.extractionPattern,
-      originalContext: originalRequest,
-      // Store complete classified intent for restoration
-      classifiedIntent: classifiedIntent || undefined,
-    },
+    pendingRequest: (() => {
+      const pr: PendingRequest = {
+        type: 'missing_information',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        agent: classifiedIntent?.agent || (originalRequest as any).agent,
+        params: classifiedIntent?.params || {},
+        missingField: missingFieldInfo.field,
+        originalContext: originalRequest,
+      };
+      if (classifiedIntent?.route != null) {
+        pr.route = classifiedIntent.route;
+      }
+      if (missingFieldInfo.extractionPattern != null) {
+        pr.extractionPattern = missingFieldInfo.extractionPattern;
+      }
+      if (classifiedIntent != null) {
+        pr.classifiedIntent = classifiedIntent;
+      }
+      return pr;
+    })(),
   };
 }
 
@@ -729,12 +740,16 @@ export function extractStructuredAnswers(
       case 'structure':
         structured.structure = answer;
         break;
-      case 'clarification':
-        structured.clarifications.push({
-          refersTo: q.refersTo,
+      case 'clarification': {
+        const clarification: { refersTo?: string; answer: string } = {
           answer: answer,
-        });
+        };
+        if (q.refersTo != null) {
+          clarification.refersTo = q.refersTo;
+        }
+        structured.clarifications.push(clarification);
         break;
+      }
       default:
         structured.clarifications.push(answer);
     }

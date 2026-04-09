@@ -137,8 +137,8 @@ function createMem0QdrantClient() {
   return createQdrantClient({
     url,
     apiKey,
-    basicAuthUsername,
-    basicAuthPassword,
+    ...(basicAuthUsername ? { basicAuthUsername } : {}),
+    ...(basicAuthPassword ? { basicAuthPassword } : {}),
     timeout: 60000,
   });
 }

@@ -112,8 +112,9 @@ export async function executeDirectSearch(params: {
 
   if (collectionDefault && userFilter) {
     // Merge both must arrays
+    const mergedMust = [...(collectionDefault.must || []), ...(userFilter.must || [])];
     additionalFilter = {
-      must: [...(collectionDefault.must || []), ...(userFilter.must || [])] as QdrantFilter['must'],
+      must: mergedMust as QdrantFilter['must'],
     };
   } else {
     additionalFilter = userFilter || collectionDefault;
@@ -207,7 +208,9 @@ export async function executeDirectSearch(params: {
       searchMethod: result.searchMethod || 'hybrid',
       contentType: result.top_chunks?.[0]?.content_type || result.content_type || undefined,
       documentId: result.document_id || undefined,
-      chunkIndex: result.chunk_index ?? result.top_chunks?.[0]?.chunk_index ?? undefined,
+      ...(result.chunk_index != null || result.top_chunks?.[0]?.chunk_index != null
+        ? { chunkIndex: result.chunk_index ?? result.top_chunks?.[0]?.chunk_index }
+        : {}),
       score: result.score || result.similarity || result.similarity_score || undefined,
       collectionId: collection,
     }));
@@ -285,9 +288,8 @@ export async function executeDirectExamplesSearch(params: {
         id: String(result.id),
         platform: result.platform || platform || 'unknown',
         content: truncateText(result.content || '', 500),
-        imageUrl: undefined,
-        author: result.source_account || undefined,
-        date: result.created_at || undefined,
+        ...(result.source_account && { author: result.source_account }),
+        ...(result.created_at && { date: result.created_at }),
       }));
 
       log.info(`[Direct Examples Search] Found ${examples.length} random examples`);
@@ -302,9 +304,8 @@ export async function executeDirectExamplesSearch(params: {
       id: String(result.id),
       platform: result.platform || platform || 'unknown',
       content: truncateText(result.content || '', 500),
-      imageUrl: undefined,
-      author: result.source_account || undefined,
-      date: result.created_at || undefined,
+      ...(result.source_account && { author: result.source_account }),
+      ...(result.created_at && { date: result.created_at }),
     }));
 
     log.info(`[Direct Examples Search] Found ${examples.length} examples`);

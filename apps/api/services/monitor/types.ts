@@ -47,9 +47,9 @@ export interface MonitorArticle {
   locale: MonitorLocale;
   topics: Partial<Record<TopicCategory, number>>;
   primaryTopic: TopicCategory | null;
-  topNouns?: NounCount[];
-  emotionScores?: EmotionScores;
-  erSentiment?: number;
+  topNouns?: NounCount[] | undefined;
+  emotionScores?: EmotionScores | undefined;
+  erSentiment?: number | undefined;
 }
 
 export interface KeywordEntry {
@@ -76,13 +76,13 @@ export interface MonitorSnapshot {
 }
 
 export interface EmotionScores {
-  angst?: number;
-  wut?: number;
-  hoffnung?: number;
-  enttaeuschung?: number;
-  vertrauen?: number;
-  solidaritaet?: number;
-  stolz?: number;
+  angst?: number | undefined;
+  wut?: number | undefined;
+  hoffnung?: number | undefined;
+  enttaeuschung?: number | undefined;
+  vertrauen?: number | undefined;
+  solidaritaet?: number | undefined;
+  stolz?: number | undefined;
 }
 
 export const EMOTION_NAMES: Record<string, string> = {

@@ -10,6 +10,7 @@
 
 import { chunkToNumericId } from '../../../database/services/QdrantService/utils.js';
 
+import type { HybridSearchMetadata } from '../../../database/services/QdrantService/operations/types.js';
 import type {
   ChunkWithMetadata,
   VectorMetadata,
@@ -135,7 +136,7 @@ export async function searchUserDocuments(
     if (hybridMode && query) {
       console.log(`[VectorOperations] Performing hybrid search for user ${userId}`);
 
-      const hybridResult = await qdrantOps.hybridSearch('documents', queryVector, query, filter, {
+      const hybridResult = await qdrantOps.hybridSearch('documents', queryVector, query, filter as any, {
         limit,
         threshold: scoreThreshold,
         ...hybridOptions,
@@ -152,7 +153,7 @@ export async function searchUserDocuments(
     } else {
       console.log(`[VectorOperations] Performing vector search for user ${userId}`);
 
-      const results = await qdrantOps.vectorSearch('documents', queryVector, filter, {
+      const results = await qdrantOps.vectorSearch('documents', queryVector, filter as any, {
         limit,
         threshold: scoreThreshold,
         withPayload: includePayload,
@@ -171,9 +172,7 @@ export async function searchUserDocuments(
     return {
       success: true,
       results: searchResult.results || [],
-      metadata: searchResult.metadata as
-        | { searchType: string; resultsCount: number; [key: string]: unknown }
-        | undefined,
+      ...(searchResult.metadata && { metadata: searchResult.metadata as { searchType: string; resultsCount: number; [key: string]: unknown } }),
       query: {
         userId,
         limit,
@@ -223,7 +222,7 @@ export async function deleteDocumentVectors(
       filter.must!.push({ key: 'user_id', match: { value: userId } });
     }
 
-    await qdrantOps.batchDelete('documents', filter);
+    await qdrantOps.batchDelete('documents', filter as any);
 
     console.log(`[VectorOperations] Deleted vectors for document ${documentId}`);
     return { success: true, documentId };
@@ -250,7 +249,7 @@ export async function deleteUserDocuments(
 ): Promise<DeleteResult> {
   try {
     const filter: QdrantFilter = { must: [{ key: 'user_id', match: { value: userId } }] };
-    await qdrantOps.batchDelete('documents', filter);
+    await qdrantOps.batchDelete('documents', filter as any);
 
     console.log(`[VectorOperations] Deleted all vectors for user ${userId}`);
     return { success: true, userId };
@@ -280,7 +279,7 @@ export async function getUserVectorStats(
   try {
     const filter: QdrantFilter = { must: [{ key: 'user_id', match: { value: userId } }] };
 
-    const documents = await qdrantOps.scrollDocuments('documents', filter, {
+    const documents = await qdrantOps.scrollDocuments('documents', filter as any, {
       limit: 1000,
       withPayload: true,
       withVector: false,

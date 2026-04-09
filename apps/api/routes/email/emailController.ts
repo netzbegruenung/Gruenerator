@@ -74,19 +74,19 @@ router.post('/send-content', async (req: AuthenticatedRequest, res: Response) =>
       attachmentContentType = attachment.contentType;
     }
 
-    const sent = await sendContentDeliveryEmail({
+    const params = {
       recipientEmail,
       contentTitle,
-      contentDescription,
-      attachment:
-        attachmentBuffer && attachmentFilename && attachmentContentType
-          ? {
-              filename: attachmentFilename,
-              content: attachmentBuffer,
-              contentType: attachmentContentType,
-            }
-          : undefined,
-    });
+      ...(contentDescription != null && { contentDescription }),
+      ...(attachmentBuffer && attachmentFilename && attachmentContentType && {
+        attachment: {
+          filename: attachmentFilename,
+          content: attachmentBuffer,
+          contentType: attachmentContentType,
+        },
+      }),
+    };
+    const sent = await sendContentDeliveryEmail(params);
 
     if (!sent) {
       return res.status(503).json({ error: 'Email service unavailable' });

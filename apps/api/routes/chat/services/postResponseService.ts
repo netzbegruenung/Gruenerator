@@ -25,6 +25,7 @@ import type {
   GeneratedImageResult,
   SearchSource,
 } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { ModelMessage } from 'ai';
 
 const log = createLogger('PostResponse');
 
@@ -81,7 +82,7 @@ export interface PersistParams {
   classifiedState: ChatGraphState;
   generatedImage: GeneratedImageResult | null;
   isNewThread: boolean;
-  lastUserMessage: { role: string; content: string | unknown[] };
+  lastUserMessage: ModelMessage;
   processedMeta: ProcessedAttachmentMeta[];
   aiWorkerPool: { processRequest: (request: unknown) => Promise<unknown> };
   requestId: string;

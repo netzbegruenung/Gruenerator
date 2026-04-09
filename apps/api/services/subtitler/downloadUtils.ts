@@ -213,18 +213,24 @@ async function processVideoExport(exportParams: ExportParams, res: Response): Pr
     );
     log.debug('Ausgabepfad:', outputPath);
 
-    const localMetadata: VideoMetadata = {
+    const originalFormatObj = metadata.originalFormat
+      ? {
+          ...(metadata.originalFormat.codec ? { codec: metadata.originalFormat.codec } : {}),
+          ...(metadata.originalFormat.audioCodec != null ? {
+            audioCodec: metadata.originalFormat.audioCodec,
+          } : {}),
+          ...(metadata.originalFormat.audioBitrate != null ? {
+            audioBitrate: metadata.originalFormat.audioBitrate,
+          } : {}),
+        }
+      : undefined;
+
+    const localMetadata: any = {
       width: metadata.width,
       height: metadata.height,
       duration: metadata.duration ?? 0,
       rotation: metadata.rotation,
-      originalFormat: metadata.originalFormat
-        ? {
-            codec: metadata.originalFormat.codec,
-            audioCodec: metadata.originalFormat.audioCodec ?? undefined,
-            audioBitrate: metadata.originalFormat.audioBitrate ?? undefined,
-          }
-        : undefined,
+      ...(originalFormatObj ? { originalFormat: originalFormatObj } : {}),
     };
     await processVideoWithSubtitles(
       inputPath,

@@ -205,7 +205,7 @@ export function buildIllustrationPrompt(
       subject: subject,
       action: action || config.defaultAction,
       style: `${config.style}, shot on Sony A7IV, 35mm lens, natural daylight`,
-      composition: config.composition,
+      ...(config.composition && { composition: config.composition }),
       mood: 'authentic, hopeful, community spirit',
       rendering: 'Real photograph. No illustration. Natural colors, genuine atmosphere.',
     };
@@ -216,7 +216,7 @@ export function buildIllustrationPrompt(
       subject: subject,
       action: action || config.defaultAction,
       style: `${config.style}, inspired by classic SNES and Genesis games`,
-      composition: config.composition,
+      ...(config.composition && { composition: config.composition }),
       color_palette: ['rich greens', 'warm earth tones', 'vibrant accents'],
       rendering:
         'Pure pixel art. Every pixel carefully placed. Dithering for gradients. Retro gaming masterpiece.',
@@ -227,7 +227,7 @@ export function buildIllustrationPrompt(
     subject: subject,
     action: action || config.defaultAction,
     style: `${config.style}, soft diffused lighting`,
-    composition: config.composition,
+    ...(config.composition ? { composition: config.composition } : {}),
     color_palette: ['muted forest green', 'soft sage green', 'warm cream'],
     rendering: 'Pure visual illustration. Wordless artistic scene. Soft edges, gentle atmosphere.',
   };

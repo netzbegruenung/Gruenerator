@@ -4,7 +4,7 @@
  */
 
 export interface DocumentLimits {
-  pageCount?: number;
+  pageCount?: number | undefined;
   fileSizeMB: number;
 }
 
@@ -13,13 +13,13 @@ export interface ParseabilityCheck {
   confidence: number;
   sampleText: string;
   stats: {
-    totalPages?: number;
-    sampledPages?: number;
-    pagesWithText?: number;
-    textDensity?: number;
-    pageSuccessRate?: number;
-    processingTimeMs?: number;
-    error?: string;
+    totalPages?: number | undefined;
+    sampledPages?: number | undefined;
+    pagesWithText?: number | undefined;
+    textDensity?: number | undefined;
+    pageSuccessRate?: number | undefined;
+    processingTimeMs?: number | undefined;
+    error?: string | undefined;
   };
 }
 
@@ -27,12 +27,12 @@ export interface ExtractionResult {
   text: string;
   pageCount: number;
   method: 'mistral-ocr' | 'docling' | 'direct' | 'pdfjs-dist';
-  confidence?: number;
+  confidence?: number | undefined;
   stats?: {
-    pages?: number;
-    successfulPages?: number;
-    processingTimeMs?: number;
-    method?: string;
+    pages?: number | undefined;
+    successfulPages?: number | undefined;
+    processingTimeMs?: number | undefined;
+    method?: string | undefined;
   };
 }
 
@@ -46,7 +46,7 @@ export interface DocumentExtractionResult extends ExtractionResult {
 export interface PageExtractionResult {
   success: boolean;
   text: string;
-  error?: string;
+  error?: string | undefined;
 }
 
 export interface PDFInfo {
@@ -60,23 +60,23 @@ export interface EmbeddingGenerationResult {
 
 export interface MistralOCRResponse {
   pages?: Array<{
-    markdown?: string;
-    text?: string;
+    markdown?: string | undefined;
+    text?: string | undefined;
   }>;
-  confidence?: number;
+  confidence?: number | undefined;
 }
 
 export interface MistralFileUploadResult {
-  id?: string;
+  id?: string | undefined;
   file?: { id?: string };
   data?: { id?: string };
 }
 
 export interface ProcessingMetadata {
-  method?: string;
-  textLength?: number;
-  processingTime?: number;
-  sourceType?: string;
-  title?: string | null;
-  filename?: string | null;
+  method?: string | undefined;
+  textLength?: number | undefined;
+  processingTime?: number | undefined;
+  sourceType?: string | undefined;
+  title?: string | null | undefined;
+  filename?: string | null | undefined;
 }

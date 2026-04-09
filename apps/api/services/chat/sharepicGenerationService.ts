@@ -44,8 +44,8 @@ interface AIWorkerPool {
 }
 
 interface ExpressRequest extends Request {
-  user?: UserProfile;
-  correlationId?: string;
+  user?: UserProfile | undefined;
+  correlationId?: string | undefined;
   app: Request['app'] & {
     locals?: {
       sharepicImageManager?: SharepicImageManager;
@@ -96,6 +96,7 @@ interface MainSlogan {
   line1?: string;
   line2?: string;
   line3?: string;
+  [key: string]: string | undefined;
 }
 
 interface SharepicResult {
@@ -387,7 +388,7 @@ const buildInfoCanvasPayload = ({
 }): { header?: string; body: string } => {
   const combinedBody = subheader && body ? `${subheader}. ${body}` : subheader || body || '';
   return {
-    header,
+    ...(header && { header }),
     body: combinedBody,
   };
 };
@@ -408,7 +409,11 @@ const generateInfoSharepic = async (
 
   const { payload: canvasPayload } = await callCanvasRoute(
     infoCanvasRouter,
-    buildInfoCanvasPayload({ header, subheader, body })
+    buildInfoCanvasPayload({
+      ...(header && { header }),
+      ...(subheader && { subheader }),
+      ...(body && { body }),
+    })
   );
 
   if (!canvasPayload?.image) {
@@ -426,9 +431,9 @@ const generateInfoSharepic = async (
         image: canvasPayload.image,
         type: 'info',
         text: `${header}\n${subheader || ''}\n${body || ''}`.trim(),
-        header,
-        subheader,
-        body,
+        ...(header && { header }),
+        ...(subheader && { subheader }),
+        ...(body && { body }),
         alternatives,
       },
       sharepicTitle: 'Sharepic Vorschau',
@@ -504,7 +509,7 @@ const _generateDreizeilenSharepic = async (
 
   const { payload: canvasPayload } = await callCanvasRoute(
     dreizeilenCanvasRouter,
-    mainSlogan as unknown as Record<string, unknown>
+    mainSlogan as Record<string, unknown>
   );
 
   if (!canvasPayload?.image) {
@@ -659,7 +664,7 @@ const generateDreizeilenWithImageSharepic = async (
 
     const { payload: canvasPayload } = await callCanvasRoute(
       dreizeilenCanvasRouter,
-      mockReq.body as unknown as Record<string, unknown>,
+      mockReq.body as Record<string, unknown>,
       mockReq.file as { buffer: Buffer; mimetype: string; originalname: string }
     );
 
@@ -736,7 +741,7 @@ const generateDreizeilenWithAIImageSharepic = async (
 
     const { payload: canvasPayload } = await callCanvasRoute(
       dreizeilenCanvasRouter,
-      mockReq.body as unknown as Record<string, unknown>,
+      mockReq.body as Record<string, unknown>,
       mockReq.file as { buffer: Buffer; mimetype: string; originalname: string }
     );
 
@@ -864,9 +869,9 @@ const generateCampaignSharepic = async (
       case 'dreizeilen': {
         const mainSlogan = textResponse.mainSlogan as MainSlogan;
         textData = {
-          line1: mainSlogan?.line1,
-          line2: mainSlogan?.line2,
-          line3: mainSlogan?.line3,
+          ...(mainSlogan?.line1 && { line1: mainSlogan.line1 }),
+          ...(mainSlogan?.line2 && { line2: mainSlogan.line2 }),
+          ...(mainSlogan?.line3 && { line3: mainSlogan.line3 }),
         };
         break;
       }
@@ -884,9 +889,9 @@ const generateCampaignSharepic = async (
           body?: string;
         };
         textData = {
-          header: mainInfo?.header,
-          subheader: mainInfo?.subheader,
-          body: mainInfo?.body,
+          ...(mainInfo?.header && { header: mainInfo.header }),
+          ...(mainInfo?.subheader && { subheader: mainInfo.subheader }),
+          ...(mainInfo?.body && { body: mainInfo.body }),
         };
         break;
       }

@@ -13,15 +13,15 @@ export type UserDocumentMode = 'manual' | 'wolke';
  */
 export interface DocumentMetadata {
   title: string;
-  filename?: string | null;
-  sourceType?: string;
-  wolkeShareLinkId?: string | null;
-  wolkeFilePath?: string | null;
-  wolkeEtag?: string | null;
-  vectorCount?: number;
-  fileSize?: number;
-  status?: string;
-  additionalMetadata?: Record<string, unknown> | null;
+  filename?: string | null | undefined;
+  sourceType?: string | undefined;
+  wolkeShareLinkId?: string | null | undefined;
+  wolkeFilePath?: string | null | undefined;
+  wolkeEtag?: string | null | undefined;
+  vectorCount?: number | undefined;
+  fileSize?: number | undefined;
+  status?: string | undefined;
+  additionalMetadata?: Record<string, unknown> | null | undefined;
 }
 
 /**
@@ -31,18 +31,18 @@ export interface DocumentRecord {
   id: string;
   user_id: string;
   title: string;
-  filename?: string | null;
+  filename?: string | null | undefined;
   source_type: string;
-  wolke_share_link_id?: string | null;
-  wolke_file_path?: string | null;
-  wolke_etag?: string | null;
+  wolke_share_link_id?: string | null | undefined;
+  wolke_file_path?: string | null | undefined;
+  wolke_etag?: string | null | undefined;
   vector_count: number;
   file_size: number;
   status: string;
-  metadata?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null | undefined;
   created_at: string;
   updated_at: string;
-  last_synced_at?: string | null;
+  last_synced_at?: string | null | undefined;
   [key: string]: unknown;
 }
 
@@ -50,12 +50,12 @@ export interface DocumentRecord {
  * Document update data
  */
 export interface DocumentUpdateData {
-  title?: string;
-  status?: string;
-  vectorCount?: number;
-  wolkeEtag?: string;
-  lastSyncedAt?: string;
-  additionalMetadata?: Record<string, unknown>;
+  title?: string | undefined;
+  status?: string | undefined;
+  vectorCount?: number | undefined;
+  wolkeEtag?: string | undefined;
+  lastSyncedAt?: string | undefined;
+  additionalMetadata?: Record<string, unknown> | undefined;
 }
 
 /**
@@ -114,5 +114,5 @@ export interface DeleteResult {
  * Document with text
  */
 export interface DocumentWithText extends DocumentRecord {
-  text?: string;
+  text?: string | undefined;
 }

@@ -24,7 +24,7 @@ function isValidHexColor(color: string): boolean {
   return /^#[0-9A-Fa-f]{6}$/.test(color);
 }
 
-router.post('/', upload.single('image'), async (req: MulterRequest, res: Response) => {
+router.post('/', upload.single('image'), (async (req: MulterRequest, res: Response) => {
   try {
     const imageBuffer = req.file?.buffer;
     const body = req.body as ProfilbildRequestBody;
@@ -78,6 +78,6 @@ router.post('/', upload.single('image'), async (req: MulterRequest, res: Respons
     log.error('Profilbild error:', error);
     return res.status(500).json({ error: 'Fehler beim Erstellen des Profilbilds' });
   }
-});
+}) as any);
 
 export default router;

@@ -36,7 +36,7 @@ router.post('/generate-social', async (req: SocialRequest, res: Response): Promi
       return;
     }
 
-    const locale = extractLocaleFromRequest(req);
+    const locale = extractLocaleFromRequest(req as any);
     const systemPrompt = localizePlaceholders(
       'Du bist Social Media Manager für {{partyName}}. Erstelle einen Instagram Reel Beitragstext basierend auf den Untertiteln des Videos. Der Text soll die Kernbotschaft des Videos aufgreifen und in einen ansprechenden Social Media Post umwandeln.',
       locale

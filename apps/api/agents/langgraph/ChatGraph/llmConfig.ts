@@ -47,10 +47,15 @@ export function getAgentLLM(config: AgentLLMConfig): ChatMistralAI {
     modelName = agentConfig.model;
   }
 
+  const apiKey = process.env.MISTRAL_API_KEY;
+  if (!apiKey) {
+    throw new Error('MISTRAL_API_KEY environment variable is not set');
+  }
+
   return new ChatMistralAI({
     model: modelName,
     temperature: agentConfig.params.temperature,
     maxTokens: agentConfig.params.max_tokens,
-    apiKey: process.env.MISTRAL_API_KEY,
+    apiKey,
   });
 }

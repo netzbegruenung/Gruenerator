@@ -42,6 +42,7 @@ function styleToVariant(style: ImageStyle): VariantKey {
 }
 
 export function createGenerateImageTool(deps: ToolDependencies): DynamicStructuredTool {
+    // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'generate_image',
     description:
@@ -55,8 +56,9 @@ export function createGenerateImageTool(deps: ToolDependencies): DynamicStructur
         .enum(['illustration', 'realistic', 'pixel'])
         .optional()
         .describe('Bildstil (Standard: wird aus Beschreibung erkannt)'),
-    }),
-    func: async ({ description, style: requestedStyle }) => {
+    }).describe('Bildgenerierung Tool'),
+    func: async (input: { description: string; style?: 'illustration' | 'realistic' | 'pixel' }) => {
+      const { description, style: requestedStyle } = input;
       const userId = deps.agentConfig.userId;
 
       if (!userId) {
@@ -69,7 +71,7 @@ export function createGenerateImageTool(deps: ToolDependencies): DynamicStructur
         return `Du hast dein tägliches Limit von ${limitStatus.limit} Bildern erreicht. Versuche es morgen wieder.`;
       }
 
-      const imageStyle = requestedStyle || detectStyle(description);
+      const imageStyle: ImageStyle = (requestedStyle || detectStyle(description)) as ImageStyle;
       const variant = styleToVariant(imageStyle);
 
       log.info(

@@ -28,28 +28,28 @@ export interface QdrantFilter {
   must?: Array<{
     key: string;
     match?: {
-      value?: string | number | boolean;
-      any?: Array<string | number>;
+      value?: string | number | boolean | undefined;
+      any?: Array<string | number> | undefined;
     };
     range?: {
-      gte?: number;
-      lte?: number;
-      gt?: number;
-      lt?: number;
+      gte?: number | undefined;
+      lte?: number | undefined;
+      gt?: number | undefined;
+      lt?: number | undefined;
     };
   }>;
   should?: Array<{
     key: string;
     match?: {
-      value?: string | number | boolean;
-      any?: Array<string | number>;
+      value?: string | number | boolean | undefined;
+      any?: Array<string | number> | undefined;
     };
   }>;
   must_not?: Array<{
     key: string;
     match?: {
-      value?: string | number | boolean;
-      any?: Array<string | number>;
+      value?: string | number | boolean | undefined;
+      any?: Array<string | number> | undefined;
     };
   }>;
 }
@@ -61,17 +61,17 @@ export interface QdrantFilter {
  */
 export interface DocumentSearchFilters extends SearchFilters {
   /** Filter by specific document IDs */
-  documentIds?: string[];
+  documentIds?: string[] | undefined;
   /** Filter by source type (e.g., 'manual', 'wolke') */
-  sourceType?: string;
+  sourceType?: string | undefined;
   /** Filter by group ID */
-  group_id?: string;
+  group_id?: string | undefined;
   /** Target collection for search (e.g., 'documents', 'grundsatz_documents') */
-  searchCollection?: string;
+  searchCollection?: string | undefined;
   /** Filter by exact title match */
-  titleFilter?: string;
+  titleFilter?: string | undefined;
   /** Additional Qdrant filters for custom queries */
-  additionalFilter?: QdrantFilter;
+  additionalFilter?: QdrantFilter | undefined;
 }
 
 /**
@@ -79,13 +79,13 @@ export interface DocumentSearchFilters extends SearchFilters {
  */
 export interface DocumentSearchOptions extends SearchOptions {
   /** Hybrid search configuration */
-  hybridConfig?: HybridConfig;
+  hybridConfig?: HybridConfig | undefined;
   /** Recall limit for initial retrieval */
-  recallLimit?: number;
+  recallLimit?: number | undefined;
   /** Minimum quality score threshold */
-  qualityMin?: number;
+  qualityMin?: number | undefined;
   /** Search mode: vector, hybrid, text, or keyword (alias for text) */
-  mode?: 'vector' | 'hybrid' | 'text' | 'keyword';
+  mode?: 'vector' | 'hybrid' | 'text' | 'keyword' | undefined;
 }
 
 /**
@@ -106,15 +106,15 @@ export interface DocumentSearchParams {
  * Hybrid search configuration from vectorConfig
  */
 export interface HybridConfig {
-  minVectorOnlyThreshold?: number;
-  minVectorWithTextThreshold?: number;
-  minFinalScore?: number;
-  minVectorOnlyFinalScore?: number;
-  confidenceBoost?: number;
-  confidencePenalty?: number;
-  enableDynamicThresholds?: boolean;
-  enableConfidenceWeighting?: boolean;
-  enableQualityGate?: boolean;
+  minVectorOnlyThreshold?: number | undefined;
+  minVectorWithTextThreshold?: number | undefined;
+  minFinalScore?: number | undefined;
+  minVectorOnlyFinalScore?: number | undefined;
+  confidenceBoost?: number | undefined;
+  confidencePenalty?: number | undefined;
+  enableDynamicThresholds?: boolean | undefined;
+  enableConfidenceWeighting?: boolean | undefined;
+  enableQualityGate?: boolean | undefined;
 }
 
 // ============ Vector Storage Types ============
@@ -124,7 +124,7 @@ export interface HybridConfig {
  */
 export interface ChunkWithMetadata {
   text: string;
-  tokens?: number;
+  tokens?: number | undefined;
 }
 
 /**
@@ -132,17 +132,17 @@ export interface ChunkWithMetadata {
  */
 export interface VectorMetadata {
   /** Source type identifier */
-  sourceType?: string;
+  sourceType?: string | undefined;
   /** Wolke share link identifier */
-  wolkeShareLinkId?: string | null;
+  wolkeShareLinkId?: string | null | undefined;
   /** Wolke file path */
-  wolkeFilePath?: string | null;
+  wolkeFilePath?: string | null | undefined;
   /** Document title */
-  title?: string | null;
+  title?: string | null | undefined;
   /** Document filename */
-  filename?: string | null;
+  filename?: string | null | undefined;
   /** Additional custom payload fields */
-  additionalPayload?: Record<string, unknown>;
+  additionalPayload?: Record<string, unknown> | undefined;
 }
 
 /**
@@ -170,19 +170,19 @@ export interface QdrantPoint {
  */
 export interface SearchUserDocumentsOptions {
   /** Maximum number of results */
-  limit?: number;
+  limit?: number | undefined;
   /** Minimum similarity score threshold */
-  scoreThreshold?: number;
+  scoreThreshold?: number | undefined;
   /** Filter by source type */
-  sourceType?: string | null;
+  sourceType?: string | null | undefined;
   /** Include full payload in results */
-  includePayload?: boolean;
+  includePayload?: boolean | undefined;
   /** Enable hybrid search mode */
-  hybridMode?: boolean;
+  hybridMode?: boolean | undefined;
   /** Query text for hybrid mode */
-  query?: string | null;
+  query?: string | null | undefined;
   /** Hybrid search options */
-  hybridOptions?: HybridOptions;
+  hybridOptions?: HybridOptions | undefined;
 }
 
 /**
@@ -193,7 +193,7 @@ export interface UserDocumentSearchResult {
   results: Array<{
     id: string | number;
     score: number;
-    payload?: Record<string, unknown>;
+    payload?: Record<string, unknown> | undefined;
   }>;
   metadata?: {
     searchType: string;
@@ -216,8 +216,8 @@ export interface UserDocumentSearchResult {
  */
 export interface DeleteResult {
   success: boolean;
-  documentId?: string;
-  userId?: string;
+  documentId?: string | undefined;
+  userId?: string | undefined;
 }
 
 // ============ Statistics Types ============
@@ -241,8 +241,8 @@ export interface DocumentFullTextResult {
   success: boolean;
   fullText: string;
   chunkCount: number;
-  totalCharsReconstructed?: number;
-  error?: string;
+  totalCharsReconstructed?: number | undefined;
+  error?: string | undefined;
 }
 
 /**
@@ -252,7 +252,7 @@ export interface DocumentChunkItem {
   index: number;
   text: string;
   tokens: number;
-  pageNumber?: number | null;
+  pageNumber?: number | null | undefined;
 }
 
 /**
@@ -262,7 +262,7 @@ export interface DocumentChunksResult {
   success: boolean;
   chunks: DocumentChunkItem[];
   chunkCount: number;
-  error?: string;
+  error?: string | undefined;
 }
 
 /**
@@ -298,7 +298,7 @@ export interface FirstChunksResult {
   success: boolean;
   chunks: Record<string, string>;
   foundCount: number;
-  error?: string;
+  error?: string | undefined;
 }
 
 // ============ Bundestag Search Types ============
@@ -308,13 +308,13 @@ export interface FirstChunksResult {
  */
 export interface BundestagSearchOptions {
   /** Filter by section */
-  section?: string | null;
+  section?: string | null | undefined;
   /** Maximum number of results */
-  limit?: number;
+  limit?: number | undefined;
   /** Minimum similarity threshold */
-  threshold?: number;
+  threshold?: number | undefined;
   /** Enable hybrid mode */
-  hybridMode?: boolean;
+  hybridMode?: boolean | undefined;
 }
 
 /**
@@ -344,11 +344,11 @@ export interface BundestagResultGroup {
 export interface BundestagSearchResult {
   success: boolean;
   results: BundestagResultGroup[];
-  query?: string;
-  searchType?: string;
-  totalHits?: number;
-  message?: string;
-  error?: string;
+  query?: string | undefined;
+  searchType?: string | undefined;
+  totalHits?: number | undefined;
+  message?: string | undefined;
+  error?: string | undefined;
 }
 
 // ============ Extended Chunk Types ============
@@ -357,11 +357,11 @@ export interface BundestagSearchResult {
  * Extended raw chunk with quality and URL fields
  */
 export interface DocumentRawChunk extends RawChunk {
-  quality_score?: number | null;
-  url?: string;
-  searchMethod?: string;
-  originalVectorScore?: number | null;
-  originalTextScore?: number | null;
+  quality_score?: number | null | undefined;
+  url?: string | undefined;
+  searchMethod?: string | undefined;
+  originalVectorScore?: number | null | undefined;
+  originalTextScore?: number | null | undefined;
 }
 
 /**
@@ -369,18 +369,18 @@ export interface DocumentRawChunk extends RawChunk {
  */
 export interface DocumentChunkData extends ChunkData {
   /** Override to allow null in addition to undefined */
-  quality_score?: number;
-  url?: string;
+  quality_score?: number | undefined;
+  url?: string | undefined;
 }
 
 /**
  * Extended transformed chunk with quality and URL
  */
 export interface DocumentTransformedChunk extends TransformedChunk {
-  quality_score?: number | null;
-  content_type?: string | null;
-  page_number?: number | null;
-  url?: string;
+  quality_score?: number | null | undefined;
+  content_type?: string | null | undefined;
+  page_number?: number | null | undefined;
+  url?: string | undefined;
 }
 
 // ============ Scoring Types ============
@@ -400,7 +400,7 @@ export interface BaseScore {
  * Enhanced score with quality information
  */
 export interface DocumentEnhancedScore extends EnhancedScore {
-  qualityAvg?: number;
+  qualityAvg?: number | undefined;
 }
 
 // ============ Find Chunks Params ============
@@ -414,8 +414,8 @@ export interface FindSimilarChunksParams {
   filters: DocumentSearchFilters;
   limit: number;
   threshold: number;
-  query?: string;
-  qualityMin?: number;
+  query?: string | undefined;
+  qualityMin?: number | undefined;
 }
 
 /**
@@ -437,22 +437,22 @@ export interface FindHybridChunksParams {
  * Payload structure from Qdrant search results
  */
 export interface QdrantResultPayload {
-  user_id?: string;
-  document_id?: string;
-  url?: string;
-  chunk_index?: number;
-  chunk_text?: string;
-  token_count?: number;
-  quality_score?: number;
-  content_type?: string;
-  page_number?: number;
-  created_at?: string;
-  title?: string;
-  filename?: string;
-  source_type?: string;
+  user_id?: string | undefined;
+  document_id?: string | undefined;
+  url?: string | undefined;
+  chunk_index?: number | undefined;
+  chunk_text?: string | undefined;
+  token_count?: number | undefined;
+  quality_score?: number | undefined;
+  content_type?: string | undefined;
+  page_number?: number | undefined;
+  created_at?: string | undefined;
+  title?: string | undefined;
+  filename?: string | undefined;
+  source_type?: string | undefined;
   metadata?: {
-    title?: string;
-    filename?: string;
+    title?: string | undefined;
+    filename?: string | undefined;
     [key: string]: unknown;
   };
   [key: string]: unknown;
@@ -466,7 +466,7 @@ export interface QdrantSearchResult {
   id: string | number;
   score: number;
   payload: QdrantResultPayload;
-  vector?: number[] | null;
+  vector?: number[] | null | undefined;
 }
 
 /**
@@ -476,7 +476,7 @@ export interface QdrantSearchResult {
 export interface QdrantDocument {
   id: string | number;
   payload: QdrantResultPayload;
-  vector?: number[] | null;
+  vector?: number[] | null | undefined;
 }
 
 // ============ Hybrid Search Result Types ============
@@ -487,13 +487,13 @@ export interface QdrantDocument {
 export interface HybridSearchResult {
   results: Array<
     QdrantSearchResult & {
-      searchMethod?: string;
-      originalVectorScore?: number | null;
-      originalTextScore?: number | null;
+      searchMethod?: string | undefined;
+      originalVectorScore?: number | null | undefined;
+      originalTextScore?: number | null | undefined;
     }
   >;
   metadata?: {
-    hybridMethod?: string;
+    hybridMethod?: string | undefined;
     [key: string]: unknown;
   };
 }
