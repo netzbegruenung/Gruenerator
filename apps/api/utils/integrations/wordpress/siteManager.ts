@@ -29,7 +29,7 @@ export class WordPressSiteManager {
       { table: 'profiles' }
     );
     const raw = profile?.wordpress_sites;
-    return Array.isArray(raw) ? raw : [];
+    return Array.isArray(raw) ? (raw as WordPressSite[]) : [];
   }
 
   private static async saveSitesArray(userId: string, sites: WordPressSite[]): Promise<void> {
