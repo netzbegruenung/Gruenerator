@@ -77,7 +77,7 @@ interface CustomPromptRow {
 // GET /custom_prompts - List user's prompts
 router.get(
   '/custom_prompts',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -109,7 +109,7 @@ router.get(
 // POST /custom_prompts - Create prompt
 router.post(
   '/custom_prompts',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -167,7 +167,7 @@ router.post(
 // PUT /custom_prompts/:id - Update prompt
 router.put(
   '/custom_prompts/:id',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ id: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -231,7 +231,7 @@ router.put(
 // DELETE /custom_prompts/:id - Delete prompt
 router.delete(
   '/custom_prompts/:id',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ id: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -293,7 +293,7 @@ router.delete(
 // GET /saved_prompts - List saved prompts
 router.get(
   '/saved_prompts',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -331,7 +331,7 @@ router.get(
 // POST /saved_prompts/:promptId - Save another user's prompt
 router.post(
   '/saved_prompts/:promptId',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ promptId: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -409,7 +409,7 @@ router.post(
 // DELETE /saved_prompts/:promptId - Unsave prompt
 router.delete(
   '/saved_prompts/:promptId',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ promptId: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -449,7 +449,7 @@ router.delete(
 // POST /custom_prompts/search - Semantic search user's own prompts
 router.post(
   '/custom_prompts/search',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -490,7 +490,7 @@ router.post(
 // GET /public_prompts - Get public prompts for discovery with search support
 router.get(
   '/public_prompts',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -562,7 +562,7 @@ router.get(
 // POST /public_prompts/search - Semantic search public prompts
 router.post(
   '/public_prompts/search',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;

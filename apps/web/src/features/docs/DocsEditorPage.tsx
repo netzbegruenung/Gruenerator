@@ -145,11 +145,12 @@ function EditorContent() {
 
   const API_BASE = useMemo(() => adapter.getApiBaseUrl(), [adapter]);
 
-  // Public check fires immediately — no auth dependency (parallel pattern like PublicBoardPage)
-  const { data: publicData, isLoading: publicLoading } = useQuery({
-    queryKey: ['document-public', id],
+  const { data: docData, isLoading: docIsLoading } = useQuery<Document | null>({
+    queryKey: ['document', id],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/docs/public/${id}`);
+      const res = await fetch(`${API_BASE}/docs/resolve/${id}`, {
+        credentials: 'include',
+      });
       if (!res.ok) return null;
       return res.json();
     },
@@ -157,20 +158,6 @@ function EditorContent() {
     retry: false,
     staleTime: 30_000,
   });
-
-  // Authenticated fetch — only when logged in and auth resolved.
-  // skipUnauthorized: expired sessions return null instead of redirecting to login,
-  // allowing fallback to publicData for shared documents.
-  const { data: authData, isLoading: authDocLoading } = useQuery<Document | null>({
-    queryKey: ['document-auth', id],
-    queryFn: () => apiClient.get<Document>(`/docs/${id}`, { skipUnauthorized: true }),
-    enabled: !!id && !isAuthLoading && !isGuest,
-    retry: false,
-  });
-
-  // Prefer authenticated data (full permissions), fall back to public
-  const docData = authData ?? publicData;
-  const docIsLoading = isGuest ? publicLoading : (isAuthLoading || authDocLoading) && !publicData;
 
   const canEdit = useMemo(() => {
     if (!docData) return false;
@@ -186,7 +173,7 @@ function EditorContent() {
   const handleTitleChange = useCallback(
     async (newTitle: string) => {
       if (!id) return;
-      const activeKey = isGuest ? ['document-public', id] : ['document-auth', id];
+      const activeKey = ['document', id];
       queryClient.setQueryData(activeKey, (old: Document | undefined) =>
         old ? { ...old, title: newTitle } : old
       );
@@ -197,7 +184,7 @@ function EditorContent() {
         queryClient.setQueryData(activeKey, docData);
       }
     },
-    [id, isGuest, apiClient, queryClient, docData]
+    [id, apiClient, queryClient, docData]
   );
 
   const [showShareModal, setShowShareModal] = useState(false);
@@ -384,23 +371,22 @@ function EditorContent() {
     );
   }
 
+  if (docData?.share_mode === 'authenticated' && isGuest) {
+    return (
+      <div className="flex items-center justify-center h-full flex-col gap-4 text-grey-500">
+        <span className="text-foreground-heading font-medium">{docData.title || 'Dokument'}</span>
+        <span>Dieses Dokument erfordert eine Anmeldung.</span>
+        <a
+          href={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+          className="px-4 py-2 text-sm font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 no-underline transition-colors"
+        >
+          Anmelden
+        </a>
+      </div>
+    );
+  }
+
   if (!docData) {
-    if (publicData?.share_mode === 'authenticated' && isGuest) {
-      return (
-        <div className="flex items-center justify-center h-full flex-col gap-4 text-grey-500">
-          <span className="text-foreground-heading font-medium">
-            {publicData.title || 'Dokument'}
-          </span>
-          <span>Dieses Dokument erfordert eine Anmeldung.</span>
-          <a
-            href={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 no-underline transition-colors"
-          >
-            Anmelden
-          </a>
-        </div>
-      );
-    }
     return (
       <div className="flex items-center justify-center h-full flex-col gap-4 text-grey-500">
         <span>Dokument nicht gefunden oder nicht öffentlich</span>

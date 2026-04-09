@@ -5,6 +5,10 @@ import { Router, type Request, type Response } from 'express';
 import * as Y from 'yjs';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import {
+  type CollaborativeDocumentRow,
+  type YjsDocumentSnapshotRow,
+} from '../../database/types.js';
 
 import { DOCS_SUBTYPES } from './constants.js';
 
@@ -23,19 +27,18 @@ router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const result = (await db.query(
+    const result = await db.query<
+      Pick<
+        CollaborativeDocumentRow,
+        'id' | 'title' | 'share_permission' | 'share_mode' | 'document_subtype'
+      >
+    >(
       `SELECT id, title, share_permission, share_mode, document_subtype
        FROM collaborative_documents
        WHERE id = $1 AND is_deleted = false AND document_subtype = ANY($2::text[])
          AND (share_mode != 'private' OR is_public = true)`,
       [id, DOCS_SUBTYPES]
-    )) as unknown as {
-      id: string;
-      title: string;
-      share_permission: string;
-      share_mode: 'private' | 'authenticated' | 'public';
-      document_subtype: string;
-    }[];
+    );
 
     if (result.length === 0) {
       console.warn('[Docs] Public check 404: docId=%s — not found, deleted, or private', id);
@@ -56,7 +59,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       doc.document_subtype
     );
     return res.json(doc);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Docs] Error checking public document:', error);
     return res.status(500).json({ error: 'Failed to check document' });
   }
@@ -76,18 +79,15 @@ router.get('/:id/og', async (req: Request, res: Response) => {
       return res.json(cached.data);
     }
 
-    const result = (await db.query(
+    const result = await db.query<
+      Pick<CollaborativeDocumentRow, 'id' | 'title' | 'share_mode' | 'document_subtype'>
+    >(
       `SELECT d.id, d.title, d.share_mode, d.document_subtype
        FROM collaborative_documents d
        WHERE d.id = $1 AND d.is_deleted = false AND d.document_subtype = ANY($2::text[])
          AND (d.share_mode != 'private' OR d.is_public = true)`,
       [id, DOCS_SUBTYPES]
-    )) as unknown as {
-      id: string;
-      title: string;
-      share_mode: 'private' | 'authenticated' | 'public';
-      document_subtype: string;
-    }[];
+    );
 
     if (result.length === 0) {
       return res.status(404).json({ error: 'Not found' });
@@ -97,14 +97,14 @@ router.get('/:id/og', async (req: Request, res: Response) => {
     let preview_text: string | null = null;
 
     if (doc.share_mode === 'public') {
-      const snapshotResult = (await db.query(
+      const snapshotResult = await db.query<Pick<YjsDocumentSnapshotRow, 'snapshot_data'>>(
         `SELECT snapshot_data
          FROM yjs_document_snapshots
          WHERE document_id = $1
          ORDER BY version DESC
          LIMIT 1`,
         [id]
-      )) as unknown as { snapshot_data: Buffer }[];
+      );
 
       if (snapshotResult.length > 0) {
         try {
@@ -137,7 +137,7 @@ router.get('/:id/og', async (req: Request, res: Response) => {
 
     ogCache.set(id as string, { data, expires: Date.now() + OG_CACHE_TTL });
     return res.json(data);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Docs] Error fetching OG metadata:', error);
     return res.status(500).json({ error: 'Failed to fetch metadata' });
   }

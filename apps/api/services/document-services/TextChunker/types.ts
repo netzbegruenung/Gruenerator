@@ -99,7 +99,7 @@ export interface ChunkingOptions {
   chunkOverlap?: number;
   preserveSentences?: boolean;
   removeEmptyChunks?: boolean;
-  baseMetadata?: Record<string, any>;
+  baseMetadata?: Record<string, unknown>;
 }
 
 /**
@@ -125,11 +125,11 @@ export interface SemanticBoundary {
  * Document structure from structure detector
  */
 export interface DocumentStructure {
-  chapters: any[];
-  sections: any[];
-  lists: any[];
-  tables: any[];
-  hierarchy: any[];
+  chapters: SemanticBoundary[];
+  sections: SemanticBoundary[];
+  lists: SemanticBoundary[];
+  tables: SemanticBoundary[];
+  hierarchy: SemanticBoundary[];
   metadata: {
     documentType: string;
     hasChapters: boolean;

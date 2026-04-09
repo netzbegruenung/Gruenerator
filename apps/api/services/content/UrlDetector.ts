@@ -21,7 +21,7 @@ export class UrlDetector {
   /**
    * Extracts URLs from request content fields
    */
-  extractUrlsFromContent(request: Record<string, any> | string): string[] {
+  extractUrlsFromContent(request: Record<string, unknown> | string): string[] {
     if (!request) return [];
 
     const allUrls = new Set<string>();
@@ -88,7 +88,7 @@ export class UrlDetector {
   /**
    * Complete URL detection and extraction with result object
    */
-  detectAndExtract(request: Record<string, any> | string): UrlDetectionResult {
+  detectAndExtract(request: Record<string, unknown> | string): UrlDetectionResult {
     const urls = this.extractUrlsFromContent(request);
     return {
       urls,
@@ -101,7 +101,7 @@ export const urlDetector = new UrlDetector();
 
 export const detectUrls = (text: string) => urlDetector.detectUrls(text);
 
-export const extractUrlsFromContent = (request: Record<string, any> | string) =>
+export const extractUrlsFromContent = (request: Record<string, unknown> | string) =>
   urlDetector.extractUrlsFromContent(request);
 
 export const isValidUrl = (url: string) => urlDetector.isValidUrl(url);

@@ -22,6 +22,7 @@ import type {
   DeepSearchOutput,
 } from './types.js';
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- LangGraph untyped Annotation reducers */
 // State schema for the search graph
 const SearchState = Annotation.Root({
   // Input parameters
@@ -103,10 +104,12 @@ const SearchState = Annotation.Root({
     reducer: (x: any, y: any) => y ?? x,
   }),
 });
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 /**
  * Create the web search graph
  */
+/* eslint-disable @typescript-eslint/no-explicit-any -- LangGraph node/edge type coercions */
 const createWebSearchGraph = () => {
   const graph = new StateGraph(SearchState)
     .addNode('planner', plannerNode as any)
@@ -141,18 +144,19 @@ const createWebSearchGraph = () => {
     state.mode === 'normal' ? 'summarizer' : 'aggregator'
   );
 
-  graph.addConditionalEdges('grundsatz', (state: any) => 'aggregator');
+  graph.addConditionalEdges('grundsatz', (_state: any) => 'aggregator');
 
-  graph.addConditionalEdges('summarizer', (state: any) => '__end__');
+  graph.addConditionalEdges('summarizer', (_state: any) => '__end__');
 
   graph.addConditionalEdges('aggregator', (state: any) =>
     state.mode === 'deep' ? 'writer' : '__end__'
   );
 
-  graph.addConditionalEdges('writer', (state: any) => '__end__');
+  graph.addConditionalEdges('writer', (_state: any) => '__end__');
 
   return graph.compile();
 };
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 // Export the compiled graph
 export const webSearchGraph = createWebSearchGraph();
@@ -242,6 +246,7 @@ export async function runWebSearch(input: WebSearchInput): Promise<WebSearchOutp
         searchType: mode,
         errorOccurred: true,
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
   }
 }

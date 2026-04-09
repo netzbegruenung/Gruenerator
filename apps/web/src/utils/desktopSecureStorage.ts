@@ -35,12 +35,14 @@ interface AuthTokens {
   expiresAt: number | null;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let storeInstance: any = null;
 let storeLoadFailed = false;
 
 /**
  * Get or create the Tauri store instance
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getStore(): Promise<any> {
   if (!isDesktopApp()) {
     return null;

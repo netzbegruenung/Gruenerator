@@ -55,18 +55,18 @@ export function extractSnippetFromContent(fullText: string, title: string): stri
  * @returns Formatted search results
  */
 export function extractSearchResults(
-  outputs: any[],
+  outputs: Array<Record<string, unknown>>,
   originalQuery: string,
   agentType: AgentType = 'withSources'
 ): SearchResults {
-  const results: any[] = [];
+  const results: SearchSource[] = [];
   const sources: SearchSource[] = [];
   let textContent = '';
 
   // Process conversation outputs - extract both content and sources
   for (const output of outputs) {
     if (output.type === 'message.output' && output.content) {
-      for (const contentItem of output.content) {
+      for (const contentItem of output.content as Array<Record<string, unknown>>) {
         if (contentItem && contentItem.type === 'text' && contentItem.text) {
           textContent += contentItem.text + ' ';
         }
@@ -75,21 +75,29 @@ export function extractSearchResults(
 
     // Extract sources from tool calls if available
     if (output.type === 'tool.output' && output.content) {
-      for (const contentItem of output.content) {
+      for (const contentItem of output.content as Array<Record<string, unknown>>) {
         if (contentItem && contentItem.type === 'web_search') {
           // Extract source information from web search results
           if (contentItem.results && Array.isArray(contentItem.results)) {
-            contentItem.results.forEach((result: any) => {
-              if (result.url && result.title) {
-                sources.push({
-                  url: result.url,
-                  title: result.title,
-                  snippet: result.snippet || result.content || '',
-                  relevance: result.score || 1.0,
-                  domain: extractDomainFromUrl(result.url),
-                });
+            contentItem.results.forEach(
+              (result: {
+                url?: string;
+                title?: string;
+                snippet?: string;
+                content?: string;
+                score?: number;
+              }) => {
+                if (result.url && result.title) {
+                  sources.push({
+                    url: result.url,
+                    title: result.title,
+                    snippet: result.snippet || result.content || '',
+                    relevance: result.score || 1.0,
+                    domain: extractDomainFromUrl(result.url),
+                  });
+                }
               }
-            });
+            );
           }
         }
       }
@@ -97,17 +105,25 @@ export function extractSearchResults(
 
     // Also check for web search results in different output structures
     if (output.web_search_results && Array.isArray(output.web_search_results)) {
-      output.web_search_results.forEach((result: any) => {
-        if (result.url && result.title) {
-          sources.push({
-            url: result.url,
-            title: result.title,
-            snippet: result.snippet || result.content || '',
-            relevance: result.score || 1.0,
-            domain: extractDomainFromUrl(result.url),
-          });
+      output.web_search_results.forEach(
+        (result: {
+          url?: string;
+          title?: string;
+          snippet?: string;
+          content?: string;
+          score?: number;
+        }) => {
+          if (result.url && result.title) {
+            sources.push({
+              url: result.url,
+              title: result.title,
+              snippet: result.snippet || result.content || '',
+              relevance: result.score || 1.0,
+              domain: extractDomainFromUrl(result.url),
+            });
+          }
         }
-      });
+      );
     }
   }
 

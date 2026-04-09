@@ -3,12 +3,8 @@
  * This file exists solely to verify that all types compile correctly
  */
 
-import { runWebSearch } from './WebSearchGraph.js';
-
 import type {
-  WebSearchState,
   WebSearchInput,
-  WebSearchOutput,
   NormalSearchOutput,
   DeepSearchOutput,
   SearchResult,
@@ -23,7 +19,7 @@ import type {
 // Type verification tests - these should all compile without errors
 
 // Verify WebSearchInput structure
-const testInput: WebSearchInput = {
+const _testInput: WebSearchInput = {
   query: 'test',
   mode: 'normal',
   user_id: 'test',
@@ -32,12 +28,14 @@ const testInput: WebSearchInput = {
     language: 'de-DE',
     categories: 'general', // String, not array
   },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   aiWorkerPool: {} as any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   req: {} as any,
 };
 
 // Verify NormalSearchOutput structure
-const testNormalOutput: NormalSearchOutput = {
+const _testNormalOutput: NormalSearchOutput = {
   status: 'success',
   query: 'test',
   results: [] as SearchResult[],
@@ -51,7 +49,7 @@ const testNormalOutput: NormalSearchOutput = {
 };
 
 // Verify DeepSearchOutput structure
-const testDeepOutput: DeepSearchOutput = {
+const _testDeepOutput: DeepSearchOutput = {
   status: 'success',
   dossier: {
     query: 'test',
@@ -74,7 +72,7 @@ const testDeepOutput: DeepSearchOutput = {
 };
 
 // Verify CrawlMetadata has all required properties
-const testCrawlMetadata: CrawlMetadata = {
+const _testCrawlMetadata: CrawlMetadata = {
   totalUrls: 10,
   crawledUrls: 5,
   crawledCount: 5,
@@ -89,13 +87,13 @@ const testCrawlMetadata: CrawlMetadata = {
 };
 
 // Verify SearchOptions categories is string
-const testSearchOptions: SearchOptions = {
+const _testSearchOptions: SearchOptions = {
   categories: 'general,news', // String, not array
   maxResults: 10,
 };
 
 // Verify Citation and Source are imported from search services
-const testCitation: Citation = {
+const _testCitation: Citation = {
   index: '1',
   cited_text: 'text',
   document_title: 'title',
@@ -107,7 +105,7 @@ const testCitation: Citation = {
   page_number: 1,
 };
 
-const testSource: Source = {
+const _testSource: Source = {
   document_id: 'id',
   document_title: 'title',
   source_url: 'url',
@@ -117,7 +115,7 @@ const testSource: Source = {
 };
 
 // Verify ValidationResult structure
-const testValidationResult: ValidationResult = {
+const _testValidationResult: ValidationResult = {
   cleanDraft: 'text',
   citations: [] as Citation[],
   sources: [] as Source[], // Has 'sources', not 'citationSources'
@@ -125,7 +123,7 @@ const testValidationResult: ValidationResult = {
 };
 
 // Verify ReferencesMap type
-const testReferencesMap: ReferencesMap = {
+const _testReferencesMap: ReferencesMap = {
   '1': {
     title: 'title',
     snippets: [[]],

@@ -138,6 +138,7 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
         setDirectShareSuccess(true);
         setTimeout(() => setDirectShareSuccess(false), 2000);
       }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       if (err?.name !== 'AbortError') {
         console.error('Failed to share:', err);

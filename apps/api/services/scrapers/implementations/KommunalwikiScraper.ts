@@ -3,7 +3,7 @@
  * Fetches articles, categories, and metadata from kommunalwiki.boell.de
  */
 
-import { getQdrantInstance } from '../../../database/services/QdrantService.js';
+import { getQdrantInstance, type QdrantService } from '../../../database/services/QdrantService.js';
 import { chunkQualityService } from '../../ChunkQualityService/index.js';
 import { smartChunkDocument } from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
@@ -60,10 +60,18 @@ interface CrawlResult {
   };
 }
 
+interface MediaWikiQueryResponse {
+  query?: {
+    pages?: Record<string, MediaWikiPage>;
+    allpages?: Array<{ title: string; pageid: number }>;
+  };
+  continue?: { apcontinue?: string };
+}
+
 export class KommunalwikiScraper extends BaseScraper {
   private baseUrl: string;
   private apiUrl: string;
-  private qdrant: any; // Will be QdrantService instance
+  private qdrant: QdrantService | null;
   private crawlDelay: number;
   private batchSize: number;
 
@@ -94,7 +102,7 @@ export class KommunalwikiScraper extends BaseScraper {
 
   async init(): Promise<void> {
     this.qdrant = getQdrantInstance();
-    await this.qdrant.init();
+    await this.qdrant!.init();
     await mistralEmbeddingService.init();
     this.log('Service initialized');
   }
@@ -128,7 +136,7 @@ export class KommunalwikiScraper extends BaseScraper {
 
       if (data.query?.allpages) {
         articles.push(
-          ...data.query.allpages.map((p: any) => ({
+          ...data.query.allpages.map((p: { title: string; pageid: number }) => ({
             title: p.title,
             pageid: p.pageid,
           }))
@@ -149,7 +157,7 @@ export class KommunalwikiScraper extends BaseScraper {
   /**
    * Get article content from MediaWiki API
    */
-  private async getArticleContent(pageids: number[]): Promise<any> {
+  private async getArticleContent(pageids: number[]): Promise<MediaWikiQueryResponse> {
     const params = new URLSearchParams({
       action: 'query',
       pageids: pageids.join('|'),
@@ -234,10 +242,10 @@ export class KommunalwikiScraper extends BaseScraper {
   /**
    * Extract categories from page data
    */
-  private extractCategories(page: any): string[] {
+  private extractCategories(page: MediaWikiPage): string[] {
     const categories = page.categories || [];
     return categories
-      .map((c: any) => c.title.replace('Kategorie:', ''))
+      .map((c: { title: string }) => c.title.replace('Kategorie:', ''))
       .filter((c: string) => !c.startsWith('!'));
   }
 
@@ -275,7 +283,7 @@ export class KommunalwikiScraper extends BaseScraper {
    */
   private async articleExists(pageid: number): Promise<string | null> {
     try {
-      const result = await this.qdrant.client.scroll(this.config.collectionName, {
+      const result = await this.qdrant!.client!.scroll(this.config.collectionName, {
         filter: {
           must: [{ key: 'pageid', match: { value: pageid } }],
         },
@@ -285,7 +293,7 @@ export class KommunalwikiScraper extends BaseScraper {
       });
 
       if (result.points && result.points.length > 0) {
-        return result.points[0].payload.published_at;
+        return (result.points[0].payload as Record<string, unknown>)?.published_at as string | null;
       }
       return null;
     } catch {
@@ -297,7 +305,7 @@ export class KommunalwikiScraper extends BaseScraper {
    * Delete article from Qdrant
    */
   private async deleteArticle(pageid: number): Promise<void> {
-    await this.qdrant.client.delete(this.config.collectionName, {
+    await this.qdrant!.client!.delete(this.config.collectionName, {
       filter: {
         must: [{ key: 'pageid', match: { value: pageid } }],
       },
@@ -331,13 +339,13 @@ export class KommunalwikiScraper extends BaseScraper {
       return { stored: false, reason: 'no_chunks' };
     }
 
-    const chunkTexts = chunks.map((c: any) => c.text || c.chunk_text);
+    const chunkTexts = chunks.map((c) => c.text);
     const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
 
     const articleType = this.detectArticleType(article.title, categories);
     const primaryCategory = categories.length > 0 ? categories[0] : null;
 
-    const points = chunks.map((chunk: any, index: number) => ({
+    const points = chunks.map((chunk, index) => ({
       id: this.generatePointId(article.pageid, index),
       vector: embeddings[index],
       payload: {
@@ -360,7 +368,7 @@ export class KommunalwikiScraper extends BaseScraper {
     // Store in batches of 10
     for (let i = 0; i < points.length; i += 10) {
       const batch = points.slice(i, i + 10);
-      await this.qdrant.client.upsert(this.config.collectionName, { points: batch });
+      await this.qdrant!.client!.upsert(this.config.collectionName, { points: batch });
     }
 
     return { stored: true, chunks: chunks.length, vectors: points.length };
@@ -433,7 +441,7 @@ export class KommunalwikiScraper extends BaseScraper {
 
             const revision = page.revisions[0];
             const wikiContent = revision.slots?.main?.['*'] || revision['*'];
-            const timestamp = revision.timestamp;
+            const timestamp = revision.timestamp || new Date().toISOString();
             const categories = this.extractCategories(page);
 
             if (!wikiContent) {
@@ -598,12 +606,15 @@ export class KommunalwikiScraper extends BaseScraper {
   /**
    * Search articles
    */
-  async searchArticles(query: string, options: SearchOptions = {}): Promise<any> {
+  async searchArticles(
+    query: string,
+    options: SearchOptions = {}
+  ): Promise<Record<string, unknown>[]> {
     const { category = null, articleType = null, limit = 10, threshold = 0.35 } = options;
 
     const queryVector = await mistralEmbeddingService.generateQueryEmbedding(query);
 
-    const filter: any = { must: [] };
+    const filter: { must: Array<{ key: string; match: { value: string } }> } = { must: [] };
     if (category) {
       filter.must.push({ key: 'primary_category', match: { value: category } });
     }
@@ -611,7 +622,7 @@ export class KommunalwikiScraper extends BaseScraper {
       filter.must.push({ key: 'content_type', match: { value: articleType } });
     }
 
-    const searchResult = await this.qdrant.client.search(this.config.collectionName, {
+    const searchResult = await this.qdrant!.client!.search(this.config.collectionName, {
       vector: queryVector,
       filter: filter.must.length > 0 ? filter : undefined,
       limit: limit * 3,
@@ -619,40 +630,39 @@ export class KommunalwikiScraper extends BaseScraper {
       with_payload: true,
     });
 
-    const articlesMap = new Map();
+    const articlesMap = new Map<string, Record<string, unknown>>();
     for (const hit of searchResult) {
-      const articleId = hit.payload.article_id;
+      const payload = hit.payload as Record<string, unknown> | null;
+      if (!payload) continue;
+      const articleId = payload.article_id as string;
       if (!articlesMap.has(articleId)) {
         articlesMap.set(articleId, {
           id: articleId,
           score: hit.score,
-          title: hit.payload.title,
-          primary_category: hit.payload.primary_category,
-          subcategories: hit.payload.subcategories,
-          content_type: hit.payload.content_type,
-          source_url: hit.payload.source_url,
-          matchedChunk: hit.payload.chunk_text,
+          title: payload.title,
+          primary_category: payload.primary_category,
+          subcategories: payload.subcategories,
+          content_type: payload.content_type,
+          source_url: payload.source_url,
+          matchedChunk: payload.chunk_text,
         });
       }
 
       if (articlesMap.size >= limit) break;
     }
 
-    return {
-      results: Array.from(articlesMap.values()),
-      total: articlesMap.size,
-    };
+    return Array.from(articlesMap.values());
   }
 
   /**
    * Get collection statistics
    */
-  async getStats(): Promise<any> {
+  async getStats(): Promise<Record<string, unknown>> {
     try {
-      const info = await this.qdrant.client.getCollection(this.config.collectionName);
+      const info = await this.qdrant!.client!.getCollection(this.config.collectionName);
       return {
         collection: this.config.collectionName,
-        vectors_count: info.vectors_count,
+        indexed_vectors_count: info.indexed_vectors_count,
         points_count: info.points_count,
         status: info.status,
       };
@@ -668,23 +678,24 @@ export class KommunalwikiScraper extends BaseScraper {
   async getCategories(): Promise<string[]> {
     try {
       const categories = new Set<string>();
-      let offset: any = null;
+      let offset: string | number | Record<string, unknown> | null = null;
 
       do {
-        const result = await this.qdrant.client.scroll(this.config.collectionName, {
+        const result = await this.qdrant!.client!.scroll(this.config.collectionName, {
           limit: 100,
-          offset: offset,
+          offset: offset ?? undefined,
           with_payload: ['subcategories'],
           with_vector: false,
         });
 
         for (const point of result.points) {
-          if (point.payload.subcategories) {
-            point.payload.subcategories.forEach((c: string) => categories.add(c));
+          const subs = (point.payload as Record<string, unknown>)?.subcategories;
+          if (Array.isArray(subs)) {
+            subs.forEach((c: string) => categories.add(c));
           }
         }
 
-        offset = result.next_page_offset;
+        offset = result.next_page_offset ?? null;
       } while (offset);
 
       return Array.from(categories).sort();
@@ -699,31 +710,35 @@ export class KommunalwikiScraper extends BaseScraper {
   async clearCollection(): Promise<void> {
     console.log('[KommunalWiki] Clearing all documents...');
     try {
-      await this.qdrant.client.delete(this.config.collectionName, {
+      await this.qdrant!.client!.delete(this.config.collectionName, {
         filter: {
           must: [{ key: 'pageid', match: { any: [] } }],
         },
       });
     } catch {
-      const points: any[] = [];
-      let offset: any = null;
+      const points: Array<string | number> = [];
+      let offset: string | number | Record<string, unknown> | null = null;
 
       do {
-        const result = await this.qdrant.client.scroll(this.config.collectionName, {
+        const result = await this.qdrant!.client!.scroll(this.config.collectionName, {
           limit: 100,
-          offset: offset,
+          offset: offset ?? undefined,
           with_payload: false,
           with_vector: false,
         });
 
-        points.push(...result.points.map((p: any) => p.id));
-        offset = result.next_page_offset;
+        points.push(
+          ...result.points
+            .map((p) => p.id)
+            .filter((id): id is string | number => typeof id === 'string' || typeof id === 'number')
+        );
+        offset = result.next_page_offset ?? null;
       } while (offset);
 
       if (points.length > 0) {
         for (let i = 0; i < points.length; i += 100) {
           const batch = points.slice(i, i + 100);
-          await this.qdrant.client.delete(this.config.collectionName, {
+          await this.qdrant!.client!.delete(this.config.collectionName, {
             points: batch,
           });
         }

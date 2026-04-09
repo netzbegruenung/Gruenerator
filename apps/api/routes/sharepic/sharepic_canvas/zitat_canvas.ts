@@ -13,7 +13,7 @@ import { Router, type Request, type Response } from 'express';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 
-import { checkFiles, registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
+import { registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
 import {
   optimizeCanvasBuffer,
   bufferToBase64,

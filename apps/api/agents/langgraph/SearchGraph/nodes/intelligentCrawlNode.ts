@@ -60,8 +60,11 @@ export async function intelligentCrawlNode(
       title: c.title,
       content: c.content,
       snippet: c.content.substring(0, 200),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       crawled: (c as any).crawled ?? false,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       fullContent: (c as any).fullContent,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       crawlError: (c as any).crawlError,
     }));
 

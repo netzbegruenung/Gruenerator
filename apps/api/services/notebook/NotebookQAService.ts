@@ -27,6 +27,7 @@ import {
   getSearchParams,
   buildSubcategoryFilter,
   applyDefaultFilter,
+  type SubcategoryFilters,
 } from '../../config/systemCollectionsConfig.js';
 import { createLogger } from '../../utils/logger.js';
 import { getEnrichedPersonSearchService } from '../bundestag/index.js';
@@ -62,7 +63,12 @@ import type {
   FormattedDrucksache,
   FormattedAktivitaet,
 } from '../bundestag/types.js';
-import type { ExpandedChunkResult } from '../search/types.js';
+import type {
+  CollectionConfig,
+  ReferenceData,
+  ReferencesMap,
+  ExpandedChunkResult,
+} from '../search/types.js';
 
 const log = createLogger('NotebookQAService');
 const documentSearchService = new DocumentSearchService();
@@ -194,10 +200,10 @@ export class NotebookQAService {
     );
 
     // Group sources by collection
-    const collectionsConfig: Record<string, any> = {};
+    const collectionsConfig: { [collectionId: string]: CollectionConfig } = {};
     for (const id of effectiveCollectionIds) {
       const config = SYSTEM_COLLECTIONS[id];
-      if (config) collectionsConfig[id] = config;
+      if (config) collectionsConfig[id] = { name: config.name };
     }
     const sourcesByCollection = groupSourcesByCollection(
       citations,
@@ -269,7 +275,7 @@ export class NotebookQAService {
     const isSystem = !!systemConfig;
 
     // Get collection details
-    let collection: any;
+    let collection: { name: string; user_id: string | null } | null;
     let documentIds: string[] | undefined;
 
     if (isSystem) {
@@ -288,6 +294,10 @@ export class NotebookQAService {
       }
     }
 
+    if (!collection) {
+      throw new Error(`Collection not found: ${collectionId}`);
+    }
+
     // Detect filters
     const detectedScopeSingle = queryIntentService.detectDocumentScope(trimmedQuestion);
     const documentScope: DocumentScope = {
@@ -303,7 +313,7 @@ export class NotebookQAService {
 
     // Search
     const searchParams = getSearchParams(collectionId);
-    const subcategoryFilter = buildSubcategoryFilter(effectiveFilters);
+    const subcategoryFilter = buildSubcategoryFilter(effectiveFilters as SubcategoryFilters);
     const additionalFilter = isSystem
       ? applyDefaultFilter(collectionId, subcategoryFilter)
       : subcategoryFilter;
@@ -328,7 +338,7 @@ export class NotebookQAService {
     });
 
     const collectionName = systemConfig?.name || collection?.name || collectionId;
-    const expanded = expandResultsToChunks(searchResults, collectionId, collectionName);
+    const expanded = expandResultsToChunks(searchResults, collectionId, collectionName as string);
 
     // Post-filter: validate results match requested source_id filter (defense-in-depth)
     const postFiltered = this._applySourceIdPostFilter(expanded, effectiveFilters);
@@ -529,14 +539,14 @@ export class NotebookQAService {
     collectionId: string,
     userId?: string,
     requestFilters?: RequestFilters,
-    getCollectionFn?: (id: string) => Promise<any>,
+    getCollectionFn?: (id: string) => Promise<{ name: string; user_id: string | null } | null>,
     getDocumentIdsFn?: (id: string) => Promise<string[]>
   ): Promise<SearchContext | null> {
     const systemConfig = getSystemCollectionConfig(collectionId);
     const isSystem = !!systemConfig;
 
     // Get collection details
-    let collection: any;
+    let collection: { name: string; user_id: string | null } | null;
     let documentIds: string[] | undefined;
 
     if (isSystem) {
@@ -555,6 +565,10 @@ export class NotebookQAService {
       }
     }
 
+    if (!collection) {
+      throw new Error(`Collection not found: ${collectionId}`);
+    }
+
     // Detect filters
     const detectedScopeSingle = queryIntentService.detectDocumentScope(question);
     const documentScope: DocumentScope = {
@@ -570,7 +584,7 @@ export class NotebookQAService {
 
     // Search
     const searchParams = getSearchParams(collectionId);
-    const subcategoryFilter = buildSubcategoryFilter(effectiveFilters);
+    const subcategoryFilter = buildSubcategoryFilter(effectiveFilters as SubcategoryFilters);
     const additionalFilter = isSystem
       ? applyDefaultFilter(collectionId, subcategoryFilter)
       : subcategoryFilter;
@@ -616,7 +630,7 @@ export class NotebookQAService {
       sortedResults,
       systemPrompt,
       contextSummary,
-      collectionName: collection.name,
+      collectionName: collection?.name ?? collectionId,
       isMulti: false,
       effectiveCollectionIds: [collectionId],
       documentScope,
@@ -628,7 +642,7 @@ export class NotebookQAService {
    * Build system prompt and context summary for streaming
    */
   private _buildStreamingContext(
-    referencesMap: Record<string, any>,
+    referencesMap: ReferencesMap,
     isSystemCollection: boolean
   ): { systemPrompt: string; contextSummary: string } {
     const contextSummary = Object.keys(referencesMap)
@@ -666,7 +680,7 @@ export class NotebookQAService {
     const searchParams = getSearchParams(collectionId);
     const titleFilter =
       collectionId === 'grundsatz-system' ? documentScope.documentTitleFilter : undefined;
-    const subcategoryFilter = buildSubcategoryFilter(filters);
+    const subcategoryFilter = buildSubcategoryFilter(filters as SubcategoryFilters);
     const additionalFilter = applyDefaultFilter(collectionId, subcategoryFilter);
 
     try {
@@ -695,7 +709,7 @@ export class NotebookQAService {
 
       // Post-filter: validate results match requested source_id filter (defense-in-depth)
       return this._applySourceIdPostFilter(expanded, filters);
-    } catch (error: any) {
+    } catch (error: unknown) {
       log.error(`[QA] Search error for ${collectionId}:`, error);
       return [];
     }
@@ -780,6 +794,7 @@ export class NotebookQAService {
     titleFilter,
     additionalFilter,
     searchParams,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- returns SearchResponse results which are used as both DocumentResult and SearchResultInput
   }: InternalSearchOptions): Promise<any[]> {
     const resp = await documentSearchService.search({
       query,
@@ -807,8 +822,12 @@ export class NotebookQAService {
    */
   private async _generateDraft(
     question: string,
-    referencesMap: Record<string, any>,
-    aiWorkerPool: any,
+    referencesMap: ReferencesMap,
+    aiWorkerPool: {
+      processRequest: (
+        request: unknown
+      ) => Promise<{ content?: string; raw_content_blocks?: Array<{ text?: string }> }>;
+    },
     isSystemCollection: boolean
   ): Promise<string> {
     const refKeys = Object.keys(referencesMap);
@@ -839,7 +858,7 @@ export class NotebookQAService {
     return (
       aiResult.content ||
       (Array.isArray(aiResult.raw_content_blocks)
-        ? aiResult.raw_content_blocks.map((b: any) => b.text || '').join('')
+        ? aiResult.raw_content_blocks.map((b: { text?: string }) => b.text || '').join('')
         : '')
     );
   }
@@ -851,7 +870,11 @@ export class NotebookQAService {
   private async _generateFastDraft(
     question: string,
     results: ExpandedChunkResult[],
-    aiWorkerPool: any
+    aiWorkerPool: {
+      processRequest: (
+        request: unknown
+      ) => Promise<{ content?: string; raw_content_blocks?: Array<{ text?: string }> }>;
+    }
   ): Promise<string> {
     const context = results
       .slice(0, 15)
@@ -875,7 +898,7 @@ export class NotebookQAService {
     return (
       aiResult.content ||
       (Array.isArray(aiResult.raw_content_blocks)
-        ? aiResult.raw_content_blocks.map((b: any) => b.text || '').join('')
+        ? aiResult.raw_content_blocks.map((b: { text?: string }) => b.text || '').join('')
         : '')
     );
   }
@@ -933,7 +956,11 @@ export class NotebookQAService {
    */
   private async _tryEnrichedPersonSearch(
     question: string,
-    aiWorkerPool: any,
+    aiWorkerPool: {
+      processRequest: (
+        request: unknown
+      ) => Promise<{ content?: string; raw_content_blocks?: Array<{ text?: string }> }>;
+    },
     startTime: number
   ): Promise<QAResponse | null> {
     try {
@@ -989,7 +1016,7 @@ export class NotebookQAService {
         },
         metadata: personMetadata,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       log.error('[QA] Enriched person search failed:', error);
       return null;
     }
@@ -1001,7 +1028,11 @@ export class NotebookQAService {
   private async _generatePersonAnswer(
     question: string,
     contextSummary: string,
-    aiWorkerPool: any
+    aiWorkerPool: {
+      processRequest: (
+        request: unknown
+      ) => Promise<{ content?: string; raw_content_blocks?: Array<{ text?: string }> }>;
+    }
   ): Promise<string> {
     const systemPrompt = `Du bist ein Experte für die Grüne Bundestagsfraktion. Beantworte Fragen über Abgeordnete basierend auf den bereitgestellten Informationen. Antworte auf Deutsch, präzise und sachlich. Wenn du Informationen aus den Quellen verwendest, zitiere sie mit [1], [2] etc.`;
 
@@ -1017,7 +1048,7 @@ export class NotebookQAService {
     return (
       aiResult.content ||
       (Array.isArray(aiResult.raw_content_blocks)
-        ? aiResult.raw_content_blocks.map((b: any) => b.text || '').join('')
+        ? aiResult.raw_content_blocks.map((b: { text?: string }) => b.text || '').join('')
         : '')
     );
   }

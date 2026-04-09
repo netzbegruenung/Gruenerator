@@ -67,8 +67,10 @@ export function createWebSearchTool(deps: ToolDependencies): DynamicStructuredTo
           allQueries = [query, ...expanded.alternatives];
           log.info(`[WebSearch] Expanded to ${allQueries.length} variants`);
         }
-      } catch (err: any) {
-        log.warn(`[WebSearch] Query expansion failed: ${err.message}`);
+      } catch (err: unknown) {
+        log.warn(
+          `[WebSearch] Query expansion failed: ${err instanceof Error ? err.message : String(err)}`
+        );
       }
 
       // Search all variants in parallel
@@ -78,8 +80,10 @@ export function createWebSearchTool(deps: ToolDependencies): DynamicStructuredTo
           searchType: 'general',
           maxResults: effectiveMaxResults,
           timeRange: effectiveTimeRange,
-        }).catch((err: any) => {
-          log.warn(`[WebSearch] Failed for variant "${q}": ${err.message}`);
+        }).catch((err: unknown) => {
+          log.warn(
+            `[WebSearch] Failed for variant "${q}": ${err instanceof Error ? err.message : String(err)}`
+          );
           return null;
         })
       );

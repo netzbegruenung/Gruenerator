@@ -56,6 +56,7 @@ import sharepicClaudeRoute, {
   handleClaudeRequest,
   handleSliderSmartRequest,
 } from './routes/sharepic/sharepic_claude/index.js';
+import { type SharepicRequest } from './routes/sharepic/sharepic_claude/types.js';
 import subtitlerRouter from './routes/subtitler/processingController.js';
 import subtitlerProjectRouter from './routes/subtitler/projectController.js';
 import subtitlerShareRouter from './routes/subtitler/shareController.js';
@@ -79,7 +80,7 @@ import * as tusServiceModule from './services/subtitler/tusService.js';
 import { createLogger } from './utils/logger.js';
 import { RouteStatsTracker } from './utils/routeStats.js';
 
-import type { Application, Request, Response, NextFunction } from 'express';
+import type { Application, Request, Response, NextFunction, Router } from 'express';
 
 /**
  * IP-based rate limiters for abuse prevention.
@@ -121,15 +122,15 @@ const publicReadLimiter = isRateLimitDisabled
 
 const log = createLogger('Routes');
 
-const { requireAuth } = authMiddleware;
+const { requireAuth, optionalAuth } = authMiddleware;
 const { generateSharepicForChat } = sharepicGenerationService;
-const { tusServer } = tusServiceModule;
+const { tusServer: _tusServer } = tusServiceModule;
 
 // Route usage tracking
 const routeTracker = new RouteStatsTracker();
 
 // Snapshotting (Yjs-based) – load conditionally to avoid hard dependency on yjs
-let snapshottingRouter: any = null;
+let snapshottingRouter: Router | null = null;
 
 async function loadOptionalModules(): Promise<void> {
   try {
@@ -147,7 +148,7 @@ async function loadOptionalModules(): Promise<void> {
 }
 
 // Initialize optional modules
-loadOptionalModules();
+void loadOptionalModules();
 
 export async function setupRoutes(app: Application): Promise<void> {
   // Debug: Log ALL API requests at the start
@@ -170,12 +171,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Auth routes - now TypeScript with subdirectory structure
   const {
     default: authRouter,
-    authCoreRouter,
-    userProfileRouter,
-    userCustomGeneratorsRouter,
-    contentRouter: userContentRouter,
-    templatesRouter: userTemplatesRouter,
-    groupsRouter: userGroupsRouter,
+    authCoreRouter: _authCoreRouter,
+    userProfileRouter: _userProfileRouter,
+    userCustomGeneratorsRouter: _userCustomGeneratorsRouter,
+    contentRouter: _userContentRouter,
+    templatesRouter: _userTemplatesRouter,
+    groupsRouter: _userGroupsRouter,
   } = await import('./routes/auth/index.js');
   const { default: documentsRouter } = await import('./routes/documents/index.js');
   const { default: claudeSocialRoute } = await import('./routes/texte/social.js');
@@ -202,7 +203,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: threadSharingRouter } = await import('./routes/chat/threadSharingController.js');
   const { default: gruenOMatRouter } = await import('./routes/gruenomat/gruenOMatController.js');
   const { default: mediaRouter } = await import('./routes/media/mediaController.js');
-  const { sitesController: sitesRouter, publicController: publicSiteRouter } =
+  const { sitesController: sitesRouter, publicController: _publicSiteRouter } =
     await import('./routes/sites/index.js');
   const { default: flyerController } = await import('./routes/sites/flyerController.js');
   const { default: fluxImageEditingRoute } = await import('./routes/flux/imageEditing.js');
@@ -210,6 +211,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: docsRouter } = await import('./routes/docs/index.js');
 
   const { default: publicDocRouter } = await import('./routes/docs/publicDocController.js');
+  const { default: docResolveRouter } = await import('./routes/docs/resolveController.js');
   const { default: ogDocsRouter } = await import('./routes/docs/ogController.js');
   const { default: boardsRouter } = await import('./routes/boards/boardsController.js');
   const { default: boardCommentsRouter } =
@@ -269,42 +271,42 @@ export async function setupRoutes(app: Application): Promise<void> {
     '/api/zitat_claude',
     aiGenerationLimiter,
     async (req: Request, res: Response): Promise<void> => {
-      await handleClaudeRequest(req as any, res, 'zitat');
+      await handleClaudeRequest(req as SharepicRequest, res, 'zitat');
     }
   );
   app.post(
     '/api/headline_claude',
     aiGenerationLimiter,
     async (req: Request, res: Response): Promise<void> => {
-      await handleClaudeRequest(req as any, res, 'headline');
+      await handleClaudeRequest(req as SharepicRequest, res, 'headline');
     }
   );
   app.post(
     '/api/info_claude',
     aiGenerationLimiter,
     async (req: Request, res: Response): Promise<void> => {
-      await handleClaudeRequest(req as any, res, 'info');
+      await handleClaudeRequest(req as SharepicRequest, res, 'info');
     }
   );
   app.post(
     '/api/veranstaltung_claude',
     aiGenerationLimiter,
     async (req: Request, res: Response): Promise<void> => {
-      await handleClaudeRequest(req as any, res, 'veranstaltung');
+      await handleClaudeRequest(req as SharepicRequest, res, 'veranstaltung');
     }
   );
   app.post(
     '/api/zitat_pure_claude',
     aiGenerationLimiter,
     async (req: Request, res: Response): Promise<void> => {
-      await handleClaudeRequest(req as any, res, 'zitat_pure');
+      await handleClaudeRequest(req as SharepicRequest, res, 'zitat_pure');
     }
   );
   app.post(
     '/api/simple_claude',
     aiGenerationLimiter,
     async (req: Request, res: Response): Promise<void> => {
-      await handleClaudeRequest(req as any, res, 'simple');
+      await handleClaudeRequest(req as SharepicRequest, res, 'simple');
     }
   );
   app.post(
@@ -312,9 +314,9 @@ export async function setupRoutes(app: Application): Promise<void> {
     aiGenerationLimiter,
     async (req: Request, res: Response): Promise<void> => {
       if (req.body.smartCount) {
-        await handleSliderSmartRequest(req as any, res);
+        await handleSliderSmartRequest(req as SharepicRequest, res);
       } else {
-        await handleClaudeRequest(req as any, res, 'slider');
+        await handleClaudeRequest(req as SharepicRequest, res, 'slider');
       }
     }
   );
@@ -322,7 +324,7 @@ export async function setupRoutes(app: Application): Promise<void> {
     '/api/default_claude',
     aiGenerationLimiter,
     async (req: Request, res: Response): Promise<void> => {
-      await handleClaudeRequest(req as any, res, 'default');
+      await handleClaudeRequest(req as SharepicRequest, res, 'default');
     }
   );
 
@@ -336,7 +338,7 @@ export async function setupRoutes(app: Application): Promise<void> {
           res.status(400).json({ success: false, error: 'Sharepic type is required' });
           return;
         }
-        const result = await generateSharepicForChat(req as any, type, requestBody);
+        const result = await generateSharepicForChat(req, type, requestBody);
         res.json({ success: true, ...result.content.sharepic, metadata: result.content.metadata });
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
@@ -378,6 +380,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/notifications', requireAuth, publicReadLimiter, notificationsRouter);
   app.use('/api/media', requireAuth, standardMutationLimiter, mediaRouter);
   app.use('/api/og/docs', publicReadLimiter, ogDocsRouter);
+  app.use('/api/docs/resolve', optionalAuth, publicReadLimiter, docResolveRouter);
   app.use('/api/docs/public', publicReadLimiter, publicDocRouter);
   app.use('/api/docs', requireAuth, standardMutationLimiter, docsRouter);
 

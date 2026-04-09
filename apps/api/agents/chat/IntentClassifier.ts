@@ -360,7 +360,7 @@ export function findKeywordMatch(normalizedMessage: string): KeywordMatch | null
 
   // Sort by keyword length descending - longer matches are more specific
   matches.sort((a, b) => b.length - a.length);
-  return matches[0];
+  return matches[0] ?? null;
 }
 
 /**
@@ -561,7 +561,7 @@ WICHTIG: editContext ist NUR bei requestType="text_edit" erforderlich!${context.
           parsedIntents = JSON.parse(result.content);
         }
       }
-    } catch (parseError) {
+    } catch (_parseError) {
       console.warn('[IntentClassifier] Failed to parse AI response:', result.content);
       return null;
     }
@@ -574,15 +574,22 @@ WICHTIG: editContext ist NUR bei requestType="text_edit" erforderlich!${context.
     // Validate and enrich intents - pick only the highest confidence intent for sharepic requests
     let validIntents = parsedIntents
       .filter((intent) => intent && intent.agent && AGENT_MAPPINGS[intent.agent])
-      .map((intent) => ({
-        agent: intent.agent,
-        route: AGENT_MAPPINGS[intent.agent].route,
-        params: {
-          ...AGENT_MAPPINGS[intent.agent].params,
-          ...intent.params,
-        },
-        confidence: intent.confidence || 0.8,
-      }));
+      .map((intent) => {
+        const mapping = AGENT_MAPPINGS[intent.agent];
+        if (!mapping) {
+          return null;
+        }
+        return {
+          agent: intent.agent,
+          route: mapping.route,
+          params: {
+            ...mapping.params,
+            ...intent.params,
+          },
+          confidence: intent.confidence || 0.8,
+        };
+      })
+      .filter((intent) => intent !== null);
 
     // For sharepic intents, only keep the highest confidence one to avoid multi-intent confusion
     const sharepicAgents = [
@@ -598,13 +605,15 @@ WICHTIG: editContext ist NUR bei requestType="text_edit" erforderlich!${context.
       // Sort by confidence and keep only the best one
       sharepicIntents.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
       const bestSharepic = sharepicIntents[0];
-      console.log(
-        '[IntentClassifier] Multiple sharepic intents detected, keeping best:',
-        bestSharepic.agent
-      );
-      // Replace all sharepic intents with just the best one
-      validIntents = validIntents.filter((i) => !sharepicAgents.includes(i.agent));
-      validIntents.push(bestSharepic);
+      if (bestSharepic) {
+        console.log(
+          '[IntentClassifier] Multiple sharepic intents detected, keeping best:',
+          bestSharepic.agent
+        );
+        // Replace all sharepic intents with just the best one
+        validIntents = validIntents.filter((i) => !sharepicAgents.includes(i.agent));
+        validIntents.push(bestSharepic);
+      }
     }
 
     if (validIntents.length === 0) {

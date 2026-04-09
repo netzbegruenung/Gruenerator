@@ -29,6 +29,7 @@ interface ScoredResult {
   content: string;
   url?: string;
   relevance: number;
+  [key: string]: unknown;
 }
 
 async function rerankResults(results: ScoredResult[], query: string): Promise<ScoredResult[]> {
@@ -50,10 +51,15 @@ async function rerankResults(results: ScoredResult[], query: string): Promise<Sc
     }
 
     for (let i = 0; i < candidates.length; i++) {
-      candidates[i].relevance = scoreMap.get(i) ?? candidates[i].relevance;
+      const candidate = candidates[i];
+      if (candidate) {
+        candidate.relevance = scoreMap.get(i) ?? candidate.relevance;
+      }
     }
-  } catch (err: any) {
-    log.warn(`[SearchDocuments] Rerank failed, keeping original order: ${err.message}`);
+  } catch (err: unknown) {
+    log.warn(
+      `[SearchDocuments] Rerank failed, keeping original order: ${err instanceof Error ? err.message : String(err)}`
+    );
     return results;
   }
 
@@ -109,6 +115,7 @@ export function createSearchDocumentsTool(deps: ToolDependencies): DynamicStruct
             },
           });
 
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const results: ScoredResult[] = (response.results || []).map((r: any) => ({
             source: `document:${r.document_id || 'unknown'}`,
             title: r.title || r.source || 'Dokument',
@@ -131,8 +138,10 @@ export function createSearchDocumentsTool(deps: ToolDependencies): DynamicStruct
             .join('\n\n');
 
           return `${reranked.length} Ergebnisse aus referenzierten Dokumenten:\n\n${formatted}`;
-        } catch (err: any) {
-          log.warn(`[SearchDocuments] Document-scoped search failed: ${err.message}`);
+        } catch (err: unknown) {
+          log.warn(
+            `[SearchDocuments] Document-scoped search failed: ${err instanceof Error ? err.message : String(err)}`
+          );
           return 'Fehler bei der Dokumentensuche. Bitte versuche es erneut.';
         }
       }
@@ -157,8 +166,10 @@ export function createSearchDocumentsTool(deps: ToolDependencies): DynamicStruct
       );
 
       const searchPromises = uniqueCollections.map((collection) =>
-        executeDirectSearch({ query, collection, limit }).catch((err: any) => {
-          log.warn(`[SearchDocuments] Collection ${collection} failed: ${err.message}`);
+        executeDirectSearch({ query, collection, limit }).catch((err: unknown) => {
+          log.warn(
+            `[SearchDocuments] Collection ${collection} failed: ${err instanceof Error ? err.message : String(err)}`
+          );
           return null;
         })
       );

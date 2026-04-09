@@ -57,10 +57,11 @@ export async function extractTextFromFile(file: UploadedFile): Promise<string> {
     try {
       const ocrResult = await ocrService.extractTextFromDocument(tempFilePath);
       return ocrResult.text;
-    } catch (validationError: any) {
+    } catch (validationError: unknown) {
       if (
-        validationError.message.includes('zu groß') ||
-        validationError.message.includes('zu viele Seiten')
+        validationError instanceof Error &&
+        (validationError.message.includes('zu groß') ||
+          validationError.message.includes('zu viele Seiten'))
       ) {
         throw validationError;
       }

@@ -209,7 +209,7 @@ async function reprocessPdf(
       method: string;
       pageCount: number;
       confidence: number;
-      stats: any;
+      stats: Record<string, unknown>;
     };
     let usedMethod = 'mistral-ocr';
 
@@ -282,7 +282,9 @@ async function reprocessPdf(
     }
 
     // Generate embeddings
-    const chunkTexts = chunks.map((c: any) => c.text || c.chunk_text);
+    const chunkTexts = chunks.map(
+      (c: { text?: string; chunk_text?: string }) => c.text || c.chunk_text
+    );
     await mistralEmbeddingService.init();
     const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
 
@@ -308,7 +310,7 @@ async function reprocessPdf(
       ...preservedPayload
     } = pdf.originalPayload;
 
-    const points = chunks.map((chunk: any, index: number) => ({
+    const points = chunks.map((chunk: { text?: string; chunk_text?: string }, index: number) => ({
       id: generatePointId(pdf.sourceUrl, index),
       vector: embeddings[index],
       payload: {

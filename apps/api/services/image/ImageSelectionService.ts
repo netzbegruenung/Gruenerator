@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 
 import type {
   ImageCatalog,
+  ImageCatalogEntry,
   ImageSelectionOptions,
   ImageSelectionResult,
   ImageSelectionServiceStats,
@@ -12,8 +13,21 @@ import type {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+interface ImageGraphResult {
+  error?: string;
+  selectedImage: ImageCatalogEntry;
+  confidence: number;
+  reasoning: string;
+  alternatives: ImageCatalogEntry[];
+  metadata?: {
+    totalImages?: number;
+    totalImagesConsidered?: number;
+    selectionMethod?: string;
+  };
+}
+
 class ImageSelectionService {
-  private imageGraph: any | null = null;
+  private imageGraph: { invoke: (input: unknown) => Promise<ImageGraphResult> } | null = null;
   private imageCatalog: ImageCatalog | null = null;
   private readonly basePath: string;
 
@@ -25,7 +39,7 @@ class ImageSelectionService {
     if (!this.imageGraph) {
       const { imageSelectionGraph } =
         await import('../../agents/langgraph/ImageSelectionGraph/index.js');
-      this.imageGraph = imageSelectionGraph;
+      this.imageGraph = imageSelectionGraph as unknown as typeof this.imageGraph;
       console.log('[ImageSelectionService] LangGraph service initialized');
     }
 
@@ -41,9 +55,9 @@ class ImageSelectionService {
 
   async selectBestImage(
     text: string,
-    aiWorkerPool: any,
+    aiWorkerPool: unknown,
     options: ImageSelectionOptions = {},
-    req: any = null
+    req: unknown = null
   ): Promise<ImageSelectionResult> {
     await this.initialize();
 
@@ -54,7 +68,7 @@ class ImageSelectionService {
         `[ImageSelectionService] Using LangGraph for image selection: "${text.substring(0, 50)}..."`
       );
 
-      const result = await this.imageGraph.invoke({
+      const result = await this.imageGraph!.invoke({
         text,
         sharepicType,
         aiWorkerPool,
@@ -79,9 +93,11 @@ class ImageSelectionService {
           processingMethod: result.metadata?.selectionMethod || 'direct_description_matching',
         },
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[ImageSelectionService] LangGraph selection failed:', error);
-      throw new Error(`Image selection failed: ${error.message}`);
+      throw new Error(
+        `Image selection failed: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 

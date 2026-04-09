@@ -71,8 +71,10 @@ export function createSearchUserContentTool(deps: ToolDependencies): DynamicStru
             const urlTag = doc.source_url ? ` (${doc.source_url})` : '';
             results.push(`[${totalCount}] ${title} (Hochgeladenes Dokument)${urlTag}\n${content}`);
           }
-        } catch (err: any) {
-          log.warn(`[SearchUserContent] Document search failed: ${err.message}`);
+        } catch (err: unknown) {
+          log.warn(
+            `[SearchUserContent] Document search failed: ${err instanceof Error ? err.message : String(err)}`
+          );
         }
       }
 
@@ -104,8 +106,10 @@ export function createSearchUserContentTool(deps: ToolDependencies): DynamicStru
               `[${totalCount}] ${row.title} (Gespeicherter ${typeLabel})\n${plainContent}`
             );
           }
-        } catch (err: any) {
-          log.warn(`[SearchUserContent] Text search failed: ${err.message}`);
+        } catch (err: unknown) {
+          log.warn(
+            `[SearchUserContent] Text search failed: ${err instanceof Error ? err.message : String(err)}`
+          );
         }
       }
 

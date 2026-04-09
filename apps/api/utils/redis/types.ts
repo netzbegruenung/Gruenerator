@@ -81,7 +81,7 @@ export interface OAuthStateData {
   returnUrl?: string;
   createdAt?: number;
   expiresAt?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -109,7 +109,7 @@ export interface DesktopOAuthStateData {
 /**
  * LRU Cache entry
  */
-export interface CacheEntry<T = any> {
+export interface CacheEntry<T = unknown> {
   data: T;
   timestamp: number;
 }
@@ -145,7 +145,6 @@ export interface CacheStats {
 export interface RequestWithUser {
   user?: {
     id: string;
-    [key: string]: any;
   };
   sessionID?: string;
   ip?: string;

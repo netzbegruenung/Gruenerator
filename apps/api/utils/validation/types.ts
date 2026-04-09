@@ -45,7 +45,7 @@ export interface SearchParamsInput {
   limit?: number;
   threshold?: number;
   mode?: string;
-  documentIds?: any;
+  documentIds?: unknown;
   group_id?: string;
 }
 
@@ -63,7 +63,7 @@ export interface AIWorkerMessage {
 export interface AIWorkerRequest {
   type: string;
   messages: AIWorkerMessage[];
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -72,7 +72,7 @@ export interface AIWorkerRequest {
 export interface ValidatedAIWorkerRequest {
   type: string;
   messages: AIWorkerMessage[];
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**

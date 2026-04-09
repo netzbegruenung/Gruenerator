@@ -100,11 +100,14 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
 
     // Normalize messages from frontend format { role, parts: [{ type, text }] }
     // to AI SDK format { role, content: string }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const normalizedMessages = (messages || [{ role: 'user', content: query }]).map((m: any) => {
       if (m.content) return { role: m.role, content: m.content };
       if (m.parts) {
         const text = m.parts
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .filter((p: any) => p.type === 'text')
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .map((p: any) => p.text)
           .join(' ');
         return { role: m.role, content: text || '' };
@@ -203,6 +206,7 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
 
     // ── Step 3: Rerank ──
     if (state.searchResults.length > 3) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       state = mergeState(state, (await rerankNode(state as any)) as Partial<SearchGraphState>);
     }
 
@@ -212,6 +216,7 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
     }
 
     // ── Step 4: Quality Gate (with loop) ──
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     state = mergeState(state, (await qualityGateNode(state as any)) as Partial<SearchGraphState>);
 
     // Quality gate loop
@@ -226,6 +231,7 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
       }
 
       if (state.searchResults.length > 3) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         state = mergeState(state, (await rerankNode(state as any)) as Partial<SearchGraphState>);
       }
 

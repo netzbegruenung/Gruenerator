@@ -45,12 +45,12 @@ export function createRecallMemoryTool(deps: ToolDependencies): DynamicStructure
           return 'Keine relevanten Erinnerungen gefunden.';
         }
 
-        const formatted = memories.map((m: any, i: number) => `${i + 1}. ${m.memory}`).join('\n');
+        const formatted = memories.map((m, i) => `${i + 1}. ${m.memory}`).join('\n');
 
         return `${memories.length} Erinnerungen gefunden:\n\n${formatted}`;
-      } catch (error: any) {
-        log.error('[RecallMemory] Error:', error.message);
-        return `Erinnerungsabruf fehlgeschlagen: ${error.message}`;
+      } catch (error: unknown) {
+        log.error('[RecallMemory] Error:', error instanceof Error ? error.message : String(error));
+        return `Erinnerungsabruf fehlgeschlagen: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
   });

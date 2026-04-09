@@ -50,7 +50,8 @@ export async function generateThreadTitle(
   threadId: string,
   userMessage: string,
   assistantResponse: string,
-  aiWorkerPool: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  aiWorkerPool: { processRequest: (...args: any[]) => Promise<{ content?: string | null }> },
   options?: { imageGenerated?: boolean }
 ): Promise<void> {
   log.info(`[ThreadTitle] generateThreadTitle called`, {
@@ -99,7 +100,7 @@ export async function generateThreadTitle(
 
   aiWorkerPool
     .processRequest(aiRequest, null)
-    .then(async (response: any) => {
+    .then(async (response: { content?: string | null }) => {
       log.info(`[ThreadTitle] AI worker response for ${threadId}:`, {
         rawContent: response?.content,
         type: typeof response?.content,

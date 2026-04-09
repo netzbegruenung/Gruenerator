@@ -33,19 +33,21 @@ router.get('/stream', (req: AuthRequest, res: Response) => {
   res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders();
 
+  const flushRes = () => (res as unknown as { flush?: () => void }).flush?.();
+
   res.write(`event: connected\ndata: ${JSON.stringify({ userId })}\n\n`);
-  (res as any).flush?.();
+  flushRes();
 
   subscribeToUserNotifications(userId, (notification) => {
     res.write(`event: notification\ndata: ${JSON.stringify(notification)}\n\n`);
-    (res as any).flush?.();
+    flushRes();
   }).catch((err) => {
     log.warn('Failed to subscribe to notifications SSE', { userId, error: err.message });
   });
 
   const keepAlive = setInterval(() => {
     res.write(':keepalive\n\n');
-    (res as any).flush?.();
+    flushRes();
   }, 30000);
 
   req.on('close', () => {
@@ -68,8 +70,10 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 
     const notifications = await getNotificationsForUser(userId, { limit, offset, unreadOnly });
     return res.json(notifications);
-  } catch (error: any) {
-    log.error('Failed to get notifications', { error: error.message });
+  } catch (error: unknown) {
+    log.error('Failed to get notifications', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return res.status(500).json({ error: 'Failed to get notifications' });
   }
 });
@@ -84,8 +88,10 @@ router.get('/unread-count', async (req: AuthRequest, res: Response) => {
 
     const count = await getUnreadCount(userId);
     return res.json({ count });
-  } catch (error: any) {
-    log.error('Failed to get unread count', { error: error.message });
+  } catch (error: unknown) {
+    log.error('Failed to get unread count', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return res.status(500).json({ error: 'Failed to get unread count' });
   }
 });
@@ -101,8 +107,10 @@ router.patch('/:id/read', async (req: AuthRequest<{ id: string }>, res: Response
     const { id } = req.params;
     await markAsRead(id, userId);
     return res.json({ success: true });
-  } catch (error: any) {
-    log.error('Failed to mark notification as read', { error: error.message });
+  } catch (error: unknown) {
+    log.error('Failed to mark notification as read', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return res.status(500).json({ error: 'Failed to mark as read' });
   }
 });
@@ -117,8 +125,10 @@ router.patch('/read-all', async (req: AuthRequest, res: Response) => {
 
     await markAllAsRead(userId);
     return res.json({ success: true });
-  } catch (error: any) {
-    log.error('Failed to mark all as read', { error: error.message });
+  } catch (error: unknown) {
+    log.error('Failed to mark all as read', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return res.status(500).json({ error: 'Failed to mark all as read' });
   }
 });
@@ -134,8 +144,10 @@ router.delete('/:id', async (req: AuthRequest<{ id: string }>, res: Response) =>
     const { id } = req.params;
     await dismissNotification(id, userId);
     return res.json({ success: true });
-  } catch (error: any) {
-    log.error('Failed to dismiss notification', { error: error.message });
+  } catch (error: unknown) {
+    log.error('Failed to dismiss notification', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return res.status(500).json({ error: 'Failed to dismiss notification' });
   }
 });
@@ -150,8 +162,10 @@ router.delete('/', async (req: AuthRequest, res: Response) => {
 
     await dismissAllNotifications(userId);
     return res.json({ success: true });
-  } catch (error: any) {
-    log.error('Failed to dismiss all notifications', { error: error.message });
+  } catch (error: unknown) {
+    log.error('Failed to dismiss all notifications', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return res.status(500).json({ error: 'Failed to dismiss all' });
   }
 });

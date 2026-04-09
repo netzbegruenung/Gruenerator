@@ -21,7 +21,7 @@ const router = createAuthenticatedRouter();
 router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   log.debug('[leichte_sprache] Request received via promptProcessor');
   if (req.query.stream === 'true' || req.headers.accept === 'text/event-stream') {
-    return processGraphRequestStreaming('leichte_sprache', req as any, res);
+    return processGraphRequestStreaming('leichte_sprache', req, res);
   }
   await processGraphRequest('leichte_sprache', req, res);
 });

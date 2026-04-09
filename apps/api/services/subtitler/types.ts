@@ -15,14 +15,14 @@ export interface SubtitlerProject {
   video_path: string;
   video_filename: string;
   video_size: number;
-  video_metadata: Record<string, any>;
+  video_metadata: Record<string, unknown>;
   thumbnail_path: string | null;
   subtitled_video_path: string | null;
   subtitles: string;
   style_preference: string;
   height_preference: string;
   mode_preference: string;
-  style_settings: Record<string, any>;
+  style_settings: Record<string, unknown>;
   created_at: Date | string;
   updated_at: Date | string;
   last_edited_at: Date | string;
@@ -38,7 +38,7 @@ export interface SubtitlerProjectListItem {
   status: string;
   video_filename: string;
   video_size: number;
-  video_metadata: Record<string, any>;
+  video_metadata: Record<string, unknown>;
   thumbnail_path: string | null;
   subtitled_video_path: string | null;
   style_preference: string;
@@ -60,7 +60,7 @@ export interface CreateProjectData {
   stylePreference?: string;
   heightPreference?: string;
   modePreference?: string;
-  videoMetadata?: Record<string, any>;
+  videoMetadata?: Record<string, unknown>;
   videoFilename?: string;
   videoSize?: number;
   videoSourcePath?: string;
@@ -76,8 +76,8 @@ export interface UpdateProjectData {
   stylePreference?: string;
   height_preference?: string;
   heightPreference?: string;
-  style_settings?: Record<string, any>;
-  styleSettings?: Record<string, any>;
+  style_settings?: Record<string, unknown>;
+  styleSettings?: Record<string, unknown>;
   status?: string;
 }
 

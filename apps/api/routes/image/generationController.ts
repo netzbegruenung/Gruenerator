@@ -19,7 +19,7 @@ import type {
 
 const log = createLogger('imageGeneration');
 const router: Router = express.Router();
-const imageCounter = new ImageGenerationCounter(redisClient as any);
+const imageCounter = new ImageGenerationCounter(redisClient);
 
 router.use(requireAuth);
 

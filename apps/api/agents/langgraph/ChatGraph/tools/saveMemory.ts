@@ -48,9 +48,9 @@ export function createSaveMemoryTool(deps: ToolDependencies): DynamicStructuredT
         });
 
         return `Information gespeichert: "${content.slice(0, 100)}${content.length > 100 ? '...' : ''}"`;
-      } catch (error: any) {
-        log.error('[SaveMemory] Error:', error.message);
-        return `Speichern fehlgeschlagen: ${error.message}`;
+      } catch (error: unknown) {
+        log.error('[SaveMemory] Error:', error instanceof Error ? error.message : String(error));
+        return `Speichern fehlgeschlagen: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
   });

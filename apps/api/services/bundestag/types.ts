@@ -33,7 +33,7 @@ export interface Person {
   wahlkreis?: string;
   biografie?: string;
   person_roles?: PersonRole[];
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -99,9 +99,9 @@ export interface AktivitaetenSearchParams {
  * Generic search result structure from MCP
  */
 export interface SearchResult {
-  documents?: any[];
-  results?: any[];
-  [key: string]: any;
+  documents?: Record<string, unknown>[];
+  results?: Record<string, unknown>[];
+  [key: string]: unknown;
 }
 
 /**
@@ -129,7 +129,7 @@ export interface PersonProfile {
   beruf?: string;
   biografie?: string;
   vita?: string;
-  wahlperioden?: any[];
+  wahlperioden?: Record<string, unknown>[];
   source: string;
 }
 
@@ -171,7 +171,7 @@ export interface FormattedAktivitaet {
   titel?: string;
   datum?: string;
   wahlperiode?: number;
-  vorgangsbezug?: any;
+  vorgangsbezug?: Record<string, unknown>;
   source: string;
 }
 

@@ -214,9 +214,10 @@ async function evaluateBudgetAllocation() {
       model: 'test',
       name: 'test',
       description: 'test',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any,
     enabledTools: {},
-    aiWorkerPool: null,
+    aiWorkerPool: null as never,
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],

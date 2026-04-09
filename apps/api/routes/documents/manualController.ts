@@ -28,6 +28,7 @@ import type {
   AddTextRequestBody,
   CrawlUrlRequestBody,
 } from './types.js';
+import type { AuthenticatedRequest } from '../../middleware/types.js';
 
 const log = createLogger('documents:manual');
 const router: Router = express.Router();
@@ -54,7 +55,7 @@ const PENDING_UPLOADS_DIR = path.resolve(
 const uploadDisk = multer({
   storage: multer.diskStorage({
     destination: (req, _file, cb) => {
-      const userId = (req as any).user?.id || 'anonymous';
+      const userId = (req as AuthenticatedRequest).user?.id || 'anonymous';
       const dir = path.join(PENDING_UPLOADS_DIR, userId);
       fs.mkdirSync(dir, { recursive: true });
       cb(null, dir);

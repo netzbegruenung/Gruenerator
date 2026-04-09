@@ -67,17 +67,18 @@ async function fetchInstagramPosts(
   const posts: RawPost[] = [];
 
   for (const item of items) {
-    const post = item as Record<string, any>;
-    const caption = post.caption || post.text || '';
+    const post = item as Record<string, unknown>;
+    const caption = (post.caption || post.text || '') as string;
     const shortCode = post.shortCode || post.code;
-    const postUrl = post.url || (shortCode ? `https://www.instagram.com/p/${shortCode}/` : null);
+    const postUrl = (post.url ||
+      (shortCode ? `https://www.instagram.com/p/${shortCode}/` : null)) as string | null;
 
     if (!postUrl || !shortCode || !caption || caption.length < 20) continue;
 
     posts.push({
       url: postUrl,
       content: caption,
-      publishedAt: post.timestamp || post.taken_at || post.date || null,
+      publishedAt: (post.timestamp || post.taken_at || post.date || null) as string | null,
       sourceAccount: handle,
     });
   }
@@ -102,16 +103,16 @@ async function fetchFacebookPosts(
   const posts: RawPost[] = [];
 
   for (const item of items) {
-    const post = item as Record<string, any>;
-    const text = post.text || post.message || post.postText || '';
-    const postUrl = post.url || post.postUrl || null;
+    const post = item as Record<string, unknown>;
+    const text = (post.text || post.message || post.postText || '') as string;
+    const postUrl = (post.url || post.postUrl || null) as string | null;
 
     if (!postUrl || !text || text.length < 20) continue;
 
     posts.push({
       url: postUrl,
       content: text,
-      publishedAt: post.time || post.timestamp || post.date || null,
+      publishedAt: (post.time || post.timestamp || post.date || null) as string | null,
       sourceAccount: handle,
     });
   }

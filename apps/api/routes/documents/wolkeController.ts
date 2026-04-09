@@ -11,7 +11,7 @@
 
 import path from 'path';
 
-import express, { type Router, Request, type Response } from 'express';
+import express, { type Router, type Response } from 'express';
 
 import NextcloudApiClient from '../../services/api-clients/nextcloudApiClient.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
@@ -25,10 +25,7 @@ import type {
   WolkeSyncRequestBody,
   WolkeAutoSyncRequestBody,
   WolkeImportRequestBody,
-  WolkeFileInfo,
   WolkeImportResult,
-  WolkeBrowseFile,
-  AuthenticatedRequest,
 } from './types.js';
 
 const log = createLogger('documents:wolke');
@@ -282,6 +279,7 @@ router.post('/import', async (req: DocumentRequest, res: Response): Promise<void
         const result = await wolkeSyncService.processFile(
           userId,
           shareLinkId,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           fileInfo as any,
           shareLink
         );

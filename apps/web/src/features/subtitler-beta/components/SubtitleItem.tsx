@@ -98,9 +98,11 @@ export function SubtitleItem({
     (e: React.KeyboardEvent) => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         handleSaveEdit(e as any);
       } else if (e.key === 'Escape') {
         e.preventDefault();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         handleCancelEdit(e as any);
       }
       // Event-Bubbling verhindern, um Klick-Events nicht auszulösen

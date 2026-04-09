@@ -17,11 +17,7 @@ import { getPolitProPolls, POLITPRO_PARLIAMENTS } from '../../services/monitor/P
 import { getPolls } from '../../services/monitor/PollScraper.js';
 import { getStimmungSummary } from '../../services/monitor/StimmungSummaryService.js';
 import { TOPIC_CATEGORIES } from '../../services/monitor/types.js';
-import {
-  WATCHER_ENTITIES,
-  getEntity,
-  getEntityForLocale,
-} from '../../services/monitor/watcherEntities.js';
+import { WATCHER_ENTITIES, getEntity } from '../../services/monitor/watcherEntities.js';
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import redisClient from '../../utils/redis/client.js';

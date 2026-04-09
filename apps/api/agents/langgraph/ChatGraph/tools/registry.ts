@@ -31,7 +31,9 @@ import type { DynamicStructuredTool } from '@langchain/core/tools';
  */
 export interface ToolDependencies {
   agentConfig: AgentConfig;
-  aiWorkerPool: any;
+  aiWorkerPool: {
+    processRequest(data: unknown, req?: unknown): Promise<{ content?: string | null }>;
+  };
   enabledTools: Record<string, boolean>;
   threadAttachments?: ThreadAttachment[];
   imageAttachments?: ImageAttachment[];

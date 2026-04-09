@@ -11,7 +11,7 @@ import express, { type Response, type Router } from 'express';
 import ImageSelectionService from '../../services/image/ImageSelectionService.js';
 import { enhanceWithAttribution } from '../../services/image/index.js';
 import { createLogger } from '../../utils/logger.js';
-import { validateUrlSync, safeFetch } from '../../utils/validation/urlSecurity.js';
+import { safeFetch } from '../../utils/validation/urlSecurity.js';
 
 import type {
   AuthenticatedRequest,
@@ -40,7 +40,7 @@ const imagePickerService = ImageSelectionService;
  */
 router.post('/select', async (req: AuthenticatedRequest, res: Response<ImageSelectResponse>) => {
   try {
-    const { text, type, tags, maxCandidates } = req.body as ImageSelectRequestBody;
+    const { text, type, tags: _tags, maxCandidates } = req.body as ImageSelectRequestBody;
 
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
       return res.status(400).json({
@@ -90,6 +90,7 @@ router.post('/select', async (req: AuthenticatedRequest, res: Response<ImageSele
       },
       confidence: result.confidence,
       reasoning: result.reasoning,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       alternatives: result.alternatives.map((alt: any) => ({
         filename: alt.filename,
         category: alt.category,
@@ -279,6 +280,7 @@ router.get(
 
       return res.json({
         success: true,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         images: images as any,
         count: images.length,
         totalCount: catalog.images.length,

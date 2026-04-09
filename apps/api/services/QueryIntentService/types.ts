@@ -98,6 +98,7 @@ export interface SubcategoryFilters {
   category?: string;
   /** Section within a source */
   section?: string;
+  [key: string]: string | undefined;
 }
 
 /**

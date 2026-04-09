@@ -26,16 +26,16 @@ export interface ProviderResult {
 
 export interface PrivacyProviderData {
   options: ProviderOptions;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export type ProviderExecutor = (
   providerName: ProviderName,
   data: PrivacyProviderData
-) => Promise<any>;
+) => Promise<ExecutionResponse>;
 
 export interface ExecutionResponse {
-  content?: any;
+  content?: unknown;
   stop_reason?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }

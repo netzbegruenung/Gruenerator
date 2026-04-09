@@ -292,6 +292,7 @@ export interface InteractiveSession {
     duration?: number;
     confidenceReason?: string;
   };
+  [key: string]: unknown;
 }
 
 /**

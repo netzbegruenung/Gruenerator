@@ -11,7 +11,6 @@ import {
 import { Router, type Request, type Response } from 'express';
 import multer from 'multer';
 
-import { COLORS } from '../../../services/sharepic/canvas/config.js';
 import { checkFiles, registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
 import {
   optimizeCanvasBuffer,

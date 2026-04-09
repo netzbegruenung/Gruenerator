@@ -241,6 +241,7 @@ const BlockNoteEditorInner = ({
     if (!awareness) return undefined;
 
     return {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       provider: provider as any,
       fragment,
       user: {
@@ -261,7 +262,9 @@ const BlockNoteEditorInner = ({
 
   const aiApiUrl = `${adapter.getApiBaseUrl()}/docs/ai`;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const extensions = useMemo((): any[] => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const exts: any[] = [
       AIExtension({
         transport: new DefaultChatTransport({
@@ -274,6 +277,7 @@ const BlockNoteEditorInner = ({
       exts.push(
         CommentsExtension({
           threadStore,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           resolveUsers: resolveUsers as any,
         })
       );
@@ -294,6 +298,7 @@ const BlockNoteEditorInner = ({
       dictionary: {
         ...de,
         ai: aiDe,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
       extensions,
       collaboration: collaborationOptions,

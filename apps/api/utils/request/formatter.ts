@@ -22,8 +22,8 @@ import type { Response } from 'express';
 export function createSuccessResponse(
   result: AIWorkerResult | string,
   routePath: string,
-  formData: Record<string, any> = {},
-  additionalMetadata: Record<string, any> = {}
+  formData: Record<string, unknown> = {},
+  additionalMetadata: Record<string, unknown> = {}
 ): SuccessResponse {
   // Process response with title extraction if it's an AI result
   let processedResult: AIWorkerResult =
@@ -46,7 +46,7 @@ export function createSuccessResponse(
 
   const agent = processedResult.agent || (result as AIWorkerResult).agent || formData.agent;
   if (agent) {
-    response.agent = agent;
+    response.agent = agent as string;
   }
 
   return response;
@@ -58,7 +58,7 @@ export function createSuccessResponse(
 export function createSuccessResponseWithAttachments(
   result: AIWorkerResult,
   routePath: string,
-  formData: Record<string, any>,
+  formData: Record<string, unknown>,
   attachmentInfo: AttachmentInfo,
   usePrivacyMode: boolean = false,
   provider: string | null = null
@@ -118,8 +118,8 @@ export function sendSuccessResponse(
   res: Response,
   result: AIWorkerResult | string,
   routePath: string,
-  formData: Record<string, any> = {},
-  additionalMetadata: Record<string, any> = {}
+  formData: Record<string, unknown> = {},
+  additionalMetadata: Record<string, unknown> = {}
 ): void {
   const response = createSuccessResponse(result, routePath, formData, additionalMetadata);
 
@@ -137,7 +137,7 @@ export function sendSuccessResponseWithAttachments(
   res: Response,
   result: AIWorkerResult,
   routePath: string,
-  formData: Record<string, any>,
+  formData: Record<string, unknown>,
   attachmentInfo: AttachmentInfo,
   usePrivacyMode: boolean,
   provider: string | null
@@ -171,7 +171,7 @@ export function sendSuccessResponseWithAttachments(
 export function sendErrorResponse(
   res: Response,
   routePath: string,
-  error: Error | any,
+  error: unknown,
   userMessage: string,
   statusCode: number = 500
 ): void {
@@ -179,8 +179,9 @@ export function sendErrorResponse(
   const routeName = routePath.replace('/api/', '').replace('/', '_');
 
   // Log detailed error for debugging (server-side only)
-  console.error(`[${routeName}] Error:`, error.message || error);
-  if (error.stack) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  console.error(`[${routeName}] Error:`, errorMessage);
+  if (error instanceof Error && error.stack) {
     console.error(`[${routeName}] Stack trace:`, error.stack);
   }
 

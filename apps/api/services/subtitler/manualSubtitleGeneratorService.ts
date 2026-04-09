@@ -104,8 +104,8 @@ function detectPunctuation(word: string): PunctuationResult {
   const lastChar = cleanWord.slice(-1);
 
   return {
-    hasStrong: CONFIG.strongPunctuation.includes(lastChar as any),
-    hasWeak: CONFIG.weakPunctuation.includes(lastChar as any),
+    hasStrong: (CONFIG.strongPunctuation as readonly string[]).includes(lastChar),
+    hasWeak: (CONFIG.weakPunctuation as readonly string[]).includes(lastChar),
     cleanWord,
   };
 }
@@ -440,9 +440,10 @@ async function generateManualSubtitles(fullText: string, words: WordTimestamp[])
     log.info(`Generated ${segments.length} segments, avg duration: ${avgDuration}s`);
 
     return subtitleText;
-  } catch (error: any) {
-    log.error(`Error generating manual subtitles: ${error.message}`);
-    throw new Error(`Manual subtitle generation failed: ${error.message}`);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    log.error(`Error generating manual subtitles: ${message}`);
+    throw new Error(`Manual subtitle generation failed: ${message}`);
   }
 }
 

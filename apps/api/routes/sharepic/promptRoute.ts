@@ -33,6 +33,12 @@ interface SelectedImage {
   category?: string;
 }
 
+/** Minimal Response-like interface for capturing handleUnifiedRequest output */
+interface ResponseCapture {
+  json(data: Record<string, unknown>): ResponseCapture;
+  status(code: number): { json(data: Record<string, unknown>): ResponseCapture };
+}
+
 /**
  * Classify sharepic type from natural language prompt
  */
@@ -153,9 +159,10 @@ router.post(
         count: 1,
       };
 
-      // Create a custom response wrapper to capture the result
+      // Create a custom response wrapper to capture the result.
+      // Only json() and status().json() are used by handleUnifiedRequest.
       let capturedResponse: Record<string, unknown> | null = null;
-      const customRes = {
+      const customRes: ResponseCapture = {
         json: (data: Record<string, unknown>) => {
           capturedResponse = data;
           return customRes;
@@ -168,10 +175,14 @@ router.post(
             },
           };
         },
-      } as unknown as Response;
+      };
 
-      // Call the unified handler
-      await handleUnifiedRequest(req as unknown as SharepicRequest, customRes, type);
+      // Call the unified handler — customRes implements the subset of Response used by handleUnifiedRequest
+      await handleUnifiedRequest(
+        req as unknown as SharepicRequest,
+        customRes as unknown as Response,
+        type
+      );
 
       // Restore original body
       req.body = originalBody;

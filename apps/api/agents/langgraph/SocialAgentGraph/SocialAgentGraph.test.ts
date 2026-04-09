@@ -24,6 +24,7 @@ const aiCalls: Array<{
 
 // Mock AI worker that returns predictable content
 const mockAiWorkerPool = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   processRequest: async (data: any, _req: any) => {
     const call = {
       callIndex: aiCalls.length + 1,
@@ -46,6 +47,7 @@ const mockAiWorkerPool = {
   },
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockReq: any = {
   app: { locals: { aiWorkerPool: mockAiWorkerPool } },
   user: { id: 'test-user' },
@@ -85,6 +87,7 @@ const mockEnrichedState: EnrichedState = {
     webSearchResults: [],
     vectorSearchResults: [],
   },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any;
 
 function buildTestState(overrides: Partial<SocialAgentState> = {}): SocialAgentState {
@@ -164,6 +167,7 @@ async function runTests() {
         source: 'Grundsatzprogramm',
         content: 'Klimaschutz-Passage',
         metadata: { collection: 'grundsatz_documents' },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
     ],
   });
@@ -215,6 +219,7 @@ async function runTests() {
 
   const fullState = initializeSocialAgentState(fullInput);
   const timeout = new Promise<string>((resolve) => setTimeout(() => resolve('TIMEOUT'), 30_000));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const graphRun = socialAgentGraph.invoke(fullState).then((result: any) => {
     console.log('  Full graph completed!');
     console.log(`  formattedOutput: ${result.formattedOutput?.length || 0} chars`);

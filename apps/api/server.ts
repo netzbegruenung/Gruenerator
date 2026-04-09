@@ -24,9 +24,7 @@ import multer from 'multer';
 import { createCorsOptions } from './config/cors.js';
 import { getServerConfig } from './config/serverConfig.js';
 import { Sentry } from './lib/sentry.js';
-
-// Local imports
-import { shouldSkipBodyParser, TUS_UPLOAD_PATHS } from './middleware/bodyParserConfig.js';
+import { shouldSkipBodyParser } from './middleware/bodyParserConfig.js';
 import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
 import { setupRoutes } from './routes.js';
 import { createAIService, type AIService } from './services/ai/aiService.js';
@@ -46,7 +44,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const log = createLogger('Server');
-const numCPUs = os.cpus().length;
+const _numCPUs = os.cpus().length;
 
 let aiService: AIService | null = null;
 
@@ -160,7 +158,7 @@ if (skipCluster) {
   startUploadsCleanup();
   startNotificationCleanup();
 
-  const { shutdown, registerSignalHandlers } = createMasterShutdownHandler({
+  const { shutdown: _shutdown, registerSignalHandlers } = createMasterShutdownHandler({
     workerTimeout: 10000,
     logger: log,
     onComplete: () => {
@@ -224,6 +222,7 @@ async function startWorker(): Promise<void> {
 
   // Initialize AI Search Agent
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const aiSearchAgentModule = (await import('./services/aiSearchAgent.js')) as any;
     if (typeof aiSearchAgentModule.setAIWorkerPool === 'function') {
       aiSearchAgentModule.setAIWorkerPool(aiService);
@@ -238,7 +237,7 @@ async function startWorker(): Promise<void> {
   try {
     const { default: TemporaryImageStorage } =
       await import('./services/image/TemporaryImageStorage.js');
-    const temporaryImageStorage = new TemporaryImageStorage(redisClient as any);
+    const temporaryImageStorage = new TemporaryImageStorage(redisClient);
     app.locals.sharepicImageManager = temporaryImageStorage;
     log.debug('TemporaryImageStorage initialized');
   } catch (error) {
@@ -273,18 +272,18 @@ async function startWorker(): Promise<void> {
   // and authenticate via upload ID.
   const tusUploadPath = '/api/subtitler/upload';
   app.all(tusUploadPath, (req: Request, res: Response) => {
-    tusServer.handle(req, res);
+    void tusServer.handle(req, res);
   });
   app.all(tusUploadPath + '/*splat', (req: Request, res: Response) => {
-    tusServer.handle(req, res);
+    void tusServer.handle(req, res);
   });
 
   const audioUploadPath = '/api/audio/upload';
   app.all(audioUploadPath, (req: Request, res: Response) => {
-    tusServer.handle(req, res);
+    void tusServer.handle(req, res);
   });
   app.all(audioUploadPath + '/*splat', (req: Request, res: Response) => {
-    tusServer.handle(req, res);
+    void tusServer.handle(req, res);
   });
 
   // Compression middleware
@@ -362,7 +361,7 @@ async function startWorker(): Promise<void> {
   try {
     await ensureConnected();
     log.info('Redis connected');
-  } catch (err) {
+  } catch (_err) {
     log.error('Redis connection failed, sessions may not persist');
   }
 
@@ -382,12 +381,12 @@ async function startWorker(): Promise<void> {
       skip: function (req: Request, res: Response) {
         return (req.url.includes('/api/') && req.method === 'POST') || res.statusCode < 400;
       },
-      stream: { write: (message: string) => {} },
+      stream: { write: (_message: string) => {} },
     })
   );
 
   // Cache middleware
-  const cacheMiddleware = createCacheMiddleware(redisClient as any, {
+  const cacheMiddleware = createCacheMiddleware(redisClient, {
     ttl: 3600,
     excludePaths: ['/api/'],
   });
@@ -567,7 +566,7 @@ async function startWorker(): Promise<void> {
       statusCode = 401;
       errorMessage = 'Authentifizierung fehlgeschlagen. Bitte melden Sie sich erneut an.';
 
-      if (req.accepts('html') && !(req as any).xhr) {
+      if (req.accepts('html') && !req.xhr) {
         res.redirect('/auth/login');
         return;
       }

@@ -17,23 +17,33 @@ import {
   clearUserDocuments,
 } from './redisOperations.js';
 
-import type {
-  Intent,
-  Attachment,
-  StoredDocument,
-  KnowledgeExtractionOptions,
-  ClearUserDataResult,
-} from './types.js';
+import type { Intent, AgentType, Attachment, StoredDocument } from './types.js';
 
 /**
  * Main DocumentQnAService class
  * Delegates operations to specialized modules
  */
-export class DocumentQnAService {
-  private redis: any;
-  private mistral: any;
+type RedisClient = {
+  get: (key: string) => Promise<string | null>;
+  setEx: (key: string, ttl: number, value: string) => Promise<void>;
+  lPush: (key: string, ...values: string[]) => Promise<void>;
+  lTrim: (key: string, start: number, stop: number) => Promise<void>;
+  lRange: (key: string, start: number, stop: number) => Promise<string[]>;
+  del: (key: string | string[]) => Promise<number>;
+  keys: (pattern: string) => Promise<string[]>;
+};
 
-  constructor(redisClient: any, mistralClient: any) {
+type MistralClient = {
+  chat: {
+    complete: (params: unknown) => Promise<{ choices?: Array<{ message?: { content?: string } }> }>;
+  };
+};
+
+export class DocumentQnAService {
+  private redis: RedisClient;
+  private mistral: MistralClient;
+
+  constructor(redisClient: RedisClient, mistralClient: MistralClient) {
     this.redis = redisClient;
     this.mistral = mistralClient;
   }
@@ -164,6 +174,6 @@ export class DocumentQnAService {
    * Generate cache key for document extraction
    */
   generateCacheKey(documentIds: string[], agent: string, message: string): string {
-    return generateCacheKey(documentIds, agent as any, message);
+    return generateCacheKey(documentIds, agent as AgentType, message);
   }
 }

@@ -56,6 +56,7 @@ export interface AIWorkerResult {
   success: boolean;
   content?: string;
   metadata?: Record<string, unknown>;
+  [key: string]: unknown;
 }
 
 export interface EnhancedAIWorkerResult extends AIWorkerResult {
@@ -65,6 +66,7 @@ export interface EnhancedAIWorkerResult extends AIWorkerResult {
     contentType?: string;
     [key: string]: unknown;
   };
+  [key: string]: unknown;
 }
 
 export interface FormData {

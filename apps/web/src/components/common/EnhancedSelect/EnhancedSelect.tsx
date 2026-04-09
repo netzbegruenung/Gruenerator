@@ -331,6 +331,7 @@ const EnhancedSelect = forwardRef<EnhancedSelectRef, EnhancedSelectProps>(
     const selectElement = (
       <Suspense fallback={<div>Loading...</div>}>
         <SelectComponent
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ref={selectRef as any}
           options={options}
           formatOptionLabel={internalFormatOptionLabel}

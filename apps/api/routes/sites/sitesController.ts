@@ -5,6 +5,7 @@
 import express, { type Response, type Router, type RequestHandler } from 'express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { type UserSiteRow } from '../../database/types.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -12,13 +13,13 @@ import {
   RESERVED_SUBDOMAINS,
   AVAILABLE_THEMES,
   type SitesRequest,
-  type UserSite,
   type CreateSiteBody,
   type UpdateSiteBody,
   type PublishBody,
   type CheckSubdomainQuery,
 } from './types.js';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SitesHandler = RequestHandler<any, any, any, any>;
 
 const log = createLogger('sites');
@@ -50,10 +51,10 @@ router.get('/public/:subdomain', (async (
     const { subdomain } = req.params;
     const subdomainLower = subdomain.toLowerCase().trim();
 
-    const result = (await db.query(
+    const result = await db.query<UserSiteRow>(
       'SELECT * FROM user_sites WHERE subdomain = $1 AND is_published = true',
       [subdomainLower]
-    )) as unknown as UserSite[];
+    );
 
     if (!result || result.length === 0) {
       res.status(404).json({ error: 'Site nicht gefunden oder nicht veröffentlicht' });
@@ -81,9 +82,9 @@ router.get('/my-site', (async (req: SitesRequest, res: Response): Promise<void> 
       return;
     }
 
-    const result = (await db.query('SELECT * FROM user_sites WHERE user_id = $1', [
+    const result = await db.query<UserSiteRow>('SELECT * FROM user_sites WHERE user_id = $1', [
       userId,
-    ])) as unknown as UserSite[];
+    ]);
 
     if (!result || result.length === 0) {
       res.json({ site: null });
@@ -128,25 +129,26 @@ router.post('/create', (async (req: SitesRequest, res: Response): Promise<void> 
       return;
     }
 
-    const existingCheck = (await db.query('SELECT id FROM user_sites WHERE user_id = $1', [
-      userId,
-    ])) as unknown as { id: string }[];
+    const existingCheck = await db.query<Pick<UserSiteRow, 'id'>>(
+      'SELECT id FROM user_sites WHERE user_id = $1',
+      [userId]
+    );
 
     if (existingCheck && existingCheck.length > 0) {
       res.status(400).json({ error: 'Sie haben bereits eine Site erstellt' });
       return;
     }
 
-    const result = (await db.query(
+    const result = await db.query<UserSiteRow>(
       `INSERT INTO user_sites (user_id, subdomain, site_title, tagline, theme, is_published)
        VALUES ($1, $2, $3, $4, $5, false)
        RETURNING *`,
       [userId, subdomainLower, site_title, tagline, theme]
-    )) as unknown as UserSite[];
+    );
 
     res.json({ site: result[0] });
-  } catch (error: any) {
-    if (error.code === '23505') {
+  } catch (error: unknown) {
+    if (error instanceof Error && 'code' in error && (error as { code: string }).code === '23505') {
       res.status(400).json({ error: 'Diese Subdomain ist bereits vergeben' });
       return;
     }
@@ -188,13 +190,13 @@ router.put('/:id', (async (req: SitesRequest<{ id: string }>, res: Response): Pr
 
     values.push(id, userId);
 
-    const result = (await db.query(
+    const result = await db.query<UserSiteRow>(
       `UPDATE user_sites
        SET ${updateFields.join(', ')}
        WHERE id = $${paramCounter} AND user_id = $${paramCounter + 1}
        RETURNING *`,
       values
-    )) as unknown as UserSite[];
+    );
 
     if (!result || result.length === 0) {
       res.status(404).json({ error: 'Site nicht gefunden' });
@@ -225,13 +227,13 @@ router.post('/:id/publish', (async (
     const { id } = req.params;
     const { publish } = req.body as PublishBody;
 
-    const result = (await db.query(
+    const result = await db.query<UserSiteRow>(
       `UPDATE user_sites
        SET is_published = $1, last_published = CASE WHEN $1 = true THEN CURRENT_TIMESTAMP ELSE last_published END
        WHERE id = $2 AND user_id = $3
        RETURNING *`,
       [publish, id, userId]
-    )) as unknown as UserSite[];
+    );
 
     if (!result || result.length === 0) {
       res.status(404).json({ error: 'Site nicht gefunden' });
@@ -269,9 +271,10 @@ router.get('/check-subdomain', (async (req: SitesRequest, res: Response): Promis
       return;
     }
 
-    const result = (await db.query('SELECT id FROM user_sites WHERE subdomain = $1', [
-      subdomainLower,
-    ])) as unknown as { id: string }[];
+    const result = await db.query<Pick<UserSiteRow, 'id'>>(
+      'SELECT id FROM user_sites WHERE subdomain = $1',
+      [subdomainLower]
+    );
 
     res.json({ available: !result || result.length === 0 });
   } catch (error) {
@@ -293,10 +296,10 @@ router.delete('/:id', (async (req: SitesRequest<{ id: string }>, res: Response):
 
     const { id } = req.params;
 
-    const result = (await db.query(
+    const result = await db.query<Pick<UserSiteRow, 'id'>>(
       'DELETE FROM user_sites WHERE id = $1 AND user_id = $2 RETURNING id',
       [id, userId]
-    )) as unknown as { id: string }[];
+    );
 
     if (!result || result.length === 0) {
       res.status(404).json({ success: false, error: 'Site nicht gefunden' });

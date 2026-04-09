@@ -84,6 +84,7 @@ async function generateClarifyingQuestions(
   const config = loadPromptConfig(`interactive_questions_${generatorType}`) as PromptConfig & {
     systemPrompt: string;
     generationPrompt: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     toolSchema: any;
     questionDefaults?: {
       questionFormat?: 'multiple_choice' | 'text' | 'number';
@@ -501,6 +502,7 @@ async function generateFinalResult({
 
   // Assemble prompt (any cast needed due to document type mismatch between simple docs and ClaudeDocument[])
   const assembledPrompt = (await assemblePromptGraphAsync(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     promptContext as any
   )) as unknown as AssembledPromptResult;
 
@@ -528,6 +530,7 @@ async function generateFinalResult({
         max_tokens: config.options?.max_tokens || 4000,
         temperature: config.options?.temperature || 0.3,
         ...(assembledPrompt.tools?.length &&
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           assembledPrompt.tools.length > 0 && { tools: assembledPrompt.tools as any }),
       },
     } as AIWorkerRequest,
@@ -576,16 +579,16 @@ export async function continueInteractiveGenerator({
       conversationState:
         (sessionData.conversationState as InteractiveSession['conversationState']) ||
         'questions_asked',
-      inhalt: sessionData.inhalt || '',
-      requestType: sessionData.requestType || 'antrag',
-      generatorType: sessionData.generatorType || 'antrag',
+      inhalt: (sessionData.inhalt as string) || '',
+      requestType: (sessionData.requestType as string) || 'antrag',
+      generatorType: (sessionData.generatorType as string) || 'antrag',
       locale: (sessionData.locale as Locale) || ('de-DE' as Locale),
-      questionRound: sessionData.questionRound || 1,
-      questions: sessionData.questions || [],
-      answers: sessionData.answers || {},
+      questionRound: (sessionData.questionRound as number) || 1,
+      questions: (sessionData.questions as GeneratedQuestion[]) || [],
+      answers: (sessionData.answers as InteractiveSession['answers']) || {},
       metadata: {
         startTime: sessionData.createdAt || Date.now(),
-        ...sessionData.metadata,
+        ...(sessionData.metadata as Record<string, unknown>),
       },
     };
 

@@ -9,6 +9,7 @@ import os from 'os';
 import path from 'path';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { type WolkeSyncStatusRow } from '../../database/types.js';
 import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
 import NextcloudApiClient from '../api-clients/nextcloudApiClient.js';
 import {
@@ -22,9 +23,9 @@ import { ocrService } from '../OcrService/index.js';
 import type { WolkeSyncStatus, NextcloudFile, FileProcessResult, SyncResult } from './types.js';
 
 export class WolkeSyncService {
-  private postgres: any;
+  private postgres: ReturnType<typeof getPostgresInstance>;
   private qdrantService: DocumentSearchService;
-  private documentService: any;
+  private documentService: ReturnType<typeof getPostgresDocumentService>;
   private supportedFileTypes: string[];
 
   constructor() {
@@ -59,7 +60,7 @@ export class WolkeSyncService {
     userId: string,
     shareLinkId: string,
     folderPath: string = ''
-  ): Promise<WolkeSyncStatus> {
+  ): Promise<WolkeSyncStatusRow> {
     try {
       await this.ensureInitialized();
 
@@ -69,7 +70,7 @@ export class WolkeSyncService {
       );
 
       if (existing) {
-        return existing as unknown as WolkeSyncStatus;
+        return existing as unknown as WolkeSyncStatusRow;
       }
 
       // Create new sync status
@@ -84,8 +85,8 @@ export class WolkeSyncService {
       });
 
       console.log(`[WolkeSyncService] Created sync status record: ${syncStatus.id}`);
-      return syncStatus as unknown as WolkeSyncStatus;
-    } catch (error: any) {
+      return syncStatus as unknown as WolkeSyncStatusRow;
+    } catch (error: unknown) {
       console.error('[WolkeSyncService] Error getting/creating sync status:', error);
       throw error;
     }
@@ -103,11 +104,11 @@ export class WolkeSyncService {
       filesFailed: number;
       auto_sync_enabled: boolean;
     }>
-  ): Promise<WolkeSyncStatus> {
+  ): Promise<WolkeSyncStatusRow> {
     try {
       await this.ensureInitialized();
 
-      const updateData: any = { ...updates };
+      const updateData: Record<string, unknown> = { ...updates };
       if (updates.lastSyncAt !== undefined) {
         updateData.last_sync_at = updates.lastSyncAt;
         delete updateData.lastSyncAt;
@@ -129,8 +130,8 @@ export class WolkeSyncService {
         id: syncStatusId,
       });
 
-      return result.data[0] as unknown as WolkeSyncStatus;
-    } catch (error: any) {
+      return result.data[0] as unknown as WolkeSyncStatusRow;
+    } catch (error: unknown) {
       console.error('[WolkeSyncService] Error updating sync status:', error);
       throw error;
     }
@@ -139,10 +140,11 @@ export class WolkeSyncService {
   /**
    * Get share link by ID
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getShareLink(userId: string, shareLinkId: string): Promise<any> {
     try {
       const shareLinks = await NextcloudShareManager.getShareLinks(userId);
-      const shareLink = shareLinks.find((link: any) => link.id === shareLinkId);
+      const shareLink = shareLinks.find((link: { id: string }) => link.id === shareLinkId);
 
       if (!shareLink) {
         throw new Error('Share link not found');
@@ -153,7 +155,7 @@ export class WolkeSyncService {
       }
 
       return shareLink;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[WolkeSyncService] Error getting share link:', error);
       throw error;
     }
@@ -162,9 +164,12 @@ export class WolkeSyncService {
   /**
    * List files in a Nextcloud folder
    */
-  async listFolderContents(shareLink: any, folderPath: string = ''): Promise<NextcloudFile[]> {
+  async listFolderContents(
+    shareLink: { id: string; url: string; token?: string; share_link?: string },
+    folderPath: string = ''
+  ): Promise<NextcloudFile[]> {
     try {
-      const client = await NextcloudApiClient.create(shareLink.share_link);
+      const client = await NextcloudApiClient.create(shareLink.share_link || shareLink.url);
       const shareInfo = await client.getShareInfo();
 
       if (!shareInfo.success) {
@@ -180,7 +185,7 @@ export class WolkeSyncService {
 
       console.log(`[WolkeSyncService] Found ${supportedFiles.length} supported files in folder`);
       return supportedFiles as NextcloudFile[];
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[WolkeSyncService] Error listing folder contents:', error);
       throw error;
     }
@@ -190,14 +195,14 @@ export class WolkeSyncService {
    * Download file to temporary location
    */
   async downloadFileToTemp(
-    shareLink: any,
+    shareLink: { id: string; url: string; token?: string; share_link?: string },
     file: NextcloudFile
   ): Promise<{
     tempPath: string;
     cleanup: () => Promise<void>;
   }> {
     try {
-      const client = await NextcloudApiClient.create(shareLink.share_link);
+      const client = await NextcloudApiClient.create(shareLink.share_link || shareLink.url);
       const tempDir = os.tmpdir();
       const tempFileName = `wolke_${Date.now()}_${file.name}`;
       const tempFilePath = path.join(tempDir, tempFileName);
@@ -218,7 +223,7 @@ export class WolkeSyncService {
           }
         },
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[WolkeSyncService] Error downloading file to temp:', error);
       throw error;
     }
@@ -228,7 +233,7 @@ export class WolkeSyncService {
    * Multi-tier change detection for files
    * Uses ETags (primary), lastModified dates (secondary), and always sync if no existing data
    */
-  hasFileChanged(existingDoc: any, file: NextcloudFile): boolean {
+  hasFileChanged(existingDoc: Record<string, unknown> | null, file: NextcloudFile): boolean {
     // If no existing document, file is new
     if (!existingDoc) {
       console.log(`[WolkeSyncService] No existing document found - treating as new file`);
@@ -248,14 +253,13 @@ export class WolkeSyncService {
     }
 
     // Secondary detection: Compare lastModified dates
-    if (file.lastModified && existingDoc.last_synced_at) {
+    const lastSyncedAt = existingDoc.last_synced_at;
+    if (file.lastModified && lastSyncedAt) {
       try {
         const fileModifiedTime =
           file.lastModified instanceof Date ? file.lastModified : new Date(file.lastModified);
         const lastSyncTime =
-          existingDoc.last_synced_at instanceof Date
-            ? existingDoc.last_synced_at
-            : new Date(existingDoc.last_synced_at);
+          lastSyncedAt instanceof Date ? lastSyncedAt : new Date(String(lastSyncedAt));
 
         if (fileModifiedTime > lastSyncTime) {
           console.log(
@@ -288,7 +292,7 @@ export class WolkeSyncService {
     userId: string,
     shareLinkId: string,
     file: NextcloudFile,
-    shareLink: any
+    shareLink: { id: string; url: string; token?: string; share_link?: string }
   ): Promise<FileProcessResult> {
     try {
       console.log(`[WolkeSyncService] Processing file: ${file.name}`);
@@ -325,7 +329,7 @@ export class WolkeSyncService {
       }
 
       // Download file from Nextcloud
-      const client = await NextcloudApiClient.create(shareLink.share_link);
+      const client = await NextcloudApiClient.create(shareLink.share_link || shareLink.url);
       console.log(`[WolkeSyncService] Downloading file: ${file.name}`);
       const fileData = await client.downloadFile(file.href);
 
@@ -424,22 +428,22 @@ export class WolkeSyncService {
 
       // If document exists, delete old vectors first
       if (existingDoc) {
-        await this.qdrantService.deleteDocumentVectors(existingDoc.id, userId);
+        await this.qdrantService.deleteDocumentVectors(String(existingDoc.id), userId);
       }
 
       // Create or update document metadata
       let documentId: string;
       if (existingDoc) {
-        await this.documentService.updateDocumentMetadata(existingDoc.id, userId, {
+        await this.documentService.updateDocumentMetadata(String(existingDoc.id), userId, {
           vectorCount: chunks.length,
           wolkeEtag: file.etag,
-          lastSyncedAt: new Date(),
+          lastSyncedAt: new Date().toISOString(),
           status: 'completed',
           additionalMetadata: {
             content_preview: contentPreview,
           },
         });
-        documentId = existingDoc.id;
+        documentId = String(existingDoc.id);
       } else {
         const newDoc = await this.documentService.saveDocumentMetadata(userId, {
           title: file.name,
@@ -455,7 +459,7 @@ export class WolkeSyncService {
           },
           status: 'completed',
         });
-        documentId = newDoc.id;
+        documentId = String(newDoc.id);
       }
 
       // Store vectors
@@ -478,7 +482,7 @@ export class WolkeSyncService {
         vectorsCreated: chunks.length,
         isUpdate: !!existingDoc,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`[WolkeSyncService] Error processing file ${file.name}:`, error);
       throw error;
     }
@@ -531,12 +535,12 @@ export class WolkeSyncService {
               processedCount++;
               console.log(`[WolkeSyncService] Processed file: ${file.name}`);
             }
-          } catch (error: any) {
+          } catch (error: unknown) {
             failedCount++;
             console.error(`[WolkeSyncService] Failed to process file ${file.name}:`, error);
             results.push({
               filename: file.name,
-              error: error.message,
+              error: error instanceof Error ? error.message : String(error),
               success: false,
             });
           }
@@ -568,7 +572,7 @@ export class WolkeSyncService {
         });
         throw error;
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[WolkeSyncService] Error syncing folder:', error);
       throw error;
     }
@@ -577,7 +581,7 @@ export class WolkeSyncService {
   /**
    * Get sync status for user
    */
-  async getUserSyncStatus(userId: string): Promise<WolkeSyncStatus[]> {
+  async getUserSyncStatus(userId: string): Promise<WolkeSyncStatusRow[]> {
     try {
       await this.ensureInitialized();
 
@@ -586,8 +590,8 @@ export class WolkeSyncService {
         [userId]
       );
 
-      return syncStatuses as unknown as WolkeSyncStatus[];
-    } catch (error: any) {
+      return syncStatuses as unknown as WolkeSyncStatusRow[];
+    } catch (error: unknown) {
       console.error('[WolkeSyncService] Error getting user sync status:', error);
       throw error;
     }
@@ -616,7 +620,7 @@ export class WolkeSyncService {
       );
 
       return { success: true, autoSyncEnabled: enabled };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[WolkeSyncService] Error setting auto-sync:', error);
       throw error;
     }
@@ -648,7 +652,7 @@ export class WolkeSyncService {
       }
 
       // Get all documents from this sync folder
-      const documents = await this.postgres.query(
+      const documents = await this.postgres.query<{ id: string }>(
         'SELECT id FROM documents WHERE user_id = $1 AND wolke_share_link_id = $2',
         [userId, shareLinkId]
       );
@@ -667,7 +671,7 @@ export class WolkeSyncService {
       );
 
       // Delete sync status
-      await this.postgres.delete('wolke_sync_status', { id: syncStatus.id });
+      await this.postgres.delete('wolke_sync_status', { id: String(syncStatus.id) });
 
       console.log(
         `[WolkeSyncService] Deleted sync folder and ${documents.length} associated documents`
@@ -676,9 +680,9 @@ export class WolkeSyncService {
       return {
         success: true,
         deletedDocuments: documents.length,
-        syncStatusId: syncStatus.id,
+        syncStatusId: String(syncStatus.id),
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[WolkeSyncService] Error deleting sync folder:', error);
       throw error;
     }

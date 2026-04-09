@@ -173,7 +173,17 @@ Antworte NUR mit JSON:
 }
 
 Bei "direct" und "image" setze searchQuery, optimizedSearchQuery, subQueries, searchSources und filters auf null/[].
-Bei "save_as_doc" setze documentSubtype auf den passenden Dokumenttyp (z.B. "checkliste" für Aufgabenlisten, "protokoll" für Sitzungsprotokolle, "pressemitteilung" für Pressemitteilungen, "tabelle" für tabellarische Daten). Wenn kein spezifischer Typ erkennbar ist, setze null.
+Bei "save_as_doc" setze documentSubtype auf den passenden Dokumenttyp:
+- "checkliste" für Aufgabenlisten, Todo-Listen, Checklisten, Aufgaben zum Abhaken
+- "protokoll" für Sitzungsprotokolle, Versammlungsprotokolle
+- "pressemitteilung" für Pressemitteilungen, PM
+- "antrag" für Anträge, Beschlussvorlagen
+- "einladung" für Einladungen, Terminankündigungen
+- "tabelle" für tabellarische Daten, Übersichten
+- "notizen" für Notizen, Mitschriften
+- "redaktionsplan" für Redaktionspläne, Content-Pläne
+- null wenn kein spezifischer Typ erkennbar ist
+WICHTIG: "todo" oder "aufgaben" → immer "checkliste", NICHT "protokoll".
 Bei "share_doc" setze targetGroupName auf den im Text genannten Gruppennamen (z.B. "AG Umwelt", "KV München"). Setze searchQuery auf null.`;
 
 /**

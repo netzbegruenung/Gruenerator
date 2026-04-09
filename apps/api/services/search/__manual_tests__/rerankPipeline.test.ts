@@ -12,15 +12,18 @@ import { rerankPipeline, type RerankableItem } from '../rerankPipeline.js';
 
 let passed = 0;
 let failed = 0;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let mockRerankFn: ((req: any) => Promise<any>) | null = null;
 
 // Mock the rerank service
 const originalRerank = regoloRerankService.rerank.bind(regoloRerankService);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 regoloRerankService.rerank = async (req: any) => {
   if (mockRerankFn) return mockRerankFn(req);
   return originalRerank(req);
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function setMockRerank(fn: (req: any) => Promise<any>) {
   mockRerankFn = fn;
 }
@@ -34,6 +37,7 @@ async function test(name: string, fn: () => Promise<void>) {
     await fn();
     passed++;
     console.log(`  ✓ ${name}`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     failed++;
     console.error(`  ✗ ${name}: ${err.message}`);
@@ -42,8 +46,10 @@ async function test(name: string, fn: () => Promise<void>) {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function expect(actual: any) {
   return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     toBe(expected: any) {
       if (actual !== expected)
         throw new Error(`Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
@@ -54,6 +60,7 @@ function expect(actual: any) {
     toBeLessThanOrEqual(expected: number) {
       if (actual > expected) throw new Error(`Expected ${actual} <= ${expected}`);
     },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     toContain(expected: any) {
       if (!actual.includes(expected))
         throw new Error(`Expected array to contain ${expected}, got ${JSON.stringify(actual)}`);
@@ -75,6 +82,7 @@ function makeItems(count: number, contentPrefix = 'content'): RerankableItem[] {
 }
 
 function mockScores(scores: number[]) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setMockRerank(async (req: any) =>
     scores.map((score, i) => ({
       originalIndex: i,
@@ -175,8 +183,10 @@ await test('skips MMR when applyDiversity=false', async () => {
 await test('respects inputLimit', async () => {
   const items = makeItems(30);
   let sentDocCount = 0;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setMockRerank(async (req: any) => {
     sentDocCount = req.documents.length;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return req.documents.map((_: any, i: number) => ({
       originalIndex: i,
       relevanceScore: 0.5,
@@ -212,8 +222,10 @@ await test('adds source tags when sourceTagFn provided', async () => {
     { title: 'Ex', content: 'Content C', source: 'examples' },
   ];
   let receivedDocs: string[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setMockRerank(async (req: any) => {
     receivedDocs = req.documents;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return req.documents.map((_: any, i: number) => ({
       originalIndex: i,
       relevanceScore: 0.5,

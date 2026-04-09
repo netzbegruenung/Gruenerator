@@ -40,6 +40,7 @@ import type { Request, Response } from 'express';
 
 const log = createLogger('streamingProcessor');
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let generationStatsService: any = null;
 
 async function logGeneration(data: {
@@ -132,6 +133,7 @@ export async function processGraphRequestStreaming(
     }
 
     // Handle custom_generator special case
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let generatorData: any = null;
     if (config.features?.customPromptFromDb) {
       generatorData = await loadCustomGeneratorPrompt(requestData.slug);
@@ -171,6 +173,7 @@ export async function processGraphRequestStreaming(
         searchQuery: searchQuery || null,
         examples: [],
         provider,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         aiWorkerPool: (req as any).app.locals.aiWorkerPool,
         enableNotebookEnrich: useNotebookEnrich ?? config.features?.notebookEnrich ?? false,
       },
@@ -185,6 +188,7 @@ export async function processGraphRequestStreaming(
     sse.sendRaw('progress', { stage: 'assembling', message: 'Bereite Prompt vor...' });
 
     // Assemble prompt
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const promptResult = await assemblePromptGraphAsync(enrichedState as any);
 
     // --- Progress: generating ---
@@ -212,9 +216,11 @@ export async function processGraphRequestStreaming(
       try {
         const { redisClient } = await import('../../utils/redis/index.js');
         const privacyCounter = new PrivacyCounter(redisClient);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const userId = (req as any).user?.id;
         if (userId) {
           const privacyProvider = await privacyCounter.getProviderForUser(userId);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           effectiveProvider = privacyProvider as any;
         }
       } catch (privacyError) {
@@ -260,6 +266,7 @@ export async function processGraphRequestStreaming(
       if (typeof msg.content === 'string') {
         content = msg.content;
       } else if (Array.isArray(msg.content)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         content = msg.content.map((c: any) => c.text || c.content || '').join('\n');
       } else {
         content = String(msg.content);
@@ -313,6 +320,7 @@ export async function processGraphRequestStreaming(
             break;
           }
           case 'reasoning-delta': {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             sse.sendRaw('reasoning_delta', { text: (part as any).text });
             break;
           }
@@ -329,6 +337,24 @@ export async function processGraphRequestStreaming(
           case 'error': {
             throw part.error;
           }
+          case 'source':
+          case 'tool-call':
+          case 'tool-result':
+          case 'tool-error':
+          case 'tool-output-denied':
+          case 'text-start':
+          case 'text-end':
+          case 'tool-input-start':
+          case 'tool-input-end':
+          case 'tool-input-delta':
+          case 'file':
+          case 'start-step':
+          case 'finish-step':
+          case 'start':
+          case 'finish':
+          case 'abort':
+          case 'raw':
+          case 'tool-approval-request':
           default:
             break;
         }
@@ -349,7 +375,8 @@ export async function processGraphRequestStreaming(
     clearInterval(heartbeatInterval);
 
     // Log successful generation
-    logGeneration({
+    void logGeneration({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       userId: (req as any).user?.id || null,
       generationType: routeType,
       platform: requestData.platforms?.[0] || null,
@@ -372,8 +399,10 @@ export async function processGraphRequestStreaming(
             documentsUsed:
               enrichedState.documents
                 ?.filter(
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   (d: any) => d.type === 'text' && d.source?.metadata?.contentSource === 'url_crawl'
                 )
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 .map((d: any) => ({
                   title: d.source.metadata?.title || 'Document',
                   url: d.source.metadata?.url || null,
@@ -404,6 +433,7 @@ export async function processGraphRequestStreaming(
           title: 'Gescrapte Website',
           url,
         })),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...(enrichedState.enrichmentMetadata?.webSearchSources || []).map((source: any) => ({
           type: 'websearch',
           title: source.title || source.url,
@@ -426,7 +456,8 @@ export async function processGraphRequestStreaming(
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     log.error(`[streaming] Error processing ${routeType}:`, errorMessage);
 
-    logGeneration({
+    void logGeneration({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       userId: (req as any).user?.id || null,
       generationType: routeType,
       platform: req.body?.platforms?.[0] || null,

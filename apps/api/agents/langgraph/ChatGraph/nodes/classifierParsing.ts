@@ -8,11 +8,7 @@
 import { createLogger } from '../../../../utils/logger.js';
 
 import { extractFilters } from './classifierFilters.js';
-import {
-  extractSearchTopic,
-  heuristicClassify,
-  detectContentType,
-} from './classifierHeuristics.js';
+import { extractSearchTopic, heuristicClassify } from './classifierHeuristics.js';
 import { NON_SEARCH_INTENTS } from './classifierPrompt.js';
 
 import type { SearchIntent, SearchSource, ClassificationResult } from '../types.js';

@@ -5,6 +5,7 @@ import { LOCALE_CONTEXT, REQUEST_TYPE_DISPLAY_NAMES } from '../types.js';
 
 import type { EnrichedState } from '../../../../utils/types/requestEnrichment.js';
 import type { PRAgentRequest } from '../../PRAgent/types.js';
+import type { ContentExample } from '../../types/promptAssembly.js';
 import type { AntragAgentState } from '../types.js';
 
 const log = createLogger('AntragAgent:generate');
@@ -33,7 +34,7 @@ Formuliere sachlich und präzise. Vermeide suggestive Fragen.`;
 
 Formuliere politisch klar, aber sachlich. Die Fragen sollen eine parlamentarische Debatte ermöglichen.`;
 
-    default:
+    case 'antrag':
       return `Erstelle einen ANTRAG mit folgender Struktur:
 
 1. **Betreff**: Aussagekräftiger Titel des Antrags
@@ -62,7 +63,10 @@ export async function generateNode(state: AntragAgentState): Promise<Partial<Ant
 
   try {
     const locale = extractLocaleFromRequest(state.req);
-    const localeCtx = LOCALE_CONTEXT[locale] || LOCALE_CONTEXT['de-DE'];
+    const localeCtx = LOCALE_CONTEXT[locale] ?? LOCALE_CONTEXT['de-DE'];
+    if (!localeCtx) {
+      throw new Error(`No locale context found for locale "${locale}" or fallback "de-DE"`);
+    }
     const sectionInstructions = buildSectionInstructions(state.requestType, localeCtx);
 
     const enrichedWithStrategy: EnrichedState = {
@@ -82,8 +86,11 @@ ${sectionInstructions}
 
 WICHTIG: Gib nur den finalen deutschen Text aus, keine Erklärungen oder Kommentare. Nutze Markdown-Formatierung direkt im Text (Überschriften mit #, Aufzählungen mit -). Verwende KEINE Code-Fences (\`\`\`) um den Text.`;
 
+    const { examples: _examples, ...enrichedWithoutExamples } = enrichedWithStrategy;
+
     const promptResult = await assemblePromptGraphAsync({
-      ...enrichedWithStrategy,
+      ...enrichedWithoutExamples,
+      examples: enrichedWithStrategy.examples as ContentExample[],
       systemRole,
       request: `Erstelle ${requestTypeDisplay === 'Antrag' ? 'einen ' + requestTypeDisplay : 'eine ' + requestTypeDisplay} zum Thema:\n\n${request.inhalt}${state.gliederung ? `\n\nGremium/Gliederung: ${state.gliederung}` : ''}`,
     });

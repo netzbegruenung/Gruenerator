@@ -76,7 +76,7 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): P
     items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     res.json({ items: items.slice(0, limit) });
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.error('Failed to fetch recent activity:', error);
     res.status(500).json({ error: 'Failed to fetch recent activity' });
   }
@@ -120,7 +120,17 @@ export async function fetchRecentDocs(
     [userId, userId, DOCS_SUBTYPES, limit]
   );
 
-  return rows.map((row: any) => ({
+  return (
+    rows as Array<{
+      id: string;
+      title: string;
+      updated_at: string;
+      document_subtype: string | null;
+      content: string | null;
+      creator_name: string;
+      access_type: string;
+    }>
+  ).map((row) => ({
     id: row.id,
     title: row.title || 'Unbenanntes Dokument',
     date: row.updated_at,
@@ -128,7 +138,7 @@ export async function fetchRecentDocs(
     href: `/docs/${row.id}`,
     emoji: SUBTYPE_EMOJI[row.document_subtype ?? 'blank'] ?? '📄',
     documentType: row.document_subtype ?? 'blank',
-    content: row.content ?? null,
+    content: row.content ?? undefined,
     creatorName: row.creator_name,
     accessType: row.access_type,
     deleteEndpoint: `/api/docs/${row.id}`,
@@ -164,7 +174,16 @@ export async function fetchRecentBoards(
     [userId, userId, limit]
   );
 
-  return rows.map((row: any) => {
+  return (
+    rows as Array<{
+      id: string;
+      title: string;
+      updated_at: string;
+      created_by: string;
+      content: string | null;
+      creator_name: string;
+    }>
+  ).map((row) => {
     let boardType: 'kanban' | 'whiteboard' = 'kanban';
     try {
       const content = typeof row.content === 'string' ? JSON.parse(row.content) : row.content;
@@ -198,7 +217,16 @@ export async function fetchRecentImages(
     [userId, limit]
   );
 
-  return rows.map((row: any) => ({
+  return (
+    rows as Array<{
+      id: string;
+      share_token: string;
+      title: string;
+      thumbnail_path: string | null;
+      status: string;
+      created_at: string;
+    }>
+  ).map((row) => ({
     id: row.share_token,
     title: row.title || 'Ohne Titel',
     date: row.created_at,
@@ -223,7 +251,17 @@ export async function fetchRecentReelProjects(
     [userId, limit]
   );
 
-  return rows.map((row: any) => {
+  return (
+    rows as Array<{
+      id: string;
+      title: string;
+      thumbnail_path: string | null;
+      video_metadata: string | Record<string, unknown>;
+      created_at: string;
+      updated_at: string;
+      last_edited_at: string | null;
+    }>
+  ).map((row) => {
     const metadata =
       typeof row.video_metadata === 'string' ? JSON.parse(row.video_metadata) : row.video_metadata;
     const duration = metadata?.duration ? Math.round(Number(metadata.duration)) : undefined;
@@ -254,7 +292,15 @@ export async function fetchRecentTexts(
     [userId, limit]
   );
 
-  return rows.map((row: any) => {
+  return (
+    rows as Array<{
+      id: string;
+      title: string;
+      content: string | null;
+      document_type: string;
+      updated_at: string;
+    }>
+  ).map((row) => {
     const rawContent = typeof row.content === 'string' ? row.content : '';
     let stripped = rawContent;
     let prev: string;
@@ -300,7 +346,16 @@ export async function fetchRecentPresentations(
     [userId, userId, limit]
   );
 
-  return rows.map((row: any) => ({
+  return (
+    rows as Array<{
+      id: string;
+      title: string;
+      updated_at: string;
+      user_id: string;
+      creator_name: string;
+      access_type: string;
+    }>
+  ).map((row) => ({
     id: row.id,
     title: row.title || 'Neue Präsentation',
     date: row.updated_at,

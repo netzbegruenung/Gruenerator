@@ -56,7 +56,7 @@ export interface EnhancedMetadata {
     height: number;
   };
   categories?: string[];
-  structuredData?: Record<string, any>;
+  structuredData?: Record<string, unknown>;
 }
 
 /**
@@ -77,7 +77,7 @@ export interface ContentData {
   previewImage?: string;
   dimensions?: { width: number; height: number };
   categories?: string[];
-  structuredData?: Record<string, any>;
+  structuredData?: Record<string, unknown>;
 }
 
 /**

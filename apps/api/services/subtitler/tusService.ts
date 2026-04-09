@@ -43,7 +43,7 @@ interface UploadMetadata {
   size: number;
   metadata?: {
     filename?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 
@@ -58,12 +58,14 @@ interface UploadStatus {
   error?: boolean;
 }
 
-(async () => {
+void (async () => {
   try {
     await fs.mkdir(TUS_UPLOAD_PATH, { recursive: true });
     log.debug(`Upload directory: ${TUS_UPLOAD_PATH}`);
-  } catch (err: any) {
-    log.error(`Failed to create upload directory: ${err.message}`);
+  } catch (err: unknown) {
+    log.error(
+      `Failed to create upload directory: ${err instanceof Error ? err.message : String(err)}`
+    );
   }
 })();
 
@@ -100,8 +102,10 @@ async function getUploadStatus(uploadId: string): Promise<UploadStatus> {
       try {
         const metadataContent = await fs.readFile(metadataPath, 'utf8');
         metadata = JSON.parse(metadataContent);
-      } catch (err: any) {
-        log.debug(`Metadata read error for ${uploadId}: ${err.message}`);
+      } catch (err: unknown) {
+        log.debug(
+          `Metadata read error for ${uploadId}: ${err instanceof Error ? err.message : String(err)}`
+        );
       }
     }
 
@@ -114,8 +118,10 @@ async function getUploadStatus(uploadId: string): Promise<UploadStatus> {
       isOrphaned: metadataExists && !videoExists,
       metadata,
     };
-  } catch (err: any) {
-    log.debug(`Upload status error for ${uploadId}: ${err.message}`);
+  } catch (err: unknown) {
+    log.debug(
+      `Upload status error for ${uploadId}: ${err instanceof Error ? err.message : String(err)}`
+    );
     return { exists: false, error: true };
   }
 }
@@ -139,8 +145,8 @@ async function cleanupUploadFiles(
 
     log.debug(`Cleaned up ${uploadId} (${reason})`);
     return true;
-  } catch (err: any) {
-    log.debug(`Cleanup error for ${uploadId}: ${err.message}`);
+  } catch (err: unknown) {
+    log.debug(`Cleanup error for ${uploadId}: ${err instanceof Error ? err.message : String(err)}`);
     return false;
   }
 }
@@ -257,8 +263,8 @@ async function intelligentCleanup(): Promise<void> {
     }
 
     if (cleanedCount > 0) log.debug(`Cleanup: ${cleanedCount} files removed`);
-  } catch (err: any) {
-    log.debug(`Cleanup error: ${err.message}`);
+  } catch (err: unknown) {
+    log.debug(`Cleanup error: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
@@ -310,8 +316,8 @@ async function emergencyCleanup(): Promise<void> {
     }
 
     if (cleanedCount > 0) log.debug(`Emergency cleanup: ${cleanedCount} files removed`);
-  } catch (err: any) {
-    log.debug(`Emergency cleanup error: ${err.message}`);
+  } catch (err: unknown) {
+    log.debug(`Emergency cleanup error: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
@@ -345,7 +351,7 @@ async function getOriginalFilename(uploadId: string): Promise<string> {
 }
 
 if (!isInitialized) {
-  intelligentCleanup();
+  void intelligentCleanup();
 
   cleanupIntervalId = setInterval(intelligentCleanup, TUS_CLEANUP_CONFIG.CLEANUP_INTERVAL);
   emergencyCleanupIntervalId = setInterval(

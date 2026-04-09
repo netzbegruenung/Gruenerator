@@ -4,6 +4,7 @@
 
 import { type AuthenticatedRequest } from '../../middleware/types.js';
 
+import type AIWorkerPool from '../../workers/aiWorkerPool.js';
 import type { ParamsDictionary } from 'express-serve-static-core';
 
 // =============================================================================
@@ -52,7 +53,7 @@ export interface BulkDeleteBody {
  */
 export interface AskQuestionBody {
   question: string;
-  filters?: Record<string, any>;
+  filters?: Record<string, unknown>;
   collectionIds?: string[];
   fastMode?: boolean;
 }
@@ -245,7 +246,7 @@ export interface PublicAccessRecord {
 export interface NotebookRequest<P = ParamsDictionary> extends AuthenticatedRequest<P> {
   app: {
     locals: {
-      aiWorkerPool?: any;
+      aiWorkerPool?: AIWorkerPool;
     };
   } & AuthenticatedRequest['app'];
 }

@@ -579,6 +579,7 @@ export const TEMPLATE_FIELD_CONFIGS: Record<ImageStudioTemplateType, TemplateFie
  */
 export function mapTextResponse(
   type: ImageStudioTemplateType,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   response: any
 ): NormalizedTextResult {
   switch (type) {
@@ -589,6 +590,7 @@ export function mapTextResponse(
           line2: response.mainSlogan?.line2 || '',
           line3: response.mainSlogan?.line3 || '',
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         alternatives: (response.alternatives || []).map((alt: any) => ({
           line1: alt.line1 || '',
           line2: alt.line2 || '',
@@ -604,6 +606,7 @@ export function mapTextResponse(
           quote: response.quote || '',
           name: response.name || '',
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         alternatives: (response.alternatives || []).map((alt: any) => ({
           quote: alt.quote || '',
         })),
@@ -616,6 +619,7 @@ export function mapTextResponse(
           subheader: response.subheader || '',
           body: response.body || '',
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         alternatives: (response.alternatives || []).map((alt: any) => ({
           header: alt.header || '',
           subheader: alt.subheader || '',
@@ -636,6 +640,7 @@ export function mapTextResponse(
           locationName: mainEvent.locationName || '',
           address: mainEvent.address || '',
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         alternatives: (response.alternatives || []).map((alt: any) => ({
           eventTitle: alt.eventTitle || '',
           beschreibung: alt.beschreibung || '',
@@ -657,7 +662,7 @@ export function mapTextResponse(
         alternatives: [],
       };
 
-    default:
+    case 'profilbild':
       return {
         fields: {},
         alternatives: [],

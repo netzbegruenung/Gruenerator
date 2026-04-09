@@ -12,12 +12,13 @@ import {
 import { createLogger } from '../../utils/logger.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
+import type { AIWorkerPool } from '../../workers/types.js';
 
 const log = createLogger('subtitler-social');
 const router: Router = express.Router();
 
 interface SocialRequest extends AuthenticatedRequest {
-  app: AuthenticatedRequest['app'] & { locals: { aiWorkerPool?: any } };
+  app: AuthenticatedRequest['app'] & { locals: { aiWorkerPool?: AIWorkerPool } };
 }
 
 router.post('/generate-social', async (req: SocialRequest, res: Response): Promise<void> => {
@@ -71,11 +72,14 @@ Erstelle einen Instagram Reel Beitragstext, der:
     }
 
     res.json({ content: result.content, metadata: result.metadata });
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.error('Social media text generation failed:', error);
     res
       .status(500)
-      .json({ error: 'Fehler bei der Erstellung des Social Media Texts', details: error.message });
+      .json({
+        error: 'Fehler bei der Erstellung des Social Media Texts',
+        details: error instanceof Error ? error.message : String(error),
+      });
   }
 });
 

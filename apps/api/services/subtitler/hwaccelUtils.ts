@@ -125,12 +125,13 @@ export async function detectVaapi(): Promise<boolean> {
     );
     hwaccelAvailable = true;
     log.info('VAAPI hardware acceleration detected and working');
-  } catch (err: any) {
+  } catch (err: unknown) {
     hwaccelAvailable = false;
+    const errObj = err as { stderr?: Buffer; stdout?: Buffer; message?: string };
     const output =
-      err.stderr?.toString()?.trim() ||
-      err.stdout?.toString()?.trim() ||
-      err.message ||
+      errObj.stderr?.toString()?.trim() ||
+      errObj.stdout?.toString()?.trim() ||
+      errObj.message ||
       'unknown error';
     log.warn(`VAAPI test failed: ${output}, using CPU encoding`);
   }

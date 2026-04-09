@@ -6,7 +6,9 @@ import { useAuthStore } from '../stores/authStore';
 
 interface MobileEditorData {
   type: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   formData: Record<string, any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   modifications: Record<string, any> | null;
   generatedImageBase64?: string; // The previously generated image (used for reconstruction or reference)
   sourceImageBase64?: string; // The raw source image for editing (e.g., uploaded background)

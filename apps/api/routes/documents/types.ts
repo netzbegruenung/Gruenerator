@@ -107,7 +107,7 @@ export interface DocumentResponse {
   created_at: string;
   content_preview?: string | null;
   full_content?: string | null;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 export interface EnrichedDocument extends DocumentResponse {
@@ -156,12 +156,12 @@ export interface QdrantFullTextResult {
   id: string;
   fullText: string;
   chunkCount: number;
-  metadata: any;
+  metadata: Record<string, unknown>;
 }
 
 export interface BulkFullTextResult {
   documents: QdrantFullTextResult[];
-  errors: any[];
+  errors: Array<{ documentId: string; error: string }>;
   stats: {
     requested: number;
     accessible: number;
@@ -183,19 +183,19 @@ export interface SearchResultCompatible {
 
 export interface HybridTestResult {
   query: string;
-  vector_search: any;
-  hybrid_search: any;
+  vector_search: unknown;
+  hybrid_search: unknown;
 }
 
 // ============================================================================
 // Generic API Response Types
 // ============================================================================
 
-export interface ApiSuccessResponse<T = any> {
+export interface ApiSuccessResponse<T = unknown> {
   success: true;
   data?: T;
   message?: string;
-  meta?: Record<string, any>;
+  meta?: Record<string, unknown>;
 }
 
 export interface ApiErrorResponse {
