@@ -347,6 +347,8 @@ const BlockNoteEditorInner = ({
           editable={editable}
           formattingToolbar={false}
           slashMenu={false}
+          sideMenu={false}
+          tableHandles={false}
         >
           <AIMenuController />
           {hideFormattingToolbar ? null : staticToolbar ? (
