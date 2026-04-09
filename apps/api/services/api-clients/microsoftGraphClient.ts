@@ -38,12 +38,10 @@ function validateGraphId(id: string, label: string): string {
 
 export async function listDriveItems(
   token: string,
-  folderId?: string,
+  folderId?: string
 ): Promise<MicrosoftDriveListResult> {
   if (folderId) validateGraphId(folderId, 'folder ID');
-  const path = folderId
-    ? `/me/drive/items/${folderId}/children`
-    : '/me/drive/root/children';
+  const path = folderId ? `/me/drive/items/${folderId}/children` : '/me/drive/root/children';
   const response = await axios.get(`${GRAPH_API}${path}`, {
     headers: authHeaders(token),
     params: {
@@ -60,7 +58,7 @@ export async function listDriveItems(
 
 export async function getDriveItem(token: string, itemId: string): Promise<MicrosoftDriveItem> {
   validateGraphId(itemId, 'item ID');
-  const response = await axios.get(`${GRAPH_API}/me/drive/items/${itemId}`, {
+  const response = await axios.get<MicrosoftDriveItem>(`${GRAPH_API}/me/drive/items/${itemId}`, {
     headers: authHeaders(token),
     params: {
       $select: 'id,name,size,lastModifiedDateTime,webUrl,file,folder',
@@ -79,7 +77,7 @@ export async function downloadDriveItem(token: string, itemId: string): Promise<
 }
 
 export async function listSharePointSites(token: string): Promise<SharePointSite[]> {
-  const response = await axios.get(`${GRAPH_API}/sites`, {
+  const response = await axios.get<{ value: SharePointSite[] }>(`${GRAPH_API}/sites`, {
     headers: authHeaders(token),
     params: {
       search: '*',
@@ -93,7 +91,7 @@ export async function listSharePointSites(token: string): Promise<SharePointSite
 export async function listSharePointDriveItems(
   token: string,
   siteId: string,
-  folderId?: string,
+  folderId?: string
 ): Promise<MicrosoftDriveListResult> {
   validateGraphId(siteId, 'site ID');
   if (folderId) validateGraphId(folderId, 'folder ID');
@@ -116,7 +114,7 @@ export async function listSharePointDriveItems(
 export async function listTeamsDriveItems(
   token: string,
   teamId: string,
-  channelId?: string,
+  channelId?: string
 ): Promise<MicrosoftDriveListResult> {
   validateGraphId(teamId, 'team ID');
   if (channelId) validateGraphId(channelId, 'channel ID');
@@ -138,12 +136,15 @@ export async function listTeamsDriveItems(
 
 export async function searchDrive(token: string, query: string): Promise<MicrosoftDriveItem[]> {
   const sanitized = query.replace(/'/g, "''");
-  const response = await axios.get(`${GRAPH_API}/me/drive/root/search(q='${sanitized}')`, {
-    headers: authHeaders(token),
-    params: {
-      $select: 'id,name,size,lastModifiedDateTime,webUrl,file,folder',
-      $top: 20,
-    },
-  });
+  const response = await axios.get<{ value: MicrosoftDriveItem[] }>(
+    `${GRAPH_API}/me/drive/root/search(q='${sanitized}')`,
+    {
+      headers: authHeaders(token),
+      params: {
+        $select: 'id,name,size,lastModifiedDateTime,webUrl,file,folder',
+        $top: 20,
+      },
+    }
+  );
   return response.data.value;
 }

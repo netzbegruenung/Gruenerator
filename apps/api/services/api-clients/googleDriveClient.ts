@@ -57,7 +57,7 @@ export async function listFiles(
 
 export async function getFile(token: string, fileId: string): Promise<GoogleDriveFile> {
   validateDriveId(fileId, 'file ID');
-  const response = await axios.get(`${GOOGLE_DRIVE_API}/files/${fileId}`, {
+  const response = await axios.get<GoogleDriveFile>(`${GOOGLE_DRIVE_API}/files/${fileId}`, {
     headers: authHeaders(token),
     params: {
       fields: 'id,name,mimeType,size,modifiedTime,parents,webViewLink',
@@ -82,33 +82,35 @@ export async function exportDoc(
   mimeType: string = 'text/plain'
 ): Promise<string> {
   validateDriveId(docId, 'document ID');
-  const response = await axios.get(`${GOOGLE_DRIVE_API}/files/${docId}/export`, {
+  const response = await axios.get<string>(`${GOOGLE_DRIVE_API}/files/${docId}/export`, {
     headers: authHeaders(token),
     params: { mimeType },
   });
   return response.data;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getDocContent(token: string, docId: string): Promise<any> {
+export async function getDocContent(
+  token: string,
+  docId: string
+): Promise<Record<string, unknown>> {
   validateDriveId(docId, 'document ID');
-  const response = await axios.get(`${GOOGLE_DOCS_API}/documents/${docId}`, {
-    headers: authHeaders(token),
-  });
+  const response = await axios.get<Record<string, unknown>>(
+    `${GOOGLE_DOCS_API}/documents/${docId}`,
+    { headers: authHeaders(token) }
+  );
   return response.data;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getSheetContent(
   token: string,
   spreadsheetId: string,
   range?: string
-): Promise<any> {
+): Promise<Record<string, unknown>> {
   validateDriveId(spreadsheetId, 'spreadsheet ID');
   const url = range
     ? `${GOOGLE_SHEETS_API}/spreadsheets/${spreadsheetId}/values/${range}`
     : `${GOOGLE_SHEETS_API}/spreadsheets/${spreadsheetId}`;
-  const response = await axios.get(url, {
+  const response = await axios.get<Record<string, unknown>>(url, {
     headers: authHeaders(token),
   });
   return response.data;
@@ -116,7 +118,7 @@ export async function getSheetContent(
 
 export async function searchFiles(token: string, query: string): Promise<GoogleDriveFile[]> {
   const sanitized = query.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-  const response = await axios.get(`${GOOGLE_DRIVE_API}/files`, {
+  const response = await axios.get<{ files: GoogleDriveFile[] }>(`${GOOGLE_DRIVE_API}/files`, {
     headers: authHeaders(token),
     params: {
       q: `fullText contains '${sanitized}' and trashed = false`,
