@@ -72,7 +72,7 @@ router.get(
         `[custom_prompt] GET /:slug - Fetching prompt with slug: ${slug} for user: ${userId}`
       );
 
-      const promptData = (await postgres.queryOne(
+      const promptData = await postgres.queryOne<CustomPromptRow>(
         `SELECT cp.id, cp.name, cp.slug, cp.prompt, cp.description, cp.is_public,
               cp.created_at, cp.updated_at, cp.is_active, cp.usage_count, cp.user_id as owner_id,
               p.first_name as owner_first_name, p.last_name as owner_last_name
@@ -81,7 +81,7 @@ router.get(
        WHERE cp.slug = $1 AND cp.is_active = true`,
         [slug],
         { table: 'custom_prompts' }
-      )) as unknown as CustomPromptRow | null;
+      );
 
       if (!promptData) {
         log.debug(`[custom_prompt] Prompt not found for slug: ${slug}`);
@@ -96,11 +96,11 @@ router.get(
 
       let isSaved = false;
       if (!isOwner) {
-        const savedCheck = (await postgres.queryOne(
+        const savedCheck = await postgres.queryOne<SavedPromptRow>(
           `SELECT id FROM saved_prompts WHERE user_id = $1 AND prompt_id = $2`,
           [userId, promptData.id],
           { table: 'saved_prompts' }
-        )) as unknown as SavedPromptRow | null;
+        );
         isSaved = !!savedCheck;
       }
 

@@ -331,7 +331,7 @@ router.post('/public/:token/ask', async (req: Request<{ token: string }>, res: R
       return res.status(404).json({ error: 'Notebook collection not found' });
     }
 
-    const notebookReq = req as unknown as NotebookRequest;
+    const notebookReq = req as NotebookRequest;
     const result = await notebookQAService.askSingleCollection({
       collectionId: collection.id,
       question,
