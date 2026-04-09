@@ -10,6 +10,7 @@
 
 import { chunkToNumericId } from '../../../database/services/QdrantService/utils.js';
 
+import type { HybridSearchMetadata } from '../../../database/services/QdrantService/operations/types.js';
 import type {
   ChunkWithMetadata,
   VectorMetadata,
@@ -147,7 +148,7 @@ export async function searchUserDocuments(
           score: r.score,
           payload: r.payload,
         })),
-        metadata: hybridResult.metadata as unknown as Record<string, unknown>,
+        metadata: hybridResult.metadata as Record<string, unknown>,
       };
     } else {
       console.log(`[VectorOperations] Performing vector search for user ${userId}`);

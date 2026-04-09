@@ -25,6 +25,30 @@ import { ocrService } from '../OcrService/index.js';
 
 import type { WolkeSyncStatus, NextcloudFile, FileProcessResult, SyncResult } from './types.js';
 
+type DrizzleWolkeSyncRow = typeof wolkeSyncStatus.$inferSelect;
+
+/**
+ * Map Drizzle result (camelCase fields) to WolkeSyncStatusRow (snake_case fields)
+ */
+function toWolkeSyncStatusRow(row: DrizzleWolkeSyncRow): WolkeSyncStatusRow {
+  return {
+    id: row.id,
+    user_id: row.userId || null,
+    share_link_id: row.shareLinkId,
+    folder_path: row.folderPath,
+    last_sync_at: row.lastSyncAt,
+    files_processed: Number(row.filesProcessed),
+    files_failed: Number(row.filesFailed),
+    auto_sync_enabled: row.autoSyncEnabled,
+    sync_status: row.syncStatus,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt,
+    context_type: row.contextType,
+    context_id: row.contextId,
+    synced_by_user_id: row.syncedByUserId,
+  };
+}
+
 export class WolkeSyncService {
   private postgres: ReturnType<typeof getPostgresInstance>;
   private qdrantService: DocumentSearchService;
@@ -81,7 +105,7 @@ export class WolkeSyncService {
         .limit(1);
 
       if (existing.length > 0) {
-        return existing[0] as unknown as WolkeSyncStatusRow;
+        return toWolkeSyncStatusRow(existing[0]);
       }
 
       // Create new sync status
@@ -99,7 +123,7 @@ export class WolkeSyncService {
         .returning();
 
       console.log(`[WolkeSyncService] Created sync status record: ${created[0].id}`);
-      return created[0] as unknown as WolkeSyncStatusRow;
+      return toWolkeSyncStatusRow(created[0]);
     } catch (error: unknown) {
       console.error('[WolkeSyncService] Error getting/creating sync status:', error);
       throw error;
@@ -146,7 +170,7 @@ export class WolkeSyncService {
         .where(eq(wolkeSyncStatus.id, syncStatusId))
         .returning();
 
-      return result[0] as unknown as WolkeSyncStatusRow;
+      return toWolkeSyncStatusRow(result[0]);
     } catch (error: unknown) {
       console.error('[WolkeSyncService] Error updating sync status:', error);
       throw error;
@@ -608,7 +632,7 @@ export class WolkeSyncService {
         .where(eq(wolkeSyncStatus.userId, userId))
         .orderBy(wolkeSyncStatus.lastSyncAt);
 
-      return syncStatuses as unknown as WolkeSyncStatusRow[];
+      return syncStatuses.map(toWolkeSyncStatusRow);
     } catch (error: unknown) {
       console.error('[WolkeSyncService] Error getting user sync status:', error);
       throw error;

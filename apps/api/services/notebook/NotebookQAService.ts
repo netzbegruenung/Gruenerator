@@ -44,6 +44,9 @@ import {
 } from '../search/index.js';
 
 import type {
+  SearchResultInput,
+} from '../search/types.js';
+import type {
   QAMultiCollectionParams,
   QASingleCollectionParams,
   QAResponse,
@@ -697,7 +700,7 @@ export class NotebookQAService {
       });
 
       const expanded = expandResultsToChunks(
-        (resp.results as unknown as Parameters<typeof expandResultsToChunks>[0]) || [],
+        (resp.results as unknown as SearchResultInput[]) || [],
         collectionId,
         config.name
       );
