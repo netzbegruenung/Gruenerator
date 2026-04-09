@@ -48,7 +48,7 @@ async function main(): Promise<void> {
     persistence,
     auth,
   });
-  server.listen();
+  await server.listen();
   log.info(`Hocuspocus WebSocket server started on ${HOCUSPOCUS_HOST}:${HOCUSPOCUS_PORT}`);
 
   // 5. Start health check HTTP server

@@ -1,4 +1,4 @@
-import { COLLECTIONS, getDefaultSearchCollections } from '@gruenerator/shared/search/collections';
+import { getDefaultSearchCollections } from '@gruenerator/shared/search/collections';
 import { z } from 'zod';
 
 import { COLLECTION_KEYS } from '../config.ts';
