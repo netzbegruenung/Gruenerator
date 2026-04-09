@@ -1,36 +1,10 @@
+import type { EnrichmentMetadata } from '../../../../utils/types/requestEnrichment.js';
 import type { PRAgentResult, FormattedPRResponse } from '../types.js';
 
 interface ExamplePost {
-  platform?: string;
-  content?: string;
-  relevanceScore?: number;
-}
-
-interface DocumentReference {
-  title: string;
-  filename: string;
-  pageCount?: number | undefined;
-  relevance?: number | undefined;
-  retrievalMethod?: string | undefined;
-}
-
-interface TextReference {
-  title: string;
-  type: string;
-  wordCount?: number | undefined;
-  createdAt?: string | undefined;
-}
-
-interface WebSearchSource {
-  title: string;
-  url: string;
-  domain?: string | undefined;
-}
-
-interface EnrichmentMetadata {
-  documentsReferences?: DocumentReference[] | undefined;
-  textsReferences?: TextReference[] | undefined;
-  webSearchSources?: WebSearchSource[] | undefined;
+  platform?: string | undefined;
+  content?: string | undefined;
+  relevanceScore?: number | undefined;
 }
 
 /**
