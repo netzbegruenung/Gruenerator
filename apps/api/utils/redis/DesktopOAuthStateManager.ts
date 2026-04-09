@@ -198,12 +198,7 @@ class DesktopOAuthStateManager {
       const key = this.getStateKey(stateId);
 
       // Get and delete atomically
-      const multi = this.client.multi();
-      multi.get(key);
-      multi.del(key);
-      const results = await multi.exec();
-
-      const dataString = results[0] as unknown as string | null;
+      const dataString = await this.client.getDel(key);
 
       if (!dataString) {
         console.log('[Redis DesktopOAuth] PKCE state not found for consumption', {

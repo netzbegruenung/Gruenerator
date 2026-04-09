@@ -1,16 +1,32 @@
-import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
-import { type NotificationRow } from '../../database/types.js';
+import { and, count, eq, lt, sql, type InferSelectModel } from 'drizzle-orm';
+
+import { notifications } from '../../database/schema/index.js';
+import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { sendPushToUser } from '../../services/pushNotificationService.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { shouldDeliver, getProfileForDelivery } from './notificationPreferences.js';
 import { publishNotification } from './notificationPubSub.js';
 
-import type { Notification, CreateNotificationParams, NotificationListOptions } from './types.js';
+import type {
+  Notification,
+  CreateNotificationParams,
+  NotificationListOptions,
+  NotificationType,
+} from './types.js';
+
+type NotificationRow = InferSelectModel<typeof notifications>;
 
 const log = createLogger('NotificationService');
 
-const db = getPostgresInstance();
+function toNotification(row: NotificationRow): Notification {
+  return {
+    ...row,
+    type: row.type as NotificationType,
+    read_at: row.read_at?.toISOString() ?? null,
+    created_at: row.created_at.toISOString(),
+  };
+}
 
 function firePush(
   userId: string,
@@ -47,24 +63,23 @@ export async function createNotification(
     return null;
   }
 
-  const rows = (await db.query(
-    `INSERT INTO notifications (user_id, type, title, body, metadata, action_url, group_key)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING *`,
-    [
-      userId,
+  const db = getDrizzleInstance();
+  const rows = await db
+    .insert(notifications)
+    .values({
+      user_id: userId,
       type,
       title,
-      body || null,
-      JSON.stringify(metadata),
-      actionUrl || null,
-      groupKey || null,
-    ]
-  )) as unknown as NotificationRow[];
+      body: body ?? null,
+      metadata: metadata,
+      action_url: actionUrl ?? null,
+      group_key: groupKey ?? null,
+    })
+    .returning();
 
   const notification = rows[0];
 
-  publishNotification(userId, notification as unknown as Notification).catch((err: Error) => {
+  publishNotification(userId, toNotification(notification)).catch((err: Error) => {
     log.warn('Failed to publish notification via Redis', { userId, error: err.message });
   });
 
@@ -80,53 +95,67 @@ export async function getNotificationsForUser(
 ): Promise<NotificationRow[]> {
   const { limit = 20, offset = 0, unreadOnly = false } = options;
 
-  const whereClause = unreadOnly ? 'WHERE user_id = $1 AND is_read = FALSE' : 'WHERE user_id = $1';
+  const db = getDrizzleInstance();
 
-  return (await db.query(
-    `SELECT * FROM notifications ${whereClause} ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
-    [userId, limit, offset]
-  )) as unknown as NotificationRow[];
+  const conditions = unreadOnly
+    ? and(eq(notifications.user_id, userId), eq(notifications.is_read, false))
+    : eq(notifications.user_id, userId);
+
+  return db
+    .select()
+    .from(notifications)
+    .where(conditions)
+    .orderBy(sql`${notifications.created_at} DESC`)
+    .limit(limit)
+    .offset(offset);
 }
 
 export async function getUnreadCount(userId: string): Promise<number> {
-  const rows = (await db.query(
-    'SELECT COUNT(*)::int AS count FROM notifications WHERE user_id = $1 AND is_read = FALSE',
-    [userId]
-  )) as unknown as Array<{ count: number }>;
+  const db = getDrizzleInstance();
 
-  return rows[0]?.count ?? 0;
+  const result = await db
+    .select({ value: count() })
+    .from(notifications)
+    .where(and(eq(notifications.user_id, userId), eq(notifications.is_read, false)));
+
+  return result[0]?.value ?? 0;
 }
 
 export async function markAsRead(notificationId: string, userId: string): Promise<void> {
-  await db.query(
-    'UPDATE notifications SET is_read = TRUE, read_at = CURRENT_TIMESTAMP WHERE id = $1 AND user_id = $2',
-    [notificationId, userId]
-  );
+  const db = getDrizzleInstance();
+  await db
+    .update(notifications)
+    .set({ is_read: true, read_at: new Date() })
+    .where(and(eq(notifications.id, notificationId), eq(notifications.user_id, userId)));
 }
 
 export async function markAllAsRead(userId: string): Promise<void> {
-  await db.query(
-    'UPDATE notifications SET is_read = TRUE, read_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND is_read = FALSE',
-    [userId]
-  );
+  const db = getDrizzleInstance();
+  await db
+    .update(notifications)
+    .set({ is_read: true, read_at: new Date() })
+    .where(and(eq(notifications.user_id, userId), eq(notifications.is_read, false)));
 }
 
 export async function dismissNotification(notificationId: string, userId: string): Promise<void> {
-  await db.query('DELETE FROM notifications WHERE id = $1 AND user_id = $2', [
-    notificationId,
-    userId,
-  ]);
+  const db = getDrizzleInstance();
+  await db
+    .delete(notifications)
+    .where(and(eq(notifications.id, notificationId), eq(notifications.user_id, userId)));
 }
 
 export async function dismissAllNotifications(userId: string): Promise<void> {
-  await db.query('DELETE FROM notifications WHERE user_id = $1', [userId]);
+  const db = getDrizzleInstance();
+  await db.delete(notifications).where(eq(notifications.user_id, userId));
 }
 
 export async function deleteOldNotifications(daysOld: number = 90): Promise<number> {
-  const rows = (await db.query(
-    `DELETE FROM notifications WHERE created_at < CURRENT_TIMESTAMP - make_interval(days => $1) RETURNING id`,
-    [daysOld]
-  )) as unknown as Array<{ id: string }>;
+  const db = getDrizzleInstance();
+
+  const rows = await db
+    .delete(notifications)
+    .where(lt(notifications.created_at, sql`CURRENT_TIMESTAMP - make_interval(days => ${daysOld})`))
+    .returning({ id: notifications.id });
 
   return rows.length;
 }

@@ -60,11 +60,11 @@ export const subdomainHandler = async (
       console.log(`[SubdomainHandler] Looking up user site for subdomain: ${subdomain}`);
       req.subdomain = subdomain;
 
-      const result = (await db.query(
+      const result = await db.query<UserSiteData>(
         'SELECT * FROM user_sites WHERE subdomain = $1 AND is_published = true',
         [subdomain],
         { table: 'user_sites' }
-      )) as unknown as UserSiteData[];
+      );
 
       if (result && result.length > 0) {
         console.log(`[SubdomainHandler] ✓ Found published site for subdomain: ${subdomain}`);

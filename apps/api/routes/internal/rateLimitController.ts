@@ -11,6 +11,8 @@ import { createLogger } from '../../utils/logger.js';
 
 import type { RequestWithUser } from '../../utils/redis/types.js';
 
+type RequestWithUserAndBody = RequestWithUser & Request;
+
 const log = createLogger('rateLimit');
 const router: Router = express.Router();
 
@@ -29,7 +31,7 @@ interface LimitConfig {
   window?: string;
 }
 
-router.get('/:resourceType', async (req: Request<{ resourceType: string }>, res: Response) => {
+router.get('/:resourceType', async (req: RequestWithUser & { params: { resourceType: string } }, res: Response) => {
   try {
     const { resourceType } = req.params;
 
@@ -40,8 +42,8 @@ router.get('/:resourceType', async (req: Request<{ resourceType: string }>, res:
       });
     }
 
-    const userType = rateLimiter.getUserType(req as unknown as RequestWithUser);
-    const identifier = rateLimiter.getIdentifier(req as unknown as RequestWithUser, userType);
+    const userType = rateLimiter.getUserType(req);
+    const identifier = rateLimiter.getIdentifier(req, userType);
 
     const status = (await rateLimiter.checkLimit(
       resourceType,
@@ -67,7 +69,7 @@ router.get('/:resourceType', async (req: Request<{ resourceType: string }>, res:
   }
 });
 
-router.post('/bulk', async (req: Request, res: Response) => {
+router.post('/bulk', async (req: RequestWithUserAndBody, res: Response) => {
   try {
     const { resourceTypes } = req.body;
 
@@ -85,8 +87,8 @@ router.post('/bulk', async (req: Request, res: Response) => {
       });
     }
 
-    const userType = rateLimiter.getUserType(req as unknown as RequestWithUser);
-    const identifier = rateLimiter.getIdentifier(req as unknown as RequestWithUser, userType);
+    const userType = rateLimiter.getUserType(req);
+    const identifier = rateLimiter.getIdentifier(req, userType);
 
     const results: Record<string, RateLimitStatus & { timeUntilReset: string | null }> = {};
 
@@ -124,12 +126,12 @@ router.post('/bulk', async (req: Request, res: Response) => {
 
 router.post(
   '/reset/:resourceType',
-  async (req: Request<{ resourceType: string }>, res: Response) => {
+  async (req: RequestWithUser & { params: { resourceType: string } }, res: Response) => {
     try {
       const { resourceType } = req.params;
 
-      const userType = rateLimiter.getUserType(req as unknown as RequestWithUser);
-      const identifier = rateLimiter.getIdentifier(req as unknown as RequestWithUser, userType);
+      const userType = rateLimiter.getUserType(req);
+      const identifier = rateLimiter.getIdentifier(req, userType);
 
       if (process.env.NODE_ENV === 'production' && userType === 'anonymous') {
         return res.status(403).json({
@@ -165,9 +167,9 @@ router.post(
 );
 
 if (process.env.NODE_ENV === 'development') {
-  router.get('/config/:resourceType', (req: Request<{ resourceType: string }>, res: Response) => {
+  router.get('/config/:resourceType', (req: RequestWithUser & { params: { resourceType: string } }, res: Response) => {
     const { resourceType } = req.params;
-    const userType = rateLimiter.getUserType(req as unknown as RequestWithUser);
+    const userType = rateLimiter.getUserType(req);
     const config = rateLimiter.getLimitConfig(resourceType, userType);
 
     res.json({
@@ -176,8 +178,7 @@ if (process.env.NODE_ENV === 'development') {
         resourceType,
         userType,
         config: config || 'No configuration found',
-        allConfigs: (rateLimiter as unknown as { config: { resources: Record<string, unknown> } })
-          .config.resources[resourceType],
+        allConfigs: rateLimiter.getConfig().resources[resourceType],
       },
     });
   });

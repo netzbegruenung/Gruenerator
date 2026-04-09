@@ -43,40 +43,70 @@ const OPERATION_TYPE_ALIASES: Record<string, string> = {
 };
 
 /**
- * Normalizes LLM operation types in SSE stream chunks before they reach BlockNote.
- * Transforms known synonyms to the three valid types: add, update, delete.
+ * Recursively normalizes LLM operation types in a UIMessageChunk object.
+ * Fixes tool call inputs where the LLM generates "replace" instead of "update", etc.
+ * Works on the parsed JSON object level (before SSE serialization).
  */
-function normalizeOperationTypes(chunk: unknown): string {
-  const text =
-    typeof chunk === 'string'
-      ? chunk
-      : chunk !== null && typeof chunk === 'object'
-        ? JSON.stringify(chunk)
-        : String(chunk);
+function normalizeChunkOperationTypes(chunk: Record<string, unknown>): Record<string, unknown> {
+  // Only process tool-input-delta and tool-input-available chunks
+  const chunkType = chunk.type as string;
 
-  return text.replace(/"type"\s*:\s*"(\w+)"/g, (match, type: string) => {
-    const normalized = OPERATION_TYPE_ALIASES[type];
-    if (normalized) {
-      log.info(`[DocsAI] Normalized operation type "${type}" → "${normalized}"`);
-      return `"type":"${normalized}"`;
+  if (chunkType === 'tool-input-delta') {
+    const delta = chunk.inputTextDelta as string | undefined;
+    if (delta) {
+      const normalized = delta.replace(/"type"\s*:\s*"(\w+)"/g, (match, type: string) => {
+        const alias = OPERATION_TYPE_ALIASES[type];
+        if (alias) {
+          log.info(`[DocsAI] Normalized operation type "${type}" → "${alias}"`);
+          return `"type":"${alias}"`;
+        }
+        return match;
+      });
+      if (normalized !== delta) {
+        return { ...chunk, inputTextDelta: normalized };
+      }
     }
-    return match;
-  });
+  }
+
+  if (chunkType === 'tool-input-available') {
+    const input = chunk.input as { operations?: Array<{ type?: string }> } | undefined;
+    if (input?.operations) {
+      let changed = false;
+      const normalizedOps = input.operations.map((op) => {
+        const alias = op.type ? OPERATION_TYPE_ALIASES[op.type] : null;
+        if (alias) {
+          log.info(`[DocsAI] Normalized operation type "${op.type}" → "${alias}"`);
+          changed = true;
+          return { ...op, type: alias };
+        }
+        return op;
+      });
+      if (changed) {
+        return { ...chunk, input: { ...input, operations: normalizedOps } };
+      }
+    }
+  }
+
+  return chunk;
 }
 
 /**
- * Creates a TransformStream that normalizes operation types in the SSE stream.
+ * Creates a TransformStream that normalizes operation types in UIMessageChunk objects.
+ * Operates on JSON objects before SSE serialization.
  */
-function createNormalizingTransform(): TransformStream<unknown, string> {
+function createNormalizingTransform(): TransformStream<
+  Record<string, unknown>,
+  Record<string, unknown>
+> {
   return new TransformStream({
-    transform(chunk, controller) {
-      const normalized = normalizeOperationTypes(chunk);
-      // DEBUG: Log stream chunks containing tool call data
-      const chunkStr = String(chunk);
-      if (chunkStr.includes('tool') || chunkStr.includes('operations')) {
-        log.info(`[DocsAI] Stream chunk: ${chunkStr.substring(0, 500)}`);
+    transform(chunk: Record<string, unknown>, controller) {
+      const chunkType = chunk.type as string;
+      if (chunkType === 'tool-input-delta' || chunkType === 'tool-input-available') {
+        log.info(
+          `[DocsAI] Stream chunk (${chunkType}): ${JSON.stringify(chunk).substring(0, 500)}`
+        );
       }
-      controller.enqueue(normalized);
+      controller.enqueue(normalizeChunkOperationTypes(chunk));
     },
   });
 }
@@ -219,16 +249,32 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
       },
     });
 
+    // toUIMessageStream() produces JSON objects (UIMessageChunks).
+    // DefaultChatTransport expects SSE format (data: {...}\n\n).
+    // Pipeline: JSON chunks → normalize operation types → SSE framing → response
     const stream = result.toUIMessageStream();
 
     // @ts-expect-error Node.js TransformStream vs Web API TransformStream type mismatch
     const normalizedStream = stream.pipeThrough(createNormalizingTransform());
 
+    // Convert JSON objects to SSE format: data: ${JSON.stringify(chunk)}\n\n
+    const sseStream = normalizedStream.pipeThrough(
+      new TransformStream({
+        transform(chunk: unknown, controller) {
+          controller.enqueue(`data: ${JSON.stringify(chunk)}\n\n`);
+        },
+        flush(controller) {
+          controller.enqueue('data: [DONE]\n\n');
+        },
+      })
+    );
+
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
 
-    const reader = normalizedStream.getReader();
+    const reader = sseStream.getReader();
     const pump = async () => {
       while (true) {
         const { done, value } = await reader.read();
