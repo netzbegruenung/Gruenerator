@@ -145,10 +145,12 @@ function loadCampaignConfig(campaignId: string, typeId: string): CampaignConfig 
 
       canvasConfig = JSON.parse(JSON.stringify(campaign.defaultCanvas));
 
-      canvasConfig.textLines = canvasConfig.textLines?.map((line: TextLineConfig) => ({
-        ...line,
-        color: theme.textColor,
-      }));
+      if (canvasConfig.textLines) {
+        canvasConfig.textLines = canvasConfig.textLines.map((line: TextLineConfig) => ({
+          ...line,
+          color: theme.textColor,
+        }));
+      }
 
       if (canvasConfig.credit) {
         canvasConfig.credit = {

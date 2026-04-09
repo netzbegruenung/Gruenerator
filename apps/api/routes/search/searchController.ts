@@ -453,7 +453,7 @@ router.post(
             performance: { duration: Date.now() - startTime, aiCalls: 0, estimatedTokens: 0 },
           },
         };
-        if (process.env.NODE_ENV === 'development') {
+        if (process.env.NODE_ENV === 'development' && searchResults.error) {
           errorResponse.details = searchResults.error;
         }
         return res.status(500).json(errorResponse);

@@ -43,9 +43,9 @@ interface CreateTransferParams {
 }
 
 interface TransferOptions {
-  password?: string;
-  expiresInDays?: number;
-  message?: string;
+  password?: string | undefined;
+  expiresInDays?: number | undefined;
+  message?: string | undefined;
 }
 
 class TransferService {

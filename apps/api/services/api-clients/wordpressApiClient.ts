@@ -25,10 +25,10 @@ export interface WPCategory {
 }
 
 export interface CreatePostOptions {
-  status?: 'draft' | 'publish' | 'pending';
-  excerpt?: string;
-  categories?: number[];
-  tags?: number[];
+  status?: 'draft' | 'publish' | 'pending' | undefined;
+  excerpt?: string | undefined;
+  categories?: number[] | undefined;
+  tags?: number[] | undefined;
 }
 
 export interface PostResult {

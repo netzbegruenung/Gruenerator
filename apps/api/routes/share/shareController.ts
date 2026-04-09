@@ -1477,7 +1477,7 @@ router.get('/templates', requireAuth, async (req: AuthenticatedRequest, res: Res
  */
 router.get(
   '/templates/:shareToken',
-  async (req: Request<ShareTokenParams> & { user?: { id: string } }, res: Response) => {
+  (async (req: Request<ShareTokenParams> & { user?: { id: string } }, res: Response) => {
     try {
       const userId = req.user?.id;
       const { shareToken } = req.params;
@@ -1509,7 +1509,7 @@ router.get(
         });
       }
     }
-  }
+  }) as any
 );
 
 // ============================================================================

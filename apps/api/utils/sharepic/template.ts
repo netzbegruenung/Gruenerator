@@ -1,6 +1,6 @@
 interface TemplateData {
-  preserveName?: boolean;
-  thema?: string;
+  preserveName?: boolean | undefined;
+  thema?: string | undefined;
   [key: string]: unknown;
 }
 

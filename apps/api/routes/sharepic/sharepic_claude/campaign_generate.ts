@@ -217,7 +217,9 @@ function loadCampaignConfig(campaignId: string, typeId: string): LoadedCampaignC
         };
       }
 
-      canvasConfig.backgroundImage = typeConfig.backgroundImage;
+      if (typeConfig.backgroundImage) {
+        canvasConfig.backgroundImage = typeConfig.backgroundImage;
+      }
 
       log.debug(
         `[Campaign] Built canvas for ${campaignId}/${typeId} using theme '${typeConfig.theme}'`

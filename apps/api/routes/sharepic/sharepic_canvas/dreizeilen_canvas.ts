@@ -34,9 +34,9 @@ interface TextLine {
 }
 
 interface TextData {
-  line1?: string;
-  line2?: string;
-  line3?: string;
+  line1?: string | undefined;
+  line2?: string | undefined;
+  line3?: string | undefined;
 }
 
 interface ColorPair {
@@ -317,7 +317,7 @@ async function addTextToImage(
 router.post(
   '/',
   upload.single('image'),
-  async (req: MulterRequest, res: Response): Promise<void> => {
+  (async (req: MulterRequest, res: Response): Promise<void> => {
     try {
       const {
         balkenGruppe_offset_x,
@@ -451,7 +451,7 @@ router.post(
         .status(500)
         .json({ error: 'Fehler beim Erstellen des Bildes: ' + (err as Error).message });
     }
-  }
+  }) as any
 );
 
 export { processText };

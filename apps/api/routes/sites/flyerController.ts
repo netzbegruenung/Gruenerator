@@ -33,7 +33,7 @@ router.post(
   '/',
   requireAuth as express.RequestHandler,
   upload.single('flyer') as express.RequestHandler,
-  async (req: MulterRequest, res: Response): Promise<void> => {
+  (async (req: MulterRequest, res: Response): Promise<void> => {
     try {
       if (!req.file) {
         res.status(400).json({ error: 'Bitte lade eine PDF-Datei hoch.' });
@@ -73,7 +73,7 @@ router.post(
         details: (err as Error).message,
       });
     }
-  }
+  }) as any
 );
 
 // Handle multer errors (file too large, wrong type)

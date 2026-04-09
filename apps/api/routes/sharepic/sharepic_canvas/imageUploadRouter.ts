@@ -14,7 +14,7 @@ interface MulterRequest extends Request {
 router.post(
   '/',
   upload.single('image'),
-  async (req: MulterRequest, res: Response): Promise<void> => {
+  (async (req: MulterRequest, res: Response): Promise<void> => {
     log.debug('POST-Anfrage an /upload empfangen');
     log.debug('Headers:', JSON.stringify(req.headers, null, 2));
 
@@ -50,7 +50,7 @@ router.post(
       log.error(error.stack);
       res.status(500).json({ error: 'Interner Serverfehler', details: error.message });
     }
-  }
+  }) as any
 );
 
 export default router;
