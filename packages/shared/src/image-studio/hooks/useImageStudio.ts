@@ -65,8 +65,8 @@ export function useImageStudio(options: UseImageStudioOptions = {}): UseImageStu
     error: canvasError,
     clearError: clearCanvasError,
   } = useImageStudioCanvas({
-    onSuccess: onImageGenerated,
-    onError,
+    ...(onImageGenerated != null && { onSuccess: onImageGenerated }),
+    ...(onError != null && { onError }),
   });
 
   const clearError = useCallback(() => {
