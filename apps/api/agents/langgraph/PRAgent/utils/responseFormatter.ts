@@ -1,4 +1,9 @@
-import type { EnrichmentMetadata } from '../../../../utils/types/requestEnrichment.js';
+import type {
+  EnrichmentMetadata,
+  DocumentReference,
+  TextReference,
+  WebSearchSource,
+} from '../../../../utils/types/requestEnrichment.js';
 import type { PRAgentResult, FormattedPRResponse } from '../types.js';
 
 interface ExamplePost {
