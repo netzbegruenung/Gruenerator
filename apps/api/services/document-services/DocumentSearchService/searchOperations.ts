@@ -221,7 +221,7 @@ export async function findSimilarChunks(
       '[SearchOperations] Intent-aware search failed, falling back to quality search:',
       errorMsg
     );
-    results = await qdrantOps.searchWithQuality(searchCollection, embedding, filter, {
+    results = await qdrantOps.searchWithQuality(searchCollection, embedding, filter as any, {
       limit,
       threshold,
       withPayload: true,

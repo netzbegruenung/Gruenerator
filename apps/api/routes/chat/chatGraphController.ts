@@ -337,10 +337,10 @@ router.post('/stream', async (req, res) => {
     await enrichContext({
       initialState,
       userId,
-      rawDocumentIds,
-      rawTextIds,
-      rawBoardIds,
-      rawDocMentionIds,
+      ...(rawDocumentIds != null && { rawDocumentIds }),
+      ...(rawTextIds != null && { rawTextIds }),
+      ...(rawBoardIds != null && { rawBoardIds }),
+      ...(rawDocMentionIds != null && { rawDocMentionIds }),
       docAttachments,
       processedMeta,
       contextWindowTokens,
@@ -559,7 +559,12 @@ router.post('/stream', async (req, res) => {
     sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
 
     const systemMessage = await buildSystemMessage(finalState);
-    const { model: aiModel } = resolveModel(finalState.agentConfig, modelId, {
+    const agentConfigForResolve = {
+      provider: finalState.agentConfig.provider as string,
+      model: finalState.agentConfig.model,
+      ...(finalState.agentConfig.defaultModel != null && { defaultModel: finalState.agentConfig.defaultModel }),
+    };
+    const { model: aiModel } = resolveModel(agentConfigForResolve, modelId, {
       hasImages: imageAttachments.length > 0,
     });
 
@@ -798,13 +803,22 @@ router.post('/resume', async (req, res) => {
         sse.send('search_complete', {
           message: PROGRESS_MESSAGES.searchComplete(resultCount),
           resultCount,
-          results: finalState.searchResults?.slice(0, 10).map((r) => ({
-            source: r.document_id,
-            title: r.title || 'Untitled',
-            content: r.chunk_text,
-            ...(r.url != null && { url: r.url }),
-            ...(r.score != null && { relevance: r.score }),
-          })) || [],
+          results: finalState.searchResults?.slice(0, 10).map((r) => {
+            const result: {
+              source: string;
+              title: string;
+              content: string;
+              url?: string;
+              relevance?: number;
+            } = {
+              source: r.source,
+              title: r.title,
+              content: r.content,
+            };
+            if (r.url != null) result.url = r.url;
+            if (r.relevance != null) result.relevance = r.relevance;
+            return result;
+          }) || [],
         });
       }
     }
@@ -814,7 +828,12 @@ router.post('/resume', async (req, res) => {
 
     const systemMessage = await buildSystemMessage(finalState);
     const resumeImageAttachments = requestContext.imageAttachments || [];
-    const { model: aiModel } = resolveModel(finalState.agentConfig, modelId, {
+    const agentConfigForResolve2 = {
+      provider: finalState.agentConfig.provider as string,
+      model: finalState.agentConfig.model,
+      ...(finalState.agentConfig.defaultModel != null && { defaultModel: finalState.agentConfig.defaultModel }),
+    };
+    const { model: aiModel } = resolveModel(agentConfigForResolve2, modelId, {
       hasImages: resumeImageAttachments.length > 0,
     });
 

@@ -227,7 +227,7 @@ export function buildIllustrationPrompt(
     subject: subject,
     action: action || config.defaultAction,
     style: `${config.style}, soft diffused lighting`,
-    composition: config.composition,
+    ...(config.composition ? { composition: config.composition } : {}),
     color_palette: ['muted forest green', 'soft sage green', 'warm cream'],
     rendering: 'Pure visual illustration. Wordless artistic scene. Soft edges, gentle atmosphere.',
   };

@@ -87,7 +87,7 @@ export async function rerankPipeline(
       query,
       documents,
       topN: inputLimit,
-      instruct,
+      ...(instruct ? { instruct } : {}),
     });
 
     const scoreMap = new Map<number, number>();

@@ -222,7 +222,7 @@ export async function deleteDocumentVectors(
       filter.must!.push({ key: 'user_id', match: { value: userId } });
     }
 
-    await qdrantOps.batchDelete('documents', filter);
+    await qdrantOps.batchDelete('documents', filter as any);
 
     console.log(`[VectorOperations] Deleted vectors for document ${documentId}`);
     return { success: true, documentId };
@@ -249,7 +249,7 @@ export async function deleteUserDocuments(
 ): Promise<DeleteResult> {
   try {
     const filter: QdrantFilter = { must: [{ key: 'user_id', match: { value: userId } }] };
-    await qdrantOps.batchDelete('documents', filter);
+    await qdrantOps.batchDelete('documents', filter as any);
 
     console.log(`[VectorOperations] Deleted all vectors for user ${userId}`);
     return { success: true, userId };

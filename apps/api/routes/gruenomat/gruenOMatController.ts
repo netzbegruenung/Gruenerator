@@ -111,7 +111,6 @@ router.post(
       messages,
       collectionId,
       mode: 'fast',
-      userId: undefined,
       allowUserCollections: false,
       systemPromptOverride: GRUEN_O_MAT_PROMPT,
       noResultsMessage: OFF_TOPIC_RESPONSE,

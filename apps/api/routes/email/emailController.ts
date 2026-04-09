@@ -77,7 +77,7 @@ router.post('/send-content', async (req: AuthenticatedRequest, res: Response) =>
     const params = {
       recipientEmail,
       contentTitle,
-      contentDescription,
+      ...(contentDescription != null && { contentDescription }),
       ...(attachmentBuffer && attachmentFilename && attachmentContentType && {
         attachment: {
           filename: attachmentFilename,

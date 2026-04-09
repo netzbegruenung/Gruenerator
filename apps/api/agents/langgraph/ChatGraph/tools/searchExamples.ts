@@ -38,13 +38,9 @@ export function createSearchExamplesTool(deps: ToolDependencies): DynamicStructu
 
       const params: Parameters<typeof executeDirectExamplesSearch>[0] = {
         query,
+        ...(platform != null ? { platform } : {}),
+        ...(country != null ? { country } : {}),
       };
-      if (platform != null) {
-        params.platform = platform;
-      }
-      if (country != null) {
-        params.country = country;
-      }
       const result = await executeDirectExamplesSearch(params);
 
       if (!result.examples || result.examples.length === 0) {

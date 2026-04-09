@@ -79,13 +79,10 @@ export function createWebSearchTool(deps: ToolDependencies): DynamicStructuredTo
       const webPromises = allQueries.map((q) => {
         const params: Parameters<typeof executeDirectWebSearch>[0] = {
           query: q,
+          searchType: 'general' as const,
+          ...(effectiveMaxResults != null ? { maxResults: effectiveMaxResults } : {}),
+          ...(effectiveTimeRange != null ? { timeRange: effectiveTimeRange } : {}),
         };
-        if (effectiveMaxResults != null) {
-          params.maxResults = effectiveMaxResults;
-        }
-        if (effectiveTimeRange != null) {
-          params.timeRange = effectiveTimeRange;
-        }
         return executeDirectWebSearch(params).catch((err: unknown) => {
           log.warn(
             `[WebSearch] Failed for variant "${q}": ${err instanceof Error ? err.message : String(err)}`

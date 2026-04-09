@@ -547,10 +547,8 @@ async function generateFinalResult({
 
   const result: GenerationResult = {
     content: generationResult.content || '',
+    ...(generationResult.metadata != null ? { metadata: generationResult.metadata } : {}),
   };
-  if (generationResult.metadata != null) {
-    result.metadata = generationResult.metadata;
-  }
   return result;
 }
 

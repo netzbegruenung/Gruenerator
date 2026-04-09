@@ -251,24 +251,28 @@ async function processProjectExport(
 
     const useHwAccel = await hwaccel.detectVaapi();
 
+    const originalFormatObj = metadata.originalFormat
+      ? {
+          ...(metadata.originalFormat.codec ? { codec: metadata.originalFormat.codec } : {}),
+          ...(metadata.originalFormat.videoBitrate != null ? {
+            videoBitrate: metadata.originalFormat.videoBitrate,
+          } : {}),
+          ...(metadata.originalFormat.audioCodec ? { audioCodec: metadata.originalFormat.audioCodec } : {}),
+          ...(metadata.originalFormat.audioBitrate != null ? {
+            audioBitrate: metadata.originalFormat.audioBitrate,
+          } : {}),
+        }
+      : undefined;
+
+    const metadataObj: any = {
+      width: metadata.width,
+      height: metadata.height,
+      rotation: metadata.rotation,
+      ...(originalFormatObj ? { originalFormat: originalFormatObj } : {}),
+    };
+
     const { outputOptions, inputOptions } = buildFFmpegOutputOptions({
-      metadata: {
-        width: metadata.width,
-        height: metadata.height,
-        rotation: metadata.rotation,
-        originalFormat: metadata.originalFormat
-          ? {
-              ...(metadata.originalFormat.codec && { codec: metadata.originalFormat.codec }),
-              ...(metadata.originalFormat.videoBitrate != null && {
-                videoBitrate: metadata.originalFormat.videoBitrate,
-              }),
-              ...(metadata.originalFormat.audioCodec && { audioCodec: metadata.originalFormat.audioCodec }),
-              ...(metadata.originalFormat.audioBitrate != null && {
-                audioBitrate: metadata.originalFormat.audioBitrate,
-              }),
-            }
-          : undefined,
-      },
+      metadata: metadataObj,
       fileStats,
       useHwAccel,
       includeTune: true,

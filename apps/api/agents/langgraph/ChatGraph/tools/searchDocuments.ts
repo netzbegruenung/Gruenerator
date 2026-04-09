@@ -192,10 +192,8 @@ export function createSearchDocumentsTool(deps: ToolDependencies): DynamicStruct
             title: r.source || result.collection,
             content: r.excerpt || '',
             relevance: r.relevance === 'Sehr hoch' ? 0.9 : r.relevance === 'Hoch' ? 0.7 : 0.5,
+            ...(r.url != null && { url: r.url }),
           };
-          if (r.url) {
-            scored.url = r.url;
-          }
           allResults.push(scored);
         }
       }
