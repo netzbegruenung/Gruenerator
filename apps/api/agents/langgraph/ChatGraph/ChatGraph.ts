@@ -11,7 +11,7 @@
  * - direct intent → respond node directly
  */
 
-import { StateGraph, Annotation, END } from '@langchain/langgraph';
+import { StateGraph, Annotation } from '@langchain/langgraph';
 
 import { resolveNotebookCollections } from '../../../config/notebookCollectionMap.js';
 import { getAgent, getDefaultAgentId } from '../../../routes/chat/agents/agentLoader.js';
@@ -26,7 +26,6 @@ import { respondNode } from './nodes/respondNode.js';
 import { searchNode } from './nodes/searchNode.js';
 
 import type {
-  ChatGraphState,
   ChatGraphInput,
   ChatGraphOutput,
   SearchIntent,
@@ -65,6 +64,7 @@ const ChatStateAnnotation = Annotation.Root({
   enabledTools: Annotation<Record<string, boolean>>({
     reducer: (x, y) => y ?? x,
   }),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- LangGraph untyped: aiWorkerPool has no shared interface
   aiWorkerPool: Annotation<any>({
     reducer: (x, y) => y ?? x,
   }),
@@ -420,7 +420,7 @@ function routeAfterClassification(
  * Routes to 'respond' otherwise.
  */
 function routeAfterQualityGate(state: ChatState): 'search' | 'respond' {
-  const { qualityScore, searchQuery, searchCount, maxSearches } = state;
+  const { qualityScore, searchCount, maxSearches } = state;
 
   // Loop back to search if quality is insufficient and we have retries left
   if (qualityScore > 0 && qualityScore < 3 && searchCount < maxSearches) {
@@ -679,7 +679,7 @@ export async function runChatGraph(input: ChatGraphInput): Promise<ChatGraphOutp
       },
       error: result.error || undefined,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.error('[ChatGraph] Execution error:', error);
     return {
       success: false,
@@ -694,7 +694,7 @@ export async function runChatGraph(input: ChatGraphInput): Promise<ChatGraphOutp
         searchTimeMs: 0,
         responseTimeMs: 0,
       },
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 }

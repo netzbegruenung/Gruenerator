@@ -19,7 +19,7 @@ import { ocrService } from '../../ocrService.js';
 import { BaseScraper } from '../base/BaseScraper.js';
 
 import type { OparlPaper } from '../../api-clients/oparlApiClient.js';
-import type { ScraperResult, OparlFile, OparlEndpoint } from '../types.js';
+import type { ScraperResult, OparlEndpoint } from '../types.js';
 
 /**
  * City scraping result
@@ -94,6 +94,7 @@ interface OparlPoint {
     oparl_id: string;
     chunk_index: number;
     chunk_text: string;
+    quality_score: number;
     full_text: string | null;
     city: string;
     title: string;
@@ -111,6 +112,7 @@ interface OparlPoint {
  * OParl API scraper for municipal parliament papers
  */
 export class OparlScraper extends BaseScraper {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private qdrant: any;
 
   constructor() {
@@ -230,7 +232,9 @@ export class OparlScraper extends BaseScraper {
             }
 
             // Embed
-            const chunkTexts = chunks.map((c: any) => c.text || c.chunk_text);
+            const chunkTexts = chunks.map(
+              (c: { text?: string; chunk_text?: string }) => c.text || c.chunk_text || ''
+            );
             const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
 
             // Store immediately (in small batches of 5 points)
@@ -284,11 +288,13 @@ export class OparlScraper extends BaseScraper {
     city: string,
     paper: OparlPaper,
     fullText: string,
-    chunks: any[],
+    chunks: { text?: string; chunk_text?: string }[],
     embeddings: number[][]
   ): OparlPoint[] {
     const paperId = uuidv4();
-    const chunkTexts = chunks.map((c: any) => c.text || c.chunk_text);
+    const chunkTexts = chunks.map(
+      (c: { text?: string; chunk_text?: string }) => c.text || c.chunk_text || ''
+    );
 
     // Get the best available PDF URL
     let pdfUrl: string | null = paper.mainFile?.accessUrl || null;
@@ -316,7 +322,8 @@ export class OparlScraper extends BaseScraper {
         date: paper.date || null,
         source_url: paper.id,
         main_file_url: pdfUrl,
-        detection_method: (paper as any)._detectionMethod || null,
+        detection_method:
+          (paper as unknown as { _detectionMethod?: string })._detectionMethod || null,
         created_at: new Date().toISOString(),
       },
     }));
@@ -410,7 +417,7 @@ export class OparlScraper extends BaseScraper {
         with_vector: false,
       });
       return result.points && result.points.length > 0;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }
@@ -532,7 +539,7 @@ export class OparlScraper extends BaseScraper {
       } while (offset);
 
       return Array.from(cities).sort();
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }

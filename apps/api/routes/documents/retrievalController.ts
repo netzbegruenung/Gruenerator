@@ -20,7 +20,7 @@ import { createLogger } from '../../utils/logger.js';
 
 import { enrichDocumentWithPreview } from './helpers.js';
 
-import type { DocumentRequest, BulkDeleteRequestBody, GetDocumentsBySourceQuery } from './types.js';
+import type { DocumentRequest, BulkDeleteRequestBody } from './types.js';
 
 const log = createLogger('documents:retrieval');
 const router: Router = express.Router();
@@ -58,7 +58,8 @@ router.get('/user', async (req: DocumentRequest, res: Response): Promise<void> =
 
     // Sort documents by created_at
     enrichedDocs.sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      (a, b) =>
+        new Date(b.created_at as string).getTime() - new Date(a.created_at as string).getTime()
     );
 
     res.json({
@@ -112,7 +113,8 @@ router.get('/combined-content', async (req: DocumentRequest, res: Response): Pro
 
     // Sort both documents and texts by created_at
     enrichedDocs.sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      (a, b) =>
+        new Date(b.created_at as string).getTime() - new Date(a.created_at as string).getTime()
     );
     texts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
@@ -168,6 +170,7 @@ router.get(
 
       const documents = await postgresDocumentService.getDocumentsBySourceType(
         userId,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         sourceType as any
       );
       const enriched = documents.map((doc) => enrichDocumentWithPreview(doc, {}));

@@ -152,6 +152,7 @@ export interface AIWorkerResult {
   success: boolean;
   metadata?: AIResponseMetadata;
   error?: string;
+  [key: string]: unknown;
 }
 
 // ========================================
@@ -247,7 +248,7 @@ export type ProviderAdapters = Record<ProviderName, ProviderAdapter>;
 
 export interface AIWorkerPool {
   processRequest(data: AIRequestData, req?: unknown): Promise<AIWorkerResult>;
-  shutdown(): Promise<void>;
+  shutdown(): Promise<void | PromiseSettledResult<number>[]>;
 }
 
 // Re-export provider types for convenience

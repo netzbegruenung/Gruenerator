@@ -19,6 +19,7 @@ import {
 import { buildSystemMessage } from './respondNode.js';
 import { getDefaultCollectionsForLocale } from './searchNode.js';
 
+import type { AgentConfig } from '../../../../routes/chat/agents/types.js';
 import type { ChatGraphState, SearchResult } from '../types.js';
 
 // ============================================================================
@@ -40,7 +41,7 @@ function assert(condition: boolean, description: string, details?: string) {
   }
 }
 
-function skip(description: string, reason: string) {
+function _skip(description: string, reason: string) {
   skipped++;
   console.log(`  ⏭️  ${description} — ${reason}`);
 }
@@ -172,9 +173,9 @@ async function testExpandedContextWindow() {
       model: 'test',
       name: 'test',
       description: 'test',
-    } as any,
+    } as unknown as AgentConfig,
     enabledTools: {},
-    aiWorkerPool: null,
+    aiWorkerPool: null as never,
     userLocale: 'de-DE',
     attachmentContext: null,
     imageAttachments: [],

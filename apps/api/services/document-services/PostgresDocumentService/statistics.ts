@@ -4,15 +4,27 @@
  */
 
 import type { DocumentStats, UserTextDocument } from './types.js';
+import type { PostgresService } from '../../../database/services/PostgresService/PostgresService.js';
 
 /**
  * Get user's document statistics
  */
-export async function getDocumentStats(postgres: any, userId: string): Promise<DocumentStats> {
+export async function getDocumentStats(
+  postgres: PostgresService,
+  userId: string
+): Promise<DocumentStats> {
   try {
     await postgres.ensureInitialized();
 
-    const stats = await postgres.queryOne(
+    const stats = await postgres.queryOne<{
+      total_documents: string;
+      manual_documents: string;
+      wolke_documents: string;
+      completed_documents: string;
+      processing_documents: string;
+      failed_documents: string;
+      total_vectors: string;
+    }>(
       `
       SELECT
         COUNT(*) as total_documents,
@@ -29,13 +41,13 @@ export async function getDocumentStats(postgres: any, userId: string): Promise<D
     );
 
     return {
-      totalDocuments: parseInt(stats.total_documents) || 0,
-      manualDocuments: parseInt(stats.manual_documents) || 0,
-      wolkeDocuments: parseInt(stats.wolke_documents) || 0,
-      completedDocuments: parseInt(stats.completed_documents) || 0,
-      processingDocuments: parseInt(stats.processing_documents) || 0,
-      failedDocuments: parseInt(stats.failed_documents) || 0,
-      totalVectorCount: parseInt(stats.total_vectors) || 0,
+      totalDocuments: parseInt(stats?.total_documents ?? '0') || 0,
+      manualDocuments: parseInt(stats?.manual_documents ?? '0') || 0,
+      wolkeDocuments: parseInt(stats?.wolke_documents ?? '0') || 0,
+      completedDocuments: parseInt(stats?.completed_documents ?? '0') || 0,
+      processingDocuments: parseInt(stats?.processing_documents ?? '0') || 0,
+      failedDocuments: parseInt(stats?.failed_documents ?? '0') || 0,
+      totalVectorCount: parseInt(stats?.total_vectors ?? '0') || 0,
     };
   } catch (error) {
     console.error('[PostgresDocumentService] Error getting document stats:', error);
@@ -46,7 +58,10 @@ export async function getDocumentStats(postgres: any, userId: string): Promise<D
 /**
  * Get user texts from user_documents table
  */
-export async function getUserTexts(postgres: any, userId: string): Promise<UserTextDocument[]> {
+export async function getUserTexts(
+  postgres: PostgresService,
+  userId: string
+): Promise<UserTextDocument[]> {
   try {
     await postgres.ensureInitialized();
 
@@ -60,7 +75,16 @@ export async function getUserTexts(postgres: any, userId: string): Promise<UserT
     const texts = await postgres.query(query, [userId], { table: 'user_documents' });
 
     // Transform to match frontend expectations and calculate word count
-    const transformedTexts: UserTextDocument[] = texts.map((text: any) => {
+    const transformedTexts: UserTextDocument[] = (
+      texts as Array<{
+        id: string;
+        title: string;
+        content: string;
+        document_type: string;
+        created_at: string;
+        updated_at: string;
+      }>
+    ).map((text) => {
       const plainText = (text.content || '').replace(/<[^>]*>/g, '').trim();
       const wordCount = plainText.split(/\s+/).filter((word: string) => word.length > 0).length;
 

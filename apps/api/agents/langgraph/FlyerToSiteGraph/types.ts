@@ -1,11 +1,12 @@
 import type { ExtractionResult } from '../../../services/OcrService/types.js';
 import type { WebsiteContent } from '../../../types/routes.js';
+import type { Request } from 'express';
 
 export interface FlyerToSiteInput {
   pdfBuffer: Buffer;
   originalFilename: string;
   email?: string;
-  req: any;
+  req: Request;
 }
 
 export interface FlyerContactInfo {
@@ -31,7 +32,7 @@ export interface FlyerToSiteState {
   pdfBuffer: Buffer;
   originalFilename: string;
   email: string;
-  req: any;
+  req: Request;
 
   // extractNode output
   extractedText: string | null;

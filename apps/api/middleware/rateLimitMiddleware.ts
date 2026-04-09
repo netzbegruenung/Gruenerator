@@ -24,7 +24,7 @@ import { RateLimiter, redisClient } from '../utils/redis/index.js';
 
 import { type RateLimitRequest, type RateLimitMiddlewareOptions } from './types.js';
 
-import type { RateLimiterConfig } from '../utils/redis/types.js';
+import type { RateLimiterConfig, RateLimitIncrementResult } from '../utils/redis/types.js';
 
 // Create singleton instance
 const rateLimiter = new RateLimiter(redisClient, rateLimitConfig as unknown as RateLimiterConfig);
@@ -110,7 +110,7 @@ function rateLimitMiddleware(resourceType: string, options: RateLimitMiddlewareO
       // If autoIncrement is enabled, wrap the response to increment on success
       if (autoIncrement) {
         const originalJson = res.json.bind(res);
-        res.json = function (body: any) {
+        res.json = function (body: unknown) {
           // Only increment if response is successful (2xx status)
           if (res.statusCode >= 200 && res.statusCode < 300) {
             incrementRateLimit(req).catch((err) => {
@@ -149,7 +149,7 @@ function rateLimitMiddleware(resourceType: string, options: RateLimitMiddlewareO
  *   res.json({ result });
  * });
  */
-async function incrementRateLimit(req: RateLimitRequest): Promise<any | null> {
+async function incrementRateLimit(req: RateLimitRequest): Promise<RateLimitIncrementResult | null> {
   if (!req.rateLimitContext) {
     console.warn('[RateLimit] incrementRateLimit called without rateLimitContext');
     return null;

@@ -2,6 +2,7 @@ import { MARKDOWN_FORMATTING_INSTRUCTIONS } from '../../../../utils/prompt/index
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 
 import type { EnrichedState } from '../../../../utils/types/requestEnrichment.js';
+import type { Request } from 'express';
 
 /**
  * Generates risk analysis: counter-arguments from political opponents
@@ -12,7 +13,7 @@ export async function generateRiskAnalysis(
   framing: string,
   socialContent: Record<string, string>,
   pressRelease: string,
-  req: any
+  req: Request
 ): Promise<string> {
   console.log('[PR Agent] Generating risk analysis');
 

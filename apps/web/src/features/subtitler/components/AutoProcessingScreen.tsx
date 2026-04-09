@@ -85,6 +85,7 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
 
       if (data.stage) setActiveStepIndex(mapBackendStage(data.stage));
       if (data.overallProgress !== undefined) setOverallProgress(data.overallProgress);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       if (err?.response?.status !== 404) {
         console.error('[AutoProcessingScreen] Poll error:', err);

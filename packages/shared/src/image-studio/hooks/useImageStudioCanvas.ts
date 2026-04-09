@@ -166,6 +166,10 @@ export function useImageStudioCanvas(
           formData.append('fontSizeLocationName', (fontSizes.locationName || 42).toString());
           formData.append('fontSizeAddress', (fontSizes.address || 42).toString());
           break;
+
+        case 'profilbild':
+        case 'simple':
+          break;
       }
 
       return formData;
@@ -212,6 +216,7 @@ export function useImageStudioCanvas(
         const imageBase64 = response.data.image;
         onSuccess?.(imageBase64);
         return imageBase64;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         const errorMessage =
           err.response?.data?.message || err.message || ERROR_MESSAGES.GENERATION_ERROR;

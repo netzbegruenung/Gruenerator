@@ -92,12 +92,13 @@ export function createSelfReviewTool(deps: ToolDependencies): DynamicStructuredT
           null
         );
 
-        const parsed = JSON.parse(response.content || '{}');
+        const result = response as { content?: string | null };
+        const parsed = JSON.parse(result.content || '{}');
         log.info(`[SelfReview] Agent=${deps.agentConfig.identifier} score=${parsed.score}`);
 
         return JSON.stringify(parsed, null, 2);
-      } catch (err: any) {
-        log.warn(`[SelfReview] Review failed: ${err.message}`);
+      } catch (err: unknown) {
+        log.warn(`[SelfReview] Review failed: ${err instanceof Error ? err.message : String(err)}`);
         return JSON.stringify({
           score: 3,
           checks: [],

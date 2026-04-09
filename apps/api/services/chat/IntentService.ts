@@ -27,11 +27,13 @@ import type {
   Intent as DocumentIntent,
   AgentType,
 } from '../document-services/DocumentQnAService/types.js';
+import type express from 'express';
 
 const log = createLogger('IntentService');
 
 // Initialize DocumentQnA service
-const documentQnAService = new DocumentQnAService(redisClient, mistralClient);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const documentQnAService = new DocumentQnAService(redisClient as any, mistralClient as any);
 
 /**
  * Configuration constants
@@ -88,7 +90,7 @@ interface BaseContext {
 interface MultiIntentResult {
   success: boolean;
   agent: string;
-  content?: any;
+  content?: unknown;
   error?: string;
   confidence: number;
   processingIndex: number;
@@ -130,8 +132,8 @@ function isImagineIntent(agent: string): boolean {
  */
 async function processSharepicRequest(
   intentResult: Intent,
-  req: any,
-  res: any,
+  req: express.Request,
+  res: express.Response,
   userId: string | null = null
 ): Promise<void> {
   log.debug('[IntentService] Processing sharepic request:', {
@@ -154,7 +156,9 @@ async function processSharepicRequest(
     const hasImageAttachment =
       req.body.attachments &&
       Array.isArray(req.body.attachments) &&
-      req.body.attachments.some((att: any) => att.type && att.type.startsWith('image/'));
+      req.body.attachments.some(
+        (att: { type: string }) => att.type && att.type.startsWith('image/')
+      );
 
     sharepicType = hasImageAttachment ? 'zitat' : 'zitat_pure';
   } else {
@@ -258,10 +262,10 @@ async function processSharepicRequest(
  */
 async function processImagineRequest(
   intentResult: Intent,
-  req: any,
-  res: any,
+  req: express.Request,
+  res: express.Response,
   userId: string | null = null
-): Promise<any> {
+): Promise<unknown> {
   log.debug('[IntentService] Processing imagine request:', {
     mode: req.body.mode,
     hasVariant: !!req.body.variant,
@@ -320,8 +324,8 @@ async function processImagineRequest(
  */
 export async function processMultiIntentRequest(
   intents: Intent[],
-  req: any,
-  res: any,
+  req: express.Request,
+  res: express.Response,
   baseContext: BaseContext
 ): Promise<void> {
   log.debug('[IntentService] Starting parallel processing of', intents.length, 'intents');
@@ -402,8 +406,8 @@ export async function processMultiIntentRequest(
  */
 export async function processSingleIntentRequest(
   intent: Intent,
-  req: any,
-  res: any,
+  req: express.Request,
+  res: express.Response,
   baseContext: BaseContext
 ): Promise<void> {
   const requestType =
@@ -543,10 +547,10 @@ export async function processSingleIntentRequest(
  */
 async function processIntentAsync(
   intent: Intent,
-  req: any,
+  req: express.Request,
   baseContext: BaseContext
-): Promise<any> {
-  const requestType = baseContext.requestType || 'content_creation';
+): Promise<unknown> {
+  const _requestType = baseContext.requestType || 'content_creation';
 
   const extractedParams = await extractParameters(
     baseContext.originalMessage,
@@ -568,7 +572,7 @@ async function processIntentAsync(
     }
   }
 
-  const intentReq: any = {
+  const intentReq = {
     ...req,
     app: req.app,
     headers: req.headers,
@@ -584,25 +588,27 @@ async function processIntentAsync(
   };
 
   return new Promise((resolve, reject) => {
-    const responseCollector: any = {
+    const responseCollector = {
       statusCode: 200,
-      responseData: null,
+      responseData: null as unknown,
 
       status: function (code: number) {
         this.statusCode = code;
         return this;
       },
 
-      json: function (data: any) {
+      json: function (data: unknown) {
         this.responseData = data;
         if (this.statusCode >= 400) {
-          reject(new Error(`Processing failed: ${data.error || 'Unknown error'}`));
+          reject(
+            new Error(`Processing failed: ${(data as { error?: string }).error || 'Unknown error'}`)
+          );
         } else {
           resolve(data);
         }
       },
 
-      send: function (data: any) {
+      send: function (data: unknown) {
         this.responseData = data;
         resolve(data);
       },
@@ -612,8 +618,15 @@ async function processIntentAsync(
 
     const processPromise =
       routeType === 'sharepic' || routeType.startsWith('sharepic_')
-        ? processSharepicRequest(intent, intentReq, responseCollector, baseContext.userId)
-        : processGraphRequest(routeType, intentReq, responseCollector);
+        ? // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cross-module request/response type bridge
+          processSharepicRequest(
+            intent,
+            intentReq as any,
+            responseCollector as any,
+            baseContext.userId
+          )
+        : // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cross-module request/response type bridge
+          processGraphRequest(routeType, intentReq as any, responseCollector as any);
 
     processPromise.catch((error) => {
       log.error(`[IntentService] Async processing error for ${intent.agent}:`, error);

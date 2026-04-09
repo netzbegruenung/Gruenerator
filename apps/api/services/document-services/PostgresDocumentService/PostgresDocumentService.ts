@@ -37,7 +37,7 @@ import type {
  * Delegates operations to specialized modules
  */
 export class PostgresDocumentService {
-  private postgres: any;
+  private postgres: ReturnType<typeof getPostgresInstance>;
 
   constructor() {
     this.postgres = getPostgresInstance();

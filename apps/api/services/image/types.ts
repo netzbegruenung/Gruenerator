@@ -11,10 +11,12 @@ export interface ImageCatalogEntry {
   category: string;
   tags: string[];
   alt_text: string;
+  [key: string]: unknown;
 }
 
 export interface ImageCatalog {
   images: ImageCatalogEntry[];
+  [key: string]: unknown;
 }
 
 export interface ImageSelectionOptions {
@@ -160,5 +162,5 @@ export interface ImageWithAttribution {
   filename: string;
   path: string;
   attribution: UnsplashAttribution | { photographer: string; license: string };
-  [key: string]: any;
+  [key: string]: unknown;
 }

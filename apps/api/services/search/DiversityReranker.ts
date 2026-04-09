@@ -19,14 +19,18 @@ export interface ScoredResult {
   relevance?: number;
   content: string;
   title?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
  * Extract word bigrams from text for similarity computation.
  */
 function extractBigrams(text: string): Set<string> {
-  const words = text.toLowerCase().replace(/[^\wäöüß]/g, ' ').split(/\s+/).filter((w) => w.length > 2);
+  const words = text
+    .toLowerCase()
+    .replace(/[^\wäöüß]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length > 2);
   const bigrams = new Set<string>();
   for (let i = 0; i < words.length - 1; i++) {
     bigrams.add(`${words[i]}_${words[i + 1]}`);
@@ -105,6 +109,8 @@ export function applyMMR<T extends ScoredResult>(
     selectedBigrams.push(bigrams[chosen.index]);
   }
 
-  log.info(`[MMR] Applied diversity reranking to ${results.length} results (λ=${lambda}, keepTop=${keepTop})`);
+  log.info(
+    `[MMR] Applied diversity reranking to ${results.length} results (λ=${lambda}, keepTop=${keepTop})`
+  );
   return selected;
 }

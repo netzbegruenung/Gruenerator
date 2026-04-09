@@ -186,6 +186,7 @@ export default function DeskDashboard() {
             {TOOLS.map((tool) => (
               <Pressable
                 key={tool.id}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 onPress={() => router.push(tool.route as any)}
                 style={({ pressed }) => [
                   styles.toolCard,

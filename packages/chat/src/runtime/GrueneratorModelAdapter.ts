@@ -742,6 +742,7 @@ export function createGrueneratorModelAdapter(
         // Merge attachment content parts into formattedMessages so the backend
         // can also see them when inspecting the messages array directly.
         if (m.role === 'user' && 'attachments' in m) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           for (const att of (m as any).attachments) {
             for (const part of att.content) {
               if (part.type === 'text') {

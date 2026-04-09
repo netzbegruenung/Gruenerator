@@ -5,7 +5,7 @@
  */
 
 import { fromNodeHeaders } from 'better-auth/node';
-import express, { type Router, type Response, type NextFunction } from 'express';
+import express, { type Router, type Response } from 'express';
 
 import { auth, type BetterAuthUser } from '../../config/betterAuth.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';

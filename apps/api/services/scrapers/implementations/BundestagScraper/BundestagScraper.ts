@@ -32,6 +32,7 @@ import type { CrawledPage } from '../WebsiteCrawler.js';
 const log = createLogger('BundestagScraper');
 
 export class BundestagScraper {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private qdrant: any;
   private processor: BundestagContentProcessor;
   private initialized = false;
@@ -218,7 +219,7 @@ export class BundestagScraper {
     return result;
   }
 
-  async #discoverFromGeneratedUrls(source: BundestagSourceConfig): Promise<CrawledPage[]> {
+  async #discoverFromGeneratedUrls(_source: BundestagSourceConfig): Promise<CrawledPage[]> {
     const urls = getMdBDetailUrls();
     log.info(
       `Generated ${urls.length} MdB detail URLs, fetching in batches of ${FETCH_CONCURRENCY}`

@@ -38,7 +38,9 @@ export function optimizeSearchQuery(query: string): string {
  */
 export async function generateResearchQuestions(
   originalQuery: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   aiWorkerPool: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   req: any
 ): Promise<string[]> {
   try {

@@ -565,7 +565,7 @@ Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`
               }
               if (toolResults && toolResults.length > 0) {
                 log.info(
-                  `[Chat] Tool results: ${JSON.stringify(toolResults.map((tr) => ({ id: tr.toolCallId, hasResult: !!(tr as any).result })))}`
+                  `[Chat] Tool results: ${JSON.stringify(toolResults.map((tr) => ({ id: tr.toolCallId, hasResult: !!('result' in tr && tr.result) })))}`
                 );
               }
               await createMessage(

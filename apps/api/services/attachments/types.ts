@@ -142,7 +142,7 @@ export interface ClaudeDocument {
     media_type?: string;
     data?: string;
     text?: string;
-    metadata?: any;
+    metadata?: Record<string, unknown>;
   };
 }
 

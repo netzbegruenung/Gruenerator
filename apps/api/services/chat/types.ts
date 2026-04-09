@@ -23,7 +23,7 @@ export interface ConversationMessage {
 export interface PendingRequest {
   type: string;
   timestamp: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -65,7 +65,7 @@ export interface ExperimentalSession {
   createdAt: number;
   updatedAt: number;
   expiresAt: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**

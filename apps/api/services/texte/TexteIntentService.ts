@@ -264,7 +264,8 @@ export function detectTypeByKeywords(message: string): TextTypeDetectionResult |
  */
 export async function detectTypeWithAI(
   message: string,
-  aiWorkerPool: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  aiWorkerPool: { processRequest: (...args: any[]) => Promise<{ content?: string | null }> },
   hint?: { type: string; description: string }
 ): Promise<TextTypeDetectionResult | null> {
   if (!aiWorkerPool) {
@@ -316,8 +317,8 @@ Antworte NUR mit JSON:
       },
     });
 
-    if (!result.success) {
-      throw new Error(`AI classification failed: ${result.error}`);
+    if (!result.content) {
+      throw new Error('AI classification failed: no content returned');
     }
 
     const jsonMatch = result.content.match(/\{[\s\S]*\}/);
@@ -355,7 +356,8 @@ Antworte NUR mit JSON:
  */
 export async function detectTextType(
   message: string,
-  aiWorkerPool: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  aiWorkerPool: { processRequest: (...args: any[]) => Promise<{ content?: string | null }> }
 ): Promise<TextTypeDetectionResult> {
   log.debug('[TexteIntentService] Detecting text type for:', message.substring(0, 100));
 

@@ -19,7 +19,7 @@ export type AgentType =
  */
 export interface Intent {
   agent: AgentType;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**

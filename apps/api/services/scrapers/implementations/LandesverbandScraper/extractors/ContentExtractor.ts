@@ -17,6 +17,7 @@ export class ContentExtractor {
    * Extract content from WordPress page
    * Handles Elementor, Gutenberg, and classic themes
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static extractContentWordPress($: cheerio.CheerioAPI, selectors: any): ExtractedContent {
     // Extract title and date BEFORE cleanup — WordPress themes wrap titles
     // inside <header class="entry-header"> which would be removed below
@@ -85,6 +86,7 @@ export class ContentExtractor {
    * Extract content from Neos page
    * Handles Neos CMS-specific structure
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static extractContentNeos($: cheerio.CheerioAPI, selectors: any): ExtractedContent {
     // Extract title and date BEFORE cleanup — Neos may also wrap titles in <header>
     let title = '';
@@ -148,6 +150,7 @@ export class ContentExtractor {
    * Extract content from Typo3 page
    * Handles Typo3 CMS with tx_xblog_pi1 blog plugin
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static extractContentTypo3($: cheerio.CheerioAPI, selectors: any): ExtractedContent {
     // Extract title and date BEFORE cleanup
     let title = '';
@@ -249,6 +252,7 @@ export class ContentExtractor {
    */
   static async extractPageContent(
     url: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     source: any,
     fetchUrl: (url: string) => Promise<Response>
   ): Promise<ExtractedContent> {

@@ -168,6 +168,7 @@ export class BoellStiftungScraper extends BaseScraper {
   private topicSlugs: readonly string[];
   private regionMapping: Record<string, BoellRegion>;
   private excludePatterns: readonly RegExp[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private qdrant: any;
 
   constructor() {
@@ -460,7 +461,7 @@ export class BoellStiftungScraper extends BaseScraper {
           (match) => ({ ä: 'ae', ö: 'oe', ü: 'ue' })[match as 'ä' | 'ö' | 'ü'] || match
         )
         .replace(/\s+/g, '-');
-      if (this.topicSlugs.includes(tag as any) && !topics.includes(tag)) {
+      if ((this.topicSlugs as readonly string[]).includes(tag) && !topics.includes(tag)) {
         topics.push(tag);
       }
     });
@@ -508,7 +509,7 @@ export class BoellStiftungScraper extends BaseScraper {
   /**
    * Extract article links from a page
    */
-  #extractArticleLinks($: cheerio.CheerioAPI, baseUrl: string): string[] {
+  #extractArticleLinks($: cheerio.CheerioAPI, _baseUrl: string): string[] {
     const links = new Set<string>();
     const datePattern = /\/de\/\d{4}\/\d{2}\/\d{2}\//;
     const themenPattern = /\/de\/themen\/[^/]+\/.+/;
@@ -610,7 +611,9 @@ export class BoellStiftungScraper extends BaseScraper {
       return { stored: false, reason: 'no_chunks' };
     }
 
-    const chunkTexts = chunks.map((c: any) => c.text || c.chunk_text);
+    const chunkTexts = chunks.map(
+      (c: { text?: string; chunk_text?: string }) => c.text || c.chunk_text || ''
+    );
     const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
 
     const subcategories = [...(content.topics || [])];
@@ -852,7 +855,7 @@ export class BoellStiftungScraper extends BaseScraper {
 
     const queryVector = await mistralEmbeddingService.generateQueryEmbedding(query);
 
-    const filter: any = { must: [] };
+    const filter: { must: Array<Record<string, unknown>> } = { must: [] };
     if (contentType) {
       filter.must.push({ key: 'content_type', match: { value: contentType } });
     }
@@ -941,7 +944,7 @@ export class BoellStiftungScraper extends BaseScraper {
       }
 
       return Array.from(topics).sort();
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }

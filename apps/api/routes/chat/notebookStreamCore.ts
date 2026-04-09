@@ -30,6 +30,7 @@ import { resolveModel } from './services/responseStreamingService.js';
 import { SSEWriter } from './services/sseHelpers.js';
 
 import type { SearchContext } from '../../services/notebook/types.js';
+import type { CollectionConfig, SourcesByCollection } from '../../services/search/types.js';
 import type express from 'express';
 
 const log = createLogger('NotebookStreamCore');
@@ -44,7 +45,7 @@ export interface NotebookStreamOptions {
   messages: ModelMessage[];
   collectionId?: string;
   collectionIds?: string[];
-  filters?: Record<string, any>;
+  filters?: Record<string, unknown>;
   provider?: string;
   model?: string;
   mode?: 'fast' | 'deep';
@@ -63,8 +64,8 @@ export interface NotebookStreamOptions {
 
 export interface NotebookStreamResult {
   answer: string;
-  citations: any[];
-  sources: any[];
+  citations: unknown[];
+  sources: unknown[];
   question: string;
 }
 
@@ -149,10 +150,12 @@ export async function handleNotebookStream(
           return allIds;
         },
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       log.error('Search context error:', error);
       log.debug(`⏱ Search context failed: ${Date.now() - t0}ms`);
-      sse.send('error', { error: error.message || 'Failed to get search context' });
+      sse.send('error', {
+        error: error instanceof Error ? error.message : 'Failed to get search context',
+      });
       sse.end();
       return null;
     }
@@ -293,15 +296,16 @@ export async function handleNotebookStream(
         fullText += chunk;
         sse.send('text_delta', { text: chunk });
       }
-    } catch (streamError: any) {
+    } catch (streamError: unknown) {
       if (abortController.signal.aborted) {
         log.debug('Notebook stream aborted by client disconnect');
         log.debug(`⏱ Total (aborted): ${Date.now() - t0}ms, ${fullText.length} chars`);
         sse.end();
         return null;
       }
+      const streamErrMsg = streamError instanceof Error ? streamError.message : String(streamError);
       const t4err = Date.now();
-      log.warn('Stream error (accumulated %d chars): %s', fullText.length, streamError.message);
+      log.warn('Stream error (accumulated %d chars): %s', fullText.length, streamErrMsg);
       log.debug(
         `⏱ Streaming (error): ${t4err - (firstChunkTime || t2)}ms, ${fullText.length} chars`
       );
@@ -320,12 +324,12 @@ export async function handleNotebookStream(
             .filter((_, i) => !citations.some((c) => c.index === String(i + 1)))
             .slice(0, 10);
 
-          let sourcesByCollection: Record<string, any> | undefined;
+          let sourcesByCollection: SourcesByCollection | undefined;
           if (searchContext.isMulti && searchContext.effectiveCollectionIds) {
-            const collectionsConfig: Record<string, any> = {};
+            const collectionsConfig: { [collectionId: string]: CollectionConfig } = {};
             for (const id of searchContext.effectiveCollectionIds) {
               const config = SYSTEM_COLLECTIONS[id];
-              if (config) collectionsConfig[id] = config;
+              if (config) collectionsConfig[id] = { name: config.name };
             }
             sourcesByCollection = groupSourcesByCollection(
               citations,
@@ -349,12 +353,12 @@ export async function handleNotebookStream(
               partial: true,
             },
           });
-        } catch (citationError: any) {
+        } catch (citationError: unknown) {
           log.error('Failed to process partial citations:', citationError);
-          sse.send('error', { error: streamError.message || 'Stream interrupted' });
+          sse.send('error', { error: streamErrMsg || 'Stream interrupted' });
         }
       } else {
-        sse.send('error', { error: streamError.message || 'Stream interrupted' });
+        sse.send('error', { error: streamErrMsg || 'Stream interrupted' });
       }
       log.debug(`⏱ Total (error path): ${Date.now() - t0}ms`);
       sse.end();
@@ -393,12 +397,12 @@ export async function handleNotebookStream(
       .filter((_, i) => !citations.some((c) => c.index === String(i + 1)))
       .slice(0, 10);
 
-    let sourcesByCollection: Record<string, any> | undefined;
+    let sourcesByCollection: SourcesByCollection | undefined;
     if (searchContext.isMulti && searchContext.effectiveCollectionIds) {
-      const collectionsConfig: Record<string, any> = {};
+      const collectionsConfig: { [collectionId: string]: CollectionConfig } = {};
       for (const id of searchContext.effectiveCollectionIds) {
         const config = SYSTEM_COLLECTIONS[id];
-        if (config) collectionsConfig[id] = config;
+        if (config) collectionsConfig[id] = { name: config.name };
       }
       sourcesByCollection = groupSourcesByCollection(
         citations,
@@ -432,7 +436,7 @@ export async function handleNotebookStream(
     sse.end();
 
     return { answer: cleanDraft, citations, sources, question };
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.error('Notebook stream error:', error);
     sse.send('error', { error: 'Internal server error' });
     sse.end();

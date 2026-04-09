@@ -12,7 +12,6 @@ import { vectorConfig } from '../../../config/vectorConfig.js';
 
 import type {
   DocumentSearchOptions,
-  DocumentSearchFilters,
   QdrantFilter,
   FindSimilarChunksParams,
   FindHybridChunksParams,
@@ -108,7 +107,7 @@ export async function performTextSearch(
 
     return {
       success: true,
-      results: results as any,
+      results: results as SearchResponse['results'],
       query: query.trim(),
       searchType: 'text',
       message: `Found ${results.length} relevant document(s) using full-text search`,

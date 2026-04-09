@@ -28,7 +28,7 @@ export function attachRealtimeWebSocket(server: http.Server): void {
 
   wss.on('connection', (ws: WsWebSocket) => {
     log.debug('[Realtime] Client connected');
-    handleRealtimeSession(ws);
+    void handleRealtimeSession(ws);
   });
 }
 

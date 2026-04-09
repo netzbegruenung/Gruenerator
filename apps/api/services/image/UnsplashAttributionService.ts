@@ -109,7 +109,10 @@ export class UnsplashAttributionService {
   /**
    * Enhance an image object with attribution data
    */
-  enhanceWithAttribution(image: { filename: string; [key: string]: any }): ImageWithAttribution {
+  enhanceWithAttribution(image: {
+    filename: string;
+    [key: string]: unknown;
+  }): ImageWithAttribution {
     const attribution = this.getAttribution(image.filename);
 
     return {
@@ -138,5 +141,5 @@ export const buildUnsplashUrls = (photoId: string, photographerSlug: string) =>
 export const getAttribution = (filename: string) =>
   unsplashAttributionService.getAttribution(filename);
 
-export const enhanceWithAttribution = (image: { filename: string; [key: string]: any }) =>
+export const enhanceWithAttribution = (image: { filename: string; [key: string]: unknown }) =>
   unsplashAttributionService.enhanceWithAttribution(image);

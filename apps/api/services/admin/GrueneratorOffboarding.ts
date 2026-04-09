@@ -17,7 +17,9 @@ import type {
 const log = createLogger('GrueneratorOffboarding');
 
 export class GrueneratorOffboarding {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private profileService: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private db: any;
 
   constructor() {
@@ -28,6 +30,7 @@ export class GrueneratorOffboarding {
   /**
    * Get PostgreSQL database instance (lazy loading)
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async getDb(): Promise<any> {
     if (this.db) return this.db;
     const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
@@ -83,8 +86,11 @@ export class GrueneratorOffboarding {
       }
 
       return null;
-    } catch (error: any) {
-      log.error(`Error finding user in Grünerator:`, error.message);
+    } catch (error: unknown) {
+      log.error(
+        `Error finding user in Grünerator:`,
+        error instanceof Error ? error.message : String(error)
+      );
       throw error;
     }
   }
@@ -113,8 +119,11 @@ export class GrueneratorOffboarding {
       log.info(`Successfully deleted user ${userId} from database`);
 
       return true;
-    } catch (error: any) {
-      log.error(`Error deleting user ${userId}:`, error.message);
+    } catch (error: unknown) {
+      log.error(
+        `Error deleting user ${userId}:`,
+        error instanceof Error ? error.message : String(error)
+      );
       throw error;
     }
   }
@@ -145,8 +154,11 @@ export class GrueneratorOffboarding {
       log.info(`Successfully anonymized user ${userId} in database`);
 
       return true;
-    } catch (error: any) {
-      log.error(`Error anonymizing user ${userId}:`, error.message);
+    } catch (error: unknown) {
+      log.error(
+        `Error anonymizing user ${userId}:`,
+        error instanceof Error ? error.message : String(error)
+      );
       throw error;
     }
   }
@@ -174,10 +186,10 @@ export class GrueneratorOffboarding {
           status: 'deleted',
           message: `Successfully deleted user ${grueneratorUser.id}`,
         };
-      } catch (deleteError: any) {
+      } catch (deleteError: unknown) {
         log.warn(
           `Could not delete user ${grueneratorUser.id}, attempting anonymization:`,
-          deleteError.message
+          deleteError instanceof Error ? deleteError.message : String(deleteError)
         );
 
         // If deletion fails, try anonymization
@@ -187,19 +199,22 @@ export class GrueneratorOffboarding {
             status: 'anonymized',
             message: `Successfully anonymized user ${grueneratorUser.id}`,
           };
-        } catch (anonymizeError: any) {
-          log.error(`Failed to anonymize user ${grueneratorUser.id}:`, anonymizeError.message);
+        } catch (anonymizeError: unknown) {
+          const anonErrMsg =
+            anonymizeError instanceof Error ? anonymizeError.message : String(anonymizeError);
+          log.error(`Failed to anonymize user ${grueneratorUser.id}:`, anonErrMsg);
           return {
             status: 'failed',
-            message: `Failed to delete or anonymize user: ${anonymizeError.message}`,
+            message: `Failed to delete or anonymize user: ${anonErrMsg}`,
           };
         }
       }
-    } catch (error: any) {
-      log.error(`Error processing user ${user.username}:`, error.message);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      log.error(`Error processing user ${user.username}:`, errMsg);
       return {
         status: 'failed',
-        message: `Processing error: ${error.message}`,
+        message: `Processing error: ${errMsg}`,
       };
     }
   }

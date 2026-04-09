@@ -19,6 +19,7 @@ import {
   isWebSearchConfirmation,
   extractRequestedInformation,
   completePendingRequest,
+  type PendingRequest,
 } from '../../agents/chat/InformationRequestHandler.js';
 import { classifyIntent } from '../../agents/chat/IntentClassifier.js';
 import * as chatMemory from '../../services/chat/ChatMemoryService.js';
@@ -48,7 +49,8 @@ import type { UserProfile } from '../../services/user/types.js';
 const log = createLogger('grueneratorChat');
 
 // Helper to safely get user properties
-const getUser = (req: any): UserProfile | undefined => req.user as UserProfile | undefined;
+const getUser = (req: express.Request): UserProfile | undefined =>
+  req.user as UserProfile | undefined;
 const router = createAuthenticatedRouter();
 router.use(express.json({ limit: '50mb' }));
 
@@ -59,14 +61,17 @@ const CONFIG = {
 };
 
 // Initialize DocumentQnA service
-const documentQnAService = new DocumentQnAService(redisClient, mistralClient);
+const documentQnAService = new DocumentQnAService(
+  redisClient as unknown as ConstructorParameters<typeof DocumentQnAService>[0],
+  mistralClient as unknown as ConstructorParameters<typeof DocumentQnAService>[1]
+);
 
 /**
  * Main chat endpoint
  */
 router.post(
   '/',
-  withErrorHandler(async (req, res) => {
+  withErrorHandler(async (req: express.Request, res: express.Response): Promise<void> => {
     const {
       message,
       context = {},
@@ -82,11 +87,12 @@ router.post(
 
     // Validate required fields
     if (!message || typeof message !== 'string' || !message.trim()) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Message is required and cannot be empty',
         code: 'VALIDATION_ERROR',
       });
+      return;
     }
 
     try {
@@ -107,11 +113,12 @@ router.post(
         const locale = user?.locale || 'de-DE';
         const response = generateSimpleResponse(simpleCheck.category, locale);
 
-        return res.json({
+        res.json({
           success: true,
           agent: 'simple_response',
           content: { text: response },
         });
+        return;
       }
 
       // Process attachments
@@ -141,20 +148,27 @@ router.post(
 
       // Handle web search confirmation
       if (pendingRequest && pendingRequest.type === 'websearch_confirmation') {
-        return await handleWebSearchConfirmation(message, pendingRequest, userId, req, res);
+        await handleWebSearchConfirmation(
+          message,
+          pendingRequest as { originalQuery: string },
+          userId,
+          req,
+          res
+        );
+        return;
       }
 
       // Handle pending information requests
       if (pendingRequest && pendingRequest.type === 'missing_information') {
         const completionResult = await handlePendingInformationRequest(
           message,
-          pendingRequest,
+          pendingRequest as unknown as PendingRequest,
           userId,
           enhancedContext,
           req,
           res
         );
-        if (completionResult) return completionResult;
+        if (completionResult) return;
       }
 
       // Classify intent
@@ -171,7 +185,7 @@ router.post(
       log.debug('[Chat] Intent classified:', {
         isMultiIntent: intentResult.isMultiIntent,
         totalIntents: intentResult.intents.length,
-        agents: intentResult.intents.map((i: any) => i.agent),
+        agents: intentResult.intents.map((i: { agent: string }) => i.agent),
       });
 
       // Setup response capture for memory
@@ -201,7 +215,8 @@ router.post(
           aiWorkerPool: req.app.locals.aiWorkerPool,
           req,
         });
-        return res.json(result);
+        res.json(result);
+        return;
       }
 
       // Handle text_edit requests
@@ -221,7 +236,8 @@ router.post(
           await chatMemory.addMessage(userId, 'assistant', editResult.content.text, 'text_edit');
         }
 
-        return res.json(editResult);
+        res.json(editResult);
+        return;
       }
 
       if (intentResult.isMultiIntent) {
@@ -231,7 +247,9 @@ router.post(
         // Store response in memory
         const responseContent = (res as CapturedResponse)._responseContent;
         if (responseContent && responseContent.results) {
-          const agentList = responseContent.results.map((r: any) => r.agent).join(', ');
+          const agentList = responseContent.results
+            .map((r: { agent: string }) => r.agent)
+            .join(', ');
           await chatMemory.addMessage(
             userId,
             'assistant',
@@ -265,12 +283,13 @@ router.post(
       }
     } catch (error) {
       log.error('[Chat] Processing error:', error);
-      return res.status(500).json({
+      res.status(500).json({
         success: false,
         error: 'Bei der Verarbeitung ist ein Fehler aufgetreten. Bitte versuche es erneut.',
         code: 'PROCESSING_ERROR',
         details: { originalError: (error as Error).message },
       });
+      return;
     }
   })
 );
@@ -278,18 +297,37 @@ router.post(
 /**
  * Process and separate attachments by type
  */
+interface ChatAttachment {
+  type: string;
+  name?: string;
+  content?: string;
+  url?: string;
+}
+
+interface ChatDocument {
+  type?: string;
+  name?: string;
+  content?: string;
+}
+
 async function processAttachments(
-  attachments: any[],
+  attachments: ChatAttachment[],
   userId: string,
   requestId: string,
-  sharepicImageManager: any
-): Promise<{ documentIds: string[]; sharepicImages: any[]; recentDocuments: any[] }> {
+  sharepicImageManager: {
+    storeForRequest: (requestId: string, userId: string, img: ChatAttachment) => Promise<void>;
+  } | null
+): Promise<{
+  documentIds: string[];
+  sharepicImages: ChatAttachment[];
+  recentDocuments: ChatDocument[];
+}> {
   let documentIds: string[] = [];
-  let sharepicImages: any[] = [];
+  let sharepicImages: ChatAttachment[] = [];
 
   if (attachments && attachments.length > 0) {
-    const textAttachments: any[] = [];
-    const imageAttachments: any[] = [];
+    const textAttachments: ChatAttachment[] = [];
+    const imageAttachments: ChatAttachment[] = [];
 
     for (const attachment of attachments) {
       if (attachment.type && attachment.type.startsWith('image/')) {
@@ -302,7 +340,10 @@ async function processAttachments(
     // Store text documents
     if (textAttachments.length > 0) {
       try {
-        documentIds = await documentQnAService.storeAttachments(userId, textAttachments);
+        documentIds = await documentQnAService.storeAttachments(
+          userId,
+          textAttachments as unknown as Parameters<typeof documentQnAService.storeAttachments>[1]
+        );
         log.debug(`[Chat] Stored ${textAttachments.length} text documents`);
       } catch (error) {
         log.error('[Chat] Error storing text attachments:', error);
@@ -324,7 +365,7 @@ async function processAttachments(
   }
 
   // Retrieve recent documents (excluding images)
-  const recentDocuments: any[] = [];
+  const recentDocuments: ChatDocument[] = [];
   try {
     const recentDocIds = await documentQnAService.getRecentDocuments(
       userId,
@@ -352,9 +393,9 @@ async function processAttachments(
 /**
  * Check for pending requests with lock
  */
-async function checkPendingRequests(userId: string): Promise<any> {
+async function checkPendingRequests(userId: string): Promise<Record<string, unknown> | null> {
   const lockAcquired = await chatMemory.acquirePendingLock(userId);
-  let pendingRequest: any = null;
+  let pendingRequest: Record<string, unknown> | null = null;
 
   if (lockAcquired) {
     try {
@@ -374,11 +415,11 @@ async function checkPendingRequests(userId: string): Promise<any> {
  */
 async function handleWebSearchConfirmation(
   message: string,
-  pendingRequest: any,
+  pendingRequest: { originalQuery: string },
   userId: string,
-  req: any,
-  res: any
-): Promise<any> {
+  req: express.Request,
+  res: express.Response
+): Promise<unknown> {
   const confirmed = isWebSearchConfirmation(message);
   await chatMemory.clearPendingRequest(userId);
 
@@ -409,11 +450,13 @@ async function handleWebSearchConfirmation(
           text: responseText,
           type: 'websearch_answer',
         },
-        sources: resultsWithSummary.results?.slice(0, 5).map((r: any) => ({
-          title: r.title,
-          url: r.url,
-          domain: r.domain,
-        })),
+        sources: resultsWithSummary.results
+          ?.slice(0, 5)
+          .map((r: { title: string; url: string; domain: string }) => ({
+            title: r.title,
+            url: r.url,
+            domain: r.domain,
+          })),
         metadata: {
           searchQuery: pendingRequest.originalQuery,
           resultCount: searchResults.resultCount || 0,
@@ -445,12 +488,12 @@ async function handleWebSearchConfirmation(
  */
 async function handlePendingInformationRequest(
   message: string,
-  pendingRequest: any,
+  pendingRequest: PendingRequest,
   userId: string,
-  enhancedContext: any,
-  req: any,
-  res: any
-): Promise<any> {
+  enhancedContext: unknown,
+  req: express.Request,
+  res: express.Response
+): Promise<unknown> {
   // Check if this is a new command
   const commandKeywords = ['erstelle', 'mache', 'schreibe', 'generiere', 'sharepic', 'zitat'];
   const isNewCommand = commandKeywords.some((keyword) => message.toLowerCase().includes(keyword));
@@ -466,7 +509,11 @@ async function handlePendingInformationRequest(
   if (extractedInfo) {
     await chatMemory.clearPendingRequest(userId);
 
-    const completedRequest = completePendingRequest(pendingRequest, extractedInfo, req);
+    const completedRequest = completePendingRequest(
+      pendingRequest,
+      extractedInfo,
+      req as unknown as Parameters<typeof completePendingRequest>[2]
+    );
 
     const completedRequestContext = {
       message: completedRequest.originalMessage || completedRequest.message || '',
@@ -483,7 +530,10 @@ async function handlePendingInformationRequest(
     const hasCompletedImageAttachment =
       completedRequest.attachments &&
       Array.isArray(completedRequest.attachments) &&
-      completedRequest.attachments.some((att: any) => att.type && att.type.startsWith('image/'));
+      completedRequest.attachments.some((att: unknown) => {
+        const a = att as ChatAttachment;
+        return a.type && a.type.startsWith('image/');
+      });
 
     let finalAgent = completedRequest.agent;
     if (completedRequest.agent === 'zitat' && hasCompletedImageAttachment) {
@@ -507,7 +557,11 @@ async function handlePendingInformationRequest(
           count: 1,
           preserveName: true,
         });
-        const sharepicResponse = await generateSharepicForChat(req, sharepicType, req.body);
+        const sharepicResponse = await generateSharepicForChat(
+          req as unknown as Parameters<typeof generateSharepicForChat>[0],
+          sharepicType,
+          req.body
+        );
         return res.json(sharepicResponse);
       } catch (error) {
         log.error('[Chat] Completion error:', error);
@@ -538,10 +592,10 @@ async function handlePendingInformationRequest(
 /**
  * Setup response capture for memory storage
  */
-function setupResponseCapture(res: any, intentResult: any): void {
+function setupResponseCapture(res: CapturedResponse, intentResult: unknown): void {
   const originalJson = res.json.bind(res);
 
-  res.json = function (data: any) {
+  res.json = function (data: CapturedResponse['_responseContent']) {
     res._responseContent = data;
     return originalJson(data);
   };

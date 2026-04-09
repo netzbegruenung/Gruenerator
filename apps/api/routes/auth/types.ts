@@ -48,7 +48,7 @@ export interface MessageColorUpdateBody {
 
 export interface UserDefaultUpdateBody {
   generator_type: string;
-  defaults: Record<string, any>;
+  defaults: Record<string, unknown>;
 }
 
 export interface DeleteAccountBody {
@@ -63,7 +63,7 @@ export interface SaveToLibraryBody {
   content: string;
   generatorType?: string;
   title?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface InstructionsUpdateBody {
@@ -80,7 +80,7 @@ export interface InstructionsUpdateBody {
 export interface SavedTextMetadataBody {
   title?: string;
   generator_type?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface SavedTextContentBody {
@@ -185,7 +185,7 @@ export interface UserTemplateCreateBody {
   name: string;
   description?: string;
   template_type: string;
-  template_data: Record<string, any>;
+  template_data: Record<string, unknown>;
   tags?: string[];
   is_public?: boolean;
 }

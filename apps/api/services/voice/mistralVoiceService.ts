@@ -27,6 +27,7 @@ interface TranscriptionSegment {
   end: number;
   text: string;
   speakerId?: string | null;
+  speaker_id?: string | null;
 }
 
 interface TranscriptionResult {
@@ -72,7 +73,7 @@ class MistralVoiceService {
         contextBias: contextBias || undefined,
       });
 
-      const resp = transcriptionResponse as any;
+      const resp = transcriptionResponse as MistralTranscriptionResponse;
       log.debug('[Mistral Voice] Response keys:', Object.keys(resp));
       log.debug(
         '[Mistral Voice] Has segments:',
@@ -206,7 +207,7 @@ class MistralVoiceService {
       result.segments = segments;
       result.hasTimestamps = true;
 
-      const speakerIds = segments.map((s) => (s as any).speakerId ?? (s as any).speaker_id ?? null);
+      const speakerIds = segments.map((s) => s.speakerId ?? s.speaker_id ?? null);
       const hasSpeakers = speakerIds.some(Boolean);
       log.debug('[Mistral Voice] Speaker IDs sample:', speakerIds.slice(0, 5));
       log.debug('[Mistral Voice] hasSpeakers:', hasSpeakers);
@@ -214,7 +215,7 @@ class MistralVoiceService {
       if (hasSpeakers) {
         result.text = segments
           .map((s) => {
-            const id = (s as any).speakerId ?? (s as any).speaker_id;
+            const id = s.speakerId ?? s.speaker_id;
             return id ? `[${id}] ${s.text.trim()}` : s.text.trim();
           })
           .join('\n');

@@ -50,13 +50,16 @@ export function useFileMentionData() {
         throw new Error(`HTTP ${response.status}`);
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const json = (await response.json()) as any;
       const data = Array.isArray(json) ? json : json.collections || [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const collections: NotebookCollectionItem[] = data.map((c: any) => ({
         id: c.id,
         name: c.name,
         description: c.description || null,
         documentCount: c.document_count ?? c.documentCount ?? c.documents?.length ?? 0,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         documents: (c.documents || []).map((d: any) => ({
           id: d.id,
           title: d.title || d.name || 'Unbekanntes Dokument',
@@ -101,10 +104,12 @@ export function useFileMentionData() {
         return;
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const json = (await response.json()) as any;
       const rawDocs = json.data?.documents || [];
       const rawTexts = json.data?.texts || [];
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const documents: UserDocumentItem[] = rawDocs.map((d: any) => ({
         id: d.id,
         title: d.title || d.filename || 'Dokument',
@@ -114,6 +119,7 @@ export function useFileMentionData() {
         contentPreview: d.content_preview ?? d.contentPreview,
       }));
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const texts: UserTextItem[] = rawTexts.map((t: any) => ({
         id: t.id,
         title: t.title || 'Unbenannter Text',

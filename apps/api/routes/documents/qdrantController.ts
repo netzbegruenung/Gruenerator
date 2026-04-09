@@ -154,6 +154,7 @@ router.get(
             // Merge with PostgreSQL metadata
             ...documentMeta,
             // Include any additional metadata from result if it exists
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ...((result as any).metadata || {}),
           },
         },
@@ -255,6 +256,7 @@ router.get('/list', async (req: DocumentRequest, res: Response): Promise<void> =
 
     log.debug(`[GET /list] Retrieving documents list from Qdrant for user: ${userId}`);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await (documentSearchService as any).getUserDocumentsList(userId, {
       sourceType: sourceType || null,
       limit: limit ? parseInt(limit) : 1000,

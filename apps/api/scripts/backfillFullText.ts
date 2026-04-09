@@ -203,6 +203,7 @@ function groupAndReconstruct(points: ChunkPoint[], config: CollectionConfig): Do
     });
 
     // Store reconstructed text on the group for later use
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (chunk0 as any)._reconstructedFullText = fullText;
   }
 
@@ -224,6 +225,7 @@ async function patchFullText(
 
     for (const group of batch) {
       const chunk0 = group.chunks.find((c) => (c.payload.chunk_index as number) === 0)!;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const fullText = (chunk0 as any)._reconstructedFullText as string;
 
       if (!dryRun) {

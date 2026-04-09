@@ -28,13 +28,13 @@ export type FormValidation = Record<string, FieldValidationRules>;
  */
 export interface CampaignConfig {
   formValidation?: FormValidation;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
  * User input data
  */
-export type UserInputs = Record<string, any>;
+export type UserInputs = Record<string, unknown>;
 
 /**
  * Validation errors
@@ -87,7 +87,7 @@ export class ValidationError extends Error {
  */
 export function validateField(
   fieldName: string,
-  value: any,
+  value: unknown,
   rules: FieldValidationRules
 ): ValidationResult {
   if (!rules) {

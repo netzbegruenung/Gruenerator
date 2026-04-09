@@ -11,7 +11,7 @@ import type { EmbeddingGenerationResult, ProcessingMetadata } from './types.js';
 export async function updateDocumentStatus(
   documentId: string,
   status: string,
-  postgres: any
+  postgres: { query(sql: string, params: unknown[]): Promise<unknown> }
 ): Promise<void> {
   try {
     await postgres.query(
@@ -32,8 +32,8 @@ export async function updateDocumentWithResults(
   documentId: string,
   text: string,
   pageCount: number,
-  extractionInfo: any,
-  postgres: any
+  extractionInfo: Record<string, unknown>,
+  postgres: { query(sql: string, params: unknown[]): Promise<unknown> }
 ): Promise<void> {
   try {
     // Store extraction metadata as JSON
@@ -69,10 +69,15 @@ export async function generateAndStoreEmbeddings(
   documentId: string,
   text: string,
   metadata: ProcessingMetadata,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   smartChunkDocument: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   mistralEmbeddingService: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   qdrant: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   postgres: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   vectorConfig: any
 ): Promise<EmbeddingGenerationResult> {
   try {
@@ -93,6 +98,7 @@ export async function generateAndStoreEmbeddings(
     console.log(`[OcrService] Generated ${chunks.length} chunks from document`);
 
     // Step 2: Filter out low-quality chunks
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const qualityChunks = chunks.filter((chunk: any) => {
       const text = chunk.text || chunk;
       return text.length >= 50 && /[a-zA-Z]/.test(text);
@@ -106,6 +112,7 @@ export async function generateAndStoreEmbeddings(
     }
 
     // Step 3: Generate embeddings in batches
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const chunkTexts = qualityChunks.map((chunk: any) => chunk.text || chunk);
     const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
       chunkTexts,

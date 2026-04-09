@@ -11,6 +11,7 @@ import type {
   OpenAITool,
   Tool,
   ToolCall,
+  ToolChoice,
   ToolPayload,
   Message,
   ContentBlock,
@@ -25,17 +26,15 @@ export class ToolHandler {
    * @param tools - Array of tool definitions
    * @returns True if tools are valid
    */
-  static validateTools(tools: any[]): boolean {
+  static validateTools(tools: Tool[]): boolean {
     if (!Array.isArray(tools)) {
       console.warn('[ToolHandler] Tools must be an array');
       return false;
     }
 
     for (const tool of tools) {
-      const isOpenAIFormat = tool.type === 'function' && tool.function;
-
-      if (isOpenAIFormat) {
-        const func = tool.function;
+      if ('type' in tool && tool.type === 'function') {
+        const func = (tool as OpenAITool).function;
 
         if (!func.name || typeof func.name !== 'string') {
           console.warn('[ToolHandler] Tool missing valid name (OpenAI format):', tool);
@@ -52,17 +51,18 @@ export class ToolHandler {
           return false;
         }
       } else {
-        if (!tool.name || typeof tool.name !== 'string') {
+        const claudeTool = tool as ClaudeTool;
+        if (!claudeTool.name || typeof claudeTool.name !== 'string') {
           console.warn('[ToolHandler] Tool missing valid name (Claude format):', tool);
           return false;
         }
 
-        if (!tool.description || typeof tool.description !== 'string') {
+        if (!claudeTool.description || typeof claudeTool.description !== 'string') {
           console.warn('[ToolHandler] Tool missing valid description (Claude format):', tool);
           return false;
         }
 
-        if (!tool.input_schema || typeof tool.input_schema !== 'object') {
+        if (!claudeTool.input_schema || typeof claudeTool.input_schema !== 'object') {
           console.warn('[ToolHandler] Tool missing valid input_schema (Claude format):', tool);
           return false;
         }
@@ -120,18 +120,16 @@ export class ToolHandler {
    * @param availableTools - Array of available tool definitions
    * @returns True if all tool calls are valid
    */
-  static validateToolCalls(toolCalls: any[], availableTools: Tool[]): boolean {
+  static validateToolCalls(toolCalls: ToolCall[], availableTools: Tool[]): boolean {
     if (!Array.isArray(toolCalls)) {
       return false;
     }
 
     const availableToolNames = availableTools.map((t) => {
-      if ('name' in t) {
-        return t.name;
-      } else if ('function' in t) {
-        return t.function.name;
+      if ('type' in t && t.type === 'function') {
+        return (t as OpenAITool).function.name;
       }
-      return '';
+      return (t as ClaudeTool).name;
     });
 
     for (const toolCall of toolCalls) {
@@ -161,7 +159,11 @@ export class ToolHandler {
    * @param type - Request type for logging
    * @returns Validated tools array or null if no tools
    */
-  static extractAndValidateTools(options: any, requestId: string, type: string): Tool[] | null {
+  static extractAndValidateTools(
+    options: { tools?: Tool[] },
+    requestId: string,
+    type: string
+  ): Tool[] | null {
     const { tools } = options;
 
     if (!tools) {
@@ -191,7 +193,10 @@ export class ToolHandler {
    * @returns Tool payload object with tools and tool_choice if applicable
    */
   static prepareToolsPayload(
-    options: any,
+    options: {
+      tools?: Tool[];
+      tool_choice?: ToolChoice | string | { type: string; name?: string };
+    },
     provider: AIProvider,
     requestId: string,
     type: string
@@ -208,7 +213,7 @@ export class ToolHandler {
 
     // Add tool_choice if specified
     if (options.tool_choice) {
-      payload.tool_choice = options.tool_choice;
+      payload.tool_choice = options.tool_choice as ToolChoice;
       console.log(`[ToolHandler] Tool choice added for ${requestId}:`, options.tool_choice);
     }
 
@@ -270,12 +275,14 @@ export class ToolHandler {
    * @returns Final AI response with content
    */
   static async continueWithToolUse(
-    aiWorkerPool: any,
+    aiWorkerPool: {
+      processRequest(data: Record<string, unknown>, req?: unknown): Promise<AIResponseWithTools>;
+    },
     initialResult: AIResponseWithTools,
     systemPrompt: string,
     messages: Message[],
-    options: any,
-    req: any
+    options: Record<string, unknown>,
+    req: unknown
   ): Promise<AIResponseWithTools> {
     console.log(`[ToolHandler] Continuing conversation with tool_use response`);
 
@@ -311,7 +318,9 @@ export class ToolHandler {
         console.log(`[ToolHandler] Starting real web search for query: "${toolCall.input.query}"`);
 
         const searchService = new MistralWebSearchService();
-        toolResult = await searchService.performWebSearch(toolCall.input.query);
+        toolResult = (await searchService.performWebSearch(
+          toolCall.input.query as string
+        )) as unknown as WebSearchResult;
 
         console.log(`[ToolHandler] Web search completed: ${toolResult.resultCount} results found`);
         console.log(`[ToolHandler] Search results:`, JSON.stringify(toolResult, null, 2));

@@ -36,7 +36,7 @@ router.use((req: TrackedRequest, res: Response, next: NextFunction) => {
   let redirectedTo: string | null = null;
   let detectedHtml = false;
 
-  const markHtmlIfNeeded = (body: any): void => {
+  const markHtmlIfNeeded = (body: unknown): void => {
     const ct = res.get('Content-Type') || '';
     if (/text\/html/i.test(ct)) {
       detectedHtml = true;
@@ -47,11 +47,13 @@ router.use((req: TrackedRequest, res: Response, next: NextFunction) => {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   res.send = function (body: any) {
     markHtmlIfNeeded(body);
     return originalSend(body);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   res.json = function (body: any) {
     return originalJson(body);
   };
@@ -60,6 +62,7 @@ router.use((req: TrackedRequest, res: Response, next: NextFunction) => {
     res.redirect = ((url: string) => {
       redirectedTo = url;
       return originalRedirect(url);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }) as any;
   }
 

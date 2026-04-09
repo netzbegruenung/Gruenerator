@@ -51,8 +51,9 @@ function toWebSearchState(state: SearchGraphState): WebSearchState {
     mode: 'deep',
     user_id: 'search-graph',
     searchOptions: state.searchOptions || { maxResults: 10, language: 'de-DE' },
-    aiWorkerPool: state.aiWorkerPool,
-    req: null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    aiWorkerPool: state.aiWorkerPool as any,
+    req: null as never,
     subqueries: state.subQueries || undefined,
     metadata: { startTime: Date.now(), searchMode: 'deep' },
   };

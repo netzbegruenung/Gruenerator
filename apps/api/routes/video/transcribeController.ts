@@ -102,9 +102,10 @@ router.post('/transcribe', async (req: AuthenticatedRequest, res: Response): Pro
     });
 
     log.info(`Transcription complete: ${words.length} words`);
-  } catch (error: any) {
-    log.error(`Transcription failed: ${error.message}`);
-    res.status(500).json({ error: error.message || 'Transcription failed' });
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    log.error(`Transcription failed: ${errMsg}`);
+    res.status(500).json({ error: errMsg || 'Transcription failed' });
   } finally {
     if (tempPath) {
       await cleanupTempFile(tempPath);

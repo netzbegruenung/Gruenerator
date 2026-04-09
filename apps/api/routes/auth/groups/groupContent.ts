@@ -20,16 +20,47 @@ const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
 const router: Router = express.Router();
 
-let systemTemplates: any[] = [];
+interface ShareRecord {
+  content_type: string;
+  content_id: string;
+  shared_at: string;
+  permissions: string | Record<string, unknown>;
+  shared_by_user_id: string;
+  first_name: string | null;
+  display_name: string | null;
+}
+
+interface ContentItem {
+  id: string;
+  [key: string]: unknown;
+}
+
+interface SystemTemplate {
+  id: string;
+  title: string;
+  description: string;
+  template_type: string;
+  thumbnail_url: string;
+  preview_image?: string;
+  external_url: string;
+  tags: string[];
+  categories: string[];
+}
+
+let systemTemplates: SystemTemplate[] = [];
 try {
   const apiRoot = process.cwd();
   const systemTemplatesPath = path.resolve(apiRoot, 'config/templates/system-templates.json');
   const data = fs.readFileSync(systemTemplatesPath, 'utf-8');
   const parsed = JSON.parse(data);
-  systemTemplates = (parsed.templates || []).map((t: any) => ({
-    ...t,
-    thumbnail_url: t.preview_image ? `/auth/template-previews/${t.preview_image}` : t.thumbnail_url,
-  }));
+  systemTemplates = (parsed.templates || []).map(
+    (t: SystemTemplate & { preview_image?: string }) => ({
+      ...t,
+      thumbnail_url: t.preview_image
+        ? `/auth/template-previews/${t.preview_image}`
+        : t.thumbnail_url,
+    })
+  );
 } catch {
   log.warn('[Group Content] Could not load system templates for vorlagen matching');
 }
@@ -40,7 +71,7 @@ try {
 
 router.get(
   '/groups/:groupId/vorlagen',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
@@ -98,9 +129,23 @@ router.get(
 
       // Combine and deduplicate by id
       const seenIds = new Set<string>();
-      const allVorlagen: any[] = [];
+      const allVorlagen: Array<{
+        id: string;
+        title: string;
+        description: string;
+        template_type: string;
+        thumbnail_url: string;
+        external_url: string;
+        is_system: boolean;
+        tags?: string[];
+        categories?: string[];
+        created_at?: unknown;
+      }> = [];
 
-      for (const t of [...(dbTemplates || []), ...matchingSystemTemplates]) {
+      for (const t of [
+        ...((dbTemplates || []) as Array<Record<string, unknown> & SystemTemplate>),
+        ...matchingSystemTemplates,
+      ]) {
         if (!seenIds.has(t.id)) {
           seenIds.add(t.id);
           allVorlagen.push({
@@ -111,9 +156,9 @@ router.get(
             thumbnail_url: t.thumbnail_url,
             external_url: t.external_url,
             tags: t.tags || [],
-            categories: t.categories || [],
+            categories: ((t as Record<string, unknown>).categories as string[]) || [],
             is_system: !!t.is_system,
-            created_at: t.created_at,
+            created_at: 'created_at' in t ? t.created_at : undefined,
           });
         }
       }
@@ -159,7 +204,7 @@ const tableNameMap: Record<string, string> = {
 // Share content to a group
 router.post(
   '/groups/:groupId/share',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
@@ -191,7 +236,7 @@ router.post(
 
         // Build ownership query based on content type
         let ownershipSQL = `SELECT ${ownerColumn} FROM ${tableName} WHERE id = $1`;
-        const ownershipParams: any[] = [contentId];
+        const ownershipParams: Array<string> = [contentId];
 
         // For user_templates table (templates), also filter by type = 'template'
         if (tableName === 'user_templates') {
@@ -282,7 +327,7 @@ router.post(
           const groupInfo = postgres.queryOne('SELECT name FROM groups WHERE id = $1', [groupId], {
             table: 'groups',
           });
-          return groupInfo.then((g: any) =>
+          return groupInfo.then((g) =>
             notifyGroupMembers({
               groupId,
               excludeUserId: userId,
@@ -314,7 +359,7 @@ router.post(
 // Unshare content from a group
 router.delete(
   '/groups/:groupId/share',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
@@ -387,7 +432,7 @@ router.delete(
 // Get all content shared with a group
 router.get(
   '/groups/:groupId/content',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
@@ -396,8 +441,8 @@ router.get(
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
 
       // Fetch shared content with user profile information
-      const sharedContent =
-        (await postgres.query(
+      const sharedContent: ShareRecord[] =
+        ((await postgres.query(
           `
       SELECT
         gcs.content_type,
@@ -414,16 +459,16 @@ router.get(
     `,
           [groupId],
           { table: 'group_content_shares' }
-        )) || [];
+        )) as ShareRecord[]) || [];
 
       log.debug('[User Groups /content] Fetched shared content:', {
         groupId,
         totalShares: sharedContent.length,
-        contentTypes: sharedContent.map((s: any) => s.content_type),
+        contentTypes: sharedContent.map((s: ShareRecord) => s.content_type),
       });
 
       // Group shared content by type for easier processing
-      const contentByType: Record<string, any[]> = {
+      const contentByType: Record<string, ShareRecord[]> = {
         documents: [],
         custom_generators: [],
         notebook_collections: [],
@@ -433,18 +478,22 @@ router.get(
         system_notebooks: [],
       };
 
-      sharedContent.forEach((share: any) => {
+      sharedContent.forEach((share: ShareRecord) => {
         if (contentByType[share.content_type]) {
           contentByType[share.content_type].push(share);
         }
       });
 
       // Fetch actual content details for all types in parallel
-      type ContentResult = { type: string; result: { data: any[] }; shares: any[] };
+      type ContentResult = {
+        type: string;
+        result: { data: Array<Record<string, unknown>> };
+        shares: ShareRecord[];
+      };
       const fetchPromises: Promise<ContentResult | null>[] = [];
 
       if (contentByType.documents.length > 0) {
-        const ids = contentByType.documents.map((s: any) => s.content_id);
+        const ids = contentByType.documents.map((s: ShareRecord) => s.content_id);
         fetchPromises.push(
           postgres
             .query(
@@ -452,7 +501,7 @@ router.get(
               [ids],
               { table: 'documents' }
             )
-            .then((data: any) => ({
+            .then((data) => ({
               type: 'documents',
               result: { data: data || [] },
               shares: contentByType.documents,
@@ -461,7 +510,7 @@ router.get(
       }
 
       if (contentByType.custom_generators.length > 0) {
-        const ids = contentByType.custom_generators.map((s: any) => s.content_id);
+        const ids = contentByType.custom_generators.map((s: ShareRecord) => s.content_id);
         fetchPromises.push(
           postgres
             .query(
@@ -469,7 +518,7 @@ router.get(
               [ids],
               { table: 'custom_generators' }
             )
-            .then((data: any) => ({
+            .then((data) => ({
               type: 'custom_generators',
               result: { data: data || [] },
               shares: contentByType.custom_generators,
@@ -478,7 +527,7 @@ router.get(
       }
 
       if (contentByType.notebook_collections.length > 0) {
-        const ids = contentByType.notebook_collections.map((s: any) => s.content_id);
+        const ids = contentByType.notebook_collections.map((s: ShareRecord) => s.content_id);
         fetchPromises.push(
           postgres
             .query(
@@ -486,7 +535,7 @@ router.get(
               [ids],
               { table: 'notebook_collections' }
             )
-            .then((data: any) => ({
+            .then((data) => ({
               type: 'notebook_collections',
               result: { data: data || [] },
               shares: contentByType.notebook_collections,
@@ -496,7 +545,7 @@ router.get(
 
       // System Notebooks (no DB lookup needed — frontend resolves display from config)
       if (contentByType.system_notebooks.length > 0) {
-        const systemNotebooksData = contentByType.system_notebooks.map((s: any) => ({
+        const systemNotebooksData = contentByType.system_notebooks.map((s: ShareRecord) => ({
           id: s.content_id,
           system: true,
         }));
@@ -510,7 +559,7 @@ router.get(
       }
 
       if (contentByType.user_documents.length > 0) {
-        const ids = contentByType.user_documents.map((s: any) => s.content_id);
+        const ids = contentByType.user_documents.map((s: ShareRecord) => s.content_id);
         fetchPromises.push(
           postgres
             .query(
@@ -518,20 +567,22 @@ router.get(
               [ids],
               { table: 'user_documents' }
             )
-            .then((rawData: any) => {
-              const textsData = (rawData || []).map((item: any) => {
-                let plainText = item.content || '';
-                let prev = '';
-                while (prev !== plainText) {
-                  prev = plainText;
-                  plainText = plainText.replace(/<[^>]*>/g, '');
+            .then((rawData) => {
+              const textsData = ((rawData || []) as Array<ContentItem & { content?: string }>).map(
+                (item) => {
+                  let plainText = item.content || '';
+                  let prev = '';
+                  while (prev !== plainText) {
+                    prev = plainText;
+                    plainText = plainText.replace(/<[^>]*>/g, '');
+                  }
+                  plainText = plainText.trim();
+                  const wordCount = plainText
+                    .split(/\s+/)
+                    .filter((word: string) => word.length > 0).length;
+                  return { ...item, word_count: wordCount, character_count: plainText.length };
                 }
-                plainText = plainText.trim();
-                const wordCount = plainText
-                  .split(/\s+/)
-                  .filter((word: string) => word.length > 0).length;
-                return { ...item, word_count: wordCount, character_count: plainText.length };
-              });
+              );
               return {
                 type: 'user_documents',
                 result: { data: textsData },
@@ -542,7 +593,7 @@ router.get(
       }
 
       if (contentByType.database.length > 0) {
-        const ids = contentByType.database.map((s: any) => s.content_id);
+        const ids = contentByType.database.map((s: ShareRecord) => s.content_id);
         fetchPromises.push(
           postgres
             .query(
@@ -550,7 +601,7 @@ router.get(
               [ids],
               { table: 'user_templates' }
             )
-            .then((data: any) => ({
+            .then((data) => ({
               type: 'database',
               result: { data: data || [] },
               shares: contentByType.database,
@@ -559,7 +610,7 @@ router.get(
       }
 
       if (contentByType.collaborative_documents.length > 0) {
-        const ids = contentByType.collaborative_documents.map((s: any) => s.content_id);
+        const ids = contentByType.collaborative_documents.map((s: ShareRecord) => s.content_id);
         fetchPromises.push(
           postgres
             .query(
@@ -567,7 +618,7 @@ router.get(
               [ids],
               { table: 'collaborative_documents' }
             )
-            .then((data: any) => ({
+            .then((data) => ({
               type: 'collaborative_documents',
               result: { data: data || [] },
               shares: contentByType.collaborative_documents,
@@ -578,7 +629,7 @@ router.get(
       const contentResults = (await Promise.all(fetchPromises)).filter(Boolean) as ContentResult[];
 
       // Process and format results
-      const groupContent: Record<string, any[]> = {
+      const groupContent: Record<string, unknown[]> = {
         documents: [],
         generators: [],
         notebooks: [],
@@ -589,9 +640,9 @@ router.get(
       };
 
       contentResults.forEach(({ type, result, shares }) => {
-        const items = (result.data || []).map((item: any) => {
+        const items = (result.data || []).map((item) => {
           // Find the corresponding share info
-          const shareInfo = shares.find((s: any) => s.content_id === item.id);
+          const shareInfo = shares.find((s: ShareRecord) => s.content_id === item.id);
 
           return {
             ...item,
@@ -654,7 +705,7 @@ router.get(
 // Update content permissions
 router.put(
   '/groups/:groupId/content/:contentId/permissions',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (
     req: AuthRequest<{ groupId: string; contentId: string }>,
     res: Response
@@ -738,7 +789,7 @@ router.put(
 // Remove content from group (unshare)
 router.delete(
   '/groups/:groupId/content/:contentId',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (
     req: AuthRequest<{ groupId: string; contentId: string }>,
     res: Response

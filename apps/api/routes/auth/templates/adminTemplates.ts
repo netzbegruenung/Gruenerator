@@ -27,7 +27,7 @@ async function verifyAdmin(req: AuthRequest, res: Response): Promise<boolean> {
 
 router.get(
   '/admin/vorlagen',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       if (!(await verifyAdmin(req, res))) return;
@@ -61,7 +61,7 @@ router.get(
 
 router.get(
   '/admin/vorlagen/stats',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       if (!(await verifyAdmin(req, res))) return;
@@ -95,7 +95,7 @@ router.get(
 
 router.post(
   '/admin/vorlagen/:id/approve',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ id: string }>, res: Response): Promise<void> => {
     try {
       if (!(await verifyAdmin(req, res))) return;
@@ -141,7 +141,7 @@ router.post(
 
 router.post(
   '/admin/vorlagen/:id/reject',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest<{ id: string }>, res: Response): Promise<void> => {
     try {
       if (!(await verifyAdmin(req, res))) return;

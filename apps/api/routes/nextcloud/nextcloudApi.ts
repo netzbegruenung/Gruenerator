@@ -34,7 +34,7 @@ interface UpdateShareLinkBody {
 
 const router: Router = Router();
 
-router.use(requireAuth as any);
+router.use(requireAuth);
 
 /**
  * Get Nextcloud integration status

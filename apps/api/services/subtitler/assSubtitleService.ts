@@ -686,8 +686,8 @@ ${dialogueLines}`;
     try {
       await fs.unlink(filePath);
       log.debug(`Cleaned up temp file: ${filePath}`);
-    } catch (error: any) {
-      log.warn(`Cleanup warning: ${error.message}`);
+    } catch (error: unknown) {
+      log.warn(`Cleanup warning: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

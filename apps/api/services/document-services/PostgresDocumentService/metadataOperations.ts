@@ -12,12 +12,13 @@ import type {
   DeleteResult,
   BulkDeleteResult,
 } from './types.js';
+import type { PostgresService } from '../../../database/services/PostgresService/PostgresService.js';
 
 /**
  * Save document metadata (no file content)
  */
 export async function saveDocumentMetadata(
-  postgres: any,
+  postgres: PostgresService,
   userId: string,
   metadata: DocumentMetadata
 ): Promise<DocumentRecord> {
@@ -38,7 +39,10 @@ export async function saveDocumentMetadata(
       metadata: metadata.additionalMetadata ? JSON.stringify(metadata.additionalMetadata) : null,
     };
 
-    const document = await postgres.insert('documents', documentData);
+    const document = (await postgres.insert(
+      'documents',
+      documentData
+    )) as unknown as DocumentRecord;
     console.log(`[PostgresDocumentService] Document metadata saved: ${document.id}`);
 
     return document;
@@ -52,7 +56,7 @@ export async function saveDocumentMetadata(
  * Update document metadata
  */
 export async function updateDocumentMetadata(
-  postgres: any,
+  postgres: PostgresService,
   documentId: string,
   userId: string,
   updates: DocumentUpdateData
@@ -71,7 +75,7 @@ export async function updateDocumentMetadata(
     }
 
     // Prepare updates
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
     if (updates.title !== undefined) updateData.title = updates.title;
     if (updates.status !== undefined) updateData.status = updates.status;
     if (updates.vectorCount !== undefined) updateData.vector_count = updates.vectorCount;
@@ -97,7 +101,7 @@ export async function updateDocumentMetadata(
     });
 
     console.log(`[PostgresDocumentService] Document ${documentId} updated`);
-    return result.data[0];
+    return result.data[0] as unknown as DocumentRecord;
   } catch (error) {
     console.error('[PostgresDocumentService] Error updating document metadata:', error);
     throw error;
@@ -108,7 +112,7 @@ export async function updateDocumentMetadata(
  * Get documents by source type for a user
  */
 export async function getDocumentsBySourceType(
-  postgres: any,
+  postgres: PostgresService,
   userId: string,
   sourceType: string | null = null
 ): Promise<DocumentRecord[]> {
@@ -116,7 +120,7 @@ export async function getDocumentsBySourceType(
     await postgres.ensureInitialized();
 
     let query = 'SELECT * FROM documents WHERE user_id = $1';
-    const params: any[] = [userId];
+    const params: Array<string | number> = [userId];
 
     if (sourceType) {
       query += ' AND source_type = $2';
@@ -125,7 +129,7 @@ export async function getDocumentsBySourceType(
 
     query += ' ORDER BY created_at DESC';
 
-    const documents = await postgres.query(query, params, { table: 'documents' });
+    const documents = await postgres.query<DocumentRecord>(query, params, { table: 'documents' });
     return documents;
   } catch (error) {
     console.error('[PostgresDocumentService] Error getting documents by source type:', error);
@@ -137,14 +141,14 @@ export async function getDocumentsBySourceType(
  * Get document by ID (with ownership check)
  */
 export async function getDocumentById(
-  postgres: any,
+  postgres: PostgresService,
   documentId: string,
   userId: string
 ): Promise<DocumentRecord | null> {
   try {
     await postgres.ensureInitialized();
 
-    const document = await postgres.queryOne(
+    const document = await postgres.queryOne<DocumentRecord>(
       'SELECT * FROM documents WHERE id = $1 AND user_id = $2',
       [documentId, userId],
       { table: 'documents' }
@@ -161,7 +165,7 @@ export async function getDocumentById(
  * Delete document metadata
  */
 export async function deleteDocument(
-  postgres: any,
+  postgres: PostgresService,
   documentId: string,
   userId: string
 ): Promise<DeleteResult> {
@@ -189,7 +193,7 @@ export async function deleteDocument(
  * Bulk delete documents
  */
 export async function bulkDeleteDocuments(
-  postgres: any,
+  postgres: PostgresService,
   documentIds: string[],
   userId: string
 ): Promise<BulkDeleteResult> {
@@ -208,7 +212,7 @@ export async function bulkDeleteDocuments(
     return {
       success: true,
       deletedCount: result.length,
-      deletedIds: result.map((row: any) => row.id),
+      deletedIds: (result as Array<{ id: string }>).map((row) => row.id),
     };
   } catch (error) {
     console.error('[PostgresDocumentService] Error bulk deleting documents:', error);

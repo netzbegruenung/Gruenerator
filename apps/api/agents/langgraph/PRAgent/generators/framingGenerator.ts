@@ -2,14 +2,16 @@ import { MARKDOWN_FORMATTING_INSTRUCTIONS } from '../../../../utils/prompt/index
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 
 import type { EnrichedState } from '../../../../utils/types/requestEnrichment.js';
+import type { ContentExample } from '../../types/promptAssembly.js';
 import type { PRAgentRequest } from '../types.js';
+import type { Request } from 'express';
 
 /**
  * Generates strategic framing: narrative, values, audiences, wording
  */
 export async function generateStrategicFraming(
   enrichedState: EnrichedState,
-  req: any
+  req: Request
 ): Promise<string> {
   console.log('[PR Agent] Generating strategic framing');
 
@@ -37,8 +39,11 @@ Sei präzise und strategisch. Dies ist die Grundlage für alle nachfolgenden Kom
 
 Entwickle das strategische Framing für dieses Thema.`;
 
+  const { examples: _examples, ...enrichedWithoutExamples } = enrichedState;
+
   const promptResult = await assemblePromptGraphAsync({
-    ...enrichedState,
+    ...enrichedWithoutExamples,
+    examples: enrichedState.examples as ContentExample[],
     systemRole,
     request: userMessage,
     constraints: 'Antwort: 1-2 kompakte Absätze, maximal 800 Zeichen.',

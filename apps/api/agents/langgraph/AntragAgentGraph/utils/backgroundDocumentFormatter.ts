@@ -84,14 +84,15 @@ function formatArgumentsSection(args: ArgumentResult[]): string {
   let argNumber = 1;
 
   for (const group of grouped) {
-    const displayName = getCollectionDisplayName(group.arguments[0].metadata?.collection);
+    const firstArg = group.arguments[0];
+    if (!firstArg) continue;
+    const displayName = getCollectionDisplayName(firstArg.metadata?.collection);
 
     if (group.arguments.length === 1) {
-      const arg = group.arguments[0];
-      section += `\n### ${argNumber}. ${arg.source}`;
+      section += `\n### ${argNumber}. ${firstArg.source}`;
       if (displayName) section += ` (${displayName})`;
       section += '\n';
-      section += formatSingleArgument(arg);
+      section += formatSingleArgument(firstArg);
       argNumber++;
     } else {
       section += `\n### ${argNumber}–${argNumber + group.arguments.length - 1}. ${group.source}`;
@@ -100,6 +101,7 @@ function formatArgumentsSection(args: ArgumentResult[]): string {
 
       for (let i = 0; i < group.arguments.length; i++) {
         const arg = group.arguments[i];
+        if (!arg) continue;
         section += `\n**Treffer ${i + 1}:**\n`;
         section += formatSingleArgument(arg);
       }

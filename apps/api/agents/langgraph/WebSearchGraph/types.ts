@@ -10,6 +10,8 @@ import type {
   ReferencesMap,
   ReferenceData,
 } from '../../../services/search/types.js';
+import type AIWorkerPool from '../../../workers/aiWorkerPool.js';
+import type { Request } from 'express';
 
 // Re-export for external use
 export type { Citation, ValidationResult, Source, ReferencesMap, ReferenceData };
@@ -24,6 +26,7 @@ export interface SearchResult {
   snippet: string;
   domain?: string;
   score?: number;
+  [key: string]: unknown;
 }
 
 /**
@@ -153,8 +156,8 @@ export interface WebSearchState {
   mode: 'normal' | 'deep';
   user_id: string;
   searchOptions: SearchOptions;
-  aiWorkerPool: any;
-  req: any; // Express request object
+  aiWorkerPool: AIWorkerPool;
+  req: Request;
 
   // Intermediate state
   subqueries?: string[];
@@ -190,8 +193,8 @@ export interface WebSearchInput {
   mode?: 'normal' | 'deep';
   user_id?: string;
   searchOptions?: SearchOptions;
-  aiWorkerPool: any;
-  req: any;
+  aiWorkerPool: AIWorkerPool;
+  req: Request;
 }
 
 /**

@@ -29,12 +29,10 @@ export interface LocaleMappings {
 export interface RequestWithLocale {
   user?: {
     locale?: Locale;
-    [key: string]: any;
   };
   headers?: {
     'x-user-locale'?: string;
     'accept-language'?: string;
     [key: string]: string | string[] | undefined;
   };
-  [key: string]: any;
 }
