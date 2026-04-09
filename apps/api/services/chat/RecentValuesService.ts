@@ -3,6 +3,9 @@
  * Provides functionality to save, retrieve, and manage recent form field inputs
  */
 
+import { eq, and, desc, sql } from 'drizzle-orm';
+import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
+import { userRecentValues } from '../../database/schema/index.js';
 import type { RecentValue, FieldTypeWithCount } from './types.js';
 
 /**
@@ -19,9 +22,7 @@ export async function saveRecentValue(
   fieldValue: string,
   formName: string | null = null
 ): Promise<RecentValue> {
-  const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
-  const db = getPostgresInstance();
-  await db.ensureInitialized();
+  const db = getDrizzleInstance();
 
   // Validate input
   if (!userId || typeof userId !== 'string') {
@@ -36,21 +37,25 @@ export async function saveRecentValue(
 
   const trimmedValue = fieldValue.trim();
 
-  const dataToUpsert = {
-    user_id: userId,
-    field_type: fieldType,
-    field_value: trimmedValue,
-    form_name: formName,
-    created_at: new Date(),
-  };
-
   try {
-    const result = await db.upsert('user_recent_values', dataToUpsert, [
-      'user_id',
-      'field_type',
-      'field_value',
-    ]);
-    return result as unknown as RecentValue;
+    const result = await db
+      .insert(userRecentValues)
+      .values({
+        userId,
+        fieldType,
+        fieldValue: trimmedValue,
+        formName,
+      })
+      .onConflictDoUpdate({
+        target: [userRecentValues.userId, userRecentValues.fieldType, userRecentValues.fieldValue],
+        set: {
+          formName,
+          createdAt: new Date(),
+        },
+      })
+      .returning();
+
+    return result[0] as unknown as RecentValue;
   } catch (error: unknown) {
     console.error('[RecentValuesService] Error saving recent value:', error);
     const errMsg = error instanceof Error ? error.message : String(error);
@@ -75,9 +80,7 @@ export async function getRecentValues(
   fieldType: string,
   limit: number = 5
 ): Promise<Partial<RecentValue>[]> {
-  const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
-  const db = getPostgresInstance();
-  await db.ensureInitialized();
+  const db = getDrizzleInstance();
 
   // Validate input
   if (!userId || typeof userId !== 'string') {
@@ -90,16 +93,18 @@ export async function getRecentValues(
   const safeLimit = Math.min(Math.max(parseInt(String(limit)) || 5, 1), 20); // Limit between 1-20
 
   try {
-    const result = await db.query(
-      `SELECT field_value, form_name, created_at
-       FROM user_recent_values
-       WHERE user_id = $1 AND field_type = $2
-       ORDER BY created_at DESC
-       LIMIT $3`,
-      [userId, fieldType, safeLimit]
-    );
+    const result = await db
+      .select({
+        fieldValue: userRecentValues.fieldValue,
+        formName: userRecentValues.formName,
+        createdAt: userRecentValues.createdAt,
+      })
+      .from(userRecentValues)
+      .where(and(eq(userRecentValues.userId, userId), eq(userRecentValues.fieldType, fieldType)))
+      .orderBy(desc(userRecentValues.createdAt))
+      .limit(safeLimit);
 
-    return result || [];
+    return (result || []) as unknown as Partial<RecentValue>[];
   } catch (error: unknown) {
     console.error(`[RecentValuesService] Error retrieving recent values for ${fieldType}:`, error);
     throw new Error(
@@ -115,9 +120,7 @@ export async function getRecentValues(
  * @returns Number of deleted records
  */
 export async function clearRecentValues(userId: string, fieldType: string): Promise<number> {
-  const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
-  const db = getPostgresInstance();
-  await db.ensureInitialized();
+  const db = getDrizzleInstance();
 
   // Validate input
   if (!userId || typeof userId !== 'string') {
@@ -128,12 +131,11 @@ export async function clearRecentValues(userId: string, fieldType: string): Prom
   }
 
   try {
-    const result = await db.delete('user_recent_values', {
-      user_id: userId,
-      field_type: fieldType,
-    });
+    const result = await db
+      .delete(userRecentValues)
+      .where(and(eq(userRecentValues.userId, userId), eq(userRecentValues.fieldType, fieldType)));
 
-    return result?.changes || 0;
+    return result.rowCount || 0;
   } catch (error: unknown) {
     console.error(`[RecentValuesService] Error clearing recent values for ${fieldType}:`, error);
     throw new Error(
@@ -148,9 +150,7 @@ export async function clearRecentValues(userId: string, fieldType: string): Prom
  * @returns Array of field types with counts
  */
 export async function getFieldTypesWithCounts(userId: string): Promise<FieldTypeWithCount[]> {
-  const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
-  const db = getPostgresInstance();
-  await db.ensureInitialized();
+  const db = getDrizzleInstance();
 
   // Validate input
   if (!userId || typeof userId !== 'string') {
@@ -158,16 +158,22 @@ export async function getFieldTypesWithCounts(userId: string): Promise<FieldType
   }
 
   try {
-    const result = await db.query(
-      `SELECT field_type, COUNT(*) as value_count, MAX(created_at) as last_used
-       FROM user_recent_values
-       WHERE user_id = $1
-       GROUP BY field_type
-       ORDER BY last_used DESC`,
-      [userId]
-    );
+    const result = await db
+      .select({
+        fieldType: userRecentValues.fieldType,
+        valueCount: sql<number>`COUNT(*)`,
+        lastUsed: sql<Date>`MAX(${userRecentValues.createdAt})`,
+      })
+      .from(userRecentValues)
+      .where(eq(userRecentValues.userId, userId))
+      .groupBy(userRecentValues.fieldType)
+      .orderBy((t) => desc(t.lastUsed));
 
-    return (result || []) as unknown as FieldTypeWithCount[];
+    return result.map((row) => ({
+      field_type: row.fieldType,
+      value_count: row.valueCount,
+      last_used: row.lastUsed,
+    })) as FieldTypeWithCount[];
   } catch (error: unknown) {
     console.error('[RecentValuesService] Error retrieving field types:', error);
     throw new Error(
