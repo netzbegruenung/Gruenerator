@@ -70,7 +70,7 @@ Drizzle ORM wraps the existing `pg.Pool` from PostgresService and infers types f
 
 **Sequencing:**
 1. [x] `no-unsafe-return` as `warn` — 134 violations found, 133 fixed (1 in gitignored test file) (2026-04-10)
-2. [ ] Fix `searchGraphController.ts` + `PRAgent/responseFormatter.ts`, then `no-unsafe-member-access` as `warn`
+2. [x] `no-unsafe-member-access` as `warn` — 1,128 violations found, 127 fixed incl. searchGraphController, responseFormatter, PromptProcessor (2026-04-10)
 3. [ ] `no-unsafe-assignment` as `warn`
 4. [ ] `no-unsafe-call` + `no-unsafe-argument` last
 
