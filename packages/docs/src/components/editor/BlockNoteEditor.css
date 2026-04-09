@@ -371,7 +371,18 @@
    Comment Thread Styles (used by portal target)
    ============================================ */
 
-/* Thread card styling */
+/* Thread card — override shadcn bg-card which inherits wrong color in docs context */
+.bn-thread {
+  background: var(--background-color, #ffffff);
+  color: var(--font-color, #1a1a1a);
+}
+
+[data-theme="dark"] .bn-thread {
+  background: var(--grey-800, #1f2937);
+  color: var(--grey-100, #f3f4f6);
+}
+
+/* Thread card styling in sidebar */
 .comments-portal-content .bn-thread {
   margin-bottom: 0.75rem;
   border: 1px solid var(--grey-200, #e5e7eb);
