@@ -46,7 +46,14 @@ const OPERATION_TYPE_ALIASES: Record<string, string> = {
  * Normalizes LLM operation types in SSE stream chunks before they reach BlockNote.
  * Transforms known synonyms to the three valid types: add, update, delete.
  */
-function normalizeOperationTypes(text: string): string {
+function normalizeOperationTypes(chunk: unknown): string {
+  const text =
+    typeof chunk === 'string'
+      ? chunk
+      : chunk !== null && typeof chunk === 'object'
+        ? JSON.stringify(chunk)
+        : String(chunk);
+
   return text.replace(/"type"\s*:\s*"(\w+)"/g, (match, type: string) => {
     const normalized = OPERATION_TYPE_ALIASES[type];
     if (normalized) {
@@ -60,7 +67,7 @@ function normalizeOperationTypes(text: string): string {
 /**
  * Creates a TransformStream that normalizes operation types in the SSE stream.
  */
-function createNormalizingTransform(): TransformStream<string, string> {
+function createNormalizingTransform(): TransformStream<unknown, string> {
   return new TransformStream({
     transform(chunk, controller) {
       controller.enqueue(normalizeOperationTypes(chunk));
@@ -190,8 +197,8 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
 
     const stream = result.toUIMessageStream();
 
-    // types are incompatible with the AI SDK's AsyncIterableStream pipeThrough signature.
-    const normalizedStream = stream.pipeThrough(createNormalizingTransform() as any);
+    // @ts-expect-error Node.js TransformStream vs Web API TransformStream type mismatch
+    const normalizedStream = stream.pipeThrough(createNormalizingTransform());
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
