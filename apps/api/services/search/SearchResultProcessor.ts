@@ -140,8 +140,8 @@ export function validateAndInjectCitations(
 
   content = content.replace(/\n+Quellen:[\s\S]*$/i, '');
 
-  content = content.replace(/\[(\s*\d+(?:\s*,\s*\d+)+\s*)\]/g, (m, inner) => {
-    const nums = inner
+  content = content.replace(/\[(\s*\d+(?:\s*,\s*\d+)+\s*)\]/g, (_m: string, inner: string) => {
+    const nums: string[] = inner
       .split(',')
       .map((s: string) => s.trim())
       .filter(Boolean);

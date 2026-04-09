@@ -112,8 +112,12 @@ export async function generateAndStoreEmbeddings(
     }
 
     // Step 3: Generate embeddings in batches
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const chunkTexts = qualityChunks.map((chunk: any) => chunk.text || chunk);
+    const chunkTexts: string[] = qualityChunks.map((chunk: unknown) => {
+      if (typeof chunk === 'object' && chunk !== null && 'text' in chunk) {
+        return String((chunk as { text: string }).text);
+      }
+      return String(chunk);
+    });
     const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
       chunkTexts,
       'search_document'

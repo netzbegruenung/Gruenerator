@@ -503,17 +503,23 @@ async function exportWithEnhancements(
   const originalFormatObj = metadata.originalFormat
     ? {
         ...(metadata.originalFormat.codec ? { codec: metadata.originalFormat.codec } : {}),
-        ...(metadata.originalFormat.videoBitrate != null ? {
-          videoBitrate: metadata.originalFormat.videoBitrate,
-        } : {}),
-        ...(metadata.originalFormat.audioCodec ? { audioCodec: metadata.originalFormat.audioCodec } : {}),
-        ...(metadata.originalFormat.audioBitrate != null ? {
-          audioBitrate: metadata.originalFormat.audioBitrate,
-        } : {}),
+        ...(metadata.originalFormat.videoBitrate != null
+          ? {
+              videoBitrate: metadata.originalFormat.videoBitrate,
+            }
+          : {}),
+        ...(metadata.originalFormat.audioCodec
+          ? { audioCodec: metadata.originalFormat.audioCodec }
+          : {}),
+        ...(metadata.originalFormat.audioBitrate != null
+          ? {
+              audioBitrate: metadata.originalFormat.audioBitrate,
+            }
+          : {}),
       }
     : undefined;
 
-  const compatibleMetadata: any = {
+  const compatibleMetadata: Record<string, unknown> = {
     width: metadata.width,
     height: metadata.height,
     rotation: metadata.rotation,
@@ -681,7 +687,8 @@ interface AutoProgressData {
 async function getAutoProgress(token: string): Promise<AutoProgressData | null> {
   const data = await redisClient.get(`auto:${token}`);
   if (!data || typeof data !== 'string') return null;
-  return JSON.parse(data);
+  const progress: AutoProgressData = JSON.parse(data) as AutoProgressData;
+  return progress;
 }
 
 export { processVideoAutomatically, getAutoProgress, STAGES };
