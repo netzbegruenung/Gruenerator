@@ -349,7 +349,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
       return {
         intent: heuristic.intent,
         searchSources: heuristicSearchSources,
-        searchQuery: optimizedQuery,
+        searchQuery: optimizedQuery?.slice(0, 500) || null,
         detectedFilters: heuristicFilters,
         reasoning: `${heuristic.reasoning} (heuristic, confidence: ${heuristic.confidence.toFixed(2)})`,
         hasTemporal: temporal.hasTemporal,
@@ -406,7 +406,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
       intent: classification.intent,
       secondaryIntent: classification.secondaryIntent || null,
       searchSources: llmSearchSources,
-      searchQuery: classification.searchQuery,
+      searchQuery: classification.searchQuery?.slice(0, 500) || null,
       subQueries: classification.subQueries || null,
       detectedFilters: classification.filters || null,
       reasoning: classification.reasoning,
