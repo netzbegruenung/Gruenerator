@@ -39,10 +39,40 @@ export async function saveDocumentMetadata(
       metadata: metadata.additionalMetadata ? JSON.stringify(metadata.additionalMetadata) : null,
     };
 
-    const document = (await postgres.insert(
+    const insertedData = await postgres.insert(
       'documents',
       documentData
-    )) as unknown as DocumentRecord;
+    );
+    const row = insertedData as Record<string, unknown>;
+    const createdAt = row.created_at instanceof Date ? row.created_at.toISOString() : (row.created_at as string);
+    const updatedAt = row.updated_at instanceof Date ? row.updated_at.toISOString() : (row.updated_at as string);
+    const lastSyncedAt = row.last_synced_at instanceof Date ? row.last_synced_at.toISOString() : (row.last_synced_at as string | null);
+    const document: DocumentRecord = {
+      id: row.id as string,
+      user_id: row.user_id as string,
+      title: row.title as string,
+      filename: row.filename as string | null,
+      file_path: row.file_path as string | null,
+      file_size: row.file_size as number,
+      page_count: row.page_count as number,
+      status: row.status as string,
+      ocr_text: row.ocr_text as string | null,
+      created_at: createdAt,
+      updated_at: updatedAt,
+      ocr_method: row.ocr_method as string,
+      source_url: row.source_url as string | null,
+      document_type: row.document_type as string,
+      metadata: row.metadata as Record<string, unknown> | null,
+      markdown_content: row.markdown_content as string | null,
+      group_id: row.group_id as string | null,
+      source_type: row.source_type as string,
+      wolke_share_link_id: row.wolke_share_link_id as string | null,
+      wolke_file_path: row.wolke_file_path as string | null,
+      wolke_etag: row.wolke_etag as string | null,
+      vector_count: row.vector_count as number,
+      last_synced_at: lastSyncedAt,
+      group_wolke_share_id: row.group_wolke_share_id as string | null,
+    };
     console.log(`[PostgresDocumentService] Document metadata saved: ${document.id}`);
 
     return document;
@@ -101,7 +131,36 @@ export async function updateDocumentMetadata(
     });
 
     console.log(`[PostgresDocumentService] Document ${documentId} updated`);
-    return result.data[0] as unknown as DocumentRecord;
+    const row = result.data[0] as Record<string, unknown>;
+    const createdAt = row.created_at instanceof Date ? row.created_at.toISOString() : (row.created_at as string);
+    const updatedAt = row.updated_at instanceof Date ? row.updated_at.toISOString() : (row.updated_at as string);
+    const lastSyncedAt = row.last_synced_at instanceof Date ? row.last_synced_at.toISOString() : (row.last_synced_at as string | null | undefined);
+    return {
+      id: row.id as string,
+      user_id: row.user_id as string,
+      title: row.title as string,
+      filename: row.filename as string | null,
+      file_path: row.file_path as string | null,
+      file_size: row.file_size as number,
+      page_count: row.page_count as number,
+      status: row.status as string,
+      ocr_text: row.ocr_text as string | null,
+      created_at: createdAt,
+      updated_at: updatedAt,
+      ocr_method: row.ocr_method as string,
+      source_url: row.source_url as string | null,
+      document_type: row.document_type as string,
+      metadata: row.metadata as Record<string, unknown> | null,
+      markdown_content: row.markdown_content as string | null,
+      group_id: row.group_id as string | null,
+      source_type: row.source_type as string,
+      wolke_share_link_id: row.wolke_share_link_id as string | null,
+      wolke_file_path: row.wolke_file_path as string | null,
+      wolke_etag: row.wolke_etag as string | null,
+      vector_count: row.vector_count as number,
+      last_synced_at: lastSyncedAt as string | null | undefined,
+      group_wolke_share_id: row.group_wolke_share_id as string | null,
+    } as DocumentRecord;
   } catch (error) {
     console.error('[PostgresDocumentService] Error updating document metadata:', error);
     throw error;
