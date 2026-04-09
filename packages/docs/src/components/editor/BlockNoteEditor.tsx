@@ -28,7 +28,7 @@ import {
   ThreadsSidebar,
 } from '@blocknote/react';
 import { filterSuggestionItems } from '@blocknote/core/extensions';
-import { BlockNoteView } from '@blocknote/shadcn';
+import { BlockNoteView, ShadCNDefaultComponents } from '@blocknote/shadcn';
 import {
   AIExtension,
   AIMenuController,
@@ -112,7 +112,7 @@ function ToolbarTooltip(props: ComponentProps<typeof TooltipPrimitive.Root>) {
 }
 
 const shadCNComponentOverrides = {
-  Tooltip: { Tooltip: ToolbarTooltip },
+  Tooltip: { ...ShadCNDefaultComponents.Tooltip, Tooltip: ToolbarTooltip },
 };
 
 const BlockNoteEditorInner = ({
@@ -350,12 +350,15 @@ const BlockNoteEditorInner = ({
 
   const toolbarItems = useMemo(() => getFormattingToolbarItems(), []);
 
-  const formattingToolbar = useCallback(() => (
-    <FormattingToolbar>
-      {toolbarItems}
-      <AIToolbarButton />
-    </FormattingToolbar>
-  ), [toolbarItems]);
+  const formattingToolbar = useCallback(
+    () => (
+      <FormattingToolbar>
+        {toolbarItems}
+        <AIToolbarButton />
+      </FormattingToolbar>
+    ),
+    [toolbarItems]
+  );
 
   if (!editor) {
     return <div className="blocknote-loading">Lädt Editor...</div>;
