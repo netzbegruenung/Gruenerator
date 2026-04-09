@@ -63,12 +63,7 @@ import type {
   FormattedDrucksache,
   FormattedAktivitaet,
 } from '../bundestag/types.js';
-import type {
-  CollectionConfig,
-  ReferenceData,
-  ReferencesMap,
-  ExpandedChunkResult,
-} from '../search/types.js';
+import type { CollectionConfig, ReferencesMap, ExpandedChunkResult } from '../search/types.js';
 
 const log = createLogger('NotebookQAService');
 const documentSearchService = new DocumentSearchService();

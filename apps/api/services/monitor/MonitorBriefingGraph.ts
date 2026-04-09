@@ -241,7 +241,7 @@ function formatOtherTopics(snapshot: MonitorSnapshot): string {
     .join(', ');
 }
 
-function formatKeywords(snapshot: MonitorSnapshot): string {
+function _formatKeywords(snapshot: MonitorSnapshot): string {
   return (snapshot.keywords || [])
     .slice(0, 8)
     .map((k) => `${k.keyword} (${k.count}x)`)

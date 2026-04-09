@@ -162,7 +162,7 @@ class TemporaryImageStorage {
     console.log('[TemporaryImageStorage] Clearing all active sessions...');
 
     let deletedCount = 0;
-    for (const [requestId, session] of this.activeSessions) {
+    for (const [_requestId, session] of this.activeSessions) {
       const deleted = await this.redis.del(session.key);
       if (deleted > 0) deletedCount++;
     }

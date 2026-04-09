@@ -5,7 +5,6 @@
 import type { QdrantFilter } from '../QueryIntentService/types.js';
 import type {
   ExpandedChunkResult,
-  Citation as SearchCitation,
   Source as SearchSource,
   SourcesByCollection as SearchSourcesByCollection,
   ReferencesMap,

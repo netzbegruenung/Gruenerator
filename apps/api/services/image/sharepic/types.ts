@@ -4,8 +4,6 @@
  * Type definitions for sharepic generation services
  */
 
-import type { Request } from 'express';
-
 /**
  * Default sharepic with metadata
  */

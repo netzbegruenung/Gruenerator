@@ -1,12 +1,9 @@
-import { createLogger } from '../../utils/logger.js';
 import redisClient from '../../utils/redis/client.js';
 
 import { generateEntitySummary } from './SummaryGraph.js';
 
 import type { MonitorArticle } from './types.js';
 import type { WatcherEntity } from './watcherEntities.js';
-
-const log = createLogger('MonitorSummary');
 
 const SUMMARY_TTL_SECONDS = 3600; // 1 hour
 
