@@ -13,6 +13,7 @@ import {
   getPostgresInstance,
   type PostgresService,
 } from '../../database/services/PostgresService.js';
+import { subtitlerSharedVideos } from '../../database/schema/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -204,7 +205,24 @@ class SubtitlerShareService {
         return null;
       }
 
-      const typedResult = result as unknown as ShareData;
+      const row = result as Record<string, unknown>;
+      const typedResult: ShareData = {
+        id: row.id as string,
+        user_id: row.user_id as string,
+        project_id: row.project_id as string | undefined,
+        share_token: row.share_token as string,
+        video_path: row.video_path as string | undefined,
+        video_filename: row.video_filename as string | undefined,
+        title: row.title as string,
+        thumbnail_path: row.thumbnail_path as string | undefined,
+        duration: row.duration as number | undefined,
+        expires_at: row.expires_at as Date,
+        download_count: row.download_count as number,
+        created_at: row.created_at as Date,
+        status: row.status as string,
+        sharer_name: row.sharer_name as string | undefined,
+        expired: false,
+      };
       const now = new Date();
       const expiresAt = new Date(typedResult.expires_at);
       const expired = now > expiresAt;
@@ -234,10 +252,24 @@ class SubtitlerShareService {
       const results = await this.postgres!.query(query, [userId]);
 
       const now = new Date();
-      return (results as Array<Record<string, unknown> & { expires_at: string }>).map((row) => ({
-        ...row,
-        expired: new Date(row.expires_at) < now,
-      })) as unknown as ShareData[];
+      return (results as Array<Record<string, unknown>>).map((row) => {
+        const expiresAt = typeof row.expires_at === 'string'
+          ? new Date(row.expires_at)
+          : (row.expires_at as Date);
+        return {
+          id: row.id as string,
+          user_id: '',
+          share_token: row.share_token as string,
+          title: row.title as string,
+          thumbnail_path: row.thumbnail_path as string | undefined,
+          duration: row.duration as number | undefined,
+          expires_at: expiresAt,
+          download_count: row.download_count as number,
+          created_at: row.created_at as Date,
+          status: row.status as string,
+          expired: expiresAt < now,
+        } as ShareData;
+      });
     } catch (error: unknown) {
       log.error('[SubtitlerShareService] Failed to get user shares:', error);
       throw new Error(

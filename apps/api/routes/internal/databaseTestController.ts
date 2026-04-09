@@ -110,9 +110,9 @@ router.get('/test', async (req: Request, res: Response) => {
       ORDER BY table_name
     `;
 
-    const existingTablesResult = (await postgresService.query(
+    const existingTablesResult = await postgresService.query<TableInfo>(
       existingTablesQuery
-    )) as unknown as TableInfo[];
+    );
     const existingTables = existingTablesResult.map((row) => row.table_name);
     log.debug('[DatabaseTest] Existing tables:', existingTables);
 
@@ -138,9 +138,9 @@ router.get('/test', async (req: Request, res: Response) => {
       }
     }
 
-    const finalTablesResult = (await postgresService.query(
+    const finalTablesResult = await postgresService.query<TableInfo>(
       existingTablesQuery
-    )) as unknown as TableInfo[];
+    );
     const finalTables = finalTablesResult.map((row) => row.table_name);
 
     const response: DatabaseTestResponse = {
