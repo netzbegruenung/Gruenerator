@@ -10,6 +10,7 @@ import {
   localizePlaceholders,
   type RequestWithLocale,
 } from '../../services/localization/index.js';
+import { getParam } from '../../utils/params.js';
 
 import { getAgent, loadAgents, getDefaultAgentId } from './agents/agentLoader.js';
 import chatStreamRouter from './chatStreamController.js';
@@ -36,7 +37,7 @@ router.get('/agents', async (req: Request & RequestWithLocale, res: Response) =>
   try {
     const agents = await loadAgents();
     const defaultId = getDefaultAgentId();
-    const locale = extractLocaleFromRequest(req);
+    const locale = extractLocaleFromRequest(req as Request & RequestWithLocale);
     const clientAgents = agents
       .filter((agent) => agent.identifier !== defaultId)
       .map((agent) => ({
@@ -60,11 +61,12 @@ router.get('/agents', async (req: Request & RequestWithLocale, res: Response) =>
 
 router.get('/agents/:identifier', async (req: Request & RequestWithLocale, res: Response) => {
   try {
-    const agent = await getAgent(req.params.identifier);
+    const identifier = getParam(req.params, 'identifier');
+    const agent = await getAgent(identifier);
     if (!agent) {
       return res.status(404).json({ error: 'Agent not found' });
     }
-    const locale = extractLocaleFromRequest(req);
+    const locale = extractLocaleFromRequest(req as Request & RequestWithLocale);
     res.json({
       identifier: agent.identifier,
       title: agent.title,

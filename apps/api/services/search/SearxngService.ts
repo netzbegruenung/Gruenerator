@@ -236,7 +236,7 @@ class SearxngService {
   ): FormattedSearchResults {
     const results = rawResults.results || [];
     const maxResults = Math.min(
-      searchOptions.maxResults || this.defaultOptions.maxResults,
+      searchOptions.maxResults ?? (this.defaultOptions.maxResults as number),
       results.length
     );
 

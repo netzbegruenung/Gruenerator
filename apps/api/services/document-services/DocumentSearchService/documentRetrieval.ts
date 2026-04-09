@@ -181,7 +181,7 @@ export async function getMultipleDocumentsFullText(
       ],
     };
 
-    const chunks = await qdrantOps.scrollDocuments('documents', filter, {
+    const chunks = await qdrantOps.scrollDocuments('documents', filter as any, {
       limit: documentIds.length * 20,
       withPayload: true,
       withVector: false,
@@ -289,7 +289,7 @@ export async function getDocumentFirstChunks(
       ],
     };
 
-    const chunks = await qdrantOps.scrollDocuments('documents', filter, {
+    const chunks = await qdrantOps.scrollDocuments('documents', filter as any, {
       limit: documentIds.length,
       withPayload: true,
       withVector: false,

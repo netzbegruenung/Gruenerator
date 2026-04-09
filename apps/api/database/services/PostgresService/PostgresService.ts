@@ -173,7 +173,16 @@ export class PostgresService {
   }
 
   async createDatabaseIfNotExists(): Promise<void> {
-    await createDatabaseIfNotExists(this.config);
+    const { host, port, user, password, database, ssl, connectionString } = this.config;
+    await createDatabaseIfNotExists({
+      ...(host != null ? { host } : {}),
+      ...(port != null ? { port } : {}),
+      ...(user != null ? { user } : {}),
+      ...(password != null ? { password } : {}),
+      ...(database != null ? { database } : {}),
+      ...(ssl != null ? { ssl } : {}),
+      ...(connectionString != null ? { connectionString } : {}),
+    });
   }
 
   async testConnection(): Promise<void> {

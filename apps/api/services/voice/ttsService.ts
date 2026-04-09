@@ -136,9 +136,9 @@ class TTSService {
       ).items ?? [];
     return voices.map((v) => ({
       id: v.id,
-      ...(v.name && { name: v.name }),
-      ...(v.languages && { languages: v.languages }),
-      ...(v.gender && { gender: v.gender }),
+      name: v.name || '',
+      ...(v.languages ? { languages: v.languages } : {}),
+      ...(v.gender ? { gender: v.gender } : {}),
     }));
   }
 

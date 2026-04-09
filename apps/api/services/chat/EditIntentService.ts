@@ -179,7 +179,10 @@ Gib den bearbeiteten Text zurück:`;
     );
 
     if (!result.success) {
-      return { success: false, error: result.error };
+      return {
+        success: false,
+        ...(result.error ? { error: result.error } : {}),
+      };
     }
 
     let editedText = result.content.trim();

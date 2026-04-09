@@ -221,9 +221,14 @@ export class NextcloudShareManager {
       }
 
       // Update the link
+      const originalLink = currentLinks[linkIndex];
       const updatedLink: NextcloudShareLink = {
-        ...currentLinks[linkIndex],
-        ...updates,
+        ...originalLink,
+        share_link: updates.share_link != null ? updates.share_link : originalLink.share_link,
+        label: updates.label != null ? updates.label : originalLink.label,
+        base_url: updates.base_url != null ? updates.base_url : originalLink.base_url,
+        share_token: updates.share_token != null ? updates.share_token : originalLink.share_token,
+        is_active: updates.is_active != null ? updates.is_active : originalLink.is_active,
         updated_at: new Date().toISOString(),
       };
 

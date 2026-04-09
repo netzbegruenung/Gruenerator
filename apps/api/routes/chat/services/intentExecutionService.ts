@@ -28,7 +28,7 @@ import { pendingActionStore } from './pendingActionStore.js';
 import { PROGRESS_MESSAGES } from './sseHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 
-import type { SSEWriter } from './sseHelpers.js';
+import type { SSEWriter, SearchResultPayload } from './sseHelpers.js';
 import type {
   ChatGraphState,
   GeneratedImageResult,
@@ -608,15 +608,12 @@ export async function executeIntentPipeline(opts: {
         const resultCount = finalState.searchResults?.length || 0;
         const payloadResults = finalState.searchResults?.slice(0, 10).map((r) => {
           const result: SearchResultPayload = {
-            source: String(r.document_id || r.id),
-            title: (r.metadata?.title as string) || 'Untitled',
-            content: r.chunk_text,
-            relevance: r.score,
+            source: r.source,
+            title: r.title,
+            content: r.content,
           };
-          const url = r.metadata?.url as string | undefined;
-          if (url) {
-            result.url = url;
-          }
+          if (r.url != null) result.url = r.url;
+          if (r.relevance != null) result.relevance = r.relevance;
           return result;
         }) || [];
         sse.send('search_complete', {

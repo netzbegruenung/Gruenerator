@@ -20,6 +20,7 @@ export interface AuthenticatedRequest<P = ParamsDictionary> extends Request<P> {
   user?: UserProfile | undefined;
   mobileAuth?: boolean | undefined;
   jwtToken?: string | undefined;
+  sessionID?: string | undefined;
 }
 
 /**
@@ -46,7 +47,6 @@ export interface RateLimitRequest extends AuthenticatedRequest {
  */
 export interface SubdomainRequest extends AuthenticatedRequest {
   subdomain?: string | undefined;
-  siteData?: UserSiteData | undefined;
 }
 
 // ============================================================================

@@ -22,8 +22,7 @@ console.log(`Versuche Verbindung mit Redis: ${maskedUrl}`);
 // createClient verwendet automatisch TLS, wenn die URL mit rediss:// beginnt
 // IMPORTANT: Never return an Error from reconnectStrategy - this permanently closes the client.
 // Instead, always return a delay to keep reconnecting indefinitely.
-const client: RedisClient = createClient({
-  url: redisUrl,
+const createClientConfig: Parameters<typeof createClient>[0] = {
   socket: {
     // TCP keep-alive prevents idle connections from being dropped by Docker/NAT
     keepAlive: true,
@@ -39,7 +38,13 @@ const client: RedisClient = createClient({
       return delay;
     },
   },
-});
+};
+
+if (redisUrl != null) {
+  createClientConfig.url = redisUrl;
+}
+
+const client = createClient(createClientConfig) as RedisClient;
 
 client.on('error', (err) => console.error('Redis Client Fehler:', err.message));
 client.on('connect', () => console.log('Erfolgreich mit Redis verbunden'));

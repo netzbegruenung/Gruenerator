@@ -24,16 +24,17 @@ interface FrontendMemory {
 }
 
 function toFrontendMemory(m: Mem0Memory): FrontendMemory {
-  return {
+  const result: FrontendMemory = {
     id: m.id,
     content: m.memory,
-    topic: m.metadata?.memoryType,
     category: normalizeCategory(m.metadata?.memoryType),
     confidence: (m.metadata?.confidence as MemoryConfidence) ?? 'medium',
     source: (m.metadata?.source as MemorySource) ?? 'extracted',
-    created_at: m.created_at,
-    updated_at: m.updated_at,
   };
+  if (m.metadata?.memoryType != null) result.topic = m.metadata.memoryType;
+  if (m.created_at != null) result.created_at = m.created_at;
+  if (m.updated_at != null) result.updated_at = m.updated_at;
+  return result;
 }
 
 // GET /api/mem0/user/:userId — list all memories for the authenticated user

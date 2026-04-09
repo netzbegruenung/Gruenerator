@@ -206,21 +206,28 @@ class SubtitlerShareService {
       }
 
       const row = result as Record<string, unknown>;
+      const projectId = row.project_id as string | undefined;
+      const videoPath = row.video_path as string | undefined;
+      const videoFilename = row.video_filename as string | undefined;
+      const thumbnailPath = row.thumbnail_path as string | undefined;
+      const duration = row.duration as number | undefined;
+      const sharerName = row.sharer_name as string | undefined;
+
       const typedResult: ShareData = {
         id: row.id as string,
         user_id: row.user_id as string,
-        project_id: row.project_id as string | undefined,
+        ...(projectId != null && { project_id: projectId }),
         share_token: row.share_token as string,
-        video_path: row.video_path as string | undefined,
-        video_filename: row.video_filename as string | undefined,
+        ...(videoPath != null && { video_path: videoPath }),
+        ...(videoFilename != null && { video_filename: videoFilename }),
         title: row.title as string,
-        thumbnail_path: row.thumbnail_path as string | undefined,
-        duration: row.duration as number | undefined,
+        ...(thumbnailPath != null && { thumbnail_path: thumbnailPath }),
+        ...(duration != null && { duration }),
         expires_at: row.expires_at as Date,
         download_count: row.download_count as number,
         created_at: row.created_at as Date,
         status: row.status as string,
-        sharer_name: row.sharer_name as string | undefined,
+        ...(sharerName != null && { sharer_name: sharerName }),
         expired: false,
       };
       const now = new Date();

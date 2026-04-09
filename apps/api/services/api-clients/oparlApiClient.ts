@@ -434,7 +434,10 @@ class OparlApiClient {
           ...(f.name && { name: f.name }),
           ...(f.shortName && { shortName: f.shortName }),
         })),
-        body: { id: body.id, name: body.name },
+        body: {
+          id: body.id,
+          ...(body.name ? { name: body.name } : {}),
+        },
         hasGreenFactionData: greenFactions.length > 0,
       };
     } catch (error) {

@@ -40,7 +40,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
   try {
     log.debug('[claude_website] Starting AI Worker request');
 
-    const locale = extractLocaleFromRequest(req as RequestWithLocale);
+    const locale = extractLocaleFromRequest(req as any as RequestWithLocale);
     const systemPrompt = localizePlaceholders(
       `Du bist ein Spezialist für politische Kommunikation und erstellst Landing-Page-Inhalte für Politiker*innen von {{partyName}}.
 

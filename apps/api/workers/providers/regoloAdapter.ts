@@ -141,7 +141,15 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
 
   const modelMessages = convertMessages(messages, systemPrompt);
 
-  const toolsPayload = ToolHandler.prepareToolsPayload(options, 'regolo', requestId, type);
+  const toolsPayload = ToolHandler.prepareToolsPayload(
+    {
+      ...(options.tools != null && { tools: options.tools as any }),
+      ...(options.tool_choice != null && { tool_choice: options.tool_choice }),
+    },
+    'regolo',
+    requestId,
+    type
+  );
   const tools = convertTools(toolsPayload);
 
   let toolChoice: 'auto' | 'none' | 'required' | undefined;

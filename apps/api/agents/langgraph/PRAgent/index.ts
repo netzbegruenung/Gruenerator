@@ -220,19 +220,17 @@ export async function processStrategyGeneration(
     // 6. Format strategy as markdown for display
     const metadata: Parameters<typeof formatStrategyApprovalResponse>[4] = {
       argumentsFound: args.length,
+      ...(enrichedState.enrichmentMetadata?.totalDocuments ? {
+        documentsCount: enrichedState.enrichmentMetadata.totalDocuments,
+      } : {}),
+      ...(enrichedState.enrichmentMetadata?.webSearchSources?.length ? {
+        webSourcesCount: enrichedState.enrichmentMetadata.webSearchSources.length,
+      } : {}),
+      ...(executionTimeMs ? { executionTimeMs } : {}),
+      ...(enrichedState.enrichmentMetadata != null ? {
+        enrichmentMetadata: enrichedState.enrichmentMetadata,
+      } : {}),
     };
-    if (enrichedState.enrichmentMetadata?.totalDocuments) {
-      metadata.documentsCount = enrichedState.enrichmentMetadata.totalDocuments;
-    }
-    if (enrichedState.enrichmentMetadata?.webSearchSources?.length) {
-      metadata.webSourcesCount = enrichedState.enrichmentMetadata.webSearchSources.length;
-    }
-    if (executionTimeMs) {
-      metadata.executionTimeMs = executionTimeMs;
-    }
-    if (enrichedState.enrichmentMetadata) {
-      metadata.enrichmentMetadata = enrichedState.enrichmentMetadata;
-    }
     const formattedContent = formatStrategyApprovalResponse(
       framing,
       argumentsSummary,

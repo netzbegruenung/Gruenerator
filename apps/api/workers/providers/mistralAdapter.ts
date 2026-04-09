@@ -265,8 +265,16 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   // Convert messages to Vercel AI SDK format
   const modelMessages = await convertMessages(messages, systemPrompt);
 
-  // Prepare tools
-  const toolsPayload = ToolHandler.prepareToolsPayload(options, 'mistral', requestId, type);
+  // Prepare tools - only include options that are not null/undefined
+  const toolsPayload = ToolHandler.prepareToolsPayload(
+    {
+      ...(options.tools != null && { tools: options.tools as any }),
+      ...(options.tool_choice != null && { tool_choice: options.tool_choice }),
+    },
+    'mistral',
+    requestId,
+    type
+  );
   const tools = convertTools(toolsPayload);
 
   // Determine tool choice

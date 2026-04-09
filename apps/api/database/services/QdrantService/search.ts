@@ -450,7 +450,7 @@ export async function searchSocialMediaExamples(
       return {
         id: (payload.example_id as string | number) || hit.id,
         score: hit.score,
-        content: extractMultiFieldContent(payload),
+        content: extractMultiFieldContent(payload) || '',
         platform: (payload.platform as string) || '',
         country: (payload.country as string) || null,
         source_account: (payload.source_account as string) || null,

@@ -297,12 +297,15 @@ router.post(
 
       if (searchResults.status !== 'success') {
         log.error(`[Search] Search failed: ${searchResults.error}`);
-        return res.status(500).json({
+        const errorResponse: any = {
           success: false,
           error: 'Websuche fehlgeschlagen',
           metadata: { timestamp: new Date().toISOString(), searchType: 'normal' },
-          ...(process.env.NODE_ENV === 'development' && { details: searchResults.error }),
-        });
+        };
+        if (process.env.NODE_ENV === 'development') {
+          errorResponse.details = searchResults.error;
+        }
+        return res.status(500).json(errorResponse);
       }
 
       const processingTime = Date.now() - startTime;
@@ -430,7 +433,7 @@ router.post(
 
       if (searchResults.status !== 'success') {
         log.error(`[Search] Deep research failed: ${searchResults.error}`);
-        return res.status(500).json({
+        const errorResponse: DeepResearchResponse & { details?: string } = {
           status: 'error',
           dossier: null,
           researchQuestions: [],
@@ -449,8 +452,11 @@ router.post(
             hasOfficialPosition: false,
             performance: { duration: Date.now() - startTime, aiCalls: 0, estimatedTokens: 0 },
           },
-          ...(process.env.NODE_ENV === 'development' && { details: searchResults.error }),
-        });
+        };
+        if (process.env.NODE_ENV === 'development') {
+          errorResponse.details = searchResults.error;
+        }
+        return res.status(500).json(errorResponse);
       }
 
       const totalDuration = Date.now() - startTime;

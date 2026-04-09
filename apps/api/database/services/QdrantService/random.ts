@@ -278,7 +278,7 @@ export async function getRandomSocialMediaExamples(
       return {
         id: (payload.example_id as string | number) || point.id,
         score: 1.0, // Random sampling has no score
-        content: extractMultiFieldContent(payload as Record<string, unknown>),
+        content: extractMultiFieldContent(payload as Record<string, unknown>) || '',
         platform: (payload.platform as string) || '',
         country: (payload.country as string) || null,
         source_account: (payload.source_account as string) || null,

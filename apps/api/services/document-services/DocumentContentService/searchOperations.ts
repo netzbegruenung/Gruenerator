@@ -57,7 +57,7 @@ export async function performVectorSearch(
 
     const results = searchResponse.results || [];
     console.log(`[DocumentContentService] Vector search found ${results.length} results`);
-    return results;
+    return results as SearchResult[];
   } catch (searchError) {
     console.error('[DocumentContentService] Vector search error:', searchError);
     return [];

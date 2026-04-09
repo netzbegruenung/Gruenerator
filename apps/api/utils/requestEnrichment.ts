@@ -600,9 +600,27 @@ class RequestEnricher {
     userId?: string
   ): Promise<AttachmentProcessingResult> {
     try {
-      return await processAndBuildAttachments(attachments, usePrivacyMode, routeName, userId);
+      const result = await processAndBuildAttachments(attachments, usePrivacyMode, routeName, userId);
+      const output: AttachmentProcessingResult = {
+        hasAttachments: result.hasAttachments,
+        summary: result.summary,
+        validated: result.validated,
+        error: result.error,
+      };
+      if (result.documents != null) {
+        output.documents = result.documents.map((doc) => ({
+          type: doc.type,
+          source: {
+            type: doc.source.type,
+            media_type: doc.source.media_type,
+            data: doc.source.data,
+            text: doc.source.text,
+          },
+        }));
+      }
+      return output;
     } catch (error) {
-      return { error: getErrorMessage(error), documents: [] };
+      return { error: getErrorMessage(error) };
     }
   }
 

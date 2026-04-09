@@ -133,14 +133,17 @@ router.post(
 
           const isList = fullText.startsWith('•') || /^\d+\./.test(fullText);
 
-          children.push(
-            new Paragraph({
-              children: textRuns,
-              spacing: { after: isList ? 100 : 200 },
-              alignment: isList ? undefined : AlignmentType.JUSTIFIED,
-              indent: isList ? { left: 360 } : undefined,
-            })
-          );
+          const paragraphOptions: any = {
+            children: textRuns,
+            spacing: { after: isList ? 100 : 200 },
+          };
+          if (!isList) {
+            paragraphOptions.alignment = AlignmentType.JUSTIFIED;
+          }
+          if (isList) {
+            paragraphOptions.indent = { left: 360 };
+          }
+          children.push(new Paragraph(paragraphOptions));
         }
       }
 

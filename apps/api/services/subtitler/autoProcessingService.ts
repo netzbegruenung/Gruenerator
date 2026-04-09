@@ -500,22 +500,24 @@ async function exportWithEnhancements(
 
   const useHwAccel = await hwaccel.detectVaapi();
   const hasAudio = metadata.originalFormat?.audioCodec != null;
-  const compatibleMetadata = {
+  const originalFormatObj = metadata.originalFormat
+    ? {
+        ...(metadata.originalFormat.codec ? { codec: metadata.originalFormat.codec } : {}),
+        ...(metadata.originalFormat.videoBitrate != null ? {
+          videoBitrate: metadata.originalFormat.videoBitrate,
+        } : {}),
+        ...(metadata.originalFormat.audioCodec ? { audioCodec: metadata.originalFormat.audioCodec } : {}),
+        ...(metadata.originalFormat.audioBitrate != null ? {
+          audioBitrate: metadata.originalFormat.audioBitrate,
+        } : {}),
+      }
+    : undefined;
+
+  const compatibleMetadata: any = {
     width: metadata.width,
     height: metadata.height,
     rotation: metadata.rotation,
-    originalFormat: metadata.originalFormat
-      ? {
-          ...(metadata.originalFormat.codec && { codec: metadata.originalFormat.codec }),
-          ...(metadata.originalFormat.videoBitrate != null && {
-            videoBitrate: metadata.originalFormat.videoBitrate,
-          }),
-          ...(metadata.originalFormat.audioCodec && { audioCodec: metadata.originalFormat.audioCodec }),
-          ...(metadata.originalFormat.audioBitrate != null && {
-            audioBitrate: metadata.originalFormat.audioBitrate,
-          }),
-        }
-      : undefined,
+    ...(originalFormatObj ? { originalFormat: originalFormatObj } : {}),
   };
   const scaleFilter = calculateScaleFilter(compatibleMetadata, maxResolution);
 
