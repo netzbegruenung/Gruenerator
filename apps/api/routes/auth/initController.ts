@@ -138,7 +138,7 @@ async function fetchNotebookCollections(userId: string): Promise<unknown[]> {
     const collections = await notebookHelper.getUserNotebookCollections(userId);
 
     return await Promise.all(
-      (collections as unknown as Array<Record<string, unknown>>).map(async (collection) => {
+      (collections as unknown as Array<Record<string, unknown>>).map(async (collection: Record<string, unknown>) => {
         const documentIds = (
           (collection.notebook_collection_documents as Array<{ document_id: string }>) || []
         ).map((qcd: { document_id: string }) => qcd.document_id);

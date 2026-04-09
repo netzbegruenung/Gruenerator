@@ -41,7 +41,8 @@ export function createWebSearchTool(deps: ToolDependencies): DynamicStructuredTo
         .optional()
         .describe('Anzahl gewünschter Ergebnisse (Standard: 5, max: 10)'),
     }),
-    func: async ({ query, time_range, max_results }) => {
+    func: async (input: { query: string; time_range?: string; max_results?: number }) => {
+      const { query, time_range, max_results } = input;
       const effectiveMaxResults = max_results ?? 5;
       // Auto-detect temporal expressions if agent didn't set time_range
       let effectiveTimeRange = time_range;

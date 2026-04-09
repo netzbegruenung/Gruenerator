@@ -210,7 +210,7 @@ router.post(
         userId: userId,
         requestType: intentResult.requestType,
         subIntent: intentResult.subIntent,
-      };
+      } as unknown;
 
       if (intentResult.requestType === 'conversation') {
         log.debug('[Chat] Routing to conversation handler');
@@ -250,7 +250,7 @@ router.post(
 
       if (intentResult.isMultiIntent) {
         log.debug('[Chat] Processing multi-intent request');
-        await processMultiIntentRequest(intentResult.intents, req, res, baseContext);
+        await processMultiIntentRequest(intentResult.intents, req, res, baseContext as any);
 
         // Store response in memory
         const responseContent = (res as CapturedResponse)._responseContent;
@@ -272,7 +272,7 @@ router.post(
           requestType: intentResult.requestType,
         };
 
-        await processSingleIntentRequest(intent, req, res, baseContext);
+        await processSingleIntentRequest(intent, req, res, baseContext as any);
 
         // Store response in memory (skip sharepic and imagine)
         const responseContent = (res as CapturedResponse)._responseContent;
@@ -285,7 +285,9 @@ router.post(
           const responseText =
             typeof responseContent.content === 'string'
               ? responseContent.content
-              : responseContent.content.text || 'Response generated';
+              : typeof responseContent.content === 'object' && responseContent.content !== null && 'text' in responseContent.content
+                ? String((responseContent.content as Record<string, unknown>).text) || 'Response generated'
+                : 'Response generated';
           await chatMemory.addMessage(userId, 'assistant', responseText, intent.agent);
         }
       }

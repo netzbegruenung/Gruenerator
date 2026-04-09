@@ -28,7 +28,8 @@ export function createSearchExamplesTool(deps: ToolDependencies): DynamicStructu
         .optional()
         .describe('Optionale Plattform-Filterung'),
     }),
-    func: async ({ query, platform }) => {
+    func: async (input: { query: string; platform?: string }) => {
+      const { query, platform } = input;
       const country =
         deps.agentConfig.toolRestrictions?.examplesCountry ||
         (deps.userLocale === 'de-AT' ? 'AT' : undefined);

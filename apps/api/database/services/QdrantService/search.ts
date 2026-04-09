@@ -228,7 +228,7 @@ export async function searchDocuments(
 
     const searchResult = await client.search(collection, {
       vector: queryVector,
-      filter: filter,
+      ...(filter ? { filter } : {}),
       limit: limit,
       score_threshold: threshold,
       with_payload: true,
@@ -372,7 +372,7 @@ export async function searchContentExamples(
 
     const searchResult = await client.search(collection, {
       vector: queryVector,
-      filter: filter,
+      ...(filter ? { filter } : {}),
       limit: limit,
       score_threshold: threshold,
       with_payload: true,
@@ -436,7 +436,7 @@ export async function searchSocialMediaExamples(
 
     const searchResult = await client.search(collection, {
       vector: queryVector,
-      filter: filter,
+      ...(filter ? { filter } : {}),
       limit: limit,
       score_threshold: threshold,
       with_payload: true,

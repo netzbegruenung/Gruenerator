@@ -147,7 +147,7 @@ export async function getRandomContentExamples(
 
     // Get total count to calculate random offset
     const countResult = await client.count(collection, {
-      filter: filter,
+      ...(filter ? { filter } : {}),
       exact: true,
     });
 
@@ -168,7 +168,7 @@ export async function getRandomContentExamples(
 
     // Scroll with random offset
     const scrollResult = await client.scroll(collection, {
-      filter: filter,
+      ...(filter ? { filter } : {}),
       limit: fetchLimit,
       offset: randomOffset > 0 ? randomOffset : undefined,
       with_payload: true,
@@ -234,7 +234,7 @@ export async function getRandomSocialMediaExamples(
 
     // Get total count to calculate random offset
     const countResult = await client.count(collection, {
-      filter: filter,
+      ...(filter ? { filter } : {}),
       exact: true,
     });
 
@@ -255,7 +255,7 @@ export async function getRandomSocialMediaExamples(
 
     // Scroll with random offset
     const scrollResult = await client.scroll(collection, {
-      filter: filter,
+      ...(filter ? { filter } : {}),
       limit: fetchLimit,
       offset: randomOffset > 0 ? randomOffset : undefined,
       with_payload: true,

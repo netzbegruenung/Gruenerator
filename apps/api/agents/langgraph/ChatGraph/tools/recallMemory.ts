@@ -25,7 +25,8 @@ export function createRecallMemoryTool(deps: ToolDependencies): DynamicStructure
     schema: z.object({
       query: z.string().describe('Wonach in den Erinnerungen gesucht werden soll'),
     }),
-    func: async ({ query }) => {
+    func: async (input: { query: string }) => {
+      const { query } = input;
       const mem0 = getMem0Instance();
       if (!mem0) {
         return 'Erinnerungssystem nicht verfügbar.';

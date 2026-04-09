@@ -25,7 +25,8 @@ export function createScrapeUrlTool(_deps: ToolDependencies): DynamicStructuredT
     schema: z.object({
       url: z.string().url().describe('Die URL die geladen werden soll'),
     }),
-    func: async ({ url }) => {
+    func: async (input: { url: string }) => {
+      const { url } = input;
       log.info(`[ScrapeUrl] url="${url}"`);
 
       try {

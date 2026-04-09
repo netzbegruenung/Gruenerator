@@ -133,8 +133,7 @@ export async function processGraphRequestStreaming(
     }
 
     // Handle custom_generator special case
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let generatorData: any = null;
+    let generatorData: Record<string, unknown> | null = null;
     if (config.features?.customPromptFromDb) {
       generatorData = await loadCustomGeneratorPrompt(requestData.slug);
     }
@@ -180,7 +179,9 @@ export async function processGraphRequestStreaming(
       req
     );
 
-    enrichedState.requestFormatted = requestContent;
+    if (typeof requestContent === 'string') {
+      enrichedState.requestFormatted = requestContent;
+    }
     if (config.tools) {
       enrichedState.tools = config.tools;
     }
@@ -230,7 +231,8 @@ export async function processGraphRequestStreaming(
 
     // Explicit provider + model override (from request data, e.g. playground)
     if (requestData.provider) {
-      effectiveProvider = requestData.provider;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      effectiveProvider = requestData.provider as any;
     }
     if (requestData.model) {
       effectiveModel = requestData.model;

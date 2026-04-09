@@ -107,7 +107,7 @@ function formatRede(data: z.infer<typeof REDE_SCHEMA>): string {
     `# Rede: ${data.anlass}`,
     '',
     `## Einstiegsideen`,
-    ...data.einstiegsideen.map((e, i) => `${i + 1}. ${e}`),
+    ...data.einstiegsideen.map((e: string, i) => `${i + 1}. ${e}`),
     '',
     `## Kernargumente`,
     ...data.kernargumente.map((k, i) => `${i + 1}. **${k.argument}**\n   _Beleg:_ ${k.beleg}`),
@@ -162,7 +162,7 @@ export function createDraftStructuredTool(deps: ToolDependencies): DynamicStruct
       'Erstelle einen strukturierten Entwurf mit allen erforderlichen Abschnitten. ' +
       'Dieses Tool validiert die Vollständigkeit und formatiert das Dokument korrekt.',
     schema,
-    func: async (input) => {
+    func: async (input: z.infer<typeof schema>) => {
       const formatter = FORMATTER_MAP[agentId];
       if (!formatter) {
         return JSON.stringify({ error: 'Kein Formatierer für diesen Agenten verfügbar.' });

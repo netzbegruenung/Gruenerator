@@ -264,7 +264,7 @@ export async function handleShareDoc(opts: {
   classifiedState: ChatGraphState;
   actualThreadId: string;
   userId: string;
-  lastUserMessage: ModelMessage | undefined;
+  lastUserMessage?: ModelMessage;
   rawDocMentionIds?: string[];
   rawDocumentChatIds?: string[];
 }): Promise<boolean> {
