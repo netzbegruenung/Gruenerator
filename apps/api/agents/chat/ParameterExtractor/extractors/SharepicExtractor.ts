@@ -40,7 +40,7 @@ export function extractSharepicParams(
 
   // Agent-specific additions
   switch (agent) {
-    case 'zitat':
+    case 'zitat': {
       const authorResult = extractQuoteAuthor(message);
       params.name = authorResult.value || 'Unbekannt';
       params._parameterConfidence = params._parameterConfidence || {};
@@ -48,8 +48,9 @@ export function extractSharepicParams(
       params._parameterSources = params._parameterSources || {};
       (params._parameterSources as Record<string, string>).name = authorResult.source;
       break;
+    }
 
-    case 'dreizeilen':
+    case 'dreizeilen': {
       // Check if user provided specific lines
       const lines = extractLines(message);
       if (lines) {
@@ -58,6 +59,7 @@ export function extractSharepicParams(
         params.line3 = lines.line3;
       }
       break;
+    }
 
     case 'info':
     case 'headline':

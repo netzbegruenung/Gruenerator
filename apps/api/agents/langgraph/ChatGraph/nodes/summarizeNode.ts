@@ -13,6 +13,7 @@
 import { createLogger } from '../../../../utils/logger.js';
 import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
+import type { AIWorkerPool } from '../../../../workers/types.js';
 import type { ChatGraphState } from '../types.js';
 
 const log = createLogger('ChatGraph:Summarize');
@@ -57,7 +58,7 @@ Regeln:
  * Single-pass summarization for short/medium documents.
  */
 async function singlePassSummarize(
-  aiWorkerPool: any,
+  aiWorkerPool: AIWorkerPool,
   title: string,
   text: string
 ): Promise<string> {
@@ -106,7 +107,11 @@ function splitIntoSegments(text: string): string[] {
  * Map-reduce summarization for long documents.
  * Splits into segments, summarizes each in parallel, then combines.
  */
-async function mapReduceSummarize(aiWorkerPool: any, title: string, text: string): Promise<string> {
+async function mapReduceSummarize(
+  aiWorkerPool: AIWorkerPool,
+  title: string,
+  text: string
+): Promise<string> {
   const segments = splitIntoSegments(text);
   log.info(`[Summarize] Map-reduce: ${segments.length} segments from ${text.length} chars`);
 
@@ -134,8 +139,10 @@ async function mapReduceSummarize(aiWorkerPool: any, title: string, text: string
           null
         );
         return (response.content || '').trim();
-      } catch (error: any) {
-        log.warn(`[Summarize] Map segment ${i + 1} failed: ${error.message}`);
+      } catch (error: unknown) {
+        log.warn(
+          `[Summarize] Map segment ${i + 1} failed: ${error instanceof Error ? (error instanceof Error ? error.message : String(error)) : String(error)}`
+        );
         return null;
       }
     })
@@ -148,7 +155,7 @@ async function mapReduceSummarize(aiWorkerPool: any, title: string, text: string
   }
 
   if (validSummaries.length === 1) {
-    return validSummaries[0];
+    return validSummaries[0] ?? '';
   }
 
   // Reduce phase: combine segment summaries
@@ -303,8 +310,10 @@ export async function summarizeNode(state: ChatGraphState): Promise<Partial<Chat
             `[Summarize] Qdrant retrieval errors: ${bulkResult.errors.map((e) => e.error).join(', ')}`
           );
         }
-      } catch (error: any) {
-        log.warn(`[Summarize] Document retrieval failed: ${error.message}`);
+      } catch (error: unknown) {
+        log.warn(
+          `[Summarize] Document retrieval failed: ${error instanceof Error ? (error instanceof Error ? error.message : String(error)) : String(error)}`
+        );
       }
     }
 
@@ -330,12 +339,12 @@ export async function summarizeNode(state: ChatGraphState): Promise<Partial<Chat
     const summaryTimeMs = Date.now() - startTime;
 
     return { summaryContext: summary, summaryTimeMs };
-  } catch (error: any) {
-    log.error('[Summarize] Error:', error.message);
+  } catch (error: unknown) {
+    log.error('[Summarize] Error:', error instanceof Error ? error.message : String(error));
     const summaryTimeMs = Date.now() - startTime;
 
     return {
-      summaryContext: `Zusammenfassung fehlgeschlagen: ${error.message}`,
+      summaryContext: `Zusammenfassung fehlgeschlagen: ${error instanceof Error ? (error instanceof Error ? error.message : String(error)) : String(error)}`,
       summaryTimeMs,
     };
   }

@@ -14,8 +14,8 @@ export const CLASSIFIER_PROMPT = `Du analysierst Benutzeranfragen und entscheide
 
 VERFÜGBARE TOOLS:
 - image: Bildgenerierung - "erstelle Bild", "generiere Bild", "visualisiere", "zeichne", "male"
-- research: Komplexe Recherche, faktenbasierte Inhalte, mehrere Quellen
-- search: Grüne Parteiprogramme, Positionen, Beschlüsse, interne Dokumente
+- research: NUR bei EXPLIZITER Recherche-Anforderung ("recherchiere", "finde Fakten zu", "belege für")
+- search: NUR bei expliziten FRAGEN zu Grünen Parteiprogrammen, Positionen, Beschlüssen
 - web: Aktuelle Nachrichten, externe Fakten, EXPLIZITE Web-Suche ("suche im netz")
 - examples: Social-Media-Beispiele, Vorlagen, Posts zum Thema
 - summary: Zusammenfassung eines Dokuments - "fasse zusammen", "zusammenfassung", "kurzfassung"
@@ -24,7 +24,7 @@ VERFÜGBARE TOOLS:
 - modify_doc: Erwähntes Dokument bearbeiten (NUR wenn ein @Dokument erwähnt wurde UND Bearbeitungsabsicht) - "ändere", "ergänze", "aktualisiere", "füge hinzu", "überarbeite"
 - modify_board: Erwähntes Board bearbeiten (NUR wenn ein @Board erwähnt wurde UND Änderungsabsicht) - "füge Aufgabe hinzu", "neue Karte", "aktualisiere Board", "erstelle Aufgaben"
 - share_doc: Dokument mit Gruppe teilen - "teile mit Gruppe", "teile das mit", "share mit AG", "an Gruppe senden", "Gruppe X freigeben"
-- direct: Begrüßungen, Dank, rein kreative Aufgaben OHNE Faktenbedarf
+- direct: STANDARD-INTENT. Begrüßungen, Dank, kreative Aufgaben, Textbearbeitung, Umformulierungen
 
 SCHRITT 1 - ORIGINALTEXT BEWAHREN:
 Verwende den ORIGINALEN Wortlaut des Benutzers für searchQuery und optimizedSearchQuery.
@@ -42,32 +42,31 @@ Wenn ein GESPRÄCHSVERLAUF mitgeliefert wird, nutze ihn um die aktuelle Nachrich
 - Wenn ein GESPRÄCHSVERLAUF vorhanden ist, setze needsClarification IMMER auf false — der nachfolgende Schritt hat Zugriff auf den vollständigen Verlauf (siehe Schritt 8)
 
 SCHRITT 2 - INHALTSTYP ANALYSIEREN:
-Manche Inhalte brauchen AUTOMATISCH Recherche:
+WICHTIG: "direct" ist der STANDARD-Intent. Wähle search/research NUR wenn der Nutzer EXPLIZIT Fakten, Quellen oder Parteipositionen benötigt, die NICHT bereits in seiner Nachricht enthalten sind.
 
-FAKTENBASIERT (→ research oder web):
-- Pressemitteilung, Pressemeldung, PM
-- Artikel, Beitrag, Blogpost
-- Rede, Ansprache, Statement
-- Argumentation, Argumente für/gegen
-- Faktencheck, Analyse, Bericht
-- "über [Thema]" mit faktischem Thema (Klimapolitik, Energie, etc.)
+KREATIVE AUFGABE (→ direct):
+- "Erstelle/Schreib/Formulier eine Pressemitteilung/Rede/Artikel/Post" = IMMER direct (kreative Aufgabe)
+- Wenn der Nutzer alle Inhalte bereits mitliefert (z.B. kopierter Text, Bio-Daten) = IMMER direct
+- Tweet/Post, Slogan, Motto, Claim = direct
+- Gedicht, Witz, Nachrichten, Geburtstagskarte = direct
+- Umformulierungen, Kürzungen, Verbesserungen = direct
 
-REIN KREATIV (→ direct):
-- Tweet/Post OHNE konkretes Faktorthema
-- Slogan, Motto, Claim
-- Gedicht, Witz
-- Persönliche Nachrichten, Geburtstagskarte
+RECHERCHE NUR WENN:
+- Nutzer EXPLIZIT nach Fakten/Quellen fragt: "recherchiere", "finde Fakten zu", "belege für"
+- Nutzer eine FRAGE stellt: "Was ist die Position der Grünen zu...?"
+- Nutzer NICHT alle Informationen mitliefert UND Fakten benötigt werden
 
 SCHRITT 3 - TOOL WÄHLEN:
 1. Bildgenerierung? → image
 2. EXPLIZITE Web-Suche ("suche im netz")? → web
 3. Zusammenfassung eines angehängten/referenzierten Dokuments? → summary
-4. Faktenbasierter Inhalt über ein Thema? → research
-5. Grüne Politik/Programm/Position? → search
-6. Aktuelle News/Ereignisse? → web
-7. Social-Media-Vorlage suchen? → examples
-8. Dokument mit Gruppe teilen? → share_doc
-9. Rein kreativ ohne Fakten? → direct
+4. Als Dokument speichern? → save_as_doc
+5. Dokument mit Gruppe teilen? → share_doc
+6. Social-Media-Vorlage/Beispiel suchen? → examples
+7. EXPLIZITE Recherche ("recherchiere", "finde Fakten")? → research
+8. EXPLIZITE FRAGE zu Grüner Politik/Programm/Position? → search
+9. Aktuelle News/Ereignisse? → web
+10. Alles andere (kreativ, Textbearbeitung, Erstelle/Schreib X) → direct
 
 SCHRITT 4 - SUCHQUERY OPTIMIEREN:
 Wenn intent search/research/web/examples ist, erstelle eine optimierte Suchquery:
@@ -173,7 +172,17 @@ Antworte NUR mit JSON:
 }
 
 Bei "direct" und "image" setze searchQuery, optimizedSearchQuery, subQueries, searchSources und filters auf null/[].
-Bei "save_as_doc" setze documentSubtype auf den passenden Dokumenttyp (z.B. "checkliste" für Aufgabenlisten, "protokoll" für Sitzungsprotokolle, "pressemitteilung" für Pressemitteilungen, "tabelle" für tabellarische Daten). Wenn kein spezifischer Typ erkennbar ist, setze null.
+Bei "save_as_doc" setze documentSubtype auf den passenden Dokumenttyp:
+- "checkliste" für Aufgabenlisten, Todo-Listen, Checklisten, Aufgaben zum Abhaken
+- "protokoll" für Sitzungsprotokolle, Versammlungsprotokolle
+- "pressemitteilung" für Pressemitteilungen, PM
+- "antrag" für Anträge, Beschlussvorlagen
+- "einladung" für Einladungen, Terminankündigungen
+- "tabelle" für tabellarische Daten, Übersichten
+- "notizen" für Notizen, Mitschriften
+- "redaktionsplan" für Redaktionspläne, Content-Pläne
+- null wenn kein spezifischer Typ erkennbar ist
+WICHTIG: "todo" oder "aufgaben" → immer "checkliste", NICHT "protokoll".
 Bei "share_doc" setze targetGroupName auf den im Text genannten Gruppennamen (z.B. "AG Umwelt", "KV München"). Setze searchQuery auf null.`;
 
 /**

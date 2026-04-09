@@ -114,8 +114,8 @@ export async function qualityGateNode(state: ChatGraphState): Promise<Partial<Ch
     // If parsing fails, assume results are sufficient
     log.warn('[QualityGate] Failed to parse response, assuming sufficient');
     return { qualityScore: 3, qualityAssessmentTimeMs };
-  } catch (error: any) {
-    log.error('[QualityGate] Error:', error.message);
+  } catch (error: unknown) {
+    log.error('[QualityGate] Error:', error instanceof Error ? error.message : String(error));
     return {
       qualityScore: 3,
       qualityAssessmentTimeMs: Date.now() - startTime,

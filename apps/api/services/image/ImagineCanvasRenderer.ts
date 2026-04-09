@@ -113,7 +113,7 @@ function calculateFontSize(
   return { fontSize: minSize, lines: wrapText(ctx, text, maxWidth * 0.92) };
 }
 
-function renderFluxImage(
+function _renderFluxImage(
   ctx: CanvasRenderingContext2D,
   image: Image,
   templateConfig: TemplateConfig,
@@ -146,7 +146,7 @@ function renderFluxImage(
   log.debug(`Rendered FLUX image: area y=${destY}, height=${destHeight}`);
 }
 
-function renderGradientOverlay(
+function _renderGradientOverlay(
   ctx: CanvasRenderingContext2D,
   gradientConfig: GradientConfig,
   outputWidth: number,
@@ -190,7 +190,7 @@ function renderGradientOverlay(
   log.debug(`Rendered gradient overlay: direction=${direction}`);
 }
 
-function renderSolidBar(
+function _renderSolidBar(
   ctx: CanvasRenderingContext2D,
   barConfig: BarConfig,
   outputWidth: number,

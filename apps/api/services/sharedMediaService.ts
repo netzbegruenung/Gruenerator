@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 
-import { getPostgresInstance } from '../database/services/PostgresService.js';
+import { type PostgresService, getPostgresInstance } from '../database/services/PostgresService.js';
 
 import type {
   SharedMediaRow,
@@ -42,14 +42,8 @@ function getSafeShareDir(shareToken: string): string {
   return shareDir;
 }
 
-interface PostgresInstance {
-  ensureInitialized(): Promise<void>;
-  query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
-  queryOne<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T | null>;
-}
-
 class SharedMediaService {
-  private postgres: PostgresInstance | null = null;
+  private postgres: PostgresService | null = null;
   private initPromise: Promise<void> | null = null;
 
   async init(): Promise<void> {
@@ -61,7 +55,7 @@ class SharedMediaService {
 
   private async _init(): Promise<void> {
     try {
-      const postgres = getPostgresInstance() as unknown as PostgresInstance;
+      const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
       await fs.mkdir(SHARED_MEDIA_PATH, { recursive: true });
       this.postgres = postgres; // Only set AFTER successful init

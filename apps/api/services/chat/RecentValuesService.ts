@@ -51,12 +51,15 @@ export async function saveRecentValue(
       'field_value',
     ]);
     return result as unknown as RecentValue;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[RecentValuesService] Error saving recent value:', error);
-    if (error.message?.includes('23503') || error.code === '23503') {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const errCode =
+      error instanceof Error && 'code' in error ? (error as { code: string }).code : '';
+    if (errMsg.includes('23503') || errCode === '23503') {
       throw new Error('Invalid user ID provided');
     }
-    throw new Error(error.message || 'Failed to save recent value');
+    throw new Error(errMsg || 'Failed to save recent value');
   }
 }
 
@@ -97,9 +100,11 @@ export async function getRecentValues(
     );
 
     return result || [];
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[RecentValuesService] Error retrieving recent values for ${fieldType}:`, error);
-    throw new Error(error.message || 'Failed to retrieve recent values');
+    throw new Error(
+      (error instanceof Error ? error.message : String(error)) || 'Failed to retrieve recent values'
+    );
   }
 }
 
@@ -123,15 +128,17 @@ export async function clearRecentValues(userId: string, fieldType: string): Prom
   }
 
   try {
-    const result: any = await db.delete('user_recent_values', {
+    const result = await db.delete('user_recent_values', {
       user_id: userId,
       field_type: fieldType,
     });
 
-    return result?.rowCount || 0;
-  } catch (error: any) {
+    return result?.changes || 0;
+  } catch (error: unknown) {
     console.error(`[RecentValuesService] Error clearing recent values for ${fieldType}:`, error);
-    throw new Error(error.message || 'Failed to clear recent values');
+    throw new Error(
+      (error instanceof Error ? error.message : String(error)) || 'Failed to clear recent values'
+    );
   }
 }
 
@@ -161,8 +168,10 @@ export async function getFieldTypesWithCounts(userId: string): Promise<FieldType
     );
 
     return (result || []) as unknown as FieldTypeWithCount[];
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[RecentValuesService] Error retrieving field types:', error);
-    throw new Error(error.message || 'Failed to retrieve field types');
+    throw new Error(
+      (error instanceof Error ? error.message : String(error)) || 'Failed to retrieve field types'
+    );
   }
 }

@@ -32,13 +32,13 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): P
     ]);
 
     res.json({ groups, savedTexts, notebookCollections, recentActivity, profile });
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.error('Failed to fetch init data:', error);
     res.status(500).json({ error: 'Failed to fetch init data' });
   }
 });
 
-async function fetchGroups(userId: string): Promise<any[]> {
+async function fetchGroups(userId: string): Promise<unknown[]> {
   try {
     const memberships = await db.query(
       'SELECT group_id, role, joined_at FROM group_memberships WHERE user_id = $1',
@@ -47,15 +47,32 @@ async function fetchGroups(userId: string): Promise<any[]> {
 
     if (!memberships || memberships.length === 0) return [];
 
-    const groupIds = memberships.map((m: any) => m.group_id);
+    const groupIds = (memberships as Array<{ group_id: string }>).map((m) => m.group_id);
     const groupsData = await db.query(
       'SELECT id, name, description, created_at, created_by, join_token, settings, avatar_url, links FROM groups WHERE id = ANY($1)',
       [groupIds]
     );
 
-    const membershipByGroupId = new Map(memberships.map((m: any) => [m.group_id, m]));
+    const membershipByGroupId = new Map(
+      (memberships as Array<{ group_id: string; role: string; joined_at: string }>).map((m) => [
+        m.group_id,
+        m,
+      ])
+    );
 
-    return (groupsData || []).map((group: any) => {
+    return (
+      (groupsData || []) as Array<{
+        id: string;
+        name: string;
+        description: string;
+        created_at: string;
+        created_by: string;
+        join_token: string;
+        settings: unknown;
+        avatar_url: string;
+        links: unknown;
+      }>
+    ).map((group) => {
       const membership = membershipByGroupId.get(group.id);
       const role = membership?.role || 'member';
       return {
@@ -71,7 +88,7 @@ async function fetchGroups(userId: string): Promise<any[]> {
   }
 }
 
-async function fetchSavedTexts(userId: string): Promise<any[]> {
+async function fetchSavedTexts(userId: string): Promise<unknown[]> {
   try {
     const data = await db.query(
       `SELECT id as document_id, title, content, document_type, created_at
@@ -82,7 +99,15 @@ async function fetchSavedTexts(userId: string): Promise<any[]> {
       [userId]
     );
 
-    return (data || []).map((item: any) => {
+    return (
+      (data || []) as Array<{
+        document_id: string;
+        title: string;
+        content: string;
+        document_type: string;
+        created_at: string;
+      }>
+    ).map((item) => {
       let plainText = item.content || '';
       let prev: string;
       do {
@@ -107,18 +132,18 @@ async function fetchSavedTexts(userId: string): Promise<any[]> {
   }
 }
 
-async function fetchNotebookCollections(userId: string): Promise<any[]> {
+async function fetchNotebookCollections(userId: string): Promise<unknown[]> {
   try {
     const notebookHelper = new NotebookQdrantHelper();
     const collections = await notebookHelper.getUserNotebookCollections(userId);
 
     return await Promise.all(
-      (collections as any[]).map(async (collection) => {
-        const documentIds = (collection.notebook_collection_documents || []).map(
-          (qcd: any) => qcd.document_id
-        );
+      (collections as unknown as Array<Record<string, unknown>>).map(async (collection) => {
+        const documentIds = (
+          (collection.notebook_collection_documents as Array<{ document_id: string }>) || []
+        ).map((qcd: { document_id: string }) => qcd.document_id);
 
-        let documents: any[] = [];
+        let documents: Array<Record<string, unknown>> = [];
         if (documentIds.length > 0) {
           documents = await db.query(
             'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id FROM documents WHERE id = ANY($1)',
@@ -126,9 +151,11 @@ async function fetchNotebookCollections(userId: string): Promise<any[]> {
           );
         }
 
-        let wolke_share_links: any[] = [];
+        let wolke_share_links: Array<{ id: string }> = [];
         if (collection.wolke_share_link_ids) {
-          wolke_share_links = collection.wolke_share_link_ids.map((id: string) => ({ id }));
+          wolke_share_links = (collection.wolke_share_link_ids as string[]).map((id: string) => ({
+            id,
+          }));
         }
 
         const settings = (collection.settings as Record<string, unknown>) || {};
@@ -141,7 +168,7 @@ async function fetchNotebookCollections(userId: string): Promise<any[]> {
           selection_mode: collection.selection_mode || 'documents',
           wolke_share_links,
           has_wolke_sources: wolke_share_links.length > 0,
-          documents_from_wolke: documents.filter((doc: any) => doc.source_type === 'wolke').length,
+          documents_from_wolke: documents.filter((doc) => doc.source_type === 'wolke').length,
           auto_sync: !!collection.auto_sync,
           remove_missing_on_sync: !!collection.remove_missing_on_sync,
           labels,
@@ -154,7 +181,7 @@ async function fetchNotebookCollections(userId: string): Promise<any[]> {
   }
 }
 
-async function fetchProfile(userId: string): Promise<any> {
+async function fetchProfile(userId: string): Promise<unknown> {
   try {
     const profileService = getProfileService();
     const profile = await profileService.getProfileById(userId);

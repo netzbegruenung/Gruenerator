@@ -77,6 +77,7 @@ function formatConversationContext(
 async function reformulateFollowUp(
   rawQuery: string,
   context: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   aiWorkerPool: any
 ): Promise<string> {
   try {
@@ -121,6 +122,7 @@ export async function queryPlannerNode(
   log.info(`[QueryPlanner] Raw query: "${rawQuery.substring(0, 100)}"`);
 
   // Context-aware follow-up reformulation
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const conversationContext = formatConversationContext(state.messages as any);
   const isVagueFollowUp = conversationContext && rawQuery.split(/\s+/).length <= 10;
 

@@ -62,9 +62,14 @@ export class VectorBackendError extends Error {
  */
 export class ValidationError extends VectorBackendError {
   public readonly field?: string;
-  public readonly value?: any;
+  public readonly value?: unknown;
 
-  constructor(message: string, field?: string, value?: any, code: ErrorCode = 'VALIDATION_ERROR') {
+  constructor(
+    message: string,
+    field?: string,
+    value?: unknown,
+    code: ErrorCode = 'VALIDATION_ERROR'
+  ) {
     super(message, code, { field, value });
     this.field = field;
     this.value = value;
@@ -180,6 +185,11 @@ export class ResourceError extends VectorBackendError {
 /**
  * Type guard to check if error is a VectorBackendError
  */
-export function isVectorBackendError(error: any): error is VectorBackendError {
-  return error && error.isVectorBackendError === true;
+export function isVectorBackendError(error: unknown): error is VectorBackendError {
+  return (
+    error instanceof VectorBackendError ||
+    (error != null &&
+      typeof error === 'object' &&
+      (error as VectorBackendError).isVectorBackendError === true)
+  );
 }

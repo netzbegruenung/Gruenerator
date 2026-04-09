@@ -32,6 +32,7 @@ export function SharepicMasterEditorModal({
     // This mapping depends heavily on how 'sharepic.metadata' is structured
     // and what each canvas component expects for its 'initialState'.
     // For now, let's make some assumptions based on common patterns.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const state: Record<string, any> = {
       // Common text fields
       line1: sharepic.line1,

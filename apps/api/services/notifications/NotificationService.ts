@@ -1,4 +1,5 @@
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { type NotificationRow } from '../../database/types.js';
 import { sendPushToUser } from '../../services/pushNotificationService.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -34,7 +35,7 @@ function firePush(
 
 export async function createNotification(
   params: CreateNotificationParams
-): Promise<Notification | null> {
+): Promise<NotificationRow | null> {
   const { userId, type, title, body, metadata = {}, actionUrl, groupKey } = params;
 
   const profile = await getProfileForDelivery(userId);
@@ -59,11 +60,11 @@ export async function createNotification(
       actionUrl || null,
       groupKey || null,
     ]
-  )) as unknown as Notification[];
+  )) as unknown as NotificationRow[];
 
   const notification = rows[0];
 
-  publishNotification(userId, notification).catch((err) => {
+  publishNotification(userId, notification as unknown as Notification).catch((err: Error) => {
     log.warn('Failed to publish notification via Redis', { userId, error: err.message });
   });
 
@@ -76,7 +77,7 @@ export async function createNotification(
 export async function getNotificationsForUser(
   userId: string,
   options: NotificationListOptions = {}
-): Promise<Notification[]> {
+): Promise<NotificationRow[]> {
   const { limit = 20, offset = 0, unreadOnly = false } = options;
 
   const whereClause = unreadOnly ? 'WHERE user_id = $1 AND is_read = FALSE' : 'WHERE user_id = $1';
@@ -84,7 +85,7 @@ export async function getNotificationsForUser(
   return (await db.query(
     `SELECT * FROM notifications ${whereClause} ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
     [userId, limit, offset]
-  )) as unknown as Notification[];
+  )) as unknown as NotificationRow[];
 }
 
 export async function getUnreadCount(userId: string): Promise<number> {

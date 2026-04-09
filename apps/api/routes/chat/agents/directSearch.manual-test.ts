@@ -32,6 +32,7 @@ async function runTests() {
     if (searchResult.error) {
       console.log('Error:', searchResult.message);
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.log('Test failed:', error.message);
   }
@@ -70,6 +71,7 @@ async function runTests() {
     if (examplesResult.error) {
       console.log('Error:', examplesResult.message);
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.log('Test failed:', error.message);
   }
@@ -94,6 +96,7 @@ async function runTests() {
     if (webResult.error) {
       console.log('Error:', webResult.message);
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.log('Test failed:', error.message);
   }
@@ -111,6 +114,7 @@ async function runTests() {
       console.log(
         `${collection}: ${result.resultsCount > 0 ? '✅' : '❌'} (${result.resultsCount} results)`
       );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.log(`${collection}: ❌ (${error.message})`);
     }

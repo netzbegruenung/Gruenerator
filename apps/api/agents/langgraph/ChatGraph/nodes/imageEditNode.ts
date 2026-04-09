@@ -15,7 +15,7 @@ import type { ChatGraphState, GeneratedImageResult } from '../types.js';
 
 const log = createLogger('ChatGraph:ImageEditNode');
 
-const imageCounter = new ImageGenerationCounter(redisClient as any);
+const imageCounter = new ImageGenerationCounter(redisClient);
 
 /**
  * Image edit node implementation.
@@ -73,6 +73,12 @@ export async function imageEditNode(state: ChatGraphState): Promise<Partial<Chat
     }
 
     const attachment = imageAttachments[0];
+    if (!attachment) {
+      return {
+        imageTimeMs: Date.now() - startTime,
+        error: 'Bitte hänge ein Bild an, das bearbeitet werden soll.',
+      };
+    }
     const imageBuffer = Buffer.from(attachment.data, 'base64');
     const mimeType = attachment.type;
 
@@ -83,6 +89,7 @@ export async function imageEditNode(state: ChatGraphState): Promise<Partial<Chat
     const { stored } = (await flux.generateFromImage(prompt, imageBuffer, mimeType, {
       output_format: 'jpeg',
       safety_tolerance: 2,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     })) as any;
 
     await imageCounter.incrementCount(userId);
@@ -110,17 +117,21 @@ export async function imageEditNode(state: ChatGraphState): Promise<Partial<Chat
       imageStyle: 'green-edit',
       imageTimeMs,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     const imageTimeMs = Date.now() - startTime;
-    log.error('[ImageEditNode] Error editing image:', error.message);
+    log.error(
+      '[ImageEditNode] Error editing image:',
+      error instanceof Error ? error.message : String(error)
+    );
 
     let errorMessage = 'Bildbearbeitung fehlgeschlagen. Bitte versuche es erneut.';
 
-    if (error.type === 'billing') {
+    const errObj = error as Record<string, unknown>;
+    if (errObj.type === 'billing') {
       errorMessage = 'Bildbearbeitungs-Credits aufgebraucht. Bitte kontaktiere den Administrator.';
-    } else if (error.type === 'network') {
+    } else if (errObj.type === 'network') {
       errorMessage = 'Netzwerkfehler bei der Bildbearbeitung. Bitte versuche es erneut.';
-    } else if (error.type === 'validation') {
+    } else if (errObj.type === 'validation') {
       errorMessage = 'Ungültige Anfrage für Bildbearbeitung.';
     }
 

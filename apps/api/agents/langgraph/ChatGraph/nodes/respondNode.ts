@@ -69,10 +69,13 @@ function limitAttachmentContext(
   // Split into individual documents
   const documents: { header: string; content: string }[] = [];
   for (let i = 0; i < docMatches.length; i++) {
-    const startIdx = docMatches[i].index!;
-    const endIdx = i < docMatches.length - 1 ? docMatches[i + 1].index! : context.length;
+    const match = docMatches[i];
+    if (!match) continue;
+    const startIdx = match.index!;
+    const nextMatch = docMatches[i + 1];
+    const endIdx = nextMatch ? nextMatch.index! : context.length;
     const fullDoc = context.slice(startIdx, endIdx);
-    const header = docMatches[i][0];
+    const header = match[0];
     const content = fullDoc.slice(header.length).trim();
     documents.push({ header, content });
   }
@@ -196,9 +199,9 @@ async function formatSearchContext(state: ChatGraphState): Promise<string> {
         log.info(`[Respond] Using cleaned findings (${cleaned.length} chars)`);
         return `\n\n## RECHERCHE-ERGEBNISSE\n\n${cleaned}`;
       }
-    } catch (error: any) {
+    } catch (error) {
       log.warn(
-        `[Respond] Findings cleaning failed, falling back to budget truncation: ${error.message}`
+        `[Respond] Findings cleaning failed, falling back to budget truncation: ${error instanceof Error ? error.message : error}`
       );
     }
   }
@@ -235,7 +238,7 @@ async function formatSearchContext(state: ChatGraphState): Promise<string> {
     .map((r, i) => {
       const charBudget = Math.max(
         200,
-        Math.floor((weightedRelevance[i] / totalWeightedRelevance) * budget)
+        Math.floor(((weightedRelevance[i] ?? 0) / totalWeightedRelevance) * budget)
       );
       const content =
         r.content.length > charBudget ? truncateDocument(r.content, charBudget) : r.content;
@@ -460,7 +463,7 @@ Regeln:
           ? state.generatedImage
             ? `\nDu hast erfolgreich ein Bild generiert. Das Bild wurde dem*der Nutzer*in bereits angezeigt.\nBeschreibe kurz was auf dem Bild zu sehen ist basierend auf dem Prompt: "${state.imagePrompt || ''}"\nBiete an, Änderungen vorzunehmen oder ein neues Bild zu erstellen.`
             : '\nDie Bildgenerierung ist fehlgeschlagen. Entschuldige dich und biete an, es erneut zu versuchen.'
-          : intent === 'direct'
+          : intent === 'direct' || intent === 'save_as_doc'
             ? '\nDies ist eine direkte Anfrage ohne Recherche-Bedarf. Antworte natürlich und hilfsbereit.'
             : '\nDu hast Recherche-Ergebnisse erhalten. Nutze sie um eine fundierte Antwort zu geben.';
 
@@ -549,13 +552,13 @@ export async function respondNode(state: ChatGraphState): Promise<Partial<ChatGr
       streamingStarted: false, // Will be set true by controller when streaming starts
       responseTimeMs,
     };
-  } catch (error: any) {
-    log.error('[Respond] Error preparing context:', error.message);
+  } catch (error) {
+    log.error('[Respond] Error preparing context:', error instanceof Error ? error.message : error);
 
     return {
       responseText: '',
       responseTimeMs: Date.now() - startTime,
-      error: `Response preparation failed: ${error.message}`,
+      error: `Response preparation failed: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }

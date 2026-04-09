@@ -118,7 +118,7 @@ export class PostgresService {
       console.log('[PostgresService] Scheduling retry in 5 seconds...');
       setTimeout(() => {
         console.log('[PostgresService] Retry timer fired, calling retryInit()');
-        this.retryInit();
+        void this.retryInit();
       }, 5000);
       console.log('[PostgresService] Retry scheduled, continuing...');
 

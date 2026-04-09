@@ -281,7 +281,7 @@ Du hast Zugang zu beigefügten Dokumenten und Bildern. Nutze diese als Kontext u
    */
   buildDocumentsForPromptBuilder(
     attachments: Attachment[],
-    usePrivacyMode: boolean = false
+    _usePrivacyMode: boolean = false
   ): ClaudeDocument[] {
     if (!Array.isArray(attachments) || attachments.length === 0) {
       return [];

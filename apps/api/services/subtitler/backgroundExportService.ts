@@ -10,7 +10,7 @@ import path from 'path';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
-import AssSubtitleService from './assSubtitleService.js';
+import AssSubtitleService, { type TextOverlay } from './assSubtitleService.js';
 import {
   calculateScaleFilter,
   buildFFmpegOutputOptions,
@@ -44,13 +44,13 @@ export interface BackgroundExportParams {
   tempFontPath?: string | null;
   projectId?: string | null;
   userId?: string | null;
-  textOverlays?: Array<any>;
+  textOverlays?: TextOverlay[];
 }
 
 export async function setRedisStatus(
   key: string,
   status: string,
-  data: Record<string, any> | null = null,
+  data: Record<string, unknown> | null = null,
   ttlSeconds: number = 86400
 ): Promise<void> {
   const payload = data !== null ? { status, ...data } : { status };
@@ -165,12 +165,16 @@ export async function processVideoExportInBackground(
 
         try {
           await fsPromises.copyFile(sourceFontPath, tempFontPath);
-        } catch (fontCopyError: any) {
-          log.warn(`Font copy failed: ${fontCopyError.message}`);
+        } catch (fontCopyError: unknown) {
+          log.warn(
+            `Font copy failed: ${fontCopyError instanceof Error ? fontCopyError.message : String(fontCopyError)}`
+          );
           tempFontPath = null;
         }
-      } catch (assError: any) {
-        log.error(`ASS generation error: ${assError.message}`);
+      } catch (assError: unknown) {
+        log.error(
+          `ASS generation error: ${assError instanceof Error ? assError.message : String(assError)}`
+        );
         assFilePath = null;
       }
     } else {
@@ -225,8 +229,10 @@ export async function processVideoExportInBackground(
                 }),
                 { EX: 60 * 60 }
               );
-            } catch (redisError: any) {
-              log.warn(`Redis progress update error: ${redisError.message}`);
+            } catch (redisError: unknown) {
+              log.warn(
+                `Redis progress update error: ${redisError instanceof Error ? redisError.message : String(redisError)}`
+              );
             }
           })
           .on('error', async (err: Error) => {
@@ -253,8 +259,10 @@ export async function processVideoExportInBackground(
             if (projectId && userId) {
               try {
                 await saveToExistingProject(userId, projectId, outputPath);
-              } catch (saveError: any) {
-                log.warn(`Failed to save to project: ${saveError.message}`);
+              } catch (saveError: unknown) {
+                log.warn(
+                  `Failed to save to project: ${saveError instanceof Error ? saveError.message : String(saveError)}`
+                );
               }
             }
 
@@ -279,8 +287,10 @@ export async function processVideoExportInBackground(
                   exportToken,
                 });
                 projectId = result.projectId;
-              } catch (autoSaveError: any) {
-                log.warn(`Auto-save failed: ${autoSaveError.message}`);
+              } catch (autoSaveError: unknown) {
+                log.warn(
+                  `Auto-save failed: ${autoSaveError instanceof Error ? autoSaveError.message : String(autoSaveError)}`
+                );
               }
             }
 
@@ -296,8 +306,10 @@ export async function processVideoExportInBackground(
                 },
                 3600
               );
-            } catch (redisError: any) {
-              log.warn(`Redis completion status storage failed: ${redisError.message}`);
+            } catch (redisError: unknown) {
+              log.warn(
+                `Redis completion status storage failed: ${redisError instanceof Error ? redisError.message : String(redisError)}`
+              );
             }
 
             await cleanupExportArtifacts(assFilePath, tempFontPath);
@@ -307,20 +319,26 @@ export async function processVideoExportInBackground(
         command.save(outputPath);
       });
     }, `export-${exportToken}`);
-  } catch (error: any) {
-    log.error(`Background processing failed for ${exportToken}: ${error.message}`);
+  } catch (error: unknown) {
+    log.error(
+      `Background processing failed for ${exportToken}: ${error instanceof Error ? error.message : String(error)}`
+    );
 
     try {
       await redisClient.set(
         `export:${exportToken}`,
         JSON.stringify({
           status: 'error',
-          error: error.message || 'Background processing failed',
+          error:
+            (error instanceof Error ? error.message : String(error)) ||
+            'Background processing failed',
         }),
         { EX: 60 * 60 }
       );
-    } catch (redisError: any) {
-      log.warn(`Redis error storage failed: ${redisError.message}`);
+    } catch (redisError: unknown) {
+      log.warn(
+        `Redis error storage failed: ${redisError instanceof Error ? redisError.message : String(redisError)}`
+      );
     }
   }
 }

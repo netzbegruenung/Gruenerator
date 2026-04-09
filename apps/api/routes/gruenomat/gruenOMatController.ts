@@ -14,6 +14,7 @@ import { createSSEStream } from '../chat/services/sseHelpers.js';
 
 import { screenInput, BLOCKED_RESPONSE, OFF_TOPIC_RESPONSE } from './topicGuard.js';
 
+import type { RateLimitRequest } from '../../middleware/types.js';
 import type { ModelMessage } from 'ai';
 
 const log = createLogger('GruenOMat');
@@ -119,8 +120,9 @@ router.post(
   }
 );
 
-router.get('/status', rateLimitInfo('gruen_o_mat'), (req: any, res) => {
-  const info = req.rateLimitInfo;
+router.get('/status', rateLimitInfo('gruen_o_mat'), (req, res) => {
+  const rateLimitReq = req as RateLimitRequest;
+  const info = rateLimitReq.rateLimitInfo;
   res.json({
     remaining: info?.remaining ?? null,
     limit: info?.limit ?? null,

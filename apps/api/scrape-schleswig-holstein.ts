@@ -24,7 +24,10 @@ async function extractPdfText(pdfBuffer: ArrayBuffer): Promise<string> {
   for (let pageNum = 1; pageNum <= numPages; pageNum++) {
     const page = await pdfDoc.getPage(pageNum);
     const textContent = await page.getTextContent();
-    const pageText = textContent.items.map((item: any) => item.str).join(' ');
+    const pageText = textContent.items
+      .filter((item) => 'str' in item)
+      .map((item) => (item as { str: string }).str)
+      .join(' ');
     pageTexts.push(pageText);
   }
 
@@ -69,7 +72,9 @@ async function main() {
 
   // Step 4: Generate embeddings
   console.log('4. Generating embeddings...');
-  const chunkTexts = chunks.map((c: any) => c.text || c.chunk_text);
+  const chunkTexts = chunks.map(
+    (c: { text?: string; chunk_text?: string }) => c.text || c.chunk_text || ''
+  );
   const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
   console.log(`   Generated ${embeddings.length} embeddings`);
 
@@ -78,7 +83,7 @@ async function main() {
   const contentHash = generateContentHash(text);
   const documentTitle = 'Wahlprogramm LTW 2022 – Grüne Schleswig-Holstein';
 
-  const points = chunks.map((chunk: any, index: number) => ({
+  const points = chunks.map((chunk: { text?: string; chunk_text?: string }, index: number) => ({
     id: generatePointId('sh_ltw', PDF_URL, index),
     vector: embeddings[index],
     payload: {

@@ -56,10 +56,11 @@ export async function getRecentInstagramPosts(
 
     const results: CollectedItem[] = [];
     for (const item of items) {
-      const post = item as Record<string, any>;
-      const caption = post.caption || post.text || '';
+      const post = item as Record<string, unknown>;
+      const caption = (post.caption || post.text || '') as string;
       const shortCode = post.shortCode || post.code;
-      const postUrl = post.url || (shortCode ? `https://www.instagram.com/p/${shortCode}/` : null);
+      const postUrl = (post.url ||
+        (shortCode ? `https://www.instagram.com/p/${shortCode}/` : null)) as string | null;
 
       if (!postUrl || !shortCode) continue;
 
@@ -69,7 +70,7 @@ export async function getRecentInstagramPosts(
         excerpt: caption,
         source: 'instagram.com',
         sourceType: 'instagram',
-        publishedAt: post.timestamp || post.taken_at || post.date || null,
+        publishedAt: (post.timestamp || post.taken_at || post.date || null) as string | null,
       });
     }
 

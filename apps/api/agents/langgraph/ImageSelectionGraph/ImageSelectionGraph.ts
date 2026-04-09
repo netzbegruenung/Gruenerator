@@ -12,6 +12,7 @@ import { selectImageNode } from './nodes/SelectImageNode.js';
 
 import type { ImageSelectionState, ImageSelectionInput, ImageSelectionOutput } from './types.js';
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- LangGraph untyped Annotation reducers */
 // State schema for the image selection graph
 const ImageSelectionStateAnnotation = Annotation.Root({
   // Input
@@ -53,17 +54,20 @@ const ImageSelectionStateAnnotation = Annotation.Root({
     reducer: (x: any, y: any) => y ?? x,
   }),
 });
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 /**
  * Create and configure the graph
  */
 function createImageSelectionGraph() {
+  /* eslint-disable @typescript-eslint/no-explicit-any -- LangGraph node type coercions */
   const workflow = new StateGraph(ImageSelectionStateAnnotation)
     .addNode('loadCatalog', loadCatalogNode as any)
     .addNode('selectImage', selectImageNode as any)
     .addEdge('__start__', 'loadCatalog')
     .addEdge('loadCatalog', 'selectImage')
     .addEdge('selectImage', '__end__');
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   return workflow.compile();
 }

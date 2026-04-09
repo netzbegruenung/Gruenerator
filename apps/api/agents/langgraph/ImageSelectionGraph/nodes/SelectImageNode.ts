@@ -76,7 +76,7 @@ Wähle den besten Hintergrund aus (gib die Nummer an).`;
     console.log(`[ImageSelection] Response type:`, typeof result.content);
 
     // Extract JSON from markdown code blocks if present
-    let contentToParse = result.content;
+    let contentToParse = result.content || '';
 
     // Check for markdown code block wrapper
     if (contentToParse.includes('```')) {
@@ -100,6 +100,9 @@ Wähle den besten Hintergrund aus (gib die Nummer an).`;
       }
 
       const selectedImage = imageCatalog.images[selectedIndex];
+      if (!selectedImage) {
+        throw new Error(`Image at index ${selectedIndex} not found in catalog`);
+      }
 
       // Get alternatives (other relevant images)
       const alternatives = imageCatalog.images
@@ -122,7 +125,7 @@ Wähle den besten Hintergrund aus (gib die Nummer an).`;
           totalImagesConsidered: imageCatalog.images.length,
         },
       };
-    } catch (parseError) {
+    } catch (_parseError) {
       console.warn('[ImageSelection] Failed to parse AI selection, using smart fallback');
 
       // Smart fallback: pick a thematically relevant image

@@ -19,10 +19,12 @@ const mistralSearchService = new MistralWebSearchService();
 /**
  * Helper: Normalize Mistral results to SearXNG format
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalizeMistralResults(mistralResult: any): SearchResult[] {
   if (!mistralResult.sources || mistralResult.sources.length === 0) {
     return [];
   }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return mistralResult.sources.map((source: any) => ({
     url: source.url,
     title: source.title,

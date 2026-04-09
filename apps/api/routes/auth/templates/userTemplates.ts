@@ -34,7 +34,7 @@ const router: Router = express.Router();
 
 // Add debugging middleware to all user templates routes
 router.use((req: AuthRequest, _res: Response, next: NextFunction) => {
-  log.info(`[User Templates] ${req.method} ${req.originalUrl} - User ID: ${req.user?.id}`);
+  log.debug(`[User Templates] ${req.method} ${req.originalUrl} - User ID: ${req.user?.id}`);
   next();
 });
 
@@ -42,7 +42,7 @@ router.use((req: AuthRequest, _res: Response, next: NextFunction) => {
 
 router.post(
   '/user-templates/from-url',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { url, preview, title, description, metadata } = req.body;
@@ -143,7 +143,7 @@ router.post(
 // Get user's templates
 router.get(
   '/user-templates',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -160,7 +160,26 @@ router.get(
       );
 
       // Transform data to match frontend expectations
-      const formattedTemplates = (templates || []).map((template: any) => ({
+      const formattedTemplates = (
+        (templates || []) as Array<{
+          id: string;
+          title: string;
+          description: string;
+          type: string;
+          template_type: string;
+          external_url: string;
+          thumbnail_url: string;
+          images: unknown[];
+          categories: string[];
+          tags: string[];
+          content_data: unknown;
+          metadata: unknown;
+          is_private: boolean;
+          status: string;
+          created_at: string;
+          updated_at: string;
+        }>
+      ).map((template) => ({
         id: template.id,
         title: template.title,
         description: template.description,
@@ -197,7 +216,7 @@ router.get(
 // Create new template
 router.post(
   '/user-templates',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -294,7 +313,7 @@ router.post(
 // Update existing template
 router.put(
   '/user-templates/:id',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -341,7 +360,7 @@ router.put(
       }
 
       // Prepare update data
-      const updateData: Record<string, any> = {};
+      const updateData: Record<string, unknown> = {};
 
       if (title !== undefined) updateData.title = title.trim();
       if (description !== undefined) updateData.description = description?.trim() || null;
@@ -412,7 +431,7 @@ router.put(
 // Delete template
 router.delete(
   '/user-templates/:id',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -454,7 +473,7 @@ router.delete(
 // Update template metadata only
 router.post(
   '/user-templates/:id/metadata',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -489,7 +508,7 @@ router.post(
       }
 
       // Prepare update data
-      const updateData: Record<string, any> = {
+      const updateData: Record<string, unknown> = {
         updated_at: new Date().toISOString(),
       };
 
@@ -527,7 +546,7 @@ router.post(
 // Bulk delete templates
 router.delete(
   '/user-templates/bulk',
-  ensureAuthenticated as any,
+  ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
@@ -565,7 +584,9 @@ router.delete(
         { table: 'user_templates' }
       );
 
-      const ownedIds = (verifyTemplates || []).map((template: any) => template.id);
+      const ownedIds = ((verifyTemplates || []) as Array<{ id: string }>).map(
+        (template) => template.id
+      );
       const unauthorizedIds = ids.filter((id: string) => !ownedIds.includes(id));
 
       if (unauthorizedIds.length > 0) {
@@ -586,7 +607,9 @@ router.delete(
         { table: 'user_templates' }
       );
 
-      const deletedIds = deletedData ? deletedData.map((template: any) => template.id) : [];
+      const deletedIds = deletedData
+        ? (deletedData as Array<{ id: string }>).map((template) => template.id)
+        : [];
       const failedIds = ids.filter((id: string) => !deletedIds.includes(id));
 
       log.debug(

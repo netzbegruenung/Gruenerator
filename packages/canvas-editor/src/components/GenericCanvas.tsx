@@ -243,12 +243,8 @@ function GenericCanvasWithRef<
     // eslint-disable-next-line react-hooks/exhaustive-deps -- layoutKey is a stable string derived from layout-relevant state fields
   }, [config, layoutKey, isFontAvailable]);
 
-  const {
-    setSelectedElement,
-    handleStageClick,
-    handleSnapChange,
-    getSnapTargets,
-  } = useCanvasInteractions({ stageRef });
+  const { setSelectedElement, handleStageClick, handleSnapChange, getSnapTargets } =
+    useCanvasInteractions({ stageRef });
 
   const store = useCanvasStore();
   const { setSnapLines, updateElementPosition } = store.getState();
@@ -304,6 +300,7 @@ function GenericCanvasWithRef<
   useCanvasKeyboardHandlers({
     store,
     state,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     actions: actions as any, // TActions may have different shape; keyboard handlers check with optional chaining
     setState: setStateWrapper,
     setSelectedElement,
@@ -397,7 +394,16 @@ function GenericCanvasWithRef<
       handleFontSizeChange: elementHandlers.handleFontSizeChange,
       handleAlign,
     }),
-    [state, actions, store, setSelectedElement, undo, redo, elementHandlers.handleFontSizeChange, handleAlign]
+    [
+      state,
+      actions,
+      store,
+      setSelectedElement,
+      undo,
+      redo,
+      elementHandlers.handleFontSizeChange,
+      handleAlign,
+    ]
   );
 
   return (
@@ -432,10 +438,7 @@ function GenericCanvasWithRef<
           </Layer>
         )}
 
-        <SnapGuidelines
-          stageWidth={config.canvas.width}
-          stageHeight={config.canvas.height}
-        />
+        <SnapGuidelines stageWidth={config.canvas.width} stageHeight={config.canvas.height} />
       </CanvasStage>
 
       {/* Renderless bridge: owns all selectedElement-derived computation.

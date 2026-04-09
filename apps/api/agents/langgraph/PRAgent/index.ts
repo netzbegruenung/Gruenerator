@@ -21,6 +21,7 @@ import {
 } from './utils/responseFormatter.js';
 
 import type { PRAgentRequest } from './types.js';
+import type { Request, Response } from 'express';
 
 /**
  * PR Agent Main Orchestrator
@@ -29,8 +30,8 @@ import type { PRAgentRequest } from './types.js';
  */
 export async function processAutomatischPR(
   requestData: PRAgentRequest,
-  req: any,
-  res: any
+  req: Request,
+  res: Response
 ): Promise<void> {
   const startTime = Date.now();
   console.log('[PR Agent] Starting automatic PR package generation');
@@ -55,16 +56,6 @@ export async function processAutomatischPR(
       },
       req
     );
-
-    const argumentCollections =
-      locale === 'de-AT'
-        ? ['oesterreich_gruene_documents', 'gruene_at_documents']
-        : [
-            'grundsatz_documents',
-            'bundestag_content',
-            'kommunalwiki_documents',
-            'gruene_de_documents',
-          ];
 
     const framingPromise = generateStrategicFraming(enrichedState, req);
 
@@ -162,8 +153,8 @@ export async function processAutomatischPR(
  */
 export async function processStrategyGeneration(
   requestData: PRAgentRequest,
-  req: any,
-  res: any
+  req: Request,
+  res: Response
 ): Promise<void> {
   const startTime = Date.now();
   console.log('[PR Agent] Phase 1: Strategy generation');
@@ -220,7 +211,7 @@ export async function processStrategyGeneration(
     await prAgentWorkflow.saveStrategy(
       workflowId,
       framing,
-      args,
+      args.map((a) => a.text),
       enrichedState.enrichmentMetadata || {},
       executionTimeMs
     );
@@ -268,8 +259,8 @@ export async function processProductionGeneration(
   workflowId: string,
   approvedPlatforms: string[],
   userFeedback: string | null,
-  req: any,
-  res: any
+  req: Request,
+  res: Response
 ): Promise<void> {
   const startTime = Date.now();
   console.log('[PR Agent] Phase 2: Production generation');
@@ -279,21 +270,23 @@ export async function processProductionGeneration(
     const workflow = await prAgentWorkflow.getWorkflow(workflowId, req.user?.id);
 
     if (!workflow) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         error: 'Workflow nicht gefunden',
       });
+      return;
     }
 
     if (workflow.status !== 'approved' && workflow.status !== 'changes_requested') {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Workflow muss erst genehmigt werden',
       });
+      return;
     }
 
     const inputData = workflow.input_data as PRAgentRequest;
-    const strategyData = workflow.strategy_data as { framing: string; argumentsList: any[] };
+    const strategyData = workflow.strategy_data as { framing: string; argumentsList: unknown[] };
 
     // 2. Re-enrich with approved strategy in context
     const enrichedState = await enrichRequest(
@@ -329,7 +322,7 @@ export async function processProductionGeneration(
       Promise.all(sharepicPromises),
     ]);
 
-    const generatedContent: Record<string, any> = {};
+    const generatedContent: Record<string, unknown> = {};
     approvedPlatforms.forEach((platform, idx) => {
       generatedContent[platform] = platformResults[idx];
     });
@@ -346,11 +339,16 @@ export async function processProductionGeneration(
       generateRiskAnalysis(
         enrichedState,
         strategyData.framing || '',
-        generatedContent,
-        generatedContent.pressemitteilung || '',
+        generatedContent as Record<string, string>,
+        (generatedContent.pressemitteilung || '') as string,
         req
       ),
-      generateVisualBriefing(enrichedState, strategyData.framing || '', generatedContent, req),
+      generateVisualBriefing(
+        enrichedState,
+        strategyData.framing || '',
+        generatedContent as Record<string, string>,
+        req
+      ),
     ]);
 
     const executionTimeMs = Date.now() - startTime;
@@ -370,10 +368,10 @@ export async function processProductionGeneration(
     // 7. Return complete PR package
     const formattedResult = formatPRAgentResponse({
       framing: strategyData.framing,
-      pressRelease: generatedContent.pressemitteilung || '',
+      pressRelease: (generatedContent.pressemitteilung as string) || '',
       social: {
-        instagram: generatedContent.instagram || '',
-        facebook: generatedContent.facebook || '',
+        instagram: (generatedContent.instagram as string) || '',
+        facebook: (generatedContent.facebook as string) || '',
       },
       sharepics,
       riskAnalysis,

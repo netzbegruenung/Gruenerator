@@ -12,6 +12,7 @@
 
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
+import type AIWorkerPool from '../../../workers/aiWorkerPool.js';
 import type { ModelMessage } from 'ai';
 
 /**
@@ -86,6 +87,20 @@ export interface GeneratedImageResult {
 }
 
 /**
+ * Source prefixes used in SearchResult.source to identify result provenance.
+ * Use these instead of raw strings to avoid silent mismatches across the pipeline.
+ */
+export const SOURCE_PREFIX = {
+  GRUENERATOR: 'gruenerator:',
+  WEB: 'web',
+  EXAMPLES: 'examples',
+  RESEARCH: 'research',
+  RESEARCH_SYNTHESIS: 'research_synthesis',
+  DOCUMENT: 'document',
+  DOCUMENT_CHAT: 'documentchat:',
+} as const;
+
+/**
  * Unified search result structure from any tool.
  */
 export interface SearchResult {
@@ -99,6 +114,7 @@ export interface SearchResult {
   chunkIndex?: number;
   similarityScore?: number;
   collectionId?: string;
+  [key: string]: unknown;
 }
 
 /**
@@ -146,7 +162,7 @@ export interface ChatGraphInput {
   threadId?: string;
   agentId: string;
   enabledTools: Record<string, boolean>;
-  aiWorkerPool: any;
+  aiWorkerPool: AIWorkerPool;
   attachmentContext?: string;
   imageAttachments?: ImageAttachment[];
   threadAttachments?: ThreadAttachment[];
@@ -176,7 +192,7 @@ export interface ChatGraphState {
   threadId: string | null;
   agentConfig: AgentConfig;
   enabledTools: Record<string, boolean>;
-  aiWorkerPool: any;
+  aiWorkerPool: AIWorkerPool;
   userLocale: UserLocale;
 
   // Attachment context

@@ -21,7 +21,7 @@ export class InputValidator {
   /**
    * Validate and sanitize embedding array for SQL safety
    */
-  static validateEmbedding(embedding: any): string {
+  static validateEmbedding(embedding: unknown): string {
     if (!Array.isArray(embedding)) {
       throw new ValidationError('Embedding must be an array', 'embedding', typeof embedding);
     }
@@ -73,7 +73,7 @@ export class InputValidator {
   /**
    * Validate user ID
    */
-  static validateUserId(userId: any): string {
+  static validateUserId(userId: unknown): string {
     if (!userId || typeof userId !== 'string') {
       throw new ValidationError('User ID must be a non-empty string', 'userId', userId);
     }
@@ -91,7 +91,7 @@ export class InputValidator {
   /**
    * Validate document IDs array
    */
-  static validateDocumentIds(documentIds: any): string[] {
+  static validateDocumentIds(documentIds: unknown): string[] {
     if (!Array.isArray(documentIds)) {
       throw new ValidationError('Document IDs must be an array', 'documentIds', typeof documentIds);
     }
@@ -101,7 +101,7 @@ export class InputValidator {
       throw new ValidationError('Too many document IDs', 'documentIds', documentIds.length);
     }
 
-    return documentIds.map((id: any, index: number) => {
+    return documentIds.map((id: unknown, index: number) => {
       if (!id || typeof id !== 'string') {
         throw new ValidationError(
           `Document ID at index ${index} must be a string`,
@@ -128,7 +128,7 @@ export class InputValidator {
   /**
    * Validate search query
    */
-  static validateSearchQuery(query: any): string {
+  static validateSearchQuery(query: unknown): string {
     if (!query || typeof query !== 'string') {
       throw new ValidationError('Search query must be a non-empty string', 'query', query);
     }
@@ -150,7 +150,7 @@ export class InputValidator {
    * Validate numeric parameters
    */
   static validateNumber(
-    value: any,
+    value: unknown,
     fieldName: string,
     options: NumberValidationOptions = {}
   ): number | null {
@@ -210,7 +210,10 @@ export class InputValidator {
       'keyword',
       'text',
     ];
-    if (params.mode && !validModes.includes(params.mode as any)) {
+    if (
+      params.mode &&
+      !validModes.includes(params.mode as 'vector' | 'hybrid' | 'keyword' | 'text')
+    ) {
       throw new ValidationError('Invalid search mode', 'mode', params.mode);
     }
     validated.mode = (params.mode as 'vector' | 'hybrid' | 'keyword' | 'text') || 'vector';
@@ -231,7 +234,7 @@ export class InputValidator {
   /**
    * Validate content type for examples search
    */
-  static validateContentType(contentType: any): string {
+  static validateContentType(contentType: unknown): string {
     if (!contentType || typeof contentType !== 'string') {
       throw new ValidationError(
         'Content type must be a non-empty string',
@@ -262,7 +265,7 @@ export class InputValidator {
         success: false,
         error: 'Validation error',
         message: error.message,
-        field: (error as any).field,
+        field: (error as ValidationError).field,
         code: 'VALIDATION_ERROR',
       };
     }
@@ -301,7 +304,7 @@ export class InputValidator {
     }
 
     // Validate each message
-    validated.messages = request.messages.map((msg: any, index: number) => {
+    validated.messages = request.messages.map((msg, index) => {
       if (!msg || typeof msg !== 'object') {
         throw new ValidationError(`Message at index ${index} must be an object`, 'messages', msg);
       }

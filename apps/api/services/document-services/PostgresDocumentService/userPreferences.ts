@@ -4,24 +4,25 @@
  */
 
 import type { UserDocumentMode, UserDocumentModeResult } from './types.js';
+import type { PostgresService } from '../../../database/services/PostgresService/PostgresService.js';
 
 /**
  * Get user's document mode preference
  */
 export async function getUserDocumentMode(
-  postgres: any,
+  postgres: PostgresService,
   userId: string
 ): Promise<UserDocumentMode> {
   try {
     await postgres.ensureInitialized();
 
-    const user = await postgres.queryOne(
+    const user = await postgres.queryOne<{ document_mode: string | null }>(
       'SELECT document_mode FROM profiles WHERE id = $1',
       [userId],
       { table: 'profiles' }
     );
 
-    return user?.document_mode || 'manual';
+    return (user?.document_mode as UserDocumentMode) || 'manual';
   } catch (error) {
     console.error('[PostgresDocumentService] Error getting user document mode:', error);
     throw new Error('Failed to get document mode');
@@ -32,7 +33,7 @@ export async function getUserDocumentMode(
  * Set user's document mode preference
  */
 export async function setUserDocumentMode(
-  postgres: any,
+  postgres: PostgresService,
   userId: string,
   mode: UserDocumentMode
 ): Promise<UserDocumentModeResult> {

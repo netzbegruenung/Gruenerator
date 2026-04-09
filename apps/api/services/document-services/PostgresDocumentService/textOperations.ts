@@ -3,13 +3,14 @@
  * Handles storing and retrieving full text content in document metadata
  */
 
-import type { DocumentMetadata, DocumentRecord, DocumentWithText } from './types.js';
+import type { DocumentMetadata, DocumentRecord } from './types.js';
+import type { PostgresService } from '../../../database/services/PostgresService/PostgresService.js';
 
 /**
  * Store document full text in metadata JSON
  */
 export async function storeDocumentText(
-  postgres: any,
+  postgres: PostgresService,
   documentId: string,
   userId: string,
   text: string
@@ -18,7 +19,7 @@ export async function storeDocumentText(
     await postgres.ensureInitialized();
 
     // Check if document exists and user owns it
-    const document = await postgres.queryOne(
+    const document = await postgres.queryOne<{ id: string; metadata: string | null }>(
       'SELECT * FROM documents WHERE id = $1 AND user_id = $2',
       [documentId, userId],
       { table: 'documents' }
@@ -29,10 +30,10 @@ export async function storeDocumentText(
     }
 
     // Parse existing metadata
-    let existingMetadata: Record<string, any> = {};
+    let existingMetadata: Record<string, unknown> = {};
     try {
       existingMetadata = document.metadata ? JSON.parse(document.metadata) : {};
-    } catch (e) {
+    } catch (_e) {
       existingMetadata = {};
     }
 
@@ -65,38 +66,42 @@ export async function storeDocumentText(
  * Retrieve document full text from metadata JSON
  */
 export async function getDocumentText(
-  postgres: any,
+  postgres: PostgresService,
   documentId: string,
   userId: string
 ): Promise<{ success: boolean; text: string; textLength: number; storedAt: string }> {
   try {
     await postgres.ensureInitialized();
 
-    const document = await postgres.queryOne(
-      'SELECT * FROM documents WHERE id = $1 AND user_id = $2',
-      [documentId, userId],
-      { table: 'documents' }
-    );
+    const document = await postgres.queryOne<{
+      id: string;
+      metadata: string | null;
+      created_at: string;
+    }>('SELECT * FROM documents WHERE id = $1 AND user_id = $2', [documentId, userId], {
+      table: 'documents',
+    });
 
     if (!document) {
       throw new Error('Document not found or access denied');
     }
 
     // Parse metadata to extract text
-    let metadata: Record<string, any> = {};
+    let metadata: Record<string, unknown> = {};
     try {
       metadata = document.metadata ? JSON.parse(document.metadata) : {};
-    } catch (e) {
+    } catch (_e) {
       metadata = {};
     }
 
-    const fullText = metadata.full_text || '';
+    const fullText = (typeof metadata.full_text === 'string' ? metadata.full_text : '') as string;
 
     return {
       success: true,
       text: fullText,
       textLength: fullText.length,
-      storedAt: metadata.stored_at || document.created_at,
+      storedAt: (typeof metadata.stored_at === 'string'
+        ? metadata.stored_at
+        : document.created_at) as string,
     };
   } catch (error) {
     console.error('[PostgresDocumentService] Error retrieving document text:', error);
@@ -108,7 +113,7 @@ export async function getDocumentText(
  * Create document with text content (text-only system)
  */
 export async function createDocumentWithText(
-  postgres: any,
+  postgres: PostgresService,
   userId: string,
   metadata: DocumentMetadata,
   text: string
@@ -137,7 +142,7 @@ export async function createDocumentWithText(
     const document = await postgres.insert('documents', documentData);
     console.log(`[PostgresDocumentService] Created document with text: ${document.id}`);
 
-    return document;
+    return document as unknown as DocumentRecord;
   } catch (error) {
     console.error('[PostgresDocumentService] Error creating document with text:', error);
     throw new Error('Failed to create document with text');

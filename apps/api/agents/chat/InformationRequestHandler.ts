@@ -140,7 +140,7 @@ export function isWebSearchConfirmation(message: string): boolean {
  * Get a random web search question
  */
 export function getWebSearchQuestion(): string {
-  return WEBSEARCH_QUESTIONS[Math.floor(Math.random() * WEBSEARCH_QUESTIONS.length)];
+  return WEBSEARCH_QUESTIONS[Math.floor(Math.random() * WEBSEARCH_QUESTIONS.length)] ?? '';
 }
 
 /**
@@ -213,7 +213,7 @@ const REQUIRED_FIELDS: RequiredFieldsConfig = {
 export function checkForMissingInformation(
   agent: string,
   extractedParams: Record<string, unknown>,
-  originalMessage: string
+  _originalMessage: string
 ): MissingFieldInfo | null {
   console.log('[InformationRequestHandler] Checking for missing info:', { agent, extractedParams });
 
@@ -253,7 +253,7 @@ export function checkForMissingInformation(
  */
 export function generateInformationQuestion(
   missingFieldInfo: MissingFieldInfo,
-  context: Record<string, unknown> = {}
+  _context: Record<string, unknown> = {}
 ): string {
   const { questions } = missingFieldInfo;
 
@@ -262,7 +262,9 @@ export function generateInformationQuestion(
   }
 
   // Select a random question from the available options
-  const selectedQuestion = questions[Math.floor(Math.random() * questions.length)];
+  const selectedQuestion =
+    questions[Math.floor(Math.random() * questions.length)] ??
+    `Bitte gib mir den Wert für ${missingFieldInfo.displayName}.`;
 
   console.log('[InformationRequestHandler] Generated question:', selectedQuestion);
   return selectedQuestion;
@@ -292,6 +294,7 @@ export function createInformationRequest(
     },
     pendingRequest: {
       type: 'missing_information',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       agent: classifiedIntent?.agent || (originalRequest as any).agent,
       route: classifiedIntent?.route,
       params: classifiedIntent?.params || {},
@@ -447,6 +450,9 @@ export function extractRequestedInformation(
         '4': 'editorial-pure',
       };
       const variantValue = numberToVariant[numberMatch[0]];
+      if (!variantValue) {
+        return null;
+      }
       console.log(
         `[InformationRequestHandler] Extracted variant via number selection:`,
         variantValue
@@ -467,7 +473,7 @@ export function extractRequestedInformation(
 export function completePendingRequest(
   pendingRequest: PendingRequest,
   extractedInfo: Record<string, string>,
-  req: RequestContext
+  _req: RequestContext
 ): RequestContext {
   console.log('[InformationRequestHandler] Completing pending request with:', extractedInfo);
 
@@ -567,7 +573,8 @@ export async function handleInformationRequest(
       );
 
       // Store pending request in memory
-      await chatMemory.setPendingRequest(userId, informationRequest.pendingRequest);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await chatMemory.setPendingRequest(userId, informationRequest.pendingRequest as any);
 
       return {
         type: 'request',
@@ -592,7 +599,7 @@ export async function handleInformationRequest(
  */
 export async function generateAntragQuestions(
   context: Record<string, unknown>,
-  aiWorkerPool: unknown
+  _aiWorkerPool: unknown
 ): Promise<QuestionConfig[]> {
   console.warn(
     '[InformationRequestHandler] generateAntragQuestions is deprecated. Use getQuestionsForType from config/antragQuestions.js'
@@ -607,7 +614,7 @@ export async function generateAntragQuestions(
 /**
  * Fallback question generation when AI is unavailable
  */
-function generateFallbackAntragQuestions(context: Record<string, unknown>): QuestionConfig[] {
+function _generateFallbackAntragQuestions(context: Record<string, unknown>): QuestionConfig[] {
   const { requestType } = context;
 
   const baseQuestions: QuestionConfig[] = [
@@ -653,7 +660,7 @@ export async function analyzeAnswersForFollowup(
   questions: QuestionConfig[],
   answers: Record<string, string>,
   context: Record<string, unknown>,
-  aiWorkerPool: unknown
+  _aiWorkerPool: unknown
 ): Promise<boolean> {
   console.warn(
     '[InformationRequestHandler] analyzeAnswersForFollowup is deprecated. Use hasFollowUpQuestions from config/antragQuestions.js'
@@ -672,7 +679,7 @@ export async function analyzeAnswersForFollowup(
  */
 export async function generateFollowUpQuestions(
   context: Record<string, unknown>,
-  aiWorkerPool: unknown
+  _aiWorkerPool: unknown
 ): Promise<QuestionConfig[]> {
   console.warn(
     '[InformationRequestHandler] generateFollowUpQuestions is deprecated. Use getQuestionsForType from config/antragQuestions.js'

@@ -506,7 +506,7 @@ class OparlApiClient {
               );
               // If no page support, we can only get one page
               pageNum = maxPages + 1;
-            } catch (retryErr) {
+            } catch (_retryErr) {
               console.log(`[OParlAPI] Page ${pageNum} failed, stopping pagination`);
               break;
             }

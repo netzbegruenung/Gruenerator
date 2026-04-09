@@ -9,7 +9,13 @@ import type { StoredDocument, MistralContentItem } from './types.js';
  * Ask Mistral to extract knowledge from documents using context-specific questions
  */
 export async function askMistralAboutDocuments(
-  mistral: any,
+  mistral: {
+    chat: {
+      complete: (
+        params: unknown
+      ) => Promise<{ choices?: Array<{ message?: { content?: string } }> }>;
+    };
+  },
   documents: StoredDocument[],
   questions: string
 ): Promise<string> {

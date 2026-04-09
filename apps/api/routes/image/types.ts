@@ -11,6 +11,7 @@ import type {
   ImageGenerationResult,
 } from '../../services/counters/types.js';
 import type { ImageCatalogEntry } from '../../services/image/types.js';
+import type AIWorkerPool from '../../workers/aiWorkerPool.js';
 import type { ParamsDictionary } from 'express-serve-static-core';
 
 // ============================================================================
@@ -24,7 +25,7 @@ export interface AuthenticatedRequest<P = ParamsDictionary> extends Request<P> {
   user?: UserProfile;
   app: Request['app'] & {
     locals: {
-      aiWorkerPool?: any;
+      aiWorkerPool?: AIWorkerPool;
     };
   };
 }
@@ -124,7 +125,7 @@ export interface ImagePickerStatsResponse {
   stats?: {
     uptime: number;
     timestamp: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   error?: string;
   code?: string;
@@ -137,7 +138,7 @@ export interface ImageCatalogResponse {
   success: boolean;
   catalog?: {
     images: ImageCatalogEntry[];
-    [key: string]: any;
+    [key: string]: unknown;
   };
   count?: number;
   timestamp?: string;
@@ -150,7 +151,7 @@ export interface ImageCatalogResponse {
  */
 export interface StockCatalogResponse {
   success: boolean;
-  images?: any[];
+  images?: Record<string, unknown>[];
   count?: number;
   totalCount?: number;
   categories?: string[];

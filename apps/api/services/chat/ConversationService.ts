@@ -28,18 +28,33 @@ const CONFIG = {
 };
 
 /**
+ * Conversation config shape loaded from JSON
+ */
+interface SubIntentConfig {
+  useProMode?: boolean;
+  instruction?: string;
+}
+
+interface ConversationConfig {
+  subIntents: Record<string, SubIntentConfig>;
+  systemRole: string;
+  options: { temperature: number; max_tokens: number; [key: string]: unknown };
+  proModeOptions: { temperature: number; max_tokens: number; [key: string]: unknown };
+}
+
+/**
  * Cache for conversation config
  */
-let conversationConfigCache: any = null;
+let conversationConfigCache: ConversationConfig | null = null;
 
 /**
  * Load conversation config from JSON file (with caching)
  */
-function loadConversationConfig(): any {
+function loadConversationConfig(): ConversationConfig {
   if (conversationConfigCache) return conversationConfigCache;
 
   const configPath = path.join(__dirname, '../../prompts/conversation.json');
-  const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  const config = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as ConversationConfig;
   conversationConfigCache = config;
   return config;
 }
@@ -48,7 +63,7 @@ function loadConversationConfig(): any {
  * Build messages array from conversation history
  */
 function buildConversationMessages(
-  history: any[] | undefined,
+  history: Array<{ role: string; content: string }> | undefined,
   currentMessage: string
 ): Array<{ role: string; content: string }> {
   const messages: Array<{ role: string; content: string }> = [];
@@ -78,10 +93,15 @@ export async function processConversationRequest(params: {
   userId: string;
   locale?: Locale;
   subIntent?: string;
-  messageHistory?: any[];
-  aiWorkerPool: any;
-  req?: any;
-}): Promise<any> {
+  messageHistory?: Array<{ role: string; content: string }>;
+  aiWorkerPool: {
+    processRequest: (
+      request: unknown,
+      req?: unknown
+    ) => Promise<{ success?: boolean; error?: string; content?: string }>;
+  };
+  req?: unknown;
+}): Promise<unknown> {
   const {
     message,
     userId,
@@ -148,7 +168,7 @@ export async function processConversationRequest(params: {
     }
 
     // Store in chat memory
-    await chatMemory.addMessage(userId, 'assistant', result.content, 'conversation');
+    await chatMemory.addMessage(userId, 'assistant', result.content || '', 'conversation');
 
     log.debug('[ConversationService] Conversation response generated:', {
       subIntent,

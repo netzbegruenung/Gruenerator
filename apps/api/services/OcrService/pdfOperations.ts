@@ -15,6 +15,7 @@ import type {
 /**
  * Lazy load PDF.js to avoid memory overhead
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getPdfJs(): Promise<any> {
   try {
     const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
@@ -28,6 +29,7 @@ export async function getPdfJs(): Promise<any> {
 /**
  * Open PDF document with PDF.js
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function openPdfDocument(pdfPath: string, pdfjsLib: any): Promise<any> {
   try {
     const loadingTask = pdfjsLib.getDocument({ url: pdfPath, useSystemFonts: true });
@@ -44,6 +46,7 @@ export async function openPdfDocument(pdfPath: string, pdfjsLib: any): Promise<a
  */
 export async function getPDFInfo(
   pdfPath: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getPdfJsFn: () => Promise<any>
 ): Promise<PDFInfo> {
   const pdfjsLib = await getPdfJsFn();
@@ -58,6 +61,7 @@ export async function getPDFInfo(
  */
 export async function canExtractTextDirectly(
   pdfPath: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   openPdfDocumentFn: (path: string) => Promise<any>
 ): Promise<ParseabilityCheck> {
   const startTime = Date.now();
@@ -78,6 +82,7 @@ export async function canExtractTextDirectly(
         const page = await pdfDoc.getPage(pageNum);
         const textContent = await page.getTextContent();
         const pageText = textContent.items
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .map((item: any) => item.str || '')
           .join(' ')
           .trim();
@@ -138,6 +143,7 @@ export async function canExtractTextDirectly(
  */
 export async function extractTextDirectlyFromPDF(
   pdfPath: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   openPdfDocumentFn: (path: string) => Promise<any>,
   applyMarkdownFormattingFn: (text: string) => string,
   maxPages: number = 1000
@@ -208,6 +214,7 @@ export async function extractTextDirectlyFromPDF(
  * Extract text from a single PDF page
  */
 export async function extractPageTextDirectly(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pdfDoc: any,
   pageNum: number,
   applyMarkdownFormattingFn: (text: string) => string
@@ -217,6 +224,7 @@ export async function extractPageTextDirectly(
     const textContent = await page.getTextContent();
 
     // Extract text items with proper spacing
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const textItems = textContent.items.map((item: any) => item.str || '');
     const rawText = textItems.join(' ').trim();
 
@@ -243,6 +251,7 @@ export async function extractPageTextDirectly(
 export async function extractTextFromBase64PDF(
   base64Data: string,
   filename: string = 'document.pdf',
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getPdfJsFn: () => Promise<any>
 ): Promise<ExtractionResult> {
   const startTime = Date.now();
@@ -273,6 +282,7 @@ export async function extractTextFromBase64PDF(
         const page = await pdfDoc.getPage(pageNum);
         const textContent = await page.getTextContent();
         const pageText = textContent.items
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .map((item: any) => item.str || '')
           .join(' ')
           .trim();

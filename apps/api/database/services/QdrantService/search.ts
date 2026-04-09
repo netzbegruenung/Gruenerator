@@ -9,30 +9,6 @@ import { createLogger } from '../../../utils/logger.js';
 
 const logger = createLogger('QdrantService:search');
 
-interface SearchParams {
-  vector: number[];
-  filter?: QdrantFilter;
-  limit: number;
-  score_threshold?: number;
-  with_payload: boolean;
-  params?: {
-    ef?: number;
-  };
-}
-
-interface ScrollParams {
-  filter?: QdrantFilter;
-  limit: number;
-  offset?: number | string | null;
-  with_payload: boolean | string[];
-  with_vector: boolean;
-}
-
-interface CountParams {
-  filter?: QdrantFilter;
-  exact: boolean;
-}
-
 interface QdrantFilter {
   must?: FilterCondition[];
   must_not?: FilterCondition[];
@@ -50,18 +26,6 @@ interface SearchHit {
   score: number;
   payload?: Record<string, unknown>;
   vector?: unknown;
-}
-
-interface ScrollResult {
-  points: Array<{
-    id: string | number;
-    payload: Record<string, unknown>;
-  }>;
-  next_page_offset?: string | number | null;
-}
-
-interface CountResult {
-  count: number;
 }
 
 // Search options interfaces

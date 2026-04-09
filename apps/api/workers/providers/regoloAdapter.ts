@@ -176,6 +176,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
         ? result.toolCalls.map((tc, index) => ({
             id: tc.toolCallId || `regolo_tool_${index}`,
             name: tc.toolName,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             input: (tc as any).input as Record<string, unknown>,
           }))
         : undefined;

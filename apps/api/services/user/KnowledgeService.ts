@@ -1,5 +1,8 @@
-import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { getQdrantInstance } from '../../database/services/QdrantService.js';
+import {
+  type PostgresService,
+  getPostgresInstance,
+} from '../../database/services/PostgresService.js';
+import { type QdrantService, getQdrantInstance } from '../../database/services/QdrantService.js';
 import { generateContentHash, generatePointId } from '../../utils/validation/index.js';
 import { smartChunkDocument } from '../document-services/index.js';
 import { mistralEmbeddingService } from '../mistral/index.js';
@@ -15,41 +18,6 @@ import type {
   ChunkingOptions,
   DocumentChunk,
 } from './types.js';
-
-interface PostgresService {
-  ensureInitialized(): Promise<void>;
-  query(sql: string, params?: any[], options?: any): Promise<any[]>;
-  queryOne(sql: string, params?: any[], options?: any): Promise<any | null>;
-  insert(table: string, data: any): Promise<any>;
-  update(table: string, data: any, where: any): Promise<{ data: any[] }>;
-}
-
-interface QdrantService {
-  init(): Promise<void>;
-  isAvailable(): boolean;
-  client: {
-    upsert(collection: string, data: { points: QdrantPoint[] }): Promise<any>;
-    delete(collection: string, data: { filter: any }): Promise<any>;
-    search(
-      collection: string,
-      data: {
-        vector: number[];
-        filter: any;
-        limit: number;
-        score_threshold: number;
-        with_payload: boolean;
-      }
-    ): Promise<any[]>;
-  };
-  collections: {
-    user_knowledge: string;
-  };
-}
-
-interface MistralEmbeddingService {
-  init(): Promise<void>;
-  generateEmbedding(text: string): Promise<number[]>;
-}
 
 /**
  * KnowledgeService - User knowledge operations with Postgres storage and Qdrant vectorization
@@ -71,16 +39,16 @@ class KnowledgeService {
 
   private async _init(): Promise<void> {
     try {
-      this.postgres = getPostgresInstance() as unknown as PostgresService;
+      this.postgres = getPostgresInstance();
       await this.postgres.ensureInitialized();
 
-      this.qdrant = getQdrantInstance() as unknown as QdrantService;
+      this.qdrant = getQdrantInstance();
       await this.qdrant.init();
 
-      await (mistralEmbeddingService as unknown as MistralEmbeddingService).init();
+      await mistralEmbeddingService.init();
 
       console.log('[KnowledgeService] Initialized successfully');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[KnowledgeService] Initialization failed:', error);
       throw error;
     }
@@ -111,7 +79,9 @@ class KnowledgeService {
         LIMIT 3
       `;
 
-      const results = await this.postgres!.query(query, [userId], { table: 'user_knowledge' });
+      const results = await this.postgres!.query<UserKnowledgeEntry>(query, [userId], {
+        table: 'user_knowledge',
+      });
 
       return results.map((row) => ({
         id: row.id,
@@ -125,9 +95,11 @@ class KnowledgeService {
         embedding_hash: row.embedding_hash,
         vector_indexed_at: row.vector_indexed_at,
       }));
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[KnowledgeService] Failed to get user knowledge:', error);
-      throw new Error(`Failed to retrieve knowledge: ${error.message}`);
+      throw new Error(
+        `Failed to retrieve knowledge: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -165,9 +137,9 @@ class KnowledgeService {
           throw new Error('Knowledge entry not found or access denied');
         }
 
-        savedEntry = updateResult.data[0];
+        savedEntry = updateResult.data[0] as unknown as UserKnowledgeEntry;
       } else {
-        savedEntry = await this.postgres!.insert('user_knowledge', {
+        savedEntry = (await this.postgres!.insert('user_knowledge', {
           user_id: userId,
           title: title?.trim() || 'Unbenannter Eintrag',
           content: content?.trim() || '',
@@ -175,7 +147,7 @@ class KnowledgeService {
           tags,
           embedding_hash: contentHash,
           is_active: true,
-        });
+        })) as unknown as UserKnowledgeEntry;
         isNew = true;
       }
 
@@ -186,9 +158,11 @@ class KnowledgeService {
       );
 
       return savedEntry;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[KnowledgeService] Failed to save knowledge:', error);
-      throw new Error(`Failed to save knowledge: ${error.message}`);
+      throw new Error(
+        `Failed to save knowledge: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -208,16 +182,19 @@ class KnowledgeService {
         throw new Error('Knowledge entry not found');
       }
 
-      if (entry.embedding_id && this.qdrant!.isAvailable()) {
+      if (entry.embedding_id && this.qdrant!.isAvailableSync()) {
         try {
-          await this.qdrant!.client.delete(this.qdrant!.collections.user_knowledge, {
+          await this.qdrant!.client!.delete(this.qdrant!.collections.user_knowledge, {
             filter: {
               must: [{ key: 'knowledge_id', match: { value: knowledgeId } }],
             },
           });
           console.log(`[KnowledgeService] Deleted vectors for knowledge ${knowledgeId}`);
-        } catch (qdrantError: any) {
-          console.warn('[KnowledgeService] Failed to delete vectors:', qdrantError.message);
+        } catch (qdrantError: unknown) {
+          console.warn(
+            '[KnowledgeService] Failed to delete vectors:',
+            qdrantError instanceof Error ? qdrantError.message : String(qdrantError)
+          );
         }
       }
 
@@ -230,9 +207,11 @@ class KnowledgeService {
       console.log(`[KnowledgeService] Deleted knowledge entry ${knowledgeId} for user ${userId}`);
 
       return { success: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[KnowledgeService] Failed to delete knowledge:', error);
-      throw new Error(`Failed to delete knowledge: ${error.message}`);
+      throw new Error(
+        `Failed to delete knowledge: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -240,7 +219,7 @@ class KnowledgeService {
    * Vectorize knowledge entry and store in Qdrant
    */
   private async vectorizeKnowledge(knowledgeEntry: UserKnowledgeEntry): Promise<string | null> {
-    if (!this.qdrant!.isAvailable()) {
+    if (!this.qdrant!.isAvailableSync()) {
       console.warn('[KnowledgeService] Qdrant not available, skipping vectorization');
       return null;
     }
@@ -248,10 +227,10 @@ class KnowledgeService {
     try {
       const { id: knowledgeId, user_id: userId, title, content, embedding_hash } = knowledgeEntry;
 
-      const existing = await this.postgres!.queryOne(
-        'SELECT embedding_id, embedding_hash FROM user_knowledge WHERE id = $1',
-        [knowledgeId]
-      );
+      const existing = await this.postgres!.queryOne<{
+        embedding_id: string | null;
+        embedding_hash: string | null;
+      }>('SELECT embedding_id, embedding_hash FROM user_knowledge WHERE id = $1', [knowledgeId]);
 
       if (existing?.embedding_id && existing.embedding_hash === embedding_hash) {
         console.log(
@@ -264,9 +243,7 @@ class KnowledgeService {
 
       let embeddings: EmbeddingChunk[];
       if (fullText.length < 1000) {
-        const embedding = await (
-          mistralEmbeddingService as unknown as MistralEmbeddingService
-        ).generateEmbedding(fullText);
+        const embedding = await mistralEmbeddingService.generateEmbedding(fullText);
         embeddings = [{ text: fullText, embedding, tokens: fullText.split(' ').length }];
       } else {
         const chunks = (await smartChunkDocument(fullText, {
@@ -277,9 +254,7 @@ class KnowledgeService {
 
         embeddings = [];
         for (const chunk of chunks) {
-          const embedding = await (
-            mistralEmbeddingService as unknown as MistralEmbeddingService
-          ).generateEmbedding(chunk.text);
+          const embedding = await mistralEmbeddingService.generateEmbedding(chunk.text);
           embeddings.push({ text: chunk.text, embedding, tokens: chunk.tokens });
         }
       }
@@ -301,7 +276,7 @@ class KnowledgeService {
         })
       );
 
-      await this.qdrant!.client.upsert(this.qdrant!.collections.user_knowledge, {
+      await this.qdrant!.client!.upsert(this.qdrant!.collections.user_knowledge, {
         points: points,
       });
 
@@ -321,7 +296,7 @@ class KnowledgeService {
       );
 
       return embeddingId;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[KnowledgeService] Failed to vectorize knowledge:', error);
       return null;
     }
@@ -338,12 +313,10 @@ class KnowledgeService {
     await this.ensureInitialized();
     const { limit = 5, threshold = 0.3 } = options;
 
-    if (this.qdrant!.isAvailable()) {
+    if (this.qdrant!.isAvailableSync()) {
       try {
-        const queryEmbedding = await (
-          mistralEmbeddingService as unknown as MistralEmbeddingService
-        ).generateEmbedding(query);
-        const searchResult = await this.qdrant!.client.search(
+        const queryEmbedding = await mistralEmbeddingService.generateEmbedding(query);
+        const searchResult = await this.qdrant!.client!.search(
           this.qdrant!.collections.user_knowledge,
           {
             vector: queryEmbedding,
@@ -356,30 +329,40 @@ class KnowledgeService {
 
         const seen = new Set();
         const results = searchResult
-          .filter(
-            (hit: any) => !seen.has(hit.payload.knowledge_id) && seen.add(hit.payload.knowledge_id)
-          )
+          .filter((hit) => {
+            const p = hit.payload as Record<string, unknown> | null;
+            return p && !seen.has(p.knowledge_id) && seen.add(p.knowledge_id);
+          })
           .slice(0, limit)
-          .map((hit: any) => ({
-            knowledge_id: hit.payload.knowledge_id,
-            title: hit.payload.title,
-            content: hit.payload.content,
-            similarity_score: hit.score,
-            knowledge_type: hit.payload.knowledge_type,
-          }));
+          .map((hit) => {
+            const p = hit.payload as Record<string, unknown>;
+            return {
+              knowledge_id: p.knowledge_id as string,
+              title: p.title as string,
+              content: p.content as string,
+              similarity_score: hit.score,
+              knowledge_type: p.knowledge_type as string,
+            };
+          });
 
         return { success: true, results, total: results.length, search_type: 'vector' };
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.warn(
           '[KnowledgeService] Vector search failed, falling back to text search:',
-          error.message
+          error instanceof Error ? error.message : String(error)
         );
       }
     }
 
     try {
       const searchPattern = `%${query}%`;
-      const results = await this.postgres!.query(
+      const results = await this.postgres!.query<{
+        id: string;
+        title: string;
+        content: string;
+        knowledge_type: string;
+        rank: number;
+      }>(
         `
         SELECT id, title, content, knowledge_type,
                ts_rank(to_tsvector('english', title || ' ' || content), plainto_tsquery('english', $2)) as rank
@@ -402,9 +385,9 @@ class KnowledgeService {
         total: results.length,
         search_type: 'text',
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[KnowledgeService] Text search failed:', error);
-      throw new Error(`Search failed: ${error.message}`);
+      throw new Error(`Search failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

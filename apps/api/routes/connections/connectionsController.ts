@@ -24,7 +24,7 @@ router.get('/status', async (req: AuthRequest, res: Response) => {
 
     const providers = await ConnectionService.listConnections(userId);
     res.json({ providers });
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.error('Failed to get connection status', error);
     res.status(500).json({ error: 'Status konnte nicht abgerufen werden' });
   }
@@ -37,7 +37,7 @@ router.post('/session-token', async (req: AuthRequest, res: Response) => {
 
     const token = await ConnectionService.createSessionToken(userId);
     res.json({ token });
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.error('Failed to create session token', error);
     res.status(500).json({ error: 'Session-Token konnte nicht erstellt werden' });
   }
@@ -56,88 +56,113 @@ router.delete('/:providerKey', async (req: AuthRequest<{ providerKey: string }>,
     await ConnectionService.deleteConnection(userId, providerKey);
     log.info(`User ${userId} disconnected ${providerKey}`);
     res.json({ success: true, message: `${NANGO_PROVIDERS[providerKey].label} getrennt` });
-  } catch (error: any) {
+  } catch (error: unknown) {
     log.error('Failed to delete connection', error);
     res.status(500).json({ error: 'Verbindung konnte nicht getrennt werden' });
   }
 });
 
-router.get('/:providerKey/files', async (req: AuthRequest<{ providerKey: string }>, res: Response) => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
+router.get(
+  '/:providerKey/files',
+  async (req: AuthRequest<{ providerKey: string }>, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
 
-    const providerKey = getParam(req.params, 'providerKey');
-    if (!isValidProvider(providerKey)) {
-      return res.status(400).json({ error: `Unbekannter Provider: ${providerKey}` });
-    }
+      const providerKey = getParam(req.params, 'providerKey');
+      if (!isValidProvider(providerKey)) {
+        return res.status(400).json({ error: `Unbekannter Provider: ${providerKey}` });
+      }
 
-    const connection = await ConnectionService.getConnection(userId, providerKey);
-    const folderId = typeof req.query.folderId === 'string' ? req.query.folderId : undefined;
+      const connection = await ConnectionService.getConnection(userId, providerKey);
+      const folderId = typeof req.query.folderId === 'string' ? req.query.folderId : undefined;
 
-    switch (providerKey) {
-      case 'google': {
-        const result = await googleDriveClient.listFiles(connection.accessToken, folderId);
-        return res.json(result);
+      switch (providerKey) {
+        case 'google': {
+          const result = await googleDriveClient.listFiles(connection.accessToken, folderId);
+          return res.json(result);
+        }
+        case 'microsoft': {
+          const result = await microsoftGraphClient.listDriveItems(
+            connection.accessToken,
+            folderId
+          );
+          return res.json(result);
+        }
+        case 'jira': {
+          const sites = await atlassianClient.getAccessibleResources(connection.accessToken);
+          if (sites.length === 0) return res.json({ projects: [] });
+          const projects = await atlassianClient.listJiraProjects(
+            connection.accessToken,
+            sites[0].id
+          );
+          return res.json({ projects, cloudId: sites[0].id });
+        }
+        case 'confluence': {
+          const sites = await atlassianClient.getAccessibleResources(connection.accessToken);
+          if (sites.length === 0) return res.json({ spaces: [] });
+          const spaces = await atlassianClient.listConfluenceSpaces(
+            connection.accessToken,
+            sites[0].id
+          );
+          return res.json({ spaces, cloudId: sites[0].id });
+        }
+        default:
+          return res
+            .status(400)
+            .json({ error: `Dateizugriff für ${providerKey} nicht unterstützt` });
       }
-      case 'microsoft': {
-        const result = await microsoftGraphClient.listDriveItems(connection.accessToken, folderId);
-        return res.json(result);
+    } catch (error: unknown) {
+      log.error('Failed to list files', error);
+      if (
+        error instanceof Error &&
+        'response' in error &&
+        (error as { response?: { status?: number } }).response?.status === 401
+      ) {
+        return res.status(401).json({ error: 'Token abgelaufen — bitte erneut verbinden' });
       }
-      case 'jira': {
-        const sites = await atlassianClient.getAccessibleResources(connection.accessToken);
-        if (sites.length === 0) return res.json({ projects: [] });
-        const projects = await atlassianClient.listJiraProjects(connection.accessToken, sites[0].id);
-        return res.json({ projects, cloudId: sites[0].id });
-      }
-      case 'confluence': {
-        const sites = await atlassianClient.getAccessibleResources(connection.accessToken);
-        if (sites.length === 0) return res.json({ spaces: [] });
-        const spaces = await atlassianClient.listConfluenceSpaces(connection.accessToken, sites[0].id);
-        return res.json({ spaces, cloudId: sites[0].id });
-      }
-      default:
-        return res.status(400).json({ error: `Dateizugriff für ${providerKey} nicht unterstützt` });
+      res.status(500).json({ error: 'Dateien konnten nicht geladen werden' });
     }
-  } catch (error: any) {
-    log.error('Failed to list files', error);
-    if (error.response?.status === 401) {
-      return res.status(401).json({ error: 'Token abgelaufen — bitte erneut verbinden' });
-    }
-    res.status(500).json({ error: 'Dateien konnten nicht geladen werden' });
   }
-});
+);
 
-router.get('/:providerKey/files/:fileId', async (req: AuthRequest<{ providerKey: string; fileId: string }>, res: Response) => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
+router.get(
+  '/:providerKey/files/:fileId',
+  async (req: AuthRequest<{ providerKey: string; fileId: string }>, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
 
-    const providerKey = getParam(req.params, 'providerKey');
-    const fileId = getParam(req.params, 'fileId');
+      const providerKey = getParam(req.params, 'providerKey');
+      const fileId = getParam(req.params, 'fileId');
 
-    if (!isValidProvider(providerKey)) {
-      return res.status(400).json({ error: `Unbekannter Provider: ${providerKey}` });
-    }
-
-    const connection = await ConnectionService.getConnection(userId, providerKey);
-
-    switch (providerKey) {
-      case 'google': {
-        const file = await googleDriveClient.getFile(connection.accessToken, fileId);
-        return res.json(file);
+      if (!isValidProvider(providerKey)) {
+        return res.status(400).json({ error: `Unbekannter Provider: ${providerKey}` });
       }
-      case 'microsoft': {
-        const item = await microsoftGraphClient.getDriveItem(connection.accessToken, fileId);
-        return res.json(item);
+
+      const connection = await ConnectionService.getConnection(userId, providerKey);
+
+      switch (providerKey) {
+        case 'google': {
+          const file = await googleDriveClient.getFile(connection.accessToken, fileId);
+          return res.json(file);
+        }
+        case 'microsoft': {
+          const item = await microsoftGraphClient.getDriveItem(connection.accessToken, fileId);
+          return res.json(item);
+        }
+        case 'jira':
+        case 'confluence':
+        default:
+          return res
+            .status(400)
+            .json({ error: `Dateizugriff für ${providerKey} nicht unterstützt` });
       }
-      default:
-        return res.status(400).json({ error: `Dateizugriff für ${providerKey} nicht unterstützt` });
+    } catch (error: unknown) {
+      log.error('Failed to get file', error);
+      res.status(500).json({ error: 'Datei konnte nicht geladen werden' });
     }
-  } catch (error: any) {
-    log.error('Failed to get file', error);
-    res.status(500).json({ error: 'Datei konnte nicht geladen werden' });
   }
-});
+);
 
 export default router;

@@ -21,7 +21,10 @@ export function generateCacheKey(documentIds: string[], agent: AgentType, messag
 /**
  * Get cached knowledge from Redis
  */
-export async function getCachedKnowledge(redis: any, cacheKey: string): Promise<string | null> {
+export async function getCachedKnowledge(
+  redis: { get: (key: string) => Promise<string | null> },
+  cacheKey: string
+): Promise<string | null> {
   try {
     const cached = await redis.get(cacheKey);
     if (cached) {
@@ -38,7 +41,7 @@ export async function getCachedKnowledge(redis: any, cacheKey: string): Promise<
  * Cache knowledge in Redis with TTL
  */
 export async function cacheKnowledge(
-  redis: any,
+  redis: { setEx: (key: string, ttl: number, value: string) => Promise<void> },
   cacheKey: string,
   knowledge: string,
   ttlSeconds: number = 3600

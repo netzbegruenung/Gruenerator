@@ -95,7 +95,10 @@ async function extractPdfText(pdfBuffer: ArrayBuffer): Promise<string> {
   for (let pageNum = 1; pageNum <= numPages; pageNum++) {
     const page = await pdfDoc.getPage(pageNum);
     const textContent = await page.getTextContent();
-    const pageText = textContent.items.map((item: any) => item.str).join(' ');
+    const pageText = textContent.items
+      .filter((item) => 'str' in item)
+      .map((item) => (item as { str: string }).str)
+      .join(' ');
     pageTexts.push(pageText);
   }
 
@@ -205,7 +208,9 @@ async function ingestPdf(
 
   // Embeddings
   console.log(`   Generating embeddings...`);
-  const chunkTexts = chunks.map((c: any) => c.text || c.chunk_text);
+  const chunkTexts = chunks.map(
+    (c: { text?: string; chunk_text?: string }) => c.text || c.chunk_text || ''
+  );
   const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
 
   // Build points
@@ -213,7 +218,7 @@ async function ingestPdf(
   const sourceId =
     pdf.contentType === 'wahlprogramm' ? 'thueringen-lv-wahlprogramme' : 'thueringen-lv';
 
-  const points = chunks.map((chunk: any, idx: number) => ({
+  const points = chunks.map((chunk: { text?: string; chunk_text?: string }, idx: number) => ({
     id: generatePointId('th_pdf', pdf.url, idx),
     vector: embeddings[idx],
     payload: {
@@ -300,11 +305,7 @@ async function runPdfPhase(
   console.log(`  Success: ${success}, Skipped: ${skipped}, Failed: ${failed}`);
 }
 
-async function runWebPhase(
-  dryRun: boolean,
-  maxPages?: number,
-  sourceFilter?: string
-) {
+async function runWebPhase(dryRun: boolean, maxPages?: number, sourceFilter?: string) {
   console.log(`\n${'='.repeat(60)}`);
   console.log(`Phase: Web Scraping`);
   console.log(`${'='.repeat(60)}`);
@@ -316,9 +317,7 @@ async function runWebPhase(
 
   await landesverbandScraperService.init();
 
-  const sources = sourceFilter
-    ? [sourceFilter]
-    : ['thueringen-lv', 'thueringen-fraktion'];
+  const sources = sourceFilter ? [sourceFilter] : ['thueringen-lv', 'thueringen-fraktion'];
 
   for (const sourceId of sources) {
     console.log(`\nScraping source: ${sourceId}`);
@@ -364,7 +363,13 @@ async function main() {
 
   // Run phases
   if (args.phase === 'wahlprogramme' || args.phase === 'all') {
-    await runPdfPhase('Wahlprogramme', THUERINGEN_WAHLPROGRAMME, useDocling, args.dryRun, args.limit);
+    await runPdfPhase(
+      'Wahlprogramme',
+      THUERINGEN_WAHLPROGRAMME,
+      useDocling,
+      args.dryRun,
+      args.limit
+    );
   }
 
   if (args.phase === 'beschluesse' || args.phase === 'all') {

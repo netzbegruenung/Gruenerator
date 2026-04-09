@@ -428,7 +428,7 @@ function ensureSharepicVariant(variant: string): ImagineVariant {
   return mapping[variant] || 'light-top';
 }
 
-function buildEditPrompt(action: string, variant: string): string {
+function buildEditPrompt(action: string, _variant: string): string {
   const lowerAction = action.toLowerCase();
 
   if (lowerAction.includes('begrün') || lowerAction.includes('grün')) {

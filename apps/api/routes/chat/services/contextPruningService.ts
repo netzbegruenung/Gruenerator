@@ -49,7 +49,7 @@ export function pruneMessages(validMessages: ModelMessage[]): ModelMessage[] {
   );
 
   const keepCount = prunedMessages.filter((m) => m.role !== 'system').length;
-  const conversationMessages = validMessages.filter((m: any) => m.role !== 'system');
+  const conversationMessages = validMessages.filter((m: { role: string }) => m.role !== 'system');
   const prunedValidMessages = conversationMessages.slice(-keepCount);
 
   if (prunedValidMessages.length < conversationMessages.length) {
@@ -67,7 +67,7 @@ export function pruneMessages(validMessages: ModelMessage[]): ModelMessage[] {
  */
 export async function applyCompaction(
   threadId: string,
-  prunedValidMessages: any[],
+  prunedValidMessages: Array<{ role: string; content: string | unknown[] }>,
   systemMessage: string,
   contextWindowTokens?: number
 ): Promise<string> {
@@ -75,7 +75,7 @@ export async function applyCompaction(
     const messageCount = await getMessageCount(threadId);
     const compactionState = await getCompactionState(threadId);
 
-    const messagesForEstimate = prunedValidMessages.map(toTokenCounterMessage);
+    const messagesForEstimate = (prunedValidMessages as ModelMessage[]).map(toTokenCounterMessage);
     const estimatedTokens = getTokenStats(messagesForEstimate).totalTokens;
 
     const now = Date.now();
@@ -103,7 +103,9 @@ export async function applyCompaction(
     }
 
     if (compactionState.summary) {
-      const messagesForTokenCount = prunedValidMessages.map(toTokenCounterMessage);
+      const messagesForTokenCount = (prunedValidMessages as ModelMessage[]).map(
+        toTokenCounterMessage
+      );
       const compacted = prepareMessagesWithCompaction(
         messagesForTokenCount,
         compactionState,

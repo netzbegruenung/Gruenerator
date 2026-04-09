@@ -24,7 +24,7 @@ interface MCPRequest {
   method: 'tools/call';
   params: {
     name: string;
-    arguments: Record<string, any>;
+    arguments: Record<string, unknown>;
   };
 }
 
@@ -55,7 +55,10 @@ class BundestagMCPClient {
     this.sessionId = null;
   }
 
-  private async _callTool(toolName: string, args: Record<string, any> = {}): Promise<SearchResult> {
+  private async _callTool(
+    toolName: string,
+    args: Record<string, unknown> = {}
+  ): Promise<SearchResult> {
     const url = `${this.baseUrl}/mcp`;
 
     const body: MCPRequest = {

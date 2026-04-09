@@ -21,7 +21,7 @@ export interface DocumentMetadata {
   vectorCount?: number;
   fileSize?: number;
   status?: string;
-  additionalMetadata?: Record<string, any> | null;
+  additionalMetadata?: Record<string, unknown> | null;
 }
 
 /**
@@ -39,10 +39,11 @@ export interface DocumentRecord {
   vector_count: number;
   file_size: number;
   status: string;
-  metadata?: Record<string, any> | null;
+  metadata?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
   last_synced_at?: string | null;
+  [key: string]: unknown;
 }
 
 /**
@@ -54,7 +55,7 @@ export interface DocumentUpdateData {
   vectorCount?: number;
   wolkeEtag?: string;
   lastSyncedAt?: string;
-  additionalMetadata?: Record<string, any>;
+  additionalMetadata?: Record<string, unknown>;
 }
 
 /**

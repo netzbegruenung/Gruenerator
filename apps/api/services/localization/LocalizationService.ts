@@ -68,15 +68,15 @@ export class LocalizationService {
     }
 
     // Recursive localization helper
-    const localizeValue = (value: any): any => {
+    const localizeValue = (value: unknown): unknown => {
       if (typeof value === 'string') {
         return this.localizePlaceholders(value, locale);
       } else if (Array.isArray(value)) {
         return value.map(localizeValue);
       } else if (value && typeof value === 'object') {
-        const localizedObj: any = {};
-        Object.keys(value).forEach((key) => {
-          localizedObj[key] = localizeValue(value[key]);
+        const localizedObj: Record<string, unknown> = {};
+        Object.keys(value as Record<string, unknown>).forEach((key) => {
+          localizedObj[key] = localizeValue((value as Record<string, unknown>)[key]);
         });
         return localizedObj;
       }
@@ -84,12 +84,12 @@ export class LocalizationService {
     };
 
     // Localize all fields
-    const localized: any = { ...promptObj };
+    const localized = { ...promptObj } as Record<string, unknown>;
     Object.keys(localized).forEach((key) => {
       localized[key] = localizeValue(localized[key]);
     });
 
-    return localized;
+    return localized as T;
   }
 
   /**

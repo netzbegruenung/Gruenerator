@@ -1,37 +1,41 @@
 /**
  * Rerank Node
  *
- * Uses Regolo's dedicated Rerank API (Qwen3-Reranker-4B cross-encoder)
+ * Uses the shared rerankPipeline (Regolo cross-encoder + MMR diversity)
  * to rerank search results by semantic relevance. Sits between the search
  * and respond nodes in the graph pipeline.
  *
- * After cross-encoder scoring, applies MMR diversity filtering to reduce
- * redundancy in the final result set.
+ * Adds source-type tags so the cross-encoder can leverage provenance info.
  */
 
-import { applyMMR } from '../../../../services/search/DiversityReranker.js';
-import { regoloRerankService } from '../../../../services/search/RegoloRerankService.js';
+import { vectorConfig } from '../../../../config/vectorConfig.js';
+import {
+  DEFAULT_RELEVANCE,
+  rerankPipeline,
+  type RerankableItem,
+} from '../../../../services/search/rerankPipeline.js';
 import { createLogger } from '../../../../utils/logger.js';
-
-import type { ChatGraphState, SearchResult } from '../types.js';
+import { SOURCE_PREFIX, type ChatGraphState } from '../types.js';
 
 const log = createLogger('ChatGraph:Rerank');
 
-const RERANK_INPUT_LIMIT = 12;
-const RERANK_OUTPUT_LIMIT = 8;
+function getSourceTag(source: string): string {
+  if (source.startsWith(SOURCE_PREFIX.GRUENERATOR)) return 'Parteidokument';
+  if (source.startsWith(SOURCE_PREFIX.DOCUMENT)) return 'Nutzerdokument';
+  if (source === SOURCE_PREFIX.WEB) return 'Web';
+  if (source === SOURCE_PREFIX.EXAMPLES) return 'Beispiel';
+  if (source === SOURCE_PREFIX.RESEARCH) return 'Recherche';
+  return 'Quelle';
+}
 
-/**
- * Rerank search results using Regolo's cross-encoder reranker.
- * Applies MMR diversity filtering as a second pass.
- */
 export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
   const { searchResults, searchQuery, hasTemporal, researchBrief } = state;
+  const rerankCfg = vectorConfig.get('rerank');
 
-  // Notebook-scoped searches get higher limits for deeper recall
   const isNotebookScoped = (state.notebookCollectionIds?.length ?? 0) > 0;
-  const inputLimit = isNotebookScoped ? 20 : RERANK_INPUT_LIMIT;
-  const outputLimit = isNotebookScoped ? 12 : RERANK_OUTPUT_LIMIT;
+  const inputLimit = isNotebookScoped ? 20 : rerankCfg.inputLimit;
+  const outputLimit = isNotebookScoped ? 12 : rerankCfg.outputLimit;
 
   if (searchResults.length <= 2) {
     log.info(`[Rerank] Skipping — only ${searchResults.length} results`);
@@ -44,54 +48,47 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
     `[Rerank] Reranking ${candidates.length} results for query: "${searchQuery?.slice(0, 50)}..."`
   );
 
-  try {
-    const documents = candidates.map((r) => `${r.title}\n${r.content.slice(0, 300)}`);
+  const baseInstruct = 'Given a search query, retrieve relevant passages that answer the query.';
+  const sourceHint = ' Prefer official party documents and verified sources over web snippets.';
+  const temporalHint = hasTemporal ? ' Prefer recent sources.' : '';
+  const instruct = `${baseInstruct}${sourceHint}${temporalHint}`;
 
-    const instruct = hasTemporal
-      ? 'Given a search query, retrieve relevant and current passages that answer the query. Prefer recent sources.'
-      : undefined;
+  const queryStr = researchBrief ? `${searchQuery}\n${researchBrief}` : searchQuery || '';
 
-    const queryStr = researchBrief ? `${searchQuery}\n${researchBrief}` : searchQuery || '';
+  const items: RerankableItem[] = candidates.map((r) => ({
+    title: r.title,
+    content: r.content.slice(0, 300),
+    source: r.source,
+    relevance: r.relevance,
+  }));
 
-    const rerankResults = await regoloRerankService.rerank({
-      query: queryStr,
-      documents,
-      topN: inputLimit,
-      instruct,
-    });
+  const { rankedIndices, scores, rerankTimeMs } = await rerankPipeline({
+    query: queryStr,
+    items,
+    inputLimit,
+    outputLimit,
+    instruct,
+    sourceTagFn: (item) => getSourceTag(item.source || ''),
+  });
 
-    const rerankTimeMs = Date.now() - startTime;
+  const reranked = rankedIndices.flatMap((i) => {
+    const candidate = candidates[i];
+    if (!candidate) return [];
+    return [
+      {
+        ...candidate,
+        source: candidate.source ?? '',
+        relevance: scores.get(i) ?? candidate.relevance ?? DEFAULT_RELEVANCE,
+      },
+    ];
+  });
 
-    // Map scores back onto SearchResult objects
-    const scoreMap = new Map<number, number>();
-    for (const r of rerankResults) {
-      scoreMap.set(r.originalIndex, r.relevanceScore);
-    }
+  log.info(
+    `[Rerank] Complete: ${candidates.length} → ${reranked.length} results (diversity applied) in ${rerankTimeMs}ms`
+  );
 
-    const scoredResults: SearchResult[] = candidates.map((r, i) => ({
-      ...r,
-      relevance: scoreMap.get(i) ?? r.relevance ?? 0.5,
-    }));
-
-    scoredResults.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
-
-    // Filter out low-relevance results
-    const filtered = scoredResults.filter((r) => (r.relevance || 0) > 0.2);
-
-    // Apply MMR diversity reranking as second pass
-    const diverse = filtered.length > 3 ? applyMMR(filtered, 0.7, 2) : filtered;
-    const reranked = diverse.slice(0, outputLimit);
-
-    log.info(
-      `[Rerank] Complete: ${candidates.length} → ${reranked.length} results (diversity applied) in ${rerankTimeMs}ms`
-    );
-
-    return {
-      searchResults: reranked,
-      rerankTimeMs,
-    };
-  } catch (error: any) {
-    log.error('[Rerank] Error:', error.message);
-    return { rerankTimeMs: Date.now() - startTime };
-  }
+  return {
+    searchResults: reranked,
+    rerankTimeMs,
+  };
 }

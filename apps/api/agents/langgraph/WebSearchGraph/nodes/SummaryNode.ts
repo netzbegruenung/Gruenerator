@@ -6,7 +6,8 @@
 import { validateAndInjectCitations } from '../../../../services/search/index.js';
 import { extractKeyParagraphs } from '../utilities/contentExtractor.js';
 
-import type { WebSearchState, Citation } from '../types.js';
+import type { ReferencesMap } from '../../../../services/search/types.js';
+import type { WebSearchState } from '../types.js';
 
 /**
  * Intelligent Summary Node: Generate AI summary with citations
@@ -39,7 +40,14 @@ export async function summaryNode(state: WebSearchState): Promise<Partial<WebSea
     const snippetResults = resultsToUse.filter((r) => !r.crawled || !r.fullContent);
 
     // Build hierarchical references - prioritize full content
-    const references: any[] = [];
+    const references: Array<{
+      id: number;
+      title: string;
+      url?: string;
+      content: string;
+      type: string;
+      source: string;
+    }> = [];
     let refIndex = 1;
 
     // Primary sources (full content) - extract key paragraphs
@@ -128,7 +136,7 @@ Crawl-Statistik: ${state.crawlMetadata?.crawledUrls || 0} erfolgreich gecrawlt`;
     }
 
     // Build references map for citation validation
-    const referencesMap: Record<string, any> = {};
+    const referencesMap: ReferencesMap = {};
     references.forEach((ref) => {
       referencesMap[String(ref.id)] = {
         title: ref.title,
@@ -136,17 +144,19 @@ Crawl-Statistik: ${state.crawlMetadata?.crawledUrls || 0} erfolgreich gecrawlt`;
         description: null,
         date: new Date().toISOString(),
         source: ref.type === 'primary' ? 'full_content' : 'web_snippet',
-        url: ref.source,
-        source_type: 'web',
+        document_id: String(ref.id),
+        source_url: ref.source,
+        filename: null,
         similarity_score: 1.0,
         chunk_index: 0,
+        page_number: null,
       };
     });
 
     // Process the AI response for citations
     const { cleanDraft, citations, sources, errors } = validateAndInjectCitations(
-      result.content,
-      referencesMap
+      result.content || '',
+      referencesMap as ReferencesMap
     );
 
     // Log citation validation errors if any

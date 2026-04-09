@@ -134,7 +134,7 @@ export interface MediaWikiPage {
   /** Page title */
   title: string;
   /** Page content */
-  revisions?: Array<{ slots: { main: { '*': string } } }>;
+  revisions?: Array<{ slots?: { main?: { '*'?: string } }; timestamp?: string; '*'?: string }>;
   /** Categories */
   categories?: Array<{ title: string }>;
   /** Page URL */

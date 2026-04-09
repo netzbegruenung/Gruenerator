@@ -8,8 +8,6 @@
  * - Retrieving statistics
  */
 
-import { v4 as uuidv4 } from 'uuid';
-
 import { chunkToNumericId } from '../../../database/services/QdrantService/utils.js';
 
 import type {
@@ -22,7 +20,6 @@ import type {
   UserVectorStats,
   QdrantPoint,
   QdrantFilter,
-  HybridOptions,
 } from './types.js';
 
 // Import QdrantOperations - this is a TypeScript class

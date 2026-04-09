@@ -22,7 +22,7 @@ export interface OffboardingUser {
   email?: string;
   username?: string;
   sherpa_id?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -32,7 +32,7 @@ export interface OffboardingUsersResponse {
   data: OffboardingUser[];
   meta?: {
     cursorNext?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 
@@ -71,7 +71,7 @@ export interface UserProfile {
   last_name?: string;
   avatar_url?: string;
   anonymized_at?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**

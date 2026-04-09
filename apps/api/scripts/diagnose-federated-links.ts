@@ -63,6 +63,7 @@ async function getAllKeycloakUsers(client: KeycloakApiClient): Promise<KeycloakU
 
   while (true) {
     await client.ensureAuth();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response = await (client as any).axiosClient.get('/users', {
       params: { first: offset, max: KEYCLOAK_USERS_PAGE_SIZE, briefRepresentation: false },
     });
@@ -87,12 +88,14 @@ async function deleteFederatedLink(
 ): Promise<boolean> {
   try {
     await client.ensureAuth();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (client as any).axiosClient.delete(`/users/${userId}/federated-identity/${provider}`);
     return true;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(
       `  Failed to delete link for ${userId}/${provider}:`,
-      error.response?.data || error.message
+      (error as { response?: { data?: unknown } }).response?.data ||
+        (error instanceof Error ? error.message : String(error))
     );
     return false;
   }
@@ -117,18 +120,19 @@ async function main() {
       process.exit(1);
     }
     console.log('Keycloak connection: OK\n');
-  } catch (err: any) {
-    console.error('Keycloak connection failed:', err.message);
+  } catch (err: unknown) {
+    console.error('Keycloak connection failed:', err instanceof Error ? err.message : String(err));
     process.exit(1);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let db: any;
   try {
     db = getPostgresInstance();
     await db.init();
     console.log('Database connection: OK\n');
-  } catch (err: any) {
-    console.error('Database connection failed:', err.message);
+  } catch (err: unknown) {
+    console.error('Database connection failed:', err instanceof Error ? err.message : String(err));
     console.log('Continuing without DB cross-reference.\n');
     db = null;
   }
@@ -294,8 +298,11 @@ async function main() {
           ]);
           console.log(`  Profile updated.\n`);
           fixed++;
-        } catch (err: any) {
-          console.error(`  Failed to update profile:`, err.message);
+        } catch (err: unknown) {
+          console.error(
+            `  Failed to update profile:`,
+            err instanceof Error ? err.message : String(err)
+          );
           failed++;
         }
       }

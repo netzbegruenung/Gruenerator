@@ -34,8 +34,11 @@ export function createScrapeUrlTool(_deps: ToolDependencies): DynamicStructuredT
           { maxUrls: 1, timeout: 8000 }
         );
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const crawled = results.find((r) => (r as any).crawled);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         if (crawled && (crawled as any).fullContent) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const content = (crawled as any).fullContent as string;
           const truncated =
             content.length > 4000 ? content.slice(0, 4000) + '\n\n[...gekürzt]' : content;
@@ -43,9 +46,10 @@ export function createScrapeUrlTool(_deps: ToolDependencies): DynamicStructuredT
         }
 
         return `URL konnte geladen werden, aber kein Textinhalt extrahiert: ${url}`;
-      } catch (error: any) {
-        log.error('[ScrapeUrl] Error:', error.message);
-        return `Fehler beim Laden der URL ${url}: ${error.message}`;
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        log.error('[ScrapeUrl] Error:', errorMessage);
+        return `Fehler beim Laden der URL ${url}: ${errorMessage}`;
       }
     },
   });

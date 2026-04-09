@@ -59,7 +59,7 @@ export default tseslint.config(
           fixStyle: 'inline-type-imports',
         },
       ],
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'error',
 
       // TODO: Re-enable as 'error' after fixing existing violations
       'import-x/order': [
@@ -79,6 +79,10 @@ export default tseslint.config(
       'prefer-const': 'error',
       'no-var': 'error',
       eqeqeq: ['error', 'always', { null: 'ignore' }],
+      '@typescript-eslint/switch-exhaustiveness-check': [
+        'error',
+        { allowDefaultCaseForExhaustiveSwitch: true },
+      ],
       // TODO: Re-enable as 'error' after fixing existing violations
       'no-case-declarations': 'warn',
     },

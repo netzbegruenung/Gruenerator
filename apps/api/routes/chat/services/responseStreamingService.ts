@@ -7,7 +7,7 @@
  * - Streaming text via SSE with error handling
  */
 
-import { streamText } from 'ai';
+import { streamText, type ModelMessage, type LanguageModel } from 'ai';
 
 import { createLogger } from '../../../utils/logger.js';
 import { getModel, getModelConfig, VISION_MODEL, isVisionCapable } from '../agents/providers.js';
@@ -16,7 +16,6 @@ import { sanitizeContentPartsForModel, stripEmptyAssistantMessages } from './mes
 import { PROGRESS_MESSAGES } from './sseHelpers.js';
 
 import type { SSEWriter } from './sseHelpers.js';
-import type { LanguageModel } from 'ai';
 
 const log = createLogger('ResponseStreaming');
 
@@ -67,9 +66,12 @@ export function resolveModel(
  * Build the final messages array for the AI model.
  * Prepends the system message and strips empty assistant messages.
  */
-export function buildMessagesForAI(systemMessage: string, contextMessages: any[]): any[] {
+export function buildMessagesForAI(
+  systemMessage: string,
+  contextMessages: Array<{ role: string; content: string | unknown[] }>
+): Array<{ role: string; content: string | unknown[] }> {
   const messages = [{ role: 'system', content: systemMessage }, ...contextMessages];
-  return sanitizeContentPartsForModel(stripEmptyAssistantMessages(messages));
+  return sanitizeContentPartsForModel(stripEmptyAssistantMessages(messages as ModelMessage[]));
 }
 
 /**
@@ -79,7 +81,7 @@ export function buildMessagesForAI(systemMessage: string, contextMessages: any[]
  */
 export async function streamAndAccumulate(params: {
   model: LanguageModel;
-  messages: any[];
+  messages: Array<{ role: string; content: string | unknown[] }>;
   maxTokens: number;
   temperature: number;
   sse: SSEWriter;
@@ -89,7 +91,7 @@ export async function streamAndAccumulate(params: {
 
   const result = streamText({
     model,
-    messages,
+    messages: messages as ModelMessage[],
     maxOutputTokens: maxTokens,
     temperature,
   });

@@ -135,7 +135,7 @@ router.get(
 router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   log.debug('[custom_prompt] Request received via promptProcessor');
   if (req.query.stream === 'true' || req.headers.accept === 'text/event-stream') {
-    return processGraphRequestStreaming('custom_prompt', req as any, res);
+    return processGraphRequestStreaming('custom_prompt', req as Request, res);
   }
   await processGraphRequest('custom_prompt', req, res);
 });

@@ -3,8 +3,11 @@
  * Uses Qdrant for vector storage and Mistral for embeddings
  */
 
-import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { getQdrantInstance } from '../../database/services/QdrantService.js';
+import {
+  type PostgresService,
+  getPostgresInstance,
+} from '../../database/services/PostgresService.js';
+import { type QdrantService, getQdrantInstance } from '../../database/services/QdrantService.js';
 import { createLogger } from '../../utils/logger.js';
 import { generateContentHash, generatePointId } from '../../utils/validation/index.js';
 import { mistralEmbeddingService } from '../mistral/index.js';
@@ -12,46 +15,6 @@ import { mistralEmbeddingService } from '../mistral/index.js';
 const log = createLogger('PromptVectorService');
 
 const COLLECTION_NAME = 'custom_prompts';
-
-interface PostgresService {
-  ensureInitialized(): Promise<void>;
-  query(sql: string, params?: unknown[], options?: { table: string }): Promise<any[]>;
-  queryOne(sql: string, params?: unknown[], options?: { table: string }): Promise<any | null>;
-  update(
-    table: string,
-    data: Record<string, unknown>,
-    where: Record<string, unknown>
-  ): Promise<{ data: any[] }>;
-}
-
-interface QdrantService {
-  init(): Promise<void>;
-  isAvailable(): boolean;
-  client: {
-    upsert(collection: string, data: { points: QdrantPoint[] }): Promise<unknown>;
-    delete(collection: string, data: { filter: QdrantFilter }): Promise<unknown>;
-    search(
-      collection: string,
-      data: {
-        vector: number[];
-        filter?: QdrantFilter;
-        limit: number;
-        score_threshold: number;
-        with_payload: boolean;
-      }
-    ): Promise<SearchHit[]>;
-  };
-}
-
-interface MistralService {
-  init(): Promise<void>;
-  generateEmbedding(text: string): Promise<number[]>;
-}
-
-interface QdrantFilter {
-  must?: FilterCondition[];
-  should?: FilterCondition[];
-}
 
 interface FilterCondition {
   key: string;
@@ -73,10 +36,11 @@ interface PromptPointPayload {
   description: string;
   is_public: boolean;
   created_at: string;
+  [key: string]: unknown;
 }
 
 interface SearchHit {
-  id: string;
+  id: string | number;
   score: number;
   payload: PromptPointPayload;
 }
@@ -117,6 +81,17 @@ export interface PromptSearchOptions {
   includeOwn?: boolean;
 }
 
+interface PromptRow {
+  id: string;
+  user_id: string;
+  name: string;
+  slug: string;
+  prompt: string;
+  description: string | null;
+  is_public: boolean;
+  created_at: string;
+}
+
 class PromptVectorService {
   private postgres: PostgresService | null = null;
   private qdrant: QdrantService | null = null;
@@ -131,13 +106,13 @@ class PromptVectorService {
 
   private async _init(): Promise<void> {
     try {
-      this.postgres = getPostgresInstance() as unknown as PostgresService;
+      this.postgres = getPostgresInstance();
       await this.postgres.ensureInitialized();
 
-      this.qdrant = getQdrantInstance() as unknown as QdrantService;
+      this.qdrant = getQdrantInstance();
       await this.qdrant.init();
 
-      await (mistralEmbeddingService as unknown as MistralService).init();
+      await mistralEmbeddingService.init();
 
       log.info('PromptVectorService initialized successfully');
     } catch (error: unknown) {
@@ -159,7 +134,7 @@ class PromptVectorService {
   async indexPrompt(prompt: CustomPromptData): Promise<string | null> {
     await this.ensureInitialized();
 
-    if (!this.qdrant!.isAvailable()) {
+    if (!this.qdrant!.isAvailableSync()) {
       log.warn('Qdrant not available, skipping prompt indexing');
       return null;
     }
@@ -178,20 +153,19 @@ class PromptVectorService {
       const contentToEmbed = `${name}\n\n${description || ''}\n\n${promptText}`;
       const contentHash = generateContentHash(contentToEmbed);
 
-      const existing = await this.postgres!.queryOne(
-        'SELECT embedding_id, embedding_hash FROM custom_prompts WHERE id = $1',
-        [promptId],
-        { table: 'custom_prompts' }
-      );
+      const existing = await this.postgres!.queryOne<{
+        embedding_id: string | null;
+        embedding_hash: string | null;
+      }>('SELECT embedding_id, embedding_hash FROM custom_prompts WHERE id = $1', [promptId], {
+        table: 'custom_prompts',
+      });
 
       if (existing?.embedding_id && existing.embedding_hash === contentHash) {
         log.debug(`Prompt ${promptId} already vectorized with current content`);
         return existing.embedding_id;
       }
 
-      const embedding = await (
-        mistralEmbeddingService as unknown as MistralService
-      ).generateEmbedding(contentToEmbed);
+      const embedding = await mistralEmbeddingService.generateEmbedding(contentToEmbed);
 
       const promptPreview =
         promptText.length > 200 ? promptText.substring(0, 200) + '...' : promptText;
@@ -211,7 +185,7 @@ class PromptVectorService {
         },
       };
 
-      await this.qdrant!.client.upsert(COLLECTION_NAME, { points: [point] });
+      await this.qdrant!.client!.upsert(COLLECTION_NAME, { points: [point] });
 
       const embeddingId = `prompt_${promptId}_${Date.now()}`;
       await this.postgres!.update(
@@ -239,12 +213,12 @@ class PromptVectorService {
   async deletePromptVector(promptId: string): Promise<boolean> {
     await this.ensureInitialized();
 
-    if (!this.qdrant!.isAvailable()) {
+    if (!this.qdrant!.isAvailableSync()) {
       return true;
     }
 
     try {
-      await this.qdrant!.client.delete(COLLECTION_NAME, {
+      await this.qdrant!.client!.delete(COLLECTION_NAME, {
         filter: {
           must: [{ key: 'prompt_id', match: { value: promptId } }],
         },
@@ -270,13 +244,11 @@ class PromptVectorService {
     await this.ensureInitialized();
     const { limit = 10, threshold = 0.3 } = options;
 
-    if (this.qdrant!.isAvailable()) {
+    if (this.qdrant!.isAvailableSync()) {
       try {
-        const queryEmbedding = await (
-          mistralEmbeddingService as unknown as MistralService
-        ).generateEmbedding(query);
+        const queryEmbedding = await mistralEmbeddingService.generateEmbedding(query);
 
-        const searchResult = await this.qdrant!.client.search(COLLECTION_NAME, {
+        const searchResult = await this.qdrant!.client!.search(COLLECTION_NAME, {
           vector: queryEmbedding,
           filter: {
             must: [{ key: 'user_id', match: { value: userId } }],
@@ -286,7 +258,8 @@ class PromptVectorService {
           with_payload: true,
         });
 
-        const results: PromptSearchResult[] = searchResult.map((hit: SearchHit) => ({
+        const hits = searchResult as unknown as SearchHit[];
+        const results: PromptSearchResult[] = hits.map((hit) => ({
           prompt_id: hit.payload.prompt_id,
           user_id: hit.payload.user_id,
           name: hit.payload.name,
@@ -318,13 +291,11 @@ class PromptVectorService {
     await this.ensureInitialized();
     const { limit = 10, threshold = 0.3 } = options;
 
-    if (this.qdrant!.isAvailable()) {
+    if (this.qdrant!.isAvailableSync()) {
       try {
-        const queryEmbedding = await (
-          mistralEmbeddingService as unknown as MistralService
-        ).generateEmbedding(query);
+        const queryEmbedding = await mistralEmbeddingService.generateEmbedding(query);
 
-        const searchResult = await this.qdrant!.client.search(COLLECTION_NAME, {
+        const searchResult = await this.qdrant!.client!.search(COLLECTION_NAME, {
           vector: queryEmbedding,
           filter: {
             must: [{ key: 'is_public', match: { value: true } }],
@@ -334,7 +305,8 @@ class PromptVectorService {
           with_payload: true,
         });
 
-        let results: PromptSearchResult[] = searchResult.map((hit: SearchHit) => ({
+        const hits = searchResult as unknown as SearchHit[];
+        let results: PromptSearchResult[] = hits.map((hit) => ({
           prompt_id: hit.payload.prompt_id,
           user_id: hit.payload.user_id,
           name: hit.payload.name,
@@ -388,7 +360,7 @@ class PromptVectorService {
 
       sql += ` ORDER BY created_at DESC LIMIT ${limit}`;
 
-      const rows = await this.postgres!.query(sql, params, { table: 'custom_prompts' });
+      const rows = await this.postgres!.query<PromptRow>(sql, params, { table: 'custom_prompts' });
 
       const results: PromptSearchResult[] = rows.map((row) => ({
         prompt_id: row.id,
@@ -456,7 +428,9 @@ class PromptVectorService {
         params.push(limit);
       }
 
-      const rows = await this.postgres!.query(sql, params, { table: 'custom_prompts' });
+      const rows = await this.postgres!.query<PromptRow & { rank: number }>(sql, params, {
+        table: 'custom_prompts',
+      });
 
       const results: PromptSearchResult[] = rows.map((row) => ({
         prompt_id: row.id,

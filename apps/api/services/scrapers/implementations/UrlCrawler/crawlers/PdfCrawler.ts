@@ -95,6 +95,7 @@ export class PdfCrawler {
         textPromises.push(
           pdfDocument.getPage(pageNum).then(async (page) => {
             const textContent = await page.getTextContent();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const pageText = textContent.items.map((item: any) => item.str).join(' ');
             return pageText;
           })

@@ -313,8 +313,8 @@ router.get('/filters', async (req: Request, res: Response): Promise<void> => {
     const response = { filters: mergedFilters };
     setCachedFilters(cacheKey, response);
     res.json(response);
-  } catch (error: any) {
-    log.error(`Research filters failed: ${error.message}`);
+  } catch (error: unknown) {
+    log.error(`Research filters failed: ${error instanceof Error ? error.message : String(error)}`);
     res.status(500).json({ error: 'Failed to get filters.' });
   }
 });
@@ -402,8 +402,10 @@ router.post('/search', async (req: Request, res: Response): Promise<void> => {
             published_at:
               ((doc as unknown as Record<string, unknown>).published_at as string) ?? null,
           }));
-        } catch (error: any) {
-          log.error(`Search error for ${collectionId}: ${error.message}`);
+        } catch (error: unknown) {
+          log.error(
+            `Search error for ${collectionId}: ${error instanceof Error ? error.message : String(error)}`
+          );
           return [];
         }
       }
@@ -465,8 +467,8 @@ router.post('/search', async (req: Request, res: Response): Promise<void> => {
         timeMs: Date.now() - startTime,
       },
     });
-  } catch (error: any) {
-    log.error(`Research search failed: ${error.message}`);
+  } catch (error: unknown) {
+    log.error(`Research search failed: ${error instanceof Error ? error.message : String(error)}`);
     res.status(500).json({ error: 'Search failed. Please try again.' });
   }
 });
@@ -593,8 +595,8 @@ router.post('/similar', async (req: Request, res: Response): Promise<void> => {
         timeMs: Date.now() - startTime,
       },
     });
-  } catch (error: any) {
-    log.error(`Research similar failed: ${error.message}`);
+  } catch (error: unknown) {
+    log.error(`Research similar failed: ${error instanceof Error ? error.message : String(error)}`);
     res.status(500).json({ error: 'Similar search failed. Please try again.' });
   }
 });

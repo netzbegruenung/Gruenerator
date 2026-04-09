@@ -63,8 +63,11 @@ export class GrueneApiClient {
         }
       );
       return response.data;
-    } catch (error: any) {
-      log.error('Failed to fetch users from Grüne API:', error.message);
+    } catch (error: unknown) {
+      log.error(
+        'Failed to fetch users from Grüne API:',
+        error instanceof Error ? error.message : String(error)
+      );
       throw error;
     }
   }
@@ -74,14 +77,18 @@ export class GrueneApiClient {
    * @param upserts - Array of user processing results
    * @returns API response
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async batchUpdateOffboardingUsers(upserts: BatchUpdateEntry[]): Promise<any> {
     try {
       const response = await this.client.post('/v1/offboarding/users/self/batch', {
         upsert: upserts,
       });
       return response.data;
-    } catch (error: any) {
-      log.error('Failed to report processed users to Grüne API:', error.message);
+    } catch (error: unknown) {
+      log.error(
+        'Failed to report processed users to Grüne API:',
+        error instanceof Error ? error.message : String(error)
+      );
       throw error;
     }
   }

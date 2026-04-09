@@ -22,7 +22,6 @@ import type {
   InitiateGeneratorResult,
   ContinueGeneratorParams,
   ContinueGeneratorResult,
-  AIWorkerPool,
   QuestionAnswers,
 } from '../../agents/langgraph/types/simpleInteractiveGenerator.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
@@ -38,7 +37,7 @@ const log = createLogger('interactiveGeneration');
 interface InteractiveRequest<P = ParamsDictionary> extends Request<P> {
   user?: AuthenticatedRequest['user'];
   _reqId?: string;
-  app: any;
+  app: Request['app'];
 }
 
 /**
@@ -336,6 +335,7 @@ router.get(
 
       // Include final result if completed
       if (session.conversationState === 'completed' && session.finalResult) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (sessionData as any).finalResult = session.finalResult;
       }
 

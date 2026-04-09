@@ -1,37 +1,38 @@
 import { Router, type Request, type Response } from 'express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { type CollaborativeDocumentRow } from '../../database/types.js';
 
 import { DOCS_SUBTYPES, GRANTED_BY_SHARE_LINK } from './constants.js';
 
-interface DocumentRow {
-  id: string;
-  created_by: string;
-  permissions: Record<string, { level?: string }> | null;
-  is_public: boolean;
-  share_permission: string;
-  share_mode: 'private' | 'authenticated' | 'public';
-  is_deleted: boolean;
-}
+type ShareDocumentRow = Pick<
+  CollaborativeDocumentRow,
+  'id' | 'created_by' | 'permissions' | 'is_public'
+> & {
+  share_permission?: string;
+  share_mode?: string;
+  is_deleted?: boolean;
+};
 
 const router = Router();
 const db = getPostgresInstance();
 
-function isOwner(doc: DocumentRow, userId: string): boolean {
-  return doc.created_by === userId || doc.permissions?.[userId]?.level === 'owner';
+function isOwner(doc: ShareDocumentRow, userId: string): boolean {
+  const perms = doc.permissions as Record<string, { level?: string }> | undefined;
+  return doc.created_by === userId || perms?.[userId]?.level === 'owner';
 }
 
 async function getOwnedDocument(
   id: string,
   userId: string,
   res: Response
-): Promise<DocumentRow | null> {
-  const result = (await db.query(
+): Promise<ShareDocumentRow | null> {
+  const result = await db.query<ShareDocumentRow>(
     `SELECT id, created_by, permissions, is_public, share_permission, share_mode, is_deleted
      FROM collaborative_documents
      WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false`,
     [id, DOCS_SUBTYPES]
-  )) as unknown as DocumentRow[];
+  );
 
   if (result.length === 0) {
     res.status(404).json({ error: 'Document not found' });
@@ -71,7 +72,7 @@ router.get('/:id/share', async (req: Request<{ id: string }>, res: Response) => 
       share_permission: doc.share_permission || 'editor',
       share_mode: doc.share_mode || 'private',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Docs] Error fetching share settings:', error);
     return res.status(500).json({ error: 'Failed to fetch share settings' });
   }
@@ -102,7 +103,7 @@ router.post('/:id/share/enable', async (req: Request<{ id: string }>, res: Respo
       share_permission: doc.share_permission || 'editor',
       share_mode: 'public' as const,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Docs] Error enabling sharing:', error);
     return res.status(500).json({ error: 'Failed to enable sharing' });
   }
@@ -140,7 +141,7 @@ router.post('/:id/share/disable', async (req: Request<{ id: string }>, res: Resp
       share_permission: doc.share_permission || 'editor',
       share_mode: 'private' as const,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Docs] Error disabling sharing:', error);
     return res.status(500).json({ error: 'Failed to disable sharing' });
   }
@@ -176,7 +177,7 @@ router.put('/:id/share/permission', async (req: Request<{ id: string }>, res: Re
       share_permission: permission,
       share_mode: doc.share_mode || 'private',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Docs] Error updating share permission:', error);
     return res.status(500).json({ error: 'Failed to update share permission' });
   }
@@ -233,7 +234,7 @@ router.put('/:id/share/mode', async (req: Request<{ id: string }>, res: Response
       share_permission: doc.share_permission || 'editor',
       share_mode: mode,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Docs] Error updating share mode:', error);
     return res.status(500).json({ error: 'Failed to update share mode' });
   }

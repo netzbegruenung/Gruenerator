@@ -96,14 +96,15 @@ async function sendBufferToDocling(
         method: 'docling-serve',
       },
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     const elapsed = Date.now() - startTime;
+    const errMsg = error instanceof Error ? error.message : String(error);
     console.error(`${logPrefix} FAILED after ${elapsed}ms:`, {
-      errorMessage: error?.message,
-      errorType: error?.constructor?.name,
+      errorMessage: errMsg,
+      errorType: error instanceof Error ? error.constructor.name : typeof error,
       fileName,
     });
-    throw new Error(`Docling extraction failed: ${error?.message}`);
+    throw new Error(`Docling extraction failed: ${errMsg}`);
   }
 }
 

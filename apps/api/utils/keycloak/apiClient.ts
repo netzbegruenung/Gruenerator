@@ -153,10 +153,11 @@ export class KeycloakApiClient {
             }
           );
           console.log('[KeycloakAPI] ✅ Client credentials flow successful');
-        } catch (clientError: any) {
+        } catch (clientError: unknown) {
           console.warn(
             '[KeycloakAPI] Client credentials flow failed:',
-            clientError.response?.data || clientError.message
+            (clientError as { response?: { status?: number; data?: unknown } }).response?.data ||
+              (clientError instanceof Error ? clientError.message : String(clientError))
           );
 
           // Fallback to username/password if available
@@ -211,12 +212,15 @@ export class KeycloakApiClient {
 
       console.log('[KeycloakAPI] ✅ Admin token obtained successfully');
       return this.accessToken;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(
         '[KeycloakAPI] ❌ Failed to get admin token:',
-        error.response?.data || error.message
+        (error as { response?: { status?: number; statusText?: string; data?: unknown } }).response
+          ?.data || (error instanceof Error ? error.message : String(error))
       );
-      throw new Error(`Failed to authenticate with Keycloak admin API: ${error.message}`);
+      throw new Error(
+        `Failed to authenticate with Keycloak admin API: ${error instanceof Error ? (error instanceof Error ? error.message : String(error)) : String(error)}`
+      );
     }
   }
 
@@ -255,12 +259,16 @@ export class KeycloakApiClient {
 
       console.log('[KeycloakAPI] User not found');
       return null;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(
         '[KeycloakAPI] Error finding user by email:',
-        error.response?.data || error.message
+        (error as { response?: { status?: number; statusText?: string; data?: unknown } }).response
+          ?.data || (error instanceof Error ? error.message : String(error))
       );
-      if (error.response && error.response.status === 404) {
+      const axiosErr = error as {
+        response?: { status?: number; statusText?: string; data?: unknown };
+      };
+      if (axiosErr.response?.status === 404) {
         return null;
       }
       throw error;
@@ -280,13 +288,17 @@ export class KeycloakApiClient {
 
       const response = await this.axiosClient.get<KeycloakUser>(`/users/${userId}`);
       return response.data;
-    } catch (error: any) {
-      if (error.response && error.response.status === 404) {
+    } catch (error: unknown) {
+      const axiosErr = error as {
+        response?: { status?: number; statusText?: string; data?: unknown };
+      };
+      if (axiosErr.response?.status === 404) {
         return null;
       }
       console.error(
         '[KeycloakAPI] Error getting user by ID:',
-        error.response?.data || error.message
+        (error as { response?: { status?: number; statusText?: string; data?: unknown } }).response
+          ?.data || (error instanceof Error ? error.message : String(error))
       );
       throw error;
     }
@@ -338,8 +350,12 @@ export class KeycloakApiClient {
       } else {
         throw new Error('User created but could not retrieve user ID');
       }
-    } catch (error: any) {
-      console.error('[KeycloakAPI] Error creating user:', error.response?.data || error.message);
+    } catch (error: unknown) {
+      console.error(
+        '[KeycloakAPI] Error creating user:',
+        (error as { response?: { status?: number; statusText?: string; data?: unknown } }).response
+          ?.data || (error instanceof Error ? error.message : String(error))
+      );
       throw error;
     }
   }
@@ -368,8 +384,12 @@ export class KeycloakApiClient {
 
       // Return updated user
       return await this.getUserById(userId);
-    } catch (error: any) {
-      console.error('[KeycloakAPI] Error updating user:', error.response?.data || error.message);
+    } catch (error: unknown) {
+      console.error(
+        '[KeycloakAPI] Error updating user:',
+        (error as { response?: { status?: number; statusText?: string; data?: unknown } }).response
+          ?.data || (error instanceof Error ? error.message : String(error))
+      );
       throw error;
     }
   }
@@ -399,8 +419,8 @@ export class KeycloakApiClient {
           );
           return true; // Consider it successful if user doesn't exist
         }
-      } catch (checkError: any) {
-        if (checkError.response?.status === 404) {
+      } catch (checkError: unknown) {
+        if ((checkError as { response?: { status?: number } }).response?.status === 404) {
           console.log(
             `[KeycloakAPI] User ${userId} not found in Keycloak (404) - considering deletion successful`
           );
@@ -408,7 +428,7 @@ export class KeycloakApiClient {
         }
         console.warn(
           `[KeycloakAPI] Error checking user existence before deletion:`,
-          checkError.message
+          checkError instanceof Error ? checkError.message : String(checkError)
         );
         // Continue with deletion attempt anyway
       }
@@ -421,21 +441,25 @@ export class KeycloakApiClient {
       );
       console.log(`[KeycloakAPI] User ${userId} deleted successfully from Keycloak`);
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const axiosErr = error as {
+        response?: { status?: number; statusText?: string; data?: unknown };
+        config?: { url?: string; method?: string };
+      };
       console.error(
         `[KeycloakAPI] ❌ Error deleting user ${userId}:`,
-        error.response?.data || error.message
+        axiosErr.response?.data || (error instanceof Error ? error.message : String(error))
       );
       console.error(`[KeycloakAPI] Error details:`, {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        url: error.config?.url,
-        method: error.config?.method,
+        status: axiosErr.response?.status,
+        statusText: axiosErr.response?.statusText,
+        data: axiosErr.response?.data,
+        url: axiosErr.config?.url,
+        method: axiosErr.config?.method,
       });
 
       // If user was already deleted (404), consider it successful
-      if (error.response?.status === 404) {
+      if (axiosErr.response?.status === 404) {
         console.log(
           `[KeycloakAPI] User ${userId} was already deleted (404) - considering successful`
         );
@@ -466,10 +490,11 @@ export class KeycloakApiClient {
 
       console.log('[KeycloakAPI] Password set successfully');
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(
         '[KeycloakAPI] Error setting user password:',
-        error.response?.data || error.message
+        (error as { response?: { status?: number; statusText?: string; data?: unknown } }).response
+          ?.data || (error instanceof Error ? error.message : String(error))
       );
       throw error;
     }
@@ -496,10 +521,11 @@ export class KeycloakApiClient {
 
       console.log('[KeycloakAPI] Password reset email sent successfully');
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(
         '[KeycloakAPI] Error sending password reset email:',
-        error.response?.data || error.message
+        (error as { response?: { status?: number; statusText?: string; data?: unknown } }).response
+          ?.data || (error instanceof Error ? error.message : String(error))
       );
       return false;
     }
@@ -532,10 +558,11 @@ export class KeycloakApiClient {
 
       console.log('[KeycloakAPI] ✅ Connection successful');
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(
         '[KeycloakAPI] ❌ Connection test failed:',
-        error.response?.data || error.message
+        (error as { response?: { status?: number; statusText?: string; data?: unknown } }).response
+          ?.data || (error instanceof Error ? error.message : String(error))
       );
       return false;
     }
@@ -554,10 +581,11 @@ export class KeycloakApiClient {
         `/users/${userId}/federated-identity`
       );
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(
         '[KeycloakAPI] Error getting federated identities:',
-        error.response?.data || error.message
+        (error as { response?: { status?: number; statusText?: string; data?: unknown } }).response
+          ?.data || (error instanceof Error ? error.message : String(error))
       );
       return [];
     }

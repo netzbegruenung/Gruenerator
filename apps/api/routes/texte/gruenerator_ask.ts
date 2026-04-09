@@ -1,6 +1,7 @@
 import express, { type Router, type Request, type Response } from 'express';
 
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
+import { type AuthenticatedRequest } from '../../middleware/types.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { createLogger } from '../../utils/logger.js';
 import {
@@ -19,6 +20,7 @@ import type {
 } from '../../types/routes.js';
 import type { AIWorkerPool } from '../../types/workers.js';
 import type { Citation, SourceInfo } from '../../utils/prompt/types.js';
+import type { Message } from '../../workers/types.js';
 
 const log = createLogger('claude_gruenerator_ask');
 const documentSearchService = new DocumentSearchService();
@@ -26,8 +28,7 @@ const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 const router: Router = express.Router();
 
 // Helper to get user profile from request
-const getUser = (req: Request): UserProfile | undefined =>
-  (req as any).user as UserProfile | undefined;
+const getUser = (req: Request): UserProfile | undefined => (req as AuthenticatedRequest).user;
 
 interface GrueneratorAskRequestBody {
   question: string;
@@ -44,6 +45,14 @@ interface QueryComplexity {
 interface SearchToolInput {
   query: string;
   search_mode?: string;
+}
+
+function parseSearchToolInput(input: Record<string, unknown>): SearchToolInput {
+  const query = typeof input.query === 'string' ? input.query : '';
+  return {
+    query,
+    ...(typeof input.search_mode === 'string' ? { search_mode: input.search_mode } : {}),
+  };
 }
 
 interface SearchToolResult {
@@ -135,7 +144,8 @@ Antwort-Struktur:
 
 ${MARKDOWN_FORMATTING_INSTRUCTIONS}`;
 
-  const messages: Array<{ role: 'user' | 'assistant' | 'system'; content: any }> = [
+  // Content varies: string for user messages, ContentBlock[] for assistant tool-use, ToolResult[] for tool results
+  const messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string | unknown[] }> = [
     {
       role: 'user',
       content: question,
@@ -153,7 +163,7 @@ ${MARKDOWN_FORMATTING_INSTRUCTIONS}`;
 
     const aiResult = await aiWorkerPool.processRequest({
       type: 'gruenerator_ask',
-      messages: messages,
+      messages: messages as Message[],
       systemPrompt: systemPrompt,
       options: {
         max_tokens: 2000,
@@ -192,7 +202,7 @@ ${MARKDOWN_FORMATTING_INSTRUCTIONS}`;
 
       for (const toolCall of aiResult.tool_calls) {
         if (toolCall.name === 'search_documents') {
-          const toolInput = toolCall.input as unknown as SearchToolInput;
+          const toolInput = parseSearchToolInput(toolCall.input);
           log.debug(`[claude_gruenerator_ask] Executing search: "${toolInput.query}"`);
 
           const searchResult = await executeSearchTool(toolInput, userId, groupId);

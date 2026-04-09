@@ -11,7 +11,7 @@ import { extractSearchResults } from './resultExtraction.js';
 import type { SearchResults, AgentType } from './types.js';
 
 export class MistralWebSearchService {
-  private client: any;
+  private client: typeof mistralClient | null;
   private agents: Map<string, string> | null;
 
   constructor() {
@@ -49,7 +49,7 @@ export class MistralWebSearchService {
     if (!this.agents.has(cacheKey)) {
       console.log(`[MistralWebSearchService] Creating ${config.name}`);
 
-      const agent = await this.client.beta.agents.create({
+      const agent = await this.client!.beta.agents.create({
         model: 'mistral-large-2512',
         name: config.name,
         instructions: config.instructions,
@@ -86,7 +86,7 @@ export class MistralWebSearchService {
       const agentId = await this.getOrCreateAgent(agentConfig);
 
       // Start conversation with search query
-      const conversation = await this.client.beta.conversations.start({
+      const conversation = await this.client!.beta.conversations.start({
         agentId: agentId,
         inputs: `Search for current information about: ${query}`,
         store: false, // Don't store conversation for privacy

@@ -51,8 +51,9 @@ router.post('/from-export', requireAuth, async (req: AuthenticatedRequest, res: 
     let sanitizedContent: string;
     try {
       sanitizedContent = validateAndSanitizeHtml(htmlContent);
-    } catch (error: any) {
-      return res.status(400).json({ error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      return res.status(400).json({ error: message });
     }
 
     // Generate title
@@ -95,11 +96,11 @@ router.post('/from-export', requireAuth, async (req: AuthenticatedRequest, res: 
     };
 
     return res.status(201).json(response);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Docs Export] Error creating document:', error);
 
     // Determine appropriate error response
-    if (error.message?.includes('too large')) {
+    if (error instanceof Error && error.message?.includes('too large')) {
       return res.status(413).json({
         error: 'Content too large',
         message: 'The content exceeds the maximum size limit of 1MB',

@@ -12,6 +12,7 @@ import {
   type ThemeColors,
 } from './types.js';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SitesHandler = RequestHandler<any, any, any, any>;
 const router: Router = express.Router();
 
@@ -61,7 +62,7 @@ function renderNotFoundPage(): string {
   `;
 }
 
-function renderSocialLinks(socialLinks: Record<string, string>, primaryColor: string): string {
+function renderSocialLinks(socialLinks: Record<string, string>, _primaryColor: string): string {
   return Object.entries(socialLinks)
     .filter(([, url]) => url)
     .map(([platform, url]) => {

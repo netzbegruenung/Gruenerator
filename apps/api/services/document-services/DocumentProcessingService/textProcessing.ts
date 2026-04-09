@@ -6,14 +6,18 @@
 import { chunkAndEmbedText } from './chunkingPipeline.js';
 import { generateContentPreview } from './textExtraction.js';
 
-import type { TextProcessingResult } from './types.js';
+import type {
+  TextProcessingResult,
+  PostgresDocumentServiceLike,
+  QdrantDocumentServiceLike,
+} from './types.js';
 
 /**
  * Process text content directly (no file upload)
  */
 export async function processTextContent(
-  postgresDocumentService: any,
-  qdrantDocumentService: any,
+  postgresDocumentService: PostgresDocumentServiceLike,
+  qdrantDocumentService: QdrantDocumentServiceLike,
   userId: string,
   title: string,
   content: string,

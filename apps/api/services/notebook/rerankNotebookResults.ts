@@ -1,20 +1,21 @@
 /**
  * Rerank utility for notebook search results.
  *
- * Uses Regolo's dedicated Rerank API (Qwen3-Reranker-4B cross-encoder)
- * to score search results by relevance, then filters and returns the top N.
+ * Uses the shared rerankPipeline (Regolo cross-encoder + MMR diversity)
+ * to score search results by relevance, then filters, applies diversity
+ * reranking, and renumbers citations.
  */
 
 import { createLogger } from '../../utils/logger.js';
-import { regoloRerankService } from '../search/RegoloRerankService.js';
+import { rerankPipeline } from '../search/rerankPipeline.js';
 
-import type { ExpandedChunkResult } from '../search/types.js';
+import type { ExpandedChunkResult, ReferencesMap } from '../search/types.js';
 
 const log = createLogger('NotebookRerank');
 
 export interface RerankOptions {
   results: ExpandedChunkResult[];
-  referencesMap: Record<string, any>;
+  referencesMap: ReferencesMap;
   question: string;
   limit?: number;
   inputLimit?: number;
@@ -22,7 +23,7 @@ export interface RerankOptions {
 
 export interface RerankResult {
   results: ExpandedChunkResult[];
-  referencesMap: Record<string, any>;
+  referencesMap: ReferencesMap;
   contextSummary: string;
   rerankTimeMs: number;
 }
@@ -48,67 +49,53 @@ export async function rerankNotebookResults({
 
   const candidates = results.slice(0, inputLimit);
 
-  try {
-    const documents = candidates.map((r) => `${r.title}\n${r.snippet.slice(0, 300)}`);
+  const items = candidates.map((r) => ({
+    title: r.title,
+    content: r.snippet.slice(0, 300),
+    relevance: r.similarity,
+  }));
 
-    const rerankResults = await regoloRerankService.rerank({
-      query: question,
-      documents,
-      topN: limit,
-    });
+  // Pipeline handles errors internally with graceful degradation
+  const { rankedIndices, rerankTimeMs } = await rerankPipeline({
+    query: question,
+    items,
+    inputLimit,
+    outputLimit: limit,
+    minRelevance: 0.05,
+    minKeep: Math.min(5, candidates.length),
+    applyDiversity: true,
+  });
 
-    const rerankTimeMs = Date.now() - startTime;
+  const rerankedResults = rankedIndices.map((i) => candidates[i]);
 
-    // Map back to candidates, keeping at least MIN_KEEP results for LLM breadth
-    const MIN_KEEP = Math.min(5, rerankResults.length);
-    const scored = rerankResults
-      .filter((r, i) => r.relevanceScore > 0.05 || i < MIN_KEEP)
-      .map((r) => ({
-        result: candidates[r.originalIndex],
-        relevanceScore: r.relevanceScore,
-      }));
-
-    const rerankedResults = scored.map((s) => s.result);
-
-    // Build a set of kept document_ids to filter the referencesMap
-    const keptDocIds = new Set(rerankedResults.map((r) => r.document_id));
-    const filteredReferencesMap: Record<string, any> = {};
-    for (const [key, ref] of Object.entries(referencesMap)) {
-      if (keptDocIds.has(ref.document_id)) {
-        filteredReferencesMap[key] = ref;
-      }
+  const keptDocIds = new Set(rerankedResults.map((r) => r.document_id));
+  const filteredReferencesMap: ReferencesMap = {};
+  for (const [key, ref] of Object.entries(referencesMap)) {
+    if (keptDocIds.has(ref.document_id)) {
+      filteredReferencesMap[key] = ref;
     }
-
-    // Renumber references 1..N sequentially
-    const renumberedMap: Record<string, any> = {};
-    let newIndex = 1;
-    for (const ref of Object.values(filteredReferencesMap)) {
-      renumberedMap[String(newIndex)] = ref;
-      newIndex++;
-    }
-
-    log.info(
-      `[Rerank] ${candidates.length} → ${rerankedResults.length} results in ${rerankTimeMs}ms`
-    );
-
-    return {
-      results: rerankedResults,
-      referencesMap: renumberedMap,
-      contextSummary: buildContextSummary(renumberedMap),
-      rerankTimeMs,
-    };
-  } catch (error: any) {
-    log.error('[Rerank] Error:', error.message);
-    return {
-      results,
-      referencesMap,
-      contextSummary: buildContextSummary(referencesMap),
-      rerankTimeMs: Date.now() - startTime,
-    };
   }
+
+  const renumberedMap: ReferencesMap = {};
+  let newIndex = 1;
+  for (const ref of Object.values(filteredReferencesMap)) {
+    renumberedMap[String(newIndex)] = ref;
+    newIndex++;
+  }
+
+  log.info(
+    `[Rerank] ${candidates.length} → ${rerankedResults.length} results in ${rerankTimeMs}ms`
+  );
+
+  return {
+    results: rerankedResults,
+    referencesMap: renumberedMap,
+    contextSummary: buildContextSummary(renumberedMap),
+    rerankTimeMs,
+  };
 }
 
-function buildContextSummary(referencesMap: Record<string, any>): string {
+function buildContextSummary(referencesMap: ReferencesMap): string {
   return Object.keys(referencesMap)
     .map((id) => {
       const ref = referencesMap[id];

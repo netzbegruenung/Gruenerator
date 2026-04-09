@@ -19,7 +19,7 @@ import type { GeneratedImageResult } from '../types.js';
 
 const log = createLogger('Tool:EditImage');
 
-const imageCounter = new ImageGenerationCounter(redisClient as any);
+const imageCounter = new ImageGenerationCounter(redisClient);
 
 export function createEditImageTool(deps: ToolDependencies): DynamicStructuredTool {
   return new DynamicStructuredTool({
@@ -60,6 +60,7 @@ export function createEditImageTool(deps: ToolDependencies): DynamicStructuredTo
         const { stored } = (await flux.generateFromImage(prompt, imageBuffer, mimeType, {
           output_format: 'jpeg',
           safety_tolerance: 2,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         })) as any;
 
         await imageCounter.incrementCount(userId);
@@ -78,15 +79,17 @@ export function createEditImageTool(deps: ToolDependencies): DynamicStructuredTo
         deps._generatedImage = imageResult;
 
         return `Bild erfolgreich bearbeitet!\nStil: Grüne Stadtbegrünung\nDatei: ${stored.filename}\nURL: ${imageUrl}`;
-      } catch (error: any) {
-        log.error('[EditImage] Error:', error.message);
-        if (error.type === 'billing') {
+      } catch (error: unknown) {
+        const errMsg = error instanceof Error ? error.message : String(error);
+        const typed = error as { type?: string };
+        log.error('[EditImage] Error:', errMsg);
+        if (typed.type === 'billing') {
           return 'Bildbearbeitungs-Credits aufgebraucht. Bitte kontaktiere den Administrator.';
         }
-        if (error.type === 'network') {
+        if (typed.type === 'network') {
           return 'Netzwerkfehler bei der Bildbearbeitung. Bitte versuche es erneut.';
         }
-        return `Bildbearbeitung fehlgeschlagen: ${error.message}`;
+        return `Bildbearbeitung fehlgeschlagen: ${errMsg}`;
       }
     },
   });
