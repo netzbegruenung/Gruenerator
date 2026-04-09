@@ -269,6 +269,55 @@ const BlockNoteEditorInner = ({
       AIExtension({
         transport: new DefaultChatTransport({
           api: aiApiUrl,
+          credentials: 'include',
+          // DEBUG: Log outgoing AI requests
+          prepareSendMessagesRequest: async (opts) => {
+            console.log('[DocsAI:Frontend] Sending request:', {
+              messageCount: opts.messages.length,
+              bodyKeys: opts.body ? Object.keys(opts.body) : [],
+            });
+            // Log the last user message
+            const lastMsg = opts.messages[opts.messages.length - 1];
+            if (lastMsg) {
+              console.log('[DocsAI:Frontend] Last message role:', lastMsg.role);
+            }
+            return {
+              body: { ...opts.body, messages: opts.messages },
+              credentials: 'include' as const,
+            };
+          },
+          // DEBUG: Log fetch request/response for AI calls
+          fetch: async (url, init) => {
+            console.log('[DocsAI:Frontend] Fetch:', url);
+            const response = await fetch(url as string, {
+              ...(init as RequestInit),
+              credentials: 'include',
+            });
+            // Clone to log response without consuming it
+            const cloned = response.clone();
+            cloned.text().then((text) => {
+              console.log(
+                '[DocsAI:Frontend] Response status:',
+                response.status,
+                'body (first 2000 chars):',
+                text.substring(0, 2000)
+              );
+              // Extract and log operation types and block IDs from response
+              const typeMatches = text.match(/"type"\s*:\s*"(\w+)"/g);
+              const idMatches = text.match(/"id"\s*:\s*"([^"]+)"/g);
+              const refIdMatches = text.match(/"referenceId"\s*:\s*"([^"]+)"/g);
+              if (typeMatches) {
+                console.log('[DocsAI:Frontend] Operation types in response:', typeMatches);
+              }
+              if (idMatches) {
+                console.log('[DocsAI:Frontend] Block IDs in response:', idMatches);
+              }
+              if (refIdMatches) {
+                console.log('[DocsAI:Frontend] Reference IDs in response:', refIdMatches);
+              }
+            });
+            return response;
+          },
         }),
       }),
     ];
@@ -312,6 +361,11 @@ const BlockNoteEditorInner = ({
 
     setEditorInStore(documentId, editor);
     setIsReady(true);
+
+    // DEBUG: Log document block IDs for cross-reference with AI operations
+    const blockIds = editor.document.map((b) => b.id);
+    console.log(`[DocsAI:Frontend] Editor ready | doc: ${documentId} | ${blockIds.length} blocks`);
+    console.log('[DocsAI:Frontend] Block IDs:', blockIds);
 
     const timeoutId = setTimeout(() => {
       if (onEditorReady) {
