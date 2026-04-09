@@ -6,8 +6,11 @@
 import { randomBytes } from 'crypto';
 
 import { generateText } from 'ai';
+import { and, eq, type InferSelectModel } from 'drizzle-orm';
 import express, { type Router, type Response, type NextFunction } from 'express';
 
+import { customPrompts, savedPrompts } from '../../database/schema/index.js';
+import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { getIntermediateModel } from '../../services/ai/providers.js';
@@ -15,6 +18,8 @@ import { getPromptVectorService } from '../../services/prompts/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { AuthRequest } from './types.js';
+
+type CustomPromptRow = InferSelectModel<typeof customPrompts>;
 
 const log = createLogger('userCustomPrompts');
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
@@ -57,21 +62,6 @@ async function generatePromptName(promptText: string): Promise<string> {
     log.warn('Failed to generate prompt name:', error);
     return 'Mein Prompt';
   }
-}
-
-interface CustomPromptRow {
-  id: string;
-  user_id: string;
-  name: string;
-  slug: string;
-  prompt: string;
-  description: string | null;
-  is_public: boolean;
-  is_active: boolean;
-  usage_count: number;
-  created_at: string;
-  updated_at: string;
-  embedding_id: string | null;
 }
 
 // GET /custom_prompts - List user's prompts
@@ -126,13 +116,19 @@ router.post(
       const slug = generateSlug();
       const name = await generatePromptName(prompt.trim());
 
-      const newPrompt = (await postgres.queryOne(
-        `INSERT INTO custom_prompts (user_id, name, slug, prompt, is_public)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING *`,
-        [userId, name, slug, prompt.trim(), is_public === true],
-        { table: 'custom_prompts' }
-      )) as unknown as CustomPromptRow | null;
+      const db = getDrizzleInstance();
+      const rows = await db
+        .insert(customPrompts)
+        .values({
+          user_id: userId,
+          name,
+          slug,
+          prompt: prompt.trim(),
+          is_public: is_public === true,
+        })
+        .returning();
+
+      const newPrompt: CustomPromptRow | null = rows[0] ?? null;
 
       if (newPrompt) {
         promptVectorService
@@ -174,11 +170,20 @@ router.put(
       const { id } = req.params;
       const { prompt, is_public } = req.body as CustomPromptUpdateBody;
 
-      const existingPrompt = (await postgres.queryOne(
-        `SELECT id, user_id, prompt, name FROM custom_prompts WHERE id = $1`,
-        [id],
-        { table: 'custom_prompts' }
-      )) as unknown as CustomPromptRow | null;
+      const db = getDrizzleInstance();
+      const existing = await db
+        .select({
+          id: customPrompts.id,
+          user_id: customPrompts.user_id,
+          prompt: customPrompts.prompt,
+          name: customPrompts.name,
+          is_public: customPrompts.is_public,
+        })
+        .from(customPrompts)
+        .where(eq(customPrompts.id, id))
+        .limit(1);
+
+      const existingPrompt = existing[0] ?? null;
 
       if (!existingPrompt) {
         res.status(404).json({ success: false, message: 'Prompt nicht gefunden.' });
@@ -194,14 +199,18 @@ router.put(
       const promptChanged = prompt && prompt.trim() !== existingPrompt.prompt;
       const newName = promptChanged ? await generatePromptName(newPromptText) : existingPrompt.name;
 
-      const updatedPrompt = (await postgres.queryOne(
-        `UPDATE custom_prompts
-       SET name = $1, prompt = $2, is_public = $3, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $4 AND user_id = $5
-       RETURNING *`,
-        [newName, newPromptText, is_public ?? existingPrompt.is_public, id, userId],
-        { table: 'custom_prompts' }
-      )) as unknown as CustomPromptRow | null;
+      const updated = await db
+        .update(customPrompts)
+        .set({
+          name: newName,
+          prompt: newPromptText,
+          is_public: is_public ?? existingPrompt.is_public,
+          updated_at: new Date(),
+        })
+        .where(and(eq(customPrompts.id, id), eq(customPrompts.user_id, userId)))
+        .returning();
+
+      const updatedPrompt: CustomPromptRow | null = updated[0] ?? null;
 
       if (updatedPrompt && promptChanged) {
         promptVectorService
@@ -237,11 +246,19 @@ router.delete(
       const userId = req.user!.id;
       const { id } = req.params;
 
-      const existingPrompt = (await postgres.queryOne(
-        `SELECT id, user_id, name, embedding_id FROM custom_prompts WHERE id = $1`,
-        [id],
-        { table: 'custom_prompts' }
-      )) as unknown as CustomPromptRow | null;
+      const db = getDrizzleInstance();
+      const existing = await db
+        .select({
+          id: customPrompts.id,
+          user_id: customPrompts.user_id,
+          name: customPrompts.name,
+          embedding_id: customPrompts.embedding_id,
+        })
+        .from(customPrompts)
+        .where(eq(customPrompts.id, id))
+        .limit(1);
+
+      const existingPrompt = existing[0] ?? null;
 
       if (!existingPrompt) {
         res.status(404).json({
@@ -265,11 +282,9 @@ router.delete(
           .catch((err) => log.warn('Failed to delete prompt vectors:', err));
       }
 
-      await postgres.query(
-        `DELETE FROM custom_prompts WHERE id = $1 AND user_id = $2`,
-        [id, userId],
-        { table: 'custom_prompts' }
-      );
+      await db
+        .delete(customPrompts)
+        .where(and(eq(customPrompts.id, id), eq(customPrompts.user_id, userId)));
 
       log.debug(
         `[User Custom Prompts] Prompt "${existingPrompt.name}" (${id}) deleted by user ${userId}`
@@ -298,7 +313,7 @@ router.get(
     try {
       const userId = req.user!.id;
 
-      const savedPrompts = await postgres.query(
+      const savedPromptsList = await postgres.query(
         `SELECT
         cp.id, cp.name, cp.slug, cp.prompt, cp.description, cp.is_public,
         cp.created_at, cp.updated_at, cp.is_active, cp.usage_count,
@@ -315,7 +330,7 @@ router.get(
 
       res.json({
         success: true,
-        prompts: savedPrompts || [],
+        prompts: savedPromptsList || [],
       });
     } catch (error) {
       const err = error as Error;
@@ -337,11 +352,19 @@ router.post(
       const userId = req.user!.id;
       const { promptId } = req.params;
 
-      const promptData = (await postgres.queryOne(
-        `SELECT id, user_id, name, is_active FROM custom_prompts WHERE id = $1`,
-        [promptId],
-        { table: 'custom_prompts' }
-      )) as unknown as CustomPromptRow | null;
+      const db = getDrizzleInstance();
+      const existing = await db
+        .select({
+          id: customPrompts.id,
+          user_id: customPrompts.user_id,
+          name: customPrompts.name,
+          is_active: customPrompts.is_active,
+        })
+        .from(customPrompts)
+        .where(eq(customPrompts.id, promptId))
+        .limit(1);
+
+      const promptData = existing[0] ?? null;
 
       if (!promptData) {
         res.status(404).json({
@@ -367,13 +390,13 @@ router.post(
         return;
       }
 
-      const existingSave = await postgres.queryOne(
-        `SELECT id FROM saved_prompts WHERE user_id = $1 AND prompt_id = $2`,
-        [userId, promptId],
-        { table: 'saved_prompts' }
-      );
+      const existingSave = await db
+        .select({ id: savedPrompts.id })
+        .from(savedPrompts)
+        .where(and(eq(savedPrompts.user_id, userId), eq(savedPrompts.prompt_id, promptId)))
+        .limit(1);
 
-      if (existingSave) {
+      if (existingSave.length > 0) {
         res.status(400).json({
           success: false,
           message: 'Prompt ist bereits gespeichert.',
@@ -381,11 +404,7 @@ router.post(
         return;
       }
 
-      await postgres.query(
-        `INSERT INTO saved_prompts (user_id, prompt_id) VALUES ($1, $2)`,
-        [userId, promptId],
-        { table: 'saved_prompts' }
-      );
+      await db.insert(savedPrompts).values({ user_id: userId, prompt_id: promptId });
 
       log.debug(
         `[User Custom Prompts] Prompt "${promptData.name}" (${promptId}) saved by user ${userId}`
@@ -415,13 +434,13 @@ router.delete(
       const userId = req.user!.id;
       const { promptId } = req.params;
 
-      const result = await postgres.query(
-        `DELETE FROM saved_prompts WHERE user_id = $1 AND prompt_id = $2 RETURNING id`,
-        [userId, promptId],
-        { table: 'saved_prompts' }
-      );
+      const db = getDrizzleInstance();
+      const result = await db
+        .delete(savedPrompts)
+        .where(and(eq(savedPrompts.user_id, userId), eq(savedPrompts.prompt_id, promptId)))
+        .returning({ id: savedPrompts.id });
 
-      if (!result || result.length === 0) {
+      if (result.length === 0) {
         res.status(404).json({
           success: false,
           message: 'Gespeicherter Prompt nicht gefunden.',
