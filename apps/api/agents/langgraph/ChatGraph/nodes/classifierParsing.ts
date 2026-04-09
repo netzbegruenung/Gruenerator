@@ -8,7 +8,7 @@
 import { createLogger } from '../../../../utils/logger.js';
 
 import { extractFilters } from './classifierFilters.js';
-import { extractSearchTopic, heuristicClassify } from './classifierHeuristics.js';
+import { extractSearchTopic } from './classifierHeuristics.js';
 import { NON_SEARCH_INTENTS } from './classifierPrompt.js';
 
 import type { SearchIntent, SearchSource, ClassificationResult } from '../types.js';
@@ -208,41 +208,82 @@ export function parseClassifierResponse(
     }
   }
 
-  // Fallback: try to detect intent from text
-  const contentLower = content.toLowerCase();
-  if (contentLower.includes('image'))
+  // Fallback: detect intent from LLM text using intent-field patterns.
+  // Only match when the LLM actually tried to output the intent value,
+  // not when it mentions a word in reasoning (e.g. "no research needed").
+  // Order: cheapest/most-specific first, most-expensive last.
+  const intentFieldPattern = (intent: string) =>
+    new RegExp(`["']?intent["']?\\s*[:=]\\s*["']?${intent}\\b`, 'i');
+
+  if (intentFieldPattern('image').test(content))
     return {
       intent: 'image',
       searchQuery: null,
       reasoning: 'Fallback: image detected in response',
     };
-  if (contentLower.includes('research'))
+  if (intentFieldPattern('save_as_doc').test(content) || /\bdokument|speicher/i.test(content))
     return {
-      intent: 'research',
-      searchQuery: userContent,
-      reasoning: 'Fallback: research detected in response',
+      intent: 'save_as_doc',
+      searchQuery: null,
+      reasoning: 'Fallback: save_as_doc detected in response',
     };
-  if (contentLower.includes('search'))
+  if (intentFieldPattern('share_doc').test(content) || /\bteile\s+mit|freigeben/i.test(content))
     return {
-      intent: 'search',
-      searchQuery: userContent,
-      reasoning: 'Fallback: search detected in response',
+      intent: 'share_doc',
+      searchQuery: null,
+      reasoning: 'Fallback: share_doc detected in response',
     };
-  if (contentLower.includes('web'))
+  if (intentFieldPattern('chart').test(content) || /\bdiagramm|chart\b/i.test(content))
     return {
-      intent: 'web',
+      intent: 'chart',
       searchQuery: userContent,
-      reasoning: 'Fallback: web detected in response',
+      reasoning: 'Fallback: chart detected in response',
     };
-  if (contentLower.includes('examples'))
+  if (intentFieldPattern('summary').test(content) || /\bzusammenfass/i.test(content))
+    return {
+      intent: 'summary',
+      searchQuery: null,
+      reasoning: 'Fallback: summary detected in response',
+    };
+  if (intentFieldPattern('direct').test(content) || /\bdirekt|kreativ/i.test(content))
+    return {
+      intent: 'direct',
+      searchQuery: null,
+      reasoning: 'Fallback: direct detected in response',
+    };
+  if (intentFieldPattern('examples').test(content))
     return {
       intent: 'examples',
       searchQuery: userContent,
       reasoning: 'Fallback: examples detected in response',
     };
+  if (intentFieldPattern('search').test(content))
+    return {
+      intent: 'search',
+      searchQuery: userContent,
+      reasoning: 'Fallback: search detected in response',
+    };
+  if (intentFieldPattern('web').test(content))
+    return {
+      intent: 'web',
+      searchQuery: userContent,
+      reasoning: 'Fallback: web detected in response',
+    };
+  if (intentFieldPattern('research').test(content))
+    return {
+      intent: 'research',
+      searchQuery: userContent,
+      reasoning: 'Fallback: research detected in response',
+    };
 
-  // Use heuristic as final fallback
-  return heuristicClassify(userContent);
+  // Final fallback: default to direct (cheapest path).
+  // The heuristic already ran in classifierNode — re-running it here
+  // reintroduces the same false positives (e.g. party keywords → search).
+  return {
+    intent: 'direct',
+    searchQuery: null,
+    reasoning: 'Fallback: no intent detected, defaulting to direct',
+  };
 }
 
 /**

@@ -23,14 +23,20 @@ const log = createLogger('ChatGraph:Classifier');
 export const INTENT_KEYWORDS: Record<
   Exclude<
     SearchIntent,
-    'direct' | 'image_edit' | 'sharepic' | 'save_as_doc' | 'modify_doc' | 'modify_board' | 'share_doc'
+    | 'direct'
+    | 'image_edit'
+    | 'sharepic'
+    | 'save_as_doc'
+    | 'modify_doc'
+    | 'modify_board'
+    | 'share_doc'
   >,
   string[]
 > = {
   research: ['recherchiere', 'recherche', 'untersuche', 'analysiere', 'erforsche'],
   image: ['visualisiere', 'zeichne', 'illustriere', 'grafik', 'illustration'],
   web: ['internet', 'netz', 'online', 'aktuell', 'nachricht', 'news'],
-  search: ['grüne', 'partei', 'programm', 'position', 'wahlprogramm', 'beschluss'],
+  search: ['wahlprogramm', 'beschluss', 'grundsatzprogramm'],
   examples: ['beispiel', 'vorlage', 'tweet', 'instagram', 'social'],
   summary: ['zusammenfassung', 'zusammenfassen', 'kurzfassung', 'überblick'],
   chart: ['diagramm', 'balkendiagramm', 'kreisdiagramm', 'liniendiagramm', 'chart', 'statistik'],
@@ -68,11 +74,17 @@ export function extractSearchTopic(query: string): string {
     .trim();
 
   // If we stripped meaningful content and have a result, use it
-  if (stripped.length > 3 && stripped.length < query.length * 0.9) {
-    return stripped;
+  const result = stripped.length > 3 && stripped.length < query.length * 0.9 ? stripped : query;
+
+  // Cap search queries — long queries dilute semantic similarity and waste embedding tokens
+  const MAX_SEARCH_QUERY_LENGTH = 500;
+  if (result.length > MAX_SEARCH_QUERY_LENGTH) {
+    const truncated = result.slice(0, MAX_SEARCH_QUERY_LENGTH);
+    const lastSpace = truncated.lastIndexOf(' ');
+    return lastSpace > MAX_SEARCH_QUERY_LENGTH * 0.8 ? truncated.slice(0, lastSpace) : truncated;
   }
 
-  return query;
+  return result;
 }
 
 /**
@@ -203,15 +215,43 @@ export function heuristicClassify(userContent: string): HeuristicResult {
     };
   }
 
-  // Medium confidence (0.70): Summary requests — only high-confidence when state confirms docs
+  // High confidence (0.90): Save as document requests
+  if (
+    /\b(als\s+dokument|dokument\s+(erstellen|speichern|anlegen)|als\s+(protokoll|notiz|checkliste)|mach.{0,10}dokument\s+daraus)\b/i.test(
+      q
+    )
+  ) {
+    return {
+      intent: 'save_as_doc',
+      searchQuery: null,
+      reasoning: 'Save as document request detected',
+      confidence: 0.9,
+    };
+  }
+
+  // High confidence (0.88): Share document with group
+  if (
+    /\b(teil[e]?\s+(das\s+)?(mit|an)\s+|share\s+mit|freigeben\s+für|send[e]?\s+an\s+(gruppe|ag\s|kv\s|ov\s))/i.test(
+      q
+    )
+  ) {
+    return {
+      intent: 'share_doc',
+      searchQuery: null,
+      reasoning: 'Share document request detected',
+      confidence: 0.88,
+    };
+  }
+
+  // High confidence (0.85): Summary requests — unambiguous patterns
   const summaryKeywords =
     /\b(fass[e]?\s+(das\s+|die\s+|den\s+)?zusammen|zusammenfass|zusammenfassung|kurzfassung|überblick\s+erstell)/i;
   if (summaryKeywords.test(q)) {
     return {
       intent: 'summary',
       searchQuery: null,
-      reasoning: 'Summary keywords detected (needs document context for high confidence)',
-      confidence: 0.7,
+      reasoning: 'Summary keywords detected',
+      confidence: 0.85,
     };
   }
 
@@ -249,15 +289,17 @@ export function heuristicClassify(userContent: string): HeuristicResult {
     };
   }
 
-  // Medium-high confidence (0.85): Party document searches - clear Green party keywords
+  // Medium-high confidence (0.82): Explicit question about party positions
+  // Only triggers search when user asks a QUESTION — party keywords alone never trigger search
   if (
+    /\b(was|wie|welche[rsnm]?|wo|wann|warum|gibt\s+es|haben\s+die|sagen\s+die)\b/i.test(q) &&
     /\b(grüne|partei|programm|position|wahlprogramm|beschluss|antrag|grundsatzprogramm)\b/i.test(q)
   ) {
     return {
       intent: 'search',
       searchQuery: userContent,
-      reasoning: 'Party document query',
-      confidence: 0.85,
+      reasoning: 'Question about party positions detected',
+      confidence: 0.82,
     };
   }
 
@@ -281,10 +323,10 @@ export function heuristicClassify(userContent: string): HeuristicResult {
     };
   }
 
-  // Medium confidence (0.80): Examples search - requires both keywords
+  // Medium confidence (0.80): Examples/social media — platform keyword + any action verb
   if (
-    /\b(beispiel|vorlage|social media|post|tweet|instagram)\b/i.test(q) &&
-    /\b(zeig|such|find)\b/i.test(q)
+    /\b(beispiel|vorlage|social\s*media|post|tweet|instagram)\b/i.test(q) &&
+    /\b(zeig|such|find|erstell|schreib|mach|generier)[etn]*/i.test(q)
   ) {
     return {
       intent: 'examples',
@@ -294,32 +336,47 @@ export function heuristicClassify(userContent: string): HeuristicResult {
     };
   }
 
-  // Medium confidence (0.75): Fact-based content types with topic markers
+  // Medium-high confidence (0.82): Creative tasks with substantial user-provided context
+  // When user pastes long content (>500 chars) with a creative verb, it's self-contained
+  const isCreativeTask =
+    /\b(schreib|erstell|formulier|verfass)[etn]*/i.test(q) &&
+    !/\b(recherch|such|find|info)\b/i.test(q);
+
+  if (isCreativeTask && userContent.length > 500) {
+    return {
+      intent: 'direct',
+      searchQuery: null,
+      reasoning: 'Creative task with substantial user-provided context',
+      contentType: detectContentType(q),
+      confidence: 0.82,
+    };
+  }
+
+  // Medium confidence (0.75): Creative tasks without explicit research need
+  if (isCreativeTask) {
+    return {
+      intent: 'direct',
+      searchQuery: null,
+      reasoning: 'Creative task without research need',
+      contentType: detectContentType(q),
+      confidence: 0.75,
+    };
+  }
+
+  // Medium confidence (0.68): Fact-based content types with topic markers → direct (not research)
+  // Content type is useful metadata but does NOT imply research is needed.
+  // Users on this platform typically provide their own content and want AI to write/format it.
   const factBasedContent =
     /\b(pressemitteilung|pressemeldung|pm|artikel|beitrag|blogpost|rede|ansprache|statement|argumentation|argumente|faktencheck|analyse|bericht|report)\b/i;
   const hasTopicMarker = /(?:^|\s)(über|zu|zum|zur|bezüglich|betreffend|thema)(?:\s|$)/i;
 
   if (factBasedContent.test(q) && hasTopicMarker.test(q)) {
     return {
-      intent: 'research',
-      searchQuery: userContent,
-      reasoning: 'Fact-based content type with topic detected',
-      contentType: detectContentType(q),
-      confidence: 0.75,
-    };
-  }
-
-  // Medium confidence (0.72): Creative tasks without explicit research need
-  if (
-    /\b(schreib|erstell|formulier|verfass)[etn]*/i.test(q) &&
-    !/\b(recherch|such|find|info)\b/i.test(q)
-  ) {
-    return {
       intent: 'direct',
       searchQuery: null,
-      reasoning: 'Creative task without research need',
+      reasoning: 'Fact-based content type detected (creative task, not research)',
       contentType: detectContentType(q),
-      confidence: 0.72,
+      confidence: 0.68,
     };
   }
 
