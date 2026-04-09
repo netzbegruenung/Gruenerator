@@ -24,7 +24,6 @@ import {
   SuggestionMenuController,
   getDefaultReactSlashMenuItems,
   getFormattingToolbarItems,
-  FloatingComposerController,
   ThreadsSidebar,
 } from '@blocknote/react';
 import { filterSuggestionItems } from '@blocknote/core/extensions';
@@ -222,6 +221,21 @@ const BlockNoteEditorInner = ({
           credentials: 'include',
         }),
       }),
+      {
+        key: 'checkboxClickFix',
+        mount({ dom, signal }: { dom: HTMLElement; signal: AbortSignal }) {
+          dom.addEventListener(
+            'pointerdown',
+            (e: PointerEvent) => {
+              const target = e.target as HTMLElement;
+              if (target instanceof HTMLInputElement && target.type === 'checkbox') {
+                e.preventDefault();
+              }
+            },
+            { signal, capture: true }
+          );
+        },
+      },
     ];
 
     if (showComments && threadStore) {
@@ -361,7 +375,6 @@ const BlockNoteEditorInner = ({
             triggerCharacter="@"
             getItems={async (query) => getMentionMenuItems(editor, query)}
           />
-          {showComments && threadStore && <FloatingComposerController />}
           {commentsPortalTarget &&
             showComments &&
             threadStore &&
