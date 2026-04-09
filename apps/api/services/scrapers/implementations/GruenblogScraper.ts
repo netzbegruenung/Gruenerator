@@ -197,7 +197,7 @@ export class GruenblogScraper extends BaseScraper {
   /**
    * Extract content from HTML using Rank Math JSON-LD and .entry-content
    */
-  #extractContent(html: string, url: string): ExtractedContent {
+  #extractContent(html: string, _url: string): ExtractedContent {
     const $ = cheerio.load(html);
 
     // Parse JSON-LD metadata (Rank Math uses @graph array)

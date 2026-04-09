@@ -509,7 +509,7 @@ export class BoellStiftungScraper extends BaseScraper {
   /**
    * Extract article links from a page
    */
-  #extractArticleLinks($: cheerio.CheerioAPI, baseUrl: string): string[] {
+  #extractArticleLinks($: cheerio.CheerioAPI, _baseUrl: string): string[] {
     const links = new Set<string>();
     const datePattern = /\/de\/\d{4}\/\d{2}\/\d{2}\//;
     const themenPattern = /\/de\/themen\/[^/]+\/.+/;
@@ -944,7 +944,7 @@ export class BoellStiftungScraper extends BaseScraper {
       }
 
       return Array.from(topics).sort();
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }

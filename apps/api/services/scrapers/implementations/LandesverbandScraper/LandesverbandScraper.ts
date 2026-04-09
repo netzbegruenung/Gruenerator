@@ -247,7 +247,7 @@ export class LandesverbandScraper extends BaseScraper {
             // Clean up temp file
             try {
               await fs.unlink(tempPath);
-            } catch (e) {
+            } catch (_e) {
               // Ignore cleanup errors
             }
           }

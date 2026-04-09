@@ -699,7 +699,7 @@ export class KommunalwikiScraper extends BaseScraper {
       } while (offset);
 
       return Array.from(categories).sort();
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }

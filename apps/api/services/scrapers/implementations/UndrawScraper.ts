@@ -188,7 +188,7 @@ export class UndrawScraper extends BaseScraper {
               }
             }
           }
-        } catch (e) {
+        } catch (_e) {
           // Not the right script tag, continue
         }
       });

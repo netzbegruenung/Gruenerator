@@ -126,7 +126,7 @@ async function scrapeAccount(client: ApifyClient, account: AccountConfig): Promi
 }
 
 export async function scrapeAndIndexSocialMedia(
-  options: {
+  _options: {
     forceUpdate?: boolean;
   } = {}
 ): Promise<ScrapeResult> {

@@ -9,7 +9,6 @@ import { MarkdownConverter } from './MarkdownConverter.js';
 import { MetadataExtractor } from './MetadataExtractor.js';
 
 import type { ContentData } from '../types.js';
-import type { CheerioAPI } from 'cheerio';
 
 export class ContentExtractor {
   private markdownConverter: MarkdownConverter;
