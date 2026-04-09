@@ -48,6 +48,6 @@ export interface UrlDetectionResult {
  * Attachment with URL information
  */
 export interface AttachmentWithUrl {
-  url?: string;
-  type?: string;
+  url?: string | undefined;
+  type?: string | undefined;
 }

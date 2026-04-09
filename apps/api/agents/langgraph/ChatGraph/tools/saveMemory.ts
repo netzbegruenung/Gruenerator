@@ -16,6 +16,7 @@ import type { ToolDependencies } from './registry.js';
 const log = createLogger('Tool:SaveMemory');
 
 export function createSaveMemoryTool(deps: ToolDependencies): DynamicStructuredTool {
+    // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'save_memory',
     description:
@@ -28,8 +29,9 @@ export function createSaveMemoryTool(deps: ToolDependencies): DynamicStructuredT
         .enum(['personal', 'preference', 'context', 'task'])
         .optional()
         .describe('Kategorie der Erinnerung'),
-    }),
-    func: async ({ content, category }) => {
+    }).describe('Erinnerung speichern'),
+    func: async (input: { content: string; category?: string }) => {
+      const { content, category } = input;
       const mem0 = getMem0Instance();
       if (!mem0) {
         return 'Erinnerungssystem nicht verfügbar.';

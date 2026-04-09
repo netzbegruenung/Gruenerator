@@ -15,6 +15,7 @@ export function createAnalyzeImageTool(deps: ToolDependencies): DynamicStructure
 
   const imageCount = deps.imageAttachments.length;
 
+  // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'analyze_image',
     description:
@@ -37,8 +38,9 @@ export function createAnalyzeImageTool(deps: ToolDependencies): DynamicStructure
         .describe(
           `Index des zu analysierenden Bildes (0 bis ${imageCount - 1}). Standard: 0 (erstes Bild).`
         ),
-    }),
-    func: async ({ instruction, imageIndex = 0 }) => {
+    }).describe('Bildanalyse Tool'),
+    func: async (input: { instruction: string; imageIndex?: number }) => {
+      const { instruction, imageIndex = 0 } = input;
       const imageAttachment = deps.imageAttachments?.[imageIndex];
       if (!imageAttachment?.data) {
         return `Kein Bild an Index ${imageIndex} gefunden. Es sind ${imageCount} Bilder angehängt (Index 0-${imageCount - 1}).`;

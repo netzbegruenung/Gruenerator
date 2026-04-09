@@ -73,7 +73,7 @@ export async function batchDelete(
   filter: QdrantFilter
 ): Promise<BatchDeleteResult> {
   try {
-    await client.delete(collection, { filter });
+    await client.delete(collection, { filter } as any);
 
     logger.info(`Batch deleted points from ${collection}`);
     return { success: true, collection };
@@ -168,9 +168,9 @@ export async function getCollectionStats(
     const pointsCount = info.points_count as number | null | undefined;
     return {
       name: collection,
-      vectors_count: vectorsCount ?? undefined,
-      indexed_vectors_count: indexedVectorsCount ?? undefined,
-      points_count: pointsCount ?? undefined,
+      ...(vectorsCount != null && { vectors_count: vectorsCount }),
+      ...(indexedVectorsCount != null && { indexed_vectors_count: indexedVectorsCount }),
+      ...(pointsCount != null && { points_count: pointsCount }),
       status: info.status,
     };
   } catch (error) {

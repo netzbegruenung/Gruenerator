@@ -240,7 +240,7 @@ async function processSharepicRequest(
         count: 1,
       };
 
-      const sharepicResponse = await generateSharepicForChat(req, sharepicType, finalRequestBody);
+      const sharepicResponse = await generateSharepicForChat(req as any, sharepicType, finalRequestBody);
       res.json(sharepicResponse);
       return;
     } catch (error) {
@@ -307,7 +307,7 @@ async function processImagineRequest(
 
   try {
     const mode = req.body.mode || 'pure';
-    const imagineResponse = await generateImagineForChat(req, mode, req.body);
+    const imagineResponse = await generateImagineForChat(req as any, mode, req.body);
     return res.json(imagineResponse);
   } catch (error) {
     log.error('[IntentService] Imagine generation failed:', error);

@@ -76,7 +76,7 @@ async function addKiLabel(imageBuffer: Buffer): Promise<Buffer> {
 router.post(
   '/',
   upload.single('image'),
-  async (req: MulterRequest, res: Response): Promise<void> => {
+  (async (req: MulterRequest, res: Response): Promise<void> => {
     try {
       if (!req.file) {
         res.status(400).json({ error: 'Kein Bild hochgeladen.' });
@@ -91,7 +91,7 @@ router.post(
       log.error('[imagine_label_canvas] Fehler beim Beschriften des Bildes:', error);
       res.status(500).json({ error: 'Fehler beim Beschriften des Bildes.' });
     }
-  }
+  }) as any
 );
 
 export default router;

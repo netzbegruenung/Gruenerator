@@ -9,12 +9,12 @@ import type { Response } from 'express';
  */
 export interface AIWorkerResult {
   success: boolean;
-  content?: string;
+  content?: string | undefined;
   metadata?: {
-    webSearchSources?: WebSearchSource[];
+    webSearchSources?: WebSearchSource[] | undefined;
     [key: string]: unknown;
   };
-  agent?: string;
+  agent?: string | undefined;
   [key: string]: unknown;
 }
 
@@ -24,7 +24,7 @@ export interface AIWorkerResult {
 export interface WebSearchSource {
   url: string;
   title: string;
-  snippet?: string;
+  snippet?: string | undefined;
   [key: string]: unknown;
 }
 
@@ -46,7 +46,7 @@ export interface AttachmentSummary {
  * Enrichment summary (includes all source types)
  */
 export interface EnrichmentSummary {
-  webSearchSources?: WebSearchSource[];
+  webSearchSources?: WebSearchSource[] | undefined;
   [key: string]: unknown;
 }
 
@@ -55,8 +55,8 @@ export interface EnrichmentSummary {
  */
 export interface AttachmentInfo {
   hasAttachments: boolean;
-  summary?: AttachmentSummary;
-  enrichmentSummary?: EnrichmentSummary;
+  summary?: AttachmentSummary | undefined;
+  enrichmentSummary?: EnrichmentSummary | undefined;
   [key: string]: unknown;
 }
 
@@ -70,7 +70,7 @@ export interface SuccessResponse {
     timestamp: string;
     [key: string]: unknown;
   };
-  agent?: string;
+  agent?: string | undefined;
 }
 
 /**
@@ -80,7 +80,7 @@ export interface ErrorResponse {
   success: false;
   error: string;
   timestamp: string;
-  code?: string;
+  code?: string | undefined;
 }
 
 /**
@@ -95,8 +95,8 @@ export interface ErrorResponseWithStatus {
  * Message content block
  */
 export interface MessageContentBlock {
-  text?: string;
-  content?: string;
+  text?: string | undefined;
+  content?: string | undefined;
   [key: string]: unknown;
 }
 
@@ -120,6 +120,6 @@ export interface OpenAIMessage {
  * Message preprocessing input
  */
 export interface MessagePreprocessingInput {
-  systemPrompt?: string;
+  systemPrompt?: string | undefined;
   messages: Message[];
 }

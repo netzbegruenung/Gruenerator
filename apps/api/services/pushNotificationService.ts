@@ -24,6 +24,21 @@ type DeviceRow = Pick<
   'id' | 'device_name' | 'device_type' | 'push_token' | 'last_used_at'
 >;
 
+type DrizzleDeviceRow = typeof appRefreshTokens.$inferSelect;
+
+/**
+ * Map Drizzle result (camelCase fields) to DeviceRow (snake_case fields)
+ */
+function toDeviceRow(row: DrizzleDeviceRow): DeviceRow {
+  return {
+    id: row.id,
+    device_name: row.deviceName,
+    device_type: row.deviceType,
+    push_token: row.pushToken,
+    last_used_at: row.lastUsedAt,
+  };
+}
+
 interface ExpoPushResponse {
   data: Array<{
     id?: string;
@@ -70,13 +85,7 @@ export async function getUserDevicesWithPush(userId: string): Promise<DeviceRow[
   const db = getDrizzleInstance();
 
   const result = await db
-    .select({
-      id: appRefreshTokens.id,
-      device_name: appRefreshTokens.deviceName,
-      device_type: appRefreshTokens.deviceType,
-      push_token: appRefreshTokens.pushToken,
-      last_used_at: appRefreshTokens.lastUsedAt,
-    })
+    .select()
     .from(appRefreshTokens)
     .where(
       and(
@@ -88,7 +97,7 @@ export async function getUserDevicesWithPush(userId: string): Promise<DeviceRow[
     )
     .orderBy(appRefreshTokens.lastUsedAt);
 
-  return result as unknown as DeviceRow[];
+  return result.map(toDeviceRow);
 }
 
 /**
@@ -123,7 +132,13 @@ export async function getUserDevices(userId: string): Promise<DeviceInfo[]> {
     )
     .orderBy(appRefreshTokens.lastUsedAt);
 
-  return result as unknown as DeviceInfo[];
+  return result.map((row) => ({
+    id: row.id,
+    device_name: row.device_name,
+    device_type: row.device_type,
+    has_push_token: row.has_push_token,
+    last_used_at: row.last_used_at ? row.last_used_at.toISOString() : null,
+  }));
 }
 
 /**

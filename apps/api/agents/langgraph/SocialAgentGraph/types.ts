@@ -69,10 +69,10 @@ export interface SocialAgentOutput {
     strategyTimeMs: number;
     generationTimeMs: number;
     totalTimeMs: number;
-    enrichmentMetadata?: EnrichmentMetadata;
+    enrichmentMetadata?: EnrichmentMetadata | undefined;
     argumentsFound: number;
   };
-  error?: string;
+  error?: string | undefined;
 }
 
 export const PLATFORM_DISPLAY_NAMES: Record<string, string> = {

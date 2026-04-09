@@ -113,11 +113,11 @@ router.get('/', async (req, res) => {
           // It's search metadata or user message metadata (e.g. roleName)
           const meta = parsedToolResults as Record<string, unknown>;
           metadata = {
-            intent: meta.intent as string | undefined,
-            searchCount: meta.searchCount as number | undefined,
-            citations: meta.citations as unknown[] | undefined,
-            searchResults: meta.searchResults as unknown[] | undefined,
-            roleName: meta.roleName as string | undefined,
+            ...(typeof meta.intent === 'string' && { intent: meta.intent }),
+            ...(typeof meta.searchCount === 'number' && { searchCount: meta.searchCount }),
+            ...(Array.isArray(meta.citations) && { citations: meta.citations }),
+            ...(Array.isArray(meta.searchResults) && { searchResults: meta.searchResults }),
+            ...(typeof meta.roleName === 'string' && { roleName: meta.roleName }),
           };
         }
       }

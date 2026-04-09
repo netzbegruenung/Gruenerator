@@ -29,13 +29,13 @@ export async function generateDefaultSharepics(
     // Cast to ExpressRequest since Request is a superset
     const req = expressReq as ExpressRequest;
     const [dreizeilenResult, quotePureResult, infoResult] = await Promise.all([
-      generateSharepicForChat(req, 'dreizeilen', requestBody),
+      generateSharepicForChat(req, 'dreizeilen', requestBody as any),
       generateSharepicForChat(req, 'zitat_pure', {
         ...requestBody,
         name: 'Die Grünen', // Default author for quote_pure
         preserveName: true, // Preserve the default name
-      }),
-      generateSharepicForChat(req, 'info', requestBody),
+      } as any),
+      generateSharepicForChat(req, 'info', requestBody as any),
     ]);
 
     console.log('[DefaultSharepicService] All 3 default sharepics generated successfully');

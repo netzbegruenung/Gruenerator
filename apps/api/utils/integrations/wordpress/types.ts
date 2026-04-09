@@ -6,7 +6,7 @@ export interface WordPressSite {
   app_password_encrypted: string;
   is_active: boolean;
   created_at: string;
-  updated_at?: string;
+  updated_at?: string | undefined;
   last_used_at: string | null;
   last_error: string | null;
 }
@@ -38,10 +38,10 @@ export interface WordPressDraftResult {
 }
 
 export interface WordPressSiteUpdates {
-  label?: string | null;
-  is_active?: boolean;
-  username?: string;
-  app_password?: string;
+  label?: string | null | undefined;
+  is_active?: boolean | undefined;
+  username?: string | undefined;
+  app_password?: string | undefined;
 }
 
 export interface WordPressSiteDeletionResult {

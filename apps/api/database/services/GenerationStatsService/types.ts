@@ -3,7 +3,7 @@ export interface LogGenerationParams {
   generationType: string;
   platform: string | null;
   tokensUsed: number | null;
-  success?: boolean;
+  success?: boolean | undefined;
 }
 
 export interface GenerationStatsRow {
@@ -35,11 +35,11 @@ export interface TotalStatsRow {
 }
 
 export interface StatsQueryOptions {
-  days?: number;
-  limit?: number;
+  days?: number | undefined;
+  limit?: number | undefined;
 }
 
 export interface TimelineQueryOptions {
-  days?: number;
-  generationType?: string | null;
+  days?: number | undefined;
+  generationType?: string | null | undefined;
 }

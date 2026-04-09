@@ -14,7 +14,7 @@ export interface ConversationMessage {
   role: MessageRole;
   content: string;
   timestamp: number;
-  agent?: string;
+  agent?: string | undefined;
 }
 
 /**
@@ -30,10 +30,10 @@ export interface PendingRequest {
  * Conversation metadata
  */
 export interface ConversationMetadata {
-  lastAgent?: string;
-  lastUpdated?: number;
-  messageCount?: number;
-  pendingRequest?: PendingRequest;
+  lastAgent?: string | undefined;
+  lastUpdated?: number | undefined;
+  messageCount?: number | undefined;
+  pendingRequest?: PendingRequest | undefined;
 }
 
 /**
@@ -74,8 +74,8 @@ export interface ExperimentalSession {
 export interface SessionSummary {
   sessionId: string;
   conversationState: string;
-  thema?: string;
-  requestType?: string;
+  thema?: string | undefined;
+  requestType?: string | undefined;
   createdAt: number;
   expiresAt: number;
 }
@@ -84,12 +84,12 @@ export interface SessionSummary {
  * Recent form value record
  */
 export interface RecentValue {
-  id?: number;
-  user_id: string;
+  id: string;
+  user_id: string | null;
   field_type: string;
   field_value: string;
-  form_name?: string | null;
-  created_at?: Date;
+  form_name: string | null;
+  created_at: Date;
 }
 
 /**

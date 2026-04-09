@@ -430,13 +430,14 @@ router.post('/export', async (req: SubtitlerRequest, res: Response): Promise<voi
                 : Math.floor(metadata.height * 0.33),
           alignment: subtitlePreference === 'word' ? 5 : 2,
         };
+        const duration =
+          typeof metadata.duration === 'string'
+            ? parseFloat(metadata.duration)
+            : metadata.duration;
         const assMetadata = {
           width: metadata.width,
           height: metadata.height,
-          duration:
-            typeof metadata.duration === 'string'
-              ? parseFloat(metadata.duration)
-              : metadata.duration,
+          ...(duration != null && { duration }),
         };
         assContent = assService.generateAssContent(
           segments,
@@ -597,7 +598,6 @@ router.post('/process-auto', async (req: SubtitlerRequest, res: Response): Promi
               originalFilename,
               segments: result.subtitles || '',
               metadata: result.metadata || {},
-              fileStats: undefined,
               stylePreference: 'shadow',
               heightPreference: 'tief',
               subtitlePreference: 'manual',

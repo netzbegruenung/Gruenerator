@@ -45,14 +45,14 @@ export interface SharedMediaRow {
   original_filename: string | null;
   created_at: Date;
   updated_at: Date;
-  sharer_name?: string;
-  template_visibility?: 'private' | 'unlisted' | 'public';
-  wolke_share_link_id?: string | null;
-  wolke_file_path?: string | null;
-  expires_at?: Date | null;
-  password_hash?: string | null;
-  transfer_files?: TransferFileEntry[] | null;
-  transfer_message?: string | null;
+  sharer_name?: string | undefined;
+  template_visibility?: 'private' | 'unlisted' | 'public' | undefined;
+  wolke_share_link_id?: string | null | undefined;
+  wolke_file_path?: string | null | undefined;
+  expires_at?: Date | null | undefined;
+  password_hash?: string | null | undefined;
+  transfer_files?: TransferFileEntry[] | null | undefined;
+  transfer_message?: string | null | undefined;
 }
 
 /**
@@ -81,20 +81,20 @@ export interface SharedMediaDownloadRow {
  */
 export interface CreateVideoShareParams {
   videoPath: string;
-  title?: string;
-  thumbnailPath?: string;
-  duration?: number;
-  projectId?: string;
+  title?: string | undefined;
+  thumbnailPath?: string | undefined;
+  duration?: number | undefined;
+  projectId?: string | undefined;
 }
 
 /**
  * Parameters for creating a pending video share (processing)
  */
 export interface CreatePendingVideoShareParams {
-  title?: string;
-  thumbnailPath?: string;
-  duration?: number;
-  projectId?: string;
+  title?: string | undefined;
+  thumbnailPath?: string | undefined;
+  duration?: number | undefined;
+  projectId?: string | undefined;
 }
 
 /**
@@ -102,11 +102,11 @@ export interface CreatePendingVideoShareParams {
  */
 export interface CreateImageShareParams {
   imageBase64: string;
-  title?: string;
-  imageType?: string;
-  metadata?: Record<string, unknown>;
-  originalImage?: string | null;
-  status?: 'ready' | 'draft';
+  title?: string | undefined;
+  imageType?: string | undefined;
+  metadata?: Record<string, unknown> | undefined;
+  originalImage?: string | null | undefined;
+  status?: 'ready' | 'draft' | undefined;
 }
 
 /**
@@ -114,9 +114,9 @@ export interface CreateImageShareParams {
  */
 export interface UpdateImageShareParams {
   imageBase64: string;
-  title?: string;
-  metadata?: Record<string, unknown>;
-  originalImage?: string | null;
+  title?: string | undefined;
+  metadata?: Record<string, unknown> | undefined;
+  originalImage?: string | null | undefined;
 }
 
 /**
@@ -126,17 +126,17 @@ export interface UploadMediaFileParams {
   fileBuffer: Buffer;
   originalFilename: string;
   mimeType: string;
-  title?: string | null;
-  altText?: string | null;
-  uploadSource?: 'upload' | 'ai_generated' | 'stock' | 'camera';
+  title?: string | null | undefined;
+  altText?: string | null | undefined;
+  uploadSource?: 'upload' | 'ai_generated' | 'stock' | 'camera' | undefined;
 }
 
 /**
  * Parameters for updating media metadata
  */
 export interface UpdateMediaMetadataParams {
-  title?: string;
-  altText?: string;
+  title?: string | undefined;
+  altText?: string | undefined;
 }
 
 /**
@@ -159,8 +159,8 @@ export interface ShareResult {
   shareUrl: string;
   createdAt: Date | string;
   mediaType: 'image' | 'video';
-  hasOriginalImage?: boolean;
-  status?: 'processing' | 'ready' | 'failed';
+  hasOriginalImage?: boolean | undefined;
+  status?: 'processing' | 'ready' | 'failed' | undefined;
 }
 
 /**
@@ -199,8 +199,8 @@ export interface EnrichedImageMetadata {
   height: number;
   hasOriginalImage: boolean;
   originalImageFilename: string | null;
-  generatedAt?: string;
-  updatedAt?: string;
+  generatedAt?: string | undefined;
+  updatedAt?: string | undefined;
   [key: string]: unknown;
 }
 
@@ -229,10 +229,10 @@ export type AllowedMimeType =
 export interface AuthenticatedRequest {
   user?: {
     id: string;
-    email?: string;
-    name?: string;
+    email?: string | undefined;
+    name?: string | undefined;
   };
-  file?: Express.Multer.File;
+  file?: Express.Multer.File | undefined;
   body: Record<string, unknown>;
   params: Record<string, string>;
   query: Record<string, string | undefined>;

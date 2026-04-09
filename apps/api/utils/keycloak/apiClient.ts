@@ -99,10 +99,14 @@ export class KeycloakApiClient {
     this.realm = process.env.KEYCLOAK_REALM || 'Gruenerator';
 
     // Try client credentials first, fallback to admin username/password
-    this.clientId = process.env.KEYCLOAK_CLIENT_ID;
-    this.clientSecret = process.env.KEYCLOAK_CLIENT_SECRET;
-    this.adminUsername = process.env.KEYCLOAK_ADMIN_USERNAME;
-    this.adminPassword = process.env.KEYCLOAK_ADMIN_PASSWORD;
+    const clientId = process.env.KEYCLOAK_CLIENT_ID;
+    const clientSecret = process.env.KEYCLOAK_CLIENT_SECRET;
+    const adminUsername = process.env.KEYCLOAK_ADMIN_USERNAME;
+    const adminPassword = process.env.KEYCLOAK_ADMIN_PASSWORD;
+    if (clientId != null) this.clientId = clientId;
+    if (clientSecret != null) this.clientSecret = clientSecret;
+    if (adminUsername != null) this.adminUsername = adminUsername;
+    if (adminPassword != null) this.adminPassword = adminPassword;
     this.adminClientId = process.env.KEYCLOAK_ADMIN_CLIENT_ID || 'admin-cli';
 
     if (!this.clientId && !this.adminUsername) {

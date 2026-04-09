@@ -297,12 +297,15 @@ router.post(
 
       if (searchResults.status !== 'success') {
         log.error(`[Search] Search failed: ${searchResults.error}`);
-        return res.status(500).json({
+        const errorResponse: any = {
           success: false,
           error: 'Websuche fehlgeschlagen',
           metadata: { timestamp: new Date().toISOString(), searchType: 'normal' },
-          details: process.env.NODE_ENV === 'development' ? searchResults.error : undefined,
-        });
+        };
+        if (process.env.NODE_ENV === 'development') {
+          errorResponse.details = searchResults.error;
+        }
+        return res.status(500).json(errorResponse);
       }
 
       const processingTime = Date.now() - startTime;
@@ -354,7 +357,7 @@ router.post(
           timestamp: new Date().toISOString(),
           searchType: 'normal',
         },
-        details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined,
+        ...(process.env.NODE_ENV === 'development' && { details: (error as Error).message }),
       });
     }
   }
@@ -430,7 +433,7 @@ router.post(
 
       if (searchResults.status !== 'success') {
         log.error(`[Search] Deep research failed: ${searchResults.error}`);
-        return res.status(500).json({
+        const errorResponse: DeepResearchResponse & { details?: string } = {
           status: 'error',
           dossier: null,
           researchQuestions: [],
@@ -449,8 +452,11 @@ router.post(
             hasOfficialPosition: false,
             performance: { duration: Date.now() - startTime, aiCalls: 0, estimatedTokens: 0 },
           },
-          details: process.env.NODE_ENV === 'development' ? searchResults.error : undefined,
-        });
+        };
+        if (process.env.NODE_ENV === 'development' && searchResults.error) {
+          errorResponse.details = searchResults.error;
+        }
+        return res.status(500).json(errorResponse);
       }
 
       const totalDuration = Date.now() - startTime;
@@ -511,7 +517,7 @@ router.post(
           hasOfficialPosition: false,
           performance: { duration: processingTime, aiCalls: 0, estimatedTokens: 0 },
         },
-        details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined,
+        ...(process.env.NODE_ENV === 'development' && { details: (error as Error).message }),
       });
     }
   }
@@ -637,7 +643,7 @@ router.get('/status', async (_req: AuthenticatedRequest, res: Response<StatusRes
       service: 'LangGraph Web Search',
       error: 'Service status check failed',
       timestamp: new Date().toISOString(),
-      details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined,
+      ...(process.env.NODE_ENV === 'development' && { details: (error as Error).message }),
     });
   }
 });

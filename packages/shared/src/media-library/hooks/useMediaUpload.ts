@@ -83,9 +83,9 @@ export function useMediaUpload(options: UseMediaUploadOptions = {}): UseMediaUpl
 
       try {
         const response = await mediaApi.uploadMedia(file, {
-          title: uploadOptions.title,
-          altText: uploadOptions.altText,
-          uploadSource: uploadOptions.uploadSource,
+          ...(uploadOptions.title != null && { title: uploadOptions.title }),
+          ...(uploadOptions.altText != null && { altText: uploadOptions.altText }),
+          ...(uploadOptions.uploadSource != null && { uploadSource: uploadOptions.uploadSource }),
           onProgress: (progress) => {
             setState((prev) => ({ ...prev, progress }));
           },

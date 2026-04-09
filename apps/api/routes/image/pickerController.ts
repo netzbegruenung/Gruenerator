@@ -166,7 +166,7 @@ router.get('/catalog', async (_req: AuthenticatedRequest, res: Response<ImageCat
 
     return res.json({
       success: true,
-      catalog: catalog ?? undefined,
+      ...(catalog != null && { catalog }),
       count: catalog?.images?.length || 0,
       timestamp: new Date().toISOString(),
     });

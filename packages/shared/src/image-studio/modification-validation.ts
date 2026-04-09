@@ -84,7 +84,7 @@ export function validateBalkenOffset(offset: BalkenOffset): ModificationValidati
     if (result.warnings) warnings.push(...result.warnings);
   }
 
-  return { valid: true, warnings: warnings.length > 0 ? warnings : undefined };
+  return warnings.length > 0 ? { valid: true, ...(warnings.length > 0 && { warnings }) } : { valid: true };
 }
 
 /**
@@ -161,7 +161,7 @@ export function validateGroupedFontSizes(sizes: GroupedFontSizes): ModificationV
     if (result.warnings) warnings.push(...result.warnings);
   }
 
-  return { valid: true, warnings: warnings.length > 0 ? warnings : undefined };
+  return warnings.length > 0 ? { valid: true, ...(warnings.length > 0 && { warnings }) } : { valid: true };
 }
 
 /**
@@ -219,7 +219,7 @@ export function validateDreizeilenParams(
   if (!creditResult.valid) return creditResult;
   if (creditResult.warnings) warnings.push(...creditResult.warnings);
 
-  return { valid: true, warnings: warnings.length > 0 ? warnings : undefined };
+  return warnings.length > 0 ? { valid: true, ...(warnings.length > 0 && { warnings }) } : { valid: true };
 }
 
 /**

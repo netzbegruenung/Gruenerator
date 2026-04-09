@@ -99,16 +99,24 @@ export async function executeDocumentSearchParallel(
   const searchFilters = filters || undefined;
 
   const searchPromises = uniqueCollections.flatMap((collection) =>
-    queries.map((sq) =>
-      executeDirectSearch({ query: sq, collection, limit: 3, filters: searchFilters }).catch(
+    queries.map((sq) => {
+      const params: Parameters<typeof executeDirectSearch>[0] = {
+        query: sq,
+        collection,
+        limit: 3,
+      };
+      if (searchFilters != null) {
+        params.filters = searchFilters;
+      }
+      return executeDirectSearch(params).catch(
         (err: unknown) => {
           log.warn(
             `[Search] Collection ${collection} failed for query "${sq}": ${err instanceof Error ? err.message : String(err)}`
           );
           return null;
         }
-      )
-    )
+      );
+    })
   );
 
   const searchResults = await Promise.all(searchPromises);
@@ -329,8 +337,14 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         const country =
           state.agentConfig.toolRestrictions?.examplesCountry ||
           (state.userLocale === 'de-AT' ? 'AT' : undefined);
+        const examplesParams: Parameters<typeof executeDirectExamplesSearch>[0] = {
+          query,
+        };
+        if (country != null) {
+          examplesParams.country = country;
+        }
         sourcePromises.push(
-          executeDirectExamplesSearch({ query, platform: undefined, country })
+          executeDirectExamplesSearch(examplesParams)
             .then((r) => ({
               results: (r.examples || []).map((e) => ({
                 source: 'examples' as const,
@@ -356,10 +370,10 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       results = mergeSearchResults(...allResults);
 
       // Crawl top web results for full content
-      const webResults = results.filter((r) => r.source === 'web');
+      const webResults = results.filter((r) => r.source === 'web' && r.url);
       if (webResults.length > 0) {
         try {
-          const crawled = await selectAndCrawlTopUrls(webResults, query, {
+          const crawled = await selectAndCrawlTopUrls(webResults as any, query, {
             maxUrls: 2,
             timeout: 3000,
           });
@@ -577,19 +591,22 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         const perCollectionLimit = isNotebookScoped ? 10 : 3;
 
         const searchPromises = uniqueCollections.flatMap((collection) =>
-          subQueries.map((sq) =>
-            executeDirectSearch({
+          subQueries.map((sq) => {
+            const params: Parameters<typeof executeDirectSearch>[0] = {
               query: sq,
               collection,
               limit: perCollectionLimit,
-              filters: detectedFilters || undefined,
-            }).catch((err: unknown) => {
+            };
+            if (detectedFilters != null) {
+              params.filters = detectedFilters;
+            }
+            return executeDirectSearch(params).catch((err: unknown) => {
               log.warn(
                 `[Search] Collection ${collection} failed for query "${sq}": ${err instanceof Error ? err.message : String(err)}`
               );
               return null;
-            })
-          )
+            });
+          })
         );
 
         const searchResults = await Promise.all(searchPromises);
@@ -728,7 +745,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
         // A1: Crawl top 2 web results for full content
         try {
-          const crawled = await selectAndCrawlTopUrls(results, query, {
+          const crawled = await selectAndCrawlTopUrls(results.filter(r => r.url) as any, query, {
             maxUrls: 2,
             timeout: 3000,
           });
@@ -757,11 +774,13 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         const country =
           agentConfig.toolRestrictions?.examplesCountry ||
           (state.userLocale === 'de-AT' ? 'AT' : undefined);
-        const examplesResult = await executeDirectExamplesSearch({
+        const examplesParams: Parameters<typeof executeDirectExamplesSearch>[0] = {
           query: searchQuery || '',
-          platform: undefined,
-          country,
-        });
+        };
+        if (country != null) {
+          examplesParams.country = country;
+        }
+        const examplesResult = await executeDirectExamplesSearch(examplesParams);
 
         results =
           examplesResult.examples?.map((e) => ({

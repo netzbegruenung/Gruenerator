@@ -267,11 +267,9 @@ router.patch(
       );
 
       if (req.user) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         profileService.updateUserSession(
-          req.user as unknown as {
-            beta_features?: Record<string, boolean>;
-            [key: string]: unknown;
-          },
+          req.user as any,
           updatedProfile,
           feature,
           enabled

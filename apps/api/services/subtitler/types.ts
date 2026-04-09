@@ -55,30 +55,30 @@ export interface SubtitlerProjectListItem {
  */
 export interface CreateProjectData {
   uploadId: string;
-  subtitles?: string;
-  title?: string;
-  stylePreference?: string;
-  heightPreference?: string;
-  modePreference?: string;
-  videoMetadata?: Record<string, unknown>;
-  videoFilename?: string;
-  videoSize?: number;
-  videoSourcePath?: string;
+  subtitles?: string | undefined;
+  title?: string | undefined;
+  stylePreference?: string | undefined;
+  heightPreference?: string | undefined;
+  modePreference?: string | undefined;
+  videoMetadata?: Record<string, unknown> | undefined;
+  videoFilename?: string | undefined;
+  videoSize?: number | undefined;
+  videoSourcePath?: string | undefined;
 }
 
 /**
  * Data for updating an existing project
  */
 export interface UpdateProjectData {
-  title?: string;
-  subtitles?: string;
-  style_preference?: string;
-  stylePreference?: string;
-  height_preference?: string;
-  heightPreference?: string;
-  style_settings?: Record<string, unknown>;
-  styleSettings?: Record<string, unknown>;
-  status?: string;
+  title?: string | undefined;
+  subtitles?: string | undefined;
+  style_preference?: string | undefined;
+  stylePreference?: string | undefined;
+  height_preference?: string | undefined;
+  heightPreference?: string | undefined;
+  style_settings?: Record<string, unknown> | undefined;
+  styleSettings?: Record<string, unknown> | undefined;
+  status?: string | undefined;
 }
 
 /**

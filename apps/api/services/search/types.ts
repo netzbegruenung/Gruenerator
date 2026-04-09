@@ -7,14 +7,14 @@
 // ============================================================================
 
 export interface SearxngSearchOptions {
-  timeout?: number;
-  maxResults?: number;
-  language?: string;
-  safesearch?: number;
-  categories?: string;
-  time_range?: string;
-  page?: number;
-  format?: string;
+  timeout?: number | undefined;
+  maxResults?: number | undefined;
+  language?: string | undefined;
+  safesearch?: number | undefined;
+  categories?: string | undefined;
+  time_range?: string | undefined;
+  page?: number | undefined;
+  format?: string | undefined;
 }
 
 export interface SearchResult {
@@ -65,15 +65,15 @@ export interface FormattedSearchResults {
 export interface SearxngSummary {
   text: string;
   generated: boolean;
-  model?: string;
-  timestamp?: string;
-  wordCount?: number;
-  basedOnResults?: number;
-  error?: string;
+  model?: string | undefined;
+  timestamp?: string | undefined;
+  wordCount?: number | undefined;
+  basedOnResults?: number | undefined;
+  error?: string | undefined;
 }
 
 export interface FormattedSearchResultsWithSummary extends FormattedSearchResults {
-  summary?: SearxngSummary;
+  summary?: SearxngSummary | undefined;
 }
 
 export interface CacheEntry<T> {
@@ -87,7 +87,7 @@ export interface ServiceStatus {
     type: 'redis' | 'memory';
     size: number;
     connected: boolean;
-    error?: string;
+    error?: string | undefined;
   };
   cacheTimeout: number;
   newsCache: number;
@@ -101,36 +101,36 @@ export interface ServiceStatus {
 // ============================================================================
 
 export interface SearchResultInput {
-  title?: string;
-  document_title?: string;
-  filename?: string;
+  title?: string | undefined;
+  document_title?: string | undefined;
+  filename?: string | undefined;
   top_chunks?: Array<{
-    preview?: string;
+    preview?: string | undefined;
     chunk_index: number;
-    page_number?: number | null;
+    page_number?: number | null | undefined;
   }>;
-  source_url?: string;
-  url?: string;
-  document_id?: string;
-  source_id?: string | null;
-  similarity_score?: number;
-  relevant_content?: string;
-  chunk_text?: string;
-  chunk_index?: number;
+  source_url?: string | undefined;
+  url?: string | undefined;
+  document_id?: string | undefined;
+  source_id?: string | null | undefined;
+  similarity_score?: number | undefined;
+  relevant_content?: string | undefined;
+  chunk_text?: string | undefined;
+  chunk_index?: number | undefined;
 }
 
 export interface ExpandedChunkResult {
   document_id: string;
   source_url: string | null;
-  source_id?: string | null;
+  source_id?: string | null | undefined;
   title: string;
   snippet: string;
   filename: string | null;
   similarity: number;
   chunk_index: number;
   page_number: number | null;
-  collection_id?: string;
-  collection_name?: string;
+  collection_id?: string | undefined;
+  collection_name?: string | undefined;
 }
 
 export interface ReferenceData {
@@ -145,8 +145,8 @@ export interface ReferenceData {
   similarity_score: number;
   chunk_index: number;
   page_number: number | null;
-  collection_id?: string;
-  collection_name?: string;
+  collection_id?: string | undefined;
+  collection_name?: string | undefined;
 }
 
 export interface ReferencesMap {
@@ -163,8 +163,8 @@ export interface Citation {
   chunk_index: number;
   filename: string | null;
   page_number: number | null;
-  collection_id?: string;
-  collection_name?: string;
+  collection_id?: string | undefined;
+  collection_name?: string | undefined;
 }
 
 export interface Source {
@@ -184,13 +184,13 @@ export interface ValidationResult {
 }
 
 export interface FilterOptions {
-  threshold?: number;
-  limit?: number;
+  threshold?: number | undefined;
+  limit?: number | undefined;
 }
 
 export interface DedupeOptions {
-  limitPerDoc?: number;
-  maxTotal?: number;
+  limitPerDoc?: number | undefined;
+  maxTotal?: number | undefined;
 }
 
 export interface CollectionConfig {

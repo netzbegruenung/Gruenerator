@@ -71,8 +71,8 @@ export class ValidationError extends VectorBackendError {
     code: ErrorCode = 'VALIDATION_ERROR'
   ) {
     super(message, code, { field, value });
-    this.field = field;
-    this.value = value;
+    if (field != null) this.field = field;
+    if (value != null) this.value = value;
   }
 
   override toAPIResponse(): APIErrorResponse {
@@ -93,8 +93,8 @@ export class SearchError extends VectorBackendError {
 
   constructor(message: string, code: ErrorCode = 'SEARCH_ERROR', details: ErrorDetails = {}) {
     super(message, code, details);
-    this.searchType = details.searchType || 'unknown';
-    this.userId = details.userId;
+    this.searchType = (details.searchType as string) || 'unknown';
+    if (details.userId != null) this.userId = details.userId;
   }
 }
 
@@ -107,8 +107,8 @@ export class EmbeddingError extends VectorBackendError {
 
   constructor(message: string, code: ErrorCode = 'EMBEDDING_ERROR', details: ErrorDetails = {}) {
     super(message, code, details);
-    this.embeddingDimensions = details.embeddingDimensions;
-    this.provider = details.provider;
+    if (details.embeddingDimensions != null) this.embeddingDimensions = details.embeddingDimensions;
+    if (details.provider != null) this.provider = details.provider;
   }
 }
 
@@ -122,9 +122,9 @@ export class DatabaseError extends VectorBackendError {
 
   constructor(message: string, code: ErrorCode = 'DATABASE_ERROR', details: ErrorDetails = {}) {
     super(message, code, details);
-    this.operation = details.operation;
-    this.table = details.table;
-    this.rpcFunction = details.rpcFunction;
+    if (details.operation != null) this.operation = details.operation;
+    if (details.table != null) this.table = details.table;
+    if (details.rpcFunction != null) this.rpcFunction = details.rpcFunction;
   }
 }
 
@@ -138,9 +138,9 @@ export class AIWorkerError extends VectorBackendError {
 
   constructor(message: string, code: ErrorCode = 'AI_WORKER_ERROR', details: ErrorDetails = {}) {
     super(message, code, details);
-    this.provider = details.provider;
-    this.model = details.model;
-    this.requestType = details.requestType;
+    if (details.provider != null) this.provider = details.provider;
+    if (details.model != null) this.model = details.model;
+    if (details.requestType != null) this.requestType = details.requestType;
   }
 }
 
@@ -153,8 +153,8 @@ export class CacheError extends VectorBackendError {
 
   constructor(message: string, code: ErrorCode = 'CACHE_ERROR', details: ErrorDetails = {}) {
     super(message, code, details);
-    this.cacheType = details.cacheType;
-    this.operation = details.operation;
+    if (details.cacheType != null) this.cacheType = details.cacheType;
+    if (details.operation != null) this.operation = details.operation;
   }
 }
 

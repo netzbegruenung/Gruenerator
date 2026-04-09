@@ -189,7 +189,7 @@ router.post(
           options: { threshold: 0.25 },
         });
         if (search.success && Array.isArray(search.results)) {
-          vectorResults = search.results as unknown as Array<Record<string, unknown>>;
+          vectorResults = (search.results as unknown as Array<Record<string, unknown>>) || [];
         }
       } catch (vecErr) {
         const err = vecErr as Error;

@@ -545,10 +545,11 @@ async function generateFinalResult({
     `[SimpleInteractiveGenerator] Generation completed: ${generationResult.content?.length || 0} chars`
   );
 
-  return {
+  const result: GenerationResult = {
     content: generationResult.content || '',
-    metadata: generationResult.metadata,
+    ...(generationResult.metadata != null ? { metadata: generationResult.metadata } : {}),
   };
+  return result;
 }
 
 /**

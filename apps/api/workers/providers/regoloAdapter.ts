@@ -141,7 +141,15 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
 
   const modelMessages = convertMessages(messages, systemPrompt);
 
-  const toolsPayload = ToolHandler.prepareToolsPayload(options, 'regolo', requestId, type);
+  const toolsPayload = ToolHandler.prepareToolsPayload(
+    {
+      ...(options.tools != null && { tools: options.tools as any }),
+      ...(options.tool_choice != null && { tool_choice: options.tool_choice }),
+    },
+    'regolo',
+    requestId,
+    type
+  );
   const tools = convertTools(toolsPayload);
 
   let toolChoice: 'auto' | 'none' | 'required' | undefined;
@@ -165,8 +173,8 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
       maxOutputTokens: options.max_tokens || 4096,
       temperature: options.temperature || 0,
       topP: options.top_p || 0.1,
-      tools,
-      toolChoice,
+      ...(tools != null && { tools }),
+      ...(toolChoice != null && { toolChoice }),
     });
 
     const textContent = result.text || null;
@@ -213,13 +221,13 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
         model: model,
         timestamp: new Date().toISOString(),
         requestId,
-        usage: result.usage
-          ? {
-              prompt_tokens: result.usage.inputTokens,
-              completion_tokens: result.usage.outputTokens,
-              total_tokens: result.usage.totalTokens,
-            }
-          : undefined,
+        ...(result.usage && {
+          usage: {
+            prompt_tokens: result.usage.inputTokens,
+            completion_tokens: result.usage.outputTokens,
+            total_tokens: result.usage.totalTokens,
+          }
+        }),
       }),
     };
   } catch (error: unknown) {

@@ -23,7 +23,7 @@ async function getSubscriberClient(): Promise<ReturnType<typeof createClient>> {
 
   if (!subscriberClient) {
     subscriberClient = createClient({
-      url: redisUrl,
+      ...(redisUrl ? { url: redisUrl } : {}),
       socket: {
         keepAlive: true,
         connectTimeout: 10000,

@@ -431,10 +431,13 @@ class OparlApiClient {
         totalPapers: allPapers.length,
         greenFactions: greenFactions.map((f) => ({
           id: f.id,
-          name: f.name,
-          shortName: f.shortName,
+          ...(f.name && { name: f.name }),
+          ...(f.shortName && { shortName: f.shortName }),
         })),
-        body: { id: body.id, name: body.name },
+        body: {
+          id: body.id,
+          ...(body.name ? { name: body.name } : {}),
+        },
         hasGreenFactionData: greenFactions.length > 0,
       };
     } catch (error) {
@@ -542,7 +545,7 @@ class OparlApiClient {
           if (detection.isGreen) {
             allGreenPapers.push({
               ...paper,
-              _detectionMethod: detection.method || undefined,
+              ...(detection.method && { _detectionMethod: detection.method }),
             });
             greenFoundThisPage++;
           }
@@ -568,10 +571,10 @@ class OparlApiClient {
         papers: allGreenPapers,
         greenFactions: greenFactions.map((f) => ({
           id: f.id,
-          name: f.name,
-          shortName: f.shortName,
+          ...(f.name && { name: f.name }),
+          ...(f.shortName && { shortName: f.shortName }),
         })),
-        body: { id: body.id, name: body.name },
+        body: { id: body.id, ...(body.name && { name: body.name }) },
         stats: { totalScanned: totalPapersScanned, pagesScanned: pageNum - 1 },
       };
     } catch (error) {

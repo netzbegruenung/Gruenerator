@@ -7,7 +7,7 @@
  */
 export interface CleaningOptions {
   /** Preserve structural elements like page markers */
-  preserveStructure?: boolean;
+  preserveStructure?: boolean | undefined;
 }
 
 /**
@@ -15,9 +15,9 @@ export interface CleaningOptions {
  */
 export interface NormalizationOptions {
   /** Convert to lowercase */
-  toLowerCase?: boolean;
+  toLowerCase?: boolean | undefined;
   /** Fold German umlauts to ASCII */
-  foldUmlauts?: boolean;
+  foldUmlauts?: boolean | undefined;
   /** Normalize unicode numbers (subscripts/superscripts) */
-  normalizeNumbers?: boolean;
+  normalizeNumbers?: boolean | undefined;
 }

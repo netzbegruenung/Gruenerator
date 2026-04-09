@@ -56,7 +56,7 @@ export interface Message {
 
 export interface MessageContent {
   type: 'text' | 'image_url' | 'document_url';
-  text?: string;
+  text?: string | undefined;
   image_url?: { url: string };
   document_url?: { url: string };
 }
@@ -75,84 +75,84 @@ export interface ToolCall {
 
 export interface ContentBlock {
   type: string;
-  text?: string;
-  id?: string;
-  name?: string;
-  input?: Record<string, unknown>;
+  text?: string | undefined;
+  id?: string | undefined;
+  name?: string | undefined;
+  input?: Record<string, unknown> | undefined;
 }
 
 export interface FileMetadata {
-  fileId?: string;
-  usePromptCaching?: boolean;
+  fileId?: string | undefined;
+  usePromptCaching?: boolean | undefined;
 }
 
 export interface AIRequestOptions extends ProviderOptions {
-  max_tokens?: number;
-  temperature?: number;
-  top_p?: number;
-  tools?: Tool[];
+  max_tokens?: number | undefined;
+  temperature?: number | undefined;
+  top_p?: number | undefined;
+  tools?: Tool[] | undefined;
   tool_choice?: string | { type: string; name?: string };
   response_format?: { type: string };
-  anthropic_version?: string;
-  betas?: string[];
-  useDocumentQnA?: boolean;
-  presence_penalty?: number;
-  frequency_penalty?: number;
+  anthropic_version?: string | undefined;
+  betas?: string[] | undefined;
+  useDocumentQnA?: boolean | undefined;
+  presence_penalty?: number | undefined;
+  frequency_penalty?: number | undefined;
   [key: string]: unknown;
 }
 
 export interface AIRequestData {
   type: string;
-  prompt?: string;
-  systemPrompt?: string;
-  messages?: Message[];
-  options?: AIRequestOptions;
-  metadata?: RequestMetadata & Record<string, unknown>;
-  fileMetadata?: FileMetadata;
-  instructions?: string;
-  provider?: ProviderName | string;
-  usePrivacyMode?: boolean;
-  platforms?: string[];
-  documents?: DocumentReference[];
-  tools?: Tool[];
+  prompt?: string | undefined;
+  systemPrompt?: string | undefined;
+  messages?: Message[] | undefined;
+  options?: AIRequestOptions | undefined;
+  metadata?: RequestMetadata & Record<string, unknown> | undefined;
+  fileMetadata?: FileMetadata | undefined;
+  instructions?: string | undefined;
+  provider?: ProviderName | string | undefined;
+  usePrivacyMode?: boolean | undefined;
+  platforms?: string[] | undefined;
+  documents?: DocumentReference[] | undefined;
+  tools?: Tool[] | undefined;
   [key: string]: unknown;
 }
 
 export interface DocumentReference {
-  url?: string;
-  content?: string;
-  type?: string;
-  name?: string;
+  url?: string | undefined;
+  content?: string | undefined;
+  type?: string | undefined;
+  name?: string | undefined;
 }
 
 export interface AIResponseMetadata {
   provider: string;
   timestamp: string;
-  backupRequested?: boolean;
-  requestId?: string;
-  messageId?: string;
-  modelUsed?: string;
-  workerIndex?: number;
-  processedAt?: string;
-  isFilesApiRequest?: boolean;
-  fileId?: string | null;
-  usedPromptCaching?: boolean;
-  reasoningTokens?: number;
-  inputTokens?: number;
-  outputTokens?: number;
-  promptTokens?: number;
-  totalTokens?: number;
+  backupRequested?: boolean | undefined;
+  requestId?: string | undefined;
+  messageId?: string | undefined;
+  modelUsed?: string | undefined;
+  workerIndex?: number | undefined;
+  processedAt?: string | undefined;
+  isFilesApiRequest?: boolean | undefined;
+  fileId?: string | null | undefined;
+  usedPromptCaching?: boolean | undefined;
+  reasoningTokens?: number | undefined;
+  inputTokens?: number | undefined;
+  outputTokens?: number | undefined;
+  promptTokens?: number | undefined;
+  totalTokens?: number | undefined;
   [key: string]: unknown;
 }
 
 export interface AIWorkerResult {
   content: string | null;
-  stop_reason?: string;
-  tool_calls?: ToolCall[];
-  raw_content_blocks?: ContentBlock[];
+  stop_reason?: string | undefined;
+  tool_calls?: ToolCall[] | undefined;
+  raw_content_blocks?: ContentBlock[] | undefined;
   success: boolean;
-  metadata?: AIResponseMetadata;
-  error?: string;
+  metadata?: AIResponseMetadata | undefined;
+  error?: string | undefined;
   [key: string]: unknown;
 }
 

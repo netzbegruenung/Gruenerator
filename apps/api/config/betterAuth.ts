@@ -189,10 +189,15 @@ export const auth = betterAuth({
     database: {
       generateId: false,
     },
-    crossSubDomainCookies: {
-      enabled: true,
-      domain: process.env.NODE_ENV === 'production' ? '.gruenerator.eu' : undefined,
-    },
+    crossSubDomainCookies: (() => {
+      const config: { enabled: boolean; domain?: string } = {
+        enabled: true,
+      };
+      if (process.env.NODE_ENV === 'production') {
+        config.domain = '.gruenerator.eu';
+      }
+      return config;
+    })(),
   },
 
   databaseHooks: {

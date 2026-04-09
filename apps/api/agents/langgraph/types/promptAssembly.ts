@@ -25,13 +25,13 @@ export type Platform = 'facebook' | 'instagram' | 'twitter' | 'linkedin' | strin
  * User request object with optional fields for different generation types
  */
 export interface RequestObject {
-  theme?: string;
-  thema?: string;
-  details?: string;
-  platforms?: Platform[];
-  zitatgeber?: string;
-  textForm?: string;
-  presseabbinder?: string;
+  theme?: string | undefined;
+  thema?: string | undefined;
+  details?: string | undefined;
+  platforms?: Platform[] | undefined;
+  zitatgeber?: string | undefined;
+  textForm?: string | undefined;
+  presseabbinder?: string | undefined;
   [key: string]: unknown;
 }
 
@@ -39,7 +39,7 @@ export interface RequestObject {
  * Enrichment metadata from request processing
  */
 export interface EnrichmentMetadata {
-  enableDocQnA?: boolean;
+  enableDocQnA?: boolean | undefined;
   [key: string]: unknown;
 }
 
@@ -48,7 +48,7 @@ export interface EnrichmentMetadata {
  */
 export interface ContentExample {
   content: string;
-  platform?: Platform;
+  platform?: Platform | undefined;
   [key: string]: unknown;
 }
 
@@ -59,30 +59,30 @@ export interface ContentExample {
 export interface PromptAssemblyState {
   // Core prompt configuration
   systemRole: string;
-  locale?: Locale;
+  locale?: Locale | undefined;
 
   // Content inputs
-  request?: string | RequestObject | null;
-  requestFormatted?: string | null;
-  documents?: ClaudeDocument[];
-  knowledge?: string[];
-  examples?: ContentExample[];
+  request?: string | RequestObject | null | undefined;
+  requestFormatted?: string | null | undefined;
+  documents?: ClaudeDocument[] | undefined;
+  knowledge?: string[] | undefined;
+  examples?: ContentExample[] | undefined;
 
   // Instructions and configuration (allow null for compatibility with EnrichedState)
-  instructions?: string | null;
-  toolInstructions?: string[];
-  constraints?: string | null;
-  formatting?: string | null;
-  taskInstructions?: string | null;
-  outputFormat?: string | null;
+  instructions?: string | null | undefined;
+  toolInstructions?: string[] | undefined;
+  constraints?: string | null | undefined;
+  formatting?: string | null | undefined;
+  taskInstructions?: string | null | undefined;
+  outputFormat?: string | null | undefined;
 
   // Tools
-  tools?: ClaudeTool[];
+  tools?: ClaudeTool[] | undefined;
 
   // Metadata
-  type?: string;
-  enrichmentMetadata?: EnrichmentMetadata;
-  selectedDocumentIds?: string[];
+  type?: string | undefined;
+  enrichmentMetadata?: EnrichmentMetadata | undefined;
+  selectedDocumentIds?: string[] | undefined;
 }
 
 // ============================================================================
@@ -102,21 +102,21 @@ export interface DocumentBlock {
  */
 export interface DocumentSource {
   type: 'base64' | 'text' | string;
-  data?: string;
-  name?: string;
-  media_type?: string;
-  url?: string;
-  text?: string;
-  metadata?: DocumentMetadata;
+  data?: string | undefined;
+  name?: string | undefined;
+  media_type?: string | undefined;
+  url?: string | undefined;
+  text?: string | undefined;
+  metadata?: DocumentMetadata | undefined;
 }
 
 /**
  * Metadata for document sources (e.g., crawled URLs)
  */
 export interface DocumentMetadata {
-  contentSource?: 'url_crawl' | string;
-  title?: string;
-  url?: string;
+  contentSource?: 'url_crawl' | string | undefined;
+  title?: string | undefined;
+  url?: string | undefined;
   [key: string]: unknown;
 }
 
@@ -125,9 +125,9 @@ export interface DocumentMetadata {
  */
 export interface MessageContent {
   type: 'text' | 'document' | 'image' | 'document_url';
-  text?: string;
-  source?: DocumentSource;
-  documentUrl?: string;
+  text?: string | undefined;
+  source?: DocumentSource | undefined;
+  documentUrl?: string | undefined;
 }
 
 // ============================================================================
@@ -142,7 +142,7 @@ export interface PromptAssemblyResult {
   system: string;
   messages: ClaudeMessage[];
   tools: ClaudeTool[];
-  enrichmentMetadata?: EnrichmentMetadata;
+  enrichmentMetadata?: EnrichmentMetadata | undefined;
 }
 
 /**
@@ -187,7 +187,7 @@ export interface FileUploadPayload {
  * File upload response from Mistral API
  */
 export interface FileUploadResponse {
-  id?: string;
+  id?: string | undefined;
   file?: { id?: string };
   data?: { id?: string };
 }
@@ -254,26 +254,26 @@ export interface GetExamplesOptions {
  */
 export interface BuildSystemTextParams {
   systemRole: string;
-  toolInstructions?: string[];
-  constraints?: string | null;
-  formatting?: string | null;
-  locale?: Locale;
+  toolInstructions?: string[] | undefined;
+  constraints?: string | null | undefined;
+  formatting?: string | null | undefined;
+  locale?: Locale | undefined;
 }
 
 /**
  * Parameters for buildMainUserContent function
  */
 export interface BuildMainUserContentParams {
-  examples?: ContentExample[];
-  knowledge?: string[];
-  instructions?: string | null;
-  request?: string | RequestObject | null;
-  toolInstructions?: string[];
-  constraints?: string | null;
-  formatting?: string | null;
-  taskInstructions?: string | null;
-  outputFormat?: string | null;
-  locale?: Locale;
+  examples?: ContentExample[] | undefined;
+  knowledge?: string[] | undefined;
+  instructions?: string | null | undefined;
+  request?: string | RequestObject | null | undefined;
+  toolInstructions?: string[] | undefined;
+  constraints?: string | null | undefined;
+  formatting?: string | null | undefined;
+  taskInstructions?: string | null | undefined;
+  outputFormat?: string | null | undefined;
+  locale?: Locale | undefined;
 }
 
 /**

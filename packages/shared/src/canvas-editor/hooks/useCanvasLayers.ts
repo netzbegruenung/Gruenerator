@@ -143,7 +143,7 @@ export function useCanvasLayers(options: UseCanvasLayersOptions = {}): UseCanvas
         id: newId,
         x: layer.x + 20,
         y: layer.y + 20,
-        name: layer.name ? `${layer.name} (copy)` : undefined,
+        ...(layer.name && { name: `${layer.name} (copy)` }),
       };
 
       setLayersInternal((prev) => {

@@ -15,19 +15,19 @@ export interface SharepicRequest extends Request {
 
 export interface AIWorkerPayload {
   type: string;
-  systemPrompt?: string;
+  systemPrompt?: string | undefined;
   messages?: Array<{ role: string; content: string }>;
   options?: {
-    max_tokens?: number;
-    temperature?: number;
+    max_tokens?: number | undefined;
+    temperature?: number | undefined;
   };
-  usePrivacyMode?: boolean;
+  usePrivacyMode?: boolean | undefined;
 }
 
 export interface AIWorkerResult {
   success: boolean;
-  content?: string;
-  error?: string;
+  content?: string | undefined;
+  error?: string | undefined;
 }
 
 export interface SharepicColors {
@@ -42,7 +42,7 @@ export interface DreizeilenParams {
   balkenOffset: number[];
   sunflowerOffset: [number, number];
   sunflowerPosition: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
-  credit?: string;
+  credit?: string | undefined;
 }
 
 export interface TextLine {
@@ -57,33 +57,33 @@ export interface Slogan {
 
 export interface EditSessionData {
   imageData: string;
-  originalImageData?: string;
+  originalImageData?: string | undefined;
   metadata: Record<string, unknown>;
   createdAt: string;
 }
 
 export interface EditSessionResponse {
-  sessionId?: string;
-  expiresIn?: number;
-  imageData?: string;
-  originalImageData?: string;
-  metadata?: Record<string, unknown>;
-  createdAt?: string;
-  deleted?: boolean;
-  error?: string;
+  sessionId?: string | undefined;
+  expiresIn?: number | undefined;
+  imageData?: string | undefined;
+  originalImageData?: string | undefined;
+  metadata?: Record<string, unknown> | undefined;
+  createdAt?: string | undefined;
+  deleted?: boolean | undefined;
+  error?: string | undefined;
 }
 
 export interface SharepicGenerateRequest {
   description: string;
-  templateId?: string;
-  content?: Record<string, unknown>;
-  useAI?: boolean;
-  skipCache?: boolean;
+  templateId?: string | undefined;
+  content?: Record<string, unknown> | undefined;
+  useAI?: boolean | undefined;
+  skipCache?: boolean | undefined;
 }
 
 export interface SharepicVariantsRequest {
   description: string;
-  count?: number;
+  count?: number | undefined;
 }
 
 export interface SharepicEditRequest {
@@ -94,7 +94,7 @@ export interface SharepicEditRequest {
 export interface LayoutPlan {
   templateId: string;
   analysis?: {
-    category?: string;
+    category?: string | undefined;
   };
   [key: string]: unknown;
 }
@@ -103,23 +103,23 @@ export interface InfoData {
   header: string;
   subheader: string;
   body: string;
-  searchTerm?: string;
+  searchTerm?: string | undefined;
 }
 
 export interface EventData {
   eventTitle: string;
-  beschreibung?: string;
+  beschreibung?: string | undefined;
   weekday: string;
   date: string;
   time: string;
   locationName: string;
-  address?: string;
-  searchTerm?: string;
+  address?: string | undefined;
+  searchTerm?: string | undefined;
 }
 
 export interface QuoteData {
   quote: string;
-  name?: string;
+  name?: string | undefined;
 }
 
 export type SharepicType =
@@ -136,12 +136,12 @@ export interface CampaignConfig {
   singleItemTemplate: string;
   requestTemplate: string;
   options: {
-    max_tokens?: number;
-    temperature?: number;
+    max_tokens?: number | undefined;
+    temperature?: number | undefined;
   };
 }
 
 export interface CanvasResult {
   image: string;
-  creditText?: string;
+  creditText?: string | undefined;
 }

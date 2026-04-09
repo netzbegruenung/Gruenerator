@@ -113,7 +113,7 @@ async function scrollCollection(client: QdrantClient, collection: string): Promi
   while (true) {
     const result = await client.scroll(collection, {
       limit: SCROLL_BATCH_SIZE,
-      offset: offset ?? undefined,
+      ...(offset != null && { offset }),
       with_payload: true,
       with_vector: false,
     });
