@@ -115,6 +115,20 @@ const StableFloatingComposer = () => {
 
     const handlePointerDown = (e: PointerEvent) => {
       const target = e.target as HTMLElement;
+
+      // DEBUG: Log checkbox interactions
+      const isCheckbox = target instanceof HTMLInputElement && target.type === 'checkbox';
+      const isChecklistArea = !!target.closest('[data-content-type="checkListItem"]');
+      if (isCheckbox || isChecklistArea) {
+        console.log('[DocsAI:Checkbox] pointerdown (capture)', {
+          tagName: target.tagName,
+          isCheckbox,
+          isChecklistArea,
+          checked: isCheckbox ? target.checked : 'n/a',
+          defaultPrevented: e.defaultPrevented,
+        });
+      }
+
       const inside = isInsideFloatingComposer(target);
       if (inside) {
         if (target.closest('button')) {
@@ -133,6 +147,16 @@ const StableFloatingComposer = () => {
 
     const handleMouseDown = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
+
+      // DEBUG: Log checkbox interactions
+      const isCheckbox = target instanceof HTMLInputElement && target.type === 'checkbox';
+      if (isCheckbox) {
+        console.log('[DocsAI:Checkbox] mousedown (capture)', {
+          checked: target.checked,
+          defaultPrevented: e.defaultPrevented,
+        });
+      }
+
       if (!isInsideFloatingComposer(target)) return;
       if (target.closest('button')) {
         e.stopPropagation();
@@ -142,11 +166,27 @@ const StableFloatingComposer = () => {
       e.stopPropagation();
     };
 
+    // DEBUG: Also listen for click on checkboxes to see if it fires
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const isCheckbox = target instanceof HTMLInputElement && target.type === 'checkbox';
+      if (isCheckbox) {
+        console.log('[DocsAI:Checkbox] click fired', {
+          checked: target.checked,
+          defaultPrevented: e.defaultPrevented,
+          bubbles: e.bubbles,
+          isTrusted: e.isTrusted,
+        });
+      }
+    };
+
     document.addEventListener('pointerdown', handlePointerDown, true);
     document.addEventListener('mousedown', handleMouseDown, true);
+    document.addEventListener('click', handleClick, true);
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown, true);
       document.removeEventListener('mousedown', handleMouseDown, true);
+      document.removeEventListener('click', handleClick, true);
     };
   }, []);
 
