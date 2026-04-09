@@ -241,7 +241,10 @@ export function formatBoardAsContext(board: BoardState): string {
 export function parseBoardStructure(content: string): BoardGenerationResult | null {
   try {
     const jsonMatch = content.match(/\{[\s\S]*\}/);
-    return JSON.parse(jsonMatch?.[0] || content);
+    const result: BoardGenerationResult = JSON.parse(
+      jsonMatch?.[0] || content
+    ) as BoardGenerationResult;
+    return result;
   } catch {
     return null;
   }

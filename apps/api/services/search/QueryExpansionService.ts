@@ -40,10 +40,9 @@ Antworte NUR mit JSON:
  * Expand a search query into multiple alternative formulations.
  * Uses the AI worker pool for a fast Mistral-small call.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function expandQuery(
   query: string,
-  aiWorkerPool: { processRequest: (...args: any[]) => Promise<{ content?: string | null }> }
+  aiWorkerPool: { processRequest: (...args: unknown[]) => Promise<{ content?: string | null }> }
 ): Promise<ExpandedQuery> {
   // Check cache first
   const cacheKey = query.toLowerCase().trim();
@@ -99,22 +98,24 @@ export async function expandQuery(
  */
 function parseExpansionResponse(content: string): string[] {
   try {
-    const parsed = JSON.parse(content);
+    const parsed = JSON.parse(content) as { alternatives?: unknown[] };
     if (parsed.alternatives && Array.isArray(parsed.alternatives)) {
-      return parsed.alternatives
-        .filter((a: unknown) => typeof a === 'string' && a.trim().length > 3)
+      const filtered: string[] = (parsed.alternatives as unknown[])
+        .filter((a: unknown): a is string => typeof a === 'string' && a.trim().length > 3)
         .slice(0, 2);
+      return filtered;
     }
   } catch {
     // Try extracting JSON from text
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       try {
-        const parsed = JSON.parse(jsonMatch[0]);
+        const parsed = JSON.parse(jsonMatch[0]) as { alternatives?: unknown[] };
         if (parsed.alternatives && Array.isArray(parsed.alternatives)) {
-          return parsed.alternatives
-            .filter((a: unknown) => typeof a === 'string' && a.trim().length > 3)
+          const filtered: string[] = (parsed.alternatives as unknown[])
+            .filter((a: unknown): a is string => typeof a === 'string' && a.trim().length > 3)
             .slice(0, 2);
+          return filtered;
         }
       } catch {
         // Fall through

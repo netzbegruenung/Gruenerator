@@ -175,8 +175,12 @@ const loadCampaignConfig = (campaignId: string, typeId: string): CampaignConfig 
   }
 
   try {
-    const campaign = JSON.parse(fsSync.readFileSync(campaignPath, 'utf8'));
-    const typeConfig = campaign.types?.[typeId];
+    const campaign: { types?: Record<string, CampaignConfig> } = JSON.parse(
+      fsSync.readFileSync(campaignPath, 'utf8')
+    ) as {
+      types?: Record<string, CampaignConfig>;
+    };
+    const typeConfig: CampaignConfig | undefined = campaign.types?.[typeId];
 
     if (!typeConfig) {
       log.warn(`[Campaign] Type ${typeId} not found in campaign ${campaignId}`);

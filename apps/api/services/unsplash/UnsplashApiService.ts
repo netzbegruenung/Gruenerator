@@ -268,7 +268,8 @@ export class UnsplashApiService {
       throw new UnsplashApiError(errorMessage, response.status, errorBody);
     }
 
-    return response.json();
+    const data: T = (await response.json()) as T;
+    return data;
   }
 
   /**
