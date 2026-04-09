@@ -30,13 +30,21 @@ import {
   isSharepicIntent,
   isImagineIntent,
 } from '../../services/chat/IntentService.js';
-import { generateSharepicForChat } from '../../services/chat/sharepicGenerationService.js';
+import {
+  generateSharepicForChat,
+  type ExpressRequest as SharepicExpressRequest,
+} from '../../services/chat/sharepicGenerationService.js';
 import {
   detectSimpleMessage,
   generateSimpleResponse,
 } from '../../services/chat/simple-messages/index.js';
 import { trimMessagesToTokenLimit } from '../../services/counters/index.js';
-import { DocumentQnAService } from '../../services/document-services/DocumentQnAService/index.js';
+import {
+  DocumentQnAService,
+  type DocumentQnARedisClient,
+  type DocumentQnAMistralClient,
+  type Attachment as DocumentQnAAttachment,
+} from '../../services/document-services/DocumentQnAService/index.js';
 import { searxngService as searxngWebSearchService } from '../../services/search/index.js';
 import { withErrorHandler } from '../../utils/errors/index.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
@@ -62,8 +70,8 @@ const CONFIG = {
 
 // Initialize DocumentQnA service
 const documentQnAService = new DocumentQnAService(
-  redisClient as unknown as ConstructorParameters<typeof DocumentQnAService>[0],
-  mistralClient as unknown as ConstructorParameters<typeof DocumentQnAService>[1]
+  redisClient as unknown as DocumentQnARedisClient,
+  mistralClient as DocumentQnAMistralClient
 );
 
 /**
@@ -342,7 +350,7 @@ async function processAttachments(
       try {
         documentIds = await documentQnAService.storeAttachments(
           userId,
-          textAttachments as unknown as Parameters<typeof documentQnAService.storeAttachments>[1]
+          textAttachments as unknown as DocumentQnAAttachment[]
         );
         log.debug(`[Chat] Stored ${textAttachments.length} text documents`);
       } catch (error) {
@@ -509,11 +517,7 @@ async function handlePendingInformationRequest(
   if (extractedInfo) {
     await chatMemory.clearPendingRequest(userId);
 
-    const completedRequest = completePendingRequest(
-      pendingRequest,
-      extractedInfo,
-      req as unknown as Parameters<typeof completePendingRequest>[2]
-    );
+    const completedRequest = completePendingRequest(pendingRequest, extractedInfo, {});
 
     const completedRequestContext = {
       message: completedRequest.originalMessage || completedRequest.message || '',
@@ -558,7 +562,7 @@ async function handlePendingInformationRequest(
           preserveName: true,
         });
         const sharepicResponse = await generateSharepicForChat(
-          req as unknown as Parameters<typeof generateSharepicForChat>[0],
+          req as SharepicExpressRequest,
           sharepicType,
           req.body
         );

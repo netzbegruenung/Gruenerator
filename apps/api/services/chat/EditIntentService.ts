@@ -243,7 +243,10 @@ export async function processEditIntent(
 
   if (!context || !context.sourceText || !context.instruction) {
     log.debug('[EditIntentService] No editContext provided, extracting with AI');
-    context = (await extractEditPartsWithAI(message, aiWorkerPool)) ?? undefined;
+    const extracted = await extractEditPartsWithAI(message, aiWorkerPool);
+    if (extracted) {
+      context = extracted;
+    }
   }
 
   if (!context) {

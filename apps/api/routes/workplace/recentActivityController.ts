@@ -138,7 +138,7 @@ export async function fetchRecentDocs(
     href: `/docs/${row.id}`,
     emoji: SUBTYPE_EMOJI[row.document_subtype ?? 'blank'] ?? '📄',
     documentType: row.document_subtype ?? 'blank',
-    content: row.content ?? undefined,
+    ...(row.content != null && { content: row.content }),
     creatorName: row.creator_name,
     accessType: row.access_type,
     deleteEndpoint: `/api/docs/${row.id}`,

@@ -116,8 +116,8 @@ router.get('/collections/:id/filters', async (req: Request<{ id: string }>, res:
           filters[field.field] = {
             label: field.label,
             type: fieldType,
-            min: min ?? undefined,
-            max: max ?? undefined,
+            ...(min != null && { min }),
+            ...(max != null && { max }),
           };
         } else {
           const valuesWithCounts = await qdrant.getFieldValueCounts(

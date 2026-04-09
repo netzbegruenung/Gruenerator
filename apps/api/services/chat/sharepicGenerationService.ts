@@ -96,6 +96,7 @@ interface MainSlogan {
   line1?: string;
   line2?: string;
   line3?: string;
+  [key: string]: string | undefined;
 }
 
 interface SharepicResult {
@@ -504,7 +505,7 @@ const _generateDreizeilenSharepic = async (
 
   const { payload: canvasPayload } = await callCanvasRoute(
     dreizeilenCanvasRouter,
-    mainSlogan as unknown as Record<string, unknown>
+    mainSlogan as Record<string, unknown>
   );
 
   if (!canvasPayload?.image) {
@@ -659,7 +660,7 @@ const generateDreizeilenWithImageSharepic = async (
 
     const { payload: canvasPayload } = await callCanvasRoute(
       dreizeilenCanvasRouter,
-      mockReq.body as unknown as Record<string, unknown>,
+      mockReq.body as Record<string, unknown>,
       mockReq.file as { buffer: Buffer; mimetype: string; originalname: string }
     );
 
@@ -736,7 +737,7 @@ const generateDreizeilenWithAIImageSharepic = async (
 
     const { payload: canvasPayload } = await callCanvasRoute(
       dreizeilenCanvasRouter,
-      mockReq.body as unknown as Record<string, unknown>,
+      mockReq.body as Record<string, unknown>,
       mockReq.file as { buffer: Buffer; mimetype: string; originalname: string }
     );
 

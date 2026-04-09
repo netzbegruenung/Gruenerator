@@ -221,8 +221,12 @@ async function processVideoExport(exportParams: ExportParams, res: Response): Pr
       originalFormat: metadata.originalFormat
         ? {
             codec: metadata.originalFormat.codec,
-            audioCodec: metadata.originalFormat.audioCodec ?? undefined,
-            audioBitrate: metadata.originalFormat.audioBitrate ?? undefined,
+            ...(metadata.originalFormat.audioCodec != null && {
+              audioCodec: metadata.originalFormat.audioCodec,
+            }),
+            ...(metadata.originalFormat.audioBitrate != null && {
+              audioBitrate: metadata.originalFormat.audioBitrate,
+            }),
           }
         : undefined,
     };

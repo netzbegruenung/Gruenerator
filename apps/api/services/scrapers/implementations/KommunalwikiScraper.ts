@@ -683,7 +683,7 @@ export class KommunalwikiScraper extends BaseScraper {
       do {
         const result = await this.qdrant!.client!.scroll(this.config.collectionName, {
           limit: 100,
-          offset: offset ?? undefined,
+          ...(offset != null && { offset }),
           with_payload: ['subcategories'],
           with_vector: false,
         });
@@ -722,7 +722,7 @@ export class KommunalwikiScraper extends BaseScraper {
       do {
         const result = await this.qdrant!.client!.scroll(this.config.collectionName, {
           limit: 100,
-          offset: offset ?? undefined,
+          ...(offset != null && { offset }),
           with_payload: false,
           with_vector: false,
         });
