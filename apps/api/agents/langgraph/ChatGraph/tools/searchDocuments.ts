@@ -92,7 +92,8 @@ export function createSearchDocumentsTool(deps: ToolDependencies): DynamicStruct
         .describe('Optionale Dokument-IDs zur Einschränkung der Suche auf bestimmte Dokumente'),
       topK: z.number().optional().describe('Maximale Ergebnisanzahl pro Collection (Standard: 3)'),
     }),
-    func: async ({ query, collections, document_ids, topK }) => {
+    func: async (input: { query: string; collections?: string[]; document_ids?: string[]; topK?: number }) => {
+      const { query, collections, document_ids, topK } = input;
       // Document-scoped search: filter by specific document IDs
       if (document_ids?.length) {
         const userId = deps.agentConfig.userId;

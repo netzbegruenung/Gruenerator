@@ -40,7 +40,8 @@ export function createSearchUserContentTool(deps: ToolDependencies): DynamicStru
           'documents=hochgeladene Dateien, texts=gespeicherte Texte, all=beides (Standard)'
         ),
     }),
-    func: async ({ query, source_type }) => {
+    func: async (input: { query: string; source_type?: string }) => {
+      const { query, source_type } = input;
       const effectiveSourceType = source_type || 'all';
       log.info(
         `[SearchUserContent] query="${query.slice(0, 60)}" source=${effectiveSourceType} user=${userId}`

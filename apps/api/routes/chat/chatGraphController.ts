@@ -353,7 +353,7 @@ router.post('/stream', async (req, res) => {
       ...(await classifierNode(initialState)),
     } as ChatGraphState;
 
-    let forcedTool = false;
+    let forcedTool: boolean = false;
     log.info(
       `[ChatGraph] forcedTools received: ${JSON.stringify(forcedTools)}, classifier intent: ${classifiedState.intent}`
     );
@@ -410,7 +410,7 @@ router.post('/stream', async (req, res) => {
       searchSources: classifiedState.searchSources?.length
         ? classifiedState.searchSources
         : undefined,
-      secondaryIntent: classifiedState.secondaryIntent || undefined,
+      ...(classifiedState.secondaryIntent != null && { secondaryIntent: classifiedState.secondaryIntent }),
       compound: isCompound || undefined,
     });
 
@@ -527,7 +527,7 @@ router.post('/stream', async (req, res) => {
         req,
         actualThreadId,
         userId,
-        userContent: lastUserText,
+        userContent: lastUserText as string,
         intent: 'direct',
       });
       if (created) return;

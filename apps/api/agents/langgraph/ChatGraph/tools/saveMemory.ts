@@ -29,7 +29,8 @@ export function createSaveMemoryTool(deps: ToolDependencies): DynamicStructuredT
         .optional()
         .describe('Kategorie der Erinnerung'),
     }),
-    func: async ({ content, category }) => {
+    func: async (input: { content: string; category?: string }) => {
+      const { content, category } = input;
       const mem0 = getMem0Instance();
       if (!mem0) {
         return 'Erinnerungssystem nicht verfügbar.';

@@ -21,7 +21,8 @@ export function createLookupMeinungsbildTool(_deps: ToolDependencies): DynamicSt
         .string()
         .describe('Das Thema der Meinungsumfrage, z.B. "Bürgergeld", "Klimaschutz", "Tempolimit"'),
     }),
-    func: async ({ topic }) => {
+    func: async (input: { topic: string }) => {
+      const { topic } = input;
       log.info(`[Meinungsbild] Lookup: "${topic}"`);
 
       const result = await lookupMeinungsbildByTopic(topic);

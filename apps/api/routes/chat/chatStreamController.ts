@@ -560,12 +560,12 @@ Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`
               );
               if (toolCalls && toolCalls.length > 0) {
                 log.info(
-                  `[Chat] Tool calls: ${JSON.stringify(toolCalls.map((tc) => ({ id: tc.toolCallId, name: tc.toolName })))}`
+                  `[Chat] Tool calls: ${JSON.stringify(toolCalls.map((tc: typeof toolCalls[0]) => ({ id: tc.toolCallId, name: tc.toolName })))}`
                 );
               }
               if (toolResults && toolResults.length > 0) {
                 log.info(
-                  `[Chat] Tool results: ${JSON.stringify(toolResults.map((tr) => ({ id: tr.toolCallId, hasResult: !!('result' in tr && tr.result) })))}`
+                  `[Chat] Tool results: ${JSON.stringify(toolResults.map((tr: typeof toolResults[0]) => ({ id: tr.toolCallId, hasResult: !!('result' in tr && tr.result) })))}`
                 );
               }
               await createMessage(

@@ -220,7 +220,7 @@ export function loadPromptConfig(type: string): PromptConfig {
  * @returns Generator data from database
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function loadCustomGeneratorPrompt(slug: string): Promise<any> {
+export async function loadCustomGeneratorPrompt(slug: string): Promise<Record<string, unknown> | null> {
   const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
   const postgresService = getPostgresInstance();
   const generators = await postgresService.query(
@@ -233,7 +233,7 @@ export async function loadCustomGeneratorPrompt(slug: string): Promise<any> {
     throw new Error('Generator nicht gefunden');
   }
 
-  return generators[0];
+  return generators[0] as Record<string, unknown>;
 }
 
 /**

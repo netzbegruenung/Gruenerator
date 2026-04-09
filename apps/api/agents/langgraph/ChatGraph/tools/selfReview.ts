@@ -54,7 +54,8 @@ export function createSelfReviewTool(deps: ToolDependencies): DynamicStructuredT
         .optional()
         .describe('Art des Textes (z.B. Antrag, Rede, Pressemitteilung, Social-Media-Post)'),
     }),
-    func: async ({ draft, format_type }) => {
+    func: async (input: { draft: string; format_type?: string }) => {
+      const { draft, format_type } = input;
       const criteria = getReviewCriteria(deps.agentConfig.identifier);
       if (!criteria) {
         return JSON.stringify({

@@ -112,8 +112,9 @@ export async function executeDirectSearch(params: {
 
   if (collectionDefault && userFilter) {
     // Merge both must arrays
+    const mergedMust = [...(collectionDefault.must || []), ...(userFilter.must || [])];
     additionalFilter = {
-      must: [...(collectionDefault.must || []), ...(userFilter.must || [])] as QdrantFilter['must'],
+      must: mergedMust as QdrantFilter['must'],
     };
   } else {
     additionalFilter = userFilter || collectionDefault;

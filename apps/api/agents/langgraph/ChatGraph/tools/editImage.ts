@@ -33,7 +33,8 @@ export function createEditImageTool(deps: ToolDependencies): DynamicStructuredTo
         .string()
         .describe('Beschreibung der gewünschten Bearbeitung (z.B. "mehr Bäume und Radwege")'),
     }),
-    func: async ({ instruction }) => {
+    func: async (input: { instruction: string }) => {
+      const { instruction } = input;
       const userId = deps.agentConfig.userId;
 
       if (!userId) {
