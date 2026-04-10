@@ -13,16 +13,22 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
+import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
 import { createLogger } from '../../../utils/logger.js';
-
-import type {
-  AuthRequest,
-  GroupCreateBody,
-  GroupJoinBody,
-  GroupInfoUpdateBody,
-  GroupUpdateBody,
-  GroupMemberRoleBody,
-  GroupLinkBody,
+import {
+  groupCreateSchema,
+  groupJoinSchema,
+  groupInfoUpdateSchema,
+  groupUpdateSchema,
+  groupMemberRoleSchema,
+  groupLinkSchema,
+  type AuthRequest,
+  type GroupCreateBody,
+  type GroupJoinBody,
+  type GroupInfoUpdateBody,
+  type GroupUpdateBody,
+  type GroupMemberRoleBody,
+  type GroupLinkBody,
 } from '../types.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -168,17 +174,10 @@ router.get(
 router.post(
   '/groups',
   ensureAuthenticated,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  validateBody(groupCreateSchema),
+  async (req: AuthRequest & TypedRequest<GroupCreateBody>, res: Response): Promise<void> => {
     try {
-      const { name } = req.body as GroupCreateBody;
-
-      if (!name?.trim()) {
-        res.status(400).json({
-          success: false,
-          message: 'Gruppenname ist erforderlich.',
-        });
-        return;
-      }
+      const { name } = req.body;
 
       const userId = req.user!.id;
       const joinToken = crypto.randomBytes(16).toString('hex');

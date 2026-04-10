@@ -7,8 +7,10 @@ import fs from 'fs';
 import path from 'path';
 
 import express, { type Response, type Router } from 'express';
+import { z } from 'zod';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -18,21 +20,23 @@ import type SubtitlerShareService from '../../services/subtitler/shareService.js
 import type { SubtitlerProject } from '../../services/subtitler/types.js';
 
 // ============================================================================
-// Request Body Types
+// Zod Schemas
 // ============================================================================
 
-interface CreateShareBody {
-  exportToken: string;
-  title?: string;
-  projectId?: string;
-  expiresInDays?: number;
-}
+const createShareSchema = z.object({
+  exportToken: z.string(),
+  title: z.string().optional(),
+  projectId: z.string().optional(),
+  expiresInDays: z.number().optional(),
+});
+type CreateShareBody = z.infer<typeof createShareSchema>;
 
-interface CreateShareFromProjectBody {
-  projectId: string;
-  title?: string;
-  expiresInDays?: number;
-}
+const createShareFromProjectSchema = z.object({
+  projectId: z.string(),
+  title: z.string().optional(),
+  expiresInDays: z.number().optional(),
+});
+type CreateShareFromProjectBody = z.infer<typeof createShareFromProjectSchema>;
 
 interface ExportData {
   status: string;
@@ -111,71 +115,75 @@ async function triggerBackgroundRender(
 }
 
 // POST / - Create share from export token
-router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  try {
-    const userId = req.user!.id;
-    const body = req.body as CreateShareBody;
-    const { exportToken, title, projectId, expiresInDays = 7 } = body;
-
-    if (!exportToken) {
-      res.status(400).json({ success: false, error: 'Export-Token wird benötigt' });
-      return;
-    }
-
-    const exportDataString = (await redisClient.get(`export:${exportToken}`)) as string | null;
-    if (!exportDataString) {
-      res.status(404).json({ success: false, error: 'Export nicht gefunden oder abgelaufen' });
-      return;
-    }
-
-    const parsed: unknown = JSON.parse(exportDataString);
-    const exportData = parsed as ExportData;
-    if (exportData.status !== 'complete') {
-      res.status(400).json({ success: false, error: 'Export noch nicht abgeschlossen' });
-      return;
-    }
-
+router.post(
+  '/',
+  requireAuth,
+  validateBody(createShareSchema),
+  async (
+    req: AuthenticatedRequest & TypedRequest<CreateShareBody>,
+    res: Response
+  ): Promise<void> => {
     try {
-      await fsPromises.access(exportData.outputPath);
-    } catch {
-      res.status(404).json({ success: false, error: 'Export-Datei nicht gefunden' });
-      return;
+      const userId = req.user!.id;
+      const { exportToken, title, projectId, expiresInDays = 7 } = req.body;
+
+      const exportDataString = (await redisClient.get(`export:${exportToken}`)) as string | null;
+      if (!exportDataString) {
+        res.status(404).json({ success: false, error: 'Export nicht gefunden oder abgelaufen' });
+        return;
+      }
+
+      const parsed: unknown = JSON.parse(exportDataString);
+      const exportData = parsed as ExportData;
+      if (exportData.status !== 'complete') {
+        res.status(400).json({ success: false, error: 'Export noch nicht abgeschlossen' });
+        return;
+      }
+
+      try {
+        await fsPromises.access(exportData.outputPath);
+      } catch {
+        res.status(404).json({ success: false, error: 'Export-Datei nicht gefunden' });
+        return;
+      }
+
+      const service = await getShareService();
+      const share = await service.createShare(userId, {
+        videoPath: exportData.outputPath,
+        title: title || 'Untertiteltes Video',
+        ...(exportData.duration && { duration: exportData.duration }),
+        ...(projectId && { projectId }),
+        expiresInDays,
+      });
+
+      log.info(`Share created: ${share.shareToken} by user ${userId}`);
+      res.json({
+        success: true,
+        share: {
+          shareToken: share.shareToken,
+          shareUrl: share.shareUrl,
+          expiresAt: share.expiresAt,
+        },
+      });
+    } catch (error: unknown) {
+      log.error('Failed to create share:', error);
+      res.status(500).json({ success: false, error: 'Share konnte nicht erstellt werden' });
     }
-
-    const service = await getShareService();
-    const share = await service.createShare(userId, {
-      videoPath: exportData.outputPath,
-      title: title || 'Untertiteltes Video',
-      ...(exportData.duration && { duration: exportData.duration }),
-      ...(projectId && { projectId }),
-      expiresInDays,
-    });
-
-    log.info(`Share created: ${share.shareToken} by user ${userId}`);
-    res.json({
-      success: true,
-      share: { shareToken: share.shareToken, shareUrl: share.shareUrl, expiresAt: share.expiresAt },
-    });
-  } catch (error: unknown) {
-    log.error('Failed to create share:', error);
-    res.status(500).json({ success: false, error: 'Share konnte nicht erstellt werden' });
   }
-});
+);
 
 // POST /from-project - Create share from project
 router.post(
   '/from-project',
   requireAuth,
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  validateBody(createShareFromProjectSchema),
+  async (
+    req: AuthenticatedRequest & TypedRequest<CreateShareFromProjectBody>,
+    res: Response
+  ): Promise<void> => {
     try {
       const userId = req.user!.id;
-      const body = req.body as CreateShareFromProjectBody;
-      const { projectId, title, expiresInDays = 7 } = body;
-
-      if (!projectId) {
-        res.status(400).json({ success: false, error: 'Projekt-ID wird benötigt' });
-        return;
-      }
+      const { projectId, title, expiresInDays = 7 } = req.body;
 
       const projService = await getProjectService();
       let project;
