@@ -38,7 +38,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 
 import { webAppDocsAdapter } from './docsAdapter';
-import { GuestBadge } from './GuestBadge';
+import { GuestBadge, GUEST_ANIMALS } from './GuestBadge';
 
 import type { BlockNoteEditor } from '@blocknote/core';
 
@@ -50,23 +50,6 @@ const ShareModal = lazyWithRetry(() =>
 const ChatSidebar = lazyWithRetry(() =>
   import('@gruenerator/docs').then((m) => ({ default: m.ChatSidebar }))
 );
-
-const GUEST_ANIMAL_NAMES = [
-  'Emsiges Eichhörnchen',
-  'Illustrer Igel',
-  'Flinker Fuchs',
-  'Ruhiges Reh',
-  'Drolliger Dachs',
-  'Hurtiger Hase',
-  'Eifrige Eule',
-  'Sturer Specht',
-  'Origineller Otter',
-  'Braver Biber',
-  'Fixer Falke',
-  'Lustiger Luchs',
-  'Munterer Marder',
-  'Dreiste Drossel',
-];
 
 const GUEST_COLORS = [
   '#FF6B6B',
@@ -81,20 +64,30 @@ const GUEST_COLORS = [
   '#52B788',
 ];
 
-function getOrCreateGuestIdentity(): { guestId: string; guestName: string; guestColor: string } {
+interface GuestIdentity {
+  guestId: string;
+  guestName: string;
+  guestColor: string;
+  guestAnimalIndex: number;
+}
+
+function getOrCreateGuestIdentity(): GuestIdentity {
   const stored = localStorage.getItem('docs-guest-identity');
   if (stored) {
     try {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored) as GuestIdentity;
+      if (parsed.guestAnimalIndex !== undefined) return parsed;
     } catch {
       /* regenerate */
     }
   }
 
-  const identity = {
+  const animalIndex = Math.floor(Math.random() * GUEST_ANIMALS.length);
+  const identity: GuestIdentity = {
     guestId: `guest-${crypto.randomUUID().slice(0, 8)}`,
-    guestName: GUEST_ANIMAL_NAMES[Math.floor(Math.random() * GUEST_ANIMAL_NAMES.length)],
+    guestName: GUEST_ANIMALS[animalIndex].name,
     guestColor: GUEST_COLORS[Math.floor(Math.random() * GUEST_COLORS.length)],
+    guestAnimalIndex: animalIndex,
   };
 
   localStorage.setItem('docs-guest-identity', JSON.stringify(identity));
@@ -439,6 +432,7 @@ function EditorContent() {
                 <GuestBadge
                   guestName={guestIdentity.guestName}
                   guestColor={guestIdentity.guestColor}
+                  guestIcon={GUEST_ANIMALS[guestIdentity.guestAnimalIndex].icon}
                   loginUrl={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
                 />
               )}
