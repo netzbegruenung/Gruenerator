@@ -139,12 +139,6 @@ export const useCollaboration = ({
       const WebSocketPolyfill = config.getWebSocketPolyfill?.();
       const gId = guestIdRef.current;
       const gName = guestNameRef.current;
-      console.info('[Collab] Provider params:', {
-        isGuest,
-        hasToken: !!token,
-        guestId: gId || 'none',
-        guestName: gName || 'none',
-      });
 
       const provider = new HocuspocusProvider({
         url: config.url,
