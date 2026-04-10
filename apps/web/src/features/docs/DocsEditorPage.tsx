@@ -1,9 +1,4 @@
-import {
-  useCollaboration,
-  useCollaborators,
-  getAuthErrorMessage,
-  type CollaborationConfig,
-} from '@gruenerator/collab';
+import { useCollaboration, useCollaborators, getAuthErrorMessage } from '@gruenerator/collab';
 import {
   DocsProvider,
   useDocumentChat,
@@ -130,8 +125,15 @@ function EditorContent() {
   const isEmbedded = searchParams.get('embedded') === 'true';
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
-  const { user, isAuthResolved } = useAuth({ lazy: true });
+  const { user, isAuthResolved, loading: authLoading, isInitialLoad } = useAuth({ lazy: true });
   const isGuest = isAuthResolved && !user;
+  console.warn('[Docs] Auth debug:', {
+    isAuthResolved,
+    authLoading,
+    isInitialLoad,
+    hasUser: !!user,
+    isGuest,
+  });
   const [darkMode, toggleDarkMode] = useDarkMode();
 
   const guestIdentity = useMemo(() => (isGuest ? getOrCreateGuestIdentity() : null), [isGuest]);
@@ -145,7 +147,7 @@ function EditorContent() {
         credentials: 'include',
       });
       if (!res.ok) return null;
-      return res.json();
+      return (await res.json()) as Document;
     },
     enabled: !!id,
     retry: false,
