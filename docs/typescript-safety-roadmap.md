@@ -71,12 +71,32 @@ Drizzle ORM wraps the existing `pg.Pool` from PostgresService and infers types f
 **Sequencing:**
 1. [x] `no-unsafe-return` as `warn` — 134 violations found, 133 fixed (1 in gitignored test file) (2026-04-10)
 2. [x] `no-unsafe-member-access` as `warn` — 1,128 violations found, 127 fixed incl. searchGraphController, responseFormatter, PromptProcessor (2026-04-10)
-3. [ ] `no-unsafe-assignment` as `warn`
+3. [x] `no-unsafe-assignment` as `warn` — 882 violations found in apps/api, 256 fixed across 24 files (2026-04-10)
 4. [ ] `no-unsafe-call` + `no-unsafe-argument` last
 
+**`no-unsafe-assignment` fixes (2026-04-10):**
+- RedisCheckpointer: 8 suppressions → 0 (imported LangGraph checkpoint types + type guards for JSON.parse)
+- streamingProcessor: 12 → 0 (AuthenticatedRequest, ProviderName, Document/WebSearchSource, explicit state mapping)
+- databaseOperations: 6 → 0 (imported Chunk/ChunkingOptions/MistralEmbeddingService)
+- CrawleeCrawler: 12 → 0 (CheerioCrawlingContext/PlaywrightCrawlingContext + CrawleeModule interface)
+- agentModeProcessors: 23 → 0 (AntragRequestBody/SocialRequestBody interfaces)
+- wordpressApiClient: 16 → 0 (WPSiteInfo/WPUserResponse/WPPostResponse + axios generics)
+- groupContent/groupCore: 34 → 0 (typed req.body, JSON.parse, postgres query generics)
+- OparlScraper/GruenblogScraper/BoellStiftungScraper/GrueneAtScraper: 53 → 0 (typed QdrantService, JSON-LD parsing)
+- processingController: 39 → 0 (request body interfaces, typed JSON.parse, ProcessingResult)
+- subtitler shareController/projectController: 28 → 0 (CreateShareBody, ExportData, ProjectData)
+- voiceController: 14 → 0 (TusTranscribeBody, ProtokollBody + body interfaces)
+- IntentService: 20 → 0 (ChatRequestBody, DocumentQnAService constructor types)
+- chatStreamController: 19 → 0 (ChatStreamRequestBody)
+- grueneratorChat/notebookStreamController/searchStreamController: 28 → 0 (request body interfaces)
+- directSearchExecutors: 12 → 0 (DocumentResult, SearxngSearchResult types)
+- requestEnrichment: 8 → 0 (async lazy imports, typed error handlers)
+- mobileTokenExchange: 5 → 0 (KeycloakPayload interface with jwtVerify generic)
+
 ### 3.2 Replace `eslint-disable` suppressions with real types
-- **Unfixable floor: ~48** (pdfjs-dist 16, crawlee 12, RedisCheckpointer 8, EventEmitter ~12)
-- [ ] Target: reduce to ~50 (library boundary only)
+- **Unfixable floor: ~48** (pdfjs-dist 16, crawlee ~4, EventEmitter ~12, Better Auth ~8, multer ~8)
+- **Current: ~195** (down from ~255, 24% reduction)
+- [ ] Target: reduce to ~80 (library boundary only)
 
 ### 3.3 Enable `exactOptionalPropertyTypes` [DONE]
 **Completed 2026-04-10.** 415 errors → **0**.
@@ -115,7 +135,7 @@ Fixed by:
 | Metric | Before | After Phase 1 | Current (2026-04-10) | Target |
 |--------|--------|---------------|----------------------|--------|
 | `no-explicit-any` lint errors | ~200 (warnings) | **0** (errors) | 0 | 0 |
-| `eslint-disable no-explicit-any` | 0 | ~150 | **~255** | ~48 (library only) |
+| `eslint-disable no-explicit-any` | 0 | ~150 | **~195** | ~48 (library only) |
 | `as unknown as X` casts | 241 | 133 | **37** | ≤ 15 |
 | `?? undefined` patterns | 86 | 86 | **0** | 0 |
 | `exactOptionalPropertyTypes` | disabled | disabled | **enabled (0 errors)** | enabled |
