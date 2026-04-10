@@ -12,7 +12,9 @@ import { saveOrUpdateProject } from '../../services/subtitler/projectSavingServi
 import { createLogger } from '../../utils/logger.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
+import type { ProjectData } from '../../services/subtitler/projectSavingService.js';
 import type { SubtitlerProjectService } from '../../services/subtitler/ProjectService.js';
+import type { UpdateProjectData } from '../../services/subtitler/types.js';
 
 const fsPromises = fs.promises;
 const log = createLogger('subtitler-projects');
@@ -69,46 +71,24 @@ router.get(
 router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
-    const {
-      uploadId,
-      subtitles,
-      title,
-      stylePreference,
-      heightPreference,
-      modePreference,
-      videoMetadata,
-      videoFilename,
-      videoSize,
-    } = req.body;
+    const body = req.body as ProjectData;
 
-    if (!uploadId) {
+    if (!body.uploadId) {
       res.status(400).json({ success: false, error: 'Upload-ID ist erforderlich' });
       return;
     }
 
-    const { project, isNew } = await saveOrUpdateProject(userId, {
-      uploadId,
-      subtitles,
-      title,
-      stylePreference,
-      heightPreference,
-      modePreference,
-      videoMetadata,
-      videoFilename,
-      videoSize,
-    });
+    const { project, isNew } = await saveOrUpdateProject(userId, body);
 
     res.status(isNew ? 201 : 200).json({ success: true, project, isNew });
   } catch (error: unknown) {
     log.error('Failed to create project:', error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        error:
-          (error instanceof Error ? error.message : String(error)) ||
-          'Projekt konnte nicht erstellt werden',
-      });
+    res.status(500).json({
+      success: false,
+      error:
+        (error instanceof Error ? error.message : String(error)) ||
+        'Projekt konnte nicht erstellt werden',
+    });
   }
 });
 
@@ -120,7 +100,7 @@ router.put(
     try {
       const userId = req.user!.id;
       const { projectId } = req.params;
-      const updates = req.body;
+      const updates = req.body as UpdateProjectData;
 
       const service = await getProjectService();
       const project = await service.updateProject(userId, projectId, updates);
