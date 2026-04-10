@@ -7,6 +7,7 @@ import { streamText, tool, type ModelMessage, Tool, stepCountIs, type ToolSet } 
 import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -53,14 +54,17 @@ const TOOL_KEY_TO_NAME: Record<ToolKey, SearchToolName> = {
   direct: 'direct_response',
 };
 
-interface ChatStreamRequestBody {
-  messages: ModelMessage[];
-  agentId?: string;
-  provider?: string;
-  model?: string;
-  threadId?: string;
-  enabledTools?: Record<ToolKey, boolean>;
-}
+const chatStreamRequestSchema = z.object({
+  messages: z.array(z.unknown()),
+  agentId: z.string().optional(),
+  provider: z.string().optional(),
+  model: z.string().optional(),
+  threadId: z.string().optional(),
+  enabledTools: z
+    .record(z.enum(['search', 'web', 'examples', 'research', 'direct']), z.boolean())
+    .optional(),
+});
+type ChatStreamRequestBody = z.infer<typeof chatStreamRequestSchema>;
 
 const ALL_COLLECTIONS = [
   'deutschland',
@@ -345,83 +349,86 @@ async function touchThread(threadId: string): Promise<void> {
   ]);
 }
 
-router.post('/', async (req, res) => {
-  try {
-    const { messages, agentId, provider, model, threadId, enabledTools } =
-      req.body as ChatStreamRequestBody;
+router.post(
+  '/',
+  validateBody(chatStreamRequestSchema),
+  async (req: TypedRequest<ChatStreamRequestBody>, res) => {
+    try {
+      const { messages: rawMessages, agentId, provider, model, threadId, enabledTools } = req.body;
+      const messages = rawMessages as ModelMessage[];
 
-    log.info('[Chat Debug] === NEW REQUEST ===');
-    log.info(`[Chat Debug] Request body:`, {
-      messagesCount: messages?.length || 0,
-      agentId,
-      provider,
-      model,
-      threadId,
-      enabledTools,
-    });
-
-    if (messages && messages.length > 0) {
-      const lastMsg = messages[messages.length - 1];
-      log.info(`[Chat Debug] Last message:`, {
-        role: lastMsg.role,
-        contentType: typeof lastMsg.content,
-        contentLength:
-          typeof lastMsg.content === 'string'
-            ? lastMsg.content.length
-            : JSON.stringify(lastMsg.content).length,
-        contentPreview:
-          typeof lastMsg.content === 'string'
-            ? lastMsg.content.slice(0, 100)
-            : JSON.stringify(lastMsg.content).slice(0, 100),
+      log.info('[Chat Debug] === NEW REQUEST ===');
+      log.info(`[Chat Debug] Request body:`, {
+        messagesCount: messages?.length || 0,
+        agentId,
+        provider,
+        model,
+        threadId,
+        enabledTools,
       });
-    }
 
-    const user = getUser(req);
-    if (!user?.id) {
-      log.warn('[Chat Debug] Unauthorized - no user');
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-    const userId = user.id;
-    log.info(`[Chat Debug] User: ${userId}`);
+      if (messages && messages.length > 0) {
+        const lastMsg = messages[messages.length - 1];
+        log.info(`[Chat Debug] Last message:`, {
+          role: lastMsg.role,
+          contentType: typeof lastMsg.content,
+          contentLength:
+            typeof lastMsg.content === 'string'
+              ? lastMsg.content.length
+              : JSON.stringify(lastMsg.content).length,
+          contentPreview:
+            typeof lastMsg.content === 'string'
+              ? lastMsg.content.slice(0, 100)
+              : JSON.stringify(lastMsg.content).slice(0, 100),
+        });
+      }
 
-    const agent = await getAgentOrCustomPrompt(agentId || getDefaultAgentId(), userId);
-    if (!agent) {
-      log.warn(`[Chat Debug] Agent not found: ${agentId}`);
-      return res.status(404).json({ error: 'Agent not found' });
-    }
-    log.info(`[Chat Debug] Agent loaded: ${agent.identifier}`);
+      const user = getUser(req);
+      if (!user?.id) {
+        log.warn('[Chat Debug] Unauthorized - no user');
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      const userId = user.id;
+      log.info(`[Chat Debug] User: ${userId}`);
 
-    const effectiveProvider = provider || agent.provider;
-    const effectiveModel = model || agent.model;
-    log.info(`[Chat Debug] Provider: ${effectiveProvider}, Model: ${effectiveModel}`);
+      const agent = await getAgentOrCustomPrompt(agentId || getDefaultAgentId(), userId);
+      if (!agent) {
+        log.warn(`[Chat Debug] Agent not found: ${agentId}`);
+        return res.status(404).json({ error: 'Agent not found' });
+      }
+      log.info(`[Chat Debug] Agent loaded: ${agent.identifier}`);
 
-    const lastUserMessage = messages.filter((m: ModelMessage) => m.role === 'user').pop();
+      const effectiveProvider = provider || agent.provider;
+      const effectiveModel = model || agent.model;
+      log.info(`[Chat Debug] Provider: ${effectiveProvider}, Model: ${effectiveModel}`);
 
-    let actualThreadId = threadId;
-    let isNewThread = false;
+      const lastUserMessage = messages.filter((m: ModelMessage) => m.role === 'user').pop();
 
-    if (!actualThreadId && lastUserMessage) {
-      const thread = await createThread(
-        userId,
-        agentId || getDefaultAgentId(),
-        typeof lastUserMessage.content === 'string'
-          ? lastUserMessage.content.slice(0, 50) +
-              (lastUserMessage.content.length > 50 ? '...' : '')
-          : 'Neue Unterhaltung'
-      );
-      actualThreadId = thread.id;
-      isNewThread = true;
-    }
+      let actualThreadId = threadId;
+      let isNewThread = false;
 
-    if (actualThreadId && lastUserMessage) {
-      const content =
-        typeof lastUserMessage.content === 'string'
-          ? lastUserMessage.content
-          : JSON.stringify(lastUserMessage.content);
-      await createMessage(actualThreadId, 'user', content);
-    }
+      if (!actualThreadId && lastUserMessage) {
+        const thread = await createThread(
+          userId,
+          agentId || getDefaultAgentId(),
+          typeof lastUserMessage.content === 'string'
+            ? lastUserMessage.content.slice(0, 50) +
+                (lastUserMessage.content.length > 50 ? '...' : '')
+            : 'Neue Unterhaltung'
+        );
+        actualThreadId = thread.id;
+        isNewThread = true;
+      }
 
-    const baseSystemMessage = `${agent.systemRole}
+      if (actualThreadId && lastUserMessage) {
+        const content =
+          typeof lastUserMessage.content === 'string'
+            ? lastUserMessage.content
+            : JSON.stringify(lastUserMessage.content);
+        await createMessage(actualThreadId, 'user', content);
+      }
+
+      const baseSystemMessage = `${agent.systemRole}
 
 ## TOOL-NUTZUNG
 
@@ -451,209 +458,212 @@ Du MUSST für jede Nachricht ein Tool wählen. Entscheide semantisch basierend a
 
 Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`;
 
-    // Load compaction state if thread exists
-    let compactionState: CompactionState = {
-      summary: null,
-      compactedUpToMessageId: null,
-      compactionUpdatedAt: null,
-    };
-    if (actualThreadId) {
-      try {
-        compactionState = await getCompactionState(actualThreadId);
-        if (compactionState.summary) {
-          log.info(
-            `[Chat] Thread ${actualThreadId} has compaction summary (${compactionState.summary.length} chars)`
-          );
-        }
-      } catch (error) {
-        log.warn(`[Chat] Failed to load compaction state for thread ${actualThreadId}:`, error);
-      }
-    }
-
-    // Apply compaction if available (prepends summary to system message, trims old messages)
-    const { messages: preparedMessages, systemMessage } = prepareMessagesWithCompaction(
-      messages,
-      compactionState,
-      baseSystemMessage
-    );
-
-    const aiMessages: ModelMessage[] = [
-      { role: 'system', content: systemMessage },
-      ...preparedMessages,
-    ];
-
-    if (!isProviderConfigured(effectiveProvider)) {
-      log.error(`[Chat Debug] Provider not configured: ${effectiveProvider}`);
-      return res.status(500).json({ error: `Provider "${effectiveProvider}" is not configured` });
-    }
-    log.info(`[Chat Debug] Provider configured: ${effectiveProvider}`);
-
-    const aiModel = getModel(effectiveProvider, effectiveModel);
-    log.info(`[Chat Debug] AI Model obtained: ${effectiveModel}`);
-
-    const hasTools = agent.plugins?.includes('gruenerator-mcp');
-    log.info(`[Chat Debug] hasTools: ${hasTools}, agent.plugins: ${JSON.stringify(agent.plugins)}`);
-
-    // Create tools dynamically based on agent configuration (enables per-agent restrictions)
-    const agentTools = createSearchTools(agent);
-
-    // Filter tools based on user-enabled toggles
-    const filteredTools: ToolSet = {};
-    if (hasTools && enabledTools) {
-      for (const [key, toolName] of Object.entries(TOOL_KEY_TO_NAME)) {
-        // direct_response is always included as the escape hatch
-        if (
-          toolName === 'direct_response' ||
-          (enabledTools[key as ToolKey] && agentTools[toolName])
-        ) {
-          filteredTools[toolName] = agentTools[toolName];
+      // Load compaction state if thread exists
+      let compactionState: CompactionState = {
+        summary: null,
+        compactedUpToMessageId: null,
+        compactionUpdatedAt: null,
+      };
+      if (actualThreadId) {
+        try {
+          compactionState = await getCompactionState(actualThreadId);
+          if (compactionState.summary) {
+            log.info(
+              `[Chat] Thread ${actualThreadId} has compaction summary (${compactionState.summary.length} chars)`
+            );
+          }
+        } catch (error) {
+          log.warn(`[Chat] Failed to load compaction state for thread ${actualThreadId}:`, error);
         }
       }
-    } else if (hasTools) {
-      // Fallback: all tools enabled if no enabledTools provided
-      Object.assign(filteredTools, agentTools);
-    }
 
-    const activeTools = Object.keys(filteredTools).length > 0 ? filteredTools : undefined;
+      // Apply compaction if available (prepends summary to system message, trims old messages)
+      const { messages: preparedMessages, systemMessage } = prepareMessagesWithCompaction(
+        messages,
+        compactionState,
+        baseSystemMessage
+      );
 
-    // AI decides semantically which tool to use
-    // direct_response tool is the escape hatch for non-search cases
-    log.info(
-      `[Chat Debug] Tool config: hasTools=${hasTools}, activeTools=${Object.keys(filteredTools)}, toolChoice=${activeTools ? 'required' : 'none'}`
-    );
-    log.info(`[Chat Debug] Calling streamText with:`, {
-      model: effectiveModel,
-      messagesCount: aiMessages.length,
-      toolsCount: activeTools ? Object.keys(activeTools).length : 0,
-      maxTokens: agent.params.max_tokens,
-      temperature: agent.params.temperature,
-    });
+      const aiMessages: ModelMessage[] = [
+        { role: 'system', content: systemMessage },
+        ...preparedMessages,
+      ];
 
-    let result;
-    try {
-      result = streamText({
-        model: aiModel,
-        messages: aiMessages,
-        ...(activeTools && { tools: activeTools, toolChoice: 'required' }),
-        maxOutputTokens: agent.params.max_tokens,
+      if (!isProviderConfigured(effectiveProvider)) {
+        log.error(`[Chat Debug] Provider not configured: ${effectiveProvider}`);
+        return res.status(500).json({ error: `Provider "${effectiveProvider}" is not configured` });
+      }
+      log.info(`[Chat Debug] Provider configured: ${effectiveProvider}`);
+
+      const aiModel = getModel(effectiveProvider, effectiveModel);
+      log.info(`[Chat Debug] AI Model obtained: ${effectiveModel}`);
+
+      const hasTools = agent.plugins?.includes('gruenerator-mcp');
+      log.info(
+        `[Chat Debug] hasTools: ${hasTools}, agent.plugins: ${JSON.stringify(agent.plugins)}`
+      );
+
+      // Create tools dynamically based on agent configuration (enables per-agent restrictions)
+      const agentTools = createSearchTools(agent);
+
+      // Filter tools based on user-enabled toggles
+      const filteredTools: ToolSet = {};
+      if (hasTools && enabledTools) {
+        for (const [key, toolName] of Object.entries(TOOL_KEY_TO_NAME)) {
+          // direct_response is always included as the escape hatch
+          if (
+            toolName === 'direct_response' ||
+            (enabledTools[key as ToolKey] && agentTools[toolName])
+          ) {
+            filteredTools[toolName] = agentTools[toolName];
+          }
+        }
+      } else if (hasTools) {
+        // Fallback: all tools enabled if no enabledTools provided
+        Object.assign(filteredTools, agentTools);
+      }
+
+      const activeTools = Object.keys(filteredTools).length > 0 ? filteredTools : undefined;
+
+      // AI decides semantically which tool to use
+      // direct_response tool is the escape hatch for non-search cases
+      log.info(
+        `[Chat Debug] Tool config: hasTools=${hasTools}, activeTools=${Object.keys(filteredTools)}, toolChoice=${activeTools ? 'required' : 'none'}`
+      );
+      log.info(`[Chat Debug] Calling streamText with:`, {
+        model: effectiveModel,
+        messagesCount: aiMessages.length,
+        toolsCount: activeTools ? Object.keys(activeTools).length : 0,
+        maxTokens: agent.params.max_tokens,
         temperature: agent.params.temperature,
-        stopWhen: stepCountIs(5),
-        onChunk: ({ chunk }) => {
-          if (chunk.type === 'tool-call') {
-            log.info(`[Chat Debug] Tool call: ${chunk.toolName}`);
-          }
-        },
-        onStepFinish: ({ toolCalls, toolResults, text }) => {
-          log.info(
-            `[Chat Debug] Step finished: tools=${toolCalls?.length || 0}, text=${text?.length || 0} chars`
-          );
-        },
-        experimental_telemetry: { isEnabled: false },
-        onFinish: async ({ text, toolCalls, toolResults, finishReason, usage }) => {
-          log.info(
-            `[Chat Debug] Stream finished: reason=${finishReason}, usage=${JSON.stringify(usage)}`
-          );
-          if (finishReason === 'error') {
-            log.error('[Chat Debug] Stream finished with error');
-          }
-          log.info(`[Chat Debug] Stream finished:`, {
-            textLength: text?.length || 0,
-            toolCallsCount: toolCalls?.length || 0,
-            toolResultsCount: toolResults?.length || 0,
-          });
-          if (actualThreadId) {
-            try {
-              log.info(
-                `[Chat] Saving message: text=${text?.length || 0} chars, toolCalls=${toolCalls?.length || 0}, toolResults=${toolResults?.length || 0}`
-              );
-              if (toolCalls && toolCalls.length > 0) {
-                log.info(
-                  `[Chat] Tool calls: ${JSON.stringify(toolCalls.map((tc: (typeof toolCalls)[0]) => ({ id: tc.toolCallId, name: tc.toolName })))}`
-                );
-              }
-              if (toolResults && toolResults.length > 0) {
-                log.info(
-                  `[Chat] Tool results: ${JSON.stringify(toolResults.map((tr: (typeof toolResults)[0]) => ({ id: tr.toolCallId, hasResult: !!('result' in tr && tr.result) })))}`
-                );
-              }
-              await createMessage(
-                actualThreadId,
-                'assistant',
-                text,
-                toolCalls && toolCalls.length > 0 ? toolCalls : undefined,
-                toolResults && toolResults.length > 0 ? toolResults : undefined
-              );
+      });
 
-              await touchThread(actualThreadId);
-
-              if (isNewThread && text) {
-                const aiWorkerPool = (req.app.locals as Record<string, unknown>).aiWorkerPool as
-                  | Parameters<typeof generateThreadTitle>[3]
-                  | undefined;
-                const userContent = lastUserMessage
-                  ? typeof lastUserMessage.content === 'string'
-                    ? lastUserMessage.content
-                    : JSON.stringify(lastUserMessage.content)
-                  : '';
-                if (aiWorkerPool) {
-                  generateThreadTitle(actualThreadId, userContent, text, aiWorkerPool).catch(
-                    (err) => log.warn('[Chat] Thread title generation failed:', err)
+      let result;
+      try {
+        result = streamText({
+          model: aiModel,
+          messages: aiMessages,
+          ...(activeTools && { tools: activeTools, toolChoice: 'required' }),
+          maxOutputTokens: agent.params.max_tokens,
+          temperature: agent.params.temperature,
+          stopWhen: stepCountIs(5),
+          onChunk: ({ chunk }) => {
+            if (chunk.type === 'tool-call') {
+              log.info(`[Chat Debug] Tool call: ${chunk.toolName}`);
+            }
+          },
+          onStepFinish: ({ toolCalls, toolResults, text }) => {
+            log.info(
+              `[Chat Debug] Step finished: tools=${toolCalls?.length || 0}, text=${text?.length || 0} chars`
+            );
+          },
+          experimental_telemetry: { isEnabled: false },
+          onFinish: async ({ text, toolCalls, toolResults, finishReason, usage }) => {
+            log.info(
+              `[Chat Debug] Stream finished: reason=${finishReason}, usage=${JSON.stringify(usage)}`
+            );
+            if (finishReason === 'error') {
+              log.error('[Chat Debug] Stream finished with error');
+            }
+            log.info(`[Chat Debug] Stream finished:`, {
+              textLength: text?.length || 0,
+              toolCallsCount: toolCalls?.length || 0,
+              toolResultsCount: toolResults?.length || 0,
+            });
+            if (actualThreadId) {
+              try {
+                log.info(
+                  `[Chat] Saving message: text=${text?.length || 0} chars, toolCalls=${toolCalls?.length || 0}, toolResults=${toolResults?.length || 0}`
+                );
+                if (toolCalls && toolCalls.length > 0) {
+                  log.info(
+                    `[Chat] Tool calls: ${JSON.stringify(toolCalls.map((tc: (typeof toolCalls)[0]) => ({ id: tc.toolCallId, name: tc.toolName })))}`
                   );
                 }
+                if (toolResults && toolResults.length > 0) {
+                  log.info(
+                    `[Chat] Tool results: ${JSON.stringify(toolResults.map((tr: (typeof toolResults)[0]) => ({ id: tr.toolCallId, hasResult: !!('result' in tr && tr.result) })))}`
+                  );
+                }
+                await createMessage(
+                  actualThreadId,
+                  'assistant',
+                  text,
+                  toolCalls && toolCalls.length > 0 ? toolCalls : undefined,
+                  toolResults && toolResults.length > 0 ? toolResults : undefined
+                );
+
+                await touchThread(actualThreadId);
+
+                if (isNewThread && text) {
+                  const aiWorkerPool = (req.app.locals as Record<string, unknown>).aiWorkerPool as
+                    | Parameters<typeof generateThreadTitle>[3]
+                    | undefined;
+                  const userContent = lastUserMessage
+                    ? typeof lastUserMessage.content === 'string'
+                      ? lastUserMessage.content
+                      : JSON.stringify(lastUserMessage.content)
+                    : '';
+                  if (aiWorkerPool) {
+                    generateThreadTitle(actualThreadId, userContent, text, aiWorkerPool).catch(
+                      (err) => log.warn('[Chat] Thread title generation failed:', err)
+                    );
+                  }
+                }
+              } catch (error) {
+                log.error('Failed to save assistant message:', error);
               }
-            } catch (error) {
-              log.error('Failed to save assistant message:', error);
             }
-          }
-        },
-      });
-    } catch (streamTextError) {
-      log.error('[Chat Debug] streamText creation error:', streamTextError);
-      throw streamTextError;
-    }
-
-    if (isNewThread && actualThreadId) {
-      res.setHeader('X-Thread-Id', actualThreadId);
-      log.info(`[Chat Debug] New thread created: ${actualThreadId}`);
-    }
-
-    log.info('[Chat Debug] Piping stream to response...');
-
-    // Consume and forward the stream with error handling
-    try {
-      const response = result.toTextStreamResponse();
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error('No response body');
+          },
+        });
+      } catch (streamTextError) {
+        log.error('[Chat Debug] streamText creation error:', streamTextError);
+        throw streamTextError;
       }
 
-      // Set headers
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-      res.setHeader('Transfer-Encoding', 'chunked');
+      if (isNewThread && actualThreadId) {
+        res.setHeader('X-Thread-Id', actualThreadId);
+        log.info(`[Chat Debug] New thread created: ${actualThreadId}`);
+      }
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const text = new TextDecoder().decode(value);
-        // Log error parts from stream (3: is error prefix in AI SDK data stream)
-        if (text.includes('3:')) {
-          log.error('[Chat Debug] Error in stream: ' + JSON.stringify(text));
+      log.info('[Chat Debug] Piping stream to response...');
+
+      // Consume and forward the stream with error handling
+      try {
+        const response = result.toTextStreamResponse();
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error('No response body');
         }
-        res.write(value);
+
+        // Set headers
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Transfer-Encoding', 'chunked');
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const text = new TextDecoder().decode(value);
+          // Log error parts from stream (3: is error prefix in AI SDK data stream)
+          if (text.includes('3:')) {
+            log.error('[Chat Debug] Error in stream: ' + JSON.stringify(text));
+          }
+          res.write(value);
+        }
+        res.end();
+        log.info('[Chat Debug] Stream completed');
+      } catch (streamErr) {
+        log.error('[Chat Debug] Stream consumption error:', streamErr);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Stream failed' });
+        }
       }
-      res.end();
-      log.info('[Chat Debug] Stream completed');
-    } catch (streamErr) {
-      log.error('[Chat Debug] Stream consumption error:', streamErr);
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'Stream failed' });
-      }
+    } catch (error) {
+      log.error('[Chat Debug] Chat API error:', error);
+      log.error('[Chat Debug] Error stack:', error instanceof Error ? error.stack : 'No stack');
+      return res.status(500).json({ error: 'Internal server error' });
     }
-  } catch (error) {
-    log.error('[Chat Debug] Chat API error:', error);
-    log.error('[Chat Debug] Error stack:', error instanceof Error ? error.stack : 'No stack');
-    return res.status(500).json({ error: 'Internal server error' });
   }
-});
+);
 
 export default router;
