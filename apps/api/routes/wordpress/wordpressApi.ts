@@ -197,7 +197,7 @@ router.post('/publish', async (req: Request, res: Response): Promise<void> => {
     try {
       const result = await client.createPost(title, content, {
         status: status || 'draft',
-        excerpt,
+        ...(excerpt != null && { excerpt }),
       });
       await WordPressSiteManager.updateLastUsed(userId, siteId);
       res.json({
@@ -275,7 +275,10 @@ router.put(
       }
 
       const client = await getClientForSite(userId, siteId);
-      const result = await client.updatePost(postId, title, content, { status, excerpt });
+      const result = await client.updatePost(postId, title, content, {
+        ...(status != null && { status }),
+        ...(excerpt != null && { excerpt }),
+      });
       await WordPressSiteManager.updateLastUsed(userId, siteId);
 
       res.json({
