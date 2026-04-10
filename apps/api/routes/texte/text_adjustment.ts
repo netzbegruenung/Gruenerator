@@ -1,6 +1,7 @@
 import express, { type Router, type Request, type Response } from 'express';
 
 import { createLogger } from '../../utils/logger.js';
+import { type AIWorkerPool } from '../../workers/types.js';
 
 const log = createLogger('claude_text_adj');
 const router: Router = express.Router();
@@ -20,7 +21,8 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
   }
 
   try {
-    const result = await req.app.locals.aiWorkerPool.processRequest(
+    const aiWorkerPool = req.app.locals.aiWorkerPool as AIWorkerPool;
+    const result = await aiWorkerPool.processRequest(
       {
         type: 'text_adjustment',
         systemPrompt: `Du bist ein hilfreicher Assistent, der eine verbesserte Formulierung für einen gegebenen Textabschnitt basierend auf den vom Benutzer angegebenen Änderungen vorschlägt. Berücksichtige dabei den gesamten Kontext des Textes, um sicherzustellen, dass der geänderte Abschnitt sich nahtlos in den Gesamttext einfügt. Stelle sicher, dass der Vorschlag klar, prägnant und stilistisch konsistent mit dem Originaltext ist.`,
@@ -47,7 +49,7 @@ Bitte schlage eine verbesserte Version des Abschnitts vor, die die gewünschten 
     );
 
     if (result.success) {
-      res.json({ suggestions: [result.content.trim()] });
+      res.json({ suggestions: [(result.content ?? '').trim()] });
     } else {
       throw new Error(result.error);
     }
