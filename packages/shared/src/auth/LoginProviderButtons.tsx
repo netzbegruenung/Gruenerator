@@ -41,7 +41,7 @@ export function LoginProviders({
       if (result === false) return;
     }
 
-    const callbackURL = redirectTo || '/profile';
+    const callbackURL = redirectTo || '/desk';
 
     if (onLogin) {
       onLogin(provider, callbackURL);

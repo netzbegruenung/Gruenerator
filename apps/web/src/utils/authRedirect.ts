@@ -66,7 +66,7 @@ interface LocationObject {
  */
 export const getIntendedRedirect = (
   location: LocationObject,
-  defaultRedirect = '/profile'
+  defaultRedirect = '/desk'
 ): string => {
   // 1. Check URL query parameters (highest priority)
   const searchParams = new URLSearchParams(location.search);
