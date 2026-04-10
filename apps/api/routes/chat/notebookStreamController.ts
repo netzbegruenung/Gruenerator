@@ -9,13 +9,28 @@ import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { handleNotebookStream } from './notebookStreamCore.js';
-import { SSEWriter, createSSEStream } from './services/sseHelpers.js';
+import { createSSEStream } from './services/sseHelpers.js';
 import {
   getUser,
   createThread,
   createMessage,
   touchThread,
 } from './services/threadPersistenceService.js';
+
+import type { ModelMessage } from 'ai';
+
+/** Shape of the POST body for notebook streaming */
+interface NotebookStreamRequestBody {
+  messages?: ModelMessage[];
+  collectionId?: string;
+  collectionIds?: string[];
+  filters?: Record<string, unknown>;
+  provider?: string;
+  model?: string;
+  mode?: 'fast' | 'deep';
+  documentIds?: string[];
+  threadId?: string | null;
+}
 
 const router = createAuthenticatedRouter();
 const log = createLogger('notebookStream');
@@ -34,6 +49,7 @@ router.post('/', async (req, res) => {
     return;
   }
 
+  const body = req.body as NotebookStreamRequestBody;
   const {
     messages,
     collectionId,
@@ -44,14 +60,14 @@ router.post('/', async (req, res) => {
     mode,
     documentIds,
     threadId: existingThreadId,
-  } = req.body;
+  } = body;
 
   const lastUserMessage = Array.isArray(messages)
     ? messages.filter((m: { role: string }) => m.role === 'user').pop()
     : null;
   const userText = typeof lastUserMessage?.content === 'string' ? lastUserMessage.content : '';
 
-  let threadId = existingThreadId as string | null;
+  let threadId: string | null = existingThreadId ?? null;
   const sse = createSSEStream(res);
 
   // Create thread on first message
@@ -91,14 +107,14 @@ router.post('/', async (req, res) => {
   const result = await handleNotebookStream({
     req,
     res,
-    messages,
-    collectionId,
-    collectionIds,
-    filters,
-    provider,
-    model,
-    mode,
-    documentIds,
+    messages: messages ?? [],
+    ...(collectionId != null && { collectionId }),
+    ...(collectionIds != null && { collectionIds }),
+    ...(filters != null && { filters }),
+    ...(provider != null && { provider }),
+    ...(model != null && { model }),
+    ...(mode != null && { mode }),
+    ...(documentIds != null && { documentIds }),
     userId: user.id,
     allowUserCollections: true,
     sse,

@@ -44,7 +44,23 @@ import type {
 } from '../../agents/langgraph/WebSearchGraph/types.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { ReferencesMap, ExpandedChunkResult } from '../../services/search/types.js';
+import type AIWorkerPool from '../../workers/aiWorkerPool.js';
 import type { Response } from 'express';
+
+/** Shape of the POST body for normal search streaming */
+interface NormalSearchRequestBody {
+  query: string;
+  maxResults?: number | string;
+  language?: string;
+  timeRange?: string;
+  safesearch?: number | string;
+  categories?: string;
+}
+
+/** Shape of the POST body for deep research streaming */
+interface DeepSearchRequestBody {
+  query: string;
+}
 
 const log = createLogger('search-stream');
 
@@ -184,6 +200,7 @@ export async function streamNormalSearch(req: AuthenticatedRequest, res: Respons
   req.on('close', () => abortController.abort());
 
   try {
+    const body = req.body as NormalSearchRequestBody;
     const {
       query,
       maxResults = 10,
@@ -191,7 +208,7 @@ export async function streamNormalSearch(req: AuthenticatedRequest, res: Respons
       timeRange,
       safesearch = 0,
       categories = 'general',
-    } = req.body;
+    } = body;
 
     const userId = getUserId(req);
 
@@ -208,7 +225,7 @@ export async function streamNormalSearch(req: AuthenticatedRequest, res: Respons
       mode: 'normal',
       user_id: userId,
       searchOptions,
-      aiWorkerPool: req.app.locals.aiWorkerPool,
+      aiWorkerPool: req.app.locals.aiWorkerPool as AIWorkerPool,
       req,
       metadata: { startTime, searchMode: 'normal' },
     };
@@ -366,7 +383,7 @@ export async function streamDeepSearch(req: AuthenticatedRequest, res: Response)
   req.on('close', () => abortController.abort());
 
   try {
-    const { query } = req.body;
+    const { query } = req.body as DeepSearchRequestBody;
     const userId = getUserId(req);
 
     let state: WebSearchState = {
@@ -374,7 +391,7 @@ export async function streamDeepSearch(req: AuthenticatedRequest, res: Response)
       mode: 'deep',
       user_id: userId,
       searchOptions: { maxResults: 10, language: 'de-DE' },
-      aiWorkerPool: req.app.locals.aiWorkerPool,
+      aiWorkerPool: req.app.locals.aiWorkerPool as AIWorkerPool,
       req,
       metadata: { startTime, searchMode: 'deep' },
     };
@@ -499,7 +516,7 @@ export async function streamDeepSearch(req: AuthenticatedRequest, res: Response)
     const referencesMap = buildReferencesMap(deduplicatedSources);
     const refsSummary = summarizeReferencesForPrompt(referencesMap);
 
-    const locale = extractLocaleFromRequest(state.req as any as RequestWithLocale);
+    const locale = extractLocaleFromRequest(state.req as unknown as RequestWithLocale);
     const systemPromptBase = localizePlaceholders(buildDossierSystemPrompt(), locale);
     const filteredData = filterDataForAI(
       state.webResults,
