@@ -53,6 +53,15 @@ const TOOL_KEY_TO_NAME: Record<ToolKey, SearchToolName> = {
   direct: 'direct_response',
 };
 
+interface ChatStreamRequestBody {
+  messages: ModelMessage[];
+  agentId?: string;
+  provider?: string;
+  model?: string;
+  threadId?: string;
+  enabledTools?: Record<ToolKey, boolean>;
+}
+
 const ALL_COLLECTIONS = [
   'deutschland',
   'oesterreich',
@@ -338,7 +347,8 @@ async function touchThread(threadId: string): Promise<void> {
 
 router.post('/', async (req, res) => {
   try {
-    const { messages, agentId, provider, model, threadId, enabledTools } = req.body;
+    const { messages, agentId, provider, model, threadId, enabledTools } =
+      req.body as ChatStreamRequestBody;
 
     log.info('[Chat Debug] === NEW REQUEST ===');
     log.info(`[Chat Debug] Request body:`, {
@@ -558,12 +568,12 @@ Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`
               );
               if (toolCalls && toolCalls.length > 0) {
                 log.info(
-                  `[Chat] Tool calls: ${JSON.stringify(toolCalls.map((tc: typeof toolCalls[0]) => ({ id: tc.toolCallId, name: tc.toolName })))}`
+                  `[Chat] Tool calls: ${JSON.stringify(toolCalls.map((tc: (typeof toolCalls)[0]) => ({ id: tc.toolCallId, name: tc.toolName })))}`
                 );
               }
               if (toolResults && toolResults.length > 0) {
                 log.info(
-                  `[Chat] Tool results: ${JSON.stringify(toolResults.map((tr: typeof toolResults[0]) => ({ id: tr.toolCallId, hasResult: !!('result' in tr && tr.result) })))}`
+                  `[Chat] Tool results: ${JSON.stringify(toolResults.map((tr: (typeof toolResults)[0]) => ({ id: tr.toolCallId, hasResult: !!('result' in tr && tr.result) })))}`
                 );
               }
               await createMessage(
@@ -577,11 +587,14 @@ Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`
               await touchThread(actualThreadId);
 
               if (isNewThread && text) {
-                const aiWorkerPool = req.app.locals.aiWorkerPool;
-                const userContent =
-                  typeof lastUserMessage.content === 'string'
+                const aiWorkerPool = (req.app.locals as Record<string, unknown>).aiWorkerPool as
+                  | Parameters<typeof generateThreadTitle>[3]
+                  | undefined;
+                const userContent = lastUserMessage
+                  ? typeof lastUserMessage.content === 'string'
                     ? lastUserMessage.content
-                    : JSON.stringify(lastUserMessage.content);
+                    : JSON.stringify(lastUserMessage.content)
+                  : '';
                 if (aiWorkerPool) {
                   generateThreadTitle(actualThreadId, userContent, text, aiWorkerPool).catch(
                     (err) => log.warn('[Chat] Thread title generation failed:', err)
