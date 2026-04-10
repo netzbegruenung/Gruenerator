@@ -82,9 +82,9 @@ Drizzle ORM wraps the existing `pg.Pool` from PostgresService and infers types f
 |------|-------|--------|
 | `no-unsafe-return` | 0 | **error** |
 | `no-unsafe-call` | 0 | **error** |
-| `no-unsafe-argument` | 212 | warn |
-| `no-unsafe-assignment` | 397 | warn |
-| `no-unsafe-member-access` | 250 | warn |
+| `no-unsafe-argument` | 106 | warn |
+| `no-unsafe-assignment` | 305 | warn |
+| `no-unsafe-member-access` | 236 | warn |
 
 **`no-unsafe-call` fix session (2026-04-10):**
 89 → 0 violations via 5 root-cause patterns:
@@ -95,9 +95,16 @@ Drizzle ORM wraps the existing `pg.Pool` from PostgresService and infers types f
 - Pattern E: Defined `SourceEntry` interface in AggregatorNode, typed Flux/Qdrant/Bluesky/docling responses — fixed ~25 misc violations
 - **Cascade effect:** Typing `any` properties also reduced other rules (argument -71, assignment -147, member-access -277)
 
+**LangGraph typed casts + validateBody + TypedRequest fix (2026-04-10):**
+- Replaced `as any` with `as (state: XState) => Promise<Partial<XState>>` in 6 LangGraph graph files (ChatGraph pattern)
+- Switched WebSearchGraph/ImageSelectionGraph from class AIWorkerPool to interface AIWorkerPool
+- Fixed `TypedRequest<T> & Request` intersection bug: `body: T & body: any = body: any` defeated typed validation. Extended TypedRequest to include user/auth fields directly, removed 36 broken intersections across 11 route files
+- Applied `validateBody` Zod middleware to 10 route files (permissionsController, shareController ×2, wolkeController, visionController, summarizeController, webSearchController, processingController)
+- Removed `as any` handler casts in webSearchController (use `Promise<void>` return type)
+
 **Next TODOs (pick up here):**
-1. [ ] Apply `validateBody` Zod middleware to remaining ~100 smaller route files
-2. [ ] Fix remaining `no-unsafe-argument` (212), then promote to `error`
+1. [ ] Apply `validateBody` Zod middleware to remaining ~90 route files
+2. [ ] Fix remaining `no-unsafe-argument` (106), then promote to `error`
 3. [ ] Promote `no-unsafe-member-access` to `error` when violations are at library-only floor
 4. [ ] Promote `no-unsafe-assignment` to `error` when violations are at library-only floor
 5. [ ] Plan ts-rest migration (Phase 4.1) — Zod schemas are ready as building blocks
@@ -194,12 +201,12 @@ ts-rest defines a single contract that types body, params, query, headers, AND r
 | `exactOptionalPropertyTypes` | disabled | disabled | **enabled (0 errors)** | enabled |
 | `no-unsafe-return` | 134 (warn) | 0 (warn) | **0 (error)** | 0 (error) |
 | `no-unsafe-call` | — | — | **0 (error)** | 0 (error) |
-| `no-unsafe-argument` | — | — | **212 (warn)** | 0 (error) |
-| `no-unsafe-assignment` | — | 882 (warn) | **394 (warn)** | 0 (error) |
-| `no-unsafe-member-access` | 1,128 (warn) | — | **250 (warn)** | 0 (error) |
+| `no-unsafe-argument` | — | — | **106 (warn)** | 0 (error) |
+| `no-unsafe-assignment` | — | 882 (warn) | **305 (warn)** | 0 (error) |
+| `no-unsafe-member-access` | 1,128 (warn) | — | **236 (warn)** | 0 (error) |
 | Drizzle schema tables | 0 | 0 | **~20** | all |
 | Typecheck errors | 3 | 3 | **0** | 0 |
-| `validateBody` routes | 0 | 0 | **~25** | all POST/PUT |
+| `validateBody` routes | 0 | 0 | **~35** | all POST/PUT |
 | Frontend `any` violations | ~49 | — | **~8** | 0 |
 | Shared packages `any` violations | ~48 | — | **~5** | 0 |
 
