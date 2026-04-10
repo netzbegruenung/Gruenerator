@@ -52,20 +52,20 @@ const ChatSidebar = lazyWithRetry(() =>
 );
 
 const GUEST_ANIMAL_NAMES = [
-  'Eichhörnchen',
-  'Igel',
-  'Fuchs',
-  'Reh',
-  'Dachs',
-  'Hase',
-  'Eule',
-  'Specht',
-  'Otter',
-  'Biber',
-  'Falke',
-  'Luchs',
-  'Marder',
-  'Drossel',
+  'Emsiges Eichhörnchen',
+  'Illustrer Igel',
+  'Flinker Fuchs',
+  'Ruhiges Reh',
+  'Drolliger Dachs',
+  'Hurtiger Hase',
+  'Eifrige Eule',
+  'Sturer Specht',
+  'Origineller Otter',
+  'Braver Biber',
+  'Fixer Falke',
+  'Lustiger Luchs',
+  'Munterer Marder',
+  'Dreiste Drossel',
 ];
 
 const GUEST_COLORS = [

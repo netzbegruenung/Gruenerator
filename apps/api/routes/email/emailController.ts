@@ -1,5 +1,7 @@
 import { Router, type Response } from 'express';
+import { z } from 'zod';
 
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { sendContentDeliveryEmail } from '../../services/email/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -8,62 +10,43 @@ import type { AuthenticatedRequest } from '../../middleware/types.js';
 const log = createLogger('email-route');
 const router = Router();
 
-const ALLOWED_CONTENT_TYPES = ['image/png', 'image/jpeg', 'application/pdf'];
+const ALLOWED_CONTENT_TYPES = ['image/png', 'image/jpeg', 'application/pdf'] as const;
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024; // 10 MB
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const sendContentSchema = z.object({
+  recipientEmail: z.string().email('Invalid email address'),
+  contentTitle: z.string().min(1, 'contentTitle is required'),
+  contentDescription: z.string().optional(),
+  attachment: z
+    .object({
+      base64: z.string().min(1),
+      filename: z.string().min(1),
+      contentType: z.enum(ALLOWED_CONTENT_TYPES),
+    })
+    .optional(),
+});
 
-interface SendContentBody {
-  recipientEmail: string;
-  contentTitle: string;
-  contentDescription?: string;
-  attachment?: {
-    base64: string;
-    filename: string;
-    contentType: string;
-  };
-}
+type SendContentBody = z.infer<typeof sendContentSchema>;
 
 /**
  * @route   POST /api/email/send-content
  * @desc    Send generated content via email with optional attachment
  * @access  Private (authenticated users)
  */
-router.post('/send-content', async (req: AuthenticatedRequest, res: Response) => {
+router.post('/send-content', validateBody(sendContentSchema), async (req: AuthenticatedRequest & TypedRequest<SendContentBody>, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    const { recipientEmail, contentTitle, contentDescription, attachment } =
-      req.body as SendContentBody;
-
-    if (!recipientEmail || !contentTitle) {
-      return res.status(400).json({ error: 'recipientEmail and contentTitle are required' });
-    }
-
-    if (!EMAIL_REGEX.test(recipientEmail)) {
-      return res.status(400).json({ error: 'Invalid email address' });
-    }
+    const { recipientEmail, contentTitle, contentDescription, attachment } = req.body;
 
     let attachmentBuffer: Buffer | undefined;
     let attachmentFilename: string | undefined;
     let attachmentContentType: string | undefined;
 
     if (attachment) {
-      if (!attachment.base64 || !attachment.filename || !attachment.contentType) {
-        return res
-          .status(400)
-          .json({ error: 'Attachment requires base64, filename, and contentType' });
-      }
-
-      if (!ALLOWED_CONTENT_TYPES.includes(attachment.contentType)) {
-        return res.status(400).json({
-          error: `Content type not allowed. Allowed: ${ALLOWED_CONTENT_TYPES.join(', ')}`,
-        });
-      }
-
       attachmentBuffer = Buffer.from(attachment.base64, 'base64');
 
       if (attachmentBuffer.length > MAX_ATTACHMENT_SIZE) {
