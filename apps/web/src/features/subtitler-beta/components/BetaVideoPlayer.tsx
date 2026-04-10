@@ -47,6 +47,8 @@ interface BetaVideoPlayerProps {
 
 export interface BetaVideoPlayerRef {
   seekTo: (time: number) => void;
+  togglePlayPause: () => void;
+  skip: (seconds: number) => void;
 }
 
 export const BetaVideoPlayer = forwardRef<BetaVideoPlayerRef, BetaVideoPlayerProps>(
@@ -331,8 +333,10 @@ export const BetaVideoPlayer = forwardRef<BetaVideoPlayerRef, BetaVideoPlayerPro
       ref,
       () => ({
         seekTo,
+        togglePlayPause,
+        skip,
       }),
-      [seekTo]
+      [seekTo, togglePlayPause, skip]
     );
 
     // Drag-Event-Verarbeitung
