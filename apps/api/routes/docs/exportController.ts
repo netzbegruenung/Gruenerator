@@ -74,7 +74,7 @@ function htmlToMarkdown(html: string): string {
   markdown = markdown.replace(/<a\s+href="(.*?)".*?>(.*?)<\/a>/gi, '[$2]($1)');
 
   // Lists
-  markdown = markdown.replace(/<ul>(.*?)<\/ul>/gis, (match, content) => {
+  markdown = markdown.replace(/<ul>(.*?)<\/ul>/gis, (_match: string, content: string) => {
     const items = content.match(/<li>(.*?)<\/li>/gi) || [];
     return (
       items
@@ -86,7 +86,7 @@ function htmlToMarkdown(html: string): string {
     );
   });
 
-  markdown = markdown.replace(/<ol>(.*?)<\/ol>/gis, (match, content) => {
+  markdown = markdown.replace(/<ol>(.*?)<\/ol>/gis, (_match: string, content: string) => {
     const items = content.match(/<li>(.*?)<\/li>/gi) || [];
     return (
       items
@@ -109,10 +109,13 @@ function htmlToMarkdown(html: string): string {
   markdown = markdown.replace(/<code>(.*?)<\/code>/gi, '`$1`');
 
   // Blockquotes
-  markdown = markdown.replace(/<blockquote>(.*?)<\/blockquote>/gis, (match, content) => {
-    const lines = content.split('\n');
-    return lines.map((line: string) => `> ${line.trim()}`).join('\n') + '\n\n';
-  });
+  markdown = markdown.replace(
+    /<blockquote>(.*?)<\/blockquote>/gis,
+    (_match: string, content: string) => {
+      const lines = content.split('\n');
+      return lines.map((line: string) => `> ${line.trim()}`).join('\n') + '\n\n';
+    }
+  );
 
   // Remove remaining HTML tags
   markdown = markdown.replace(/<[^>]+>/g, '');

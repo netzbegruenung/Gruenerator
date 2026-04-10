@@ -4,7 +4,7 @@ import {
   type Canvas,
   type SKRSContext2D as CanvasRenderingContext2D,
 } from '@napi-rs/canvas';
-import { Router, type Request, type Response } from 'express';
+import { Router, type Request, type RequestHandler, type Response } from 'express';
 import multer from 'multer';
 
 import { checkFiles, registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
@@ -73,26 +73,25 @@ async function addKiLabel(imageBuffer: Buffer): Promise<Buffer> {
   return optimizeCanvasBuffer(rawBuffer);
 }
 
-router.post(
-  '/',
-  upload.single('image'),
-  (async (req: MulterRequest, res: Response): Promise<void> => {
-    try {
-      if (!req.file) {
-        res.status(400).json({ error: 'Kein Bild hochgeladen.' });
-        return;
-      }
-
-      const outputBuffer = await addKiLabel(req.file.buffer);
-      const base64Image = bufferToBase64(outputBuffer);
-
-      res.json({ image: base64Image });
-    } catch (error) {
-      log.error('[imagine_label_canvas] Fehler beim Beschriften des Bildes:', error);
-      res.status(500).json({ error: 'Fehler beim Beschriften des Bildes.' });
+router.post('/', upload.single('image'), (async (
+  req: MulterRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ error: 'Kein Bild hochgeladen.' });
+      return;
     }
-  }) as any
-);
+
+    const outputBuffer = await addKiLabel(req.file.buffer);
+    const base64Image = bufferToBase64(outputBuffer);
+
+    res.json({ image: base64Image });
+  } catch (error) {
+    log.error('[imagine_label_canvas] Fehler beim Beschriften des Bildes:', error);
+    res.status(500).json({ error: 'Fehler beim Beschriften des Bildes.' });
+  }
+}) as RequestHandler);
 
 export default router;
 export { addKiLabel };

@@ -177,7 +177,7 @@ router.post(
   validateBody(groupCreateSchema),
   async (req: AuthRequest & TypedRequest<GroupCreateBody>, res: Response): Promise<void> => {
     try {
-      const { name } = req.body;
+      const { name } = req.body as GroupCreateBody;
 
       const userId = req.user!.id;
       const joinToken = crypto.randomBytes(16).toString('hex');
@@ -403,7 +403,7 @@ router.post(
   validateBody(groupJoinSchema),
   async (req: AuthRequest & TypedRequest<GroupJoinBody>, res: Response): Promise<void> => {
     try {
-      const { joinToken } = req.body;
+      const { joinToken } = req.body as GroupJoinBody;
       const userId = req.user!.id;
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
@@ -551,7 +551,7 @@ router.put(
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
-      const { name, description, settings } = req.body;
+      const { name, description, settings } = req.body as GroupInfoUpdateBody;
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
 
@@ -655,7 +655,7 @@ router.put(
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
-      const { name } = req.body;
+      const { name } = req.body as GroupUpdateBody;
 
       if (!name?.trim()) {
         res.status(400).json({
@@ -765,7 +765,7 @@ router.put(
     try {
       const { groupId, memberId } = req.params;
       const userId = req.user!.id;
-      const { role } = req.body;
+      const { role } = req.body as GroupMemberRoleBody;
 
       if (String(memberId) === String(userId)) {
         res
@@ -862,7 +862,7 @@ router.post(
 
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
 
-      const body = req.body;
+      const body = req.body as GroupLinkBody;
 
       const group = (await postgres.queryOne('SELECT links FROM groups WHERE id = $1', [groupId], {
         table: 'groups',
@@ -916,7 +916,7 @@ router.put(
 
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
 
-      const body = req.body;
+      const body = req.body as GroupLinkBody;
 
       const group = (await postgres.queryOne('SELECT links FROM groups WHERE id = $1', [groupId], {
         table: 'groups',
