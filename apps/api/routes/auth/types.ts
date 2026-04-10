@@ -137,22 +137,47 @@ export interface GroupInstructionsUpdateBody {
 }
 
 export interface GroupContentShareBody {
-  contentType:
-    | 'documents'
-    | 'custom_generators'
-    | 'notebook_collections'
-    | 'user_documents'
-    | 'database';
+  contentType: string;
   contentId: string;
   permissions?: {
-    canEdit?: boolean | undefined;
-    canDelete?: boolean | undefined;
+    read?: boolean | undefined;
+    write?: boolean | undefined;
+    collaborative?: boolean | undefined;
   };
 }
 
+export interface GroupContentUnshareBody {
+  contentType: string;
+  contentId: string;
+}
+
 export interface GroupContentPermissionsBody {
-  canEdit?: boolean | undefined;
-  canDelete?: boolean | undefined;
+  contentType: string;
+  permissions: Record<string, boolean>;
+}
+
+export interface GroupContentDeleteBody {
+  contentType: string;
+}
+
+export interface GroupInfoUpdateBody {
+  name?: string | undefined;
+  description?: string | undefined;
+  settings?: {
+    templateTags?: string[] | undefined;
+    [key: string]: unknown;
+  };
+}
+
+export interface GroupMemberRoleBody {
+  role: string;
+}
+
+export interface GroupLinkBody {
+  title: string;
+  url: string;
+  icon: string;
+  description?: string | undefined;
 }
 
 // ============================================================================

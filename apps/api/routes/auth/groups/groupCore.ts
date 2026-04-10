@@ -15,7 +15,15 @@ import { getPostgresInstance } from '../../../database/services/PostgresService.
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { createLogger } from '../../../utils/logger.js';
 
-import type { AuthRequest } from '../types.js';
+import type {
+  AuthRequest,
+  GroupCreateBody,
+  GroupJoinBody,
+  GroupInfoUpdateBody,
+  GroupUpdateBody,
+  GroupMemberRoleBody,
+  GroupLinkBody,
+} from '../types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -162,7 +170,7 @@ router.post(
   ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const { name } = req.body;
+      const { name } = req.body as GroupCreateBody;
 
       if (!name?.trim()) {
         res.status(400).json({
@@ -395,7 +403,7 @@ router.post(
   ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const { joinToken } = req.body;
+      const { joinToken } = req.body as GroupJoinBody;
       const userId = req.user!.id;
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
@@ -547,7 +555,7 @@ router.put(
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
-      const { name, description, settings } = req.body;
+      const { name, description, settings } = req.body as GroupInfoUpdateBody;
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
 
@@ -679,7 +687,7 @@ router.put(
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
-      const { name } = req.body;
+      const { name } = req.body as GroupUpdateBody;
 
       if (!name?.trim()) {
         res.status(400).json({
@@ -785,7 +793,7 @@ router.put(
     try {
       const { groupId, memberId } = req.params;
       const userId = req.user!.id;
-      const { role } = req.body;
+      const { role } = req.body as GroupMemberRoleBody;
 
       if (!groupId || !memberId) {
         res
@@ -948,7 +956,8 @@ router.post(
 
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
 
-      const error = validateGroupLink(req.body);
+      const body = req.body as GroupLinkBody;
+      const error = validateGroupLink(body);
       if (error) {
         res.status(400).json({ success: false, message: error });
         return;
@@ -964,12 +973,12 @@ router.post(
         return;
       }
 
-      const newLink = {
+      const newLink: GroupLink = {
         id: crypto.randomUUID(),
-        title: req.body.title.trim(),
-        url: req.body.url.trim(),
-        icon: req.body.icon,
-        ...(req.body.description?.trim() && { description: req.body.description.trim() }),
+        title: body.title.trim(),
+        url: body.url.trim(),
+        icon: body.icon,
+        ...(body.description?.trim() ? { description: body.description.trim() } : {}),
       };
 
       links.push(newLink);
@@ -1002,7 +1011,8 @@ router.put(
 
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
 
-      const error = validateGroupLink(req.body);
+      const body = req.body as GroupLinkBody;
+      const error = validateGroupLink(body);
       if (error) {
         res.status(400).json({ success: false, message: error });
         return;
@@ -1021,12 +1031,12 @@ router.put(
 
       links[idx] = {
         ...links[idx],
-        title: req.body.title.trim(),
-        url: req.body.url.trim(),
-        icon: req.body.icon,
-        ...(req.body.description?.trim() ? { description: req.body.description.trim() } : {}),
+        title: body.title.trim(),
+        url: body.url.trim(),
+        icon: body.icon,
+        ...(body.description?.trim() ? { description: body.description.trim() } : {}),
       };
-      if (!req.body.description?.trim()) delete links[idx].description;
+      if (!body.description?.trim()) delete links[idx].description;
 
       await postgres.exec(
         'UPDATE groups SET links = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
