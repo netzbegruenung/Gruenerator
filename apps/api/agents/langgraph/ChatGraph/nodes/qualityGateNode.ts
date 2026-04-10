@@ -134,8 +134,9 @@ function parseQualityResponse(content: string): QualityResult | null {
   try {
     const parsed = JSON.parse(content);
     if (typeof parsed.score === 'number' && typeof parsed.sufficient === 'boolean') {
+      const score = parsed.score as number;
       return {
-        score: Math.max(1, Math.min(5, parsed.score)),
+        score: Math.max(1, Math.min(5, score)),
         sufficient: parsed.sufficient,
         refinedQuery: parsed.refinedQuery || undefined,
         weakAspects: Array.isArray(parsed.weakAspects) ? parsed.weakAspects : undefined,

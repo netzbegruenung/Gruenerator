@@ -10,6 +10,7 @@ import { validateBody, type TypedRequest } from '../../middleware/validateBody.j
 import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 
 import {
   getUser,
@@ -366,8 +367,10 @@ router.post('/:threadId/generate-title', async (req, res) => {
       `[generate-title] Assistant message (first 100 chars): ${String(assistantMsg.content).slice(0, 100)}`
     );
 
-    const aiWorkerPool = req.app.locals.aiWorkerPool;
-    if (!aiWorkerPool) {
+    let aiWorkerPool;
+    try {
+      aiWorkerPool = getAIWorkerPool(req);
+    } catch {
       log.error(`[generate-title] AI worker pool not available!`);
       return res.status(503).json({ error: 'AI worker pool not available' });
     }

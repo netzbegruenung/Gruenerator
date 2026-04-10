@@ -3,6 +3,7 @@ import express, { type Router, type Response } from 'express';
 
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { generateShortSubtitlesViaAI } from '../../services/subtitler/shortSubtitleGeneratorService.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('claude_subtitle');
@@ -30,7 +31,7 @@ router.post(
       const subtitles = await generateShortSubtitlesViaAI(
         text,
         wordTimestamps,
-        req.app.locals.aiWorkerPool
+        getAIWorkerPool(req)
       );
 
       res.json({

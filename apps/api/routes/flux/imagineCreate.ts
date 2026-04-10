@@ -8,6 +8,7 @@ import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { ImageGenerationCounter } from '../../services/counters/index.js';
 import { FluxImageService, buildFluxPrompt } from '../../services/flux/index.js';
+import type { BuildFluxPromptResult } from '../../services/flux/FluxPromptBuilder.js';
 import {
   composeImagineCreate,
   FLUX_WIDTH,
@@ -64,8 +65,7 @@ interface FluxGenerationResult {
 // Helper Functions
 // ============================================================================
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function buildCreatePrompt(userPrompt: string, variant: ImageVariant = 'light-top'): any {
+function buildCreatePrompt(userPrompt: string, variant: ImageVariant = 'light-top'): BuildFluxPromptResult {
   return buildFluxPrompt({
     variant,
     subject: userPrompt,
@@ -175,7 +175,7 @@ router.post(
       }
 
       const { stored: fluxResult } = (await flux.generateFromPrompt(
-        fluxPrompt,
+        fluxPrompt.prompt,
         fluxOptions
       )) as FluxGenerationResult;
 

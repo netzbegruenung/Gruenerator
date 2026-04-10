@@ -136,7 +136,7 @@ export async function searchUserDocuments(
     if (hybridMode && query) {
       console.log(`[VectorOperations] Performing hybrid search for user ${userId}`);
 
-      const hybridResult = await qdrantOps.hybridSearch('documents', queryVector, query, filter as any, {
+      const hybridResult = await qdrantOps.hybridSearch('documents', queryVector, query, filter, {
         limit,
         threshold: scoreThreshold,
         ...hybridOptions,
@@ -153,7 +153,7 @@ export async function searchUserDocuments(
     } else {
       console.log(`[VectorOperations] Performing vector search for user ${userId}`);
 
-      const results = await qdrantOps.vectorSearch('documents', queryVector, filter as any, {
+      const results = await qdrantOps.vectorSearch('documents', queryVector, filter, {
         limit,
         threshold: scoreThreshold,
         withPayload: includePayload,
@@ -222,7 +222,7 @@ export async function deleteDocumentVectors(
       filter.must!.push({ key: 'user_id', match: { value: userId } });
     }
 
-    await qdrantOps.batchDelete('documents', filter as any);
+    await qdrantOps.batchDelete('documents', filter);
 
     console.log(`[VectorOperations] Deleted vectors for document ${documentId}`);
     return { success: true, documentId };
@@ -249,7 +249,7 @@ export async function deleteUserDocuments(
 ): Promise<DeleteResult> {
   try {
     const filter: QdrantFilter = { must: [{ key: 'user_id', match: { value: userId } }] };
-    await qdrantOps.batchDelete('documents', filter as any);
+    await qdrantOps.batchDelete('documents', filter);
 
     console.log(`[VectorOperations] Deleted all vectors for user ${userId}`);
     return { success: true, userId };
@@ -279,7 +279,7 @@ export async function getUserVectorStats(
   try {
     const filter: QdrantFilter = { must: [{ key: 'user_id', match: { value: userId } }] };
 
-    const documents = await qdrantOps.scrollDocuments('documents', filter as any, {
+    const documents = await qdrantOps.scrollDocuments('documents', filter, {
       limit: 1000,
       withPayload: true,
       withVector: false,

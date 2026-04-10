@@ -661,13 +661,13 @@ async function processIntentAsync(
       routeType === 'sharepic' || routeType.startsWith('sharepic_')
         ? processSharepicRequest(
             intent,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cross-module request/response type bridge
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument -- cross-module request/response type bridge
             intentReq as any,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cross-module response type bridge
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument -- cross-module response type bridge
             responseCollector as any,
             baseContext.userId
           )
-        : // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cross-module request/response type bridge
+        : // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument -- cross-module request/response type bridge
           processGraphRequest(routeType, intentReq as any, responseCollector as any);
 
     processPromise.catch((error) => {

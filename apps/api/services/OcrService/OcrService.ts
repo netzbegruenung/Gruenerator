@@ -60,28 +60,40 @@ import type {
  * OCR Service class
  * Provides document text extraction and embedding generation
  */
+interface PostgresClient {
+  query(sql: string, params: unknown[]): Promise<unknown>;
+  ensureInitialized?(): Promise<void>;
+}
+
+interface QdrantClient {
+  upsert(
+    collection: string,
+    points: { id: string; vector: number[]; payload: Record<string, unknown> }[]
+  ): Promise<unknown>;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type PdfjsLib = any;
+
 export class OCRService {
   private isProcessing: Map<string, boolean>;
   private maxPages: number;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private postgres: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private qdrant: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private _pdfjsLib: any | undefined;
+  private postgres: PostgresClient;
+  private qdrant: QdrantClient;
+  private _pdfjsLib: PdfjsLib | null;
 
   constructor() {
     this.isProcessing = new Map();
     this.maxPages = 1000; // Increased limit for political documents and large PDFs
-    this.postgres = getPostgresInstance();
-    this.qdrant = getQdrantInstance();
+    this.postgres = getPostgresInstance() as PostgresClient;
+    this.qdrant = getQdrantInstance() as unknown as QdrantClient;
+    this._pdfjsLib = null;
   }
 
   /**
    * Get PDF.js library (lazy loading with caching)
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async getPdfJs(): Promise<any> {
+  async getPdfJs(): Promise<PdfjsLib> {
     if (this._pdfjsLib) return this._pdfjsLib;
 
     const pdfjsLib = await loadPdfJs();
@@ -99,8 +111,7 @@ export class OCRService {
   /**
    * Open PDF document with PDF.js
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async openPdfDocument(pdfPath: string): Promise<any> {
+  async openPdfDocument(pdfPath: string): Promise<PdfjsLib> {
     const pdfjsLib = await this.getPdfJs();
     return await openPdf(pdfPath, pdfjsLib);
   }
@@ -316,8 +327,7 @@ export class OCRService {
   /**
    * Extract text from a single PDF page
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async extractPageTextDirectly(pdfDoc: any, pageNum: number): Promise<PageExtractionResult> {
+  async extractPageTextDirectly(pdfDoc: PdfjsLib, pageNum: number): Promise<PageExtractionResult> {
     return await extractPage(pdfDoc, pageNum, this.applyMarkdownFormatting.bind(this));
   }
 

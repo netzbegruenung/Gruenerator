@@ -355,10 +355,10 @@ async function transcribeBuffer(
  * POST /api/voice/transcribe
  * Transcribe audio file — prefers Regolo Whisper, falls back to Voxtral
  */
-router.post('/transcribe', upload.single('audio'), (async (
+router.post('/transcribe', upload.single('audio') as express.RequestHandler, async (
   req: TranscribeRequest,
   res: Response<TranscribeResponse>
-) => {
+): Promise<void> => {
   if (!req.file) {
     return res.status(400).json({
       success: false,
@@ -417,8 +417,7 @@ router.post('/transcribe', upload.single('audio'), (async (
       error: 'Fehler bei der Transkription: ' + (error as Error).message,
     });
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- multer middleware type mismatch
-}) as any);
+});
 
 /**
  * POST /api/voice/transcribe/stream
@@ -427,10 +426,10 @@ router.post('/transcribe', upload.single('audio'), (async (
  * Supports diarize/timestamps — when enabled, uses non-streaming transcription
  * but still wraps in SSE for consistent progress feedback.
  */
-router.post('/transcribe/stream', upload.single('audio'), (async (
+router.post('/transcribe/stream', upload.single('audio'), async (
   req: TranscribeRequest,
   res: Response
-) => {
+): Promise<void> => {
   if (!req.file) {
     return res.status(400).json({
       success: false,
@@ -515,8 +514,7 @@ router.post('/transcribe/stream', upload.single('audio'), (async (
   }
 
   sse.end();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- multer middleware type mismatch
-}) as any);
+});
 
 // ============================================================================
 // TUS-based transcription (two-phase: upload via TUS, then process)
@@ -733,10 +731,10 @@ router.post(
  * POST /api/voice/chat
  * Chat with audio input
  */
-router.post('/chat', upload.single('audio'), (async (
+router.post('/chat', upload.single('audio'), async (
   req: ChatRequest,
   res: Response<ChatResponse>
-) => {
+): Promise<void> => {
   if (!req.file) {
     return res.status(400).json({
       success: false,
@@ -766,8 +764,7 @@ router.post('/chat', upload.single('audio'), (async (
       error: 'Fehler beim Audio-Chat: ' + (error as Error).message,
     });
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- multer middleware type mismatch
-}) as any);
+});
 
 /**
  * POST /api/voice/protokoll

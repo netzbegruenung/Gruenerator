@@ -20,6 +20,8 @@ import { getPostgresDocumentService } from '../../services/document-services/Pos
 import { getWolkeSyncService } from '../../services/sync/index.js';
 import { createLogger } from '../../utils/logger.js';
 
+import type { NextcloudFile } from '../../services/sync/types.js';
+
 import { formatFileSize } from './helpers.js';
 
 import type { DocumentRequest, WolkeImportResult } from './types.js';
@@ -183,10 +185,12 @@ router.get(
       });
 
       // Get the share link
-      const shareLink = await wolkeSyncService.getShareLink(userId, shareLinkId);
+      const shareLink = (await wolkeSyncService.getShareLink(userId, shareLinkId)) as {
+        share_link?: string;
+      } | null;
 
       // List all files and folders (unfiltered, unlike listFolderContents which is for sync)
-      const client = await NextcloudApiClient.create(shareLink.share_link);
+      const client = await NextcloudApiClient.create(shareLink?.share_link ?? '');
       const files = await client.listFolder(folderPath || undefined);
 
       // Filter and enrich files with additional metadata for UI
@@ -248,7 +252,12 @@ router.post(
       log.debug(`[POST /import] Importing ${files.length} files from share link ${shareLinkId}`);
 
       // Get the share link
-      const shareLink = await wolkeSyncService.getShareLink(userId, shareLinkId);
+      const shareLink = (await wolkeSyncService.getShareLink(userId, shareLinkId)) as {
+        id: string;
+        url: string;
+        token?: string;
+        share_link?: string;
+      };
 
       const results: WolkeImportResult[] = [];
       let successCount = 0;
@@ -282,8 +291,7 @@ router.post(
           const result = await wolkeSyncService.processFile(
             userId,
             shareLinkId,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            fileInfo as any,
+            fileInfo as NextcloudFile,
             shareLink
           );
 

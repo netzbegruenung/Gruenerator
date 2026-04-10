@@ -335,7 +335,7 @@ const callSharepicClaude = async (
 
   return new Promise<CanvasResult>((resolve, reject) => {
     const res = createMockResponse(resolve, reject);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument -- bridge between mock request and typed handler params
     const maybePromise = sharepicClaudeHandler(mockReq as any, res as any, type as any) as
       | Promise<unknown>
       | undefined;

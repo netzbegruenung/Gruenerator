@@ -8,7 +8,7 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 
-import express, { Router, type Request, type Response } from 'express';
+import { Router, type Request, type Response, type RequestHandler } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
 
@@ -60,8 +60,8 @@ router.post(
   '/extract',
   authMiddleware.requireAuth,
   upload.single('file'),
-  validateBody(scannerBodySchema) as express.RequestHandler,
-  (async (req: TypedRequest<z.infer<typeof scannerBodySchema>>, res: Response<ScannerResponse>) => {
+  validateBody(scannerBodySchema) as RequestHandler,
+  async (req: TypedRequest<z.infer<typeof scannerBodySchema>>, res: Response<ScannerResponse>): Promise<void> => {
     const startTime = Date.now();
     let tempFilePath: string | null = null;
 
@@ -155,7 +155,7 @@ router.post(
         }
       }
     }
-  }) as any
+  }
 );
 
 export default router;

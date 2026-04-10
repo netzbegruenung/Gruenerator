@@ -554,7 +554,7 @@ export class WolkeSyncService {
 
       try {
         // Get share link
-        const shareLink = await this.getShareLink(userId, shareLinkId);
+        const shareLink = await this.getShareLink(userId, shareLinkId) as { id: string; url: string; token?: string; share_link?: string };
 
         // List folder contents
         const files = await this.listFolderContents(shareLink, folderPath);

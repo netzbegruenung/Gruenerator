@@ -303,8 +303,7 @@ async function triggerBackgroundRender(
 
     log.info(`Background render starting for share ${shareToken}`);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await processProjectExport(project as any, projService);
+    const result = await processProjectExport(project as { id: string; video_path: string; subtitles: string; style_preference?: string; height_preference?: string }, projService);
 
     const subtitledVideoRelativePath = `${userId}/${projectId}/subtitled_${Date.now()}.mp4`;
     const subtitledVideoFullPath = projService.getSubtitledVideoPath(subtitledVideoRelativePath);
