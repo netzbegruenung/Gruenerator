@@ -30,6 +30,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const log = createLogger('sharepicGenerat');
 
+const CAMPAIGNS_ROOT = path.resolve(__dirname, '../../config/campaigns');
+const SAFE_CAMPAIGN_ID_REGEX = /^[A-Za-z0-9_-]+$/;
+
 const SHAREPIC_TYPES = new Set(['info', 'zitat_pure', 'zitat', 'dreizeilen']);
 const _IMAGE_REQUIRED_TYPES = new Set(['zitat', 'dreizeilen']);
 
@@ -167,7 +170,16 @@ interface RequestBody {
 const loadCampaignConfig = (campaignId: string, typeId: string): CampaignConfig | null => {
   if (!campaignId || !typeId) return null;
 
-  const campaignPath = path.join(__dirname, '../../config/campaigns', `${campaignId}.json`);
+  if (!SAFE_CAMPAIGN_ID_REGEX.test(campaignId) || !SAFE_CAMPAIGN_ID_REGEX.test(typeId)) {
+    log.warn(`[Campaign] Invalid identifier(s): campaignId="${campaignId}", typeId="${typeId}"`);
+    return null;
+  }
+
+  const campaignPath = path.resolve(CAMPAIGNS_ROOT, `${campaignId}.json`);
+  if (!campaignPath.startsWith(CAMPAIGNS_ROOT)) {
+    log.warn(`[Campaign] Rejected path outside campaigns root: ${campaignPath}`);
+    return null;
+  }
 
   if (!fsSync.existsSync(campaignPath)) {
     log.warn(`[Campaign] Config not found: ${campaignPath}`);
