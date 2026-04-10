@@ -16,6 +16,7 @@
 
 import { convertToModelMessages } from 'ai';
 import express from 'express';
+import { z } from 'zod';
 
 import {
   initializeChatState,
@@ -36,6 +37,7 @@ import { getCachedPersona } from '../../services/mem0/personaService.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getContextWindow } from './agents/providers.js';
 import { getThreadAttachments } from './services/attachmentPersistenceService.js';
 import {
@@ -76,6 +78,56 @@ import type {
 } from '../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage, UIMessage } from 'ai';
 
+const chatStreamSchema = z.object({
+  messages: z.array(z.unknown()),
+  agentId: z.string().optional(),
+  threadId: z.string().optional(),
+  enabledTools: z.record(z.boolean()).optional(),
+  modelId: z.string().optional(),
+  attachments: z.array(z.unknown()).optional(),
+  notebookIds: z.array(z.string()).optional(),
+  forcedTools: z.array(z.string()).optional(),
+  documentIds: z.array(z.string()).optional(),
+  textIds: z.array(z.string()).optional(),
+  documentChatIds: z.array(z.string()).optional(),
+  documentChatMode: z.boolean().optional(),
+  defaultNotebookId: z.string().optional(),
+  boardIds: z.array(z.string()).optional(),
+  docMentionIds: z.array(z.string()).optional(),
+  customSystemPrompt: z.string().optional(),
+  roleName: z.string().optional(),
+});
+
+type ChatStreamBody = {
+  messages: UIMessage[];
+  agentId?: string;
+  threadId?: string;
+  enabledTools?: Record<string, boolean>;
+  modelId?: string;
+  attachments?: ProcessedAttachment[];
+  notebookIds?: string[];
+  forcedTools?: string[];
+  documentIds?: string[];
+  textIds?: string[];
+  documentChatIds?: string[];
+  documentChatMode?: boolean;
+  defaultNotebookId?: string;
+  boardIds?: string[];
+  docMentionIds?: string[];
+  customSystemPrompt?: string;
+  roleName?: string;
+};
+
+const chatResumeSchema = z.object({
+  threadId: z.string(),
+  resume: z.string(),
+});
+
+type ChatResumeBody = {
+  threadId: string;
+  resume: string;
+};
+
 const log = createLogger('ChatGraphController');
 const router = createAuthenticatedRouter();
 router.use(express.json({ limit: '50mb' }));
@@ -85,7 +137,7 @@ router.use(express.json({ limit: '50mb' }));
  *
  * Process a chat message using the LangGraph ChatGraph with SSE progress events.
  */
-router.post('/stream', async (req, res) => {
+router.post('/stream', validateBody(chatStreamSchema), async (req: TypedRequest<ChatStreamBody>, res) => {
   const sse = createSSEStream(res);
   const requestId = `req_${Date.now()}`;
 
@@ -108,25 +160,7 @@ router.post('/stream', async (req, res) => {
       docMentionIds: rawDocMentionIds,
       customSystemPrompt: rawCustomSystemPrompt,
       roleName: rawRoleName,
-    } = req.body as {
-      messages: UIMessage[];
-      agentId?: string;
-      threadId?: string;
-      enabledTools?: Record<string, boolean>;
-      modelId?: string;
-      attachments?: ProcessedAttachment[];
-      notebookIds?: string[];
-      forcedTools?: string[];
-      documentIds?: string[];
-      textIds?: string[];
-      documentChatIds?: string[];
-      documentChatMode?: boolean;
-      defaultNotebookId?: string;
-      boardIds?: string[];
-      docMentionIds?: string[];
-      customSystemPrompt?: string;
-      roleName?: string;
-    };
+    } = req.body;
 
     // === Validate ===
     const user = getUser(req);
@@ -145,7 +179,7 @@ router.post('/stream', async (req, res) => {
       return;
     }
 
-    if (!clientMessages || !Array.isArray(clientMessages) || clientMessages.length === 0) {
+    if (clientMessages.length === 0) {
       sse.send('error', { error: PROGRESS_MESSAGES.messagesRequired });
       sse.end();
       return;
@@ -703,25 +737,16 @@ router.post('/stream', async (req, res) => {
  * Resume a previously interrupted ChatGraph pipeline after the user provides
  * a clarification answer.
  */
-router.post('/resume', async (req, res) => {
+router.post('/resume', validateBody(chatResumeSchema), async (req: TypedRequest<ChatResumeBody>, res) => {
   const sse = createSSEStream(res);
   const _requestId = `resume_${Date.now()}`;
 
   try {
-    const { threadId, resume: userAnswer } = req.body as {
-      threadId: string;
-      resume: string;
-    };
+    const { threadId, resume: userAnswer } = req.body;
 
     const user = getUser(req);
     if (!user?.id) {
       sse.send('error', { error: PROGRESS_MESSAGES.unauthorized });
-      sse.end();
-      return;
-    }
-
-    if (!threadId || !userAnswer) {
-      sse.send('error', { error: 'threadId and resume answer are required' });
       sse.end();
       return;
     }

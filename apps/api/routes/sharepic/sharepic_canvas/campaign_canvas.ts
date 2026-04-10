@@ -10,7 +10,8 @@ import {
   type SKRSContext2D as CanvasRenderingContext2D,
   type Image,
 } from '@napi-rs/canvas';
-import { Router, type Request, type Response } from 'express';
+import { Router, type Response } from 'express';
+import { z } from 'zod';
 
 import {
   FONT_PATH,
@@ -21,6 +22,7 @@ import {
   optimizeCanvasBuffer,
   bufferToBase64,
 } from '../../../services/sharepic/canvas/imageOptimizer.js';
+import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -113,6 +115,21 @@ interface CampaignRequestBody {
   thema?: string;
   customCredit?: string;
 }
+
+const campaignCanvasSchema = z.object({
+  campaignConfig: z.unknown().optional(),
+  textData: z.unknown().optional(),
+  campaignId: z.string().optional(),
+  campaignTypeId: z.string().optional(),
+  line1: z.string().optional(),
+  line2: z.string().optional(),
+  line3: z.string().optional(),
+  line4: z.string().optional(),
+  line5: z.string().optional(),
+  location: z.string().optional(),
+  thema: z.string().optional(),
+  customCredit: z.string().nullable().optional(),
+});
 
 function loadCampaignConfig(campaignId: string, typeId: string): CampaignConfig | null {
   if (!campaignId || !typeId) return null;
@@ -403,9 +420,9 @@ async function generateCampaignCanvas(
   };
 }
 
-router.post('/', async (req: Request, res: Response): Promise<void> => {
+router.post('/', validateBody(campaignCanvasSchema), async (req: TypedRequest<CampaignRequestBody>, res: Response): Promise<void> => {
   try {
-    const body = req.body as CampaignRequestBody;
+    const body = req.body;
     const campaignConfig = body.campaignConfig;
     let textData = body.textData;
 

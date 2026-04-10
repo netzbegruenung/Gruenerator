@@ -4,9 +4,11 @@
  * Works for both authenticated and anonymous users
  */
 
+import { z } from 'zod';
 import express, { type Response, type Router } from 'express';
 
 import { rateLimiter } from '../../middleware/rateLimitMiddleware.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { createLogger } from '../../utils/logger.js';
 import { getParam } from '../../utils/params.js';
 
@@ -91,36 +93,21 @@ router.get('/:resourceType', async (req: ReqWithUser, res: Response) => {
   }
 });
 
-router.post('/bulk', async (req: ReqWithUser, res: Response) => {
+const bulkSchema = z.object({
+  resourceTypes: z.array(z.string()).min(1).max(10),
+});
+
+router.post('/bulk', validateBody(bulkSchema), async (req: TypedRequest<z.infer<typeof bulkSchema>>, res: Response) => {
   try {
     const { resourceTypes } = req.body;
 
-    if (!Array.isArray(resourceTypes) || resourceTypes.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'resourceTypes must be a non-empty array',
-      });
-    }
-
-    if (resourceTypes.length > 10) {
-      return res.status(400).json({
-        success: false,
-        error: 'Maximum 10 resource types per bulk request',
-      });
-    }
-
-    const requestWithUser = toRequestWithUser(req);
+    const requestWithUser = toRequestWithUser(req as ReqWithUser);
     const userType = rateLimiter.getUserType(requestWithUser);
     const identifier = rateLimiter.getIdentifier(requestWithUser, userType);
 
     const results: Record<string, RateLimitStatus & { timeUntilReset: string | null }> = {};
 
     for (const resourceType of resourceTypes) {
-      if (typeof resourceType !== 'string') {
-        log.warn(`[RateLimitAPI] Skipping invalid resource type: ${resourceType}`);
-        continue;
-      }
-
       const status = (await rateLimiter.checkLimit(
         resourceType,
         identifier,

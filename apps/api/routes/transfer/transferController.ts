@@ -2,10 +2,12 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
+import { z } from 'zod';
 import { Router, type Request, type Response } from 'express';
 import multer from 'multer';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { transferService } from '../../services/transferService.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -34,6 +36,17 @@ interface MulterRequest extends Request {
   file?: Express.Multer.File;
 }
 
+const uploadBodySchema = z.object({
+  shareLinkId: z.string().min(1),
+  folderPath: z.string().optional(),
+  password: z.string().optional(),
+  expiresInDays: z.string().optional(),
+  message: z.string().optional(),
+});
+
+type UploadBody = z.infer<typeof uploadBodySchema>;
+type UploadRequest = TypedRequest<UploadBody> & { file?: Express.Multer.File | undefined };
+
 /**
  * POST /api/transfer/upload
  * Upload file to Wolke and create a transfer share link.
@@ -43,7 +56,8 @@ router.post(
   '/upload',
   requireAuth,
   upload.single('file'),
-  (async (req: MulterRequest, res: Response): Promise<void> => {
+  validateBody(uploadBodySchema),
+  (async (req: UploadRequest, res: Response): Promise<void> => {
     const tempPath = req.file?.path;
 
     try {
@@ -58,18 +72,7 @@ router.post(
         return;
       }
 
-      const { shareLinkId, folderPath, password, expiresInDays, message } = req.body as {
-        shareLinkId: string;
-        folderPath?: string;
-        password?: string;
-        expiresInDays?: string;
-        message?: string;
-      };
-
-      if (!shareLinkId) {
-        res.status(400).json({ error: 'Wolke-Verbindung (shareLinkId) ist erforderlich' });
-        return;
-      }
+      const { shareLinkId, folderPath, password, expiresInDays, message } = req.body;
 
       const { originalname, mimetype, size, path: filePath } = req.file;
 
@@ -87,7 +90,7 @@ router.post(
         mimetype,
         size,
         shareLinkId,
-        folderPath as string | undefined,
+        folderPath,
         {
           password: password || undefined,
           expiresInDays: expiresInDays ? parseInt(expiresInDays, 10) : undefined,
@@ -127,7 +130,7 @@ router.post(
         }
       }
     }
-  }) as any
+  }) as (req: UploadRequest, res: Response) => Promise<void>
 );
 
 /**

@@ -1,9 +1,19 @@
 import { Router, type Request, type Response } from 'express';
+import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { type CollaborativeDocumentRow } from '../../database/types.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 
 import { DOCS_SUBTYPES, GRANTED_BY_SHARE_LINK } from './constants.js';
+
+const permissionSchema = z.object({
+  permission: z.enum(['viewer', 'editor']),
+});
+
+const shareModeSchema = z.object({
+  mode: z.enum(['private', 'authenticated', 'public']),
+});
 
 type ShareDocumentRow = Pick<
   CollaborativeDocumentRow,
@@ -152,15 +162,12 @@ router.post('/:id/share/disable', async (req: Request<{ id: string }>, res: Resp
  * @desc    Update public share permission level
  * @access  Private (owner only)
  */
-router.put('/:id/share/permission', async (req: Request<{ id: string }>, res: Response) => {
+router.put('/:id/share/permission', validateBody(permissionSchema), async (req: TypedRequest<{ permission: 'viewer' | 'editor' }, { id: string }>, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'User not authenticated' });
 
     const { permission } = req.body;
-    if (!permission || !['viewer', 'editor'].includes(permission)) {
-      return res.status(400).json({ error: 'permission must be "viewer" or "editor"' });
-    }
 
     const doc = await getOwnedDocument(req.params.id, userId, res);
     if (!doc) return;
@@ -188,17 +195,12 @@ router.put('/:id/share/permission', async (req: Request<{ id: string }>, res: Re
  * @desc    Set share mode (private, authenticated, public)
  * @access  Private (owner only)
  */
-router.put('/:id/share/mode', async (req: Request<{ id: string }>, res: Response) => {
+router.put('/:id/share/mode', validateBody(shareModeSchema), async (req: TypedRequest<{ mode: 'private' | 'authenticated' | 'public' }, { id: string }>, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'User not authenticated' });
 
     const { mode } = req.body;
-    if (!mode || !['private', 'authenticated', 'public'].includes(mode)) {
-      return res
-        .status(400)
-        .json({ error: 'mode must be "private", "authenticated", or "public"' });
-    }
 
     const doc = await getOwnedDocument(req.params.id, userId, res);
     if (!doc) return;

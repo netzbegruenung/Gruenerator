@@ -15,9 +15,11 @@ import path, { dirname } from 'path';
 import { pipeline } from 'stream/promises';
 import { fileURLToPath } from 'url';
 
+import { z } from 'zod';
 import { Router, type Response, type Request } from 'express';
 import multer from 'multer';
 
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { type AuthenticatedRequest } from '../../middleware/types.js';
 import { createLogger } from '../../utils/logger.js';
 import { safeFetch } from '../../utils/validation/urlSecurity.js';
@@ -125,69 +127,72 @@ router.post(
   }
 );
 
+const fromUrlSchema = z.object({
+  urls: z.array(z.string()).min(1),
+});
+
 /**
  * POST /api/video/uploads/from-url
  *
  * Download file from external URL and store locally.
  * Replaces the old presign + url upload flow.
  */
-router.post('/from-url', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  const { urls } = req.body;
+router.post(
+  '/from-url',
+  validateBody(fromUrlSchema),
+  async (req: TypedRequest<z.infer<typeof fromUrlSchema>>, res: Response): Promise<void> => {
+    const { urls } = req.body;
 
-  if (!urls || !Array.isArray(urls) || urls.length === 0) {
-    res.status(400).json({ error: 'urls array is required' });
-    return;
+    try {
+      const uploads = await Promise.all(
+        urls.map(async (url: string) => {
+          const response = await safeFetch(url);
+          if (!response.ok) {
+            throw new Error(`Failed to download from ${url}: ${response.status}`);
+          }
+          if (!response.body) {
+            throw new Error(`Empty response body from ${url}`);
+          }
+
+          const urlPath = new URL(url).pathname;
+          const ext = path.extname(urlPath) || '.bin';
+          const contentType =
+            response.headers.get('content-type') ||
+            lookupMime(`file${ext}`) ||
+            'application/octet-stream';
+
+          const id = crypto.randomUUID();
+          const filename = `${id}${ext}`;
+          const filePath = path.join(VIDEO_UPLOAD_DIR, filename);
+
+          const fileStream = fs.createWriteStream(filePath);
+          await pipeline(response.body!, fileStream);
+
+          const stats = await fs.promises.stat(filePath);
+
+          return {
+            id,
+            fileName: path.basename(urlPath) || filename,
+            filePath,
+            fileSize: stats.size,
+            contentType,
+            url: getPublicUrl(req as Request, filename),
+            originalUrl: url,
+            type: contentType.split('/')[0],
+            status: 'uploaded',
+          };
+        })
+      );
+
+      log.info(`URL upload: ${uploads.length} files downloaded`);
+      res.json({ success: true, uploads });
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      log.error(`URL upload failed: ${errMsg}`);
+      res.status(500).json({ error: errMsg });
+    }
   }
-
-  try {
-    const uploads = await Promise.all(
-      urls.map(async (url: string) => {
-        const response = await safeFetch(url);
-        if (!response.ok) {
-          throw new Error(`Failed to download from ${url}: ${response.status}`);
-        }
-        if (!response.body) {
-          throw new Error(`Empty response body from ${url}`);
-        }
-
-        const urlPath = new URL(url).pathname;
-        const ext = path.extname(urlPath) || '.bin';
-        const contentType =
-          response.headers.get('content-type') ||
-          lookupMime(`file${ext}`) ||
-          'application/octet-stream';
-
-        const id = crypto.randomUUID();
-        const filename = `${id}${ext}`;
-        const filePath = path.join(VIDEO_UPLOAD_DIR, filename);
-
-        const fileStream = fs.createWriteStream(filePath);
-        await pipeline(response.body!, fileStream);
-
-        const stats = await fs.promises.stat(filePath);
-
-        return {
-          id,
-          fileName: path.basename(urlPath) || filename,
-          filePath,
-          fileSize: stats.size,
-          contentType,
-          url: getPublicUrl(req as Request, filename),
-          originalUrl: url,
-          type: contentType.split('/')[0],
-          status: 'uploaded',
-        };
-      })
-    );
-
-    log.info(`URL upload: ${uploads.length} files downloaded`);
-    res.json({ success: true, uploads });
-  } catch (error: unknown) {
-    const errMsg = error instanceof Error ? error.message : String(error);
-    log.error(`URL upload failed: ${errMsg}`);
-    res.status(500).json({ error: errMsg });
-  }
-});
+);
 
 /**
  * GET /api/video/uploads/file/:filename

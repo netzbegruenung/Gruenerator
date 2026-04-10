@@ -5,8 +5,10 @@
  */
 
 import express, { type Response, type Router } from 'express';
+import { z } from 'zod';
 
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type {
@@ -59,6 +61,35 @@ interface AnalyzeRequest extends AuthenticatedRequest {
     }>;
   };
 }
+
+// ============================================================================
+// Zod Schemas
+// ============================================================================
+
+const searchBodySchema = z.object({
+  query: z.string(),
+  includeSummary: z.boolean().optional(),
+  maxResults: z.number().optional(),
+  language: z.string().optional(),
+  timeRange: z.string().optional(),
+  safesearch: z.number().optional(),
+  categories: z.string().optional(),
+});
+
+const deepResearchBodySchema = z.object({
+  query: z.string(),
+});
+
+const analyzeBodySchema = z.object({
+  contents: z.array(
+    z.object({
+      url: z.string(),
+      title: z.string(),
+      content: z.string().optional(),
+      raw_content: z.string().optional(),
+    })
+  ),
+});
 
 interface SourceRecommendation {
   title: string;
@@ -217,8 +248,9 @@ function mapErrorToUserMessage(error: Error): string {
  */
 router.post(
   '/',
+  validateBody(searchBodySchema),
   async (
-    req: SearchRequest,
+    req: TypedRequest<SearchRequest['body']>,
     res: Response<
       NormalSearchResponse | { success: false; error: string; metadata: unknown; details?: string }
     >
@@ -236,15 +268,7 @@ router.post(
         categories = 'general',
       } = req.body;
 
-      const userId = getUserId(req);
-
-      if (!query || typeof query !== 'string') {
-        return res.status(400).json({
-          success: false,
-          error: 'Suchbegriff ist erforderlich',
-          metadata: { timestamp: new Date().toISOString(), searchType: 'normal' },
-        });
-      }
+      const userId = getUserId(req as unknown as AuthenticatedRequest);
 
       // Streaming mode: delegate to SSE streaming controller
       if (req.query.stream === 'true') {
@@ -371,35 +395,12 @@ router.post(
  */
 router.post(
   '/deep-research',
-  async (req: DeepResearchRequest, res: Response<DeepResearchResponse>) => {
+  validateBody(deepResearchBodySchema),
+  async (req: TypedRequest<DeepResearchRequest['body']>, res: Response<DeepResearchResponse>) => {
     const startTime = Date.now();
 
     try {
       const { query } = req.body;
-
-      if (!query || typeof query !== 'string') {
-        return res.status(400).json({
-          status: 'error',
-          dossier: null,
-          researchQuestions: [],
-          searchResults: [],
-          sources: [],
-          categorizedSources: {},
-          grundsatzResults: null,
-          citations: [],
-          citationSources: [],
-          metadata: {
-            totalSources: 0,
-            externalSources: 0,
-            officialSources: 0,
-            categories: [],
-            questionsCount: 0,
-            hasOfficialPosition: false,
-            performance: { duration: 0, aiCalls: 0, estimatedTokens: 0 },
-          },
-          details: 'Suchbegriff ist erforderlich',
-        });
-      }
 
       // Streaming mode: delegate to SSE streaming controller
       if (req.query.stream === 'true') {
@@ -408,7 +409,7 @@ router.post(
         return streamDeepSearch(req, res as any);
       }
 
-      const userId = getUserId(req);
+      const userId = getUserId(req as unknown as AuthenticatedRequest);
       log.debug(`[Search] Deep research: "${query}" (userId: ${userId})`);
 
       const { runWebSearch } = await import('../../agents/langgraph/WebSearchGraph/index.js');
@@ -529,11 +530,11 @@ router.post(
  * POST /api/search/analyze
  * Search analysis endpoint - analyzes provided content using AI
  */
-router.post('/analyze', async (req: AnalyzeRequest, res: Response<AnalyzeResponse>) => {
+router.post('/analyze', validateBody(analyzeBodySchema), async (req: TypedRequest<AnalyzeRequest['body']>, res: Response<AnalyzeResponse>) => {
   const { contents } = req.body;
 
   try {
-    if (!contents || !Array.isArray(contents) || contents.length === 0) {
+    if (!contents || contents.length === 0) {
       return res.status(400).json({
         status: 'error',
         error: 'Inhalte für die Analyse sind erforderlich',

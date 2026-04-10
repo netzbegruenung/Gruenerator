@@ -8,10 +8,12 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 
-import { Router, type Request, type Response } from 'express';
+import express, { Router, type Request, type Response } from 'express';
 import multer from 'multer';
+import { z } from 'zod';
 
 import authMiddleware from '../../middleware/authMiddleware.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { ocrService } from '../../services/OcrService/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -37,9 +39,9 @@ const upload = multer({
   },
 });
 
-interface MulterRequest extends Request {
-  file?: Express.Multer.File;
-}
+const scannerBodySchema = z.object({
+  provider: z.string().optional(),
+});
 
 interface ScannerResponse {
   success: boolean;
@@ -58,7 +60,8 @@ router.post(
   '/extract',
   authMiddleware.requireAuth,
   upload.single('file'),
-  (async (req: MulterRequest & Request, res: Response<ScannerResponse>) => {
+  validateBody(scannerBodySchema) as express.RequestHandler,
+  (async (req: TypedRequest<z.infer<typeof scannerBodySchema>>, res: Response<ScannerResponse>) => {
     const startTime = Date.now();
     let tempFilePath: string | null = null;
 
@@ -86,7 +89,7 @@ router.post(
       log.debug(`Temp file created: ${tempFilePath}`);
 
       // Extract text using OcrService (optional per-request provider override)
-      const provider = req.body?.provider || req.query?.provider;
+      const provider = req.body.provider || req.query?.provider;
       const result = await ocrService.extractTextFromDocument(
         tempFilePath,
         provider as string | undefined

@@ -3,7 +3,10 @@
  * CRUD operations for chat threads
  */
 
+import { z } from 'zod';
+
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -17,6 +20,23 @@ import {
 import type { ThreadWithLastMessage } from './agents/types.js';
 
 const log = createLogger('ThreadsController');
+
+const createThreadSchema = z.object({
+  title: z.string().optional(),
+  agentId: z.string().optional(),
+  threadType: z.string().optional(),
+});
+
+const patchThreadSchema = z.object({
+  threadId: z.string(),
+  title: z.string().optional(),
+  status: z.enum(['regular', 'archived']).optional(),
+});
+
+const patchSettingsSchema = z.object({
+  customSystemPrompt: z.string().nullable().optional(),
+  customEnabledTools: z.record(z.boolean()).nullable().optional(),
+});
 const router = createAuthenticatedRouter();
 
 router.get('/', async (req, res) => {
@@ -98,7 +118,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', validateBody(createThreadSchema), async (req: TypedRequest<{ title?: string; agentId?: string; threadType?: string }>, res) => {
   try {
     const user = getUser(req);
     if (!user?.id) {
@@ -130,7 +150,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.patch('/', async (req, res) => {
+router.patch('/', validateBody(patchThreadSchema), async (req: TypedRequest<{ threadId: string; title?: string; status?: 'regular' | 'archived' }>, res) => {
   try {
     const user = getUser(req);
     if (!user?.id) {
@@ -138,14 +158,6 @@ router.patch('/', async (req, res) => {
     }
 
     const { threadId, title, status } = req.body;
-
-    if (!threadId) {
-      return res.status(400).json({ error: 'Thread ID is required' });
-    }
-
-    if (status && !['regular', 'archived'].includes(status)) {
-      return res.status(400).json({ error: 'Invalid status. Must be "regular" or "archived"' });
-    }
 
     const postgres = getPostgresInstance();
 
@@ -272,7 +284,7 @@ router.get('/:threadId/settings', async (req, res) => {
   }
 });
 
-router.patch('/:threadId/settings', async (req, res) => {
+router.patch('/:threadId/settings', validateBody(patchSettingsSchema), async (req: TypedRequest<{ customSystemPrompt?: string | null; customEnabledTools?: Record<string, boolean> | null }, { threadId: string }>, res) => {
   try {
     const user = getUser(req);
     if (!user?.id) {
@@ -280,10 +292,7 @@ router.patch('/:threadId/settings', async (req, res) => {
     }
 
     const { threadId } = req.params;
-    const { customSystemPrompt, customEnabledTools } = req.body as {
-      customSystemPrompt?: string | null;
-      customEnabledTools?: Record<string, boolean> | null;
-    };
+    const { customSystemPrompt, customEnabledTools } = req.body;
 
     const updated = await updateThreadSettings(threadId, user.id, {
       ...(customSystemPrompt !== undefined && { customSystemPrompt }),

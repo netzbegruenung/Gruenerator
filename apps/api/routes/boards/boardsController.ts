@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from 'express';
+import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import {
@@ -8,6 +9,7 @@ import {
   parseBoardStructure,
   postProcessBoardStructure,
 } from '../../services/boards/BoardService.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 
 const BOARDS_SUBTYPE = 'boards';
@@ -29,6 +31,20 @@ interface BoardDocument {
 
 const router = Router();
 const db = getPostgresInstance();
+
+const generateBoardSchema = z.object({
+  description: z.string(),
+});
+
+const createBoardSchema = z.object({
+  title: z.string().optional(),
+  boardType: z.enum(['kanban', 'whiteboard']).optional(),
+});
+
+const updateBoardSchema = z.object({
+  title: z.string().optional(),
+  is_archived: z.boolean().optional(),
+});
 
 router.get('/', async (req: Request, res: Response) => {
   try {
@@ -73,7 +89,7 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/generate', async (req: Request, res: Response) => {
+router.post('/generate', validateBody(generateBoardSchema), async (req: TypedRequest<{ description: string }>, res: Response) => {
   try {
     const { description } = req.body;
     const userId = req.user?.id;
@@ -82,7 +98,7 @@ router.post('/generate', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    if (!description || typeof description !== 'string' || description.trim().length < 3) {
+    if (description.trim().length < 3) {
       return res.status(400).json({ error: 'Description is required (min 3 characters)' });
     }
 
@@ -120,7 +136,7 @@ router.post('/generate', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', validateBody(createBoardSchema), async (req: TypedRequest<{ title?: string; boardType?: 'kanban' | 'whiteboard' }>, res: Response) => {
   try {
     const { title = 'Neues Board', boardType } = req.body;
     const userId = req.user?.id;
@@ -218,7 +234,7 @@ router.get('/:id/state', async (req: Request<{ id: string }>, res: Response) => 
   }
 });
 
-router.put('/:id', async (req: Request<{ id: string }>, res: Response) => {
+router.put('/:id', validateBody(updateBoardSchema), async (req: TypedRequest<{ title?: string; is_archived?: boolean }, { id: string }>, res: Response) => {
   try {
     const { id } = req.params;
     const { title, is_archived } = req.body;

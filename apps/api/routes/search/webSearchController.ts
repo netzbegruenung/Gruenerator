@@ -31,7 +31,7 @@ interface SearchRequestUser {
 }
 
 type SearchRequest = TypedRequest<z.infer<typeof searchRequestSchema>> & {
-  user?: SearchRequestUser;
+  user?: SearchRequestUser | undefined;
 };
 
 type SearchResultsWithSummary = FormattedSearchResultsWithSummary & {

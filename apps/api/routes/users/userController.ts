@@ -1,5 +1,7 @@
+import { z } from 'zod';
 import { Router, type Request, type Response } from 'express';
 
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 
 const router = Router();
@@ -46,22 +48,22 @@ router.get('/search', async (req: Request, res: Response) => {
   }
 });
 
+const batchSchema = z.object({
+  userIds: z.array(z.string()).min(1),
+});
+
 /**
  * @route   POST /api/users/batch
  * @desc    Get user profiles by IDs (for BlockNote resolveUsers)
  * @access  Private
  */
-router.post('/batch', async (req: Request, res: Response) => {
+router.post('/batch', validateBody(batchSchema), async (req: TypedRequest<z.infer<typeof batchSchema>>, res: Response) => {
   try {
     const { userIds } = req.body;
     const userId = req.user?.id;
 
     if (!userId) {
       return res.status(401).json({ error: 'User not authenticated' });
-    }
-
-    if (!Array.isArray(userIds) || userIds.length === 0) {
-      return res.status(400).json({ error: 'userIds array is required' });
     }
 
     // Limit to prevent abuse

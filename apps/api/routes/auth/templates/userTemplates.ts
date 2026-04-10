@@ -3,10 +3,12 @@
  * Handles personal template management
  */
 
+import { z } from 'zod';
 import express, { type Router, type Response, type NextFunction } from 'express';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
+import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
 import {
   urlCrawlerService,
   UrlValidator,
@@ -32,6 +34,45 @@ function extractTagsFromDescription(description: string | undefined | null): str
 
 const router: Router = express.Router();
 
+// ============================================================================
+// Zod Schemas
+// ============================================================================
+
+const fromUrlSchema = z.object({
+  url: z.string().min(1),
+  preview: z.boolean().optional(),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+
+const createTemplateSchema = z.object({
+  title: z.string().optional(),
+  description: z.string().optional(),
+  template_type: z.string().optional(),
+  external_url: z.string().optional(),
+  preview_image_url: z.string().optional(),
+  images: z.array(z.unknown()).optional(),
+  categories: z.array(z.unknown()).optional(),
+  tags: z.array(z.unknown()).optional(),
+  content_data: z.unknown().optional(),
+  metadata: z.unknown().optional(),
+  is_private: z.boolean().optional(),
+});
+
+const updateTemplateSchema = createTemplateSchema;
+
+const metadataUpdateSchema = z.object({
+  title: z.unknown().optional(),
+  description: z.unknown().optional(),
+  template_type: z.unknown().optional(),
+  is_private: z.unknown().optional(),
+});
+
+const bulkDeleteTemplatesSchema = z.object({
+  ids: z.array(z.string()).min(1).max(100),
+});
+
 // Add debugging middleware to all user templates routes
 router.use((req: AuthRequest, _res: Response, next: NextFunction) => {
   log.debug(`[User Templates] ${req.method} ${req.originalUrl} - User ID: ${req.user?.id}`);
@@ -43,20 +84,10 @@ router.use((req: AuthRequest, _res: Response, next: NextFunction) => {
 router.post(
   '/user-templates/from-url',
   ensureAuthenticated,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  validateBody(fromUrlSchema),
+  async (req: TypedRequest<z.infer<typeof fromUrlSchema>>, res: Response): Promise<void> => {
     try {
-      const { url, preview, title, description, metadata } = req.body as {
-        url: string;
-        preview?: boolean;
-        title?: string;
-        description?: string;
-        metadata?: Record<string, unknown>;
-      };
-
-      if (!url || typeof url !== 'string') {
-        res.status(400).json({ success: false, message: 'URL ist erforderlich.' });
-        return;
-      }
+      const { url, preview, title, description, metadata } = req.body;
 
       const validation = await UrlValidator.validateUrl(url);
       if (!validation.isValid) {
@@ -223,7 +254,8 @@ router.get(
 router.post(
   '/user-templates',
   ensureAuthenticated,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  validateBody(createTemplateSchema),
+  async (req: TypedRequest<z.infer<typeof createTemplateSchema>>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const {
@@ -238,7 +270,7 @@ router.post(
         content_data = {},
         metadata = {},
         is_private = false,
-      } = req.body as Record<string, unknown>;
+      } = req.body;
 
       // Validate required fields
       if (!title) {
@@ -324,7 +356,8 @@ router.post(
 router.put(
   '/user-templates/:id',
   ensureAuthenticated,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  validateBody(updateTemplateSchema),
+  async (req: TypedRequest<z.infer<typeof updateTemplateSchema>, { id: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { id } = req.params;
@@ -340,7 +373,7 @@ router.put(
         content_data,
         metadata,
         is_private,
-      } = req.body as Record<string, unknown>;
+      } = req.body;
 
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
@@ -485,11 +518,12 @@ router.delete(
 router.post(
   '/user-templates/:id/metadata',
   ensureAuthenticated,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  validateBody(metadataUpdateSchema),
+  async (req: TypedRequest<z.infer<typeof metadataUpdateSchema>, { id: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { id } = req.params;
-      const { title, description, template_type, is_private } = req.body as Record<string, unknown>;
+      const { title, description, template_type, is_private } = req.body;
 
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
@@ -559,27 +593,11 @@ router.post(
 router.delete(
   '/user-templates/bulk',
   ensureAuthenticated,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  validateBody(bulkDeleteTemplatesSchema),
+  async (req: TypedRequest<z.infer<typeof bulkDeleteTemplatesSchema>>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { ids } = req.body;
-
-      // Validate input
-      if (!Array.isArray(ids) || ids.length === 0) {
-        res.status(400).json({
-          success: false,
-          message: 'Array of template IDs is required',
-        });
-        return;
-      }
-
-      if (ids.length > 100) {
-        res.status(400).json({
-          success: false,
-          message: 'Maximum 100 templates can be deleted at once',
-        });
-        return;
-      }
 
       log.debug(
         `[User Templates /user-templates/bulk DELETE] Bulk delete request for ${ids.length} templates from user ${userId}`
