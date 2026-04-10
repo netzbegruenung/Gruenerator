@@ -8,7 +8,7 @@ import {
   type SKRSContext2D as CanvasRenderingContext2D,
   type Image,
 } from '@napi-rs/canvas';
-import { Router, type Request, type Response } from 'express';
+import { Router, type Request, type RequestHandler, type Response } from 'express';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -292,86 +292,85 @@ async function createVeranstaltungImage(
   log.debug('Veranstaltungs-Sharepic erstellt:', outputPath);
 }
 
-router.post(
-  '/',
-  upload.single('image'),
-  (async (req: MulterRequest, res: Response): Promise<void> => {
-    let outputImagePath: string | undefined;
-    try {
-      const {
-        eventTitle,
-        beschreibung,
-        weekday,
-        date,
-        time,
-        locationName,
-        address,
-        fontSizeEventTitle,
-        fontSizeBeschreibung,
-        fontSizeWeekday,
-        fontSizeDate,
-        fontSizeTime,
-        fontSizeLocationName,
-        fontSizeAddress,
-      } = req.body as VeranstaltungRequestBody;
+router.post('/', upload.single('image'), (async (
+  req: MulterRequest,
+  res: Response
+): Promise<void> => {
+  let outputImagePath: string | undefined;
+  try {
+    const {
+      eventTitle,
+      beschreibung,
+      weekday,
+      date,
+      time,
+      locationName,
+      address,
+      fontSizeEventTitle,
+      fontSizeBeschreibung,
+      fontSizeWeekday,
+      fontSizeDate,
+      fontSizeTime,
+      fontSizeLocationName,
+      fontSizeAddress,
+    } = req.body as VeranstaltungRequestBody;
 
-      if (!eventTitle) throw new Error('Event-Titel ist erforderlich');
-      if (!weekday) throw new Error('Wochentag ist erforderlich');
-      if (!date) throw new Error('Datum ist erforderlich');
-      if (!time) throw new Error('Uhrzeit ist erforderlich');
-      if (!locationName) throw new Error('Veranstaltungsort ist erforderlich');
-      if (!address) throw new Error('Adresse ist erforderlich');
-      if (!req.file) throw new Error('Bild ist erforderlich');
+    if (!eventTitle) throw new Error('Event-Titel ist erforderlich');
+    if (!weekday) throw new Error('Wochentag ist erforderlich');
+    if (!date) throw new Error('Datum ist erforderlich');
+    if (!time) throw new Error('Uhrzeit ist erforderlich');
+    if (!locationName) throw new Error('Veranstaltungsort ist erforderlich');
+    if (!address) throw new Error('Adresse ist erforderlich');
+    if (!req.file) throw new Error('Bild ist erforderlich');
 
-      const imagePath = req.file.path;
-      outputImagePath = path.join('uploads', `veranstaltung-${uuidv4()}.png`);
+    const imagePath = req.file.path;
+    outputImagePath = path.join('uploads', `veranstaltung-${uuidv4()}.png`);
 
-      const clampFontSize = (
-        val: string | undefined,
-        defaultVal: number,
-        min: number,
-        max: number
-      ): number =>
-        Math.max(min, Math.min(max, parseInt(val || String(defaultVal), 10) || defaultVal));
+    const clampFontSize = (
+      val: string | undefined,
+      defaultVal: number,
+      min: number,
+      max: number
+    ): number =>
+      Math.max(min, Math.min(max, parseInt(val || String(defaultVal), 10) || defaultVal));
 
-      await createVeranstaltungImage(imagePath, outputImagePath, {
-        eventTitle,
-        beschreibung: beschreibung || '',
-        weekday,
-        date,
-        time,
-        locationName,
-        address,
-        fontSizeEventTitle: clampFontSize(fontSizeEventTitle, 94, 66, 122),
-        fontSizeBeschreibung: clampFontSize(fontSizeBeschreibung, 62, 40, 80),
-        fontSizeWeekday: clampFontSize(fontSizeWeekday, 57, 40, 74),
-        fontSizeDate: clampFontSize(fontSizeDate, 55, 39, 72),
-        fontSizeTime: clampFontSize(fontSizeTime, 55, 39, 72),
-        fontSizeLocationName: clampFontSize(fontSizeLocationName, 42, 29, 55),
-        fontSizeAddress: clampFontSize(fontSizeAddress, 42, 29, 55),
+    await createVeranstaltungImage(imagePath, outputImagePath, {
+      eventTitle,
+      beschreibung: beschreibung || '',
+      weekday,
+      date,
+      time,
+      locationName,
+      address,
+      fontSizeEventTitle: clampFontSize(fontSizeEventTitle, 94, 66, 122),
+      fontSizeBeschreibung: clampFontSize(fontSizeBeschreibung, 62, 40, 80),
+      fontSizeWeekday: clampFontSize(fontSizeWeekday, 57, 40, 74),
+      fontSizeDate: clampFontSize(fontSizeDate, 55, 39, 72),
+      fontSizeTime: clampFontSize(fontSizeTime, 55, 39, 72),
+      fontSizeLocationName: clampFontSize(fontSizeLocationName, 42, 29, 55),
+      fontSizeAddress: clampFontSize(fontSizeAddress, 42, 29, 55),
+    });
+
+    const imageBuffer = fs.readFileSync(outputImagePath);
+    const base64Image = bufferToBase64(imageBuffer);
+
+    res.json({ image: base64Image });
+  } catch (err) {
+    const error = err as Error;
+    log.error('Fehler bei der Veranstaltungs-Sharepic-Erstellung:', error);
+    res.status(500).json({ error: 'Fehler beim Erstellen des Bildes' });
+  } finally {
+    if (req.file) {
+      fs.unlink(req.file.path, (err) => {
+        if (err) log.error('Fehler beim Löschen der temporären Upload-Datei:', err);
       });
-
-      const imageBuffer = fs.readFileSync(outputImagePath);
-      const base64Image = bufferToBase64(imageBuffer);
-
-      res.json({ image: base64Image });
-    } catch (err) {
-      const error = err as Error;
-      log.error('Fehler bei der Veranstaltungs-Sharepic-Erstellung:', error);
-      res.status(500).json({ error: 'Fehler beim Erstellen des Bildes' });
-    } finally {
-      if (req.file) {
-        fs.unlink(req.file.path, (err) => {
-          if (err) log.error('Fehler beim Löschen der temporären Upload-Datei:', err);
-        });
-      }
-      if (outputImagePath) {
-        fs.unlink(outputImagePath, (err) => {
-          if (err) log.error('Fehler beim Löschen der temporären Output-Datei:', err);
-        });
-      }
     }
-  }) as any
-);
+    if (outputImagePath) {
+      fs.unlink(outputImagePath, (err) => {
+        if (err) log.error('Fehler beim Löschen der temporären Output-Datei:', err);
+      });
+    }
+  }
+}) as RequestHandler);
 
 export default router;

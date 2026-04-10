@@ -22,6 +22,11 @@ import { createLogger } from '../../../utils/logger.js';
 import { extractDomain, formatRelevance, truncateText } from './searchFormatting.js';
 
 import type { QdrantFilter } from '../../../database/services/QdrantService/types.js';
+import type { DocumentResult } from '../../../services/BaseSearchService/types.js';
+import type {
+  SearchResult as SearxngSearchResult,
+  SearxngSearchOptions,
+} from '../../../services/search/types.js';
 
 const log = createLogger('DirectSearch');
 
@@ -190,30 +195,28 @@ export async function executeDirectSearch(params: {
       }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const formattedResults = response.results.slice(0, limit).map((result: any, index: number) => ({
-      rank: index + 1,
-      relevance: formatRelevance(result.score || result.similarity || 0),
-      source: result.title || result.document_title || 'Unbekannte Quelle',
-      url: result.source_url || result.url || undefined,
-      excerpt: truncateText(
-        result.relevant_content ||
-          result.top_chunks?.[0]?.preview ||
-          result.snippet ||
-          result.chunk_text ||
-          result.content ||
-          '',
-        800
-      ),
-      searchMethod: result.searchMethod || 'hybrid',
-      contentType: result.top_chunks?.[0]?.content_type || result.content_type || undefined,
-      documentId: result.document_id || undefined,
-      ...(result.chunk_index != null || result.top_chunks?.[0]?.chunk_index != null
-        ? { chunkIndex: result.chunk_index ?? result.top_chunks?.[0]?.chunk_index }
-        : {}),
-      score: result.score || result.similarity || result.similarity_score || undefined,
-      collectionId: collection,
-    }));
+    const formattedResults = response.results
+      .slice(0, limit)
+      .map((result: DocumentResult, index: number) => ({
+        rank: index + 1,
+        relevance: formatRelevance(result.similarity_score || result.max_similarity || 0),
+        source: result.title || 'Unbekannte Quelle',
+        ...(result.source_url ? { url: result.source_url } : {}),
+        excerpt: truncateText(
+          result.relevant_content || result.top_chunks?.[0]?.preview || '',
+          800
+        ),
+        searchMethod: result.search_methods?.[0] || 'hybrid',
+        ...(result.top_chunks?.[0]?.content_type
+          ? { contentType: result.top_chunks[0].content_type }
+          : {}),
+        ...(result.document_id ? { documentId: result.document_id } : {}),
+        ...(result.chunk_index != null || result.top_chunks?.[0]?.chunk_index != null
+          ? { chunkIndex: result.chunk_index ?? result.top_chunks?.[0]?.chunk_index }
+          : {}),
+        ...(result.similarity_score ? { score: result.similarity_score } : {}),
+        collectionId: collection,
+      }));
 
     log.info(`[Direct Search] Found ${formattedResults.length} results for "${query}"`);
 
@@ -340,17 +343,14 @@ export async function executeDirectWebSearch(params: {
   log.info(`[Direct Web Search] query="${query}" type="${searchType}" max=${maxResults}`);
 
   try {
-    const searchOptions: Record<string, unknown> = {
+    const searchOptions: SearxngSearchOptions = {
       maxResults: Math.min(maxResults, 10),
       language: 'de-DE',
       safesearch: 0,
       categories: searchType === 'news' ? 'news' : 'general',
       page: 1,
+      ...(timeRange ? { time_range: timeRange } : {}),
     };
-
-    if (timeRange) {
-      searchOptions.time_range = timeRange;
-    }
 
     const searchResults = await withRetry(
       () => searxngService.performWebSearch(query, searchOptions),
@@ -368,15 +368,16 @@ export async function executeDirectWebSearch(params: {
       };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const formattedResults = searchResults.results.slice(0, maxResults).map((result: any) => ({
-      rank: result.rank,
-      title: result.title || 'Unbekannt',
-      url: result.url,
-      snippet: truncateText(result.content || result.snippet || '', 300),
-      domain: result.domain || extractDomain(result.url),
-      publishedDate: result.publishedDate || null,
-    }));
+    const formattedResults = searchResults.results
+      .slice(0, maxResults)
+      .map((result: SearxngSearchResult) => ({
+        rank: result.rank,
+        title: result.title || 'Unbekannt',
+        url: result.url,
+        snippet: truncateText(result.content || result.snippet || '', 300),
+        domain: result.domain || extractDomain(result.url),
+        publishedDate: result.publishedDate || null,
+      }));
 
     log.info(`[Direct Web Search] Found ${formattedResults.length} results for "${query}"`);
 

@@ -6,6 +6,7 @@
  */
 
 import { streamText } from 'ai';
+import { z } from 'zod';
 
 import {
   plannerNode,
@@ -44,7 +45,25 @@ import type {
 } from '../../agents/langgraph/WebSearchGraph/types.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { ReferencesMap, ExpandedChunkResult } from '../../services/search/types.js';
+import type AIWorkerPool from '../../workers/aiWorkerPool.js';
 import type { Response } from 'express';
+
+/** Zod schema for the POST body of normal search streaming */
+const normalSearchBodySchema = z.object({
+  query: z.string(),
+  maxResults: z.union([z.number(), z.string()]).optional(),
+  language: z.string().optional(),
+  timeRange: z.string().optional(),
+  safesearch: z.union([z.number(), z.string()]).optional(),
+  categories: z.string().optional(),
+});
+type NormalSearchRequestBody = z.infer<typeof normalSearchBodySchema>;
+
+/** Zod schema for the POST body of deep research streaming */
+const deepSearchBodySchema = z.object({
+  query: z.string(),
+});
+type DeepSearchRequestBody = z.infer<typeof deepSearchBodySchema>;
 
 const log = createLogger('search-stream');
 
@@ -184,6 +203,14 @@ export async function streamNormalSearch(req: AuthenticatedRequest, res: Respons
   req.on('close', () => abortController.abort());
 
   try {
+    const parseResult = normalSearchBodySchema.safeParse(req.body);
+    if (!parseResult.success) {
+      sse.sendRaw('error', {
+        error: `Ungültige Anfrage: ${parseResult.error.issues.map((i) => i.message).join('; ')}`,
+      });
+      sse.end();
+      return;
+    }
     const {
       query,
       maxResults = 10,
@@ -191,7 +218,7 @@ export async function streamNormalSearch(req: AuthenticatedRequest, res: Respons
       timeRange,
       safesearch = 0,
       categories = 'general',
-    } = req.body;
+    } = parseResult.data;
 
     const userId = getUserId(req);
 
@@ -208,7 +235,7 @@ export async function streamNormalSearch(req: AuthenticatedRequest, res: Respons
       mode: 'normal',
       user_id: userId,
       searchOptions,
-      aiWorkerPool: req.app.locals.aiWorkerPool,
+      aiWorkerPool: req.app.locals.aiWorkerPool as AIWorkerPool,
       req,
       metadata: { startTime, searchMode: 'normal' },
     };
@@ -366,7 +393,15 @@ export async function streamDeepSearch(req: AuthenticatedRequest, res: Response)
   req.on('close', () => abortController.abort());
 
   try {
-    const { query } = req.body;
+    const parseResult = deepSearchBodySchema.safeParse(req.body);
+    if (!parseResult.success) {
+      sse.sendRaw('error', {
+        error: `Ungültige Anfrage: ${parseResult.error.issues.map((i) => i.message).join('; ')}`,
+      });
+      sse.end();
+      return;
+    }
+    const { query } = parseResult.data;
     const userId = getUserId(req);
 
     let state: WebSearchState = {
@@ -374,7 +409,7 @@ export async function streamDeepSearch(req: AuthenticatedRequest, res: Response)
       mode: 'deep',
       user_id: userId,
       searchOptions: { maxResults: 10, language: 'de-DE' },
-      aiWorkerPool: req.app.locals.aiWorkerPool,
+      aiWorkerPool: req.app.locals.aiWorkerPool as AIWorkerPool,
       req,
       metadata: { startTime, searchMode: 'deep' },
     };
@@ -499,7 +534,7 @@ export async function streamDeepSearch(req: AuthenticatedRequest, res: Response)
     const referencesMap = buildReferencesMap(deduplicatedSources);
     const refsSummary = summarizeReferencesForPrompt(referencesMap);
 
-    const locale = extractLocaleFromRequest(state.req as any as RequestWithLocale);
+    const locale = extractLocaleFromRequest(state.req as unknown as RequestWithLocale);
     const systemPromptBase = localizePlaceholders(buildDossierSystemPrompt(), locale);
     const filteredData = filterDataForAI(
       state.webResults,

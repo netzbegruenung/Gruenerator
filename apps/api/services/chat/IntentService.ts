@@ -23,6 +23,11 @@ import { generateSharepicForChat } from './sharepicGenerationService.js';
 
 import * as chatMemory from './index.js';
 
+import type { ExpressRequest as SharepicExpressRequest } from './sharepicGenerationService.js';
+import type {
+  DocumentQnARedisClient,
+  DocumentQnAMistralClient,
+} from '../document-services/DocumentQnAService/index.js';
 import type {
   Intent as DocumentIntent,
   AgentType,
@@ -32,8 +37,10 @@ import type express from 'express';
 const log = createLogger('IntentService');
 
 // Initialize DocumentQnA service
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const documentQnAService = new DocumentQnAService(redisClient as any, mistralClient as any);
+const documentQnAService = new DocumentQnAService(
+  redisClient as unknown as DocumentQnARedisClient,
+  mistralClient as DocumentQnAMistralClient
+);
 
 /**
  * Configuration constants
@@ -42,6 +49,28 @@ const CONFIG = {
   LOW_CONFIDENCE_THRESHOLD: 0.3,
   MULTI_INTENT_TIMEOUT: 30000,
 };
+
+/**
+ * Chat request body shape from Express
+ */
+interface ChatRequestBody {
+  message?: string;
+  originalMessage?: string;
+  chatContext?: Record<string, unknown>;
+  usePrivacyMode?: boolean;
+  provider?: string | null;
+  attachments?: Array<{ type: string; data?: string; [key: string]: unknown }>;
+  documentIds?: string[];
+  thema?: string;
+  details?: string;
+  mode?: string;
+  variant?: string;
+  _needsVariantSelection?: boolean;
+  type?: string;
+  sharepicType?: string;
+  count?: number;
+  [key: string]: unknown;
+}
 
 /**
  * Intent interface
@@ -136,6 +165,8 @@ async function processSharepicRequest(
   res: express.Response,
   userId: string | null = null
 ): Promise<void> {
+  const body = req.body as ChatRequestBody;
+
   log.debug('[IntentService] Processing sharepic request:', {
     agent: intentResult.agent,
     sharepicType: intentResult.params?.type,
@@ -154,11 +185,9 @@ async function processSharepicRequest(
   let sharepicType: string;
   if (intentResult.agent === 'zitat') {
     const hasImageAttachment =
-      req.body.attachments &&
-      Array.isArray(req.body.attachments) &&
-      req.body.attachments.some(
-        (att: { type: string }) => att.type && att.type.startsWith('image/')
-      );
+      body.attachments &&
+      Array.isArray(body.attachments) &&
+      body.attachments.some((att) => att.type && att.type.startsWith('image/'));
 
     sharepicType = hasImageAttachment ? 'zitat' : 'zitat_pure';
   } else {
@@ -169,7 +198,7 @@ async function processSharepicRequest(
   }
 
   // Update request body with sharepic-specific parameters
-  Object.assign(req.body, {
+  Object.assign(body, {
     type: sharepicType,
     sharepicType: sharepicType,
   });
@@ -187,13 +216,13 @@ async function processSharepicRequest(
     sharepicType === 'dreizeilen'
   ) {
     try {
-      const extractedParams = {
-        ...req.body,
-        thema: req.body.thema || 'Grüne Politik',
-        details: req.body.details || req.body.originalMessage || '',
+      const extractedParams: ChatRequestBody = {
+        ...body,
+        thema: body.thema || 'Grüne Politik',
+        details: body.details || body.originalMessage || '',
         type: sharepicType,
-        originalMessage: req.body.originalMessage || '',
-        chatContext: req.body.chatContext || {},
+        originalMessage: body.originalMessage || '',
+        chatContext: body.chatContext || {},
       };
 
       const resolvedUserId = userId || req.user?.id || `anon_${req.ip}`;
@@ -206,17 +235,17 @@ async function processSharepicRequest(
 
       const informationResult = await handleInformationRequest(
         resolvedUserId,
-        req.body.message || req.body.originalMessage || '',
+        body.message || body.originalMessage || '',
         sharepicIntent.agent,
         extractedParams,
         {
           agent: sharepicIntent.agent,
-          message: req.body.message || req.body.originalMessage || '',
-          chatContext: req.body.chatContext || {},
-          usePrivacyMode: req.body.usePrivacyMode || false,
-          provider: req.body.provider || null,
-          attachments: req.body.attachments || [],
-          documentIds: req.body.documentIds || [],
+          message: body.message || body.originalMessage || '',
+          chatContext: body.chatContext || {},
+          usePrivacyMode: body.usePrivacyMode || false,
+          provider: body.provider || null,
+          attachments: body.attachments || [],
+          documentIds: body.documentIds || [],
           ...extractedParams,
         },
         sharepicIntent
@@ -227,11 +256,11 @@ async function processSharepicRequest(
         return;
       }
 
-      let finalRequestBody = req.body;
+      let finalRequestBody: ChatRequestBody = body;
       if (informationResult && informationResult.type === 'completion') {
         finalRequestBody = {
-          ...req.body,
-          ...informationResult.data,
+          ...body,
+          ...(informationResult.data as Record<string, unknown>),
         };
       }
 
@@ -240,7 +269,11 @@ async function processSharepicRequest(
         count: 1,
       };
 
-      const sharepicResponse = await generateSharepicForChat(req as any, sharepicType, finalRequestBody);
+      const sharepicResponse = await generateSharepicForChat(
+        req as unknown as SharepicExpressRequest,
+        sharepicType,
+        finalRequestBody as unknown as Parameters<typeof generateSharepicForChat>[2]
+      );
       res.json(sharepicResponse);
       return;
     } catch (error) {
@@ -266,25 +299,27 @@ async function processImagineRequest(
   res: express.Response,
   userId: string | null = null
 ): Promise<unknown> {
+  const body = req.body as ChatRequestBody;
+
   log.debug('[IntentService] Processing imagine request:', {
-    mode: req.body.mode,
-    hasVariant: !!req.body.variant,
-    needsVariantSelection: req.body._needsVariantSelection,
+    mode: body.mode,
+    hasVariant: !!body.variant,
+    needsVariantSelection: body._needsVariantSelection,
   });
 
   const resolvedUserId = userId || req.user?.id || `anon_${req.ip}`;
 
-  if (req.body._needsVariantSelection && !req.body.variant) {
+  if (body._needsVariantSelection && !body.variant) {
     const informationResult = await handleInformationRequest(
       resolvedUserId,
-      req.body.originalMessage || '',
+      body.originalMessage || '',
       'imagine',
-      req.body,
+      body,
       {
         agent: 'imagine',
-        message: req.body.originalMessage || '',
-        chatContext: req.body.chatContext || {},
-        ...req.body,
+        message: body.originalMessage || '',
+        chatContext: body.chatContext || {},
+        ...body,
       },
       intentResult
     );
@@ -301,13 +336,17 @@ async function processImagineRequest(
     }
 
     if (informationResult?.type === 'completion') {
-      Object.assign(req.body, informationResult.data);
+      Object.assign(body, informationResult.data as Record<string, unknown>);
     }
   }
 
   try {
-    const mode = req.body.mode || 'pure';
-    const imagineResponse = await generateImagineForChat(req as any, mode, req.body);
+    const mode = (body.mode || 'pure') as 'pure' | 'sharepic' | 'edit';
+    const imagineResponse = await generateImagineForChat(
+      req as unknown as Parameters<typeof generateImagineForChat>[0],
+      mode,
+      body as unknown as Parameters<typeof generateImagineForChat>[2]
+    );
     return res.json(imagineResponse);
   } catch (error) {
     log.error('[IntentService] Imagine generation failed:', error);
@@ -411,7 +450,9 @@ export async function processSingleIntentRequest(
   baseContext: BaseContext
 ): Promise<void> {
   const requestType =
-    intent.requestType || baseContext.chatContext?.requestType || 'content_creation';
+    intent.requestType ||
+    (baseContext.chatContext?.requestType as string | null) ||
+    'content_creation';
 
   log.debug('[IntentService] Processing single intent with requestType:', requestType);
 
@@ -512,7 +553,7 @@ export async function processSingleIntentRequest(
 
   // Update request body for single intent processing
   Object.assign(
-    req.body,
+    req.body as ChatRequestBody,
     extractedParams,
     intent.params,
     {
@@ -618,10 +659,11 @@ async function processIntentAsync(
 
     const processPromise =
       routeType === 'sharepic' || routeType.startsWith('sharepic_')
-        ? // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cross-module request/response type bridge
-          processSharepicRequest(
+        ? processSharepicRequest(
             intent,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cross-module request/response type bridge
             intentReq as any,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cross-module response type bridge
             responseCollector as any,
             baseContext.userId
           )

@@ -4,8 +4,10 @@
  */
 
 import express, { type Router, type Request, type Response } from 'express';
+import { z } from 'zod';
 
 import { processGraphRequestStreaming } from '../../agents/langgraph/streamingProcessor.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getAvailableModels } from '../../services/ai/modelDiscovery.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -34,31 +36,43 @@ const PLAYGROUND_PROMPTS = [
   },
 ];
 
-router.post('/generate', async (req: Request, res: Response): Promise<void> => {
-  const { type, provider, model, ...rest } = req.body;
+const playgroundGenerateSchema = z
+  .object({
+    type: z.string().min(1, 'type is required'),
+    provider: z.string().optional(),
+    model: z.string().optional(),
+    systemPrompt: z.string().optional(),
+    userMessage: z.string().optional(),
+  })
+  .passthrough();
+type PlaygroundGenerateBody = z.infer<typeof playgroundGenerateSchema>;
 
-  const resolvedType = type === 'free' ? 'custom_prompt' : type;
+router.post(
+  '/generate',
+  validateBody(playgroundGenerateSchema),
+  async (req: TypedRequest<PlaygroundGenerateBody>, res: Response): Promise<void> => {
+    const { type, provider, model, systemPrompt, userMessage, ...rest } = req.body;
 
-  if (!resolvedType) {
-    res.status(400).json({ error: 'type is required' });
-    return;
+    const resolvedType = type === 'free' ? 'custom_prompt' : type;
+
+    log.debug(`[playground] Generate: type=${resolvedType}, provider=${provider}, model=${model}`);
+
+    // Reassign body for downstream processGraphRequestStreaming
+    const baseReq = req as Request;
+    if (type === 'free') {
+      baseReq.body = {
+        provider,
+        model,
+        prompt: systemPrompt || '',
+        userInput: userMessage || '',
+      };
+    } else {
+      baseReq.body = { ...rest, provider, model };
+    }
+
+    return processGraphRequestStreaming(resolvedType, baseReq, res);
   }
-
-  log.debug(`[playground] Generate: type=${resolvedType}, provider=${provider}, model=${model}`);
-
-  if (type === 'free') {
-    req.body = {
-      provider,
-      model,
-      prompt: rest.systemPrompt || '',
-      userInput: rest.userMessage || '',
-    };
-  } else {
-    req.body = { ...rest, provider, model };
-  }
-
-  return processGraphRequestStreaming(resolvedType, req, res);
-});
+);
 
 router.get('/prompts', (_req: Request, res: Response): void => {
   res.json({ prompts: PLAYGROUND_PROMPTS });

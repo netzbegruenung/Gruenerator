@@ -18,7 +18,9 @@ import { mistralEmbeddingService } from '../../mistral/index.js';
 import { ocrService } from '../../ocrService.js';
 import { BaseScraper } from '../base/BaseScraper.js';
 
+import type { QdrantService } from '../../../database/services/QdrantService/index.js';
 import type { OparlPaper } from '../../api-clients/oparlApiClient.js';
+import type { Chunk } from '../../document-services/TextChunker/types.js';
 import type { ScraperResult, OparlEndpoint } from '../types.js';
 
 /**
@@ -112,23 +114,29 @@ interface OparlPoint {
  * OParl API scraper for municipal parliament papers
  */
 export class OparlScraper extends BaseScraper {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private qdrant: any;
+  private qdrantService: QdrantService | null;
 
   constructor() {
     super({
       collectionName: 'oparl_papers',
       verbose: true,
     });
-    this.qdrant = null;
+    this.qdrantService = null;
+  }
+
+  private get qdrant(): QdrantService {
+    if (!this.qdrantService) {
+      throw new Error('OparlScraper not initialized. Call init() first.');
+    }
+    return this.qdrantService;
   }
 
   /**
    * Initialize services
    */
   async init(): Promise<void> {
-    this.qdrant = getQdrantInstance();
-    await this.qdrant.init();
+    this.qdrantService = getQdrantInstance();
+    await this.qdrantService.init();
     await mistralEmbeddingService.init();
     this.log('Service initialized');
   }
@@ -232,9 +240,7 @@ export class OparlScraper extends BaseScraper {
             }
 
             // Embed
-            const chunkTexts = chunks.map(
-              (c: { text?: string; chunk_text?: string }) => c.text || c.chunk_text || ''
-            );
+            const chunkTexts = chunks.map((c) => c.text);
             const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
 
             // Store immediately (in small batches of 5 points)
@@ -247,7 +253,7 @@ export class OparlScraper extends BaseScraper {
             );
             for (let j = 0; j < points.length; j += 5) {
               const pointBatch = points.slice(j, j + 5);
-              await this.qdrant.client.upsert(this.config.collectionName, { points: pointBatch });
+              await this.qdrant.client!.upsert(this.config.collectionName, { points: pointBatch });
             }
 
             result.stored++;
@@ -288,13 +294,11 @@ export class OparlScraper extends BaseScraper {
     city: string,
     paper: OparlPaper,
     fullText: string,
-    chunks: { text?: string; chunk_text?: string }[],
+    chunks: Chunk[],
     embeddings: number[][]
   ): OparlPoint[] {
     const paperId = uuidv4();
-    const chunkTexts = chunks.map(
-      (c: { text?: string; chunk_text?: string }) => c.text || c.chunk_text || ''
-    );
+    const chunkTexts = chunks.map((c) => c.text);
 
     // Get the best available PDF URL
     let pdfUrl: string | null = paper.mainFile?.accessUrl || null;
@@ -410,7 +414,7 @@ export class OparlScraper extends BaseScraper {
    */
   async #paperExists(oparlId: string): Promise<boolean> {
     try {
-      const result = await this.qdrant.client.scroll(this.config.collectionName, {
+      const result = await this.qdrant.client!.scroll(this.config.collectionName, {
         filter: {
           must: [{ key: 'oparl_id', match: { value: oparlId } }],
         },
@@ -439,11 +443,11 @@ export class OparlScraper extends BaseScraper {
       ? {
           must: [{ key: 'city', match: { value: city } }],
         }
-      : undefined;
+      : null;
 
-    const searchResult = await this.qdrant.client.search(this.config.collectionName, {
+    const searchResult = await this.qdrant.client!.search(this.config.collectionName, {
       vector: queryVector,
-      filter: filter,
+      ...(filter ? { filter } : {}),
       limit: limit * 3,
       score_threshold: threshold,
       with_payload: true,
@@ -451,13 +455,14 @@ export class OparlScraper extends BaseScraper {
 
     const papersMap = new Map<string, PaperSearchResult>();
     for (const hit of searchResult) {
-      const paperId = hit.payload.paper_id;
+      const payload = hit.payload as Record<string, unknown> | null;
+      if (!payload) continue;
+      const paperId = String(payload.paper_id ?? '');
       if (!papersMap.has(paperId)) {
-        let fullText = hit.payload.full_text;
+        let fullText = payload.full_text as string | null;
 
-        // If this chunk doesn't have full_text, fetch it from chunk 0
-        if (!fullText && hit.payload.chunk_index !== 0) {
-          const fullTextResult = await this.qdrant.client.scroll(this.config.collectionName, {
+        if (!fullText && payload.chunk_index !== 0) {
+          const fullTextResult = await this.qdrant.client!.scroll(this.config.collectionName, {
             filter: {
               must: [
                 { key: 'paper_id', match: { value: paperId } },
@@ -467,21 +472,23 @@ export class OparlScraper extends BaseScraper {
             limit: 1,
             with_payload: ['full_text'],
           });
-          fullText = fullTextResult.points?.[0]?.payload?.full_text;
+          const firstPoint = fullTextResult.points?.[0];
+          const firstPayload = firstPoint?.payload as Record<string, unknown> | null;
+          fullText = (firstPayload?.full_text as string) ?? null;
         }
 
         papersMap.set(paperId, {
           id: paperId,
           score: hit.score,
-          title: hit.payload.title,
-          city: hit.payload.city,
-          date: hit.payload.date,
-          paperType: hit.payload.paper_type,
-          reference: hit.payload.reference,
-          sourceUrl: hit.payload.source_url,
-          mainFileUrl: hit.payload.main_file_url,
+          title: String(payload.title ?? ''),
+          city: String(payload.city ?? ''),
+          date: (payload.date as string) ?? null,
+          paperType: (payload.paper_type as string) ?? null,
+          reference: (payload.reference as string) ?? null,
+          sourceUrl: String(payload.source_url ?? ''),
+          mainFileUrl: (payload.main_file_url as string) ?? null,
           fullText: fullText,
-          matchedChunk: hit.payload.chunk_text,
+          matchedChunk: String(payload.chunk_text ?? ''),
         });
       }
 
@@ -499,12 +506,15 @@ export class OparlScraper extends BaseScraper {
    */
   async getStats(): Promise<OparlStats> {
     try {
-      const info = await this.qdrant.client.getCollection(this.config.collectionName);
+      const info = await this.qdrant.client!.getCollection(this.config.collectionName);
+      const infoData = info as Record<string, unknown>;
       return {
         collection: this.config.collectionName,
-        vectors_count: info.vectors_count,
-        points_count: info.points_count,
-        status: info.status,
+        ...(typeof infoData.vectors_count === 'number' && {
+          vectors_count: infoData.vectors_count,
+        }),
+        ...(typeof infoData.points_count === 'number' && { points_count: infoData.points_count }),
+        ...(typeof infoData.status === 'string' && { status: infoData.status }),
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -521,10 +531,7 @@ export class OparlScraper extends BaseScraper {
       let offset: string | number | null = null;
 
       do {
-        const result: {
-          points: Array<{ payload: { city?: string } }>;
-          next_page_offset?: string | number | null;
-        } = await this.qdrant.client.scroll(this.config.collectionName, {
+        const result = await this.qdrant.client!.scroll(this.config.collectionName, {
           limit: 100,
           offset: offset,
           with_payload: ['city'],
@@ -532,12 +539,16 @@ export class OparlScraper extends BaseScraper {
         });
 
         for (const point of result.points) {
-          if (point.payload.city) {
-            cities.add(point.payload.city);
+          const payload = point.payload as Record<string, unknown> | null;
+          const city = payload?.['city'];
+          if (typeof city === 'string') {
+            cities.add(city);
           }
         }
 
-        offset = result.next_page_offset ?? null;
+        const nextOffset = result.next_page_offset;
+        offset =
+          typeof nextOffset === 'string' || typeof nextOffset === 'number' ? nextOffset : null;
       } while (offset);
 
       return Array.from(cities).sort();
@@ -551,7 +562,7 @@ export class OparlScraper extends BaseScraper {
    */
   async deleteCityPapers(city: string): Promise<void> {
     this.log(`Deleting papers for city: ${city}`);
-    await this.qdrant.client.delete(this.config.collectionName, {
+    await this.qdrant.client!.delete(this.config.collectionName, {
       filter: {
         must: [{ key: 'city', match: { value: city } }],
       },

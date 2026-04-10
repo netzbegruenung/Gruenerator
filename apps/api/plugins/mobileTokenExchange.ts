@@ -3,6 +3,13 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 import type { BetterAuthPlugin } from 'better-auth';
 
+interface KeycloakPayload {
+  email?: string;
+  name?: string;
+  preferred_username?: string;
+  email_verified?: boolean;
+}
+
 const KC_BASE = process.env.KEYCLOAK_BASE_URL || 'https://user.netzbegruenung.de';
 const KC_REALM = process.env.KEYCLOAK_REALM || 'gruenerator';
 const KC_ISSUER = `${KC_BASE}/realms/${KC_REALM}`;
@@ -32,20 +39,17 @@ export const mobileTokenExchange = () => {
             throw new Error('idToken is required');
           }
 
-          const { payload } = await jwtVerify(idToken, JWKS, {
+          const { payload } = await jwtVerify<KeycloakPayload>(idToken, JWKS, {
             issuer: KC_ISSUER,
           });
 
-          const email = payload.email as string;
+          const email = payload.email;
           if (!email) {
             throw new Error('Token missing email claim');
           }
 
           const locale = LOCALE_MAP[authSource || ''] || 'de-DE';
-          const name =
-            (payload.name as string) ||
-            (payload.preferred_username as string) ||
-            email.split('@')[0];
+          const name = payload.name || payload.preferred_username || email.split('@')[0];
 
           const existing = await ctx.context.internalAdapter.findUserByEmail(email);
 
@@ -56,7 +60,7 @@ export const mobileTokenExchange = () => {
             const created = await ctx.context.internalAdapter.createUser({
               email,
               name,
-              emailVerified: (payload.email_verified as boolean) ?? false,
+              emailVerified: payload.email_verified ?? false,
               locale,
               auth_source: authSource || 'mobile',
               keycloak_id: payload.sub || null,
