@@ -467,43 +467,44 @@ function EditorContent() {
                   <span className="glass-divider" />
                 </>
               )}
-              {!isGuest && (
-                <>
-                  <div ref={exportMenuRef} className="relative">
+
+              <div ref={exportMenuRef} className="relative">
+                <button
+                  className="glass-btn"
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  aria-label="Exportieren"
+                >
+                  <FiDownload />
+                </button>
+                {showExportMenu && (
+                  <div className="absolute top-[calc(100%+0.5rem)] right-0 min-w-[180px] p-1.5 bg-white/90 dark:bg-grey-900/90 backdrop-blur-xl border border-white/30 dark:border-white/10 rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] z-[100]">
                     <button
-                      className="glass-btn"
-                      onClick={() => setShowExportMenu(!showExportMenu)}
-                      aria-label="Exportieren"
+                      className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                      onClick={handleExport}
                     >
                       <FiDownload />
+                      Als Word (.docx)
                     </button>
-                    {showExportMenu && (
-                      <div className="absolute top-[calc(100%+0.5rem)] right-0 min-w-[180px] p-1.5 bg-white/90 dark:bg-grey-900/90 backdrop-blur-xl border border-white/30 dark:border-white/10 rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] z-[100]">
-                        <button
-                          className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
-                          onClick={handleExport}
-                        >
-                          <FiDownload />
-                          Als Word (.docx)
-                        </button>
-                        <button
-                          className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
-                          onClick={handleExportPDF}
-                        >
-                          <FiDownload />
-                          Als PDF (.pdf)
-                        </button>
-                        <button
-                          className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
-                          onClick={handleExportODT}
-                        >
-                          <FiDownload />
-                          Als ODT (.odt)
-                        </button>
-                      </div>
-                    )}
+                    <button
+                      className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                      onClick={handleExportPDF}
+                    >
+                      <FiDownload />
+                      Als PDF (.pdf)
+                    </button>
+                    <button
+                      className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                      onClick={handleExportODT}
+                    >
+                      <FiDownload />
+                      Als ODT (.odt)
+                    </button>
                   </div>
+                )}
+              </div>
 
+              {!isGuest && (
+                <>
                   <button
                     className="glass-btn"
                     onClick={() => setShowWolkeModal(true)}
