@@ -195,7 +195,7 @@ function EditorContent() {
 
   const collabConfig = useCollaborationConfig();
   const { ydoc, provider, isConnected, isSynced, isLocalLoaded, authError } = useCollaboration({
-    documentId: id || '',
+    documentId: isAuthResolved ? id || '' : '',
     user: isGuest
       ? null
       : user
@@ -344,7 +344,7 @@ function EditorContent() {
       : 'disconnected'
     : undefined;
 
-  if (docIsLoading) {
+  if (docIsLoading || !isAuthResolved) {
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center gap-sm px-md py-xs border-b border-grey-200 dark:border-grey-700">
