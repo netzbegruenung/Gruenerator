@@ -112,7 +112,7 @@ router.post(
   '/',
   requireAuth,
   validateBody(projectDataSchema),
-  async (req: AuthenticatedRequest & TypedRequest<ProjectData>, res: Response): Promise<void> => {
+  async (req: TypedRequest<ProjectData>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
 
@@ -145,7 +145,7 @@ router.put(
   requireAuth,
   validateBody(updateProjectDataSchema),
   async (
-    req: AuthenticatedRequest<{ projectId: string }> & TypedRequest<UpdateProjectData>,
+    req: TypedRequest<UpdateProjectData, { projectId: string }>,
     res: Response
   ): Promise<void> => {
     try {

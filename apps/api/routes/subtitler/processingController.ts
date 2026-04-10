@@ -119,6 +119,15 @@ const autoProcessRequestSchema = z.object({
 });
 type AutoProcessRequestBody = z.infer<typeof autoProcessRequestSchema>;
 
+const exportTokenSchema = z.object({
+  uploadId: z.string(),
+  subtitles: z.string(),
+  subtitlePreference: z.string().optional(),
+  stylePreference: z.string().optional(),
+  heightPreference: z.string().optional(),
+});
+type ExportTokenBody = z.infer<typeof exportTokenSchema>;
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const fsPromises = fs.promises;
@@ -155,10 +164,7 @@ async function checkFont(): Promise<void> {
 router.post(
   '/process',
   validateBody(processRequestSchema),
-  async (
-    req: SubtitlerRequest & TypedRequest<ProcessRequestBody>,
-    res: Response
-  ): Promise<void> => {
+  async (req: TypedRequest<ProcessRequestBody>, res: Response): Promise<void> => {
     const {
       uploadId,
       subtitlePreference = 'manual',
@@ -306,14 +312,17 @@ router.delete('/cleanup/:uploadId', handleCleanup);
 router.post('/cleanup/:uploadId', handleCleanup);
 
 // POST /export-token
-router.post('/export-token', async (req: SubtitlerRequest, res: Response): Promise<void> => {
-  try {
-    const body = req.body as Parameters<typeof generateDownloadToken>[0];
-    res.json({ success: true, ...(await generateDownloadToken(body)) });
-  } catch (e: unknown) {
-    res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
+router.post(
+  '/export-token',
+  validateBody(exportTokenSchema),
+  async (req: TypedRequest<ExportTokenBody>, res: Response): Promise<void> => {
+    try {
+      res.json({ success: true, ...(await generateDownloadToken(req.body)) });
+    } catch (e: unknown) {
+      res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
+    }
   }
-});
+);
 
 // GET /download/:token
 router.get(
@@ -435,7 +444,7 @@ router.get(
 router.post(
   '/export',
   validateBody(exportBodySchema),
-  async (req: SubtitlerRequest & TypedRequest<ExportBody>, res: Response): Promise<void> => {
+  async (req: TypedRequest<ExportBody>, res: Response): Promise<void> => {
     const {
       uploadId,
       subtitles,
@@ -618,10 +627,7 @@ router.post(
 router.post(
   '/export-segments',
   validateBody(exportSegmentsRequestSchema),
-  async (
-    req: SubtitlerRequest & TypedRequest<ExportSegmentsRequestBody>,
-    res: Response
-  ): Promise<void> => {
+  async (req: TypedRequest<ExportSegmentsRequestBody>, res: Response): Promise<void> => {
     const { uploadId, projectId, segments, includeSubtitles, subtitleConfig } = req.body;
     if (!uploadId && !projectId) {
       res.status(400).json({ error: 'Upload-ID oder Projekt-ID benötigt' });
@@ -671,10 +677,7 @@ router.post(
 router.post(
   '/process-auto',
   validateBody(autoProcessRequestSchema),
-  async (
-    req: SubtitlerRequest & TypedRequest<AutoProcessRequestBody>,
-    res: Response
-  ): Promise<void> => {
+  async (req: TypedRequest<AutoProcessRequestBody>, res: Response): Promise<void> => {
     const { uploadId, locale = 'de-DE', maxResolution = null, userId = null } = req.body;
 
     try {

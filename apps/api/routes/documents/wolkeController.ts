@@ -12,7 +12,9 @@
 import path from 'path';
 
 import express, { type Router, type Response } from 'express';
+import { z } from 'zod';
 
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import NextcloudApiClient from '../../services/api-clients/nextcloudApiClient.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { getWolkeSyncService } from '../../services/sync/index.js';
@@ -20,13 +22,7 @@ import { createLogger } from '../../utils/logger.js';
 
 import { formatFileSize } from './helpers.js';
 
-import type {
-  DocumentRequest,
-  WolkeSyncRequestBody,
-  WolkeAutoSyncRequestBody,
-  WolkeImportRequestBody,
-  WolkeImportResult,
-} from './types.js';
+import type { DocumentRequest, WolkeImportResult } from './types.js';
 
 const log = createLogger('documents:wolke');
 const router: Router = express.Router();
@@ -37,6 +33,29 @@ const postgresDocumentService = getPostgresDocumentService();
 
 // Supported file types for Wolke import
 const SUPPORTED_FILE_TYPES = ['.pdf', '.txt', '.md', '.doc', '.docx'];
+
+const wolkeSyncSchema = z.object({
+  shareLinkId: z.string().min(1),
+  folderPath: z.string().optional(),
+});
+
+const wolkeAutoSyncSchema = z.object({
+  shareLinkId: z.string().min(1),
+  folderPath: z.string().optional(),
+  enabled: z.boolean(),
+});
+
+const wolkeFileInfoSchema = z.object({
+  name: z.string(),
+  href: z.string(),
+  size: z.number().optional(),
+  lastModified: z.unknown().optional(),
+});
+
+const wolkeImportSchema = z.object({
+  shareLinkId: z.string().min(1),
+  files: z.array(wolkeFileInfoSchema).min(1),
+});
 
 /**
  * GET /sync-status - Get user's sync status
@@ -67,84 +86,74 @@ router.get('/sync-status', async (req: DocumentRequest, res: Response): Promise<
 /**
  * POST /sync - Start folder sync (background operation)
  */
-router.post('/sync', async (req: DocumentRequest, res: Response): Promise<void> => {
-  try {
-    const { shareLinkId, folderPath = '' } = req.body as WolkeSyncRequestBody;
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
+router.post(
+  '/sync',
+  validateBody(wolkeSyncSchema),
+  async (req: TypedRequest<z.infer<typeof wolkeSyncSchema>>, res: Response): Promise<void> => {
+    try {
+      const { shareLinkId, folderPath = '' } = req.body;
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
 
-    // Validate share link ID
-    if (!shareLinkId) {
-      res.status(400).json({
+      // Start sync in background (fire and forget)
+      wolkeSyncService
+        .syncFolder(userId, shareLinkId, folderPath)
+        .then((result) => {
+          log.debug(`[POST /sync] Sync completed:`, result);
+        })
+        .catch((error) => {
+          log.error(`[POST /sync] Sync failed:`, error);
+        });
+
+      res.json({
+        success: true,
+        message: 'Folder sync started',
+        shareLinkId,
+        folderPath,
+      });
+    } catch (error) {
+      log.error('[POST /sync] Error:', error);
+      res.status(500).json({
         success: false,
-        message: 'Share link ID is required',
+        message: (error as Error).message || 'Failed to start folder sync',
       });
-      return;
     }
-
-    // Start sync in background (fire and forget)
-    wolkeSyncService
-      .syncFolder(userId, shareLinkId, folderPath)
-      .then((result) => {
-        log.debug(`[POST /sync] Sync completed:`, result);
-      })
-      .catch((error) => {
-        log.error(`[POST /sync] Sync failed:`, error);
-      });
-
-    res.json({
-      success: true,
-      message: 'Folder sync started',
-      shareLinkId,
-      folderPath,
-    });
-  } catch (error) {
-    log.error('[POST /sync] Error:', error);
-    res.status(500).json({
-      success: false,
-      message: (error as Error).message || 'Failed to start folder sync',
-    });
   }
-});
+);
 
 /**
  * POST /auto-sync - Set auto-sync for a folder
  */
-router.post('/auto-sync', async (req: DocumentRequest, res: Response): Promise<void> => {
-  try {
-    const { shareLinkId, folderPath = '', enabled } = req.body as WolkeAutoSyncRequestBody;
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
+router.post(
+  '/auto-sync',
+  validateBody(wolkeAutoSyncSchema),
+  async (req: TypedRequest<z.infer<typeof wolkeAutoSyncSchema>>, res: Response): Promise<void> => {
+    try {
+      const { shareLinkId, folderPath = '', enabled } = req.body;
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
 
-    // Validate required parameters
-    if (!shareLinkId || typeof enabled !== 'boolean') {
-      res.status(400).json({
-        success: false,
-        message: 'Share link ID and enabled flag are required',
+      const result = await wolkeSyncService.setAutoSync(userId, shareLinkId, folderPath, enabled);
+
+      res.json({
+        ...result,
+        success: true,
       });
-      return;
+    } catch (error) {
+      log.error('[POST /auto-sync] Error:', error);
+      res.status(500).json({
+        success: false,
+        message: (error as Error).message || 'Failed to set auto-sync',
+      });
     }
-
-    const result = await wolkeSyncService.setAutoSync(userId, shareLinkId, folderPath, enabled);
-
-    res.json({
-      ...result,
-      success: true,
-    });
-  } catch (error) {
-    log.error('[POST /auto-sync] Error:', error);
-    res.status(500).json({
-      success: false,
-      message: (error as Error).message || 'Failed to set auto-sync',
-    });
   }
-});
+);
 
 /**
  * GET /browse/:shareLinkId - Browse files in a Wolke share without syncing
@@ -224,113 +233,110 @@ router.get(
 /**
  * POST /import - Import selected files from Wolke
  */
-router.post('/import', async (req: DocumentRequest, res: Response): Promise<void> => {
-  try {
-    const { shareLinkId, files } = req.body as WolkeImportRequestBody;
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
-    // Validate required parameters
-    if (!shareLinkId || !Array.isArray(files) || files.length === 0) {
-      res.status(400).json({
-        success: false,
-        message: 'Share link ID and files array are required',
-      });
-      return;
-    }
-
-    log.debug(`[POST /import] Importing ${files.length} files from share link ${shareLinkId}`);
-
-    // Get the share link
-    const shareLink = await wolkeSyncService.getShareLink(userId, shareLinkId);
-
-    const results: WolkeImportResult[] = [];
-    let successCount = 0;
-    let failedCount = 0;
-
-    // Process each selected file
-    for (const fileInfo of files) {
-      try {
-        log.debug(`[POST /import] Processing file: ${fileInfo.name}`);
-
-        // Check if file already exists to prevent duplicates
-        const existingDoc = await postgresDocumentService.getDocumentByWolkeFile(
-          userId,
-          shareLinkId,
-          fileInfo.href
-        );
-
-        if (existingDoc) {
-          log.debug(`[POST /import] File already imported: ${fileInfo.name}`);
-          results.push({
-            filename: fileInfo.name,
-            success: false,
-            skipped: true,
-            reason: 'already_imported',
-            documentId: existingDoc.id,
-          });
-          continue;
-        }
-
-        // Use the wolke sync service to process the file
-        const result = await wolkeSyncService.processFile(
-          userId,
-          shareLinkId,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          fileInfo as any,
-          shareLink
-        );
-
-        if (result.success) {
-          successCount++;
-          results.push({
-            filename: fileInfo.name,
-            success: true,
-            documentId: result.documentId,
-            vectorsCreated: result.vectorsCreated,
-          });
-        } else if (result.skipped) {
-          results.push({
-            filename: fileInfo.name,
-            success: false,
-            skipped: true,
-            reason: result.reason,
-          });
-        }
-      } catch (error) {
-        failedCount++;
-        log.error(`[POST /import] Failed to process file ${fileInfo.name}:`, error);
-        results.push({
-          filename: fileInfo.name,
-          success: false,
-          error: (error as Error).message,
-        });
+router.post(
+  '/import',
+  validateBody(wolkeImportSchema),
+  async (req: TypedRequest<z.infer<typeof wolkeImportSchema>>, res: Response): Promise<void> => {
+    try {
+      const { shareLinkId, files } = req.body;
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
       }
+
+      log.debug(`[POST /import] Importing ${files.length} files from share link ${shareLinkId}`);
+
+      // Get the share link
+      const shareLink = await wolkeSyncService.getShareLink(userId, shareLinkId);
+
+      const results: WolkeImportResult[] = [];
+      let successCount = 0;
+      let failedCount = 0;
+
+      // Process each selected file
+      for (const fileInfo of files) {
+        try {
+          log.debug(`[POST /import] Processing file: ${fileInfo.name}`);
+
+          // Check if file already exists to prevent duplicates
+          const existingDoc = await postgresDocumentService.getDocumentByWolkeFile(
+            userId,
+            shareLinkId,
+            fileInfo.href
+          );
+
+          if (existingDoc) {
+            log.debug(`[POST /import] File already imported: ${fileInfo.name}`);
+            results.push({
+              filename: fileInfo.name,
+              success: false,
+              skipped: true,
+              reason: 'already_imported',
+              documentId: existingDoc.id,
+            });
+            continue;
+          }
+
+          // Use the wolke sync service to process the file
+          const result = await wolkeSyncService.processFile(
+            userId,
+            shareLinkId,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            fileInfo as any,
+            shareLink
+          );
+
+          if (result.success) {
+            successCount++;
+            results.push({
+              filename: fileInfo.name,
+              success: true,
+              documentId: result.documentId,
+              vectorsCreated: result.vectorsCreated,
+            });
+          } else if (result.skipped) {
+            results.push({
+              filename: fileInfo.name,
+              success: false,
+              skipped: true,
+              reason: result.reason,
+            });
+          }
+        } catch (error) {
+          failedCount++;
+          log.error(`[POST /import] Failed to process file ${fileInfo.name}:`, error);
+          results.push({
+            filename: fileInfo.name,
+            success: false,
+            error: (error as Error).message,
+          });
+        }
+      }
+
+      log.debug(
+        `[POST /import] Import completed: ${successCount} successful, ${failedCount} failed`
+      );
+
+      res.json({
+        success: true,
+        message: `Import completed: ${successCount} of ${files.length} files imported successfully`,
+        results,
+        summary: {
+          total: files.length,
+          successful: successCount,
+          failed: failedCount,
+          skipped: results.filter((r) => r.skipped).length,
+        },
+      });
+    } catch (error) {
+      log.error('[POST /import] Error:', error);
+      res.status(500).json({
+        success: false,
+        message: (error as Error).message || 'Failed to import Wolke files',
+      });
     }
-
-    log.debug(`[POST /import] Import completed: ${successCount} successful, ${failedCount} failed`);
-
-    res.json({
-      success: true,
-      message: `Import completed: ${successCount} of ${files.length} files imported successfully`,
-      results,
-      summary: {
-        total: files.length,
-        successful: successCount,
-        failed: failedCount,
-        skipped: results.filter((r) => r.skipped).length,
-      },
-    });
-  } catch (error) {
-    log.error('[POST /import] Error:', error);
-    res.status(500).json({
-      success: false,
-      message: (error as Error).message || 'Failed to import Wolke files',
-    });
   }
-});
+);
 
 export default router;

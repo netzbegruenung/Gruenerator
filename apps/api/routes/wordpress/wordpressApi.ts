@@ -98,7 +98,7 @@ router.get('/sites', async (req: Request, res: Response): Promise<void> => {
 router.post(
   '/sites',
   validateBody(connectSiteBodySchema),
-  async (req: Request & TypedRequest<ConnectSiteBody>, res: Response): Promise<void> => {
+  async (req: TypedRequest<ConnectSiteBody>, res: Response): Promise<void> => {
     try {
       const userId = getUserId(req);
       const { siteUrl, username, appPassword, label } = req.body;
@@ -140,10 +140,7 @@ router.post(
 router.put(
   '/sites/:id',
   validateBody(updateSiteBodySchema),
-  async (
-    req: Request<{ id: string }> & TypedRequest<UpdateSiteBody>,
-    res: Response
-  ): Promise<void> => {
+  async (req: TypedRequest<UpdateSiteBody, { id: string }>, res: Response): Promise<void> => {
     try {
       const userId = getUserId(req);
       const siteId = req.params.id;
@@ -181,7 +178,7 @@ router.delete('/sites/:id', async (req: Request<{ id: string }>, res: Response):
 router.post(
   '/test-connection',
   validateBody(testConnectionBodySchema),
-  async (req: Request & TypedRequest<TestConnectionBody>, res: Response): Promise<void> => {
+  async (req: TypedRequest<TestConnectionBody>, res: Response): Promise<void> => {
     try {
       getUserId(req);
       const { siteUrl, username, appPassword } = req.body;
@@ -197,7 +194,7 @@ router.post(
 router.post(
   '/publish',
   validateBody(publishBodySchema),
-  async (req: Request & TypedRequest<PublishBody>, res: Response): Promise<void> => {
+  async (req: TypedRequest<PublishBody>, res: Response): Promise<void> => {
     try {
       const userId = getUserId(req);
       const { siteId, title, content, status, excerpt } = req.body;
@@ -271,7 +268,7 @@ router.put(
   '/sites/:id/posts/:postId',
   validateBody(updatePostBodySchema),
   async (
-    req: Request<{ id: string; postId: string }> & TypedRequest<UpdatePostBody>,
+    req: TypedRequest<UpdatePostBody, { id: string; postId: string }>,
     res: Response
   ): Promise<void> => {
     try {

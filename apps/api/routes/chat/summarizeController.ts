@@ -3,7 +3,10 @@
  * Handles context compaction/summarization for long conversations
  */
 
+import { z } from 'zod';
+
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -89,85 +92,91 @@ router.get('/', async (req, res) => {
   }
 });
 
+const summarizeSchema = z.object({
+  threadId: z.string().min(1),
+});
+
 /**
  * POST /api/chat-service/summarize
  * Triggers compaction for a thread (generates summary of older messages)
  *
  * Body: { threadId: string }
  */
-router.post('/', async (req, res) => {
-  try {
-    const user = getUser(req);
-    if (!user?.id) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+router.post(
+  '/',
+  validateBody(summarizeSchema),
+  async (req: TypedRequest<z.infer<typeof summarizeSchema>>, res) => {
+    try {
+      const user = getUser(req);
+      if (!user?.id) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
 
-    const { threadId } = req.body;
-    if (!threadId) {
-      return res.status(400).json({ error: 'Thread ID is required' });
-    }
+      const { threadId } = req.body;
 
-    // Verify thread ownership
-    const postgres = getPostgresInstance();
-    const threads = await postgres.query(`SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1`, [
-      threadId,
-    ]);
+      // Verify thread ownership
+      const postgres = getPostgresInstance();
+      const threads = await postgres.query(
+        `SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
+        [threadId]
+      );
 
-    if (threads.length === 0) {
-      return res.status(404).json({ error: 'Thread not found' });
-    }
+      if (threads.length === 0) {
+        return res.status(404).json({ error: 'Thread not found' });
+      }
 
-    if ((threads[0].user_id as string) !== user.id) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
+      if ((threads[0].user_id as string) !== user.id) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
 
-    // Check if compaction is needed
-    const [existingState, messageCount] = await Promise.all([
-      getCompactionState(threadId),
-      getMessageCount(threadId),
-    ]);
+      // Check if compaction is needed
+      const [existingState, messageCount] = await Promise.all([
+        getCompactionState(threadId),
+        getMessageCount(threadId),
+      ]);
 
-    if (!needsCompaction(messageCount, existingState.summary)) {
-      return res.json({
+      if (!needsCompaction(messageCount, existingState.summary)) {
+        return res.json({
+          success: true,
+          skipped: true,
+          reason: 'Compaction not needed yet',
+          messageCount,
+          threshold: COMPACTION_THRESHOLD,
+          compactionState: {
+            summary: existingState.summary,
+            compactedUpToMessageId: existingState.compactedUpToMessageId,
+            compactionUpdatedAt: existingState.compactionUpdatedAt,
+          },
+        });
+      }
+
+      log.info(`[Summarize] Starting compaction for thread ${threadId} (${messageCount} messages)`);
+
+      // Get all messages and generate summary
+      const messages = await getThreadMessages(threadId);
+      const summary = await generateCompactionSummary(threadId, messages);
+
+      // Get updated state
+      const newState = await getCompactionState(threadId);
+
+      log.info(`[Summarize] Compaction complete for thread ${threadId}`);
+
+      res.json({
         success: true,
-        skipped: true,
-        reason: 'Compaction not needed yet',
+        skipped: false,
         messageCount,
-        threshold: COMPACTION_THRESHOLD,
+        summarizedCount: messages.length - KEEP_RECENT,
         compactionState: {
-          summary: existingState.summary,
-          compactedUpToMessageId: existingState.compactedUpToMessageId,
-          compactionUpdatedAt: existingState.compactionUpdatedAt,
+          summary: newState.summary,
+          compactedUpToMessageId: newState.compactedUpToMessageId,
+          compactionUpdatedAt: newState.compactionUpdatedAt,
         },
       });
+    } catch (error) {
+      log.error('Error during compaction:', error);
+      res.status(500).json({ error: 'Failed to compact conversation' });
     }
-
-    log.info(`[Summarize] Starting compaction for thread ${threadId} (${messageCount} messages)`);
-
-    // Get all messages and generate summary
-    const messages = await getThreadMessages(threadId);
-    const summary = await generateCompactionSummary(threadId, messages);
-
-    // Get updated state
-    const newState = await getCompactionState(threadId);
-
-    log.info(`[Summarize] Compaction complete for thread ${threadId}`);
-
-    res.json({
-      success: true,
-      skipped: false,
-      messageCount,
-      summarizedCount: messages.length - KEEP_RECENT,
-      compactionState: {
-        summary: newState.summary,
-        compactedUpToMessageId: newState.compactedUpToMessageId,
-        compactionUpdatedAt: newState.compactionUpdatedAt,
-      },
-    });
-  } catch (error) {
-    log.error('Error during compaction:', error);
-    res.status(500).json({ error: 'Failed to compact conversation' });
   }
-});
+);
 
 export default router;

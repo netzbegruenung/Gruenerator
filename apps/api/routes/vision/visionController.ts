@@ -1,5 +1,7 @@
 import express, { type Router, type Request, type Response } from 'express';
+import { z } from 'zod';
 
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getAvailableModels } from '../../services/ai/modelDiscovery.js';
 import { ocrService } from '../../services/OcrService/index.js';
 import { visionService } from '../../services/vision/index.js';
@@ -14,149 +16,144 @@ const router: Router = express.Router();
 const MAX_IMAGE_LENGTH = 15_000_000; // ~10MB base64
 const MAX_INSTRUCTION_LENGTH = 10_000;
 
-function validateImageInput(image: unknown): string | null {
-  if (typeof image !== 'string' || image.length === 0) {
-    return 'image is required and must be a non-empty string (base64, data URL, or HTTP URL)';
-  }
-  if (image.length > MAX_IMAGE_LENGTH) {
-    return `image exceeds maximum size (~10MB base64)`;
-  }
-  return null;
-}
+const imageSchema = z.string().min(1).max(MAX_IMAGE_LENGTH);
 
-router.post('/analyze', async (req: Request, res: Response): Promise<void> => {
-  const { image, instruction, provider, model, maxTokens } = req.body;
-
-  const imageError = validateImageInput(image);
-  if (imageError) {
-    res.status(400).json({ error: imageError });
-    return;
-  }
-
-  if (
-    instruction &&
-    typeof instruction === 'string' &&
-    instruction.length > MAX_INSTRUCTION_LENGTH
-  ) {
-    res.status(400).json({ error: `instruction exceeds ${MAX_INSTRUCTION_LENGTH} characters` });
-    return;
-  }
-
-  try {
-    const options = {
-      provider: provider as ProviderName | undefined,
-      model: model as string | undefined,
-      maxTokens: maxTokens as number | undefined,
-    };
-
-    const result = await visionService.analyzeWithOcr(image, instruction, options);
-
-    res.json({
-      description: result.description,
-      textDetection: result.textDetection,
-      extractedText: result.extractedText,
-      ocrMethod: result.ocrMethod ?? null,
-      model: options.model ?? process.env.VISION_DEFAULT_MODEL ?? 'gemma4-31b',
-      provider: options.provider ?? 'regolo',
-    });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    log.error('[vision/analyze] Error:', message);
-    res.status(500).json({ error: 'Bildanalyse fehlgeschlagen', details: message });
-  }
+const analyzeSchema = z.object({
+  image: imageSchema,
+  instruction: z.string().max(MAX_INSTRUCTION_LENGTH).optional(),
+  provider: z.string().optional(),
+  model: z.string().optional(),
+  maxTokens: z.number().optional(),
 });
 
-router.post('/detect-text', async (req: Request, res: Response): Promise<void> => {
-  const { image } = req.body;
-
-  const imageError = validateImageInput(image);
-  if (imageError) {
-    res.status(400).json({ error: imageError });
-    return;
-  }
-
-  try {
-    const result = await visionService.detectTextContent(image);
-    res.json(result);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    log.error('[vision/detect-text] Error:', message);
-    res.status(500).json({ error: 'Texterkennung fehlgeschlagen', details: message });
-  }
+const detectTextSchema = z.object({
+  image: imageSchema,
 });
 
-router.post('/ocr', async (req: Request, res: Response): Promise<void> => {
-  const { image, mimeType } = req.body;
+const ocrSchema = z.object({
+  image: imageSchema,
+  mimeType: z.string().optional(),
+});
 
-  const imageError = validateImageInput(image);
-  if (imageError) {
-    res.status(400).json({ error: imageError });
-    return;
-  }
+const altTextSchema = z.object({
+  image: imageSchema,
+  context: z.string().optional(),
+  provider: z.string().optional(),
+  model: z.string().optional(),
+});
 
-  try {
-    let base64Data = image as string;
-    let resolvedMimeType = (mimeType as string) || 'image/jpeg';
+router.post(
+  '/analyze',
+  validateBody(analyzeSchema),
+  async (req: TypedRequest<z.infer<typeof analyzeSchema>>, res: Response): Promise<void> => {
+    const { image, instruction, provider, model, maxTokens } = req.body;
 
-    if (base64Data.startsWith('data:')) {
-      const match = base64Data.match(/^data:(image\/[^;]+);base64,(.+)$/s);
-      if (match) {
-        resolvedMimeType = match[1];
-        base64Data = match[2];
-      }
+    try {
+      const options = {
+        provider: provider as ProviderName | undefined,
+        model: model as string | undefined,
+        maxTokens: maxTokens as number | undefined,
+      };
+
+      const result = await visionService.analyzeWithOcr(image, instruction, options);
+
+      res.json({
+        description: result.description,
+        textDetection: result.textDetection,
+        extractedText: result.extractedText,
+        ocrMethod: result.ocrMethod ?? null,
+        model: options.model ?? process.env.VISION_DEFAULT_MODEL ?? 'gemma4-31b',
+        provider: options.provider ?? 'regolo',
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      log.error('[vision/analyze] Error:', message);
+      res.status(500).json({ error: 'Bildanalyse fehlgeschlagen', details: message });
     }
-
-    const result = await ocrService.extractTextFromBase64(
-      base64Data,
-      'image.jpg',
-      resolvedMimeType
-    );
-
-    res.json({
-      text: result.text,
-      method: result.method,
-      confidence: result.confidence ?? null,
-      pageCount: result.pageCount,
-    });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    log.error('[vision/ocr] Error:', message);
-    res.status(500).json({ error: 'OCR-Extraktion fehlgeschlagen', details: message });
   }
-});
+);
 
-router.post('/alt-text', async (req: Request, res: Response): Promise<void> => {
-  const { image, context, provider, model } = req.body;
+router.post(
+  '/detect-text',
+  validateBody(detectTextSchema),
+  async (req: TypedRequest<z.infer<typeof detectTextSchema>>, res: Response): Promise<void> => {
+    const { image } = req.body;
 
-  const imageError = validateImageInput(image);
-  if (imageError) {
-    res.status(400).json({ error: imageError });
-    return;
+    try {
+      const result = await visionService.detectTextContent(image);
+      res.json(result);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      log.error('[vision/detect-text] Error:', message);
+      res.status(500).json({ error: 'Texterkennung fehlgeschlagen', details: message });
+    }
   }
+);
 
-  try {
-    const options = {
-      provider: provider as ProviderName | undefined,
-      model: model as string | undefined,
-    };
+router.post(
+  '/ocr',
+  validateBody(ocrSchema),
+  async (req: TypedRequest<z.infer<typeof ocrSchema>>, res: Response): Promise<void> => {
+    const { image, mimeType } = req.body;
 
-    const altText = await visionService.generateAltText(
-      image,
-      context as string | undefined,
-      options
-    );
+    try {
+      let base64Data = image;
+      let resolvedMimeType = mimeType || 'image/jpeg';
 
-    res.json({
-      altText,
-      model: options.model ?? process.env.VISION_DEFAULT_MODEL ?? 'gemma4-31b',
-      provider: options.provider ?? 'regolo',
-    });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    log.error('[vision/alt-text] Error:', message);
-    res.status(500).json({ error: 'Alt-Text-Generierung fehlgeschlagen', details: message });
+      if (base64Data.startsWith('data:')) {
+        const match = base64Data.match(/^data:(image\/[^;]+);base64,(.+)$/s);
+        if (match) {
+          resolvedMimeType = match[1];
+          base64Data = match[2];
+        }
+      }
+
+      const result = await ocrService.extractTextFromBase64(
+        base64Data,
+        'image.jpg',
+        resolvedMimeType
+      );
+
+      res.json({
+        text: result.text,
+        method: result.method,
+        confidence: result.confidence ?? null,
+        pageCount: result.pageCount,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      log.error('[vision/ocr] Error:', message);
+      res.status(500).json({ error: 'OCR-Extraktion fehlgeschlagen', details: message });
+    }
   }
-});
+);
+
+router.post(
+  '/alt-text',
+  validateBody(altTextSchema),
+  async (req: TypedRequest<z.infer<typeof altTextSchema>>, res: Response): Promise<void> => {
+    const { image, context, provider, model } = req.body;
+
+    try {
+      const options = {
+        provider: provider as ProviderName | undefined,
+        model: model as string | undefined,
+      };
+
+      const altText = await visionService.generateAltText(image, context, options);
+
+      res.json({
+        altText,
+        model: options.model ?? process.env.VISION_DEFAULT_MODEL ?? 'gemma4-31b',
+        provider: options.provider ?? 'regolo',
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      log.error('[vision/alt-text] Error:', message);
+      res.status(500).json({ error: 'Alt-Text-Generierung fehlgeschlagen', details: message });
+    }
+  }
+);
 
 router.get('/models', async (_req: Request, res: Response): Promise<void> => {
   try {

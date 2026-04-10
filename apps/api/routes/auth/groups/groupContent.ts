@@ -221,7 +221,7 @@ router.post(
   ensureAuthenticated,
   validateBody(groupContentShareSchema),
   async (
-    req: AuthRequest<{ groupId: string }> & TypedRequest<GroupContentShareBody>,
+    req: TypedRequest<GroupContentShareBody, { groupId: string }>,
     res: Response
   ): Promise<void> => {
     try {
@@ -368,7 +368,7 @@ router.delete(
   ensureAuthenticated,
   validateBody(groupContentUnshareSchema),
   async (
-    req: AuthRequest<{ groupId: string }> & TypedRequest<GroupContentUnshareBody>,
+    req: TypedRequest<GroupContentUnshareBody, { groupId: string }>,
     res: Response
   ): Promise<void> => {
     try {
@@ -786,7 +786,7 @@ router.delete(
   ensureAuthenticated,
   validateBody(groupContentDeleteSchema),
   async (
-    req: AuthRequest<{ groupId: string; contentId: string }> & TypedRequest<GroupContentDeleteBody>,
+    req: TypedRequest<GroupContentDeleteBody, { groupId: string; contentId: string }>,
     res: Response
   ): Promise<void> => {
     try {
