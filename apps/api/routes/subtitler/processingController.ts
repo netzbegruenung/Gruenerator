@@ -432,331 +432,339 @@ router.get(
 );
 
 // POST /export - Export video with subtitles
-router.post('/export', async (req: SubtitlerRequest, res: Response): Promise<void> => {
-  const body = req.body as ExportBody;
-  const {
-    uploadId,
-    subtitles,
-    subtitlePreference = 'manual',
-    stylePreference = 'standard',
-    heightPreference = 'standard',
-    locale = 'de-DE',
-    maxResolution = null,
-    projectId = null,
-    userId = null,
-    textOverlays = [],
-  } = body;
+router.post(
+  '/export',
+  validateBody(exportBodySchema),
+  async (req: SubtitlerRequest & TypedRequest<ExportBody>, res: Response): Promise<void> => {
+    const {
+      uploadId,
+      subtitles,
+      subtitlePreference = 'manual',
+      stylePreference = 'standard',
+      heightPreference = 'standard',
+      locale = 'de-DE',
+      maxResolution = null,
+      projectId = null,
+      userId = null,
+      textOverlays = [],
+    } = req.body;
 
-  if (!subtitles && (!textOverlays || textOverlays.length === 0)) {
-    res.status(400).json({ error: 'Untertitel oder Text-Overlays benötigt' });
-    return;
-  }
+    if (!subtitles && (!textOverlays || textOverlays.length === 0)) {
+      res.status(400).json({ error: 'Untertitel oder Text-Overlays benötigt' });
+      return;
+    }
 
-  const exportToken = uuidv4();
-  let inputPath: string | null = null;
-  let originalFilename = 'video.mp4';
+    const exportToken = uuidv4();
+    let inputPath: string | null = null;
+    let originalFilename = 'video.mp4';
 
-  try {
-    // Try project first
-    if (projectId && userId) {
-      try {
-        const { getSubtitlerProjectService } = await import('../../services/subtitler/index.js');
-        const ps = getSubtitlerProjectService();
-        await ps.ensureInitialized();
-        const proj = await ps.getProject(userId, projectId);
-        if (proj?.video_path) {
-          inputPath = ps.getVideoPath(proj.video_path);
-          originalFilename = proj.video_filename || 'video.mp4';
+    try {
+      // Try project first
+      if (projectId && userId) {
+        try {
+          const { getSubtitlerProjectService } = await import('../../services/subtitler/index.js');
+          const ps = getSubtitlerProjectService();
+          await ps.ensureInitialized();
+          const proj = await ps.getProject(userId, projectId);
+          if (proj?.video_path) {
+            inputPath = ps.getVideoPath(proj.video_path);
+            originalFilename = proj.video_filename || 'video.mp4';
+          }
+        } catch {
+          /* ignored */
         }
+      }
+      if (!inputPath && uploadId) {
+        inputPath = getFilePathFromUploadId(uploadId);
+        originalFilename = await getOriginalFilename(uploadId);
+      }
+      if (!inputPath) {
+        res.status(400).json({ error: 'Upload-ID oder Projekt-ID benötigt' });
+        return;
+      }
+      if (!(await checkFileExists(inputPath))) {
+        res.status(404).json({ error: 'Video nicht gefunden' });
+        return;
+      }
+
+      await checkFont();
+      const metadata = await getVideoMetadata(inputPath);
+      const fileStats = await fsPromises.stat(inputPath);
+      const outputDir = path.join(__dirname, '../../uploads/exports');
+      await fsPromises.mkdir(outputDir, { recursive: true });
+      const outputPath = path.join(
+        outputDir,
+        `${path.basename(originalFilename, path.extname(originalFilename))}_${Date.now()}.mp4`
+      );
+      let segments: { startTime: number; endTime: number; text: string }[];
+      if (Array.isArray(subtitles)) {
+        segments = (subtitles as unknown as Array<Record<string, unknown>>)
+          .map((s) => ({
+            startTime: Number(s['start'] ?? s['startTime'] ?? 0),
+            endTime: Number(s['end'] ?? s['endTime'] ?? 0),
+            text: String(s['text'] ?? ''),
+          }))
+          .filter((s) => s.text && s.endTime > s.startTime)
+          .sort((a, b) => a.startTime - b.startTime);
+        if (segments.length === 0) {
+          throw new Error('Keine gültigen Untertitel-Segmente gefunden');
+        }
+      } else if (subtitles) {
+        segments = processSubtitleSegments(subtitles);
+      } else {
+        segments = [];
+      }
+      const { finalFontSize } = calculateFontSizing(metadata, segments);
+
+      // Generate ASS
+      let assFilePath: string | null = null,
+        tempFontPath: string | null = null;
+      try {
+        const cacheKey = `${uploadId}_${subtitlePreference}_${stylePreference}_${heightPreference}_${locale}_${metadata.width}x${metadata.height}`;
+        let assContent = await assService.getCachedAssContent(cacheKey);
+        if (!assContent) {
+          const opts = {
+            fontSize: Math.floor(finalFontSize / 2),
+            marginL: 10,
+            marginR: 10,
+            marginV:
+              subtitlePreference === 'word'
+                ? Math.floor(metadata.height * 0.5)
+                : heightPreference === 'tief'
+                  ? Math.floor(metadata.height * 0.2)
+                  : Math.floor(metadata.height * 0.33),
+            alignment: subtitlePreference === 'word' ? 5 : 2,
+          };
+          const duration =
+            typeof metadata.duration === 'string'
+              ? parseFloat(metadata.duration)
+              : metadata.duration;
+          const assMetadata = {
+            width: metadata.width,
+            height: metadata.height,
+            ...(duration != null && { duration }),
+          };
+          assContent = assService.generateAssContent(
+            segments,
+            assMetadata,
+            opts,
+            subtitlePreference,
+            stylePreference,
+            locale,
+            heightPreference,
+            textOverlays as AssTextOverlay[]
+          ).content;
+          await assService.cacheAssContent(cacheKey, assContent);
+        }
+        assFilePath = await assService.createTempAssFile(assContent, uploadId || 'temp');
+        const effStyle = assService.mapStyleForLocale(stylePreference, locale);
+        const srcFont = assService.getFontPathForStyle(effStyle);
+        tempFontPath = path.join(path.dirname(assFilePath), path.basename(srcFont));
+        await fsPromises.copyFile(srcFont, tempFontPath).catch(() => {
+          tempFontPath = null;
+        });
       } catch {
         /* ignored */
       }
+
+      await redisClient.set(
+        `export:${exportToken}`,
+        JSON.stringify({ status: 'exporting', progress: 0 }),
+        { EX: 3600 }
+      );
+      res.status(202).json({ status: 'exporting', exportToken });
+
+      const exportSegments = segments.map(
+        (s: { text: string; startTime: number; endTime: number }) => ({
+          text: s.text,
+          start: s.startTime,
+          end: s.endTime,
+        })
+      );
+      const exportMetadata = {
+        width: metadata.width,
+        height: metadata.height,
+        duration: metadata.duration ?? '',
+      };
+      processVideoExportInBackground({
+        inputPath,
+        outputPath,
+        segments: exportSegments,
+        metadata: exportMetadata,
+        fileStats: { size: fileStats.size },
+        exportToken,
+        subtitlePreference,
+        stylePreference,
+        heightPreference,
+        locale,
+        maxResolution,
+        finalFontSize,
+        uploadId: uploadId || '',
+        originalFilename,
+        assFilePath,
+        tempFontPath,
+        projectId,
+        userId,
+        textOverlays: textOverlays as AssTextOverlay[],
+      }).catch((e: Error) => log.error(`Background export failed: ${e.message}`));
+    } catch (e: unknown) {
+      if (!res.headersSent)
+        res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
     }
-    if (!inputPath && uploadId) {
-      inputPath = getFilePathFromUploadId(uploadId);
-      originalFilename = await getOriginalFilename(uploadId);
-    }
-    if (!inputPath) {
+  }
+);
+
+// POST /export-segments
+router.post(
+  '/export-segments',
+  validateBody(exportSegmentsRequestSchema),
+  async (
+    req: SubtitlerRequest & TypedRequest<ExportSegmentsRequestBody>,
+    res: Response
+  ): Promise<void> => {
+    const { uploadId, projectId, segments, includeSubtitles, subtitleConfig } = req.body;
+    if (!uploadId && !projectId) {
       res.status(400).json({ error: 'Upload-ID oder Projekt-ID benötigt' });
       return;
     }
-    if (!(await checkFileExists(inputPath))) {
-      res.status(404).json({ error: 'Video nicht gefunden' });
-      return;
-    }
-
-    await checkFont();
-    const metadata = await getVideoMetadata(inputPath);
-    const fileStats = await fsPromises.stat(inputPath);
-    const outputDir = path.join(__dirname, '../../uploads/exports');
-    await fsPromises.mkdir(outputDir, { recursive: true });
-    const outputPath = path.join(
-      outputDir,
-      `${path.basename(originalFilename, path.extname(originalFilename))}_${Date.now()}.mp4`
-    );
-    let segments: { startTime: number; endTime: number; text: string }[];
-    if (Array.isArray(subtitles)) {
-      segments = (subtitles as unknown as Array<Record<string, unknown>>)
-        .map((s) => ({
-          startTime: Number(s['start'] ?? s['startTime'] ?? 0),
-          endTime: Number(s['end'] ?? s['endTime'] ?? 0),
-          text: String(s['text'] ?? ''),
-        }))
-        .filter((s) => s.text && s.endTime > s.startTime)
-        .sort((a, b) => a.startTime - b.startTime);
-      if (segments.length === 0) {
-        throw new Error('Keine gültigen Untertitel-Segmente gefunden');
-      }
-    } else if (subtitles) {
-      segments = processSubtitleSegments(subtitles);
-    } else {
-      segments = [];
-    }
-    const { finalFontSize } = calculateFontSizing(metadata, segments);
-
-    // Generate ASS
-    let assFilePath: string | null = null,
-      tempFontPath: string | null = null;
     try {
-      const cacheKey = `${uploadId}_${subtitlePreference}_${stylePreference}_${heightPreference}_${locale}_${metadata.width}x${metadata.height}`;
-      let assContent = await assService.getCachedAssContent(cacheKey);
-      if (!assContent) {
-        const opts = {
-          fontSize: Math.floor(finalFontSize / 2),
-          marginL: 10,
-          marginR: 10,
-          marginV:
-            subtitlePreference === 'word'
-              ? Math.floor(metadata.height * 0.5)
-              : heightPreference === 'tief'
-                ? Math.floor(metadata.height * 0.2)
-                : Math.floor(metadata.height * 0.33),
-          alignment: subtitlePreference === 'word' ? 5 : 2,
-        };
-        const duration =
-          typeof metadata.duration === 'string' ? parseFloat(metadata.duration) : metadata.duration;
-        const assMetadata = {
-          width: metadata.width,
-          height: metadata.height,
-          ...(duration != null && { duration }),
-        };
-        assContent = assService.generateAssContent(
-          segments,
-          assMetadata,
-          opts,
-          subtitlePreference,
-          stylePreference,
-          locale,
-          heightPreference,
-          textOverlays as AssTextOverlay[]
-        ).content;
-        await assService.cacheAssContent(cacheKey, assContent);
+      let videoPath: string;
+      if (projectId) {
+        const { default: SubtitlerProjectService } =
+          await import('../../services/subtitler/ProjectService.js');
+        const ps = new SubtitlerProjectService();
+        const proj = await ps.getProjectById(projectId);
+        if (!proj) {
+          res.status(404).json({ error: 'Projekt nicht gefunden' });
+          return;
+        }
+        videoPath = ps.getVideoPath(proj.video_path);
+      } else {
+        videoPath = getFilePathFromUploadId(uploadId!);
       }
-      assFilePath = await assService.createTempAssFile(assContent, uploadId || 'temp');
-      const effStyle = assService.mapStyleForLocale(stylePreference, locale);
-      const srcFont = assService.getFontPathForStyle(effStyle);
-      tempFontPath = path.join(path.dirname(assFilePath), path.basename(srcFont));
-      await fsPromises.copyFile(srcFont, tempFontPath).catch(() => {
-        tempFontPath = null;
-      });
-    } catch {
-      /* ignored */
-    }
-
-    await redisClient.set(
-      `export:${exportToken}`,
-      JSON.stringify({ status: 'exporting', progress: 0 }),
-      { EX: 3600 }
-    );
-    res.status(202).json({ status: 'exporting', exportToken });
-
-    const exportSegments = segments.map(
-      (s: { text: string; startTime: number; endTime: number }) => ({
-        text: s.text,
-        start: s.startTime,
-        end: s.endTime,
-      })
-    );
-    const exportMetadata = {
-      width: metadata.width,
-      height: metadata.height,
-      duration: metadata.duration ?? '',
-    };
-    processVideoExportInBackground({
-      inputPath,
-      outputPath,
-      segments: exportSegments,
-      metadata: exportMetadata,
-      fileStats: { size: fileStats.size },
-      exportToken,
-      subtitlePreference,
-      stylePreference,
-      heightPreference,
-      locale,
-      maxResolution,
-      finalFontSize,
-      uploadId: uploadId || '',
-      originalFilename,
-      assFilePath,
-      tempFontPath,
-      projectId,
-      userId,
-      textOverlays: textOverlays as AssTextOverlay[],
-    }).catch((e: Error) => log.error(`Background export failed: ${e.message}`));
-  } catch (e: unknown) {
-    if (!res.headersSent)
-      res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
-  }
-});
-
-// POST /export-segments
-router.post('/export-segments', async (req: SubtitlerRequest, res: Response): Promise<void> => {
-  const { uploadId, projectId, segments, includeSubtitles, subtitleConfig } =
-    req.body as ExportSegmentsRequestBody;
-  if (!uploadId && !projectId) {
-    res.status(400).json({ error: 'Upload-ID oder Projekt-ID benötigt' });
-    return;
-  }
-  if (!segments?.length) {
-    res.status(400).json({ error: 'Keine Segmente' });
-    return;
-  }
-
-  try {
-    let videoPath: string;
-    if (projectId) {
-      const { default: SubtitlerProjectService } =
-        await import('../../services/subtitler/ProjectService.js');
-      const ps = new SubtitlerProjectService();
-      const proj = await ps.getProjectById(projectId);
-      if (!proj) {
-        res.status(404).json({ error: 'Projekt nicht gefunden' });
+      if (!(await checkFileExists(videoPath))) {
+        res.status(404).json({ error: 'Video nicht gefunden' });
         return;
       }
-      videoPath = ps.getVideoPath(proj.video_path);
-    } else {
-      videoPath = getFilePathFromUploadId(uploadId!);
-    }
-    if (!(await checkFileExists(videoPath))) {
-      res.status(404).json({ error: 'Video nicht gefunden' });
-      return;
-    }
 
-    const svc = await import('../../services/subtitler/segmentExportService.js');
-    const resolvedProjectId = projectId || uploadId;
-    const result =
-      includeSubtitles && subtitleConfig
-        ? await svc.exportWithSegmentsAndSubtitles(
-            videoPath,
-            segments,
-            subtitleConfig as unknown as Parameters<typeof svc.exportWithSegmentsAndSubtitles>[2],
-            { ...(resolvedProjectId != null && { projectId: resolvedProjectId }) }
-          )
-        : await svc.exportWithSegments(videoPath, segments, {
-            ...(resolvedProjectId != null && { projectId: resolvedProjectId }),
-          });
-    res.status(202).json({ exportToken: result.exportToken, segmentCount: result.segmentCount });
-  } catch (e: unknown) {
-    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+      const svc = await import('../../services/subtitler/segmentExportService.js');
+      const resolvedProjectId = projectId || uploadId;
+      const result =
+        includeSubtitles && subtitleConfig
+          ? await svc.exportWithSegmentsAndSubtitles(
+              videoPath,
+              segments,
+              subtitleConfig as unknown as Parameters<typeof svc.exportWithSegmentsAndSubtitles>[2],
+              { ...(resolvedProjectId != null && { projectId: resolvedProjectId }) }
+            )
+          : await svc.exportWithSegments(videoPath, segments, {
+              ...(resolvedProjectId != null && { projectId: resolvedProjectId }),
+            });
+      res.status(202).json({ exportToken: result.exportToken, segmentCount: result.segmentCount });
+    } catch (e: unknown) {
+      res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+    }
   }
-});
+);
 
 // POST /process-auto
-router.post('/process-auto', async (req: SubtitlerRequest, res: Response): Promise<void> => {
-  const body = req.body as AutoProcessRequestBody;
-  const { uploadId, locale = 'de-DE', maxResolution = null, userId = null } = body;
-  if (!uploadId) {
-    res.status(400).json({ error: 'Keine Upload-ID' });
-    return;
-  }
+router.post(
+  '/process-auto',
+  validateBody(autoProcessRequestSchema),
+  async (
+    req: SubtitlerRequest & TypedRequest<AutoProcessRequestBody>,
+    res: Response
+  ): Promise<void> => {
+    const { uploadId, locale = 'de-DE', maxResolution = null, userId = null } = req.body;
 
-  try {
-    const videoPath = getFilePathFromUploadId(uploadId);
-    if (!(await checkFileExists(videoPath))) {
-      res.status(404).json({ error: 'Video nicht gefunden' });
-      return;
-    }
-    const originalFilename = (await getOriginalFilename(uploadId)) || 'video.mp4';
+    try {
+      const videoPath = getFilePathFromUploadId(uploadId);
+      if (!(await checkFileExists(videoPath))) {
+        res.status(404).json({ error: 'Video nicht gefunden' });
+        return;
+      }
+      const originalFilename = (await getOriginalFilename(uploadId)) || 'video.mp4';
 
-    await redisClient.set(
-      `auto:${uploadId}`,
-      JSON.stringify({ status: 'processing', stage: 1, stageProgress: 0, overallProgress: 0 }),
-      { EX: 3600 }
-    );
+      await redisClient.set(
+        `auto:${uploadId}`,
+        JSON.stringify({ status: 'processing', stage: 1, stageProgress: 0, overallProgress: 0 }),
+        { EX: 3600 }
+      );
 
-    res.status(202).json({ status: 'processing' });
+      res.status(202).json({ status: 'processing' });
 
-    processVideoAutomatically(videoPath, uploadId, {
-      stylePreference: 'shadow',
-      heightPreference: 'tief',
-      locale,
-      maxResolution,
-      ...(userId != null && { userId }),
-      originalFilename,
-    })
-      .then(async (result: ProcessingResult) => {
-        let savedProjectId: string | null = null;
-        if (userId) {
-          try {
-            const r = await autoSaveProject({
-              userId,
-              outputPath: result.outputPath,
-              originalVideoPath: videoPath,
-              uploadId,
-              originalFilename,
-              segments: result.segments as unknown as Parameters<
-                typeof autoSaveProject
-              >[0]['segments'],
-              metadata: result.metadata as unknown as Parameters<
-                typeof autoSaveProject
-              >[0]['metadata'],
-              stylePreference: 'shadow',
-              heightPreference: 'tief',
-              subtitlePreference: 'manual',
-              exportToken: result.autoProcessToken,
-            });
-            savedProjectId = r.projectId;
-          } catch {
-            /* ignored */
-          }
-
-          if (savedProjectId && result.outputPath) {
+      processVideoAutomatically(videoPath, uploadId, {
+        stylePreference: 'shadow',
+        heightPreference: 'tief',
+        locale,
+        maxResolution,
+        ...(userId != null && { userId }),
+        originalFilename,
+      })
+        .then(async (result: ProcessingResult) => {
+          let savedProjectId: string | null = null;
+          if (userId) {
             try {
-              const shareService = getSharedMediaService();
-              await shareService.createVideoShare(userId, {
-                videoPath: result.outputPath,
-                title: originalFilename.replace(/\.[^.]+$/, ''),
-                duration: result.duration,
-                projectId: savedProjectId,
+              const r = await autoSaveProject({
+                userId,
+                outputPath: result.outputPath,
+                originalVideoPath: videoPath,
+                uploadId,
+                originalFilename,
+                segments: result.segments as unknown as Parameters<
+                  typeof autoSaveProject
+                >[0]['segments'],
+                metadata: result.metadata as unknown as Parameters<
+                  typeof autoSaveProject
+                >[0]['metadata'],
+                stylePreference: 'shadow',
+                heightPreference: 'tief',
+                subtitlePreference: 'manual',
+                exportToken: result.autoProcessToken,
               });
-            } catch (shareErr: unknown) {
-              log.warn(
-                `Auto-share creation failed: ${shareErr instanceof Error ? shareErr.message : String(shareErr)}`
-              );
+              savedProjectId = r.projectId;
+            } catch {
+              /* ignored */
+            }
+
+            if (savedProjectId && result.outputPath) {
+              try {
+                const shareService = getSharedMediaService();
+                await shareService.createVideoShare(userId, {
+                  videoPath: result.outputPath,
+                  title: originalFilename.replace(/\.[^.]+$/, ''),
+                  duration: result.duration,
+                  projectId: savedProjectId,
+                });
+              } catch (shareErr: unknown) {
+                log.warn(
+                  `Auto-share creation failed: ${shareErr instanceof Error ? shareErr.message : String(shareErr)}`
+                );
+              }
             }
           }
-        }
-        await redisClient.set(
-          `auto:${uploadId}`,
-          JSON.stringify({
-            status: 'complete',
-            stage: 5,
-            stageProgress: 100,
-            overallProgress: 100,
-            outputPath: result.outputPath,
-            duration: result.duration,
-            projectId: savedProjectId,
-            subtitles: result.subtitles,
-          }),
-          { EX: 3600 }
-        );
-      })
-      .catch((e: Error) => log.error(`Auto-process failed: ${e.message}`));
-  } catch (e: unknown) {
-    if (!res.headersSent)
-      res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+          await redisClient.set(
+            `auto:${uploadId}`,
+            JSON.stringify({
+              status: 'complete',
+              stage: 5,
+              stageProgress: 100,
+              overallProgress: 100,
+              outputPath: result.outputPath,
+              duration: result.duration,
+              projectId: savedProjectId,
+              subtitles: result.subtitles,
+            }),
+            { EX: 3600 }
+          );
+        })
+        .catch((e: Error) => log.error(`Auto-process failed: ${e.message}`));
+    } catch (e: unknown) {
+      if (!res.headersSent)
+        res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+    }
   }
-});
+);
 
 // GET /auto-progress/:uploadId
 router.get(
