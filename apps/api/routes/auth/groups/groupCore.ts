@@ -175,7 +175,7 @@ router.post(
   '/groups',
   ensureAuthenticated,
   validateBody(groupCreateSchema),
-  async (req: AuthRequest & TypedRequest<GroupCreateBody>, res: Response): Promise<void> => {
+  async (req: TypedRequest<GroupCreateBody>, res: Response): Promise<void> => {
     try {
       const { name } = req.body as GroupCreateBody;
 
@@ -401,7 +401,7 @@ router.post(
   '/groups/join',
   ensureAuthenticated,
   validateBody(groupJoinSchema),
-  async (req: AuthRequest & TypedRequest<GroupJoinBody>, res: Response): Promise<void> => {
+  async (req: TypedRequest<GroupJoinBody>, res: Response): Promise<void> => {
     try {
       const { joinToken } = req.body as GroupJoinBody;
       const userId = req.user!.id;
@@ -545,7 +545,7 @@ router.put(
   ensureAuthenticated,
   validateBody(groupInfoUpdateSchema),
   async (
-    req: AuthRequest<{ groupId: string }> & TypedRequest<GroupInfoUpdateBody>,
+    req: TypedRequest<GroupInfoUpdateBody, { groupId: string }>,
     res: Response
   ): Promise<void> => {
     try {
@@ -648,10 +648,7 @@ router.put(
   '/groups/:groupId/name',
   ensureAuthenticated,
   validateBody(groupUpdateSchema),
-  async (
-    req: AuthRequest<{ groupId: string }> & TypedRequest<GroupUpdateBody>,
-    res: Response
-  ): Promise<void> => {
+  async (req: TypedRequest<GroupUpdateBody, { groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
@@ -759,7 +756,7 @@ router.put(
   ensureAuthenticated,
   validateBody(groupMemberRoleSchema),
   async (
-    req: AuthRequest<{ groupId: string; memberId: string }> & TypedRequest<GroupMemberRoleBody>,
+    req: TypedRequest<GroupMemberRoleBody, { groupId: string; memberId: string }>,
     res: Response
   ): Promise<void> => {
     try {
@@ -852,10 +849,7 @@ router.post(
   '/groups/:groupId/links',
   ensureAuthenticated,
   validateBody(groupLinkSchema),
-  async (
-    req: AuthRequest<{ groupId: string }> & TypedRequest<GroupLinkBody>,
-    res: Response
-  ): Promise<void> => {
+  async (req: TypedRequest<GroupLinkBody, { groupId: string }>, res: Response): Promise<void> => {
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
@@ -907,7 +901,7 @@ router.put(
   ensureAuthenticated,
   validateBody(groupLinkSchema),
   async (
-    req: AuthRequest<{ groupId: string; linkId: string }> & TypedRequest<GroupLinkBody>,
+    req: TypedRequest<GroupLinkBody, { groupId: string; linkId: string }>,
     res: Response
   ): Promise<void> => {
     try {

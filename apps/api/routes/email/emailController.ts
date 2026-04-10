@@ -5,8 +5,6 @@ import { validateBody, type TypedRequest } from '../../middleware/validateBody.j
 import { sendContentDeliveryEmail } from '../../services/email/index.js';
 import { createLogger } from '../../utils/logger.js';
 
-import type { AuthenticatedRequest } from '../../middleware/types.js';
-
 const log = createLogger('email-route');
 const router = Router();
 
@@ -36,7 +34,7 @@ type SendContentBody = z.infer<typeof sendContentSchema>;
 router.post(
   '/send-content',
   validateBody(sendContentSchema),
-  async (req: AuthenticatedRequest & TypedRequest<SendContentBody>, res: Response) => {
+  async (req: TypedRequest<SendContentBody>, res: Response) => {
     try {
       const userId = req.user?.id;
       if (!userId) {

@@ -52,6 +52,7 @@ import {
   type SearxngAIWorkerPool,
 } from '../../services/search/index.js';
 import { withErrorHandler } from '../../utils/errors/index.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
@@ -59,7 +60,6 @@ import mistralClient from '../../workers/mistralClient.js';
 
 import type { AIWorkerPool as ChatAIWorkerPool } from '../../agents/chat/types.js';
 import type { UserProfile } from '../../services/user/types.js';
-import type { AIWorkerPool } from '../../workers/types.js';
 
 /** Zod schema for the POST body for the main chat endpoint */
 const chatRequestSchema = z.object({
@@ -93,9 +93,6 @@ const log = createLogger('grueneratorChat');
 const getUser = (req: express.Request): UserProfile | undefined =>
   req.user as UserProfile | undefined;
 
-/** Safely extract the AI worker pool from Express app locals */
-const getAIWorkerPool = (req: express.Request): AIWorkerPool =>
-  (req.app.locals as Record<string, unknown>).aiWorkerPool as AIWorkerPool;
 const router = createAuthenticatedRouter();
 router.use(express.json({ limit: '50mb' }));
 
@@ -118,10 +115,7 @@ router.post(
   '/',
   validateBody(chatRequestSchema),
   withErrorHandler(
-    async (
-      req: TypedRequest<ChatRequestBody> & express.Request,
-      res: express.Response
-    ): Promise<void> => {
+    async (req: TypedRequest<ChatRequestBody>, res: express.Response): Promise<void> => {
       const {
         message,
         context = {},
@@ -353,9 +347,9 @@ router.post(
  */
 interface ChatAttachment {
   type: string;
-  name?: string;
-  content?: string;
-  url?: string;
+  name?: string | undefined;
+  content?: string | undefined;
+  url?: string | undefined;
 }
 
 interface ChatDocument {

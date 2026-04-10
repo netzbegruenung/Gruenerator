@@ -119,10 +119,7 @@ router.post(
   '/',
   requireAuth,
   validateBody(createShareSchema),
-  async (
-    req: AuthenticatedRequest & TypedRequest<CreateShareBody>,
-    res: Response
-  ): Promise<void> => {
+  async (req: TypedRequest<CreateShareBody>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { exportToken, title, projectId, expiresInDays = 7 } = req.body;
@@ -177,10 +174,7 @@ router.post(
   '/from-project',
   requireAuth,
   validateBody(createShareFromProjectSchema),
-  async (
-    req: AuthenticatedRequest & TypedRequest<CreateShareFromProjectBody>,
-    res: Response
-  ): Promise<void> => {
+  async (req: TypedRequest<CreateShareFromProjectBody>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { projectId, title, expiresInDays = 7 } = req.body;
