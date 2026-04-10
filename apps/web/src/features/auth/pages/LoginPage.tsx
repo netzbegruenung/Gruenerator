@@ -55,7 +55,7 @@ const LoginPage = ({
   const { loading, isAuthenticated, setLoginIntent } = useInstantAuth();
 
   const intendedRedirect =
-    mode === 'required' ? location.pathname : getIntendedRedirect(location, '/profile');
+    mode === 'required' ? location.pathname : getIntendedRedirect(location, '/desk');
 
   const isMobileApp = isMobileAppContext(location);
 
