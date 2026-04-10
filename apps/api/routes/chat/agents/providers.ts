@@ -87,7 +87,7 @@ let regoloInstance: ReturnType<typeof createOpenAI> | null = null;
 function getMistralProvider() {
   if (!mistralInstance) {
     mistralInstance = createMistral({
-      apiKey: process.env.MISTRAL_API_KEY,
+      ...(process.env.MISTRAL_API_KEY && { apiKey: process.env.MISTRAL_API_KEY }),
     });
   }
   return mistralInstance;

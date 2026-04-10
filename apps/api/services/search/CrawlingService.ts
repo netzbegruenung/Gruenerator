@@ -103,22 +103,26 @@ export async function selectAndCrawlTopUrls<T extends CrawlableResult>(
   log.info(`[Crawl] Complete: ${successCount}/${crawlCandidates.length} successful`);
 
   // Merge crawled content back into results
-  return results.map((result) => {
+  const mergedResults: (T & CrawledResult)[] = results.map((result) => {
     if (result.url && crawlUrlSet.has(result.url)) {
       const crawled = crawlMap.get(result.url);
       if (crawled?.crawled && crawled.fullContent) {
-        return {
+        const successResult: T & CrawledResult = {
           ...result,
           fullContent: crawled.fullContent,
           crawled: true,
-        };
+        } as T & CrawledResult;
+        return successResult;
       }
-      return {
+      const failedResult: T & CrawledResult = {
         ...result,
         crawled: false,
-        crawlError: crawled?.crawlError,
+        ...(crawled?.crawlError ? { crawlError: crawled.crawlError } : {}),
       };
+      return failedResult;
     }
-    return { ...result, crawled: false };
+    const uncrawledResult: T & CrawledResult = { ...result, crawled: false } as T & CrawledResult;
+    return uncrawledResult;
   });
+  return mergedResults;
 }

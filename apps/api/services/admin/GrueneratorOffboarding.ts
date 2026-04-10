@@ -59,14 +59,17 @@ export class GrueneratorOffboarding {
     try {
       // Try to find user by email first (most common case)
       if (user.email) {
-        const profile = await this.profileService.getProfileByEmail(user.email);
-        if (profile) return profile;
+        const profileByEmail: UserProfile | null = (await this.profileService.getProfileByEmail(
+          user.email
+        )) as UserProfile | null;
+        if (profileByEmail) return profileByEmail;
       }
 
       // Try to find by keycloak_id (mapped from sherpa_id)
       if (user.sherpa_id) {
-        const profile = await this.profileService.getProfileByKeycloakId(user.sherpa_id);
-        if (profile) return profile;
+        const profileByKeycloak: UserProfile | null =
+          (await this.profileService.getProfileByKeycloakId(user.sherpa_id)) as UserProfile | null;
+        if (profileByKeycloak) return profileByKeycloak;
       }
 
       // Try other identifiers using PostgreSQL database

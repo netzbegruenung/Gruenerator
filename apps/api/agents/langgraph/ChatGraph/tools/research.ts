@@ -16,6 +16,7 @@ import type { ToolDependencies } from './registry.js';
 const log = createLogger('Tool:Research');
 
 export function createResearchTool(_deps: ToolDependencies): DynamicStructuredTool {
+    // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'research',
     description:
@@ -28,9 +29,10 @@ export function createResearchTool(_deps: ToolDependencies): DynamicStructuredTo
         .enum(['quick', 'thorough'])
         .optional()
         .describe('Recherchetiefe: "quick" (Standard) oder "thorough" für umfassendere Suche'),
-    }),
-    func: async ({ query, depth }) => {
-      const searchDepth = depth || 'quick';
+    }).describe('Web Recherche'),
+    func: async (input: { query: string; depth?: 'quick' | 'thorough' }) => {
+      const { query, depth } = input;
+      const searchDepth: 'quick' | 'thorough' = (depth || 'quick') as 'quick' | 'thorough';
       log.info(`[Research] query="${query.slice(0, 60)}" depth=${searchDepth}`);
 
       const result = await executeResearch({

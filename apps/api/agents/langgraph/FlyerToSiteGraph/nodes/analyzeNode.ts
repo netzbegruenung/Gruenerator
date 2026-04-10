@@ -5,6 +5,7 @@ import {
 import { createLogger } from '../../../../utils/logger.js';
 
 import type { FlyerAnalysis, FlyerToSiteState } from '../types.js';
+import type { RequestWithLocale } from '../../../../services/localization/index.js';
 
 const log = createLogger('FlyerToSite:analyze');
 
@@ -49,7 +50,7 @@ export async function analyzeNode(state: FlyerToSiteState): Promise<Partial<Flye
   }
 
   try {
-    const locale = extractLocaleFromRequest(state.req);
+    const locale = extractLocaleFromRequest(state.req as RequestWithLocale);
     const systemPrompt = localizePlaceholders(ANALYZE_SYSTEM_PROMPT, locale);
 
     const userPrompt = `Analysiere diesen Flyer-Text:\n\n${state.extractedText}`;

@@ -14,6 +14,7 @@ import { PrivacyCounter } from '../../services/counters/index.js';
 import {
   localizePromptObject,
   extractLocaleFromRequest,
+  type RequestWithLocale,
 } from '../../services/localization/index.js';
 import { selectProviderAndModel } from '../../services/providers/providerSelector.js';
 import { createLogger } from '../../utils/logger.js';
@@ -114,7 +115,7 @@ export async function processGraphRequestStreaming(
 
     // Load configuration and localize
     const baseConfig = loadPromptConfig(routeType);
-    const userLocale = extractLocaleFromRequest(req);
+    const userLocale = extractLocaleFromRequest(req as RequestWithLocale);
     const config = localizePromptObject(baseConfig, userLocale);
 
     // Validate request
@@ -126,15 +127,18 @@ export async function processGraphRequestStreaming(
     }
 
     // Apply profile defaults
-    await applyProfileDefaults(requestData, req, routeType);
+    await applyProfileDefaults(
+      requestData,
+      req as Parameters<typeof applyProfileDefaults>[1],
+      routeType
+    );
 
     if (!extractedInstructions && requestData.customPrompt) {
       extractedInstructions = requestData.customPrompt;
     }
 
     // Handle custom_generator special case
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let generatorData: any = null;
+    let generatorData: Awaited<ReturnType<typeof loadCustomGeneratorPrompt>> = null;
     if (config.features?.customPromptFromDb) {
       generatorData = await loadCustomGeneratorPrompt(requestData.slug);
     }
@@ -180,7 +184,9 @@ export async function processGraphRequestStreaming(
       req
     );
 
-    enrichedState.requestFormatted = requestContent;
+    if (typeof requestContent === 'string') {
+      enrichedState.requestFormatted = requestContent;
+    }
     if (config.tools) {
       enrichedState.tools = config.tools;
     }
@@ -230,7 +236,8 @@ export async function processGraphRequestStreaming(
 
     // Explicit provider + model override (from request data, e.g. playground)
     if (requestData.provider) {
-      effectiveProvider = requestData.provider;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      effectiveProvider = requestData.provider as any;
     }
     if (requestData.model) {
       effectiveModel = requestData.model;
@@ -266,8 +273,9 @@ export async function processGraphRequestStreaming(
       if (typeof msg.content === 'string') {
         content = msg.content;
       } else if (Array.isArray(msg.content)) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        content = msg.content.map((c: any) => c.text || c.content || '').join('\n');
+        content = msg.content
+          .map((c) => ('text' in c ? (c as { text: string }).text : ''))
+          .join('\n');
       } else {
         content = String(msg.content);
       }

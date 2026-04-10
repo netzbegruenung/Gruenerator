@@ -23,6 +23,7 @@ import {
 
 import type { ExpandedChunkResult, ReferencesMap } from '../../../../services/search/types.js';
 import type { WebSearchState, ResearchDossier, SearchResult } from '../types.js';
+import type { RequestWithLocale } from '../../../../services/localization/index.js';
 
 /**
  * Dossier Node: Generate comprehensive research dossier with citations
@@ -87,7 +88,7 @@ export async function dossierNode(state: WebSearchState): Promise<Partial<WebSea
     const refsSummary = summarizeReferencesForPrompt(referencesMap);
 
     // Get system and user prompts (localized for user's locale)
-    const locale = extractLocaleFromRequest(state.req);
+    const locale = extractLocaleFromRequest(state.req as RequestWithLocale);
     const systemPrompt = localizePlaceholders(buildDossierSystemPrompt(), locale);
     const filteredData = filterDataForAI(
       state.webResults,
@@ -123,7 +124,7 @@ ${refsSummary}`;
           temperature: 0.3,
         },
       },
-      state.req
+      state.req as any
     );
 
     if (!result.success) {

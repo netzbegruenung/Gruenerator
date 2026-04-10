@@ -23,21 +23,21 @@ export interface RequestFilters {
  */
 export interface Citation {
   index: string;
-  title?: string;
-  url?: string | null;
-  snippet?: string;
-  source?: string;
-  type?: string;
-  cited_text?: string;
-  document_title?: string;
-  document_id?: string;
-  source_url?: string | null;
-  similarity_score?: number;
-  chunk_index?: number;
-  filename?: string | null;
-  page_number?: number | null;
-  collection_id?: string;
-  collection_name?: string;
+  title?: string | undefined;
+  url?: string | null | undefined;
+  snippet?: string | undefined;
+  source?: string | undefined;
+  type?: string | undefined;
+  cited_text?: string | undefined;
+  document_title?: string | undefined;
+  document_id?: string | undefined;
+  source_url?: string | null | undefined;
+  similarity_score?: number | undefined;
+  chunk_index?: number | undefined;
+  filename?: string | null | undefined;
+  page_number?: number | null | undefined;
+  collection_id?: string | undefined;
+  collection_name?: string | undefined;
 }
 
 /**
@@ -51,7 +51,7 @@ export interface MultiCollectionMetadata {
   subcategory_filters_applied: Record<string, unknown> | null;
   total_results: number;
   citations_count: number;
-  fast_mode?: boolean;
+  fast_mode?: boolean | undefined;
 }
 
 /**
@@ -64,16 +64,16 @@ export interface SingleCollectionMetadata {
   sources_count: number;
   citations_count: number;
   subcategory_filters_applied: Record<string, unknown> | null;
-  fast_mode?: boolean;
+  fast_mode?: boolean | undefined;
 }
 
 /**
  * Person query metadata (extends single collection)
  */
 export interface PersonQueryMetadata extends SingleCollectionMetadata {
-  extractedName?: string;
+  extractedName?: string | undefined;
   detectionConfidence: number;
-  detectionSource?: string;
+  detectionSource?: string | undefined;
   contentMentionsCount: number;
   drucksachenCount: number;
   aktivitaetenCount: number;
@@ -83,10 +83,10 @@ export interface PersonQueryMetadata extends SingleCollectionMetadata {
  * Person information in person query response
  */
 export interface PersonInfo {
-  name?: string;
-  fraktion?: string | string[];
-  wahlkreis?: string;
-  biografie?: string;
+  name?: string | undefined;
+  fraktion?: string | string[] | undefined;
+  wahlkreis?: string | undefined;
+  biografie?: string | undefined;
 }
 
 /**
@@ -98,10 +98,10 @@ export interface QAResponse {
   citations: Citation[];
   sources: SearchSource[] | Citation[] | ExpandedChunkResult[];
   allSources: SearchSource[] | Citation[] | ExpandedChunkResult[];
-  sourcesByCollection?: SearchSourcesByCollection;
+  sourcesByCollection?: SearchSourcesByCollection | undefined;
   metadata: MultiCollectionMetadata | SingleCollectionMetadata | PersonQueryMetadata;
-  isPersonQuery?: boolean;
-  person?: PersonInfo;
+  isPersonQuery?: boolean | undefined;
+  person?: PersonInfo | undefined;
 }
 
 /**
@@ -109,14 +109,14 @@ export interface QAResponse {
  */
 export interface QAMultiCollectionParams {
   question: string;
-  collectionIds?: string[];
-  requestFilters?: RequestFilters;
+  collectionIds?: string[] | undefined;
+  requestFilters?: RequestFilters | undefined;
   aiWorkerPool: {
     processRequest: (
       request: unknown
     ) => Promise<{ content?: string; raw_content_blocks?: Array<{ text?: string }> }>;
   };
-  fastMode?: boolean;
+  fastMode?: boolean | undefined;
 }
 
 /**
@@ -126,7 +126,7 @@ export interface QASingleCollectionParams {
   collectionId: string;
   question: string;
   userId: string;
-  requestFilters?: RequestFilters;
+  requestFilters?: RequestFilters | undefined;
   aiWorkerPool: {
     processRequest: (
       request: unknown
@@ -136,7 +136,7 @@ export interface QASingleCollectionParams {
     collectionId: string
   ) => Promise<{ name: string; user_id: string | null } | null>;
   getDocumentIdsFn?: (collectionId: string) => Promise<string[]>;
-  fastMode?: boolean;
+  fastMode?: boolean | undefined;
 }
 
 /**
@@ -148,8 +148,8 @@ export interface SearchParams {
   vectorWeight: number;
   textWeight: number;
   threshold: number;
-  recallLimit?: number;
-  qualityMin?: number;
+  recallLimit?: number | undefined;
+  qualityMin?: number | undefined;
 }
 
 /**
@@ -159,9 +159,9 @@ export interface InternalSearchOptions {
   query: string;
   searchCollection: string;
   userId: string | null;
-  documentIds?: string[];
-  titleFilter?: string;
-  additionalFilter?: QdrantFilter;
+  documentIds?: string[] | undefined;
+  titleFilter?: string | undefined;
+  additionalFilter?: QdrantFilter | undefined;
   searchParams: SearchParams;
 }
 
@@ -169,10 +169,10 @@ export interface InternalSearchOptions {
  * Document scope detection result
  */
 export interface DocumentScope {
-  detectedPhrase?: string;
+  detectedPhrase?: string | undefined;
   collections: string[];
   subcategoryFilters: Record<string, string | string[] | undefined>;
-  documentTitleFilter?: string;
+  documentTitleFilter?: string | undefined;
 }
 
 /**
@@ -184,11 +184,11 @@ export interface SearchContext {
   sortedResults: ExpandedChunkResult[];
   systemPrompt: string;
   contextSummary: string;
-  collectionName?: string;
+  collectionName?: string | undefined;
   isMulti: boolean;
-  effectiveCollectionIds?: string[];
-  documentScope?: DocumentScope;
-  effectiveFilters?: RequestFilters;
+  effectiveCollectionIds?: string[] | undefined;
+  documentScope?: DocumentScope | undefined;
+  effectiveFilters?: RequestFilters | undefined;
 }
 
 /**
@@ -196,10 +196,10 @@ export interface SearchContext {
  */
 export interface GetSearchContextParams {
   question: string;
-  collectionId?: string;
-  collectionIds?: string[];
-  userId?: string;
-  requestFilters?: RequestFilters;
+  collectionId?: string | undefined;
+  collectionIds?: string[] | undefined;
+  userId?: string | undefined;
+  requestFilters?: RequestFilters | undefined;
   getCollectionFn?: (
     collectionId: string
   ) => Promise<{ name: string; user_id: string | null } | null>;

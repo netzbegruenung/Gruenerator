@@ -380,8 +380,8 @@ class VectorConfig {
     }
 
     if (config.quality.enabled) {
-      const qualityWeightSum = Object.values(config.quality.weights).reduce(
-        (sum, weight) => sum + weight,
+      const qualityWeightSum = Object.values(config.quality.weights).reduce<number>(
+        (sum, weight) => sum + (weight as number),
         0
       );
       if (Math.abs(qualityWeightSum - 1.0) > 0.01) {
@@ -490,8 +490,8 @@ class VectorConfig {
         enableQualityGate: this.config.hybrid.enableQualityGate,
       },
       cache: {
-        totalMaxSize: Object.values(this.config.cache).reduce(
-          (sum, cache) => sum + cache.maxSize,
+        totalMaxSize: Object.values(this.config.cache).reduce<number>(
+          (sum, cache) => sum + (cache as CacheEntry).maxSize,
           0
         ),
       },

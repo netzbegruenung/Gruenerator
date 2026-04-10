@@ -59,14 +59,14 @@ export interface CreateNotificationParams {
   userId: string;
   type: NotificationType;
   title: string;
-  body?: string;
-  metadata?: Record<string, unknown>;
-  actionUrl?: string;
-  groupKey?: string;
+  body?: string | undefined;
+  metadata?: Record<string, unknown> | undefined;
+  actionUrl?: string | undefined;
+  groupKey?: string | undefined;
 }
 
 export interface NotificationListOptions {
-  limit?: number;
-  offset?: number;
-  unreadOnly?: boolean;
+  limit?: number | undefined;
+  offset?: number | undefined;
+  unreadOnly?: boolean | undefined;
 }

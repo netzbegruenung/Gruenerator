@@ -65,7 +65,7 @@ export interface AntragAgentState {
 export interface AntragAgentOutput {
   success: boolean;
   content: string;
-  backgroundDocument?: string;
+  backgroundDocument?: string | undefined;
   metadata: {
     strategy: string | null;
     requestType: AntragRequestType;
@@ -73,10 +73,10 @@ export interface AntragAgentOutput {
     strategyTimeMs: number;
     generationTimeMs: number;
     totalTimeMs: number;
-    enrichmentMetadata?: EnrichmentMetadata;
+    enrichmentMetadata?: EnrichmentMetadata | undefined;
     argumentsFound: number;
   };
-  error?: string;
+  error?: string | undefined;
 }
 
 export const REQUEST_TYPE_DISPLAY_NAMES: Record<AntragRequestType, string> = {

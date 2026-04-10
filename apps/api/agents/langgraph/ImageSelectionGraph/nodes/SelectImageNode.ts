@@ -68,7 +68,7 @@ Wähle den besten Hintergrund aus (gib die Nummer an).`;
           max_tokens: 200,
         },
       },
-      req
+      req as any
     );
 
     // Debug logging to see exact AI response

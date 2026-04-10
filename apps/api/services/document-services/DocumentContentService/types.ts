@@ -9,8 +9,8 @@
 export interface ContentSearchOptions {
   query: string;
   documentIds: string[];
-  limit?: number;
-  mode?: 'hybrid' | 'vector' | 'keyword';
+  limit?: number | undefined;
+  mode?: 'hybrid' | 'vector' | 'keyword' | undefined;
 }
 
 /**
@@ -66,8 +66,8 @@ export interface ContentStrategyDecision {
  * Excerpt options
  */
 export interface ExcerptOptions {
-  maxLength?: number;
-  contextSize?: number;
+  maxLength?: number | undefined;
+  contextSize?: number | undefined;
 }
 
 /**

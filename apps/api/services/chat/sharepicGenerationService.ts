@@ -30,6 +30,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const log = createLogger('sharepicGenerat');
 
+const CAMPAIGNS_ROOT = path.resolve(__dirname, '../../config/campaigns');
+const SAFE_CAMPAIGN_ID_REGEX = /^[A-Za-z0-9_-]+$/;
+
 const SHAREPIC_TYPES = new Set(['info', 'zitat_pure', 'zitat', 'dreizeilen']);
 const _IMAGE_REQUIRED_TYPES = new Set(['zitat', 'dreizeilen']);
 
@@ -44,8 +47,8 @@ interface AIWorkerPool {
 }
 
 interface ExpressRequest extends Request {
-  user?: UserProfile;
-  correlationId?: string;
+  user?: UserProfile | undefined;
+  correlationId?: string | undefined;
   app: Request['app'] & {
     locals?: {
       sharepicImageManager?: SharepicImageManager;
@@ -96,6 +99,7 @@ interface MainSlogan {
   line1?: string;
   line2?: string;
   line3?: string;
+  [key: string]: string | undefined;
 }
 
 interface SharepicResult {
@@ -166,7 +170,16 @@ interface RequestBody {
 const loadCampaignConfig = (campaignId: string, typeId: string): CampaignConfig | null => {
   if (!campaignId || !typeId) return null;
 
-  const campaignPath = path.join(__dirname, '../../config/campaigns', `${campaignId}.json`);
+  if (!SAFE_CAMPAIGN_ID_REGEX.test(campaignId) || !SAFE_CAMPAIGN_ID_REGEX.test(typeId)) {
+    log.warn(`[Campaign] Invalid identifier(s): campaignId="${campaignId}", typeId="${typeId}"`);
+    return null;
+  }
+
+  const campaignPath = path.resolve(CAMPAIGNS_ROOT, `${campaignId}.json`);
+  if (!campaignPath.startsWith(CAMPAIGNS_ROOT)) {
+    log.warn(`[Campaign] Rejected path outside campaigns root: ${campaignPath}`);
+    return null;
+  }
 
   if (!fsSync.existsSync(campaignPath)) {
     log.warn(`[Campaign] Config not found: ${campaignPath}`);
@@ -174,8 +187,12 @@ const loadCampaignConfig = (campaignId: string, typeId: string): CampaignConfig 
   }
 
   try {
-    const campaign = JSON.parse(fsSync.readFileSync(campaignPath, 'utf8'));
-    const typeConfig = campaign.types?.[typeId];
+    const campaign: { types?: Record<string, CampaignConfig> } = JSON.parse(
+      fsSync.readFileSync(campaignPath, 'utf8')
+    ) as {
+      types?: Record<string, CampaignConfig>;
+    };
+    const typeConfig: CampaignConfig | undefined = campaign.types?.[typeId];
 
     if (!typeConfig) {
       log.warn(`[Campaign] Type ${typeId} not found in campaign ${campaignId}`);
@@ -387,7 +404,7 @@ const buildInfoCanvasPayload = ({
 }): { header?: string; body: string } => {
   const combinedBody = subheader && body ? `${subheader}. ${body}` : subheader || body || '';
   return {
-    header,
+    ...(header && { header }),
     body: combinedBody,
   };
 };
@@ -408,7 +425,11 @@ const generateInfoSharepic = async (
 
   const { payload: canvasPayload } = await callCanvasRoute(
     infoCanvasRouter,
-    buildInfoCanvasPayload({ header, subheader, body })
+    buildInfoCanvasPayload({
+      ...(header && { header }),
+      ...(subheader && { subheader }),
+      ...(body && { body }),
+    })
   );
 
   if (!canvasPayload?.image) {
@@ -426,9 +447,9 @@ const generateInfoSharepic = async (
         image: canvasPayload.image,
         type: 'info',
         text: `${header}\n${subheader || ''}\n${body || ''}`.trim(),
-        header,
-        subheader,
-        body,
+        ...(header && { header }),
+        ...(subheader && { subheader }),
+        ...(body && { body }),
         alternatives,
       },
       sharepicTitle: 'Sharepic Vorschau',
@@ -504,7 +525,7 @@ const _generateDreizeilenSharepic = async (
 
   const { payload: canvasPayload } = await callCanvasRoute(
     dreizeilenCanvasRouter,
-    mainSlogan as unknown as Record<string, unknown>
+    mainSlogan as Record<string, unknown>
   );
 
   if (!canvasPayload?.image) {
@@ -659,7 +680,7 @@ const generateDreizeilenWithImageSharepic = async (
 
     const { payload: canvasPayload } = await callCanvasRoute(
       dreizeilenCanvasRouter,
-      mockReq.body as unknown as Record<string, unknown>,
+      mockReq.body as Record<string, unknown>,
       mockReq.file as { buffer: Buffer; mimetype: string; originalname: string }
     );
 
@@ -736,7 +757,7 @@ const generateDreizeilenWithAIImageSharepic = async (
 
     const { payload: canvasPayload } = await callCanvasRoute(
       dreizeilenCanvasRouter,
-      mockReq.body as unknown as Record<string, unknown>,
+      mockReq.body as Record<string, unknown>,
       mockReq.file as { buffer: Buffer; mimetype: string; originalname: string }
     );
 
@@ -864,9 +885,9 @@ const generateCampaignSharepic = async (
       case 'dreizeilen': {
         const mainSlogan = textResponse.mainSlogan as MainSlogan;
         textData = {
-          line1: mainSlogan?.line1,
-          line2: mainSlogan?.line2,
-          line3: mainSlogan?.line3,
+          ...(mainSlogan?.line1 && { line1: mainSlogan.line1 }),
+          ...(mainSlogan?.line2 && { line2: mainSlogan.line2 }),
+          ...(mainSlogan?.line3 && { line3: mainSlogan.line3 }),
         };
         break;
       }
@@ -884,9 +905,9 @@ const generateCampaignSharepic = async (
           body?: string;
         };
         textData = {
-          header: mainInfo?.header,
-          subheader: mainInfo?.subheader,
-          body: mainInfo?.body,
+          ...(mainInfo?.header && { header: mainInfo.header }),
+          ...(mainInfo?.subheader && { subheader: mainInfo.subheader }),
+          ...(mainInfo?.body && { body: mainInfo.body }),
         };
         break;
       }

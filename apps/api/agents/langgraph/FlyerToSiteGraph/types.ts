@@ -5,15 +5,15 @@ import type { Request } from 'express';
 export interface FlyerToSiteInput {
   pdfBuffer: Buffer;
   originalFilename: string;
-  email?: string;
+  email?: string | undefined;
   req: Request;
 }
 
 export interface FlyerContactInfo {
-  email?: string;
-  phone?: string;
-  address?: string;
-  website?: string;
+  email?: string | undefined;
+  phone?: string | undefined;
+  address?: string | undefined;
+  website?: string | undefined;
 }
 
 export interface FlyerAnalysis {
@@ -69,5 +69,5 @@ export interface FlyerToSiteOutput {
     ocrMethod: string;
     extractedTextLength: number;
   };
-  error?: string;
+  error?: string | undefined;
 }

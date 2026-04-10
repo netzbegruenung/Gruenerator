@@ -28,7 +28,7 @@ export interface LocaleMappings {
  */
 export interface RequestWithLocale {
   user?: {
-    locale?: Locale;
+    locale?: Locale | undefined;
   };
   headers?: {
     'x-user-locale'?: string;

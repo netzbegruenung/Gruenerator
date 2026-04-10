@@ -348,7 +348,9 @@ export class SubtitlerProjectService {
       const updateData: Record<string, unknown> = {};
 
       for (const field of allowedFields) {
-        const camelCaseField = field.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+        const camelCaseField = field.replace(/_([a-z])/g, (_: string, letter: string): string =>
+          letter.toUpperCase()
+        );
         if (updates[field as keyof UpdateProjectData] !== undefined) {
           updateData[field] = updates[field as keyof UpdateProjectData];
         } else if (updates[camelCaseField as keyof UpdateProjectData] !== undefined) {

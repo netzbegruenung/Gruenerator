@@ -217,7 +217,9 @@ function loadCampaignConfig(campaignId: string, typeId: string): LoadedCampaignC
         };
       }
 
-      canvasConfig.backgroundImage = typeConfig.backgroundImage;
+      if (typeConfig.backgroundImage) {
+        canvasConfig.backgroundImage = typeConfig.backgroundImage;
+      }
 
       log.debug(
         `[Campaign] Built canvas for ${campaignId}/${typeId} using theme '${typeConfig.theme}'`
@@ -226,12 +228,15 @@ function loadCampaignConfig(campaignId: string, typeId: string): LoadedCampaignC
       canvasConfig = typeConfig.canvas;
     }
 
+    const prompt = typeConfig.prompt || campaign.defaultPrompt;
+    const responseParser = typeConfig.responseParser || campaign.defaultResponseParser;
+    const multiResponseParser = typeConfig.multiResponseParser || campaign.defaultMultiResponseParser;
     const mergedConfig: MergedConfig = {
-      prompt: typeConfig.prompt || campaign.defaultPrompt,
-      responseParser: typeConfig.responseParser || campaign.defaultResponseParser,
-      multiResponseParser: typeConfig.multiResponseParser || campaign.defaultMultiResponseParser,
-      canvas: canvasConfig,
-      basedOn: typeConfig.basedOn,
+      ...(prompt && { prompt }),
+      ...(responseParser && { responseParser }),
+      ...(multiResponseParser && { multiResponseParser }),
+      ...(canvasConfig && { canvas: canvasConfig }),
+      ...(typeConfig.basedOn && { basedOn: typeConfig.basedOn }),
     };
 
     log.debug(
@@ -338,7 +343,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
         text: textData,
         type: campaignTypeId,
         variant: campaignTypeId,
-        location: thema,
+        ...(thema && { location: thema }),
         line1: textData.line1 || '',
         line2: textData.line2 || '',
         line3: textData.line3 || '',

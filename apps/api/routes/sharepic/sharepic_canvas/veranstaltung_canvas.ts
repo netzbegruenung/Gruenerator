@@ -295,7 +295,7 @@ async function createVeranstaltungImage(
 router.post(
   '/',
   upload.single('image'),
-  async (req: MulterRequest, res: Response): Promise<void> => {
+  (async (req: MulterRequest, res: Response): Promise<void> => {
     let outputImagePath: string | undefined;
     try {
       const {
@@ -371,7 +371,7 @@ router.post(
         });
       }
     }
-  }
+  }) as any
 );
 
 export default router;

@@ -29,7 +29,7 @@ export class WordPressSiteManager {
       { table: 'profiles' }
     );
     const raw = profile?.wordpress_sites;
-    return Array.isArray(raw) ? raw : [];
+    return Array.isArray(raw) ? (raw as WordPressSite[]) : [];
   }
 
   private static async saveSitesArray(userId: string, sites: WordPressSite[]): Promise<void> {
@@ -174,9 +174,12 @@ export class WordPressSiteManager {
 
       const { app_password, ...restUpdates } = updates;
 
+      const originalSite = currentSites[siteIndex];
       const updatedSite: WordPressSite = {
-        ...currentSites[siteIndex],
-        ...restUpdates,
+        ...originalSite,
+        label: restUpdates.label != null ? restUpdates.label : originalSite.label,
+        is_active: restUpdates.is_active != null ? restUpdates.is_active : originalSite.is_active,
+        username: restUpdates.username != null ? restUpdates.username : originalSite.username,
         updated_at: new Date().toISOString(),
       };
 

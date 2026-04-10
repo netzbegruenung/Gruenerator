@@ -245,7 +245,9 @@ router.post(
 
       // Extract tags from description and merge with provided tags (lowercase for case-insensitive search)
       const descriptionTags = extractTagsFromDescription(description).map((t) => t.toLowerCase());
-      const providedTags = Array.isArray(tags) ? tags.map((t) => t.toLowerCase()) : [];
+      const providedTags: string[] = Array.isArray(tags)
+        ? (tags as string[]).map((t) => t.toLowerCase())
+        : [];
       const mergedTags = [...new Set([...descriptionTags, ...providedTags])];
 
       const postgres = getPostgresInstance();

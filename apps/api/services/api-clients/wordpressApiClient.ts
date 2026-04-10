@@ -25,10 +25,10 @@ export interface WPCategory {
 }
 
 export interface CreatePostOptions {
-  status?: 'draft' | 'publish' | 'pending';
-  excerpt?: string;
-  categories?: number[];
-  tags?: number[];
+  status?: 'draft' | 'publish' | 'pending' | undefined;
+  excerpt?: string | undefined;
+  categories?: number[] | undefined;
+  tags?: number[] | undefined;
 }
 
 export interface PostResult {
@@ -316,7 +316,7 @@ class WordPressApiClient {
 
   async getPosts(params: GetPostsParams = {}): Promise<PostsListResult> {
     try {
-      const response = await this.client.get('/wp/v2/posts', { params });
+      const response = await this.client.get<WPPost[]>('/wp/v2/posts', { params });
 
       const totalPages = parseInt(response.headers['x-wp-totalpages'] || '1', 10);
       const total = parseInt(response.headers['x-wp-total'] || '0', 10);
@@ -333,7 +333,7 @@ class WordPressApiClient {
 
   async getPost(postId: number): Promise<WPPost> {
     try {
-      const response = await this.client.get(`/wp/v2/posts/${postId}`);
+      const response = await this.client.get<WPPost>(`/wp/v2/posts/${postId}`);
       return response.data;
     } catch (error) {
       throw this.normalizeError(error);
@@ -342,10 +342,10 @@ class WordPressApiClient {
 
   async getCategories(): Promise<WPCategory[]> {
     try {
-      const response = await this.client.get('/wp/v2/categories', {
+      const response = await this.client.get<WPCategory[]>('/wp/v2/categories', {
         params: { per_page: 100 },
       });
-      return response.data.map((cat: Record<string, unknown>) => ({
+      return response.data.map((cat) => ({
         id: cat.id,
         name: cat.name,
         slug: cat.slug,

@@ -174,8 +174,8 @@ NICHT FÜR: Allgemeine Informationssuche, Fakten, Nachrichten`,
       try {
         const results = await executeDirectExamplesSearch({
           query,
-          platform,
-          country: examplesCountry,
+          ...(platform && { platform }),
+          ...(examplesCountry && { country: examplesCountry }),
         });
         return results;
       } catch (error) {
@@ -524,9 +524,7 @@ Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`
       result = streamText({
         model: aiModel,
         messages: aiMessages,
-        tools: activeTools,
-        // Always require tool choice - AI uses direct_response when no search needed
-        toolChoice: activeTools ? 'required' : undefined,
+        ...(activeTools && { tools: activeTools, toolChoice: 'required' }),
         maxOutputTokens: agent.params.max_tokens,
         temperature: agent.params.temperature,
         stopWhen: stepCountIs(5),
@@ -560,12 +558,12 @@ Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`
               );
               if (toolCalls && toolCalls.length > 0) {
                 log.info(
-                  `[Chat] Tool calls: ${JSON.stringify(toolCalls.map((tc) => ({ id: tc.toolCallId, name: tc.toolName })))}`
+                  `[Chat] Tool calls: ${JSON.stringify(toolCalls.map((tc: typeof toolCalls[0]) => ({ id: tc.toolCallId, name: tc.toolName })))}`
                 );
               }
               if (toolResults && toolResults.length > 0) {
                 log.info(
-                  `[Chat] Tool results: ${JSON.stringify(toolResults.map((tr) => ({ id: tr.toolCallId, hasResult: !!('result' in tr && tr.result) })))}`
+                  `[Chat] Tool results: ${JSON.stringify(toolResults.map((tr: typeof toolResults[0]) => ({ id: tr.toolCallId, hasResult: !!('result' in tr && tr.result) })))}`
                 );
               }
               await createMessage(

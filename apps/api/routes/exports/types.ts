@@ -29,25 +29,25 @@ export interface ContentSection {
 export interface CitationSegment {
   text: string;
   isCitation: boolean;
-  citationIndex?: string;
+  citationIndex?: string | undefined;
 }
 
 export interface Citation {
   index: string;
-  document_title?: string;
-  cited_text?: string;
-  similarity_score?: number;
-  source_url?: string;
+  document_title?: string | undefined;
+  cited_text?: string | undefined;
+  similarity_score?: number | undefined;
+  source_url?: string | undefined;
 }
 
 export interface ExportRequestBody {
   content: string;
-  title?: string;
-  citations?: Citation[];
+  title?: string | undefined;
+  citations?: Citation[] | undefined;
 }
 
 export interface ExportResponse {
   success: boolean;
-  message?: string;
-  error?: string;
+  message?: string | undefined;
+  error?: string | undefined;
 }

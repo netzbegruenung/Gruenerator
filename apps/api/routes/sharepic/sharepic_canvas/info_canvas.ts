@@ -35,9 +35,9 @@ interface ParsedBody {
 }
 
 interface InfoTextData {
-  header: string;
-  bodyFirstSentence: string;
-  bodyRemaining: string;
+  header: string | undefined;
+  bodyFirstSentence: string | undefined;
+  bodyRemaining: string | undefined;
 }
 
 interface InfoParams {

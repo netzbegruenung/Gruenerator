@@ -22,6 +22,7 @@ import { createSelfReviewTool } from './selfReview.js';
 import { createWebSearchTool } from './webSearch.js';
 
 import type { AgentConfig } from '../../../../routes/chat/agents/types.js';
+import type { AIWorkerPool } from '../../../../workers/types.js';
 import type { GeneratedImageResult, ImageAttachment, ThreadAttachment } from '../types.js';
 import type { DynamicStructuredTool } from '@langchain/core/tools';
 
@@ -31,9 +32,7 @@ import type { DynamicStructuredTool } from '@langchain/core/tools';
  */
 export interface ToolDependencies {
   agentConfig: AgentConfig;
-  aiWorkerPool: {
-    processRequest(data: unknown, req?: unknown): Promise<{ content?: string | null }>;
-  };
+  aiWorkerPool: AIWorkerPool;
   enabledTools: Record<string, boolean>;
   threadAttachments?: ThreadAttachment[];
   imageAttachments?: ImageAttachment[];

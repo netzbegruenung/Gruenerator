@@ -38,15 +38,15 @@ export interface RecentActivityItem {
   date: string;
   type: 'doc' | 'board' | 'image' | 'video' | 'text' | 'presentation';
   href: string;
-  emoji?: string;
-  boardType?: 'kanban' | 'whiteboard';
-  thumbnailUrl?: string;
-  duration?: number;
-  creatorName?: string;
-  accessType?: string;
-  deleteEndpoint?: string;
-  content?: string;
-  documentType?: string;
+  emoji?: string | undefined;
+  boardType?: 'kanban' | 'whiteboard' | undefined;
+  thumbnailUrl?: string | undefined;
+  duration?: number | undefined;
+  creatorName?: string | undefined;
+  accessType?: string | undefined;
+  deleteEndpoint?: string | undefined;
+  content?: string | undefined;
+  documentType?: string | undefined;
 }
 
 router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -138,7 +138,7 @@ export async function fetchRecentDocs(
     href: `/docs/${row.id}`,
     emoji: SUBTYPE_EMOJI[row.document_subtype ?? 'blank'] ?? '📄',
     documentType: row.document_subtype ?? 'blank',
-    content: row.content ?? undefined,
+    ...(row.content != null && { content: row.content }),
     creatorName: row.creator_name,
     accessType: row.access_type,
     deleteEndpoint: `/api/docs/${row.id}`,

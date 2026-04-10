@@ -34,10 +34,11 @@ import { PiSun, PiMoon } from 'react-icons/pi';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import useDarkMode from '../../components/hooks/useDarkMode';
+import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
-import { useAuthStore } from '../../stores/authStore';
 
 import { webAppDocsAdapter } from './docsAdapter';
+import { GuestBadge, GUEST_ANIMALS } from './GuestBadge';
 
 import type { BlockNoteEditor } from '@blocknote/core';
 
@@ -49,23 +50,6 @@ const ShareModal = lazyWithRetry(() =>
 const ChatSidebar = lazyWithRetry(() =>
   import('@gruenerator/docs').then((m) => ({ default: m.ChatSidebar }))
 );
-
-const GUEST_ANIMAL_NAMES = [
-  'Eichhörnchen',
-  'Igel',
-  'Fuchs',
-  'Reh',
-  'Dachs',
-  'Hase',
-  'Eule',
-  'Specht',
-  'Otter',
-  'Biber',
-  'Falke',
-  'Luchs',
-  'Marder',
-  'Drossel',
-];
 
 const GUEST_COLORS = [
   '#FF6B6B',
@@ -80,20 +64,30 @@ const GUEST_COLORS = [
   '#52B788',
 ];
 
-function getOrCreateGuestIdentity(): { guestId: string; guestName: string; guestColor: string } {
+interface GuestIdentity {
+  guestId: string;
+  guestName: string;
+  guestColor: string;
+  guestAnimalIndex: number;
+}
+
+function getOrCreateGuestIdentity(): GuestIdentity {
   const stored = localStorage.getItem('docs-guest-identity');
   if (stored) {
     try {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored) as GuestIdentity;
+      if (parsed.guestAnimalIndex !== undefined) return parsed;
     } catch {
       /* regenerate */
     }
   }
 
-  const identity = {
+  const animalIndex = Math.floor(Math.random() * GUEST_ANIMALS.length);
+  const identity: GuestIdentity = {
     guestId: `guest-${crypto.randomUUID().slice(0, 8)}`,
-    guestName: GUEST_ANIMAL_NAMES[Math.floor(Math.random() * GUEST_ANIMAL_NAMES.length)],
+    guestName: GUEST_ANIMALS[animalIndex].name,
     guestColor: GUEST_COLORS[Math.floor(Math.random() * GUEST_COLORS.length)],
+    guestAnimalIndex: animalIndex,
   };
 
   localStorage.setItem('docs-guest-identity', JSON.stringify(identity));
@@ -136,9 +130,8 @@ function EditorContent() {
   const isEmbedded = searchParams.get('embedded') === 'true';
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
-  const user = useAuthStore((s) => s.user);
-  const isAuthLoading = useAuthStore((s) => s.isLoading);
-  const isGuest = !isAuthLoading && !user;
+  const { user, isAuthResolved } = useAuth({ lazy: true });
+  const isGuest = isAuthResolved && !user;
   const [darkMode, toggleDarkMode] = useDarkMode();
 
   const guestIdentity = useMemo(() => (isGuest ? getOrCreateGuestIdentity() : null), [isGuest]);
@@ -401,29 +394,25 @@ function EditorContent() {
       </div>
     );
   }
+  if (isGuest && authError) {
+    console.error('[Docs] Guest auth failed, showing error state:', authError);
+    return (
+      <div className="flex items-center justify-center h-full flex-col gap-4 text-grey-500">
+        <span>{getAuthErrorMessage(authError) || 'Verbindung zum Dokument fehlgeschlagen.'}</span>
+        <a
+          href={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+          className="text-secondary-600 underline"
+        >
+          Anmelden
+        </a>
+      </div>
+    );
+  }
+
   const localUser = getLocalUser();
 
   return (
     <div className="h-full flex flex-col relative">
-      {isGuest && (
-        <div className="flex items-center justify-center gap-1 py-2 px-4 text-[0.8125rem] text-grey-700 dark:text-grey-300 bg-secondary-100/50 dark:bg-secondary-600/15 border-b border-secondary-200/50 dark:border-secondary-600/25">
-          {canEdit ? 'Du bearbeitest' : 'Du liest'} als Gast ({guestIdentity?.guestName})
-          <span className="mx-1">&middot;</span>
-          <a
-            href={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
-            className="text-secondary-700 dark:text-secondary-400 underline font-medium"
-          >
-            Anmelden
-          </a>
-        </div>
-      )}
-
-      {!isGuest && !canEdit && docData && (
-        <div className="flex items-center justify-center gap-1 py-2 px-4 text-[0.8125rem] text-grey-700 dark:text-grey-300 bg-secondary-100/50 dark:bg-secondary-600/15 border-b border-secondary-200/50 dark:border-secondary-600/25">
-          Du hast Lesezugriff auf dieses Dokument
-        </div>
-      )}
-
       {isEmbedded ? (
         <EditorFAB
           showDisconnected={showDisconnected}
@@ -439,6 +428,19 @@ function EditorContent() {
           onTitleChange={handleTitleChange}
           rightActions={
             <>
+              {isGuest && guestIdentity && (
+                <GuestBadge
+                  guestName={guestIdentity.guestName}
+                  guestColor={guestIdentity.guestColor}
+                  guestIcon={GUEST_ANIMALS[guestIdentity.guestAnimalIndex].icon}
+                  loginUrl={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+                />
+              )}
+              {!isGuest && !canEdit && docData && (
+                <div className="flex items-center py-1 px-2.5 text-[0.75rem] rounded-full bg-grey-100/60 dark:bg-grey-800/40 text-grey-600 dark:text-grey-400 border border-grey-200/50 dark:border-grey-700/50">
+                  Lesezugriff
+                </div>
+              )}
               {collaborators.length > 0 && (
                 <>
                   <AvatarGroup>
@@ -459,43 +461,44 @@ function EditorContent() {
                   <span className="glass-divider" />
                 </>
               )}
-              {!isGuest && (
-                <>
-                  <div ref={exportMenuRef} className="relative">
+
+              <div ref={exportMenuRef} className="relative">
+                <button
+                  className="glass-btn"
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  aria-label="Exportieren"
+                >
+                  <FiDownload />
+                </button>
+                {showExportMenu && (
+                  <div className="absolute top-[calc(100%+0.5rem)] right-0 min-w-[180px] p-1.5 bg-white/90 dark:bg-grey-900/90 backdrop-blur-xl border border-white/30 dark:border-white/10 rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] z-[100]">
                     <button
-                      className="glass-btn"
-                      onClick={() => setShowExportMenu(!showExportMenu)}
-                      aria-label="Exportieren"
+                      className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                      onClick={handleExport}
                     >
                       <FiDownload />
+                      Als Word (.docx)
                     </button>
-                    {showExportMenu && (
-                      <div className="absolute top-[calc(100%+0.5rem)] right-0 min-w-[180px] p-1.5 bg-white/90 dark:bg-grey-900/90 backdrop-blur-xl border border-white/30 dark:border-white/10 rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] z-[100]">
-                        <button
-                          className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
-                          onClick={handleExport}
-                        >
-                          <FiDownload />
-                          Als Word (.docx)
-                        </button>
-                        <button
-                          className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
-                          onClick={handleExportPDF}
-                        >
-                          <FiDownload />
-                          Als PDF (.pdf)
-                        </button>
-                        <button
-                          className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
-                          onClick={handleExportODT}
-                        >
-                          <FiDownload />
-                          Als ODT (.odt)
-                        </button>
-                      </div>
-                    )}
+                    <button
+                      className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                      onClick={handleExportPDF}
+                    >
+                      <FiDownload />
+                      Als PDF (.pdf)
+                    </button>
+                    <button
+                      className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                      onClick={handleExportODT}
+                    >
+                      <FiDownload />
+                      Als ODT (.odt)
+                    </button>
                   </div>
+                )}
+              </div>
 
+              {!isGuest && (
+                <>
                   <button
                     className="glass-btn"
                     onClick={() => setShowWolkeModal(true)}

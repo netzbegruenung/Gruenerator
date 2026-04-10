@@ -23,7 +23,8 @@ export class RetryManager {
   static async loadRetries(): Promise<BatchUpdateEntry[] | null> {
     try {
       const data = await fs.readFile(RETRY_FILE, 'utf8');
-      return JSON.parse(data);
+      const entries: BatchUpdateEntry[] = JSON.parse(data) as BatchUpdateEntry[];
+      return entries;
     } catch (error: unknown) {
       if (
         error instanceof Error &&

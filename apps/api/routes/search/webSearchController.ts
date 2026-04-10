@@ -54,7 +54,7 @@ function mapSearchTypeToCategories(searchType: string): string {
   return categoryMap[searchType] || 'general';
 }
 
-router.post('/', async (req: SearchRequest, res: Response) => {
+router.post('/', (async (req: SearchRequest, res: Response) => {
   const startTime = Date.now();
 
   try {
@@ -226,9 +226,9 @@ router.post('/', async (req: SearchRequest, res: Response) => {
       details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
     });
   }
-});
+}) as any);
 
-router.get('/status', async (_req: Request, res: Response) => {
+router.get('/status', (async (_req: Request, res: Response) => {
   try {
     const status = await searxngWebSearchService.getServiceStatus();
 
@@ -249,9 +249,9 @@ router.get('/status', async (_req: Request, res: Response) => {
       details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined,
     });
   }
-});
+}) as any);
 
-router.post('/clear-cache', async (req: Request, res: Response) => {
+router.post('/clear-cache', (async (req: Request, res: Response) => {
   const user = (req as SearchRequest).user;
   const isAdmin = user?.role === 'admin' || process.env.NODE_ENV === 'development';
 
@@ -279,6 +279,6 @@ router.post('/clear-cache', async (req: Request, res: Response) => {
       details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined,
     });
   }
-});
+}) as any);
 
 export default router;

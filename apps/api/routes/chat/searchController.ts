@@ -37,9 +37,9 @@ router.get('/', async (req, res) => {
     const excludeThreadId = req.query.excludeThreadId as string | undefined;
 
     const results = await searchChatHistory(userId, query.trim(), {
-      threadType,
+      ...(threadType && { threadType }),
       limit,
-      excludeThreadId,
+      ...(excludeThreadId && { excludeThreadId }),
     });
 
     return res.json({ results, total: results.length });

@@ -11,39 +11,39 @@ import type { Response } from 'express';
 
 export interface ProcessRequestBody {
   uploadId: string;
-  subtitlePreference?: 'manual' | 'word';
-  stylePreference?: string;
-  heightPreference?: 'standard' | 'tief';
+  subtitlePreference?: 'manual' | 'word' | undefined;
+  stylePreference?: string | undefined;
+  heightPreference?: 'standard' | 'tief' | undefined;
 }
 
 export interface ExportRequestBody {
-  uploadId?: string;
-  subtitles?: SubtitleSegment[] | string;
-  subtitlePreference?: 'manual' | 'word';
-  stylePreference?: string;
-  heightPreference?: 'standard' | 'tief';
-  locale?: string;
-  maxResolution?: number | null;
-  projectId?: string | null;
-  userId?: string | null;
-  textOverlays?: TextOverlay[];
-  fontSizeOverride?: number;
-  bottomOffsetOverride?: number;
+  uploadId?: string | undefined;
+  subtitles?: SubtitleSegment[] | string | undefined;
+  subtitlePreference?: 'manual' | 'word' | undefined;
+  stylePreference?: string | undefined;
+  heightPreference?: 'standard' | 'tief' | undefined;
+  locale?: string | undefined;
+  maxResolution?: number | null | undefined;
+  projectId?: string | null | undefined;
+  userId?: string | null | undefined;
+  textOverlays?: TextOverlay[] | undefined;
+  fontSizeOverride?: number | undefined;
+  bottomOffsetOverride?: number | undefined;
 }
 
 export interface ExportSegmentsRequestBody {
-  uploadId?: string;
-  projectId?: string;
+  uploadId?: string | undefined;
+  projectId?: string | undefined;
   segments: VideoSegment[];
-  includeSubtitles?: boolean;
-  subtitleConfig?: SubtitleConfig;
+  includeSubtitles?: boolean | undefined;
+  subtitleConfig?: SubtitleConfig | undefined;
 }
 
 export interface AutoProcessRequestBody {
   uploadId: string;
-  locale?: string;
-  maxResolution?: number | null;
-  userId?: string | null;
+  locale?: string | undefined;
+  maxResolution?: number | null | undefined;
+  userId?: string | null | undefined;
 }
 
 export interface CorrectSubtitlesRequestBody {
@@ -52,12 +52,12 @@ export interface CorrectSubtitlesRequestBody {
 
 export interface ExportTokenRequestBody {
   uploadId: string;
-  subtitles?: SubtitleSegment[];
-  subtitlePreference?: string;
-  stylePreference?: string;
-  heightPreference?: string;
-  locale?: string;
-  maxResolution?: number | null;
+  subtitles?: SubtitleSegment[] | undefined;
+  subtitlePreference?: string | undefined;
+  stylePreference?: string | undefined;
+  heightPreference?: string | undefined;
+  locale?: string | undefined;
+  maxResolution?: number | null | undefined;
 }
 
 // ============================================================================
@@ -65,9 +65,9 @@ export interface ExportTokenRequestBody {
 // ============================================================================
 
 export interface ResultQueryParams {
-  subtitlePreference?: string;
-  stylePreference?: string;
-  heightPreference?: string;
+  subtitlePreference?: string | undefined;
+  stylePreference?: string | undefined;
+  heightPreference?: string | undefined;
 }
 
 // ============================================================================
@@ -78,7 +78,7 @@ export interface SubtitleSegment {
   text: string;
   start: number;
   end: number;
-  words?: SubtitleWord[];
+  words?: SubtitleWord[] | undefined;
 }
 
 export interface SubtitleWord {
@@ -93,29 +93,29 @@ export interface TextOverlay {
   type: 'header' | 'subheader' | 'custom';
   startTime: number;
   endTime: number;
-  style?: Record<string, unknown>;
+  style?: Record<string, unknown> | undefined;
 }
 
 export interface VideoSegment {
   start: number;
   end: number;
-  label?: string;
+  label?: string | undefined;
 }
 
 export interface SubtitleConfig {
-  stylePreference?: string;
-  heightPreference?: string;
-  locale?: string;
-  segments?: SubtitleSegment[];
+  stylePreference?: string | undefined;
+  heightPreference?: string | undefined;
+  locale?: string | undefined;
+  segments?: SubtitleSegment[] | undefined;
 }
 
 export interface VideoMetadata {
   width: number;
   height: number;
   duration: string | number;
-  fps?: number;
-  codec?: string;
-  bitrate?: number;
+  fps?: number | undefined;
+  codec?: string | undefined;
+  bitrate?: number | undefined;
 }
 
 // ============================================================================
@@ -124,26 +124,26 @@ export interface VideoMetadata {
 
 export interface ProcessingStatus {
   status: 'processing' | 'complete' | 'error' | 'not_found' | 'unknown';
-  subtitles?: SubtitleSegment[];
-  error?: string;
-  compression?: CompressionStatus;
+  subtitles?: SubtitleSegment[] | undefined;
+  error?: string | undefined;
+  compression?: CompressionStatus | undefined;
 }
 
 export interface CompressionStatus {
   status: string;
-  progress?: number;
-  compressedPath?: string;
+  progress?: number | undefined;
+  compressedPath?: string | undefined;
 }
 
 export interface ExportProgress {
   status: 'exporting' | 'complete' | 'error';
   progress: number;
-  timeRemaining?: string;
-  message?: string;
-  outputPath?: string;
-  originalFilename?: string;
-  projectId?: string | null;
-  error?: string;
+  timeRemaining?: string | undefined;
+  message?: string | undefined;
+  outputPath?: string | undefined;
+  originalFilename?: string | undefined;
+  projectId?: string | null | undefined;
+  error?: string | undefined;
 }
 
 // ============================================================================
@@ -160,16 +160,16 @@ export interface BackgroundExportParams {
   subtitlePreference: string;
   stylePreference: string;
   heightPreference: string;
-  locale?: string;
-  maxResolution?: number | null;
+  locale?: string | undefined;
+  maxResolution?: number | null | undefined;
   finalFontSize: number;
   uploadId: string;
   originalFilename: string;
-  assFilePath?: string | null;
-  tempFontPath?: string | null;
-  projectId?: string | null;
-  userId?: string | null;
-  textOverlays?: TextOverlay[];
+  assFilePath?: string | null | undefined;
+  tempFontPath?: string | null | undefined;
+  projectId?: string | null | undefined;
+  userId?: string | null | undefined;
+  textOverlays?: TextOverlay[] | undefined;
 }
 
 // ============================================================================
@@ -178,22 +178,22 @@ export interface BackgroundExportParams {
 
 export interface CreateProjectRequestBody {
   uploadId: string;
-  subtitles?: string;
-  title?: string;
-  stylePreference?: string;
-  heightPreference?: string;
-  modePreference?: string;
-  videoMetadata?: Record<string, unknown>;
-  videoFilename?: string;
-  videoSize?: number;
+  subtitles?: string | undefined;
+  title?: string | undefined;
+  stylePreference?: string | undefined;
+  heightPreference?: string | undefined;
+  modePreference?: string | undefined;
+  videoMetadata?: Record<string, unknown> | undefined;
+  videoFilename?: string | undefined;
+  videoSize?: number | undefined;
 }
 
 export interface UpdateProjectRequestBody {
-  title?: string;
-  subtitles?: string;
-  stylePreference?: string;
-  heightPreference?: string;
-  status?: string;
+  title?: string | undefined;
+  subtitles?: string | undefined;
+  stylePreference?: string | undefined;
+  heightPreference?: string | undefined;
+  status?: string | undefined;
 }
 
 // ============================================================================
@@ -202,22 +202,22 @@ export interface UpdateProjectRequestBody {
 
 export interface CreateShareRequestBody {
   exportToken: string;
-  title?: string;
-  projectId?: string;
-  expiresInDays?: number;
+  title?: string | undefined;
+  projectId?: string | undefined;
+  expiresInDays?: number | undefined;
 }
 
 export interface CreateShareFromProjectRequestBody {
   projectId: string;
-  title?: string;
-  expiresInDays?: number;
+  title?: string | undefined;
+  expiresInDays?: number | undefined;
 }
 
 export interface ShareInfo {
   shareToken: string;
   shareUrl: string;
   expiresAt: Date | string;
-  status?: 'ready' | 'rendering' | 'failed';
+  status?: 'ready' | 'rendering' | 'failed' | undefined;
 }
 
 export interface ShareDetails {
@@ -226,7 +226,7 @@ export interface ShareDetails {
   thumbnailUrl: string | null;
   expiresAt: Date | string;
   downloadCount: number;
-  sharerName?: string;
+  sharerName?: string | undefined;
   status: string;
 }
 
@@ -240,7 +240,7 @@ export interface GenerateSocialRequestBody {
 
 export interface SocialMediaResult {
   content: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown> | undefined;
 }
 
 // ============================================================================
@@ -249,7 +249,7 @@ export interface SocialMediaResult {
 
 export interface RedisJobData {
   status: 'processing' | 'complete' | 'error';
-  data?: Record<string, unknown>;
+  data?: Record<string, unknown> | undefined;
 }
 
 // ============================================================================
@@ -259,7 +259,7 @@ export interface RedisJobData {
 export interface SubtitlerRequest extends AuthenticatedRequest {
   app: {
     locals: {
-      aiWorkerPool?: AIWorkerPool;
+      aiWorkerPool?: AIWorkerPool | undefined;
     };
   } & AuthenticatedRequest['app'];
 }
@@ -270,13 +270,13 @@ export interface AIWorkerPool {
     systemPrompt: string;
     messages: Array<{ role: string; content: string }>;
     options?: {
-      max_tokens?: number;
-      temperature?: number;
+      max_tokens?: number | undefined;
+      temperature?: number | undefined;
     };
   }): Promise<{
     success: boolean;
-    content?: string;
-    error?: string;
-    metadata?: Record<string, unknown>;
+    content?: string | undefined;
+    error?: string | undefined;
+    metadata?: Record<string, unknown> | undefined;
   }>;
 }

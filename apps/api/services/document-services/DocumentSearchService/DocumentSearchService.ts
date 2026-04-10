@@ -28,6 +28,7 @@ import * as vectorOps from './vectorOperations.js';
 import type {
   DocumentSearchParams,
   DocumentSearchOptions,
+  DocumentSearchFilters,
   HybridConfig,
   ChunkWithMetadata,
   VectorMetadata,
@@ -56,6 +57,7 @@ import type { SearchParamsInput } from '../../../utils/validation/types.js';
 import type {
   SearchParams,
   SearchResponse,
+  SearchOptions,
   HybridMetadata,
   DocumentData,
 } from '../../BaseSearchService/types.js';
@@ -251,8 +253,8 @@ export class DocumentSearchService extends BaseSearchService {
           threshold: threshold ?? this.defaultThreshold,
           useCache: true,
           mode: p.mode as DocumentSearchParams['options']['mode'],
-          ...(vectorWeightOpt !== undefined ? { vectorWeight: vectorWeightOpt ?? undefined } : {}),
-          ...(textWeightOpt !== undefined ? { textWeight: textWeightOpt ?? undefined } : {}),
+          ...(typeof vectorWeightOpt === 'number' && { vectorWeight: vectorWeightOpt }),
+          ...(typeof textWeightOpt === 'number' && { textWeight: textWeightOpt }),
           ...(typeof p.qualityMin === 'number' ? { qualityMin: p.qualityMin } : {}),
           ...(typeof p.recallLimit === 'number' ? { recallLimit: p.recallLimit } : {}),
         },
@@ -294,8 +296,8 @@ export class DocumentSearchService extends BaseSearchService {
         threshold: validated.threshold ?? this.defaultThreshold,
         useCache: true,
         mode: validated.mode,
-        ...(vectorWeightOpt !== undefined ? { vectorWeight: vectorWeightOpt ?? undefined } : {}),
-        ...(textWeightOpt !== undefined ? { textWeight: textWeightOpt ?? undefined } : {}),
+        ...(typeof vectorWeightOpt === 'number' && { vectorWeight: vectorWeightOpt }),
+        ...(typeof textWeightOpt === 'number' && { textWeight: textWeightOpt }),
         ...(typeof p.qualityMin === 'number' ? { qualityMin: p.qualityMin } : {}),
         ...(typeof p.recallLimit === 'number' ? { recallLimit: p.recallLimit } : {}),
       },
@@ -322,10 +324,10 @@ export class DocumentSearchService extends BaseSearchService {
 
       if (mode === 'hybrid') {
         console.log('[DocumentSearchService] Executing hybrid search mode');
-        return await this.performHybridSearch(validated as unknown as SearchParams);
+        return await this.performHybridSearch(validated as SearchParams);
       }
 
-      return await this.performSimilaritySearch(validated as unknown as SearchParams);
+      return await this.performSimilaritySearch(validated as SearchParams);
     } catch (error) {
       const _errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[DocumentSearchService] Search error:', error);
@@ -560,7 +562,7 @@ export class DocumentSearchService extends BaseSearchService {
             success: true,
             fullText,
             chunkCount: 1,
-            title: typeof payload.title === 'string' ? payload.title : undefined,
+            ...(typeof payload.title === 'string' && { title: payload.title }),
           };
         }
       }
@@ -596,7 +598,7 @@ export class DocumentSearchService extends BaseSearchService {
         success: true,
         fullText: sorted.join('\n\n'),
         chunkCount: sorted.length,
-        title,
+        ...(title && { title }),
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -879,7 +881,7 @@ export class DocumentSearchService extends BaseSearchService {
 
   override buildRelevanceInfo(doc: DocumentData, enhancedScore: DocumentEnhancedScore): string {
     return scoring.buildRelevanceInfo(
-      doc as unknown as { similarity_score: number },
+      { similarity_score: doc.maxSimilarity || doc.avgSimilarity || 0 },
       enhancedScore
     );
   }

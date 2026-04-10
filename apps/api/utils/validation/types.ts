@@ -9,7 +9,7 @@ export interface ValidationErrorResponse {
   success: false;
   error: string;
   message: string;
-  field?: string;
+  field?: string | undefined;
   code: string;
 }
 
@@ -17,9 +17,9 @@ export interface ValidationErrorResponse {
  * Numeric validation options
  */
 export interface NumberValidationOptions {
-  min?: number;
-  max?: number;
-  allowNull?: boolean;
+  min?: number | undefined;
+  max?: number | undefined;
+  allowNull?: boolean | undefined;
 }
 
 /**
@@ -31,9 +31,9 @@ export interface ValidatedSearchParams {
   limit: number;
   threshold: number | null;
   mode: 'vector' | 'hybrid' | 'keyword' | 'text';
-  documentIds?: string[];
-  group_id?: string;
-  sourceType?: string;
+  documentIds?: string[] | undefined;
+  group_id?: string | undefined;
+  sourceType?: string | undefined;
 }
 
 /**
@@ -42,11 +42,11 @@ export interface ValidatedSearchParams {
 export interface SearchParamsInput {
   query: string;
   user_id: string;
-  limit?: number;
-  threshold?: number;
-  mode?: string;
-  documentIds?: unknown;
-  group_id?: string;
+  limit?: number | undefined;
+  threshold?: number | undefined;
+  mode?: string | undefined;
+  documentIds?: unknown | undefined;
+  group_id?: string | undefined;
 }
 
 /**
@@ -79,5 +79,5 @@ export interface ValidatedAIWorkerRequest {
  * Path sanitization options
  */
 export interface PathSanitizationOptions {
-  createDir?: boolean;
+  createDir?: boolean | undefined;
 }

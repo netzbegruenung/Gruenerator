@@ -99,15 +99,16 @@ class BundestagMCPClient {
 
       // Parse the content from MCP response
       if (result.result?.content?.[0]?.text) {
-        const parsed = JSON.parse(result.result.content[0].text);
+        const parsed = JSON.parse(result.result.content[0].text) as SearchResult;
         // Normalize: API returns 'results', services expect 'documents'
         if (parsed.results && !parsed.documents) {
           parsed.documents = parsed.results;
         }
-        return parsed;
+        return parsed as SearchResult;
       }
 
-      return result.result || {};
+      const fallback: SearchResult = (result.result || {}) as SearchResult;
+      return fallback;
     } catch (err) {
       clearTimeout(timeoutId);
       if (err instanceof Error && err.name === 'AbortError') {

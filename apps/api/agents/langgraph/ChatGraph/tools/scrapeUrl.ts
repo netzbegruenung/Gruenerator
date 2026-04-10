@@ -17,6 +17,7 @@ import type { ToolDependencies } from './registry.js';
 const log = createLogger('Tool:ScrapeUrl');
 
 export function createScrapeUrlTool(_deps: ToolDependencies): DynamicStructuredTool {
+    // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'scrape_url',
     description:
@@ -24,8 +25,9 @@ export function createScrapeUrlTool(_deps: ToolDependencies): DynamicStructuredT
       'Nutze dieses Tool wenn der Nutzer eine URL teilt und den Inhalt lesen oder analysieren möchte.',
     schema: z.object({
       url: z.string().url().describe('Die URL die geladen werden soll'),
-    }),
-    func: async ({ url }) => {
+    }).describe('URL laden'),
+    func: async (input: { url: string }) => {
+      const { url } = input;
       log.info(`[ScrapeUrl] url="${url}"`);
 
       try {

@@ -166,7 +166,7 @@ export async function getPolls(): Promise<PollData> {
   // Check cache
   try {
     const cached = await redisClient.get(CACHE_KEY);
-    if (cached) return JSON.parse(cached);
+    if (cached) return JSON.parse(cached) as PollData;
   } catch {
     // Fall through
   }

@@ -40,7 +40,7 @@ interface RawSearxngResponse {
 
 interface RedisClientLike {
   get: (key: string) => Promise<string | null>;
-  setEx: (key: string, ttl: number, value: string) => Promise<void>;
+  setEx: (key: string, ttl: number, value: string) => Promise<'OK' | void>;
   keys: (pattern: string) => Promise<string[]>;
   del: (keys: string | string[]) => Promise<number>;
   ping: () => Promise<string>;
@@ -236,7 +236,7 @@ class SearxngService {
   ): FormattedSearchResults {
     const results = rawResults.results || [];
     const maxResults = Math.min(
-      searchOptions.maxResults || this.defaultOptions.maxResults,
+      searchOptions.maxResults ?? (this.defaultOptions.maxResults as number),
       results.length
     );
 
@@ -471,7 +471,10 @@ URL: ${result.url}
         const cachedData = await this.redisClient.get(cacheKey);
         if (cachedData) {
           if (isDebug) console.log(`[SearXNG] Redis cache hit: ${cacheKey.substring(0, 20)}...`);
-          return JSON.parse(cachedData);
+          const cachedResult: FormattedSearchResults = JSON.parse(
+            cachedData
+          ) as FormattedSearchResults;
+          return cachedResult;
         }
       } else {
         const cached = this.cache.get(cacheKey);

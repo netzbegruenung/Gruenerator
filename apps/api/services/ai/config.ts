@@ -14,13 +14,13 @@ export interface GenerationConfig {
 }
 
 export interface GenerationOptions {
-  type?: string;
-  systemPrompt?: string;
-  platforms?: string[];
-  temperature?: number;
-  maxTokens?: number;
-  topP?: number;
-  useProMode?: boolean;
+  type?: string | undefined;
+  systemPrompt?: string | undefined;
+  platforms?: string[] | undefined;
+  temperature?: number | undefined;
+  maxTokens?: number | undefined;
+  topP?: number | undefined;
+  useProMode?: boolean | undefined;
 }
 
 /**

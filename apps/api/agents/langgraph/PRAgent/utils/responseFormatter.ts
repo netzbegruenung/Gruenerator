@@ -1,4 +1,16 @@
+import type {
+  EnrichmentMetadata,
+  DocumentReference,
+  TextReference,
+  WebSearchSource,
+} from '../../../../utils/types/requestEnrichment.js';
 import type { PRAgentResult, FormattedPRResponse } from '../types.js';
+
+interface ExamplePost {
+  platform?: string | undefined;
+  content?: string | undefined;
+  relevanceScore?: number | undefined;
+}
 
 /**
  * Formats strategy approval response as markdown for direct display
@@ -78,7 +90,9 @@ export function formatStrategyApprovalResponse(
 
   // Add sources bibliography if available
   if (metadata.enrichmentMetadata) {
-    const sourcesBiblio = formatSourcesBibliography(metadata.enrichmentMetadata);
+    const sourcesBiblio = formatSourcesBibliography(
+      metadata.enrichmentMetadata as EnrichmentMetadata
+    );
     if (sourcesBiblio) {
       content += `\n\n---\n\n${sourcesBiblio}`;
     }
@@ -105,17 +119,18 @@ export function formatPRAgentResponse(
 
   // Add sources bibliography before examples
   if (result.metadata?.enrichmentMetadata) {
-    const sourcesBiblio = formatSourcesBibliography(result.metadata.enrichmentMetadata);
+    const sourcesBiblio = formatSourcesBibliography(
+      result.metadata.enrichmentMetadata as EnrichmentMetadata
+    );
     if (sourcesBiblio) {
       contentSections.push(sourcesBiblio);
     }
   }
 
   // Add examples section (keep as-is with 300 char truncation)
-  const examples = (result.metadata?.examplesUsed || []) as unknown[];
+  const examples = (result.metadata?.examplesUsed || []) as ExamplePost[];
   if (examples.length > 0) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const examplesSection = formatExamplesSection(examples as any[]);
+    const examplesSection = formatExamplesSection(examples);
     contentSections.push(examplesSection);
   }
 
@@ -134,8 +149,7 @@ export function formatPRAgentResponse(
 /**
  * Formats examples into user-friendly display
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function formatExamplesSection(examples: any[]): string {
+function formatExamplesSection(examples: ExamplePost[]): string {
   let section = '# Diese Beispiele dienten als Inspiration\n\n';
   section +=
     '*Die folgenden erfolgreichen Posts wurden als stilistische Orientierung verwendet:*\n\n';
@@ -164,8 +178,7 @@ function formatExamplesSection(examples: any[]): string {
  * Formats enrichment sources as a bibliography-style list
  * Shows all documents, texts, and web sources used
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function formatSourcesBibliography(metadata: any): string {
+export function formatSourcesBibliography(metadata: EnrichmentMetadata): string {
   if (!metadata) return '';
 
   const sections: string[] = [];
@@ -173,8 +186,7 @@ export function formatSourcesBibliography(metadata: any): string {
   // Documents section
   if (metadata.documentsReferences && metadata.documentsReferences.length > 0) {
     let docSection = '### Dokumente\n\n';
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    metadata.documentsReferences.forEach((doc: any, idx: number) => {
+    metadata.documentsReferences.forEach((doc: DocumentReference, idx: number) => {
       docSection += `${idx + 1}. **${doc.title}**\n`;
       docSection += `   - Datei: ${doc.filename}\n`;
       if (doc.pageCount) {
@@ -192,8 +204,7 @@ export function formatSourcesBibliography(metadata: any): string {
   // Saved texts section
   if (metadata.textsReferences && metadata.textsReferences.length > 0) {
     let textsSection = '### Gespeicherte Texte\n\n';
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    metadata.textsReferences.forEach((text: any, idx: number) => {
+    metadata.textsReferences.forEach((text: TextReference, idx: number) => {
       textsSection += `${idx + 1}. **${text.title}**\n`;
       textsSection += `   - Typ: ${text.type}\n`;
       if (text.wordCount) {
@@ -210,8 +221,7 @@ export function formatSourcesBibliography(metadata: any): string {
   // Web search sources section
   if (metadata.webSearchSources && metadata.webSearchSources.length > 0) {
     let webSection = '### Web-Quellen\n\n';
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    metadata.webSearchSources.forEach((source: any, idx: number) => {
+    metadata.webSearchSources.forEach((source: WebSearchSource, idx: number) => {
       webSection += `${idx + 1}. **${source.title}**\n`;
       webSection += `   - URL: ${source.url}\n`;
       if (source.domain) {

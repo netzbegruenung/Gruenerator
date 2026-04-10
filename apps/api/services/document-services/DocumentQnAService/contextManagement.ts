@@ -28,7 +28,8 @@ export async function getCachedKnowledge(
   try {
     const cached = await redis.get(cacheKey);
     if (cached) {
-      return JSON.parse(cached);
+      const knowledge: string = JSON.parse(cached) as string;
+      return knowledge;
     }
     return null;
   } catch (error) {

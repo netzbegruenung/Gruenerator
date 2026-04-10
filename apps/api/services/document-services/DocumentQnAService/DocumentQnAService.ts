@@ -23,7 +23,7 @@ import type { Intent, AgentType, Attachment, StoredDocument } from './types.js';
  * Main DocumentQnAService class
  * Delegates operations to specialized modules
  */
-type RedisClient = {
+export type DocumentQnARedisClient = {
   get: (key: string) => Promise<string | null>;
   setEx: (key: string, ttl: number, value: string) => Promise<void>;
   lPush: (key: string, ...values: string[]) => Promise<void>;
@@ -33,17 +33,17 @@ type RedisClient = {
   keys: (pattern: string) => Promise<string[]>;
 };
 
-type MistralClient = {
+export type DocumentQnAMistralClient = {
   chat: {
     complete: (params: unknown) => Promise<{ choices?: Array<{ message?: { content?: string } }> }>;
   };
 };
 
 export class DocumentQnAService {
-  private redis: RedisClient;
-  private mistral: MistralClient;
+  private redis: DocumentQnARedisClient;
+  private mistral: DocumentQnAMistralClient;
 
-  constructor(redisClient: RedisClient, mistralClient: MistralClient) {
+  constructor(redisClient: DocumentQnARedisClient, mistralClient: DocumentQnAMistralClient) {
     this.redis = redisClient;
     this.mistral = mistralClient;
   }

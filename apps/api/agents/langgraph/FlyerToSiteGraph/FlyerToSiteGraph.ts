@@ -24,7 +24,10 @@ const FlyerToSiteAnnotation = Annotation.Root({
   originalFilename: Annotation<string>({ reducer: (x, y) => y ?? x }),
   email: Annotation<string>({ reducer: (x, y) => y ?? x }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  req: Annotation<any>({ reducer: (x, y) => y ?? x }),
+  req: Annotation<any>({
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    reducer: (x, y) => y ?? x,
+  }),
 
   // extractNode output
   extractedText: Annotation<string | null>({ reducer: (x, y) => y ?? x }),

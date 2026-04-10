@@ -121,9 +121,8 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response): 
     const share = await service.createShare(userId, {
       videoPath: exportData.outputPath,
       title: title || 'Untertiteltes Video',
-      thumbnailPath: undefined,
-      duration: exportData.duration || undefined,
-      projectId: projectId || undefined,
+      ...(exportData.duration && { duration: exportData.duration }),
+      ...(projectId && { projectId }),
       expiresInDays,
     });
 
@@ -195,8 +194,8 @@ router.post(
         const videoDuration = project.video_metadata?.duration;
         const share = await service.createPendingShare(userId, {
           title: title || project.title || 'Untertiteltes Video',
-          thumbnailPath: thumbnailPath || undefined,
-          duration: typeof videoDuration === 'number' ? videoDuration : undefined,
+          ...(thumbnailPath && { thumbnailPath }),
+          ...(typeof videoDuration === 'number' && { duration: videoDuration }),
           projectId,
           expiresInDays,
         });
@@ -231,8 +230,8 @@ router.post(
         const videoDuration2 = project.video_metadata?.duration;
         const share = await service.createPendingShare(userId, {
           title: title || project.title || 'Untertiteltes Video',
-          thumbnailPath: thumbnailPath || undefined,
-          duration: typeof videoDuration2 === 'number' ? videoDuration2 : undefined,
+          ...(thumbnailPath && { thumbnailPath }),
+          ...(typeof videoDuration2 === 'number' && { duration: videoDuration2 }),
           projectId,
           expiresInDays,
         });
@@ -254,8 +253,8 @@ router.post(
       const share = await service.createShare(userId, {
         videoPath,
         title: title || project.title || 'Untertiteltes Video',
-        thumbnailPath: thumbnailPath || undefined,
-        duration: typeof videoDuration3 === 'number' ? videoDuration3 : undefined,
+        ...(thumbnailPath && { thumbnailPath }),
+        ...(typeof videoDuration3 === 'number' && { duration: videoDuration3 }),
         projectId,
         expiresInDays,
       });

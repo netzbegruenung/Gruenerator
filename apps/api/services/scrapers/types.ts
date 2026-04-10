@@ -10,13 +10,13 @@ export interface ScraperConfig {
   /** Collection name in Qdrant for storing vectors */
   collectionName: string;
   /** Base URL to scrape */
-  baseUrl?: string;
+  baseUrl?: string | undefined;
   /** Maximum concurrent requests */
-  maxConcurrent?: number;
+  maxConcurrent?: number | undefined;
   /** Delay between requests in milliseconds */
-  delayMs?: number;
+  delayMs?: number | undefined;
   /** Enable verbose logging */
-  verbose?: boolean;
+  verbose?: boolean | undefined;
   /** Additional custom configuration */
   [key: string]: unknown;
 }
@@ -62,17 +62,17 @@ export interface ScrapedDocument {
  */
 export interface DocumentMetadata {
   /** Document type (article, dossier, paper, etc.) */
-  type?: string;
+  type?: string | undefined;
   /** Author name */
-  author?: string;
+  author?: string | undefined;
   /** Publication date (ISO string or formatted) */
-  publishedDate?: string;
+  publishedDate?: string | undefined;
   /** Categories or tags */
-  categories?: string[];
+  categories?: string[] | undefined;
   /** Language code */
-  language?: 'de' | 'en';
+  language?: 'de' | 'en' | undefined;
   /** Source domain */
-  domain?: string;
+  domain?: string | undefined;
   /** Additional custom fields */
   [key: string]: unknown;
 }
@@ -82,13 +82,13 @@ export interface DocumentMetadata {
  */
 export interface PdfProcessingOptions {
   /** Use Mistral OCR for PDF text extraction */
-  useMistralOcr?: boolean;
+  useMistralOcr?: boolean | undefined;
   /** Maximum number of pages to process */
-  maxPages?: number;
+  maxPages?: number | undefined;
   /** Skip PDFs published before this date */
-  skipOlderThan?: Date;
+  skipOlderThan?: Date | undefined;
   /** Extract metadata from PDF */
-  extractMetadata?: boolean;
+  extractMetadata?: boolean | undefined;
 }
 
 /**
@@ -96,15 +96,15 @@ export interface PdfProcessingOptions {
  */
 export interface HtmlExtractionOptions {
   /** CSS selectors for content extraction */
-  contentSelectors?: string[];
+  contentSelectors?: string[] | undefined;
   /** CSS selectors for elements to remove */
-  removeSelectors?: string[];
+  removeSelectors?: string[] | undefined;
   /** Convert HTML to markdown */
-  toMarkdown?: boolean;
+  toMarkdown?: boolean | undefined;
   /** Remove scripts and styles */
-  removeScriptsStyles?: boolean;
+  removeScriptsStyles?: boolean | undefined;
   /** Preserve specific attributes */
-  preserveAttributes?: string[];
+  preserveAttributes?: string[] | undefined;
 }
 
 /**
@@ -112,17 +112,17 @@ export interface HtmlExtractionOptions {
  */
 export interface CrawlOptions {
   /** Maximum depth for recursive crawling */
-  maxDepth?: number;
+  maxDepth?: number | undefined;
   /** URL patterns to include */
-  includePatterns?: RegExp[];
+  includePatterns?: RegExp[] | undefined;
   /** URL patterns to exclude */
-  excludePatterns?: RegExp[];
+  excludePatterns?: RegExp[] | undefined;
   /** Maximum number of pages to crawl */
-  maxPages?: number;
+  maxPages?: number | undefined;
   /** Respect robots.txt */
-  respectRobotsTxt?: boolean;
+  respectRobotsTxt?: boolean | undefined;
   /** Date filter: only crawl pages newer than this */
-  newerThan?: Date;
+  newerThan?: Date | undefined;
 }
 
 /**
@@ -138,7 +138,7 @@ export interface MediaWikiPage {
   /** Categories */
   categories?: Array<{ title: string }>;
   /** Page URL */
-  fullurl?: string;
+  fullurl?: string | undefined;
 }
 
 /**
@@ -146,13 +146,13 @@ export interface MediaWikiPage {
  */
 export interface OparlEndpoint {
   /** Endpoint name (e.g., city name) */
-  name?: string;
+  name?: string | undefined;
   /** City name for this endpoint */
-  city?: string;
+  city?: string | undefined;
   /** OParl API endpoint URL */
   url: string;
   /** Optional endpoint identifier */
-  id?: string;
+  id?: string | undefined;
 }
 
 /**
@@ -162,17 +162,17 @@ export interface OparlPaper {
   /** Paper ID */
   id: string;
   /** Paper name/title (optional - may not be present in API response) */
-  name?: string;
+  name?: string | undefined;
   /** Reference number */
-  reference?: string;
+  reference?: string | undefined;
   /** Publication date */
-  date?: string;
+  date?: string | undefined;
   /** Paper type */
-  paperType?: string;
+  paperType?: string | undefined;
   /** Main file */
-  mainFile?: OparlFile;
+  mainFile?: OparlFile | undefined;
   /** Auxiliary files */
-  auxiliaryFile?: OparlFile[];
+  auxiliaryFile?: OparlFile[] | undefined;
 }
 
 /**
@@ -182,17 +182,17 @@ export interface OparlFile {
   /** File ID */
   id: string;
   /** File name */
-  name?: string;
+  name?: string | undefined;
   /** Access URL */
-  accessUrl?: string;
+  accessUrl?: string | undefined;
   /** Download URL */
-  downloadUrl?: string;
+  downloadUrl?: string | undefined;
   /** MIME type */
-  mimeType?: string;
+  mimeType?: string | undefined;
   /** File size in bytes */
-  size?: number;
+  size?: number | undefined;
   /** Creation date */
-  date?: string;
+  date?: string | undefined;
 }
 
 /**
@@ -212,11 +212,11 @@ export interface WordPressPost {
   /** Post URL */
   link: string;
   /** Post categories */
-  categories?: number[];
+  categories?: number[] | undefined;
   /** Post tags */
-  tags?: number[];
+  tags?: number[] | undefined;
   /** Author ID */
-  author?: number;
+  author?: number | undefined;
 }
 
 /**
@@ -226,13 +226,13 @@ export interface ExtractionResult {
   /** Extracted text content */
   content: string;
   /** Extracted title */
-  title?: string;
+  title?: string | undefined;
   /** Extracted metadata */
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown> | undefined;
   /** Success status */
   success: boolean;
   /** Error message if failed */
-  error?: string;
+  error?: string | undefined;
 }
 
 /**
@@ -242,7 +242,7 @@ export interface UrlValidationResult {
   /** Is URL valid */
   valid: boolean;
   /** Normalized URL */
-  url?: string;
+  url?: string | undefined;
   /** Validation error */
-  error?: string;
+  error?: string | undefined;
 }
