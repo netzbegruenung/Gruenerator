@@ -6,6 +6,8 @@
 import { StateGraph, Annotation } from '@langchain/langgraph';
 import { type Request } from 'express';
 
+import { type AIWorkerPool } from '../../../workers/types.js';
+
 import { aggregatorNode } from './nodes/AggregatorNode.js';
 import { contentEnricherNode } from './nodes/ContentEnricherNode.js';
 import { dossierNode } from './nodes/DossierNode.js';
@@ -34,8 +36,6 @@ import {
   type Citation,
   type Source,
 } from './types.js';
-
-import type AIWorkerPool from '../../../workers/aiWorkerPool.js';
 
 // State schema for the search graph
 const SearchState = Annotation.Root({
@@ -122,28 +122,56 @@ const SearchState = Annotation.Root({
 /**
  * Create the web search graph
  */
-/* eslint-disable @typescript-eslint/no-explicit-any -- LangGraph node/edge type coercions */
+type WebSearchGraphState = typeof SearchState.State;
+
 const createWebSearchGraph = () => {
   const graph = new StateGraph(SearchState)
-    .addNode('planner', plannerNode as any)
-    .addNode('searxng', searxngNode as any)
-    .addNode('intelligentCrawler', intelligentCrawlerNode as any)
-    .addNode('contentEnricher', contentEnricherNode as any)
-    .addNode('grundsatz', grundsatzNode as any)
-    .addNode('aggregator', aggregatorNode as any)
-    .addNode('summarizer', summaryNode as any)
-    .addNode('writer', dossierNode as any)
+    .addNode(
+      'planner',
+      plannerNode as (state: WebSearchGraphState) => Promise<Partial<WebSearchGraphState>>
+    )
+    .addNode(
+      'searxng',
+      searxngNode as (state: WebSearchGraphState) => Promise<Partial<WebSearchGraphState>>
+    )
+    .addNode(
+      'intelligentCrawler',
+      intelligentCrawlerNode as (
+        state: WebSearchGraphState
+      ) => Promise<Partial<WebSearchGraphState>>
+    )
+    .addNode(
+      'contentEnricher',
+      contentEnricherNode as (state: WebSearchGraphState) => Promise<Partial<WebSearchGraphState>>
+    )
+    .addNode(
+      'grundsatz',
+      grundsatzNode as (state: WebSearchGraphState) => Promise<Partial<WebSearchGraphState>>
+    )
+    .addNode(
+      'aggregator',
+      aggregatorNode as (state: WebSearchGraphState) => Promise<Partial<WebSearchGraphState>>
+    )
+    .addNode(
+      'summarizer',
+      summaryNode as (state: WebSearchGraphState) => Promise<Partial<WebSearchGraphState>>
+    )
+    .addNode(
+      'writer',
+      dossierNode as (state: WebSearchGraphState) => Promise<Partial<WebSearchGraphState>>
+    )
     .addEdge('__start__', 'planner')
     .addEdge('planner', 'searxng');
 
   // Conditional edges based on mode
   graph.addConditionalEdges(
     'planner',
-    (state: any) => (state.mode === 'deep' ? ['searxng', 'grundsatz'] : ['searxng']),
+    (state: WebSearchGraphState) =>
+      state.mode === 'deep' ? ['searxng', 'grundsatz'] : ['searxng'],
     {
       searxng: 'searxng',
       grundsatz: 'grundsatz',
-    } as any
+    }
   );
 
   // After searxng, run intelligent crawler to select URLs
@@ -153,23 +181,22 @@ const createWebSearchGraph = () => {
   graph.addEdge('intelligentCrawler', 'contentEnricher');
 
   // After content enrichment, route based on mode
-  graph.addConditionalEdges('contentEnricher', (state: any) =>
+  graph.addConditionalEdges('contentEnricher', (state: WebSearchGraphState) =>
     state.mode === 'normal' ? 'summarizer' : 'aggregator'
   );
 
-  graph.addConditionalEdges('grundsatz', (_state: any) => 'aggregator');
+  graph.addConditionalEdges('grundsatz', (_state: WebSearchGraphState) => 'aggregator');
 
-  graph.addConditionalEdges('summarizer', (_state: any) => '__end__');
+  graph.addConditionalEdges('summarizer', (_state: WebSearchGraphState) => '__end__');
 
-  graph.addConditionalEdges('aggregator', (state: any) =>
+  graph.addConditionalEdges('aggregator', (state: WebSearchGraphState) =>
     state.mode === 'deep' ? 'writer' : '__end__'
   );
 
-  graph.addConditionalEdges('writer', (_state: any) => '__end__');
+  graph.addConditionalEdges('writer', (_state: WebSearchGraphState) => '__end__');
 
   return graph.compile();
 };
-/* eslint-enable @typescript-eslint/no-explicit-any */
 
 // Export the compiled graph
 export const webSearchGraph = createWebSearchGraph();

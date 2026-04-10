@@ -5,6 +5,7 @@
 
 import { parseAIJsonResponse } from '../../../../services/search/index.js';
 
+import type { RequestWithUser } from '../../../../utils/redis/types.js';
 import type { WebSearchState, CrawlDecision } from '../types.js';
 
 /**
@@ -104,8 +105,7 @@ Respond with JSON:
           temperature: 0.1,
         },
       },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      state.req as any
+      state.req as RequestWithUser
     );
 
     if (!crawlDecision.success) {

@@ -7,6 +7,8 @@
 
 import { StateGraph, Annotation } from '@langchain/langgraph';
 
+import { type AIWorkerPool } from '../../../workers/types.js';
+
 import { loadCatalogNode } from './nodes/LoadCatalogNode.js';
 import { selectImageNode } from './nodes/SelectImageNode.js';
 
@@ -18,7 +20,6 @@ import type {
   ImageCatalog,
   SelectionMetadata,
 } from './types.js';
-import type AIWorkerPool from '../../../workers/aiWorkerPool.js';
 import type { Request } from 'express';
 
 // State schema for the image selection graph
@@ -66,15 +67,25 @@ const ImageSelectionStateAnnotation = Annotation.Root({
 /**
  * Create and configure the graph
  */
+type ImageSelectionGraphState = typeof ImageSelectionStateAnnotation.State;
+
 function createImageSelectionGraph() {
-  /* eslint-disable @typescript-eslint/no-explicit-any -- LangGraph node type coercions */
   const workflow = new StateGraph(ImageSelectionStateAnnotation)
-    .addNode('loadCatalog', loadCatalogNode as any)
-    .addNode('selectImage', selectImageNode as any)
+    .addNode(
+      'loadCatalog',
+      loadCatalogNode as (
+        state: ImageSelectionGraphState
+      ) => Promise<Partial<ImageSelectionGraphState>>
+    )
+    .addNode(
+      'selectImage',
+      selectImageNode as (
+        state: ImageSelectionGraphState
+      ) => Promise<Partial<ImageSelectionGraphState>>
+    )
     .addEdge('__start__', 'loadCatalog')
     .addEdge('loadCatalog', 'selectImage')
     .addEdge('selectImage', '__end__');
-  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   return workflow.compile();
 }

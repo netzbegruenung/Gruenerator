@@ -236,17 +236,39 @@ function routeAfterQualityGate(state: SearchState): 'searchExecutor' | 'searchRe
  * Create the SearchGraph.
  */
 function createSearchGraph() {
-  /* eslint-disable @typescript-eslint/no-explicit-any -- LangGraph node type coercions */
   const graph = new StateGraph(SearchStateAnnotation)
-    .addNode('queryPlanner', queryPlannerNode as any)
-    .addNode('searchExecutor', searchExecutorNode as any)
-    .addNode('intelligentCrawl', intelligentCrawlNode as any)
-    .addNode('deepResearch', deepResearchNode as any)
-    .addNode('rerank', rerankNode as any)
-    .addNode('qualityGate', qualityGateNode as any)
-    .addNode('searchRespond', searchRespondNode as any)
-    .addNode('suggestFollowUps', suggestFollowUpsNode as any)
-    /* eslint-enable @typescript-eslint/no-explicit-any */
+    .addNode(
+      'queryPlanner',
+      queryPlannerNode as (state: SearchState) => Promise<Partial<SearchState>>
+    )
+    .addNode(
+      'searchExecutor',
+      searchExecutorNode as (state: SearchState) => Promise<Partial<SearchState>>
+    )
+    .addNode(
+      'intelligentCrawl',
+      intelligentCrawlNode as (state: SearchState) => Promise<Partial<SearchState>>
+    )
+    .addNode(
+      'deepResearch',
+      deepResearchNode as (state: SearchState) => Promise<Partial<SearchState>>
+    )
+    .addNode(
+      'rerank',
+      rerankNode as unknown as (state: SearchState) => Promise<Partial<SearchState>>
+    )
+    .addNode(
+      'qualityGate',
+      qualityGateNode as unknown as (state: SearchState) => Promise<Partial<SearchState>>
+    )
+    .addNode(
+      'searchRespond',
+      searchRespondNode as (state: SearchState) => Promise<Partial<SearchState>>
+    )
+    .addNode(
+      'suggestFollowUps',
+      suggestFollowUpsNode as (state: SearchState) => Promise<Partial<SearchState>>
+    )
 
     // START → queryPlanner
     .addEdge('__start__', 'queryPlanner')

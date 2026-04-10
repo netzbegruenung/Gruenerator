@@ -21,9 +21,9 @@ import {
   buildMethodologySection,
 } from '../utilities/dossierBuilder.js';
 
+import type { RequestWithLocale } from '../../../../services/localization/index.js';
 import type { ExpandedChunkResult, ReferencesMap } from '../../../../services/search/types.js';
 import type { WebSearchState, ResearchDossier, SearchResult } from '../types.js';
-import type { RequestWithLocale } from '../../../../services/localization/index.js';
 
 /**
  * Dossier Node: Generate comprehensive research dossier with citations
@@ -124,7 +124,7 @@ ${refsSummary}`;
           temperature: 0.3,
         },
       },
-      state.req as any
+      state.req as RequestWithLocale
     );
 
     if (!result.success) {
