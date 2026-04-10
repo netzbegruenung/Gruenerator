@@ -21,9 +21,15 @@ export class GrueneApiClient {
 
   constructor(config: GrueneApiConfig) {
     this.baseUrl = config.GRUENE_API_BASEURL;
-    this.username = config.GRUENE_API_USERNAME;
-    this.password = config.GRUENE_API_PASSWORD;
-    this.apiKey = config.GRUENE_API_KEY;
+    if (config.GRUENE_API_USERNAME) {
+      this.username = config.GRUENE_API_USERNAME;
+    }
+    if (config.GRUENE_API_PASSWORD) {
+      this.password = config.GRUENE_API_PASSWORD;
+    }
+    if (config.GRUENE_API_KEY) {
+      this.apiKey = config.GRUENE_API_KEY;
+    }
 
     // Create axios instance with retry configuration
     this.client = axios.create({

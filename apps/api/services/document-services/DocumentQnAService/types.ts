@@ -59,7 +59,7 @@ export interface KnowledgeExtractionOptions {
  */
 export interface MistralContentItem {
   type: 'text' | 'document';
-  text?: string;
+  text?: string | undefined;
   source?: {
     type: 'base64';
     media_type: string;

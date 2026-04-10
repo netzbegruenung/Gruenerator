@@ -1,6 +1,6 @@
 import { type InferSelectModel } from 'drizzle-orm';
 
-import { profiles } from '../../database/schema/core.js';
+import { type profiles } from '../../database/schema/core.js';
 
 import type { UserProfile } from './types.js';
 
@@ -18,16 +18,16 @@ type ProfileSelectModel = InferSelectModel<typeof profiles>;
 export function toUserProfile(row: ProfileSelectModel): UserProfile {
   return {
     id: row.id,
-    keycloak_id: row.keycloak_id ?? undefined,
+    ...(row.keycloak_id != null && { keycloak_id: row.keycloak_id }),
     email: row.email ?? '',
-    username: row.username ?? undefined,
-    display_name: row.display_name ?? undefined,
+    ...(row.username != null && { username: row.username }),
+    ...(row.display_name != null && { display_name: row.display_name }),
     avatar_robot_id: row.avatar_robot_id,
-    chat_color: row.chat_color ?? undefined,
+    ...(row.chat_color != null && { chat_color: row.chat_color }),
     beta_features: row.beta_features,
     user_defaults: row.user_defaults,
-    locale: (row.locale as 'de-DE' | 'de-AT' | undefined) ?? undefined,
-    custom_prompt: row.custom_prompt ?? undefined,
+    ...(row.locale != null && { locale: row.locale as 'de-DE' | 'de-AT' }),
+    ...(row.custom_prompt != null && { custom_prompt: row.custom_prompt }),
 
     // Feature flags — all have DB defaults so they are non-null
     groups_enabled: row.groups_enabled,
@@ -54,6 +54,6 @@ export function toUserProfile(row: ProfileSelectModel): UserProfile {
     // Timestamps
     created_at: row.created_at ?? new Date(),
     updated_at: row.updated_at ?? new Date(),
-    last_login: row.last_login ?? undefined,
+    ...(row.last_login != null && { last_login: row.last_login }),
   };
 }

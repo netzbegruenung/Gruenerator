@@ -165,7 +165,8 @@ async function extractAudioFromVideo(
 
   try {
     await fs.promises.writeFile(videoPath, videoBuffer);
-    await extractAudio(videoPath, audioPath, { onProgress: options?.onProgress });
+    const extractOptions = options?.onProgress != null ? { onProgress: options.onProgress } : {};
+    await extractAudio(videoPath, audioPath, extractOptions);
     const audioBuffer = await fs.promises.readFile(audioPath);
     const audioFilename = originalname.replace(/\.[^.]+$/, '.mp3');
     return { buffer: audioBuffer, filename: audioFilename };
@@ -301,7 +302,7 @@ async function transcribeBuffer(
     );
     return {
       text: result.text,
-      segments: result.segments,
+      ...(result.segments != null && { segments: result.segments }),
       hasTimestamps: !!result.segments?.length,
     };
   }
@@ -323,7 +324,7 @@ async function transcribeBuffer(
   );
   return {
     text: result.text,
-    segments: result.segments,
+    ...(result.segments != null && { segments: result.segments }),
     hasTimestamps: !!result.segments?.length,
   };
 }
@@ -339,7 +340,7 @@ async function transcribeBuffer(
 router.post(
   '/transcribe',
   upload.single('audio'),
-  async (req: TranscribeRequest, res: Response<TranscribeResponse>) => {
+  (async (req: TranscribeRequest, res: Response<TranscribeResponse>) => {
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -353,10 +354,9 @@ router.post(
     const options: TranscriptionOptions = {
       language: req.query.language || req.body.language || 'de',
       removeTimestamps: req.query.removeTimestamps === 'true' || req.body.removeTimestamps === true,
-      timestamp_granularities:
-        req.query.timestamps === 'true' || req.body.timestamps === true ? ['segment'] : undefined,
+      ...(req.query.timestamps === 'true' || req.body.timestamps === true ? { timestamp_granularities: ['segment'] as const } : {}),
       diarize: req.query.diarize === 'true' || req.body.diarize === true,
-      contextBias: req.body.contextBias,
+      ...(req.body.contextBias != null && { contextBias: req.body.contextBias }),
     };
 
     try {
@@ -384,10 +384,10 @@ router.post(
       return res.json({
         success: true,
         text: result.text,
-        segments: result.segments,
+        ...(result.segments != null && { segments: result.segments }),
         hasTimestamps: result.hasTimestamps,
         speakerMap,
-        language: options.language,
+        ...(options.language != null && { language: options.language }),
       });
     } catch (error) {
       log.error('[Voice] Transcription error:', error);
@@ -397,7 +397,7 @@ router.post(
         error: 'Fehler bei der Transkription: ' + (error as Error).message,
       });
     }
-  }
+  }) as any
 );
 
 /**
@@ -410,7 +410,7 @@ router.post(
 router.post(
   '/transcribe/stream',
   upload.single('audio'),
-  async (req: TranscribeRequest, res: Response) => {
+  (async (req: TranscribeRequest, res: Response) => {
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -459,8 +459,8 @@ router.post(
       if (needsFullTranscription) {
         const options: TranscriptionOptions = {
           language,
-          timestamp_granularities: timestamps ? ['segment'] : undefined,
-          diarize: diarize || undefined,
+          ...(timestamps && { timestamp_granularities: ['segment'] as const }),
+          ...(diarize && { diarize: true }),
         };
 
         const result = await transcribeBuffer(audioBuffer, filename, options);
@@ -495,7 +495,7 @@ router.post(
     }
 
     sse.end();
-  }
+  }) as any
 );
 
 // ============================================================================
@@ -530,8 +530,8 @@ router.post('/transcribe-upload', async (req: Request, res: Response<TranscribeR
 
     const options: TranscriptionOptions = {
       language,
-      timestamp_granularities: timestamps ? ['segment'] : undefined,
-      diarize: diarize || undefined,
+      ...(timestamps && { timestamp_granularities: ['segment'] as const }),
+      ...(diarize && { diarize: true }),
     };
 
     if (isVideoFile(filetype)) {
@@ -554,7 +554,7 @@ router.post('/transcribe-upload', async (req: Request, res: Response<TranscribeR
     return res.json({
       success: true,
       text: result.text,
-      segments: result.segments,
+      ...(result.segments != null && { segments: result.segments }),
       hasTimestamps: result.hasTimestamps,
       speakerMap,
       language,
@@ -617,8 +617,8 @@ router.post('/transcribe-upload/stream', async (req: Request, res: Response) => 
     if (needsFullTranscription) {
       const options: TranscriptionOptions = {
         language,
-        timestamp_granularities: timestamps ? ['segment'] : undefined,
-        diarize: diarize || undefined,
+        ...(timestamps && { timestamp_granularities: ['segment'] as const }),
+        ...(diarize && { diarize: true }),
       };
 
       const result = await transcribeBuffer(audioBuffer, filename, options);
@@ -681,9 +681,9 @@ router.post(
     const options: TranscriptionOptions = {
       language,
       removeTimestamps,
-      timestamp_granularities: timestamps ? ['segment'] : undefined,
+      ...(timestamps && { timestamp_granularities: ['segment'] as const }),
       diarize,
-      contextBias,
+      ...(contextBias != null && { contextBias }),
     };
 
     try {
@@ -695,16 +695,16 @@ router.post(
       );
       const result: TranscriptionResult = {
         text: voxtralResult.text,
-        segments: voxtralResult.segments,
+        ...(voxtralResult.segments != null && { segments: voxtralResult.segments }),
         hasTimestamps: !!voxtralResult.segments?.length,
       };
 
       return res.json({
         success: true,
         text: result.text,
-        segments: result.segments,
+        ...(result.segments != null && { segments: result.segments }),
         hasTimestamps: result.hasTimestamps,
-        language: options.language,
+        ...(options.language != null && { language: options.language }),
         sourceUrl: url,
       });
     } catch (error) {
@@ -725,7 +725,7 @@ router.post(
 router.post(
   '/chat',
   upload.single('audio'),
-  async (req: ChatRequest, res: Response<ChatResponse>) => {
+  (async (req: ChatRequest, res: Response<ChatResponse>) => {
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -759,7 +759,7 @@ router.post(
         error: 'Fehler beim Audio-Chat: ' + (error as Error).message,
       });
     }
-  }
+  }) as any
 );
 
 /**

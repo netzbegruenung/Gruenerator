@@ -55,12 +55,17 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
 
   const queryStr = researchBrief ? `${searchQuery}\n${researchBrief}` : searchQuery || '';
 
-  const items: RerankableItem[] = candidates.map((r) => ({
-    title: r.title,
-    content: r.content.slice(0, 300),
-    source: r.source,
-    relevance: r.relevance,
-  }));
+  const items: RerankableItem[] = candidates.map((r) => {
+    const item: RerankableItem = {
+      title: r.title,
+      content: r.content.slice(0, 300),
+      source: r.source,
+    };
+    if (r.relevance != null) {
+      item.relevance = r.relevance;
+    }
+    return item;
+  });
 
   const { rankedIndices, scores, rerankTimeMs } = await rerankPipeline({
     query: queryStr,

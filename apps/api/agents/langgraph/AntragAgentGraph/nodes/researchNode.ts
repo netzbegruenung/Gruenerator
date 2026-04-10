@@ -8,6 +8,7 @@ import { searchArgumentsFromNotebooks } from '../../PRAgent/generators/arguments
 
 import type { ArgumentResult } from '../../PRAgent/generators/argumentsGenerator.js';
 import type { AntragAgentState, AntragRequestType } from '../types.js';
+import type { RequestWithLocale } from '../../../../services/localization/index.js';
 
 const log = createLogger('AntragAgent:research');
 
@@ -16,7 +17,7 @@ export async function researchNode(state: AntragAgentState): Promise<Partial<Ant
   log.debug('[researchNode] Starting research for topic:', state.inhalt.substring(0, 100));
 
   try {
-    const locale = extractLocaleFromRequest(state.req);
+    const locale = extractLocaleFromRequest(state.req as RequestWithLocale);
     const argumentCollections =
       locale === 'de-AT'
         ? ['oesterreich_gruene_documents', 'gruene_at_documents']

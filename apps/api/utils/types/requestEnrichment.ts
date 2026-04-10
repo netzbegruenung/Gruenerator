@@ -9,58 +9,58 @@ export type Locale = 'de-DE' | 'de-AT';
 
 export interface EnrichmentOptions {
   type: string;
-  enableUrls?: boolean;
-  enableWebSearch?: boolean;
-  enableDocQnA?: boolean;
-  usePrivacyMode?: boolean;
-  useProMode?: boolean;
-  webSearchQuery?: string | null;
-  systemRole?: string | null;
-  constraints?: string | null;
-  formatting?: string | null;
-  taskInstructions?: string | null;
-  outputFormat?: string | null;
-  examples?: ContentExample[];
-  toolInstructions?: string[];
-  knowledgeContent?: string | null;
-  instructions?: string | null;
-  selectedDocumentIds?: string[];
-  selectedTextIds?: string[];
-  searchQuery?: string | null;
-  provider?: string;
+  enableUrls?: boolean | undefined;
+  enableWebSearch?: boolean | undefined;
+  enableDocQnA?: boolean | undefined;
+  usePrivacyMode?: boolean | undefined;
+  useProMode?: boolean | undefined;
+  webSearchQuery?: string | null | undefined;
+  systemRole?: string | null | undefined;
+  constraints?: string | null | undefined;
+  formatting?: string | null | undefined;
+  taskInstructions?: string | null | undefined;
+  outputFormat?: string | null | undefined;
+  examples?: ContentExample[] | undefined;
+  toolInstructions?: string[] | undefined;
+  knowledgeContent?: string | null | undefined;
+  instructions?: string | null | undefined;
+  selectedDocumentIds?: string[] | undefined;
+  selectedTextIds?: string[] | undefined;
+  searchQuery?: string | null | undefined;
+  provider?: string | undefined;
   aiWorkerPool?: { processRequest: (request: unknown) => Promise<unknown> };
-  req?: unknown;
-  enableNotebookEnrich?: boolean;
-  notebookEnrichPrompt?: string;
+  req?: unknown | undefined;
+  enableNotebookEnrich?: boolean | undefined;
+  notebookEnrichPrompt?: string | undefined;
 }
 
 export interface Document {
   type: 'text' | 'document' | 'image';
   source: {
     type: 'base64' | 'text';
-    media_type?: string;
-    data?: string;
-    text?: string;
+    media_type?: string | undefined;
+    data?: string | undefined;
+    text?: string | undefined;
     document?: {
       type: string;
-      data?: string;
+      data?: string | undefined;
     };
     image?: {
       type: string;
-      data?: string;
+      data?: string | undefined;
     };
     metadata?:
       | Record<string, unknown>
       | {
           title: string;
-          url?: string;
-          wordCount?: number;
-          extractedAt?: string;
+          url?: string | undefined;
+          wordCount?: number | undefined;
+          extractedAt?: string | undefined;
           contentSource: 'url_crawl' | 'attachment' | 'database';
-          filename?: string;
-          fileSize?: number;
-          pageCount?: number;
-          chunkCount?: number;
+          filename?: string | undefined;
+          fileSize?: number | undefined;
+          pageCount?: number | undefined;
+          chunkCount?: number | undefined;
         };
   };
 }
@@ -74,9 +74,9 @@ export interface WebSearchSource {
 export interface DocumentReference {
   title: string;
   filename: string;
-  pageCount?: number;
+  pageCount?: number | undefined;
   retrievalMethod: 'full_text' | 'vector_search';
-  relevance?: number;
+  relevance?: number | undefined;
 }
 
 export interface TextReference {
@@ -91,19 +91,19 @@ export interface EnrichmentMetadata {
   enableDocQnA: boolean;
   webSearchSources: WebSearchSource[] | null;
   usePrivacyMode: boolean;
-  urlsProcessed?: string[];
-  documentsPreProcessed?: boolean;
-  documentsReferences?: DocumentReference[];
-  textsReferences?: TextReference[];
-  notebookEnrichUsed?: boolean;
-  notebookEnrichLength?: number;
-  notebookEnrichTimeMs?: number;
+  urlsProcessed?: string[] | undefined;
+  documentsPreProcessed?: boolean | undefined;
+  documentsReferences?: DocumentReference[] | undefined;
+  textsReferences?: TextReference[] | undefined;
+  notebookEnrichUsed?: boolean | undefined;
+  notebookEnrichLength?: number | undefined;
+  notebookEnrichTimeMs?: number | undefined;
   [key: string]: unknown;
 }
 
 export interface EnrichedState {
   type: string;
-  provider?: string;
+  provider?: string | undefined;
   locale: Locale;
   systemRole: string | null;
   constraints: string | null;
@@ -120,9 +120,9 @@ export interface EnrichedState {
   selectedTextIds: string[];
   searchQuery: string | null;
   useProMode: boolean;
-  enrichmentMetadata?: EnrichmentMetadata;
-  requestFormatted?: string;
-  tools?: ClaudeTool[];
+  enrichmentMetadata?: EnrichmentMetadata | undefined;
+  requestFormatted?: string | undefined;
+  tools?: ClaudeTool[] | undefined;
 }
 
 export interface VectorSearchResult {
@@ -130,11 +130,11 @@ export interface VectorSearchResult {
   title: string;
   filename: string;
   content_type: 'vector_search' | 'full_text' | 'intelligent_excerpt';
-  search_info?: string;
+  search_info?: string | undefined;
   relevant_content: string;
-  content?: string;
+  content?: string | undefined;
   similarity_score: number;
-  page_count?: number;
+  page_count?: number | undefined;
 }
 
 export interface FullTextResult {
@@ -151,33 +151,33 @@ export interface HybridSearchResult {
     filename: string;
     relevant_content: string;
     similarity_score: number;
-    matched_query?: string;
+    matched_query?: string | undefined;
   }>;
 }
 
 export interface KnowledgeEntry {
-  id?: string;
+  id?: string | undefined;
   title: string;
   content: string;
-  created_at?: string;
+  created_at?: string | undefined;
 }
 
 export interface SavedText {
   id: string;
   content: string;
-  type?: string;
-  document_type?: string;
-  title?: string;
-  word_count?: number;
-  created_at?: string;
+  type?: string | undefined;
+  document_type?: string | undefined;
+  title?: string | undefined;
+  word_count?: number | undefined;
+  created_at?: string | undefined;
 }
 
 export interface AttachmentProcessingResult {
-  hasAttachments?: boolean;
-  summary?: unknown | null;
-  validated?: boolean;
-  error?: string | null;
-  documents?: Document[];
+  hasAttachments?: boolean | undefined;
+  summary?: unknown | null | undefined;
+  validated?: boolean | undefined;
+  error?: string | null | undefined;
+  documents?: Document[] | undefined;
 }
 
 export interface WebSearchResult {
@@ -187,9 +187,9 @@ export interface WebSearchResult {
 
 export interface DocumentSearchResult {
   knowledge: string[];
-  metadata?: unknown;
-  documentReferences?: DocumentReference[];
-  textReferences?: TextReference[];
+  metadata?: unknown | undefined;
+  documentReferences?: DocumentReference[] | undefined;
+  textReferences?: TextReference[] | undefined;
 }
 
 /**

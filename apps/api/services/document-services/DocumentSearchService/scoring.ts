@@ -164,7 +164,7 @@ export function extractChunkData(chunk: DocumentRawChunk): DocumentChunkData {
     page_number: chunk.page_number ?? null,
     similarity: chunk.similarity,
     token_count: chunk.token_count,
-    quality_score: chunk.quality_score ?? undefined,
+    ...(typeof chunk.quality_score === 'number' && { quality_score: chunk.quality_score }),
     searchMethod: chunk.searchMethod,
     originalVectorScore: chunk.originalVectorScore ?? null,
     originalTextScore: chunk.originalTextScore ?? null,

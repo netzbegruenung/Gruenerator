@@ -15,24 +15,24 @@ export interface PersonPattern {
  * Person role within Bundestag
  */
 export interface PersonRole {
-  fraktion?: string;
-  rolle?: string;
-  von?: string;
-  bis?: string;
+  fraktion?: string | undefined;
+  rolle?: string | undefined;
+  von?: string | undefined;
+  bis?: string | undefined;
 }
 
 /**
  * Person/MP information
  */
 export interface Person {
-  id?: string;
+  id?: string | undefined;
   vorname: string;
   nachname: string;
-  titel?: string;
-  fraktion?: string | string[];
-  wahlkreis?: string;
-  biografie?: string;
-  person_roles?: PersonRole[];
+  titel?: string | undefined;
+  fraktion?: string | string[] | undefined;
+  wahlkreis?: string | undefined;
+  biografie?: string | undefined;
+  person_roles?: PersonRole[] | undefined;
   [key: string]: unknown;
 }
 
@@ -41,20 +41,20 @@ export interface Person {
  */
 export interface PersonDetectionResult {
   detected: boolean;
-  person?: Person;
+  person?: Person | undefined;
   confidence: number;
-  source?: 'cache' | 'api' | 'cache_weak';
-  extractedName?: string;
+  source?: 'cache' | 'api' | 'cache_weak' | undefined;
+  extractedName?: string | undefined;
 }
 
 /**
  * Search parameters for person search
  */
 export interface PersonSearchParams {
-  query?: string;
-  fraktion?: string;
-  wahlperiode?: number;
-  limit?: number;
+  query?: string | undefined;
+  fraktion?: string | undefined;
+  wahlperiode?: number | undefined;
+  limit?: number | undefined;
 }
 
 /**
@@ -62,7 +62,7 @@ export interface PersonSearchParams {
  */
 export interface PersonSearchResult {
   documents: Person[];
-  total?: number;
+  total?: number | undefined;
 }
 
 /**
@@ -78,29 +78,29 @@ export interface CacheStats {
  * Drucksachen (document) search parameters
  */
 export interface DrucksachenSearchParams {
-  query?: string;
-  urheber?: string;
-  drucksachetyp?: string;
-  wahlperiode?: number;
-  limit?: number;
+  query?: string | undefined;
+  urheber?: string | undefined;
+  drucksachetyp?: string | undefined;
+  wahlperiode?: number | undefined;
+  limit?: number | undefined;
 }
 
 /**
  * Activities search parameters
  */
 export interface AktivitaetenSearchParams {
-  person_id?: string | number;
-  aktivitaetsart?: string;
-  wahlperiode?: number;
-  limit?: number;
+  person_id?: string | number | undefined;
+  aktivitaetsart?: string | undefined;
+  wahlperiode?: number | undefined;
+  limit?: number | undefined;
 }
 
 /**
  * Generic search result structure from MCP
  */
 export interface SearchResult {
-  documents?: Record<string, unknown>[];
-  results?: Record<string, unknown>[];
+  documents?: Record<string, unknown>[] | undefined;
+  results?: Record<string, unknown>[] | undefined;
   [key: string]: unknown;
 }
 
@@ -108,28 +108,28 @@ export interface SearchResult {
  * Options for enriched person search
  */
 export interface EnrichedSearchOptions {
-  contentLimit?: number;
-  drucksachenLimit?: number;
-  aktivitaetenLimit?: number;
+  contentLimit?: number | undefined;
+  drucksachenLimit?: number | undefined;
+  aktivitaetenLimit?: number | undefined;
 }
 
 /**
  * Combined person profile with DIP details
  */
 export interface PersonProfile {
-  id?: string;
+  id?: string | undefined;
   vorname: string;
   nachname: string;
   name: string;
-  titel?: string;
-  fraktion?: string | string[];
-  wahlkreis?: string;
-  geburtsdatum?: string;
-  geburtsort?: string;
-  beruf?: string;
-  biografie?: string;
-  vita?: string;
-  wahlperioden?: Record<string, unknown>[];
+  titel?: string | undefined;
+  fraktion?: string | string[] | undefined;
+  wahlkreis?: string | undefined;
+  geburtsdatum?: string | undefined;
+  geburtsort?: string | undefined;
+  beruf?: string | undefined;
+  biografie?: string | undefined;
+  vita?: string | undefined;
+  wahlperioden?: Record<string, unknown>[] | undefined;
   source: string;
 }
 
@@ -138,12 +138,12 @@ export interface PersonProfile {
  */
 export interface ContentMention {
   title: string;
-  url?: string;
+  url?: string | undefined;
   snippet: string;
   similarity: number;
-  searchMethod?: string;
-  category?: string;
-  publishedAt?: string;
+  searchMethod?: string | undefined;
+  category?: string | undefined;
+  publishedAt?: string | undefined;
   source: string;
 }
 
@@ -151,14 +151,14 @@ export interface ContentMention {
  * Formatted Drucksache document
  */
 export interface FormattedDrucksache {
-  id?: string;
-  dokumentnummer?: string;
-  titel?: string;
-  drucksachetyp?: string;
-  datum?: string;
-  wahlperiode?: number;
-  urheber?: string;
-  fundstelle?: string;
+  id?: string | undefined;
+  dokumentnummer?: string | undefined;
+  titel?: string | undefined;
+  drucksachetyp?: string | undefined;
+  datum?: string | undefined;
+  wahlperiode?: number | undefined;
+  urheber?: string | undefined;
+  fundstelle?: string | undefined;
   source: string;
 }
 
@@ -166,12 +166,12 @@ export interface FormattedDrucksache {
  * Formatted Aktivität
  */
 export interface FormattedAktivitaet {
-  id?: string;
-  aktivitaetsart?: string;
-  titel?: string;
-  datum?: string;
-  wahlperiode?: number;
-  vorgangsbezug?: Record<string, unknown>;
+  id?: string | undefined;
+  aktivitaetsart?: string | undefined;
+  titel?: string | undefined;
+  datum?: string | undefined;
+  wahlperiode?: number | undefined;
+  vorgangsbezug?: Record<string, unknown> | undefined;
   source: string;
 }
 
@@ -180,15 +180,15 @@ export interface FormattedAktivitaet {
  */
 export interface EnrichedPersonSearchResult {
   isPersonQuery: boolean;
-  person?: PersonProfile;
-  contentMentions?: ContentMention[];
-  drucksachen?: FormattedDrucksache[];
-  aktivitaeten?: FormattedAktivitaet[];
+  person?: PersonProfile | undefined;
+  contentMentions?: ContentMention[] | undefined;
+  drucksachen?: FormattedDrucksache[] | undefined;
+  aktivitaeten?: FormattedAktivitaet[] | undefined;
   metadata?: {
     query: string;
-    extractedName?: string;
+    extractedName?: string | undefined;
     detectionConfidence: number;
-    detectionSource?: string;
+    detectionSource?: string | undefined;
     contentMentionsCount: number;
     drucksachenCount: number;
     aktivitaetenCount: number;

@@ -19,6 +19,6 @@ export interface SimpleMessagesConfig {
 
 export interface SimpleMessageDetectionResult {
   isSimple: boolean;
-  category?: string;
-  confidence?: number;
+  category?: string | undefined;
+  confidence?: number | undefined;
 }

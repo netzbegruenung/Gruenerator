@@ -46,10 +46,19 @@ router.get('/status', async (req: AuthRequest, res: Response): Promise<void> => 
     });
 
     if (session?.user) {
-      const user = session.user as BetterAuthUser;
+      const user = session.user as BetterAuthUser & { locale?: string };
       res.json({
         isAuthenticated: true,
-        user: { ...user, locale: user.locale || 'de-DE' },
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          image: user.image,
+          emailVerified: user.emailVerified,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+          ...(user.locale && { locale: user.locale }),
+        },
       });
       return;
     }

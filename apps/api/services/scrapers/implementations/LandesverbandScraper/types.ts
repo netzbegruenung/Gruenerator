@@ -26,7 +26,7 @@ export interface PdfLink {
   /** Surrounding text context */
   context: string;
   /** Date information (populated after extraction) */
-  dateInfo?: DateExtractionResult;
+  dateInfo?: DateExtractionResult | undefined;
 }
 
 /**
@@ -50,13 +50,13 @@ export interface ProcessResult {
   /** Whether document was stored successfully */
   stored: boolean;
   /** Reason if not stored (e.g., 'too_short', 'too_old', 'unchanged') */
-  reason?: string;
+  reason?: string | undefined;
   /** Number of chunks created */
-  chunks?: number;
+  chunks?: number | undefined;
   /** Number of vectors stored */
-  vectors?: number;
+  vectors?: number | undefined;
   /** Whether this was an update of existing document */
-  updated?: boolean;
+  updated?: boolean | undefined;
 }
 
 /**
@@ -116,17 +116,17 @@ export interface SourceResult {
  */
 export interface LandesverbandScrapeOptions {
   /** Force update even if content hasn't changed */
-  forceUpdate?: boolean;
+  forceUpdate?: boolean | undefined;
   /** Filter by source type */
-  sourceType?: string | null;
+  sourceType?: string | null | undefined;
   /** Filter by Landesverband short code */
-  landesverband?: string | null;
+  landesverband?: string | null | undefined;
   /** Filter by content type */
-  contentType?: string | null;
+  contentType?: string | null | undefined;
   /** Maximum documents per content path */
-  maxDocuments?: number | null;
+  maxDocuments?: number | null | undefined;
   /** Dry run: extract links and check Qdrant, but don't download/process */
-  dryRun?: boolean;
+  dryRun?: boolean | undefined;
 }
 
 /**
@@ -156,17 +156,17 @@ export interface LandesverbandFullResult {
  */
 export interface LandesverbandSearchOptions {
   /** Filter by source ID */
-  sourceId?: string | null;
+  sourceId?: string | null | undefined;
   /** Filter by Landesverband short code */
-  landesverband?: string | null;
+  landesverband?: string | null | undefined;
   /** Filter by source type */
-  sourceType?: string | null;
+  sourceType?: string | null | undefined;
   /** Filter by content type */
-  contentType?: string | null;
+  contentType?: string | null | undefined;
   /** Maximum results to return */
-  limit?: number;
+  limit?: number | undefined;
   /** Minimum similarity threshold (0-1) */
-  threshold?: number;
+  threshold?: number | undefined;
 }
 
 /**

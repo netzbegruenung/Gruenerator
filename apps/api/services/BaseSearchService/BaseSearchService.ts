@@ -139,7 +139,7 @@ export class BaseSearchService {
         embedding: queryEmbedding,
         userId,
         filters,
-        limit: Math.round(options.limit * this.chunkMultiplier),
+        limit: Math.round((options.limit ?? 10) * this.chunkMultiplier),
         threshold,
         query,
       });
@@ -151,7 +151,7 @@ export class BaseSearchService {
       }
 
       // Group and rank results
-      const results = await this.groupAndRankResults(chunks, options.limit, query);
+      const results = await this.groupAndRankResults(chunks, options.limit ?? 10, query);
 
       // Build response
       const response: SearchResponse = {
@@ -177,12 +177,13 @@ export class BaseSearchService {
       console.log(`[${this.serviceName}] Found ${results.length} results for: "${query}"`);
       return response;
     } catch (error) {
-      return this.errorHandler.handle(error as Error, {
+      const errorResponse: SearchResponse = this.errorHandler.handle(error as Error, {
         operation: 'similarity_search',
         query: params.query,
         userId: params.userId,
         returnResponse: true,
-      });
+      }) as SearchResponse;
+      return errorResponse;
     }
   }
 
@@ -227,7 +228,7 @@ export class BaseSearchService {
         searchPatterns,
         userId,
         filters,
-        limit: Math.round(options.limit * this.chunkMultiplier),
+        limit: Math.round((options.limit ?? 10) * this.chunkMultiplier),
         threshold,
         hybridOptions: {
           vectorWeight: options.vectorWeight ?? 0.4,
@@ -244,7 +245,7 @@ export class BaseSearchService {
       }
 
       // Group and rank results with hybrid scoring
-      const results = await this.groupAndRankHybridResults(chunks, options.limit, query, {
+      const results = await this.groupAndRankHybridResults(chunks, options.limit ?? 10, query, {
         applyMMR: true,
         mmrLambda: 0.7,
       });
@@ -278,12 +279,13 @@ export class BaseSearchService {
       console.log(`[${this.serviceName}] Found ${results.length} hybrid results for: "${query}"`);
       return response;
     } catch (error) {
-      return this.errorHandler.handle(error as Error, {
+      const errorResponse: SearchResponse = this.errorHandler.handle(error as Error, {
         operation: 'hybrid_search',
         query: params.query,
         userId: params.userId,
         returnResponse: true,
-      });
+      }) as SearchResponse;
+      return errorResponse;
     }
   }
 
@@ -309,8 +311,8 @@ export class BaseSearchService {
     const rpcFunction = this.getRPCFunction(filters);
     const rpcParams = this.buildRPCParams({
       embeddingString,
-      userId,
-      filters,
+      ...(userId != null && { userId }),
+      ...(filters != null && { filters }),
       limit,
       threshold,
     });
@@ -532,7 +534,7 @@ export class BaseSearchService {
   validateSearchParams(params: SearchParams): ValidatedSearchParams {
     // Handle already-structured params (with userId, filters, options)
     if ('userId' in params && 'filters' in params && 'options' in params) {
-      return params as unknown as ValidatedSearchParams;
+      return params as ValidatedSearchParams;
     }
 
     // Convert flat params to SearchParamsInput format for InputValidator

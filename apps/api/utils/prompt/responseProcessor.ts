@@ -57,7 +57,14 @@ export function processResponseWithTitle(
   formData: FormData = {}
 ): EnhancedAIWorkerResult {
   if (!result || !result.success || !result.content) {
-    return result;
+    const output: EnhancedAIWorkerResult = {
+      success: result.success,
+      content: result.content,
+    };
+    if (result.metadata != null) {
+      output.metadata = result.metadata;
+    }
+    return output;
   }
 
   const contentType = detectContentType(routePath, formData);

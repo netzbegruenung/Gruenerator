@@ -41,6 +41,7 @@ const require = createRequire(import.meta.url);
 // Import services with fallback handling
 const { urlCrawlerService } = (() => {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return require('../services/urlCrawlerService.js');
   } catch (_) {
     return { urlCrawlerService: null };
@@ -50,6 +51,7 @@ const { urlCrawlerService } = (() => {
 const searxngWebSearchService = (() => {
   try {
     const mod = require('../services/search/index.js');
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return mod.searxngService;
   } catch (_) {
     return null;
@@ -600,9 +602,32 @@ class RequestEnricher {
     userId?: string
   ): Promise<AttachmentProcessingResult> {
     try {
-      return await processAndBuildAttachments(attachments, usePrivacyMode, routeName, userId);
+      const result = await processAndBuildAttachments(
+        attachments,
+        usePrivacyMode,
+        routeName,
+        userId
+      );
+      const output: AttachmentProcessingResult = {
+        hasAttachments: result.hasAttachments,
+        summary: result.summary,
+        validated: result.validated,
+        error: result.error,
+      };
+      if (result.documents != null) {
+        output.documents = result.documents.map((doc) => ({
+          type: doc.type,
+          source: {
+            type: doc.source.type,
+            media_type: doc.source.media_type,
+            data: doc.source.data,
+            text: doc.source.text,
+          },
+        }));
+      }
+      return output;
     } catch (error) {
-      return { error: getErrorMessage(error), documents: [] };
+      return { error: getErrorMessage(error) };
     }
   }
 
@@ -879,7 +904,13 @@ class RequestEnricher {
                 mode: 'hybrid',
               }),
             })
-              .then((res) => (res.ok ? res.json() : { success: false, results: [] }))
+              .then(
+                (res) =>
+                  (res.ok ? res.json() : { success: false, results: [] }) as Promise<{
+                    success: boolean;
+                    results: VectorSearchResult[];
+                  }>
+              )
               .then((result) => (result.success ? result.results : []))
               .catch((error) => {
                 console.warn('🎯 [RequestEnricher] Vector search failed:', error.message);

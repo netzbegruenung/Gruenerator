@@ -1,4 +1,5 @@
 import {
+  type ComponentProps,
   useCallback,
   useEffect,
   useMemo,
@@ -27,7 +28,7 @@ import {
   ThreadsSidebar,
 } from '@blocknote/react';
 import { filterSuggestionItems } from '@blocknote/core/extensions';
-import { BlockNoteView } from '@blocknote/shadcn';
+import { BlockNoteView, ShadCNDefaultComponents } from '@blocknote/shadcn';
 import {
   AIExtension,
   AIMenuController,
@@ -39,6 +40,7 @@ import { DefaultChatTransport } from 'ai';
 import '@blocknote/core/fonts/inter.css';
 import '@blocknote/shadcn/style.css';
 import '@blocknote/xl-ai/style.css';
+import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 
@@ -101,6 +103,18 @@ const schema = BlockNoteSchema.create({
   },
   styleSpecs: defaultStyleSpecs,
 });
+
+// BlockNote's shadcn Tooltip wraps each instance in its own TooltipProvider,
+// creating triple-nested providers inside the Toolbar. This override removes
+// the redundant inner provider — the Toolbar already provides one.
+function ToolbarTooltip(props: ComponentProps<typeof TooltipPrimitive.Root>) {
+  return <TooltipPrimitive.Root data-slot="tooltip" {...props} />;
+}
+
+const shadCNComponentOverrides = {
+  Tooltip: { ...ShadCNDefaultComponents.Tooltip, Tooltip: ToolbarTooltip },
+};
+
 
 const BlockNoteEditorInner = ({
   documentId,
@@ -221,23 +235,6 @@ const BlockNoteEditorInner = ({
           credentials: 'include',
         }),
       }),
-      {
-        key: 'checkboxClickFix',
-        mount({ dom, signal }: { dom: HTMLElement; signal: AbortSignal }) {
-          for (const eventType of ['pointerdown', 'pointerup', 'mousedown', 'mouseup'] as const) {
-            dom.addEventListener(
-              eventType,
-              (e: Event) => {
-                const target = e.target as HTMLElement;
-                if (target instanceof HTMLInputElement && target.type === 'checkbox') {
-                  e.stopPropagation();
-                }
-              },
-              { signal, capture: true }
-            );
-          }
-        },
-      },
     ];
 
     if (showComments && threadStore) {
@@ -280,6 +277,26 @@ const BlockNoteEditorInner = ({
     setEditorInStore(documentId, editor);
     setIsReady(true);
 
+    // Fix checkbox multi-click: intercept click on checkbox inputs and
+    // toggle the block directly via editor API, bypassing ProseMirror's
+    // slow event pipeline that drops native change events.
+    const editorDom = editor.prosemirrorView?.dom;
+    const handleCheckboxClick = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (!(target instanceof HTMLInputElement && target.type === 'checkbox')) return;
+      const blockEl = target.closest('[data-id]');
+      if (!blockEl) return;
+      const blockId = blockEl.getAttribute('data-id');
+      if (!blockId) return;
+      const block = editor.getBlock(blockId);
+      if (block && block.type === 'checkListItem') {
+        e.preventDefault();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        editor.updateBlock(blockId, { props: { checked: !(block.props as any).checked } });
+      }
+    };
+    editorDom?.addEventListener('click', handleCheckboxClick);
+
     const timeoutId = setTimeout(() => {
       if (onEditorReady) {
         onEditorReady(editor as unknown as BlockNoteEditorCore);
@@ -287,6 +304,7 @@ const BlockNoteEditorInner = ({
     }, 0);
 
     return () => {
+      editorDom?.removeEventListener('click', handleCheckboxClick);
       clearTimeout(timeoutId);
       removeEditor(documentId);
     };
@@ -331,6 +349,18 @@ const BlockNoteEditorInner = ({
     return '/images/tiptap-ui-placeholder-image.jpg';
   }, []);
 
+  const toolbarItems = useMemo(() => getFormattingToolbarItems(), []);
+
+  const formattingToolbar = useCallback(
+    () => (
+      <FormattingToolbar>
+        {toolbarItems}
+        <AIToolbarButton />
+      </FormattingToolbar>
+    ),
+    [toolbarItems]
+  );
+
   if (!editor) {
     return <div className="blocknote-loading">Lädt Editor...</div>;
   }
@@ -345,6 +375,7 @@ const BlockNoteEditorInner = ({
           editor={editor}
           theme={theme}
           editable={editable}
+          shadCNComponents={shadCNComponentOverrides}
           formattingToolbar={false}
           slashMenu={false}
           sideMenu={false}
@@ -353,18 +384,11 @@ const BlockNoteEditorInner = ({
           <AIMenuController />
           {hideFormattingToolbar ? null : staticToolbar ? (
             <FormattingToolbar>
-              {getFormattingToolbarItems()}
+              {toolbarItems}
               {!isTouchDevice && <AIToolbarButton />}
             </FormattingToolbar>
           ) : (
-            <FormattingToolbarController
-              formattingToolbar={() => (
-                <FormattingToolbar>
-                  {getFormattingToolbarItems()}
-                  <AIToolbarButton />
-                </FormattingToolbar>
-              )}
-            />
+            <FormattingToolbarController formattingToolbar={formattingToolbar} />
           )}
           <SuggestionMenuController
             triggerCharacter="/"

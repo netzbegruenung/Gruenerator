@@ -43,7 +43,7 @@ router.post(
   '/upload',
   requireAuth,
   upload.single('file'),
-  async (req: MulterRequest, res: Response): Promise<void> => {
+  (async (req: MulterRequest, res: Response): Promise<void> => {
     const tempPath = req.file?.path;
 
     try {
@@ -127,7 +127,7 @@ router.post(
         }
       }
     }
-  }
+  }) as any
 );
 
 /**

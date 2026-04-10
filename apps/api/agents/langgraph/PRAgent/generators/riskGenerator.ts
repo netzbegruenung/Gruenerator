@@ -2,6 +2,7 @@ import { MARKDOWN_FORMATTING_INSTRUCTIONS } from '../../../../utils/prompt/index
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 
 import type { EnrichedState } from '../../../../utils/types/requestEnrichment.js';
+import type { AIWorkerResult } from '../../../../workers/types.js';
 import type { Request } from 'express';
 
 /**
@@ -51,7 +52,7 @@ Analysiere diese Kommunikation auf Risiken und bereite Counter-Speech vor.`;
     formatting: MARKDOWN_FORMATTING_INSTRUCTIONS,
   });
 
-  const aiResult = await req.app.locals.aiWorkerPool.processRequest(
+  const aiResult: AIWorkerResult = await req.app.locals.aiWorkerPool.processRequest(
     {
       type: 'social',
       usePrivacyMode: request.usePrivacyMode || false,
@@ -66,5 +67,5 @@ Analysiere diese Kommunikation auf Risiken und bereite Counter-Speech vor.`;
     req
   );
 
-  return aiResult.content || aiResult.data?.content || '';
+  return aiResult.content || '';
 }

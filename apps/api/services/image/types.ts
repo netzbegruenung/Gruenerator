@@ -20,8 +20,8 @@ export interface ImageCatalog {
 }
 
 export interface ImageSelectionOptions {
-  sharepicType?: string;
-  maxCandidates?: number;
+  sharepicType?: string | undefined;
+  maxCandidates?: number | undefined;
 }
 
 export interface ImageSelectionResult {
@@ -51,9 +51,9 @@ export interface ImageSelectionServiceStats {
 export interface ImageAttachment {
   type: string;
   data: string;
-  name?: string;
-  size?: number;
-  source?: string;
+  name?: string | undefined;
+  size?: number | undefined;
+  source?: string | undefined;
 }
 
 export interface ImageStorageSession {
@@ -94,10 +94,10 @@ export type ImagineVariant =
 
 export interface ImagineComposeOptions {
   title: string;
-  titleColor?: string;
-  variant?: ImagineVariant;
-  outputWidth?: number;
-  outputHeight?: number;
+  titleColor?: string | undefined;
+  variant?: ImagineVariant | undefined;
+  outputWidth?: number | undefined;
+  outputHeight?: number | undefined;
 }
 
 export interface BrandColors {
@@ -109,10 +109,10 @@ export interface BrandColors {
 
 export interface GradientConfig {
   direction: 'top' | 'bottom' | 'center';
-  startY?: number;
-  endY?: number;
-  centerY?: number;
-  spread?: number;
+  startY?: number | undefined;
+  endY?: number | undefined;
+  centerY?: number | undefined;
+  spread?: number | undefined;
   opacity: number;
 }
 
@@ -155,7 +155,7 @@ export interface UnsplashAttribution {
   profileUrl: string;
   photoUrl: string;
   license: string;
-  downloadLocation?: string;
+  downloadLocation?: string | undefined;
 }
 
 export interface ImageWithAttribution {

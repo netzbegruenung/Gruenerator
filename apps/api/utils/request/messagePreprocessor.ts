@@ -2,7 +2,7 @@
  * Message preprocessing helpers (skeleton) to keep worker adapters lean
  */
 
-import type { MessagePreprocessingInput, OpenAIMessage } from './types.js';
+import type { MessageContentBlock, MessagePreprocessingInput, OpenAIMessage } from './types.js';
 
 /**
  * Convert messages to OpenAI-compatible format
@@ -25,7 +25,9 @@ export function toOpenAICompatibleMessages({
           typeof msg.content === 'string'
             ? msg.content
             : Array.isArray(msg.content)
-              ? msg.content.map((c) => c.text || c.content || '').join('\n')
+              ? (msg.content as MessageContentBlock[])
+                  .map((c) => c.text || c.content || '')
+                  .join('\n')
               : String(msg.content || ''),
       });
     });

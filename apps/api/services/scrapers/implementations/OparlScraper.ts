@@ -418,7 +418,7 @@ export class OparlScraper extends BaseScraper {
         with_payload: false,
         with_vector: false,
       });
-      return result.points && result.points.length > 0;
+      return (result.points?.length ?? 0) > 0;
     } catch (_error) {
       return false;
     }

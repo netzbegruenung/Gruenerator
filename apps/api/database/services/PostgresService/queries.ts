@@ -138,7 +138,7 @@ export async function transactionQuery(
 ): Promise<Record<string, unknown>[]> {
   try {
     const result = await client.query(sql, params);
-    return result.rows;
+    return result.rows as Record<string, unknown>[];
   } catch (error) {
     console.error('[PostgresService] Transaction query error:', error, { sql, params });
     throw new Error(`Transaction SQL query failed: ${(error as Error).message}`);

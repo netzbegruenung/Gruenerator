@@ -23,6 +23,7 @@ const log = createLogger('Tool:EditImage');
 const imageCounter = new ImageGenerationCounter(redisClient);
 
 export function createEditImageTool(deps: ToolDependencies): DynamicStructuredTool {
+    // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'edit_image',
     description:
@@ -32,8 +33,9 @@ export function createEditImageTool(deps: ToolDependencies): DynamicStructuredTo
       instruction: z
         .string()
         .describe('Beschreibung der gewünschten Bearbeitung (z.B. "mehr Bäume und Radwege")'),
-    }),
-    func: async ({ instruction }) => {
+    }).describe('Bildbearbeitung Tool'),
+    func: async (input: { instruction: string }) => {
+      const { instruction } = input;
       const userId = deps.agentConfig.userId;
 
       if (!userId) {

@@ -38,17 +38,27 @@ export class LangChainChunker {
     try {
       // @ts-expect-error - LangChain is an optional dependency
       const { RecursiveCharacterTextSplitter } = await import('langchain/text_splitter');
-      return new RecursiveCharacterTextSplitter(opts);
+      const splitter: { splitText(text: string): Promise<string[]> } =
+        new RecursiveCharacterTextSplitter(opts) as { splitText(text: string): Promise<string[]> };
+      return splitter;
     } catch (_err1) {
       try {
         // @ts-expect-error - LangChain is an optional dependency
         const { RecursiveCharacterTextSplitter } = await import('@langchain/core/text_splitter');
-        return new RecursiveCharacterTextSplitter(opts);
+        const splitter: { splitText(text: string): Promise<string[]> } =
+          new RecursiveCharacterTextSplitter(opts) as {
+            splitText(text: string): Promise<string[]>;
+          };
+        return splitter;
       } catch (_err2) {
         try {
           // @ts-expect-error - LangChain is an optional dependency
           const { RecursiveCharacterTextSplitter } = await import('@langchain/textsplitters');
-          return new RecursiveCharacterTextSplitter(opts);
+          const splitter: { splitText(text: string): Promise<string[]> } =
+            new RecursiveCharacterTextSplitter(opts) as {
+              splitText(text: string): Promise<string[]>;
+            };
+          return splitter;
         } catch (_err3) {
           if (vectorConfig.isVerboseMode()) {
             console.warn('[LangChainChunker] LangChain not available; using fallback');

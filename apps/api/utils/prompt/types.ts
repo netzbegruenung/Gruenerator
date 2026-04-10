@@ -9,7 +9,7 @@ export interface DocumentContextMetadata {
   document_id: string;
   similarity_score: number;
   chunk_index: number;
-  filename?: string;
+  filename?: string | undefined;
 }
 
 export interface DocumentContext {
@@ -25,7 +25,7 @@ export interface Citation {
   document_id: string;
   similarity_score: number;
   chunk_index: number;
-  filename?: string;
+  filename?: string | undefined;
 }
 
 export interface SourceInfo {
@@ -54,27 +54,27 @@ export interface SearchDocumentsTool {
 
 export interface AIWorkerResult {
   success: boolean;
-  content?: string;
-  metadata?: Record<string, unknown>;
+  content?: string | undefined;
+  metadata?: Record<string, unknown> | undefined;
   [key: string]: unknown;
 }
 
 export interface EnhancedAIWorkerResult extends AIWorkerResult {
   metadata?: {
-    title?: string;
-    titleSource?: 'extracted' | 'smart';
-    contentType?: string;
+    title?: string | undefined;
+    titleSource?: 'extracted' | 'smart' | undefined;
+    contentType?: string | undefined;
     [key: string]: unknown;
   };
   [key: string]: unknown;
 }
 
 export interface FormData {
-  requestType?: string;
-  platforms?: string[];
-  textForm?: string;
-  thema?: string;
-  idee?: string;
+  requestType?: string | undefined;
+  platforms?: string[] | undefined;
+  textForm?: string | undefined;
+  thema?: string | undefined;
+  idee?: string | undefined;
   [key: string]: unknown;
 }
 

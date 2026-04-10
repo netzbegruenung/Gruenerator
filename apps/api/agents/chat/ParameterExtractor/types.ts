@@ -40,9 +40,9 @@ export interface BaseParameters {
   /** Chat context */
   chatContext: ChatContext;
   /** Confidence scores for parameters */
-  _parameterConfidence?: ParameterConfidence;
+  _parameterConfidence?: ParameterConfidence | undefined;
   /** Sources for parameters */
-  _parameterSources?: ParameterSources;
+  _parameterSources?: ParameterSources | undefined;
   /** Allow index signature for dynamic access */
   [key: string]: unknown;
 }
@@ -126,11 +126,11 @@ export interface ZitatParameters extends SharepicParameters {
  */
 export interface DreiZeilenParameters extends SharepicParameters {
   /** First line */
-  line1?: string;
+  line1?: string | undefined;
   /** Second line */
-  line2?: string;
+  line2?: string | undefined;
   /** Third line */
-  line3?: string;
+  line3?: string | undefined;
 }
 
 /**
@@ -235,11 +235,11 @@ export interface ConfidenceAnalysis {
  */
 export interface MistralExtractionResponse {
   /** Author name (for zitat) */
-  author?: string | null;
+  author?: string | null | undefined;
   /** Main theme */
-  theme?: string;
+  theme?: string | undefined;
   /** Additional details */
-  details?: string;
+  details?: string | undefined;
   /** Three lines (for dreizeilen) */
   lines?: {
     line1: string;
@@ -248,8 +248,8 @@ export interface MistralExtractionResponse {
   };
   /** Confidence scores */
   confidence?: {
-    author?: number;
-    theme?: number;
+    author?: number | undefined;
+    theme?: number | undefined;
   };
 }
 

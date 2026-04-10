@@ -63,6 +63,7 @@ async function getParser() {
       headers: { 'User-Agent': 'Gruenerator-Monitor/1.0' },
     });
   }
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   return parserInstance;
 }
 

@@ -1,19 +1,19 @@
 export interface PRAgentRequest {
   inhalt: string;
   platforms: string[];
-  zitatgeber?: string;
-  was?: string;
-  wie?: string;
-  presseabbinder?: string;
-  customPrompt?: string;
-  selectedDocumentIds?: string[];
-  selectedTextIds?: string[];
-  searchQuery?: string;
-  attachments?: unknown[];
-  useWebSearchTool?: boolean;
-  usePrivacyMode?: boolean;
-  useProMode?: boolean;
-  useUltraMode?: boolean;
+  zitatgeber?: string | undefined;
+  was?: string | undefined;
+  wie?: string | undefined;
+  presseabbinder?: string | undefined;
+  customPrompt?: string | undefined;
+  selectedDocumentIds?: string[] | undefined;
+  selectedTextIds?: string[] | undefined;
+  searchQuery?: string | undefined;
+  attachments?: unknown[] | undefined;
+  useWebSearchTool?: boolean | undefined;
+  usePrivacyMode?: boolean | undefined;
+  useProMode?: boolean | undefined;
+  useUltraMode?: boolean | undefined;
   [key: string]: unknown;
 }
 
@@ -22,7 +22,7 @@ export interface SocialPlatformConfig {
   style: string;
   focus: string;
   additionalGuidelines: string;
-  top_p?: number;
+  top_p?: number | undefined;
 }
 
 export interface PRAgentResult {
@@ -50,6 +50,6 @@ export interface FormattedPRResponse {
 export interface ContentExample {
   platform: string;
   content: string;
-  relevanceScore?: number;
-  metadata?: Record<string, unknown>;
+  relevanceScore?: number | undefined;
+  metadata?: Record<string, unknown> | undefined;
 }

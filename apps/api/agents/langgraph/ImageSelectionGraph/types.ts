@@ -13,7 +13,7 @@ export interface CatalogImage {
   filename: string;
   alt_text: string;
   tags: string[];
-  path?: string;
+  path?: string | undefined;
 }
 
 /**
@@ -21,23 +21,23 @@ export interface CatalogImage {
  */
 export interface ImageCatalog {
   images: CatalogImage[];
-  version?: string;
-  lastUpdated?: string;
+  version?: string | undefined;
+  lastUpdated?: string | undefined;
 }
 
 /**
  * Image selection metadata
  */
 export interface SelectionMetadata {
-  totalImages?: number;
+  totalImages?: number | undefined;
   selectionMethod?:
     | 'direct_description_matching'
     | 'direct_ai_selection'
     | 'smart_fallback'
     | 'error_fallback';
-  aiConfidence?: number;
-  totalImagesConsidered?: number;
-  parseError?: string;
+  aiConfidence?: number | undefined;
+  totalImagesConsidered?: number | undefined;
+  parseError?: string | undefined;
   [key: string]: unknown;
 }
 
@@ -52,15 +52,15 @@ export interface ImageSelectionState {
   req: Request;
 
   // Core data
-  imageCatalog?: ImageCatalog;
+  imageCatalog?: ImageCatalog | undefined;
 
   // Output
-  selectedImage?: CatalogImage;
-  confidence?: number;
-  reasoning?: string;
-  alternatives?: CatalogImage[];
-  metadata?: SelectionMetadata;
-  error?: string;
+  selectedImage?: CatalogImage | undefined;
+  confidence?: number | undefined;
+  reasoning?: string | undefined;
+  alternatives?: CatalogImage[] | undefined;
+  metadata?: SelectionMetadata | undefined;
+  error?: string | undefined;
 }
 
 /**
@@ -78,12 +78,12 @@ export interface ImageSelectionInput {
  */
 export interface ImageSelectionOutput {
   status: 'success' | 'error';
-  selectedImage?: CatalogImage;
-  confidence?: number;
-  reasoning?: string;
-  alternatives?: CatalogImage[];
-  metadata?: SelectionMetadata;
-  error?: string;
+  selectedImage?: CatalogImage | null;
+  confidence?: number | null;
+  reasoning?: string | null;
+  alternatives?: CatalogImage[] | null;
+  metadata?: SelectionMetadata | null;
+  error?: string | null;
 }
 
 /**
@@ -91,5 +91,5 @@ export interface ImageSelectionOutput {
  */
 export interface AISelectionResponse {
   selectedIndex: number;
-  confidence?: number;
+  confidence?: number | undefined;
 }

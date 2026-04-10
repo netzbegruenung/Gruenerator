@@ -24,15 +24,17 @@ function normalizeMistralResults(mistralResult: any): SearchResult[] {
   if (!mistralResult.sources || mistralResult.sources.length === 0) {
     return [];
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return mistralResult.sources.map((source: any) => ({
-    url: source.url,
-    title: source.title,
-    content: source.snippet || mistralResult.textContent || '',
-    snippet: source.snippet || '',
-    domain: source.domain,
-    score: source.relevance || 1.0,
-  }));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return
+  return mistralResult.sources.map(
+    (source: any): SearchResult => ({
+      url: source.url,
+      title: source.title,
+      content: source.snippet || mistralResult.textContent || '',
+      snippet: source.snippet || '',
+      domain: source.domain,
+      score: source.relevance || 1.0,
+    })
+  );
 }
 
 /**

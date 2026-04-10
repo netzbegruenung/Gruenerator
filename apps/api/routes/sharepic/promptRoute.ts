@@ -4,7 +4,7 @@
  * Bypasses the complex chat flow for direct, no-followup generation
  */
 
-import { Router, type Response } from 'express';
+import { Router, type Request, type Response } from 'express';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import ImageSelectionService from '../../services/image/ImageSelectionService.js';
@@ -31,12 +31,6 @@ interface SelectedImage {
   path: string;
   alt_text: string;
   category?: string;
-}
-
-/** Minimal Response-like interface for capturing handleUnifiedRequest output */
-interface ResponseCapture {
-  json(data: Record<string, unknown>): ResponseCapture;
-  status(code: number): { json(data: Record<string, unknown>): ResponseCapture };
 }
 
 /**
@@ -159,30 +153,27 @@ router.post(
         count: 1,
       };
 
-      // Create a custom response wrapper to capture the result.
-      // Only json() and status().json() are used by handleUnifiedRequest.
+      // Create a mock response to capture the result from handleUnifiedRequest.
+      // Typed as Response but only implements the json() and status().json() subset
+      // that handleUnifiedRequest actually calls.
       let capturedResponse: Record<string, unknown> | null = null;
-      const customRes: ResponseCapture = {
+      const customRes = {
         json: (data: Record<string, unknown>) => {
           capturedResponse = data;
-          return customRes;
+          return customRes as unknown as Response;
         },
         status: (code: number) => {
           return {
             json: (data: Record<string, unknown>) => {
               capturedResponse = { ...data, _statusCode: code };
-              return customRes;
+              return customRes as unknown as Response;
             },
           };
         },
-      };
+      } as unknown as Response;
 
-      // Call the unified handler — customRes implements the subset of Response used by handleUnifiedRequest
-      await handleUnifiedRequest(
-        req as unknown as SharepicRequest,
-        customRes as unknown as Response,
-        type
-      );
+      // Call the unified handler
+      await handleUnifiedRequest(req as Request as SharepicRequest, customRes, type);
 
       // Restore original body
       req.body = originalBody;

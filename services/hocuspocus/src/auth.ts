@@ -62,20 +62,27 @@ export class AuthService {
   ): Promise<AuthenticationResult> {
     try {
       const result = await this.db(
-        `SELECT id, is_public, share_permission, is_deleted
+        `SELECT id, is_public, share_mode, share_permission, is_deleted
          FROM collaborative_documents
          WHERE id = $1`,
         [documentName]
       );
 
-      if (result.length === 0 || result[0].is_deleted || !result[0].is_public) {
-        log.warn(`[Auth-Guest] Document ${documentName} not publicly accessible`);
+      const doc = result[0];
+      if (!doc || doc.is_deleted || (!doc.is_public && doc.share_mode !== 'public')) {
+        log.warn(
+          `[Auth-Guest] Document ${documentName} not publicly accessible (is_public=${doc?.is_public}, share_mode=${doc?.share_mode})`
+        );
         return { authenticated: false, reason: 'Document not publicly accessible' };
       }
 
+      log.info(
+        `[Auth-Guest] Document ${documentName} state: is_public=${doc.is_public}, share_mode=${doc.share_mode}`
+      );
+
       const guestId = requestParameters?.get('guestId') || `guest-${randomUUID().slice(0, 8)}`;
       const guestName = requestParameters?.get('guestName') || 'Gast';
-      const readOnly = result[0].share_permission === 'viewer';
+      const readOnly = doc.share_permission === 'viewer';
 
       log.info(
         `[Auth-Guest] Guest ${guestId} (${guestName}) authenticated for ${documentName} (${readOnly ? 'read-only' : 'read-write'})`

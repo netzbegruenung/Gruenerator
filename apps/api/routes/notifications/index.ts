@@ -33,7 +33,7 @@ router.get('/stream', (req: AuthRequest, res: Response) => {
   res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders();
 
-  const flushRes = () => (res as unknown as { flush?: () => void }).flush?.();
+  const flushRes = () => (res as { flush?: () => void }).flush?.();
 
   res.write(`event: connected\ndata: ${JSON.stringify({ userId })}\n\n`);
   flushRes();

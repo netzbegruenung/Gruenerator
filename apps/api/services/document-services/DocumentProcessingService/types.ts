@@ -9,9 +9,9 @@ import type { Chunk } from '../TextChunker/types.js';
  * Chunking options
  */
 export interface ChunkingOptions {
-  maxTokens?: number;
-  overlapTokens?: number;
-  preserveSentences?: boolean;
+  maxTokens?: number | undefined;
+  overlapTokens?: number | undefined;
+  preserveSentences?: boolean | undefined;
 }
 
 /**
@@ -77,12 +77,12 @@ export interface PostgresDocumentServiceLike {
     userId: string,
     metadata: {
       title: string;
-      filename?: string | null;
-      sourceType?: string;
-      vectorCount?: number;
-      fileSize?: number;
-      status?: string;
-      additionalMetadata?: Record<string, unknown> | null;
+      filename?: string | null | undefined;
+      sourceType?: string | undefined;
+      vectorCount?: number | undefined;
+      fileSize?: number | undefined;
+      status?: string | undefined;
+      additionalMetadata?: Record<string, unknown> | null | undefined;
       [key: string]: unknown;
     }
   ) => Promise<{ id: string; title: string; [key: string]: unknown }>;
@@ -90,10 +90,10 @@ export interface PostgresDocumentServiceLike {
     documentId: string,
     userId: string,
     updates: {
-      title?: string;
-      status?: string;
-      vectorCount?: number;
-      additionalMetadata?: Record<string, unknown>;
+      title?: string | undefined;
+      status?: string | undefined;
+      vectorCount?: number | undefined;
+      additionalMetadata?: Record<string, unknown> | undefined;
       [key: string]: unknown;
     }
   ) => Promise<unknown>;
@@ -103,9 +103,9 @@ export interface PostgresDocumentServiceLike {
   ) => Promise<{
     id: string;
     title: string;
-    filename?: string | null;
+    filename?: string | null | undefined;
     source_type: string;
-    metadata?: Record<string, unknown> | string | null;
+    metadata?: Record<string, unknown> | string | null | undefined;
     [key: string]: unknown;
   } | null>;
 }

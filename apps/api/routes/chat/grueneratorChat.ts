@@ -30,13 +30,21 @@ import {
   isSharepicIntent,
   isImagineIntent,
 } from '../../services/chat/IntentService.js';
-import { generateSharepicForChat } from '../../services/chat/sharepicGenerationService.js';
+import {
+  generateSharepicForChat,
+  type ExpressRequest as SharepicExpressRequest,
+} from '../../services/chat/sharepicGenerationService.js';
 import {
   detectSimpleMessage,
   generateSimpleResponse,
 } from '../../services/chat/simple-messages/index.js';
 import { trimMessagesToTokenLimit } from '../../services/counters/index.js';
-import { DocumentQnAService } from '../../services/document-services/DocumentQnAService/index.js';
+import {
+  DocumentQnAService,
+  type DocumentQnARedisClient,
+  type DocumentQnAMistralClient,
+  type Attachment as DocumentQnAAttachment,
+} from '../../services/document-services/DocumentQnAService/index.js';
 import { searxngService as searxngWebSearchService } from '../../services/search/index.js';
 import { withErrorHandler } from '../../utils/errors/index.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
@@ -62,8 +70,8 @@ const CONFIG = {
 
 // Initialize DocumentQnA service
 const documentQnAService = new DocumentQnAService(
-  redisClient as unknown as ConstructorParameters<typeof DocumentQnAService>[0],
-  mistralClient as unknown as ConstructorParameters<typeof DocumentQnAService>[1]
+  redisClient as unknown as DocumentQnARedisClient,
+  mistralClient as DocumentQnAMistralClient
 );
 
 /**
@@ -202,15 +210,15 @@ router.post(
         userId: userId,
         requestType: intentResult.requestType,
         subIntent: intentResult.subIntent,
-      };
+      } as unknown;
 
       if (intentResult.requestType === 'conversation') {
         log.debug('[Chat] Routing to conversation handler');
         const result = await processConversationRequest({
           message,
           userId,
-          locale: user?.locale,
-          subIntent: intentResult.subIntent,
+          ...(user?.locale && { locale: user.locale }),
+          ...(intentResult.subIntent && { subIntent: intentResult.subIntent }),
           messageHistory: trimmedHistory,
           aiWorkerPool: req.app.locals.aiWorkerPool,
           req,
@@ -242,7 +250,7 @@ router.post(
 
       if (intentResult.isMultiIntent) {
         log.debug('[Chat] Processing multi-intent request');
-        await processMultiIntentRequest(intentResult.intents, req, res, baseContext);
+        await processMultiIntentRequest(intentResult.intents, req, res, baseContext as any);
 
         // Store response in memory
         const responseContent = (res as CapturedResponse)._responseContent;
@@ -261,10 +269,10 @@ router.post(
         log.debug('[Chat] Processing single intent');
         const intent = {
           ...intentResult.intents[0],
-          requestType: intentResult.requestType,
+          ...(intentResult.requestType && { requestType: intentResult.requestType }),
         };
 
-        await processSingleIntentRequest(intent, req, res, baseContext);
+        await processSingleIntentRequest(intent, req, res, baseContext as any);
 
         // Store response in memory (skip sharepic and imagine)
         const responseContent = (res as CapturedResponse)._responseContent;
@@ -277,7 +285,9 @@ router.post(
           const responseText =
             typeof responseContent.content === 'string'
               ? responseContent.content
-              : responseContent.content.text || 'Response generated';
+              : typeof responseContent.content === 'object' && responseContent.content !== null && 'text' in responseContent.content
+                ? String((responseContent.content as Record<string, unknown>).text) || 'Response generated'
+                : 'Response generated';
           await chatMemory.addMessage(userId, 'assistant', responseText, intent.agent);
         }
       }
@@ -342,7 +352,7 @@ async function processAttachments(
       try {
         documentIds = await documentQnAService.storeAttachments(
           userId,
-          textAttachments as unknown as Parameters<typeof documentQnAService.storeAttachments>[1]
+          textAttachments as unknown as DocumentQnAAttachment[]
         );
         log.debug(`[Chat] Stored ${textAttachments.length} text documents`);
       } catch (error) {
@@ -509,11 +519,7 @@ async function handlePendingInformationRequest(
   if (extractedInfo) {
     await chatMemory.clearPendingRequest(userId);
 
-    const completedRequest = completePendingRequest(
-      pendingRequest,
-      extractedInfo,
-      req as unknown as Parameters<typeof completePendingRequest>[2]
-    );
+    const completedRequest = completePendingRequest(pendingRequest, extractedInfo, {});
 
     const completedRequestContext = {
       message: completedRequest.originalMessage || completedRequest.message || '',
@@ -558,7 +564,7 @@ async function handlePendingInformationRequest(
           preserveName: true,
         });
         const sharepicResponse = await generateSharepicForChat(
-          req as unknown as Parameters<typeof generateSharepicForChat>[0],
+          req as SharepicExpressRequest,
           sharepicType,
           req.body
         );
@@ -596,7 +602,9 @@ function setupResponseCapture(res: CapturedResponse, intentResult: unknown): voi
   const originalJson = res.json.bind(res);
 
   res.json = function (data: CapturedResponse['_responseContent']) {
-    res._responseContent = data;
+    if (data) {
+      res._responseContent = data;
+    }
     return originalJson(data);
   };
 }

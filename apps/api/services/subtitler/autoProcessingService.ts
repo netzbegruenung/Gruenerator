@@ -18,6 +18,7 @@ import {
   calculateScaleFilter,
   buildFFmpegOutputOptions,
   buildVideoFilters,
+  type VideoMetadata as FFmpegVideoMetadata,
 } from './ffmpegExportUtils.js';
 import { ffmpegPool } from './ffmpegPool.js';
 import { ffmpeg, ffprobe, normalizeRotation, FFprobeMetadata } from './ffmpegWrapper.js';
@@ -171,8 +172,8 @@ async function getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
     fps: parseFrameRate(videoStream?.r_frame_rate || '30/1'),
     rotation: String(rotationDegrees),
     originalFormat: {
-      codec: videoStream?.codec_name,
-      audioCodec: audioStream?.codec_name,
+      ...(videoStream?.codec_name && { codec: videoStream.codec_name }),
+      ...(audioStream?.codec_name && { audioCodec: audioStream.codec_name }),
       audioBitrate: audioStream?.bit_rate ? parseInt(audioStream.bit_rate) / 1000 : null,
     },
   };
@@ -500,18 +501,30 @@ async function exportWithEnhancements(
 
   const useHwAccel = await hwaccel.detectVaapi();
   const hasAudio = metadata.originalFormat?.audioCodec != null;
-  const compatibleMetadata = {
+  const originalFormatObj = metadata.originalFormat
+    ? {
+        ...(metadata.originalFormat.codec ? { codec: metadata.originalFormat.codec } : {}),
+        ...(metadata.originalFormat.videoBitrate != null
+          ? {
+              videoBitrate: metadata.originalFormat.videoBitrate,
+            }
+          : {}),
+        ...(metadata.originalFormat.audioCodec
+          ? { audioCodec: metadata.originalFormat.audioCodec }
+          : {}),
+        ...(metadata.originalFormat.audioBitrate != null
+          ? {
+              audioBitrate: metadata.originalFormat.audioBitrate,
+            }
+          : {}),
+      }
+    : undefined;
+
+  const compatibleMetadata: FFmpegVideoMetadata = {
     width: metadata.width,
     height: metadata.height,
     rotation: metadata.rotation,
-    originalFormat: metadata.originalFormat
-      ? {
-          codec: metadata.originalFormat.codec,
-          videoBitrate: metadata.originalFormat.videoBitrate ?? undefined,
-          audioCodec: metadata.originalFormat.audioCodec,
-          audioBitrate: metadata.originalFormat.audioBitrate ?? undefined,
-        }
-      : undefined,
+    ...(originalFormatObj ? { originalFormat: originalFormatObj } : {}),
   };
   const scaleFilter = calculateScaleFilter(compatibleMetadata, maxResolution);
 
@@ -675,7 +688,8 @@ interface AutoProgressData {
 async function getAutoProgress(token: string): Promise<AutoProgressData | null> {
   const data = await redisClient.get(`auto:${token}`);
   if (!data || typeof data !== 'string') return null;
-  return JSON.parse(data);
+  const progress: AutoProgressData = JSON.parse(data) as AutoProgressData;
+  return progress;
 }
 
 export { processVideoAutomatically, getAutoProgress, STAGES };

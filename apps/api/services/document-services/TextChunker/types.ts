@@ -7,32 +7,32 @@
  * Chunk metadata containing structural and content information
  */
 export interface ChunkMetadata {
-  chunkingMethod?: string;
-  page_number?: number | null;
-  content_type?: string;
-  markdown?: MarkdownMetadata;
-  quality_score?: number;
-  chapterTitle?: string;
-  sectionTitle?: string;
-  chunkType?: string;
-  isCompleteSentence?: boolean;
-  hasOverlap?: boolean;
-  prevChunkId?: string;
-  nextChunkId?: string;
-  relatedChunks?: string[];
-  semanticLevel?: number;
-  startPosition?: number;
-  endPosition?: number;
+  chunkingMethod?: string | undefined;
+  page_number?: number | null | undefined;
+  content_type?: string | undefined;
+  markdown?: MarkdownMetadata | undefined;
+  quality_score?: number | undefined;
+  chapterTitle?: string | undefined;
+  sectionTitle?: string | undefined;
+  chunkType?: string | undefined;
+  isCompleteSentence?: boolean | undefined;
+  hasOverlap?: boolean | undefined;
+  prevChunkId?: string | undefined;
+  nextChunkId?: string | undefined;
+  relatedChunks?: string[] | undefined;
+  semanticLevel?: number | undefined;
+  startPosition?: number | undefined;
+  endPosition?: number | undefined;
 }
 
 /**
  * Markdown structure metadata
  */
 export interface MarkdownMetadata {
-  headers?: number;
-  lists?: number;
-  tables?: number;
-  code_blocks?: number;
+  headers?: number | undefined;
+  lists?: number | undefined;
+  tables?: number | undefined;
+  code_blocks?: number | undefined;
 }
 
 /**
@@ -69,7 +69,7 @@ export interface TextWindow {
 export interface PageMarker {
   page: number;
   index: number;
-  length?: number;
+  length?: number | undefined;
 }
 
 /**
@@ -93,21 +93,21 @@ export interface PageWithText {
  * Chunking options
  */
 export interface ChunkingOptions {
-  maxTokens?: number;
-  overlapTokens?: number;
-  chunkSize?: number;
-  chunkOverlap?: number;
-  preserveSentences?: boolean;
-  removeEmptyChunks?: boolean;
-  baseMetadata?: Record<string, unknown>;
+  maxTokens?: number | undefined;
+  overlapTokens?: number | undefined;
+  chunkSize?: number | undefined;
+  chunkOverlap?: number | undefined;
+  preserveSentences?: boolean | undefined;
+  removeEmptyChunks?: boolean | undefined;
+  baseMetadata?: Record<string, unknown> | undefined;
 }
 
 /**
  * LangChain chunker options
  */
 export interface LangChainChunkerOptions {
-  chunkSize?: number;
-  chunkOverlap?: number;
+  chunkSize?: number | undefined;
+  chunkOverlap?: number | undefined;
 }
 
 /**
@@ -117,8 +117,8 @@ export interface SemanticBoundary {
   position: number;
   type: string;
   level: number;
-  title?: string;
-  importance?: number;
+  title?: string | undefined;
+  importance?: number | undefined;
 }
 
 /**
@@ -142,9 +142,9 @@ export interface DocumentStructure {
  * Chunk context for hierarchical chunking
  */
 export interface ChunkContext {
-  chapter?: string;
-  section?: string;
-  subsection?: string;
+  chapter?: string | undefined;
+  section?: string | undefined;
+  subsection?: string | undefined;
   level: number;
 }
 

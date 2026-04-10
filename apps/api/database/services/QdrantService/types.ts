@@ -12,25 +12,25 @@
  */
 export interface QdrantConfig {
   /** Qdrant server host */
-  host?: string;
+  host?: string | undefined;
   /** Qdrant server port */
-  port?: number;
+  port?: number | undefined;
   /** Full URL to Qdrant server (alternative to host/port) */
-  url?: string;
+  url?: string | undefined;
   /** API key for authentication */
-  apiKey?: string;
+  apiKey?: string | undefined;
   /** Whether to use HTTPS */
-  https?: boolean;
+  https?: boolean | undefined;
   /** Request timeout in milliseconds */
-  timeout?: number;
+  timeout?: number | undefined;
   /** Basic auth username */
-  basicAuthUsername?: string;
+  basicAuthUsername?: string | undefined;
   /** Basic auth password */
-  basicAuthPassword?: string;
+  basicAuthPassword?: string | undefined;
   /** URL path prefix (e.g., '/qdrant/') */
-  prefix?: string;
+  prefix?: string | undefined;
   /** Skip compatibility check for faster startup */
-  checkCompatibility?: boolean;
+  checkCompatibility?: boolean | undefined;
 }
 
 /**
@@ -70,21 +70,21 @@ export type CollectionKey = keyof CollectionNames;
  */
 export interface SearchOptions {
   /** User ID for filtering results */
-  userId?: string | null;
+  userId?: string | null | undefined;
   /** Document IDs to filter results */
-  documentIds?: string[] | null;
+  documentIds?: string[] | null | undefined;
   /** Maximum number of results to return */
-  limit?: number;
+  limit?: number | undefined;
   /** Minimum similarity score threshold */
-  threshold?: number;
+  threshold?: number | undefined;
   /** Target collection for the search */
-  collection?: string;
+  collection?: string | undefined;
   /** Whether to include payload in results */
-  withPayload?: boolean;
+  withPayload?: boolean | undefined;
   /** Whether to include vectors in results */
-  withVector?: boolean;
+  withVector?: boolean | undefined;
   /** HNSW ef parameter for search quality */
-  ef?: number | null;
+  ef?: number | null | undefined;
 }
 
 /**
@@ -92,15 +92,15 @@ export interface SearchOptions {
  */
 export interface HybridSearchOptions extends SearchOptions {
   /** Weight for vector search component (0-1) */
-  vectorWeight?: number;
+  vectorWeight?: number | undefined;
   /** Weight for text search component (0-1) */
-  textWeight?: number;
+  textWeight?: number | undefined;
   /** Whether to use Reciprocal Rank Fusion */
-  useRRF?: boolean;
+  useRRF?: boolean | undefined;
   /** RRF constant k */
-  rrfK?: number;
+  rrfK?: number | undefined;
   /** Recall limit for initial retrieval */
-  recallLimit?: number;
+  recallLimit?: number | undefined;
 }
 
 /**
@@ -120,17 +120,17 @@ export interface SearchResult {
   /** Additional metadata */
   metadata: Record<string, unknown>;
   /** User ID who owns this document */
-  user_id?: string | null;
+  user_id?: string | null | undefined;
   /** Optional title */
-  title?: string | null;
+  title?: string | null | undefined;
   /** Optional filename */
-  filename?: string | null;
+  filename?: string | null | undefined;
   /** Source URL for web content */
-  url?: string | null;
+  url?: string | null | undefined;
   /** Section/category for web content */
-  section?: string | null;
+  section?: string | null | undefined;
   /** Publication date for web content */
-  published_at?: string | null;
+  published_at?: string | null | undefined;
 }
 
 /**
@@ -152,13 +152,13 @@ export interface HybridSearchResult extends SearchResult {
   /** Method used to find this result */
   searchMethod: 'vector' | 'text' | 'hybrid';
   /** Original vector search score */
-  originalVectorScore?: number | null;
+  originalVectorScore?: number | null | undefined;
   /** Original text search score */
-  originalTextScore?: number | null;
+  originalTextScore?: number | null | undefined;
   /** Confidence level for this result */
-  confidence?: number;
+  confidence?: number | undefined;
   /** Raw RRF score before normalization */
-  rawRRFScore?: number;
+  rawRRFScore?: number | undefined;
 }
 
 /**
@@ -218,21 +218,21 @@ export interface IndexResult {
  */
 export interface ChunkData {
   /** Chunk text content */
-  text?: string;
-  chunk_text?: string;
+  text?: string | undefined;
+  chunk_text?: string | undefined;
   /** Embedding vector */
   embedding: number[];
   /** Token count */
-  token_count?: number;
-  tokens?: number;
+  token_count?: number | undefined;
+  tokens?: number | undefined;
   /** Chunk index within document */
-  chunk_index?: number;
+  chunk_index?: number | undefined;
   /** Optional title */
-  title?: string;
+  title?: string | undefined;
   /** Optional filename */
-  filename?: string;
+  filename?: string | undefined;
   /** Additional metadata */
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown> | undefined;
 }
 
 // =============================================================================
@@ -250,17 +250,17 @@ export interface ContentExampleMetadata {
   /** Full content text */
   content: string;
   /** Categories this content belongs to */
-  categories?: string[];
+  categories?: string[] | undefined;
   /** Tags for the content */
-  tags?: string[];
+  tags?: string[] | undefined;
   /** Short description */
-  description?: string;
+  description?: string | undefined;
   /** Additional content data */
-  content_data?: Record<string, unknown>;
+  content_data?: Record<string, unknown> | undefined;
   /** Extra metadata */
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown> | undefined;
   /** Creation timestamp */
-  created_at?: string;
+  created_at?: string | undefined;
 }
 
 /**
@@ -282,15 +282,15 @@ export interface ContentExampleResult {
   /** Tags */
   tags: string[];
   /** Description */
-  description?: string;
+  description?: string | undefined;
   /** Additional content data */
-  content_data?: Record<string, unknown>;
+  content_data?: Record<string, unknown> | undefined;
   /** Metadata */
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown> | undefined;
   /** Creation timestamp */
-  created_at?: string;
+  created_at?: string | undefined;
   /** Similarity score (duplicate for compatibility) */
-  similarity_score?: number;
+  similarity_score?: number | undefined;
 }
 
 /**
@@ -298,15 +298,15 @@ export interface ContentExampleResult {
  */
 export interface ContentExampleSearchOptions {
   /** Maximum results to return */
-  limit?: number;
+  limit?: number | undefined;
   /** Minimum similarity threshold */
-  threshold?: number;
+  threshold?: number | undefined;
   /** Filter by content type */
-  contentType?: string;
+  contentType?: string | undefined;
   /** Filter by categories */
-  categories?: string[];
+  categories?: string[] | undefined;
   /** Filter by tags */
-  tags?: string[];
+  tags?: string[] | undefined;
 }
 
 // =============================================================================
@@ -320,11 +320,11 @@ export interface SocialMediaMetadata {
   /** Platform: 'facebook' or 'instagram' */
   platform: 'facebook' | 'instagram';
   /** Country code: 'DE' or 'AT' */
-  country?: 'DE' | 'AT';
+  country?: 'DE' | 'AT' | undefined;
   /** Source account name/handle */
-  source_account?: string;
+  source_account?: string | undefined;
   /** Engagement metrics */
-  engagement?: Record<string, number>;
+  engagement?: Record<string, number> | undefined;
 }
 
 /**
@@ -340,13 +340,13 @@ export interface SocialMediaResult {
   /** Platform */
   platform: string;
   /** Country */
-  country?: string | null;
+  country?: string | null | undefined;
   /** Source account */
-  source_account?: string | null;
+  source_account?: string | null | undefined;
   /** Creation timestamp */
-  created_at?: string;
+  created_at?: string | undefined;
   /** Debug payload (development only) */
-  _debug_payload?: Record<string, unknown>;
+  _debug_payload?: Record<string, unknown> | undefined;
 }
 
 /**
@@ -354,13 +354,13 @@ export interface SocialMediaResult {
  */
 export interface SocialMediaSearchOptions {
   /** Maximum results to return */
-  limit?: number;
+  limit?: number | undefined;
   /** Minimum similarity threshold */
-  threshold?: number;
+  threshold?: number | undefined;
   /** Filter by platform */
-  platform?: 'facebook' | 'instagram';
+  platform?: 'facebook' | 'instagram' | undefined;
   /** Filter by country */
-  country?: 'DE' | 'AT';
+  country?: 'DE' | 'AT' | undefined;
 }
 
 // =============================================================================
@@ -372,22 +372,22 @@ export interface SocialMediaSearchOptions {
  */
 export interface BasePointPayload {
   /** Document or source identifier */
-  document_id?: string;
-  source_url?: string;
-  example_id?: string;
+  document_id?: string | undefined;
+  source_url?: string | undefined;
+  example_id?: string | undefined;
   /** Chunk information */
-  chunk_index?: number;
-  chunk_text?: string;
-  token_count?: number;
+  chunk_index?: number | undefined;
+  chunk_text?: string | undefined;
+  token_count?: number | undefined;
   /** User ownership */
-  user_id?: string | null;
+  user_id?: string | null | undefined;
   /** Timestamps */
-  created_at?: string;
-  indexed_at?: string;
+  created_at?: string | undefined;
+  indexed_at?: string | undefined;
   /** Content metadata */
-  title?: string | null;
-  filename?: string | null;
-  metadata?: Record<string, unknown>;
+  title?: string | null | undefined;
+  filename?: string | null | undefined;
+  metadata?: Record<string, unknown> | undefined;
 }
 
 /**
@@ -406,8 +406,8 @@ export interface DocumentPointPayload extends BasePointPayload {
 export interface GrundsatzPointPayload extends BasePointPayload {
   document_id: string;
   document_type: 'grundsatz';
-  content_type?: string;
-  page_number?: number;
+  content_type?: string | undefined;
+  page_number?: number | undefined;
 }
 
 /**
@@ -415,9 +415,9 @@ export interface GrundsatzPointPayload extends BasePointPayload {
  */
 export interface WebsiteContentPayload extends BasePointPayload {
   source_url: string;
-  primary_category?: string | null;
-  published_at?: string | null;
-  content_hash?: string | null;
+  primary_category?: string | null | undefined;
+  published_at?: string | null | undefined;
+  content_hash?: string | null | undefined;
   country: 'DE' | 'AT';
 }
 
@@ -428,10 +428,10 @@ export interface ContentExamplePayload extends BasePointPayload {
   example_id: string;
   type: string;
   content: string;
-  categories?: string[];
-  tags?: string[];
-  description?: string;
-  content_data?: Record<string, unknown>;
+  categories?: string[] | undefined;
+  tags?: string[] | undefined;
+  description?: string | undefined;
+  content_data?: Record<string, unknown> | undefined;
 }
 
 /**
@@ -441,9 +441,9 @@ export interface SocialMediaPayload extends BasePointPayload {
   example_id: string;
   platform: 'facebook' | 'instagram';
   content: string;
-  country?: 'DE' | 'AT';
-  source_account?: string;
-  engagement?: Record<string, number>;
+  country?: 'DE' | 'AT' | undefined;
+  source_account?: string | undefined;
+  engagement?: Record<string, number> | undefined;
 }
 
 /**
@@ -481,10 +481,10 @@ export interface ScrollResult {
   points: Array<{
     id: string | number;
     payload: Record<string, unknown>;
-    vector?: number[] | null;
+    vector?: number[] | null | undefined;
   }>;
   /** Offset for next page */
-  next_page_offset?: string | number | null;
+  next_page_offset?: string | number | null | undefined;
 }
 
 /**
@@ -492,13 +492,13 @@ export interface ScrollResult {
  */
 export interface ScrollOptions {
   /** Maximum points to return */
-  limit?: number;
+  limit?: number | undefined;
   /** Include payload */
-  withPayload?: boolean | string[];
+  withPayload?: boolean | string[] | undefined;
   /** Include vectors */
-  withVector?: boolean;
+  withVector?: boolean | undefined;
   /** Pagination offset */
-  offset?: string | number | null;
+  offset?: string | number | null | undefined;
 }
 
 /**
@@ -518,9 +518,9 @@ export interface BatchUpsertResult {
  */
 export interface BatchUpsertOptions {
   /** Wait for upsert to complete */
-  wait?: boolean;
+  wait?: boolean | undefined;
   /** Maximum retry attempts */
-  maxRetries?: number;
+  maxRetries?: number | undefined;
 }
 
 /**
@@ -544,19 +544,19 @@ export interface CollectionStats {
   /** Collection name */
   name: string;
   /** Total number of vectors */
-  vectors_count?: number;
+  vectors_count?: number | undefined;
   /** Number of indexed vectors */
-  indexed_vectors_count?: number;
+  indexed_vectors_count?: number | undefined;
   /** Total number of points */
-  points_count?: number;
+  points_count?: number | undefined;
   /** Number of segments */
-  segments_count?: number;
+  segments_count?: number | undefined;
   /** Collection status */
-  status?: string;
+  status?: string | undefined;
   /** Optimizer status */
-  optimizer_status?: string;
+  optimizer_status?: string | undefined;
   /** Error message if retrieval failed */
-  error?: string;
+  error?: string | undefined;
 }
 
 /**
@@ -577,22 +577,22 @@ export interface FilterCondition {
   /** Match condition */
   match?: {
     /** Exact value match */
-    value?: string | number | boolean;
+    value?: string | number | boolean | undefined;
     /** Match any of these values */
     any?: (string | number)[];
     /** Text search match */
-    text?: string;
+    text?: string | undefined;
   };
   /** Range condition */
   range?: {
     /** Greater than */
-    gt?: number | string;
+    gt?: number | string | undefined;
     /** Greater than or equal */
-    gte?: number | string;
+    gte?: number | string | undefined;
     /** Less than */
-    lt?: number | string;
+    lt?: number | string | undefined;
     /** Less than or equal */
-    lte?: number | string;
+    lte?: number | string | undefined;
   };
 }
 
@@ -601,11 +601,11 @@ export interface FilterCondition {
  */
 export interface QdrantFilter {
   /** All conditions must match */
-  must?: FilterCondition[];
+  must?: FilterCondition[] | undefined;
   /** None of these conditions should match */
-  must_not?: FilterCondition[];
+  must_not?: FilterCondition[] | undefined;
   /** At least one condition should match */
-  should?: FilterCondition[];
+  should?: FilterCondition[] | undefined;
 }
 
 // =============================================================================
@@ -619,7 +619,7 @@ export interface UrlTrackingInfo {
   /** Source URL */
   source_url: string;
   /** Content hash for change detection */
-  content_hash?: string | null;
+  content_hash?: string | null | undefined;
 }
 
 // =============================================================================
@@ -659,7 +659,7 @@ export interface QueryIntent {
   /** Detected language */
   language: string;
   /** Generated filter based on intent */
-  filter?: QdrantFilter;
+  filter?: QdrantFilter | undefined;
 }
 
 /**
@@ -693,7 +693,7 @@ export interface IQdrantService {
   /** Collection name mappings */
   collections: CollectionNames;
   /** Vector dimensions */
-  vectorSize?: number;
+  vectorSize?: number | undefined;
 
   // Core methods
   init(): Promise<void>;

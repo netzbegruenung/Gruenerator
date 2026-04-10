@@ -144,7 +144,7 @@ async function addTextToImage(
 router.post(
   '/',
   upload.single('image'),
-  async (req: MulterRequest, res: Response): Promise<void> => {
+  (async (req: MulterRequest, res: Response): Promise<void> => {
     let outputImagePath: string | undefined;
     try {
       const { quote, name, fontSize: fontSizeParam } = req.body as ZitatRequestBody;
@@ -186,7 +186,7 @@ router.post(
         });
       }
     }
-  }
+  }) as any
 );
 
 export default router;

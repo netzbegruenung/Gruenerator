@@ -10,7 +10,7 @@ export interface ShutdownableResource {
   close?(cb?: (err?: Error) => void): void;
   quit?(): Promise<unknown>;
   terminate?(): Promise<number>;
-  isOpen?: boolean;
+  isOpen?: boolean | undefined;
 }
 
 export interface Logger {
@@ -21,19 +21,19 @@ export interface Logger {
 }
 
 export interface ShutdownOptions {
-  timeout?: number;
-  logger?: Logger;
+  timeout?: number | undefined;
+  logger?: Logger | undefined;
 }
 
 export interface MasterShutdownOptions extends ShutdownOptions {
-  workerTimeout?: number;
+  workerTimeout?: number | undefined;
   onWorkerShutdown?: (pid: number) => void;
   onComplete?: () => void;
 }
 
 export interface WorkerShutdownOptions extends ShutdownOptions {
   resources: ShutdownableResource[];
-  server?: Server;
+  server?: Server | undefined;
   onComplete?: () => void;
 }
 

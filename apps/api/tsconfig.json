@@ -17,7 +17,8 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": false,
     "forceConsistentCasingInFileNames": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": true
   },
   "include": ["**/*.ts", "**/*.mts", "**/*.js", "**/*.mjs", "types/**/*.d.ts"],
   "exclude": [

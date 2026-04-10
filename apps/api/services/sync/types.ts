@@ -13,28 +13,28 @@ export interface WolkeSyncStatus {
   files_processed: number;
   files_failed: number;
   auto_sync_enabled: boolean;
-  last_sync_at?: Date | string;
-  created_at?: Date | string;
-  updated_at?: Date | string;
+  last_sync_at?: Date | string | undefined;
+  created_at?: Date | string | undefined;
+  updated_at?: Date | string | undefined;
 }
 
 export interface NextcloudFile {
   name: string;
   href: string;
   size: number;
-  etag?: string;
-  lastModified?: Date | string;
+  etag?: string | undefined;
+  lastModified?: Date | string | undefined;
 }
 
 export interface FileProcessResult {
-  success?: boolean;
-  skipped?: boolean;
-  reason?: string;
-  documentId?: string;
-  filename?: string;
-  vectorsCreated?: number;
-  isUpdate?: boolean;
-  error?: string;
+  success?: boolean | undefined;
+  skipped?: boolean | undefined;
+  reason?: string | undefined;
+  documentId?: string | undefined;
+  filename?: string | undefined;
+  vectorsCreated?: number | undefined;
+  isUpdate?: boolean | undefined;
+  error?: string | undefined;
 }
 
 export interface SyncResult {
@@ -48,15 +48,15 @@ export interface SyncResult {
 
 export interface FileChangeCheck {
   hasChanged: boolean;
-  reason?: string;
-  etag?: string;
-  lastModified?: Date | string;
+  reason?: string | undefined;
+  etag?: string | undefined;
+  lastModified?: Date | string | undefined;
 }
 
 export interface ProcessedFileMetadata {
   file_path: string;
-  etag?: string;
-  last_modified?: Date | string;
+  etag?: string | undefined;
+  last_modified?: Date | string | undefined;
   size: number;
   wolke_sync_status_id: string;
   user_id: string;

@@ -798,18 +798,19 @@ router.get(
 
       await service.recordView(shareToken);
 
+      const shareObj: any = {
+        mediaType: share.media_type,
+        title: share.title,
+        thumbnailUrl: share.thumbnail_path ? `/api/share/${shareToken}/thumbnail` : null,
+        downloadCount: share.download_count,
+        viewCount: share.view_count,
+        status: share.status || 'ready',
+        createdAt: share.created_at,
+      };
+      if (share.sharer_name != null) shareObj.sharerName = share.sharer_name;
       const response: ShareInfoResponse = {
         success: true,
-        share: {
-          mediaType: share.media_type,
-          title: share.title,
-          thumbnailUrl: share.thumbnail_path ? `/api/share/${shareToken}/thumbnail` : null,
-          downloadCount: share.download_count,
-          viewCount: share.view_count,
-          sharerName: share.sharer_name,
-          status: share.status || 'ready',
-          createdAt: share.created_at,
-        },
+        share: shareObj,
       };
 
       if (share.media_type === 'transfer') {
@@ -940,11 +941,10 @@ router.get(
 router.put(
   '/:shareToken/image',
   requireAuth,
-  async (req: Request<ShareTokenParams>, res: Response<ShareResponse>) => {
+  async (req: AuthenticatedRequest<ShareTokenParams>, res: Response<ShareResponse>) => {
     try {
       const { shareToken } = req.params;
-      const authReq = req as unknown as AuthenticatedRequest;
-      const userId = authReq.user!.id;
+      const userId = req.user!.id;
       const { imageBase64, title, metadata, originalImage } = req.body as {
         imageBase64: string;
         title?: string;
@@ -983,24 +983,26 @@ router.put(
         });
       }
 
-      const result = await service.updateImageShare(userId, shareToken, {
+      const updateParams: any = {
         imageBase64,
-        title,
         metadata: metadata || {},
-        originalImage,
-      });
+      };
+      if (title != null) updateParams.title = title;
+      if (originalImage != null) updateParams.originalImage = originalImage;
+      const result = await service.updateImageShare(userId, shareToken, updateParams);
 
       log.info(`Image share updated: ${shareToken} by user ${userId}`);
 
+      const shareResp: any = {
+        shareToken: result.shareToken,
+        shareUrl: result.shareUrl,
+        createdAt: result.createdAt,
+        mediaType: 'image',
+      };
+      if (result.hasOriginalImage != null) shareResp.hasOriginalImage = result.hasOriginalImage;
       return res.json({
         success: true,
-        share: {
-          shareToken: result.shareToken,
-          shareUrl: result.shareUrl,
-          createdAt: result.createdAt,
-          mediaType: 'image',
-          hasOriginalImage: result.hasOriginalImage,
-        },
+        share: shareResp,
       });
     } catch (error) {
       log.error('Failed to update image share:', error);
@@ -1177,7 +1179,7 @@ router.get(
         await service.recordDownload(shareToken as string, null, ipAddress, share.id);
 
         try {
-          const result = await transferService.proxyDownloadWithRecord(share);
+          const result = await transferService.proxyDownloadWithRecord(share as any);
 
           res.setHeader(
             'Content-Type',
@@ -1475,7 +1477,7 @@ router.get('/templates', requireAuth, async (req: AuthenticatedRequest, res: Res
  */
 router.get(
   '/templates/:shareToken',
-  async (req: Request<ShareTokenParams> & { user?: { id: string } }, res: Response) => {
+  (async (req: Request<ShareTokenParams> & { user?: { id: string } }, res: Response) => {
     try {
       const userId = req.user?.id;
       const { shareToken } = req.params;
@@ -1507,7 +1509,7 @@ router.get(
         });
       }
     }
-  }
+  }) as any
 );
 
 // ============================================================================

@@ -29,13 +29,79 @@ import { assemblePromptGraphAsync } from './promptAssemblyGraph.js';
 
 // Import types
 import type { PromptConfig, AIOptions, TemplateContext } from './types/index.js';
+import type { PromptAssemblyState } from './types/promptAssembly.js';
+import type { GenerationStatsService } from '../../database/services/GenerationStatsService/index.js';
+import type { UserProfile } from '../../services/user/types.js';
+import type { AIWorkerResult } from '../../utils/request/types.js';
+import type {
+  Document as EnrichmentDocument,
+  WebSearchSource,
+} from '../../utils/types/requestEnrichment.js';
+import type { Request, Response } from 'express';
+
+/**
+ * Request with authenticated user and app locals
+ */
+interface PromptProcessorRequest extends Request {
+  user?: UserProfile | undefined;
+  app: Request['app'] & {
+    locals: {
+      aiWorkerPool: {
+        processRequest: (request: Record<string, unknown>, req: Request) => Promise<AIWorkerResult>;
+      };
+    };
+  };
+}
+
+/**
+ * Request body shape used throughout prompt processing
+ */
+interface PromptRequestBody {
+  type?: string | undefined;
+  sharepicType?: string | undefined;
+  thema?: string | undefined;
+  theme?: string | undefined;
+  details?: string | undefined;
+  inhalt?: string | undefined;
+  requestType?: string | undefined;
+  platforms?: string[] | undefined;
+  useWebSearchTool?: boolean | undefined;
+  usePrivacyMode?: boolean | undefined;
+  useBedrock?: boolean | undefined;
+  useProMode?: boolean | undefined;
+  useUltraMode?: boolean | undefined;
+  provider?: string | undefined;
+  customPrompt?:
+    | string
+    | { instructions?: string | undefined; knowledgeContent?: string | undefined }
+    | undefined;
+  knowledgeContent?: string | undefined;
+  selectedDocumentIds?: string[] | undefined;
+  selectedTextIds?: string[] | undefined;
+  searchQuery?: string | undefined;
+  useNotebookEnrich?: boolean | undefined;
+  slug?: string | undefined;
+  zitatgeber?: string | undefined;
+  attachments?: unknown[] | undefined;
+  formData?: Record<string, string> | undefined;
+  partySearchTerm?: string | undefined;
+  [key: string]: unknown;
+}
+
+/**
+ * Custom generator record loaded from database
+ */
+interface GeneratorRecord {
+  prompt: string;
+  name?: string | undefined;
+  [key: string]: unknown;
+}
 
 /**
  * Generation stats logging (lazy-loaded ES module)
  * Lazy loading prevents circular dependencies
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let generationStatsService: any = null;
+let generationStatsService: GenerationStatsService | null = null;
 
 async function logGeneration(data: {
   userId: string | null;
@@ -47,7 +113,7 @@ async function logGeneration(data: {
   try {
     if (!generationStatsService) {
       const module = await import('../../database/services/GenerationStatsService/index.js');
-      generationStatsService = module.getGenerationStatsService();
+      generationStatsService = module.getGenerationStatsService() as GenerationStatsService;
     }
     await generationStatsService.logGeneration(data);
   } catch (_err) {
@@ -72,13 +138,13 @@ export class SimpleTemplateEngine {
     // Pre-process {{#if field}}...{{/if}} conditional blocks
     const processed = template.replace(
       /\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g,
-      (_match, field, content) => {
+      (_match: string, field: string, content: string) => {
         const value = this.getValue(field, data);
         return value !== undefined && value !== null && value !== '' ? content : '';
       }
     );
 
-    return processed.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+    return processed.replace(/\{\{([^}]+)\}\}/g, (match: string, key: string) => {
       const cleanKey = key.trim();
 
       // Handle special cases
@@ -124,8 +190,15 @@ export class SimpleTemplateEngine {
    * @returns Value at key path or undefined
    */
   static getValue(key: string, data: TemplateContext): unknown {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return key.split('.').reduce((obj: any, prop: string) => obj?.[prop], data);
+    return key
+      .split('.')
+      .reduce<unknown>(
+        (obj, prop) =>
+          obj != null && typeof obj === 'object'
+            ? (obj as Record<string, unknown>)[prop]
+            : undefined,
+        data
+      );
   }
 
   /**
@@ -219,8 +292,8 @@ export function loadPromptConfig(type: string): PromptConfig {
  * @param slug - Generator slug
  * @returns Generator data from database
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function loadCustomGeneratorPrompt(slug: string): Promise<any> {
+
+export async function loadCustomGeneratorPrompt(slug: string): Promise<GeneratorRecord | null> {
   const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
   const postgresService = getPostgresInstance();
   const generators = await postgresService.query(
@@ -233,7 +306,7 @@ export async function loadCustomGeneratorPrompt(slug: string): Promise<any> {
     throw new Error('Generator nicht gefunden');
   }
 
-  return generators[0];
+  return generators[0] as GeneratorRecord;
 }
 
 /**
@@ -242,15 +315,17 @@ export async function loadCustomGeneratorPrompt(slug: string): Promise<any> {
  * @param config - Prompt configuration
  * @returns Error message or null if valid
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function validateRequest(requestBody: any, config: PromptConfig): string | null {
+export function validateRequest(
+  requestBody: PromptRequestBody,
+  config: PromptConfig
+): string | null {
   const { validation } = config;
   if (!validation?.required) return null;
 
   const { customPrompt, inhalt, attachments } = requestBody;
   if (customPrompt) return null; // Skip validation for custom prompts
   if (inhalt) return null; // Free-text content is sufficient (e.g. from smart detection)
-  if (attachments?.length > 0) return null; // Attachments (e.g. PDF) are processed via DocQnA
+  if (attachments && attachments.length > 0) return null; // Attachments (e.g. PDF) are processed via DocQnA
 
   for (const field of validation.required) {
     if (!requestBody[field]) {
@@ -269,19 +344,20 @@ export function validateRequest(requestBody: any, config: PromptConfig): string 
  * @param type - Request type
  * @returns Modified request data
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function applyProfileDefaults(requestData: any, req: any, type: string): Promise<any> {
-  if (!req?.user?.id) return requestData;
+export async function applyProfileDefaults(
+  requestData: PromptRequestBody,
+  req: PromptProcessorRequest,
+  type: string
+): Promise<PromptRequestBody> {
+  if (!req.user?.id) return requestData;
   try {
     const { getProfileService } = await import('../../services/user/index.js');
     const profileService = getProfileService();
     const profile = await profileService.getProfileById(req.user.id);
     if (!profile) return requestData;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((profile as any).custom_prompt?.trim()) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      requestData.customPrompt = (profile as any).custom_prompt;
+    if (profile.custom_prompt?.trim()) {
+      requestData.customPrompt = profile.custom_prompt;
     }
 
     if (
@@ -308,10 +384,8 @@ export async function applyProfileDefaults(requestData: any, req: any, type: str
  */
 export function buildSystemRole(
   config: PromptConfig,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  requestData: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  generatorData: any = null
+  requestData: PromptRequestBody,
+  generatorData: GeneratorRecord | null = null
 ): string {
   // Handle sharepic multi-type case
   if (config.types) {
@@ -326,7 +400,7 @@ export function buildSystemRole(
     );
   }
 
-  let systemRole = generatorData?.prompt || config.systemRole;
+  let systemRole: string = generatorData?.prompt || config.systemRole;
 
   // Apply extensions based on request data
   if (config.systemRoleExtensions) {
@@ -363,12 +437,9 @@ export function buildSystemRole(
  */
 export function buildRequestContent(
   config: PromptConfig,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  requestData: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  generatorData: any = null
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): any {
+  requestData: PromptRequestBody,
+  generatorData: GeneratorRecord | null = null
+): string | PromptRequestBody {
   const { customPrompt } = requestData;
 
   if (customPrompt) {
@@ -387,7 +458,7 @@ export function buildRequestContent(
     let processedPrompt = generatorData.prompt;
 
     // Replace form data placeholders
-    const cleanFormData = { ...requestData.formData };
+    const cleanFormData: Record<string, string> = { ...requestData.formData };
     delete cleanFormData.useWebSearchTool;
     delete cleanFormData.usePrivacyMode;
     delete cleanFormData.attachments;
@@ -440,8 +511,10 @@ export function buildRequestContent(
  * @param requestData - Request data
  * @returns Web search query or null
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function buildWebSearchQuery(config: PromptConfig, requestData: any): string | null {
+export function buildWebSearchQuery(
+  config: PromptConfig,
+  requestData: PromptRequestBody
+): string | null {
   if (!config.features?.webSearch || !requestData.useWebSearchTool || !config.webSearchQuery) {
     return null;
   }
@@ -470,8 +543,10 @@ export function getFormattingInstructions(config: PromptConfig): string | null {
  * @param requestData - Request data
  * @returns Formatted platform guidelines or null
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function buildPlatformGuidelines(config: PromptConfig, requestData: any): string | null {
+export function buildPlatformGuidelines(
+  config: PromptConfig,
+  requestData: PromptRequestBody
+): string | null {
   if (!requestData.platforms || !Array.isArray(requestData.platforms) || !config.platforms) {
     return null;
   }
@@ -502,8 +577,10 @@ export function buildPlatformGuidelines(config: PromptConfig, requestData: any):
  * @param requestData - Request data
  * @returns Task instructions or null
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function getTaskInstructions(config: PromptConfig, requestData: any): string | null {
+export function getTaskInstructions(
+  config: PromptConfig,
+  requestData: PromptRequestBody
+): string | null {
   const parts: string[] = [];
 
   // Add base task instructions
@@ -531,8 +608,10 @@ export function getTaskInstructions(config: PromptConfig, requestData: any): str
  * @param requestData - Request data
  * @returns Output format instructions or null
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function getOutputFormat(config: PromptConfig, requestData: any): string | null {
+export function getOutputFormat(
+  config: PromptConfig,
+  requestData: PromptRequestBody
+): string | null {
   if (!config.outputFormat) return null;
   return SimpleTemplateEngine.render(config.outputFormat, {
     ...requestData,
@@ -546,8 +625,10 @@ export function getOutputFormat(config: PromptConfig, requestData: any): string 
  * @param requestData - Request data
  * @returns Constraint string or null
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function buildConstraints(config: PromptConfig, requestData: any): string | null {
+export function buildConstraints(
+  config: PromptConfig,
+  requestData: PromptRequestBody
+): string | null {
   const { platforms } = requestData;
   if (!platforms || !Array.isArray(platforms)) return null;
 
@@ -576,18 +657,17 @@ export function buildConstraints(config: PromptConfig, requestData: any): string
  */
 export function getAIOptions(
   config: PromptConfig,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  requestData: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  typeConfig: any = null
+  requestData: PromptRequestBody,
+  inputTypeConfig: { options?: Record<string, unknown> | undefined } | null = null
 ): AIOptions {
   // For sharepic multi-type, get type-specific options
+  let typeConfig = inputTypeConfig;
   if (config.types && !typeConfig) {
     const type = requestData.type || requestData.sharepicType || 'dreizeilen';
-    typeConfig = config.types[type];
+    typeConfig = config.types[type] ?? null;
   }
 
-  const baseOptions: AIOptions = typeConfig?.options || config.options || {};
+  const baseOptions: AIOptions = (typeConfig?.options as AIOptions) || config.options || {};
 
   // Add privacy mode provider if specified
   if (requestData.usePrivacyMode && requestData.provider) {
@@ -618,11 +698,14 @@ export function getAIOptions(
  * @param req - Express request object
  * @param res - Express response object
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function processGraphRequest(routeType: string, req: any, res: any): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return withErrorHandler(async (req: any, res: any) => {
-    const requestData = req.body;
+export async function processGraphRequest(
+  routeType: string,
+  req: Request,
+  res: Response
+): Promise<void> {
+  return withErrorHandler(async (req: Request, res: Response) => {
+    const ppReq = req as PromptProcessorRequest;
+    const requestData = ppReq.body as PromptRequestBody;
     const {
       customPrompt,
       usePrivacyMode,
@@ -635,8 +718,9 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
     } = requestData;
 
     // Handle structured customPrompt from frontend
-    let extractedInstructions = customPrompt;
-    let extractedKnowledgeContent = knowledgeContent;
+    let extractedInstructions: string | null =
+      typeof customPrompt === 'string' ? customPrompt : null;
+    let extractedKnowledgeContent: string | null = knowledgeContent || null;
 
     if (customPrompt && typeof customPrompt === 'object' && !Array.isArray(customPrompt)) {
       // Frontend sent structured data with instructions and knowledgeContent
@@ -666,12 +750,18 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
     // Route to PR Agent if "automatisch" platform detected
     if (routeType === 'social' && requestData.platforms?.includes('automatisch')) {
       console.log('[promptProcessor] Routing to PR Agent');
-      return processAutomatischPR(requestData, req, res);
+      return processAutomatischPR(
+        requestData as unknown as Parameters<typeof processAutomatischPR>[0],
+        ppReq,
+        res
+      );
     }
 
     // Load configuration and localize it
     const baseConfig = loadPromptConfig(routeType);
-    const userLocale = extractLocaleFromRequest(req);
+    const userLocale = extractLocaleFromRequest(
+      ppReq as Parameters<typeof extractLocaleFromRequest>[0]
+    );
     const config = localizePromptObject(baseConfig, userLocale);
     console.log(`[promptProcessor] Using locale: ${userLocale}`);
 
@@ -682,18 +772,19 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
     }
 
     // Apply profile defaults for optional fields (e.g., customPrompt fallback, zitatgeber)
-    await applyProfileDefaults(requestData, req, routeType);
+    await applyProfileDefaults(requestData, ppReq, routeType);
 
     // Re-extract instructions after profile defaults may have set customPrompt
     if (!extractedInstructions && requestData.customPrompt) {
-      extractedInstructions = requestData.customPrompt;
+      extractedInstructions =
+        typeof requestData.customPrompt === 'string' ? requestData.customPrompt : null;
     }
 
     // Handle custom_generator special case
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let generatorData: any = null;
+    let generatorData: GeneratorRecord | null = null;
     if (config.features?.customPromptFromDb) {
-      generatorData = await loadCustomGeneratorPrompt(requestData.slug);
+      const rawGenerator = await loadCustomGeneratorPrompt(requestData.slug as string);
+      generatorData = rawGenerator as GeneratorRecord | null;
       console.log(`[promptProcessor] Loaded generator: ${generatorData?.name ?? 'unknown'}`);
     }
 
@@ -743,14 +834,15 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
         searchQuery: searchQuery || null,
         examples: [], // TODO: Implement examples from config
         provider,
-        aiWorkerPool: req.app.locals.aiWorkerPool,
+        aiWorkerPool: ppReq.app.locals.aiWorkerPool,
         enableNotebookEnrich: useNotebookEnrich ?? config.features?.notebookEnrich ?? false,
       },
-      req
+      ppReq
     );
 
     // Update request content in enriched state (preserve original request with platforms)
-    enrichedState.requestFormatted = requestContent;
+    enrichedState.requestFormatted =
+      typeof requestContent === 'string' ? requestContent : JSON.stringify(requestContent);
 
     // Add tools if specified in config
     if (config.tools) {
@@ -759,8 +851,9 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
 
     // Assemble prompt using enriched state
     // Note: EnrichedState is compatible with PromptAssemblyState at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const promptResult = await assemblePromptGraphAsync(enrichedState as any);
+    const promptResult = await assemblePromptGraphAsync(
+      enrichedState as unknown as PromptAssemblyState
+    );
     console.log(`[promptProcessor] LangGraph assembly complete for ${routeType}`);
 
     // Prepare AI Worker payload
@@ -788,43 +881,47 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
     };
 
     // Process AI request
-    const result = await req.app.locals.aiWorkerPool.processRequest(
+    const aiWorkerPool = (ppReq.app.locals as Record<string, unknown>).aiWorkerPool as {
+      processRequest: (request: Record<string, unknown>, req: Request) => Promise<AIWorkerResult>;
+    };
+    const result: AIWorkerResult = await aiWorkerPool.processRequest(
       {
         type: routeType,
         usePrivacyMode: usePrivacyMode || false,
         useBedrock: requestData.useBedrock || false,
         ...payload,
       },
-      req
+      ppReq
     );
 
     if (!result.success) {
       console.error(`[promptProcessor] AI Worker error for ${routeType}:`, result.error);
       // Log failed generation
       void logGeneration({
-        userId: req.user?.id || null,
+        userId: ppReq.user?.id || null,
         generationType: routeType,
         platform: requestData.platforms?.[0] || null,
         tokensUsed: null,
         success: false,
       });
-      throw new Error(result.error);
+      throw new Error(result.error as string);
     }
 
     // Log successful generation (fire-and-forget)
+    const resultUsage = result.usage as { total_tokens?: number | undefined } | undefined;
     void logGeneration({
-      userId: req.user?.id || null,
+      userId: ppReq.user?.id || null,
       generationType: routeType,
       platform: requestData.platforms?.[0] || null,
-      tokensUsed: result.usage?.total_tokens || null,
+      tokensUsed: resultUsage?.total_tokens || null,
       success: true,
     });
 
     // Cache enriched context for future edit requests
-    if (req.user?.id) {
+    if (ppReq.user?.id) {
       try {
         const { redisClient } = await import('../../utils/redis/index.js');
-        const contextCacheKey = `edit_context:${req.user.id}:${routeType}`;
+        const contextCacheKey = `edit_context:${ppReq.user.id}:${routeType}`;
 
         const contextData = {
           originalRequest: requestData,
@@ -833,17 +930,18 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
             platforms: requestData.platforms || [],
             theme: requestData.theme || requestData.thema || requestData.details || null,
             urlsScraped: enrichedState.enrichmentMetadata?.urlsProcessed || [],
-            documentsUsed:
-              enrichedState.documents
-                ?.filter(
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  (d: any) => d.type === 'text' && d.source?.metadata?.contentSource === 'url_crawl'
-                )
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                .map((d: any) => ({
-                  title: d.source.metadata?.title || 'Document',
-                  url: d.source.metadata?.url || null,
-                })) || [],
+            documentsUsed: enrichedState.documents
+              .filter((d: EnrichmentDocument) => {
+                const meta = d.source.metadata as Record<string, unknown> | undefined;
+                return d.type === 'text' && meta?.contentSource === 'url_crawl';
+              })
+              .map((d: EnrichmentDocument) => {
+                const meta = d.source.metadata as Record<string, unknown> | undefined;
+                return {
+                  title: (meta?.title as string) || 'Document',
+                  url: (meta?.url as string) || null,
+                };
+              }),
             docQnAUsed: enrichedState.enrichmentMetadata?.enableDocQnA || false,
             vectorSearchUsed: (selectedDocumentIds && selectedDocumentIds.length > 0) || false,
             webSearchUsed: (enrichedState.enrichmentMetadata?.webSearchSources?.length ?? 0) > 0,
@@ -875,12 +973,13 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
           title: 'Gescrapte Website',
           url: url,
         })),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ...(enrichedState.enrichmentMetadata?.webSearchSources || []).map((source: any) => ({
-          type: 'websearch',
-          title: source.title || source.url,
-          url: source.url,
-        })),
+        ...(enrichedState.enrichmentMetadata?.webSearchSources || []).map(
+          (source: WebSearchSource) => ({
+            type: 'websearch',
+            title: source.title || source.url,
+            url: source.url,
+          })
+        ),
       ],
     };
 
@@ -900,8 +999,8 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
         },
         enrichmentSummary,
       },
-      usePrivacyMode,
-      provider
+      usePrivacyMode || false,
+      provider || null
     );
   }, `/${routeType}`)(req, res, () => {});
 }

@@ -35,10 +35,10 @@ export function extractTextContent(content: unknown): string {
   }
 
   if (Array.isArray(content)) {
-    return content
+    return (content as ContentPart[])
       .filter(
-        (part): part is { type: string; text: string } =>
-          part && typeof part === 'object' && part.type === 'text' && typeof part.text === 'string'
+        (part): part is ContentPart & { text: string } =>
+          part.type === 'text' && typeof part.text === 'string'
       )
       .map((part) => part.text)
       .join('');
