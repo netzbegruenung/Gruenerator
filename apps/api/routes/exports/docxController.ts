@@ -3,8 +3,10 @@
  * Handles Word document generation with formatting and citations
  */
 
-import express, { type Request, type Response } from 'express';
+import express, { type Response } from 'express';
+import { z } from 'zod';
 
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { PRIMARY_DOMAIN } from '../../utils/domainUtils.js';
 import { createLogger } from '../../utils/logger.js';
 import { sanitizeFilename as sanitizeFilenameCentral } from '../../utils/validation/index.js';
@@ -12,11 +14,27 @@ import { sanitizeFilename as sanitizeFilenameCentral } from '../../utils/validat
 import { parseCitationMarkers, createSourcesSection } from './citationParser.js';
 import { parseFormattedContent } from './contentParser.js';
 
-import type { ExportRequestBody, ExportResponse } from './types.js';
+import type { ExportResponse } from './types.js';
 
 const log = createLogger('exportDocx');
 
 const router = express.Router();
+
+const docxExportSchema = z.object({
+  content: z.string(),
+  title: z.string().optional(),
+  citations: z
+    .array(
+      z.object({
+        index: z.string(),
+        document_title: z.string().optional(),
+        cited_text: z.string().optional(),
+        similarity_score: z.number().optional(),
+        source_url: z.string().optional(),
+      })
+    )
+    .optional(),
+});
 
 function sanitizeFilename(name: string, fallback = 'Dokument'): string {
   const sanitized = sanitizeFilenameCentral(name, fallback);
@@ -29,12 +47,10 @@ function sanitizeFilename(name: string, fallback = 'Dokument'): string {
  */
 router.post(
   '/',
-  async (
-    req: Request<Record<string, never>, Buffer | ExportResponse, ExportRequestBody>,
-    res: Response
-  ) => {
+  validateBody(docxExportSchema),
+  async (req: TypedRequest<z.infer<typeof docxExportSchema>>, res: Response<Buffer | ExportResponse>) => {
     try {
-      const { content, title, citations } = req.body || {};
+      const { content, title, citations } = req.body;
       const formattedParagraphs = parseFormattedContent(content);
       const hasCitations = citations && Array.isArray(citations) && citations.length > 0;
 

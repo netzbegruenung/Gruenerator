@@ -8,12 +8,14 @@
  */
 
 import express, { type Request, type Response, type NextFunction } from 'express';
+import { z } from 'zod';
 
 import {
   initiateInteractiveGenerator,
   continueInteractiveGenerator,
 } from '../../agents/langgraph/simpleInteractiveGenerator.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getExperimentalSession } from '../../services/chat/ChatMemoryService.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -57,6 +59,17 @@ interface ContinueRequestBody {
   answers: QuestionAnswers;
 }
 
+const initiateSchema = z.object({
+  inhalt: z.string(),
+  requestType: z.enum(['antrag', 'kleine_anfrage', 'grosse_anfrage']),
+  locale: z.enum(['de-DE', 'de-AT']).optional(),
+});
+
+const continueSchema = z.object({
+  sessionId: z.string(),
+  answers: z.unknown(),
+});
+
 /**
  * Request logging middleware for interactive routes
  * Tracks request lifecycle with timing information
@@ -84,26 +97,11 @@ router.use((req: InteractiveRequest, res: Response, next: NextFunction) => {
  * @body {InitiateRequestBody}
  * @returns Session ID, questions, and conversation state
  */
-router.post('/initiate', requireAuth, async (req: InteractiveRequest, res: Response) => {
-  const reqId = req._reqId || 'UNKNOWN';
+router.post('/initiate', requireAuth, validateBody(initiateSchema), async (req: TypedRequest<InitiateRequestBody>, res: Response) => {
+  const reqId = (req as InteractiveRequest)._reqId || 'UNKNOWN';
 
   try {
-    const { inhalt, requestType, locale }: InitiateRequestBody = req.body;
-
-    // Validate required fields
-    if (!inhalt || typeof inhalt !== 'string') {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Feld "inhalt" ist erforderlich und muss ein String sein',
-      });
-    }
-
-    if (!requestType || !['antrag', 'kleine_anfrage', 'grosse_anfrage'].includes(requestType)) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Feld "requestType" muss "antrag", "kleine_anfrage" oder "grosse_anfrage" sein',
-      });
-    }
+    const { inhalt, requestType, locale } = req.body;
 
     // Get user ID from session
     const userId = req.user?.id;
@@ -180,26 +178,11 @@ router.post('/initiate', requireAuth, async (req: InteractiveRequest, res: Respo
  * @body {ContinueRequestBody}
  * @returns Follow-up questions or final generated result
  */
-router.post('/continue', requireAuth, async (req: InteractiveRequest, res: Response) => {
-  const reqId = req._reqId || 'UNKNOWN';
+router.post('/continue', requireAuth, validateBody(continueSchema), async (req: TypedRequest<ContinueRequestBody>, res: Response) => {
+  const reqId = (req as InteractiveRequest)._reqId || 'UNKNOWN';
 
   try {
-    const { sessionId, answers }: ContinueRequestBody = req.body;
-
-    // Validate required fields
-    if (!sessionId || typeof sessionId !== 'string') {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Feld "sessionId" ist erforderlich und muss ein String sein',
-      });
-    }
-
-    if (!answers || typeof answers !== 'object') {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Feld "answers" ist erforderlich und muss ein Objekt sein',
-      });
-    }
+    const { sessionId, answers } = req.body;
 
     // Get user ID from session
     const userId = req.user?.id;

@@ -11,6 +11,7 @@
  * - DELETE /bulk - Bulk delete documents
  */
 
+import { z } from 'zod';
 import express, { type Router, type Response } from 'express';
 
 import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
@@ -20,7 +21,8 @@ import { createLogger } from '../../utils/logger.js';
 
 import { enrichDocumentWithPreview } from './helpers.js';
 
-import type { DocumentRequest, BulkDeleteRequestBody } from './types.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import type { DocumentRequest } from './types.js';
 
 const log = createLogger('documents:retrieval');
 const router: Router = express.Router();
@@ -393,10 +395,14 @@ router.delete(
   }
 );
 
+const bulkDeleteSchema = z.object({
+  ids: z.array(z.string()).min(1),
+});
+
 /**
  * DELETE /bulk - Bulk delete documents (PostgreSQL + Qdrant only)
  */
-router.delete('/bulk', async (req: DocumentRequest, res: Response): Promise<void> => {
+router.delete('/bulk', validateBody(bulkDeleteSchema), async (req: TypedRequest<z.infer<typeof bulkDeleteSchema>>, res: Response): Promise<void> => {
   log.debug('[DELETE /bulk] BULK DELETE ROUTE HIT - Route is accessible');
   log.debug('[DELETE /bulk] Request method:', req.method);
   log.debug('[DELETE /bulk] Request URL:', req.originalUrl);
@@ -405,19 +411,10 @@ router.delete('/bulk', async (req: DocumentRequest, res: Response): Promise<void
   log.debug('[DELETE /bulk] Request body:', JSON.stringify(req.body, null, 2));
 
   try {
-    const { ids } = req.body as BulkDeleteRequestBody;
+    const { ids } = req.body;
     const userId = req.user?.id;
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
-    // Validate input
-    if (!Array.isArray(ids) || ids.length === 0) {
-      res.status(400).json({
-        success: false,
-        message: 'Array of document IDs is required',
-      });
       return;
     }
 

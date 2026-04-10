@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from 'express';
+import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import {
@@ -7,11 +8,28 @@ import {
   createDocumentWithContent,
 } from '../../services/docs/DocGenerationService.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { DOCS_ONLY_SUBTYPES, DOCS_SUBTYPES } from './constants.js';
 import { checkDocumentAccess, autoGrantSharePermission } from './documentAccess.js';
 import { type CollaborativeDocument } from './types.js';
+
+const createDocSchema = z.object({
+  title: z.string().optional(),
+  folder_id: z.unknown().optional(),
+  document_subtype: z.string().optional(),
+});
+
+const generateDocSchema = z.object({
+  description: z.string(),
+});
+
+const updateDocSchema = z.object({
+  title: z.string().optional(),
+  folder_id: z.unknown().optional(),
+  content: z.string().optional(),
+});
 
 const log = createLogger('DocsGenerate');
 
@@ -23,7 +41,7 @@ const db = getPostgresInstance();
  * @desc    Create a new collaborative document
  * @access  Private
  */
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', validateBody(createDocSchema), async (req: TypedRequest<{ title?: string; folder_id?: unknown; document_subtype?: string }>, res: Response) => {
   try {
     const { title = 'Untitled Document', folder_id = null, document_subtype = 'blank' } = req.body;
     const userId = req.user?.id;
@@ -61,7 +79,7 @@ router.post('/', async (req: Request, res: Response) => {
  * @desc    Generate a document using AI based on a description
  * @access  Private
  */
-router.post('/generate', async (req: Request, res: Response) => {
+router.post('/generate', validateBody(generateDocSchema), async (req: TypedRequest<{ description: string }>, res: Response) => {
   try {
     const { description } = req.body;
     const userId = req.user?.id;
@@ -70,7 +88,7 @@ router.post('/generate', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    if (!description || typeof description !== 'string' || description.trim().length < 3) {
+    if (description.trim().length < 3) {
       return res.status(400).json({ error: 'Description is required (min 3 characters)' });
     }
 
@@ -245,7 +263,7 @@ router.get('/:id', async (req: Request, res: Response) => {
  * @desc    Update document metadata (title, folder)
  * @access  Private
  */
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', validateBody(updateDocSchema), async (req: TypedRequest<{ title?: string; folder_id?: unknown; content?: string }, { id: string }>, res: Response) => {
   try {
     const { id } = req.params;
     const { title, folder_id, content } = req.body;

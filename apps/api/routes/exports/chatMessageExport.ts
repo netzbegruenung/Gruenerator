@@ -3,8 +3,10 @@
  * Exports individual chat messages as Word documents
  */
 
-import express, { type Request, type Response } from 'express';
+import express, { type Response } from 'express';
+import { z } from 'zod';
 
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { PRIMARY_DOMAIN } from '../../utils/domainUtils.js';
 import { createLogger } from '../../utils/logger.js';
 import { sanitizeFilename as sanitizeFilenameCentral } from '../../utils/validation/index.js';
@@ -15,25 +17,35 @@ const log = createLogger('chatMessageExport');
 
 const router = express.Router();
 
-interface ChatMessageExportRequest {
-  content: string;
-  role: 'user' | 'assistant';
-  timestamp?: number;
-  metadata?: {
-    citations?: Array<{
-      id: number;
-      title: string;
-      url: string;
-      snippet: string;
-    }>;
-    searchResults?: Array<{
-      source: string;
-      title: string;
-      content: string;
-      url?: string;
-    }>;
-  };
-}
+const chatMessageExportSchema = z.object({
+  content: z.string(),
+  role: z.enum(['user', 'assistant']),
+  timestamp: z.number().optional(),
+  metadata: z
+    .object({
+      citations: z
+        .array(
+          z.object({
+            id: z.number(),
+            title: z.string(),
+            url: z.string(),
+            snippet: z.string(),
+          })
+        )
+        .optional(),
+      searchResults: z
+        .array(
+          z.object({
+            source: z.string(),
+            title: z.string(),
+            content: z.string(),
+            url: z.string().optional(),
+          })
+        )
+        .optional(),
+    })
+    .optional(),
+});
 
 function sanitizeFilename(name: string, fallback = 'Chat-Nachricht'): string {
   const sanitized = sanitizeFilenameCentral(name, fallback);
@@ -61,23 +73,10 @@ function getRoleLabel(role: 'user' | 'assistant'): string {
  */
 router.post(
   '/',
-  async (
-    req: Request<
-      Record<string, never>,
-      Buffer | { success: boolean; error?: string },
-      ChatMessageExportRequest
-    >,
-    res: Response
-  ) => {
+  validateBody(chatMessageExportSchema),
+  async (req: TypedRequest<z.infer<typeof chatMessageExportSchema>>, res: Response<Buffer | { success: boolean; error?: string }>) => {
     try {
-      const { content, role, timestamp, metadata } = req.body || {};
-
-      if (!content) {
-        return res.status(400).json({
-          success: false,
-          error: 'Content is required',
-        });
-      }
+      const { content, role, timestamp, metadata } = req.body;
 
       const formattedParagraphs = parseFormattedContent(content);
 

@@ -1,6 +1,8 @@
 import { Router, type Request, type Response } from 'express';
+import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 
 const router = Router();
 const db = getPostgresInstance();
@@ -20,6 +22,15 @@ interface UserGroupRow {
   role: string;
   [key: string]: unknown;
 }
+
+const addGroupSchema = z.object({
+  group_id: z.string(),
+  permission_level: z.enum(['viewer', 'editor']).optional(),
+});
+
+const updateGroupSchema = z.object({
+  permission_level: z.enum(['viewer', 'editor']),
+});
 
 /**
  * @route   GET /api/docs/user-groups
@@ -118,7 +129,7 @@ router.get('/:id/groups', async (req: Request, res: Response) => {
  * @desc    Share document with a group
  * @access  Private (document owner + group member)
  */
-router.post('/:id/groups', async (req: Request, res: Response) => {
+router.post('/:id/groups', validateBody(addGroupSchema), async (req: TypedRequest<{ group_id: string; permission_level?: 'viewer' | 'editor' }, { id: string }>, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
@@ -126,14 +137,6 @@ router.post('/:id/groups', async (req: Request, res: Response) => {
 
     if (!userId) {
       return res.status(401).json({ error: 'User not authenticated' });
-    }
-
-    if (!group_id) {
-      return res.status(400).json({ error: 'group_id is required' });
-    }
-
-    if (!['viewer', 'editor'].includes(permission_level)) {
-      return res.status(400).json({ error: 'permission_level must be "viewer" or "editor"' });
     }
 
     const doc = (await db.query(
@@ -207,7 +210,7 @@ router.post('/:id/groups', async (req: Request, res: Response) => {
  * @desc    Update group permission level for a document
  * @access  Private (document owner)
  */
-router.put('/:id/groups/:groupId', async (req: Request, res: Response) => {
+router.put('/:id/groups/:groupId', validateBody(updateGroupSchema), async (req: TypedRequest<{ permission_level: 'viewer' | 'editor' }, { id: string; groupId: string }>, res: Response) => {
   try {
     const { id, groupId } = req.params;
     const userId = req.user?.id;
@@ -215,10 +218,6 @@ router.put('/:id/groups/:groupId', async (req: Request, res: Response) => {
 
     if (!userId) {
       return res.status(401).json({ error: 'User not authenticated' });
-    }
-
-    if (!permission_level || !['viewer', 'editor'].includes(permission_level)) {
-      return res.status(400).json({ error: 'permission_level must be "viewer" or "editor"' });
     }
 
     const doc = (await db.query(

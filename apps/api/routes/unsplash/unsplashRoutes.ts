@@ -10,8 +10,10 @@
  * - GET  /api/unsplash/stats - Get service statistics
  */
 
+import { z } from 'zod';
 import express, { type Request, type Response } from 'express';
 
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import {
   getUnsplashService,
   UnsplashApiError,
@@ -101,6 +103,10 @@ router.get('/search', async (req: Request, res: Response) => {
   }
 });
 
+const trackDownloadSchema = z.object({
+  downloadLocation: z.string().min(1),
+});
+
 /**
  * POST /api/unsplash/track-download
  *
@@ -116,16 +122,9 @@ router.get('/search', async (req: Request, res: Response) => {
  *   success: boolean
  * }
  */
-router.post('/track-download', async (req: Request, res: Response) => {
+router.post('/track-download', validateBody(trackDownloadSchema), async (req: TypedRequest<z.infer<typeof trackDownloadSchema>>, res: Response) => {
   try {
     const { downloadLocation } = req.body;
-
-    if (!downloadLocation || typeof downloadLocation !== 'string') {
-      return res.status(400).json({
-        error: 'Missing or invalid downloadLocation',
-        message: 'downloadLocation is required and must be a string',
-      });
-    }
 
     // Track download (non-blocking)
     const service = getUnsplashService();

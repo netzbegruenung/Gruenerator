@@ -10,8 +10,10 @@
 import crypto from 'crypto';
 
 import { Router, type Response } from 'express';
+import { z } from 'zod';
 
 import { type AuthenticatedRequest } from '../../middleware/types.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -39,6 +41,21 @@ interface RenderJob {
   error?: string;
 }
 
+const renderBodySchema = z.object({
+  design: z.record(z.unknown()),
+  options: z
+    .object({
+      fps: z.number().optional(),
+      size: z
+        .object({ width: z.number(), height: z.number() })
+        .optional(),
+      format: z.string().optional(),
+    })
+    .optional(),
+});
+
+type RenderBody = z.infer<typeof renderBodySchema>;
+
 function jobKey(id: string): string {
   return `${RENDER_JOB_PREFIX}:${id}`;
 }
@@ -52,7 +69,7 @@ function jobKey(id: string): string {
  * Request body: { design: IDesign, options: { fps, size, format } }
  * Response: { render: { id: string } }
  */
-router.post('/render', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/render', validateBody(renderBodySchema), async (req: TypedRequest<RenderBody>, res: Response): Promise<void> => {
   const { design, options } = req.body;
 
   if (!design) {
@@ -71,7 +88,7 @@ router.post('/render', async (req: AuthenticatedRequest, res: Response): Promise
       design,
       options: {
         fps: options?.fps || 30,
-        size: options?.size || design.size || { width: 1080, height: 1920 },
+        size: options?.size || (design.size as { width: number; height: number } | undefined) || { width: 1080, height: 1920 },
         format: options?.format || 'mp4',
       },
       userId,

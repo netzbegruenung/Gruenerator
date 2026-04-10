@@ -10,9 +10,10 @@ import crypto from 'crypto';
 import fs from 'fs';
 import { pipeline } from 'stream/promises';
 
+import { z } from 'zod';
 import { Router, type Response } from 'express';
 
-import { type AuthenticatedRequest } from '../../middleware/types.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { transcribeWithProvider } from '../../services/subtitler/transcriptionService.js';
 import { createLogger } from '../../utils/logger.js';
 import { safeFetch } from '../../utils/validation/urlSecurity.js';
@@ -59,6 +60,11 @@ async function cleanupTempFile(filePath: string): Promise<void> {
   }
 }
 
+const transcribeSchema = z.object({
+  url: z.string().min(1),
+  targetLanguage: z.string().optional(),
+});
+
 /**
  * POST /api/video/transcribe
  *
@@ -66,51 +72,50 @@ async function cleanupTempFile(filePath: string): Promise<void> {
  * in the format the video editor expects:
  * { results: { main: { words: [{ word, start, end }] } } }
  */
-router.post('/transcribe', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  const { url } = req.body;
+router.post(
+  '/transcribe',
+  validateBody(transcribeSchema),
+  async (req: TypedRequest<z.infer<typeof transcribeSchema>>, res: Response): Promise<void> => {
+    const { url } = req.body;
 
-  if (!url || typeof url !== 'string') {
-    res.status(400).json({ error: 'url is required' });
-    return;
-  }
+    let tempPath: string | null = null;
 
-  let tempPath: string | null = null;
+    try {
+      log.info(`Transcription requested for: ${url.substring(0, 80)}...`);
 
-  try {
-    log.info(`Transcription requested for: ${url.substring(0, 80)}...`);
+      tempPath = await downloadToTempFile(url);
+      log.debug(`Downloaded to temp file: ${tempPath}`);
 
-    tempPath = await downloadToTempFile(url);
-    log.debug(`Downloaded to temp file: ${tempPath}`);
+      const result = await transcribeWithProvider(tempPath, true);
 
-    const result = await transcribeWithProvider(tempPath, true);
+      // Transform response → video editor format
+      // Provider returns { text, words: [{ word, start, end }] } where start/end are in seconds
+      // Video editor expects { results: { main: { words: [{ word, start, end }] } } }
+      const words = (result.words || []).map((w) => ({
+        word: w.word,
+        start: w.start,
+        end: w.end,
+      }));
 
-    // Transform response → video editor format
-    // Provider returns { text, words: [{ word, start, end }] } where start/end are in seconds
-    // Video editor expects { results: { main: { words: [{ word, start, end }] } } }
-    const words = (result.words || []).map((w) => ({
-      word: w.word,
-      start: w.start,
-      end: w.end,
-    }));
-
-    res.json({
-      results: {
-        main: {
-          words,
+      res.json({
+        results: {
+          main: {
+            words,
+          },
         },
-      },
-    });
+      });
 
-    log.info(`Transcription complete: ${words.length} words`);
-  } catch (error: unknown) {
-    const errMsg = error instanceof Error ? error.message : String(error);
-    log.error(`Transcription failed: ${errMsg}`);
-    res.status(500).json({ error: errMsg || 'Transcription failed' });
-  } finally {
-    if (tempPath) {
-      await cleanupTempFile(tempPath);
+      log.info(`Transcription complete: ${words.length} words`);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      log.error(`Transcription failed: ${errMsg}`);
+      res.status(500).json({ error: errMsg || 'Transcription failed' });
+    } finally {
+      if (tempPath) {
+        await cleanupTempFile(tempPath);
+      }
     }
   }
-});
+);
 
 export default router;

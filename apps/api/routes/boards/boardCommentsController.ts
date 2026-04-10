@@ -1,6 +1,8 @@
 import { Router, type Request, type Response } from 'express';
+import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { createNotification } from '../../services/notifications/NotificationService.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -55,6 +57,27 @@ interface CommentBlock {
   displayName?: string;
   url?: string;
 }
+
+const commentBlockSchema = z.object({
+  type: z.enum(['text', 'mention', 'link', 'code']),
+  text: z.string().optional(),
+  userId: z.string().optional(),
+  displayName: z.string().optional(),
+  url: z.string().optional(),
+});
+
+const postCommentSchema = z.object({
+  blocks: z.array(commentBlockSchema),
+  parentId: z.string().optional(),
+});
+
+const putCommentSchema = z.object({
+  blocks: z.array(commentBlockSchema),
+});
+
+const postReactionSchema = z.object({
+  emoji: z.string().min(1),
+});
 
 function extractPlainText(blocks: CommentBlock[]): string {
   return blocks
@@ -186,18 +209,16 @@ router.get(
 
 router.post(
   '/:boardId/cards/:cardId/comments',
-  async (req: Request<{ boardId: string; cardId: string }>, res: Response) => {
+  validateBody(postCommentSchema),
+  async (req: TypedRequest<z.infer<typeof postCommentSchema>, { boardId: string; cardId: string }>, res: Response) => {
     try {
       const userId = req.user?.id;
       if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
 
       const { boardId, cardId } = req.params;
-      const { blocks, parentId } = req.body as {
-        blocks: CommentBlock[];
-        parentId?: string;
-      };
+      const { blocks, parentId } = req.body;
 
-      if (!Array.isArray(blocks) || blocks.length === 0) {
+      if (blocks.length === 0) {
         return res.status(400).json({ error: 'Kommentar darf nicht leer sein' });
       }
 
@@ -218,8 +239,8 @@ router.post(
         }
       }
 
-      const content = extractPlainText(blocks);
-      const mentionedUserIds = extractMentionedUserIds(blocks);
+      const content = extractPlainText(blocks as CommentBlock[]);
+      const mentionedUserIds = extractMentionedUserIds(blocks as CommentBlock[]);
 
       const rows = (await db.query(
         `INSERT INTO board_comments (board_id, card_id, parent_id, user_id, content, blocks, mentioned_user_ids)
@@ -282,15 +303,16 @@ router.post(
 
 router.put(
   '/:boardId/comments/:commentId',
-  async (req: Request<{ boardId: string; commentId: string }>, res: Response) => {
+  validateBody(putCommentSchema),
+  async (req: TypedRequest<z.infer<typeof putCommentSchema>, { boardId: string; commentId: string }>, res: Response) => {
     try {
       const userId = req.user?.id;
       if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
 
       const { commentId } = req.params;
-      const { blocks } = req.body as { blocks: CommentBlock[] };
+      const { blocks } = req.body;
 
-      if (!Array.isArray(blocks) || blocks.length === 0) {
+      if (blocks.length === 0) {
         return res.status(400).json({ error: 'Kommentar darf nicht leer sein' });
       }
 
@@ -303,8 +325,8 @@ router.put(
         return res.status(403).json({ error: 'Nur eigene Kommentare bearbeiten' });
       }
 
-      const content = extractPlainText(blocks);
-      const mentionedUserIds = extractMentionedUserIds(blocks);
+      const content = extractPlainText(blocks as CommentBlock[]);
+      const mentionedUserIds = extractMentionedUserIds(blocks as CommentBlock[]);
 
       const rows = (await db.query(
         `UPDATE board_comments
@@ -374,17 +396,14 @@ router.delete(
 
 router.post(
   '/:boardId/comments/:commentId/reactions',
-  async (req: Request<{ boardId: string; commentId: string }>, res: Response) => {
+  validateBody(postReactionSchema),
+  async (req: TypedRequest<z.infer<typeof postReactionSchema>, { boardId: string; commentId: string }>, res: Response) => {
     try {
       const userId = req.user?.id;
       if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
 
       const { boardId, commentId } = req.params;
-      const { emoji } = req.body as { emoji: string };
-
-      if (!emoji || typeof emoji !== 'string') {
-        return res.status(400).json({ error: 'Emoji ist erforderlich' });
-      }
+      const { emoji } = req.body;
 
       const { hasAccess } = await checkBoardAccess(boardId, userId);
       if (!hasAccess) return res.status(403).json({ error: 'Kein Zugriff' });

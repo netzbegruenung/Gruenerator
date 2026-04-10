@@ -7,9 +7,11 @@ import { dirname, join, basename } from 'path';
 import { fileURLToPath } from 'url';
 
 import express, { type Response, type Router } from 'express';
+import { z } from 'zod';
 
 import ImageSelectionService from '../../services/image/ImageSelectionService.js';
 import { enhanceWithAttribution } from '../../services/image/index.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { createLogger } from '../../utils/logger.js';
 import { safeFetch } from '../../utils/validation/urlSecurity.js';
 
@@ -27,6 +29,22 @@ import type {
   StockImageQuery,
 } from './types.js';
 
+const selectBodySchema = z.object({
+  text: z.string(),
+  type: z.string().optional(),
+  tags: z.unknown().optional(),
+  maxCandidates: z.number().optional(),
+});
+
+const validateBodySchema = z.object({
+  filename: z.string(),
+});
+
+const downloadTrackBodySchema = z.object({
+  filename: z.string(),
+  downloadLocation: z.string().optional(),
+});
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -38,11 +56,11 @@ const imagePickerService = ImageSelectionService;
  * POST /select
  * Selects the best background image for given text
  */
-router.post('/select', async (req: AuthenticatedRequest, res: Response<ImageSelectResponse>) => {
+router.post('/select', validateBody(selectBodySchema), async (req: TypedRequest<ImageSelectRequestBody>, res: Response<ImageSelectResponse>) => {
   try {
-    const { text, type, tags: _tags, maxCandidates } = req.body as ImageSelectRequestBody;
+    const { text, type, tags: _tags, maxCandidates } = req.body;
 
-    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+    if (!text || text.trim().length === 0) {
       return res.status(400).json({
         success: false,
         error: 'Valid text is required for image selection',
@@ -59,12 +77,7 @@ router.post('/select', async (req: AuthenticatedRequest, res: Response<ImageSele
     }
 
     const options: { maxCandidates?: number } = {};
-    if (
-      maxCandidates &&
-      typeof maxCandidates === 'number' &&
-      maxCandidates > 0 &&
-      maxCandidates <= 20
-    ) {
+    if (maxCandidates && maxCandidates > 0 && maxCandidates <= 20) {
       options.maxCandidates = maxCandidates;
     }
 
@@ -214,17 +227,10 @@ router.post(
  */
 router.post(
   '/validate',
-  async (req: AuthenticatedRequest, res: Response<ImageValidateResponse>) => {
+  validateBody(validateBodySchema),
+  async (req: TypedRequest<ImageValidateRequestBody>, res: Response<ImageValidateResponse>) => {
     try {
-      const { filename } = req.body as ImageValidateRequestBody;
-
-      if (!filename || typeof filename !== 'string') {
-        return res.status(400).json({
-          success: false,
-          error: 'Valid filename is required',
-          code: 'INVALID_FILENAME',
-        });
-      }
+      const { filename } = req.body;
 
       const exists = await imagePickerService.validateImageExists(filename);
       const imagePath = imagePickerService.getImagePath(filename);
@@ -306,21 +312,13 @@ router.get(
  * Track Unsplash image download (required by Unsplash API guidelines)
  * Called when user selects an image for use in canvas
  */
-router.post('/download-track', async (req: AuthenticatedRequest, res: Response) => {
+router.post('/download-track', validateBody(downloadTrackBodySchema), async (req: TypedRequest<{ filename: string; downloadLocation?: string }>, res: Response) => {
   try {
     const { filename, downloadLocation } = req.body;
 
-    if (!filename || typeof filename !== 'string') {
-      return res.status(400).json({
-        success: false,
-        error: 'Valid filename is required',
-        code: 'INVALID_FILENAME',
-      });
-    }
-
     // Only track if downloadLocation exists (real Unsplash images)
     // Local stock images won't have this field
-    if (downloadLocation && typeof downloadLocation === 'string') {
+    if (downloadLocation) {
       try {
         await safeFetch(downloadLocation, {}, { allowedHosts: ['api.unsplash.com'] });
         log.debug(`[ImagePicker API] Download tracked for ${filename}`);

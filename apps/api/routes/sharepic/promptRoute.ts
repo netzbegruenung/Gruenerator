@@ -5,8 +5,10 @@
  */
 
 import { Router, type Request, type Response } from 'express';
+import { z } from 'zod';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import ImageSelectionService from '../../services/image/ImageSelectionService.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
 import { createLogger } from '../../utils/logger.js';
@@ -14,7 +16,6 @@ import { createLogger } from '../../utils/logger.js';
 import { handleUnifiedRequest } from './sharepic_claude/unifiedHandler.js';
 
 import type { SharepicRequest } from './sharepic_claude/types.js';
-import type { AuthenticatedRequest } from '../../middleware/types.js';
 
 const log = createLogger('promptRoute');
 const router = Router();
@@ -87,6 +88,10 @@ function extractTheme(prompt: string): string {
   return prompt;
 }
 
+const generateFromPromptSchema = z.object({
+  prompt: z.string().min(3, 'Ein Prompt mit mindestens 3 Zeichen ist erforderlich'),
+});
+
 /**
  * POST /api/sharepic/generate-from-prompt
  * Generate sharepic content directly from a natural language prompt
@@ -94,18 +99,10 @@ function extractTheme(prompt: string): string {
 router.post(
   '/generate-from-prompt',
   requireAuth,
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  validateBody(generateFromPromptSchema),
+  async (req: TypedRequest<z.infer<typeof generateFromPromptSchema>>, res: Response): Promise<void> => {
     try {
       const { prompt } = req.body;
-
-      if (!prompt || typeof prompt !== 'string' || prompt.trim().length < 3) {
-        res.status(400).json({
-          success: false,
-          error: 'Ein Prompt mit mindestens 3 Zeichen ist erforderlich',
-        });
-        return;
-      }
-
       const trimmedPrompt = prompt.trim();
       const { type, isKi } = classifySharepicType(trimmedPrompt);
       const theme = extractTheme(trimmedPrompt);
@@ -146,7 +143,8 @@ router.post(
 
       // Store original body and modify for the Claude handler
       const originalBody = req.body;
-      req.body = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (req as any).body = {
         thema: theme,
         details: trimmedPrompt,
         name: userName,
@@ -176,7 +174,8 @@ router.post(
       await handleUnifiedRequest(req as Request as SharepicRequest, customRes, type);
 
       // Restore original body
-      req.body = originalBody;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (req as any).body = originalBody;
 
       if (!capturedResponse) {
         res.status(500).json({

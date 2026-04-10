@@ -6,6 +6,7 @@
  */
 
 import express, { type Request, type Response, type NextFunction } from 'express';
+import { z } from 'zod';
 
 import {
   processAntragAgentStreaming,
@@ -13,6 +14,7 @@ import {
 } from '../../agents/langgraph/AntragAgentGraph/agentModeProcessor.js';
 import { processGraphRequest } from '../../agents/langgraph/PromptProcessor.js';
 import { processGraphRequestStreaming } from '../../agents/langgraph/streamingProcessor.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { createLogger } from '../../utils/logger.js';
 
 const router = express.Router();
@@ -21,6 +23,15 @@ const log = createLogger('simpleGeneration');
 interface TrackedRequest extends Request {
   _reqId?: string;
 }
+
+const simpleGenerationSchema = z.object({
+  useProMode: z.boolean().optional(),
+  usePrivacyMode: z.boolean().optional(),
+  useWebSearchTool: z.boolean().optional(),
+  useAgentMode: z.boolean().optional(),
+}).passthrough();
+
+type SimpleGenerationBody = z.infer<typeof simpleGenerationSchema>;
 
 router.use((req: TrackedRequest, res: Response, next: NextFunction) => {
   const reqId = `SG-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -87,7 +98,7 @@ router.use((req: TrackedRequest, res: Response, next: NextFunction) => {
  *
  * Process a simple Antrag generation request through LangGraph
  */
-router.post('/', async (req: Request, res: Response): Promise<void> => {
+router.post('/', validateBody(simpleGenerationSchema), async (req: TypedRequest<SimpleGenerationBody>, res: Response): Promise<void> => {
   log.debug('[simpleGeneration] Incoming request body flags:', {
     useProMode: req.body.useProMode,
     usePrivacyMode: req.body.usePrivacyMode,
