@@ -11,8 +11,13 @@ import express, { type Response, type Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 
 import { getSharedMediaService } from '../../services/sharedMediaService.js';
-import AssSubtitleService from '../../services/subtitler/assSubtitleService.js';
-import { processVideoAutomatically } from '../../services/subtitler/autoProcessingService.js';
+import AssSubtitleService, {
+  type TextOverlay as AssTextOverlay,
+} from '../../services/subtitler/assSubtitleService.js';
+import {
+  processVideoAutomatically,
+  type ProcessingResult,
+} from '../../services/subtitler/autoProcessingService.js';
 import { getCompressionStatus } from '../../services/subtitler/backgroundCompressionService.js';
 import { processVideoExportInBackground } from '../../services/subtitler/backgroundExportService.js';
 import {
@@ -35,6 +40,13 @@ import { getVideoMetadata } from '../../services/subtitler/videoUploadService.js
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
+import type {
+  ProcessRequestBody,
+  ExportSegmentsRequestBody,
+  AutoProcessRequestBody,
+  ResultQueryParams,
+  ExportProgress,
+} from './types.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { ParamsDictionary } from 'express-serve-static-core';
 
@@ -50,6 +62,29 @@ interface SubtitlerRequest<P = ParamsDictionary> extends AuthenticatedRequest<P>
   app: AuthenticatedRequest['app'] & { locals: { aiWorkerPool?: unknown } };
 }
 
+interface RedisJobResult {
+  status: 'processing' | 'complete' | 'error';
+  data?: unknown;
+}
+
+interface RedisAutoProgress {
+  status: 'processing' | 'complete' | 'error';
+  outputPath?: string;
+}
+
+interface ExportBody {
+  uploadId?: string;
+  subtitles?: unknown[] | string;
+  subtitlePreference?: string;
+  stylePreference?: string;
+  heightPreference?: string;
+  locale?: string;
+  maxResolution?: number | null;
+  projectId?: string | null;
+  userId?: string | null;
+  textOverlays?: unknown[];
+}
+
 async function checkFont(): Promise<void> {
   try {
     await fsPromises.access(FONT_PATH);
@@ -62,12 +97,13 @@ async function checkFont(): Promise<void> {
 
 // POST /process - Start video transcription
 router.post('/process', async (req: SubtitlerRequest, res: Response): Promise<void> => {
+  const body = req.body as ProcessRequestBody;
   const {
     uploadId,
     subtitlePreference = 'manual',
     stylePreference = 'standard',
     heightPreference = 'tief',
-  } = req.body;
+  } = body;
 
   if (!uploadId) {
     res.status(400).json({ error: 'Keine Upload-ID gefunden' });
@@ -96,8 +132,12 @@ router.post('/process', async (req: SubtitlerRequest, res: Response): Promise<vo
       return;
     }
 
-    const aiWorkerPool = req.app.locals.aiWorkerPool;
-    transcribeVideo(videoPath, subtitlePreference, aiWorkerPool)
+    const aiWorkerPool: unknown = req.app.locals.aiWorkerPool;
+    transcribeVideo(
+      videoPath,
+      subtitlePreference,
+      aiWorkerPool as Parameters<typeof transcribeVideo>[2]
+    )
       .then(async (subtitles) => {
         if (!subtitles) throw new Error('Keine Untertitel generiert');
         markUploadAsProcessed(uploadId);
@@ -127,11 +167,12 @@ router.get(
   '/result/:uploadId',
   async (req: SubtitlerRequest<{ uploadId: string }>, res: Response): Promise<void> => {
     const { uploadId } = req.params;
+    const query = req.query as ResultQueryParams;
     const {
       subtitlePreference = 'manual',
       stylePreference = 'standard',
       heightPreference = 'tief',
-    } = req.query;
+    } = query;
     const jobKey = `job:${uploadId}:${subtitlePreference}:${stylePreference}:${heightPreference}`;
 
     try {
@@ -140,13 +181,13 @@ router.get(
         res.status(404).json({ status: 'not_found' });
         return;
       }
-      const job = JSON.parse(data);
-      const compression = await getCompressionStatus(uploadId as string);
+      const job: RedisJobResult = JSON.parse(data) as RedisJobResult;
+      const compression = await getCompressionStatus(uploadId);
       res.json({
         status: job.status,
         subtitles: job.data,
         compression,
-        error: job.status === 'error' ? job.data : undefined,
+        ...(job.status === 'error' && { error: job.data }),
       });
     } catch (e: unknown) {
       res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
@@ -165,7 +206,8 @@ router.get(
         res.status(404).json({ status: 'not_found' });
         return;
       }
-      res.json(JSON.parse(data));
+      const progress: ExportProgress = JSON.parse(data) as ExportProgress;
+      res.json(progress);
     } catch (e: unknown) {
       res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
     }
@@ -209,7 +251,8 @@ router.post('/cleanup/:uploadId', handleCleanup);
 // POST /export-token
 router.post('/export-token', async (req: SubtitlerRequest, res: Response): Promise<void> => {
   try {
-    res.json({ success: true, ...(await generateDownloadToken(req.body)) });
+    const body = req.body as Parameters<typeof generateDownloadToken>[0];
+    res.json({ success: true, ...(await generateDownloadToken(body)) });
   } catch (e: unknown) {
     res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
   }
@@ -255,7 +298,7 @@ router.get(
         res.status(404).json({ error: 'Export not found' });
         return;
       }
-      const exportData = JSON.parse(data);
+      const exportData: ExportProgress = JSON.parse(data) as ExportProgress;
       if (exportData.status !== 'complete') {
         res.status(400).json({ error: 'Export not complete', status: exportData.status });
         return;
@@ -333,6 +376,7 @@ router.get(
 
 // POST /export - Export video with subtitles
 router.post('/export', async (req: SubtitlerRequest, res: Response): Promise<void> => {
+  const body = req.body as ExportBody;
   const {
     uploadId,
     subtitles,
@@ -344,7 +388,7 @@ router.post('/export', async (req: SubtitlerRequest, res: Response): Promise<voi
     projectId = null,
     userId = null,
     textOverlays = [],
-  } = req.body;
+  } = body;
 
   if (!subtitles && (!textOverlays || textOverlays.length === 0)) {
     res.status(400).json({ error: 'Untertitel oder Text-Overlays benötigt' });
@@ -395,19 +439,21 @@ router.post('/export', async (req: SubtitlerRequest, res: Response): Promise<voi
     );
     let segments: { startTime: number; endTime: number; text: string }[];
     if (Array.isArray(subtitles)) {
-      segments = subtitles
-        .map((s: Record<string, unknown>) => ({
-          startTime: Number(s.start ?? s.startTime ?? 0),
-          endTime: Number(s.end ?? s.endTime ?? 0),
-          text: String(s.text ?? ''),
+      segments = (subtitles as unknown as Array<Record<string, unknown>>)
+        .map((s) => ({
+          startTime: Number(s['start'] ?? s['startTime'] ?? 0),
+          endTime: Number(s['end'] ?? s['endTime'] ?? 0),
+          text: String(s['text'] ?? ''),
         }))
         .filter((s) => s.text && s.endTime > s.startTime)
         .sort((a, b) => a.startTime - b.startTime);
       if (segments.length === 0) {
         throw new Error('Keine gültigen Untertitel-Segmente gefunden');
       }
-    } else {
+    } else if (subtitles) {
       segments = processSubtitleSegments(subtitles);
+    } else {
+      segments = [];
     }
     const { finalFontSize } = calculateFontSizing(metadata, segments);
 
@@ -431,9 +477,7 @@ router.post('/export', async (req: SubtitlerRequest, res: Response): Promise<voi
           alignment: subtitlePreference === 'word' ? 5 : 2,
         };
         const duration =
-          typeof metadata.duration === 'string'
-            ? parseFloat(metadata.duration)
-            : metadata.duration;
+          typeof metadata.duration === 'string' ? parseFloat(metadata.duration) : metadata.duration;
         const assMetadata = {
           width: metadata.width,
           height: metadata.height,
@@ -447,7 +491,7 @@ router.post('/export', async (req: SubtitlerRequest, res: Response): Promise<voi
           stylePreference,
           locale,
           heightPreference,
-          textOverlays
+          textOverlays as AssTextOverlay[]
         ).content;
         await assService.cacheAssContent(cacheKey, assContent);
       }
@@ -500,8 +544,8 @@ router.post('/export', async (req: SubtitlerRequest, res: Response): Promise<voi
       tempFontPath,
       projectId,
       userId,
-      textOverlays,
-    }).catch((e) => log.error(`Background export failed: ${e.message}`));
+      textOverlays: textOverlays as AssTextOverlay[],
+    }).catch((e: Error) => log.error(`Background export failed: ${e.message}`));
   } catch (e: unknown) {
     if (!res.headersSent)
       res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
@@ -510,7 +554,8 @@ router.post('/export', async (req: SubtitlerRequest, res: Response): Promise<voi
 
 // POST /export-segments
 router.post('/export-segments', async (req: SubtitlerRequest, res: Response): Promise<void> => {
-  const { uploadId, projectId, segments, includeSubtitles, subtitleConfig } = req.body;
+  const { uploadId, projectId, segments, includeSubtitles, subtitleConfig } =
+    req.body as ExportSegmentsRequestBody;
   if (!uploadId && !projectId) {
     res.status(400).json({ error: 'Upload-ID oder Projekt-ID benötigt' });
     return;
@@ -541,12 +586,18 @@ router.post('/export-segments', async (req: SubtitlerRequest, res: Response): Pr
     }
 
     const svc = await import('../../services/subtitler/segmentExportService.js');
+    const resolvedProjectId = projectId || uploadId;
     const result =
       includeSubtitles && subtitleConfig
-        ? await svc.exportWithSegmentsAndSubtitles(videoPath, segments, subtitleConfig, {
-            projectId: projectId || uploadId,
-          })
-        : await svc.exportWithSegments(videoPath, segments, { projectId: projectId || uploadId });
+        ? await svc.exportWithSegmentsAndSubtitles(
+            videoPath,
+            segments,
+            subtitleConfig as unknown as Parameters<typeof svc.exportWithSegmentsAndSubtitles>[2],
+            { ...(resolvedProjectId != null && { projectId: resolvedProjectId }) }
+          )
+        : await svc.exportWithSegments(videoPath, segments, {
+            ...(resolvedProjectId != null && { projectId: resolvedProjectId }),
+          });
     res.status(202).json({ exportToken: result.exportToken, segmentCount: result.segmentCount });
   } catch (e: unknown) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
@@ -555,7 +606,8 @@ router.post('/export-segments', async (req: SubtitlerRequest, res: Response): Pr
 
 // POST /process-auto
 router.post('/process-auto', async (req: SubtitlerRequest, res: Response): Promise<void> => {
-  const { uploadId, locale = 'de-DE', maxResolution = null, userId = null } = req.body;
+  const body = req.body as AutoProcessRequestBody;
+  const { uploadId, locale = 'de-DE', maxResolution = null, userId = null } = body;
   if (!uploadId) {
     res.status(400).json({ error: 'Keine Upload-ID' });
     return;
@@ -582,12 +634,11 @@ router.post('/process-auto', async (req: SubtitlerRequest, res: Response): Promi
       heightPreference: 'tief',
       locale,
       maxResolution,
-      userId,
+      ...(userId != null && { userId }),
       originalFilename,
     })
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .then(async (result: any) => {
-        let projectId: string | null = null;
+      .then(async (result: ProcessingResult) => {
+        let savedProjectId: string | null = null;
         if (userId) {
           try {
             const r = await autoSaveProject({
@@ -596,29 +647,35 @@ router.post('/process-auto', async (req: SubtitlerRequest, res: Response): Promi
               originalVideoPath: videoPath,
               uploadId,
               originalFilename,
-              segments: result.subtitles || '',
-              metadata: result.metadata || {},
+              segments: result.segments as unknown as Parameters<
+                typeof autoSaveProject
+              >[0]['segments'],
+              metadata: result.metadata as unknown as Parameters<
+                typeof autoSaveProject
+              >[0]['metadata'],
               stylePreference: 'shadow',
               heightPreference: 'tief',
               subtitlePreference: 'manual',
               exportToken: result.autoProcessToken,
             });
-            projectId = r.projectId;
+            savedProjectId = r.projectId;
           } catch {
             /* ignored */
           }
 
-          if (projectId && result.outputPath) {
+          if (savedProjectId && result.outputPath) {
             try {
               const shareService = getSharedMediaService();
               await shareService.createVideoShare(userId, {
                 videoPath: result.outputPath,
                 title: originalFilename.replace(/\.[^.]+$/, ''),
-                duration: result.duration || undefined,
-                projectId,
+                duration: result.duration,
+                projectId: savedProjectId,
               });
-            } catch (shareErr) {
-              log.warn(`Auto-share creation failed: ${(shareErr as Error).message}`);
+            } catch (shareErr: unknown) {
+              log.warn(
+                `Auto-share creation failed: ${shareErr instanceof Error ? shareErr.message : String(shareErr)}`
+              );
             }
           }
         }
@@ -631,7 +688,7 @@ router.post('/process-auto', async (req: SubtitlerRequest, res: Response): Promi
             overallProgress: 100,
             outputPath: result.outputPath,
             duration: result.duration,
-            projectId,
+            projectId: savedProjectId,
             subtitles: result.subtitles,
           }),
           { EX: 3600 }
@@ -655,7 +712,8 @@ router.get(
         res.status(404).json({ status: 'not_found' });
         return;
       }
-      res.json(JSON.parse(data));
+      const progress: RedisAutoProgress = JSON.parse(data) as RedisAutoProgress;
+      res.json(progress);
     } catch (e: unknown) {
       res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
     }
@@ -673,7 +731,7 @@ router.get(
         res.status(404).json({ error: 'Nicht gefunden' });
         return;
       }
-      const parsed = JSON.parse(data);
+      const parsed: RedisAutoProgress = JSON.parse(data) as RedisAutoProgress;
       if (parsed.status !== 'complete') {
         res.status(400).json({ error: 'Nicht abgeschlossen', status: parsed.status });
         return;

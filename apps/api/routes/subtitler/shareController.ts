@@ -17,6 +17,29 @@ import type { SubtitlerProjectService } from '../../services/subtitler/ProjectSe
 import type SubtitlerShareService from '../../services/subtitler/shareService.js';
 import type { SubtitlerProject } from '../../services/subtitler/types.js';
 
+// ============================================================================
+// Request Body Types
+// ============================================================================
+
+interface CreateShareBody {
+  exportToken: string;
+  title?: string;
+  projectId?: string;
+  expiresInDays?: number;
+}
+
+interface CreateShareFromProjectBody {
+  projectId: string;
+  title?: string;
+  expiresInDays?: number;
+}
+
+interface ExportData {
+  status: string;
+  outputPath: string;
+  duration?: number;
+}
+
 const fsPromises = fs.promises;
 const log = createLogger('subtitler-share');
 const router: Router = express.Router();
@@ -91,7 +114,8 @@ async function triggerBackgroundRender(
 router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
-    const { exportToken, title, projectId, expiresInDays = 7 } = req.body;
+    const body = req.body as CreateShareBody;
+    const { exportToken, title, projectId, expiresInDays = 7 } = body;
 
     if (!exportToken) {
       res.status(400).json({ success: false, error: 'Export-Token wird benötigt' });
@@ -104,7 +128,8 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response): 
       return;
     }
 
-    const exportData = JSON.parse(exportDataString);
+    const parsed: unknown = JSON.parse(exportDataString);
+    const exportData = parsed as ExportData;
     if (exportData.status !== 'complete') {
       res.status(400).json({ success: false, error: 'Export noch nicht abgeschlossen' });
       return;
@@ -144,7 +169,8 @@ router.post(
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
-      const { projectId, title, expiresInDays = 7 } = req.body;
+      const body = req.body as CreateShareFromProjectBody;
+      const { projectId, title, expiresInDays = 7 } = body;
 
       if (!projectId) {
         res.status(400).json({ success: false, error: 'Projekt-ID wird benötigt' });
