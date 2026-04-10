@@ -69,17 +69,6 @@ interface TranscribeRequest extends Request {
   };
 }
 
-interface TranscribeUrlRequest extends Request {
-  body: {
-    url: string;
-    language?: string;
-    removeTimestamps?: boolean;
-    timestamps?: boolean;
-    diarize?: boolean;
-    contextBias?: string[];
-  };
-}
-
 interface ChatRequest extends Request {
   file?: Express.Multer.File;
   body: {
@@ -692,7 +681,8 @@ router.post(
  */
 router.post(
   '/transcribe-url',
-  async (req: TranscribeUrlRequest, res: Response<TranscribeUrlResponse>) => {
+  validateBody(transcribeUrlBodySchema),
+  async (req: TypedRequest<TranscribeUrlBody>, res: Response<TranscribeUrlResponse>) => {
     const {
       url,
       language = 'de',
@@ -701,13 +691,6 @@ router.post(
       diarize = false,
       contextBias,
     } = req.body;
-
-    if (!url) {
-      return res.status(400).json({
-        success: false,
-        error: 'Audio URL ist erforderlich',
-      });
-    }
 
     const options: TranscriptionOptions = {
       language,
@@ -790,76 +773,73 @@ router.post('/chat', upload.single('audio'), (async (
  * POST /api/voice/protokoll
  * Generate a structured protocol from transcription text using GPT-OSS via LiteLLM
  */
-router.post('/protokoll', async (req: Request, res: Response) => {
-  const body = req.body as ProtokollBody;
-  const { inputText, protokollTyp } = body;
+router.post(
+  '/protokoll',
+  validateBody(protokollBodySchema),
+  async (req: TypedRequest<ProtokollBody>, res: Response) => {
+    const { inputText, protokollTyp } = req.body;
 
-  if (!inputText) {
-    return res.status(400).json({ success: false, error: 'Kein Text angegeben' });
+    try {
+      const content = await generateProtokoll({
+        inputText,
+        protokollTyp: protokollTyp || 'Sitzungsprotokoll',
+      });
+      return res.json({ success: true, content });
+    } catch (error) {
+      log.error('[Voice] Protokoll error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Fehler bei der Protokoll-Erstellung: ' + (error as Error).message,
+      });
+    }
   }
-
-  try {
-    const content = await generateProtokoll({
-      inputText,
-      protokollTyp: protokollTyp || 'Sitzungsprotokoll',
-    });
-    return res.json({ success: true, content });
-  } catch (error) {
-    log.error('[Voice] Protokoll error:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Fehler bei der Protokoll-Erstellung: ' + (error as Error).message,
-    });
-  }
-});
+);
 
 /**
  * POST /api/voice/identify-speakers
  * Use GPT-OSS to identify speaker names from diarized transcription context
  */
-router.post('/identify-speakers', async (req: Request, res: Response) => {
-  const body = req.body as IdentifySpeakersBody;
-  const { text } = body;
+router.post(
+  '/identify-speakers',
+  validateBody(identifySpeakersBodySchema),
+  async (req: TypedRequest<IdentifySpeakersBody>, res: Response) => {
+    const { text } = req.body;
 
-  if (!text) {
-    return res.status(400).json({ success: false, error: 'Kein Text angegeben' });
+    try {
+      const mapping = await identifySpeakers(text);
+      return res.json({ success: true, mapping });
+    } catch (error) {
+      log.error('[Voice] Speaker identification error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Fehler bei der Sprecher*innen-Erkennung: ' + (error as Error).message,
+      });
+    }
   }
-
-  try {
-    const mapping = await identifySpeakers(text);
-    return res.json({ success: true, mapping });
-  } catch (error) {
-    log.error('[Voice] Speaker identification error:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Fehler bei der Sprecher*innen-Erkennung: ' + (error as Error).message,
-    });
-  }
-});
+);
 
 /**
  * POST /api/voice/todo-list
  * Extract action items from transcription text via GPT-OSS and return as checklist HTML
  */
-router.post('/todo-list', async (req: Request, res: Response) => {
-  const body = req.body as TodoListBody;
-  const { text, title } = body;
+router.post(
+  '/todo-list',
+  validateBody(todoListBodySchema),
+  async (req: TypedRequest<TodoListBody>, res: Response) => {
+    const { text, title } = req.body;
 
-  if (!text) {
-    return res.status(400).json({ success: false, error: 'Kein Text angegeben' });
+    try {
+      const html = await extractTodoList(text, title);
+      return res.json({ success: true, content: html });
+    } catch (error) {
+      log.error('[Voice] Todo list error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Fehler bei der Aufgaben-Extraktion: ' + (error as Error).message,
+      });
+    }
   }
-
-  try {
-    const html = await extractTodoList(text, title);
-    return res.json({ success: true, content: html });
-  } catch (error) {
-    log.error('[Voice] Todo list error:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Fehler bei der Aufgaben-Extraktion: ' + (error as Error).message,
-    });
-  }
-});
+);
 
 /**
  * GET /api/voice/formats
