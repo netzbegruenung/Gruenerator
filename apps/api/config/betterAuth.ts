@@ -5,8 +5,10 @@ import pg from 'pg';
 
 import { loadConfig } from '../database/services/PostgresService/config.js';
 import { mobileTokenExchange } from '../plugins/mobileTokenExchange.js';
-import { redisClient } from '../utils/redis/client.js';
 import { createLogger } from '../utils/logger.js';
+import { redisClient } from '../utils/redis/client.js';
+
+import { ALLOWED_DOMAINS } from './domains.js';
 
 const KC_BASE = process.env.KEYCLOAK_BASE_URL || 'https://user.netzbegruenung.de';
 const KC_REALM = process.env.KEYCLOAK_REALM || 'gruenerator';
@@ -40,6 +42,7 @@ const pool = new pg.Pool(pgConfig);
 
 export const auth = betterAuth({
   database: pool,
+  baseURL: process.env.BETTER_AUTH_URL,
   basePath: '/api/auth/v2',
 
   user: {
@@ -175,13 +178,14 @@ export const auth = betterAuth({
 
   trustedOrigins: [
     'gruenerator://',
-
+    ...ALLOWED_DOMAINS.map((d) => `https://${d}`),
     ...(process.env.NODE_ENV === 'development'
       ? ['exp://', 'http://localhost:3000', 'http://localhost:5050']
       : []),
   ],
 
   advanced: {
+    trustedProxyHeaders: true,
     ipAddress: {
       ipAddressHeaders: ['x-forwarded-for', 'x-real-ip'],
     },
@@ -223,7 +227,9 @@ export const auth = betterAuth({
     account: {
       create: {
         before: async (account) => {
-          log.info(`[Auth] Linking account: provider=${account.providerId}, accountId=${account.accountId}, userId=${account.userId}`);
+          log.info(
+            `[Auth] Linking account: provider=${account.providerId}, accountId=${account.accountId}, userId=${account.userId}`
+          );
           return { data: account };
         },
       },
