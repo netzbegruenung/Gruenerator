@@ -250,7 +250,9 @@ router.post(
       }
 
       // Extract tags from description and merge with provided tags (lowercase for case-insensitive search)
-      const descriptionTags = extractTagsFromDescription(description).map((t) => t.toLowerCase());
+      const descriptionTags = extractTagsFromDescription(
+        description as string | null | undefined
+      ).map((t) => t.toLowerCase());
       const providedTags: string[] = Array.isArray(tags)
         ? (tags as string[]).map((t) => t.toLowerCase())
         : [];
@@ -263,8 +265,8 @@ router.post(
       const templateData = {
         user_id: userId,
         type: 'template',
-        title: title.trim(),
-        description: description?.trim() || null,
+        title: String(title).trim(),
+        description: description ? String(description).trim() : null,
         template_type,
         external_url: externalUrl || null,
         thumbnail_url: preview_image_url || null,
@@ -370,8 +372,9 @@ router.put(
       // Prepare update data
       const updateData: Record<string, unknown> = {};
 
-      if (title !== undefined) updateData.title = title.trim();
-      if (description !== undefined) updateData.description = description?.trim() || null;
+      if (title !== undefined) updateData.title = String(title).trim();
+      if (description !== undefined)
+        updateData.description = description ? String(description).trim() : null;
       if (template_type !== undefined) updateData.template_type = template_type;
       if (externalUrlUpdate !== undefined) updateData.external_url = externalUrlUpdate;
       if (preview_image_url !== undefined) updateData.thumbnail_url = preview_image_url;
@@ -520,8 +523,9 @@ router.post(
         updated_at: new Date().toISOString(),
       };
 
-      if (title !== undefined) updateData.title = title.trim();
-      if (description !== undefined) updateData.description = description?.trim() || null;
+      if (title !== undefined) updateData.title = String(title).trim();
+      if (description !== undefined)
+        updateData.description = description ? String(description).trim() : null;
       if (is_private !== undefined) updateData.is_private = is_private;
 
       // Update template_type if provided

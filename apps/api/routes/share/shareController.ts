@@ -13,11 +13,11 @@ import sharp from 'sharp';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { transferService } from '../../services/transferService.js';
+import { type SharedMediaRow, type ShareResult } from '../../types/media.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
-import type { SharedMediaRow, ShareResult, UpdateImageShareParams } from '../../types/media.js';
 
 const fsPromises = fs.promises;
 const log = createLogger('share');
@@ -202,8 +202,8 @@ interface ShareResponse {
     shareUrl: string;
     createdAt: Date | string;
     mediaType: 'image' | 'video';
-    hasOriginalImage?: boolean;
-    status?: string;
+    hasOriginalImage?: boolean | undefined;
+    status?: string | undefined;
   };
   error?: string;
   code?: string;
@@ -1180,7 +1180,15 @@ router.get(
         await service.recordDownload(shareToken as string, null, ipAddress, share.id);
 
         try {
-          const result = await transferService.proxyDownloadWithRecord(share);
+          const transferParams = {
+            user_id: share.user_id,
+            ...(share.wolke_share_link_id != null
+              ? { wolke_share_link_id: share.wolke_share_link_id }
+              : {}),
+            ...(share.wolke_file_path != null ? { wolke_file_path: share.wolke_file_path } : {}),
+            ...(share.file_name != null ? { file_name: share.file_name } : {}),
+          };
+          const result = await transferService.proxyDownloadWithRecord(transferParams);
 
           res.setHeader(
             'Content-Type',
@@ -1511,7 +1519,7 @@ router.get('/templates/:shareToken', (async (
       });
     }
   }
-}) as express.RequestHandler);
+}) as unknown as express.RequestHandler);
 
 // ============================================================================
 // PUSH TO PHONE
