@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **NEVER use `git checkout -- <file>` to discard changes without explicit user permission.** Other agents may be working on those files concurrently, or the changes may be intentional. Always ask the user first before reverting any file.
+
 > **Environment**: This project is developed on **WSL2** (Windows Subsystem for Linux). ADB, Gradle, and other Android tools use Windows executables via `/mnt/c/`. See platform-specific notes throughout.
 
 ## Project Overview

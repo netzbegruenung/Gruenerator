@@ -9,11 +9,21 @@ import path from 'path';
 import express, { type Router, type Response } from 'express';
 
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
+import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
 import { createLogger } from '../../../utils/logger.js';
+import {
+  groupContentShareSchema,
+  groupContentUnshareSchema,
+  groupContentPermissionsSchema,
+  groupContentDeleteSchema,
+  type AuthRequest,
+  type GroupContentShareBody,
+  type GroupContentUnshareBody,
+  type GroupContentPermissionsBody,
+  type GroupContentDeleteBody,
+} from '../types.js';
 
 import { getPostgresAndCheckMembership } from './groupCore.js';
-
-import type { AuthRequest } from '../types.js';
 
 const log = createLogger('groupContent');
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
@@ -52,8 +62,10 @@ try {
   const apiRoot = process.cwd();
   const systemTemplatesPath = path.resolve(apiRoot, 'config/templates/system-templates.json');
   const data = fs.readFileSync(systemTemplatesPath, 'utf-8');
-  const parsed = JSON.parse(data);
-  systemTemplates = (parsed.templates || []).map(
+  const parsed = JSON.parse(data) as {
+    templates?: Array<SystemTemplate & { preview_image?: string }>;
+  };
+  systemTemplates = (parsed.templates ?? []).map(
     (t: SystemTemplate & { preview_image?: string }) => ({
       ...t,
       thumbnail_url: t.preview_image
@@ -87,8 +99,10 @@ router.get(
       );
 
       const settings =
-        typeof group?.settings === 'string' ? JSON.parse(group.settings) : group?.settings || {};
-      const templateTags: string[] = settings.templateTags || [];
+        typeof group?.settings === 'string'
+          ? (JSON.parse(group.settings) as { templateTags?: string[] })
+          : ((group?.settings as { templateTags?: string[] } | null) ?? {});
+      const templateTags: string[] = settings.templateTags ?? [];
 
       if (templateTags.length === 0) {
         res.json({ success: true, vorlagen: [], tags: [] });
@@ -205,27 +219,15 @@ const tableNameMap: Record<string, string> = {
 router.post(
   '/groups/:groupId/share',
   ensureAuthenticated,
-  async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
+  validateBody(groupContentShareSchema),
+  async (
+    req: AuthRequest<{ groupId: string }> & TypedRequest<GroupContentShareBody>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
       const { contentType, contentId, permissions } = req.body;
-
-      if (!groupId || !contentType || !contentId) {
-        res.status(400).json({
-          success: false,
-          message: 'Gruppen-ID, Content-Type und Content-ID sind erforderlich.',
-        });
-        return;
-      }
-
-      if (!VALID_CONTENT_TYPES.has(contentType)) {
-        res.status(400).json({
-          success: false,
-          message: 'Ungültiger Content-Type.',
-        });
-        return;
-      }
 
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
 
@@ -249,9 +251,13 @@ router.post(
           ownershipSQL += ` AND is_deleted = false`;
         }
 
-        const contentOwnership = await postgres.queryOne(ownershipSQL, ownershipParams, {
-          table: tableName,
-        });
+        const contentOwnership = await postgres.queryOne<{ [key: string]: string }>(
+          ownershipSQL,
+          ownershipParams,
+          {
+            table: tableName,
+          }
+        );
 
         if (!contentOwnership) {
           log.error(
@@ -278,7 +284,7 @@ router.post(
         }
       }
 
-      const existingShare = await postgres.queryOne(
+      const existingShare = await postgres.queryOne<{ id: string }>(
         'SELECT id FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',
         [contentType, contentId, groupId],
         { table: 'group_content_shares' }
@@ -292,7 +298,7 @@ router.post(
         return;
       }
 
-      const sharePermissions = permissions || {
+      const sharePermissions = permissions ?? {
         read: true,
         write: false,
         collaborative: false,
@@ -360,24 +366,20 @@ router.post(
 router.delete(
   '/groups/:groupId/share',
   ensureAuthenticated,
-  async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
+  validateBody(groupContentUnshareSchema),
+  async (
+    req: AuthRequest<{ groupId: string }> & TypedRequest<GroupContentUnshareBody>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
       const { contentType, contentId } = req.body;
 
-      if (!groupId || !contentType || !contentId) {
-        res.status(400).json({
-          success: false,
-          message: 'Gruppen-ID, Content-Type und Content-ID sind erforderlich.',
-        });
-        return;
-      }
-
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
 
       // Verify the share exists and user owns it or has permission to unshare
-      const shareRecord = await postgres.queryOne(
+      const shareRecord = await postgres.queryOne<{ shared_by_user_id: string }>(
         'SELECT shared_by_user_id FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',
         [contentType, contentId, groupId],
         { table: 'group_content_shares' }
@@ -644,20 +646,27 @@ router.get(
           // Find the corresponding share info
           const shareInfo = shares.find((s: ShareRecord) => s.content_id === item.id);
 
+          const parsedPermissions: Record<string, unknown> =
+            typeof shareInfo?.permissions === 'string'
+              ? (JSON.parse(shareInfo.permissions) as Record<string, unknown>)
+              : ((shareInfo?.permissions as Record<string, unknown> | null) ?? {});
+
+          const parsedMetadata: Record<string, unknown> =
+            type === 'database' && item.metadata != null
+              ? typeof item.metadata === 'string'
+                ? (JSON.parse(item.metadata) as Record<string, unknown>)
+                : (item.metadata as Record<string, unknown>)
+              : {};
+
           return {
             ...item,
             contentType: type,
             shared_at: shareInfo?.shared_at,
-            group_permissions:
-              typeof shareInfo?.permissions === 'string'
-                ? JSON.parse(shareInfo.permissions)
-                : shareInfo?.permissions,
+            group_permissions: parsedPermissions,
             shared_by_name: shareInfo?.display_name || shareInfo?.first_name || 'Unknown User',
             // Add template-specific fields for database
             ...(type === 'database' && {
-              template_type:
-                (typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata)
-                  ?.template_type || 'template',
+              template_type: (parsedMetadata.template_type as string) || 'template',
               external_url: item.external_url,
             }),
           };
@@ -706,8 +715,10 @@ router.get(
 router.put(
   '/groups/:groupId/content/:contentId/permissions',
   ensureAuthenticated,
+  validateBody(groupContentPermissionsSchema),
   async (
-    req: AuthRequest<{ groupId: string; contentId: string }>,
+    req: AuthRequest<{ groupId: string; contentId: string }> &
+      TypedRequest<GroupContentPermissionsBody>,
     res: Response
   ): Promise<void> => {
     try {
@@ -715,27 +726,10 @@ router.put(
       const userId = req.user!.id;
       const { contentType, permissions } = req.body;
 
-      if (!groupId || !contentId || !contentType || !permissions) {
-        res.status(400).json({
-          success: false,
-          message: 'Alle Parameter sind erforderlich.',
-        });
-        return;
-      }
-
-      // Validate content type
-      if (!VALID_CONTENT_TYPES.has(contentType)) {
-        res.status(400).json({
-          success: false,
-          message: 'Ungültiger Content-Type.',
-        });
-        return;
-      }
-
       const { postgres, membership } = await getPostgresAndCheckMembership(groupId, userId, false);
 
       // Check if content is shared with the group and get share info
-      const shareRecord = await postgres.queryOne(
+      const shareRecord = await postgres.queryOne<{ shared_by_user_id: string }>(
         'SELECT shared_by_user_id FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',
         [contentType, contentId, groupId],
         { table: 'group_content_shares' }
@@ -790,31 +784,15 @@ router.put(
 router.delete(
   '/groups/:groupId/content/:contentId',
   ensureAuthenticated,
+  validateBody(groupContentDeleteSchema),
   async (
-    req: AuthRequest<{ groupId: string; contentId: string }>,
+    req: AuthRequest<{ groupId: string; contentId: string }> & TypedRequest<GroupContentDeleteBody>,
     res: Response
   ): Promise<void> => {
     try {
       const { groupId, contentId } = req.params;
       const userId = req.user!.id;
       const { contentType } = req.body;
-
-      if (!groupId || !contentId || !contentType) {
-        res.status(400).json({
-          success: false,
-          message: 'Gruppen-ID, Content-ID und Content-Type sind erforderlich.',
-        });
-        return;
-      }
-
-      // Validate content type - include database for templates
-      if (!VALID_CONTENT_TYPES.has(contentType)) {
-        res.status(400).json({
-          success: false,
-          message: 'Ungültiger Content-Type.',
-        });
-        return;
-      }
 
       const { postgres, membership } = await getPostgresAndCheckMembership(groupId, userId, false);
 
@@ -831,7 +809,7 @@ router.delete(
       }
 
       // Verify the share exists in the junction table
-      const shareRecord = await postgres.queryOne(
+      const shareRecord = await postgres.queryOne<{ shared_by_user_id: string }>(
         'SELECT shared_by_user_id FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',
         [contentType, contentId, groupId],
         { table: 'group_content_shares' }

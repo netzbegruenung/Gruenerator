@@ -45,7 +45,13 @@ router.post(
   ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const { url, preview, title, description, metadata } = req.body;
+      const { url, preview, title, description, metadata } = req.body as {
+        url: string;
+        preview?: boolean;
+        title?: string;
+        description?: string;
+        metadata?: Record<string, unknown>;
+      };
 
       if (!url || typeof url !== 'string') {
         res.status(400).json({ success: false, message: 'URL ist erforderlich.' });
@@ -232,7 +238,7 @@ router.post(
         content_data = {},
         metadata = {},
         is_private = false,
-      } = req.body;
+      } = req.body as Record<string, unknown>;
 
       // Validate required fields
       if (!title) {
@@ -332,7 +338,7 @@ router.put(
         content_data,
         metadata,
         is_private,
-      } = req.body;
+      } = req.body as Record<string, unknown>;
 
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
@@ -480,7 +486,7 @@ router.post(
     try {
       const userId = req.user!.id;
       const { id } = req.params;
-      const { title, description, template_type, is_private } = req.body;
+      const { title, description, template_type, is_private } = req.body as Record<string, unknown>;
 
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();

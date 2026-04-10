@@ -4,9 +4,11 @@
  */
 
 import express, { type Router, type Request, type Response } from 'express';
+import { z } from 'zod';
 
 import { processGraphRequest } from '../../agents/langgraph/PromptProcessor.js';
 import { processGraphRequestStreaming } from '../../agents/langgraph/streamingProcessor.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { detectTextType, TEXT_TYPE_MAPPINGS } from '../../services/texte/index.js';
 import { withErrorHandler } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -31,22 +33,28 @@ const smartRouter: Router = express.Router();
  * POST /api/texte/smart
  * Automatically detects intent and routes to appropriate text generator
  */
+const smartSchema = z
+  .object({
+    inhalt: z.string().optional(),
+    prompt: z.string().optional(),
+    useWebSearchTool: z.boolean().optional(),
+    usePrivacyMode: z.boolean().optional(),
+    provider: z.string().optional(),
+  })
+  .passthrough()
+  .refine((data) => (data.inhalt && data.inhalt.trim()) || (data.prompt && data.prompt.trim()), {
+    message: 'Bitte gib einen Text oder eine Beschreibung ein.',
+  });
+type SmartBody = z.infer<typeof smartSchema>;
+
 smartRouter.post(
   '/',
-  withErrorHandler(async (req: Request, res: Response): Promise<void> => {
+  validateBody(smartSchema),
+  withErrorHandler(async (req: TypedRequest<SmartBody>, res: Response): Promise<void> => {
     const { inhalt, prompt, useWebSearchTool, usePrivacyMode, provider, ...restBody } = req.body;
 
     // Support both 'inhalt' and 'prompt' as the main text input
-    const userPrompt = inhalt || prompt;
-
-    if (!userPrompt || typeof userPrompt !== 'string' || !userPrompt.trim()) {
-      res.status(400).json({
-        success: false,
-        error: 'Bitte gib einen Text oder eine Beschreibung ein.',
-        code: 'VALIDATION_ERROR',
-      });
-      return;
-    }
+    const userPrompt = (inhalt || prompt)!;
 
     log.debug('[smart_texte] Processing request:', userPrompt.substring(0, 100));
 
@@ -86,15 +94,15 @@ smartRouter.post(
         _detectionMethod: detection.method,
       };
 
-      // Update request body
-      req.body = targetBody;
+      // Update request body and route to appropriate processor
+      const baseReq = req as unknown as Request;
+      baseReq.body = targetBody;
 
-      // Route to appropriate processor
       log.debug('[smart_texte] Routing to:', detection.route);
       if (req.query.stream === 'true' || req.headers.accept === 'text/event-stream') {
-        return processGraphRequestStreaming(detection.route, req, res);
+        return processGraphRequestStreaming(detection.route, baseReq, res);
       }
-      await processGraphRequest(detection.route, req, res);
+      await processGraphRequest(detection.route, baseReq, res);
     } catch (error) {
       log.error('[smart_texte] Processing error:', error);
       res.status(500).json({

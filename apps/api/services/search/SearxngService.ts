@@ -46,7 +46,7 @@ interface RedisClientLike {
   ping: () => Promise<string>;
 }
 
-interface AIWorkerPool {
+export interface AIWorkerPool {
   processRequest(
     request: unknown,
     req?: unknown

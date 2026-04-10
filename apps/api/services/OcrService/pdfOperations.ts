@@ -32,6 +32,7 @@ export async function getPdfJs(): Promise<any> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function openPdfDocument(pdfPath: string, pdfjsLib: any): Promise<any> {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- pdfjs-dist untyped
     const loadingTask = pdfjsLib.getDocument({ url: pdfPath, useSystemFonts: true });
     const pdfDoc = await loadingTask.promise;
     return pdfDoc;
@@ -79,7 +80,9 @@ export async function canExtractTextDirectly(
 
     for (const pageNum of sampleIndices) {
       try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- pdfjs-dist untyped
         const page = await pdfDoc.getPage(pageNum);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- pdfjs-dist untyped
         const textContent = await page.getTextContent();
         const textItems = textContent.items as Array<{ str?: string }>;
         const pageText = textItems
@@ -220,7 +223,9 @@ export async function extractPageTextDirectly(
   applyMarkdownFormattingFn: (text: string) => string
 ): Promise<PageExtractionResult> {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- pdfjs-dist untyped
     const page = await pdfDoc.getPage(pageNum);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- pdfjs-dist untyped
     const textContent = await page.getTextContent();
 
     // Extract text items with proper spacing
@@ -269,6 +274,7 @@ export async function extractTextFromBase64PDF(
     }
 
     // Load PDF from bytes
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- pdfjs-dist untyped
     const loadingTask = pdfjsLib.getDocument({ data: bytes, useSystemFonts: true });
     const pdfDoc = await loadingTask.promise;
     const totalPages = pdfDoc.numPages;
@@ -279,7 +285,9 @@ export async function extractTextFromBase64PDF(
 
     for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
       try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- pdfjs-dist untyped
         const page = await pdfDoc.getPage(pageNum);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- pdfjs-dist untyped
         const textContent = await page.getTextContent();
         const textItems = textContent.items as Array<{ str?: string }>;
         const pageText = textItems

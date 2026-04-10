@@ -13,7 +13,9 @@ import path from 'path';
 
 import express, { type Request, type Response, type Router } from 'express';
 import multer, { type FileFilterCallback } from 'multer';
+import { z } from 'zod';
 
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import {
   getFilePathFromUploadId,
   checkFileExists,
@@ -67,17 +69,6 @@ interface TranscribeRequest extends Request {
   };
 }
 
-interface TranscribeUrlRequest extends Request {
-  body: {
-    url: string;
-    language?: string;
-    removeTimestamps?: boolean;
-    timestamps?: boolean;
-    diarize?: boolean;
-    contextBias?: string[];
-  };
-}
-
 interface ChatRequest extends Request {
   file?: Express.Multer.File;
   body: {
@@ -117,6 +108,41 @@ interface FormatsResponse {
   provider?: string;
   error?: string;
 }
+
+const tusTranscribeBodySchema = z.object({
+  uploadId: z.string().min(1),
+  language: z.string().optional(),
+  diarize: z.boolean().optional(),
+  timestamps: z.boolean().optional(),
+});
+type TusTranscribeBody = z.infer<typeof tusTranscribeBodySchema>;
+
+const transcribeUrlBodySchema = z.object({
+  url: z.string().min(1),
+  language: z.string().optional(),
+  removeTimestamps: z.boolean().optional(),
+  timestamps: z.boolean().optional(),
+  diarize: z.boolean().optional(),
+  contextBias: z.array(z.string()).optional(),
+});
+type TranscribeUrlBody = z.infer<typeof transcribeUrlBodySchema>;
+
+const protokollBodySchema = z.object({
+  inputText: z.string().min(1),
+  protokollTyp: z.enum(['Sitzungsprotokoll', 'Ergebnisprotokoll', 'Verlaufsprotokoll']).optional(),
+});
+type ProtokollBody = z.infer<typeof protokollBodySchema>;
+
+const identifySpeakersBodySchema = z.object({
+  text: z.string().min(1),
+});
+type IdentifySpeakersBody = z.infer<typeof identifySpeakersBodySchema>;
+
+const todoListBodySchema = z.object({
+  text: z.string().min(1),
+  title: z.string().optional(),
+});
+type TodoListBody = z.infer<typeof todoListBodySchema>;
 
 type TimestampGranularity = 'segment';
 
@@ -295,11 +321,7 @@ async function transcribeBuffer(
 
   if (needsVoxtral) {
     log.debug('[Voice] Using Voxtral (diarize/contextBias requested)');
-    const result = await mistralVoiceService.transcribeFromBuffer(
-      audioBuffer,
-      filename,
-      options
-    );
+    const result = await mistralVoiceService.transcribeFromBuffer(audioBuffer, filename, options);
     return {
       text: result.text,
       ...(result.segments != null && { segments: result.segments }),
@@ -317,11 +339,7 @@ async function transcribeBuffer(
     }
   }
 
-  const result = await mistralVoiceService.transcribeFromBuffer(
-    audioBuffer,
-    filename,
-    options
-  );
+  const result = await mistralVoiceService.transcribeFromBuffer(audioBuffer, filename, options);
   return {
     text: result.text,
     ...(result.segments != null && { segments: result.segments }),
@@ -337,68 +355,70 @@ async function transcribeBuffer(
  * POST /api/voice/transcribe
  * Transcribe audio file — prefers Regolo Whisper, falls back to Voxtral
  */
-router.post(
-  '/transcribe',
-  upload.single('audio'),
-  (async (req: TranscribeRequest, res: Response<TranscribeResponse>) => {
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        error: 'Keine Audio-Datei erhalten',
-      });
+router.post('/transcribe', upload.single('audio'), (async (
+  req: TranscribeRequest,
+  res: Response<TranscribeResponse>
+) => {
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      error: 'Keine Audio-Datei erhalten',
+    });
+  }
+
+  let audioBuffer = req.file.buffer;
+  let filename = req.file.originalname;
+
+  const options: TranscriptionOptions = {
+    language: req.query.language || req.body.language || 'de',
+    removeTimestamps: req.query.removeTimestamps === 'true' || req.body.removeTimestamps === true,
+    ...(req.query.timestamps === 'true' || req.body.timestamps === true
+      ? { timestamp_granularities: ['segment'] as const }
+      : {}),
+    diarize: req.query.diarize === 'true' || req.body.diarize === true,
+    ...(req.body.contextBias != null && { contextBias: req.body.contextBias }),
+  };
+
+  try {
+    if (isVideoFile(req.file.mimetype)) {
+      log.debug('[Voice] Video detected, extracting audio from:', filename);
+      const extracted = await extractAudioFromVideo(req.file.buffer, filename);
+      audioBuffer = extracted.buffer;
+      filename = extracted.filename;
+      log.debug(
+        '[Voice] Audio extracted:',
+        filename,
+        `(${(audioBuffer.length / 1024 / 1024).toFixed(1)} MB)`
+      );
     }
 
-    let audioBuffer = req.file.buffer;
-    let filename = req.file.originalname;
+    log.debug('[Voice] Starting transcription for:', filename, 'Options:', options);
 
-    const options: TranscriptionOptions = {
-      language: req.query.language || req.body.language || 'de',
-      removeTimestamps: req.query.removeTimestamps === 'true' || req.body.removeTimestamps === true,
-      ...(req.query.timestamps === 'true' || req.body.timestamps === true ? { timestamp_granularities: ['segment'] as const } : {}),
-      diarize: req.query.diarize === 'true' || req.body.diarize === true,
-      ...(req.body.contextBias != null && { contextBias: req.body.contextBias }),
-    };
+    const result = await transcribeBuffer(audioBuffer, filename, options);
 
-    try {
-      if (isVideoFile(req.file.mimetype)) {
-        log.debug('[Voice] Video detected, extracting audio from:', filename);
-        const extracted = await extractAudioFromVideo(req.file.buffer, filename);
-        audioBuffer = extracted.buffer;
-        filename = extracted.filename;
-        log.debug(
-          '[Voice] Audio extracted:',
-          filename,
-          `(${(audioBuffer.length / 1024 / 1024).toFixed(1)} MB)`
-        );
-      }
-
-      log.debug('[Voice] Starting transcription for:', filename, 'Options:', options);
-
-      const result = await transcribeBuffer(audioBuffer, filename, options);
-
-      let speakerMap: Record<string, string> = {};
-      if (options.diarize && result.text.includes('[speaker_')) {
-        speakerMap = await identifySpeakers(result.text);
-      }
-
-      return res.json({
-        success: true,
-        text: result.text,
-        ...(result.segments != null && { segments: result.segments }),
-        hasTimestamps: result.hasTimestamps,
-        speakerMap,
-        ...(options.language != null && { language: options.language }),
-      });
-    } catch (error) {
-      log.error('[Voice] Transcription error:', error);
-
-      return res.status(500).json({
-        success: false,
-        error: 'Fehler bei der Transkription: ' + (error as Error).message,
-      });
+    let speakerMap: Record<string, string> = {};
+    if (options.diarize && result.text.includes('[speaker_')) {
+      speakerMap = await identifySpeakers(result.text);
     }
-  }) as any
-);
+
+    return res.json({
+      success: true,
+      text: result.text,
+      ...(result.segments != null && { segments: result.segments }),
+      hasTimestamps: result.hasTimestamps,
+      speakerMap,
+      ...(options.language != null && { language: options.language }),
+    });
+  } catch (error) {
+    log.error('[Voice] Transcription error:', error);
+
+    return res.status(500).json({
+      success: false,
+      error: 'Fehler bei der Transkription: ' + (error as Error).message,
+    });
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- multer middleware type mismatch
+}) as any);
 
 /**
  * POST /api/voice/transcribe/stream
@@ -407,211 +427,53 @@ router.post(
  * Supports diarize/timestamps — when enabled, uses non-streaming transcription
  * but still wraps in SSE for consistent progress feedback.
  */
-router.post(
-  '/transcribe/stream',
-  upload.single('audio'),
-  (async (req: TranscribeRequest, res: Response) => {
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        error: 'Keine Audio-Datei erhalten',
-      });
-    }
-
-    let audioBuffer = req.file.buffer;
-    let filename = req.file.originalname;
-    const language = req.query.language || req.body.language || 'de';
-    const diarize = req.query.diarize === 'true' || req.body.diarize === true;
-    const timestamps = req.query.timestamps === 'true' || req.body.timestamps === true;
-    const needsFullTranscription = diarize || timestamps;
-
-    log.debug('[Voice] /transcribe/stream params:', {
-      language,
-      diarize,
-      timestamps,
-      needsFullTranscription,
-      query: req.query,
-    });
-
-    const sse = createSSEStream(res);
-
-    try {
-      if (isVideoFile(req.file.mimetype)) {
-        log.debug('[Voice] Video detected, extracting audio from:', filename);
-        sse.sendRaw('extraction_start', { type: 'extraction_start' });
-
-        const extracted = await extractAudioFromVideo(req.file.buffer, filename, {
-          onProgress: (percent, timemark) => {
-            sse.sendRaw('extraction_progress', { type: 'extraction_progress', percent, timemark });
-          },
-        });
-        audioBuffer = extracted.buffer;
-        filename = extracted.filename;
-
-        const audioSizeMB = +(audioBuffer.length / 1024 / 1024).toFixed(1);
-        log.debug('[Voice] Audio extracted:', filename, `(${audioSizeMB} MB)`);
-        sse.sendRaw('extraction_complete', { type: 'extraction_complete', audioSizeMB });
-      }
-
-      log.debug('[Voice] Starting transcription for:', filename, { diarize, timestamps });
-      sse.sendRaw('transcription_start', { type: 'transcription_start' });
-
-      if (needsFullTranscription) {
-        const options: TranscriptionOptions = {
-          language,
-          ...(timestamps && { timestamp_granularities: ['segment'] as const }),
-          ...(diarize && { diarize: true }),
-        };
-
-        const result = await transcribeBuffer(audioBuffer, filename, options);
-
-        let speakerMap: Record<string, string> = {};
-        if (diarize && result.text.includes('[speaker_')) {
-          log.debug('[Voice] Identifying speakers...');
-          speakerMap = await identifySpeakers(result.text);
-          log.debug('[Voice] Speaker map:', speakerMap);
-        }
-
-        sse.sendRaw('done', {
-          type: 'done',
-          text: result.text,
-          segments: result.segments,
-          hasTimestamps: result.hasTimestamps,
-          speakerMap,
-        });
-      } else {
-        // Streaming transcription — Voxtral only (Whisper has no streaming API)
-        for await (const event of mistralVoiceService.transcribeFromBufferStream(
-          audioBuffer,
-          filename,
-          { language }
-        )) {
-          sse.sendRaw(event.type, event);
-        }
-      }
-    } catch (error) {
-      log.error('[Voice] Streaming transcription error:', error);
-      sse.sendRaw('error', { type: 'error', text: (error as Error).message });
-    }
-
-    sse.end();
-  }) as any
-);
-
-// ============================================================================
-// TUS-based transcription (two-phase: upload via TUS, then process)
-// ============================================================================
-
-/**
- * POST /api/voice/transcribe-upload
- * Transcribe a file previously uploaded via TUS at /api/audio/upload.
- * Reads the file from disk by uploadId, avoiding multer memory limits.
- */
-router.post('/transcribe-upload', async (req: Request, res: Response<TranscribeResponse>) => {
-  const { uploadId, language = 'de', diarize = false, timestamps = false } = req.body;
-
-  if (!uploadId) {
-    return res.status(400).json({ success: false, error: 'uploadId ist erforderlich' });
-  }
-
-  const filePath = getFilePathFromUploadId(uploadId);
-  if (!(await checkFileExists(filePath))) {
-    void scheduleImmediateCleanup(uploadId, 'file not found');
-    return res.status(404).json({ success: false, error: 'Upload nicht gefunden' });
-  }
-
-  try {
-    markUploadAsProcessed(uploadId);
-    const uploadStatus = await getUploadStatus(uploadId);
-    const meta = uploadStatus.metadata?.metadata as Record<string, string> | undefined;
-    let audioBuffer: Buffer = Buffer.from(await fs.promises.readFile(filePath));
-    let filename = sanitizeFilename(meta?.filename || 'audio.mp3', 'audio.mp3');
-    const filetype = meta?.filetype || '';
-
-    const options: TranscriptionOptions = {
-      language,
-      ...(timestamps && { timestamp_granularities: ['segment'] as const }),
-      ...(diarize && { diarize: true }),
-    };
-
-    if (isVideoFile(filetype)) {
-      log.debug('[Voice] TUS upload is video, extracting audio from:', filename);
-      const extracted = await extractAudioFromVideo(audioBuffer, filename);
-      audioBuffer = extracted.buffer;
-      filename = extracted.filename;
-    }
-
-    log.debug('[Voice] Starting TUS transcription for:', filename, 'Options:', options);
-    const result = await transcribeBuffer(audioBuffer, filename, options);
-
-    let speakerMap: Record<string, string> = {};
-    if (diarize && result.text.includes('[speaker_')) {
-      speakerMap = await identifySpeakers(result.text);
-    }
-
-    void scheduleImmediateCleanup(uploadId, 'transcription complete');
-
-    return res.json({
-      success: true,
-      text: result.text,
-      ...(result.segments != null && { segments: result.segments }),
-      hasTimestamps: result.hasTimestamps,
-      speakerMap,
-      language,
-    });
-  } catch (error) {
-    log.error('[Voice] TUS transcription error:', error);
-    void scheduleImmediateCleanup(uploadId, 'transcription error');
-    return res.status(500).json({
+router.post('/transcribe/stream', upload.single('audio'), (async (
+  req: TranscribeRequest,
+  res: Response
+) => {
+  if (!req.file) {
+    return res.status(400).json({
       success: false,
-      error: 'Fehler bei der Transkription: ' + (error as Error).message,
+      error: 'Keine Audio-Datei erhalten',
     });
   }
-});
 
-/**
- * POST /api/voice/transcribe-upload/stream
- * Streaming variant of TUS-based transcription. Returns SSE events.
- */
-router.post('/transcribe-upload/stream', async (req: Request, res: Response) => {
-  const { uploadId, language = 'de', diarize = false, timestamps = false } = req.body;
+  let audioBuffer = req.file.buffer;
+  let filename = req.file.originalname;
+  const language = req.query.language || req.body.language || 'de';
+  const diarize = req.query.diarize === 'true' || req.body.diarize === true;
+  const timestamps = req.query.timestamps === 'true' || req.body.timestamps === true;
+  const needsFullTranscription = diarize || timestamps;
 
-  if (!uploadId) {
-    return res.status(400).json({ success: false, error: 'uploadId ist erforderlich' });
-  }
-
-  const filePath = getFilePathFromUploadId(uploadId);
-  if (!(await checkFileExists(filePath))) {
-    void scheduleImmediateCleanup(uploadId, 'file not found');
-    return res.status(404).json({ success: false, error: 'Upload nicht gefunden' });
-  }
+  log.debug('[Voice] /transcribe/stream params:', {
+    language,
+    diarize,
+    timestamps,
+    needsFullTranscription,
+    query: req.query,
+  });
 
   const sse = createSSEStream(res);
 
   try {
-    markUploadAsProcessed(uploadId);
-    const uploadStatus = await getUploadStatus(uploadId);
-    const meta = uploadStatus.metadata?.metadata as Record<string, string> | undefined;
-    let audioBuffer: Buffer = Buffer.from(await fs.promises.readFile(filePath));
-    let filename = sanitizeFilename(meta?.filename || 'audio.mp3', 'audio.mp3');
-    const filetype = meta?.filetype || '';
-    const needsFullTranscription = diarize || timestamps;
-
-    if (isVideoFile(filetype)) {
-      log.debug('[Voice] TUS upload is video, extracting audio from:', filename);
+    if (isVideoFile(req.file.mimetype)) {
+      log.debug('[Voice] Video detected, extracting audio from:', filename);
       sse.sendRaw('extraction_start', { type: 'extraction_start' });
-      const extracted = await extractAudioFromVideo(audioBuffer, filename, {
+
+      const extracted = await extractAudioFromVideo(req.file.buffer, filename, {
         onProgress: (percent, timemark) => {
           sse.sendRaw('extraction_progress', { type: 'extraction_progress', percent, timemark });
         },
       });
       audioBuffer = extracted.buffer;
       filename = extracted.filename;
+
       const audioSizeMB = +(audioBuffer.length / 1024 / 1024).toFixed(1);
+      log.debug('[Voice] Audio extracted:', filename, `(${audioSizeMB} MB)`);
       sse.sendRaw('extraction_complete', { type: 'extraction_complete', audioSizeMB });
     }
 
-    log.debug('[Voice] Starting TUS streaming transcription for:', filename);
+    log.debug('[Voice] Starting transcription for:', filename, { diarize, timestamps });
     sse.sendRaw('transcription_start', { type: 'transcription_start' });
 
     if (needsFullTranscription) {
@@ -625,7 +487,9 @@ router.post('/transcribe-upload/stream', async (req: Request, res: Response) => 
 
       let speakerMap: Record<string, string> = {};
       if (diarize && result.text.includes('[speaker_')) {
+        log.debug('[Voice] Identifying speakers...');
         speakerMap = await identifySpeakers(result.text);
+        log.debug('[Voice] Speaker map:', speakerMap);
       }
 
       sse.sendRaw('done', {
@@ -636,6 +500,7 @@ router.post('/transcribe-upload/stream', async (req: Request, res: Response) => 
         speakerMap,
       });
     } else {
+      // Streaming transcription — Voxtral only (Whisper has no streaming API)
       for await (const event of mistralVoiceService.transcribeFromBufferStream(
         audioBuffer,
         filename,
@@ -644,16 +509,171 @@ router.post('/transcribe-upload/stream', async (req: Request, res: Response) => 
         sse.sendRaw(event.type, event);
       }
     }
-
-    void scheduleImmediateCleanup(uploadId, 'transcription complete');
   } catch (error) {
-    log.error('[Voice] TUS streaming transcription error:', error);
-    void scheduleImmediateCleanup(uploadId, 'transcription error');
+    log.error('[Voice] Streaming transcription error:', error);
     sse.sendRaw('error', { type: 'error', text: (error as Error).message });
   }
 
   sse.end();
-});
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- multer middleware type mismatch
+}) as any);
+
+// ============================================================================
+// TUS-based transcription (two-phase: upload via TUS, then process)
+// ============================================================================
+
+/**
+ * POST /api/voice/transcribe-upload
+ * Transcribe a file previously uploaded via TUS at /api/audio/upload.
+ * Reads the file from disk by uploadId, avoiding multer memory limits.
+ */
+router.post(
+  '/transcribe-upload',
+  validateBody(tusTranscribeBodySchema),
+  async (req: TypedRequest<TusTranscribeBody>, res: Response<TranscribeResponse>) => {
+    const { uploadId, language = 'de', diarize = false, timestamps = false } = req.body;
+
+    const filePath = getFilePathFromUploadId(uploadId);
+    if (!(await checkFileExists(filePath))) {
+      void scheduleImmediateCleanup(uploadId, 'file not found');
+      return res.status(404).json({ success: false, error: 'Upload nicht gefunden' });
+    }
+
+    try {
+      markUploadAsProcessed(uploadId);
+      const uploadStatus = await getUploadStatus(uploadId);
+      const meta = uploadStatus.metadata?.metadata as Record<string, string> | undefined;
+      let audioBuffer: Buffer = Buffer.from(await fs.promises.readFile(filePath));
+      let filename = sanitizeFilename(meta?.filename || 'audio.mp3', 'audio.mp3');
+      const filetype = meta?.filetype || '';
+
+      const options: TranscriptionOptions = {
+        language,
+        ...(timestamps && { timestamp_granularities: ['segment'] as const }),
+        ...(diarize && { diarize: true }),
+      };
+
+      if (isVideoFile(filetype)) {
+        log.debug('[Voice] TUS upload is video, extracting audio from:', filename);
+        const extracted = await extractAudioFromVideo(audioBuffer, filename);
+        audioBuffer = extracted.buffer;
+        filename = extracted.filename;
+      }
+
+      log.debug('[Voice] Starting TUS transcription for:', filename, 'Options:', options);
+      const result = await transcribeBuffer(audioBuffer, filename, options);
+
+      let speakerMap: Record<string, string> = {};
+      if (diarize && result.text.includes('[speaker_')) {
+        speakerMap = await identifySpeakers(result.text);
+      }
+
+      void scheduleImmediateCleanup(uploadId, 'transcription complete');
+
+      return res.json({
+        success: true,
+        text: result.text,
+        ...(result.segments != null && { segments: result.segments }),
+        hasTimestamps: result.hasTimestamps,
+        speakerMap,
+        language,
+      });
+    } catch (error) {
+      log.error('[Voice] TUS transcription error:', error);
+      void scheduleImmediateCleanup(uploadId, 'transcription error');
+      return res.status(500).json({
+        success: false,
+        error: 'Fehler bei der Transkription: ' + (error as Error).message,
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/voice/transcribe-upload/stream
+ * Streaming variant of TUS-based transcription. Returns SSE events.
+ */
+router.post(
+  '/transcribe-upload/stream',
+  validateBody(tusTranscribeBodySchema),
+  async (req: TypedRequest<TusTranscribeBody>, res: Response) => {
+    const { uploadId, language = 'de', diarize = false, timestamps = false } = req.body;
+
+    const filePath = getFilePathFromUploadId(uploadId);
+    if (!(await checkFileExists(filePath))) {
+      void scheduleImmediateCleanup(uploadId, 'file not found');
+      return res.status(404).json({ success: false, error: 'Upload nicht gefunden' });
+    }
+
+    const sse = createSSEStream(res);
+
+    try {
+      markUploadAsProcessed(uploadId);
+      const uploadStatus = await getUploadStatus(uploadId);
+      const meta = uploadStatus.metadata?.metadata as Record<string, string> | undefined;
+      let audioBuffer: Buffer = Buffer.from(await fs.promises.readFile(filePath));
+      let filename = sanitizeFilename(meta?.filename || 'audio.mp3', 'audio.mp3');
+      const filetype = meta?.filetype || '';
+      const needsFullTranscription = diarize || timestamps;
+
+      if (isVideoFile(filetype)) {
+        log.debug('[Voice] TUS upload is video, extracting audio from:', filename);
+        sse.sendRaw('extraction_start', { type: 'extraction_start' });
+        const extracted = await extractAudioFromVideo(audioBuffer, filename, {
+          onProgress: (percent, timemark) => {
+            sse.sendRaw('extraction_progress', { type: 'extraction_progress', percent, timemark });
+          },
+        });
+        audioBuffer = extracted.buffer;
+        filename = extracted.filename;
+        const audioSizeMB = +(audioBuffer.length / 1024 / 1024).toFixed(1);
+        sse.sendRaw('extraction_complete', { type: 'extraction_complete', audioSizeMB });
+      }
+
+      log.debug('[Voice] Starting TUS streaming transcription for:', filename);
+      sse.sendRaw('transcription_start', { type: 'transcription_start' });
+
+      if (needsFullTranscription) {
+        const options: TranscriptionOptions = {
+          language,
+          ...(timestamps && { timestamp_granularities: ['segment'] as const }),
+          ...(diarize && { diarize: true }),
+        };
+
+        const result = await transcribeBuffer(audioBuffer, filename, options);
+
+        let speakerMap: Record<string, string> = {};
+        if (diarize && result.text.includes('[speaker_')) {
+          speakerMap = await identifySpeakers(result.text);
+        }
+
+        sse.sendRaw('done', {
+          type: 'done',
+          text: result.text,
+          segments: result.segments,
+          hasTimestamps: result.hasTimestamps,
+          speakerMap,
+        });
+      } else {
+        for await (const event of mistralVoiceService.transcribeFromBufferStream(
+          audioBuffer,
+          filename,
+          { language }
+        )) {
+          sse.sendRaw(event.type, event);
+        }
+      }
+
+      void scheduleImmediateCleanup(uploadId, 'transcription complete');
+    } catch (error) {
+      log.error('[Voice] TUS streaming transcription error:', error);
+      void scheduleImmediateCleanup(uploadId, 'transcription error');
+      sse.sendRaw('error', { type: 'error', text: (error as Error).message });
+    }
+
+    sse.end();
+  }
+);
 
 /**
  * POST /api/voice/transcribe-url
@@ -661,7 +681,8 @@ router.post('/transcribe-upload/stream', async (req: Request, res: Response) => 
  */
 router.post(
   '/transcribe-url',
-  async (req: TranscribeUrlRequest, res: Response<TranscribeUrlResponse>) => {
+  validateBody(transcribeUrlBodySchema),
+  async (req: TypedRequest<TranscribeUrlBody>, res: Response<TranscribeUrlResponse>) => {
     const {
       url,
       language = 'de',
@@ -670,13 +691,6 @@ router.post(
       diarize = false,
       contextBias,
     } = req.body;
-
-    if (!url) {
-      return res.status(400).json({
-        success: false,
-        error: 'Audio URL ist erforderlich',
-      });
-    }
 
     const options: TranscriptionOptions = {
       language,
@@ -689,10 +703,7 @@ router.post(
     try {
       log.debug('[Voice] Starting URL transcription for:', url, 'Options:', options);
 
-      const voxtralResult = await mistralVoiceService.transcribeFromUrl(
-        url,
-        options
-      );
+      const voxtralResult = await mistralVoiceService.transcribeFromUrl(url, options);
       const result: TranscriptionResult = {
         text: voxtralResult.text,
         ...(voxtralResult.segments != null && { segments: voxtralResult.segments }),
@@ -722,117 +733,113 @@ router.post(
  * POST /api/voice/chat
  * Chat with audio input
  */
-router.post(
-  '/chat',
-  upload.single('audio'),
-  (async (req: ChatRequest, res: Response<ChatResponse>) => {
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        error: 'Keine Audio-Datei erhalten',
-      });
-    }
+router.post('/chat', upload.single('audio'), (async (
+  req: ChatRequest,
+  res: Response<ChatResponse>
+) => {
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      error: 'Keine Audio-Datei erhalten',
+    });
+  }
 
-    const audioBuffer = req.file.buffer;
-    const filename = req.file.originalname;
-    const prompt = req.body.prompt || req.query.prompt || 'Was ist in dieser Audio-Datei?';
+  const audioBuffer = req.file.buffer;
+  const filename = req.file.originalname;
+  const prompt = req.body.prompt || req.query.prompt || 'Was ist in dieser Audio-Datei?';
 
-    try {
-      log.debug('[Voice] Starting audio chat for:', filename, 'Prompt:', prompt);
+  try {
+    log.debug('[Voice] Starting audio chat for:', filename, 'Prompt:', prompt);
 
-      const response: string = await mistralVoiceService.chatWithAudio(
-        audioBuffer,
-        filename,
-        prompt
-      );
+    const response: string = await mistralVoiceService.chatWithAudio(audioBuffer, filename, prompt);
 
-      return res.json({
-        success: true,
-        response,
-        prompt,
-      });
-    } catch (error) {
-      log.error('[Voice] Audio chat error:', error);
+    return res.json({
+      success: true,
+      response,
+      prompt,
+    });
+  } catch (error) {
+    log.error('[Voice] Audio chat error:', error);
 
-      return res.status(500).json({
-        success: false,
-        error: 'Fehler beim Audio-Chat: ' + (error as Error).message,
-      });
-    }
-  }) as any
-);
+    return res.status(500).json({
+      success: false,
+      error: 'Fehler beim Audio-Chat: ' + (error as Error).message,
+    });
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- multer middleware type mismatch
+}) as any);
 
 /**
  * POST /api/voice/protokoll
  * Generate a structured protocol from transcription text using GPT-OSS via LiteLLM
  */
-router.post('/protokoll', async (req: Request, res: Response) => {
-  const { inputText, protokollTyp } = req.body;
+router.post(
+  '/protokoll',
+  validateBody(protokollBodySchema),
+  async (req: TypedRequest<ProtokollBody>, res: Response) => {
+    const { inputText, protokollTyp } = req.body;
 
-  if (!inputText) {
-    return res.status(400).json({ success: false, error: 'Kein Text angegeben' });
+    try {
+      const content = await generateProtokoll({
+        inputText,
+        protokollTyp: protokollTyp || 'Sitzungsprotokoll',
+      });
+      return res.json({ success: true, content });
+    } catch (error) {
+      log.error('[Voice] Protokoll error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Fehler bei der Protokoll-Erstellung: ' + (error as Error).message,
+      });
+    }
   }
-
-  try {
-    const content = await generateProtokoll({
-      inputText,
-      protokollTyp: protokollTyp || 'Sitzungsprotokoll',
-    });
-    return res.json({ success: true, content });
-  } catch (error) {
-    log.error('[Voice] Protokoll error:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Fehler bei der Protokoll-Erstellung: ' + (error as Error).message,
-    });
-  }
-});
+);
 
 /**
  * POST /api/voice/identify-speakers
  * Use GPT-OSS to identify speaker names from diarized transcription context
  */
-router.post('/identify-speakers', async (req: Request, res: Response) => {
-  const { text } = req.body;
+router.post(
+  '/identify-speakers',
+  validateBody(identifySpeakersBodySchema),
+  async (req: TypedRequest<IdentifySpeakersBody>, res: Response) => {
+    const { text } = req.body;
 
-  if (!text) {
-    return res.status(400).json({ success: false, error: 'Kein Text angegeben' });
+    try {
+      const mapping = await identifySpeakers(text);
+      return res.json({ success: true, mapping });
+    } catch (error) {
+      log.error('[Voice] Speaker identification error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Fehler bei der Sprecher*innen-Erkennung: ' + (error as Error).message,
+      });
+    }
   }
-
-  try {
-    const mapping = await identifySpeakers(text);
-    return res.json({ success: true, mapping });
-  } catch (error) {
-    log.error('[Voice] Speaker identification error:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Fehler bei der Sprecher*innen-Erkennung: ' + (error as Error).message,
-    });
-  }
-});
+);
 
 /**
  * POST /api/voice/todo-list
  * Extract action items from transcription text via GPT-OSS and return as checklist HTML
  */
-router.post('/todo-list', async (req: Request, res: Response) => {
-  const { text, title } = req.body;
+router.post(
+  '/todo-list',
+  validateBody(todoListBodySchema),
+  async (req: TypedRequest<TodoListBody>, res: Response) => {
+    const { text, title } = req.body;
 
-  if (!text) {
-    return res.status(400).json({ success: false, error: 'Kein Text angegeben' });
+    try {
+      const html = await extractTodoList(text, title);
+      return res.json({ success: true, content: html });
+    } catch (error) {
+      log.error('[Voice] Todo list error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Fehler bei der Aufgaben-Extraktion: ' + (error as Error).message,
+      });
+    }
   }
-
-  try {
-    const html = await extractTodoList(text, title);
-    return res.json({ success: true, content: html });
-  } catch (error) {
-    log.error('[Voice] Todo list error:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Fehler bei der Aufgaben-Extraktion: ' + (error as Error).message,
-    });
-  }
-});
+);
 
 /**
  * GET /api/voice/formats

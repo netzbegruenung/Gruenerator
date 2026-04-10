@@ -1,5 +1,5 @@
 import { createCanvas, loadImage } from '@napi-rs/canvas';
-import { Router, type Request, type Response } from 'express';
+import { Router, type Request, type RequestHandler, type Response } from 'express';
 import multer from 'multer';
 
 import { COLORS } from '../../../services/sharepic/canvas/config.js';
@@ -78,6 +78,6 @@ router.post('/', upload.single('image'), (async (req: MulterRequest, res: Respon
     log.error('Profilbild error:', error);
     return res.status(500).json({ error: 'Fehler beim Erstellen des Profilbilds' });
   }
-}) as any);
+}) as RequestHandler);
 
 export default router;

@@ -22,6 +22,7 @@ import { BaseScraper } from '../base/BaseScraper.js';
 import { batchProcess } from '../utils/batchFetch.js';
 import { removeUnwantedElements } from '../utils/htmlCleaner.js';
 
+import type { QdrantService } from '../../../database/services/QdrantService/index.js';
 import type { ScraperResult } from '../types.js';
 
 /**
@@ -100,8 +101,7 @@ export class GruenblogScraper extends BaseScraper {
   private timeout: number;
   private maxRetries: number;
   private userAgent: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private qdrant: any;
+  private qdrantService: QdrantService | null;
 
   constructor() {
     super({
@@ -114,15 +114,22 @@ export class GruenblogScraper extends BaseScraper {
     this.timeout = 30000;
     this.maxRetries = 3;
     this.userAgent = BRAND?.botUserAgent || 'Gruenerator-Bot/1.0';
-    this.qdrant = null;
+    this.qdrantService = null;
+  }
+
+  private get qdrant(): QdrantService {
+    if (!this.qdrantService) {
+      throw new Error('GruenblogScraper not initialized. Call init() first.');
+    }
+    return this.qdrantService;
   }
 
   /**
    * Initialize services
    */
   async init(): Promise<void> {
-    this.qdrant = getQdrantInstance();
-    await this.qdrant.init();
+    this.qdrantService = getQdrantInstance();
+    await this.qdrantService.init();
     await mistralEmbeddingService.init();
     this.log('Service initialized');
   }
@@ -200,21 +207,20 @@ export class GruenblogScraper extends BaseScraper {
   #extractContent(html: string, _url: string): ExtractedContent {
     const $ = cheerio.load(html);
 
-    // Parse JSON-LD metadata (Rank Math uses @graph array)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let jsonLdData: any = null;
+    let jsonLdData: Record<string, unknown> | null = null;
     $('script[type="application/ld+json"]').each((_, el) => {
       try {
-        const data = JSON.parse($(el).html() || '');
-        if (data['@graph']) {
-          // Rank Math pattern: find the Article node in @graph
-          jsonLdData = data['@graph'].find(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (node: any) =>
+        const raw: unknown = JSON.parse($(el).html() || '');
+        const data = raw as Record<string, unknown>;
+        if (Array.isArray(data['@graph'])) {
+          const nodes = data['@graph'] as Record<string, unknown>[];
+          const found = nodes.find(
+            (node) =>
               node['@type'] === 'Article' ||
               node['@type'] === 'BlogPosting' ||
               node['@type'] === 'NewsArticle'
           );
+          if (found) jsonLdData = found;
         } else if (data['@type'] === 'Article' || data['@type'] === 'BlogPosting') {
           jsonLdData = data;
         }
@@ -223,35 +229,32 @@ export class GruenblogScraper extends BaseScraper {
       }
     });
 
-    // Extract title
     const title =
-      jsonLdData?.headline ||
+      (jsonLdData?.['headline'] as string | undefined) ||
       $('h1.entry-title').text().trim() ||
       $('h1').first().text().trim() ||
       $('title').text().trim() ||
       '';
 
-    // Extract description
     const description =
-      jsonLdData?.description ||
+      (jsonLdData?.['description'] as string | undefined) ||
       $('meta[property="og:description"]').attr('content') ||
       $('meta[name="description"]').attr('content') ||
       '';
 
-    // Extract published date
     const publishedAt =
-      jsonLdData?.datePublished ||
+      (jsonLdData?.['datePublished'] as string | undefined) ||
       $('meta[property="article:published_time"]').attr('content') ||
       $('time[datetime]').first().attr('datetime') ||
       null;
 
-    // Extract authors
     const authors: string[] = [];
-    if (jsonLdData?.author) {
-      const authorData = Array.isArray(jsonLdData.author) ? jsonLdData.author : [jsonLdData.author];
+    if (jsonLdData?.['author']) {
+      const authorRaw = jsonLdData['author'];
+      const authorData = Array.isArray(authorRaw) ? (authorRaw as unknown[]) : [authorRaw];
       for (const a of authorData) {
-        const name = typeof a === 'string' ? a : a?.name;
-        if (name && name.length > 1) authors.push(name);
+        const name = typeof a === 'string' ? a : (a as Record<string, unknown> | null)?.['name'];
+        if (typeof name === 'string' && name.length > 1) authors.push(name);
       }
     }
     if (authors.length === 0) {
@@ -327,7 +330,7 @@ export class GruenblogScraper extends BaseScraper {
   async #articleExists(url: string): Promise<ExistingArticle | null> {
     try {
       const points = await scrollDocuments(
-        this.qdrant.client,
+        this.qdrant.client!,
         this.config.collectionName,
         {
           must: [{ key: 'source_url', match: { value: url } }],
@@ -356,7 +359,7 @@ export class GruenblogScraper extends BaseScraper {
    * Delete article from Qdrant
    */
   async #deleteArticle(url: string): Promise<void> {
-    await batchDelete(this.qdrant.client, this.config.collectionName, {
+    await batchDelete(this.qdrant.client!, this.config.collectionName, {
       must: [{ key: 'source_url', match: { value: url } }],
     });
   }
@@ -420,7 +423,7 @@ export class GruenblogScraper extends BaseScraper {
 
     for (let i = 0; i < points.length; i += 10) {
       const batch = points.slice(i, i + 10);
-      await batchUpsert(this.qdrant.client, this.config.collectionName, batch);
+      await batchUpsert(this.qdrant.client!, this.config.collectionName, batch);
     }
 
     return { stored: true, chunks: chunks.length, vectors: points.length, updated: !!existing };
@@ -584,7 +587,7 @@ export class GruenblogScraper extends BaseScraper {
     error?: string;
   }> {
     try {
-      const stats = await getCollectionStats(this.qdrant.client, this.config.collectionName);
+      const stats = await getCollectionStats(this.qdrant.client!, this.config.collectionName);
       return {
         collection: this.config.collectionName,
         ...(stats.vectors_count !== undefined && { vectors_count: stats.vectors_count }),
