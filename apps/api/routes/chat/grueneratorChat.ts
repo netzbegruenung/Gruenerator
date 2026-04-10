@@ -45,20 +45,45 @@ import {
   type DocumentQnAMistralClient,
   type Attachment as DocumentQnAAttachment,
 } from '../../services/document-services/DocumentQnAService/index.js';
-import { searxngService as searxngWebSearchService } from '../../services/search/index.js';
+import {
+  searxngService as searxngWebSearchService,
+  type SearxngAIWorkerPool,
+} from '../../services/search/index.js';
 import { withErrorHandler } from '../../utils/errors/index.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 import mistralClient from '../../workers/mistralClient.js';
 
+import type { AIWorkerPool as ChatAIWorkerPool } from '../../agents/chat/types.js';
 import type { UserProfile } from '../../services/user/types.js';
+import type { AIWorkerPool } from '../../workers/types.js';
+
+/** Shape of the POST body for the main chat endpoint */
+interface ChatRequestBody {
+  message?: string;
+  context?: Record<string, unknown>;
+  attachments?: ChatAttachment[];
+  usePrivacyMode?: boolean;
+  provider?: string | null;
+}
+
+/** Shape of a parsed document from Redis */
+interface ParsedDocument {
+  type?: string;
+  name?: string;
+  content?: string;
+}
 
 const log = createLogger('grueneratorChat');
 
 // Helper to safely get user properties
 const getUser = (req: express.Request): UserProfile | undefined =>
   req.user as UserProfile | undefined;
+
+/** Safely extract the AI worker pool from Express app locals */
+const getAIWorkerPool = (req: express.Request): AIWorkerPool =>
+  (req.app.locals as Record<string, unknown>).aiWorkerPool as AIWorkerPool;
 const router = createAuthenticatedRouter();
 router.use(express.json({ limit: '50mb' }));
 
@@ -80,13 +105,14 @@ const documentQnAService = new DocumentQnAService(
 router.post(
   '/',
   withErrorHandler(async (req: express.Request, res: express.Response): Promise<void> => {
+    const body = (req.body || {}) as ChatRequestBody;
     const {
       message,
       context = {},
       attachments = [],
       usePrivacyMode = false,
       provider = null,
-    } = req.body || {};
+    } = body;
 
     log.debug('[Chat] Processing request:', {
       messageLength: message?.length || 0,
@@ -183,7 +209,7 @@ router.post(
       const intentResult = await classifyIntent(
         message,
         enhancedContext,
-        req.app.locals.aiWorkerPool
+        getAIWorkerPool(req) as unknown as ChatAIWorkerPool
       );
 
       if (!intentResult.intents || intentResult.intents.length === 0) {
@@ -202,15 +228,18 @@ router.post(
       // Route to appropriate handler
       const baseContext = {
         originalMessage: message,
-        chatContext: { ...enhancedContext, requestType: intentResult.requestType },
+        chatContext: { ...enhancedContext, requestType: intentResult.requestType } as Record<
+          string,
+          unknown
+        >,
         usePrivacyMode: usePrivacyMode || false,
         provider: provider || null,
         attachments: allAttachments || [],
         documentIds: documentIds || [],
         userId: userId,
-        requestType: intentResult.requestType,
-        subIntent: intentResult.subIntent,
-      } as unknown;
+        ...(intentResult.requestType != null && { requestType: intentResult.requestType }),
+        ...(intentResult.subIntent != null && { subIntent: intentResult.subIntent }),
+      };
 
       if (intentResult.requestType === 'conversation') {
         log.debug('[Chat] Routing to conversation handler');
@@ -220,7 +249,9 @@ router.post(
           ...(user?.locale && { locale: user.locale }),
           ...(intentResult.subIntent && { subIntent: intentResult.subIntent }),
           messageHistory: trimmedHistory,
-          aiWorkerPool: req.app.locals.aiWorkerPool,
+          aiWorkerPool: getAIWorkerPool(req) as unknown as Parameters<
+            typeof processConversationRequest
+          >[0]['aiWorkerPool'],
           req,
         });
         res.json(result);
@@ -234,7 +265,7 @@ router.post(
         const editResult = await processEditIntent(
           message,
           userId,
-          req.app.locals.aiWorkerPool,
+          getAIWorkerPool(req) as unknown as ChatAIWorkerPool,
           req,
           intentResult.editContext
         );
@@ -250,7 +281,7 @@ router.post(
 
       if (intentResult.isMultiIntent) {
         log.debug('[Chat] Processing multi-intent request');
-        await processMultiIntentRequest(intentResult.intents, req, res, baseContext as any);
+        await processMultiIntentRequest(intentResult.intents, req, res, baseContext);
 
         // Store response in memory
         const responseContent = (res as CapturedResponse)._responseContent;
@@ -272,7 +303,7 @@ router.post(
           ...(intentResult.requestType && { requestType: intentResult.requestType }),
         };
 
-        await processSingleIntentRequest(intent, req, res, baseContext as any);
+        await processSingleIntentRequest(intent, req, res, baseContext);
 
         // Store response in memory (skip sharepic and imagine)
         const responseContent = (res as CapturedResponse)._responseContent;
@@ -285,8 +316,11 @@ router.post(
           const responseText =
             typeof responseContent.content === 'string'
               ? responseContent.content
-              : typeof responseContent.content === 'object' && responseContent.content !== null && 'text' in responseContent.content
-                ? String((responseContent.content as Record<string, unknown>).text) || 'Response generated'
+              : typeof responseContent.content === 'object' &&
+                  responseContent.content !== null &&
+                  'text' in responseContent.content
+                ? String((responseContent.content as Record<string, unknown>).text) ||
+                  'Response generated'
                 : 'Response generated';
           await chatMemory.addMessage(userId, 'assistant', responseText, intent.agent);
         }
@@ -387,7 +421,8 @@ async function processAttachments(
 
       const docData = await redisClient.get(docId);
       if (docData && typeof docData === 'string') {
-        const document = JSON.parse(docData);
+        const parsed: unknown = JSON.parse(docData);
+        const document = parsed as ParsedDocument;
         if (!document.type?.startsWith('image/')) {
           recentDocuments.push(document);
         }
@@ -443,7 +478,7 @@ async function handleWebSearchConfirmation(
       const resultsWithSummary = await searxngWebSearchService.generateAISummary(
         searchResults,
         pendingRequest.originalQuery,
-        req.app.locals.aiWorkerPool,
+        getAIWorkerPool(req) as unknown as SearxngAIWorkerPool,
         {},
         req
       );
@@ -598,7 +633,7 @@ async function handlePendingInformationRequest(
 /**
  * Setup response capture for memory storage
  */
-function setupResponseCapture(res: CapturedResponse, intentResult: unknown): void {
+function setupResponseCapture(res: CapturedResponse, _intentResult: unknown): void {
   const originalJson = res.json.bind(res);
 
   res.json = function (data: CapturedResponse['_responseContent']) {
