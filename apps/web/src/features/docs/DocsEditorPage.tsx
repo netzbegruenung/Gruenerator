@@ -34,8 +34,8 @@ import { PiSun, PiMoon } from 'react-icons/pi';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import useDarkMode from '../../components/hooks/useDarkMode';
+import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
-import { useAuthStore } from '../../stores/authStore';
 
 import { webAppDocsAdapter } from './docsAdapter';
 
@@ -136,9 +136,9 @@ function EditorContent() {
   const isEmbedded = searchParams.get('embedded') === 'true';
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
-  const user = useAuthStore((s) => s.user);
-  const isAuthLoading = useAuthStore((s) => s.isLoading);
-  const isGuest = !isAuthLoading && !user;
+  const { user, loading: isAuthLoading, isAuthResolved } = useAuth({ lazy: true });
+  const isGuest = isAuthResolved && !user;
+  console.info('[Docs] Auth state:', { isAuthLoading, isAuthResolved, hasUser: !!user, isGuest });
   const [darkMode, toggleDarkMode] = useDarkMode();
 
   const guestIdentity = useMemo(() => (isGuest ? getOrCreateGuestIdentity() : null), [isGuest]);
@@ -151,8 +151,17 @@ function EditorContent() {
       const res = await fetch(`${API_BASE}/docs/resolve/${id}`, {
         credentials: 'include',
       });
-      if (!res.ok) return null;
-      return res.json();
+      if (!res.ok) {
+        console.warn('[Docs] Resolve failed:', res.status, res.statusText);
+        return null;
+      }
+      const data = await res.json();
+      console.info('[Docs] Resolve response:', {
+        share_mode: data?.share_mode,
+        is_public: data?.is_public,
+        hasContent: !!data?.content,
+      });
+      return data;
     },
     enabled: !!id,
     retry: false,
@@ -210,6 +219,12 @@ function EditorContent() {
     isGuest,
     guestId: guestIdentity?.guestId,
     guestName: guestIdentity?.guestName,
+  });
+  console.info('[Docs] Collab state:', {
+    isConnected,
+    isSynced,
+    isLocalLoaded,
+    authError: authError || 'none',
   });
   const collaborators = useCollaborators(provider);
 
@@ -401,6 +416,27 @@ function EditorContent() {
       </div>
     );
   }
+  if (isGuest && authError) {
+    console.error('[Docs] Guest auth failed, showing error state:', authError);
+    return (
+      <div className="flex items-center justify-center h-full flex-col gap-4 text-grey-500">
+        <span>{getAuthErrorMessage(authError) || 'Verbindung zum Dokument fehlgeschlagen.'}</span>
+        <a
+          href={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+          className="text-secondary-600 underline"
+        >
+          Anmelden
+        </a>
+      </div>
+    );
+  }
+
+  console.info('[Docs] Render state:', {
+    isGuest,
+    canEdit,
+    hasDocData: !!docData,
+    authError: authError || 'none',
+  });
   const localUser = getLocalUser();
 
   return (
