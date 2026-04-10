@@ -7,6 +7,7 @@
 import { processAndBuildAttachments } from '../services/attachments/index.js';
 import { extractUrlsFromContent, filterNewUrls, getUrlDomain } from '../services/content/index.js';
 import { extractLocaleFromRequest } from '../services/localization/index.js';
+import { type SearxngAIWorkerPool } from '../services/search/index.js';
 
 import { getErrorMessage } from './errors/index.js';
 
@@ -22,7 +23,6 @@ import type {
   VectorSearchResult,
   FullTextResult,
   EnrichmentTaskResult,
-  HybridSearchResult,
   TextReference,
   DocumentReference,
   WebSearchSource,
@@ -35,28 +35,23 @@ const getQdrantDocumentService = async () => {
   return mod.getQdrantDocumentService();
 };
 
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-
-// Import services with fallback handling
-const { urlCrawlerService } = (() => {
+const getUrlCrawlerService = async () => {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return require('../services/urlCrawlerService.js');
+    const mod = await import('../services/scrapers/implementations/UrlCrawler/index.js');
+    return mod.urlCrawlerService;
   } catch (_) {
-    return { urlCrawlerService: null };
+    return null;
   }
-})();
+};
 
-const searxngWebSearchService = (() => {
+const getSearxngWebSearchService = async () => {
   try {
-    const mod = require('../services/search/index.js');
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    const mod = await import('../services/search/index.js');
     return mod.searxngService;
   } catch (_) {
     return null;
   }
-})();
+};
 
 /**
  * Main request enrichment class
@@ -333,9 +328,8 @@ class RequestEnricher {
       selectedDocumentIds = [],
       selectedTextIds = [],
       searchQuery = null,
-      // Fast mode pre-answer options
       enableNotebookEnrich = false,
-      notebookEnrichPrompt = undefined,
+      notebookEnrichPrompt: _notebookEnrichPrompt,
     } = options;
 
     // Extract user locale for localization
@@ -403,8 +397,8 @@ class RequestEnricher {
       enrichmentTasks.push(
         this.detectAndCrawlUrls(requestBody, state.documents)
           .then((docs) => ({ type: 'urls' as const, documents: docs }))
-          .catch((error) => {
-            console.log('🎯 [RequestEnricher] URL enrichment failed:', error.message);
+          .catch((error: unknown) => {
+            console.log('🎯 [RequestEnricher] URL enrichment failed:', getErrorMessage(error));
             return { type: 'urls' as const, documents: [] as Document[] };
           })
       );
@@ -419,8 +413,8 @@ class RequestEnricher {
             knowledge: result.knowledge,
             sources: result.sources,
           }))
-          .catch((error) => {
-            console.log('🎯 [RequestEnricher] Web search failed:', error.message);
+          .catch((error: unknown) => {
+            console.log('🎯 [RequestEnricher] Web search failed:', getErrorMessage(error));
             return { type: 'websearch' as const, knowledge: [] as string[], sources: null };
           })
       );
@@ -442,8 +436,8 @@ class RequestEnricher {
             knowledge: result.knowledge,
             documentReferences: result.documentReferences || [],
           }))
-          .catch((error) => {
-            console.log('🎯 [RequestEnricher] Vector search failed:', error.message);
+          .catch((error: unknown) => {
+            console.log('🎯 [RequestEnricher] Vector search failed:', getErrorMessage(error));
             return {
               type: 'vectorsearch' as const,
               knowledge: [] as string[],
@@ -462,8 +456,8 @@ class RequestEnricher {
             knowledge: result.knowledge,
             textReferences: result.textReferences || [],
           }))
-          .catch((error) => {
-            console.log('🎯 [RequestEnricher] Texts fetch failed:', error.message);
+          .catch((error: unknown) => {
+            console.log('🎯 [RequestEnricher] Texts fetch failed:', getErrorMessage(error));
             return {
               type: 'texts' as const,
               knowledge: [] as string[],
@@ -483,8 +477,8 @@ class RequestEnricher {
             preAnswer: result?.preAnswer ?? null,
             timeMs: result?.timeMs ?? 0,
           }))
-          .catch((error) => {
-            console.log('🎯 [RequestEnricher] Fast pre-answer failed:', error.message);
+          .catch((error: unknown) => {
+            console.log('🎯 [RequestEnricher] Fast pre-answer failed:', getErrorMessage(error));
             return { type: 'notebook_enrich' as const, preAnswer: null, timeMs: 0 };
           })
       );
@@ -506,7 +500,6 @@ class RequestEnricher {
     }
 
     // Aggregate results
-    let totalDocuments = 0;
     let webSearchSources: WebSearchSource[] | null = null;
     let notebookEnrichMetadata: { preAnswer: string; timeMs: number } | null = null;
     const allDocumentReferences: DocumentReference[] = [];
@@ -515,7 +508,6 @@ class RequestEnricher {
     for (const result of enrichmentResults) {
       if (result.type === 'urls' && result.documents.length > 0) {
         state.documents.push(...result.documents);
-        totalDocuments += result.documents.length;
         console.log(`🎯 [RequestEnricher] Added ${result.documents.length} URL documents`);
       } else if (result.type === 'websearch') {
         if (result.knowledge.length > 0) {
@@ -638,7 +630,8 @@ class RequestEnricher {
     requestBody: Record<string, unknown>,
     existingDocuments: Document[] = []
   ): Promise<Document[]> {
-    if (!urlCrawlerService) {
+    const urlCrawler = await getUrlCrawlerService();
+    if (!urlCrawler) {
       console.log('🎯 [RequestEnricher] URL crawling skipped: service not available');
       return [];
     }
@@ -671,29 +664,30 @@ class RequestEnricher {
       const crawlPromises = urlsToProcess.map(async (url) => {
         try {
           console.log(`🎯 [RequestEnricher] Crawling: ${url}`);
-          const result = await urlCrawlerService.crawlUrl(url, {
+          const result = await urlCrawler.crawlUrl(url, {
             enhancedMetadata: true,
             timeout: this.urlCrawlTimeout,
           });
 
-          if (result.success) {
+          if (result.success && result.data) {
+            const { data } = result;
             const crawledDocument: Document = {
               type: 'text' as const,
               source: {
                 type: 'text' as const,
-                text: result.data.content || result.data.markdownContent,
+                text: data.content || data.markdownContent,
                 metadata: {
-                  title: result.data.title || `Content from ${getUrlDomain(url)}`,
-                  url: result.data.originalUrl,
-                  wordCount: result.data.wordCount,
-                  extractedAt: result.data.extractedAt,
+                  title: data.title || `Content from ${getUrlDomain(url)}`,
+                  url: data.originalUrl,
+                  wordCount: data.wordCount,
+                  extractedAt: data.extractedAt,
                   contentSource: 'url_crawl' as const,
                 },
               },
             };
 
             console.log(
-              `🎯 [RequestEnricher] Successfully crawled: ${url} (${result.data.wordCount || 0} words)`
+              `🎯 [RequestEnricher] Successfully crawled: ${url} (${data.wordCount || 0} words)`
             );
             return crawledDocument;
           } else {
@@ -733,10 +727,11 @@ class RequestEnricher {
    */
   async performWebSearch(
     searchQuery: string,
-    aiWorkerPool: unknown,
+    aiWorkerPool: EnrichmentOptions['aiWorkerPool'],
     req: unknown
   ): Promise<WebSearchResult> {
-    if (!searxngWebSearchService) {
+    const searxngService = await getSearxngWebSearchService();
+    if (!searxngService) {
       console.log('🎯 [RequestEnricher] Web search skipped: service not available');
       return { knowledge: [], sources: null };
     }
@@ -744,7 +739,7 @@ class RequestEnricher {
     try {
       console.log(`🎯 [RequestEnricher] Performing web search: "${searchQuery}"`);
 
-      const searchResults = await searxngWebSearchService.performWebSearch(searchQuery, 'content');
+      const searchResults = await searxngService.performWebSearch(searchQuery);
 
       if (!searchResults?.success) {
         console.log('🎯 [RequestEnricher] Web search failed');
@@ -757,10 +752,10 @@ class RequestEnricher {
       // Try to generate AI summary
       try {
         if (aiWorkerPool) {
-          const summary = await searxngWebSearchService.generateAISummary(
+          const summary = await searxngService.generateAISummary(
             searchResults,
             searchQuery,
-            aiWorkerPool,
+            aiWorkerPool as SearxngAIWorkerPool,
             {},
             req
           );
@@ -775,13 +770,11 @@ class RequestEnricher {
 
       // Extract source list for frontend
       if (Array.isArray(searchResults.results)) {
-        sources = searchResults.results
-          .slice(0, 10)
-          .map((r: { title: string; url: string; domain?: string }) => ({
-            title: r.title,
-            url: r.url,
-            domain: r.domain,
-          }));
+        sources = searchResults.results.slice(0, 10).map((r) => ({
+          title: r.title,
+          url: r.url,
+          domain: r.domain,
+        }));
       }
 
       console.log(
@@ -880,8 +873,11 @@ class RequestEnricher {
                 userId,
                 smallDocs.map((d) => d.id as string)
               )
-              .catch((error) => {
-                console.warn('🎯 [RequestEnricher] Full text retrieval failed:', error.message);
+              .catch((error: unknown) => {
+                console.warn(
+                  '🎯 [RequestEnricher] Full text retrieval failed:',
+                  getErrorMessage(error)
+                );
                 return { documents: [], errors: [] };
               })
           : Promise.resolve({ documents: [], errors: [] }),
@@ -912,8 +908,8 @@ class RequestEnricher {
                   }>
               )
               .then((result) => (result.success ? result.results : []))
-              .catch((error) => {
-                console.warn('🎯 [RequestEnricher] Vector search failed:', error.message);
+              .catch((error: unknown) => {
+                console.warn('🎯 [RequestEnricher] Vector search failed:', getErrorMessage(error));
                 return [];
               })
           : Promise.resolve([]),
@@ -955,7 +951,7 @@ class RequestEnricher {
    */
   async fetchKnowledgeByIds(
     knowledgeIds: string[],
-    req: { user?: { id: string } }
+    _req: { user?: { id: string } }
   ): Promise<DocumentSearchResult> {
     if (!knowledgeIds || knowledgeIds.length === 0) {
       console.log('🎯 [RequestEnricher] Knowledge fetch skipped: no IDs provided');
@@ -1003,7 +999,7 @@ class RequestEnricher {
    */
   async fetchTextsByIds(
     textIds: string[],
-    req: { user?: { id: string } }
+    _req: { user?: { id: string } }
   ): Promise<DocumentSearchResult> {
     if (!textIds || textIds.length === 0) {
       console.log('🎯 [RequestEnricher] Texts fetch skipped: no IDs provided');
