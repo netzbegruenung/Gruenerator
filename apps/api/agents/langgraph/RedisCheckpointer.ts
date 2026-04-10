@@ -9,10 +9,50 @@ import { BaseCheckpointSaver } from '@langchain/langgraph';
 
 import { createLogger } from '../../utils/logger.js';
 
+import type { RunnableConfig } from '@langchain/core/runnables';
+import type {
+  Checkpoint,
+  CheckpointListOptions,
+  CheckpointMetadata,
+  CheckpointTuple,
+  PendingWrite,
+} from '@langchain/langgraph-checkpoint';
 import type { RedisClientType } from 'redis';
 
 const log = createLogger('Checkpointer');
 const CHECKPOINT_TTL = 7200; // 2 hours to match session TTL
+
+function isCheckpoint(value: unknown): value is Checkpoint {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'v' in value &&
+    'id' in value &&
+    'ts' in value &&
+    'channel_values' in value
+  );
+}
+
+function isCheckpointMetadata(value: unknown): value is CheckpointMetadata {
+  return typeof value === 'object' && value !== null && 'source' in value && 'step' in value;
+}
+
+function parseCheckpoint(data: string): Checkpoint | null {
+  const parsed: unknown = JSON.parse(data);
+  return isCheckpoint(parsed) ? parsed : null;
+}
+
+function parseMetadata(data: string | null): CheckpointMetadata | undefined {
+  if (!data) return undefined;
+  const parsed: unknown = JSON.parse(data);
+  return isCheckpointMetadata(parsed) ? parsed : undefined;
+}
+
+function parsePendingWrites(data: string | null): CheckpointTuple['pendingWrites'] {
+  if (!data) return [];
+  const parsed: unknown = JSON.parse(data);
+  return Array.isArray(parsed) ? (parsed as CheckpointTuple['pendingWrites']) : [];
+}
 
 /**
  * Redis-backed checkpoint saver for LangGraph state persistence
@@ -107,8 +147,7 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
    * Retrieve a checkpoint tuple for given configuration
    * Required by BaseCheckpointSaver interface
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async getTuple(config: any): Promise<any> {
+  async getTuple(config: RunnableConfig): Promise<CheckpointTuple | undefined> {
     const threadId = config?.configurable?.thread_id as string | undefined;
     const checkpointNs = (config?.configurable?.checkpoint_ns as string | undefined) || '';
 
@@ -127,9 +166,15 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
 
       if (!checkpointData) return undefined;
 
-      const checkpoint = JSON.parse(checkpointData);
-      const metadata = metadataData ? JSON.parse(metadataData) : {};
-      const pendingWrites = writesData ? JSON.parse(writesData) : [];
+      const checkpoint = parseCheckpoint(checkpointData);
+      if (!checkpoint) return undefined;
+
+      const metadata = parseMetadata(metadataData) ?? {
+        source: 'loop' as const,
+        step: 0,
+        parents: {},
+      };
+      const pendingWrites = parsePendingWrites(writesData);
 
       return { config, checkpoint, metadata, pendingWrites };
     } catch (error) {
@@ -143,8 +188,11 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
    * Store a checkpoint with configuration and metadata
    * Required by BaseCheckpointSaver interface
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async put(config: any, checkpoint: any, metadata: any): Promise<any> {
+  async put(
+    config: RunnableConfig,
+    checkpoint: Checkpoint,
+    metadata: CheckpointMetadata
+  ): Promise<RunnableConfig> {
     const threadId = config?.configurable?.thread_id as string | undefined;
     const checkpointNs = (config?.configurable?.checkpoint_ns as string | undefined) || '';
 
@@ -176,8 +224,7 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
    * Store intermediate writes (pending writes) linked to checkpoint
    * Required by BaseCheckpointSaver interface
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async putWrites(config: any, writes: any[], _taskId: string): Promise<void> {
+  async putWrites(config: RunnableConfig, writes: PendingWrite[], _taskId: string): Promise<void> {
     const threadId = config?.configurable?.thread_id as string | undefined;
     const checkpointNs = (config?.configurable?.checkpoint_ns as string | undefined) || '';
 
@@ -186,7 +233,10 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
     try {
       const writesKey = this._getWritesKey(threadId, checkpointNs);
       const existingData = await this.client.get(writesKey);
-      const existingWrites = existingData ? JSON.parse(existingData) : [];
+      const parsed: unknown = existingData ? JSON.parse(existingData) : [];
+      const existingWrites: PendingWrite[] = Array.isArray(parsed)
+        ? (parsed as PendingWrite[])
+        : [];
       const allWrites = [...existingWrites, ...writes];
 
       await this.client.setEx(
@@ -204,29 +254,32 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
    * List checkpoints matching configuration and filter criteria
    * Required by BaseCheckpointSaver interface
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async *list(config: any, _filter: any = {}): AsyncGenerator<any> {
+  async *list(
+    config: RunnableConfig,
+    options?: CheckpointListOptions
+  ): AsyncGenerator<CheckpointTuple> {
     const threadId = config?.configurable?.thread_id;
+    void options;
     if (!threadId) return;
 
     try {
       const pattern = `langgraph:checkpoint:${threadId}:*`;
       const keys: string[] = [];
 
-      let cursor = 0;
+      let cursor = '0';
       do {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const result = await this.client.scan(cursor as any, { MATCH: pattern, COUNT: 100 });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        cursor = result.cursor as any;
+        const result = await this.client.scan(cursor, { MATCH: pattern, COUNT: 100 });
+        cursor = String(result.cursor);
         keys.push(...result.keys);
-      } while (cursor !== 0);
+      } while (cursor !== '0');
 
       for (const key of keys) {
         const checkpointData = await this.client.get(key);
         if (checkpointData) {
-          const checkpoint = JSON.parse(checkpointData);
-          yield { config, checkpoint, metadata: {}, pendingWrites: [] };
+          const checkpoint = parseCheckpoint(checkpointData);
+          if (checkpoint) {
+            yield { config, checkpoint, pendingWrites: [] };
+          }
         }
       }
     } catch (error) {
@@ -248,14 +301,12 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
       ];
 
       for (const pattern of patterns) {
-        let cursor = 0;
+        let cursor = '0';
         do {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const result = await this.client.scan(cursor as any, { MATCH: pattern, COUNT: 100 });
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          cursor = result.cursor as any;
+          const result = await this.client.scan(cursor, { MATCH: pattern, COUNT: 100 });
+          cursor = String(result.cursor);
           if (result.keys.length > 0) await this.client.del(result.keys);
-        } while (cursor !== 0);
+        } while (cursor !== '0');
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
