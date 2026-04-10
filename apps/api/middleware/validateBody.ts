@@ -1,7 +1,7 @@
 import { type NextFunction, type Request, type Response } from 'express';
 import { type ZodType, type ZodError } from 'zod';
 
-type TypedRequest<T> = Request & { body: T };
+type TypedRequest<T> = Omit<Request, 'body'> & { body: T };
 
 function formatZodError(error: ZodError): string {
   return error.issues
