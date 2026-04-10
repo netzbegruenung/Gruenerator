@@ -6,15 +6,55 @@
 import fs from 'fs';
 
 import express, { type Response, type Router } from 'express';
+import { z } from 'zod';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { saveOrUpdateProject } from '../../services/subtitler/projectSavingService.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
-import type { ProjectData } from '../../services/subtitler/projectSavingService.js';
 import type { SubtitlerProjectService } from '../../services/subtitler/ProjectService.js';
-import type { UpdateProjectData } from '../../services/subtitler/types.js';
+
+// ============================================================================
+// Zod Schemas
+// ============================================================================
+
+const projectDataSchema = z
+  .object({
+    uploadId: z.string().optional(),
+    videoFilename: z.string(),
+    subtitles: z.array(
+      z
+        .object({
+          text: z.string(),
+          start: z.number(),
+          end: z.number(),
+        })
+        .passthrough()
+    ),
+    title: z.string().optional(),
+    stylePreference: z.string().optional(),
+    heightPreference: z.string().optional(),
+    modePreference: z.string().optional(),
+    videoMetadata: z.record(z.string(), z.unknown()).optional(),
+    videoSize: z.number().optional(),
+  })
+  .passthrough();
+type ProjectData = z.infer<typeof projectDataSchema>;
+
+const updateProjectDataSchema = z.object({
+  title: z.string().optional(),
+  subtitles: z.string().optional(),
+  style_preference: z.string().optional(),
+  stylePreference: z.string().optional(),
+  height_preference: z.string().optional(),
+  heightPreference: z.string().optional(),
+  style_settings: z.record(z.string(), z.unknown()).optional(),
+  styleSettings: z.record(z.string(), z.unknown()).optional(),
+  status: z.string().optional(),
+});
+type UpdateProjectData = z.infer<typeof updateProjectDataSchema>;
 
 const fsPromises = fs.promises;
 const log = createLogger('subtitler-projects');
@@ -68,42 +108,56 @@ router.get(
 );
 
 // POST / - Create project
-router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  try {
-    const userId = req.user!.id;
-    const body = req.body as ProjectData;
+router.post(
+  '/',
+  requireAuth,
+  validateBody(projectDataSchema),
+  async (req: AuthenticatedRequest & TypedRequest<ProjectData>, res: Response): Promise<void> => {
+    try {
+      const userId = req.user!.id;
 
-    if (!body.uploadId) {
-      res.status(400).json({ success: false, error: 'Upload-ID ist erforderlich' });
-      return;
+      if (!req.body.uploadId) {
+        res.status(400).json({ success: false, error: 'Upload-ID ist erforderlich' });
+        return;
+      }
+
+      const { project, isNew } = await saveOrUpdateProject(
+        userId,
+        req.body as Parameters<typeof saveOrUpdateProject>[1]
+      );
+
+      res.status(isNew ? 201 : 200).json({ success: true, project, isNew });
+    } catch (error: unknown) {
+      log.error('Failed to create project:', error);
+      res.status(500).json({
+        success: false,
+        error:
+          (error instanceof Error ? error.message : String(error)) ||
+          'Projekt konnte nicht erstellt werden',
+      });
     }
-
-    const { project, isNew } = await saveOrUpdateProject(userId, body);
-
-    res.status(isNew ? 201 : 200).json({ success: true, project, isNew });
-  } catch (error: unknown) {
-    log.error('Failed to create project:', error);
-    res.status(500).json({
-      success: false,
-      error:
-        (error instanceof Error ? error.message : String(error)) ||
-        'Projekt konnte nicht erstellt werden',
-    });
   }
-});
+);
 
 // PUT /:projectId - Update project
 router.put(
   '/:projectId',
   requireAuth,
-  async (req: AuthenticatedRequest<{ projectId: string }>, res: Response): Promise<void> => {
+  validateBody(updateProjectDataSchema),
+  async (
+    req: AuthenticatedRequest<{ projectId: string }> & TypedRequest<UpdateProjectData>,
+    res: Response
+  ): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { projectId } = req.params;
-      const updates = req.body as UpdateProjectData;
 
       const service = await getProjectService();
-      const project = await service.updateProject(userId, projectId, updates);
+      const project = await service.updateProject(
+        userId,
+        projectId,
+        req.body as Parameters<typeof service.updateProject>[2]
+      );
       log.info(`Updated project ${projectId}`);
       res.json({ success: true, project });
     } catch (error: unknown) {

@@ -117,17 +117,42 @@ Fixed by:
 - [ ] Unify `RedisClient` / `DocumentQnARedisClient` types
 - [ ] Create typed route builder
 
+### 3.5 Zod request validation middleware [IN PROGRESS]
+**Impact: High | Effort: Medium**
+
+`validateBody(schema)` middleware at `middleware/validateBody.ts` — validates `req.body` with Zod before the handler runs. Replaces three things at once:
+1. The unsafe `req.body as Interface` cast (eliminates `no-unsafe-assignment`)
+2. Manual `if (!field)` validation checks (Zod handles required/optional)
+3. Separate interface declarations (`z.infer<typeof schema>` derives the type)
+
+**Migration path:** `as Interface` (unsafe) → `validateBody` + Zod (safe, runtime-validated) → ts-rest contract (end-to-end, Phase 4.1)
+
+The Zod schemas created here become the building blocks for ts-rest contracts later — no work is wasted.
+
+**Progress:**
+- [x] `validateBody` middleware created
+- [x] Proof-of-concept: email route (replaced interface cast + 5 manual checks with 1 schema)
+- [ ] Apply to subtitler routes (processingController, shareController, projectController)
+- [ ] Apply to voice routes (voiceController)
+- [ ] Apply to chat routes (chatStreamController, notebookStreamController, grueneratorChat)
+- [ ] Apply to auth/group routes (groupContent, groupCore)
+- [ ] Apply to search routes (searchStreamController)
+- [ ] Apply to remaining route files
+
 ## Phase 4: Advanced (Long-term)
 
 ### 4.1 End-to-end type safety (API ↔ Frontend)
 **Recommendation: ts-rest** — incremental, contract-first, works with Express 5.
 
+ts-rest defines a single contract that types body, params, query, headers, AND response. Both Express backend and React frontend get types from the same source. Uses Zod schemas internally — the schemas from Phase 3.5 transfer directly into ts-rest contracts.
+
 ### 4.2 Branded types for domain values [STARTED]
 - [x] `Brand<T, B>` utility + 9 ID types + `fromParam<T>` helper
 - [ ] Adopt in route handlers and service layer
 
-### 4.3 Runtime validation at system boundaries
-- [ ] Zod schemas for API request bodies, external API responses
+### 4.3 Runtime validation at system boundaries [STARTED]
+- [x] Zod `validateBody` middleware for API request bodies (Phase 3.5)
+- [ ] Zod schemas for external API responses (WordPress, Qdrant, etc.)
 - [ ] Typed environment variables with `t3-env` or similar
 
 ## Metrics
