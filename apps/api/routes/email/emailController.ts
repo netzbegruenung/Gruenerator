@@ -33,55 +33,61 @@ type SendContentBody = z.infer<typeof sendContentSchema>;
  * @desc    Send generated content via email with optional attachment
  * @access  Private (authenticated users)
  */
-router.post('/send-content', validateBody(sendContentSchema), async (req: AuthenticatedRequest & TypedRequest<SendContentBody>, res: Response) => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
-
-    const { recipientEmail, contentTitle, contentDescription, attachment } = req.body;
-
-    let attachmentBuffer: Buffer | undefined;
-    let attachmentFilename: string | undefined;
-    let attachmentContentType: string | undefined;
-
-    if (attachment) {
-      attachmentBuffer = Buffer.from(attachment.base64, 'base64');
-
-      if (attachmentBuffer.length > MAX_ATTACHMENT_SIZE) {
-        return res.status(400).json({ error: 'Attachment exceeds 10 MB limit' });
+router.post(
+  '/send-content',
+  validateBody(sendContentSchema),
+  async (req: AuthenticatedRequest & TypedRequest<SendContentBody>, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
       }
 
-      attachmentFilename = attachment.filename;
-      attachmentContentType = attachment.contentType;
+      const { recipientEmail, contentTitle, contentDescription, attachment } = req.body;
+
+      let attachmentBuffer: Buffer | undefined;
+      let attachmentFilename: string | undefined;
+      let attachmentContentType: string | undefined;
+
+      if (attachment) {
+        attachmentBuffer = Buffer.from(attachment.base64, 'base64');
+
+        if (attachmentBuffer.length > MAX_ATTACHMENT_SIZE) {
+          return res.status(400).json({ error: 'Attachment exceeds 10 MB limit' });
+        }
+
+        attachmentFilename = attachment.filename;
+        attachmentContentType = attachment.contentType;
+      }
+
+      const params = {
+        recipientEmail,
+        contentTitle,
+        ...(contentDescription != null && { contentDescription }),
+        ...(attachmentBuffer &&
+          attachmentFilename &&
+          attachmentContentType && {
+            attachment: {
+              filename: attachmentFilename,
+              content: attachmentBuffer,
+              contentType: attachmentContentType,
+            },
+          }),
+      };
+      const sent = await sendContentDeliveryEmail(params);
+
+      if (!sent) {
+        return res.status(503).json({ error: 'Email service unavailable' });
+      }
+
+      log.info('[Email] Content delivered', { userId, recipientEmail, contentTitle });
+      return res.json({ success: true, message: 'Email sent successfully' });
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      log.error('[Email] Send content error', { error: err });
+      return res.status(500).json({ error: 'Failed to send email', details: err.message });
     }
-
-    const params = {
-      recipientEmail,
-      contentTitle,
-      ...(contentDescription != null && { contentDescription }),
-      ...(attachmentBuffer && attachmentFilename && attachmentContentType && {
-        attachment: {
-          filename: attachmentFilename,
-          content: attachmentBuffer,
-          contentType: attachmentContentType,
-        },
-      }),
-    };
-    const sent = await sendContentDeliveryEmail(params);
-
-    if (!sent) {
-      return res.status(503).json({ error: 'Email service unavailable' });
-    }
-
-    log.info('[Email] Content delivered', { userId, recipientEmail, contentTitle });
-    return res.json({ success: true, message: 'Email sent successfully' });
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    log.error('[Email] Send content error', { error: err });
-    return res.status(500).json({ error: 'Failed to send email', details: err.message });
   }
-});
+);
 
 export default router;
