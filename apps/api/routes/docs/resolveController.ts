@@ -45,7 +45,6 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
     if (userId) {
       const { hasAccess } = await checkDocumentAccess(document, userId);
       if (!hasAccess) {
-        console.warn('[Docs-Resolve] Access denied: user=%s doc=%s', userId, id);
         return res.status(403).json({ error: 'Access denied' });
       }
 
@@ -53,20 +52,11 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
       return res.json(document);
     }
 
-    console.info(
-      '[Docs-Resolve] Guest access: doc=%s share_mode=%s is_public=%s',
-      id,
-      document.share_mode,
-      document.is_public
-    );
-
     if (document.share_mode === 'private' && !document.is_public) {
-      console.warn('[Docs-Resolve] Guest rejected: doc=%s is private', id);
       return res.status(404).json({ error: 'Document not found' });
     }
 
     if (document.share_mode === 'authenticated') {
-      console.info('[Docs-Resolve] Guest needs auth: doc=%s', id);
       return res.json({ id: document.id, share_mode: 'authenticated', title: document.title });
     }
 

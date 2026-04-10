@@ -38,6 +38,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 
 import { webAppDocsAdapter } from './docsAdapter';
+import { GuestBadge } from './GuestBadge';
 
 import type { BlockNoteEditor } from '@blocknote/core';
 
@@ -136,9 +137,8 @@ function EditorContent() {
   const isEmbedded = searchParams.get('embedded') === 'true';
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
-  const { user, loading: isAuthLoading, isAuthResolved } = useAuth({ lazy: true });
+  const { user, isAuthResolved } = useAuth({ lazy: true });
   const isGuest = isAuthResolved && !user;
-  console.info('[Docs] Auth state:', { isAuthLoading, isAuthResolved, hasUser: !!user, isGuest });
   const [darkMode, toggleDarkMode] = useDarkMode();
 
   const guestIdentity = useMemo(() => (isGuest ? getOrCreateGuestIdentity() : null), [isGuest]);
@@ -151,17 +151,8 @@ function EditorContent() {
       const res = await fetch(`${API_BASE}/docs/resolve/${id}`, {
         credentials: 'include',
       });
-      if (!res.ok) {
-        console.warn('[Docs] Resolve failed:', res.status, res.statusText);
-        return null;
-      }
-      const data = await res.json();
-      console.info('[Docs] Resolve response:', {
-        share_mode: data?.share_mode,
-        is_public: data?.is_public,
-        hasContent: !!data?.content,
-      });
-      return data;
+      if (!res.ok) return null;
+      return res.json();
     },
     enabled: !!id,
     retry: false,
@@ -219,12 +210,6 @@ function EditorContent() {
     isGuest,
     guestId: guestIdentity?.guestId,
     guestName: guestIdentity?.guestName,
-  });
-  console.info('[Docs] Collab state:', {
-    isConnected,
-    isSynced,
-    isLocalLoaded,
-    authError: authError || 'none',
   });
   const collaborators = useCollaborators(provider);
 
@@ -431,35 +416,10 @@ function EditorContent() {
     );
   }
 
-  console.info('[Docs] Render state:', {
-    isGuest,
-    canEdit,
-    hasDocData: !!docData,
-    authError: authError || 'none',
-  });
   const localUser = getLocalUser();
 
   return (
     <div className="h-full flex flex-col relative">
-      {isGuest && (
-        <div className="flex items-center justify-center gap-1 py-2 px-4 text-[0.8125rem] text-grey-700 dark:text-grey-300 bg-secondary-100/50 dark:bg-secondary-600/15 border-b border-secondary-200/50 dark:border-secondary-600/25">
-          {canEdit ? 'Du bearbeitest' : 'Du liest'} als Gast ({guestIdentity?.guestName})
-          <span className="mx-1">&middot;</span>
-          <a
-            href={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
-            className="text-secondary-700 dark:text-secondary-400 underline font-medium"
-          >
-            Anmelden
-          </a>
-        </div>
-      )}
-
-      {!isGuest && !canEdit && docData && (
-        <div className="flex items-center justify-center gap-1 py-2 px-4 text-[0.8125rem] text-grey-700 dark:text-grey-300 bg-secondary-100/50 dark:bg-secondary-600/15 border-b border-secondary-200/50 dark:border-secondary-600/25">
-          Du hast Lesezugriff auf dieses Dokument
-        </div>
-      )}
-
       {isEmbedded ? (
         <EditorFAB
           showDisconnected={showDisconnected}
@@ -475,6 +435,18 @@ function EditorContent() {
           onTitleChange={handleTitleChange}
           rightActions={
             <>
+              {isGuest && guestIdentity && (
+                <GuestBadge
+                  guestName={guestIdentity.guestName}
+                  guestColor={guestIdentity.guestColor}
+                  loginUrl={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+                />
+              )}
+              {!isGuest && !canEdit && docData && (
+                <div className="flex items-center py-1 px-2.5 text-[0.75rem] rounded-full bg-grey-100/60 dark:bg-grey-800/40 text-grey-600 dark:text-grey-400 border border-grey-200/50 dark:border-grey-700/50">
+                  Lesezugriff
+                </div>
+              )}
               {collaborators.length > 0 && (
                 <>
                   <AvatarGroup>
