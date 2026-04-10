@@ -48,10 +48,10 @@ function parseMetadata(data: string | null): CheckpointMetadata | undefined {
   return isCheckpointMetadata(parsed) ? parsed : undefined;
 }
 
-function parsePendingWrites(data: string | null): CheckpointTuple['pendingWrites'] {
+function parsePendingWrites(data: string | null): NonNullable<CheckpointTuple['pendingWrites']> {
   if (!data) return [];
   const parsed: unknown = JSON.parse(data);
-  return Array.isArray(parsed) ? (parsed as CheckpointTuple['pendingWrites']) : [];
+  return Array.isArray(parsed) ? (parsed as NonNullable<CheckpointTuple['pendingWrites']>) : [];
 }
 
 /**
