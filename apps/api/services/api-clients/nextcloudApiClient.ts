@@ -102,7 +102,7 @@ class NextcloudApiClient {
     // Add response interceptor for error handling
     this.axiosInstance.interceptors.response.use(
       (response) => response,
-      (error) => {
+      (error: AxiosError) => {
         console.error('[NextcloudApiClient] Nextcloud API error:', error.message, {
           status: error.response?.status,
           statusText: error.response?.statusText,
@@ -730,9 +730,9 @@ class NextcloudApiClient {
 
         return {
           buffer: buffer,
-          mimeType: response.headers['content-type'] || null,
+          mimeType: (response.headers['content-type'] as string) || null,
           size: response.headers['content-length']
-            ? parseInt(response.headers['content-length'])
+            ? parseInt(response.headers['content-length'] as string)
             : buffer.length,
         };
       } else {

@@ -21,7 +21,7 @@ const originalRerank = regoloRerankService.rerank.bind(regoloRerankService);
 regoloRerankService.rerank = async (req: any) => {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   if (mockRerankFn) return mockRerankFn(req);
-   
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   return originalRerank(req);
 };
 
@@ -207,7 +207,7 @@ await test('respects inputLimit', async () => {
 
 await test('respects outputLimit', async () => {
   const items = makeItems(15);
-  mockScores(Array(15).fill(0.5));
+  mockScores(Array<number>(15).fill(0.5));
   const result = await rerankPipeline({
     query: 'test',
     items,

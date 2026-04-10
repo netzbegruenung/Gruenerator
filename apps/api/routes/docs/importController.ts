@@ -217,7 +217,9 @@ router.post(
       );
 
       const wolkeSyncService = getWolkeSyncService();
-      const shareLink = await wolkeSyncService.getShareLink(userId, shareLinkId);
+      const shareLink = (await wolkeSyncService.getShareLink(userId, shareLinkId)) as {
+        share_link?: string;
+      } | null;
 
       if (!shareLink?.share_link) {
         return res.status(404).json({ error: 'Wolke-Verbindung nicht gefunden' });

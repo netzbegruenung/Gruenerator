@@ -67,7 +67,7 @@ export async function performTextSearch(
     const rawResults = await qdrantOps.performTextSearch(
       'documents',
       query,
-      filter as any,
+      filter,
       Math.round(limit * chunkMultiplier)
     );
 
@@ -203,13 +203,13 @@ export async function findSimilarChunks(
     if (intentCfg?.enabled) {
       const { queryIntentService } = await import('../../QueryIntentService/index.js');
       const intent = queryIntentService.detectIntent(query || '');
-      results = await qdrantOps.searchWithIntent(searchCollection, embedding, intent, filter as any, {
+      results = await qdrantOps.searchWithIntent(searchCollection, embedding, intent, filter, {
         limit,
         threshold,
         withPayload: true,
       });
     } else {
-      results = await qdrantOps.searchWithQuality(searchCollection, embedding, filter as any, {
+      results = await qdrantOps.searchWithQuality(searchCollection, embedding, filter, {
         limit,
         threshold,
         withPayload: true,
@@ -221,7 +221,7 @@ export async function findSimilarChunks(
       '[SearchOperations] Intent-aware search failed, falling back to quality search:',
       errorMsg
     );
-    results = await qdrantOps.searchWithQuality(searchCollection, embedding, filter as any, {
+    results = await qdrantOps.searchWithQuality(searchCollection, embedding, filter, {
       limit,
       threshold,
       withPayload: true,
@@ -318,7 +318,7 @@ export async function findHybridChunks(
   }
 
   console.log('[SearchOperations] Calling Qdrant hybridSearch...');
-  const hybridResult = await qdrantOps.hybridSearch(searchCollection, embedding, query, filter as any, {
+  const hybridResult = await qdrantOps.hybridSearch(searchCollection, embedding, query, filter, {
     limit,
     threshold,
     ...hybridOptions,

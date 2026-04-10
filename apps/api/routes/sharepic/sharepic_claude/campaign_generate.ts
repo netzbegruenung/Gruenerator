@@ -8,6 +8,7 @@ import { parseResponse, type ParserConfig } from '../../../utils/campaign/respon
 import {
   validateCampaignInputsOrThrow,
   ValidationError,
+  type CampaignConfig,
 } from '../../../utils/campaign/validator.js';
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -300,8 +301,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
           location: thema,
           details: details,
         };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        validateCampaignInputsOrThrow(inputs, fullCampaign as any);
+        validateCampaignInputsOrThrow(inputs, fullCampaign as CampaignConfig);
       } catch (validationError) {
         if (validationError instanceof ValidationError) {
           log.warn(

@@ -4,6 +4,7 @@ import express, { type Router, type Response } from 'express';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { type AuthenticatedRequest } from '../../middleware/types.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { createLogger } from '../../utils/logger.js';
 import {
@@ -100,7 +101,7 @@ router.post(
         question,
         user?.id || 'anonymous',
         group_id,
-        req.app.locals.aiWorkerPool
+        getAIWorkerPool(req)
       );
 
       res.json(result);

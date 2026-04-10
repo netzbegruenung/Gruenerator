@@ -567,8 +567,9 @@ async function assemblePromptGraphAsync(
       console.log(
         '📋 [PromptAssemblyAsync] No Doc URLs prepared; falling back to direct documents for DocQnA'
       );
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      knowledgeCapsule = await runDocumentQnA(enrichedState, fileAttachmentDocs as any);
+      // runDocumentQnA only supports URL strings; direct document blocks are not compatible.
+      // This path is a no-op fallback — the function returns null for non-string content.
+      knowledgeCapsule = await runDocumentQnA(enrichedState, []);
       if (knowledgeCapsule) {
         console.log(
           `🧭 [LangGraph] DocQnA used with direct documents: docs=${fileAttachmentDocs.length}`

@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { searxngService as searxngWebSearchService } from '../../services/search/index.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type {
@@ -124,7 +125,7 @@ router.post(
           finalResults = (await searxngWebSearchService.generateAISummary(
             searchResults,
             query,
-            req.app.locals.aiWorkerPool,
+            getAIWorkerPool(req),
             {
               maxResults: searchOptions.maxResults,
               usePrivacyMode: req.body.usePrivacyMode || false,

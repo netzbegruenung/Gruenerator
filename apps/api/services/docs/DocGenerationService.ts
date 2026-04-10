@@ -56,7 +56,7 @@ export function parseDocumentResponse(aiContent: string): GeneratedDocument {
     }
     return {
       title: parsed.title || 'Neues Dokument',
-      subtype: DOC_SUBTYPES.includes(parsed.subtype) ? parsed.subtype : 'blank',
+      subtype: DOC_SUBTYPES.includes(parsed.subtype as string) ? (parsed.subtype as string) : 'blank',
       content: parsed.content || '',
     };
   } catch {

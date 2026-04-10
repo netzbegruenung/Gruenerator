@@ -68,7 +68,7 @@ export const mobileTokenExchange = () => {
             userData = created.user;
           }
 
-          const session = await ctx.context.internalAdapter.createSession(userData.id, false);
+          const session = await ctx.context.internalAdapter.createSession(userData.id as string, false);
 
           return ctx.json({
             token: session.token,

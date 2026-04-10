@@ -149,7 +149,7 @@ function formatOutputNode(state: InsightsState): Partial<InsightsState> {
 
   // Replace [N] with [cite:N] for valid citations
   const validIds = new Set(state.researchCitations.map((c) => String(c.id)));
-  text = text.replace(/\[(\d+)\]/g, (match, n) => {
+  text = text.replace(/\[(\d+)\]/g, (match, n: string) => {
     if (validIds.has(n)) return `[cite:${n}]`;
     return match;
   });

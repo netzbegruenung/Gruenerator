@@ -160,11 +160,14 @@ router.post(
 
         // Process attachments
         const requestId = crypto.randomBytes(8).toString('hex');
+        const sharepicImageManager = (req.app.locals.sharepicImageManager as {
+          storeForRequest: (requestId: string, userId: string, img: ChatAttachment) => Promise<void>;
+        } | null) ?? null;
         const { documentIds, sharepicImages, recentDocuments } = await processAttachments(
           attachments,
           userId,
           requestId,
-          req.app.locals.sharepicImageManager
+          sharepicImageManager
         );
 
         // Build enhanced context
@@ -602,10 +605,21 @@ async function handlePendingInformationRequest(
           count: 1,
           preserveName: true,
         });
+        const sharepicBody = req.body as {
+          text?: string;
+          subject?: string;
+          preserveName?: boolean;
+          name?: string;
+          attachments?: unknown[];
+          sharepicRequestId?: string;
+          campaignId?: string;
+          campaignTypeId?: string;
+          [key: string]: unknown;
+        };
         const sharepicResponse = await generateSharepicForChat(
           req as SharepicExpressRequest,
           sharepicType,
-          req.body
+          sharepicBody
         );
         return res.json(sharepicResponse);
       } catch (error) {

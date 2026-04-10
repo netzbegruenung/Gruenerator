@@ -37,7 +37,7 @@ export async function getDocumentsFromRedis(
 
       const docData = await redis.get(docId);
       if (docData) {
-        const document = JSON.parse(docData);
+        const document = JSON.parse(docData) as StoredDocument;
         documents.push(document);
       } else {
         console.warn(`[DocumentQnAService] Document ${docId} not found in Redis`);

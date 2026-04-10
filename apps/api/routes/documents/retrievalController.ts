@@ -172,8 +172,7 @@ router.get(
 
       const documents = await postgresDocumentService.getDocumentsBySourceType(
         userId,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        sourceType as any
+        sourceType || null
       );
       const enriched = documents.map((doc) => enrichDocumentWithPreview(doc, {}));
 

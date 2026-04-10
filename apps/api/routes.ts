@@ -348,7 +348,7 @@ export async function setupRoutes(app: Application): Promise<void> {
           res.status(400).json({ success: false, error: 'Sharepic type is required' });
           return;
         }
-        const result = await generateSharepicForChat(req, type, requestBody);
+        const result = await generateSharepicForChat(req, type as string, requestBody as Parameters<typeof generateSharepicForChat>[2]);
         res.json({ success: true, ...result.content.sharepic, metadata: result.content.metadata });
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));

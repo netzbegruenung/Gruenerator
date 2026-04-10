@@ -273,8 +273,7 @@ router.post(
       // Streaming mode: delegate to SSE streaming controller
       if (req.query.stream === 'true') {
         const { streamNormalSearch } = await import('./searchStreamController.js');
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return streamNormalSearch(req, res as any);
+        return streamNormalSearch(req as AuthenticatedRequest, res as Response);
       }
 
       const trimmedQuery = query.trim();
@@ -322,12 +321,12 @@ router.post(
 
       if (searchResults.status !== 'success') {
         log.error(`[Search] Search failed: ${searchResults.error}`);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const errorResponse: any = {
-          success: false,
-          error: 'Websuche fehlgeschlagen',
-          metadata: { timestamp: new Date().toISOString(), searchType: 'normal' },
-        };
+        const errorResponse: { success: false; error: string; metadata: unknown; details?: string } =
+          {
+            success: false,
+            error: 'Websuche fehlgeschlagen',
+            metadata: { timestamp: new Date().toISOString(), searchType: 'normal' },
+          };
         if (process.env.NODE_ENV === 'development') {
           errorResponse.details = searchResults.error;
         }
@@ -405,7 +404,7 @@ router.post(
       // Streaming mode: delegate to SSE streaming controller
       if (req.query.stream === 'true') {
         const { streamDeepSearch } = await import('./searchStreamController.js');
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument -- bridge to SSE streaming controller with different Response typing
         return streamDeepSearch(req, res as any);
       }
 

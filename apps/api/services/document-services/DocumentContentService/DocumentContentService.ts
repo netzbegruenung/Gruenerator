@@ -76,7 +76,7 @@ export class DocumentContentService {
 
       // Step 4: For documents not found in vector search, get full text
       await fillMissingDocuments(
-        this.documentSearchService as any,
+        this.documentSearchService,
         userId,
         trimmedQuery,
         accessibleDocuments,

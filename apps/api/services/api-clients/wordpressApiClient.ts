@@ -338,8 +338,8 @@ class WordPressApiClient {
     try {
       const response = await this.client.get<WPPost[]>('/wp/v2/posts', { params });
 
-      const totalPages = parseInt(response.headers['x-wp-totalpages'] || '1', 10);
-      const total = parseInt(response.headers['x-wp-total'] || '0', 10);
+      const totalPages = parseInt((response.headers['x-wp-totalpages'] as string) || '1', 10);
+      const total = parseInt((response.headers['x-wp-total'] as string) || '0', 10);
 
       return {
         posts: response.data,

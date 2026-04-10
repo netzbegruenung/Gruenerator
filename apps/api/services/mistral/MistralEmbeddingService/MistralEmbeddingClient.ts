@@ -127,7 +127,7 @@ export class MistralEmbeddingClient {
             console.warn(
               `[MistralEmbeddingClient] Skipping oversized text (${text.length} chars) — using zero vector`
             );
-            results.push(new Array(1024).fill(0));
+            results.push(new Array<number>(1024).fill(0));
           } else {
             console.error(`[MistralEmbeddingClient] Individual text failed:`, indErr.message);
             throw new Error(`Failed to generate embedding for text: ${indErr.message}`);

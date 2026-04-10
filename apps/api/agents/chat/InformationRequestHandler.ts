@@ -583,9 +583,9 @@ export async function handleInformationRequest(
         classifiedIntent
       );
 
-      // Store pending request in memory
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await chatMemory.setPendingRequest(userId, informationRequest.pendingRequest as any);
+      // Store pending request in memory — PendingRequest satisfies Omit<ChatPendingRequest, 'timestamp'>
+      // since it has type: string and additional fields that fit the index signature [key: string]: unknown
+      await chatMemory.setPendingRequest(userId, informationRequest.pendingRequest as { type: string; [key: string]: unknown });
 
       return {
         type: 'request',

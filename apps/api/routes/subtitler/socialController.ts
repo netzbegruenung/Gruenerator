@@ -9,6 +9,7 @@ import { z } from 'zod';
 import {
   extractLocaleFromRequest,
   localizePlaceholders,
+  type RequestWithLocale,
 } from '../../services/localization/index.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
@@ -30,8 +31,7 @@ router.post(
     try {
       const aiWorkerPool = getAIWorkerPool(req);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const locale = extractLocaleFromRequest(req as any);
+      const locale = extractLocaleFromRequest(req as unknown as RequestWithLocale);
       const systemPrompt = localizePlaceholders(
         'Du bist Social Media Manager für {{partyName}}. Erstelle einen Instagram Reel Beitragstext basierend auf den Untertiteln des Videos. Der Text soll die Kernbotschaft des Videos aufgreifen und in einen ansprechenden Social Media Post umwandeln.',
         locale

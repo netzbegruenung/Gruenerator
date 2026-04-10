@@ -806,8 +806,7 @@ export class NotebookQAService {
     titleFilter,
     additionalFilter,
     searchParams,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- returns SearchResponse results which are used as both DocumentResult and SearchResultInput
-  }: InternalSearchOptions): Promise<any[]> {
+  }: InternalSearchOptions): Promise<SearchResultInput[]> {
     const resp = await documentSearchService.search({
       query,
       ...(userId != null && { userId }),
@@ -826,7 +825,7 @@ export class NotebookQAService {
       },
     });
 
-    return resp.results || [];
+    return (resp.results || []) as SearchResultInput[];
   }
 
   /**

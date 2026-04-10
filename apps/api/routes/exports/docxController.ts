@@ -149,7 +149,12 @@ router.post(
 
           const isList = fullText.startsWith('•') || /^\d+\./.test(fullText);
 
-          const paragraphOptions: any = {
+          const paragraphOptions: {
+            children: typeof textRuns;
+            spacing: { after: number };
+            alignment?: (typeof AlignmentType)[keyof typeof AlignmentType];
+            indent?: { left: number };
+          } = {
             children: textRuns,
             spacing: { after: isList ? 100 : 200 },
           };

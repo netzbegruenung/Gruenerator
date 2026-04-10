@@ -491,19 +491,19 @@ async function generateFinalResult({
   console.log(`[SimpleInteractiveGenerator] Knowledge items: ${knowledgeItems.length}`);
 
   // Prepare prompt context (cast locale to Locale type)
-  // Note: assemblePromptGraphAsync expects PromptAssemblyState, so we cast appropriately
-  const promptContext = {
+  const promptContext: PromptContext = {
     systemRole,
     request: { inhalt, requestType, locale: locale as Locale },
-    documents: enrichedContext?.documents || [],
+    documents: (enrichedContext?.documents || []) as PromptContext['documents'],
     knowledge: knowledgeItems,
     locale: locale as Locale,
   };
 
-  // Assemble prompt (any cast needed due to document type mismatch between simple docs and ClaudeDocument[])
+  // PromptContext is structurally compatible with PromptAssemblyState for the fields
+  // used by assemblePromptGraphAsync (systemRole, request, documents, knowledge, locale).
+  // The document type mismatch is intentional — both shapes are handled at runtime.
   const assembledPrompt = (await assemblePromptGraphAsync(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    promptContext as any
+    promptContext as unknown as Parameters<typeof assemblePromptGraphAsync>[0]
   )) as unknown as AssembledPromptResult;
 
   // Generate final text (convert ClaudeMessage[] to simple format)

@@ -18,41 +18,11 @@ import type {
   HybridOptions,
   DocumentResult,
 } from '../../BaseSearchService/types.js';
+import type { QdrantFilter } from '../../../database/services/QdrantService/types.js';
 
 // ============ Qdrant Filter Types ============
 
-/**
- * Qdrant filter structure for vector search
- */
-export interface QdrantFilter {
-  must?: Array<{
-    key: string;
-    match?: {
-      value?: string | number | boolean | undefined;
-      any?: Array<string | number> | undefined;
-    };
-    range?: {
-      gte?: number | undefined;
-      lte?: number | undefined;
-      gt?: number | undefined;
-      lt?: number | undefined;
-    };
-  }>;
-  should?: Array<{
-    key: string;
-    match?: {
-      value?: string | number | boolean | undefined;
-      any?: Array<string | number> | undefined;
-    };
-  }>;
-  must_not?: Array<{
-    key: string;
-    match?: {
-      value?: string | number | boolean | undefined;
-      any?: Array<string | number> | undefined;
-    };
-  }>;
-}
+export type { QdrantFilter };
 
 // ============ Document Search Parameters ============
 
