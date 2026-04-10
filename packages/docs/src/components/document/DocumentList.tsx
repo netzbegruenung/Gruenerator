@@ -1,14 +1,6 @@
-import {
-  Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@gruenerator/ui';
+import { Button } from '@gruenerator/ui';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { FiPlus, FiFile, FiGrid, FiUsers } from 'react-icons/fi';
+import { FiPlus, FiUsers } from 'react-icons/fi';
 
 import { useDocsAdapter } from '../../context/DocsContext';
 import {
@@ -21,6 +13,7 @@ import {
 import { type TemplateType } from '../../lib/templates';
 import type { Document } from '../../stores/documentStore';
 import { ShareModal } from '../permissions/ShareModal';
+import { CreateDocumentFAB } from './CreateDocumentFAB';
 import { DocumentCard } from './DocumentCard';
 import { TemplateCarousel } from './TemplateCarousel';
 import { TemplatePicker } from './TemplatePicker';
@@ -209,32 +202,10 @@ export const DocumentList = memo(({ searchQuery }: DocumentListProps) => {
         </>
       )}
 
-      {/* Mobile: floating action button */}
-      <div className="hidden max-sm:fixed max-sm:bottom-5 max-sm:right-5 max-sm:z-[100] max-sm:block">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              size="lg"
-              className="h-[52px] w-[52px] rounded-full bg-[#5F8575] shadow-[0_4px_12px_rgba(0,0,0,0.15),0_2px_4px_rgba(0,0,0,0.1)] hover:bg-[#5F8575]/90"
-              aria-label="Neues Dokument erstellen"
-            >
-              <FiPlus size={24} />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="top" sideOffset={8}>
-            <DropdownMenuLabel>Neues Dokument</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => handleTemplateSelect('blank')}>
-              <FiFile size={16} />
-              Leeres Dokument
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setShowGallery(true)}>
-              <FiGrid size={16} />
-              Aus Vorlage...
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      <CreateDocumentFAB
+        onCreateBlank={() => handleTemplateSelect('blank')}
+        onShowGallery={() => setShowGallery(true)}
+      />
 
       {showGallery && (
         <TemplatePicker onSelect={handleTemplateSelect} onClose={() => setShowGallery(false)} />

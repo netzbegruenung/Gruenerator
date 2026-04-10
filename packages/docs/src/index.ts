@@ -14,6 +14,7 @@ export { PresenceAvatars } from './components/editor/PresenceAvatars';
 
 // Components — Document
 export { AIDocumentCreator } from './components/document/AIDocumentCreator';
+export { CreateDocumentFAB } from './components/document/CreateDocumentFAB';
 export { DocumentList } from './components/document/DocumentList';
 export { TemplateCarousel } from './components/document/TemplateCarousel';
 export { TemplatePicker } from './components/document/TemplatePicker';
