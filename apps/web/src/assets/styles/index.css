@@ -364,6 +364,7 @@
   --animate-fade-in: fade-in 0.2s ease-out;
   --animate-streaming-pulse: streaming-pulse 1.5s ease-in-out infinite;
   --animate-streaming-cursor: streaming-cursor-blink 0.8s step-end infinite;
+  --animate-blink-cursor: streaming-cursor-blink 0.8s step-end infinite;
   --animate-bounce-gentle: bounce-gentle 0.5s ease infinite alternate;
   --animate-spin-slow: spin-slow 2s linear infinite;
   --animate-ripple: ripple 2s ease calc(var(--i, 0) * 0.2s) infinite;

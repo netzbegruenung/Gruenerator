@@ -260,8 +260,8 @@ const standardRoutes: RouteConfig[] = [
   // Desktop app always shows DesktopHome dashboard; web redirects auth'd users to /desk
   isDesktopApp()
     ? { path: '/', component: DesktopHome }
-    : { path: '/', component: Startseite, auth: 'guest' as const },
-  { path: '/startseite', component: Startseite, auth: 'guest' },
+    : { path: '/', component: Startseite, auth: 'guest' as const, layoutMode: 'noChrome' as const },
+  { path: '/startseite', component: Startseite, auth: 'guest', layoutMode: 'noChrome' as const },
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
   { path: '/desk', component: DeskPage },
