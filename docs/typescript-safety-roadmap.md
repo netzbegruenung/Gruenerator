@@ -71,8 +71,27 @@ Drizzle ORM wraps the existing `pg.Pool` from PostgresService and infers types f
 **Sequencing:**
 1. [x] `no-unsafe-return` as `warn` — 134 violations found, 133 fixed (1 in gitignored test file) (2026-04-10)
 2. [x] `no-unsafe-member-access` as `warn` — 1,128 violations found, 127 fixed incl. searchGraphController, responseFormatter, PromptProcessor (2026-04-10)
-3. [x] `no-unsafe-assignment` as `warn` — 882 violations found in apps/api, 256 fixed across 24 files (2026-04-10)
-4. [ ] `no-unsafe-call` + `no-unsafe-argument` last
+3. [x] `no-unsafe-assignment` as `warn` — 882 → 558 violations (324 fixed across 30+ files) (2026-04-10)
+4. [x] `no-unsafe-return` promoted to `error` — 0 violations remaining (2026-04-10)
+5. [x] `no-unsafe-call` as `warn` — 160 → 109 (51 fixed) (2026-04-10)
+6. [x] `no-unsafe-argument` as `warn` — 338 → 287 (51 fixed) (2026-04-10)
+
+**All 5 `no-unsafe-*` rules now enabled.** Current violation counts (2026-04-10):
+| Rule | Count | Status |
+|------|-------|--------|
+| `no-unsafe-return` | 0 | **error** |
+| `no-unsafe-call` | 109 | warn |
+| `no-unsafe-argument` | 287 | warn |
+| `no-unsafe-assignment` | 558 | warn |
+| `no-unsafe-member-access` | 552 | warn |
+
+**Next TODOs (pick up here):**
+1. [ ] Apply `validateBody` Zod middleware to remaining ~100 smaller route files
+2. [ ] Fix remaining `no-unsafe-call` (109 → ~50 library-bound), then promote to `error`
+3. [ ] Fix remaining `no-unsafe-argument` (287), then promote to `error`
+4. [ ] Promote `no-unsafe-member-access` to `error` when violations are at library-only floor
+5. [ ] Promote `no-unsafe-assignment` to `error` when violations are at library-only floor
+6. [ ] Plan ts-rest migration (Phase 4.1) — Zod schemas are ready as building blocks
 
 **`no-unsafe-assignment` fixes (2026-04-10):**
 - RedisCheckpointer: 8 suppressions → 0 (imported LangGraph checkpoint types + type guards for JSON.parse)
@@ -164,8 +183,16 @@ ts-rest defines a single contract that types body, params, query, headers, AND r
 | `as unknown as X` casts | 241 | 133 | **37** | ≤ 15 |
 | `?? undefined` patterns | 86 | 86 | **0** | 0 |
 | `exactOptionalPropertyTypes` | disabled | disabled | **enabled (0 errors)** | enabled |
+| `no-unsafe-return` | 134 (warn) | 0 (warn) | **0 (error)** | 0 (error) |
+| `no-unsafe-call` | — | — | **109 (warn)** | 0 (error) |
+| `no-unsafe-argument` | — | — | **287 (warn)** | 0 (error) |
+| `no-unsafe-assignment` | — | 882 (warn) | **558 (warn)** | 0 (error) |
+| `no-unsafe-member-access` | 1,128 (warn) | — | **552 (warn)** | 0 (error) |
 | Drizzle schema tables | 0 | 0 | **~20** | all |
 | Typecheck errors | 3 | 3 | **0** | 0 |
+| `validateBody` routes | 0 | 0 | **~25** | all POST/PUT |
+| Frontend `any` violations | ~49 | — | **~8** | 0 |
+| Shared packages `any` violations | ~48 | — | **~5** | 0 |
 
 ## Principles
 
