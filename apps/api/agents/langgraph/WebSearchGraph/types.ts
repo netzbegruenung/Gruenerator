@@ -3,6 +3,8 @@
  * Defines state interfaces for the LangGraph search workflow
  */
 
+import { type AIWorkerPool } from '../../../workers/types.js';
+
 import type {
   Citation,
   ValidationResult,
@@ -10,7 +12,6 @@ import type {
   ReferencesMap,
   ReferenceData,
 } from '../../../services/search/types.js';
-import type AIWorkerPool from '../../../workers/aiWorkerPool.js';
 import type { Request } from 'express';
 
 // Re-export for external use

@@ -100,20 +100,20 @@ const AntragAgentAnnotation = Annotation.Root({
   }),
 });
 
+type AntragState = typeof AntragAgentAnnotation.State;
+
 function createAntragAgentGraph() {
-  /* eslint-disable @typescript-eslint/no-explicit-any -- LangGraph node type coercions */
   const graph = new StateGraph(AntragAgentAnnotation)
-    .addNode('research', researchNode as any)
-    .addNode('strategize', strategizeNode as any)
-    .addNode('generate', generateNode as any)
-    .addNode('format', formatNode as any)
+    .addNode('research', researchNode as (state: AntragState) => Promise<Partial<AntragState>>)
+    .addNode('strategize', strategizeNode as (state: AntragState) => Promise<Partial<AntragState>>)
+    .addNode('generate', generateNode as (state: AntragState) => Promise<Partial<AntragState>>)
+    .addNode('format', formatNode as (state: AntragState) => Promise<Partial<AntragState>>)
 
     .addEdge('__start__', 'research')
     .addEdge('research', 'strategize')
     .addEdge('strategize', 'generate')
     .addEdge('generate', 'format')
     .addEdge('format', '__end__');
-  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   return graph.compile();
 }

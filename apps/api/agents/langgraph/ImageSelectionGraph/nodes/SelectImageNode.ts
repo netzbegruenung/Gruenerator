@@ -2,6 +2,7 @@
  * SelectImageNode - AI-powered image selection from catalog
  */
 
+import type { RequestWithUser } from '../../../../utils/redis/types.js';
 import type { ImageSelectionState, CatalogImage, AISelectionResponse } from '../types.js';
 
 /**
@@ -68,7 +69,7 @@ Wähle den besten Hintergrund aus (gib die Nummer an).`;
           max_tokens: 200,
         },
       },
-      req as any
+      req as RequestWithUser
     );
 
     // Debug logging to see exact AI response
