@@ -1,4 +1,5 @@
 import {
+  CreateDocumentFAB,
   DocsProvider,
   useDocsAdapter,
   useDocuments,
@@ -432,6 +433,11 @@ function DocumentsContent() {
           </>
         )}
       </main>
+
+      <CreateDocumentFAB
+        onCreateBlank={() => handleTemplateSelect('blank')}
+        onShowGallery={() => setShowGallery(true)}
+      />
 
       {showGallery && (
         <Suspense fallback={null}>
