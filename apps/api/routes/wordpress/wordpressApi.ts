@@ -1,6 +1,8 @@
 import { Router, type Request, type Response } from 'express';
+import { z } from 'zod';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import WordPressApiClient, {
   type GetPostsParams,
 } from '../../services/api-clients/wordpressApiClient.js';
@@ -29,40 +31,45 @@ function handleError(res: Response, error: unknown, fallbackMessage: string): vo
   res.status(status).json({ error: fallbackMessage, message: err.message });
 }
 
-interface ConnectSiteBody {
-  siteUrl: string;
-  username: string;
-  appPassword: string;
-  label?: string;
-}
+const connectSiteBodySchema = z.object({
+  siteUrl: z.string(),
+  username: z.string(),
+  appPassword: z.string(),
+  label: z.string().optional(),
+});
+type ConnectSiteBody = z.infer<typeof connectSiteBodySchema>;
 
-interface UpdateSiteBody {
-  label?: string;
-  is_active?: boolean;
-  username?: string;
-  appPassword?: string;
-}
+const updateSiteBodySchema = z.object({
+  label: z.string().optional(),
+  is_active: z.boolean().optional(),
+  username: z.string().optional(),
+  appPassword: z.string().optional(),
+});
+type UpdateSiteBody = z.infer<typeof updateSiteBodySchema>;
 
-interface TestConnectionBody {
-  siteUrl: string;
-  username: string;
-  appPassword: string;
-}
+const testConnectionBodySchema = z.object({
+  siteUrl: z.string(),
+  username: z.string(),
+  appPassword: z.string(),
+});
+type TestConnectionBody = z.infer<typeof testConnectionBodySchema>;
 
-interface PublishBody {
-  siteId: string;
-  title: string;
-  content: string;
-  status?: 'draft' | 'publish' | 'pending';
-  excerpt?: string;
-}
+const publishBodySchema = z.object({
+  siteId: z.string(),
+  title: z.string(),
+  content: z.string(),
+  status: z.enum(['draft', 'publish', 'pending']).optional(),
+  excerpt: z.string().optional(),
+});
+type PublishBody = z.infer<typeof publishBodySchema>;
 
-interface UpdatePostBody {
-  title: string;
-  content: string;
-  status?: 'draft' | 'publish' | 'pending';
-  excerpt?: string;
-}
+const updatePostBodySchema = z.object({
+  title: z.string(),
+  content: z.string(),
+  status: z.enum(['draft', 'publish', 'pending']).optional(),
+  excerpt: z.string().optional(),
+});
+type UpdatePostBody = z.infer<typeof updatePostBodySchema>;
 
 const router: Router = Router();
 
@@ -88,72 +95,78 @@ router.get('/sites', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-router.post('/sites', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = getUserId(req);
-    const { siteUrl, username, appPassword, label } = req.body as ConnectSiteBody;
-
-    if (!siteUrl || !username || !appPassword) {
-      res.status(400).json({ error: 'Site URL, username, and application password are required' });
-      return;
-    }
-
-    const savedSite = await WordPressSiteManager.saveSite(
-      userId,
-      siteUrl,
-      username,
-      appPassword,
-      label || ''
-    );
-
-    let connectionTest: { success: boolean; error: string | null } | null = null;
+router.post(
+  '/sites',
+  validateBody(connectSiteBodySchema),
+  async (req: Request & TypedRequest<ConnectSiteBody>, res: Response): Promise<void> => {
     try {
-      const client = await WordPressApiClient.create(siteUrl, username, appPassword);
-      const result = await client.testConnection();
-      connectionTest = { success: result.success, error: result.error };
-    } catch (testError) {
-      const testErr = testError as Error;
-      log.warn('[WordPressApi] Connection test failed for new site', {
-        error: testErr.message,
-        siteId: savedSite.id,
-      });
-      connectionTest = { success: false, error: testErr.message };
-    }
+      const userId = getUserId(req);
+      const { siteUrl, username, appPassword, label } = req.body;
 
-    res.status(201).json({ success: true, site: savedSite, connectionTest });
-  } catch (error) {
-    const err = error as Error;
-    if (err.message.includes('already saved')) {
-      res.status(409).json({ error: 'Site already exists', message: err.message });
-      return;
+      const savedSite = await WordPressSiteManager.saveSite(
+        userId,
+        siteUrl,
+        username,
+        appPassword,
+        label || ''
+      );
+
+      let connectionTest: { success: boolean; error: string | null } | null = null;
+      try {
+        const client = await WordPressApiClient.create(siteUrl, username, appPassword);
+        const result = await client.testConnection();
+        connectionTest = { success: result.success, error: result.error };
+      } catch (testError) {
+        const testErr = testError as Error;
+        log.warn('[WordPressApi] Connection test failed for new site', {
+          error: testErr.message,
+          siteId: savedSite.id,
+        });
+        connectionTest = { success: false, error: testErr.message };
+      }
+
+      res.status(201).json({ success: true, site: savedSite, connectionTest });
+    } catch (error) {
+      const err = error as Error;
+      if (err.message.includes('already saved')) {
+        res.status(409).json({ error: 'Site already exists', message: err.message });
+        return;
+      }
+      handleError(res, error, 'Failed to connect site');
     }
-    handleError(res, error, 'Failed to connect site');
   }
-});
+);
 
-router.put('/sites/:id', async (req: Request<{ id: string }>, res: Response): Promise<void> => {
-  try {
-    const userId = getUserId(req);
-    const siteId = req.params.id;
-    const { label, is_active, username, appPassword } = req.body as UpdateSiteBody;
+router.put(
+  '/sites/:id',
+  validateBody(updateSiteBodySchema),
+  async (
+    req: Request<{ id: string }> & TypedRequest<UpdateSiteBody>,
+    res: Response
+  ): Promise<void> => {
+    try {
+      const userId = getUserId(req);
+      const siteId = req.params.id;
+      const { label, is_active, username, appPassword } = req.body;
 
-    const updates: Record<string, unknown> = {};
-    if (typeof label === 'string') updates.label = label.trim() || null;
-    if (typeof is_active === 'boolean') updates.is_active = is_active;
-    if (typeof username === 'string') updates.username = username;
-    if (typeof appPassword === 'string') updates.app_password = appPassword;
+      const updates: Record<string, unknown> = {};
+      if (typeof label === 'string') updates.label = label.trim() || null;
+      if (typeof is_active === 'boolean') updates.is_active = is_active;
+      if (typeof username === 'string') updates.username = username;
+      if (typeof appPassword === 'string') updates.app_password = appPassword;
 
-    if (Object.keys(updates).length === 0) {
-      res.status(400).json({ error: 'No valid updates provided' });
-      return;
+      if (Object.keys(updates).length === 0) {
+        res.status(400).json({ error: 'No valid updates provided' });
+        return;
+      }
+
+      const updatedSite = await WordPressSiteManager.updateSite(userId, siteId, updates);
+      res.json({ success: true, site: updatedSite });
+    } catch (error) {
+      handleError(res, error, 'Failed to update site');
     }
-
-    const updatedSite = await WordPressSiteManager.updateSite(userId, siteId, updates);
-    res.json({ success: true, site: updatedSite });
-  } catch (error) {
-    handleError(res, error, 'Failed to update site');
   }
-});
+);
 
 router.delete('/sites/:id', async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   try {
@@ -165,56 +178,54 @@ router.delete('/sites/:id', async (req: Request<{ id: string }>, res: Response):
   }
 });
 
-router.post('/test-connection', async (req: Request, res: Response): Promise<void> => {
-  try {
-    getUserId(req);
-    const { siteUrl, username, appPassword } = req.body as TestConnectionBody;
-
-    if (!siteUrl || !username || !appPassword) {
-      res.status(400).json({ error: 'Site URL, username, and application password are required' });
-      return;
-    }
-
-    const client = await WordPressApiClient.create(siteUrl, username, appPassword);
-    res.json(await client.testConnection());
-  } catch (error) {
-    handleError(res, error, 'Connection test failed');
-  }
-});
-
-router.post('/publish', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = getUserId(req);
-    const { siteId, title, content, status, excerpt } = req.body as PublishBody;
-
-    if (!siteId || !title || !content) {
-      res.status(400).json({ error: 'Site ID, title, and content are required' });
-      return;
-    }
-
-    const client = await getClientForSite(userId, siteId);
-
+router.post(
+  '/test-connection',
+  validateBody(testConnectionBodySchema),
+  async (req: Request & TypedRequest<TestConnectionBody>, res: Response): Promise<void> => {
     try {
-      const result = await client.createPost(title, content, {
-        status: status || 'draft',
-        ...(excerpt != null && { excerpt }),
-      });
-      await WordPressSiteManager.updateLastUsed(userId, siteId);
-      res.json({
-        success: true,
-        postId: result.id,
-        editUrl: result.editUrl,
-        viewUrl: result.viewUrl,
-        status: result.status,
-      });
-    } catch (publishError) {
-      await WordPressSiteManager.updateLastError(userId, siteId, (publishError as Error).message);
-      throw publishError;
+      getUserId(req);
+      const { siteUrl, username, appPassword } = req.body;
+
+      const client = await WordPressApiClient.create(siteUrl, username, appPassword);
+      res.json(await client.testConnection());
+    } catch (error) {
+      handleError(res, error, 'Connection test failed');
     }
-  } catch (error) {
-    handleError(res, error, 'Failed to publish post');
   }
-});
+);
+
+router.post(
+  '/publish',
+  validateBody(publishBodySchema),
+  async (req: Request & TypedRequest<PublishBody>, res: Response): Promise<void> => {
+    try {
+      const userId = getUserId(req);
+      const { siteId, title, content, status, excerpt } = req.body;
+
+      const client = await getClientForSite(userId, siteId);
+
+      try {
+        const result = await client.createPost(title, content, {
+          status: status || 'draft',
+          ...(excerpt != null && { excerpt }),
+        });
+        await WordPressSiteManager.updateLastUsed(userId, siteId);
+        res.json({
+          success: true,
+          postId: result.id,
+          editUrl: result.editUrl,
+          viewUrl: result.viewUrl,
+          status: result.status,
+        });
+      } catch (publishError) {
+        await WordPressSiteManager.updateLastError(userId, siteId, (publishError as Error).message);
+        throw publishError;
+      }
+    } catch (error) {
+      handleError(res, error, 'Failed to publish post');
+    }
+  }
+);
 
 router.get(
   '/sites/:id/posts',
@@ -258,19 +269,19 @@ router.get(
 
 router.put(
   '/sites/:id/posts/:postId',
-  async (req: Request<{ id: string; postId: string }>, res: Response): Promise<void> => {
+  validateBody(updatePostBodySchema),
+  async (
+    req: Request<{ id: string; postId: string }> & TypedRequest<UpdatePostBody>,
+    res: Response
+  ): Promise<void> => {
     try {
       const userId = getUserId(req);
       const siteId = req.params.id;
       const postId = parseInt(req.params.postId, 10);
-      const { title, content, status, excerpt } = req.body as UpdatePostBody;
+      const { title, content, status, excerpt } = req.body;
 
       if (isNaN(postId)) {
         res.status(400).json({ error: 'Invalid post ID' });
-        return;
-      }
-      if (!title || !content) {
-        res.status(400).json({ error: 'Title and content are required' });
         return;
       }
 

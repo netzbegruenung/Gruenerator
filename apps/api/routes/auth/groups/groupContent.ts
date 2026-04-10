@@ -9,17 +9,21 @@ import path from 'path';
 import express, { type Router, type Response } from 'express';
 
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
+import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
 import { createLogger } from '../../../utils/logger.js';
+import {
+  groupContentShareSchema,
+  groupContentUnshareSchema,
+  groupContentPermissionsSchema,
+  groupContentDeleteSchema,
+  type AuthRequest,
+  type GroupContentShareBody,
+  type GroupContentUnshareBody,
+  type GroupContentPermissionsBody,
+  type GroupContentDeleteBody,
+} from '../types.js';
 
 import { getPostgresAndCheckMembership } from './groupCore.js';
-
-import type {
-  AuthRequest,
-  GroupContentShareBody,
-  GroupContentUnshareBody,
-  GroupContentPermissionsBody,
-  GroupContentDeleteBody,
-} from '../types.js';
 
 const log = createLogger('groupContent');
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
@@ -215,27 +219,15 @@ const tableNameMap: Record<string, string> = {
 router.post(
   '/groups/:groupId/share',
   ensureAuthenticated,
-  async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
+  validateBody(groupContentShareSchema),
+  async (
+    req: AuthRequest<{ groupId: string }> & TypedRequest<GroupContentShareBody>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
-      const { contentType, contentId, permissions } = req.body as GroupContentShareBody;
-
-      if (!groupId || !contentType || !contentId) {
-        res.status(400).json({
-          success: false,
-          message: 'Gruppen-ID, Content-Type und Content-ID sind erforderlich.',
-        });
-        return;
-      }
-
-      if (!VALID_CONTENT_TYPES.has(contentType)) {
-        res.status(400).json({
-          success: false,
-          message: 'Ungültiger Content-Type.',
-        });
-        return;
-      }
+      const { contentType, contentId, permissions } = req.body;
 
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
 
@@ -374,19 +366,15 @@ router.post(
 router.delete(
   '/groups/:groupId/share',
   ensureAuthenticated,
-  async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
+  validateBody(groupContentUnshareSchema),
+  async (
+    req: AuthRequest<{ groupId: string }> & TypedRequest<GroupContentUnshareBody>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
-      const { contentType, contentId } = req.body as GroupContentUnshareBody;
-
-      if (!groupId || !contentType || !contentId) {
-        res.status(400).json({
-          success: false,
-          message: 'Gruppen-ID, Content-Type und Content-ID sind erforderlich.',
-        });
-        return;
-      }
+      const { contentType, contentId } = req.body;
 
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
 
@@ -727,31 +715,16 @@ router.get(
 router.put(
   '/groups/:groupId/content/:contentId/permissions',
   ensureAuthenticated,
+  validateBody(groupContentPermissionsSchema),
   async (
-    req: AuthRequest<{ groupId: string; contentId: string }>,
+    req: AuthRequest<{ groupId: string; contentId: string }> &
+      TypedRequest<GroupContentPermissionsBody>,
     res: Response
   ): Promise<void> => {
     try {
       const { groupId, contentId } = req.params;
       const userId = req.user!.id;
-      const { contentType, permissions } = req.body as GroupContentPermissionsBody;
-
-      if (!groupId || !contentId || !contentType || !permissions) {
-        res.status(400).json({
-          success: false,
-          message: 'Alle Parameter sind erforderlich.',
-        });
-        return;
-      }
-
-      // Validate content type
-      if (!VALID_CONTENT_TYPES.has(contentType)) {
-        res.status(400).json({
-          success: false,
-          message: 'Ungültiger Content-Type.',
-        });
-        return;
-      }
+      const { contentType, permissions } = req.body;
 
       const { postgres, membership } = await getPostgresAndCheckMembership(groupId, userId, false);
 
@@ -811,31 +784,15 @@ router.put(
 router.delete(
   '/groups/:groupId/content/:contentId',
   ensureAuthenticated,
+  validateBody(groupContentDeleteSchema),
   async (
-    req: AuthRequest<{ groupId: string; contentId: string }>,
+    req: AuthRequest<{ groupId: string; contentId: string }> & TypedRequest<GroupContentDeleteBody>,
     res: Response
   ): Promise<void> => {
     try {
       const { groupId, contentId } = req.params;
       const userId = req.user!.id;
-      const { contentType } = req.body as GroupContentDeleteBody;
-
-      if (!groupId || !contentId || !contentType) {
-        res.status(400).json({
-          success: false,
-          message: 'Gruppen-ID, Content-ID und Content-Type sind erforderlich.',
-        });
-        return;
-      }
-
-      // Validate content type - include database for templates
-      if (!VALID_CONTENT_TYPES.has(contentType)) {
-        res.status(400).json({
-          success: false,
-          message: 'Ungültiger Content-Type.',
-        });
-        return;
-      }
+      const { contentType } = req.body;
 
       const { postgres, membership } = await getPostgresAndCheckMembership(groupId, userId, false);
 
