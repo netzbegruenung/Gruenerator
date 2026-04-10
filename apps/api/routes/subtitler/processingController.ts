@@ -9,7 +9,9 @@ import { fileURLToPath } from 'url';
 
 import express, { type Response, type Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import { z } from 'zod';
 
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getSharedMediaService } from '../../services/sharedMediaService.js';
 import AssSubtitleService, {
   type TextOverlay as AssTextOverlay,
@@ -40,15 +42,82 @@ import { getVideoMetadata } from '../../services/subtitler/videoUploadService.js
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
-import type {
-  ProcessRequestBody,
-  ExportSegmentsRequestBody,
-  AutoProcessRequestBody,
-  ResultQueryParams,
-  ExportProgress,
-} from './types.js';
+import type { ResultQueryParams, ExportProgress } from './types.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { ParamsDictionary } from 'express-serve-static-core';
+
+// ============================================================================
+// Zod Schemas
+// ============================================================================
+
+const processRequestSchema = z.object({
+  uploadId: z.string(),
+  subtitlePreference: z.enum(['manual', 'word']).optional(),
+  stylePreference: z.string().optional(),
+  heightPreference: z.enum(['standard', 'tief']).optional(),
+});
+type ProcessRequestBody = z.infer<typeof processRequestSchema>;
+
+const exportBodySchema = z.object({
+  uploadId: z.string().optional(),
+  subtitles: z.union([z.array(z.unknown()), z.string()]).optional(),
+  subtitlePreference: z.string().optional(),
+  stylePreference: z.string().optional(),
+  heightPreference: z.string().optional(),
+  locale: z.string().optional(),
+  maxResolution: z.number().nullable().optional(),
+  projectId: z.string().nullable().optional(),
+  userId: z.string().nullable().optional(),
+  textOverlays: z.array(z.unknown()).optional(),
+});
+type ExportBody = z.infer<typeof exportBodySchema>;
+
+const videoSegmentSchema = z.object({
+  start: z.number(),
+  end: z.number(),
+  label: z.string().optional(),
+});
+
+const subtitleConfigSchema = z.object({
+  stylePreference: z.string().optional(),
+  heightPreference: z.string().optional(),
+  locale: z.string().optional(),
+  segments: z
+    .array(
+      z.object({
+        text: z.string(),
+        start: z.number(),
+        end: z.number(),
+        words: z
+          .array(
+            z.object({
+              word: z.string(),
+              start: z.number(),
+              end: z.number(),
+            })
+          )
+          .optional(),
+      })
+    )
+    .optional(),
+});
+
+const exportSegmentsRequestSchema = z.object({
+  uploadId: z.string().optional(),
+  projectId: z.string().optional(),
+  segments: z.array(videoSegmentSchema).min(1, 'Keine Segmente'),
+  includeSubtitles: z.boolean().optional(),
+  subtitleConfig: subtitleConfigSchema.optional(),
+});
+type ExportSegmentsRequestBody = z.infer<typeof exportSegmentsRequestSchema>;
+
+const autoProcessRequestSchema = z.object({
+  uploadId: z.string(),
+  locale: z.string().optional(),
+  maxResolution: z.number().nullable().optional(),
+  userId: z.string().nullable().optional(),
+});
+type AutoProcessRequestBody = z.infer<typeof autoProcessRequestSchema>;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -72,19 +141,6 @@ interface RedisAutoProgress {
   outputPath?: string;
 }
 
-interface ExportBody {
-  uploadId?: string;
-  subtitles?: unknown[] | string;
-  subtitlePreference?: string;
-  stylePreference?: string;
-  heightPreference?: string;
-  locale?: string;
-  maxResolution?: number | null;
-  projectId?: string | null;
-  userId?: string | null;
-  textOverlays?: unknown[];
-}
-
 async function checkFont(): Promise<void> {
   try {
     await fsPromises.access(FONT_PATH);
@@ -96,71 +152,72 @@ async function checkFont(): Promise<void> {
 }
 
 // POST /process - Start video transcription
-router.post('/process', async (req: SubtitlerRequest, res: Response): Promise<void> => {
-  const body = req.body as ProcessRequestBody;
-  const {
-    uploadId,
-    subtitlePreference = 'manual',
-    stylePreference = 'standard',
-    heightPreference = 'tief',
-  } = body;
+router.post(
+  '/process',
+  validateBody(processRequestSchema),
+  async (
+    req: SubtitlerRequest & TypedRequest<ProcessRequestBody>,
+    res: Response
+  ): Promise<void> => {
+    const {
+      uploadId,
+      subtitlePreference = 'manual',
+      stylePreference = 'standard',
+      heightPreference = 'tief',
+    } = req.body;
 
-  if (!uploadId) {
-    res.status(400).json({ error: 'Keine Upload-ID gefunden' });
-    return;
-  }
+    const jobKey = `job:${uploadId}:${subtitlePreference}:${stylePreference}:${heightPreference}`;
 
-  const jobKey = `job:${uploadId}:${subtitlePreference}:${stylePreference}:${heightPreference}`;
-
-  try {
-    await redisClient.set(jobKey, JSON.stringify({ status: 'processing' }), { EX: 86400 });
-  } catch (_e: unknown) {
-    res.status(500).json({ error: 'Redis error' });
-    return;
-  }
-
-  try {
-    const videoPath = getFilePathFromUploadId(uploadId);
-    if (!(await checkFileExists(videoPath))) {
-      void scheduleImmediateCleanup(uploadId, 'file not found');
-      await redisClient.set(
-        jobKey,
-        JSON.stringify({ status: 'error', data: 'Video nicht gefunden' }),
-        { EX: 86400 }
-      );
-      res.status(404).json({ error: 'Video nicht gefunden' });
+    try {
+      await redisClient.set(jobKey, JSON.stringify({ status: 'processing' }), { EX: 86400 });
+    } catch (_e: unknown) {
+      res.status(500).json({ error: 'Redis error' });
       return;
     }
 
-    const aiWorkerPool: unknown = req.app.locals.aiWorkerPool;
-    transcribeVideo(
-      videoPath,
-      subtitlePreference,
-      aiWorkerPool as Parameters<typeof transcribeVideo>[2]
-    )
-      .then(async (subtitles) => {
-        if (!subtitles) throw new Error('Keine Untertitel generiert');
-        markUploadAsProcessed(uploadId);
-        await redisClient.set(jobKey, JSON.stringify({ status: 'complete', data: subtitles }), {
-          EX: 86400,
-        });
-      })
-      .catch(async (error: Error) => {
-        void scheduleImmediateCleanup(uploadId, 'transcription error');
-        await redisClient.set(jobKey, JSON.stringify({ status: 'error', data: error.message }), {
-          EX: 86400,
-        });
-      });
+    try {
+      const videoPath = getFilePathFromUploadId(uploadId);
+      if (!(await checkFileExists(videoPath))) {
+        void scheduleImmediateCleanup(uploadId, 'file not found');
+        await redisClient.set(
+          jobKey,
+          JSON.stringify({ status: 'error', data: 'Video nicht gefunden' }),
+          { EX: 86400 }
+        );
+        res.status(404).json({ error: 'Video nicht gefunden' });
+        return;
+      }
 
-    res.status(202).json({ success: true, status: 'processing', uploadId });
-  } catch (error: unknown) {
-    const errMsg = error instanceof Error ? error.message : String(error);
-    await redisClient.set(jobKey, JSON.stringify({ status: 'error', data: errMsg }), {
-      EX: 86400,
-    });
-    if (!res.headersSent) res.status(500).json({ error: errMsg });
+      const aiWorkerPool: unknown = req.app.locals.aiWorkerPool;
+      transcribeVideo(
+        videoPath,
+        subtitlePreference,
+        aiWorkerPool as Parameters<typeof transcribeVideo>[2]
+      )
+        .then(async (subtitles) => {
+          if (!subtitles) throw new Error('Keine Untertitel generiert');
+          markUploadAsProcessed(uploadId);
+          await redisClient.set(jobKey, JSON.stringify({ status: 'complete', data: subtitles }), {
+            EX: 86400,
+          });
+        })
+        .catch(async (error: Error) => {
+          void scheduleImmediateCleanup(uploadId, 'transcription error');
+          await redisClient.set(jobKey, JSON.stringify({ status: 'error', data: error.message }), {
+            EX: 86400,
+          });
+        });
+
+      res.status(202).json({ success: true, status: 'processing', uploadId });
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      await redisClient.set(jobKey, JSON.stringify({ status: 'error', data: errMsg }), {
+        EX: 86400,
+      });
+      if (!res.headersSent) res.status(500).json({ error: errMsg });
+    }
   }
-});
+);
 
 // GET /result/:uploadId - Get transcription result
 router.get(

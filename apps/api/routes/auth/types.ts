@@ -3,6 +3,7 @@
  */
 
 import { type Request, type Response, type NextFunction } from 'express';
+import { z } from 'zod';
 
 import { type UserProfile } from '../../services/user/types.js';
 
@@ -115,70 +116,139 @@ export interface CustomGeneratorUpdateBody extends Partial<CustomGeneratorCreate
 }
 
 // ============================================================================
-// Group Types
+// Group Types (Zod schemas + inferred types)
 // ============================================================================
 
-export interface GroupCreateBody {
-  name: string;
-  description?: string | undefined;
-}
+export const groupCreateSchema = z.object({
+  name: z.string().min(1, 'Gruppenname ist erforderlich.'),
+  description: z.string().optional(),
+});
+export type GroupCreateBody = z.infer<typeof groupCreateSchema>;
 
-export interface GroupUpdateBody {
-  name?: string | undefined;
-  description?: string | undefined;
-}
+export const groupUpdateSchema = z.object({
+  name: z.string().optional(),
+  description: z.string().optional(),
+});
+export type GroupUpdateBody = z.infer<typeof groupUpdateSchema>;
 
-export interface GroupJoinBody {
-  joinToken: string;
-}
+export const groupJoinSchema = z.object({
+  joinToken: z.string().min(1, 'Beitritts-Token ist erforderlich.'),
+});
+export type GroupJoinBody = z.infer<typeof groupJoinSchema>;
 
-export interface GroupInstructionsUpdateBody {
-  instructions: string;
-}
+export const groupInstructionsUpdateSchema = z.object({
+  instructions: z.string(),
+});
+export type GroupInstructionsUpdateBody = z.infer<typeof groupInstructionsUpdateSchema>;
 
-export interface GroupContentShareBody {
-  contentType: string;
-  contentId: string;
-  permissions?: {
-    read?: boolean | undefined;
-    write?: boolean | undefined;
-    collaborative?: boolean | undefined;
-  };
-}
+const VALID_CONTENT_TYPES = [
+  'documents',
+  'custom_generators',
+  'notebook_collections',
+  'user_documents',
+  'database',
+  'collaborative_documents',
+  'system_notebooks',
+] as const;
 
-export interface GroupContentUnshareBody {
-  contentType: string;
-  contentId: string;
-}
+export const groupContentShareSchema = z.object({
+  contentType: z.enum(VALID_CONTENT_TYPES),
+  contentId: z.string().min(1, 'Content-ID ist erforderlich.'),
+  permissions: z
+    .object({
+      read: z.boolean().optional(),
+      write: z.boolean().optional(),
+      collaborative: z.boolean().optional(),
+    })
+    .optional(),
+});
+export type GroupContentShareBody = z.infer<typeof groupContentShareSchema>;
 
-export interface GroupContentPermissionsBody {
-  contentType: string;
-  permissions: Record<string, boolean>;
-}
+export const groupContentUnshareSchema = z.object({
+  contentType: z.enum(VALID_CONTENT_TYPES),
+  contentId: z.string().min(1, 'Content-ID ist erforderlich.'),
+});
+export type GroupContentUnshareBody = z.infer<typeof groupContentUnshareSchema>;
 
-export interface GroupContentDeleteBody {
-  contentType: string;
-}
+export const groupContentPermissionsSchema = z.object({
+  contentType: z.enum(VALID_CONTENT_TYPES),
+  permissions: z.record(z.string(), z.boolean()),
+});
+export type GroupContentPermissionsBody = z.infer<typeof groupContentPermissionsSchema>;
 
-export interface GroupInfoUpdateBody {
-  name?: string | undefined;
-  description?: string | undefined;
-  settings?: {
-    templateTags?: string[] | undefined;
-    [key: string]: unknown;
-  };
-}
+export const groupContentDeleteSchema = z.object({
+  contentType: z.enum(VALID_CONTENT_TYPES),
+});
+export type GroupContentDeleteBody = z.infer<typeof groupContentDeleteSchema>;
 
-export interface GroupMemberRoleBody {
-  role: string;
-}
+export const groupInfoUpdateSchema = z.object({
+  name: z.string().optional(),
+  description: z.string().optional(),
+  settings: z
+    .object({
+      templateTags: z
+        .array(z.string().max(50, 'Jeder Tag darf max. 50 Zeichen haben.'))
+        .max(20, 'Maximal 20 Tags erlaubt.')
+        .optional(),
+    })
+    .passthrough()
+    .optional(),
+});
+export type GroupInfoUpdateBody = z.infer<typeof groupInfoUpdateSchema>;
 
-export interface GroupLinkBody {
-  title: string;
-  url: string;
-  icon: string;
-  description?: string | undefined;
-}
+export const groupMemberRoleSchema = z.object({
+  role: z.enum(['admin', 'member'], {
+    errorMap: () => ({ message: 'Rolle muss "admin" oder "member" sein.' }),
+  }),
+});
+export type GroupMemberRoleBody = z.infer<typeof groupMemberRoleSchema>;
+
+const ALLOWED_LINK_ICONS = [
+  'globe',
+  'link',
+  'mail',
+  'calendar',
+  'chat',
+  'folder',
+  'phone',
+  'video',
+  'document',
+  'map',
+  'signal',
+  'whatsapp',
+  'telegram',
+  'discord',
+  'slack',
+  'mattermost',
+  'canva',
+  'figma',
+  'miro',
+  'drive',
+  'nextcloud',
+  'notion',
+  'trello',
+  'github',
+  'zoom',
+  'googlemeet',
+  'youtube',
+  'instagram',
+  'mastodon',
+  'linkedin',
+  'x',
+] as const;
+
+export const groupLinkSchema = z.object({
+  title: z
+    .string()
+    .min(1, 'Titel ist erforderlich.')
+    .max(100, 'Titel darf max. 100 Zeichen haben.'),
+  url: z.string().regex(/^https?:\/\/.+/, 'URL muss mit http:// oder https:// beginnen.'),
+  icon: z.enum(ALLOWED_LINK_ICONS, {
+    errorMap: () => ({ message: `Ungültiges Icon. Erlaubt: ${ALLOWED_LINK_ICONS.join(', ')}` }),
+  }),
+  description: z.string().max(300, 'Beschreibung darf max. 300 Zeichen haben.').optional(),
+});
+export type GroupLinkBody = z.infer<typeof groupLinkSchema>;
 
 // ============================================================================
 // Wolke (Nextcloud) Types
