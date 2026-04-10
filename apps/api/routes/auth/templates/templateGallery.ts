@@ -52,16 +52,15 @@ const templatePreviewsDir = path.resolve(apiRoot, 'config/templates/previews');
 try {
   const systemTemplatesPath = path.resolve(apiRoot, 'config/templates/system-templates.json');
   const data = fs.readFileSync(systemTemplatesPath, 'utf-8');
-  const parsed = JSON.parse(data);
-  systemTemplates = (parsed.templates || []).map(
-    (t: SystemTemplate & { preview_image?: string }) => ({
-      ...t,
-      thumbnail_url: t.preview_image
-        ? `/auth/template-previews/${t.preview_image}`
-        : t.thumbnail_url,
-    })
-  );
-  systemFiles = parsed.files || [];
+  const parsed = JSON.parse(data) as {
+    templates?: Array<SystemTemplate & { preview_image?: string }>;
+    files?: Array<Record<string, unknown>>;
+  };
+  systemTemplates = (parsed.templates ?? []).map((t) => ({
+    ...t,
+    thumbnail_url: t.preview_image ? `/auth/template-previews/${t.preview_image}` : t.thumbnail_url,
+  }));
+  systemFiles = parsed.files ?? [];
   log.info(
     `[Template Gallery] Loaded ${systemTemplates.length} system templates and ${systemFiles.length} system files`
   );

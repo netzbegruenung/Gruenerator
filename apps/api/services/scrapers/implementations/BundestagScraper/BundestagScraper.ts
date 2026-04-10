@@ -3,6 +3,7 @@ import * as cheerio from 'cheerio';
 import { deleteBundestagContentByUrl } from '../../../../database/services/QdrantService/deletion.js';
 import { getAllUrls } from '../../../../database/services/QdrantService/facets.js';
 import { getQdrantInstance } from '../../../../database/services/QdrantService/index.js';
+import { type QdrantService } from '../../../../database/services/QdrantService/index.js';
 import { indexBundestagContent } from '../../../../database/services/QdrantService/indexing.js';
 import { BRAND } from '../../../../utils/domainUtils.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -32,13 +33,11 @@ import type { CrawledPage } from '../WebsiteCrawler.js';
 const log = createLogger('BundestagScraper');
 
 export class BundestagScraper {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private qdrant: any;
+  private qdrant!: QdrantService; // assigned in init()
   private processor: BundestagContentProcessor;
   private initialized = false;
 
   constructor() {
-    this.qdrant = null;
     this.processor = new BundestagContentProcessor({
       chunkSize: 400,
       chunkOverlap: 50,
@@ -79,7 +78,7 @@ export class BundestagScraper {
     }
 
     log.info(`Fetching existing URLs from Qdrant collection "${COLLECTION_NAME}"...`);
-    const existingUrlRecords = await getAllUrls(this.qdrant.client, COLLECTION_NAME);
+    const existingUrlRecords = await getAllUrls(this.qdrant.client!, COLLECTION_NAME);
     const existingUrls = new Map(existingUrlRecords.map((r) => [r.source_url, r.content_hash]));
     log.info(`Found ${existingUrls.size} existing URLs in collection`);
 
@@ -156,14 +155,14 @@ export class BundestagScraper {
 
             if (existingHash) {
               await deleteBundestagContentByUrl(
-                this.qdrant.client,
+                this.qdrant.client!,
                 COLLECTION_NAME,
                 page.source_url
               );
             }
 
             await indexBundestagContent(
-              this.qdrant.client,
+              this.qdrant.client!,
               COLLECTION_NAME,
               page.source_url,
               chunks,

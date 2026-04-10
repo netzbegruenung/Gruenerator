@@ -269,12 +269,12 @@ class RequestEnricher {
         `🎯 [NotebookEnrich] Generating preliminary draft for: "${theme.substring(0, 50)}..."`
       );
 
-      const result = (await options.aiWorkerPool.processRequest({
+      const result = await options.aiWorkerPool.processRequest({
         type: 'notebook_enrich',
         messages: [{ role: 'user', content: userPrompt }],
         systemPrompt,
         options: { max_tokens: 500, temperature: 0.4, top_p: 0.9 },
-      })) as { content?: string };
+      });
 
       const content = result.content || '';
       if (!content || content.length < 20) {

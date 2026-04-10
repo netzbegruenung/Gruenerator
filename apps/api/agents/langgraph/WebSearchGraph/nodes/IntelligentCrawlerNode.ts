@@ -104,6 +104,7 @@ Respond with JSON:
           temperature: 0.1,
         },
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       state.req as any
     );
 
@@ -123,11 +124,24 @@ Respond with JSON:
       })),
       reasoning: 'Fallback due to JSON parsing error',
     };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const decision = parseAIJsonResponse(crawlDecision.content || '', fallbackDecision) as any;
+    interface CrawlSelection {
+      index: number;
+      url: string;
+      reason: string;
+      expectedValue: string;
+      priority: number;
+      shouldCrawl: boolean;
+    }
+    interface CrawlDecisionResult {
+      selections: CrawlSelection[];
+      reasoning: string;
+    }
+    const decision = parseAIJsonResponse(
+      crawlDecision.content || '',
+      fallbackDecision
+    ) as CrawlDecisionResult;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const crawlDecisions: CrawlDecision[] = decision.selections.map((sel: any) => ({
+    const crawlDecisions: CrawlDecision[] = decision.selections.map((sel) => ({
       url: sel.url,
       shouldCrawl: true,
       reason: sel.reason,
@@ -139,8 +153,7 @@ Respond with JSON:
     );
 
     // Log selected URLs for debugging
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    decision.selections.forEach((sel: any) => {
+    decision.selections.forEach((sel) => {
       console.log(`[IntelligentCrawler] Will crawl [${sel.index}]: ${sel.url} - ${sel.reason}`);
     });
 

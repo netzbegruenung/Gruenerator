@@ -16,7 +16,7 @@ interface ContentSelectors {
 }
 
 interface SourceConfig {
-  cms: 'wordpress' | 'neos' | 'typo3';
+  cms: 'wordpress' | 'neos' | 'typo3' | 'custom' | 'drupal';
   contentSelectors: ContentSelectors;
 }
 
@@ -280,6 +280,8 @@ export class ContentExtractor {
         extracted = this.extractContentTypo3($, source.contentSelectors);
         break;
       case 'wordpress':
+      case 'custom':
+      case 'drupal':
       default:
         extracted = this.extractContentWordPress($, source.contentSelectors);
         break;

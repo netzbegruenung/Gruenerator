@@ -1,3 +1,4 @@
+import { getAIWorkerPool } from '../../../../utils/getAIWorkerPool.js';
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 import {
   loadPromptConfig,
@@ -58,7 +59,7 @@ export async function generatePlatformContent(
         : null,
     });
 
-    const aiResult: AIWorkerResult = await req.app.locals.aiWorkerPool.processRequest(
+    const aiResult: AIWorkerResult = await getAIWorkerPool(req).processRequest(
       {
         type: 'social',
         usePrivacyMode: request.usePrivacyMode || false,

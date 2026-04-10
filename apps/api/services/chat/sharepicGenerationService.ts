@@ -17,6 +17,7 @@ import {
 } from '../../services/attachments/index.js';
 import imagePickerService from '../../services/image/ImageSelectionService.js';
 import { parseResponse, type ParserConfig } from '../../utils/campaign/index.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type {
@@ -24,6 +25,7 @@ import type {
   Attachment,
 } from '../../services/attachments/types.js';
 import type { UserProfile } from '../../services/user/types.js';
+import type { AIWorkerPool } from '../../workers/types.js';
 import type { Request, Router } from 'express';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -42,10 +44,6 @@ interface SharepicImageManager {
   deleteImageForRequest(requestId: string): Promise<void>;
 }
 
-interface AIWorkerPool {
-  processRequest(request: AIRequest, req?: ExpressRequest): Promise<AIResponse>;
-}
-
 interface ExpressRequest extends Request {
   user?: UserProfile | undefined;
   correlationId?: string | undefined;
@@ -60,17 +58,6 @@ interface ExpressRequest extends Request {
 // Using AttachmentsImageAttachment from services/attachments/types.ts
 // Local alias for convenience
 type ImageAttachment = AttachmentsImageAttachment;
-
-interface AIRequest {
-  type: string;
-  systemPrompt: string;
-  messages: Array<{ role: string; content: string }>;
-  options?: Record<string, unknown>;
-}
-
-interface AIResponse {
-  content?: string;
-}
 
 interface CampaignConfig {
   name?: string;
@@ -744,7 +731,7 @@ const generateDreizeilenWithAIImageSharepic = async (
     const { attachment: aiImageAttachment, selection } = await selectAndPrepareImage(
       textForAnalysis,
       'dreizeilen',
-      expressReq.app.locals!.aiWorkerPool!,
+      getAIWorkerPool(expressReq),
       expressReq
     );
 
@@ -846,7 +833,7 @@ const generateCampaignSharepic = async (
       }
     });
 
-    const aiResult = await expressReq.app.locals!.aiWorkerPool!.processRequest(
+    const aiResult = await getAIWorkerPool(expressReq).processRequest(
       {
         type: `campaign_${campaignTypeId}`,
         systemPrompt: promptConfig?.systemRole || '',

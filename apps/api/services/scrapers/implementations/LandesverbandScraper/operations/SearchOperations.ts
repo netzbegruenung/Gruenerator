@@ -4,6 +4,7 @@
  */
 
 import { LANDESVERBAENDE_CONFIG } from '../../../../../config/landesverbaendeConfig.js';
+import { type QdrantService } from '../../../../../database/services/QdrantService/index.js';
 import { mistralEmbeddingService } from '../../../../mistral/index.js';
 
 import type { LandesverbandSearchOptions, LandesverbandSearchResult } from '../types.js';
@@ -14,8 +15,7 @@ import type { LandesverbandSearchOptions, LandesverbandSearchResult } from '../t
  */
 export class SearchOperations {
   constructor(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private qdrant: any,
+    private qdrant: QdrantService,
     private collectionName: string
   ) {}
 
@@ -47,9 +47,9 @@ export class SearchOperations {
     if (contentType) filter.must.push({ key: 'content_type', match: { value: contentType } });
 
     // Search Qdrant
-    const searchResult = await this.qdrant.client.search(this.collectionName, {
+    const searchResult = await this.qdrant.client!.search(this.collectionName, {
       vector: queryVector,
-      filter: filter.must.length > 0 ? filter : undefined,
+      ...(filter.must.length > 0 && { filter }),
       limit: limit * 3, // Get more results for deduplication
       score_threshold: threshold,
       with_payload: true,
@@ -58,21 +58,23 @@ export class SearchOperations {
     // Deduplicate by document_id (one result per document)
     const documentsMap = new Map<string, LandesverbandSearchResult>();
     for (const hit of searchResult) {
-      const docId = hit.payload.document_id;
+      if (!hit.payload) continue;
+      const payload = hit.payload as Record<string, string>;
+      const docId = payload.document_id;
       if (!documentsMap.has(docId)) {
         documentsMap.set(docId, {
           id: docId,
           score: hit.score,
-          title: hit.payload.title,
-          sourceId: hit.payload.source_id,
-          sourceName: hit.payload.source_name,
-          landesverband: hit.payload.landesverband,
-          sourceType: hit.payload.source_type,
-          contentType: hit.payload.content_type,
-          contentTypeLabel: hit.payload.content_type_label,
-          source_url: hit.payload.source_url,
-          publishedAt: hit.payload.published_at,
-          matchedChunk: hit.payload.chunk_text,
+          title: payload.title,
+          sourceId: payload.source_id,
+          sourceName: payload.source_name,
+          landesverband: payload.landesverband,
+          sourceType: payload.source_type,
+          contentType: payload.content_type,
+          contentTypeLabel: payload.content_type_label,
+          source_url: payload.source_url,
+          publishedAt: payload.published_at,
+          matchedChunk: payload.chunk_text,
         });
       }
 
@@ -92,13 +94,13 @@ export class SearchOperations {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getStats(): Promise<any> {
     try {
-      const info = await this.qdrant.client.getCollection(this.collectionName);
+      const info = await this.qdrant.client!.getCollection(this.collectionName);
 
       // Collect per-source statistics
       const sourceStats: Record<string, unknown> = {};
       for (const source of LANDESVERBAENDE_CONFIG.sources) {
         try {
-          const result = await this.qdrant.client.count(this.collectionName, {
+          const result = await this.qdrant.client!.count(this.collectionName, {
             filter: {
               must: [{ key: 'source_id', match: { value: source.id } }],
             },
@@ -115,7 +117,7 @@ export class SearchOperations {
 
       return {
         collection: this.collectionName,
-        vectors_count: info.vectors_count,
+        vectors_count: info.indexed_vectors_count,
         points_count: info.points_count,
         status: info.status,
         sources: sourceStats,

@@ -1,3 +1,4 @@
+import { getAIWorkerPool } from '../../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 import { PLATFORM_DISPLAY_NAMES } from '../types.js';
@@ -49,7 +50,7 @@ Schreibe überwiegend als Fließtext. Nutze Markdown sparsam — nur einzelne **
         'Nutze Markdown sparsam: **fett** nur für Schlüsselbegriffe. Keine Überschriften, keine nummerierten Listen.',
     });
 
-    const aiResult = await state.req.app.locals.aiWorkerPool.processRequest(
+    const aiResult = await getAIWorkerPool(state.req).processRequest(
       {
         type: 'social',
         usePrivacyMode: request.usePrivacyMode || false,
@@ -64,7 +65,7 @@ Schreibe überwiegend als Fließtext. Nutze Markdown sparsam — nur einzelne **
       state.req
     );
 
-    const strategy = aiResult.content || aiResult.data?.content || '';
+    const strategy: string = aiResult.content ?? '';
 
     const strategyTimeMs = Date.now() - startTime;
     log.debug(

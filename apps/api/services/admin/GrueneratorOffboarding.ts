@@ -5,7 +5,10 @@
  * for GDPR compliance (deletion or anonymization)
  */
 
+import { type PostgresService } from '../../database/services/PostgresService/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { type ProfileService } from '../user/ProfileService.js';
+import { type ProfileUpdateData } from '../user/types.js';
 
 import type {
   OffboardingUser,
@@ -17,21 +20,13 @@ import type {
 const log = createLogger('GrueneratorOffboarding');
 
 export class GrueneratorOffboarding {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private profileService: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private db: any;
-
-  constructor() {
-    this.profileService = null;
-    this.db = null;
-  }
+  private profileService: ProfileService | null = null;
+  private db: PostgresService | null = null;
 
   /**
    * Get PostgreSQL database instance (lazy loading)
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private async getDb(): Promise<any> {
+  private async getDb(): Promise<PostgresService> {
     if (this.db) return this.db;
     const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
     this.db = getPostgresInstance();
@@ -59,7 +54,7 @@ export class GrueneratorOffboarding {
     try {
       // Try to find user by email first (most common case)
       if (user.email) {
-        const profileByEmail: UserProfile | null = (await this.profileService.getProfileByEmail(
+        const profileByEmail: UserProfile | null = (await this.profileService!.getProfileByEmail(
           user.email
         )) as UserProfile | null;
         if (profileByEmail) return profileByEmail;
@@ -68,7 +63,7 @@ export class GrueneratorOffboarding {
       // Try to find by keycloak_id (mapped from sherpa_id)
       if (user.sherpa_id) {
         const profileByKeycloak: UserProfile | null =
-          (await this.profileService.getProfileByKeycloakId(user.sherpa_id)) as UserProfile | null;
+          (await this.profileService!.getProfileByKeycloakId(user.sherpa_id)) as UserProfile | null;
         if (profileByKeycloak) return profileByKeycloak;
       }
 
@@ -117,7 +112,7 @@ export class GrueneratorOffboarding {
       await db.delete('documents', { user_id: userId });
 
       // Delete from profiles table (this will be handled by ProfileService)
-      await this.profileService.deleteProfile(userId);
+      await this.profileService!.deleteProfile(userId);
 
       log.info(`Successfully deleted user ${userId} from database`);
 
@@ -152,7 +147,10 @@ export class GrueneratorOffboarding {
         anonymized_at: new Date().toISOString(),
       };
 
-      await this.profileService.updateProfile(userId, anonymizationData);
+      await this.profileService!.updateProfile(
+        userId,
+        anonymizationData as unknown as ProfileUpdateData
+      );
 
       log.info(`Successfully anonymized user ${userId} in database`);
 

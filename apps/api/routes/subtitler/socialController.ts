@@ -9,19 +9,15 @@ import {
   extractLocaleFromRequest,
   localizePlaceholders,
 } from '../../services/localization/index.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
-import type { AIWorkerPool } from '../../workers/types.js';
 
 const log = createLogger('subtitler-social');
 const router: Router = express.Router();
 
-interface SocialRequest extends AuthenticatedRequest {
-  app: AuthenticatedRequest['app'] & { locals: { aiWorkerPool?: AIWorkerPool } };
-}
-
-router.post('/generate-social', async (req: SocialRequest, res: Response): Promise<void> => {
+router.post('/generate-social', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const { subtitles } = req.body;
 
   if (!subtitles) {
@@ -30,12 +26,9 @@ router.post('/generate-social', async (req: SocialRequest, res: Response): Promi
   }
 
   try {
-    const aiWorkerPool = req.app.locals.aiWorkerPool;
-    if (!aiWorkerPool) {
-      res.status(500).json({ error: 'AI-Service nicht verfügbar' });
-      return;
-    }
+    const aiWorkerPool = getAIWorkerPool(req);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const locale = extractLocaleFromRequest(req as any);
     const systemPrompt = localizePlaceholders(
       'Du bist Social Media Manager für {{partyName}}. Erstelle einen Instagram Reel Beitragstext basierend auf den Untertiteln des Videos. Der Text soll die Kernbotschaft des Videos aufgreifen und in einen ansprechenden Social Media Post umwandeln.',
@@ -74,12 +67,10 @@ Erstelle einen Instagram Reel Beitragstext, der:
     res.json({ content: result.content, metadata: result.metadata });
   } catch (error: unknown) {
     log.error('Social media text generation failed:', error);
-    res
-      .status(500)
-      .json({
-        error: 'Fehler bei der Erstellung des Social Media Texts',
-        details: error instanceof Error ? error.message : String(error),
-      });
+    res.status(500).json({
+      error: 'Fehler bei der Erstellung des Social Media Texts',
+      details: error instanceof Error ? error.message : String(error),
+    });
   }
 });
 

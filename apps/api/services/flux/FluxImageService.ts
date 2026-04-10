@@ -2,7 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
 
-import axios, { type AxiosRequestConfig } from 'axios';
+import axios, { type AxiosResponse, type AxiosRequestConfig } from 'axios';
+
+import type { Readable } from 'stream';
 
 const sleep = promisify(setTimeout);
 
@@ -131,7 +133,9 @@ class FluxImageService {
       console.log('[FluxImageService] Using local ComfyUI backend');
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore - comfyui module is excluded from Docker build
-      const mod = (await import('../comfyui/ComfyUIImageService.js')) as { default: new () => FluxImageService };
+      const mod = (await import('../comfyui/ComfyUIImageService.js')) as {
+        default: new () => FluxImageService;
+      };
       return new mod.default();
     }
 
@@ -418,17 +422,20 @@ class FluxImageService {
     const filePath = path.join(baseDir, filename);
     fs.mkdirSync(baseDir, { recursive: true });
 
-    const response = await this.executeWithRetry(async (family?: number) => {
-      const axiosConfig: AxiosConfigWithFamily = {
-        method: 'GET',
-        url: resultUrl,
-        responseType: 'stream',
-        timeout: this.retryConfig.networkTimeoutMs,
-      };
-      if (family) axiosConfig.family = family as 4 | 6;
+    const response: AxiosResponse<Readable> = await this.executeWithRetry(
+      async (family?: number) => {
+        const axiosConfig: AxiosConfigWithFamily = {
+          method: 'GET',
+          url: resultUrl,
+          responseType: 'stream',
+          timeout: this.retryConfig.networkTimeoutMs,
+        };
+        if (family) axiosConfig.family = family as 4 | 6;
 
-      return await axios(axiosConfig);
-    }, 'download');
+        return await axios<Readable>(axiosConfig);
+      },
+      'download'
+    );
 
     await new Promise<void>((resolve, reject) => {
       const writer = fs.createWriteStream(filePath);
