@@ -9,7 +9,7 @@
 import { streamText } from 'ai';
 
 import { createSSEStream } from '../../routes/chat/services/sseHelpers.js';
-import { getModel } from '../../services/ai/providers.js';
+import { getModel, type ProviderName } from '../../services/ai/providers.js';
 import { PrivacyCounter } from '../../services/counters/index.js';
 import {
   localizePromptObject,
@@ -37,12 +37,15 @@ import {
   loadCustomGeneratorPrompt,
 } from './PromptProcessor.js';
 
+import type { PromptAssemblyState } from './types/promptAssembly.js';
+import type { GenerationStatsService } from '../../database/services/GenerationStatsService/index.js';
+import type { AuthenticatedRequest } from '../../middleware/types.js';
+import type { Document, WebSearchSource } from '../../utils/types/requestEnrichment.js';
 import type { Request, Response } from 'express';
 
 const log = createLogger('streamingProcessor');
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let generationStatsService: any = null;
+let generationStatsService: GenerationStatsService | null = null;
 
 async function logGeneration(data: {
   userId: string | null;
@@ -73,6 +76,7 @@ export async function processGraphRequestStreaming(
   req: Request,
   res: Response
 ): Promise<void> {
+  const authReq = req as AuthenticatedRequest;
   const sse = createSSEStream(res);
   const abortController = new AbortController();
 
@@ -177,8 +181,7 @@ export async function processGraphRequestStreaming(
         searchQuery: searchQuery || null,
         examples: [],
         provider,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        aiWorkerPool: (req as any).app.locals.aiWorkerPool,
+        aiWorkerPool: req.app.locals.aiWorkerPool,
         enableNotebookEnrich: useNotebookEnrich ?? config.features?.notebookEnrich ?? false,
       },
       req
@@ -194,8 +197,26 @@ export async function processGraphRequestStreaming(
     sse.sendRaw('progress', { stage: 'assembling', message: 'Bereite Prompt vor...' });
 
     // Assemble prompt
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const promptResult = await assemblePromptGraphAsync(enrichedState as any);
+    const promptAssemblyState: PromptAssemblyState = {
+      systemRole: enrichedState.systemRole ?? '',
+      locale: enrichedState.locale,
+      request: enrichedState.request,
+      requestFormatted: enrichedState.requestFormatted,
+      documents: enrichedState.documents,
+      knowledge: enrichedState.knowledge,
+      examples: enrichedState.examples,
+      instructions: enrichedState.instructions,
+      toolInstructions: enrichedState.toolInstructions,
+      constraints: enrichedState.constraints,
+      formatting: enrichedState.formatting,
+      taskInstructions: enrichedState.taskInstructions,
+      outputFormat: enrichedState.outputFormat,
+      tools: enrichedState.tools,
+      type: enrichedState.type,
+      enrichmentMetadata: enrichedState.enrichmentMetadata,
+      selectedDocumentIds: enrichedState.selectedDocumentIds,
+    };
+    const promptResult = await assemblePromptGraphAsync(promptAssemblyState);
 
     // --- Progress: generating ---
     sse.sendRaw('progress', { stage: 'generating', message: 'Erstelle Text...' });
@@ -222,12 +243,10 @@ export async function processGraphRequestStreaming(
       try {
         const { redisClient } = await import('../../utils/redis/index.js');
         const privacyCounter = new PrivacyCounter(redisClient);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const userId = (req as any).user?.id;
+        const userId = authReq.user?.id;
         if (userId) {
           const privacyProvider = await privacyCounter.getProviderForUser(userId);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          effectiveProvider = privacyProvider as any;
+          effectiveProvider = privacyProvider as ProviderName;
         }
       } catch (privacyError) {
         log.warn('[streaming] Privacy mode error, using default provider:', privacyError);
@@ -236,8 +255,7 @@ export async function processGraphRequestStreaming(
 
     // Explicit provider + model override (from request data, e.g. playground)
     if (requestData.provider) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      effectiveProvider = requestData.provider as any;
+      effectiveProvider = requestData.provider as ProviderName;
     }
     if (requestData.model) {
       effectiveModel = requestData.model;
@@ -328,8 +346,7 @@ export async function processGraphRequestStreaming(
             break;
           }
           case 'reasoning-delta': {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            sse.sendRaw('reasoning_delta', { text: (part as any).text });
+            sse.sendRaw('reasoning_delta', { text: part.text });
             break;
           }
           case 'reasoning-end': {
@@ -384,8 +401,7 @@ export async function processGraphRequestStreaming(
 
     // Log successful generation
     void logGeneration({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      userId: (req as any).user?.id || null,
+      userId: authReq.user?.id || null,
       generationType: routeType,
       platform: requestData.platforms?.[0] || null,
       tokensUsed: null,
@@ -393,10 +409,10 @@ export async function processGraphRequestStreaming(
     });
 
     // Cache edit context in Redis
-    if (req.user?.id) {
+    if (authReq.user?.id) {
       try {
         const { redisClient } = await import('../../utils/redis/index.js');
-        const contextCacheKey = `edit_context:${req.user.id}:${routeType}`;
+        const contextCacheKey = `edit_context:${authReq.user.id}:${routeType}`;
         const contextData = {
           originalRequest: requestData,
           enrichedState: {
@@ -406,15 +422,19 @@ export async function processGraphRequestStreaming(
             urlsScraped: enrichedState.enrichmentMetadata?.urlsProcessed || [],
             documentsUsed:
               enrichedState.documents
-                ?.filter(
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  (d: any) => d.type === 'text' && d.source?.metadata?.contentSource === 'url_crawl'
-                )
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                .map((d: any) => ({
-                  title: d.source.metadata?.title || 'Document',
-                  url: d.source.metadata?.url || null,
-                })) || [],
+                ?.filter((d) => {
+                  const meta = d.source?.metadata;
+                  return (
+                    d.type === 'text' &&
+                    meta != null &&
+                    'contentSource' in meta &&
+                    meta.contentSource === 'url_crawl'
+                  );
+                })
+                .map((d) => {
+                  const meta = d.source.metadata as { title?: string; url?: string };
+                  return { title: meta?.title || 'Document', url: meta?.url || null };
+                }) || [],
             docQnAUsed: enrichedState.enrichmentMetadata?.enableDocQnA || false,
             vectorSearchUsed: (selectedDocumentIds && selectedDocumentIds.length > 0) || false,
             webSearchUsed: (enrichedState.enrichmentMetadata?.webSearchSources?.length ?? 0) > 0,
@@ -441,12 +461,13 @@ export async function processGraphRequestStreaming(
           title: 'Gescrapte Website',
           url,
         })),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ...(enrichedState.enrichmentMetadata?.webSearchSources || []).map((source: any) => ({
-          type: 'websearch',
-          title: source.title || source.url,
-          url: source.url,
-        })),
+        ...(enrichedState.enrichmentMetadata?.webSearchSources || []).map(
+          (source: WebSearchSource) => ({
+            type: 'websearch' as const,
+            title: source.title || source.url,
+            url: source.url,
+          })
+        ),
       ],
     };
 
@@ -465,8 +486,7 @@ export async function processGraphRequestStreaming(
     log.error(`[streaming] Error processing ${routeType}:`, errorMessage);
 
     void logGeneration({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      userId: (req as any).user?.id || null,
+      userId: authReq.user?.id || null,
       generationType: routeType,
       platform: req.body?.platforms?.[0] || null,
       tokensUsed: null,
