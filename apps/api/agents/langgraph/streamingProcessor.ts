@@ -17,6 +17,7 @@ import {
   type RequestWithLocale,
 } from '../../services/localization/index.js';
 import { selectProviderAndModel } from '../../services/providers/providerSelector.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { enrichRequest } from '../../utils/requestEnrichment.js';
 
@@ -37,10 +38,11 @@ import {
   loadCustomGeneratorPrompt,
 } from './PromptProcessor.js';
 
+import type { PRAgentRequest } from './PRAgent/types.js';
 import type { PromptAssemblyState } from './types/promptAssembly.js';
 import type { GenerationStatsService } from '../../database/services/GenerationStatsService/index.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
-import type { Document, WebSearchSource } from '../../utils/types/requestEnrichment.js';
+import type { WebSearchSource } from '../../utils/types/requestEnrichment.js';
 import type { Request, Response } from 'express';
 
 const log = createLogger('streamingProcessor');
@@ -85,7 +87,26 @@ export async function processGraphRequestStreaming(
   });
 
   try {
-    const requestData = req.body;
+    const requestData = req.body as {
+      platforms?: string[];
+      customPrompt?: { instructions?: string; knowledgeContent?: string } | string;
+      usePrivacyMode?: boolean;
+      provider?: string;
+      model?: string;
+      knowledgeContent?: string;
+      selectedDocumentIds?: string[];
+      selectedTextIds?: string[];
+      searchQuery?: string;
+      useNotebookEnrich?: boolean;
+      useProMode?: boolean;
+      useUltraMode?: boolean;
+      reasoningEffort?: string;
+      slug?: string;
+      theme?: string;
+      thema?: string;
+      details?: string;
+      partySearchTerm?: string;
+    };
     const {
       customPrompt,
       usePrivacyMode,
@@ -98,12 +119,13 @@ export async function processGraphRequestStreaming(
     } = requestData;
 
     // Handle structured customPrompt from frontend
-    let extractedInstructions = customPrompt;
-    let extractedKnowledgeContent = knowledgeContent;
+    let extractedInstructions: string | null =
+      typeof customPrompt === 'string' ? customPrompt : null;
+    let extractedKnowledgeContent: string | null = knowledgeContent ?? null;
 
     if (customPrompt && typeof customPrompt === 'object' && !Array.isArray(customPrompt)) {
-      extractedInstructions = customPrompt.instructions || null;
-      extractedKnowledgeContent = customPrompt.knowledgeContent || knowledgeContent || null;
+      extractedInstructions = customPrompt.instructions ?? null;
+      extractedKnowledgeContent = customPrompt.knowledgeContent ?? knowledgeContent ?? null;
     }
 
     log.debug(`[streaming] Processing ${routeType} request`);
@@ -111,7 +133,7 @@ export async function processGraphRequestStreaming(
     // Route to PR Agent if "automatisch" platform detected (not streamable)
     if (routeType === 'social' && requestData.platforms?.includes('automatisch')) {
       sse.end();
-      return processAutomatischPR(requestData, req, res);
+      return processAutomatischPR(requestData as PRAgentRequest, req, res);
     }
 
     // --- Progress: enriching ---
@@ -137,14 +159,14 @@ export async function processGraphRequestStreaming(
       routeType
     );
 
-    if (!extractedInstructions && requestData.customPrompt) {
+    if (!extractedInstructions && typeof requestData.customPrompt === 'string') {
       extractedInstructions = requestData.customPrompt;
     }
 
     // Handle custom_generator special case
     let generatorData: Awaited<ReturnType<typeof loadCustomGeneratorPrompt>> = null;
     if (config.features?.customPromptFromDb) {
-      generatorData = await loadCustomGeneratorPrompt(requestData.slug);
+      generatorData = await loadCustomGeneratorPrompt(requestData.slug ?? '');
     }
 
     // Build prompt components
@@ -181,7 +203,7 @@ export async function processGraphRequestStreaming(
         searchQuery: searchQuery || null,
         examples: [],
         provider,
-        aiWorkerPool: req.app.locals.aiWorkerPool,
+        aiWorkerPool: getAIWorkerPool(req),
         enableNotebookEnrich: useNotebookEnrich ?? config.features?.notebookEnrich ?? false,
       },
       req

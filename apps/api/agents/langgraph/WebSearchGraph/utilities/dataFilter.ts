@@ -49,26 +49,33 @@ export function filterDataForAI(
     hasResults: (result.results?.length || 0) > 0,
   }));
 
-  const filteredSources = (aggregatedResults || []).slice(0, 10).map((source) => ({
-    title: source.title,
-    url: source.url,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    snippet: (source as any).content_snippets?.substring(0, 150) || null,
-    domain: source.domain,
-  }));
+  const filteredSources = (aggregatedResults || []).slice(0, 10).map((source) => {
+    const contentSnippets = source['content_snippets'];
+    return {
+      title: source.title,
+      url: source.url,
+      snippet: typeof contentSnippets === 'string' ? contentSnippets.substring(0, 150) : null,
+      domain: source.domain,
+    };
+  });
 
   const filteredGrundsatz = grundsatzResults?.success
     ? {
         hasResults: (grundsatzResults.results?.length || 0) > 0,
         resultCount: grundsatzResults.results?.length || 0,
-        keyFindings: (grundsatzResults.results || []).slice(0, 3).map((result) => ({
-          title: result.title,
-          content: result.content?.substring(0, 200) || '',
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          filename: (result as any).filename,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          similarity_score: (result as any).similarity_score,
-        })),
+        keyFindings: (grundsatzResults.results || []).slice(0, 3).map((result) => {
+          const resultRecord = result as Record<string, unknown>;
+          return {
+            title: result.title,
+            content: result.content?.substring(0, 200) || '',
+            ...(typeof resultRecord['filename'] === 'string'
+              ? { filename: resultRecord['filename'] }
+              : {}),
+            ...(typeof resultRecord['similarity_score'] === 'number'
+              ? { similarity_score: resultRecord['similarity_score'] }
+              : {}),
+          };
+        }),
       }
     : { hasResults: false, resultCount: 0, keyFindings: [] };
 

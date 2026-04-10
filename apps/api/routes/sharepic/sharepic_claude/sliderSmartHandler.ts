@@ -1,4 +1,5 @@
 import prompts from '../../../prompts/sharepic/index.js';
+import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../utils/logger.js';
 import { replaceTemplate } from '../../../utils/sharepic/template.js';
 
@@ -41,7 +42,7 @@ async function analyzeSlideCount(
   });
 
   try {
-    const result = await req.app.locals.aiWorkerPool.processRequest(
+    const result = await getAIWorkerPool(req).processRequest(
       {
         type: 'slider_count_analysis',
         systemPrompt: sliderConfig.countAnalysisSystemRole,

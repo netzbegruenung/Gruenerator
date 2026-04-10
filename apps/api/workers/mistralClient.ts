@@ -1,9 +1,6 @@
-import { createRequire } from 'module';
+import 'dotenv/config';
 
 import { Mistral } from '@mistralai/mistralai';
-
-const require = createRequire(import.meta.url);
-require('dotenv').config({ quiet: true });
 
 const apiKey = process.env.MISTRAL_API_KEY;
 

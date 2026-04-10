@@ -6,6 +6,10 @@
 
 import * as cheerio from 'cheerio';
 
+import type {
+  LandesverbandSource,
+  ContentPath,
+} from '../../../../../config/landesverbaendeConfig.js';
 import type { PdfLink } from '../types.js';
 import type { CheerioAPI } from 'cheerio';
 import type { AnyNode } from 'domhandler';
@@ -30,10 +34,8 @@ export class LinkExtractor {
    *      Required for CMS with signed pagination URLs (e.g., Typo3 cHash)
    */
   async extractArticleLinks(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    source: any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    contentPath: any,
+    source: LandesverbandSource,
+    contentPath: ContentPath,
     log: (msg: string) => void
   ): Promise<string[]> {
     const links = new Set<string>();
@@ -48,7 +50,7 @@ export class LinkExtractor {
       } else if (nextPageUrl && contentPath.paginationLinkSelector) {
         // Link-following pagination: use URL discovered from previous page
         pageUrl = nextPageUrl;
-      } else {
+      } else if (contentPath.paginationPattern) {
         // URL construction pagination
         const offset = contentPath.paginationOffset ?? 0;
         const paginationPath = contentPath.paginationPattern.replace(
@@ -56,6 +58,8 @@ export class LinkExtractor {
           (currentPage + offset).toString()
         );
         pageUrl = source.baseUrl + contentPath.path + paginationPath;
+      } else {
+        break; // No pagination pattern available, stop
       }
 
       try {
@@ -183,8 +187,7 @@ export class LinkExtractor {
    * Returns links with title and context for date extraction
    * Deduplicates by URL (pages may list the same PDF in multiple sections)
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async extractPdfLinks(source: any, contentPath: any): Promise<PdfLink[]> {
+  async extractPdfLinks(source: LandesverbandSource, contentPath: ContentPath): Promise<PdfLink[]> {
     const pageUrl = source.baseUrl + contentPath.path;
     const response = await this.fetchUrl(pageUrl);
     const html = await response.text();

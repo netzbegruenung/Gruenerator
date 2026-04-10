@@ -10,7 +10,10 @@ import * as path from 'path';
 
 import * as cheerio from 'cheerio';
 
-import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
+import {
+  getQdrantInstance,
+  type QdrantService,
+} from '../../../database/services/QdrantService/index.js';
 import {
   scrollDocuments,
   batchUpsert,
@@ -460,10 +463,8 @@ const SATZUNGEN_SOURCES: readonly SatzungSource[] = [
  */
 export class SatzungenScraper extends BaseScraper {
   private landesverband: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private qdrant: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private mistralClient: any;
+  private qdrant!: QdrantService; // assigned in init()
+  private mistralClient: unknown;
   private crawlDelay: number;
   private batchSize: number;
   private timeout: number;
@@ -477,7 +478,6 @@ export class SatzungenScraper extends BaseScraper {
     });
 
     this.landesverband = 'NRW';
-    this.qdrant = null;
     this.mistralClient = null;
     this.crawlDelay = 500;
     this.batchSize = 10;
@@ -597,7 +597,7 @@ export class SatzungenScraper extends BaseScraper {
   async #documentExists(url: string): Promise<ExistingDocument | null> {
     try {
       const points = await scrollDocuments(
-        this.qdrant.client,
+        this.qdrant.client!,
         this.config.collectionName,
         {
           must: [{ key: 'source_url', match: { value: url } }],
@@ -626,7 +626,7 @@ export class SatzungenScraper extends BaseScraper {
    * Delete document from Qdrant
    */
   async #deleteDocument(url: string): Promise<void> {
-    await batchDelete(this.qdrant.client, this.config.collectionName, {
+    await batchDelete(this.qdrant.client!, this.config.collectionName, {
       must: [{ key: 'source_url', match: { value: url } }],
     });
   }
@@ -693,7 +693,7 @@ export class SatzungenScraper extends BaseScraper {
 
     for (let i = 0; i < points.length; i += 10) {
       const batch = points.slice(i, i + 10);
-      await batchUpsert(this.qdrant.client, this.config.collectionName, batch);
+      await batchUpsert(this.qdrant.client!, this.config.collectionName, batch);
     }
 
     return { stored: true, chunks: chunks.length, vectors: points.length, updated: !!existing };
@@ -877,9 +877,9 @@ export class SatzungenScraper extends BaseScraper {
       filter.must.push({ key: 'city', match: { value: city } });
     }
 
-    const searchResult = await this.qdrant.client.search(this.config.collectionName, {
+    const searchResult = await this.qdrant.client!.search(this.config.collectionName, {
       vector: queryVector,
-      filter: filter.must.length > 0 ? filter : undefined,
+      ...(filter.must.length > 0 && { filter }),
       limit: limit * 3,
       score_threshold: threshold,
       with_payload: true,
@@ -887,17 +887,19 @@ export class SatzungenScraper extends BaseScraper {
 
     const documentsMap = new Map<string, SatzungSearchResult>();
     for (const hit of searchResult) {
-      const docId = hit.payload.document_id;
+      if (!hit.payload) continue;
+      const payload = hit.payload as Record<string, string>;
+      const docId = payload.document_id;
       if (!documentsMap.has(docId)) {
         documentsMap.set(docId, {
           id: docId,
           score: hit.score,
-          title: hit.payload.title,
-          gremium: hit.payload.gremium,
-          city: hit.payload.city,
-          landesverband: hit.payload.landesverband,
-          source_url: hit.payload.source_url,
-          matchedChunk: hit.payload.chunk_text,
+          title: payload.title,
+          gremium: payload.gremium,
+          city: payload.city,
+          landesverband: payload.landesverband,
+          source_url: payload.source_url,
+          matchedChunk: payload.chunk_text,
         });
       }
 
@@ -916,7 +918,7 @@ export class SatzungenScraper extends BaseScraper {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getStats(): Promise<any> {
     try {
-      const stats = await getCollectionStats(this.qdrant.client, this.config.collectionName);
+      const stats = await getCollectionStats(this.qdrant.client!, this.config.collectionName);
       return {
         collection: this.config.collectionName,
         vectors_count: stats.vectors_count,
@@ -936,7 +938,7 @@ export class SatzungenScraper extends BaseScraper {
     this.log('Clearing all documents...');
     try {
       const points = await scrollDocuments(
-        this.qdrant.client,
+        this.qdrant.client!,
         this.config.collectionName,
         undefined,
         {
@@ -948,7 +950,7 @@ export class SatzungenScraper extends BaseScraper {
 
       if (points.length > 0) {
         const pointIds = points.map((p) => p.id);
-        await this.qdrant.client.delete(this.config.collectionName, { points: pointIds });
+        await this.qdrant.client!.delete(this.config.collectionName, { points: pointIds });
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

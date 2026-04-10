@@ -51,7 +51,7 @@ export type WorkerOutgoingMessage =
 
 export interface Message {
   role: 'user' | 'assistant' | 'system';
-  content: string | MessageContent[];
+  content: string | Array<{ type: string; [key: string]: unknown }>;
 }
 
 export interface MessageContent {
@@ -105,9 +105,9 @@ export interface AIRequestData {
   type: string;
   prompt?: string | undefined;
   systemPrompt?: string | undefined;
-  messages?: Message[] | undefined;
+  messages?: Message[] | Array<{ role: string; content: unknown }> | undefined;
   options?: AIRequestOptions | undefined;
-  metadata?: RequestMetadata & Record<string, unknown> | undefined;
+  metadata?: (RequestMetadata & Record<string, unknown>) | undefined;
   fileMetadata?: FileMetadata | undefined;
   instructions?: string | undefined;
   provider?: ProviderName | string | undefined;

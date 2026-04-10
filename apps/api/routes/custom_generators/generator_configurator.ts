@@ -5,11 +5,13 @@
 
 import express, { type Response, type Router } from 'express';
 
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { extractJsonObject } from '../../utils/jsonParser.js';
 import { createLogger } from '../../utils/logger.js';
 import { generateSanitizedName, sanitizeSlug } from '../../utils/stringUtils.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
+import type { AIRequestData } from '../../workers/types.js';
 
 const log = createLogger('generator_configurator');
 const router: Router = express.Router();
@@ -57,13 +59,7 @@ interface ConfigRequestBody {
   description: string;
 }
 
-interface AIWorkerRequest {
-  type: string;
-  systemPrompt: string;
-  messages: Array<{ role: string; content: string }>;
-  options: { temperature: number };
-  provider?: string;
-}
+type AIWorkerRequest = AIRequestData;
 
 const SYSTEM_PROMPT = `Du bist ein Assistent, der JSON-Konfigurationen für Grüneatoren erstellt. Verwende niemals das Wort "Generator", sondern immer "Grünerator".`;
 
@@ -248,12 +244,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
         requestPayload.provider = providerOverride;
       }
 
-      const result = (await req.app.locals.aiWorkerPool.processRequest(requestPayload)) as {
-        success: boolean;
-        content: string;
-        error?: string;
-        metadata?: { provider?: string; model?: string };
-      };
+      const result = await getAIWorkerPool(req).processRequest(requestPayload);
 
       if (!result.success) {
         throw new Error(result.error || 'AI worker failed to generate configuration.');
@@ -266,7 +257,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
         providerOverride,
       });
 
-      return result.content;
+      return result.content ?? '';
     };
 
     // Attempt up to 3 times with default provider, then fallback to AWS Bedrock

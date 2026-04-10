@@ -75,23 +75,32 @@ Drizzle ORM wraps the existing `pg.Pool` from PostgresService and infers types f
 4. [x] `no-unsafe-return` promoted to `error` — 0 violations remaining (2026-04-10)
 5. [x] `no-unsafe-call` as `warn` — 160 → 109 (51 fixed) (2026-04-10)
 6. [x] `no-unsafe-argument` as `warn` — 338 → 287 (51 fixed) (2026-04-10)
+7. [x] `no-unsafe-call` fixed remaining 17 violations, promoted to `error` (2026-04-10)
 
 **All 5 `no-unsafe-*` rules now enabled.** Current violation counts (2026-04-10):
 | Rule | Count | Status |
 |------|-------|--------|
 | `no-unsafe-return` | 0 | **error** |
-| `no-unsafe-call` | 109 | warn |
-| `no-unsafe-argument` | 287 | warn |
-| `no-unsafe-assignment` | 558 | warn |
-| `no-unsafe-member-access` | 552 | warn |
+| `no-unsafe-call` | 0 | **error** |
+| `no-unsafe-argument` | 212 | warn |
+| `no-unsafe-assignment` | 397 | warn |
+| `no-unsafe-member-access` | 250 | warn |
+
+**`no-unsafe-call` fix session (2026-04-10):**
+89 → 0 violations via 5 root-cause patterns:
+- Pattern A: Created `getAIWorkerPool(req)` helper (`utils/getAIWorkerPool.ts`) — centralizes the `app.locals` cast, fixed ~20 violations across 14 route/agent files
+- Pattern B: Typed `aiWorkerPool: any` parameters → `AIWorkerPool` in 6 files (queryPlannerNode, strategizeNodes, PRAgent generators)
+- Pattern C: Typed lazy-loaded services (`profileService: any` → `ProfileService`, `qdrant: any` → `QdrantService`) in GrueneratorOffboarding + 4 scrapers — fixed 19 violations
+- Pattern D: Library boundary suppressions for LangChain optional imports (3), dotenv `require` → `import 'dotenv/config'` (2)
+- Pattern E: Defined `SourceEntry` interface in AggregatorNode, typed Flux/Qdrant/Bluesky/docling responses — fixed ~25 misc violations
+- **Cascade effect:** Typing `any` properties also reduced other rules (argument -71, assignment -147, member-access -277)
 
 **Next TODOs (pick up here):**
 1. [ ] Apply `validateBody` Zod middleware to remaining ~100 smaller route files
-2. [ ] Fix remaining `no-unsafe-call` (109 → ~50 library-bound), then promote to `error`
-3. [ ] Fix remaining `no-unsafe-argument` (287), then promote to `error`
-4. [ ] Promote `no-unsafe-member-access` to `error` when violations are at library-only floor
-5. [ ] Promote `no-unsafe-assignment` to `error` when violations are at library-only floor
-6. [ ] Plan ts-rest migration (Phase 4.1) — Zod schemas are ready as building blocks
+2. [ ] Fix remaining `no-unsafe-argument` (212), then promote to `error`
+3. [ ] Promote `no-unsafe-member-access` to `error` when violations are at library-only floor
+4. [ ] Promote `no-unsafe-assignment` to `error` when violations are at library-only floor
+5. [ ] Plan ts-rest migration (Phase 4.1) — Zod schemas are ready as building blocks
 
 **`no-unsafe-assignment` fixes (2026-04-10):**
 - RedisCheckpointer: 8 suppressions → 0 (imported LangGraph checkpoint types + type guards for JSON.parse)
@@ -184,10 +193,10 @@ ts-rest defines a single contract that types body, params, query, headers, AND r
 | `?? undefined` patterns | 86 | 86 | **0** | 0 |
 | `exactOptionalPropertyTypes` | disabled | disabled | **enabled (0 errors)** | enabled |
 | `no-unsafe-return` | 134 (warn) | 0 (warn) | **0 (error)** | 0 (error) |
-| `no-unsafe-call` | — | — | **109 (warn)** | 0 (error) |
-| `no-unsafe-argument` | — | — | **287 (warn)** | 0 (error) |
-| `no-unsafe-assignment` | — | 882 (warn) | **558 (warn)** | 0 (error) |
-| `no-unsafe-member-access` | 1,128 (warn) | — | **552 (warn)** | 0 (error) |
+| `no-unsafe-call` | — | — | **0 (error)** | 0 (error) |
+| `no-unsafe-argument` | — | — | **212 (warn)** | 0 (error) |
+| `no-unsafe-assignment` | — | 882 (warn) | **394 (warn)** | 0 (error) |
+| `no-unsafe-member-access` | 1,128 (warn) | — | **250 (warn)** | 0 (error) |
 | Drizzle schema tables | 0 | 0 | **~20** | all |
 | Typecheck errors | 3 | 3 | **0** | 0 |
 | `validateBody` routes | 0 | 0 | **~25** | all POST/PUT |

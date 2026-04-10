@@ -113,7 +113,7 @@ describe('queryPlannerNode', () => {
 
   it('classifies news queries and detects temporal', async () => {
     const { analyzeTemporality } = await import('../../../../services/search/TemporalAnalyzer.js');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call
     (analyzeTemporality as any).mockReturnValueOnce({
       urgency: 'current',
       expressions: ['aktuell'],

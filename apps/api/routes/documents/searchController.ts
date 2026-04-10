@@ -218,7 +218,8 @@ router.get('/stats', async (req: DocumentRequest, res: Response): Promise<void> 
  */
 router.post('/hybrid-test', async (req: DocumentRequest, res: Response): Promise<void> => {
   try {
-    const { query, limit = 5 } = req.body;
+    const body = req.body as { query?: string; limit?: number };
+    const { query, limit = 5 } = body;
     const userId = req.user?.id;
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -234,16 +235,17 @@ router.post('/hybrid-test', async (req: DocumentRequest, res: Response): Promise
       return;
     }
 
-    log.debug(`[POST /hybrid-test] Testing hybrid search: "${query}"`);
+    const trimmedQuery = query.trim();
+    log.debug(`[POST /hybrid-test] Testing hybrid search: "${trimmedQuery}"`);
 
     // Run both search methods for comparison
     const [vectorResult, hybridResult] = await Promise.all([
-      documentSearchService.searchDocuments(query.trim(), userId, { limit }),
-      documentSearchService.hybridSearch(query.trim(), userId, { limit }),
+      documentSearchService.searchDocuments(trimmedQuery, userId, { limit }),
+      documentSearchService.hybridSearch(trimmedQuery, userId, { limit }),
     ]);
 
     const result: HybridTestResult = {
-      query: query.trim(),
+      query: trimmedQuery,
       vector_search: {
         results: vectorResult.results,
         search_type: vectorResult.searchType,
@@ -253,8 +255,7 @@ router.post('/hybrid-test', async (req: DocumentRequest, res: Response): Promise
         results: hybridResult.results,
         search_type: hybridResult.searchType,
         message: hybridResult.message,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        stats: (hybridResult as any).stats,
+        stats: hybridResult.stats,
       },
     };
 

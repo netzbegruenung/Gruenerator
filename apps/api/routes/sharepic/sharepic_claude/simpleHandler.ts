@@ -4,10 +4,12 @@
  */
 
 import prompts from '../../../prompts/sharepic/index.js';
+import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../utils/logger.js';
 import { isThrottlingError, replaceTemplate } from '../../../utils/sharepic/index.js';
 
 import type { SharepicRequest } from './types.js';
+import type { AIWorkerResult } from '../../../workers/types.js';
 import type { Response } from 'express';
 
 const log = createLogger('sharepic_simple');
@@ -121,10 +123,10 @@ export async function handleSimpleRequest(req: SharepicRequest, res: Response): 
   try {
     let attempts = 0;
     const maxAttempts = 5;
-    let result: { success: boolean; content?: string; error?: string } | undefined;
+    let result: AIWorkerResult | undefined;
 
     while (attempts < maxAttempts) {
-      result = await req.app.locals.aiWorkerPool.processRequest(
+      result = await getAIWorkerPool(req).processRequest(
         {
           type: 'sharepic_simple',
           systemPrompt: systemRole,

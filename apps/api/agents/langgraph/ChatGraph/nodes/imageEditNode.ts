@@ -7,7 +7,7 @@
 
 import { ImageGenerationCounter } from '../../../../services/counters/index.js';
 import { buildGreenEditPrompt } from '../../../../services/flux/greenEditPrompt.js';
-import { FluxImageService } from '../../../../services/flux/index.js';
+import { FluxImageService, type GenerateResult } from '../../../../services/flux/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { redisClient } from '../../../../utils/redis/index.js';
 
@@ -86,11 +86,10 @@ export async function imageEditNode(state: ChatGraphState): Promise<Partial<Chat
     log.info(`[ImageEditNode] Built green-edit prompt (${prompt.length} chars)`);
 
     const flux = await FluxImageService.create();
-    const { stored } = (await flux.generateFromImage(prompt, imageBuffer, mimeType, {
+    const { stored }: GenerateResult = await flux.generateFromImage(prompt, imageBuffer, mimeType, {
       output_format: 'jpeg',
       safety_tolerance: 2,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    })) as any;
+    });
 
     await imageCounter.incrementCount(userId);
     const updatedStatus = await imageCounter.checkLimit(userId);

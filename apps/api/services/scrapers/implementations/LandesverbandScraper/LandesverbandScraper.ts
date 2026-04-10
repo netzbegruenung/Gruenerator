@@ -8,12 +8,16 @@ import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
+import { type QdrantClient } from '@qdrant/js-client-rest';
+
 import {
   getSourceById,
   getSourcesByType,
   getSourcesByLandesverband,
   LANDESVERBAENDE_CONFIG,
   type SourceType,
+  type ContentPath,
+  type LandesverbandSource,
 } from '../../../../config/landesverbaendeConfig.js';
 import { getQdrantInstance } from '../../../../database/services/QdrantService/index.js';
 import {
@@ -48,8 +52,7 @@ import type { ScraperResult } from '../../types.js';
  * Reduced from 1,139 lines to ~400 lines through modularization
  */
 export class LandesverbandScraper extends BaseScraper {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private qdrantClient: any;
+  private qdrantClient!: QdrantClient; // assigned in init()
   private searchOps!: SearchOperations;
   private documentProcessor!: DocumentProcessor;
   private linkExtractor!: LinkExtractor;
@@ -83,7 +86,7 @@ export class LandesverbandScraper extends BaseScraper {
     await mistralEmbeddingService.init();
 
     // Store Qdrant client
-    this.qdrantClient = qdrant.client;
+    this.qdrantClient = qdrant.client!;
 
     // Compose operations
     this.searchOps = new SearchOperations(qdrant, this.config.collectionName);
@@ -123,10 +126,8 @@ export class LandesverbandScraper extends BaseScraper {
    * Delegates to specialized processors based on content type
    */
   async #scrapeContentPath(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    source: any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    contentPath: any,
+    source: LandesverbandSource,
+    contentPath: ContentPath,
     options: LandesverbandScrapeOptions = {}
   ): Promise<ContentPathResult> {
     const { forceUpdate = false, maxDocuments = null, dryRun = false } = options;

@@ -6,6 +6,7 @@ import { fetchArticlesFromEventRegistry, fetchGrueneArticles } from './EventRegi
 import { KNOWN_RSS_FEEDS } from './rssFeeds.js';
 
 import type { MonitorLocale } from './types.js';
+import type RSSParser from 'rss-parser';
 
 const log = createLogger('MonitorCollector');
 
@@ -52,10 +53,9 @@ interface RSSItem {
   isoDate?: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let parserInstance: any = null;
+let parserInstance: RSSParser | null = null;
 
-async function getParser() {
+async function getParser(): Promise<RSSParser> {
   if (!parserInstance) {
     const module = await import('rss-parser');
     parserInstance = new module.default({
@@ -63,8 +63,8 @@ async function getParser() {
       headers: { 'User-Agent': 'Gruenerator-Monitor/1.0' },
     });
   }
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  return parserInstance;
+
+  return parserInstance!;
 }
 
 async function fetchFeed(

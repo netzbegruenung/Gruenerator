@@ -58,7 +58,27 @@ async function sendBufferToDocling(
       throw new Error(`Docling API returned ${response.status}: ${errorText}`);
     }
 
-    const result = await response.json();
+    interface DoclingDoc {
+      md_content?: string;
+      markdown?: string;
+      md?: string;
+      text?: string;
+      num_pages?: number;
+      page_count?: number;
+    }
+    interface DoclingResponse {
+      document?: DoclingDoc;
+      documents?: DoclingDoc[];
+      status?: string;
+      processing_time?: number;
+      md_content?: string;
+      markdown?: string;
+      md?: string;
+      text?: string;
+      num_pages?: number;
+      page_count?: number;
+    }
+    const result = (await response.json()) as DoclingResponse;
 
     // docling-serve returns { document: { md_content, filename, ... }, status, processing_time }
     const documents = result?.document ?? result?.documents ?? [result];

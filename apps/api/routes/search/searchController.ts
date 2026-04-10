@@ -6,6 +6,7 @@
 
 import express, { type Response, type Router } from 'express';
 
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type {
@@ -297,6 +298,7 @@ router.post(
 
       if (searchResults.status !== 'success') {
         log.error(`[Search] Search failed: ${searchResults.error}`);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const errorResponse: any = {
           success: false,
           error: 'Websuche fehlgeschlagen',
@@ -540,7 +542,7 @@ router.post('/analyze', async (req: AnalyzeRequest, res: Response<AnalyzeRespons
 
     log.debug(`[Search] Analysis request: ${contents.length} items`);
 
-    const result = await req.app.locals.aiWorkerPool.processRequest(
+    const result = await getAIWorkerPool(req).processRequest(
       {
         type: 'search_analysis',
         systemPrompt: `Du bist ein Recherche-Assistent, der Suchergebnisse gründlich analysiert.
@@ -598,7 +600,7 @@ Format deiner Antwort:
     }
 
     const { mainText, sourceRecommendations, usedSourceTitles } = parseAnalysisResponse(
-      result.content
+      result.content ?? ''
     );
 
     return res.json({
@@ -606,7 +608,7 @@ Format deiner Antwort:
       analysis: mainText,
       sourceRecommendations,
       claudeSourceTitles: usedSourceTitles,
-      metadata: result.metadata,
+      ...(result.metadata ? { metadata: result.metadata } : {}),
     });
   } catch (error) {
     log.error('[Search] Analysis error:', error);
