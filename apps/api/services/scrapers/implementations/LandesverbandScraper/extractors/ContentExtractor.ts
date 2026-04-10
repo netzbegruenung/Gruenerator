@@ -8,6 +8,18 @@ import * as cheerio from 'cheerio';
 
 import type { ExtractedContent } from '../types.js';
 
+interface ContentSelectors {
+  title: string[];
+  date: string[];
+  content: string[];
+  categories?: string[];
+}
+
+interface SourceConfig {
+  cms: 'wordpress' | 'neos' | 'typo3';
+  contentSelectors: ContentSelectors;
+}
+
 /**
  * Multi-CMS content extraction
  * Supports WordPress and Neos CMS with different extraction strategies
@@ -17,8 +29,10 @@ export class ContentExtractor {
    * Extract content from WordPress page
    * Handles Elementor, Gutenberg, and classic themes
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  static extractContentWordPress($: cheerio.CheerioAPI, selectors: any): ExtractedContent {
+  static extractContentWordPress(
+    $: cheerio.CheerioAPI,
+    selectors: ContentSelectors
+  ): ExtractedContent {
     // Extract title and date BEFORE cleanup — WordPress themes wrap titles
     // inside <header class="entry-header"> which would be removed below
     let title = '';
@@ -86,8 +100,7 @@ export class ContentExtractor {
    * Extract content from Neos page
    * Handles Neos CMS-specific structure
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  static extractContentNeos($: cheerio.CheerioAPI, selectors: any): ExtractedContent {
+  static extractContentNeos($: cheerio.CheerioAPI, selectors: ContentSelectors): ExtractedContent {
     // Extract title and date BEFORE cleanup — Neos may also wrap titles in <header>
     let title = '';
     for (const sel of selectors.title) {
@@ -150,8 +163,7 @@ export class ContentExtractor {
    * Extract content from Typo3 page
    * Handles Typo3 CMS with tx_xblog_pi1 blog plugin
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  static extractContentTypo3($: cheerio.CheerioAPI, selectors: any): ExtractedContent {
+  static extractContentTypo3($: cheerio.CheerioAPI, selectors: ContentSelectors): ExtractedContent {
     // Extract title and date BEFORE cleanup
     let title = '';
     for (const sel of selectors.title) {
@@ -252,8 +264,7 @@ export class ContentExtractor {
    */
   static async extractPageContent(
     url: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    source: any,
+    source: SourceConfig,
     fetchUrl: (url: string) => Promise<Response>
   ): Promise<ExtractedContent> {
     const response = await fetchUrl(url);
