@@ -400,20 +400,13 @@ router.get(
 router.post(
   '/groups/join',
   ensureAuthenticated,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  validateBody(groupJoinSchema),
+  async (req: AuthRequest & TypedRequest<GroupJoinBody>, res: Response): Promise<void> => {
     try {
-      const { joinToken } = req.body as GroupJoinBody;
+      const { joinToken } = req.body;
       const userId = req.user!.id;
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
-
-      if (!joinToken?.trim()) {
-        res.status(400).json({
-          success: false,
-          message: 'Beitritts-Token ist erforderlich.',
-        });
-        return;
-      }
 
       // 1. Get the group from the token
       const group = (await postgres.queryOne(
@@ -550,11 +543,15 @@ router.get(
 router.put(
   '/groups/:groupId/info',
   ensureAuthenticated,
-  async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
+  validateBody(groupInfoUpdateSchema),
+  async (
+    req: AuthRequest<{ groupId: string }> & TypedRequest<GroupInfoUpdateBody>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
-      const { name, description, settings } = req.body as GroupInfoUpdateBody;
+      const { name, description, settings } = req.body;
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
 
@@ -608,38 +605,6 @@ router.put(
         updateValues.push(description?.trim() || null);
       }
       if (settings !== undefined) {
-        if (typeof settings !== 'object' || settings === null) {
-          res.status(400).json({
-            success: false,
-            message: 'Einstellungen müssen ein Objekt sein.',
-          });
-          return;
-        }
-        if (settings.templateTags !== undefined) {
-          if (!Array.isArray(settings.templateTags)) {
-            res.status(400).json({
-              success: false,
-              message: 'templateTags muss ein Array sein.',
-            });
-            return;
-          }
-          if (settings.templateTags.length > 20) {
-            res.status(400).json({
-              success: false,
-              message: 'Maximal 20 Tags erlaubt.',
-            });
-            return;
-          }
-          for (const tag of settings.templateTags) {
-            if (typeof tag !== 'string' || tag.length > 50) {
-              res.status(400).json({
-                success: false,
-                message: 'Jeder Tag muss ein String mit maximal 50 Zeichen sein.',
-              });
-              return;
-            }
-          }
-        }
         updateFields.push(`settings = $${paramIndex++}`);
         updateValues.push(JSON.stringify(settings));
       }
@@ -682,11 +647,15 @@ router.put(
 router.put(
   '/groups/:groupId/name',
   ensureAuthenticated,
-  async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
+  validateBody(groupUpdateSchema),
+  async (
+    req: AuthRequest<{ groupId: string }> & TypedRequest<GroupUpdateBody>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
-      const { name } = req.body as GroupUpdateBody;
+      const { name } = req.body;
 
       if (!name?.trim()) {
         res.status(400).json({
@@ -788,23 +757,15 @@ router.get(
 router.put(
   '/groups/:groupId/members/:memberId/role',
   ensureAuthenticated,
-  async (req: AuthRequest<{ groupId: string; memberId: string }>, res: Response): Promise<void> => {
+  validateBody(groupMemberRoleSchema),
+  async (
+    req: AuthRequest<{ groupId: string; memberId: string }> & TypedRequest<GroupMemberRoleBody>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { groupId, memberId } = req.params;
       const userId = req.user!.id;
-      const { role } = req.body as GroupMemberRoleBody;
-
-      if (!groupId || !memberId) {
-        res
-          .status(400)
-          .json({ success: false, message: 'Gruppen-ID und Mitglieds-ID sind erforderlich.' });
-        return;
-      }
-
-      if (role !== 'admin' && role !== 'member') {
-        res.status(400).json({ success: false, message: 'Rolle muss "admin" oder "member" sein.' });
-        return;
-      }
+      const { role } = req.body;
 
       if (String(memberId) === String(userId)) {
         res
@@ -877,39 +838,6 @@ router.put(
 // Group Links Endpoints
 // ============================================================================
 
-const ALLOWED_LINK_ICONS = new Set([
-  'globe',
-  'link',
-  'mail',
-  'calendar',
-  'chat',
-  'folder',
-  'phone',
-  'video',
-  'document',
-  'map',
-  'signal',
-  'whatsapp',
-  'telegram',
-  'discord',
-  'slack',
-  'mattermost',
-  'canva',
-  'figma',
-  'miro',
-  'drive',
-  'nextcloud',
-  'notion',
-  'trello',
-  'github',
-  'zoom',
-  'googlemeet',
-  'youtube',
-  'instagram',
-  'mastodon',
-  'linkedin',
-  'x',
-]);
 const MAX_LINKS = 20;
 
 interface GroupLink {
@@ -920,47 +848,21 @@ interface GroupLink {
   icon: string;
 }
 
-function validateGroupLink(link: unknown): string | null {
-  if (!link || typeof link !== 'object') return 'Link muss ein Objekt sein.';
-  const l = link as Record<string, unknown>;
-  if (
-    typeof l.title !== 'string' ||
-    (l.title as string).trim().length === 0 ||
-    (l.title as string).length > 100
-  ) {
-    return 'Titel ist erforderlich (max. 100 Zeichen).';
-  }
-  if (typeof l.url !== 'string' || !/^https?:\/\/.+/.test(l.url as string)) {
-    return 'URL muss mit http:// oder https:// beginnen.';
-  }
-  if (
-    l.description != null &&
-    (typeof l.description !== 'string' || (l.description as string).length > 300)
-  ) {
-    return 'Beschreibung darf max. 300 Zeichen haben.';
-  }
-  if (typeof l.icon !== 'string' || !ALLOWED_LINK_ICONS.has(l.icon as string)) {
-    return `Ungültiges Icon. Erlaubt: ${[...ALLOWED_LINK_ICONS].join(', ')}`;
-  }
-  return null;
-}
-
 router.post(
   '/groups/:groupId/links',
   ensureAuthenticated,
-  async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
+  validateBody(groupLinkSchema),
+  async (
+    req: AuthRequest<{ groupId: string }> & TypedRequest<GroupLinkBody>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { groupId } = req.params;
       const userId = req.user!.id;
 
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
 
-      const body = req.body as GroupLinkBody;
-      const error = validateGroupLink(body);
-      if (error) {
-        res.status(400).json({ success: false, message: error });
-        return;
-      }
+      const body = req.body;
 
       const group = (await postgres.queryOne('SELECT links FROM groups WHERE id = $1', [groupId], {
         table: 'groups',
@@ -1003,19 +905,18 @@ router.post(
 router.put(
   '/groups/:groupId/links/:linkId',
   ensureAuthenticated,
-  async (req: AuthRequest<{ groupId: string; linkId: string }>, res: Response): Promise<void> => {
+  validateBody(groupLinkSchema),
+  async (
+    req: AuthRequest<{ groupId: string; linkId: string }> & TypedRequest<GroupLinkBody>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { groupId, linkId } = req.params;
       const userId = req.user!.id;
 
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
 
-      const body = req.body as GroupLinkBody;
-      const error = validateGroupLink(body);
-      if (error) {
-        res.status(400).json({ success: false, message: error });
-        return;
-      }
+      const body = req.body;
 
       const group = (await postgres.queryOne('SELECT links FROM groups WHERE id = $1', [groupId], {
         table: 'groups',
