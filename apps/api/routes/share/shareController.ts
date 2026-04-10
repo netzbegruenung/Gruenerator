@@ -17,7 +17,7 @@ import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
-import type { SharedMediaRow, ShareResult } from '../../types/media.js';
+import type { SharedMediaRow, ShareResult, UpdateImageShareParams } from '../../types/media.js';
 
 const fsPromises = fs.promises;
 const log = createLogger('share');
@@ -798,7 +798,7 @@ router.get(
 
       await service.recordView(shareToken);
 
-      const shareObj: any = {
+      const shareObj: NonNullable<ShareInfoResponse['share']> = {
         mediaType: share.media_type,
         title: share.title,
         thumbnailUrl: share.thumbnail_path ? `/api/share/${shareToken}/thumbnail` : null,
@@ -806,8 +806,8 @@ router.get(
         viewCount: share.view_count,
         status: share.status || 'ready',
         createdAt: share.created_at,
+        ...(share.sharer_name != null ? { sharerName: share.sharer_name } : {}),
       };
-      if (share.sharer_name != null) shareObj.sharerName = share.sharer_name;
       const response: ShareInfoResponse = {
         success: true,
         share: shareObj,
@@ -983,23 +983,24 @@ router.put(
         });
       }
 
-      const updateParams: any = {
+      const updateParams: UpdateImageShareParams = {
         imageBase64,
         metadata: metadata || {},
+        ...(title != null ? { title } : {}),
+        ...(originalImage != null ? { originalImage } : {}),
       };
-      if (title != null) updateParams.title = title;
-      if (originalImage != null) updateParams.originalImage = originalImage;
       const result = await service.updateImageShare(userId, shareToken, updateParams);
 
       log.info(`Image share updated: ${shareToken} by user ${userId}`);
 
-      const shareResp: any = {
+      const shareResp: ShareResult = {
+        id: result.id,
         shareToken: result.shareToken,
         shareUrl: result.shareUrl,
         createdAt: result.createdAt,
         mediaType: 'image',
+        ...(result.hasOriginalImage != null ? { hasOriginalImage: result.hasOriginalImage } : {}),
       };
-      if (result.hasOriginalImage != null) shareResp.hasOriginalImage = result.hasOriginalImage;
       return res.json({
         success: true,
         share: shareResp,
@@ -1179,7 +1180,7 @@ router.get(
         await service.recordDownload(shareToken as string, null, ipAddress, share.id);
 
         try {
-          const result = await transferService.proxyDownloadWithRecord(share as any);
+          const result = await transferService.proxyDownloadWithRecord(share);
 
           res.setHeader(
             'Content-Type',
@@ -1475,42 +1476,42 @@ router.get('/templates', requireAuth, async (req: AuthenticatedRequest, res: Res
  * GET /templates/:shareToken
  * Get template details (for clone preparation)
  */
-router.get(
-  '/templates/:shareToken',
-  (async (req: Request<ShareTokenParams> & { user?: { id: string } }, res: Response) => {
-    try {
-      const userId = req.user?.id;
-      const { shareToken } = req.params;
+router.get('/templates/:shareToken', (async (
+  req: Request<ShareTokenParams> & { user?: { id: string } },
+  res: Response
+) => {
+  try {
+    const userId = req.user?.id;
+    const { shareToken } = req.params;
 
-      const service = await getSharedMediaService();
-      const template = await service.getTemplateByToken(shareToken, userId);
+    const service = await getSharedMediaService();
+    const template = await service.getTemplateByToken(shareToken, userId);
 
-      res.json({
-        success: true,
-        template,
+    res.json({
+      success: true,
+      template,
+    });
+  } catch (error) {
+    log.error('Failed to get template by token:', error);
+    const errorMessage = (error as Error).message;
+    if (errorMessage.includes('not found')) {
+      res.status(404).json({
+        success: false,
+        error: 'Template not found',
       });
-    } catch (error) {
-      log.error('Failed to get template by token:', error);
-      const errorMessage = (error as Error).message;
-      if (errorMessage.includes('not found')) {
-        res.status(404).json({
-          success: false,
-          error: 'Template not found',
-        });
-      } else if (errorMessage.includes('not accessible') || errorMessage.includes('private')) {
-        res.status(403).json({
-          success: false,
-          error: 'Template not accessible',
-        });
-      } else {
-        res.status(500).json({
-          success: false,
-          error: 'Failed to retrieve template',
-        });
-      }
+    } else if (errorMessage.includes('not accessible') || errorMessage.includes('private')) {
+      res.status(403).json({
+        success: false,
+        error: 'Template not accessible',
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to retrieve template',
+      });
     }
-  }) as any
-);
+  }
+}) as express.RequestHandler);
 
 // ============================================================================
 // PUSH TO PHONE
