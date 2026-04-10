@@ -42,7 +42,7 @@ const pool = new pg.Pool(pgConfig);
 
 export const auth = betterAuth({
   database: pool,
-  baseURL: process.env.BETTER_AUTH_URL,
+  ...(process.env.BETTER_AUTH_URL && { baseURL: process.env.BETTER_AUTH_URL }),
   basePath: '/api/auth/v2',
 
   user: {
