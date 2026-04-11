@@ -5,6 +5,19 @@ import apiClient from '../components/utils/apiClient';
 import { extractHTMLContent } from '../components/utils/contentExtractor';
 import { downloadFile } from '../utils/downloadFile';
 
+interface DocsFromExportResponse {
+  documentId: string;
+}
+
+interface TodoListResponse {
+  content?: string;
+}
+
+interface BoardGenerateResponse {
+  board?: { id: string };
+  generatedStructure?: unknown;
+}
+
 interface EditorModalState {
   documentId: string;
   initialContent: string;
@@ -27,7 +40,7 @@ export function useContentActions({ getContent, getTitle }: UseContentActionsOpt
       const content = getContent();
       const title = getTitle();
       const html = await extractHTMLContent(content);
-      const res = await apiClient.post('/docs/from-export', {
+      const res = await apiClient.post<DocsFromExportResponse>('/docs/from-export', {
         content: html,
         title,
         documentType: 'transkription',
@@ -43,9 +56,12 @@ export function useContentActions({ getContent, getTitle }: UseContentActionsOpt
     try {
       const content = getContent();
       const title = getTitle();
-      const res = await apiClient.post('/voice/todo-list', { text: content, title });
+      const res = await apiClient.post<TodoListResponse>('/voice/todo-list', {
+        text: content,
+        title,
+      });
       const html = res.data?.content ?? '';
-      const docRes = await apiClient.post('/docs/from-export', {
+      const docRes = await apiClient.post<DocsFromExportResponse>('/docs/from-export', {
         content: html,
         title: `Aufgaben — ${title}`,
         documentType: 'checkliste',
@@ -65,7 +81,7 @@ export function useContentActions({ getContent, getTitle }: UseContentActionsOpt
     try {
       const content = getContent();
       const title = getTitle();
-      const res = await apiClient.post('/boards/generate', {
+      const res = await apiClient.post<BoardGenerateResponse>('/boards/generate', {
         description: `Erstelle ein Aufgaben-Board aus folgendem Text. Extrahiere alle Aufgaben, Beschlüsse und Action Items:\n\n${content.slice(0, 6000)}`,
         title,
       });

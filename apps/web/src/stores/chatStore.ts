@@ -398,24 +398,34 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     const textStore = useGeneratedTextStore.getState();
     const currentContent = textStore.generatedTexts?.[componentId];
-    const nextContent = typeof updater === 'function' ? updater(currentContent) : updater;
+    const nextContent = (
+      typeof updater === 'function'
+        ? (updater as (content: unknown) => unknown)(currentContent)
+        : updater
+    ) as ChatContent | string | null | undefined;
 
+    const nextRecord =
+      typeof nextContent === 'object' && nextContent !== null
+        ? (nextContent as Record<string, unknown>)
+        : {};
     const metadata = {
       agent: target.agent,
-      ...(nextContent?.metadata || {}),
-      ...(nextContent?.sharepicMeta ? { sharepicMeta: nextContent.sharepicMeta } : {}),
+      ...(typeof nextRecord.metadata === 'object' && nextRecord.metadata !== null
+        ? (nextRecord.metadata as Record<string, unknown>)
+        : {}),
+      ...(nextRecord.sharepicMeta ? { sharepicMeta: nextRecord.sharepicMeta } : {}),
     };
 
-    if (typeof textStore.pushToHistory === 'function') {
-      textStore.pushToHistory(componentId);
-    }
-    textStore.setGeneratedText(componentId, nextContent, metadata);
+    textStore.pushToHistory(componentId);
+    textStore.setGeneratedText(
+      componentId,
+      nextContent as string | Record<string, unknown>,
+      metadata
+    );
 
     const textOnlyValue = resolveContentText(nextContent);
     if (textOnlyValue) {
-      if (typeof textStore.pushToHistory === 'function') {
-        textStore.pushToHistory(`${componentId}_text`);
-      }
+      textStore.pushToHistory(`${componentId}_text`);
       textStore.setGeneratedText(`${componentId}_text`, textOnlyValue, metadata);
     }
   },
@@ -512,7 +522,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     let messageContent = response.content?.text;
 
     if (!messageContent && response.content?.sharepic) {
-      const sharepicType = response.content.metadata?.sharepicType || response.agent;
+      const sharepicType = response.content.metadata?.sharepicType ?? response.agent ?? 'default';
       switch (sharepicType) {
         case 'zitat':
         case 'zitat_pure':

@@ -21,6 +21,7 @@ export default tseslint.config(
             'apps/desktop/eslint.config.mjs',
             'apps/sites/eslint.config.js',
             'apps/mobile/shims/isomorphic-webcrypto.js',
+            'apps/web/src/components/utils/errorMessages.tsx',
             'packages/eslint-config/base.js',
             'packages/eslint-config/react.js',
           ],

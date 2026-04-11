@@ -1,6 +1,33 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 
 import apiClient from '../../../components/utils/apiClient';
+
+// ── API response shapes ────────────────────────────────────────────────
+
+interface GroupsListResponse {
+  groups?: GroupSummary[];
+}
+
+interface GroupResponse {
+  group?: GroupSummary;
+}
+
+interface MembersResponse {
+  members?: GroupMember[];
+}
+
+interface ContentResponse {
+  content?: Record<string, unknown[]>;
+}
+
+interface LinkResponse {
+  link?: GroupLink;
+}
+
+interface AvatarUploadResponse {
+  success?: boolean;
+  avatarUrl?: string;
+}
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useGroupsStore } from '../../../stores/auth/groupsStore';
 import { useAuthStore } from '../../../stores/authStore';
@@ -58,8 +85,10 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
 
   const fetchGroupsFn = async (): Promise<GroupSummary[]> => {
     if (!user?.id) throw new Error('User not authenticated');
-    const response = await apiClient.get('/auth/groups', { skipAuthRedirect: true });
-    return response.data.groups || [];
+    const response = await apiClient.get<GroupsListResponse>('/auth/groups', {
+      skipAuthRedirect: true,
+    });
+    return response.data.groups ?? [];
   };
 
   const query = useQuery({
@@ -78,8 +107,8 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
   const createGroupMutation = useMutation({
     mutationFn: async (groupName: string) => {
       if (!user?.id) throw new Error('User not authenticated');
-      const response = await apiClient.post('/auth/groups', { name: groupName });
-      return response.data.group as GroupSummary;
+      const response = await apiClient.post<GroupResponse>('/auth/groups', { name: groupName });
+      return (response.data.group ?? {}) as GroupSummary;
     },
     onMutate: () => {
       setCreating(true);
@@ -128,7 +157,10 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
       description?: string;
     }) => {
       if (!user?.id) throw new Error('User not authenticated');
-      const response = await apiClient.put(`/auth/groups/${groupId}/info`, { name, description });
+      const response = await apiClient.put<Record<string, unknown>>(
+        `/auth/groups/${groupId}/info`,
+        { name, description }
+      );
       return response.data;
     },
     onMutate: () => {
@@ -148,7 +180,10 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
   const updateGroupNameMutation = useMutation({
     mutationFn: async ({ groupId, name }: { groupId: string; name: string }) => {
       if (!user?.id) throw new Error('User not authenticated');
-      const response = await apiClient.put(`/auth/groups/${groupId}/name`, { name });
+      const response = await apiClient.put<Record<string, unknown>>(
+        `/auth/groups/${groupId}/name`,
+        { name }
+      );
       return response.data;
     },
     onMutate: () => {
@@ -168,7 +203,9 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
   const joinGroupMutation = useMutation({
     mutationFn: async (joinToken: string) => {
       if (!user?.id) throw new Error('User not authenticated');
-      const response = await apiClient.post('/auth/groups/join', { joinToken });
+      const response = await apiClient.post<Record<string, unknown>>('/auth/groups/join', {
+        joinToken,
+      });
       return response.data;
     },
     onMutate: () => {
@@ -279,8 +316,8 @@ export const useGroupMembers = (groupId: string | null, _options: UseGroupsOptio
 
   const fetchMembersFn = async (): Promise<GroupMember[]> => {
     if (!user?.id || !groupId) throw new Error('User not authenticated or group ID missing');
-    const response = await apiClient.get(`/auth/groups/${groupId}/members`);
-    return response.data.members || [];
+    const response = await apiClient.get<MembersResponse>(`/auth/groups/${groupId}/members`);
+    return response.data.members ?? [];
   };
 
   const query = useQuery({
@@ -311,9 +348,12 @@ export const useUpdateMemberRole = (groupId: string) => {
 
   const mutation = useMutation({
     mutationFn: async ({ memberId, role }: { memberId: string; role: 'admin' | 'member' }) => {
-      const response = await apiClient.put(`/auth/groups/${groupId}/members/${memberId}/role`, {
-        role,
-      });
+      const response = await apiClient.put<Record<string, unknown>>(
+        `/auth/groups/${groupId}/members/${memberId}/role`,
+        {
+          role,
+        }
+      );
       return response.data;
     },
     onSuccess: () => {
@@ -328,8 +368,7 @@ export const useUpdateMemberRole = (groupId: string) => {
 };
 
 interface GroupContentData {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: any[];
+  [key: string]: unknown[];
 }
 
 export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptions = {}) => {
@@ -342,8 +381,8 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
     if (!user?.id || !groupId) {
       throw new Error('User not authenticated or group ID missing');
     }
-    const response = await apiClient.get(`/auth/groups/${groupId}/content`);
-    return response.data.content || {};
+    const response = await apiClient.get<ContentResponse>(`/auth/groups/${groupId}/content`);
+    return (response.data.content ?? {}) as GroupContentData;
   };
 
   const queryEnabled = !!user?.id && !!groupId && isAuthenticated && !authLoading;
@@ -401,7 +440,7 @@ export const useGroupVorlagen = (groupId: string | null, { isActive }: UseGroups
       throw new Error('User not authenticated or group ID missing');
     }
 
-    const response = await apiClient.get(`/auth/groups/${groupId}/vorlagen`);
+    const response = await apiClient.get<VorlagenData>(`/auth/groups/${groupId}/vorlagen`);
     return response.data;
   };
 
@@ -435,7 +474,10 @@ export const useUpdateGroupSettings = (groupId: string | null) => {
         throw new Error('User not authenticated or group ID missing');
       }
 
-      const response = await apiClient.put(`/auth/groups/${groupId}/info`, { settings });
+      const response = await apiClient.put<Record<string, unknown>>(
+        `/auth/groups/${groupId}/info`,
+        { settings }
+      );
       return response.data;
     },
     onSuccess: () => {
@@ -463,9 +505,13 @@ export const useGroupAvatar = (groupId: string | null) => {
       if (!groupId) throw new Error('Group ID missing');
       const formData = new FormData();
       formData.append('avatar', file);
-      const response = await apiClient.post(`/auth/groups/${groupId}/avatar`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const response = await apiClient.post<AvatarUploadResponse>(
+        `/auth/groups/${groupId}/avatar`,
+        formData,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        }
+      );
       return response.data;
     },
     onSuccess: () => {
@@ -512,8 +558,8 @@ export const useGroupLinks = (groupId: string | null) => {
   const addMutation = useMutation({
     mutationFn: async (link: Omit<GroupLink, 'id'>) => {
       if (!groupId) throw new Error('Group ID missing');
-      const response = await apiClient.post(`/auth/groups/${groupId}/links`, link);
-      return response.data.link as GroupLink;
+      const response = await apiClient.post<LinkResponse>(`/auth/groups/${groupId}/links`, link);
+      return (response.data.link ?? {}) as GroupLink;
     },
     onSuccess: invalidate,
   });
@@ -521,8 +567,11 @@ export const useGroupLinks = (groupId: string | null) => {
   const updateMutation = useMutation({
     mutationFn: async ({ linkId, ...link }: Omit<GroupLink, 'id'> & { linkId: string }) => {
       if (!groupId) throw new Error('Group ID missing');
-      const response = await apiClient.put(`/auth/groups/${groupId}/links/${linkId}`, link);
-      return response.data.link as GroupLink;
+      const response = await apiClient.put<LinkResponse>(
+        `/auth/groups/${groupId}/links/${linkId}`,
+        link
+      );
+      return (response.data.link ?? {}) as GroupLink;
     },
     onSuccess: invalidate,
   });

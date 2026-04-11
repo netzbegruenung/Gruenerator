@@ -25,8 +25,8 @@ export const useCustomPromptsData = (options: UseCustomPromptsOptions = {}) => {
   const query = useQuery<CustomPrompt[], Error>({
     queryKey: QUERY_KEYS.customPrompts(user?.id),
     queryFn: async (): Promise<CustomPrompt[]> => {
-      const response = await apiClient.get('/auth/custom_prompts');
-      return response.data?.prompts || [];
+      const response = await apiClient.get<{ prompts: CustomPrompt[] }>('/auth/custom_prompts');
+      return response.data?.prompts ?? [];
     },
     enabled: enabled && !!user?.id && isActive,
     staleTime: 5 * 60 * 1000,
@@ -44,8 +44,8 @@ export const useSavedPromptsData = (options: UseCustomPromptsOptions = {}) => {
   const query = useQuery<CustomPrompt[], Error>({
     queryKey: QUERY_KEYS.savedPrompts(user?.id),
     queryFn: async (): Promise<CustomPrompt[]> => {
-      const response = await apiClient.get('/auth/saved_prompts');
-      return response.data?.prompts || [];
+      const response = await apiClient.get<{ prompts: CustomPrompt[] }>('/auth/saved_prompts');
+      return response.data?.prompts ?? [];
     },
     enabled: enabled && !!user?.id && isActive,
     staleTime: 5 * 60 * 1000,
@@ -62,7 +62,7 @@ export const usePromptMutations = () => {
 
   const createMutation = useMutation({
     mutationFn: async (data: CustomPromptCreateData): Promise<CustomPrompt> => {
-      const response = await apiClient.post('/auth/custom_prompts', data);
+      const response = await apiClient.post<{ prompt: CustomPrompt }>('/auth/custom_prompts', data);
       return response.data?.prompt;
     },
     onSuccess: () => {
@@ -73,7 +73,10 @@ export const usePromptMutations = () => {
   const updateMutation = useMutation({
     mutationFn: async (data: CustomPromptUpdateData): Promise<CustomPrompt> => {
       const { id, ...updateData } = data;
-      const response = await apiClient.put(`/auth/custom_prompts/${id}`, updateData);
+      const response = await apiClient.put<{ prompt: CustomPrompt }>(
+        `/auth/custom_prompts/${id}`,
+        updateData
+      );
       return response.data?.prompt;
     },
     onSuccess: () => {

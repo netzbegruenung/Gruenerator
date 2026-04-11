@@ -27,6 +27,35 @@ export interface TranscriptionOptions {
   privacyMode?: boolean;
 }
 
+// === SSE MESSAGE TYPES ===
+type SSEMessage =
+  | { type: 'extraction_start' }
+  | { type: 'extraction_progress'; percent: number; timemark: string }
+  | { type: 'extraction_complete' }
+  | { type: 'transcription_start' }
+  | { type: 'text.delta'; text: string }
+  | {
+      type: 'done';
+      text: string;
+      segments?: TranscriptionSegment[];
+      hasTimestamps?: boolean;
+      speakerMap?: Record<string, string>;
+    }
+  | { type: 'error'; text?: string };
+
+interface TranscriptionApiResponse {
+  success: boolean;
+  error?: string;
+  text?: string;
+  segments?: TranscriptionSegment[];
+  hasTimestamps?: boolean;
+  speakerMap?: Record<string, string>;
+}
+
+interface TranscriptionErrorResponse {
+  error?: string;
+}
+
 const INITIAL_STATE: TranscriptionState = {
   status: 'idle',
   progress: 0,
@@ -72,7 +101,7 @@ async function parseSSEStream(response: Response, callbacks: SSECallbacks) {
       if (!dataLine) continue;
 
       try {
-        const data = JSON.parse(dataLine.slice(6));
+        const data = JSON.parse(dataLine.slice(6)) as SSEMessage;
         switch (data.type) {
           case 'extraction_start':
             callbacks.onExtractionStart();
@@ -181,7 +210,7 @@ export function useTranscription() {
           });
 
           if (!response.ok) {
-            const err = await response.json().catch(() => ({}));
+            const err = (await response.json().catch(() => ({}))) as TranscriptionErrorResponse;
             throw new Error(err.error ?? `HTTP ${response.status}`);
           }
 
@@ -221,7 +250,7 @@ export function useTranscription() {
           setState((s) => (s.status !== 'done' ? { ...s, status: 'done' } : s));
           return fullText;
         } else {
-          const response = await apiClient.post(
+          const response = await apiClient.post<TranscriptionApiResponse>(
             '/voice/transcribe-upload',
             {
               uploadId,

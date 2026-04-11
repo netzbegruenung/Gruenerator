@@ -49,7 +49,7 @@ export const useExportStore = create<ExportState>((set, get) => ({
     try {
       const { extractFilenameFromContent } = await import('../../components/utils/titleExtractor');
       const filename = `${extractFilenameFromContent(content, title)}.pdf`;
-      const response = await apiClient.post(
+      const response = await apiClient.post<Blob>(
         '/exports/pdf',
         { content, title },
         {
@@ -79,7 +79,7 @@ export const useExportStore = create<ExportState>((set, get) => ({
     try {
       const { extractFilenameFromContent } = await import('../../components/utils/titleExtractor');
       const filename = `${extractFilenameFromContent(content, title)}.docx`;
-      const response = await apiClient.post(
+      const response = await apiClient.post<Blob>(
         '/exports/docx',
         { content, title },
         {
@@ -114,7 +114,7 @@ export const useExportStore = create<ExportState>((set, get) => ({
     try {
       const { extractFilenameFromContent } = await import('../../components/utils/titleExtractor');
       const filename = `${extractFilenameFromContent(content, title)}.docx`;
-      const response = await apiClient.post(
+      const response = await apiClient.post<Blob>(
         '/exports/docx',
         {
           content,

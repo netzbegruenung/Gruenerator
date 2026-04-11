@@ -71,9 +71,9 @@ export function useResearch(): UseResearchReturn {
 
       setResults(response.data.results);
       setMetadata(response.data.metadata);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      const message = err.response?.data?.error || 'Suche fehlgeschlagen. Bitte erneut versuchen.';
+    } catch (err: unknown) {
+      const errResp = (err as { response?: { data?: { error?: string } } }).response;
+      const message = errResp?.data?.error ?? 'Suche fehlgeschlagen. Bitte erneut versuchen.';
       setError(message);
       setResults([]);
       setMetadata(null);
@@ -94,10 +94,9 @@ export function useResearch(): UseResearchReturn {
 
       setResults(response.data.results);
       setMetadata(response.data.metadata);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      const message =
-        err.response?.data?.error || 'Ähnliche Dokumente konnten nicht geladen werden.';
+    } catch (err: unknown) {
+      const errResp = (err as { response?: { data?: { error?: string } } }).response;
+      const message = errResp?.data?.error ?? 'Ähnliche Dokumente konnten nicht geladen werden.';
       setError(message);
       setResults([]);
       setMetadata(null);

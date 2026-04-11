@@ -37,6 +37,21 @@ interface SharepicResult {
   [key: string]: unknown;
 }
 
+interface UnifiedSharepicApiResponse {
+  success: boolean;
+  error?: string;
+  image?: string;
+  text?: string;
+  type?: string;
+  [key: string]: unknown;
+}
+
+interface DefaultSharepicsApiResponse {
+  success: boolean;
+  error?: string;
+  sharepics?: SharepicResult[];
+}
+
 interface UseSharepicGenerationReturn {
   generateSharepic: (
     thema: string,
@@ -239,11 +254,14 @@ const useSharepicGeneration = (): UseSharepicGenerationReturn => {
           requestData.attachments.push(imageAttachment);
         }
       }
-      const response = await apiClient.post('/generate-sharepic', requestData);
-      const responseData = response.data || response;
+      const response = await apiClient.post<UnifiedSharepicApiResponse>(
+        '/generate-sharepic',
+        requestData
+      );
+      const responseData = response.data;
 
       if (!responseData.success) {
-        throw new Error(responseData.error || 'Sharepic generation failed');
+        throw new Error(responseData.error ?? 'Sharepic generation failed');
       }
 
       // Convert original image to base64 for storage if available
@@ -303,10 +321,11 @@ const useSharepicGeneration = (): UseSharepicGenerationReturn => {
 
       try {
         // Use backend service to generate all 3 sharepics
-        const response = await apiClient.post('/default_claude', requestData);
-
-        // Handle Axios response wrapper - extract data
-        const responseData = response.data || response;
+        const response = await apiClient.post<DefaultSharepicsApiResponse>(
+          '/default_claude',
+          requestData
+        );
+        const responseData = response.data;
 
         if (!responseData.success || !responseData.sharepics) {
           throw new Error('Backend failed to generate default sharepics');

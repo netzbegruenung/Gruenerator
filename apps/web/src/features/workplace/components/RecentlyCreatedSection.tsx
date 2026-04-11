@@ -114,7 +114,9 @@ const formatDuration = (seconds?: number): string => {
 };
 
 const fetchRecentActivity = async (): Promise<RecentItem[]> => {
-  const res = await apiClient.get('/recent-activity', { params: { limit: 12 } });
+  const res = await apiClient.get<{ items?: RecentItem[] }>('/recent-activity', {
+    params: { limit: 12 },
+  });
   return res.data?.items ?? [];
 };
 

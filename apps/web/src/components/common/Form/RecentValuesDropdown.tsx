@@ -103,7 +103,7 @@ const RecentValuesDropdown = ({
 
     // For multi-select
     if (isMulti && Array.isArray(value)) {
-      return value.map((v) => ({
+      return (value as (string | number)[]).map((v) => ({
         value: v,
         label: String(v),
       }));

@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 
 import apiClient from '../components/utils/apiClient';
-import { useAuthStore, type AuthStore } from '../stores/authStore';
+import { useAuthStore, type AuthStore, type User } from '../stores/authStore';
 
 interface AuthOptions {
   skipAuth?: boolean;
@@ -245,10 +245,10 @@ const getCachedAuthState = () => {
   try {
     const cached = localStorage.getItem('authState');
     if (cached) {
-      const parsed = JSON.parse(cached);
+      const parsed = JSON.parse(cached) as { timestamp?: number; data?: AuthData };
       // Check if cache is still fresh (< 5 minutes)
       if (parsed.timestamp && Date.now() - parsed.timestamp < 5 * 60 * 1000) {
-        return parsed.data;
+        return parsed.data ?? null;
       }
     }
   } catch (error) {
@@ -334,7 +334,10 @@ export const useAuth = (options: AuthOptions = {}) => {
   // Initialize with cached data if available
   useEffect(() => {
     if (cachedAuth && !hasInitializedFromCache) {
-      setAuthState(cachedAuth);
+      setAuthState({
+        user: (cachedAuth.user ?? null) as User | null,
+        isAuthenticated: cachedAuth.isAuthenticated,
+      });
       setHasInitializedFromCache(true);
     }
   }, [cachedAuth, hasInitializedFromCache, setAuthState]);
@@ -451,16 +454,15 @@ export const useAuth = (options: AuthOptions = {}) => {
         }
 
         // Prevent infinite loop by only setting state if user is different
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if ((authData.user as any)?.id !== currentUser?.id) {
+        const authUser = authData.user as User | null | undefined;
+        if (authUser?.id !== currentUser?.id) {
           setAuthState({
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            user: authData.user as any,
+            user: authUser ?? null,
             isAuthenticated: authData.isAuthenticated,
           });
 
           // Consolidated init: single request seeds all query caches
-          const userId = (authData.user as Record<string, unknown>).id as string;
+          const userId = authUser?.id ?? '';
           apiClient
             .get('/auth/init', { skipAuthRedirect: true })
             .then((response) => {

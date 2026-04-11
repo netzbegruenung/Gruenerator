@@ -160,7 +160,7 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
     setIsSharing(true);
     try {
       const urlPath = videoUrl.startsWith('/api') ? videoUrl.replace('/api', '') : videoUrl;
-      const response = await apiClient.get(urlPath, { responseType: 'blob' });
+      const response = await apiClient.get<Blob>(urlPath, { responseType: 'blob' });
       const blob = response.data;
       const file = new File([blob], 'gruenerator_video.mp4', { type: 'video/mp4' });
 

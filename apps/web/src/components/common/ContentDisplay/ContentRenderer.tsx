@@ -89,9 +89,9 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
     const trimmed = processedGeneratedContent.trim();
     if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
       try {
-        const parsed = JSON.parse(trimmed);
+        const parsed: unknown = JSON.parse(trimmed);
         if (parsed && typeof parsed === 'object') {
-          processedGeneratedContent = parsed;
+          processedGeneratedContent = parsed as GeneratedContent;
 
           const storedMetadata = getGeneratedTextMetadata(componentName) as Record<
             string,
@@ -138,8 +138,8 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
   const citations: Citation[] = metadata?.citations || [];
 
   if (isMixedContent && mixedContent) {
-    const sharepicItems = Array.isArray(mixedContent.sharepic)
-      ? mixedContent.sharepic.filter(Boolean)
+    const sharepicItems: unknown[] = Array.isArray(mixedContent.sharepic)
+      ? (mixedContent.sharepic as unknown[]).filter(Boolean)
       : mixedContent.sharepic
         ? [mixedContent.sharepic]
         : [];

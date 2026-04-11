@@ -180,13 +180,13 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
       try {
         const [collabDocsRaw, boardsRaw, docs, texts, generators, notebooks] = await Promise.all([
           apiClient
-            .get('/docs')
-            .then((r) => r.data)
-            .catch(() => []),
+            .get<ContentItem[]>('/docs')
+            .then((r) => r.data as ContentItem[])
+            .catch((): ContentItem[] => []),
           apiClient
-            .get('/boards')
-            .then((r) => r.data)
-            .catch(() => []),
+            .get<ContentItem[]>('/boards')
+            .then((r) => r.data as ContentItem[])
+            .catch((): ContentItem[] => []),
           profileApiService.getAvailableDocuments().catch((): ContentItem[] => []),
           profileApiService.getUserTexts().catch((): ContentItem[] => []),
           profileApiService.getCustomGenerators().catch((): ContentItem[] => []),

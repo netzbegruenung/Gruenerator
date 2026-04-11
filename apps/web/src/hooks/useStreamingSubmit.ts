@@ -12,7 +12,7 @@ import { getDesktopToken } from '../utils/desktopAuth';
 import { isDesktopApp } from '../utils/platform';
 import { parseEndpointResponse } from '../utils/responseParser';
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+const baseURL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
 interface StreamingProgress {
   stage: string;
@@ -47,7 +47,7 @@ function parseSSELine(
   }
   if (line.startsWith('data: ')) {
     try {
-      const data = JSON.parse(line.slice(6));
+      const data: unknown = JSON.parse(line.slice(6));
       const event = currentEvent.type;
       currentEvent.type = '';
       return { event, data };
@@ -148,7 +148,7 @@ const useStreamingSubmit = (endpoint: string, componentName: string): UseStreami
         const contentType = response.headers.get('content-type') || '';
         if (!contentType.includes('text/event-stream')) {
           // Server responded with JSON instead of SSE — fallback
-          const jsonResponse = await response.json();
+          const jsonResponse = (await response.json()) as Record<string, unknown>;
           const parsed = parseEndpointResponse(jsonResponse, endpoint);
           if (!parsed.success) {
             throw new Error(parsed.error || 'Server response error');
@@ -156,7 +156,7 @@ const useStreamingSubmit = (endpoint: string, componentName: string): UseStreami
           setIsStreaming(false);
           setSuccess(true);
           setLoading(false);
-          const jsonBgDoc = (jsonResponse?.backgroundDocument as string) || '';
+          const jsonBgDoc = (jsonResponse.backgroundDocument as string | undefined) ?? '';
           const jsonResult = parsed.metadata
             ? { ...parsed.metadata, content: parsed.content }
             : { content: parsed.content, metadata: {} };

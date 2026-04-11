@@ -5,6 +5,20 @@ import { useNavigate } from 'react-router-dom';
 
 import apiClient from '../../../components/utils/apiClient';
 import { useAuthStore } from '../../../stores/authStore';
+
+// ── API response shapes ────────────────────────────────────────────────
+
+interface GroupDetailsApiResponse {
+  success: boolean;
+  message?: string;
+  group?: Record<string, unknown> & {
+    join_token?: string;
+    name?: string;
+    description?: string;
+  };
+  membership?: Record<string, unknown> & { isAdmin?: boolean };
+  knowledge?: unknown[];
+}
 import { getNotebookById } from '../../notebook/config/notebooksConfig';
 import { useGroupPresence } from '../hooks/useGroupPresence';
 import { useGroups, useGroupAvatar, useGroupLinks, useGroupSharing } from '../hooks/useGroups';
@@ -43,15 +57,17 @@ const GroupDetailSection = memo(
     } = useQuery({
       queryKey: ['groupDetails', groupId],
       queryFn: async () => {
-        const response = await apiClient.get(`/auth/groups/${groupId}/details`);
+        const response = await apiClient.get<GroupDetailsApiResponse>(
+          `/auth/groups/${groupId}/details`
+        );
         const result = response.data;
-        if (!result.success) throw new Error(result.message || 'Failed to fetch group details');
+        if (!result.success) throw new Error(result.message ?? 'Failed to fetch group details');
         return {
           groupInfo: result.group,
-          isAdmin: result.membership.isAdmin,
+          isAdmin: result.membership?.isAdmin ?? false,
           membership: result.membership,
           joinToken: result.group?.join_token,
-          knowledge: result.knowledge || [],
+          knowledge: result.knowledge ?? [],
         };
       },
       enabled: !!groupId,
@@ -77,23 +93,28 @@ const GroupDetailSection = memo(
       useGroupSharing(groupId, { isActive: true });
 
     const sharedContent = useMemo(() => {
-      const allCollabDocs = groupContent?.collaborative_documents || [];
+      interface CollabDoc {
+        document_subtype?: string;
+        [key: string]: unknown;
+      }
+      interface SystemNotebook {
+        id: string;
+        [key: string]: unknown;
+      }
+      const allCollabDocs = (groupContent?.collaborative_documents ?? []) as CollabDoc[];
       return {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        collabDocs: allCollabDocs.filter((d: any) => d.document_subtype !== 'boards'),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        boards: allCollabDocs.filter((d: any) => d.document_subtype === 'boards'),
-        documents: groupContent?.documents || [],
-        generators: groupContent?.generators || [],
+        collabDocs: allCollabDocs.filter((d) => d.document_subtype !== 'boards'),
+        boards: allCollabDocs.filter((d) => d.document_subtype === 'boards'),
+        documents: groupContent?.documents ?? [],
+        generators: groupContent?.generators ?? [],
         notebooks: [
-          ...(groupContent?.notebooks || []),
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ...(groupContent?.system_notebooks || []).map((nb: any) => {
+          ...((groupContent?.notebooks ?? []) as SystemNotebook[]),
+          ...((groupContent?.system_notebooks ?? []) as SystemNotebook[]).map((nb) => {
             const config = getNotebookById(nb.id);
             return { ...nb, name: config?.title ?? nb.id };
           }),
         ],
-        texts: groupContent?.texts || [],
+        texts: groupContent?.texts ?? [],
       };
     }, [groupContent]);
 

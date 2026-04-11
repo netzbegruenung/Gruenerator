@@ -7,7 +7,7 @@ import { getIntendedRedirect, isMobileAppContext } from '../../../utils/authRedi
 import { cn } from '../../../utils/cn';
 
 // Auth Backend URL from environment variable or fallback to relative path
-const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const AUTH_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
 // Page name mapping for context display
 const PAGE_NAMES: Record<string, string> = {
@@ -58,7 +58,7 @@ const LoginPage = ({
 
   const isMobileApp = isMobileAppContext(location);
 
-  const successMessage = location.state?.message;
+  const successMessage = (location.state as { message?: string } | null)?.message;
 
   const displayPageName =
     pageName || (mode === 'required' ? getPageName(location.pathname) : undefined);

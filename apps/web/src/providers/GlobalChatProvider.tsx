@@ -20,10 +20,10 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { renderSharepicToImage } from '../features/image-studio/renderSharepicToImage';
 import { FORM_STEPS } from '../features/image-studio/utils/typeConfig/constants';
 import { useNotebookChatStore } from '../features/notebook/stores/notebookChatStore';
-import useImageStudioStore from '../stores/imageStudioStore';
 import useNotebookStore from '../features/notebook/stores/notebookStore';
 import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookChatResolver';
 import { useAuthStore } from '../stores/authStore';
+import useImageStudioStore from '../stores/imageStudioStore';
 import { buildLoginUrl, isPublicPage } from '../utils/authRedirect';
 
 const DocsEditorModal = lazy(() => import('@/components/common/DocsEditorModal'));
@@ -142,7 +142,11 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         }
       },
       renderSharepic: renderSharepicToImage,
-      onEditSharepic: (data: { canvasType: string; initialProps: Record<string, unknown>; alternatives?: unknown[] }) => {
+      onEditSharepic: (data: {
+        canvasType: string;
+        initialProps: Record<string, unknown>;
+        alternatives?: unknown[];
+      }) => {
         const store = useImageStudioStore.getState();
         store.loadFromAIGeneration(data.canvasType, data.initialProps as Record<string, string>);
         store.setCurrentStep(FORM_STEPS.CANVAS_EDIT);
@@ -170,12 +174,12 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
           body: JSON.stringify({ content: htmlContent, title, documentType: 'chat-response' }),
         });
         if (!response.ok) throw new Error('Document creation failed');
-        const data = await response.json();
+        const data = (await response.json()) as { documentId?: string; title?: string };
         if (data.documentId) {
           editorModalSetterRef.current({
             documentId: data.documentId,
             initialContent: content,
-            title: title || data.title || 'Dokument',
+            title: title ?? data.title ?? 'Dokument',
           });
           return data.documentId;
         }

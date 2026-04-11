@@ -45,12 +45,12 @@ export function useDeferredTitle(
     let cancelled = false;
 
     const promise = apiClient
-      .post('/generate-content-title', {
+      .post<{ title?: string }>('/generate-content-title', {
         content: exportableContent.slice(0, 500),
         contentType: metadata.contentType || 'universal',
       })
       .then((response) => {
-        const aiTitle: string | null = response.data?.title || null;
+        const aiTitle: string | null = response.data?.title ?? null;
         if (!cancelled) {
           setGeneratedTextMetadata(componentName, {
             ...metadata,

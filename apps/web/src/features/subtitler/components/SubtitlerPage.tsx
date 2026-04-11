@@ -23,6 +23,13 @@ import type { SubtitlePreference, StylePreference, HeightPreference } from '../t
 import type { AxiosError } from 'axios';
 import type { Accept } from 'react-dropzone';
 
+// ── API response shapes ────────────────────────────────────────────────
+
+interface ProjectResponse {
+  success?: boolean;
+  project?: LoadedProject;
+}
+
 import { cn } from '@/utils/cn';
 
 const VIDEO_ACCEPT: Accept = {
@@ -113,7 +120,7 @@ const SubtitlerPage = (): React.ReactElement => {
     deepLinkLoadedRef.current = true;
 
     apiClient
-      .get(`/subtitler/projects/${projectId}`)
+      .get<ProjectResponse>(`/subtitler/projects/${projectId}`)
       .then((res) => {
         const project = res.data?.project;
         if (!project) return;
@@ -157,10 +164,11 @@ const SubtitlerPage = (): React.ReactElement => {
   // Browser history navigation - handle back button
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
-      if (event.state?.step) {
+      const state = event.state as { step?: string } | null;
+      if (state?.step) {
         const validSteps = ['upload', 'auto-processing', 'edit', 'success'];
-        if (validSteps.includes(event.state.step)) {
-          setStep(event.state.step);
+        if (validSteps.includes(state.step)) {
+          setStep(state.step);
         }
       }
     };
@@ -302,7 +310,7 @@ const SubtitlerPage = (): React.ReactElement => {
             videoSize: uploadInfo.size || 0,
           };
 
-          const res = await apiClient.post('/subtitler/projects', projectData);
+          const res = await apiClient.post<ProjectResponse>('/subtitler/projects', projectData);
           if (res.data?.project?.id) {
             setAutoSavedProjectId(res.data.project.id);
           }

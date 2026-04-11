@@ -85,9 +85,9 @@ function SubStudioPageInner() {
     deepLinkLoadedRef.current = true;
 
     apiClient
-      .get(`/subtitler/projects/${paramProjectId}`)
+      .get<{ project?: { subtitles?: string | null } }>(`/subtitler/projects/${paramProjectId}`)
       .then((res) => {
-        const p = res.data?.project as { subtitles?: string | null } | undefined;
+        const p = res.data?.project;
         if (!p) return;
 
         if (p.subtitles) {

@@ -4,7 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useInstantAuth } from '../../../hooks/useAuth';
 
 // Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
-const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const AUTH_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
 const RegistrationPage = () => {
   const location = useLocation();

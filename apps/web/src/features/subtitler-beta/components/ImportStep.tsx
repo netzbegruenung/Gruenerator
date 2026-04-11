@@ -40,9 +40,9 @@ export function ImportStep() {
 
   useEffect(() => {
     apiClient
-      .get('/subtitler/projects')
+      .get<{ projects?: ProjectListItem[] }>('/subtitler/projects')
       .then((res) => {
-        setProjects((res.data?.projects || []) as ProjectListItem[]);
+        setProjects(res.data?.projects ?? []);
       })
       .catch(() => {})
       .finally(() => setIsLoadingProjects(false));
@@ -66,9 +66,9 @@ export function ImportStep() {
   const handleSelectProject = useCallback(
     (projectId: string) => {
       apiClient
-        .get(`/subtitler/projects/${projectId}`)
+        .get<{ project?: { subtitles?: string | null } }>(`/subtitler/projects/${projectId}`)
         .then((res) => {
-          const p = res.data?.project as { subtitles?: string | null } | undefined;
+          const p = res.data?.project;
           if (!p) return;
           if (p.subtitles) {
             setTranscript(segmentsToTranscript(p.subtitles));

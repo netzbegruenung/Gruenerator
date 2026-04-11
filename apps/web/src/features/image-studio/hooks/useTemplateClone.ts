@@ -3,6 +3,29 @@ import { useNavigate } from 'react-router-dom';
 
 import apiClient from '../../../components/utils/apiClient';
 
+// ── API response shapes ────────────────────────────────────────────────
+
+interface TemplateMetadata {
+  content?: Record<string, unknown>;
+  styling?: Record<string, unknown>;
+}
+
+interface Template {
+  image_type?: string;
+  template_creator_name?: string;
+  image_metadata?: TemplateMetadata;
+}
+
+interface TemplateGetResponse {
+  template?: Template;
+}
+
+interface ShareCloneResponse {
+  share?: {
+    shareToken?: string;
+  };
+}
+
 interface TemplateCloneResult {
   cloneTemplate: (shareToken: string) => Promise<void>;
   isCloning: boolean;
@@ -26,11 +49,15 @@ export function useTemplateClone(): TemplateCloneResult {
       setError(null);
 
       try {
-        const templateResponse = await apiClient.get(`/share/templates/${shareToken}`);
-        const { template } = templateResponse.data;
+        const templateResponse = await apiClient.get<TemplateGetResponse>(
+          `/share/templates/${shareToken}`
+        );
+        const template = templateResponse.data.template ?? {};
 
-        const cloneResponse = await apiClient.post(`/share/templates/${shareToken}/clone`);
-        const { share } = cloneResponse.data;
+        const cloneResponse = await apiClient.post<ShareCloneResponse>(
+          `/share/templates/${shareToken}/clone`
+        );
+        const share = cloneResponse.data.share ?? {};
 
         const routeMap: Record<string, string> = {
           dreizeilen: '/studio/templates/dreizeilen',
@@ -45,8 +72,9 @@ export function useTemplateClone(): TemplateCloneResult {
           Headline: '/studio/templates/headline',
         };
 
-        const route = routeMap[template.image_type] || '/studio/templates';
-        const normalizedType = template.image_type?.toLowerCase().replace('_', '-');
+        const imageType = template.image_type ?? '';
+        const route = routeMap[imageType] ?? '/studio/templates';
+        const normalizedType = imageType.toLowerCase().replace('_', '-');
 
         navigate(route, {
           replace: true,

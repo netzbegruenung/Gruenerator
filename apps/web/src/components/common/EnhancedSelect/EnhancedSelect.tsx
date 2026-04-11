@@ -153,6 +153,7 @@ const EnhancedSelect = forwardRef<EnhancedSelectRef, EnhancedSelectProps>(
   ) => {
     // Ref to the internal select component
     const selectRef = useRef<{ inputRef?: { blur: () => void } | null }>(null);
+    const selectLibRef = selectRef as React.Ref<never>;
 
     // Expose select API through imperative handle
     useImperativeHandle(
@@ -331,8 +332,7 @@ const EnhancedSelect = forwardRef<EnhancedSelectRef, EnhancedSelectProps>(
     const selectElement = (
       <Suspense fallback={<div>Loading...</div>}>
         <SelectComponent
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ref={selectRef as any}
+          ref={selectLibRef}
           options={options}
           formatOptionLabel={internalFormatOptionLabel}
           components={components}

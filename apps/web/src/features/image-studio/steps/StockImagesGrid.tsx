@@ -90,14 +90,18 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
     setIsAiSuggesting(true);
 
     try {
-      const response = await apiClient.post('/image-picker/select', {
+      interface ImagePickerResponse {
+        success: boolean;
+        selectedImage: StockImage;
+      }
+      const response = await apiClient.post<ImagePickerResponse>('/image-picker/select', {
         text: textForSuggestion,
         type: 'sharepic',
       });
 
       if (response.data.success) {
         const suggestion = response.data;
-        setAiSuggestion(suggestion);
+        setAiSuggestion({ selectedImage: suggestion.selectedImage });
         setRecommendedCategory(suggestion.selectedImage.category);
 
         const matchingImage = stockImages.find(

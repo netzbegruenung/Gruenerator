@@ -40,7 +40,7 @@ export const useBoardSharing = (boardId: string) => {
   const collaborators = useQuery<Collaborator[]>({
     queryKey: permKey,
     queryFn: async () => {
-      const res = await apiClient.get(`/docs/${boardId}/permissions`);
+      const res = await apiClient.get<Collaborator[]>(`/docs/${boardId}/permissions`);
       return res.data;
     },
     enabled: !!boardId,
@@ -49,7 +49,7 @@ export const useBoardSharing = (boardId: string) => {
   const shareSettings = useQuery<ShareSettings>({
     queryKey: shareKey,
     queryFn: async () => {
-      const res = await apiClient.get(`/docs/${boardId}/share`);
+      const res = await apiClient.get<ShareSettings>(`/docs/${boardId}/share`);
       return res.data;
     },
     enabled: !!boardId,
@@ -58,7 +58,7 @@ export const useBoardSharing = (boardId: string) => {
   const userGroups = useQuery<UserGroup[]>({
     queryKey: ['docs', 'user-groups'],
     queryFn: async () => {
-      const res = await apiClient.get('/docs/user-groups');
+      const res = await apiClient.get<UserGroup[]>('/docs/user-groups');
       return res.data;
     },
   });
@@ -66,7 +66,7 @@ export const useBoardSharing = (boardId: string) => {
   const boardGroups = useQuery<GroupShare[]>({
     queryKey: groupsKey,
     queryFn: async () => {
-      const res = await apiClient.get(`/docs/${boardId}/groups`);
+      const res = await apiClient.get<GroupShare[]>(`/docs/${boardId}/groups`);
       return res.data;
     },
     enabled: !!boardId,

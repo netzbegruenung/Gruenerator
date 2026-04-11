@@ -74,7 +74,7 @@ export function TopicRanking({ topics, totalArticles, sourcesCount, onClick }: T
               dataKey="articles"
               layout="vertical"
               radius={5}
-              onClick={(data) => {
+              onClick={(data: { topic?: unknown } | null) => {
                 if (data?.topic) onClick(data.topic as TopicCategory);
               }}
               className="cursor-pointer"

@@ -4,9 +4,9 @@ import { isDesktopApp } from '../../utils/platform';
 
 import type { DocsAdapter } from '@gruenerator/docs';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 const HOCUSPOCUS_URL =
-  import.meta.env.VITE_HOCUSPOCUS_URL ||
+  (import.meta.env.VITE_HOCUSPOCUS_URL as string | undefined) ??
   (window.location.protocol === 'https:'
     ? `wss://${window.location.host}/ws`
     : 'ws://localhost:1240');

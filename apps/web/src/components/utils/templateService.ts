@@ -1,7 +1,7 @@
 import apiClient from './apiClient';
 
 // Auth Backend URL - only needed for image URL generation
-const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const AUTH_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
 interface TemplateImage {
   url: string | null;
@@ -113,7 +113,7 @@ export const templateService = {
    */
   async getPublicTemplates(): Promise<TransformedTemplate[]> {
     try {
-      const response = await apiClient.get('/api/templates');
+      const response = await apiClient.get<RawTemplate[]>('/api/templates');
       const data: RawTemplate[] = response.data;
 
       // Transformiere die Daten in das im Frontend erwartete Format
@@ -136,7 +136,7 @@ export const templateService = {
         params.categoryId = categoryId;
       }
 
-      const response = await apiClient.get('/api/templates', { params });
+      const response = await apiClient.get<RawTemplate[]>('/api/templates', { params });
       const data: RawTemplate[] = response.data;
 
       // Transform data (similar to getTemplates)
@@ -153,9 +153,9 @@ export const templateService = {
    */
   async getCategories(): Promise<TemplateCategory[]> {
     try {
-      const response = await apiClient.get('/api/templates/categories');
+      const response = await apiClient.get<TemplateCategory[]>('/api/templates/categories');
       const data = response.data;
-      return data || []; // Return fetched data or an empty array
+      return data ?? []; // Return fetched data or an empty array
     } catch (error) {
       console.error(' beim Abrufen der Kategorien');
       return [];
@@ -168,7 +168,9 @@ export const templateService = {
    */
   async getUserTemplates(): Promise<unknown[]> {
     try {
-      const response = await apiClient.get('/auth/user-templates');
+      const response = await apiClient.get<{ success: boolean; data: unknown[] }>(
+        '/auth/user-templates'
+      );
       const data = response.data;
       return data.success ? data.data : [];
     } catch (error) {

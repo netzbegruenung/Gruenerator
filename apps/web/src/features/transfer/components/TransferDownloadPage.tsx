@@ -58,7 +58,7 @@ function getFileIcon(mimeType: string | null) {
   return <PiFile className="size-8 text-grey-400" />;
 }
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+const baseURL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
 export default function TransferDownloadPage({ shareToken, shareData }: TransferDownloadPageProps) {
   const [isDownloading, setIsDownloading] = useState(false);

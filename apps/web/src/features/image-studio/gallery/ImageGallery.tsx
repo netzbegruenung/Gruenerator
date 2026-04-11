@@ -163,7 +163,7 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
     }
   };
 
-  const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+  const baseURL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
   const thumbnailUrl = image.thumbnailPath
     ? `${baseURL}/share/${image.shareToken}/preview?w=400`
     : null;
@@ -329,7 +329,7 @@ const ImageGallery = () => {
 
   const handleDownload = useCallback(async (image: GalleryImage) => {
     try {
-      const response = await apiClient.get(`/share/${image.shareToken}/download`, {
+      const response = await apiClient.get<Blob>(`/share/${image.shareToken}/download`, {
         responseType: 'blob',
       });
       const blob = response.data;
@@ -367,7 +367,7 @@ const ImageGallery = () => {
         return;
       }
 
-      const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+      const baseURL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
       navigate(route, {
         state: {
@@ -416,7 +416,7 @@ const ImageGallery = () => {
           </Button>
         </div>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-lg max-[768px]:grid-cols-2 max-[768px]:gap-md max-[480px]:grid-cols-1">
-          {[...Array(6)].map((_, i) => (
+          {Array.from({ length: 6 }).map((_, i) => (
             <SkeletonCard key={i} />
           ))}
         </div>

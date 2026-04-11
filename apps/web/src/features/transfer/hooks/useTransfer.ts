@@ -33,7 +33,7 @@ export function useTransferList() {
   return useQuery<TransferItem[]>({
     queryKey: ['transfers'],
     queryFn: async () => {
-      const { data } = await apiClient.get('/transfer/list');
+      const { data } = await apiClient.get<{ transfers: TransferItem[] }>('/transfer/list');
       return data.transfers;
     },
     staleTime: 30_000,
@@ -61,7 +61,7 @@ export function useUploadTransfer() {
         formData.append('message', message);
       }
 
-      const { data } = await apiClient.post('/transfer/upload', formData, {
+      const { data } = await apiClient.post<UploadResult>('/transfer/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 120000,
       });

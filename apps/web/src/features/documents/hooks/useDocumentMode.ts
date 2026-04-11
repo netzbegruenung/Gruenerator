@@ -19,9 +19,9 @@ export const useDocumentMode = () => {
       setLoading(true);
       setError(null);
 
-      const response = await apiClient.get('/documents/mode');
+      const response = await apiClient.get<{ mode?: DocumentMode }>('/documents/mode');
 
-      if (response.data && response.data.mode) {
+      if (response.data?.mode) {
         setCurrentMode(response.data.mode);
       }
     } catch (error) {
@@ -47,11 +47,11 @@ export const useDocumentMode = () => {
         setLoading(true);
         setError(null);
 
-        const response = await apiClient.post('/documents/mode', {
+        const response = await apiClient.post<{ success: boolean }>('/documents/mode', {
           mode: newMode,
         });
 
-        if (response.data && response.data.success) {
+        if (response.data?.success) {
           setCurrentMode(newMode);
           console.log(`[useDocumentMode] Successfully switched to ${newMode} mode`);
         } else {

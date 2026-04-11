@@ -52,7 +52,9 @@ export const useSlugAvailability = ({
       setError(null);
 
       try {
-        const response = await apiClient.get(`/custom_generator/check-slug/${debouncedSlug}`);
+        const response = await apiClient.get<{ exists: boolean }>(
+          `/custom_generator/check-slug/${debouncedSlug}`
+        );
         const data = response.data;
 
         if (data.exists) {

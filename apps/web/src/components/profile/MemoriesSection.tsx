@@ -204,8 +204,8 @@ export default memo(function MemoriesSection() {
         a.click();
         URL.revokeObjectURL(url);
       })
-      .catch((err) => {
-        setMutationError(err.message || 'Export fehlgeschlagen.');
+      .catch((err: unknown) => {
+        setMutationError((err instanceof Error ? err.message : null) ?? 'Export fehlgeschlagen.');
       });
   }
 

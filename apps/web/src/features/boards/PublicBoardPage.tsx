@@ -33,7 +33,9 @@ function PublicBoardContent() {
   } = useQuery<Board & { share_mode?: string; share_permission?: string }>({
     queryKey: ['boards-public', id],
     queryFn: async () => {
-      const res = await apiClient.get(`/boards/public/${id}`);
+      const res = await apiClient.get<Board & { share_mode?: string; share_permission?: string }>(
+        `/boards/public/${id}`
+      );
       return res.data;
     },
     enabled: !!id,

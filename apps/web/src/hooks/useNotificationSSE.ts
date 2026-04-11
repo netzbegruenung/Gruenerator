@@ -43,12 +43,12 @@ export function useNotificationSSE(onNotification?: OnNotificationCallback): voi
       setSseConnected(true);
     });
 
-    es.addEventListener('notification', (event) => {
+    es.addEventListener('notification', (event: Event) => {
       incrementUnreadCount();
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
 
       try {
-        const data = JSON.parse(event.data) as SSENotificationData;
+        const data = JSON.parse((event as MessageEvent<string>).data) as SSENotificationData;
         onNotificationRef.current?.(data);
       } catch {
         // ignore parse errors

@@ -10,8 +10,8 @@ export interface PresenceUser {
   name: string;
 }
 
-export const HOCUSPOCUS_URL =
-  import.meta.env.VITE_HOCUSPOCUS_URL ||
+export const HOCUSPOCUS_URL: string =
+  (import.meta.env.VITE_HOCUSPOCUS_URL as string | undefined) ??
   (window.location.protocol === 'https:'
     ? `wss://${window.location.host}/ws`
     : 'ws://localhost:1240');

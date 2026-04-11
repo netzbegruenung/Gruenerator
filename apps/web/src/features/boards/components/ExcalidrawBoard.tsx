@@ -32,9 +32,9 @@ interface ExcalidrawBoardProps {
 
 const LIBRARY_STORAGE_KEY = 'excalidraw-user-library';
 
-function loadUserLibraryItems() {
+function loadUserLibraryItems(): unknown[] {
   try {
-    return JSON.parse(localStorage.getItem(LIBRARY_STORAGE_KEY) || '[]');
+    return JSON.parse(localStorage.getItem(LIBRARY_STORAGE_KEY) ?? '[]') as unknown[];
   } catch {
     return [];
   }
@@ -77,8 +77,7 @@ export function ExcalidrawBoard({ ydoc, provider, isSynced }: ExcalidrawBoardPro
     const yAssets = ydoc.getMap('assets');
 
     const binding = new ExcalidrawBinding(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      yElements as any,
+      yElements as Y.Array<Y.Map<unknown>>,
       yAssets,
       api,
       provider.awareness ?? undefined
