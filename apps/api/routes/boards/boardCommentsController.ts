@@ -284,8 +284,8 @@ router.post(
         content,
         parentId: parentId ?? null,
         mentionedUserIds,
-      }).catch((err) => {
-        log.warn('Failed to send comment notifications', { error: err.message });
+      }).catch((err: unknown) => {
+        log.warn('Failed to send comment notifications', { error: err instanceof Error ? err.message : String(err) });
       });
 
       return res.status(201).json(result);

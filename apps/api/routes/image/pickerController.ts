@@ -15,6 +15,7 @@ import { validateBody, type TypedRequest } from '../../middleware/validateBody.j
 import { createLogger } from '../../utils/logger.js';
 import { safeFetch } from '../../utils/validation/urlSecurity.js';
 
+import type { ImageCatalogEntry } from '../../services/image/types.js';
 import type {
   AuthenticatedRequest,
   ImageSelectRequestBody,
@@ -103,8 +104,7 @@ router.post('/select', validateBody(selectBodySchema), async (req: TypedRequest<
       },
       confidence: result.confidence,
       reasoning: result.reasoning,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      alternatives: result.alternatives.map((alt: any) => ({
+      alternatives: result.alternatives.map((alt: ImageCatalogEntry) => ({
         filename: alt.filename,
         category: alt.category,
         tags: alt.tags,
@@ -286,8 +286,7 @@ router.get(
 
       return res.json({
         success: true,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        images: images as any,
+        images: images as Record<string, unknown>[],
         count: images.length,
         totalCount: catalog.images.length,
         categories,

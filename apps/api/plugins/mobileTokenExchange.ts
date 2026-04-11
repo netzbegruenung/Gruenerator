@@ -53,9 +53,9 @@ export const mobileTokenExchange = () => {
 
           const existing = await ctx.context.internalAdapter.findUserByEmail(email);
 
-          let userData;
+          let userData: { id: string; [key: string]: unknown };
           if (existing) {
-            userData = existing.user;
+            userData = existing.user as typeof userData;
           } else {
             const created = await ctx.context.internalAdapter.createUser({
               email,
@@ -65,10 +65,10 @@ export const mobileTokenExchange = () => {
               auth_source: authSource || 'mobile',
               keycloak_id: payload.sub || null,
             });
-            userData = created.user;
+            userData = (created as unknown as { user: typeof userData }).user;
           }
 
-          const session = await ctx.context.internalAdapter.createSession(userData.id as string, false);
+          const session = await ctx.context.internalAdapter.createSession(userData.id, false);
 
           return ctx.json({
             token: session.token,

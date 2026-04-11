@@ -313,7 +313,7 @@ router.post(
         mode: 'normal',
         user_id: userId,
         searchOptions,
-        aiWorkerPool: req.app.locals.aiWorkerPool,
+        aiWorkerPool: getAIWorkerPool(req),
         req,
       };
 
@@ -327,7 +327,7 @@ router.post(
             error: 'Websuche fehlgeschlagen',
             metadata: { timestamp: new Date().toISOString(), searchType: 'normal' },
           };
-        if (process.env.NODE_ENV === 'development') {
+        if (process.env.NODE_ENV === 'development' && searchResults.error != null) {
           errorResponse.details = searchResults.error;
         }
         return res.status(500).json(errorResponse);
@@ -349,14 +349,12 @@ router.post(
           processingTimeMs: processingTime,
           timestamp: new Date().toISOString(),
           searchType: 'normal',
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          includedSummary: !!(searchResults.summary as any)?.generated,
+          includedSummary: !!searchResults.summary,
         },
       };
 
       if (searchResults.summary) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        response.summary = searchResults.summary as any;
+        response.summary = { text: searchResults.summary, generated: true };
       }
 
       if (searchResults.citations && searchResults.citations.length > 0) {
@@ -427,7 +425,7 @@ router.post(
           maxResults: 10,
           language: 'de-DE',
         },
-        aiWorkerPool: req.app.locals.aiWorkerPool,
+        aiWorkerPool: getAIWorkerPool(req),
         req,
       };
 

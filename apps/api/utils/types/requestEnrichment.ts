@@ -29,7 +29,7 @@ export interface EnrichmentOptions {
   selectedTextIds?: string[] | undefined;
   searchQuery?: string | null | undefined;
   provider?: string | undefined;
-  aiWorkerPool?: AIWorkerPool;
+  aiWorkerPool?: AIWorkerPool | undefined;
   req?: unknown | undefined;
   enableNotebookEnrich?: boolean | undefined;
   notebookEnrichPrompt?: string | undefined;

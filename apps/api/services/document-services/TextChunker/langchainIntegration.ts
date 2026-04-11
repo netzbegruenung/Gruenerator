@@ -37,6 +37,7 @@ export class LangChainChunker {
 
     try {
       // @ts-expect-error - LangChain is an optional dependency
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const { RecursiveCharacterTextSplitter } = await import('langchain/text_splitter');
       const splitter: { splitText(text: string): Promise<string[]> } =
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call
@@ -45,6 +46,7 @@ export class LangChainChunker {
     } catch (_err1) {
       try {
         // @ts-expect-error - LangChain is an optional dependency
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const { RecursiveCharacterTextSplitter } = await import('@langchain/core/text_splitter');
         const splitter: { splitText(text: string): Promise<string[]> } =
           // eslint-disable-next-line @typescript-eslint/no-unsafe-call
@@ -55,6 +57,7 @@ export class LangChainChunker {
       } catch (_err2) {
         try {
           // @ts-expect-error - LangChain is an optional dependency
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           const { RecursiveCharacterTextSplitter } = await import('@langchain/textsplitters');
           const splitter: { splitText(text: string): Promise<string[]> } =
             // eslint-disable-next-line @typescript-eslint/no-unsafe-call

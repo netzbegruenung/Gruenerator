@@ -136,7 +136,7 @@ router.get(
         return;
       }
 
-      const job: RenderJob = JSON.parse(data);
+      const job = JSON.parse(data) as RenderJob;
 
       res.json({
         render: {
@@ -174,7 +174,7 @@ router.delete(
         return;
       }
 
-      const job: RenderJob = JSON.parse(data);
+      const job = JSON.parse(data) as RenderJob;
 
       if (job.status === 'COMPLETED') {
         res.status(400).json({ error: 'Cannot cancel a completed render' });

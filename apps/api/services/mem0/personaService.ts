@@ -52,7 +52,7 @@ export async function getCachedPersona(userId: string): Promise<string | null> {
     const data = await redisClient.get(personaKey(userId));
     if (!data) return null;
 
-    const cached: CachedPersona = JSON.parse(data);
+    const cached = JSON.parse(data) as CachedPersona;
     return cached.persona;
   } catch (error) {
     log.warn('[Persona] Failed to read cache:', error);

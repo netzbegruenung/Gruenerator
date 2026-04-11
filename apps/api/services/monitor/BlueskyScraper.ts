@@ -36,11 +36,11 @@ function postToUrl(uri: string, handle: string): string {
 
 async function fetchAccountPosts(handle: string, limit: number): Promise<BskyPost[]> {
   try {
-    const response = await axios.get(BSKY_API, {
+    const response = await axios.get<{ feed?: BskyFeedItem[] }>(BSKY_API, {
       params: { actor: handle, limit },
       timeout: 10000,
     });
-    return ((response.data?.feed as BskyFeedItem[] | undefined) || []).map((item) => item.post);
+    return (response.data?.feed ?? []).map((item) => item.post);
   } catch (error) {
     log.warn(`Bluesky fetch failed for @${handle}: ${error}`);
     return [];

@@ -20,6 +20,7 @@ export async function selectImagesNode(
 
   try {
     const content = { ...state.websiteContent };
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const aiWorkerPool = state.req.app.locals.aiWorkerPool;
 
     const pickImage = async (text: string): Promise<string> => {

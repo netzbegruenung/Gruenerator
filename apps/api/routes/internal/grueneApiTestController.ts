@@ -26,6 +26,7 @@ const apiClient = axios.create({
 async function proxyGet(path: string, params?: Record<string, string>) {
   try {
     const res = await apiClient.get(path, { params });
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     return { status: res.status, data: res.data };
   } catch (error: unknown) {
     const axiosErr =

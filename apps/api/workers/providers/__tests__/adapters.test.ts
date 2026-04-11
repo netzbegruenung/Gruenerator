@@ -10,6 +10,7 @@ import { getGenerationConfig } from '../../../services/ai/config.js';
 import { getModel, isProviderConfigured, getDefaultModel } from '../../../services/ai/providers.js';
 import * as providers from '../index.js';
 
+
 console.log('='.repeat(60));
 console.log('Testing AI Provider Adapters (Vercel SDK Migration)');
 console.log('='.repeat(60));
@@ -45,9 +46,8 @@ try {
     twitterConfig.maxTokens === 120 ? '✅' : '❌',
     twitterConfig.maxTokens
   );
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-} catch (error: any) {
-  console.log('Test 1 failed:', error.message);
+} catch (error: unknown) {
+  console.log('Test 1 failed:', (error as { message?: string }).message);
 }
 
 // Test 2: Provider Configuration Check
@@ -56,9 +56,8 @@ try {
   console.log('Mistral configured:', isProviderConfigured('mistral') ? '✅' : '⚠️ Not configured');
   console.log('LiteLLM configured:', isProviderConfigured('litellm') ? '✅' : '⚠️ Not configured');
   console.log('IONOS configured:', isProviderConfigured('ionos') ? '✅' : '⚠️ Not configured');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-} catch (error: any) {
-  console.log('Test 2 failed:', error.message);
+} catch (error: unknown) {
+  console.log('Test 2 failed:', (error as { message?: string }).message);
 }
 
 // Test 3: Default Models
@@ -67,9 +66,8 @@ try {
   console.log('Mistral default:', getDefaultModel('mistral'));
   console.log('LiteLLM default:', getDefaultModel('litellm'));
   console.log('IONOS default:', getDefaultModel('ionos'));
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-} catch (error: any) {
-  console.log('Test 3 failed:', error.message);
+} catch (error: unknown) {
+  console.log('Test 3 failed:', (error as { message?: string }).message);
 }
 
 // Test 4: Provider Exports
@@ -82,19 +80,16 @@ try {
     'executeProvider function:',
     typeof providers.executeProvider === 'function' ? '✅' : '❌'
   );
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   console.log(
     'claude adapter (should be undefined):',
-    (providers as any).claude === undefined ? '✅' : '❌'
+    !('claude' in providers) ? '✅' : '❌'
   );
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   console.log(
     'telekom adapter (should be undefined):',
-    (providers as any).telekom === undefined ? '✅' : '❌'
+    !('telekom' in providers) ? '✅' : '❌'
   );
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-} catch (error: any) {
-  console.log('Test 4 failed:', error.message);
+} catch (error: unknown) {
+  console.log('Test 4 failed:', (error as { message?: string }).message);
 }
 
 // Test 5: Model Instance Creation (only if configured)
@@ -120,9 +115,8 @@ try {
   } else {
     console.log('IONOS model instance: ⚠️ Skipped (not configured)');
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-} catch (error: any) {
-  console.log('Test 5 failed:', error.message);
+} catch (error: unknown) {
+  console.log('Test 5 failed:', (error as { message?: string }).message);
 }
 
 // Test 6: Live Mistral Request (if configured)
@@ -141,9 +135,8 @@ if (isProviderConfigured('mistral')) {
     console.log('Provider:', result.metadata?.provider);
     console.log('Content:', result.content?.substring(0, 100) || '(no content)');
     console.log('Stop reason:', result.stop_reason);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
-    console.log('Test 6 failed:', error.message);
+  } catch (error: unknown) {
+    console.log('Test 6 failed:', (error as { message?: string }).message);
   }
 } else {
   console.log('⚠️ Skipped (MISTRAL_API_KEY not configured)');
@@ -165,9 +158,8 @@ if (isProviderConfigured('litellm')) {
     console.log('Provider:', result.metadata?.provider);
     console.log('Content:', result.content?.substring(0, 100) || '(no content)');
     console.log('Stop reason:', result.stop_reason);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
-    console.log('Test 7 failed:', error.message);
+  } catch (error: unknown) {
+    console.log('Test 7 failed:', (error as { message?: string }).message);
   }
 } else {
   console.log('⚠️ Skipped (LITELLM_BASE_URL/LITELLM_API_KEY not configured)');

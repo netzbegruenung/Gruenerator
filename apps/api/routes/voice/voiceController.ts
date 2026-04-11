@@ -355,15 +355,16 @@ async function transcribeBuffer(
  * POST /api/voice/transcribe
  * Transcribe audio file — prefers Regolo Whisper, falls back to Voxtral
  */
-router.post('/transcribe', upload.single('audio') as express.RequestHandler, async (
+router.post('/transcribe', upload.single('audio') as express.RequestHandler, (async (
   req: TranscribeRequest,
   res: Response<TranscribeResponse>
 ): Promise<void> => {
   if (!req.file) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       error: 'Keine Audio-Datei erhalten',
     });
+    return;
   }
 
   let audioBuffer = req.file.buffer;
@@ -401,7 +402,7 @@ router.post('/transcribe', upload.single('audio') as express.RequestHandler, asy
       speakerMap = await identifySpeakers(result.text);
     }
 
-    return res.json({
+    res.json({
       success: true,
       text: result.text,
       ...(result.segments != null && { segments: result.segments }),
@@ -412,12 +413,12 @@ router.post('/transcribe', upload.single('audio') as express.RequestHandler, asy
   } catch (error) {
     log.error('[Voice] Transcription error:', error);
 
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Fehler bei der Transkription: ' + (error as Error).message,
     });
   }
-});
+}) as express.RequestHandler);
 
 /**
  * POST /api/voice/transcribe/stream
@@ -426,15 +427,16 @@ router.post('/transcribe', upload.single('audio') as express.RequestHandler, asy
  * Supports diarize/timestamps — when enabled, uses non-streaming transcription
  * but still wraps in SSE for consistent progress feedback.
  */
-router.post('/transcribe/stream', upload.single('audio'), async (
+router.post('/transcribe/stream', upload.single('audio'), (async (
   req: TranscribeRequest,
   res: Response
 ): Promise<void> => {
   if (!req.file) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       error: 'Keine Audio-Datei erhalten',
     });
+    return;
   }
 
   let audioBuffer = req.file.buffer;
@@ -514,7 +516,7 @@ router.post('/transcribe/stream', upload.single('audio'), async (
   }
 
   sse.end();
-});
+}) as express.RequestHandler);
 
 // ============================================================================
 // TUS-based transcription (two-phase: upload via TUS, then process)
@@ -731,15 +733,16 @@ router.post(
  * POST /api/voice/chat
  * Chat with audio input
  */
-router.post('/chat', upload.single('audio'), async (
+router.post('/chat', upload.single('audio'), (async (
   req: ChatRequest,
   res: Response<ChatResponse>
 ): Promise<void> => {
   if (!req.file) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       error: 'Keine Audio-Datei erhalten',
     });
+    return;
   }
 
   const audioBuffer = req.file.buffer;
@@ -751,7 +754,7 @@ router.post('/chat', upload.single('audio'), async (
 
     const response: string = await mistralVoiceService.chatWithAudio(audioBuffer, filename, prompt);
 
-    return res.json({
+    res.json({
       success: true,
       response,
       prompt,
@@ -759,12 +762,12 @@ router.post('/chat', upload.single('audio'), async (
   } catch (error) {
     log.error('[Voice] Audio chat error:', error);
 
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Fehler beim Audio-Chat: ' + (error as Error).message,
     });
   }
-});
+}) as express.RequestHandler);
 
 /**
  * POST /api/voice/protokoll

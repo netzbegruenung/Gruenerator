@@ -20,7 +20,7 @@ interface VideoMetadata {
     codec?: string;
     videoBitrate?: number;
     audioCodec?: string;
-    audioBitrate?: number;
+    audioBitrate?: number | null;
   };
 }
 

@@ -143,7 +143,7 @@ router.post(
 
       // Store original body and modify for the Claude handler
       const originalBody = req.body;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
       (req as any).body = {
         thema: theme,
         details: trimmedPrompt,
@@ -174,7 +174,7 @@ router.post(
       await handleUnifiedRequest(req as Request as SharepicRequest, customRes, type);
 
       // Restore original body
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
       (req as any).body = originalBody;
 
       if (!capturedResponse) {

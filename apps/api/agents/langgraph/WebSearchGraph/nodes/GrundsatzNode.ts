@@ -5,6 +5,7 @@
 
 import { DocumentSearchService } from '../../../../services/document-services/DocumentSearchService/index.js';
 
+import type { DocumentResult } from '../../../../services/BaseSearchService/types.js';
 import type { WebSearchState } from '../types.js';
 
 const documentSearchService = new DocumentSearchService();
@@ -33,16 +34,15 @@ export async function grundsatzNode(state: WebSearchState): Promise<Partial<WebS
       },
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const formattedResults = (searchResults.results || []).map((result: any) => ({
+    const formattedResults = (searchResults.results || []).map((result: DocumentResult) => ({
       document_id: result.document_id,
-      title: result.title || result.document_title,
-      content: result.relevant_content || result.chunk_text,
-      url: result.url || '',
-      snippet: result.relevant_content || result.chunk_text || '',
+      title: result.title ?? result.document_id,
+      content: result.relevant_content,
+      url: result.source_url || '',
+      snippet: result.relevant_content || '',
       similarity_score: result.similarity_score,
       filename: result.filename,
-      chunk_index: result.chunk_index || 0,
+      chunk_index: result.chunk_index ?? 0,
       relevance_info: result.relevance_info,
       source_type: 'official_document',
     }));

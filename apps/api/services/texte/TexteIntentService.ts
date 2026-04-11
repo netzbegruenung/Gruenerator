@@ -327,7 +327,7 @@ Antworte NUR mit JSON:
       return null;
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
+    const parsed = JSON.parse(jsonMatch[0]) as { textType?: string; confidence?: number };
     const textType = parsed.textType || 'universal';
     const mapping = TEXT_TYPE_MAPPINGS[textType] || TEXT_TYPE_MAPPINGS['universal'];
 
@@ -336,7 +336,7 @@ Antworte NUR mit JSON:
     return {
       detectedType: textType,
       route: mapping.route,
-      confidence: parsed.confidence || 0.8,
+      confidence: parsed.confidence ?? 0.8,
       params: mapping.params || {},
       method: 'ai',
     };

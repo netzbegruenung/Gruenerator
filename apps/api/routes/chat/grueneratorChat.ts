@@ -605,21 +605,10 @@ async function handlePendingInformationRequest(
           count: 1,
           preserveName: true,
         });
-        const sharepicBody = req.body as {
-          text?: string;
-          subject?: string;
-          preserveName?: boolean;
-          name?: string;
-          attachments?: unknown[];
-          sharepicRequestId?: string;
-          campaignId?: string;
-          campaignTypeId?: string;
-          [key: string]: unknown;
-        };
         const sharepicResponse = await generateSharepicForChat(
           req as SharepicExpressRequest,
           sharepicType,
-          sharepicBody
+          req.body as unknown as Parameters<typeof generateSharepicForChat>[2]
         );
         return res.json(sharepicResponse);
       } catch (error) {

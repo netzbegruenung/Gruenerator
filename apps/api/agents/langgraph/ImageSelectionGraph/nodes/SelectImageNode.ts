@@ -91,7 +91,7 @@ Wähle den besten Hintergrund aus (gib die Nummer an).`;
 
     // Parse AI response
     try {
-      const selection: AISelectionResponse = JSON.parse(contentToParse);
+      const selection = JSON.parse(contentToParse) as AISelectionResponse;
       console.log(`[ImageSelection] Parsed successfully:`, selection);
 
       // Validate index

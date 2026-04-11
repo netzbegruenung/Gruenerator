@@ -9,6 +9,8 @@ import { queryPlannerNode } from './queryPlannerNode.js';
 
 import type { SearchGraphState } from '../types.js';
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+
 // Mock the external services
 vi.mock('../../../../services/search/QueryExpansionService.js', () => ({
   expandQuery: vi.fn().mockResolvedValue({

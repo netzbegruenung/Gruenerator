@@ -32,7 +32,7 @@ export async function storeDocumentText(
     // Parse existing metadata
     let existingMetadata: Record<string, unknown> = {};
     try {
-      existingMetadata = document.metadata ? JSON.parse(document.metadata) : {};
+      existingMetadata = document.metadata ? JSON.parse(document.metadata) as Record<string, unknown> : {};
     } catch (_e) {
       existingMetadata = {};
     }
@@ -88,7 +88,7 @@ export async function getDocumentText(
     // Parse metadata to extract text
     let metadata: Record<string, unknown> = {};
     try {
-      metadata = document.metadata ? JSON.parse(document.metadata) : {};
+      metadata = document.metadata ? JSON.parse(document.metadata) as Record<string, unknown> : {};
     } catch (_e) {
       metadata = {};
     }

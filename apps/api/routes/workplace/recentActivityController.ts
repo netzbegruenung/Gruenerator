@@ -186,7 +186,7 @@ export async function fetchRecentBoards(
   ).map((row) => {
     let boardType: 'kanban' | 'whiteboard' = 'kanban';
     try {
-      const content = typeof row.content === 'string' ? JSON.parse(row.content) : row.content;
+      const content = (typeof row.content === 'string' ? JSON.parse(row.content) : row.content) as { boardType?: string } | null;
       if (content?.boardType === 'whiteboard') boardType = 'whiteboard';
     } catch {
       // default to kanban
@@ -262,8 +262,9 @@ export async function fetchRecentReelProjects(
       last_edited_at: string | null;
     }>
   ).map((row) => {
-    const metadata =
-      typeof row.video_metadata === 'string' ? JSON.parse(row.video_metadata) : row.video_metadata;
+    const metadata = (
+      typeof row.video_metadata === 'string' ? JSON.parse(row.video_metadata) : row.video_metadata
+    ) as { duration?: number | string } | null;
     const duration = metadata?.duration ? Math.round(Number(metadata.duration)) : undefined;
 
     return {

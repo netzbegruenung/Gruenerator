@@ -12,7 +12,7 @@
 
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
-import type AIWorkerPool from '../../../workers/aiWorkerPool.js';
+import type { AIWorkerPool } from '../../../workers/types.js';
 import type { ModelMessage } from 'ai';
 
 /**

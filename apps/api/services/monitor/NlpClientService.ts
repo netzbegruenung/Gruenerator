@@ -64,7 +64,9 @@ export async function extractKeywords(
 
 export async function checkHealth(): Promise<boolean> {
   try {
-    const response = await axios.get(`${NLP_SERVICE_URL}/health`, { timeout: 5000 });
+    const response = await axios.get<{ status: string }>(`${NLP_SERVICE_URL}/health`, {
+      timeout: 5000,
+    });
     return response.data?.status === 'ok';
   } catch {
     return false;

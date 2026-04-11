@@ -167,12 +167,10 @@ The Zod schemas created here become the building blocks for ts-rest contracts la
 **Progress:**
 - [x] `validateBody` middleware created
 - [x] Proof-of-concept: email route (replaced interface cast + 5 manual checks with 1 schema)
-- [ ] Apply to subtitler routes (processingController, shareController, projectController)
-- [ ] Apply to voice routes (voiceController)
-- [ ] Apply to chat routes (chatStreamController, notebookStreamController, grueneratorChat)
-- [ ] Apply to auth/group routes (groupContent, groupCore)
-- [ ] Apply to search routes (searchStreamController)
-- [ ] Apply to remaining route files
+- [x] Applied to ~75 route files (batch rollout 2026-04-11)
+- [x] Fixed `TypedRequest & AuthenticatedRequest` intersection bug (Express `body: any` absorbed typed body)
+- [x] `TypedRequest<T, P>` now includes user/auth fields — no intersection needed
+- [ ] Remaining ~50 routes have no violations — migrate **opportunistically** when touching those files
 
 ## Phase 4: Advanced (Long-term)
 
@@ -181,14 +179,45 @@ The Zod schemas created here become the building blocks for ts-rest contracts la
 
 ts-rest defines a single contract that types body, params, query, headers, AND response. Both Express backend and React frontend get types from the same source. Uses Zod schemas internally — the schemas from Phase 3.5 transfer directly into ts-rest contracts.
 
+**Acceleration strategy:** ~75 Zod schemas from `validateBody` already exist. A codegen script can auto-generate ts-rest contracts from them — skips 60% of the manual effort. Start with 3-5 high-traffic endpoints to prove the pattern.
+
 ### 4.2 Branded types for domain values [STARTED]
 - [x] `Brand<T, B>` utility + 9 ID types + `fromParam<T>` helper
 - [ ] Adopt in route handlers and service layer
+- **Deferred** — prevents ID mixups but lower priority than end-to-end typing
 
 ### 4.3 Runtime validation at system boundaries [STARTED]
 - [x] Zod `validateBody` middleware for API request bodies (Phase 3.5)
 - [ ] Zod schemas for external API responses (WordPress, Qdrant, etc.)
 - [ ] Typed environment variables with `t3-env` or similar
+
+### 4.4 Global infrastructure typing [NEW]
+Quick wins that eliminate whole violation categories:
+
+**Type `app.locals` via module augmentation:**
+```ts
+// types/express.d.ts — augment Application.locals
+declare module 'express-serve-static-core' {
+  interface Locals {
+    aiWorkerPool: AIWorkerPool;
+    sharepicImageManager: SharepicImageManager;
+  }
+}
+```
+Fixes ALL `app.locals` accesses globally — no helpers or per-file changes needed.
+
+**`parseJSON<T>()` utility:**
+```ts
+function parseJSON<T>(str: string): T { return JSON.parse(str) as T; }
+```
+Replaces ~60 individual `JSON.parse() as T` casts. Single import, eliminates the #1 source of `any`.
+
+## Acceleration Principles (2026-04-11)
+
+1. **Opportunistic migration > blanket rollout.** Remaining ~50 validateBody routes have 0 violations — migrate when touching files, not as a batch.
+2. **Don't chase the suppression count.** ~100 `eslint-disable` in test/pdfjs files is the correct permanent floor. Typing test mocks adds complexity without preventing real bugs.
+3. **Codegen over handwriting.** Zod schemas → ts-rest contracts can be automated. Don't rewrite what already exists.
+4. **Frontend typing > backend lint.** The biggest safety win left isn't more backend lint fixes — it's typed API calls from the frontend (ts-rest). Focus there.
 
 ## Metrics
 
@@ -201,12 +230,12 @@ ts-rest defines a single contract that types body, params, query, headers, AND r
 | `exactOptionalPropertyTypes` | disabled | disabled | **enabled (0 errors)** | enabled |
 | `no-unsafe-return` | 134 (warn) | 0 (warn) | **0 (error)** | 0 (error) |
 | `no-unsafe-call` | — | — | **0 (error)** | 0 (error) |
-| `no-unsafe-argument` | — | — | **106 (warn)** | 0 (error) |
-| `no-unsafe-assignment` | — | 882 (warn) | **305 (warn)** | 0 (error) |
-| `no-unsafe-member-access` | 1,128 (warn) | — | **236 (warn)** | 0 (error) |
+| `no-unsafe-argument` | — | — | **0 (error)** | 0 (error) |
+| `no-unsafe-assignment` | — | 882 (warn) | **47 (warn)** | 0 (error) |
+| `no-unsafe-member-access` | 1,128 (warn) | — | **28 (warn)** | 0 (error) |
 | Drizzle schema tables | 0 | 0 | **~20** | all |
 | Typecheck errors | 3 | 3 | **0** | 0 |
-| `validateBody` routes | 0 | 0 | **~35** | all POST/PUT |
+| `validateBody` routes | 0 | 0 | **~75** | all POST/PUT (opportunistic) |
 | Frontend `any` violations | ~49 | — | **~8** | 0 |
 | Shared packages `any` violations | ~48 | — | **~5** | 0 |
 

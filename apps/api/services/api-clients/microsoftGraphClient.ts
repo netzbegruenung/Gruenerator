@@ -36,13 +36,18 @@ function validateGraphId(id: string, label: string): string {
   return id;
 }
 
+interface GraphListResponse<T> {
+  value: T[];
+  '@odata.nextLink'?: string;
+}
+
 export async function listDriveItems(
   token: string,
   folderId?: string
 ): Promise<MicrosoftDriveListResult> {
   if (folderId) validateGraphId(folderId, 'folder ID');
   const path = folderId ? `/me/drive/items/${folderId}/children` : '/me/drive/root/children';
-  const response = await axios.get(`${GRAPH_API}${path}`, {
+  const response = await axios.get<GraphListResponse<MicrosoftDriveItem>>(`${GRAPH_API}${path}`, {
     headers: authHeaders(token),
     params: {
       $select: 'id,name,size,lastModifiedDateTime,webUrl,file,folder',
@@ -69,7 +74,7 @@ export async function getDriveItem(token: string, itemId: string): Promise<Micro
 
 export async function downloadDriveItem(token: string, itemId: string): Promise<Buffer> {
   validateGraphId(itemId, 'item ID');
-  const response = await axios.get(`${GRAPH_API}/me/drive/items/${itemId}/content`, {
+  const response = await axios.get<ArrayBuffer>(`${GRAPH_API}/me/drive/items/${itemId}/content`, {
     headers: authHeaders(token),
     responseType: 'arraybuffer',
   });
@@ -98,7 +103,7 @@ export async function listSharePointDriveItems(
   const path = folderId
     ? `/sites/${siteId}/drive/items/${folderId}/children`
     : `/sites/${siteId}/drive/root/children`;
-  const response = await axios.get(`${GRAPH_API}${path}`, {
+  const response = await axios.get<GraphListResponse<MicrosoftDriveItem>>(`${GRAPH_API}${path}`, {
     headers: authHeaders(token),
     params: {
       $select: 'id,name,size,lastModifiedDateTime,webUrl,file,folder',
@@ -121,7 +126,7 @@ export async function listTeamsDriveItems(
   const path = channelId
     ? `/teams/${teamId}/channels/${channelId}/filesFolder/children`
     : `/teams/${teamId}/drive/root/children`;
-  const response = await axios.get(`${GRAPH_API}${path}`, {
+  const response = await axios.get<GraphListResponse<MicrosoftDriveItem>>(`${GRAPH_API}${path}`, {
     headers: authHeaders(token),
     params: {
       $select: 'id,name,size,lastModifiedDateTime,webUrl,file,folder',

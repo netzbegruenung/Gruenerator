@@ -255,8 +255,8 @@ export class UnsplashApiService {
       let errorMessage = `Unsplash API error: ${response.status}`;
 
       try {
-        const errorJson = JSON.parse(errorBody);
-        errorMessage = errorJson.errors?.[0] || errorMessage;
+        const errorJson = JSON.parse(errorBody) as { errors?: string[] };
+        errorMessage = errorJson.errors?.[0] ?? errorMessage;
       } catch {
         // If parsing fails, use default message
       }

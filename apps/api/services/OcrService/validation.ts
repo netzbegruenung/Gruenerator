@@ -10,11 +10,14 @@ import type { DocumentLimits } from './types.js';
 /**
  * Validate document limits before processing
  */
+interface PdfDocument {
+  numPages: number;
+}
+
 export async function validateDocumentLimits(
   filePath: string,
   fileExtension: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  openPdfDocument: (path: string) => Promise<any>,
+  openPdfDocument: (path: string) => Promise<PdfDocument>,
   maxPages: number = 1000
 ): Promise<DocumentLimits> {
   try {

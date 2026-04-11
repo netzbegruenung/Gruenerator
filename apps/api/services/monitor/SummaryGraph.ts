@@ -189,7 +189,8 @@ function buildRiskContext(articles: MonitorArticle[]): string {
   const emotionTotals: Record<string, number> = {};
   for (const a of articles) {
     for (const [k, v] of Object.entries(a.emotionScores ?? {})) {
-      emotionTotals[k] = (emotionTotals[k] ?? 0) + v;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      emotionTotals[k] = (emotionTotals[k] ?? 0) + (v ?? 0);
     }
   }
   const emotionParts = Object.entries(emotionTotals)

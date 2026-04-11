@@ -189,7 +189,7 @@ export class PostgresService {
     if (!this.pool) throw new Error('Pool not initialized');
     const client = await this.pool.connect();
     try {
-      const result = await client.query('SELECT NOW()');
+      const result = await client.query<{ now: string }>('SELECT NOW()');
       console.log('[PostgresService] Database connection successful:', result.rows[0].now);
     } catch (error) {
       throw new Error(`Connection test failed: ${(error as Error).message}`);
@@ -434,7 +434,7 @@ export class PostgresService {
     await this.ensureInitialized();
     const client = await this.pool!.connect();
     try {
-      const result = await client.query(sql, params);
+      const result = await client.query<{ id: string }>(sql, params);
       return { changes: result.rowCount || 0, lastID: result.rows[0]?.id };
     } catch (error) {
       console.error('[PostgresService] Exec error:', error, { sql, params });

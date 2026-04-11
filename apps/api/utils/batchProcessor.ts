@@ -96,7 +96,7 @@ export class BatchProcessor<T = unknown, R = unknown> {
           const failedBatch = batchSlice[index];
           const errorResults: R[] = failedBatch.map((item) => ({
             item,
-            error: result.reason.message || 'Batch processing failed',
+            error: (result.reason instanceof Error ? result.reason.message : String(result.reason)) || 'Batch processing failed',
             batchIndex: i + index,
           } as R));
           results.push(...errorResults);

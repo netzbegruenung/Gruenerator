@@ -321,7 +321,7 @@ class NextcloudApiClient {
           'Content-Type': 'application/octet-stream',
           'Content-Length': String(stat.size),
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Node.js ReadStream is duck-typed for fetch body
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment -- Node.js ReadStream is duck-typed for fetch body
         body: stream as any,
         // @ts-expect-error -- Node fetch supports duplex streaming
         duplex: 'half',

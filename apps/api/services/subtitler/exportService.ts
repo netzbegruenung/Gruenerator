@@ -264,7 +264,17 @@ async function processProjectExport(
         }
       : undefined;
 
-    const metadataObj: any = {
+    const metadataObj: {
+      width: number;
+      height: number;
+      rotation: string;
+      originalFormat?: {
+        codec?: string;
+        videoBitrate?: number;
+        audioCodec?: string;
+        audioBitrate?: number | null;
+      };
+    } = {
       width: metadata.width,
       height: metadata.height,
       rotation: metadata.rotation,

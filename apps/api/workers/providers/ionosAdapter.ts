@@ -37,7 +37,7 @@ function convertMessages(
     if (typeof msg.content === 'string') {
       content = msg.content;
     } else if (Array.isArray(msg.content)) {
-      content = msg.content
+      content = (msg.content as unknown[])
         .map((c) => {
           const block = c as { text?: string; content?: string };
           return block.text || block.content || '';
@@ -113,7 +113,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   // Prepare tools - only include options that are not null/undefined
   const toolsPayload = ToolHandler.prepareToolsPayload(
     {
-      ...(options.tools != null && { tools: options.tools as any }),
+      ...(options.tools != null && { tools: options.tools }),
       ...(options.tool_choice != null && { tool_choice: options.tool_choice }),
     },
     'ionos',
@@ -158,8 +158,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
         ? result.toolCalls.map((tc, index) => ({
             id: tc.toolCallId || `ionos_tool_${index}`,
             name: tc.toolName,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            input: (tc as any).input as Record<string, unknown>,
+            input: tc.input as Record<string, unknown>,
           }))
         : undefined;
 

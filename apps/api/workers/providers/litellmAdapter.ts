@@ -103,7 +103,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   // Prepare tools - only include options that are not null/undefined
   const toolsPayload = ToolHandler.prepareToolsPayload(
     {
-      ...(options.tools != null && { tools: options.tools as any }),
+      ...(options.tools != null && { tools: options.tools }),
       ...(options.tool_choice != null && { tool_choice: options.tool_choice }),
     },
     'litellm',

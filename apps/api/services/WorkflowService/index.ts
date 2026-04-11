@@ -161,7 +161,7 @@ export class WorkflowService {
     const data = await redisClient.get(this.getKey(workflowId));
     if (!data || typeof data !== 'string') return null;
 
-    const workflow: Workflow = JSON.parse(data as string);
+    const workflow = JSON.parse(data as string) as Workflow;
 
     // Optional user validation
     if (userId && workflow.user_id !== userId) {

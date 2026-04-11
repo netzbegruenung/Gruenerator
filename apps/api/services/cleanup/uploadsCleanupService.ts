@@ -316,11 +316,11 @@ function startUploadsCleanup(): void {
 
   // Run after a short delay to let DB connections initialize
   setTimeout(() => {
-    runFullCleanup().catch((err) => log.error(`Initial cleanup failed: ${err.message}`));
+    runFullCleanup().catch((err: unknown) => log.error(`Initial cleanup failed: ${err instanceof Error ? err.message : String(err)}`));
   }, 30_000);
 
   intervalId = setInterval(() => {
-    runFullCleanup().catch((err) => log.error(`Scheduled cleanup failed: ${err.message}`));
+    runFullCleanup().catch((err: unknown) => log.error(`Scheduled cleanup failed: ${err instanceof Error ? err.message : String(err)}`));
   }, CLEANUP_INTERVAL_MS);
 
   const shutdownHandler = () => {

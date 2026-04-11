@@ -147,7 +147,7 @@ async function loadOptionalModules(): Promise<void> {
     if (process.env.YJS_ENABLED === 'true') {
       // Dynamic import - module may not exist
       // @ts-expect-error - Optional module, may not be present
-      const module = await import('./routes/internal/snapshottingController.js');
+      const module = await import('./routes/internal/snapshottingController.js') as { default: typeof snapshottingRouter };
       snapshottingRouter = module.default;
       log.debug('Snapshotting controller loaded');
     }
@@ -323,6 +323,7 @@ export async function setupRoutes(app: Application): Promise<void> {
     '/api/slider_claude',
     aiGenerationLimiter,
     async (req: Request, res: Response): Promise<void> => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (req.body.smartCount) {
         await handleSliderSmartRequest(req as SharepicRequest, res);
       } else {
@@ -343,7 +344,7 @@ export async function setupRoutes(app: Application): Promise<void> {
     aiGenerationLimiter,
     async (req: Request, res: Response): Promise<void> => {
       try {
-        const { type, ...requestBody } = req.body;
+        const { type, ...requestBody } = req.body as { type?: string; [key: string]: unknown };
         if (!type) {
           res.status(400).json({ success: false, error: 'Sharepic type is required' });
           return;

@@ -186,11 +186,19 @@ router.get(
 
       // Get the share link
       const shareLink = (await wolkeSyncService.getShareLink(userId, shareLinkId)) as {
+        id?: string;
+        label?: string;
+        base_url?: string;
         share_link?: string;
       } | null;
 
+      if (!shareLink) {
+        res.status(404).json({ success: false, message: 'Share link not found' });
+        return;
+      }
+
       // List all files and folders (unfiltered, unlike listFolderContents which is for sync)
-      const client = await NextcloudApiClient.create(shareLink?.share_link ?? '');
+      const client = await NextcloudApiClient.create(shareLink.share_link ?? '');
       const files = await client.listFolder(folderPath || undefined);
 
       // Filter and enrich files with additional metadata for UI

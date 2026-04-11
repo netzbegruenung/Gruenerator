@@ -17,6 +17,7 @@ import {
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getExperimentalSession } from '../../services/chat/ChatMemoryService.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type {
@@ -113,7 +114,7 @@ router.post('/initiate', requireAuth, validateBody(initiateSchema), async (req: 
     }
 
     // Get AI worker pool
-    const aiWorkerPool = req.app.locals.aiWorkerPool;
+    const aiWorkerPool = getAIWorkerPool(req);
     if (!aiWorkerPool) {
       log.error(`[interactive][${reqId}] AI worker pool not available`);
       return res.status(503).json({
@@ -194,7 +195,7 @@ router.post('/continue', requireAuth, validateBody(continueSchema), async (req: 
     }
 
     // Get AI worker pool
-    const aiWorkerPool = req.app.locals.aiWorkerPool;
+    const aiWorkerPool = getAIWorkerPool(req);
     if (!aiWorkerPool) {
       log.error(`[interactive][${reqId}] AI worker pool not available`);
       return res.status(503).json({
@@ -318,8 +319,7 @@ router.get(
 
       // Include final result if completed
       if (session.conversationState === 'completed' && session.finalResult) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (sessionData as any).finalResult = session.finalResult;
+        (sessionData as Record<string, unknown>).finalResult = session.finalResult;
       }
 
       log.debug(`[interactive][${reqId}] Session found: ${session.conversationState}`);

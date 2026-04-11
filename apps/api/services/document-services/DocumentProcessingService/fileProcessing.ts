@@ -97,9 +97,10 @@ export async function processUploadedDocument(
       throw new Error('Document not found');
     }
 
-    const metadata =
-      typeof document.metadata === 'string' ? JSON.parse(document.metadata) : document.metadata;
-    filePath = metadata?.filePath;
+    const metadata = (
+      typeof document.metadata === 'string' ? JSON.parse(document.metadata) : document.metadata
+    ) as { filePath?: string; mimetype?: string } | null;
+    filePath = metadata?.filePath ?? null;
 
     if (!filePath || !fs.existsSync(filePath)) {
       throw new Error('Uploaded file not found on disk');

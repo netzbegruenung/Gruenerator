@@ -143,7 +143,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
 
   const toolsPayload = ToolHandler.prepareToolsPayload(
     {
-      ...(options.tools != null && { tools: options.tools as any }),
+      ...(options.tools != null && { tools: options.tools }),
       ...(options.tool_choice != null && { tool_choice: options.tool_choice }),
     },
     'regolo',
@@ -184,8 +184,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
         ? result.toolCalls.map((tc, index) => ({
             id: tc.toolCallId || `regolo_tool_${index}`,
             name: tc.toolName,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            input: (tc as any).input as Record<string, unknown>,
+            input: tc.input as Record<string, unknown>,
           }))
         : undefined;
 

@@ -1,6 +1,8 @@
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+
 const dreizeilen = require('./dreizeilen.json');
 const headline = require('./headline.json');
 const info = require('./info.json');

@@ -12,6 +12,14 @@ import type { SharepicRequest } from './types.js';
 import type { AIWorkerResult } from '../../../workers/types.js';
 import type { Response } from 'express';
 
+interface SimplePromptConfig {
+  systemRole: string;
+  requestTemplate: string;
+  singleItemTemplate: string;
+  options: Record<string, unknown>;
+  alternativesOptions?: Record<string, unknown>;
+}
+
 const log = createLogger('sharepic_simple');
 
 export interface SimpleAlternative {
@@ -35,12 +43,12 @@ function parseSimpleResponse(content: string): SimpleAlternative[] {
     // Try to parse as JSON array
     const jsonMatch = content.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
+      const parsed = JSON.parse(jsonMatch[0]) as unknown;
       if (Array.isArray(parsed)) {
-        return parsed
+        return (parsed as Array<Record<string, unknown>>)
           .map((item) => ({
-            headline: item.headline || '',
-            subtext: item.subtext || '',
+            headline: typeof item['headline'] === 'string' ? item['headline'] : '',
+            subtext: typeof item['subtext'] === 'string' ? item['subtext'] : '',
           }))
           .filter((item) => item.headline || item.subtext);
       }
@@ -49,12 +57,12 @@ function parseSimpleResponse(content: string): SimpleAlternative[] {
     // Try to parse as single JSON object
     const objMatch = content.match(/\{[\s\S]*\}/);
     if (objMatch) {
-      const parsed = JSON.parse(objMatch[0]);
-      if (parsed.headline || parsed.subtext) {
+      const parsed = JSON.parse(objMatch[0]) as Record<string, unknown>;
+      if (parsed['headline'] || parsed['subtext']) {
         return [
           {
-            headline: parsed.headline || '',
-            subtext: parsed.subtext || '',
+            headline: typeof parsed['headline'] === 'string' ? parsed['headline'] : '',
+            subtext: typeof parsed['subtext'] === 'string' ? parsed['subtext'] : '',
           },
         ];
       }
@@ -97,9 +105,9 @@ export async function handleSimpleRequest(req: SharepicRequest, res: Response): 
   const singleItem = count === 1;
 
   // Use the simple prompt config (will be added to prompts/sharepic/index.js)
-  const config = req.body._campaignPrompt || (prompts as Record<string, unknown>).simple;
+  const rawConfig = req.body._campaignPrompt || (prompts as Record<string, unknown>).simple;
 
-  if (!config) {
+  if (!rawConfig) {
     log.error('Simple prompt configuration not found');
     res
       .status(500)
@@ -107,16 +115,14 @@ export async function handleSimpleRequest(req: SharepicRequest, res: Response): 
     return;
   }
 
-  const systemRole = (config as { systemRole: string }).systemRole;
+  const config = rawConfig as SimplePromptConfig;
+  const systemRole = config.systemRole;
   const requestOptions = singleItem
-    ? (config as { options: Record<string, unknown> }).options
-    : (config as { alternativesOptions?: Record<string, unknown> }).alternativesOptions ||
-      (config as { options: Record<string, unknown> }).options;
+    ? config.options
+    : config.alternativesOptions ?? config.options;
 
   const requestTemplate = replaceTemplate(
-    singleItem
-      ? (config as { singleItemTemplate: string }).singleItemTemplate
-      : (config as { requestTemplate: string }).requestTemplate,
+    singleItem ? config.singleItemTemplate : config.requestTemplate,
     { thema }
   );
 

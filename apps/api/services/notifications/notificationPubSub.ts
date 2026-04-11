@@ -31,8 +31,8 @@ async function getSubscriberClient(): Promise<ReturnType<typeof createClient>> {
       },
     });
 
-    subscriberClient.on('error', (err) =>
-      log.warn('Redis subscriber error', { error: err.message })
+    subscriberClient.on('error', (err: unknown) =>
+      log.warn('Redis subscriber error', { error: err instanceof Error ? err.message : String(err) })
     );
     subscriberClient.on('ready', () => {
       subscriberReady = true;

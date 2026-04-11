@@ -359,7 +359,7 @@ router.get(
       // Filter by tags using JSONB containment
       if (tags) {
         try {
-          const tagsArray = JSON.parse(tags as string);
+          const tagsArray = JSON.parse(tags as string) as unknown[];
           if (Array.isArray(tagsArray) && tagsArray.length > 0) {
             conditions.push(`tags @> $${paramIndex++}::jsonb`);
             params.push(JSON.stringify(tagsArray));
@@ -442,7 +442,7 @@ router.get(
       }
       if (tags) {
         try {
-          const tagsArray = JSON.parse(tags as string);
+          const tagsArray = JSON.parse(tags as string) as string[];
           if (Array.isArray(tagsArray) && tagsArray.length > 0) {
             filteredSystemTemplates = filteredSystemTemplates.filter((t) =>
               tagsArray.every((tag: string) => t.tags?.includes(tag.toLowerCase()))
@@ -480,7 +480,7 @@ router.get(
       }
       if (tags) {
         try {
-          const tagsArray = JSON.parse(tags as string);
+          const tagsArray = JSON.parse(tags as string) as string[];
           if (Array.isArray(tagsArray) && tagsArray.length > 0) {
             filteredSystemFiles = filteredSystemFiles.filter((f) =>
               tagsArray.every((tag: string) =>

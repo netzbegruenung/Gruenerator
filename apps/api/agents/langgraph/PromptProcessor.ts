@@ -834,6 +834,7 @@ export async function processGraphRequest(
         searchQuery: searchQuery || null,
         examples: [], // TODO: Implement examples from config
         provider,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         aiWorkerPool: ppReq.app.locals.aiWorkerPool,
         enableNotebookEnrich: useNotebookEnrich ?? config.features?.notebookEnrich ?? false,
       },

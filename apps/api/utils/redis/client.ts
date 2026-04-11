@@ -46,7 +46,7 @@ if (redisUrl != null) {
 
 const client = createClient(createClientConfig) as RedisClient;
 
-client.on('error', (err) => console.error('Redis Client Fehler:', err.message));
+client.on('error', (err: unknown) => console.error('Redis Client Fehler:', err instanceof Error ? err.message : String(err)));
 client.on('connect', () => console.log('Erfolgreich mit Redis verbunden'));
 client.on('reconnecting', () => console.log('Verbinde neu mit Redis...'));
 client.on('end', () => console.warn('Redis connection closed'));
@@ -63,8 +63,8 @@ export function ensureConnected(): Promise<void> {
     connectPromise = client
       .connect()
       .then(() => {})
-      .catch((err) => {
-        console.error(`Redis connection failed (${maskedUrl}):`, err.message);
+      .catch((err: unknown) => {
+        console.error(`Redis connection failed (${maskedUrl}):`, err instanceof Error ? err.message : String(err));
         connectPromise = null;
         throw err;
       });

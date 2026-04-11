@@ -101,7 +101,7 @@ async function getUploadStatus(uploadId: string): Promise<UploadStatus> {
     if (metadataExists) {
       try {
         const metadataContent = await fs.readFile(metadataPath, 'utf8');
-        metadata = JSON.parse(metadataContent);
+        metadata = JSON.parse(metadataContent) as UploadMetadata;
       } catch (err: unknown) {
         log.debug(
           `Metadata read error for ${uploadId}: ${err instanceof Error ? err.message : String(err)}`
