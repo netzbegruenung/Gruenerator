@@ -152,9 +152,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
         threadId,
         userText,
         fullText,
-        aiWorkerPool as {
-          processRequest: (...args: unknown[]) => Promise<{ content?: string | null }>;
-        },
+        aiWorkerPool,
         {
           imageGenerated: !!generatedImage,
         }

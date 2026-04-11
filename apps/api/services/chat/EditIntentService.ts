@@ -94,7 +94,7 @@ Antworte NUR mit JSON:
       },
     });
 
-    if (!result.success) {
+    if (!result.success || result.content == null) {
       log.warn('[EditIntentService] AI extraction failed:', result.error);
       return null;
     }
@@ -196,7 +196,7 @@ Gib den bearbeiteten Text zurück:`;
       req
     );
 
-    if (!result.success) {
+    if (!result.success || result.content == null) {
       return {
         success: false,
         ...(result.error ? { error: result.error } : {}),

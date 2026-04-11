@@ -4,6 +4,7 @@
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { Response } from 'express';
+import type { AIWorkerPool } from '../../workers/types.js';
 
 // ============================================================================
 // Request Types
@@ -109,13 +110,29 @@ export interface SubtitleConfig {
   segments?: SubtitleSegment[] | undefined;
 }
 
+export interface VideoOriginalFormat {
+  codec?: string | undefined;
+  audioCodec?: string | null | undefined;
+  audioBitrate?: number | null | undefined;
+  videoBitrate?: number | null | undefined;
+  pixelFormat?: string | undefined;
+  profile?: string | undefined;
+  level?: number | undefined;
+}
+
 export interface VideoMetadata {
   width: number;
   height: number;
-  duration: string | number;
+  duration?: string | number | undefined;
   fps?: number | undefined;
+  /** @deprecated use originalFormat.codec instead */
   codec?: string | undefined;
+  /** @deprecated use originalFormat.audioBitrate instead */
   bitrate?: number | undefined;
+  rotation?: string | undefined;
+  displayAspectRatio?: string | undefined;
+  sampleAspectRatio?: string | undefined;
+  originalFormat?: VideoOriginalFormat | undefined;
 }
 
 // ============================================================================
@@ -264,19 +281,4 @@ export interface SubtitlerRequest extends AuthenticatedRequest {
   } & AuthenticatedRequest['app'];
 }
 
-export interface AIWorkerPool {
-  processRequest(params: {
-    type: string;
-    systemPrompt: string;
-    messages: Array<{ role: string; content: string }>;
-    options?: {
-      max_tokens?: number | undefined;
-      temperature?: number | undefined;
-    };
-  }): Promise<{
-    success: boolean;
-    content?: string | undefined;
-    error?: string | undefined;
-    metadata?: Record<string, unknown> | undefined;
-  }>;
-}
+export type { AIWorkerPool };

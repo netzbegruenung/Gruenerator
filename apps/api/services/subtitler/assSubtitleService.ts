@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 import { sanitizeFilename } from '../../utils/validation/index.js';
+import { type VideoMetadata } from '../../routes/subtitler/types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,12 +22,6 @@ interface SubtitleSegment {
   startTime: number;
   endTime: number;
   text: string;
-}
-
-interface VideoMetadata {
-  width: number;
-  height: number;
-  duration?: number;
 }
 
 interface StyleOptions {

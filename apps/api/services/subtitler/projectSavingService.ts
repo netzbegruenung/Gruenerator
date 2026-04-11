@@ -9,6 +9,7 @@ import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 import { createLogger } from '../../utils/logger.js';
+import { type VideoMetadata } from '../../routes/subtitler/types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -20,13 +21,6 @@ interface SubtitleSegment {
   text: string;
   start: number;
   end: number;
-  [key: string]: unknown;
-}
-
-interface VideoMetadata {
-  width: number;
-  height: number;
-  duration?: string | number;
   [key: string]: unknown;
 }
 
@@ -166,7 +160,7 @@ async function autoSaveProject(params: AutoSaveParams): Promise<SaveResult & { i
     stylePreference,
     heightPreference,
     modePreference: subtitlePreference,
-    videoMetadata: metadata,
+    videoMetadata: metadata as unknown as Record<string, unknown>,
     videoFilename: originalFilename,
     videoSize: fileStats?.size || 0,
     videoSourcePath: originalVideoPath,
@@ -212,4 +206,5 @@ async function saveOrUpdateProject(
 }
 
 export { saveToExistingProject, autoSaveProject, saveOrUpdateProject };
-export type { AutoSaveParams, ProjectData, SaveResult, SubtitleSegment, VideoMetadata };
+export type { AutoSaveParams, ProjectData, SaveResult, SubtitleSegment };
+export type { VideoMetadata } from '../../routes/subtitler/types.js';

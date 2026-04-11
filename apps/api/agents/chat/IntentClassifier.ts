@@ -515,7 +515,7 @@ WICHTIG: editContext ist NUR bei requestType="text_edit" erforderlich!${context.
       },
     });
 
-    if (!result.success) {
+    if (!result.success || result.content == null) {
       throw new Error(`AI classification failed: ${result.error}`);
     }
 

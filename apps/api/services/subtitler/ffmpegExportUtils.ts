@@ -9,20 +9,9 @@ import path from 'path';
 import { createLogger } from '../../utils/logger.js';
 
 import * as hwaccel from './hwaccelUtils.js';
+import { type VideoMetadata } from '../../routes/subtitler/types.js';
 
 const log = createLogger('ffmpeg-export-utils');
-
-interface VideoMetadata {
-  width: number;
-  height: number;
-  rotation?: string;
-  originalFormat?: {
-    codec?: string;
-    videoBitrate?: number;
-    audioCodec?: string;
-    audioBitrate?: number | null;
-  };
-}
 
 interface FileStats {
   size: number;

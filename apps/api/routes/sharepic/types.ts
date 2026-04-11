@@ -1,4 +1,5 @@
 import type { Request } from 'express';
+import type { AIWorkerPool, AIWorkerResult } from '../../workers/types.js';
 
 // Note: User type is provided by Express.User through global type augmentation in types/express.d.ts
 // The Request.user property is already defined there with the proper UserProfileShape
@@ -6,29 +7,12 @@ import type { Request } from 'express';
 export interface SharepicRequest extends Request {
   app: Request['app'] & {
     locals: {
-      aiWorkerPool?: {
-        processRequest: (payload: AIWorkerPayload, req: Request) => Promise<AIWorkerResult>;
-      };
+      aiWorkerPool?: AIWorkerPool;
     };
   };
 }
 
-export interface AIWorkerPayload {
-  type: string;
-  systemPrompt?: string | undefined;
-  messages?: Array<{ role: string; content: string }>;
-  options?: {
-    max_tokens?: number | undefined;
-    temperature?: number | undefined;
-  };
-  usePrivacyMode?: boolean | undefined;
-}
-
-export interface AIWorkerResult {
-  success: boolean;
-  content?: string | undefined;
-  error?: string | undefined;
-}
+export type { AIWorkerPool, AIWorkerResult };
 
 export interface SharepicColors {
   background: string;
