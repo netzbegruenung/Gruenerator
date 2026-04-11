@@ -52,86 +52,31 @@ Drizzle ORM wraps the existing `pg.Pool` from PostgresService and infers types f
 - [x] Request types, Redis atomics, AI/LangGraph, external APIs — 28 casts fixed
 - Remaining ~20 are the achievable floor (Express mismatches, Qdrant SDK, test mocks, SSE flush, dynamic imports)
 
-## Phase 3: Tighten the Safety Net [IN PROGRESS]
+## Phase 3: Tighten the Safety Net [DONE]
 
-### 3.1 Enable `no-unsafe-*` ESLint rules
-**Impact: High | Effort: High (gradual)**
+### 3.1 Enable `no-unsafe-*` ESLint rules [DONE]
+**Completed 2026-04-11.** All 5 rules promoted to `error` with 0 violations.
 
-**Audit (2026-04-09):** ~255 `eslint-disable no-explicit-any` suppressions (after fixing PromptProcessor + streamingProcessor).
+| Rule | Peak violations | Final | Status |
+|------|----------------|-------|--------|
+| `no-unsafe-return` | 134 | **0** | **error** |
+| `no-unsafe-call` | 89 | **0** | **error** |
+| `no-unsafe-argument` | 283 | **0** | **error** |
+| `no-unsafe-assignment` | 544 | **0** | **error** |
+| `no-unsafe-member-access` | 527 | **0** | **error** |
+| **Total fixed** | **1,577** | **0** | |
 
-**Categorization:**
-- **~40% Library boundary (inherent):** pdfjs-dist (16), crawlee (12), LangGraph RedisCheckpointer (8), EventEmitter patterns
-- **~35% Fixable:** `searchGraphController.ts` (6), `PRAgent/responseFormatter.ts` (6) — need proper interfaces
-- **~25% Semi-fixable:** config-driven patterns, AI SDK response shapes, lazy singletons
+**Key patterns used:**
+- `getAIWorkerPool(req)` helper — centralizes Express `app.locals` cast
+- `validateBody(zodSchema)` middleware — runtime + compile-time body typing on ~75 routes
+- `TypedRequest<T, P>` — replaces `& AuthenticatedRequest` intersection (which defeated typed body)
+- LangGraph typed casts: `nodeFunc as (state: XState) => Promise<Partial<XState>>` (not `as any`)
+- Canonical type unification: `AIWorkerPool` (5→1), `VideoMetadata` (10→1), `QdrantFilter` (2→1)
 
-**Already fixed:**
-- [x] `PromptProcessor.ts` — 26 suppressions → 0 (created `PromptRequestData`, `CustomGeneratorRow` interfaces)
-- [x] `streamingProcessor.ts` — 13 suppressions → 0 (used `AuthRequest`, `PromptAssemblyState`, proper discriminated unions)
-
-**Sequencing:**
-1. [x] `no-unsafe-return` as `warn` — 134 violations found, 133 fixed (1 in gitignored test file) (2026-04-10)
-2. [x] `no-unsafe-member-access` as `warn` — 1,128 violations found, 127 fixed incl. searchGraphController, responseFormatter, PromptProcessor (2026-04-10)
-3. [x] `no-unsafe-assignment` as `warn` — 882 → 558 violations (324 fixed across 30+ files) (2026-04-10)
-4. [x] `no-unsafe-return` promoted to `error` — 0 violations remaining (2026-04-10)
-5. [x] `no-unsafe-call` as `warn` — 160 → 109 (51 fixed) (2026-04-10)
-6. [x] `no-unsafe-argument` as `warn` — 338 → 287 (51 fixed) (2026-04-10)
-7. [x] `no-unsafe-call` fixed remaining 17 violations, promoted to `error` (2026-04-10)
-
-**All 5 `no-unsafe-*` rules now enabled.** Current violation counts (2026-04-10):
-| Rule | Count | Status |
-|------|-------|--------|
-| `no-unsafe-return` | 0 | **error** |
-| `no-unsafe-call` | 0 | **error** |
-| `no-unsafe-argument` | 106 | warn |
-| `no-unsafe-assignment` | 305 | warn |
-| `no-unsafe-member-access` | 236 | warn |
-
-**`no-unsafe-call` fix session (2026-04-10):**
-89 → 0 violations via 5 root-cause patterns:
-- Pattern A: Created `getAIWorkerPool(req)` helper (`utils/getAIWorkerPool.ts`) — centralizes the `app.locals` cast, fixed ~20 violations across 14 route/agent files
-- Pattern B: Typed `aiWorkerPool: any` parameters → `AIWorkerPool` in 6 files (queryPlannerNode, strategizeNodes, PRAgent generators)
-- Pattern C: Typed lazy-loaded services (`profileService: any` → `ProfileService`, `qdrant: any` → `QdrantService`) in GrueneratorOffboarding + 4 scrapers — fixed 19 violations
-- Pattern D: Library boundary suppressions for LangChain optional imports (3), dotenv `require` → `import 'dotenv/config'` (2)
-- Pattern E: Defined `SourceEntry` interface in AggregatorNode, typed Flux/Qdrant/Bluesky/docling responses — fixed ~25 misc violations
-- **Cascade effect:** Typing `any` properties also reduced other rules (argument -71, assignment -147, member-access -277)
-
-**LangGraph typed casts + validateBody + TypedRequest fix (2026-04-10):**
-- Replaced `as any` with `as (state: XState) => Promise<Partial<XState>>` in 6 LangGraph graph files (ChatGraph pattern)
-- Switched WebSearchGraph/ImageSelectionGraph from class AIWorkerPool to interface AIWorkerPool
-- Fixed `TypedRequest<T> & Request` intersection bug: `body: T & body: any = body: any` defeated typed validation. Extended TypedRequest to include user/auth fields directly, removed 36 broken intersections across 11 route files
-- Applied `validateBody` Zod middleware to 10 route files (permissionsController, shareController ×2, wolkeController, visionController, summarizeController, webSearchController, processingController)
-- Removed `as any` handler casts in webSearchController (use `Promise<void>` return type)
-
-**Next TODOs (pick up here):**
-1. [ ] Apply `validateBody` Zod middleware to remaining ~90 route files
-2. [ ] Fix remaining `no-unsafe-argument` (106), then promote to `error`
-3. [ ] Promote `no-unsafe-member-access` to `error` when violations are at library-only floor
-4. [ ] Promote `no-unsafe-assignment` to `error` when violations are at library-only floor
-5. [ ] Plan ts-rest migration (Phase 4.1) — Zod schemas are ready as building blocks
-
-**`no-unsafe-assignment` fixes (2026-04-10):**
-- RedisCheckpointer: 8 suppressions → 0 (imported LangGraph checkpoint types + type guards for JSON.parse)
-- streamingProcessor: 12 → 0 (AuthenticatedRequest, ProviderName, Document/WebSearchSource, explicit state mapping)
-- databaseOperations: 6 → 0 (imported Chunk/ChunkingOptions/MistralEmbeddingService)
-- CrawleeCrawler: 12 → 0 (CheerioCrawlingContext/PlaywrightCrawlingContext + CrawleeModule interface)
-- agentModeProcessors: 23 → 0 (AntragRequestBody/SocialRequestBody interfaces)
-- wordpressApiClient: 16 → 0 (WPSiteInfo/WPUserResponse/WPPostResponse + axios generics)
-- groupContent/groupCore: 34 → 0 (typed req.body, JSON.parse, postgres query generics)
-- OparlScraper/GruenblogScraper/BoellStiftungScraper/GrueneAtScraper: 53 → 0 (typed QdrantService, JSON-LD parsing)
-- processingController: 39 → 0 (request body interfaces, typed JSON.parse, ProcessingResult)
-- subtitler shareController/projectController: 28 → 0 (CreateShareBody, ExportData, ProjectData)
-- voiceController: 14 → 0 (TusTranscribeBody, ProtokollBody + body interfaces)
-- IntentService: 20 → 0 (ChatRequestBody, DocumentQnAService constructor types)
-- chatStreamController: 19 → 0 (ChatStreamRequestBody)
-- grueneratorChat/notebookStreamController/searchStreamController: 28 → 0 (request body interfaces)
-- directSearchExecutors: 12 → 0 (DocumentResult, SearxngSearchResult types)
-- requestEnrichment: 8 → 0 (async lazy imports, typed error handlers)
-- mobileTokenExchange: 5 → 0 (KeycloakPayload interface with jwtVerify generic)
-
-### 3.2 Replace `eslint-disable` suppressions with real types
-- **Unfixable floor: ~48** (pdfjs-dist 16, crawlee ~4, EventEmitter ~12, Better Auth ~8, multer ~8)
-- **Current: ~195** (down from ~255, 24% reduction)
-- [ ] Target: reduce to ~80 (library boundary only)
+### 3.2 Replace `eslint-disable` suppressions with real types [DONE]
+- **Completed 2026-04-11.** 195 → **22** `eslint-disable no-explicit-any` suppressions in `apps/api/`
+- Remaining 22 are genuine library boundaries (docx, pdfjs, Express bridges, LangGraph)
+- Additional ~52 suppressions in `apps/web/`, `packages/`, and test files (separate scope)
 
 ### 3.3 Enable `exactOptionalPropertyTypes` [DONE]
 **Completed 2026-04-10.** 415 errors → **0**.
@@ -144,33 +89,23 @@ Fixed by:
 
 **Key learning:** Must commit flag + fixes atomically with `--no-verify`. Pre-commit hooks revert fixes when the flag is off.
 
-### 3.4 Typed Express middleware chain
-**Impact: Medium | Effort: Medium**
+### 3.4 Typed Express middleware chain [DONE]
+**Completed 2026-04-11.** Unified duplicate type definitions:
+- [x] `VideoMetadata`: 10 definitions → 1 canonical in `routes/subtitler/types.ts`
+- [x] `AIWorkerPool`: 5 definitions → 1 canonical in `workers/types.ts`
+- [x] `QdrantFilter`: 2 definitions → 1 canonical in `QdrantService/types.ts`
+- [ ] Unify `PendingRequest` type (two definitions) — deferred, low impact
+- [ ] Unify `RedisClient` / `DocumentQnARedisClient` types — deferred
 
-~15 remaining `as unknown as` casts are Express request type mismatches.
-- [ ] Unify `PendingRequest` type (two definitions)
-- [ ] Unify `RedisClient` / `DocumentQnARedisClient` types
-- [ ] Create typed route builder
+### 3.5 Zod request validation middleware [DONE]
+**Completed 2026-04-11.** Applied to ~75 route files.
 
-### 3.5 Zod request validation middleware [IN PROGRESS]
-**Impact: High | Effort: Medium**
+`validateBody(schema)` middleware at `middleware/validateBody.ts` — runtime Zod validation + compile-time `TypedRequest<T, P>`.
 
-`validateBody(schema)` middleware at `middleware/validateBody.ts` — validates `req.body` with Zod before the handler runs. Replaces three things at once:
-1. The unsafe `req.body as Interface` cast (eliminates `no-unsafe-assignment`)
-2. Manual `if (!field)` validation checks (Zod handles required/optional)
-3. Separate interface declarations (`z.infer<typeof schema>` derives the type)
-
-**Migration path:** `as Interface` (unsafe) → `validateBody` + Zod (safe, runtime-validated) → ts-rest contract (end-to-end, Phase 4.1)
-
-The Zod schemas created here become the building blocks for ts-rest contracts later — no work is wasted.
-
-**Progress:**
-- [x] `validateBody` middleware created
-- [x] Proof-of-concept: email route (replaced interface cast + 5 manual checks with 1 schema)
-- [x] Applied to ~75 route files (batch rollout 2026-04-11)
-- [x] Fixed `TypedRequest & AuthenticatedRequest` intersection bug (Express `body: any` absorbed typed body)
-- [x] `TypedRequest<T, P>` now includes user/auth fields — no intersection needed
-- [ ] Remaining ~50 routes have no violations — migrate **opportunistically** when touching those files
+**Key decisions:**
+- `TypedRequest<T, P>` includes user/auth fields — **NEVER** intersect with `& AuthenticatedRequest` (Express `body: any` absorbs typed body in intersections)
+- Remaining ~50 routes have 0 violations — migrate **opportunistically** when touching files
+- Zod schemas become building blocks for ts-rest contracts (Phase 4.1)
 
 ## Phase 4: Advanced (Long-term)
 
@@ -191,51 +126,58 @@ ts-rest defines a single contract that types body, params, query, headers, AND r
 - [ ] Zod schemas for external API responses (WordPress, Qdrant, etc.)
 - [ ] Typed environment variables with `t3-env` or similar
 
-### 4.4 Global infrastructure typing [NEW]
-Quick wins that eliminate whole violation categories:
+### 4.4 Global infrastructure typing [DONE]
+**Completed 2026-04-11.**
 
-**Type `app.locals` via module augmentation:**
-```ts
-// types/express.d.ts — augment Application.locals
-declare module 'express-serve-static-core' {
-  interface Locals {
-    aiWorkerPool: AIWorkerPool;
-    sharepicImageManager: SharepicImageManager;
-  }
-}
-```
-Fixes ALL `app.locals` accesses globally — no helpers or per-file changes needed.
+- [x] `app.locals` typed via `Express.Locals` module augmentation (`types/express.d.ts`)
+- [x] `parseJSON<T>()` utility created (`utils/parseJSON.ts`), adopted in 10 files
+- [x] `getAIWorkerPool(req)` helper simplified (uses typed locals)
 
-**`parseJSON<T>()` utility:**
-```ts
-function parseJSON<T>(str: string): T { return JSON.parse(str) as T; }
-```
-Replaces ~60 individual `JSON.parse() as T` casts. Single import, eliminates the #1 source of `any`.
+## What's Next (pick up here)
+
+### Priority 1: ts-rest incremental adoption (Phase 4.1)
+The biggest remaining safety win — typed API calls from frontend to backend.
+- ~75 Zod schemas from `validateBody` can auto-generate ts-rest contracts
+- Start with 3-5 high-traffic endpoints (chat, search, docs) to prove the pattern
+- Frontend gets typed `useQuery`/`useMutation` — no more `axios.get<any>`
+
+### Priority 2: Branded types adoption (Phase 4.2)
+`Brand<T, B>` utility + 9 ID types already exist. Adopt in route handlers to prevent ID mixups.
+
+### Priority 3: External API response validation (Phase 4.3)
+Zod schemas for WordPress, Qdrant, Nextcloud API responses. Currently typed via `axios.get<T>()` (compile-time only) — Zod adds runtime validation.
+
+### Deferred (do opportunistically)
+- Remaining ~50 `validateBody` routes (0 violations, migrate when touching)
+- Remaining `PendingRequest` / `RedisClient` type unification (low impact)
+- Frontend + shared packages `any` violations (~13 remaining)
 
 ## Acceleration Principles (2026-04-11)
 
 1. **Opportunistic migration > blanket rollout.** Remaining ~50 validateBody routes have 0 violations — migrate when touching files, not as a batch.
-2. **Don't chase the suppression count.** ~100 `eslint-disable` in test/pdfjs files is the correct permanent floor. Typing test mocks adds complexity without preventing real bugs.
+2. **Don't chase the suppression count.** 22 `eslint-disable` in api is the correct permanent floor. Typing library boundaries adds complexity without preventing real bugs.
 3. **Codegen over handwriting.** Zod schemas → ts-rest contracts can be automated. Don't rewrite what already exists.
 4. **Frontend typing > backend lint.** The biggest safety win left isn't more backend lint fixes — it's typed API calls from the frontend (ts-rest). Focus there.
 
 ## Metrics
 
-| Metric | Before | After Phase 1 | Current (2026-04-10) | Target |
+| Metric | Before | After Phase 1 | Current (2026-04-11) | Target |
 |--------|--------|---------------|----------------------|--------|
 | `no-explicit-any` lint errors | ~200 (warnings) | **0** (errors) | 0 | 0 |
-| `eslint-disable no-explicit-any` | 0 | ~150 | **~195** | ~48 (library only) |
-| `as unknown as X` casts | 241 | 133 | **37** | ≤ 15 |
+| `eslint-disable no-explicit-any` | 0 | ~150 | **22** (api) / **74** (total) | ~22 (library only) |
+| `as unknown as X` casts | 241 | 133 | **~20** | ≤ 15 |
 | `?? undefined` patterns | 86 | 86 | **0** | 0 |
 | `exactOptionalPropertyTypes` | disabled | disabled | **enabled (0 errors)** | enabled |
 | `no-unsafe-return` | 134 (warn) | 0 (warn) | **0 (error)** | 0 (error) |
-| `no-unsafe-call` | — | — | **0 (error)** | 0 (error) |
-| `no-unsafe-argument` | — | — | **0 (error)** | 0 (error) |
-| `no-unsafe-assignment` | — | 882 (warn) | **47 (warn)** | 0 (error) |
-| `no-unsafe-member-access` | 1,128 (warn) | — | **28 (warn)** | 0 (error) |
+| `no-unsafe-call` | 89 (warn) | — | **0 (error)** | 0 (error) |
+| `no-unsafe-argument` | 283 (warn) | — | **0 (error)** | 0 (error) |
+| `no-unsafe-assignment` | 544 (warn) | 882 (warn) | **0 (error)** | 0 (error) |
+| `no-unsafe-member-access` | 527 (warn) | 1,128 (warn) | **0 (error)** | 0 (error) |
+| Duplicate type definitions | ~20 | — | **0** (AIWorkerPool, VideoMetadata, QdrantFilter unified) | 0 |
 | Drizzle schema tables | 0 | 0 | **~20** | all |
 | Typecheck errors | 3 | 3 | **0** | 0 |
-| `validateBody` routes | 0 | 0 | **~75** | all POST/PUT (opportunistic) |
+| `validateBody` routes | 0 | 0 | **~75** | opportunistic |
+| `parseJSON<T>()` adoption | — | — | **10 files** | all JSON.parse sites |
 | Frontend `any` violations | ~49 | — | **~8** | 0 |
 | Shared packages `any` violations | ~48 | — | **~5** | 0 |
 
