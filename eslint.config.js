@@ -39,12 +39,12 @@ export default [
 
   // Shared packages
   {
-    files: ['packages/shared/**/*.{ts,tsx,js,jsx}'],
+    files: ['packages/shared/**/*.{ts,tsx,js,jsx}', 'packages/contracts/**/*.{ts,tsx,js,jsx}'],
     ...baseConfig[0],
   },
   ...baseConfig.slice(1).map((config) => ({
     ...config,
-    files: ['packages/shared/**/*.{ts,tsx,js,jsx}'],
+    files: ['packages/shared/**/*.{ts,tsx,js,jsx}', 'packages/contracts/**/*.{ts,tsx,js,jsx}'],
   })),
 
   // Root-level config files (no type-checking)
