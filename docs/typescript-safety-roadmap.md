@@ -54,17 +54,20 @@ Drizzle ORM wraps the existing `pg.Pool` from PostgresService and infers types f
 
 ## Phase 3: Tighten the Safety Net [DONE]
 
-### 3.1 Enable `no-unsafe-*` ESLint rules [DONE]
-**Completed 2026-04-11.** All 5 rules promoted to `error` with 0 violations.
+### 3.1 Enable `no-unsafe-*` ESLint rules [DONE — apps/api]
+**Completed 2026-04-11.** All 5 rules promoted to `error` in shared config (`packages/eslint-config/base.js`). Violations fixed to 0 in `apps/api/`.
 
-| Rule | Peak violations | Final | Status |
-|------|----------------|-------|--------|
-| `no-unsafe-return` | 134 | **0** | **error** |
-| `no-unsafe-call` | 89 | **0** | **error** |
-| `no-unsafe-argument` | 283 | **0** | **error** |
-| `no-unsafe-assignment` | 544 | **0** | **error** |
-| `no-unsafe-member-access` | 527 | **0** | **error** |
-| **Total fixed** | **1,577** | **0** | |
+**Scope note:** Rules are `error` in the shared config. `apps/web` and `apps/mobile` have `warn` overrides in their local `eslint.config.js` until their violations are fixed (see Phase 5).
+
+| Rule | Peak (api) | Final (api) | web (warn) | mobile (warn) | Status |
+|------|-----------|-------------|------------|---------------|--------|
+| `no-unsafe-return` | 134 | **0** | 143 | 8 | **error** (api) |
+| `no-unsafe-call` | 89 | **0** | 33 | 0 | **error** (api) |
+| `no-unsafe-argument` | 283 | **0** | 142 | 34 | **error** (api) |
+| `no-unsafe-assignment` | 544 | **0** | 363 | 76 | **error** (api) |
+| `no-unsafe-member-access` | 527 | **0** | 543 | 89 | **error** (api) |
+| **Total fixed (api)** | **1,577** | **0** | — | — | |
+| **Remaining (web+mobile)** | — | — | **1,224** | **207** | **warn** |
 
 **Key patterns used:**
 - `getAIWorkerPool(req)` helper — centralizes Express `app.locals` cast
@@ -73,10 +76,10 @@ Drizzle ORM wraps the existing `pg.Pool` from PostgresService and infers types f
 - LangGraph typed casts: `nodeFunc as (state: XState) => Promise<Partial<XState>>` (not `as any`)
 - Canonical type unification: `AIWorkerPool` (5→1), `VideoMetadata` (10→1), `QdrantFilter` (2→1)
 
-### 3.2 Replace `eslint-disable` suppressions with real types [DONE]
+### 3.2 Replace `eslint-disable` suppressions with real types [DONE — apps/api]
 - **Completed 2026-04-11.** 195 → **22** `eslint-disable no-explicit-any` suppressions in `apps/api/`
 - Remaining 22 are genuine library boundaries (docx, pdfjs, Express bridges, LangGraph)
-- Additional ~52 suppressions in `apps/web/`, `packages/`, and test files (separate scope)
+- Additional suppressions: ~29 in `apps/web/`, ~41 in `packages/` (separate scope, see Phase 5)
 
 ### 3.3 Enable `exactOptionalPropertyTypes` [DONE]
 **Completed 2026-04-10.** 415 errors → **0**.
@@ -107,14 +110,65 @@ Fixed by:
 - Remaining ~50 routes have 0 violations — migrate **opportunistically** when touching files
 - Zod schemas become building blocks for ts-rest contracts (Phase 4.1)
 
+### 3.6 Fix no-unsafe-* in services + packages [DONE]
+**Completed 2026-04-11.** Extended Phase 3.1 beyond apps/api to smaller packages.
+
+| Package | Errors fixed | Status |
+|---------|-------------|--------|
+| `services/hocuspocus` | 1 | **0 errors** |
+| `services/mcp` | 17 | **0 errors** |
+| `apps/gruen-o-mat` | 3 | **0 errors** |
+| `packages/shared` | 132 | **0 errors** |
+| **Total** | **153** | |
+
+Also fixed in this phase:
+- [x] `apps/api` `no-unused-vars`: 117 → **0** warnings
+- [x] `apps/api` `import-x/order`: 94 → **3** warnings (edge cases, rule at `warn`)
+- [x] `apps/mobile` `no-explicit-any`: 2 errors → **0**
+
+### 3.7 Remaining `warn`-level rules (TODO)
+
+| Rule | api | web | mobile | packages | Total | Safety impact |
+|------|-----|-----|--------|----------|-------|--------------|
+| `no-floating-promises` | 0 | 230 | 73 | 1 | **304** | **Critical** — crashes Node |
+| `no-unused-vars` | 0 | 224 | 52 | 8 | **284** | Low (hygiene) |
+| `no-case-declarations` | 0 | 7 | 0 | 8 | **15** | Medium |
+| `import-x/order` | 3 | 25 | 0 | 1 | **29** | None (style) |
+
+**Priority**: `no-floating-promises` is the single highest-ROI safety item remaining. Unhandled promise rejections crash Node.js processes in production.
+
 ## Phase 4: Advanced (Long-term)
 
 ### 4.1 End-to-end type safety (API ↔ Frontend)
-**Recommendation: ts-rest** — incremental, contract-first, works with Express 5.
+**[PILOT STARTED 2026-04-11]** — `packages/contracts/` created with 4 pilot contracts.
 
 ts-rest defines a single contract that types body, params, query, headers, AND response. Both Express backend and React frontend get types from the same source. Uses Zod schemas internally — the schemas from Phase 3.5 transfer directly into ts-rest contracts.
 
-**Acceleration strategy:** ~75 Zod schemas from `validateBody` already exist. A codegen script can auto-generate ts-rest contracts from them — skips 60% of the manual effort. Start with 3-5 high-traffic endpoints to prove the pattern.
+**Pilot endpoints (packages/contracts/src/contracts/):**
+- `threadsContract` — full CRUD for `/api/chat-service/threads` (6 endpoints)
+- `exportsContract` — DOCX + PDF export `/api/exports/{docx,pdf}`
+- `recentValuesContract` — `/api/recent-values` (4 endpoints, backend fully wired via `recentValuesContractRouter.ts`)
+- `searchContract` — `/api/search` POST + `/api/search/status` GET
+
+**Infrastructure:**
+- `packages/contracts/` (`@gruenerator/contracts`) — Zod schemas + ts-rest contracts, no React dep
+- `packages/shared/src/api/contractsClient.ts` — axios-backed ts-rest client (`getContractsClient()`)
+- `apps/web/src/hooks/useRecentValuesTyped.ts` — typed hook showing migration pattern
+- `apps/api/routes/user/recentValuesContractRouter.ts` — backend ts-rest router (pilot, not yet mounted)
+
+**To activate the pilot backend router**, add to `routes.ts` before the legacy router:
+```ts
+import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
+mountRecentValuesContractRouter(app);
+```
+
+**Packages to install:**
+```
+pnpm add @ts-rest/core @ts-rest/express   # in apps/api
+pnpm add @ts-rest/core                    # in packages/shared (via contracts dep)
+```
+
+**Acceleration strategy:** ~75 Zod schemas from `validateBody` already exist. A codegen script can auto-generate ts-rest contracts from them — skips 60% of the manual effort.
 
 ### 4.2 Branded types for domain values [STARTED]
 - [x] `Brand<T, B>` utility + 9 ID types + `fromParam<T>` helper
@@ -135,11 +189,13 @@ ts-rest defines a single contract that types body, params, query, headers, AND r
 
 ## What's Next (pick up here)
 
-### Priority 1: ts-rest incremental adoption (Phase 4.1)
-The biggest remaining safety win — typed API calls from frontend to backend.
-- ~75 Zod schemas from `validateBody` can auto-generate ts-rest contracts
-- Start with 3-5 high-traffic endpoints (chat, search, docs) to prove the pattern
-- Frontend gets typed `useQuery`/`useMutation` — no more `axios.get<any>`
+### Priority 1: ts-rest incremental adoption (Phase 4.1) [PILOT DONE]
+Pilot complete. Next steps:
+- Run `pnpm install` to pull `@ts-rest/core` + `@ts-rest/express`
+- Mount `recentValuesContractRouter` in `routes.ts` and delete the legacy Express handler
+- Replace `useRecentValues` with `useRecentValuesTyped` in `SmartInput.tsx` / `RecentValuesDropdown.tsx`
+- Add TanStack Query wrappers (`useQuery`/`useMutation`) around the typed client calls
+- Migrate remaining ~70 routes to contracts opportunistically when touching files
 
 ### Priority 2: Branded types adoption (Phase 4.2)
 `Brand<T, B>` utility + 9 ID types already exist. Adopt in route handlers to prevent ID mixups.
@@ -150,7 +206,17 @@ Zod schemas for WordPress, Qdrant, Nextcloud API responses. Currently typed via 
 ### Deferred (do opportunistically)
 - Remaining ~50 `validateBody` routes (0 violations, migrate when touching)
 - Remaining `PendingRequest` / `RedisClient` type unification (low impact)
-- Frontend + shared packages `any` violations (~13 remaining)
+
+## Phase 5: Frontend + Mobile Safety (Future)
+
+### 5.1 Fix web `no-unsafe-*` violations (~1,224 errors → 0)
+Currently at `warn` in `apps/web/eslint.config.js`. Fix violations then remove override.
+
+### 5.2 Fix mobile `no-unsafe-*` violations (~207 errors → 0)
+Currently at `warn` in `apps/mobile/eslint.config.js`. Fix violations then remove override.
+
+### 5.3 Promote `no-floating-promises` to `error`
+304 violations across web (230), mobile (73), packages (1). Highest remaining safety value — unhandled rejections crash Node.
 
 ## Acceleration Principles (2026-04-11)
 
@@ -158,28 +224,32 @@ Zod schemas for WordPress, Qdrant, Nextcloud API responses. Currently typed via 
 2. **Don't chase the suppression count.** 22 `eslint-disable` in api is the correct permanent floor. Typing library boundaries adds complexity without preventing real bugs.
 3. **Codegen over handwriting.** Zod schemas → ts-rest contracts can be automated. Don't rewrite what already exists.
 4. **Frontend typing > backend lint.** The biggest safety win left isn't more backend lint fixes — it's typed API calls from the frontend (ts-rest). Focus there.
+5. **Ratchet, don't re-count.** CI thresholds that only go down prevent regression without manual audits. Add a cast-count CI script.
+6. **Scope honestly.** Phase 3 achieved 0 violations in api/services/packages, but web (1,224) and mobile (207) still have `warn` overrides. Don't mark "DONE" until the monorepo is clean.
 
-## Metrics
+## Metrics (verified 2026-04-11)
 
-| Metric | Before | After Phase 1 | Current (2026-04-11) | Target |
-|--------|--------|---------------|----------------------|--------|
-| `no-explicit-any` lint errors | ~200 (warnings) | **0** (errors) | 0 | 0 |
-| `eslint-disable no-explicit-any` | 0 | ~150 | **22** (api) / **74** (total) | ~22 (library only) |
-| `as unknown as X` casts | 241 | 133 | **~20** | ≤ 15 |
-| `?? undefined` patterns | 86 | 86 | **0** | 0 |
-| `exactOptionalPropertyTypes` | disabled | disabled | **enabled (0 errors)** | enabled |
-| `no-unsafe-return` | 134 (warn) | 0 (warn) | **0 (error)** | 0 (error) |
-| `no-unsafe-call` | 89 (warn) | — | **0 (error)** | 0 (error) |
-| `no-unsafe-argument` | 283 (warn) | — | **0 (error)** | 0 (error) |
-| `no-unsafe-assignment` | 544 (warn) | 882 (warn) | **0 (error)** | 0 (error) |
-| `no-unsafe-member-access` | 527 (warn) | 1,128 (warn) | **0 (error)** | 0 (error) |
-| Duplicate type definitions | ~20 | — | **0** (AIWorkerPool, VideoMetadata, QdrantFilter unified) | 0 |
-| Drizzle schema tables | 0 | 0 | **~20** | all |
-| Typecheck errors | 3 | 3 | **0** | 0 |
-| `validateBody` routes | 0 | 0 | **~75** | opportunistic |
-| `parseJSON<T>()` adoption | — | — | **10 files** | all JSON.parse sites |
-| Frontend `any` violations | ~49 | — | **~8** | 0 |
-| Shared packages `any` violations | ~48 | — | **~5** | 0 |
+| Metric | Before | After Phase 3 (api) | Current (all packages) | Target |
+|--------|--------|---------------------|----------------------|--------|
+| `no-explicit-any` lint errors | ~200 (warn) | **0** (error) | **0** (api+services+packages) | 0 monorepo |
+| `eslint-disable no-explicit-any` | 0 | 22 (api) | **22** (api) / **70** (web+packages) | ~22 (library only) |
+| `as unknown as X` casts | 241 | 37 | **84** (api) / **205** (repo) | ratchet down |
+| `no-unsafe-*` violations (api) | 1,577 | **0** (error) | **0** | 0 |
+| `no-unsafe-*` violations (web) | — | — | **1,224** (warn override) | 0 |
+| `no-unsafe-*` violations (mobile) | — | — | **207** (warn override) | 0 |
+| `no-unsafe-*` violations (packages) | — | — | **0** (error) | 0 |
+| `no-floating-promises` | — | — | **304** (warn) | 0 (error) |
+| `no-unused-vars` (api) | ~120 | **0** | **0** | 0 |
+| `import-x/order` (api) | ~94 | **3** | **3** (edge cases) | 0 |
+| `exactOptionalPropertyTypes` | disabled | **enabled (0 errors)** | enabled | enabled |
+| Duplicate type definitions | ~20 | **0** | 0 | 0 |
+| Drizzle schema tables | 0 | **~20** | ~20 | all |
+| Typecheck errors | 3 | **0** | 0 | 0 |
+| `validateBody` routes | 0 | **~75** | ~75 | opportunistic |
+| ts-rest contracts | 0 | 0 | **4** (pilot: threads, exports, recentValues, search) | all |
+| `parseJSON<T>()` adoption | — | **10 files** | 10 files | all JSON.parse sites |
+
+**Note on cast regression:** `as unknown as` grew from ~37 (Phase 2 end) to 84 (api) / 205 (repo) due to new features added without cast discipline. Phase 4 should add a CI ratchet script to prevent further regression.
 
 ## Principles
 
