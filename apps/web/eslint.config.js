@@ -18,12 +18,8 @@ export default [
   },
   {
     rules: {
-      // TODO: Fix ~1,228 violations then promote to 'error' (tracked in typescript-safety-roadmap.md)
-      '@typescript-eslint/no-unsafe-member-access': 'warn',
-      '@typescript-eslint/no-unsafe-assignment': 'warn',
-      '@typescript-eslint/no-unsafe-argument': 'warn',
-      '@typescript-eslint/no-unsafe-return': 'warn',
-      '@typescript-eslint/no-unsafe-call': 'warn',
+      // no-unsafe-* rules: inherited from base config at 'error' level (1,214 violations fixed 2026-04-11)
+      // Remaining warn overrides for rules not yet fixed:
       '@typescript-eslint/switch-exhaustiveness-check': 'warn',
       '@typescript-eslint/no-floating-promises': 'warn',
     },
