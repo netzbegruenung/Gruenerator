@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { parentPort } from 'worker_threads';
 
 import * as providerFallback from '../services/providers/providerFallback.js';
@@ -21,10 +22,6 @@ const SHAREPIC_TYPES = [
   'sharepic_info',
   'sharepic_veranstaltung',
 ];
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-require('dotenv').config({ quiet: true });
 
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
 

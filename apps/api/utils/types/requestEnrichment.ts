@@ -4,6 +4,7 @@
 
 import { type ContentExample } from '../../agents/langgraph/types/promptAssembly.js';
 import { type ClaudeTool } from '../../services/tools/types.js';
+import { type AIWorkerPool } from '../../workers/types.js';
 
 export type Locale = 'de-DE' | 'de-AT';
 
@@ -28,7 +29,7 @@ export interface EnrichmentOptions {
   selectedTextIds?: string[] | undefined;
   searchQuery?: string | null | undefined;
   provider?: string | undefined;
-  aiWorkerPool?: { processRequest: (request: unknown) => Promise<unknown> };
+  aiWorkerPool?: AIWorkerPool;
   req?: unknown | undefined;
   enableNotebookEnrich?: boolean | undefined;
   notebookEnrichPrompt?: string | undefined;

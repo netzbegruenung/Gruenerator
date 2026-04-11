@@ -210,6 +210,7 @@ export interface SearchResponse {
   message: string;
   error?: string | undefined;
   code?: string | undefined;
+  stats?: unknown;
   metadata?: {
     searchService?: string | undefined;
     totalChunks?: number | undefined;

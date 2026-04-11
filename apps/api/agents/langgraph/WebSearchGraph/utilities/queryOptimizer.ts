@@ -5,6 +5,9 @@
 
 import { parseAIJsonResponse } from '../../../../services/search/index.js';
 
+import type { AIWorkerPool } from '../../../../workers/types.js';
+import type { Request } from 'express';
+
 /**
  * Optimize search query with German synonym expansion
  */
@@ -38,10 +41,8 @@ export function optimizeSearchQuery(query: string): string {
  */
 export async function generateResearchQuestions(
   originalQuery: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  aiWorkerPool: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  req: any
+  aiWorkerPool: AIWorkerPool,
+  req: Request | null
 ): Promise<string[]> {
   try {
     const researchSystemPrompt = `Du bist ein Recherche-Experte. Generiere 4-5 strategische Forschungsfragen für eine umfassende Webrecherche.

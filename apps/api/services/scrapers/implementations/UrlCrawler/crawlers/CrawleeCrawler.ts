@@ -3,8 +3,36 @@
  * Crawlee integration with CheerioCrawler and PlaywrightCrawler fallback
  */
 
-import type { CrawlerConfig, RawCrawlResult, CrawlOptions } from '../types.js';
-import type { CheerioAPI } from 'cheerio';
+import {
+  type CheerioCrawler as CheerioCrawlerClass,
+  type CheerioCrawlingContext,
+  type PlaywrightCrawler as PlaywrightCrawlerClass,
+  type PlaywrightCrawlingContext,
+  type Configuration as CrawleeConfiguration,
+  type Log,
+} from 'crawlee';
+
+import { type CrawlerConfig, type RawCrawlResult, type CrawlOptions } from '../types.js';
+
+interface CrawleeModule {
+  CheerioCrawler: typeof CheerioCrawlerClass;
+  PlaywrightCrawler: typeof PlaywrightCrawlerClass;
+  Configuration: typeof CrawleeConfiguration;
+  log: Log;
+}
+
+interface CrawlerRunOptions {
+  crawlerMode: string;
+  maxConcurrency: number;
+  maxRetries: number;
+  timeout: number;
+  maxContentLength: number;
+  userAgent: string;
+  requestTimeoutSecs: number;
+  enhancedMetadata?: boolean | undefined;
+  headless?: boolean | undefined;
+  metadataOnly?: boolean | undefined;
+}
 
 export class CrawleeCrawler {
   constructor(private config: CrawlerConfig) {}
@@ -13,8 +41,7 @@ export class CrawleeCrawler {
    * Crawls URL using Crawlee with memory-only storage
    */
   async crawlWithCrawlee(url: string, options: CrawlOptions = {}): Promise<RawCrawlResult> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let crawlee: any;
+    let crawlee: CrawleeModule;
     try {
       crawlee = await import('crawlee');
     } catch (importError) {
@@ -36,11 +63,11 @@ export class CrawleeCrawler {
       },
     });
 
-    const crawlOptions = {
+    const crawlOptions: CrawlerRunOptions = {
       ...this.config,
       ...options,
       requestTimeoutSecs: Math.floor((options.timeout || this.config.timeout) / 1000),
-    };
+    } as CrawlerRunOptions;
 
     // Try CheerioCrawler first
     try {
@@ -79,37 +106,25 @@ export class CrawleeCrawler {
    */
   private async runCheerioCrawler(
     url: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    options: any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    CheerioCrawler: any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    crawlerConfig: any
+    options: CrawlerRunOptions,
+    CheerioCrawler: typeof CheerioCrawlerClass,
+    crawlerConfig: CrawleeConfiguration
   ): Promise<RawCrawlResult> {
     const results: RawCrawlResult[] = [];
 
     const crawler = new CheerioCrawler(
       {
-        maxRequestRetries: options.maxRetries,
+        ...(options.maxRetries != null && { maxRequestRetries: options.maxRetries }),
         requestHandlerTimeoutSecs: options.requestTimeoutSecs,
         maxConcurrency: 1, // Single URL crawl
         maxRequestsPerCrawl: 1,
         persistCookiesPerSession: false,
         useSessionPool: false,
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        requestHandler: async ({
-          request,
-          response,
-          $,
-        }: {
-          request: any;
-          response: any;
-          $: CheerioAPI;
-        }) => {
+        requestHandler: async ({ request, response, $ }: CheerioCrawlingContext) => {
           try {
             // Validate response
-            if (response.statusCode >= 400) {
+            if (response.statusCode && response.statusCode >= 400) {
               throw new Error(
                 `HTTP ${response.statusCode}: ${response.statusMessage || 'Request failed'}`
               );
@@ -148,18 +163,19 @@ export class CrawleeCrawler {
           }
         },
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        errorHandler: ({ request, error }: { request: any; error: Error }) => {
-          console.error(`[CrawleeCrawler] CheerioCrawler error for ${request.url}:`, error.message);
+        errorHandler: (ctx: CheerioCrawlingContext, error: Error) => {
+          console.error(
+            `[CrawleeCrawler] CheerioCrawler error for ${ctx.request.url}:`,
+            error.message
+          );
         },
 
         // Custom headers
         preNavigationHooks: [
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          async ({ request }: { request: any }) => {
+          async ({ request }: CheerioCrawlingContext) => {
             request.headers = {
               ...request.headers,
-              'User-Agent': options.userAgent,
+              ...(options.userAgent != null && { 'User-Agent': options.userAgent }),
               Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
               'Accept-Language': 'en-US,en;q=0.5',
               'Accept-Encoding': 'gzip, deflate, br',
@@ -198,18 +214,15 @@ export class CrawleeCrawler {
    */
   private async runPlaywrightCrawler(
     url: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    options: any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    PlaywrightCrawler: any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    crawlerConfig: any
+    options: CrawlerRunOptions,
+    PlaywrightCrawler: typeof PlaywrightCrawlerClass,
+    crawlerConfig: CrawleeConfiguration
   ): Promise<RawCrawlResult> {
     const results: RawCrawlResult[] = [];
 
     const crawler = new PlaywrightCrawler(
       {
-        maxRequestRetries: options.maxRetries,
+        ...(options.maxRetries != null && { maxRequestRetries: options.maxRetries }),
         requestHandlerTimeoutSecs: options.requestTimeoutSecs * 2, // More time for browser
         maxConcurrency: 1,
         maxRequestsPerCrawl: 1,
@@ -217,12 +230,13 @@ export class CrawleeCrawler {
         persistCookiesPerSession: false,
         useSessionPool: false,
 
-        launchContext: {
-          userAgent: options.userAgent,
-        },
+        ...(options.userAgent != null && {
+          launchContext: {
+            userAgent: options.userAgent,
+          },
+        }),
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        requestHandler: async ({ request, page }: { request: any; page: any }) => {
+        requestHandler: async ({ request, page }: PlaywrightCrawlingContext) => {
           try {
             // Wait for page to load
             await page.waitForLoadState('domcontentloaded');
@@ -252,10 +266,9 @@ export class CrawleeCrawler {
           }
         },
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        errorHandler: ({ request, error }: { request: any; error: Error }) => {
+        errorHandler: (ctx: PlaywrightCrawlingContext, error: Error) => {
           console.error(
-            `[CrawleeCrawler] PlaywrightCrawler error for ${request.url}:`,
+            `[CrawleeCrawler] PlaywrightCrawler error for ${ctx.request.url}:`,
             error.message
           );
         },
@@ -304,7 +317,7 @@ export class CrawleeCrawler {
   /**
    * Basic detection for JavaScript-heavy pages
    */
-  private detectJavaScriptRequired($: CheerioAPI, html: string): boolean {
+  private detectJavaScriptRequired($: CheerioCrawlingContext['$'], html: string): boolean {
     // Check for common indicators of JavaScript requirement
     const indicators = [
       // Text content indicating JS requirement

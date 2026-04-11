@@ -12,6 +12,7 @@ import { MistralWebSearchService } from '../../../../services/mistral/index.js';
 import { searxngService, withRetry, searxngCircuit } from '../../../../services/search/index.js';
 import { getIntelligentSearchOptions } from '../utilities/searchOptions.js';
 
+import type { SearchResults as MistralSearchResults } from '../../../../services/mistral/MistralWebSearchService/types.js';
 import type { WebSearchState, WebSearchBatch, SearchResult } from '../types.js';
 
 const mistralSearchService = new MistralWebSearchService();
@@ -19,20 +20,18 @@ const mistralSearchService = new MistralWebSearchService();
 /**
  * Helper: Normalize Mistral results to SearXNG format
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function normalizeMistralResults(mistralResult: any): SearchResult[] {
+function normalizeMistralResults(mistralResult: MistralSearchResults): SearchResult[] {
   if (!mistralResult.sources || mistralResult.sources.length === 0) {
     return [];
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return
   return mistralResult.sources.map(
-    (source: any): SearchResult => ({
+    (source): SearchResult => ({
       url: source.url,
       title: source.title,
       content: source.snippet || mistralResult.textContent || '',
       snippet: source.snippet || '',
       domain: source.domain,
-      score: source.relevance || 1.0,
+      score: source.relevance ?? 1.0,
     })
   );
 }

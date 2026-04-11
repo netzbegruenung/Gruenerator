@@ -15,6 +15,7 @@ import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer
 import { createLogger } from '../../../../utils/logger.js';
 import { generateResearchQuestions } from '../../WebSearchGraph/utilities/queryOptimizer.js';
 
+import type { AIWorkerPool } from '../../../../workers/types.js';
 import type { SearchGraphState, QueryType } from '../types.js';
 
 const log = createLogger('SearchGraph:QueryPlanner');
@@ -77,8 +78,7 @@ function formatConversationContext(
 async function reformulateFollowUp(
   rawQuery: string,
   context: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  aiWorkerPool: any
+  aiWorkerPool: AIWorkerPool
 ): Promise<string> {
   try {
     const result = await aiWorkerPool.processRequest(

@@ -92,20 +92,20 @@ const SocialAgentAnnotation = Annotation.Root({
   }),
 });
 
+type SocialState = typeof SocialAgentAnnotation.State;
+
 function createSocialAgentGraph() {
-  /* eslint-disable @typescript-eslint/no-explicit-any -- LangGraph node type coercions */
   const graph = new StateGraph(SocialAgentAnnotation)
-    .addNode('research', researchNode as any)
-    .addNode('strategize', strategizeNode as any)
-    .addNode('generate', generateNode as any)
-    .addNode('format', formatNode as any)
+    .addNode('research', researchNode as (state: SocialState) => Promise<Partial<SocialState>>)
+    .addNode('strategize', strategizeNode as (state: SocialState) => Promise<Partial<SocialState>>)
+    .addNode('generate', generateNode as (state: SocialState) => Promise<Partial<SocialState>>)
+    .addNode('format', formatNode as (state: SocialState) => Promise<Partial<SocialState>>)
 
     .addEdge('__start__', 'research')
     .addEdge('research', 'strategize')
     .addEdge('strategize', 'generate')
     .addEdge('generate', 'format')
     .addEdge('format', '__end__');
-  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   return graph.compile();
 }

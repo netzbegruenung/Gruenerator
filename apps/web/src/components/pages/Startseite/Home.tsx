@@ -1,15 +1,15 @@
-import { lazy, Suspense, type ReactNode, useEffect } from 'react';
+import { TypingAnimation } from '@gruenerator/ui';
+import { lazy, memo, Suspense, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { TypeAnimation } from 'react-type-animation';
 
 import ReelMuster from '../../../assets/images/startseite/Reel_Muster.png';
-import SharepicMuster from '../../../assets/images/startseite/Sharepic_Muster.png';
-import { type IconCategory, getIcon } from '../../../config/icons';
-import { useSidebarStore } from '../../../stores/sidebarStore';
+import { type IconCategory } from '../../../config/icons';
 import Icon from '../../common/Icon';
 
 const MockGenerator = lazy(() => import('./MockGenerator'));
+const DocumentsMock = lazy(() => import('./DocumentsMock'));
 const ImageComparisonMock = lazy(() => import('./ImageComparisonMock'));
+const NotebookMock = lazy(() => import('./NotebookMock'));
 
 const NEWSLETTER_URL =
   'https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW';
@@ -21,12 +21,11 @@ const headingClass = [
 ].join(' ');
 
 const btnBaseClass = [
-  'flex items-center gap-3 no-underline',
+  'flex items-center justify-center gap-3 no-underline',
   'font-medium rounded-[10px] transition-colors cursor-pointer',
-  'w-full justify-start py-3.5 px-5',
-  'md:flex-1 md:min-w-[150px] md:justify-center md:p-md',
-  'xl:text-[1.05em] xl:p-[calc(var(--spacing-responsive-medium)*1.1)]',
-  '4xl:text-[1.1em] 4xl:min-w-[180px] 4xl:p-[calc(var(--spacing-responsive-medium)*1.25)]',
+  'py-3.5 px-8 min-w-[160px]',
+  'xl:text-[1.05em] xl:py-4 xl:px-10',
+  '4xl:text-[1.1em] 4xl:min-w-[180px]',
   '5xl:text-[1.15em] 5xl:min-w-[200px]',
   '[&_svg]:text-[1.3em]',
 ].join(' ');
@@ -95,10 +94,10 @@ interface FeatureData {
 
 const FEATURES: FeatureData[] = [
   {
-    icon: { category: 'ui', name: 'file' },
+    icon: { category: 'navigation', name: 'texte' },
     title: 'Erstelle Grüne Texte',
     description:
-      'Nutze unseren KI-gestützten Generator für Pressemitteilungen, Social Media Posts und mehr. Einfach Thema eingeben und professionelle Texte erhalten.',
+      'Im Chat mit der KI erstellst du Pressemitteilungen, Social Media Posts und mehr. Einfach beschreiben, was du brauchst — der Grünerator liefert.',
     visual: (
       <Suspense fallback={suspenseFallback}>
         <MockGenerator />
@@ -106,12 +105,14 @@ const FEATURES: FeatureData[] = [
     ),
   },
   {
-    icon: { category: 'navigation', name: 'sharepic' },
-    title: 'Kreiere Sharepics in Sekunden',
+    icon: { category: 'navigation', name: 'docs' },
+    title: 'Schreibe Dokumente gemeinsam',
     description:
-      'Mit KI-Unterstützung erstellst du professionelle Sharepics für Social Media in wenigen Sekunden. Einfach Thema eingeben und fertig gestaltet erhalten.',
+      'Erstelle Anträge, Pressemitteilungen und Protokolle im kollaborativen Editor. Mit KI-Unterstützung und Echtzeit-Zusammenarbeit.',
     visual: (
-      <FeatureImage src={SharepicMuster} alt="Sharepic Muster - Grünerator generated content" />
+      <Suspense fallback={suspenseFallback}>
+        <DocumentsMock />
+      </Suspense>
     ),
   },
   {
@@ -122,6 +123,17 @@ const FEATURES: FeatureData[] = [
     visual: (
       <Suspense fallback={suspenseFallback}>
         <ImageComparisonMock />
+      </Suspense>
+    ),
+  },
+  {
+    icon: { category: 'navigation', name: 'notebook' },
+    title: 'Recherchiere in Grünen Quellen',
+    description:
+      'Stelle Fragen an Grundsatzprogramme, Bundestagsanträge und Kommunalwiki. Das Notebook liefert Antworten mit Quellenangaben.',
+    visual: (
+      <Suspense fallback={suspenseFallback}>
+        <NotebookMock />
       </Suspense>
     ),
   },
@@ -165,86 +177,57 @@ const USE_CASES: UseCaseData[] = [
   },
 ];
 
-const Home = () => {
-  const requestHideSidebar = useSidebarStore((state) => state.requestHideSidebar);
-  const releaseHideSidebar = useSidebarStore((state) => state.releaseHideSidebar);
+const TYPING_WORDS = [
+  'Pressemitteilung?',
+  'Social-Media-Post?',
+  'Antrag oder Anfrage?',
+  'Wahlprogramm-Kapitel?',
+  'Redebeitrag?',
+  'Dokument?',
+];
 
-  useEffect(() => {
-    requestHideSidebar('home');
-    return () => releaseHideSidebar('home');
-  }, [requestHideSidebar, releaseHideSidebar]);
-
-  const TexteIcon = getIcon('navigation', 'texte')!;
-  const ReelIcon = getIcon('navigation', 'reel')!;
-  const RechercheIcon = getIcon('navigation', 'suche')!;
-  const SharepicIcon = getIcon('navigation', 'sharepic')!;
-
+const HeroTyping = memo(function HeroTyping() {
   return (
-    <main role="main" id="main-content">
-      {/* Hero Section */}
+    <TypingAnimation
+      words={TYPING_WORDS}
+      as="span"
+      loop
+      typeSpeed={50}
+      deleteSpeed={30}
+      pauseDelay={5000}
+      showCursor={false}
+      className={headingClass}
+      aria-label="Verschiedene Textarten, die der Grünerator erstellen kann"
+    />
+  );
+});
+
+const Home = () => {
+  return (
+    <main id="main-content">
       <section
         className={`flex flex-col items-center min-h-[50vh] 4xl:min-h-[55vh] 5xl:min-h-[60vh] px-5 lg:px-[var(--spacing-responsive-xxlarge)] 4xl:px-[60px] 5xl:px-20 pt-8 pb-8 md:pb-10 ${containerMaxWidth} mx-auto bg-background`}
       >
         <header className="flex flex-col items-start mb-xl w-full">
           <h1 className="sr-only">Grünerator - AI-gestützte Textgenerierung für die Grünen</h1>
-          <TypeAnimation
-            sequence={[
-              'Pressemitteilung?',
-              5000,
-              'Social-Media-Post?',
-              5000,
-              'Antrag oder Anfrage?',
-              5000,
-              'Wahlprogramm-Kapitel?',
-              5000,
-              'Redebeitrag?',
-              5000,
-              'Sharepic?',
-              5000,
-            ]}
-            wrapper="span"
-            speed={50}
-            repeat={Infinity}
-            className={headingClass}
-            aria-label="Verschiedene Textarten, die der Grünerator erstellen kann"
-          />
+          <HeroTyping />
           <h2 className={`${headingClass} leading-tight`}>Dafür gibt&apos;s den Grünerator.</h2>
         </header>
 
-        <p className="text-base min-[480px]:text-[1.1em] lg:text-lg xl:text-[1.25em] 3xl:text-[1.3em] 4xl:text-[1.35em] 5xl:text-[1.45em] leading-relaxed 4xl:leading-[1.65] text-foreground self-start text-left mb-8 md:mb-xl">
+        <p className="self-start text-base min-[480px]:text-[1.1em] lg:text-lg xl:text-[1.25em] 3xl:text-[1.3em] 4xl:text-[1.35em] 5xl:text-[1.45em] leading-relaxed 4xl:leading-[1.65] text-foreground text-left mb-8 md:mb-xl max-w-[700px]">
           Mit dem Grünerator kannst du schnell und kostenlos einen Vorschlag für Grüne Inhalte
           deiner Wahl erhalten. Deine Eingaben werden sicher in Europa verarbeitet.
         </p>
 
-        <div className="w-full self-start flex flex-col gap-md items-center md:items-start">
-          <div className="flex flex-col md:flex-row md:flex-nowrap gap-3 md:gap-md w-full max-w-[400px] md:max-w-none">
-            <Link to="/texte" className={linkBtnClass} aria-label="Zum Texte Grünerator">
-              <TexteIcon /> Texte
-            </Link>
-            <Link to="/imagine" className={linkBtnClass} aria-label="Zum Imagine Grünerator">
-              <SharepicIcon /> Imagine
-            </Link>
-            <Link to="/reel" className={linkBtnClass} aria-label="Zum Reel Grünerator">
-              <ReelIcon /> Reel
-            </Link>
-            <Link to="/recherche" className={linkBtnClass} aria-label="Zur Recherche">
-              <RechercheIcon /> Recherche
-            </Link>
-            <a
-              href={NEWSLETTER_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`${newsletterBtnClass} hidden md:flex`}
-              aria-label="Zum Newsletter anmelden"
-            >
-              Newsletter <Icon category="actions" name="arrowRight" />
-            </a>
-          </div>
+        <div className="self-start flex flex-col sm:flex-row gap-3 md:gap-md items-start">
+          <Link to="/login" className={linkBtnClass} aria-label="Zum Login">
+            <Icon category="actions" name="lock" /> Login
+          </Link>
           <a
             href={NEWSLETTER_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className={`${newsletterBtnClass} flex md:hidden mt-3`}
+            className={newsletterBtnClass}
             aria-label="Zum Newsletter anmelden"
           >
             Newsletter <Icon category="actions" name="arrowRight" />
@@ -252,12 +235,11 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Feature Partner Section */}
       <section
         className="py-20 bg-gradient-to-b from-background to-background-alt dark:[background:none] relative overflow-hidden"
         aria-labelledby="ai-partner-title"
       >
-        <div className="absolute -top-1/2 -left-1/2 w-[200%] h-[200%] bg-[radial-gradient(circle,rgba(70,215,0,0.03)_0%,transparent_70%)] pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(70,215,0,0.03)_0%,transparent_70%)] pointer-events-none will-change-[opacity]" />
 
         <div className="max-w-[1280px] 3xl:max-w-[1500px] 4xl:max-w-[1600px] 5xl:max-w-[1900px] mx-auto px-5 md:px-10 4xl:px-[60px]">
           <h2
@@ -286,7 +268,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Use Cases Section */}
       <section className="py-2xl bg-background" aria-labelledby="use-cases-title">
         <div className={`${containerMaxWidth} mx-auto px-5 md:px-2xl`}>
           <h2
@@ -295,7 +276,7 @@ const Home = () => {
           >
             Und es gibt noch mehr
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-lg">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-lg">
             {USE_CASES.map((useCase) => (
               <div key={useCase.title} className={useCaseCardClass}>
                 <div className={useCaseIconClass}>

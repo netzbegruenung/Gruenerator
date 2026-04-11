@@ -1085,9 +1085,6 @@ importers:
       react-tooltip:
         specifier: ^5.30.0
         version: 5.30.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      react-type-animation:
-        specifier: ^3.2.0
-        version: 3.2.0(prop-types@15.8.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react-use:
         specifier: ^17.6.0
         version: 17.6.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -19070,13 +19067,6 @@ packages:
       react: 19.2.4
       react-dom: 19.2.4
 
-  react-type-animation@3.2.0:
-    resolution: {integrity: sha512-WXTe0i3rRNKjmggPvT5ntye1QBt0ATGbijeW6V3cQe2W0jaMABXXlPPEdtofnS9tM7wSRHchEvI9SUw+0kUohw==}
-    peerDependencies:
-      prop-types: ^15.5.4
-      react: 19.2.4
-      react-dom: 19.2.4
-
   react-universal-interface@0.6.2:
     resolution: {integrity: sha512-dg8yXdcQmvgR13RIlZbTRQOoUrDciFVoSBZILwjE2LFISxZZ8loVJKAkuzswl5js8BHda79bIb2b84ehU8IjXw==}
     peerDependencies:
@@ -34719,7 +34709,7 @@ snapshots:
 
   axios@1.15.0:
     dependencies:
-      follow-redirects: 1.15.11(debug@4.4.3)
+      follow-redirects: 1.15.11
       form-data: 4.0.5
       proxy-from-env: 2.1.0
     transitivePeerDependencies:
@@ -38467,6 +38457,8 @@ snapshots:
   flow-enums-runtime@0.0.6: {}
 
   fn.name@1.1.0: {}
+
+  follow-redirects@1.15.11: {}
 
   follow-redirects@1.15.11(debug@4.4.3):
     optionalDependencies:
@@ -44736,12 +44728,6 @@ snapshots:
       '@babel/runtime': 7.29.2
       dom-helpers: 5.2.1
       loose-envify: 1.4.0
-      prop-types: 15.8.1
-      react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
-
-  react-type-animation@3.2.0(prop-types@15.8.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
-    dependencies:
       prop-types: 15.8.1
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)

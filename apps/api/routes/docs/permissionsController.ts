@@ -1,6 +1,8 @@
 import { Router, type Request, type Response } from 'express';
+import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 
 import { DOCS_SUBTYPES } from './constants.js';
 
@@ -44,6 +46,21 @@ interface ProfileRow {
   avatar_url: string | null;
   [key: string]: unknown;
 }
+
+// ============================================================================
+// Zod Schemas
+// ============================================================================
+
+const grantPermissionSchema = z.object({
+  user_id: z.string(),
+  permission_level: z.enum(['owner', 'editor', 'viewer']),
+});
+type GrantPermissionBody = z.infer<typeof grantPermissionSchema>;
+
+const updatePermissionSchema = z.object({
+  permission_level: z.enum(['owner', 'editor', 'viewer']),
+});
+type UpdatePermissionBody = z.infer<typeof updatePermissionSchema>;
 
 const router = Router();
 const db = getPostgresInstance();
@@ -152,123 +169,117 @@ router.get('/:id/permissions', async (req: Request<{ id: string }>, res: Respons
  * @desc    Grant permission to a user
  * @access  Private (owner only)
  */
-router.post('/:id/permissions', async (req: Request<{ id: string }>, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { user_id, permission_level } = req.body;
-    const userId = req.user?.id;
+router.post(
+  '/:id/permissions',
+  validateBody(grantPermissionSchema),
+  async (req: TypedRequest<GrantPermissionBody, { id: string }>, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { user_id, permission_level } = req.body;
+      const userId = req.user?.id;
 
-    if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
 
-    if (!user_id || !permission_level) {
-      return res.status(400).json({ error: 'user_id and permission_level are required' });
-    }
+      const docResult = (await db.query(
+        'SELECT created_by, permissions, title FROM collaborative_documents WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false',
+        [id, DOCS_SUBTYPES]
+      )) as DocumentWithPermissions[];
 
-    if (!['owner', 'editor', 'viewer'].includes(permission_level)) {
-      return res
-        .status(400)
-        .json({ error: 'Invalid permission level. Must be owner, editor, or viewer' });
-    }
+      if (docResult.length === 0) {
+        return res.status(404).json({ error: 'Document not found' });
+      }
 
-    const docResult = (await db.query(
-      'SELECT created_by, permissions, title FROM collaborative_documents WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false',
-      [id, DOCS_SUBTYPES]
-    )) as DocumentWithPermissions[];
+      const document = docResult[0];
+      const userPermission = document.permissions?.[userId];
+      const isOwner =
+        document.created_by === userId || (userPermission && userPermission.level === 'owner');
 
-    if (docResult.length === 0) {
-      return res.status(404).json({ error: 'Document not found' });
-    }
+      if (!isOwner) {
+        return res.status(403).json({ error: 'Only owners can manage permissions' });
+      }
 
-    const document = docResult[0];
-    const userPermission = document.permissions?.[userId];
-    const isOwner =
-      document.created_by === userId || (userPermission && userPermission.level === 'owner');
+      const recipientProfile = (await db.query(
+        'SELECT id, display_name, email, user_defaults FROM profiles WHERE id = $1',
+        [user_id]
+      )) as ProfileRow[];
+      if (recipientProfile.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
 
-    if (!isOwner) {
-      return res.status(403).json({ error: 'Only owners can manage permissions' });
-    }
+      const permissions: DocumentPermissions = document.permissions || {};
+      permissions[user_id] = {
+        level: permission_level,
+        granted_at: new Date().toISOString(),
+        granted_by: userId,
+      };
 
-    const recipientProfile = (await db.query(
-      'SELECT id, display_name, email, user_defaults FROM profiles WHERE id = $1',
-      [user_id]
-    )) as ProfileRow[];
-    if (recipientProfile.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+      await db.query(
+        'UPDATE collaborative_documents SET permissions = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        [JSON.stringify(permissions), id]
+      );
 
-    const permissions: DocumentPermissions = document.permissions || {};
-    permissions[user_id] = {
-      level: permission_level,
-      granted_at: new Date().toISOString(),
-      granted_by: userId,
-    };
+      // Fire-and-forget: send share notification email (respects recipient's preferences)
+      const recipient = recipientProfile[0];
+      if (recipient.email) {
+        const senderProfile = (await db.query('SELECT display_name FROM profiles WHERE id = $1', [
+          userId,
+        ])) as ProfileRow[];
+        const senderName = senderProfile[0]?.display_name || 'Jemand';
 
-    await db.query(
-      'UPDATE collaborative_documents SET permissions = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-      [JSON.stringify(permissions), id]
-    );
+        const docTitle = (document.title as string) || 'Unbenanntes Dokument';
 
-    // Fire-and-forget: send share notification email (respects recipient's preferences)
-    const recipient = recipientProfile[0];
-    if (recipient.email) {
-      const senderProfile = (await db.query('SELECT display_name FROM profiles WHERE id = $1', [
-        userId,
-      ])) as ProfileRow[];
-      const senderName = senderProfile[0]?.display_name || 'Jemand';
+        // Fire-and-forget: in-app notification
+        import('../../services/notifications/index.js')
+          .then(({ createNotification }) =>
+            createNotification({
+              userId: user_id,
+              type: 'document_shared',
+              title: `${senderName} hat ein Dokument mit dir geteilt`,
+              body: docTitle,
+              metadata: { documentId: id, senderName, permissionLevel: permission_level },
+              actionUrl: `/docs/${id}`,
+              groupKey: `doc:${id}:shared`,
+            })
+          )
+          .catch(() => {});
 
-      const docTitle = (document.title as string) || 'Unbenanntes Dokument';
-
-      // Fire-and-forget: in-app notification
-      import('../../services/notifications/index.js')
-        .then(({ createNotification }) =>
-          createNotification({
-            userId: user_id,
-            type: 'document_shared',
-            title: `${senderName} hat ein Dokument mit dir geteilt`,
-            body: docTitle,
-            metadata: { documentId: id, senderName, permissionLevel: permission_level },
-            actionUrl: `/docs/${id}`,
-            groupKey: `doc:${id}:shared`,
+        // Fire-and-forget: email notification (respects recipient's preferences)
+        import('../../services/email/index.js')
+          .then(async ({ sendDocumentShareEmail, shouldSendNotification }) => {
+            // Convert ProfileRow to UserProfile by casting
+            const recipientProfile = recipient as unknown as UserProfile;
+            const shouldSend = await shouldSendNotification(
+              user_id,
+              'document_shared',
+              recipientProfile
+            );
+            if (!shouldSend) return;
+            return sendDocumentShareEmail({
+              recipientEmail: recipient.email!,
+              recipientName: recipient.display_name || 'Kolleg*in',
+              senderName,
+              documentId: id,
+              documentTitle: docTitle,
+              permissionLevel: permission_level,
+            });
           })
-        )
-        .catch(() => {});
+          .catch(() => {});
+      }
 
-      // Fire-and-forget: email notification (respects recipient's preferences)
-      import('../../services/email/index.js')
-        .then(async ({ sendDocumentShareEmail, shouldSendNotification }) => {
-          // Convert ProfileRow to UserProfile by casting
-          const recipientProfile = recipient as unknown as UserProfile;
-          const shouldSend = await shouldSendNotification(
-            user_id,
-            'document_shared',
-            recipientProfile
-          );
-          if (!shouldSend) return;
-          return sendDocumentShareEmail({
-            recipientEmail: recipient.email!,
-            recipientName: recipient.display_name || 'Kolleg*in',
-            senderName,
-            documentId: id,
-            documentTitle: docTitle,
-            permissionLevel: permission_level,
-          });
-        })
-        .catch(() => {});
+      return res.json({
+        message: 'Permission granted successfully',
+        user_id,
+        permission_level,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[Docs] Error granting permission:', error);
+      return res.status(500).json({ error: 'Failed to grant permission', details: message });
     }
-
-    return res.json({
-      message: 'Permission granted successfully',
-      user_id,
-      permission_level,
-    });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error('[Docs] Error granting permission:', error);
-    return res.status(500).json({ error: 'Failed to grant permission', details: message });
   }
-});
+);
 
 /**
  * @route   PUT /api/docs/:id/permissions/:userId
@@ -277,7 +288,11 @@ router.post('/:id/permissions', async (req: Request<{ id: string }>, res: Respon
  */
 router.put(
   '/:id/permissions/:targetUserId',
-  async (req: Request<{ id: string; targetUserId: string }>, res: Response) => {
+  validateBody(updatePermissionSchema),
+  async (
+    req: TypedRequest<UpdatePermissionBody, { id: string; targetUserId: string }>,
+    res: Response
+  ) => {
     try {
       const { id, targetUserId } = req.params;
       const { permission_level } = req.body;
@@ -285,14 +300,6 @@ router.put(
 
       if (!userId) {
         return res.status(401).json({ error: 'User not authenticated' });
-      }
-
-      if (!permission_level) {
-        return res.status(400).json({ error: 'permission_level is required' });
-      }
-
-      if (!['owner', 'editor', 'viewer'].includes(permission_level)) {
-        return res.status(400).json({ error: 'Invalid permission level' });
       }
 
       const docResult = (await db.query(

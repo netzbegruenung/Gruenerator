@@ -9,6 +9,7 @@ import {
   validateCampaignInputsOrThrow,
   ValidationError,
 } from '../../../utils/campaign/validator.js';
+import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../utils/logger.js';
 import { generateCampaignCanvas } from '../sharepic_canvas/campaign_canvas.js';
 
@@ -230,7 +231,8 @@ function loadCampaignConfig(campaignId: string, typeId: string): LoadedCampaignC
 
     const prompt = typeConfig.prompt || campaign.defaultPrompt;
     const responseParser = typeConfig.responseParser || campaign.defaultResponseParser;
-    const multiResponseParser = typeConfig.multiResponseParser || campaign.defaultMultiResponseParser;
+    const multiResponseParser =
+      typeConfig.multiResponseParser || campaign.defaultMultiResponseParser;
     const mergedConfig: MergedConfig = {
       ...(prompt && { prompt }),
       ...(responseParser && { responseParser }),
@@ -429,7 +431,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
         expectedPoems: count,
       });
 
-      const aiResult = await aiReq.app.locals.aiWorkerPool.processRequest(
+      const aiResult = await getAIWorkerPool(req).processRequest(
         {
           type: `campaign_${campaignTypeId}`,
           systemPrompt: promptConfig.systemRole,
@@ -483,7 +485,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
         requestLength: requestText.length,
       });
 
-      const aiResult = await aiReq.app.locals.aiWorkerPool.processRequest(
+      const aiResult = await getAIWorkerPool(req).processRequest(
         {
           type: `campaign_${campaignTypeId}`,
           systemPrompt: promptConfig.systemRole,

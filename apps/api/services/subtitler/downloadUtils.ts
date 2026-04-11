@@ -33,9 +33,9 @@ const assService = new AssSubtitleService();
 interface ExportParams {
   uploadId: string;
   subtitles: string;
-  subtitlePreference?: string;
-  stylePreference?: string;
-  heightPreference?: string;
+  subtitlePreference?: string | undefined;
+  stylePreference?: string | undefined;
+  heightPreference?: string | undefined;
 }
 
 interface TokenData extends ExportParams {
@@ -216,16 +216,20 @@ async function processVideoExport(exportParams: ExportParams, res: Response): Pr
     const originalFormatObj = metadata.originalFormat
       ? {
           ...(metadata.originalFormat.codec ? { codec: metadata.originalFormat.codec } : {}),
-          ...(metadata.originalFormat.audioCodec != null ? {
-            audioCodec: metadata.originalFormat.audioCodec,
-          } : {}),
-          ...(metadata.originalFormat.audioBitrate != null ? {
-            audioBitrate: metadata.originalFormat.audioBitrate,
-          } : {}),
+          ...(metadata.originalFormat.audioCodec != null
+            ? {
+                audioCodec: metadata.originalFormat.audioCodec,
+              }
+            : {}),
+          ...(metadata.originalFormat.audioBitrate != null
+            ? {
+                audioBitrate: metadata.originalFormat.audioBitrate,
+              }
+            : {}),
         }
       : undefined;
 
-    const localMetadata: any = {
+    const localMetadata: VideoMetadata = {
       width: metadata.width,
       height: metadata.height,
       duration: metadata.duration ?? 0,

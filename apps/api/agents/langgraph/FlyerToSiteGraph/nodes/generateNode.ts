@@ -6,6 +6,7 @@ import { createLogger } from '../../../../utils/logger.js';
 
 import type { Locale, RequestWithLocale } from '../../../../services/localization/index.js';
 import type { WebsiteContent } from '../../../../types/routes.js';
+import type { AIWorkerPool } from '../../../../workers/types.js';
 import type { FlyerToSiteState } from '../types.js';
 
 const log = createLogger('FlyerToSite:generate');
@@ -113,7 +114,8 @@ ${analysis.rawDescription}${themesInfo}${slogansInfo}`;
       name: analysis.name,
     });
 
-    const result = await state.req.app.locals.aiWorkerPool.processRequest(
+    const aiWorkerPool = state.req.app.locals.aiWorkerPool as AIWorkerPool;
+    const result = await aiWorkerPool.processRequest(
       {
         type: 'website',
         systemPrompt,

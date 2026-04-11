@@ -132,18 +132,18 @@ export class KommunalwikiScraper extends BaseScraper {
         headers: { Accept: 'application/json' },
       });
 
-      const data = await response.json();
+      const data = (await response.json()) as MediaWikiQueryResponse;
 
       if (data.query?.allpages) {
         articles.push(
-          ...data.query.allpages.map((p: { title: string; pageid: number }) => ({
+          ...data.query.allpages.map((p) => ({
             title: p.title,
             pageid: p.pageid,
           }))
         );
       }
 
-      apcontinue = data.continue?.apcontinue || null;
+      apcontinue = data.continue?.apcontinue ?? null;
 
       if (apcontinue) {
         await this.delay(this.crawlDelay);

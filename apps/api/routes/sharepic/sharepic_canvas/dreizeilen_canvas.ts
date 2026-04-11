@@ -7,7 +7,7 @@ import {
   type SKRSContext2D as CanvasRenderingContext2D,
   type Image,
 } from '@napi-rs/canvas';
-import { Router, type Request, type Response } from 'express';
+import { Router, type Request, type RequestHandler, type Response } from 'express';
 import multer from 'multer';
 
 import {
@@ -314,145 +314,136 @@ async function addTextToImage(
   }
 }
 
-router.post(
-  '/',
-  upload.single('image'),
-  (async (req: MulterRequest, res: Response): Promise<void> => {
-    try {
-      const {
-        balkenGruppe_offset_x,
-        balkenGruppe_offset_y,
-        fontSize,
-        colors_0_background,
-        colors_0_text,
-        colors_1_background,
-        colors_1_text,
-        colors_2_background,
-        colors_2_text,
-        balkenOffset_0,
-        balkenOffset_1,
-        balkenOffset_2,
-        line1,
-        line2,
-        line3,
-        sunflower_offset_x,
-        sunflower_offset_y,
-        sunflowerPosition,
-        credit,
-      } = req.body as DreizeilenRequestBody;
+router.post('/', upload.single('image'), (async (
+  req: MulterRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const {
+      balkenGruppe_offset_x,
+      balkenGruppe_offset_y,
+      fontSize,
+      colors_0_background,
+      colors_0_text,
+      colors_1_background,
+      colors_1_text,
+      colors_2_background,
+      colors_2_text,
+      balkenOffset_0,
+      balkenOffset_1,
+      balkenOffset_2,
+      line1,
+      line2,
+      line3,
+      sunflower_offset_x,
+      sunflower_offset_y,
+      sunflowerPosition,
+      credit,
+    } = req.body as DreizeilenRequestBody;
 
-      const uploadedImageBuffer = req.file ? req.file.buffer : null;
+    const uploadedImageBuffer = req.file ? req.file.buffer : null;
 
-      log.debug('Incoming color values:', {
-        colors_0_background,
-        colors_0_text,
-        colors_1_background,
-        colors_1_text,
-        colors_2_background,
-        colors_2_text,
-      });
+    log.debug('Incoming color values:', {
+      colors_0_background,
+      colors_0_text,
+      colors_1_background,
+      colors_1_text,
+      colors_2_background,
+      colors_2_text,
+    });
 
-      const hasBackgroundImage = !!uploadedImageBuffer;
+    const hasBackgroundImage = !!uploadedImageBuffer;
 
-      const getColorForNoBackground = (type: 'background' | 'text', index: number): string => {
-        if (hasBackgroundImage) {
-          return getDefaultColor(type, index);
-        }
-
-        if (type === 'background') {
-          return index === 0 ? COLORS.KLEE : COLORS.TANNE;
-        } else {
-          return COLORS.SAND;
-        }
-      };
-
-      const modParams: DreizeilenParams = {
-        balkenGruppenOffset: [
-          parseFloat(balkenGruppe_offset_x || '0') || 0,
-          parseFloat(balkenGruppe_offset_y || '0') || 0,
-        ],
-        fontSize:
-          parseInt(fontSize || String(params.DEFAULT_FONT_SIZE), 10) || params.DEFAULT_FONT_SIZE,
-        colors: [
-          {
-            background: isValidHexColor(colors_0_background)
-              ? colors_0_background!
-              : getColorForNoBackground('background', 0),
-            text: isValidHexColor(colors_0_text)
-              ? colors_0_text!
-              : getColorForNoBackground('text', 0),
-          },
-          {
-            background: isValidHexColor(colors_1_background)
-              ? colors_1_background!
-              : getColorForNoBackground('background', 1),
-            text: isValidHexColor(colors_1_text)
-              ? colors_1_text!
-              : getColorForNoBackground('text', 1),
-          },
-          {
-            background: isValidHexColor(colors_2_background)
-              ? colors_2_background!
-              : getColorForNoBackground('background', 2),
-            text: isValidHexColor(colors_2_text)
-              ? colors_2_text!
-              : getColorForNoBackground('text', 2),
-          },
-        ],
-        balkenOffset: [
-          balkenOffset_0 !== undefined
-            ? parseFloat(balkenOffset_0)
-            : params.DEFAULT_BALKEN_OFFSET[0],
-          balkenOffset_1 !== undefined
-            ? parseFloat(balkenOffset_1)
-            : params.DEFAULT_BALKEN_OFFSET[1],
-          balkenOffset_2 !== undefined
-            ? parseFloat(balkenOffset_2)
-            : params.DEFAULT_BALKEN_OFFSET[2],
-        ] as [number, number, number],
-        sunflowerOffset: [
-          parseFloat(sunflower_offset_x || '0') || 0,
-          parseFloat(sunflower_offset_y || '0') || 0,
-        ],
-        sunflowerPosition: sunflowerPosition || params.DEFAULT_SUNFLOWER_POSITION,
-        credit: credit || '',
-      };
-
-      await checkFiles();
-      registerFonts();
-
-      const validatedParams = validateParams(modParams);
-      const processedText = await processText({ line1, line2, line3 });
-      const imageBuffer = req.file?.buffer || null;
-
-      try {
-        if (imageBuffer) {
-          await loadImage(imageBuffer);
-        }
-
-        const generatedImageBuffer = await addTextToImage(
-          imageBuffer,
-          processedText,
-          validatedParams
-        );
-        const base64Image = bufferToBase64(generatedImageBuffer);
-
-        res.json({ image: base64Image });
-      } catch (error) {
-        log.error('Fehler bei der Bildverarbeitung:', error);
-        res.status(400).json({
-          error: 'Bildverarbeitungsfehler',
-          details: (error as Error).message,
-        });
+    const getColorForNoBackground = (type: 'background' | 'text', index: number): string => {
+      if (hasBackgroundImage) {
+        return getDefaultColor(type, index);
       }
-    } catch (err) {
-      log.error('Fehler bei der Anfrage:', err);
-      res
-        .status(500)
-        .json({ error: 'Fehler beim Erstellen des Bildes: ' + (err as Error).message });
+
+      if (type === 'background') {
+        return index === 0 ? COLORS.KLEE : COLORS.TANNE;
+      } else {
+        return COLORS.SAND;
+      }
+    };
+
+    const modParams: DreizeilenParams = {
+      balkenGruppenOffset: [
+        parseFloat(balkenGruppe_offset_x || '0') || 0,
+        parseFloat(balkenGruppe_offset_y || '0') || 0,
+      ],
+      fontSize:
+        parseInt(fontSize || String(params.DEFAULT_FONT_SIZE), 10) || params.DEFAULT_FONT_SIZE,
+      colors: [
+        {
+          background: isValidHexColor(colors_0_background)
+            ? colors_0_background!
+            : getColorForNoBackground('background', 0),
+          text: isValidHexColor(colors_0_text)
+            ? colors_0_text!
+            : getColorForNoBackground('text', 0),
+        },
+        {
+          background: isValidHexColor(colors_1_background)
+            ? colors_1_background!
+            : getColorForNoBackground('background', 1),
+          text: isValidHexColor(colors_1_text)
+            ? colors_1_text!
+            : getColorForNoBackground('text', 1),
+        },
+        {
+          background: isValidHexColor(colors_2_background)
+            ? colors_2_background!
+            : getColorForNoBackground('background', 2),
+          text: isValidHexColor(colors_2_text)
+            ? colors_2_text!
+            : getColorForNoBackground('text', 2),
+        },
+      ],
+      balkenOffset: [
+        balkenOffset_0 !== undefined ? parseFloat(balkenOffset_0) : params.DEFAULT_BALKEN_OFFSET[0],
+        balkenOffset_1 !== undefined ? parseFloat(balkenOffset_1) : params.DEFAULT_BALKEN_OFFSET[1],
+        balkenOffset_2 !== undefined ? parseFloat(balkenOffset_2) : params.DEFAULT_BALKEN_OFFSET[2],
+      ] as [number, number, number],
+      sunflowerOffset: [
+        parseFloat(sunflower_offset_x || '0') || 0,
+        parseFloat(sunflower_offset_y || '0') || 0,
+      ],
+      sunflowerPosition: sunflowerPosition || params.DEFAULT_SUNFLOWER_POSITION,
+      credit: credit || '',
+    };
+
+    await checkFiles();
+    registerFonts();
+
+    const validatedParams = validateParams(modParams);
+    const processedText = await processText({ line1, line2, line3 });
+    const imageBuffer = req.file?.buffer || null;
+
+    try {
+      if (imageBuffer) {
+        await loadImage(imageBuffer);
+      }
+
+      const generatedImageBuffer = await addTextToImage(
+        imageBuffer,
+        processedText,
+        validatedParams
+      );
+      const base64Image = bufferToBase64(generatedImageBuffer);
+
+      res.json({ image: base64Image });
+    } catch (error) {
+      log.error('Fehler bei der Bildverarbeitung:', error);
+      res.status(400).json({
+        error: 'Bildverarbeitungsfehler',
+        details: (error as Error).message,
+      });
     }
-  }) as any
-);
+  } catch (err) {
+    log.error('Fehler bei der Anfrage:', err);
+    res.status(500).json({ error: 'Fehler beim Erstellen des Bildes: ' + (err as Error).message });
+  }
+}) as RequestHandler);
 
 export { processText };
 export default router;

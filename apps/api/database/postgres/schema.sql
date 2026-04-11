@@ -348,7 +348,7 @@ CREATE TABLE IF NOT EXISTS yjs_document_snapshots (
 
 ALTER TABLE yjs_document_snapshots ADD COLUMN IF NOT EXISTS label TEXT;
 ALTER TABLE yjs_document_snapshots ADD COLUMN IF NOT EXISTS is_auto_save BOOLEAN DEFAULT TRUE;
-ALTER TABLE yjs_document_snapshots ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES profiles(id);
+ALTER TABLE yjs_document_snapshots ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES profiles(id) ON DELETE SET NULL;
 
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -731,7 +731,7 @@ CREATE TABLE IF NOT EXISTS wolke_sync_status (
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     context_type TEXT DEFAULT 'personal',
     context_id UUID,
-    synced_by_user_id UUID REFERENCES profiles(id),
+    synced_by_user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     UNIQUE(user_id, share_link_id, folder_path)
 );
 
@@ -1072,7 +1072,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     thread_id UUID REFERENCES chat_threads(id) ON DELETE CASCADE,
     role VARCHAR(20) NOT NULL CHECK (role IN ('user', 'assistant', 'system', 'tool')),
-    user_id UUID REFERENCES profiles(id),
+    user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     content TEXT,
     tool_calls JSONB,
     tool_results JSONB,
