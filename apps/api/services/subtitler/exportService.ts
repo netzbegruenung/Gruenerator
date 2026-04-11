@@ -16,6 +16,7 @@ import { redisClient } from '../../utils/redis/index.js';
 import { buildFFmpegOutputOptions, buildVideoFilters } from './ffmpegExportUtils.js';
 import { ffmpeg, normalizeRotation, type FFprobeMetadata } from './ffmpegWrapper.js';
 import * as hwaccel from './hwaccelUtils.js';
+import { type VideoMetadata } from '../../routes/subtitler/types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,19 +24,6 @@ const __dirname = path.dirname(__filename);
 const log = createLogger('export-service');
 
 const EXPORTS_DIR = path.join(__dirname, '../../uploads/exports');
-
-interface VideoMetadata {
-  width: number;
-  height: number;
-  duration: number;
-  rotation: string;
-  originalFormat: {
-    codec?: string;
-    audioCodec?: string;
-    audioBitrate: number | null;
-    videoBitrate: number | null;
-  };
-}
 
 interface SubtitleSegment {
   startTime: number;
@@ -277,7 +265,7 @@ async function processProjectExport(
     } = {
       width: metadata.width,
       height: metadata.height,
-      rotation: metadata.rotation,
+      rotation: metadata.rotation ?? '0',
       ...(originalFormatObj ? { originalFormat: originalFormatObj } : {}),
     };
 
@@ -364,7 +352,7 @@ async function processProjectExport(
     return {
       exportToken,
       outputPath,
-      duration: metadata.duration,
+      duration: (metadata.duration as number | undefined) ?? 0,
     };
   } catch (error: unknown) {
     log.error(`Project export failed: ${error instanceof Error ? error.message : String(error)}`);

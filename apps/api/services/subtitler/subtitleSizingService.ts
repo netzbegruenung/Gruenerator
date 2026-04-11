@@ -5,13 +5,9 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
+import { type VideoMetadata } from '../../routes/subtitler/types.js';
 
 const log = createLogger('subtitleSizing');
-
-interface VideoMetadata {
-  width: number;
-  height: number;
-}
 
 interface SubtitleSegment {
   text?: string;

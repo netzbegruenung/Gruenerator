@@ -19,6 +19,7 @@ import { ffmpeg } from './ffmpegWrapper.js';
 import * as hwaccel from './hwaccelUtils.js';
 import { getFilePathFromUploadId, checkFileExists } from './tusService.js';
 import { getVideoMetadata, cleanupFiles } from './videoUploadService.js';
+import { type VideoMetadata } from '../../routes/subtitler/types.js';
 
 const fsPromises = fs.promises;
 const __filename = fileURLToPath(import.meta.url);
@@ -46,18 +47,6 @@ interface SubtitleSegment {
   startTime: number;
   endTime: number;
   text: string;
-}
-
-interface VideoMetadata {
-  width: number;
-  height: number;
-  duration: string | number;
-  rotation?: string;
-  originalFormat?: {
-    codec?: string;
-    audioCodec?: string;
-    audioBitrate?: number;
-  };
 }
 
 interface FontSizes {

@@ -47,10 +47,7 @@ import {
   type DocumentQnAMistralClient,
   type Attachment as DocumentQnAAttachment,
 } from '../../services/document-services/DocumentQnAService/index.js';
-import {
-  searxngService as searxngWebSearchService,
-  type SearxngAIWorkerPool,
-} from '../../services/search/index.js';
+import { searxngService as searxngWebSearchService } from '../../services/search/index.js';
 import { withErrorHandler } from '../../utils/errors/index.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
@@ -58,7 +55,6 @@ import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 import mistralClient from '../../workers/mistralClient.js';
 
-import type { AIWorkerPool as ChatAIWorkerPool } from '../../agents/chat/types.js';
 import type { UserProfile } from '../../services/user/types.js';
 
 /** Zod schema for the POST body for the main chat endpoint */
@@ -215,7 +211,7 @@ router.post(
         const intentResult = await classifyIntent(
           message,
           enhancedContext,
-          getAIWorkerPool(req) as unknown as ChatAIWorkerPool
+          getAIWorkerPool(req)
         );
 
         if (!intentResult.intents || intentResult.intents.length === 0) {
@@ -271,7 +267,7 @@ router.post(
           const editResult = await processEditIntent(
             message,
             userId,
-            getAIWorkerPool(req) as unknown as ChatAIWorkerPool,
+            getAIWorkerPool(req),
             req,
             intentResult.editContext
           );
@@ -485,7 +481,7 @@ async function handleWebSearchConfirmation(
       const resultsWithSummary = await searxngWebSearchService.generateAISummary(
         searchResults,
         pendingRequest.originalQuery,
-        getAIWorkerPool(req) as unknown as SearxngAIWorkerPool,
+        getAIWorkerPool(req),
         {},
         req
       );

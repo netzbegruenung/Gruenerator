@@ -18,7 +18,7 @@ import {
   calculateScaleFilter,
   buildFFmpegOutputOptions,
   buildVideoFilters,
-  type VideoMetadata as FFmpegVideoMetadata,
+  type VideoMetadata,
 } from './ffmpegExportUtils.js';
 import { ffmpegPool } from './ffmpegPool.js';
 import { ffmpeg, ffprobe, normalizeRotation, FFprobeMetadata } from './ffmpegWrapper.js';
@@ -64,20 +64,6 @@ interface ProgressData {
   error?: string | null;
   outputPath?: string | null;
   duration?: number | null;
-}
-
-interface VideoMetadata {
-  width: number;
-  height: number;
-  duration: number;
-  fps: number;
-  rotation: string;
-  originalFormat: {
-    codec?: string;
-    audioCodec?: string;
-    audioBitrate: number | null;
-    videoBitrate?: number | null;
-  };
 }
 
 interface TrimPoints {
@@ -225,8 +211,8 @@ async function preScaleVideo(
         '-c:a',
         'copy',
       ])
-      .on('end', resolve)
-      .on('error', reject)
+      .on('end', () => resolve())
+      .on('error', (err) => reject(err))
       .save(tempPath);
   });
 
@@ -273,7 +259,7 @@ async function processVideoAutomatically(
     });
 
     // No silence detection — subtitles only, no video trimming
-    const trimPoints: TrimPoints = { trimStart: 0, trimEnd: metadata.duration, hasTrimming: false };
+    const trimPoints: TrimPoints = { trimStart: 0, trimEnd: (metadata.duration as number | undefined) ?? 0, hasTrimming: false };
 
     await updateProgress(uploadId, {
       stage: STAGES.ANALYZING.id,
@@ -520,7 +506,7 @@ async function exportWithEnhancements(
       }
     : undefined;
 
-  const compatibleMetadata: FFmpegVideoMetadata = {
+  const compatibleMetadata: VideoMetadata = {
     width: metadata.width,
     height: metadata.height,
     rotation: metadata.rotation,

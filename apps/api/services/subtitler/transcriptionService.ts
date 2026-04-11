@@ -9,6 +9,7 @@ import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 import { createLogger } from '../../utils/logger.js';
+import { type AIWorkerPool } from '../../workers/types.js';
 
 import { startBackgroundCompression } from './backgroundCompressionService.js';
 import { generateManualSubtitles } from './manualSubtitleGeneratorService.js';
@@ -24,10 +25,6 @@ const log = createLogger('transcription');
 interface TranscriptionResult {
   text: string;
   words?: Array<{ word: string; start: number; end: number }>;
-}
-
-interface AIWorkerPool {
-  processRequest(request: unknown): Promise<{ content?: string }>;
 }
 
 /**
@@ -151,4 +148,5 @@ async function transcribeVideo(
 }
 
 export { transcribeVideo, transcribeWithProvider };
-export type { TranscriptionResult, AIWorkerPool };
+export type { TranscriptionResult };
+export type { AIWorkerPool } from '../../workers/types.js';

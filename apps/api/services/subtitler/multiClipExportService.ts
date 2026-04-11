@@ -23,6 +23,7 @@ import {
   type Segment,
   type Clip,
 } from './segmentFilterBuilders.js';
+import { type VideoMetadata } from '../../routes/subtitler/types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,20 +31,6 @@ const __dirname = path.dirname(__filename);
 const log = createLogger('multiclip-export');
 
 const EXPORTS_DIR = path.join(__dirname, '../../uploads/exports');
-
-interface VideoMetadata {
-  width: number;
-  height: number;
-  duration: number;
-  fps: number;
-  rotation: string;
-  originalFormat: {
-    codec?: string;
-    audioCodec?: string;
-    audioBitrate: number | null;
-    videoBitrate: number | null;
-  };
-}
 
 interface SubtitleSegment {
   startTime: number;
@@ -236,7 +223,7 @@ export async function exportMultiClipWithSegments(
         log.warn(`Segment references unknown clipId: ${seg.clipId}`);
         return false;
       }
-      return seg.start >= 0 && seg.end > seg.start && seg.end <= clipMeta.duration + 0.5;
+      return seg.start >= 0 && seg.end > seg.start && seg.end <= ((clipMeta.duration as number | undefined) ?? 0) + 0.5;
     });
 
     if (validSegments.length === 0) {
@@ -460,7 +447,7 @@ export async function exportMultiClipWithSegmentsAndSubtitles(
     const validSegments = segments.filter((seg) => {
       const clipMeta = seg.clipId ? clipMetadataMap[seg.clipId] : undefined;
       if (!clipMeta) return false;
-      return seg.start >= 0 && seg.end > seg.start && seg.end <= clipMeta.duration + 0.5;
+      return seg.start >= 0 && seg.end > seg.start && seg.end <= ((clipMeta.duration as number | undefined) ?? 0) + 0.5;
     });
 
     if (validSegments.length === 0) {
