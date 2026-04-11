@@ -14,11 +14,10 @@ import { z } from 'zod';
 
 import { COLLECTION_MAP } from '../../config/collectionMap.js';
 import { applyDefaultFilter } from '../../config/systemCollectionsConfig.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { createLogger } from '../../utils/logger.js';
-
-import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 
 import type { DocumentRequest, QdrantListQuery } from './types.js';
 

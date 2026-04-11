@@ -26,7 +26,7 @@ export function addUnsplashUTM(url: string): string {
     urlObj.searchParams.set('utm_source', UTM_PARAMS.source);
     urlObj.searchParams.set('utm_medium', UTM_PARAMS.medium);
     return urlObj.toString();
-  } catch (error) {
+  } catch {
     return url;
   }
 }

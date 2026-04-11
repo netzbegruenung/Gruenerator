@@ -10,8 +10,6 @@ import type {
   Logger,
   ClusterMessage,
 } from './types.js';
-import type { Server } from 'http';
-
 const defaultLogger: Logger = {
   info: (msg: string) => console.log(`[Worker] ${msg}`),
   warn: (msg: string) => console.warn(`[Worker] ${msg}`),

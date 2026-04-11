@@ -3,12 +3,11 @@
  * Handles profile CRUD, beta features, user defaults, and account deletion
  */
 
-import { z } from 'zod';
 import { fromNodeHeaders } from 'better-auth/node';
 import express, { type Router, type Response } from 'express';
+import { z } from 'zod';
 
 import { auth } from '../../config/betterAuth.js';
-import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
@@ -256,7 +255,10 @@ router.patch(
   '/profile/beta-features',
   ensureAuthenticated,
   validateBody(betaFeatureToggleSchema),
-  async (req: TypedRequest<z.infer<typeof betaFeatureToggleSchema>>, res: Response): Promise<void> => {
+  async (
+    req: TypedRequest<z.infer<typeof betaFeatureToggleSchema>>,
+    res: Response
+  ): Promise<void> => {
     try {
       const profileService = getProfileService();
       const { feature, enabled } = req.body;
@@ -302,7 +304,10 @@ router.patch(
 
       if (req.user) {
         profileService.updateUserSession(
-          req.user as unknown as { beta_features?: Record<string, boolean>; [key: string]: unknown },
+          req.user as unknown as {
+            beta_features?: Record<string, boolean>;
+            [key: string]: unknown;
+          },
           updatedProfile,
           feature,
           enabled
@@ -333,7 +338,10 @@ router.patch(
   '/profile/message-color',
   ensureAuthenticated,
   validateBody(messageColorUpdateSchema),
-  async (req: TypedRequest<z.infer<typeof messageColorUpdateSchema>>, res: Response): Promise<void> => {
+  async (
+    req: TypedRequest<z.infer<typeof messageColorUpdateSchema>>,
+    res: Response
+  ): Promise<void> => {
     try {
       const profileService = getProfileService();
       const { color } = req.body;
@@ -396,7 +404,10 @@ router.patch(
   '/profile/user-defaults',
   ensureAuthenticated,
   validateBody(userDefaultUpdateSchema),
-  async (req: TypedRequest<z.infer<typeof userDefaultUpdateSchema>>, res: Response): Promise<void> => {
+  async (
+    req: TypedRequest<z.infer<typeof userDefaultUpdateSchema>>,
+    res: Response
+  ): Promise<void> => {
     try {
       const profileService = getProfileService();
       const { generator, key, value } = req.body;
@@ -457,7 +468,10 @@ router.patch(
   '/profile/notification-preferences',
   ensureAuthenticated,
   validateBody(notificationPreferencesSchema),
-  async (req: TypedRequest<z.infer<typeof notificationPreferencesSchema>>, res: Response): Promise<void> => {
+  async (
+    req: TypedRequest<z.infer<typeof notificationPreferencesSchema>>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { category, channels } = req.body;
 

@@ -69,7 +69,7 @@ async function transcribeVideo(
   videoPath: string,
   subtitlePreference: string = 'manual',
   aiWorkerPool?: AIWorkerPool,
-  language: string = 'de'
+  _language: string = 'de'
 ): Promise<string> {
   try {
     log.debug(`Transkription Start - Modus: ${subtitlePreference}`);

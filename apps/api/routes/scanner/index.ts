@@ -8,7 +8,7 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 
-import { Router, type Request, type Response, type RequestHandler } from 'express';
+import { Router, type Response, type RequestHandler } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
 
@@ -61,7 +61,10 @@ router.post(
   authMiddleware.requireAuth,
   upload.single('file'),
   validateBody(scannerBodySchema) as RequestHandler,
-  async (req: TypedRequest<z.infer<typeof scannerBodySchema>>, res: Response<ScannerResponse>): Promise<void> => {
+  async (
+    req: TypedRequest<z.infer<typeof scannerBodySchema>>,
+    res: Response<ScannerResponse>
+  ): Promise<void> => {
     const startTime = Date.now();
     let tempFilePath: string | null = null;
 

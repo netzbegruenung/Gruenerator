@@ -21,7 +21,7 @@ import {
   type VideoMetadata,
 } from './ffmpegExportUtils.js';
 import { ffmpegPool } from './ffmpegPool.js';
-import { ffmpeg, ffprobe, normalizeRotation, FFprobeMetadata } from './ffmpegWrapper.js';
+import { ffmpeg, ffprobe, normalizeRotation } from './ffmpegWrapper.js';
 import * as hwaccel from './hwaccelUtils.js';
 import { transcribeVideo } from './transcriptionService.js';
 
@@ -226,12 +226,7 @@ async function processVideoAutomatically(
 ): Promise<ProcessingResult> {
   validateVideoPath(inputPath);
   const autoProcessToken = uuidv4();
-  const {
-    stylePreference = 'shadow',
-    heightPreference = 'tief',
-    locale = 'de-DE',
-    maxResolution = null,
-  } = options;
+  const { stylePreference = 'shadow', heightPreference = 'tief', locale = 'de-DE' } = options;
 
   log.info(`Starting automatic processing for: ${uploadId}, token: ${autoProcessToken}`);
 
@@ -259,7 +254,11 @@ async function processVideoAutomatically(
     });
 
     // No silence detection — subtitles only, no video trimming
-    const trimPoints: TrimPoints = { trimStart: 0, trimEnd: (metadata.duration as number | undefined) ?? 0, hasTrimming: false };
+    const trimPoints: TrimPoints = {
+      trimStart: 0,
+      trimEnd: (metadata.duration as number | undefined) ?? 0,
+      hasTrimming: false,
+    };
 
     await updateProgress(uploadId, {
       stage: STAGES.ANALYZING.id,

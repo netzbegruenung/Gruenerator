@@ -7,9 +7,9 @@ import { createLogger } from '../../../../utils/logger.js';
 import { enrichRequest } from '../../../../utils/requestEnrichment.js';
 import { searchArgumentsFromNotebooks } from '../../PRAgent/generators/argumentsGenerator.js';
 
+import type { RequestWithLocale } from '../../../../services/localization/index.js';
 import type { ArgumentResult } from '../../PRAgent/generators/argumentsGenerator.js';
 import type { AntragAgentState, AntragRequestType } from '../types.js';
-import type { RequestWithLocale } from '../../../../services/localization/index.js';
 
 const log = createLogger('AntragAgent:research');
 

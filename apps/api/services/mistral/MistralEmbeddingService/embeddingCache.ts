@@ -7,8 +7,9 @@
 
 import crypto from 'crypto';
 
-import type { CacheStats, RedisClient } from './types.js';
 import { parseJSON } from '../../../utils/parseJSON.js';
+
+import type { CacheStats, RedisClient } from './types.js';
 
 class EmbeddingCache {
   private ttl: number;

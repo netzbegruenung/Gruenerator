@@ -20,6 +20,9 @@
  * Run: npx tsx apps/api/update-all-content.ts
  */
 
+import { writeFileSync } from 'node:fs';
+import path from 'node:path';
+
 import { Mistral } from '@mistralai/mistralai';
 
 import { sendContentSyncEmail } from './services/email/emailService.js';
@@ -30,6 +33,7 @@ import { grueneAtScraperService } from './services/scrapers/implementations/Grue
 import { kommunalwikiScraper } from './services/scrapers/implementations/KommunalwikiScraper.js';
 import { landesverbandScraperService } from './services/scrapers/implementations/LandesverbandScraper/index.js';
 import { scrapeAndIndexSocialMedia } from './services/scrapers/implementations/SocialMediaExamplesScraper.js';
+import { type SourceGroupResult, type SyncSummary } from './types/syncTypes.js';
 
 interface CliArgs {
   source?: string;
@@ -65,8 +69,6 @@ function parseArgs(): CliArgs {
 
   return result;
 }
-
-import { type SourceGroupResult, type SyncSummary } from './types/syncTypes.js';
 
 interface SourceGroup {
   id: string;
@@ -321,9 +323,6 @@ async function runSourceGroup(group: SourceGroup, args: CliArgs): Promise<Source
     };
   }
 }
-
-import { writeFileSync } from 'node:fs';
-import path from 'node:path';
 
 async function main() {
   const args = parseArgs();

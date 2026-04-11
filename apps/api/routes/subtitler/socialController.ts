@@ -6,12 +6,12 @@
 import express, { type Response, type Router } from 'express';
 import { z } from 'zod';
 
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import {
   extractLocaleFromRequest,
   localizePlaceholders,
   type RequestWithLocale,
 } from '../../services/localization/index.js';
-import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 

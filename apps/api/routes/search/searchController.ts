@@ -7,8 +7,8 @@
 import express, { type Response, type Router } from 'express';
 import { z } from 'zod';
 
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type {
@@ -321,12 +321,16 @@ router.post(
 
       if (searchResults.status !== 'success') {
         log.error(`[Search] Search failed: ${searchResults.error}`);
-        const errorResponse: { success: false; error: string; metadata: unknown; details?: string } =
-          {
-            success: false,
-            error: 'Websuche fehlgeschlagen',
-            metadata: { timestamp: new Date().toISOString(), searchType: 'normal' },
-          };
+        const errorResponse: {
+          success: false;
+          error: string;
+          metadata: unknown;
+          details?: string;
+        } = {
+          success: false,
+          error: 'Websuche fehlgeschlagen',
+          metadata: { timestamp: new Date().toISOString(), searchType: 'normal' },
+        };
         if (process.env.NODE_ENV === 'development' && searchResults.error != null) {
           errorResponse.details = searchResults.error;
         }
@@ -527,23 +531,26 @@ router.post(
  * POST /api/search/analyze
  * Search analysis endpoint - analyzes provided content using AI
  */
-router.post('/analyze', validateBody(analyzeBodySchema), async (req: TypedRequest<AnalyzeRequest['body']>, res: Response<AnalyzeResponse>) => {
-  const { contents } = req.body;
+router.post(
+  '/analyze',
+  validateBody(analyzeBodySchema),
+  async (req: TypedRequest<AnalyzeRequest['body']>, res: Response<AnalyzeResponse>) => {
+    const { contents } = req.body;
 
-  try {
-    if (!contents || contents.length === 0) {
-      return res.status(400).json({
-        status: 'error',
-        error: 'Inhalte für die Analyse sind erforderlich',
-      });
-    }
+    try {
+      if (!contents || contents.length === 0) {
+        return res.status(400).json({
+          status: 'error',
+          error: 'Inhalte für die Analyse sind erforderlich',
+        });
+      }
 
-    log.debug(`[Search] Analysis request: ${contents.length} items`);
+      log.debug(`[Search] Analysis request: ${contents.length} items`);
 
-    const result = await getAIWorkerPool(req).processRequest(
-      {
-        type: 'search_analysis',
-        systemPrompt: `Du bist ein Recherche-Assistent, der Suchergebnisse gründlich analysiert.
+      const result = await getAIWorkerPool(req).processRequest(
+        {
+          type: 'search_analysis',
+          systemPrompt: `Du bist ein Recherche-Assistent, der Suchergebnisse gründlich analysiert.
 
 Deine Aufgabe ist es, die Inhalte der gefundenen Webseiten zu analysieren und eine detaillierte Zusammenfassung zu erstellen:
 - Nutze ALLE verfügbaren Quellen für deine Analyse
@@ -573,50 +580,51 @@ Format deiner Antwort:
 6. Nach zwei Leerzeilen: "###USED_SOURCES_START###"
 7. Auflistung der verwendeten Quellen: "QUELLE: [Titel]"
 8. "###USED_SOURCES_END###"`,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: `Erstelle eine ausführliche Zusammenfassung der folgenden Suchergebnisse. Nutze möglichst alle Quellen und liste am Ende die verwendeten Quellen auf:
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: `Erstelle eine ausführliche Zusammenfassung der folgenden Suchergebnisse. Nutze möglichst alle Quellen und liste am Ende die verwendeten Quellen auf:
           ${JSON.stringify(contents, null, 2)}`,
-              },
-            ],
+                },
+              ],
+            },
+          ],
+          options: {
+            max_tokens: 4000,
+            temperature: 0.7,
           },
-        ],
-        options: {
-          max_tokens: 4000,
-          temperature: 0.7,
         },
-      },
-      req
-    );
+        req
+      );
 
-    if (!result.success) {
-      throw new Error(result.error);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      const { mainText, sourceRecommendations, usedSourceTitles } = parseAnalysisResponse(
+        result.content ?? ''
+      );
+
+      return res.json({
+        status: 'success',
+        analysis: mainText,
+        sourceRecommendations,
+        claudeSourceTitles: usedSourceTitles,
+        ...(result.metadata ? { metadata: result.metadata } : {}),
+      });
+    } catch (error) {
+      log.error('[Search] Analysis error:', error);
+      return res.status(500).json({
+        status: 'error',
+        error: 'Fehler bei der Analyse der Suchergebnisse',
+        details: (error as Error).message,
+      });
     }
-
-    const { mainText, sourceRecommendations, usedSourceTitles } = parseAnalysisResponse(
-      result.content ?? ''
-    );
-
-    return res.json({
-      status: 'success',
-      analysis: mainText,
-      sourceRecommendations,
-      claudeSourceTitles: usedSourceTitles,
-      ...(result.metadata ? { metadata: result.metadata } : {}),
-    });
-  } catch (error) {
-    log.error('[Search] Analysis error:', error);
-    return res.status(500).json({
-      status: 'error',
-      error: 'Fehler bei der Analyse der Suchergebnisse',
-      details: (error as Error).message,
-    });
   }
-});
+);
 
 /**
  * GET /api/search/status

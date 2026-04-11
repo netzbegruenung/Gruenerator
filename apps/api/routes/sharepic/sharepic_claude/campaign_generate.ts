@@ -401,8 +401,6 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     let allPoems: PoemContent[] = [];
     let campaignText: string | null = null;
 
-    const aiReq = req as CampaignGenerateRequest;
-
     if (count > 1 && promptConfig.multiItemTemplate && campaignConfig.multiResponseParser) {
       log.debug(
         `[Campaign Generate] Using multiItemTemplate to generate ${count} poems in single AI call`

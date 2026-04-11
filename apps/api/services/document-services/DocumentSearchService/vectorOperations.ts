@@ -10,7 +10,6 @@
 
 import { chunkToNumericId } from '../../../database/services/QdrantService/utils.js';
 
-import type { HybridSearchMetadata } from '../../../database/services/QdrantService/operations/types.js';
 import type {
   ChunkWithMetadata,
   VectorMetadata,
@@ -22,8 +21,6 @@ import type {
   QdrantPoint,
   QdrantFilter,
 } from './types.js';
-
-// Import QdrantOperations - this is a TypeScript class
 import type { QdrantOperations } from '../../../database/services/QdrantOperations.js';
 
 /**
@@ -172,7 +169,13 @@ export async function searchUserDocuments(
     return {
       success: true,
       results: searchResult.results || [],
-      ...(searchResult.metadata && { metadata: searchResult.metadata as { searchType: string; resultsCount: number; [key: string]: unknown } }),
+      ...(searchResult.metadata && {
+        metadata: searchResult.metadata as {
+          searchType: string;
+          resultsCount: number;
+          [key: string]: unknown;
+        },
+      }),
       query: {
         userId,
         limit,

@@ -151,32 +151,6 @@ interface UpdateImageShareParams {
   originalImage?: string | null;
 }
 
-interface ImageShareRequest extends AuthenticatedRequest {
-  body: {
-    imageData: string;
-    title?: string;
-    imageType?: string;
-    metadata?: Record<string, unknown>;
-    originalImage?: string;
-    status?: 'ready' | 'draft';
-  };
-}
-
-interface VideoShareRequest extends AuthenticatedRequest {
-  body: {
-    exportToken: string;
-    title?: string;
-    projectId?: string;
-  };
-}
-
-interface VideoFromProjectRequest extends AuthenticatedRequest {
-  body: {
-    projectId: string;
-    title?: string;
-  };
-}
-
 interface ShareTokenParams {
   shareToken: string;
   [key: string]: string;
@@ -186,17 +160,6 @@ interface ShareTokenParams {
 interface RequestWithShare extends Request<ShareTokenParams> {
   _share?: SharedMediaRow;
 }
-
-type UpdateImageRequest = Request<
-  ShareTokenParams,
-  unknown,
-  {
-    imageBase64: string;
-    title?: string;
-    metadata?: Record<string, unknown>;
-    originalImage?: string;
-  }
-> & { user?: AuthenticatedRequest['user'] };
 
 interface ShareResponse {
   success: boolean;
@@ -304,7 +267,16 @@ async function triggerBackgroundRender(
 
     log.info(`Background render starting for share ${shareToken}`);
 
-    const result = await processProjectExport(project as { id: string; video_path: string; subtitles: string; style_preference?: string; height_preference?: string }, projService);
+    const result = await processProjectExport(
+      project as {
+        id: string;
+        video_path: string;
+        subtitles: string;
+        style_preference?: string;
+        height_preference?: string;
+      },
+      projService
+    );
 
     const subtitledVideoRelativePath = `${userId}/${projectId}/subtitled_${Date.now()}.mp4`;
     const subtitledVideoFullPath = projService.getSubtitledVideoPath(subtitledVideoRelativePath);

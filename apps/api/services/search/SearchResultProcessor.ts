@@ -11,7 +11,6 @@ import type {
   SearchResultInput,
   ExpandedChunkResult,
   ReferencesMap,
-  ReferenceData,
   Citation,
   Source,
   ValidationResult,
@@ -439,7 +438,7 @@ export function parseAIJsonResponse(content: string, fallback: unknown = {}): un
       .replace(/\*\*/g, '')
       .trim();
     return JSON.parse(clean);
-  } catch (e) {
+  } catch {
     return fallback;
   }
 }

@@ -5,7 +5,6 @@
  * including state management, document processing, and AI service integration.
  */
 
-import type { AssembledPrompt as BaseAssembledPrompt } from './promptProcessor.js';
 import type { ClaudeDocument, ClaudeMessage } from '../../../services/attachments/types.js';
 import type { ClaudeTool } from '../../../services/tools/types.js';
 

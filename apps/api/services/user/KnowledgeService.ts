@@ -3,7 +3,6 @@ import {
   getPostgresInstance,
 } from '../../database/services/PostgresService.js';
 import { type QdrantService, getQdrantInstance } from '../../database/services/QdrantService.js';
-import { userKnowledge } from '../../database/schema/index.js';
 import { generateContentHash, generatePointId } from '../../utils/validation/index.js';
 import { smartChunkDocument } from '../document-services/index.js';
 import { mistralEmbeddingService } from '../mistral/index.js';
@@ -11,7 +10,6 @@ import { mistralEmbeddingService } from '../mistral/index.js';
 import type {
   UserKnowledgeEntry,
   KnowledgeSaveData,
-  VectorizationResult,
   EmbeddingChunk,
   QdrantPoint,
   SearchOptions,

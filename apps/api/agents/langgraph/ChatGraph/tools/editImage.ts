@@ -14,8 +14,8 @@ import { FluxImageService } from '../../../../services/flux/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { redisClient } from '../../../../utils/redis/index.js';
 
-import type { GenerateResult } from '../../../../services/flux/FluxImageService.js';
 import type { ToolDependencies } from './registry.js';
+import type { GenerateResult } from '../../../../services/flux/FluxImageService.js';
 import type { GeneratedImageResult } from '../types.js';
 
 const log = createLogger('Tool:EditImage');
@@ -23,17 +23,19 @@ const log = createLogger('Tool:EditImage');
 const imageCounter = new ImageGenerationCounter(redisClient);
 
 export function createEditImageTool(deps: ToolDependencies): DynamicStructuredTool {
-    // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
+  // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'edit_image',
     description:
       'Bearbeite ein angehängtes Bild mit grüner Stadtbegrünung. ' +
       'Nutze dieses Tool wenn der Nutzer ein Foto hochgeladen hat und es mit Bäumen, Radwegen, Grünflächen etc. transformieren möchte.',
-    schema: z.object({
-      instruction: z
-        .string()
-        .describe('Beschreibung der gewünschten Bearbeitung (z.B. "mehr Bäume und Radwege")'),
-    }).describe('Bildbearbeitung Tool'),
+    schema: z
+      .object({
+        instruction: z
+          .string()
+          .describe('Beschreibung der gewünschten Bearbeitung (z.B. "mehr Bäume und Radwege")'),
+      })
+      .describe('Bildbearbeitung Tool'),
     func: async (input: { instruction: string }) => {
       const { instruction } = input;
       const userId = deps.agentConfig.userId;
@@ -60,10 +62,15 @@ export function createEditImageTool(deps: ToolDependencies): DynamicStructuredTo
         const mimeType = imageAttachment.type || 'image/jpeg';
 
         const flux = await FluxImageService.create();
-        const { stored }: GenerateResult = await flux.generateFromImage(prompt, imageBuffer, mimeType, {
-          output_format: 'jpeg',
-          safety_tolerance: 2,
-        });
+        const { stored }: GenerateResult = await flux.generateFromImage(
+          prompt,
+          imageBuffer,
+          mimeType,
+          {
+            output_format: 'jpeg',
+            safety_tolerance: 2,
+          }
+        );
 
         await imageCounter.incrementCount(userId);
 

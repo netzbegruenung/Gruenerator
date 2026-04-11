@@ -160,8 +160,6 @@ export const multiLineExtractor = (
     outputFields = ['line1', 'line2', 'line3', 'line4', 'line5'],
     trimLines = true,
     filterEmpty = true,
-    minCharsPerLine = 0,
-    maxCharsPerLine = Infinity,
   } = config;
 
   const poemSections = rawResponse.split(separator);

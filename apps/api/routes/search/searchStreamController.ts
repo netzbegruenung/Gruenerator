@@ -57,13 +57,10 @@ const normalSearchBodySchema = z.object({
   safesearch: z.union([z.number(), z.string()]).optional(),
   categories: z.string().optional(),
 });
-type NormalSearchRequestBody = z.infer<typeof normalSearchBodySchema>;
-
 /** Zod schema for the POST body of deep research streaming */
 const deepSearchBodySchema = z.object({
   query: z.string(),
 });
-type DeepSearchRequestBody = z.infer<typeof deepSearchBodySchema>;
 
 const log = createLogger('search-stream');
 

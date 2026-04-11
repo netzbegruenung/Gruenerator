@@ -8,7 +8,6 @@ import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { ImageGenerationCounter } from '../../services/counters/index.js';
 import { FluxImageService, buildFluxPrompt } from '../../services/flux/index.js';
-import type { BuildFluxPromptResult } from '../../services/flux/FluxPromptBuilder.js';
 import {
   composeImagineCreate,
   FLUX_WIDTH,
@@ -18,6 +17,7 @@ import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 import { addKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
 
+import type { BuildFluxPromptResult } from '../../services/flux/FluxPromptBuilder.js';
 
 const log = createLogger('imagineCreate');
 const router = express.Router();
@@ -65,7 +65,10 @@ interface FluxGenerationResult {
 // Helper Functions
 // ============================================================================
 
-function buildCreatePrompt(userPrompt: string, variant: ImageVariant = 'light-top'): BuildFluxPromptResult {
+function buildCreatePrompt(
+  userPrompt: string,
+  variant: ImageVariant = 'light-top'
+): BuildFluxPromptResult {
   return buildFluxPrompt({
     variant,
     subject: userPrompt,
@@ -139,7 +142,12 @@ router.post(
         }
       }
 
-      const validVariants: ImageVariant[] = ['light-top', 'realistic-top', 'pixel-top', 'editorial'];
+      const validVariants: ImageVariant[] = [
+        'light-top',
+        'realistic-top',
+        'pixel-top',
+        'editorial',
+      ];
       const selectedVariant: ImageVariant = validVariants.includes(variant) ? variant : 'light-top';
 
       log.debug(

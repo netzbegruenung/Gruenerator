@@ -6,8 +6,8 @@
 
 import { v4 as uuidv4 } from 'uuid';
 
-import { redisClient } from '../../utils/redis/client.js';
 import { parseJSON } from '../../utils/parseJSON.js';
+import { redisClient } from '../../utils/redis/client.js';
 
 export type WorkflowType = 'pr_agent' | 'text_generator' | 'image_studio' | 'speech_generator';
 export type WorkflowStatus =

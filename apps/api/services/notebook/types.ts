@@ -2,6 +2,7 @@
  * Type definitions for Notebook QA Service
  */
 
+import type { AIWorkerPool } from '../../workers/types.js';
 import type { QdrantFilter } from '../QueryIntentService/types.js';
 import type {
   ExpandedChunkResult,
@@ -9,7 +10,6 @@ import type {
   SourcesByCollection as SearchSourcesByCollection,
   ReferencesMap,
 } from '../search/types.js';
-import type { AIWorkerPool } from '../../workers/types.js';
 
 /**
  * Request filters for search

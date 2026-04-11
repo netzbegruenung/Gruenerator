@@ -10,13 +10,13 @@ import { fileURLToPath } from 'url';
 
 import { v4 as uuidv4 } from 'uuid';
 
+import { type VideoMetadata } from '../../routes/subtitler/types.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
 import { buildFFmpegOutputOptions, buildVideoFilters } from './ffmpegExportUtils.js';
 import { ffmpeg, normalizeRotation, type FFprobeMetadata } from './ffmpegWrapper.js';
 import * as hwaccel from './hwaccelUtils.js';
-import { type VideoMetadata } from '../../routes/subtitler/types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -242,13 +242,19 @@ async function processProjectExport(
     const originalFormatObj = metadata.originalFormat
       ? {
           ...(metadata.originalFormat.codec ? { codec: metadata.originalFormat.codec } : {}),
-          ...(metadata.originalFormat.videoBitrate != null ? {
-            videoBitrate: metadata.originalFormat.videoBitrate,
-          } : {}),
-          ...(metadata.originalFormat.audioCodec ? { audioCodec: metadata.originalFormat.audioCodec } : {}),
-          ...(metadata.originalFormat.audioBitrate != null ? {
-            audioBitrate: metadata.originalFormat.audioBitrate,
-          } : {}),
+          ...(metadata.originalFormat.videoBitrate != null
+            ? {
+                videoBitrate: metadata.originalFormat.videoBitrate,
+              }
+            : {}),
+          ...(metadata.originalFormat.audioCodec
+            ? { audioCodec: metadata.originalFormat.audioCodec }
+            : {}),
+          ...(metadata.originalFormat.audioBitrate != null
+            ? {
+                audioBitrate: metadata.originalFormat.audioBitrate,
+              }
+            : {}),
         }
       : undefined;
 

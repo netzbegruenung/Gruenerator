@@ -4,7 +4,6 @@
  */
 
 import { StateGraph, Annotation } from '@langchain/langgraph';
-import { type Request } from 'express';
 
 import { type AIWorkerPool } from '../../../workers/types.js';
 
@@ -17,7 +16,6 @@ import { plannerNode } from './nodes/PlannerNode.js';
 import { searxngNode } from './nodes/SearxngNode.js';
 import { summaryNode } from './nodes/SummaryNode.js';
 import {
-  type WebSearchState,
   type WebSearchInput,
   type WebSearchOutput,
   type NormalSearchOutput,

@@ -1,5 +1,5 @@
-import type { Request } from 'express';
 import type { AIWorkerPool, AIWorkerResult } from '../../workers/types.js';
+import type { Request } from 'express';
 
 // Note: User type is provided by Express.User through global type augmentation in types/express.d.ts
 // The Request.user property is already defined there with the proper UserProfileShape

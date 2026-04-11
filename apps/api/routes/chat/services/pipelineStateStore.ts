@@ -1,6 +1,6 @@
 import { createLogger } from '../../../utils/logger.js';
-import redisClient from '../../../utils/redis/client.js';
 import { parseJSON } from '../../../utils/parseJSON.js';
+import redisClient from '../../../utils/redis/client.js';
 
 import type { ProcessedAttachmentMeta } from './attachmentProcessingService.js';
 import type { ChatGraphState, ImageAttachment } from '../../../agents/langgraph/ChatGraph/types.js';

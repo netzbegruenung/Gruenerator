@@ -3,7 +3,6 @@
  */
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
-import type { Response } from 'express';
 import type { AIWorkerPool } from '../../workers/types.js';
 
 // ============================================================================

@@ -37,8 +37,6 @@ function validatePathId(id: string, label: string): string {
   if (!UUID_RE.test(id)) throw new Error(`Invalid ${label}: must be a UUID`);
   return id;
 }
-const TUS_UPLOAD_PATH = path.join(__dirname, '../../routes/subtitler/../../../uploads/tus-temp');
-
 function toSubtitlerProject(row: SubtitlerProjectRow): SubtitlerProject {
   return {
     ...row,

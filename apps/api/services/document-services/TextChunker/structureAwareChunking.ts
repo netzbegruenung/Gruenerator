@@ -7,7 +7,7 @@ import { documentStructureDetector } from '../../DocumentStructureDetector/index
 
 import { estimateTokens } from './validation.js';
 
-import type { Chunk, ChunkContext, ChunkMetadata } from './types.js';
+import type { Chunk, ChunkContext } from './types.js';
 import type {
   DocumentStructure,
   SemanticBoundary as DetectorSemanticBoundary,

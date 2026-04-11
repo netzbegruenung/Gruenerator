@@ -10,8 +10,8 @@ import crypto from 'crypto';
 import fs from 'fs';
 import { pipeline } from 'stream/promises';
 
-import { z } from 'zod';
 import { Router, type Response } from 'express';
+import { z } from 'zod';
 
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { transcribeWithProvider } from '../../services/subtitler/transcriptionService.js';

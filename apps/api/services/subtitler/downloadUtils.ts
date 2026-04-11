@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url';
 import { type Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 
+import { type VideoMetadata } from '../../routes/subtitler/types.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -19,7 +20,6 @@ import { ffmpeg } from './ffmpegWrapper.js';
 import * as hwaccel from './hwaccelUtils.js';
 import { getFilePathFromUploadId, checkFileExists } from './tusService.js';
 import { getVideoMetadata, cleanupFiles } from './videoUploadService.js';
-import { type VideoMetadata } from '../../routes/subtitler/types.js';
 
 const fsPromises = fs.promises;
 const __filename = fileURLToPath(import.meta.url);
@@ -256,7 +256,7 @@ async function processVideoWithSubtitles(
   heightPreference: string,
   exportToken: string
 ): Promise<void> {
-  const { finalFontSize, finalSpacing } = calculateFontSizes(subtitles, metadata);
+  const { finalFontSize } = calculateFontSizes(subtitles, metadata);
 
   const segments = processSubtitleSegments(subtitles);
 
@@ -359,7 +359,7 @@ async function processVideoWithSubtitles(
     }
 
     command
-      .on('start', (cmd: string) => {
+      .on('start', (_cmd: string) => {
         log.debug('[FFmpeg] Processing started');
       })
       .on('progress', async (progress: { percent?: number; timemark?: string }) => {

@@ -296,7 +296,7 @@ export class WebsiteCrawler extends BaseScraper {
    * Extract content from HTML
    * Supports TYPO3 search markers
    */
-  #extractContent(html: string, url: string): ExtractedContent {
+  #extractContent(html: string, _url: string): ExtractedContent {
     // TYPO3 sites often use search markers to define indexable content
     // Extract only the content between TYPO3SEARCH markers if they exist
     const typo3Match = html.match(/<!--TYPO3SEARCH_begin-->([\s\S]*?)<!--TYPO3SEARCH_end-->/);
@@ -411,7 +411,7 @@ export class WebsiteCrawler extends BaseScraper {
         if (this.#isAllowedUrl(normalizedUrl)) {
           links.add(normalizedUrl);
         }
-      } catch (e) {
+      } catch {
         // Invalid URL, skip
       }
     });

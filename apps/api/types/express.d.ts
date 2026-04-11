@@ -1,6 +1,6 @@
 import type { AIWorkerPool } from './workers';
-import type { Request, Response, NextFunction } from 'express';
 import type { SharepicImageManager } from '../services/image/types';
+import type { Request, Response, NextFunction } from 'express';
 
 interface UserProfileShape {
   id: string;

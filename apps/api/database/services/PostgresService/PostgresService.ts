@@ -3,10 +3,11 @@
  * Handles all PostgreSQL operations with connection pooling and high performance
  */
 
+import fs from 'fs';
+
 import pkg from 'pg';
 
 const { Pool } = pkg;
-import fs from 'fs';
 
 import { loadConfig, getSafeConfigForLog } from './config.js';
 import { runMigrations, createDatabaseIfNotExists } from './migrations.js';

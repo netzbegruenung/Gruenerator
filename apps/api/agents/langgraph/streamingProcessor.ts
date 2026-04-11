@@ -348,7 +348,6 @@ export async function processGraphRequestStreaming(
     });
 
     let fullText = '';
-    let isReasoning = false;
 
     // Heartbeat: send keepalive comment every 8s so proxies/browsers don't close the connection
     const heartbeatInterval = setInterval(() => {
@@ -363,7 +362,6 @@ export async function processGraphRequestStreaming(
 
         switch (part.type) {
           case 'reasoning-start': {
-            isReasoning = true;
             sse.sendRaw('reasoning_start', {});
             break;
           }
@@ -372,7 +370,6 @@ export async function processGraphRequestStreaming(
             break;
           }
           case 'reasoning-end': {
-            isReasoning = false;
             sse.sendRaw('reasoning_end', {});
             break;
           }

@@ -126,7 +126,9 @@ export class NextcloudShareManager {
       );
 
       const rawShareLinks: unknown = profile?.nextcloud_share_links;
-      const shareLinks: NextcloudShareLink[] = Array.isArray(rawShareLinks) ? (rawShareLinks as NextcloudShareLink[]) : [];
+      const shareLinks: NextcloudShareLink[] = Array.isArray(rawShareLinks)
+        ? (rawShareLinks as NextcloudShareLink[])
+        : [];
 
       // Sort by created_at descending (newest first)
       const sortedLinks = shareLinks.sort(
@@ -334,7 +336,7 @@ export class NextcloudShareManager {
       let urlObj: URL;
       try {
         urlObj = new URL(shareLink);
-      } catch (error) {
+      } catch {
         return {
           isValid: false,
           error: 'Invalid URL format',

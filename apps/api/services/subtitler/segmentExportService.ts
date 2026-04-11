@@ -10,11 +10,12 @@ import { fileURLToPath } from 'url';
 
 import { v4 as uuidv4 } from 'uuid';
 
+import { type VideoMetadata } from '../../routes/subtitler/types.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
 import { ffmpegPool } from './ffmpegPool.js';
-import { ffmpeg, ffprobe, normalizeRotation, FFprobeMetadata } from './ffmpegWrapper.js';
+import { ffmpeg, ffprobe, normalizeRotation } from './ffmpegWrapper.js';
 import * as hwaccel from './hwaccelUtils.js';
 import {
   buildSegmentFilterComplex,
@@ -22,7 +23,6 @@ import {
   calculateTotalDuration,
   type Segment,
 } from './segmentFilterBuilders.js';
-import { type VideoMetadata } from '../../routes/subtitler/types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -210,7 +210,10 @@ export async function exportWithSegments(
     }
 
     const validSegments = segments.filter(
-      (seg) => seg.start >= 0 && seg.end > seg.start && seg.end <= ((metadata.duration as number | undefined) ?? 0) + 0.5
+      (seg) =>
+        seg.start >= 0 &&
+        seg.end > seg.start &&
+        seg.end <= ((metadata.duration as number | undefined) ?? 0) + 0.5
     );
 
     if (validSegments.length === 0) {
@@ -415,7 +418,10 @@ export async function exportWithSegmentsAndSubtitles(
     }
 
     const validSegments = segments.filter(
-      (seg) => seg.start >= 0 && seg.end > seg.start && seg.end <= ((metadata.duration as number | undefined) ?? 0) + 0.5
+      (seg) =>
+        seg.start >= 0 &&
+        seg.end > seg.start &&
+        seg.end <= ((metadata.duration as number | undefined) ?? 0) + 0.5
     );
 
     if (validSegments.length === 0) {

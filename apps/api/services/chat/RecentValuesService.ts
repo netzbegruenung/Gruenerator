@@ -4,8 +4,10 @@
  */
 
 import { eq, and, desc, sql } from 'drizzle-orm';
-import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
+
 import { userRecentValues } from '../../database/schema/index.js';
+import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
+
 import type { RecentValue, FieldTypeWithCount } from './types.js';
 
 type DrizzleRecentValueRow = typeof userRecentValues.$inferSelect;
