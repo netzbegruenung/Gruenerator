@@ -287,10 +287,9 @@ pub fn run() {
                 });
 
                 if let Some(main_window) = app.get_webview_window("main") {
+                    #[cfg(debug_assertions)]
                     main_window.open_devtools();
-                }
 
-                if let Some(main_window) = app.get_webview_window("main") {
                     let window_clone = main_window.clone();
                     main_window.on_window_event(move |event| {
                         if let tauri::WindowEvent::ThemeChanged(theme) = event {
