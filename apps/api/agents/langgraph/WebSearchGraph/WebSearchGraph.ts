@@ -126,37 +126,51 @@ const createWebSearchGraph = () => {
   const graph = new StateGraph(SearchState)
     .addNode(
       'planner',
-      plannerNode as (state: WebSearchGraphState) => Promise<Partial<WebSearchGraphState>>
+      plannerNode as unknown as (
+        state: WebSearchGraphState
+      ) => Promise<Partial<WebSearchGraphState>>
     )
     .addNode(
       'searxng',
-      searxngNode as (state: WebSearchGraphState) => Promise<Partial<WebSearchGraphState>>
+      searxngNode as unknown as (
+        state: WebSearchGraphState
+      ) => Promise<Partial<WebSearchGraphState>>
     )
     .addNode(
       'intelligentCrawler',
-      intelligentCrawlerNode as (
+      intelligentCrawlerNode as unknown as (
         state: WebSearchGraphState
       ) => Promise<Partial<WebSearchGraphState>>
     )
     .addNode(
       'contentEnricher',
-      contentEnricherNode as (state: WebSearchGraphState) => Promise<Partial<WebSearchGraphState>>
+      contentEnricherNode as unknown as (
+        state: WebSearchGraphState
+      ) => Promise<Partial<WebSearchGraphState>>
     )
     .addNode(
       'grundsatz',
-      grundsatzNode as (state: WebSearchGraphState) => Promise<Partial<WebSearchGraphState>>
+      grundsatzNode as unknown as (
+        state: WebSearchGraphState
+      ) => Promise<Partial<WebSearchGraphState>>
     )
     .addNode(
       'aggregator',
-      aggregatorNode as (state: WebSearchGraphState) => Promise<Partial<WebSearchGraphState>>
+      aggregatorNode as unknown as (
+        state: WebSearchGraphState
+      ) => Promise<Partial<WebSearchGraphState>>
     )
     .addNode(
       'summarizer',
-      summaryNode as (state: WebSearchGraphState) => Promise<Partial<WebSearchGraphState>>
+      summaryNode as unknown as (
+        state: WebSearchGraphState
+      ) => Promise<Partial<WebSearchGraphState>>
     )
     .addNode(
       'writer',
-      dossierNode as (state: WebSearchGraphState) => Promise<Partial<WebSearchGraphState>>
+      dossierNode as unknown as (
+        state: WebSearchGraphState
+      ) => Promise<Partial<WebSearchGraphState>>
     )
     .addEdge('__start__', 'planner')
     .addEdge('planner', 'searxng');
