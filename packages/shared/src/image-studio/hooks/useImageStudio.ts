@@ -24,6 +24,7 @@ import type {
   UseImageStudioOptions,
   UseImageStudioReturn,
   ImageStudioFormData,
+  TextGenerationResponse,
 } from '../types.js';
 
 /**
@@ -118,7 +119,7 @@ export function useImageStudio(options: UseImageStudioOptions = {}): UseImageStu
 
         // Make API request
         const client = getGlobalApiClient();
-        const response = await client.post(endpoint, requestData);
+        const response = await client.post<TextGenerationResponse>(endpoint, requestData);
 
         // Validate response
         const responseValidation = validateTextResponse(type, response.data);

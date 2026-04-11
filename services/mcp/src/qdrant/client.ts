@@ -7,7 +7,7 @@ import {
 } from '@gruenerator/shared/search/vector';
 import { type VectorSearchResult, type TextSearchResult } from '@gruenerator/shared/search/vector';
 import { generateQueryVariants, tokenizeQuery, normalizeQuery } from '@gruenerator/shared/utils';
-import { QdrantClient } from '@qdrant/js-client-rest';
+import { QdrantClient, type Schemas } from '@qdrant/js-client-rest';
 
 import { config } from '../config.ts';
 
@@ -156,7 +156,8 @@ async function performTextSearch(
   const variantResults = await Promise.all(variantSearchPromises);
 
   // Merge and deduplicate
-  const seen = new Map();
+  type SeenEntry = { point: Schemas['Record']; variant: string; matchType: string };
+  const seen = new Map<string | number, SeenEntry>();
   let bestMatchType = 'variant';
 
   for (const result of variantResults) {
@@ -199,7 +200,7 @@ async function performTextSearch(
       });
 
       const tokenResults = await Promise.all(tokenSearchPromises);
-      const tokenSeen = new Map();
+      const tokenSeen = new Map<string | number, SeenEntry>();
 
       for (const points of tokenResults) {
         for (const p of points) {
@@ -518,7 +519,7 @@ export async function getFieldValueCounts(
   const qdrant = await getQdrantClient();
 
   try {
-    const valueCounts = new Map();
+    const valueCounts = new Map<string, number>();
     let offset = null;
     let iterations = 0;
     const maxIterations = 100;

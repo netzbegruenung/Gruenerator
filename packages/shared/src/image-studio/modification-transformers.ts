@@ -194,8 +194,8 @@ export function cloneModificationParams<T extends object>(params: T): T {
 
   // Handle arrays
   if (Array.isArray(params)) {
-    return params.map((item) =>
-      typeof item === 'object' && item !== null ? { ...item } : item
+    return (params as unknown[]).map((item) =>
+      typeof item === 'object' && item !== null ? { ...(item as object) } : item
     ) as unknown as T;
   }
 
@@ -203,8 +203,8 @@ export function cloneModificationParams<T extends object>(params: T): T {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(params)) {
     if (Array.isArray(value)) {
-      result[key] = value.map((item) =>
-        typeof item === 'object' && item !== null ? { ...item } : item
+      result[key] = (value as unknown[]).map((item) =>
+        typeof item === 'object' && item !== null ? { ...(item as object) } : item
       );
     } else if (typeof value === 'object' && value !== null) {
       result[key] = { ...value };
