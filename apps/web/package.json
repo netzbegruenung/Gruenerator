@@ -11,6 +11,8 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@excalidraw/excalidraw": "^0.18.0",
     "@gruenerator/canvas-editor": "workspace:*",
+    "@gruenerator/contracts": "workspace:*",
+    "@gruenerator/shared": "workspace:*",
     "@gruenerator/chat": "workspace:*",
     "@gruenerator/collab": "workspace:*",
     "@gruenerator/docs": "workspace:*",
