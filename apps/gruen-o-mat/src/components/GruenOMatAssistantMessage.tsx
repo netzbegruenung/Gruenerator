@@ -12,6 +12,14 @@ import {
 import { Leaf } from 'lucide-react';
 import { memo, useMemo } from 'react';
 
+function getErrorMessage(error: unknown): string | null {
+  if (error !== null && typeof error === 'object' && 'message' in error) {
+    const msg = (error as Record<string, unknown>).message;
+    return typeof msg === 'string' ? msg : null;
+  }
+  return null;
+}
+
 function GruenOMatAssistantMessageInner() {
   const message = useMessage();
   const meta = message.metadata?.custom as NotebookMessageMetadata | undefined;
@@ -40,8 +48,9 @@ function GruenOMatAssistantMessageInner() {
       <div className="min-w-0 flex-1">
         {isError && !text && (
           <div className="rounded-lg bg-error-bg p-3 text-sm text-error">
-            {(message.status as any)?.error?.message ||
-              'Ein Fehler ist aufgetreten. Bitte versuche es erneut.'}
+            {(message.status.type === 'incomplete'
+              ? getErrorMessage(message.status.error)
+              : null) ?? 'Ein Fehler ist aufgetreten. Bitte versuche es erneut.'}
           </div>
         )}
 
