@@ -58,23 +58,20 @@ router.use((req: TrackedRequest, res: Response, next: NextFunction) => {
     }
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  res.send = function (body: any) {
+  res.send = function (body: unknown) {
     markHtmlIfNeeded(body);
     return originalSend(body);
-  };
+  } as typeof res.send;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  res.json = function (body: any) {
+  res.json = function (body: unknown) {
     return originalJson(body);
-  };
+  } as typeof res.json;
 
   if (originalRedirect) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
     res.redirect = ((url: string) => {
       redirectedTo = url;
       return originalRedirect(url);
-    }) as any;
+    }) as typeof res.redirect;
   }
 
   res.on('finish', () => {

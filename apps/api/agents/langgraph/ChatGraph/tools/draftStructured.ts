@@ -135,13 +135,14 @@ function formatWahlprogramm(data: z.infer<typeof WAHLPROGRAMM_SCHEMA>): string {
   return lines.join('\n');
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Formatter = (data: any) => string;
+// Formatters are called with the validated Zod-inferred data for each schema type.
+// Each formatter accepts its specific inferred type; we cast at the dispatch boundary.
+type Formatter = (data: Record<string, unknown>) => string;
 
 const FORMATTER_MAP: Record<string, Formatter> = {
-  'gruenerator-antrag': formatAntrag,
-  'gruenerator-rede-schreiber': formatRede,
-  'gruenerator-wahlprogramm': formatWahlprogramm,
+  'gruenerator-antrag': formatAntrag as Formatter,
+  'gruenerator-rede-schreiber': formatRede as Formatter,
+  'gruenerator-wahlprogramm': formatWahlprogramm as Formatter,
 };
 
 // ---------------------------------------------------------------------------

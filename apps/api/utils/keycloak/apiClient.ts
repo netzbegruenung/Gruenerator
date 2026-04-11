@@ -595,4 +595,28 @@ export class KeycloakApiClient {
       return [];
     }
   }
+
+  /**
+   * List all users with pagination
+   * @param offset - Pagination offset
+   * @param max - Maximum users to return per page
+   * @returns Array of users for this page
+   */
+  async listUsers(offset: number, max: number): Promise<KeycloakUser[]> {
+    await this.ensureAuth();
+    const response = await this.axiosClient.get<KeycloakUser[]>('/users', {
+      params: { first: offset, max, briefRepresentation: false },
+    });
+    return response.data;
+  }
+
+  /**
+   * Delete a federated identity link for a user
+   * @param userId - The Keycloak user ID
+   * @param provider - The identity provider alias
+   */
+  async deleteFederatedIdentity(userId: string, provider: string): Promise<void> {
+    await this.ensureAuth();
+    await this.axiosClient.delete(`/users/${userId}/federated-identity/${provider}`);
+  }
 }

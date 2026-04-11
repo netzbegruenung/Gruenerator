@@ -299,8 +299,7 @@ export interface ErrorHandler {
       returnResponse?: boolean | undefined;
       [key: string]: unknown;
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- returns APIErrorResponse or SearchResponse depending on context
-  ): any;
+  ): unknown;
 }
 
 // ============ Service Options ============

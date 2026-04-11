@@ -180,8 +180,7 @@ export class WolkeSyncService {
   /**
    * Get share link by ID
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async getShareLink(userId: string, shareLinkId: string): Promise<any> {
+  async getShareLink(userId: string, shareLinkId: string): Promise<unknown> {
     try {
       const shareLinks = await NextcloudShareManager.getShareLinks(userId);
       const shareLink = shareLinks.find((link: { id: string }) => link.id === shareLinkId);

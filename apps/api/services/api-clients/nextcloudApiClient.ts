@@ -313,7 +313,6 @@ class NextcloudApiClient {
       const stat = fs.statSync(filePath);
       const stream = fs.createReadStream(filePath);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response = await fetch(uploadUrl, {
         method: 'PUT',
         headers: {
@@ -321,8 +320,8 @@ class NextcloudApiClient {
           'Content-Type': 'application/octet-stream',
           'Content-Length': String(stat.size),
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment -- Node.js ReadStream is duck-typed for fetch body
-        body: stream as any,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Node.js ReadStream is duck-typed for fetch body
+        body: stream as unknown as BodyInit,
         // @ts-expect-error -- Node fetch supports duplex streaming
         duplex: 'half',
       });

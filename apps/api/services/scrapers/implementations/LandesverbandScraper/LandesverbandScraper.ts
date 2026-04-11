@@ -579,16 +579,14 @@ export class LandesverbandScraper extends BaseScraper {
   /**
    * Search documents (delegates to SearchOperations)
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async searchDocuments(query: string, options: LandesverbandSearchOptions = {}): Promise<any> {
+  async searchDocuments(query: string, options: LandesverbandSearchOptions = {}): Promise<unknown> {
     return this.searchOps.searchDocuments(query, options);
   }
 
   /**
    * Get stats (delegates to SearchOperations)
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async getStats(): Promise<any> {
+  async getStats(): Promise<unknown> {
     return this.searchOps.getStats();
   }
 
@@ -617,8 +615,7 @@ export class LandesverbandScraper extends BaseScraper {
   /**
    * Get list of available sources
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getSources(): any[] {
+  getSources(): Record<string, unknown>[] {
     return LANDESVERBAENDE_CONFIG.sources.map((s) => ({
       id: s.id,
       name: s.name,

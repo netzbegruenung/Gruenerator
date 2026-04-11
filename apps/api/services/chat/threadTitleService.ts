@@ -12,6 +12,8 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { INTERMEDIATE_MODEL } from '../../routes/chat/agents/providers.js';
 import { createLogger } from '../../utils/logger.js';
 
+import type { AIWorkerPool } from '../../workers/types.js';
+
 const log = createLogger('ThreadTitle');
 
 /**
@@ -50,8 +52,7 @@ export async function generateThreadTitle(
   threadId: string,
   userMessage: string,
   assistantResponse: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  aiWorkerPool: { processRequest: (...args: any[]) => Promise<{ content?: string | null }> },
+  aiWorkerPool: AIWorkerPool,
   options?: { imageGenerated?: boolean }
 ): Promise<void> {
   log.info(`[ThreadTitle] generateThreadTitle called`, {
