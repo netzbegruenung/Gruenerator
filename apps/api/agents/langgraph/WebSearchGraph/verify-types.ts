@@ -3,20 +3,20 @@
  * This file exists solely to verify that all types compile correctly
  */
 
+import type { AIWorkerPool } from '../../../workers/types.js';
 import type {
-  WebSearchInput,
-  NormalSearchOutput,
-  DeepSearchOutput,
-  SearchResult,
+  CrawlMetadata,
   Citation,
+  DeepSearchOutput,
+  NormalSearchOutput,
+  ReferencesMap,
+  SearchOptions,
+  SearchResult,
   Source,
   ValidationResult,
-  ReferencesMap,
-  CrawlMetadata,
-  SearchOptions,
+  WebSearchInput,
 } from './types.js';
-
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+import type { Request } from 'express';
 
 // Type verification tests - these should all compile without errors
 
@@ -30,10 +30,8 @@ const _testInput: WebSearchInput = {
     language: 'de-DE',
     categories: 'general', // String, not array
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  aiWorkerPool: {} as any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  req: {} as any,
+  aiWorkerPool: {} as unknown as AIWorkerPool,
+  req: {} as unknown as Request,
 };
 
 // Verify NormalSearchOutput structure

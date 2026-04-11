@@ -170,12 +170,7 @@ router.get(
           id: documentId,
           fullText: result.fullText,
           chunkCount: result.chunkCount,
-          /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any */
-          metadata: {
-            ...documentMeta,
-            ...((result as any).metadata || {}),
-          },
-          /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any */
+          metadata: documentMeta,
         },
       });
     } catch (error) {

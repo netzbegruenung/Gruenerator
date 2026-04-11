@@ -42,6 +42,7 @@ import type {
 } from './types.js';
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
+import type { AIWorkerPool } from '../../../workers/types.js';
 import type { ModelMessage } from 'ai';
 
 const log = createLogger('ChatGraph');
@@ -64,9 +65,7 @@ const ChatStateAnnotation = Annotation.Root({
   enabledTools: Annotation<Record<string, boolean>>({
     reducer: (x, y) => y ?? x,
   }),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- LangGraph untyped: aiWorkerPool has no shared interface
-  aiWorkerPool: Annotation<any>({
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  aiWorkerPool: Annotation<AIWorkerPool>({
     reducer: (x, y) => y ?? x,
   }),
   userLocale: Annotation<UserLocale>({

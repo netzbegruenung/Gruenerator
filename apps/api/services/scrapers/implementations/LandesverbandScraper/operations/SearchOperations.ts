@@ -91,8 +91,7 @@ export class SearchOperations {
    * Get collection statistics
    * Returns vector count, points count, and per-source stats
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async getStats(): Promise<any> {
+  async getStats(): Promise<unknown> {
     try {
       const info = await this.qdrant.client!.getCollection(this.collectionName);
 

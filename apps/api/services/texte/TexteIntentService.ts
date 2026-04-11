@@ -5,6 +5,8 @@
 
 import { createLogger } from '../../utils/logger.js';
 
+import type { AIWorkerPool } from '../../workers/types.js';
+
 const log = createLogger('TexteIntentService');
 
 const GERMAN_LETTER = '[a-zA-ZäöüÄÖÜß]';
@@ -264,8 +266,7 @@ export function detectTypeByKeywords(message: string): TextTypeDetectionResult |
  */
 export async function detectTypeWithAI(
   message: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  aiWorkerPool: { processRequest: (...args: any[]) => Promise<{ content?: string | null }> },
+  aiWorkerPool: AIWorkerPool,
   hint?: { type: string; description: string }
 ): Promise<TextTypeDetectionResult | null> {
   if (!aiWorkerPool) {
@@ -356,8 +357,7 @@ Antworte NUR mit JSON:
  */
 export async function detectTextType(
   message: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  aiWorkerPool: { processRequest: (...args: any[]) => Promise<{ content?: string | null }> }
+  aiWorkerPool: AIWorkerPool
 ): Promise<TextTypeDetectionResult> {
   log.debug('[TexteIntentService] Detecting text type for:', message.substring(0, 100));
 

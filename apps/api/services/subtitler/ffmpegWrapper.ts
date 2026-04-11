@@ -110,6 +110,10 @@ class FFmpegCommand {
     return this;
   }
 
+  on(event: 'start', callback: (commandLine: string) => void | Promise<void>): this;
+  on(event: 'progress', callback: (progress: { percent?: number; timemark?: string }) => void | Promise<void>): this;
+  on(event: 'error', callback: (err: Error) => void | Promise<void>): this;
+  on(event: 'end', callback: () => void | Promise<void>): this;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   on(event: EventType, callback: (...args: any[]) => void): this {
     if (this.listeners[event]) {

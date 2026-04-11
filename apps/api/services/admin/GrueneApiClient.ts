@@ -83,8 +83,7 @@ export class GrueneApiClient {
    * @param upserts - Array of user processing results
    * @returns API response
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async batchUpdateOffboardingUsers(upserts: BatchUpdateEntry[]): Promise<any> {
+  async batchUpdateOffboardingUsers(upserts: BatchUpdateEntry[]): Promise<unknown> {
     try {
       const response = await this.client.post('/v1/offboarding/users/self/batch', {
         upsert: upserts,
