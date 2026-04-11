@@ -8,6 +8,7 @@
 
 import type { ImageAttachment, ImageStorageSession, ImageStorageStats } from './types.js';
 import type { RedisClient } from '../../utils/redis/types.js';
+import { parseJSON } from '../../utils/parseJSON.js';
 
 class TemporaryImageStorage {
   private redis: RedisClient;
@@ -64,7 +65,7 @@ class TemporaryImageStorage {
       await this.redis.del(key);
       this.activeSessions.delete(requestId);
 
-      const imageAttachment = JSON.parse(data) as ImageAttachment;
+      const imageAttachment = parseJSON<ImageAttachment>(data);
       console.log(`[TemporaryImageStorage] Image consumed: ${imageAttachment.name || 'unknown'}`);
 
       return imageAttachment;

@@ -56,6 +56,17 @@ export interface ImageAttachment {
   source?: string | undefined;
 }
 
+/**
+ * Structural interface for the temporary image manager stored in app.locals.
+ * Implemented by TemporaryImageStorage.
+ */
+export interface SharepicImageManager {
+  storeForRequest(requestId: string, userId: string, imageAttachment: ImageAttachment): Promise<string>;
+  retrieveAndConsume(requestId: string): Promise<ImageAttachment | null>;
+  hasImageForRequest(requestId: string): Promise<boolean>;
+  deleteImageForRequest(requestId: string): Promise<boolean>;
+}
+
 export interface ImageStorageSession {
   userId: string;
   timestamp: number;

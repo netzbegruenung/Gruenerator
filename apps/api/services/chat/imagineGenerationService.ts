@@ -18,7 +18,7 @@ import {
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
-import type { ImagineVariant } from '../../services/image/types.js';
+import type { ImagineVariant, SharepicImageManager } from '../../services/image/types.js';
 import type { UserProfile } from '../../services/user/types.js';
 import type { Request } from 'express';
 
@@ -26,21 +26,17 @@ const log = createLogger('imagineGenService');
 
 interface ExpressRequest extends Request {
   user?: UserProfile;
-  app: Request['app'] & {
-    locals?: {
-      sharepicImageManager?: SharepicImageManager;
-    };
-  };
-}
-
-interface SharepicImageManager {
-  retrieveAndConsume(requestId: string): Promise<ImageAttachment | null>;
 }
 
 interface ImageAttachment {
   type?: string;
   data?: string;
   buffer?: Buffer;
+}
+
+function getSharepicImageManager(req: ExpressRequest): SharepicImageManager | null {
+  const manager: unknown = req.app.locals.sharepicImageManager;
+  return manager != null ? (manager as SharepicImageManager) : null;
 }
 
 interface RequestBody {
@@ -307,12 +303,12 @@ async function generateEditImage(
     variant,
   });
 
-  const sharepicImageManager = expressReq.app?.locals?.sharepicImageManager;
+  const sharepicImageManager = getSharepicImageManager(expressReq);
   const requestId = requestBody.sharepicRequestId;
 
   let imageAttachment: ImageAttachment | null = null;
   if (sharepicImageManager && requestId) {
-    imageAttachment = await sharepicImageManager.retrieveAndConsume(requestId);
+    imageAttachment = (await sharepicImageManager.retrieveAndConsume(requestId)) as ImageAttachment | null;
   }
 
   if (!imageAttachment && requestBody.attachments) {

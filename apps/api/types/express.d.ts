@@ -1,5 +1,6 @@
 import type { AIWorkerPool } from './workers';
 import type { Request, Response, NextFunction } from 'express';
+import type { SharepicImageManager } from '../services/image/types';
 
 interface UserProfileShape {
   id: string;
@@ -72,6 +73,7 @@ declare global {
 
     interface Locals {
       aiWorkerPool?: AIWorkerPool | undefined;
+      sharepicImageManager?: SharepicImageManager | undefined;
     }
   }
 }

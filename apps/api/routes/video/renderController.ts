@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { type AuthenticatedRequest } from '../../middleware/types.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { createLogger } from '../../utils/logger.js';
+import { parseJSON } from '../../utils/parseJSON.js';
 import { redisClient } from '../../utils/redis/index.js';
 
 const log = createLogger('video-render');
@@ -136,7 +137,7 @@ router.get(
         return;
       }
 
-      const job = JSON.parse(data) as RenderJob;
+      const job = parseJSON<RenderJob>(data);
 
       res.json({
         render: {
@@ -174,7 +175,7 @@ router.delete(
         return;
       }
 
-      const job = JSON.parse(data) as RenderJob;
+      const job = parseJSON<RenderJob>(data);
 
       if (job.status === 'COMPLETED') {
         res.status(400).json({ error: 'Cannot cancel a completed render' });

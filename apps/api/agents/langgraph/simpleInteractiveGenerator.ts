@@ -27,6 +27,8 @@ import { loadPromptConfig, SimpleTemplateEngine } from './PromptProcessor.js';
 import type {
   AIWorkerPool,
   AIWorkerResponse,
+  AIRequestData,
+  Tool,
   GeneratedQuestion,
   QuestionGenerationArgs,
   QuestionGenerationResult,
@@ -50,9 +52,7 @@ import type {
   Locale,
 } from './types/index.js';
 import type { PromptConfig } from './types/promptProcessor.js';
-import { type AIRequestData } from '../../workers/types.js';
 import type { ExperimentalSession } from '../../services/chat/types.js';
-import type { Tool } from '../../workers/types.js';
 import type { Request } from 'express';
 
 // Lazy-loaded optional services

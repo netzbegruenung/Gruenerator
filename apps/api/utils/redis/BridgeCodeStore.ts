@@ -11,6 +11,7 @@
  */
 
 import client from './client.js';
+import { parseJSON } from '../parseJSON.js';
 
 interface BridgeCodeData {
   userId: string;
@@ -37,5 +38,5 @@ export async function consumeBridgeCode(code: string): Promise<BridgeCodeData | 
   const raw = await client.getDel(key);
   if (!raw) return null;
 
-  return JSON.parse(raw) as BridgeCodeData;
+  return parseJSON<BridgeCodeData>(raw);
 }
