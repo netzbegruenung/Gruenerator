@@ -95,7 +95,7 @@ export function createSelfReviewTool(deps: ToolDependencies): DynamicStructuredT
         );
 
         const result = response as { content?: string | null };
-        const parsed = JSON.parse(result.content || '{}');
+        const parsed = JSON.parse(result.content || '{}') as { score?: number };
         log.info(`[SelfReview] Agent=${deps.agentConfig.identifier} score=${parsed.score}`);
 
         return JSON.stringify(parsed, null, 2);

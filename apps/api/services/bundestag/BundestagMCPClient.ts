@@ -91,7 +91,7 @@ class BundestagMCPClient {
         throw new Error(`Bundestag MCP error: ${response.status}`);
       }
 
-      const result: MCPResponse = await response.json();
+      const result = await response.json() as MCPResponse;
 
       if (result.error) {
         throw new Error(result.error.message || 'MCP tool call failed');

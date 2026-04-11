@@ -298,8 +298,7 @@ export function createInformationRequest(
     pendingRequest: (() => {
       const pr: PendingRequest = {
         type: 'missing_information',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        agent: classifiedIntent?.agent || (originalRequest as any).agent,
+        agent: classifiedIntent?.agent || (originalRequest.agent as string | undefined) || '',
         params: classifiedIntent?.params || {},
         missingField: missingFieldInfo.field,
         originalContext: originalRequest,
@@ -585,7 +584,7 @@ export async function handleInformationRequest(
 
       // Store pending request in memory — PendingRequest satisfies Omit<ChatPendingRequest, 'timestamp'>
       // since it has type: string and additional fields that fit the index signature [key: string]: unknown
-      await chatMemory.setPendingRequest(userId, informationRequest.pendingRequest as { type: string; [key: string]: unknown });
+      await chatMemory.setPendingRequest(userId, informationRequest.pendingRequest as unknown as { type: string; [key: string]: unknown });
 
       return {
         type: 'request',

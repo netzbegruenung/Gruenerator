@@ -184,7 +184,7 @@ function loadCampaignConfig(campaignId: string, typeId: string): LoadedCampaignC
   }
 
   try {
-    const campaign: Campaign = JSON.parse(fs.readFileSync(campaignPath, 'utf8'));
+    const campaign = JSON.parse(fs.readFileSync(campaignPath, 'utf8')) as Campaign;
     const typeConfig = campaign.types?.[typeId];
 
     if (!typeConfig) {

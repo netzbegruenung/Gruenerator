@@ -26,7 +26,6 @@ import { loadPromptConfig, SimpleTemplateEngine } from './PromptProcessor.js';
 
 import type {
   AIWorkerPool,
-  AIWorkerRequest,
   AIWorkerResponse,
   GeneratedQuestion,
   QuestionGenerationArgs,
@@ -51,7 +50,9 @@ import type {
   Locale,
 } from './types/index.js';
 import type { PromptConfig } from './types/promptProcessor.js';
+import { type AIRequestData } from '../../workers/types.js';
 import type { ExperimentalSession } from '../../services/chat/types.js';
+import type { Tool } from '../../workers/types.js';
 import type { Request } from 'express';
 
 // Lazy-loaded optional services
@@ -113,14 +114,15 @@ async function generateClarifyingQuestions(
         ...config.options,
         tools,
       },
-    } as AIWorkerRequest,
+    } as AIRequestData,
     state.req
   );
 
   if (result.tool_calls && result.tool_calls.length > 0) {
     const toolCall = result.tool_calls[0];
-    const functionArgs =
-      typeof toolCall.input === 'string' ? JSON.parse(toolCall.input) : toolCall.input;
+    const functionArgs = (
+      typeof toolCall.input === 'string' ? JSON.parse(toolCall.input) : toolCall.input
+    ) as QuestionGenerationArgs;
 
     // Type guard for QuestionGenerationArgs
     if (
@@ -429,7 +431,7 @@ async function generateFinalResult({
   const formattedQA = questions.length > 0 ? formatQAPairs(questions, answers) : '';
 
   // Check if web search is enabled
-  const useWebSearch = req.body?.useWebSearch ?? false;
+  const useWebSearch = (req.body as { useWebSearch?: boolean } | undefined)?.useWebSearch ?? false;
   let searchResults: WebSearchResult | null = null;
 
   if (useWebSearch) {
@@ -530,10 +532,9 @@ async function generateFinalResult({
         max_tokens: config.options?.max_tokens || 4000,
         temperature: config.options?.temperature || 0.3,
         ...(assembledPrompt.tools?.length &&
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          assembledPrompt.tools.length > 0 && { tools: assembledPrompt.tools as any }),
+          assembledPrompt.tools.length > 0 && { tools: assembledPrompt.tools as unknown as Tool[] }),
       },
-    } as AIWorkerRequest,
+    } as AIRequestData,
     req
   );
 
@@ -547,7 +548,7 @@ async function generateFinalResult({
 
   const result: GenerationResult = {
     content: generationResult.content || '',
-    ...(generationResult.metadata != null ? { metadata: generationResult.metadata } : {}),
+    ...(generationResult.metadata?.usage != null ? { metadata: { usage: generationResult.metadata.usage } } : {}),
   };
   return result;
 }

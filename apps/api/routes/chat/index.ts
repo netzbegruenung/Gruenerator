@@ -33,11 +33,11 @@ router.use('/generate-system-prompt', promptGeneratorRouter);
 router.use('/confirm', confirmRouter);
 router.use('/search', searchRouter);
 
-router.get('/agents', async (req: Request & RequestWithLocale, res: Response): Promise<void> => {
+router.get('/agents', async (req: Request, res: Response): Promise<void> => {
   try {
     const agents = await loadAgents();
     const defaultId = getDefaultAgentId();
-    const locale = extractLocaleFromRequest(req as Request & RequestWithLocale);
+    const locale = extractLocaleFromRequest(req as unknown as RequestWithLocale);
     const clientAgents = agents
       .filter((agent) => agent.identifier !== defaultId)
       .map((agent) => ({
@@ -61,7 +61,7 @@ router.get('/agents', async (req: Request & RequestWithLocale, res: Response): P
 
 router.get(
   '/agents/:identifier',
-  async (req: Request & RequestWithLocale, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
     try {
       const identifier = getParam(req.params, 'identifier');
       const agent = await getAgent(identifier);
@@ -69,7 +69,7 @@ router.get(
         res.status(404).json({ error: 'Agent not found' });
         return;
       }
-      const locale = extractLocaleFromRequest(req as Request & RequestWithLocale);
+      const locale = extractLocaleFromRequest(req as unknown as RequestWithLocale);
       res.json({
         identifier: agent.identifier,
         title: agent.title,

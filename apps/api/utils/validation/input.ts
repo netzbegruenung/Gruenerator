@@ -37,7 +37,7 @@ export class InputValidator {
 
     // Validate each element is a valid number
     for (let i = 0; i < embedding.length; i++) {
-      const value = embedding[i];
+      const value = embedding[i] as unknown;
 
       if (typeof value !== 'number') {
         throw new ValidationError(

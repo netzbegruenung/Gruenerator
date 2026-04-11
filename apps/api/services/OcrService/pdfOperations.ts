@@ -12,6 +12,8 @@ import type {
   PageExtractionResult,
 } from './types.js';
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+
 /**
  * Lazy load PDF.js to avoid memory overhead
  */
@@ -69,7 +71,6 @@ export async function canExtractTextDirectly(
 
   try {
     const pdfDoc = await openPdfDocumentFn(pdfPath);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- pdfjs-dist untyped
     const totalPages = pdfDoc.numPages as number;
 
     // Sample 3 pages: first, middle, last
@@ -156,7 +157,6 @@ export async function extractTextDirectlyFromPDF(
 
   try {
     const pdfDoc = await openPdfDocumentFn(pdfPath);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- pdfjs-dist untyped
     const totalPages = Math.min(pdfDoc.numPages as number, maxPages);
 
     console.log(`[OcrService] Extracting text from ${totalPages} pages using PDF.js...`);

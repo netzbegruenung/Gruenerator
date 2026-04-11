@@ -38,6 +38,7 @@ import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { getContextWindow } from './agents/providers.js';
 import { getThreadAttachments } from './services/attachmentPersistenceService.js';
 import {
@@ -171,7 +172,7 @@ router.post('/stream', validateBody(chatStreamSchema), async (req: TypedRequest<
     }
 
     const userId = user.id;
-    const aiWorkerPool = req.app.locals.aiWorkerPool;
+    const aiWorkerPool = getAIWorkerPool(req);
 
     if (!aiWorkerPool) {
       sse.send('error', { error: PROGRESS_MESSAGES.aiUnavailable });
@@ -769,7 +770,7 @@ router.post('/resume', validateBody(chatResumeSchema), async (req: TypedRequest<
       return;
     }
 
-    const aiWorkerPool = req.app.locals.aiWorkerPool;
+    const aiWorkerPool = getAIWorkerPool(req);
     if (!aiWorkerPool) {
       sse.send('error', { error: PROGRESS_MESSAGES.aiUnavailable });
       sse.end();

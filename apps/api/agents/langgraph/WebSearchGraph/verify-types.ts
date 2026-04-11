@@ -16,6 +16,8 @@ import type {
   SearchOptions,
 } from './types.js';
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+
 // Type verification tests - these should all compile without errors
 
 // Verify WebSearchInput structure

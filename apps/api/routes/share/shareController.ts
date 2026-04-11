@@ -240,8 +240,8 @@ interface ShareInfoResponse {
     duration?: number | null;
     imageType?: string | null;
     dimensions?: {
-      width?: number;
-      height?: number;
+      width?: number | undefined;
+      height?: number | undefined;
     };
   };
   error?: string;
@@ -502,7 +502,7 @@ router.post(
         });
       }
 
-      const exportData: ExportData = JSON.parse(exportDataString);
+      const exportData = JSON.parse(exportDataString) as ExportData;
       if (exportData.status !== 'complete') {
         return res.status(400).json({
           success: false,
@@ -875,10 +875,11 @@ router.get(
       } else if (share.media_type === 'video') {
         response.share!.duration = share.duration;
       } else {
-        const metadata =
+        const metadata = (
           typeof share.image_metadata === 'string'
             ? JSON.parse(share.image_metadata)
-            : share.image_metadata || {};
+            : share.image_metadata || {}
+        ) as { width?: number; height?: number };
         response.share!.imageType = share.image_type;
         response.share!.dimensions = {
           width: metadata.width,

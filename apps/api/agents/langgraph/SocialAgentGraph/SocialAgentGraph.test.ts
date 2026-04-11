@@ -13,6 +13,8 @@ import { strategizeNode } from './nodes/strategizeNode.js';
 import type { SocialAgentState } from './types.js';
 import type { EnrichedState } from '../../../utils/types/requestEnrichment.js';
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+
 // Track all aiWorkerPool.processRequest calls
 const aiCalls: Array<{
   callIndex: number;

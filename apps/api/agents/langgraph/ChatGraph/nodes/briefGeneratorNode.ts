@@ -36,7 +36,7 @@ function extractMessageText(content: unknown): string {
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
     return content
-      .filter((p) => p && typeof p === 'object' && p.type === 'text')
+      .filter((p) => p && typeof p === 'object' && (p as Record<string, unknown>).type === 'text')
       .map((p) => (p as { text: string }).text)
       .join('');
   }

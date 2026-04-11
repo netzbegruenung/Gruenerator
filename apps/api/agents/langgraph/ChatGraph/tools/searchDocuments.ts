@@ -20,6 +20,7 @@ import {
 } from '../nodes/searchNode.js';
 
 import type { ToolDependencies } from './registry.js';
+import type { DocumentResult } from '../../../../services/BaseSearchService/types.js';
 
 const log = createLogger('Tool:SearchDocuments');
 
@@ -117,13 +118,12 @@ export function createSearchDocumentsTool(deps: ToolDependencies): DynamicStruct
             },
           });
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const results: ScoredResult[] = (response.results || []).map((r: any) => ({
+          const results: ScoredResult[] = (response.results || []).map((r: DocumentResult) => ({
             source: `document:${r.document_id || 'unknown'}`,
-            title: r.title || r.source || 'Dokument',
-            content: r.chunk_text || r.excerpt || '',
-            url: r.source_url || undefined,
-            relevance: r.score ?? 0.5,
+            title: r.title || r.document_id || 'Dokument',
+            content: r.relevant_content || '',
+            ...(r.source_url != null && { url: r.source_url }),
+            relevance: r.similarity_score ?? 0.5,
           }));
 
           const reranked = await rerankResults(results, query);

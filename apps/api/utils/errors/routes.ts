@@ -96,12 +96,13 @@ export function classifyError(error: Error | VectorBackendError): ErrorClassific
     return { type: 'AI_WORKER_ERROR', statusCode: 503 };
   }
 
+  const errorStatus = (error as { status?: number }).status;
+
   // Authentication errors
   if (
     message.includes('unauthorized') ||
     message.includes('authentication') ||
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (error as any).status === 401
+    errorStatus === 401
   ) {
     return { type: 'AUTHENTICATION_ERROR', statusCode: 401 };
   }
@@ -110,8 +111,7 @@ export function classifyError(error: Error | VectorBackendError): ErrorClassific
   if (
     message.includes('forbidden') ||
     message.includes('authorization') ||
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (error as any).status === 403
+    errorStatus === 403
   ) {
     return { type: 'AUTHORIZATION_ERROR', statusCode: 403 };
   }
@@ -130,8 +130,7 @@ export function classifyError(error: Error | VectorBackendError): ErrorClassific
   if (
     message.includes('rate limit') ||
     message.includes('too many') ||
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (error as any).status === 429
+    errorStatus === 429
   ) {
     return { type: 'RATE_LIMIT_ERROR', statusCode: 429 };
   }

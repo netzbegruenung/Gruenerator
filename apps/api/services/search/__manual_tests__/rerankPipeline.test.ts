@@ -10,6 +10,8 @@
 import { regoloRerankService } from '../RegoloRerankService.js';
 import { rerankPipeline, type RerankableItem } from '../rerankPipeline.js';
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+
 let passed = 0;
 let failed = 0;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

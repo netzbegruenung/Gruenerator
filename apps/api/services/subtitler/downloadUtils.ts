@@ -116,7 +116,7 @@ async function processDirectDownload(token: string, res: Response): Promise<void
     throw new Error('Download-Token ungültig oder abgelaufen');
   }
 
-  const exportParams: ExportParams = JSON.parse(exportParamsString);
+  const exportParams = JSON.parse(exportParamsString) as ExportParams;
   log.debug(`[Direct Download] Processing token ${token} for uploadId: ${exportParams.uploadId}`);
 
   await redisClient.del(`download:${token}`);

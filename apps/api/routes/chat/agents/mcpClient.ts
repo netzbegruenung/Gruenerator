@@ -133,7 +133,7 @@ async function callMcpTool<T>(toolName: string, args: Record<string, unknown>): 
         throw new Error(`MCP request failed after retry: ${retryResponse.statusText}`);
       }
 
-      const retryResult = await retryResponse.json();
+      const retryResult = await retryResponse.json() as { error?: { message: string }; result?: unknown };
       if (retryResult.error) {
         throw new Error(`MCP error: ${retryResult.error.message}`);
       }
@@ -144,7 +144,7 @@ async function callMcpTool<T>(toolName: string, args: Record<string, unknown>): 
     throw new Error(`MCP request failed: ${response.statusText}`);
   }
 
-  const result = await response.json();
+  const result = await response.json() as { error?: { message: string }; result?: unknown };
 
   if (result.error) {
     throw new Error(`MCP error: ${result.error.message}`);

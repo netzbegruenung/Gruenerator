@@ -9,6 +9,7 @@ import type {
   SourcesByCollection as SearchSourcesByCollection,
   ReferencesMap,
 } from '../search/types.js';
+import type { AIWorkerPool } from '../../workers/types.js';
 
 /**
  * Request filters for search
@@ -111,11 +112,7 @@ export interface QAMultiCollectionParams {
   question: string;
   collectionIds?: string[] | undefined;
   requestFilters?: RequestFilters | undefined;
-  aiWorkerPool: {
-    processRequest: (
-      request: unknown
-    ) => Promise<{ content?: string; raw_content_blocks?: Array<{ text?: string }> }>;
-  };
+  aiWorkerPool: AIWorkerPool;
   fastMode?: boolean | undefined;
 }
 
@@ -127,11 +124,7 @@ export interface QASingleCollectionParams {
   question: string;
   userId: string;
   requestFilters?: RequestFilters | undefined;
-  aiWorkerPool: {
-    processRequest: (
-      request: unknown
-    ) => Promise<{ content?: string; raw_content_blocks?: Array<{ text?: string }> }>;
-  };
+  aiWorkerPool: AIWorkerPool;
   getCollectionFn?: (
     collectionId: string
   ) => Promise<{ name: string; user_id: string | null } | null>;

@@ -724,7 +724,7 @@ router.put(
     try {
       const { groupId, contentId } = req.params;
       const userId = req.user!.id;
-      const { contentType, permissions } = req.body;
+      const { contentType, permissions } = req.body as { contentType: string; permissions: string[] };
 
       const { postgres, membership } = await getPostgresAndCheckMembership(groupId, userId, false);
 

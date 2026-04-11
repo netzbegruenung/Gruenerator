@@ -16,7 +16,7 @@ export async function loadCatalogNode(
   try {
     const catalogPath = path.join(process.cwd(), 'public/sharepic_example_bg/image_alt_texts.json');
     const catalogData = await fs.readFile(catalogPath, 'utf8');
-    const imageCatalog: ImageCatalog = JSON.parse(catalogData);
+    const imageCatalog = JSON.parse(catalogData) as ImageCatalog;
 
     console.log(`[ImageSelection] Loaded ${imageCatalog.images.length} images from catalog`);
 

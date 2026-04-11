@@ -5,6 +5,8 @@
 
 import type { MeinungsbildData, MeinungsbildEstimate, MeinungsbildIssue } from './types.js';
 
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+
 let passed = 0;
 let failed = 0;
 

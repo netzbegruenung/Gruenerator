@@ -170,13 +170,12 @@ router.get(
           id: documentId,
           fullText: result.fullText,
           chunkCount: result.chunkCount,
+          /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any */
           metadata: {
-            // Merge with PostgreSQL metadata
             ...documentMeta,
-            // Include any additional metadata from result if it exists
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ...((result as any).metadata || {}),
           },
+          /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any */
         },
       });
     } catch (error) {

@@ -167,7 +167,8 @@ export async function transactionExec(
 ): Promise<ExecResult> {
   try {
     const result = await client.query(sql, params);
-    return { changes: result.rowCount || 0, lastID: result.rows[0]?.id };
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    return { changes: result.rowCount || 0, lastID: result.rows[0]?.id as string | undefined };
   } catch (error) {
     console.error('[PostgresService] Transaction exec error:', error, { sql, params });
     throw new Error(`Transaction SQL execution failed: ${(error as Error).message}`);

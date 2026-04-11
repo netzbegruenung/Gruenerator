@@ -3,7 +3,7 @@
  * Results are returned in the same order as the input tasks.
  */
 export async function parallelLimit<T>(tasks: (() => Promise<T>)[], limit: number): Promise<T[]> {
-  const results: T[] = new Array(tasks.length);
+  const results: T[] = new Array<T>(tasks.length);
   let nextIndex = 0;
 
   async function runNext(): Promise<void> {

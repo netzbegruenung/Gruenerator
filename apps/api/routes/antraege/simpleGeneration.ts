@@ -70,10 +70,10 @@ router.use((req: TrackedRequest, res: Response, next: NextFunction) => {
   };
 
   if (originalRedirect) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
     res.redirect = ((url: string) => {
       redirectedTo = url;
       return originalRedirect(url);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }) as any;
   }
 

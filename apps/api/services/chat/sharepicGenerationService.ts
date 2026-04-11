@@ -143,14 +143,14 @@ interface ImageSelection {
 }
 
 interface RequestBody {
-  text?: string;
-  subject?: string;
-  preserveName?: boolean;
-  name?: string;
-  attachments?: Attachment[];
-  sharepicRequestId?: string;
-  campaignId?: string;
-  campaignTypeId?: string;
+  text?: string | undefined;
+  subject?: string | undefined;
+  preserveName?: boolean | undefined;
+  name?: string | undefined;
+  attachments?: Attachment[] | undefined;
+  sharepicRequestId?: string | undefined;
+  campaignId?: string | undefined;
+  campaignTypeId?: string | undefined;
   [key: string]: unknown;
 }
 

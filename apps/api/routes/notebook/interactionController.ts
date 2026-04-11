@@ -20,6 +20,7 @@ import { getQdrantInstance } from '../../database/services/QdrantService/index.j
 import authMiddleware from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { notebookQAService } from '../../services/notebook/index.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { NotebookRequest, PublicAccessRecord } from './types.js';
@@ -184,12 +185,11 @@ router.post(
         return res.status(400).json({ error: 'Question is required' });
       }
 
-      const notebookReq = req as unknown as NotebookRequest;
       const result = await notebookQAService.askMultiCollection({
         question,
         collectionIds: collectionIds || getDefaultMultiCollectionIds(),
         requestFilters: filters,
-        aiWorkerPool: notebookReq.app.locals.aiWorkerPool,
+        aiWorkerPool: getAIWorkerPool(req),
         fastMode: fastMode || false,
       });
 
@@ -226,13 +226,12 @@ router.post(
         return res.status(400).json({ error: 'Question is required' });
       }
 
-      const notebookReq = req as unknown as NotebookRequest<{ id: string }>;
       const result = await notebookQAService.askSingleCollection({
         collectionId,
         question,
         userId,
         requestFilters: filters,
-        aiWorkerPool: notebookReq.app.locals.aiWorkerPool,
+        aiWorkerPool: getAIWorkerPool(req),
         getCollectionFn: async (id: string) => {
           const systemConfig = getSystemCollectionConfig(id);
           if (systemConfig) return null;
@@ -351,13 +350,12 @@ router.post(
         return res.status(404).json({ error: 'Notebook collection not found' });
       }
 
-      const notebookReq = req as unknown as NotebookRequest;
       const result = await notebookQAService.askSingleCollection({
         collectionId: collection.id,
         question,
         userId: collection.user_id,
         requestFilters: filters,
-        aiWorkerPool: notebookReq.app.locals.aiWorkerPool,
+        aiWorkerPool: getAIWorkerPool(req),
         getCollectionFn: async () => collection,
         getDocumentIdsFn: async (id: string) => {
           const docs = await notebookHelper.getCollectionDocuments(id);

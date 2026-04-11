@@ -4,14 +4,10 @@
  */
 
 import type { PromptAssemblyResult, Locale } from './promptAssembly.js';
+import type { AIWorkerPool } from '../../../workers/types.js';
 import type { Request } from 'express';
 
-/**
- * AI Worker Pool interface for processing AI requests
- */
-export interface AIWorkerPool {
-  processRequest(request: AIWorkerRequest, req?: Request): Promise<AIWorkerResponse>;
-}
+export type { AIWorkerPool };
 
 /**
  * Request to AI worker pool
@@ -266,8 +262,8 @@ export interface GenerationResult {
       input_tokens?: number | undefined;
       output_tokens?: number | undefined;
       total_tokens?: number | undefined;
-    };
-  };
+    } | undefined;
+  } | undefined;
 }
 
 /**

@@ -47,11 +47,11 @@ export async function notifyGroupMembers(params: NotifyGroupParams): Promise<voi
           actionUrl,
           metadata: { groupId, groupName, ...metadata },
           groupKey: `group:${groupId}`,
-        }).catch((err) => {
+        }).catch((err: unknown) => {
           log.warn('Failed to notify group member', {
             userId: m.user_id,
             groupId,
-            error: err.message,
+            error: err instanceof Error ? err.message : String(err),
           });
         })
       )

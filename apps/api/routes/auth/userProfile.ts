@@ -302,7 +302,7 @@ router.patch(
 
       if (req.user) {
         profileService.updateUserSession(
-          req.user as { beta_features?: Record<string, boolean>; [key: string]: unknown },
+          req.user as unknown as { beta_features?: Record<string, boolean>; [key: string]: unknown },
           updatedProfile,
           feature,
           enabled

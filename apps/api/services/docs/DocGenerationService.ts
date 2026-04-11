@@ -45,19 +45,25 @@ export interface CreatedDocument {
  * Parse AI-generated document structure from JSON response.
  * Tries direct parse first, falls back to regex extraction.
  */
+interface ParsedDocumentResponse {
+  title?: unknown;
+  subtype?: unknown;
+  content?: unknown;
+}
+
 export function parseDocumentResponse(aiContent: string): GeneratedDocument {
   try {
-    let parsed;
+    let parsed: ParsedDocumentResponse;
     try {
-      parsed = JSON.parse(aiContent.trim());
+      parsed = JSON.parse(aiContent.trim()) as ParsedDocumentResponse;
     } catch {
       const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
-      parsed = JSON.parse(jsonMatch?.[0] || '{}');
+      parsed = JSON.parse(jsonMatch?.[0] || '{}') as ParsedDocumentResponse;
     }
     return {
-      title: parsed.title || 'Neues Dokument',
-      subtype: DOC_SUBTYPES.includes(parsed.subtype as string) ? (parsed.subtype as string) : 'blank',
-      content: parsed.content || '',
+      title: typeof parsed.title === 'string' ? parsed.title : 'Neues Dokument',
+      subtype: typeof parsed.subtype === 'string' && DOC_SUBTYPES.includes(parsed.subtype) ? parsed.subtype : 'blank',
+      content: typeof parsed.content === 'string' ? parsed.content : '',
     };
   } catch {
     log.warn('Failed to parse AI document response');

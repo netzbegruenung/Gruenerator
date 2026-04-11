@@ -15,6 +15,7 @@ import type {
   CacheEntry,
   ServiceStatus,
 } from './types.js';
+import type { AIWorkerPool } from '../../workers/types.js';
 
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
 const isDebug = LOG_LEVEL === 'debug';
@@ -46,12 +47,7 @@ interface RedisClientLike {
   ping: () => Promise<string>;
 }
 
-export interface AIWorkerPool {
-  processRequest(
-    request: unknown,
-    req?: unknown
-  ): Promise<{ content?: string; success?: boolean; error?: string }>;
-}
+export type { AIWorkerPool };
 
 class SearxngService {
   private baseUrl: string;

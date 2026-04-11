@@ -284,7 +284,7 @@ function assemblePromptGraph(state: PromptAssemblyState): PromptAssemblyResult {
   const docBlocks = buildDocumentBlocks(state.documents as DocumentBlock[]);
   if (docBlocks && docBlocks.length > 0) {
     console.log(`📋 [PromptAssembly] Added ${docBlocks.length} document blocks`);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
     messages.push({ role: 'user', content: docBlocks as any });
   }
 
@@ -693,7 +693,7 @@ async function assemblePromptGraphAsync(
 
   if (effectiveDocuments.length > 0) {
     console.log(`📋 [PromptAssemblyAsync] Adding ${effectiveDocuments.length} effective documents`);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
     messages.push({ role: 'user', content: buildDocumentBlocks(effectiveDocuments) as any });
   }
 

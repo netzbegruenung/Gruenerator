@@ -222,10 +222,10 @@ async function startWorker(): Promise<void> {
 
   // Initialize AI Search Agent
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const aiSearchAgentModule = (await import('./services/aiSearchAgent.js')) as any;
+    const aiSearchAgentModule = (await import('./services/aiSearchAgent.js')) as {
+      setAIWorkerPool?: (pool: unknown) => void;
+    };
     if (typeof aiSearchAgentModule.setAIWorkerPool === 'function') {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       aiSearchAgentModule.setAIWorkerPool(aiService);
       log.debug('AI Search Agent initialized');
     }

@@ -39,7 +39,7 @@ export async function listFiles(
 ): Promise<GoogleDriveListResult> {
   if (folderId) validateDriveId(folderId, 'folder ID');
   const query = folderId ? `'${folderId}' in parents and trashed = false` : 'trashed = false';
-  const response = await axios.get(`${GOOGLE_DRIVE_API}/files`, {
+  const response = await axios.get<{ files: GoogleDriveFile[]; nextPageToken?: string }>(`${GOOGLE_DRIVE_API}/files`, {
     headers: authHeaders(token),
     params: {
       q: query,

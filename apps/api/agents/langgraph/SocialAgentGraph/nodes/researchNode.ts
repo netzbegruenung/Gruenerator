@@ -1,4 +1,4 @@
-import { extractLocaleFromRequest } from '../../../../services/localization/index.js';
+import { extractLocaleFromRequest, type RequestWithLocale } from '../../../../services/localization/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { enrichRequest } from '../../../../utils/requestEnrichment.js';
 import { searchArgumentsFromNotebooks } from '../../PRAgent/generators/argumentsGenerator.js';
@@ -13,7 +13,7 @@ export async function researchNode(state: SocialAgentState): Promise<Partial<Soc
   log.debug('[researchNode] Starting research for topic:', state.inhalt.substring(0, 100));
 
   try {
-    const locale = extractLocaleFromRequest(state.req);
+    const locale = extractLocaleFromRequest(state.req as unknown as RequestWithLocale);
     const argumentCollections =
       locale === 'de-AT'
         ? ['oesterreich_gruene_documents', 'gruene_at_documents']
@@ -28,6 +28,7 @@ export async function researchNode(state: SocialAgentState): Promise<Partial<Soc
     const partySearchTerm = locale === 'de-AT' ? 'Die Grünen Österreich' : 'Bündnis 90 Die Grünen';
     const shouldWebSearch = !state.features.usePrivacyMode && state.features.useWebSearchTool;
     const webSearchQuery = shouldWebSearch ? `${state.inhalt} ${partySearchTerm} Politik` : null;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const aiWorkerPool = state.req?.app?.locals?.aiWorkerPool;
 
     log.debug(`[researchNode] Web search: ${shouldWebSearch ? 'yes' : 'no'}`);
@@ -51,6 +52,7 @@ export async function researchNode(state: SocialAgentState): Promise<Partial<Soc
           enableUrls: !state.features.usePrivacyMode,
           enableWebSearch: shouldWebSearch,
           webSearchQuery,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           aiWorkerPool,
           usePrivacyMode: state.features.usePrivacyMode,
           selectedDocumentIds: state.selectedDocumentIds,
