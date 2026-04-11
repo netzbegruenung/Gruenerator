@@ -25,6 +25,7 @@ import { loadPromptConfig, SimpleTemplateEngine } from './PromptProcessor.js';
 
 import type {
   AIRequestData,
+  Tool,
   GeneratedQuestion,
   QuestionGenerationArgs,
   QuestionGenerationResult,
