@@ -31,7 +31,10 @@ const BOARDS_URL = 'https://gruenerator.eu/boards';
 const dateFormat: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
 
 function getBoardType(board: Board): string {
-  const content = typeof board.content === 'string' ? JSON.parse(board.content) : board.content;
+  const content: { board_type?: string; is_archived?: boolean } | undefined =
+    typeof board.content === 'string'
+      ? (JSON.parse(board.content) as { board_type?: string; is_archived?: boolean })
+      : board.content;
   return content?.board_type ?? 'kanban';
 }
 
@@ -78,10 +81,13 @@ export default function DeskDashboard() {
     if (!silent) setIsLoading(true);
     try {
       const apiClient = getGlobalApiClient();
-      const response = await apiClient.get('/boards');
+      const response = await apiClient.get<Board[]>('/boards');
       const all: Board[] = response.data || [];
       const active = all.filter((b) => {
-        const content = typeof b.content === 'string' ? JSON.parse(b.content) : b.content;
+        const content: { is_archived?: boolean } | undefined =
+          typeof b.content === 'string'
+            ? (JSON.parse(b.content) as { is_archived?: boolean })
+            : b.content;
         return !content?.is_archived;
       });
       setBoards(active);
@@ -186,8 +192,7 @@ export default function DeskDashboard() {
             {TOOLS.map((tool) => (
               <Pressable
                 key={tool.id}
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                onPress={() => router.push(tool.route as any)}
+                onPress={() => router.push(tool.route as Parameters<typeof router.push>[0])}
                 style={({ pressed }) => [
                   styles.toolCard,
                   {

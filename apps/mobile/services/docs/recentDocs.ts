@@ -7,8 +7,8 @@ export async function getRecentDocIds(): Promise<string[]> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
-    const ids = JSON.parse(raw);
-    return Array.isArray(ids) ? ids.slice(0, MAX_RECENT) : [];
+    const ids = JSON.parse(raw) as unknown;
+    return Array.isArray(ids) ? (ids as string[]).slice(0, MAX_RECENT) : [];
   } catch {
     return [];
   }

@@ -28,27 +28,84 @@ const CHANNEL_ORDER: Channel[] = ['in_app', 'email', 'push'];
 
 const CHANNEL_META: Record<Channel, { label: string; icon: keyof typeof Ionicons.glyphMap }> = {
   in_app: { label: 'App', icon: 'notifications-outline' },
-  email:  { label: 'Mail', icon: 'mail-outline' },
-  push:   { label: 'Push', icon: 'phone-portrait-outline' },
+  email: { label: 'Mail', icon: 'mail-outline' },
+  push: { label: 'Push', icon: 'phone-portrait-outline' },
 };
 
-const NOTIFICATION_TYPES: Record<string, { label: string; description: string; icon: keyof typeof Ionicons.glyphMap }> = {
-  document_shared:             { label: 'Geteilte Dokumente', description: 'Bei geteilten Dokumenten', icon: 'document-text-outline' },
-  document_permission_changed: { label: 'Berechtigungsänderungen', description: 'Bei Berechtigungsänderung', icon: 'shield-outline' },
-  document_access_revoked:     { label: 'Zugriff entfernt', description: 'Wenn Zugriff entfernt wird', icon: 'lock-closed-outline' },
-  board_updates:               { label: 'Board-Aufgaben', description: 'Bei Aufgaben-Updates', icon: 'grid-outline' },
-  group_activity:              { label: 'Gruppenaktivität', description: 'Aktivität in Gruppen', icon: 'people-outline' },
-  group_member_joined:         { label: 'Neue Mitglieder', description: 'Neue Gruppenmitglieder', icon: 'person-add-outline' },
-  group_role_changed:          { label: 'Rollenänderung', description: 'Bei Rollenänderung', icon: 'swap-horizontal-outline' },
-  group_content_shared:        { label: 'Geteilte Inhalte', description: 'Geteilte Gruppeninhalte', icon: 'share-outline' },
-  group_deleted:               { label: 'Gruppe aufgelöst', description: 'Wenn Gruppe aufgelöst wird', icon: 'trash-outline' },
-  wolke_setup:                 { label: 'Wolke verbunden', description: 'Bei Wolke-Einrichtung', icon: 'cloud-outline' },
+const NOTIFICATION_TYPES: Record<
+  string,
+  { label: string; description: string; icon: keyof typeof Ionicons.glyphMap }
+> = {
+  document_shared: {
+    label: 'Geteilte Dokumente',
+    description: 'Bei geteilten Dokumenten',
+    icon: 'document-text-outline',
+  },
+  document_permission_changed: {
+    label: 'Berechtigungsänderungen',
+    description: 'Bei Berechtigungsänderung',
+    icon: 'shield-outline',
+  },
+  document_access_revoked: {
+    label: 'Zugriff entfernt',
+    description: 'Wenn Zugriff entfernt wird',
+    icon: 'lock-closed-outline',
+  },
+  board_updates: {
+    label: 'Board-Aufgaben',
+    description: 'Bei Aufgaben-Updates',
+    icon: 'grid-outline',
+  },
+  group_activity: {
+    label: 'Gruppenaktivität',
+    description: 'Aktivität in Gruppen',
+    icon: 'people-outline',
+  },
+  group_member_joined: {
+    label: 'Neue Mitglieder',
+    description: 'Neue Gruppenmitglieder',
+    icon: 'person-add-outline',
+  },
+  group_role_changed: {
+    label: 'Rollenänderung',
+    description: 'Bei Rollenänderung',
+    icon: 'swap-horizontal-outline',
+  },
+  group_content_shared: {
+    label: 'Geteilte Inhalte',
+    description: 'Geteilte Gruppeninhalte',
+    icon: 'share-outline',
+  },
+  group_deleted: {
+    label: 'Gruppe aufgelöst',
+    description: 'Wenn Gruppe aufgelöst wird',
+    icon: 'trash-outline',
+  },
+  wolke_setup: {
+    label: 'Wolke verbunden',
+    description: 'Bei Wolke-Einrichtung',
+    icon: 'cloud-outline',
+  },
 };
 
 const GROUPS = [
-  { key: 'documents', title: 'Dokumente', types: ['document_shared', 'document_permission_changed', 'document_access_revoked'] },
+  {
+    key: 'documents',
+    title: 'Dokumente',
+    types: ['document_shared', 'document_permission_changed', 'document_access_revoked'],
+  },
   { key: 'board', title: 'Board', types: ['board_updates'] },
-  { key: 'groups', title: 'Gruppen', types: ['group_activity', 'group_member_joined', 'group_role_changed', 'group_content_shared', 'group_deleted'] },
+  {
+    key: 'groups',
+    title: 'Gruppen',
+    types: [
+      'group_activity',
+      'group_member_joined',
+      'group_role_changed',
+      'group_content_shared',
+      'group_deleted',
+    ],
+  },
   { key: 'system', title: 'System', types: ['wolke_setup'] },
 ];
 
@@ -64,7 +121,9 @@ export default function NotificationSettingsScreen() {
     (async () => {
       try {
         const client = getGlobalApiClient();
-        const res = await client.get('/auth/profile/notification-preferences');
+        const res = await client.get<{ preferences?: Record<string, ChannelPreferences> }>(
+          '/auth/profile/notification-preferences'
+        );
         setPreferences(res.data?.preferences ?? {});
       } catch {
         // fall back to empty — toggles will default to on
@@ -146,12 +205,20 @@ export default function NotificationSettingsScreen() {
         renderItem={({ item }) => (
           <View style={[styles.row, { borderBottomColor: theme.border }]}>
             <View style={styles.labelColumn}>
-              <Ionicons name={item.icon} size={18} color={theme.textSecondary} style={styles.rowIcon} />
+              <Ionicons
+                name={item.icon}
+                size={18}
+                color={theme.textSecondary}
+                style={styles.rowIcon}
+              />
               <View style={styles.labelText}>
                 <Text style={[styles.rowLabel, { color: theme.text }]} numberOfLines={1}>
                   {item.label}
                 </Text>
-                <Text style={[styles.rowDescription, { color: theme.textSecondary }]} numberOfLines={1}>
+                <Text
+                  style={[styles.rowDescription, { color: theme.textSecondary }]}
+                  numberOfLines={1}
+                >
                   {item.description}
                 </Text>
               </View>

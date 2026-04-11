@@ -149,7 +149,7 @@ export function NativeChatSidebar() {
             </Text>
           </View>
         ) : (
-          <FlatList
+          <FlatList<ChatMessage>
             ref={flatListRef}
             data={chatMessages}
             keyExtractor={(item) => item.id}

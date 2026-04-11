@@ -182,8 +182,17 @@ function createDomAdapter(
             body: options?.body,
           })
         );
-        const { status, statusText, headers, body } = JSON.parse(serialized);
-        return new Response(body, { status, statusText, headers });
+        const parsed = JSON.parse(serialized) as {
+          status: number;
+          statusText: string;
+          headers: Record<string, string>;
+          body: BodyInit;
+        };
+        return new Response(parsed.body, {
+          status: parsed.status,
+          statusText: parsed.statusText,
+          headers: parsed.headers,
+        });
       }
       // Fallback: direct fetch (works on web, not in DOM WebView)
       const headers = new Headers(options?.headers);
@@ -349,7 +358,15 @@ function EditorContent({
       if (typeof isTyping === 'boolean') setTyping(isTyping);
     };
     const handleFormatAction = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
+      const detail = (
+        e as CustomEvent<{
+          action: string;
+          style?: string;
+          blockType?: string;
+          props?: Record<string, unknown>;
+          alignment?: string;
+        }>
+      ).detail;
       const ed = editorRef.current as {
         toggleStyles: (s: Record<string, boolean>) => void;
         updateBlock: (block: unknown, update: Record<string, unknown>) => void;
@@ -358,7 +375,7 @@ function EditorContent({
       if (!ed) return;
       try {
         if (detail.action === 'toggleStyle') {
-          ed.toggleStyles({ [detail.style]: true });
+          ed.toggleStyles({ [detail.style ?? '']: true });
         } else if (detail.action === 'setBlockType') {
           const block = ed.getTextCursorPosition()?.block;
           if (block) ed.updateBlock(block, { type: detail.blockType, props: detail.props });

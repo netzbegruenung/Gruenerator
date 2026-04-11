@@ -114,7 +114,7 @@ export async function getAutoProgress(uploadId: string): Promise<AutoProgressRes
     throw new Error(`Failed to get progress: ${response.status}`);
   }
 
-  const data: AutoProgressResponse = await response.json();
+  const data = (await response.json()) as AutoProgressResponse;
   return data;
 }
 
@@ -195,10 +195,15 @@ export async function getManualResult(
     throw new Error(`Failed to get manual result: ${response.status}`);
   }
 
-  const responseData = await response.json();
+  interface ManualResultRaw {
+    status: ManualResultResponse['status'];
+    subtitles?: string | null;
+    data?: string | null;
+  }
+  const responseData = (await response.json()) as ManualResultRaw;
   return {
     status: responseData.status,
-    data: responseData.subtitles || responseData.data || null,
+    data: responseData.subtitles ?? responseData.data ?? null,
   };
 }
 
@@ -244,7 +249,7 @@ export async function exportVideo(params: {
     throw new Error(`Export fehlgeschlagen: ${response.status} - ${errorText}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as { exportToken: string };
   return data.exportToken;
 }
 
@@ -259,7 +264,7 @@ export async function pollExportProgress(exportToken: string): Promise<ExportPro
     throw new Error(`Export-Fortschritt konnte nicht abgerufen werden: ${response.status}`);
   }
 
-  return response.json();
+  return (await response.json()) as ExportProgressResponse;
 }
 
 /**

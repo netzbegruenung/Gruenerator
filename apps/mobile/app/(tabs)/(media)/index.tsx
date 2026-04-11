@@ -30,8 +30,7 @@ export default function MediaDashboard() {
   const hasProjects = projects.length > 0;
 
   const handleNewReel = useCallback(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    router.push('/(tabs)/(media)/reel' as any);
+    router.push('/(tabs)/(media)/reel' as Parameters<typeof router.push>[0]);
   }, []);
 
   const handleEditProject = useCallback((project: Project) => {

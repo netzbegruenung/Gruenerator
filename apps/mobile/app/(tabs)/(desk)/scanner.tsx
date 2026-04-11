@@ -167,13 +167,16 @@ export default function ScannerScreen() {
 
       try {
         const apiClient = getGlobalApiClient();
-        const response = await apiClient.post('/claude_text_adjustment', {
-          originalText: extractedText,
-          modification: TRANSFORM_PROMPTS[presetId],
-          fullText: true,
-        });
+        const response = await apiClient.post<{ result?: string; text?: string }>(
+          '/claude_text_adjustment',
+          {
+            originalText: extractedText,
+            modification: TRANSFORM_PROMPTS[presetId],
+            fullText: true,
+          }
+        );
 
-        const transformed = response.data?.result || response.data?.text || '';
+        const transformed: string = response.data?.result ?? response.data?.text ?? '';
         if (transformed) {
           setTextWithHistory(COMPONENT_NAME, transformed);
           setPhase('result');

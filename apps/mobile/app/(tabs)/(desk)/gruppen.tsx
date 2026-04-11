@@ -48,8 +48,8 @@ export default function GruppenScreen() {
 
     try {
       const apiClient = getGlobalApiClient();
-      const response = await apiClient.get('/auth/groups');
-      setGroups(response.data.groups || []);
+      const response = await apiClient.get<{ groups?: Group[] }>('/auth/groups');
+      setGroups(response.data.groups ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gruppen konnten nicht geladen werden');
     } finally {
