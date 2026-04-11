@@ -1,0 +1,84 @@
+{
+  "timestamp": "2026-03-22T12:22:20.752Z",
+  "dryRun": false,
+  "force": false,
+  "sources": [
+    {
+      "id": "landesverbaende",
+      "name": "Landesverbaende (all states)",
+      "stored": 1,
+      "updated": 0,
+      "skipped": 3306,
+      "fetchErrors": 0,
+      "errors": 0,
+      "duration": 710,
+      "status": "success"
+    },
+    {
+      "id": "gruenblog",
+      "name": "Gruenblog",
+      "stored": 0,
+      "updated": 0,
+      "skipped": 43,
+      "fetchErrors": 0,
+      "errors": 0,
+      "duration": 10,
+      "status": "success"
+    },
+    {
+      "id": "gruene-at",
+      "name": "Gruene Oesterreich (gruene.at)",
+      "stored": 0,
+      "updated": 0,
+      "skipped": 155,
+      "fetchErrors": 0,
+      "errors": 0,
+      "duration": 79,
+      "status": "success"
+    },
+    {
+      "id": "kommunalwiki",
+      "name": "KommunalWiki",
+      "stored": 1,
+      "updated": 0,
+      "skipped": 2318,
+      "fetchErrors": 0,
+      "errors": 0,
+      "duration": 188,
+      "status": "success"
+    },
+    {
+      "id": "boell-stiftung",
+      "name": "Heinrich-Boell-Stiftung",
+      "stored": 0,
+      "updated": 0,
+      "skipped": 341,
+      "fetchErrors": 0,
+      "errors": 0,
+      "duration": 129,
+      "status": "success"
+    },
+    {
+      "id": "bundestag",
+      "name": "Grüne Bundestagsfraktion (gruene-bundestag.de)",
+      "stored": 12,
+      "updated": 0,
+      "skipped": 925,
+      "fetchErrors": 0,
+      "errors": 0,
+      "duration": 139,
+      "status": "success"
+    }
+  ],
+  "totals": {
+    "sources": 6,
+    "succeeded": 6,
+    "failed": 0,
+    "stored": 14,
+    "updated": 0,
+    "skipped": 7088,
+    "fetchErrors": 0,
+    "errors": 0
+  },
+  "totalDuration": 710
+}
