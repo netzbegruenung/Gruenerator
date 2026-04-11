@@ -11,10 +11,24 @@ import { PLATFORM_DISPLAY_NAMES } from './types.js';
 import type { SocialAgentInput } from './types.js';
 import type { Request, Response } from 'express';
 
+interface SocialRequestBody {
+  inhalt?: string;
+  platforms?: string[];
+  zitatgeber?: string | null;
+  useWebSearchTool?: boolean;
+  usePrivacyMode?: boolean;
+  useProMode?: boolean;
+  useUltraMode?: boolean;
+  selectedDocumentIds?: string[];
+  selectedTextIds?: string[];
+  attachments?: unknown[];
+  searchQuery?: string;
+}
+
 const log = createLogger('SocialAgent:processor');
 
 function buildInputFromRequest(req: Request): SocialAgentInput {
-  const body = req.body;
+  const body = req.body as SocialRequestBody;
   return {
     inhalt: body.inhalt || '',
     platforms: body.platforms || [],

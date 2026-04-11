@@ -1,13 +1,14 @@
 import { extractLocaleFromRequest } from '../../../../services/localization/index.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { type AIWorkerPool, type Message } from '../../../../workers/types.js';
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 import { LOCALE_CONTEXT, REQUEST_TYPE_DISPLAY_NAMES } from '../types.js';
 
+import type { RequestWithLocale } from '../../../../services/localization/index.js';
 import type { EnrichedState } from '../../../../utils/types/requestEnrichment.js';
 import type { PRAgentRequest } from '../../PRAgent/types.js';
 import type { ContentExample } from '../../types/promptAssembly.js';
 import type { AntragAgentState } from '../types.js';
-import type { RequestWithLocale } from '../../../../services/localization/index.js';
 
 const log = createLogger('AntragAgent:generate');
 
@@ -96,12 +97,13 @@ WICHTIG: Gib nur den finalen deutschen Text aus, keine Erklärungen oder Komment
       request: `Erstelle ${requestTypeDisplay === 'Antrag' ? 'einen ' + requestTypeDisplay : 'eine ' + requestTypeDisplay} zum Thema:\n\n${request.inhalt}${state.gliederung ? `\n\nGremium/Gliederung: ${state.gliederung}` : ''}`,
     });
 
-    const aiResult = await state.req.app.locals.aiWorkerPool.processRequest(
+    const aiWorkerPool = state.req.app.locals.aiWorkerPool as AIWorkerPool;
+    const aiResult = await aiWorkerPool.processRequest(
       {
         type: 'antrag',
         usePrivacyMode: (request.usePrivacyMode as boolean) || false,
         systemPrompt: promptResult.system,
-        messages: promptResult.messages,
+        messages: promptResult.messages as unknown as Message[],
         options: {
           max_tokens: 3000,
           temperature: 0.5,
@@ -111,7 +113,8 @@ WICHTIG: Gib nur den finalen deutschen Text aus, keine Erklärungen oder Komment
       state.req
     );
 
-    let generatedContent = aiResult.content || aiResult.data?.content || '';
+    const resultData = aiResult.data as Record<string, unknown> | undefined;
+    let generatedContent = aiResult.content || (resultData?.content as string) || '';
 
     // LLMs (especially Magistral) often wrap markdown output in ```markdown fences.
     // Strip them server-side before streaming — the frontend stripWrappingCodeFence

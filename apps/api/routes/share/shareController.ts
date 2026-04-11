@@ -10,14 +10,16 @@ import path from 'path';
 import express, { type Request, type Response, type Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import sharp from 'sharp';
+import { z } from 'zod';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { transferService } from '../../services/transferService.js';
+import { type SharedMediaRow, type ShareResult } from '../../types/media.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
-import type { SharedMediaRow, ShareResult } from '../../types/media.js';
 
 const fsPromises = fs.promises;
 const log = createLogger('share');
@@ -202,8 +204,8 @@ interface ShareResponse {
     shareUrl: string;
     createdAt: Date | string;
     mediaType: 'image' | 'video';
-    hasOriginalImage?: boolean;
-    status?: string;
+    hasOriginalImage?: boolean | undefined;
+    status?: string | undefined;
   };
   error?: string;
   code?: string;
@@ -329,6 +331,52 @@ async function triggerBackgroundRender(
 }
 
 // ============================================================================
+// Zod Schemas
+// ============================================================================
+
+const createImageShareSchema = z.object({
+  imageData: z.string(),
+  title: z.string().optional(),
+  imageType: z.string().optional(),
+  metadata: z.record(z.unknown()).optional(),
+  originalImage: z.string().optional(),
+  status: z.enum(['ready', 'draft']).optional(),
+});
+type CreateImageShareBody = z.infer<typeof createImageShareSchema>;
+
+const createVideoShareSchema = z.object({
+  exportToken: z.string(),
+  title: z.string().optional(),
+  projectId: z.string().optional(),
+});
+type CreateVideoShareBody = z.infer<typeof createVideoShareSchema>;
+
+const createVideoFromProjectSchema = z.object({
+  projectId: z.string(),
+  title: z.string().optional(),
+});
+type CreateVideoFromProjectBody = z.infer<typeof createVideoFromProjectSchema>;
+
+const saveAsTemplateSchema = z.object({
+  title: z.string().optional(),
+  visibility: z.enum(['private', 'unlisted', 'public']).optional(),
+});
+type SaveAsTemplateBody = z.infer<typeof saveAsTemplateSchema>;
+
+const updateImageShareSchema = z.object({
+  imageBase64: z.string(),
+  title: z.string().optional(),
+  metadata: z.record(z.unknown()).optional(),
+  originalImage: z.string().optional(),
+});
+type UpdateImageShareBody = z.infer<typeof updateImageShareSchema>;
+
+const pushToPhoneSchema = z.object({
+  shareToken: z.string(),
+});
+type PushToPhoneBody = z.infer<typeof pushToPhoneSchema>;
+
+// ============================================================================
 // Router Setup
 // ============================================================================
 
@@ -345,17 +393,11 @@ router.post(
   '/image',
   shareWriteLimiter,
   requireAuth,
-  async (req: ImageShareRequest, res: Response<ShareResponse>) => {
+  validateBody(createImageShareSchema),
+  async (req: TypedRequest<CreateImageShareBody>, res: Response<ShareResponse>) => {
     try {
       const userId = req.user!.id;
       const { imageData, title, imageType, metadata, originalImage, status } = req.body;
-
-      if (!imageData) {
-        return res.status(400).json({
-          success: false,
-          error: 'Bilddaten werden benötigt',
-        });
-      }
 
       const service = await getSharedMediaService();
       const share = await service.createImageShare(userId, {
@@ -444,89 +486,81 @@ router.put(
 // VIDEO SHARE ROUTES
 // ============================================================================
 
-router.post('/video', requireAuth, async (req: VideoShareRequest, res: Response<ShareResponse>) => {
-  try {
-    const userId = req.user!.id;
-    const { exportToken, title, projectId } = req.body;
-
-    if (!exportToken) {
-      return res.status(400).json({
-        success: false,
-        error: 'Export-Token wird benötigt',
-      });
-    }
-
-    const exportDataString = (await redisClient.get(`export:${exportToken}`)) as string | null;
-    if (!exportDataString) {
-      return res.status(404).json({
-        success: false,
-        error: 'Export nicht gefunden oder abgelaufen',
-      });
-    }
-
-    const exportData: ExportData = JSON.parse(exportDataString);
-    if (exportData.status !== 'complete') {
-      return res.status(400).json({
-        success: false,
-        error: 'Export noch nicht abgeschlossen',
-      });
-    }
-
-    const { outputPath, duration } = exportData;
-
+router.post(
+  '/video',
+  requireAuth,
+  validateBody(createVideoShareSchema),
+  async (req: TypedRequest<CreateVideoShareBody>, res: Response<ShareResponse>) => {
     try {
-      await fsPromises.access(outputPath);
-    } catch {
-      return res.status(404).json({
+      const userId = req.user!.id;
+      const { exportToken, title, projectId } = req.body;
+
+      const exportDataString = (await redisClient.get(`export:${exportToken}`)) as string | null;
+      if (!exportDataString) {
+        return res.status(404).json({
+          success: false,
+          error: 'Export nicht gefunden oder abgelaufen',
+        });
+      }
+
+      const exportData: ExportData = JSON.parse(exportDataString);
+      if (exportData.status !== 'complete') {
+        return res.status(400).json({
+          success: false,
+          error: 'Export noch nicht abgeschlossen',
+        });
+      }
+
+      const { outputPath, duration } = exportData;
+
+      try {
+        await fsPromises.access(outputPath);
+      } catch {
+        return res.status(404).json({
+          success: false,
+          error: 'Export-Datei nicht gefunden',
+        });
+      }
+
+      const service = await getSharedMediaService();
+      const share = await service.createVideoShare(userId, {
+        videoPath: outputPath,
+        title: title || 'Geteiltes Video',
+        thumbnailPath: null,
+        duration: duration || null,
+        projectId: projectId || null,
+      });
+
+      log.info(`Video share created: ${share.shareToken} by user ${userId}`);
+
+      return res.json({
+        success: true,
+        share: {
+          shareToken: share.shareToken,
+          shareUrl: share.shareUrl,
+          createdAt: share.createdAt,
+          mediaType: 'video',
+          status: 'ready',
+        },
+      });
+    } catch (error) {
+      log.error('Failed to create video share:', error);
+      return res.status(500).json({
         success: false,
-        error: 'Export-Datei nicht gefunden',
+        error: 'Video konnte nicht geteilt werden',
       });
     }
-
-    const service = await getSharedMediaService();
-    const share = await service.createVideoShare(userId, {
-      videoPath: outputPath,
-      title: title || 'Geteiltes Video',
-      thumbnailPath: null,
-      duration: duration || null,
-      projectId: projectId || null,
-    });
-
-    log.info(`Video share created: ${share.shareToken} by user ${userId}`);
-
-    return res.json({
-      success: true,
-      share: {
-        shareToken: share.shareToken,
-        shareUrl: share.shareUrl,
-        createdAt: share.createdAt,
-        mediaType: 'video',
-        status: 'ready',
-      },
-    });
-  } catch (error) {
-    log.error('Failed to create video share:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Video konnte nicht geteilt werden',
-    });
   }
-});
+);
 
 router.post(
   '/video/from-project',
   requireAuth,
-  async (req: VideoFromProjectRequest, res: Response<ShareResponse>) => {
+  validateBody(createVideoFromProjectSchema),
+  async (req: TypedRequest<CreateVideoFromProjectBody>, res: Response<ShareResponse>) => {
     try {
       const userId = req.user!.id;
       const { projectId, title } = req.body;
-
-      if (!projectId) {
-        return res.status(400).json({
-          success: false,
-          error: 'Projekt-ID wird benötigt',
-        });
-      }
 
       const projService = await getProjectService();
       let project: Project;
@@ -798,7 +832,7 @@ router.get(
 
       await service.recordView(shareToken);
 
-      const shareObj: any = {
+      const shareObj: NonNullable<ShareInfoResponse['share']> = {
         mediaType: share.media_type,
         title: share.title,
         thumbnailUrl: share.thumbnail_path ? `/api/share/${shareToken}/thumbnail` : null,
@@ -806,8 +840,8 @@ router.get(
         viewCount: share.view_count,
         status: share.status || 'ready',
         createdAt: share.created_at,
+        ...(share.sharer_name != null ? { sharerName: share.sharer_name } : {}),
       };
-      if (share.sharer_name != null) shareObj.sharerName = share.sharer_name;
       const response: ShareInfoResponse = {
         success: true,
         share: shareObj,
@@ -941,23 +975,15 @@ router.get(
 router.put(
   '/:shareToken/image',
   requireAuth,
-  async (req: AuthenticatedRequest<ShareTokenParams>, res: Response<ShareResponse>) => {
+  validateBody(updateImageShareSchema),
+  async (
+    req: TypedRequest<UpdateImageShareBody, ShareTokenParams>,
+    res: Response<ShareResponse>
+  ) => {
     try {
       const { shareToken } = req.params;
       const userId = req.user!.id;
-      const { imageBase64, title, metadata, originalImage } = req.body as {
-        imageBase64: string;
-        title?: string;
-        metadata?: Record<string, unknown>;
-        originalImage?: string;
-      };
-
-      if (!imageBase64) {
-        return res.status(400).json({
-          success: false,
-          error: 'Bilddaten fehlen',
-        });
-      }
+      const { imageBase64, title, metadata, originalImage } = req.body;
 
       const service = await getSharedMediaService();
 
@@ -983,23 +1009,24 @@ router.put(
         });
       }
 
-      const updateParams: any = {
+      const updateParams: UpdateImageShareParams = {
         imageBase64,
         metadata: metadata || {},
+        ...(title != null ? { title } : {}),
+        ...(originalImage != null ? { originalImage } : {}),
       };
-      if (title != null) updateParams.title = title;
-      if (originalImage != null) updateParams.originalImage = originalImage;
       const result = await service.updateImageShare(userId, shareToken, updateParams);
 
       log.info(`Image share updated: ${shareToken} by user ${userId}`);
 
-      const shareResp: any = {
+      const shareResp: ShareResult = {
+        id: result.id,
         shareToken: result.shareToken,
         shareUrl: result.shareUrl,
         createdAt: result.createdAt,
         mediaType: 'image',
+        ...(result.hasOriginalImage != null ? { hasOriginalImage: result.hasOriginalImage } : {}),
       };
-      if (result.hasOriginalImage != null) shareResp.hasOriginalImage = result.hasOriginalImage;
       return res.json({
         success: true,
         share: shareResp,
@@ -1179,7 +1206,15 @@ router.get(
         await service.recordDownload(shareToken as string, null, ipAddress, share.id);
 
         try {
-          const result = await transferService.proxyDownloadWithRecord(share as any);
+          const transferParams = {
+            user_id: share.user_id,
+            ...(share.wolke_share_link_id != null
+              ? { wolke_share_link_id: share.wolke_share_link_id }
+              : {}),
+            ...(share.wolke_file_path != null ? { wolke_file_path: share.wolke_file_path } : {}),
+            ...(share.file_name != null ? { file_name: share.file_name } : {}),
+          };
+          const result = await transferService.proxyDownloadWithRecord(transferParams);
 
           res.setHeader(
             'Content-Type',
@@ -1347,19 +1382,13 @@ router.delete(
 router.post(
   '/:shareToken/save-as-template',
   requireAuth,
-  async (req: Request<ShareTokenParams> & AuthenticatedRequest, res: Response) => {
+  validateBody(saveAsTemplateSchema),
+  async (req: TypedRequest<SaveAsTemplateBody, ShareTokenParams>, res: Response) => {
     try {
       const userId = req.user!.id;
       const userName = req.user?.display_name || req.user?.email || 'Anonymous';
       const { shareToken } = req.params;
       const { title, visibility = 'private' } = req.body;
-
-      if (!['private', 'unlisted', 'public'].includes(visibility)) {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid visibility value',
-        });
-      }
 
       const service = await getSharedMediaService();
 
@@ -1475,42 +1504,42 @@ router.get('/templates', requireAuth, async (req: AuthenticatedRequest, res: Res
  * GET /templates/:shareToken
  * Get template details (for clone preparation)
  */
-router.get(
-  '/templates/:shareToken',
-  (async (req: Request<ShareTokenParams> & { user?: { id: string } }, res: Response) => {
-    try {
-      const userId = req.user?.id;
-      const { shareToken } = req.params;
+router.get('/templates/:shareToken', (async (
+  req: Request<ShareTokenParams> & { user?: { id: string } },
+  res: Response
+) => {
+  try {
+    const userId = req.user?.id;
+    const { shareToken } = req.params;
 
-      const service = await getSharedMediaService();
-      const template = await service.getTemplateByToken(shareToken, userId);
+    const service = await getSharedMediaService();
+    const template = await service.getTemplateByToken(shareToken, userId);
 
-      res.json({
-        success: true,
-        template,
+    res.json({
+      success: true,
+      template,
+    });
+  } catch (error) {
+    log.error('Failed to get template by token:', error);
+    const errorMessage = (error as Error).message;
+    if (errorMessage.includes('not found')) {
+      res.status(404).json({
+        success: false,
+        error: 'Template not found',
       });
-    } catch (error) {
-      log.error('Failed to get template by token:', error);
-      const errorMessage = (error as Error).message;
-      if (errorMessage.includes('not found')) {
-        res.status(404).json({
-          success: false,
-          error: 'Template not found',
-        });
-      } else if (errorMessage.includes('not accessible') || errorMessage.includes('private')) {
-        res.status(403).json({
-          success: false,
-          error: 'Template not accessible',
-        });
-      } else {
-        res.status(500).json({
-          success: false,
-          error: 'Failed to retrieve template',
-        });
-      }
+    } else if (errorMessage.includes('not accessible') || errorMessage.includes('private')) {
+      res.status(403).json({
+        success: false,
+        error: 'Template not accessible',
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to retrieve template',
+      });
     }
-  }) as any
-);
+  }
+}) as unknown as express.RequestHandler);
 
 // ============================================================================
 // PUSH TO PHONE
@@ -1537,49 +1566,50 @@ router.get('/devices', requireAuth, async (req: AuthenticatedRequest, res: Respo
  * POST /share/push-to-phone
  * Send a shared media item to the user's mobile device(s) via push notification
  */
-router.post('/push-to-phone', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const userId = req.user!.id;
-    const { shareToken } = req.body as { shareToken: string };
+router.post(
+  '/push-to-phone',
+  requireAuth,
+  validateBody(pushToPhoneSchema),
+  async (req: TypedRequest<PushToPhoneBody>, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { shareToken } = req.body;
 
-    if (!shareToken) {
-      return res.status(400).json({ success: false, error: 'shareToken is required' });
+      // Verify the user owns this share
+      const service = await getSharedMediaService();
+      const share = await service.getShareByToken(shareToken);
+
+      if (!share) {
+        return res.status(404).json({ success: false, error: 'Share not found' });
+      }
+
+      if (share.user_id !== userId) {
+        return res.status(403).json({ success: false, error: 'Not authorized' });
+      }
+
+      const mediaType = share.media_type || 'image';
+      const title = mediaType === 'video' ? 'Neues Video empfangen' : 'Neues Bild empfangen';
+      const body = share.title || 'Von Grünerator gesendet';
+
+      const { sendPushToUser } = await import('../../services/pushNotificationService.js');
+      const pushedToDevices = await sendPushToUser(userId, {
+        title,
+        body,
+        data: {
+          type: 'pushed_content',
+          shareToken,
+          mediaType,
+        },
+      });
+
+      log.info(`Push-to-phone: sent to ${pushedToDevices} device(s)`, { userId, shareToken });
+
+      return res.json({ success: true, pushedToDevices });
+    } catch (error) {
+      log.error('Failed to push to phone:', error);
+      return res.status(500).json({ success: false, error: 'Failed to send to phone' });
     }
-
-    // Verify the user owns this share
-    const service = await getSharedMediaService();
-    const share = await service.getShareByToken(shareToken);
-
-    if (!share) {
-      return res.status(404).json({ success: false, error: 'Share not found' });
-    }
-
-    if (share.user_id !== userId) {
-      return res.status(403).json({ success: false, error: 'Not authorized' });
-    }
-
-    const mediaType = share.media_type || 'image';
-    const title = mediaType === 'video' ? 'Neues Video empfangen' : 'Neues Bild empfangen';
-    const body = share.title || 'Von Grünerator gesendet';
-
-    const { sendPushToUser } = await import('../../services/pushNotificationService.js');
-    const pushedToDevices = await sendPushToUser(userId, {
-      title,
-      body,
-      data: {
-        type: 'pushed_content',
-        shareToken,
-        mediaType,
-      },
-    });
-
-    log.info(`Push-to-phone: sent to ${pushedToDevices} device(s)`, { userId, shareToken });
-
-    return res.json({ success: true, pushedToDevices });
-  } catch (error) {
-    log.error('Failed to push to phone:', error);
-    return res.status(500).json({ success: false, error: 'Failed to send to phone' });
   }
-});
+);
 
 export default router;

@@ -59,22 +59,25 @@ function routeAfterExtraction(state: FlyerToSiteState): string {
   return 'analyze';
 }
 
+type FlyerState = typeof FlyerToSiteAnnotation.State;
+
 function createFlyerToSiteGraph() {
-  /* eslint-disable @typescript-eslint/no-explicit-any -- LangGraph node type coercions */
   const graph = new StateGraph(FlyerToSiteAnnotation)
-    .addNode('extract', extractNode as any)
-    .addNode('analyze', analyzeNode as any)
-    .addNode('generate', generateNode as any)
-    .addNode('selectImages', selectImagesNode as any)
+    .addNode('extract', extractNode as (state: FlyerState) => Promise<Partial<FlyerState>>)
+    .addNode('analyze', analyzeNode as (state: FlyerState) => Promise<Partial<FlyerState>>)
+    .addNode('generate', generateNode as (state: FlyerState) => Promise<Partial<FlyerState>>)
+    .addNode(
+      'selectImages',
+      selectImagesNode as (state: FlyerState) => Promise<Partial<FlyerState>>
+    )
     .addEdge('__start__', 'extract')
-    .addConditionalEdges('extract', routeAfterExtraction as any, {
+    .addConditionalEdges('extract', routeAfterExtraction as (state: FlyerState) => string, {
       analyze: 'analyze',
       [END]: END,
     })
     .addEdge('analyze', 'generate')
     .addEdge('generate', 'selectImages')
     .addEdge('selectImages', '__end__');
-  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   return graph.compile();
 }

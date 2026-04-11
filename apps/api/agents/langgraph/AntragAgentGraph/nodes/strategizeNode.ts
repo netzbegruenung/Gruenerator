@@ -1,13 +1,14 @@
 import { extractLocaleFromRequest } from '../../../../services/localization/index.js';
+import { getAIWorkerPool } from '../../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 import { LOCALE_CONTEXT, REQUEST_TYPE_DISPLAY_NAMES } from '../types.js';
 
+import type { RequestWithLocale } from '../../../../services/localization/index.js';
 import type { EnrichedState } from '../../../../utils/types/requestEnrichment.js';
 import type { PRAgentRequest } from '../../PRAgent/types.js';
 import type { ContentExample } from '../../types/promptAssembly.js';
 import type { AntragAgentState } from '../types.js';
-import type { RequestWithLocale } from '../../../../services/localization/index.js';
 
 const log = createLogger('AntragAgent:strategize');
 
@@ -74,7 +75,7 @@ Schreibe überwiegend als Fließtext. Nutze Markdown sparsam — nur einzelne **
         'Nutze Markdown sparsam: **fett** nur für Schlüsselbegriffe. Keine Überschriften, keine nummerierten Listen.',
     });
 
-    const aiResult = await state.req.app.locals.aiWorkerPool.processRequest(
+    const aiResult = await getAIWorkerPool(state.req).processRequest(
       {
         type: 'antrag',
         usePrivacyMode: request.usePrivacyMode || false,
@@ -89,7 +90,7 @@ Schreibe überwiegend als Fließtext. Nutze Markdown sparsam — nur einzelne **
       state.req
     );
 
-    const strategy = aiResult.content || aiResult.data?.content || '';
+    const strategy = aiResult.content || '';
 
     const strategyTimeMs = Date.now() - startTime;
     log.debug(`[strategizeNode] Strategy generated in ${strategyTimeMs}ms`);

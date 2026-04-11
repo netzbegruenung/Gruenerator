@@ -25,6 +25,10 @@ interface BskyPost {
   repostCount?: number;
 }
 
+interface BskyFeedItem {
+  post: BskyPost;
+}
+
 function postToUrl(uri: string, handle: string): string {
   const rkey = uri.split('/').pop();
   return `https://bsky.app/profile/${handle}/post/${rkey}`;
@@ -36,8 +40,7 @@ async function fetchAccountPosts(handle: string, limit: number): Promise<BskyPos
       params: { actor: handle, limit },
       timeout: 10000,
     });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return
-    return (response.data?.feed || []).map((item: any) => item.post);
+    return ((response.data?.feed as BskyFeedItem[] | undefined) || []).map((item) => item.post);
   } catch (error) {
     log.warn(`Bluesky fetch failed for @${handle}: ${error}`);
     return [];

@@ -341,7 +341,8 @@ export class KeycloakApiClient {
       const response = await this.axiosClient.post('/users', userRequest);
 
       // Get the created user ID from the Location header
-      const locationHeader = response.headers.location;
+      const locationHeader: string | null =
+        typeof response.headers['location'] === 'string' ? response.headers['location'] : null;
       const userId = locationHeader ? locationHeader.split('/').pop() : null;
 
       if (userId) {

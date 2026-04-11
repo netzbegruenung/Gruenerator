@@ -3,6 +3,9 @@
  * Handles document status updates and embedding generation/storage
  */
 
+import { type Chunk, type ChunkingOptions } from '../document-services/TextChunker/types.js';
+import { type MistralEmbeddingService } from '../mistral/MistralEmbeddingService/MistralEmbeddingService.js';
+
 import type { EmbeddingGenerationResult, ProcessingMetadata } from './types.js';
 
 /**
@@ -69,16 +72,19 @@ export async function generateAndStoreEmbeddings(
   documentId: string,
   text: string,
   metadata: ProcessingMetadata,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  smartChunkDocument: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  mistralEmbeddingService: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  qdrant: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  postgres: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  vectorConfig: any
+  smartChunkDocument: (
+    text: string,
+    options?: ChunkingOptions & Record<string, unknown>
+  ) => Promise<Chunk[]>,
+  mistralEmbeddingService: MistralEmbeddingService,
+  qdrant: {
+    upsert(
+      collection: string,
+      points: { id: string; vector: number[]; payload: Record<string, unknown> }[]
+    ): Promise<unknown>;
+  },
+  postgres: { query(sql: string, params: unknown[]): Promise<unknown> },
+  _vectorConfig: unknown
 ): Promise<EmbeddingGenerationResult> {
   try {
     console.log(`[OcrService] Generating embeddings for document ${documentId}...`);
@@ -98,10 +104,9 @@ export async function generateAndStoreEmbeddings(
     console.log(`[OcrService] Generated ${chunks.length} chunks from document`);
 
     // Step 2: Filter out low-quality chunks
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const qualityChunks = chunks.filter((chunk: any) => {
-      const text = chunk.text || chunk;
-      return text.length >= 50 && /[a-zA-Z]/.test(text);
+    const qualityChunks = chunks.filter((chunk: Chunk) => {
+      const chunkText = chunk.text;
+      return chunkText.length >= 50 && /[a-zA-Z]/.test(chunkText);
     });
 
     console.log(`[OcrService] ${qualityChunks.length} high-quality chunks after filtering`);
@@ -112,12 +117,7 @@ export async function generateAndStoreEmbeddings(
     }
 
     // Step 3: Generate embeddings in batches
-    const chunkTexts: string[] = qualityChunks.map((chunk: unknown) => {
-      if (typeof chunk === 'object' && chunk !== null && 'text' in chunk) {
-        return String((chunk as { text: string }).text);
-      }
-      return String(chunk);
-    });
+    const chunkTexts: string[] = qualityChunks.map((chunk: Chunk) => chunk.text);
     const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
       chunkTexts,
       'search_document'
@@ -128,7 +128,7 @@ export async function generateAndStoreEmbeddings(
     // Step 4: Prepare points for Qdrant
     const points = embeddings.map((embedding: number[], index: number) => {
       const chunk = qualityChunks[index];
-      const chunkText = chunk.text || chunk;
+      const chunkText = chunk.text;
 
       return {
         id: `${documentId}_chunk_${index}`,
@@ -149,7 +149,7 @@ export async function generateAndStoreEmbeddings(
     });
 
     // Step 5: Store vectors in Qdrant
-    const collectionName = vectorConfig.documentCollection || 'user_documents';
+    const collectionName = 'user_documents';
     await qdrant.upsert(collectionName, points);
 
     console.log(

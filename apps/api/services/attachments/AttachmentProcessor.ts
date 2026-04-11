@@ -208,7 +208,11 @@ Du hast Zugang zu beigefügten Dokumenten und Bildern. Nutze diese als Kontext u
     return (
       Array.isArray(attachments) &&
       attachments.length > 0 &&
-      attachments.some((att) => att && att.data && att.data.trim().length > 0)
+      attachments.some((att) => {
+        if (!att || typeof att !== 'object') return false;
+        const record = att as Record<string, unknown>;
+        return typeof record['data'] === 'string' && record['data'].trim().length > 0;
+      })
     );
   }
 

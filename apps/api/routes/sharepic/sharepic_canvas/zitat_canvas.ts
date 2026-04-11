@@ -9,7 +9,7 @@ import {
   type SKRSContext2D as CanvasRenderingContext2D,
   type Image,
 } from '@napi-rs/canvas';
-import { Router, type Request, type Response } from 'express';
+import { Router, type Request, type RequestHandler, type Response } from 'express';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -141,52 +141,51 @@ async function addTextToImage(
   }
 }
 
-router.post(
-  '/',
-  upload.single('image'),
-  (async (req: MulterRequest, res: Response): Promise<void> => {
-    let outputImagePath: string | undefined;
-    try {
-      const { quote, name, fontSize: fontSizeParam } = req.body as ZitatRequestBody;
+router.post('/', upload.single('image'), (async (
+  req: MulterRequest,
+  res: Response
+): Promise<void> => {
+  let outputImagePath: string | undefined;
+  try {
+    const { quote, name, fontSize: fontSizeParam } = req.body as ZitatRequestBody;
 
-      if (!quote || typeof quote !== 'string') {
-        throw new Error('Zitat ist erforderlich');
-      }
-      if (!name || typeof name !== 'string') {
-        throw new Error('Name ist erforderlich');
-      }
-      if (!req.file) {
-        throw new Error('Bild ist erforderlich');
-      }
-
-      const fontSize = Math.max(45, Math.min(80, parseInt(fontSizeParam || '60', 10) || 60));
-
-      const imagePath = req.file.path;
-      outputImagePath = path.join('uploads', `output-${uuidv4()}.png`);
-
-      await addTextToImage(imagePath, outputImagePath, quote, name, fontSize);
-
-      const imageBuffer = fs.readFileSync(outputImagePath);
-      const base64Image = bufferToBase64(imageBuffer);
-
-      res.json({ image: base64Image });
-    } catch (err) {
-      const error = err as Error;
-      log.error('Fehler bei der Anfrage:', error);
-      res.status(500).json({ error: 'Fehler beim Erstellen des Bildes' });
-    } finally {
-      if (req.file) {
-        fs.unlink(req.file.path, (err) => {
-          if (err) log.error('Fehler beim Löschen der temporären Upload-Datei:', err);
-        });
-      }
-      if (outputImagePath) {
-        fs.unlink(outputImagePath, (err) => {
-          if (err) log.error('Fehler beim Löschen der temporären Output-Datei:', err);
-        });
-      }
+    if (!quote || typeof quote !== 'string') {
+      throw new Error('Zitat ist erforderlich');
     }
-  }) as any
-);
+    if (!name || typeof name !== 'string') {
+      throw new Error('Name ist erforderlich');
+    }
+    if (!req.file) {
+      throw new Error('Bild ist erforderlich');
+    }
+
+    const fontSize = Math.max(45, Math.min(80, parseInt(fontSizeParam || '60', 10) || 60));
+
+    const imagePath = req.file.path;
+    outputImagePath = path.join('uploads', `output-${uuidv4()}.png`);
+
+    await addTextToImage(imagePath, outputImagePath, quote, name, fontSize);
+
+    const imageBuffer = fs.readFileSync(outputImagePath);
+    const base64Image = bufferToBase64(imageBuffer);
+
+    res.json({ image: base64Image });
+  } catch (err) {
+    const error = err as Error;
+    log.error('Fehler bei der Anfrage:', error);
+    res.status(500).json({ error: 'Fehler beim Erstellen des Bildes' });
+  } finally {
+    if (req.file) {
+      fs.unlink(req.file.path, (err) => {
+        if (err) log.error('Fehler beim Löschen der temporären Upload-Datei:', err);
+      });
+    }
+    if (outputImagePath) {
+      fs.unlink(outputImagePath, (err) => {
+        if (err) log.error('Fehler beim Löschen der temporären Output-Datei:', err);
+      });
+    }
+  }
+}) as RequestHandler);
 
 export default router;

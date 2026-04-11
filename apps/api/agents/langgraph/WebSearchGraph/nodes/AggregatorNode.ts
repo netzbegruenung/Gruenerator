@@ -5,6 +5,13 @@
 
 import type { WebSearchState, SearchResult, CategorizedSources } from '../types.js';
 
+interface SourceEntry extends SearchResult {
+  categories: string[];
+  questions: string[];
+  source_type: string;
+  content_snippets: string | null;
+}
+
 /**
  * Aggregator Node: Deduplicate and rank results from all sources
  */
@@ -12,9 +19,8 @@ export async function aggregatorNode(state: WebSearchState): Promise<Partial<Web
   console.log('[WebSearchGraph] Aggregating results from all sources');
 
   try {
-    const allSources: SearchResult[] = [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sourceMap = new Map<string, any>(); // URL -> source object
+    const allSources: SourceEntry[] = [];
+    const sourceMap = new Map<string, SourceEntry>(); // URL -> source object
 
     // Process web search results
     if (state.webResults) {
@@ -22,23 +28,26 @@ export async function aggregatorNode(state: WebSearchState): Promise<Partial<Web
         if (searchResult.success && searchResult.results) {
           searchResult.results.forEach((source) => {
             if (!sourceMap.has(source.url)) {
-              sourceMap.set(source.url, {
+              const entry: SourceEntry = {
                 ...source,
                 categories: [`Web Search ${searchIndex + 1}`],
                 questions: [searchResult.query],
                 source_type: 'web',
                 content_snippets: source.content || source.snippet || null,
-              });
-              allSources.push(sourceMap.get(source.url));
+              };
+              sourceMap.set(source.url, entry);
+              allSources.push(entry);
             } else {
               // Add category and query to existing source
               const existingSource = sourceMap.get(source.url);
-              const newCategory = `Web Search ${searchIndex + 1}`;
-              if (!existingSource.categories.includes(newCategory)) {
-                existingSource.categories.push(newCategory);
-              }
-              if (!existingSource.questions.includes(searchResult.query)) {
-                existingSource.questions.push(searchResult.query);
+              if (existingSource) {
+                const newCategory = `Web Search ${searchIndex + 1}`;
+                if (!existingSource.categories.includes(newCategory)) {
+                  existingSource.categories.push(newCategory);
+                }
+                if (!existingSource.questions.includes(searchResult.query)) {
+                  existingSource.questions.push(searchResult.query);
+                }
               }
             }
           });
@@ -52,8 +61,7 @@ export async function aggregatorNode(state: WebSearchState): Promise<Partial<Web
     if (state.grundsatzResults?.success && state.grundsatzResults.results?.length > 0) {
       categorizedSources['official'] = state.grundsatzResults.results.map((result) => ({
         ...result,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        url: `#grundsatz-${(result as any).document_id}`,
+        url: `#grundsatz-${String((result as Record<string, unknown>).document_id ?? '')}`,
         title: result.title,
         content: result.content || '',
         snippet: result.snippet || '',
@@ -62,16 +70,14 @@ export async function aggregatorNode(state: WebSearchState): Promise<Partial<Web
 
     // Categorize external sources
     allSources.forEach((source) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const categories = (source as any).categories || [];
+      const categories = source.categories;
       categories.forEach((category: string) => {
         if (!categorizedSources[category]) {
           categorizedSources[category] = [];
         }
         categorizedSources[category].push({
           ...source,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          content: (source as any).content_snippets || source.content || '',
+          content: source.content_snippets ?? source.content ?? '',
         });
       });
     });

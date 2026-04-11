@@ -24,11 +24,33 @@ export interface WPCategory {
   count: number;
 }
 
+interface WPSiteInfo {
+  name: string;
+  description: string;
+  namespaces: string[];
+}
+
+interface WPUserResponse {
+  username: string;
+  name: string;
+  capabilities: Record<string, boolean>;
+}
+
+interface WPPostResponse {
+  id: number;
+  link: string;
+  status: string;
+}
+
+interface WPErrorResponse {
+  message?: string;
+}
+
 export interface CreatePostOptions {
-  status?: 'draft' | 'publish' | 'pending' | undefined;
-  excerpt?: string | undefined;
-  categories?: number[] | undefined;
-  tags?: number[] | undefined;
+  status?: 'draft' | 'publish' | 'pending';
+  excerpt?: string;
+  categories?: number[];
+  tags?: number[];
 }
 
 export interface PostResult {
@@ -142,9 +164,9 @@ class WordPressApiClient {
     let siteName: string | null = null;
     let siteDescription: string | null = null;
     try {
-      const siteInfo = await this.client.get('/', { timeout: 10000 });
+      const siteInfo = await this.client.get<WPSiteInfo>('/', { timeout: 10000 });
       const data = siteInfo.data;
-      if (!data?.namespaces?.includes?.('wp/v2')) {
+      if (!data.namespaces?.includes('wp/v2')) {
         return fail(
           'Diese Seite scheint keine WordPress REST-API zu haben. Ist es eine WordPress-Seite?',
           'not_wordpress'
@@ -170,14 +192,12 @@ class WordPressApiClient {
     let username: string | null = null;
     let displayName: string | null = null;
     try {
-      const response = await this.client.get('/wp/v2/users/me', {
+      const response = await this.client.get<WPUserResponse>('/wp/v2/users/me', {
         params: { context: 'edit' },
       });
 
       const user = response.data;
-      capabilities = Object.keys(user.capabilities || {}).filter(
-        (key: string) => user.capabilities[key]
-      );
+      capabilities = Object.keys(user.capabilities || {}).filter((key) => user.capabilities[key]);
       username = user.username || null;
       displayName = user.name || null;
     } catch (error) {
@@ -208,7 +228,7 @@ class WordPressApiClient {
 
     // Phase 4: Write probe — create and immediately delete a draft to verify actual write access
     try {
-      const probeResponse = await this.client.post('/wp/v2/posts', {
+      const probeResponse = await this.client.post<WPPostResponse>('/wp/v2/posts', {
         title: '[Grünerator Verbindungstest]',
         content: '',
         status: 'draft',
@@ -232,9 +252,9 @@ class WordPressApiClient {
           'write_denied'
         );
       }
+      const errData = err.response?.data as WPErrorResponse | null;
       return fail(
-        'Schreibtest fehlgeschlagen: ' +
-          ((err.response?.data as { message?: string })?.message || err.message),
+        'Schreibtest fehlgeschlagen: ' + (errData?.message || err.message),
         'write_probe_failed'
       );
     }
@@ -265,7 +285,7 @@ class WordPressApiClient {
     options: CreatePostOptions = {}
   ): Promise<PostResult> {
     try {
-      const response = await this.client.post('/wp/v2/posts', {
+      const response = await this.client.post<WPPostResponse>('/wp/v2/posts', {
         title,
         content,
         status: options.status || 'draft',
@@ -293,7 +313,7 @@ class WordPressApiClient {
     options: CreatePostOptions = {}
   ): Promise<PostResult> {
     try {
-      const response = await this.client.put(`/wp/v2/posts/${postId}`, {
+      const response = await this.client.put<WPPostResponse>(`/wp/v2/posts/${postId}`, {
         title,
         content,
         status: options.status,
@@ -372,7 +392,8 @@ class WordPressApiClient {
         if (status >= 500) {
           return new Error('WordPress-Server-Fehler');
         }
-        return new Error((error.response.data as { message?: string })?.message || error.message);
+        const errData = error.response.data as WPErrorResponse | null;
+        return new Error(errData?.message || error.message);
       }
       return new Error('WordPress-Seite nicht erreichbar');
     }

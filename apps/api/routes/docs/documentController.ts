@@ -6,6 +6,7 @@ import {
   parseDocumentResponse,
   createDocumentWithContent,
 } from '../../services/docs/DocGenerationService.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { DOCS_ONLY_SUBTYPES, DOCS_SUBTYPES } from './constants.js';
@@ -75,7 +76,7 @@ router.post('/generate', async (req: Request, res: Response) => {
 
     log.info(`Generating document for user ${userId}: "${description.trim().slice(0, 80)}"`);
 
-    const aiResult = await req.app.locals.aiWorkerPool.processRequest(
+    const aiResult = await getAIWorkerPool(req).processRequest(
       {
         type: 'doc_generation',
         systemPrompt: DOCUMENT_GENERATION_PROMPT,

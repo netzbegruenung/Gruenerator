@@ -11,13 +11,27 @@ import { REQUEST_TYPE_DISPLAY_NAMES } from './types.js';
 import type { AntragAgentInput, AntragRequestType } from './types.js';
 import type { Request, Response } from 'express';
 
+interface AntragRequestBody {
+  inhalt?: string;
+  requestType?: AntragRequestType;
+  gliederung?: string;
+  useWebSearchTool?: boolean;
+  usePrivacyMode?: boolean;
+  useProMode?: boolean;
+  useUltraMode?: boolean;
+  selectedDocumentIds?: string[];
+  selectedTextIds?: string[];
+  attachments?: unknown[];
+  searchQuery?: string;
+}
+
 const log = createLogger('AntragAgent:processor');
 
 function buildInputFromRequest(req: Request): AntragAgentInput {
-  const body = req.body;
+  const body = req.body as AntragRequestBody;
   return {
     inhalt: body.inhalt || '',
-    requestType: (body.requestType as AntragRequestType) || 'antrag',
+    requestType: body.requestType || 'antrag',
     gliederung: body.gliederung || '',
     features: {
       useWebSearchTool: body.useWebSearchTool || false,

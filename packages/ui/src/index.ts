@@ -13,6 +13,7 @@ export { useAutoAdvance } from './hooks/use-auto-advance';
 export { DotIndicators } from './components/dot-indicators';
 export { DocumentCard, type DocumentCardProps } from './components/document-card';
 export { TweetCard, TweetXIcon, type TweetCardProps } from './components/tweet-card';
+export { TypingAnimation } from './components/typing-animation';
 
 export {
   Accordion,

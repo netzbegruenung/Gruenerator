@@ -7,6 +7,7 @@ import { validateAndInjectCitations } from '../../../../services/search/index.js
 import { extractKeyParagraphs } from '../utilities/contentExtractor.js';
 
 import type { ReferencesMap } from '../../../../services/search/types.js';
+import type { RequestWithUser } from '../../../../utils/redis/types.js';
 import type { WebSearchState } from '../types.js';
 
 /**
@@ -128,7 +129,7 @@ Crawl-Statistik: ${state.crawlMetadata?.crawledUrls || 0} erfolgreich gecrawlt`;
           temperature: 0.2,
         },
       },
-      state.req as any
+      state.req as RequestWithUser
     );
 
     if (!result.success) {

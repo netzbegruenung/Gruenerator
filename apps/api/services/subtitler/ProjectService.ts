@@ -550,7 +550,7 @@ export class SubtitlerProjectService {
 
       let stderr = '';
 
-      ffmpeg.stderr?.on('data', (data) => {
+      ffmpeg.stderr?.on('data', (data: Buffer | string) => {
         stderr += data.toString();
       });
 

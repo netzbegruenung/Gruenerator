@@ -22,8 +22,21 @@ import type { DocumentRequest, BulkFullTextRequestBody, QdrantListQuery } from '
 const log = createLogger('documents:qdrant');
 const router: Router = express.Router();
 
+interface DocumentsListResult {
+  success: boolean;
+  documents: unknown[];
+  totalCount: number;
+}
+
+interface DocumentSearchServiceWithList extends DocumentSearchService {
+  getUserDocumentsList(
+    userId: string,
+    options: { sourceType: string | null; limit: number }
+  ): Promise<DocumentsListResult>;
+}
+
 // Initialize services
-const documentSearchService = new DocumentSearchService();
+const documentSearchService = new DocumentSearchService() as DocumentSearchServiceWithList;
 const postgresDocumentService = getPostgresDocumentService();
 
 /**
@@ -256,8 +269,7 @@ router.get('/list', async (req: DocumentRequest, res: Response): Promise<void> =
 
     log.debug(`[GET /list] Retrieving documents list from Qdrant for user: ${userId}`);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await (documentSearchService as any).getUserDocumentsList(userId, {
+    const result = await documentSearchService.getUserDocumentsList(userId, {
       sourceType: sourceType || null,
       limit: limit ? parseInt(limit) : 1000,
     });

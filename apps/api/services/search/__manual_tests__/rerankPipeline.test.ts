@@ -64,6 +64,7 @@ function expect(actual: any) {
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     toContain(expected: any) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       if (!actual.includes(expected))
         throw new Error(`Expected array to contain ${expected}, got ${JSON.stringify(actual)}`);
     },
@@ -188,7 +189,7 @@ await test('respects inputLimit', async () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setMockRerank(async (req: any) => {
     sentDocCount = req.documents.length;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
     return req.documents.map((_: any, i: number) => ({
       originalIndex: i,
       relevanceScore: 0.5,
@@ -227,7 +228,7 @@ await test('adds source tags when sourceTagFn provided', async () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setMockRerank(async (req: any) => {
     receivedDocs = req.documents;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
     return req.documents.map((_: any, i: number) => ({
       originalIndex: i,
       relevanceScore: 0.5,

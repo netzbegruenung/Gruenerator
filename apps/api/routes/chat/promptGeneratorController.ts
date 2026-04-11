@@ -1,3 +1,4 @@
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -73,10 +74,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Description must be under 2000 characters' });
     }
 
-    const aiWorkerPool = req.app.locals.aiWorkerPool;
-    if (!aiWorkerPool) {
-      return res.status(503).json({ error: 'AI service unavailable' });
-    }
+    const aiWorkerPool = getAIWorkerPool(req);
 
     log.info(`[PromptGenerator] Generating system prompt for user ${user.id}`);
 
@@ -95,7 +93,7 @@ router.post('/', async (req, res) => {
       return res.status(500).json({ error: 'Failed to generate system prompt' });
     }
 
-    const systemPrompt = (result.text || result.content || '').trim();
+    const systemPrompt = (result.content || '').trim();
 
     if (!systemPrompt) {
       return res.status(500).json({ error: 'Empty response from AI' });

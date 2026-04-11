@@ -3,7 +3,8 @@
  * AI-powered selection of background images for sharepics
  */
 
-import type AIWorkerPool from '../../../workers/aiWorkerPool.js';
+import { type AIWorkerPool } from '../../../workers/types.js';
+
 import type { Request } from 'express';
 
 /**

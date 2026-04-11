@@ -1,258 +1,135 @@
-import { AnimatePresence, motion } from 'motion/react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useInView } from 'motion/react';
+import { memo, useEffect, useRef } from 'react';
 
-const LAYERS = [
-  {
-    gradient: 'linear-gradient(45deg, var(--primary-500) 0%, var(--secondary-600) 50%, var(--secondary-600) 100%)',
-    varName: '--layer1-opacity',
-    defaultOpacity: '1',
-    animation: [0.8, 0.9, 0.6, 0.3, 0.1, 0.2, 0.4, 0.7, 0.8],
-  },
-  {
-    gradient: 'linear-gradient(135deg, var(--secondary-600) 0%, var(--primary-600) 50%, var(--secondary-600) 100%)',
-    varName: '--layer2-opacity',
-    defaultOpacity: '0',
-    animation: [0.2, 0.5, 0.8, 0.9, 0.7, 0.4, 0.1, 0.1, 0.2],
-  },
-  {
-    gradient: 'linear-gradient(225deg, var(--primary-400) 0%, var(--secondary-500) 50%, var(--primary-600) 100%)',
-    varName: '--layer3-opacity',
-    defaultOpacity: '0',
-    animation: [0.1, 0.1, 0.3, 0.6, 0.9, 0.8, 0.5, 0.2, 0.1],
-  },
-  {
-    gradient: 'linear-gradient(315deg, var(--secondary-600) 0%, var(--primary-500) 50%, var(--secondary-600) 100%)',
-    varName: '--layer4-opacity',
-    defaultOpacity: '0',
-    animation: [0.3, 0.2, 0.1, 0.2, 0.5, 0.8, 0.9, 0.6, 0.3],
-  },
-  {
-    gradient: 'linear-gradient(90deg, var(--secondary-600) 0%, var(--primary-600) 25%, var(--secondary-600) 50%, var(--primary-600) 75%, var(--secondary-600) 100%)',
-    varName: '--layer5-opacity',
-    defaultOpacity: '0',
-    animation: [0.5, 0.3, 0.2, 0.1, 0.3, 0.6, 0.8, 0.9, 0.5],
-  },
-] as const;
+const USER_MESSAGE = 'Schreibe eine Pressemitteilung zum Thema Klimaschutz in unserer Kommune.';
 
-const inputClass =
-  'w-full font-[PT_Sans,Arial,sans-serif] text-[11px] md:text-xs leading-[1.4] text-foreground bg-input-bg border-0 rounded-sm p-1.5 md:p-2 min-h-[32px] md:min-h-[36px] outline-none opacity-80 cursor-not-allowed';
+const AI_RESPONSE =
+  'Die Grüne Fraktion begrüßt das heute vorgestellte kommunale Klimaschutzpaket als wichtigen Schritt für eine lebenswerte Stadt.\n\n„Mit diesem Paket setzen wir ein klares Zeichen: Klimaschutz beginnt vor Ort", erklärt die Fraktionsvorsitzende. „Die Maßnahmen zur energetischen Gebäudesanierung und zum Ausbau erneuerbarer Energien sind längst überfällig."\n\nDas Paket umfasst unter anderem ein Förderprogramm für Balkonkraftwerke, kostenlose Energieberatung für alle Haushalte sowie eine Verdopplung der Mittel für Gebäudesanierung.';
 
-const MockGenerator = () => {
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [showResult, setShowResult] = useState(false);
+const CHAR_INTERVAL_MS = 18;
+
+const SunflowerIcon = memo(function SunflowerIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-secondary-600">
+      <circle cx="12" cy="12" r="4" fill="currentColor" />
+      {[0, 45, 90, 135, 180, 225, 270, 315].map((angle) => (
+        <ellipse
+          key={angle}
+          cx="12"
+          cy="5"
+          rx="2.2"
+          ry="3.5"
+          fill="currentColor"
+          opacity="0.7"
+          transform={`rotate(${angle} 12 12)`}
+        />
+      ))}
+    </svg>
+  );
+});
+
+const MockGenerator = memo(function MockGenerator() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const isVisibleRef = useRef(false);
-  const isGeneratingRef = useRef(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const innerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hasAutoTriggeredRef = useRef(false);
-
-  const clearAllTimeouts = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-    if (innerTimeoutRef.current) {
-      clearTimeout(innerTimeoutRef.current);
-      innerTimeoutRef.current = null;
-    }
-  }, []);
-
-  const handleGenerate = useCallback(() => {
-    if (isGeneratingRef.current) return;
-
-    isGeneratingRef.current = true;
-    setIsGenerating(true);
-    setShowResult(false);
-
-    clearAllTimeouts();
-
-    timeoutRef.current = setTimeout(() => {
-      isGeneratingRef.current = false;
-      setIsGenerating(false);
-      setShowResult(true);
-      timeoutRef.current = null;
-    }, 1500);
-  }, [clearAllTimeouts]);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const cursorRef = useRef<HTMLSpanElement>(null);
+  const responseRef = useRef<HTMLDivElement>(null);
+  const isInView = useInView(containerRef, { once: true, amount: 0.3 });
 
   useEffect(() => {
-    const node = containerRef.current;
-    if (!node || typeof window === 'undefined' || typeof IntersectionObserver === 'undefined') {
-      return undefined;
-    }
+    if (!isInView) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && entry.intersectionRatio > 0.35) {
-            isVisibleRef.current = true;
-            if (!hasAutoTriggeredRef.current) {
-              hasAutoTriggeredRef.current = true;
-              handleGenerate();
-            }
-          } else if (entry.intersectionRatio <= 0.35) {
-            isVisibleRef.current = false;
-            clearAllTimeouts();
-            if (isGeneratingRef.current) {
-              isGeneratingRef.current = false;
-              setIsGenerating(false);
-            }
+    let rafId: number | null = null;
+    let charIndex = 0;
+    let lastTime = 0;
+
+    const startTyping = () => {
+      if (responseRef.current) responseRef.current.hidden = false;
+
+      const tick = (now: number) => {
+        if (charIndex >= AI_RESPONSE.length) {
+          if (cursorRef.current) cursorRef.current.hidden = true;
+          return;
+        }
+
+        if (now - lastTime >= CHAR_INTERVAL_MS) {
+          charIndex++;
+          if (textRef.current) {
+            textRef.current.textContent += AI_RESPONSE[charIndex - 1];
           }
-        });
-      },
-      { threshold: [0.25, 0.35, 0.5] }
-    );
+          lastTime = now;
+        }
 
-    observer.observe(node);
+        rafId = requestAnimationFrame(tick);
+      };
+
+      rafId = requestAnimationFrame(tick);
+    };
+
+    const timeout = setTimeout(startTyping, 800);
 
     return () => {
-      observer.disconnect();
+      clearTimeout(timeout);
+      if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [handleGenerate, clearAllTimeouts]);
-
-  useEffect(() => {
-    if (showResult && isVisibleRef.current) {
-      const restartTimeout = setTimeout(() => {
-        setShowResult(false);
-        hasAutoTriggeredRef.current = false;
-
-        innerTimeoutRef.current = setTimeout(() => {
-          if (isVisibleRef.current) {
-            handleGenerate();
-          }
-          innerTimeoutRef.current = null;
-        }, 600);
-      }, 5000);
-
-      return () => {
-        clearTimeout(restartTimeout);
-        if (innerTimeoutRef.current) {
-          clearTimeout(innerTimeoutRef.current);
-          innerTimeoutRef.current = null;
-        }
-      };
-    }
-  }, [showResult, handleGenerate]);
-
-  useEffect(() => () => clearAllTimeouts(), [clearAllTimeouts]);
-
-  const instagramExampleText =
-    '🌱 Die Energiewende ist unser Weg in eine klimaneutrale Zukunft! 💚 Mit Wind, Sonne und Innovation schaffen wir grüne Jobs und schützen unseren Planeten. Jetzt handeln für kommende Generationen! #Klimaschutz #Energiewende #GrüneMachtZukunft';
-
-  const gradientAnimation = isGenerating
-    ? Object.fromEntries(LAYERS.map((l) => [l.varName, [...l.animation]]))
-    : {};
+  }, [isInView]);
 
   return (
     <div
-      className="w-full h-full pointer-events-none relative flex items-center justify-center overflow-visible"
       ref={containerRef}
+      className="w-full h-full flex items-center justify-center p-2 md:p-sm lg:p-md"
     >
-      <div className="bg-input-bg rounded-lg p-3 md:p-4 lg:p-5 shadow-[0_4px_12px_rgba(0,0,0,0.1)] border border-[var(--border-color)] w-full min-[480px]:w-[96%] md:w-[92%] lg:w-[90%]">
-        <h3 className="text-base md:text-[1.1rem] lg:text-[1.2rem] font-semibold text-foreground mb-md text-center">
-          Welche Botschaft willst du heute grünerieren?
-        </h3>
+      <div className="w-full max-w-[500px] rounded-xl border border-grey-200 dark:border-grey-700 bg-background shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col">
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-grey-200 dark:border-grey-700 bg-grey-50 dark:bg-grey-800/50">
+          <SunflowerIcon />
+          <span className="text-xs font-semibold text-foreground">Grünerator Chat</span>
+        </div>
 
-        {!showResult && (
-          <div className="flex flex-col gap-sm mb-md">
-            <div className="flex flex-col">
-              <label className="text-[0.8rem] font-medium text-foreground mb-1">Thema</label>
-              <input className={inputClass} value="Klimawandel und Energiewende" disabled />
+        <div className="flex-1 px-4 py-4 flex flex-col gap-4 max-h-[300px] md:max-h-[360px] overflow-hidden relative">
+          <div className="flex justify-end">
+            <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary-500 text-white px-3.5 py-2.5 text-xs leading-relaxed">
+              {USER_MESSAGE}
             </div>
+          </div>
 
-            <div className="flex flex-col">
-              <label className="text-[0.8rem] font-medium text-foreground mb-1">Details</label>
-              <textarea
-                className={`${inputClass} resize-none min-h-[55px] md:min-h-[60px]`}
-                value="Unsere grüne Zukunft beginnt heute mit erneuerbaren Energien und nachhaltiger Politik für kommende Generationen."
-                disabled
-                rows={3}
-              />
+          <div ref={responseRef} className="flex gap-2.5 items-start" hidden>
+            <div className="shrink-0 w-7 h-7 rounded-full bg-secondary-100 dark:bg-secondary-900/30 flex items-center justify-center">
+              <SunflowerIcon />
             </div>
-
-            <div className="flex flex-col">
-              <label className="text-[0.8rem] font-medium text-foreground mb-1">Format</label>
-              <div className="relative">
-                <div className={`${inputClass} flex items-center justify-between`}>
-                  <span className="flex items-center gap-1.5 text-foreground text-xs">
-                    <span className="text-base">📸</span>
-                    Instagram
-                  </span>
-                  <div className="text-accent font-bold">✓</div>
-                </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs leading-relaxed text-foreground whitespace-pre-line">
+                <span ref={textRef} />
+                <span
+                  ref={cursorRef}
+                  className="inline-block w-[2px] h-3.5 bg-foreground ml-0.5 align-text-bottom animate-pulse"
+                />
               </div>
             </div>
           </div>
-        )}
 
-        {!showResult && (
-          <motion.button
-            className="relative overflow-hidden py-2.5 md:py-3 px-4 md:px-5 border-none rounded-[var(--button-border-radius,5px)] bg-primary-500 text-[var(--weiß)] font-[PT_Sans,Arial,sans-serif] text-[0.85rem] md:text-[0.9rem] font-medium cursor-pointer w-full min-h-[38px] md:min-h-[40px] transition-all duration-[250ms] ease-out hover:scale-[1.01] disabled:cursor-wait disabled:opacity-90 pointer-events-auto"
-            onClick={handleGenerate}
-            disabled={isGenerating}
-            animate={gradientAnimation as Record<string, number[]>}
-            transition={
-              isGenerating
-                ? {
-                    duration: 5,
-                    ease: [0.25, 0.46, 0.45, 0.94],
-                    repeat: Infinity,
-                    times: [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1],
-                  }
-                : {
-                    duration: 0.25,
-                    ease: 'easeOut',
-                  }
-            }
-          >
-            {LAYERS.map((layer, i) => (
-              <motion.div
-                key={i}
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  background: layer.gradient,
-                  opacity: `var(${layer.varName}, ${layer.defaultOpacity})`,
-                }}
-              />
-            ))}
+          <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+        </div>
 
-            <div className="relative z-[1] flex items-center justify-center gap-sm">
-              {isGenerating && (
-                <span className="inline-flex items-center justify-center">
-                  <div className="w-4 h-4 border-2 border-white/30 rounded-full border-t-white animate-spin" />
-                </span>
-              )}
-              <span>{isGenerating ? 'Grüneriere...' : 'Grünerieren'}</span>
+        <div className="px-4 pb-3">
+          <div className="flex items-center gap-2 rounded-xl border border-grey-200 dark:border-grey-700 bg-grey-50 dark:bg-grey-800/30 px-3.5 py-2.5">
+            <span className="text-xs text-grey-400 dark:text-grey-500 flex-1">
+              Nachricht eingeben...
+            </span>
+            <div className="w-6 h-6 rounded-lg bg-primary-500 flex items-center justify-center">
+              <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5 text-white">
+                <path
+                  d="M5 12h14M12 5l7 7-7 7"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </div>
-          </motion.button>
-        )}
-
-        <AnimatePresence mode="wait">
-          {showResult && (
-            <motion.div
-              className="mt-md bg-background border border-[var(--border-color)] rounded-sm p-md shadow-[0_2px_8px_rgba(0,0,0,0.1)]"
-              initial={{ opacity: 0, y: 10, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.95 }}
-              transition={{
-                duration: 0.5,
-                ease: [0.34, 1.56, 0.64, 1],
-                scale: { duration: 0.6, ease: [0.34, 1.56, 0.64, 1] },
-              }}
-            >
-              <div className="flex items-center gap-sm mb-sm font-medium text-foreground">
-                <div className="text-lg">📸</div>
-                <span>Instagram Post generiert</span>
-              </div>
-              <div className="text-[0.8rem] md:text-[0.9rem] leading-[1.5] text-foreground bg-input-bg p-sm rounded-sm border-l-[3px] border-l-accent">
-                {instagramExampleText}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+          </div>
+        </div>
       </div>
     </div>
   );
-};
+});
 
 export default MockGenerator;

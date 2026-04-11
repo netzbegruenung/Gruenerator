@@ -1,5 +1,7 @@
-import { type Router, type Request, type Response } from 'express';
+import { type Router, type Response } from 'express';
+import { z } from 'zod';
 
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import imagePickerService from '../../services/image/ImageSelectionService.js';
 import {
   extractLocaleFromRequest,
@@ -8,41 +10,39 @@ import {
 } from '../../services/localization/index.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { type AIWorkerPool } from '../../workers/types.js';
 
 import type { WebsiteContent } from '../../types/routes.js';
 const log = createLogger('claude_website');
 const router: Router = createAuthenticatedRouter();
 
-interface WebsiteRequestBody {
-  description: string;
-  email?: string;
-  usePrivacyMode?: boolean;
-  useProMode?: boolean;
-}
+const websiteSchema = z.object({
+  description: z.string().min(1, 'Bitte gib eine Beschreibung an'),
+  email: z.string().optional(),
+  usePrivacyMode: z.boolean().optional(),
+  useProMode: z.boolean().optional(),
+});
+type WebsiteBody = z.infer<typeof websiteSchema>;
 
-router.post('/', async (req: Request, res: Response): Promise<void> => {
-  const { description, email, usePrivacyMode, useProMode } = req.body as WebsiteRequestBody;
+router.post(
+  '/',
+  validateBody(websiteSchema),
+  async (req: TypedRequest<WebsiteBody>, res: Response): Promise<void> => {
+    const { description, email, usePrivacyMode } = req.body;
 
-  log.debug('[claude_website] Request received:', {
-    hasDescription: !!description,
-    descriptionLength: description?.length || 0,
-    hasEmail: !!email,
-    userId: req.user?.id || 'No user',
-  });
-
-  if (!description) {
-    res.status(400).json({
-      error: 'Bitte gib eine Beschreibung an',
+    log.debug('[claude_website] Request received:', {
+      hasDescription: !!description,
+      descriptionLength: description.length,
+      hasEmail: !!email,
+      userId: req.user?.id || 'No user',
     });
-    return;
-  }
 
-  try {
-    log.debug('[claude_website] Starting AI Worker request');
+    try {
+      log.debug('[claude_website] Starting AI Worker request');
 
-    const locale = extractLocaleFromRequest(req as any as RequestWithLocale);
-    const systemPrompt = localizePlaceholders(
-      `Du bist ein Spezialist für politische Kommunikation und erstellst Landing-Page-Inhalte für Politiker*innen von {{partyName}}.
+      const locale = extractLocaleFromRequest(req as unknown as RequestWithLocale);
+      const systemPrompt = localizePlaceholders(
+        `Du bist ein Spezialist für politische Kommunikation und erstellst Landing-Page-Inhalte für Politiker*innen von {{partyName}}.
 
 Deine Aufgabe: Generiere eine vollständige Landing-Page-Struktur als JSON basierend auf der Beschreibung der Person.
 
@@ -106,172 +106,174 @@ Wichtige Hinweise:
 - Verwende konkrete Beispiele aus der Beschreibung der Person
 - Der about.content sollte Absätze durch Leerzeilen trennen (kein HTML)
 - Stelle sicher, dass das JSON valide ist`,
-      locale
-    );
+        locale
+      );
 
-    const userPrompt = `Erstelle eine professionelle Landing-Page für folgende Person:
+      const userPrompt = `Erstelle eine professionelle Landing-Page für folgende Person:
 
 ${description}`;
 
-    const payload = {
-      systemPrompt,
-      provider: 'mistral',
-      messages: [
-        {
-          role: 'user',
-          content: userPrompt,
+      const payload = {
+        systemPrompt,
+        provider: 'mistral',
+        messages: [
+          {
+            role: 'user' as const,
+            content: userPrompt,
+          },
+        ],
+        options: {
+          max_tokens: 4000,
+          temperature: 0.7,
         },
-      ],
-      options: {
-        max_tokens: 4000,
-        temperature: 0.7,
-      },
-    };
+      };
 
-    log.debug('[claude_website] Payload overview:', {
-      systemPromptLength: systemPrompt.length,
-      userPromptLength: userPrompt.length,
-      provider: payload.provider,
-      userId: req.user?.id,
-    });
+      log.debug('[claude_website] Payload overview:', {
+        systemPromptLength: systemPrompt.length,
+        userPromptLength: userPrompt.length,
+        provider: payload.provider,
+        userId: req.user?.id,
+      });
 
-    const result = await req.app.locals.aiWorkerPool.processRequest(
-      {
-        type: 'website',
-        usePrivacyMode: usePrivacyMode || false,
-        ...payload,
-      },
-      req
-    );
+      const aiWorkerPool = req.app.locals.aiWorkerPool as AIWorkerPool;
+      const result = await aiWorkerPool.processRequest(
+        {
+          type: 'website',
+          usePrivacyMode: usePrivacyMode || false,
+          ...payload,
+        },
+        req
+      );
 
-    log.debug('[claude_website] AI Worker response received:', {
-      success: result.success,
-      contentLength: result.content?.length,
-      error: result.error,
-      userId: req.user?.id,
-    });
+      log.debug('[claude_website] AI Worker response received:', {
+        success: result.success,
+        contentLength: result.content?.length,
+        error: result.error,
+        userId: req.user?.id,
+      });
 
-    if (!result.success) {
-      log.error('[claude_website] AI Worker error:', result.error);
-      throw new Error(result.error);
-    }
-
-    let jsonContent = result.content;
-
-    jsonContent = jsonContent.replace(/```json\s*/gi, '').replace(/```\s*/g, '');
-    jsonContent = jsonContent.trim();
-
-    jsonContent = jsonContent.replace(/"([^"\\]*(\\.[^"\\]*)*)"/g, (match: string) => {
-      return match.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
-    });
-
-    let parsedJson: WebsiteContent;
-    try {
-      parsedJson = JSON.parse(jsonContent) as WebsiteContent;
-    } catch (parseError) {
-      log.error('[claude_website] JSON parse error:', (parseError as Error).message);
-      log.debug('[claude_website] Raw content:', jsonContent.substring(0, 500));
-      throw new Error('Die KI hat kein valides JSON generiert. Bitte versuche es erneut.');
-    }
-
-    const requiredFields: (keyof WebsiteContent)[] = [
-      'hero',
-      'about',
-      'hero_image',
-      'themes',
-      'actions',
-      'contact',
-    ];
-    for (const field of requiredFields) {
-      if (!parsedJson[field]) {
-        throw new Error(`Fehlendes Feld im JSON: ${field}`);
+      if (!result.success) {
+        log.error('[claude_website] AI Worker error:', result.error);
+        throw new Error(result.error);
       }
-    }
 
-    if (!Array.isArray(parsedJson.themes) || parsedJson.themes.length === 0) {
-      throw new Error('Das themes-Array muss mindestens einen Eintrag haben');
-    }
+      let jsonContent = result.content ?? '';
 
-    if (parsedJson.themes.length > 3) {
-      parsedJson.themes = parsedJson.themes.slice(0, 3);
-    }
+      jsonContent = jsonContent.replace(/```json\s*/gi, '').replace(/```\s*/g, '');
+      jsonContent = jsonContent.trim();
 
-    if (!Array.isArray(parsedJson.actions) || parsedJson.actions.length === 0) {
-      throw new Error('Das actions-Array muss mindestens einen Eintrag haben');
-    }
+      jsonContent = jsonContent.replace(/"([^"\\]*(\\.[^"\\]*)*)"/g, (match: string) => {
+        return match.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
+      });
 
-    if (parsedJson.actions.length > 3) {
-      parsedJson.actions = parsedJson.actions.slice(0, 3);
-    }
-
-    log.debug('[claude_website] Starting image selection...');
-
-    const pickImage = async (text: string): Promise<string> => {
+      let parsedJson: WebsiteContent;
       try {
-        const result = await imagePickerService.selectBestImage(
-          text,
-          req.app.locals.aiWorkerPool,
-          { maxCandidates: 5 },
-          req
-        );
-        return `/api/image-picker/stock-image/${result.selectedImage.filename}`;
-      } catch (err) {
-        log.warn('[claude_website] Image picker failed:', (err as Error).message);
-        return '';
+        parsedJson = JSON.parse(jsonContent) as WebsiteContent;
+      } catch (parseError) {
+        log.error('[claude_website] JSON parse error:', (parseError as Error).message);
+        log.debug('[claude_website] Raw content:', jsonContent.substring(0, 500));
+        throw new Error('Die KI hat kein valides JSON generiert. Bitte versuche es erneut.');
       }
-    };
 
-    const imagePromises = [
-      pickImage(`${parsedJson.hero_image.title} ${parsedJson.hero_image.subtitle}`),
-      ...parsedJson.themes.map((theme) => pickImage(`${theme.title} ${theme.content}`)),
-      ...parsedJson.actions.map((action) => pickImage(action.text)),
-      pickImage(`${parsedJson.contact.title} Kontakt Politik Grüne`),
-    ];
+      const requiredFields: (keyof WebsiteContent)[] = [
+        'hero',
+        'about',
+        'hero_image',
+        'themes',
+        'actions',
+        'contact',
+      ];
+      for (const field of requiredFields) {
+        if (!parsedJson[field]) {
+          throw new Error(`Fehlendes Feld im JSON: ${field}`);
+        }
+      }
 
-    const imageResults = await Promise.all(imagePromises);
+      if (!Array.isArray(parsedJson.themes) || parsedJson.themes.length === 0) {
+        throw new Error('Das themes-Array muss mindestens einen Eintrag haben');
+      }
 
-    const heroImageUrl = imageResults[0];
-    const themeImageUrls = imageResults.slice(1, 4);
-    const actionImageUrls = imageResults.slice(4, 7);
-    const contactImageUrl = imageResults[7];
+      if (parsedJson.themes.length > 3) {
+        parsedJson.themes = parsedJson.themes.slice(0, 3);
+      }
 
-    parsedJson.hero_image.imageUrl = heroImageUrl;
-    parsedJson.themes = parsedJson.themes.map((theme, i) => ({
-      ...theme,
-      imageUrl: themeImageUrls[i] || '',
-    }));
-    parsedJson.actions = parsedJson.actions.map((action, i) => ({
-      ...action,
-      imageUrl: actionImageUrls[i] || '',
-    }));
-    parsedJson.contact.backgroundImageUrl = contactImageUrl;
+      if (!Array.isArray(parsedJson.actions) || parsedJson.actions.length === 0) {
+        throw new Error('Das actions-Array muss mindestens einen Eintrag haben');
+      }
 
-    log.debug('[claude_website] Image selection complete:', {
-      heroImage: !!heroImageUrl,
-      themeImages: themeImageUrls.filter(Boolean).length,
-      actionImages: actionImageUrls.filter(Boolean).length,
-      contactImage: !!contactImageUrl,
-    });
+      if (parsedJson.actions.length > 3) {
+        parsedJson.actions = parsedJson.actions.slice(0, 3);
+      }
 
-    const response = {
-      json: parsedJson,
-      metadata: result.metadata,
-    };
+      log.debug('[claude_website] Starting image selection...');
 
-    log.debug('[claude_website] Sending successful response:', {
-      hasJson: !!response.json,
-      hasMetadata: !!response.metadata,
-      userId: req.user?.id,
-    });
+      const pickImage = async (text: string): Promise<string> => {
+        try {
+          const result = await imagePickerService.selectBestImage(
+            text,
+            aiWorkerPool,
+            { maxCandidates: 5 },
+            req
+          );
+          return `/api/image-picker/stock-image/${result.selectedImage.filename}`;
+        } catch (err) {
+          log.warn('[claude_website] Image picker failed:', (err as Error).message);
+          return '';
+        }
+      };
 
-    res.json(response);
-  } catch (error) {
-    log.error('[claude_website] Error creating website content:', error);
-    res.status(500).json({
-      error: 'Fehler bei der Erstellung der Website-Inhalte',
-      details: (error as Error).message,
-    });
+      const imagePromises = [
+        pickImage(`${parsedJson.hero_image.title} ${parsedJson.hero_image.subtitle}`),
+        ...parsedJson.themes.map((theme) => pickImage(`${theme.title} ${theme.content}`)),
+        ...parsedJson.actions.map((action) => pickImage(action.text)),
+        pickImage(`${parsedJson.contact.title} Kontakt Politik Grüne`),
+      ];
+
+      const imageResults = await Promise.all(imagePromises);
+
+      const heroImageUrl = imageResults[0];
+      const themeImageUrls = imageResults.slice(1, 4);
+      const actionImageUrls = imageResults.slice(4, 7);
+      const contactImageUrl = imageResults[7];
+
+      parsedJson.hero_image.imageUrl = heroImageUrl;
+      parsedJson.themes = parsedJson.themes.map((theme, i) => ({
+        ...theme,
+        imageUrl: themeImageUrls[i] || '',
+      }));
+      parsedJson.actions = parsedJson.actions.map((action, i) => ({
+        ...action,
+        imageUrl: actionImageUrls[i] || '',
+      }));
+      parsedJson.contact.backgroundImageUrl = contactImageUrl;
+
+      log.debug('[claude_website] Image selection complete:', {
+        heroImage: !!heroImageUrl,
+        themeImages: themeImageUrls.filter(Boolean).length,
+        actionImages: actionImageUrls.filter(Boolean).length,
+        contactImage: !!contactImageUrl,
+      });
+
+      const response = {
+        json: parsedJson,
+        metadata: result.metadata,
+      };
+
+      log.debug('[claude_website] Sending successful response:', {
+        hasJson: !!response.json,
+        hasMetadata: !!response.metadata,
+        userId: req.user?.id,
+      });
+
+      res.json(response);
+    } catch (error) {
+      log.error('[claude_website] Error creating website content:', error);
+      res.status(500).json({
+        error: 'Fehler bei der Erstellung der Website-Inhalte',
+        details: (error as Error).message,
+      });
+    }
   }
-});
+);
 
 export default router;

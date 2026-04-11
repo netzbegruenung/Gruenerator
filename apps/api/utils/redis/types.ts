@@ -143,9 +143,11 @@ export interface CacheStats {
  * Express request with user context (for rate limiting)
  */
 export interface RequestWithUser {
-  user?: {
-    id: string;
-  };
+  user?:
+    | {
+        id: string;
+      }
+    | undefined;
   sessionID?: string | undefined;
   ip?: string | undefined;
   headers: {

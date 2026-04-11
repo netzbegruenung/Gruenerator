@@ -45,7 +45,13 @@ router.post(
   ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const { url, preview, title, description, metadata } = req.body;
+      const { url, preview, title, description, metadata } = req.body as {
+        url: string;
+        preview?: boolean;
+        title?: string;
+        description?: string;
+        metadata?: Record<string, unknown>;
+      };
 
       if (!url || typeof url !== 'string') {
         res.status(400).json({ success: false, message: 'URL ist erforderlich.' });
@@ -232,7 +238,7 @@ router.post(
         content_data = {},
         metadata = {},
         is_private = false,
-      } = req.body;
+      } = req.body as Record<string, unknown>;
 
       // Validate required fields
       if (!title) {
@@ -244,7 +250,9 @@ router.post(
       }
 
       // Extract tags from description and merge with provided tags (lowercase for case-insensitive search)
-      const descriptionTags = extractTagsFromDescription(description).map((t) => t.toLowerCase());
+      const descriptionTags = extractTagsFromDescription(
+        description as string | null | undefined
+      ).map((t) => t.toLowerCase());
       const providedTags: string[] = Array.isArray(tags)
         ? (tags as string[]).map((t) => t.toLowerCase())
         : [];
@@ -257,8 +265,8 @@ router.post(
       const templateData = {
         user_id: userId,
         type: 'template',
-        title: title.trim(),
-        description: description?.trim() || null,
+        title: String(title).trim(),
+        description: description ? String(description).trim() : null,
         template_type,
         external_url: externalUrl || null,
         thumbnail_url: preview_image_url || null,
@@ -332,7 +340,7 @@ router.put(
         content_data,
         metadata,
         is_private,
-      } = req.body;
+      } = req.body as Record<string, unknown>;
 
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
@@ -364,8 +372,9 @@ router.put(
       // Prepare update data
       const updateData: Record<string, unknown> = {};
 
-      if (title !== undefined) updateData.title = title.trim();
-      if (description !== undefined) updateData.description = description?.trim() || null;
+      if (title !== undefined) updateData.title = String(title).trim();
+      if (description !== undefined)
+        updateData.description = description ? String(description).trim() : null;
       if (template_type !== undefined) updateData.template_type = template_type;
       if (externalUrlUpdate !== undefined) updateData.external_url = externalUrlUpdate;
       if (preview_image_url !== undefined) updateData.thumbnail_url = preview_image_url;
@@ -480,7 +489,7 @@ router.post(
     try {
       const userId = req.user!.id;
       const { id } = req.params;
-      const { title, description, template_type, is_private } = req.body;
+      const { title, description, template_type, is_private } = req.body as Record<string, unknown>;
 
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
@@ -514,8 +523,9 @@ router.post(
         updated_at: new Date().toISOString(),
       };
 
-      if (title !== undefined) updateData.title = title.trim();
-      if (description !== undefined) updateData.description = description?.trim() || null;
+      if (title !== undefined) updateData.title = String(title).trim();
+      if (description !== undefined)
+        updateData.description = description ? String(description).trim() : null;
       if (is_private !== undefined) updateData.is_private = is_private;
 
       // Update template_type if provided

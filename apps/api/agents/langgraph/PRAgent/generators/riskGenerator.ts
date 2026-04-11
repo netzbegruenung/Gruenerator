@@ -1,3 +1,4 @@
+import { getAIWorkerPool } from '../../../../utils/getAIWorkerPool.js';
 import { MARKDOWN_FORMATTING_INSTRUCTIONS } from '../../../../utils/prompt/index.js';
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 
@@ -52,7 +53,7 @@ Analysiere diese Kommunikation auf Risiken und bereite Counter-Speech vor.`;
     formatting: MARKDOWN_FORMATTING_INSTRUCTIONS,
   });
 
-  const aiResult: AIWorkerResult = await req.app.locals.aiWorkerPool.processRequest(
+  const aiResult: AIWorkerResult = await getAIWorkerPool(req).processRequest(
     {
       type: 'social',
       usePrivacyMode: request.usePrivacyMode || false,
