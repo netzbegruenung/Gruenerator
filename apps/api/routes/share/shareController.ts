@@ -17,6 +17,7 @@ import { validateBody, type TypedRequest } from '../../middleware/validateBody.j
 import { transferService } from '../../services/transferService.js';
 import { type SharedMediaRow, type ShareResult } from '../../types/media.js';
 import { createLogger } from '../../utils/logger.js';
+import { parseJSON } from '../../utils/parseJSON.js';
 import { redisClient } from '../../utils/redis/index.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
@@ -502,7 +503,7 @@ router.post(
         });
       }
 
-      const exportData = JSON.parse(exportDataString) as ExportData;
+      const exportData = parseJSON<ExportData>(exportDataString);
       if (exportData.status !== 'complete') {
         return res.status(400).json({
           success: false,

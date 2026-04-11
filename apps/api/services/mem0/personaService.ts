@@ -1,6 +1,7 @@
 import { generateText } from 'ai';
 
 import { createLogger } from '../../utils/logger.js';
+import { parseJSON } from '../../utils/parseJSON.js';
 import { redisClient } from '../../utils/redis/index.js';
 import { getIntermediateModel } from '../ai/providers.js';
 
@@ -52,7 +53,7 @@ export async function getCachedPersona(userId: string): Promise<string | null> {
     const data = await redisClient.get(personaKey(userId));
     if (!data) return null;
 
-    const cached = JSON.parse(data) as CachedPersona;
+    const cached = parseJSON<CachedPersona>(data);
     return cached.persona;
   } catch (error) {
     log.warn('[Persona] Failed to read cache:', error);

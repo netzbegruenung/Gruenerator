@@ -1,5 +1,6 @@
 import { createLogger } from '../../../utils/logger.js';
 import redisClient from '../../../utils/redis/client.js';
+import { parseJSON } from '../../../utils/parseJSON.js';
 
 import type { ProcessedAttachmentMeta } from './attachmentProcessingService.js';
 import type { ChatGraphState, ImageAttachment } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -47,7 +48,7 @@ export const pipelineStateStore = {
     try {
       const raw = await redisClient.get(REDIS_PREFIX + threadId);
       if (!raw) return undefined;
-      return JSON.parse(raw) as StoredPipelineState;
+      return parseJSON<StoredPipelineState>(raw);
     } catch (err) {
       log.error(`Failed to get pipeline state for thread ${threadId}:`, err);
       return undefined;

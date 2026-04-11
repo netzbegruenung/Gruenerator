@@ -7,6 +7,7 @@
 import { v4 as uuidv4 } from 'uuid';
 
 import { redisClient } from '../../utils/redis/client.js';
+import { parseJSON } from '../../utils/parseJSON.js';
 
 export type WorkflowType = 'pr_agent' | 'text_generator' | 'image_studio' | 'speech_generator';
 export type WorkflowStatus =
@@ -161,7 +162,7 @@ export class WorkflowService {
     const data = await redisClient.get(this.getKey(workflowId));
     if (!data || typeof data !== 'string') return null;
 
-    const workflow = JSON.parse(data as string) as Workflow;
+    const workflow = parseJSON<Workflow>(data);
 
     // Optional user validation
     if (userId && workflow.user_id !== userId) {

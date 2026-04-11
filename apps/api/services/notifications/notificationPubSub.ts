@@ -1,6 +1,7 @@
 import { createClient } from 'redis';
 
 import { createLogger } from '../../utils/logger.js';
+import { parseJSON } from '../../utils/parseJSON.js';
 
 import type { Notification } from './types.js';
 
@@ -59,7 +60,7 @@ export async function subscribeToUserNotifications(
 
   await client.subscribe(channel, (message) => {
     try {
-      const notification = JSON.parse(message) as Notification;
+      const notification = parseJSON<Notification>(message);
       const cb = subscriptions.get(userId);
       cb?.(notification);
     } catch (err) {
