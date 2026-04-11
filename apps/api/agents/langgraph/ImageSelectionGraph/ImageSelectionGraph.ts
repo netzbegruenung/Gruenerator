@@ -71,13 +71,13 @@ function createImageSelectionGraph() {
   const workflow = new StateGraph(ImageSelectionStateAnnotation)
     .addNode(
       'loadCatalog',
-      loadCatalogNode as (
+      loadCatalogNode as unknown as (
         state: ImageSelectionGraphState
       ) => Promise<Partial<ImageSelectionGraphState>>
     )
     .addNode(
       'selectImage',
-      selectImageNode as (
+      selectImageNode as unknown as (
         state: ImageSelectionGraphState
       ) => Promise<Partial<ImageSelectionGraphState>>
     )
