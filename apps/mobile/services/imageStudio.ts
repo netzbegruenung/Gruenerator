@@ -346,7 +346,7 @@ export async function removeBackgroundRemote(
       message: 'Hintergrund wird entfernt...',
     });
 
-    const response = await apiClient.post('/background-removal', formData, {
+    const response = await apiClient.post<{ image?: string }>('/background-removal', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
 
@@ -413,7 +413,7 @@ export async function generateProfilbild(
 
     formData.append('image', blob, 'profilbild.png');
 
-    const response = await apiClient.post('/profilbild_canvas', formData, {
+    const response = await apiClient.post<{ image?: string }>('/profilbild_canvas', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
 

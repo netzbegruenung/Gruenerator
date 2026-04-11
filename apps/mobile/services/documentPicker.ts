@@ -115,7 +115,12 @@ export async function uploadDocumentToChat(doc: PickedDocument): Promise<Uploade
 
     formData.append('title', doc.name);
 
-    const response = await apiClient.post('/documents/upload-manual', formData, {
+    interface UploadResponse {
+      success: boolean;
+      data: { id: string; title?: string };
+      message?: string;
+    }
+    const response = await apiClient.post<UploadResponse>('/documents/upload-manual', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 120000,
     });
@@ -153,7 +158,12 @@ export async function uploadDocumentOnly(doc: PickedDocument): Promise<UploadedD
 
     formData.append('title', doc.name);
 
-    const response = await apiClient.post('/documents/upload-only', formData, {
+    interface UploadOnlyResponse {
+      success: boolean;
+      data: { id: string; title?: string };
+      message?: string;
+    }
+    const response = await apiClient.post<UploadOnlyResponse>('/documents/upload-only', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 120000,
     });
@@ -215,19 +225,25 @@ export async function uploadDocumentToScanner(doc: PickedDocument): Promise<{
       type: doc.mimeType,
     } as unknown as Blob);
 
-    const response = await apiClient.post('/scanner/extract', formData, {
+    interface ScannerExtractResponse {
+      success: boolean;
+      text?: string;
+      pageCount?: number;
+      fileInfo?: { originalname?: string; size?: number; mimetype?: string };
+    }
+    const response = await apiClient.post<ScannerExtractResponse>('/scanner/extract', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 120000,
     });
 
     if (response.data.success) {
       return {
-        text: response.data.text,
-        pageCount: response.data.pageCount || 0,
+        text: response.data.text ?? '',
+        pageCount: response.data.pageCount ?? 0,
         fileInfo: {
-          name: response.data.fileInfo?.originalname || doc.name,
-          size: response.data.fileInfo?.size || doc.size,
-          mimeType: response.data.fileInfo?.mimetype || doc.mimeType,
+          name: response.data.fileInfo?.originalname ?? doc.name,
+          size: response.data.fileInfo?.size ?? doc.size,
+          mimeType: response.data.fileInfo?.mimetype ?? doc.mimeType,
         },
       };
     }

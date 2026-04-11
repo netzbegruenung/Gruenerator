@@ -116,15 +116,26 @@ export default function TranskriptionScreen() {
       setPhase('transcribing');
       setProgress(100);
 
+      interface TranscriptionResponse {
+        success: boolean;
+        error?: string;
+        text?: string;
+        segments?: TranscriptionSegment[];
+        hasTimestamps?: boolean;
+      }
       const apiClient = getGlobalApiClient();
-      const response = await apiClient.post(`/voice/transcribe?${params}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        signal: controller.signal,
-        timeout: 300000,
-        onUploadProgress: (e) => {
-          if (e.total) setProgress(Math.round((e.loaded / e.total) * 100));
-        },
-      });
+      const response = await apiClient.post<TranscriptionResponse>(
+        `/voice/transcribe?${params}`,
+        formData,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          signal: controller.signal,
+          timeout: 300000,
+          onUploadProgress: (e) => {
+            if (e.total) setProgress(Math.round((e.loaded / e.total) * 100));
+          },
+        }
+      );
 
       const data = response.data;
       if (!data.success) throw new Error(data.error ?? 'Transkription fehlgeschlagen');

@@ -14,7 +14,11 @@ import { NativeShareModal } from '../../../../components/docs/NativeShareModal';
 import { docsService } from '../../../../services/docs/docsApi';
 import { trackDocumentOpen } from '../../../../services/docs/recentDocs';
 import { secureStorage } from '../../../../services/storage';
-import { useDocsEditorBridgeStore } from '../../../../stores/docsEditorBridgeStore';
+import {
+  useDocsEditorBridgeStore,
+  type ChatMessage,
+  type ActiveFormattingState,
+} from '../../../../stores/docsEditorBridgeStore';
 import { useDocsStore } from '../../../../stores/docsStore';
 import { lightTheme, darkTheme, colors } from '../../../../theme';
 
@@ -127,7 +131,7 @@ export default function DocumentScreen() {
 
   const handleChatMessagesChange = useCallback(async (messagesJson: string) => {
     try {
-      const parsed = JSON.parse(messagesJson);
+      const parsed = JSON.parse(messagesJson) as ChatMessage[];
       // Don't clear existing messages with empty array — happens during DOM re-init
       if (parsed.length === 0 && store.getState().chatMessages.length > 0) return;
       store.getState().setChatMessages(parsed);
@@ -142,7 +146,7 @@ export default function DocumentScreen() {
 
   const handleTypingUsersChange = useCallback(async (usersJson: string) => {
     try {
-      store.getState().setTypingUsers(JSON.parse(usersJson));
+      store.getState().setTypingUsers(JSON.parse(usersJson) as string[]);
     } catch {
       // Ignore parse errors
     }
@@ -150,7 +154,7 @@ export default function DocumentScreen() {
 
   const handleActiveStylesChange = useCallback(async (stylesJson: string) => {
     try {
-      store.getState().setActiveFormatting(JSON.parse(stylesJson));
+      store.getState().setActiveFormatting(JSON.parse(stylesJson) as ActiveFormattingState);
     } catch {
       // Ignore parse errors
     }
@@ -169,7 +173,13 @@ export default function DocumentScreen() {
 
   const handleProxyFetch = useCallback(
     async (url: string, options?: string) => {
-      const opts = options ? JSON.parse(options) : {};
+      const opts = options
+        ? (JSON.parse(options) as {
+            method?: string;
+            headers?: Record<string, string>;
+            body?: BodyInit;
+          })
+        : ({} as { method?: string; headers?: Record<string, string>; body?: BodyInit });
       const headers: Record<string, string> = { ...opts.headers };
       if (token && !headers['Authorization']) {
         headers['Authorization'] = `Bearer ${token}`;
@@ -237,7 +247,7 @@ export default function DocumentScreen() {
           }
           b64 = btoa(binary);
         } else {
-          b64 = 'str:' + btoa(unescape(encodeURIComponent(e.data)));
+          b64 = 'str:' + btoa(unescape(encodeURIComponent(e.data as string)));
         }
         const resolver = wsResolvers.current.shift();
         if (resolver) {

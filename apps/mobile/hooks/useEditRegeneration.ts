@@ -13,6 +13,7 @@ import { useDebouncedCallback } from './useDebounced';
 import type {
   ImageStudioTemplateType,
   DreizeilenModificationParams,
+  ZitatModificationParams,
   ModificationParams,
 } from '@gruenerator/shared/image-studio';
 
@@ -85,8 +86,7 @@ export function useEditRegeneration(
       if (templateType === 'zitat' || templateType === 'zitat-pure') {
         return {
           ...baseRequest,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          fontSize: (mods as any).fontSize,
+          fontSize: (mods as ZitatModificationParams).fontSize,
         };
       }
 

@@ -51,14 +51,15 @@ export async function registerForPushNotifications(): Promise<string | null> {
       return null;
     }
 
-    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    const extra = Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined;
+    const projectId = extra?.eas?.projectId;
     if (!projectId) {
       console.warn('[Push] No EAS projectId configured — cannot register for push notifications');
       return null;
     }
 
     const tokenResponse = await Notifications.getExpoPushTokenAsync({ projectId });
-    const expoPushToken = tokenResponse.data;
+    const expoPushToken: string = tokenResponse.data as string;
 
     console.log('[Push] Expo push token:', expoPushToken);
 

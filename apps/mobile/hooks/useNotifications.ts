@@ -24,7 +24,7 @@ export function useUnreadCount() {
   const fetch = useCallback(async () => {
     try {
       const client = getGlobalApiClient();
-      const res = await client.get('/notifications/unread-count');
+      const res = await client.get<{ unreadCount?: number }>('/notifications/unread-count');
       setCount(res.data?.unreadCount ?? 0);
     } catch {
       // silently fail
@@ -50,8 +50,10 @@ export function useNotifications() {
 
   const fetchPage = useCallback(async (offset: number) => {
     const client = getGlobalApiClient();
-    const res = await client.get(`/notifications?limit=${PAGE_SIZE}&offset=${offset}`);
-    return (res.data?.notifications ?? []) as AppNotification[];
+    const res = await client.get<{ notifications?: AppNotification[] }>(
+      `/notifications?limit=${PAGE_SIZE}&offset=${offset}`
+    );
+    return res.data?.notifications ?? [];
   }, []);
 
   const refresh = useCallback(async () => {

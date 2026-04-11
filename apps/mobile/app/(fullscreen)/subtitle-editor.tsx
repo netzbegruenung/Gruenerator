@@ -15,7 +15,9 @@ export default function FullscreenSubtitleEditor() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ projectId: string; projectData: string }>();
 
-  const project: Project | null = params.projectData ? JSON.parse(params.projectData) : null;
+  const project: Project | null = params.projectData
+    ? (JSON.parse(params.projectData) as Project)
+    : null;
 
   if (!project) {
     router.back();

@@ -127,7 +127,11 @@ export function useNativeTTS() {
           for (const line of responseText.split('\n')) {
             if (!line.startsWith('data: ')) continue;
             try {
-              const data = JSON.parse(line.slice(6));
+              const data = JSON.parse(line.slice(6)) as {
+                error?: string;
+                audio?: string;
+                sampleRate?: number;
+              };
               if (data.error) break;
               if (data.audio) allChunks.push(data as TTSChunk);
             } catch {

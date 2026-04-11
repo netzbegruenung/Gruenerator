@@ -88,7 +88,7 @@ export async function createApiErrorFromResponse(
   try {
     const contentType = response.headers.get('content-type');
     if (contentType?.includes('application/json')) {
-      const data = await response.json();
+      const data = (await response.json()) as { message?: string; error?: string };
       if (data.message) message = data.message;
       if (data.error) message = data.error;
     } else {

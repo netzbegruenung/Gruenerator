@@ -158,8 +158,7 @@ function PromptSection() {
     if (!hasChanges || isSaving) return;
     setIsSaving(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await updateProfile({ custom_prompt: promptText.trim() || null } as any);
+      await updateProfile({ custom_prompt: promptText.trim() || null });
       initialPromptRef.current = promptText.trim();
       setPromptText(promptText.trim());
     } catch {
