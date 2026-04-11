@@ -6,9 +6,10 @@
  * unwanted reuse across different sharepic requests.
  */
 
+import { parseJSON } from '../../utils/parseJSON.js';
+
 import type { ImageAttachment, ImageStorageSession, ImageStorageStats } from './types.js';
 import type { RedisClient } from '../../utils/redis/types.js';
-import { parseJSON } from '../../utils/parseJSON.js';
 
 class TemporaryImageStorage {
   private redis: RedisClient;

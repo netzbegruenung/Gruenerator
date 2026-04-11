@@ -9,11 +9,11 @@ import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import { type VideoMetadata, type VideoOriginalFormat } from '../../routes/subtitler/types.js';
 import { createLogger } from '../../utils/logger.js';
 import { sanitizePath } from '../../utils/validation/security.js';
 
 import { ffmpeg, normalizeRotation, type FFprobeMetadata } from './ffmpegWrapper.js';
-import { type VideoMetadata, type VideoOriginalFormat } from '../../routes/subtitler/types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

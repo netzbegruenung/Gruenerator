@@ -23,7 +23,7 @@ import { notebookQAService } from '../../services/notebook/index.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 
-import type { NotebookRequest, PublicAccessRecord } from './types.js';
+import type { PublicAccessRecord } from './types.js';
 
 const log = createLogger('notebookInteraction');
 const { requireAuth } = authMiddleware;
@@ -318,7 +318,10 @@ router.get('/public/:token', async (req: Request<{ token: string }>, res: Respon
 router.post(
   '/public/:token/ask',
   validateBody(askQuestionSchema),
-  async (req: TypedRequest<z.infer<typeof askQuestionSchema>, { token: string }>, res: Response) => {
+  async (
+    req: TypedRequest<z.infer<typeof askQuestionSchema>, { token: string }>,
+    res: Response
+  ) => {
     const startTime = Date.now();
 
     try {

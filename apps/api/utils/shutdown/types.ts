@@ -2,7 +2,6 @@
  * Shutdown Handler Types
  */
 
-import type { Worker } from 'cluster';
 import type { Server } from 'http';
 
 export interface ShutdownableResource {

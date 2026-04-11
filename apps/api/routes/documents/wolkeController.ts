@@ -20,11 +20,10 @@ import { getPostgresDocumentService } from '../../services/document-services/Pos
 import { getWolkeSyncService } from '../../services/sync/index.js';
 import { createLogger } from '../../utils/logger.js';
 
-import type { NextcloudFile } from '../../services/sync/types.js';
-
 import { formatFileSize } from './helpers.js';
 
 import type { DocumentRequest, WolkeImportResult } from './types.js';
+import type { NextcloudFile } from '../../services/sync/types.js';
 
 const log = createLogger('documents:wolke');
 const router: Router = express.Router();

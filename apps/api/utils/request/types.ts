@@ -2,8 +2,6 @@
  * Request/Response Type Definitions
  */
 
-import type { Response } from 'express';
-
 /**
  * AI worker result
  */

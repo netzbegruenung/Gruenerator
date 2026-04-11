@@ -2,13 +2,13 @@ import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import {
   DOCUMENT_GENERATION_PROMPT,
   parseDocumentResponse,
   createDocumentWithContent,
 } from '../../services/docs/DocGenerationService.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
-import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { DOCS_ONLY_SUBTYPES, DOCS_SUBTYPES } from './constants.js';
@@ -41,89 +41,104 @@ const db = getPostgresInstance();
  * @desc    Create a new collaborative document
  * @access  Private
  */
-router.post('/', validateBody(createDocSchema), async (req: TypedRequest<{ title?: string; folder_id?: unknown; document_subtype?: string }>, res: Response) => {
-  try {
-    const { title = 'Untitled Document', folder_id = null, document_subtype = 'blank' } = req.body;
-    const userId = req.user?.id;
+router.post(
+  '/',
+  validateBody(createDocSchema),
+  async (
+    req: TypedRequest<{ title?: string; folder_id?: unknown; document_subtype?: string }>,
+    res: Response
+  ) => {
+    try {
+      const {
+        title = 'Untitled Document',
+        folder_id = null,
+        document_subtype = 'blank',
+      } = req.body;
+      const userId = req.user?.id;
 
-    if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
 
-    const subtype = DOCS_SUBTYPES.includes(document_subtype) ? document_subtype : 'blank';
+      const subtype = DOCS_SUBTYPES.includes(document_subtype) ? document_subtype : 'blank';
 
-    const result = (await db.query(
-      `INSERT INTO collaborative_documents
+      const result = (await db.query(
+        `INSERT INTO collaborative_documents
         (title, created_by, last_edited_by, document_subtype, folder_id, permissions, is_public)
        VALUES ($1, $2, $2, $3, $4, $5, false)
        RETURNING *`,
-      [
-        title,
-        userId,
-        subtype,
-        folder_id,
-        JSON.stringify({ [userId]: { level: 'owner', granted_at: new Date().toISOString() } }),
-      ]
-    )) as CollaborativeDocument[];
+        [
+          title,
+          userId,
+          subtype,
+          folder_id,
+          JSON.stringify({ [userId]: { level: 'owner', granted_at: new Date().toISOString() } }),
+        ]
+      )) as CollaborativeDocument[];
 
-    return res.status(201).json(result[0]);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error('[Docs] Error creating document:', error);
-    return res.status(500).json({ error: 'Failed to create document', details: message });
+      return res.status(201).json(result[0]);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[Docs] Error creating document:', error);
+      return res.status(500).json({ error: 'Failed to create document', details: message });
+    }
   }
-});
+);
 
 /**
  * @route   POST /api/docs/generate
  * @desc    Generate a document using AI based on a description
  * @access  Private
  */
-router.post('/generate', validateBody(generateDocSchema), async (req: TypedRequest<{ description: string }>, res: Response) => {
-  try {
-    const { description } = req.body;
-    const userId = req.user?.id;
+router.post(
+  '/generate',
+  validateBody(generateDocSchema),
+  async (req: TypedRequest<{ description: string }>, res: Response) => {
+    try {
+      const { description } = req.body;
+      const userId = req.user?.id;
 
-    if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
+      if (description.trim().length < 3) {
+        return res.status(400).json({ error: 'Description is required (min 3 characters)' });
+      }
+
+      log.info(`Generating document for user ${userId}: "${description.trim().slice(0, 80)}"`);
+
+      const aiResult = await getAIWorkerPool(req).processRequest(
+        {
+          type: 'doc_generation',
+          systemPrompt: DOCUMENT_GENERATION_PROMPT,
+          messages: [{ role: 'user', content: description.trim() }],
+          options: { temperature: 0.7, max_tokens: 4000 },
+        },
+        req
+      );
+
+      const generated =
+        aiResult.success && aiResult.content
+          ? parseDocumentResponse(aiResult.content)
+          : { title: 'Neues Dokument', subtype: 'blank', content: '' };
+
+      const document = await createDocumentWithContent(
+        generated.title,
+        generated.content,
+        generated.subtype,
+        userId
+      );
+
+      log.info(`Document created: ${document.id}, subtype: ${generated.subtype}`);
+      return res.status(201).json(document);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[Docs] Error generating document:', error);
+      return res.status(500).json({ error: 'Failed to generate document', details: message });
     }
-
-    if (description.trim().length < 3) {
-      return res.status(400).json({ error: 'Description is required (min 3 characters)' });
-    }
-
-    log.info(`Generating document for user ${userId}: "${description.trim().slice(0, 80)}"`);
-
-    const aiResult = await getAIWorkerPool(req).processRequest(
-      {
-        type: 'doc_generation',
-        systemPrompt: DOCUMENT_GENERATION_PROMPT,
-        messages: [{ role: 'user', content: description.trim() }],
-        options: { temperature: 0.7, max_tokens: 4000 },
-      },
-      req
-    );
-
-    const generated =
-      aiResult.success && aiResult.content
-        ? parseDocumentResponse(aiResult.content)
-        : { title: 'Neues Dokument', subtype: 'blank', content: '' };
-
-    const document = await createDocumentWithContent(
-      generated.title,
-      generated.content,
-      generated.subtype,
-      userId
-    );
-
-    log.info(`Document created: ${document.id}, subtype: ${generated.subtype}`);
-    return res.status(201).json(document);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error('[Docs] Error generating document:', error);
-    return res.status(500).json({ error: 'Failed to generate document', details: message });
   }
-});
+);
 
 /**
  * @route   GET /api/docs
@@ -263,119 +278,127 @@ router.get('/:id', async (req: Request, res: Response) => {
  * @desc    Update document metadata (title, folder)
  * @access  Private
  */
-router.put('/:id', validateBody(updateDocSchema), async (req: TypedRequest<{ title?: string; folder_id?: unknown; content?: string }, { id: string }>, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { title, folder_id, content } = req.body;
-    const userId = req.user?.id;
+router.put(
+  '/:id',
+  validateBody(updateDocSchema),
+  async (
+    req: TypedRequest<{ title?: string; folder_id?: unknown; content?: string }, { id: string }>,
+    res: Response
+  ) => {
+    try {
+      const { id } = req.params;
+      const { title, folder_id, content } = req.body;
+      const userId = req.user?.id;
 
-    console.log('[docs-rename] PUT /api/docs/%s — userId=%s, body=%o', id, userId, {
-      title,
-      folder_id,
-      content: content !== undefined ? `(${String(content).length} chars)` : undefined,
-    });
+      console.log('[docs-rename] PUT /api/docs/%s — userId=%s, body=%o', id, userId, {
+        title,
+        folder_id,
+        content: content !== undefined ? `(${String(content).length} chars)` : undefined,
+      });
 
-    if (!userId) {
-      console.warn('[docs-rename] PUT /api/docs/%s — 401: no userId', id);
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
+      if (!userId) {
+        console.warn('[docs-rename] PUT /api/docs/%s — 401: no userId', id);
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
 
-    const checkResult = (await db.query(
-      'SELECT permissions, created_by FROM collaborative_documents WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false',
-      [id, DOCS_SUBTYPES]
-    )) as CollaborativeDocument[];
+      const checkResult = (await db.query(
+        'SELECT permissions, created_by FROM collaborative_documents WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false',
+        [id, DOCS_SUBTYPES]
+      )) as CollaborativeDocument[];
 
-    if (checkResult.length === 0) {
-      console.warn(
-        '[docs-rename] PUT /api/docs/%s — 404: document not found (userId=%s)',
-        id,
-        userId
-      );
-      return res.status(404).json({ error: 'Document not found' });
-    }
+      if (checkResult.length === 0) {
+        console.warn(
+          '[docs-rename] PUT /api/docs/%s — 404: document not found (userId=%s)',
+          id,
+          userId
+        );
+        return res.status(404).json({ error: 'Document not found' });
+      }
 
-    const document = checkResult[0];
-    const userPermission = document.permissions?.[userId];
-    const isOwner = document.created_by === userId;
-    let canEdit = isOwner || (userPermission && ['owner', 'editor'].includes(userPermission.level));
-    let accessMethod = isOwner
-      ? 'owner'
-      : userPermission
-        ? `direct:${userPermission.level}`
-        : 'none';
+      const document = checkResult[0];
+      const userPermission = document.permissions?.[userId];
+      const isOwner = document.created_by === userId;
+      let canEdit =
+        isOwner || (userPermission && ['owner', 'editor'].includes(userPermission.level));
+      let accessMethod = isOwner
+        ? 'owner'
+        : userPermission
+          ? `direct:${userPermission.level}`
+          : 'none';
 
-    if (!canEdit) {
-      const groupAccess = (await db.query(
-        `SELECT gcs.permissions FROM group_content_shares gcs
+      if (!canEdit) {
+        const groupAccess = (await db.query(
+          `SELECT gcs.permissions FROM group_content_shares gcs
          INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
          WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2 LIMIT 1`,
-        [userId, id]
-      )) as { permissions: { read: boolean; write: boolean } | null }[];
+          [userId, id]
+        )) as { permissions: { read: boolean; write: boolean } | null }[];
 
-      if (groupAccess.length > 0 && groupAccess[0].permissions?.write === true) {
-        canEdit = true;
-        accessMethod = 'group:write';
+        if (groupAccess.length > 0 && groupAccess[0].permissions?.write === true) {
+          canEdit = true;
+          accessMethod = 'group:write';
+        }
       }
-    }
 
-    if (!canEdit) {
-      console.warn(
-        '[docs-rename] PUT /api/docs/%s — 403: userId=%s, accessMethod=%s, createdBy=%s, permissions=%o',
-        id,
-        userId,
-        accessMethod,
-        document.created_by,
-        document.permissions
-      );
-      return res.status(403).json({ error: 'Insufficient permissions to edit document' });
-    }
+      if (!canEdit) {
+        console.warn(
+          '[docs-rename] PUT /api/docs/%s — 403: userId=%s, accessMethod=%s, createdBy=%s, permissions=%o',
+          id,
+          userId,
+          accessMethod,
+          document.created_by,
+          document.permissions
+        );
+        return res.status(403).json({ error: 'Insufficient permissions to edit document' });
+      }
 
-    const updates: string[] = [];
-    const values: unknown[] = [];
-    let paramIndex = 1;
+      const updates: string[] = [];
+      const values: unknown[] = [];
+      let paramIndex = 1;
 
-    if (title !== undefined) {
-      updates.push(`title = $${paramIndex++}`);
-      values.push(title);
-    }
+      if (title !== undefined) {
+        updates.push(`title = $${paramIndex++}`);
+        values.push(title);
+      }
 
-    if (folder_id !== undefined) {
-      updates.push(`folder_id = $${paramIndex++}`);
-      values.push(folder_id);
-    }
+      if (folder_id !== undefined) {
+        updates.push(`folder_id = $${paramIndex++}`);
+        values.push(folder_id);
+      }
 
-    if (content !== undefined) {
-      updates.push(`content = $${paramIndex++}`);
-      values.push(content);
-      updates.push(`last_edited_by = $${paramIndex++}`);
-      values.push(userId);
-      updates.push(`last_edited_at = CURRENT_TIMESTAMP`);
-      updates.push(`updated_at = CURRENT_TIMESTAMP`);
-    }
+      if (content !== undefined) {
+        updates.push(`content = $${paramIndex++}`);
+        values.push(content);
+        updates.push(`last_edited_by = $${paramIndex++}`);
+        values.push(userId);
+        updates.push(`last_edited_at = CURRENT_TIMESTAMP`);
+        updates.push(`updated_at = CURRENT_TIMESTAMP`);
+      }
 
-    values.push(id);
+      values.push(id);
 
-    const result = (await db.query(
-      `UPDATE collaborative_documents
+      const result = (await db.query(
+        `UPDATE collaborative_documents
        SET ${updates.join(', ')}
        WHERE id = $${paramIndex}
        RETURNING *`,
-      values
-    )) as CollaborativeDocument[];
+        values
+      )) as CollaborativeDocument[];
 
-    console.log(
-      '[docs-rename] PUT /api/docs/%s — success: title="%s", accessMethod=%s',
-      id,
-      result[0]?.title,
-      accessMethod
-    );
-    return res.json(result[0]);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error('[Docs] Error updating document:', error);
-    return res.status(500).json({ error: 'Failed to update document', details: message });
+      console.log(
+        '[docs-rename] PUT /api/docs/%s — success: title="%s", accessMethod=%s',
+        id,
+        result[0]?.title,
+        accessMethod
+      );
+      return res.json(result[0]);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[Docs] Error updating document:', error);
+      return res.status(500).json({ error: 'Failed to update document', details: message });
+    }
   }
-});
+);
 
 /**
  * @route   DELETE /api/docs/:id

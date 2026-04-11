@@ -11,17 +11,17 @@
  * - DELETE /bulk - Bulk delete documents
  */
 
-import { z } from 'zod';
 import express, { type Router, type Response } from 'express';
+import { z } from 'zod';
 
 import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { enrichDocumentWithPreview } from './helpers.js';
 
-import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import type { DocumentRequest } from './types.js';
 
 const log = createLogger('documents:retrieval');
@@ -401,68 +401,74 @@ const bulkDeleteSchema = z.object({
 /**
  * DELETE /bulk - Bulk delete documents (PostgreSQL + Qdrant only)
  */
-router.delete('/bulk', validateBody(bulkDeleteSchema), async (req: TypedRequest<z.infer<typeof bulkDeleteSchema>>, res: Response): Promise<void> => {
-  log.debug('[DELETE /bulk] BULK DELETE ROUTE HIT - Route is accessible');
-  log.debug('[DELETE /bulk] Request method:', req.method);
-  log.debug('[DELETE /bulk] Request URL:', req.originalUrl);
-  log.debug('[DELETE /bulk] User authenticated:', !!req.user);
-  log.debug('[DELETE /bulk] User ID:', req.user?.id);
-  log.debug('[DELETE /bulk] Request body:', JSON.stringify(req.body, null, 2));
+router.delete(
+  '/bulk',
+  validateBody(bulkDeleteSchema),
+  async (req: TypedRequest<z.infer<typeof bulkDeleteSchema>>, res: Response): Promise<void> => {
+    log.debug('[DELETE /bulk] BULK DELETE ROUTE HIT - Route is accessible');
+    log.debug('[DELETE /bulk] Request method:', req.method);
+    log.debug('[DELETE /bulk] Request URL:', req.originalUrl);
+    log.debug('[DELETE /bulk] User authenticated:', !!req.user);
+    log.debug('[DELETE /bulk] User ID:', req.user?.id);
+    log.debug('[DELETE /bulk] Request body:', JSON.stringify(req.body, null, 2));
 
-  try {
-    const { ids } = req.body;
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
-    log.debug(`[DELETE /bulk] Bulk delete request for ${ids.length} documents from user ${userId}`);
-    log.debug('[DELETE /bulk] Document IDs to delete:', ids);
-
-    // Delete document metadata from PostgreSQL
-    log.debug('[DELETE /bulk] Starting bulk delete operation...');
-    const deleteResult = await postgresDocumentService.bulkDeleteDocuments(ids, userId);
-
-    // Delete document vectors from Qdrant
-    const vectorDeletePromises = deleteResult.deletedIds.map(async (documentId) => {
-      try {
-        await documentSearchService.deleteDocumentVectors(documentId, userId);
-        return { documentId, success: true };
-      } catch (error) {
-        log.warn(`[DELETE /bulk] Failed to delete vectors for document ${documentId}:`, error);
-        return { documentId, success: false, error: (error as Error).message };
+    try {
+      const { ids } = req.body;
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
       }
-    });
 
-    const vectorDeleteResults = await Promise.allSettled(vectorDeletePromises);
-    const vectorDeleteSuccesses = vectorDeleteResults.filter(
-      (result) => result.status === 'fulfilled' && result.value.success
-    ).length;
+      log.debug(
+        `[DELETE /bulk] Bulk delete request for ${ids.length} documents from user ${userId}`
+      );
+      log.debug('[DELETE /bulk] Document IDs to delete:', ids);
 
-    log.debug(
-      `[DELETE /bulk] Bulk delete completed: ${deleteResult.deletedCount} documents deleted, ${vectorDeleteSuccesses} vector collections deleted`
-    );
+      // Delete document metadata from PostgreSQL
+      log.debug('[DELETE /bulk] Starting bulk delete operation...');
+      const deleteResult = await postgresDocumentService.bulkDeleteDocuments(ids, userId);
 
-    res.json({
-      success: true,
-      message: `Bulk delete completed: ${deleteResult.deletedCount} of ${ids.length} documents deleted successfully`,
-      deleted_count: deleteResult.deletedCount,
-      failed_ids: ids.filter((id) => !deleteResult.deletedIds.includes(id)),
-      total_requested: ids.length,
-      deleted_ids: deleteResult.deletedIds,
-      vector_cleanup: {
-        vectors_deleted: vectorDeleteSuccesses,
-        total_documents: deleteResult.deletedIds.length,
-      },
-    });
-  } catch (error) {
-    log.error('[DELETE /bulk] Error in bulk delete:', error);
-    res.status(500).json({
-      success: false,
-      message: (error as Error).message || 'Failed to perform bulk delete',
-    });
+      // Delete document vectors from Qdrant
+      const vectorDeletePromises = deleteResult.deletedIds.map(async (documentId) => {
+        try {
+          await documentSearchService.deleteDocumentVectors(documentId, userId);
+          return { documentId, success: true };
+        } catch (error) {
+          log.warn(`[DELETE /bulk] Failed to delete vectors for document ${documentId}:`, error);
+          return { documentId, success: false, error: (error as Error).message };
+        }
+      });
+
+      const vectorDeleteResults = await Promise.allSettled(vectorDeletePromises);
+      const vectorDeleteSuccesses = vectorDeleteResults.filter(
+        (result) => result.status === 'fulfilled' && result.value.success
+      ).length;
+
+      log.debug(
+        `[DELETE /bulk] Bulk delete completed: ${deleteResult.deletedCount} documents deleted, ${vectorDeleteSuccesses} vector collections deleted`
+      );
+
+      res.json({
+        success: true,
+        message: `Bulk delete completed: ${deleteResult.deletedCount} of ${ids.length} documents deleted successfully`,
+        deleted_count: deleteResult.deletedCount,
+        failed_ids: ids.filter((id) => !deleteResult.deletedIds.includes(id)),
+        total_requested: ids.length,
+        deleted_ids: deleteResult.deletedIds,
+        vector_cleanup: {
+          vectors_deleted: vectorDeleteSuccesses,
+          total_documents: deleteResult.deletedIds.length,
+        },
+      });
+    } catch (error) {
+      log.error('[DELETE /bulk] Error in bulk delete:', error);
+      res.status(500).json({
+        success: false,
+        message: (error as Error).message || 'Failed to perform bulk delete',
+      });
+    }
   }
-});
+);
 
 export default router;

@@ -1,5 +1,5 @@
-import { z } from 'zod';
 import express, { type Router, type Response } from 'express';
+import { z } from 'zod';
 
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { generateShortSubtitlesViaAI } from '../../services/subtitler/shortSubtitleGeneratorService.js';
@@ -23,7 +23,10 @@ const generateShortSubtitlesSchema = z.object({
 router.post(
   '/generate-short-subtitles',
   validateBody(generateShortSubtitlesSchema),
-  async (req: TypedRequest<z.infer<typeof generateShortSubtitlesSchema>>, res: Response): Promise<void> => {
+  async (
+    req: TypedRequest<z.infer<typeof generateShortSubtitlesSchema>>,
+    res: Response
+  ): Promise<void> => {
     const { text, words } = req.body;
 
     try {

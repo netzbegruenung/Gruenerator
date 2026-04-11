@@ -23,8 +23,8 @@ import type { SKRSContext2D as CanvasRenderingContext2D } from '@napi-rs/canvas'
 export async function renderBalken(
   ctx: CanvasRenderingContext2D,
   balken: BalkenLayer,
-  canvasWidth: number,
-  canvasHeight: number
+  _canvasWidth: number,
+  _canvasHeight: number
 ): Promise<void> {
   const colorScheme = getColorScheme(balken.colorSchemeId);
 

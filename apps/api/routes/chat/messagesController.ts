@@ -10,8 +10,6 @@ import { createLogger } from '../../utils/logger.js';
 import { canAccessThread } from './services/threadAccessService.js';
 import { getUser } from './services/threadPersistenceService.js';
 
-import type { Thread, Message } from './agents/types.js';
-
 const log = createLogger('MessagesController');
 const router = createAuthenticatedRouter();
 

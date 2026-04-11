@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 
 import { v4 as uuidv4 } from 'uuid';
 
+import { type VideoMetadata } from '../../routes/subtitler/types.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -23,7 +24,6 @@ import {
   type Segment,
   type Clip,
 } from './segmentFilterBuilders.js';
-import { type VideoMetadata } from '../../routes/subtitler/types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -223,7 +223,11 @@ export async function exportMultiClipWithSegments(
         log.warn(`Segment references unknown clipId: ${seg.clipId}`);
         return false;
       }
-      return seg.start >= 0 && seg.end > seg.start && seg.end <= ((clipMeta.duration as number | undefined) ?? 0) + 0.5;
+      return (
+        seg.start >= 0 &&
+        seg.end > seg.start &&
+        seg.end <= ((clipMeta.duration as number | undefined) ?? 0) + 0.5
+      );
     });
 
     if (validSegments.length === 0) {
@@ -447,7 +451,11 @@ export async function exportMultiClipWithSegmentsAndSubtitles(
     const validSegments = segments.filter((seg) => {
       const clipMeta = seg.clipId ? clipMetadataMap[seg.clipId] : undefined;
       if (!clipMeta) return false;
-      return seg.start >= 0 && seg.end > seg.start && seg.end <= ((clipMeta.duration as number | undefined) ?? 0) + 0.5;
+      return (
+        seg.start >= 0 &&
+        seg.end > seg.start &&
+        seg.end <= ((clipMeta.duration as number | undefined) ?? 0) + 0.5
+      );
     });
 
     if (validSegments.length === 0) {

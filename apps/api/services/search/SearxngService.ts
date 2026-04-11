@@ -11,7 +11,6 @@ import type {
   ContentStats,
   FormattedSearchResults,
   FormattedSearchResultsWithSummary,
-  SearxngSummary,
   CacheEntry,
   ServiceStatus,
 } from './types.js';
@@ -282,7 +281,7 @@ class SearxngService {
     searchResults: FormattedSearchResults,
     originalQuery: string,
     aiWorkerPool: AIWorkerPool,
-    summaryOptions: Record<string, unknown> = {},
+    _summaryOptions: Record<string, unknown> = {},
     req: unknown = null
   ): Promise<FormattedSearchResultsWithSummary> {
     if (!searchResults.results || searchResults.results.length === 0) {
@@ -376,7 +375,7 @@ Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Inform
   /**
    * Prepare search results content for AI summarization
    */
-  private prepareContentForSummary(results: SearchResult[], query: string): string {
+  private prepareContentForSummary(results: SearchResult[], _query: string): string {
     const relevantResults = results.slice(0, 8);
 
     return relevantResults
@@ -416,7 +415,7 @@ URL: ${result.url}
     try {
       const urlObject = new URL(url);
       return urlObject.hostname.replace('www.', '');
-    } catch (error) {
+    } catch {
       return url || 'unknown';
     }
   }

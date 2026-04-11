@@ -5,6 +5,7 @@
  * including vector storage, retrieval, and specialized search options.
  */
 
+import type { QdrantFilter } from '../../../database/services/QdrantService/types.js';
 import type {
   SearchFilters,
   SearchOptions,
@@ -18,7 +19,6 @@ import type {
   HybridOptions,
   DocumentResult,
 } from '../../BaseSearchService/types.js';
-import type { QdrantFilter } from '../../../database/services/QdrantService/types.js';
 
 // ============ Qdrant Filter Types ============
 

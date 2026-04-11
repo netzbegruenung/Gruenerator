@@ -4,8 +4,8 @@
  * Calculates optimal font sizes based on video dimensions and content.
  */
 
-import { createLogger } from '../../utils/logger.js';
 import { type VideoMetadata } from '../../routes/subtitler/types.js';
+import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('subtitleSizing');
 

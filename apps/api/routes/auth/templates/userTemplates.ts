@@ -3,8 +3,8 @@
  * Handles personal template management
  */
 
-import { z } from 'zod';
 import express, { type Router, type Response, type NextFunction } from 'express';
+import { z } from 'zod';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
@@ -357,7 +357,10 @@ router.put(
   '/user-templates/:id',
   ensureAuthenticated,
   validateBody(updateTemplateSchema),
-  async (req: TypedRequest<z.infer<typeof updateTemplateSchema>, { id: string }>, res: Response): Promise<void> => {
+  async (
+    req: TypedRequest<z.infer<typeof updateTemplateSchema>, { id: string }>,
+    res: Response
+  ): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { id } = req.params;
@@ -519,7 +522,10 @@ router.post(
   '/user-templates/:id/metadata',
   ensureAuthenticated,
   validateBody(metadataUpdateSchema),
-  async (req: TypedRequest<z.infer<typeof metadataUpdateSchema>, { id: string }>, res: Response): Promise<void> => {
+  async (
+    req: TypedRequest<z.infer<typeof metadataUpdateSchema>, { id: string }>,
+    res: Response
+  ): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { id } = req.params;
@@ -594,7 +600,10 @@ router.delete(
   '/user-templates/bulk',
   ensureAuthenticated,
   validateBody(bulkDeleteTemplatesSchema),
-  async (req: TypedRequest<z.infer<typeof bulkDeleteTemplatesSchema>>, res: Response): Promise<void> => {
+  async (
+    req: TypedRequest<z.infer<typeof bulkDeleteTemplatesSchema>>,
+    res: Response
+  ): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { ids } = req.body;

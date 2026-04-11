@@ -4,9 +4,6 @@
  * Orchestrates all Qdrant operations through modular components.
  */
 
-import * as http from 'http';
-import * as https from 'https';
-
 import { QdrantClient } from '@qdrant/js-client-rest';
 import * as dotenv from 'dotenv';
 
@@ -168,16 +165,6 @@ export class QdrantService {
       }
 
       log.debug(`Connecting to ${qdrantUrl}`);
-
-      const isHttps = qdrantUrl?.startsWith('https') ?? false;
-      const AgentClass = isHttps ? https.Agent : http.Agent;
-      const httpAgent = new AgentClass({
-        keepAlive: true,
-        keepAliveMsecs: 1000,
-        maxSockets: 10,
-        maxFreeSockets: 5,
-        timeout: 30000,
-      });
 
       const basicAuthUsername = process.env.QDRANT_BASIC_AUTH_USERNAME;
       const basicAuthPassword = process.env.QDRANT_BASIC_AUTH_PASSWORD;

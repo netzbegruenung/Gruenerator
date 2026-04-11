@@ -25,8 +25,8 @@ import type {
   Locale,
   Platform,
 } from './types/promptAssembly.js';
-import type { contentExamplesService as ContentExamplesServiceInstance } from '../../services/contentExamplesService.js';
 import type { ClaudeMessage } from '../../services/attachments/types.js';
+import type { contentExamplesService as ContentExamplesServiceInstance } from '../../services/contentExamplesService.js';
 
 // ============================================================================
 // Optional Service Dependencies
@@ -648,7 +648,10 @@ async function assemblePromptGraphAsync(
             })
             .then((items) =>
               items
-                .filter((item): item is typeof item & { content: string } => typeof item.content === 'string')
+                .filter(
+                  (item): item is typeof item & { content: string } =>
+                    typeof item.content === 'string'
+                )
                 .map((item) => ({ ...item, content: item.content }))
             )
         );

@@ -193,16 +193,6 @@ router.get(
   }
 );
 
-const VALID_CONTENT_TYPES = new Set([
-  'documents',
-  'custom_generators',
-  'notebook_collections',
-  'user_documents',
-  'database',
-  'collaborative_documents',
-  'system_notebooks',
-]);
-
 const tableNameMap: Record<string, string> = {
   database: 'user_templates',
   template: 'user_templates',
@@ -724,7 +714,10 @@ router.put(
     try {
       const { groupId, contentId } = req.params;
       const userId = req.user!.id;
-      const { contentType, permissions } = req.body as { contentType: string; permissions: string[] };
+      const { contentType, permissions } = req.body as {
+        contentType: string;
+        permissions: string[];
+      };
 
       const { postgres, membership } = await getPostgresAndCheckMembership(groupId, userId, false);
 

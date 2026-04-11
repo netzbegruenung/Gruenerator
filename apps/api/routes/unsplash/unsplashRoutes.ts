@@ -10,8 +10,8 @@
  * - GET  /api/unsplash/stats - Get service statistics
  */
 
-import { z } from 'zod';
 import express, { type Request, type Response } from 'express';
+import { z } from 'zod';
 
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import {
@@ -122,26 +122,30 @@ const trackDownloadSchema = z.object({
  *   success: boolean
  * }
  */
-router.post('/track-download', validateBody(trackDownloadSchema), async (req: TypedRequest<z.infer<typeof trackDownloadSchema>>, res: Response) => {
-  try {
-    const { downloadLocation } = req.body;
+router.post(
+  '/track-download',
+  validateBody(trackDownloadSchema),
+  async (req: TypedRequest<z.infer<typeof trackDownloadSchema>>, res: Response) => {
+    try {
+      const { downloadLocation } = req.body;
 
-    // Track download (non-blocking)
-    const service = getUnsplashService();
-    await service.trackDownload(downloadLocation);
+      // Track download (non-blocking)
+      const service = getUnsplashService();
+      await service.trackDownload(downloadLocation);
 
-    return res.status(200).json({ success: true });
-  } catch (error) {
-    console.error('[UnsplashRoutes] Track download error:', error);
+      return res.status(200).json({ success: true });
+    } catch (error) {
+      console.error('[UnsplashRoutes] Track download error:', error);
 
-    // Don't fail the request even if tracking fails
-    // This is intentionally non-blocking
-    return res.status(200).json({
-      success: false,
-      warning: 'Download tracking failed but request succeeded',
-    });
+      // Don't fail the request even if tracking fails
+      // This is intentionally non-blocking
+      return res.status(200).json({
+        success: false,
+        warning: 'Download tracking failed but request succeeded',
+      });
+    }
   }
-});
+);
 
 /**
  * GET /api/unsplash/stats

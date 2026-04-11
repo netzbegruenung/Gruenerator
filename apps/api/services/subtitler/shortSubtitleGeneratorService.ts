@@ -5,6 +5,7 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
+
 import type { AIWorkerPool } from '../../workers/types.js';
 
 const log = createLogger('shortSubtitleGe');

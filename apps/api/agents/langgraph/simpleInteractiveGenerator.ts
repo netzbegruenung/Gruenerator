@@ -13,7 +13,6 @@
  * 3. Call with generatorType: '{type}'
  */
 
-import { getQuestionsForType } from '../../config/antragQuestions.js';
 import {
   setExperimentalSession,
   getExperimentalSession,
@@ -25,10 +24,7 @@ import { assemblePromptGraphAsync } from './promptAssemblyGraph.js';
 import { loadPromptConfig, SimpleTemplateEngine } from './PromptProcessor.js';
 
 import type {
-  AIWorkerPool,
-  AIWorkerResponse,
   AIRequestData,
-  Tool,
   GeneratedQuestion,
   QuestionGenerationArgs,
   QuestionGenerationResult,
@@ -53,7 +49,6 @@ import type {
 } from './types/index.js';
 import type { PromptConfig } from './types/promptProcessor.js';
 import type { ExperimentalSession } from '../../services/chat/types.js';
-import type { Request } from 'express';
 
 // Lazy-loaded optional services
 let _searxngService: SearxngService | null = null;
@@ -416,8 +411,8 @@ export async function initiateInteractiveGenerator({
  * Helper: Generate final result with optional Q&A context
  */
 async function generateFinalResult({
-  userId,
-  sessionId,
+  userId: _userId,
+  sessionId: _sessionId,
   inhalt,
   requestType,
   generatorType = 'antrag',
@@ -532,7 +527,9 @@ async function generateFinalResult({
         max_tokens: config.options?.max_tokens || 4000,
         temperature: config.options?.temperature || 0.3,
         ...(assembledPrompt.tools?.length &&
-          assembledPrompt.tools.length > 0 && { tools: assembledPrompt.tools as unknown as Tool[] }),
+          assembledPrompt.tools.length > 0 && {
+            tools: assembledPrompt.tools as unknown as Tool[],
+          }),
       },
     } as AIRequestData,
     req
@@ -548,7 +545,9 @@ async function generateFinalResult({
 
   const result: GenerationResult = {
     content: generationResult.content || '',
-    ...(generationResult.metadata?.usage != null ? { metadata: { usage: generationResult.metadata.usage } } : {}),
+    ...(generationResult.metadata?.usage != null
+      ? { metadata: { usage: generationResult.metadata.usage } }
+      : {}),
   };
   return result;
 }

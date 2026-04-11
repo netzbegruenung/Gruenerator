@@ -11,21 +11,23 @@ import { z } from 'zod';
 import { selectAndCrawlTopUrls } from '../../../../services/search/CrawlingService.js';
 import { createLogger } from '../../../../utils/logger.js';
 
-import type { CrawledResult } from '../../../../services/search/CrawlingService.js';
 import type { ToolDependencies } from './registry.js';
+import type { CrawledResult } from '../../../../services/search/CrawlingService.js';
 
 const log = createLogger('Tool:ScrapeUrl');
 
 export function createScrapeUrlTool(_deps: ToolDependencies): DynamicStructuredTool {
-    // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
+  // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'scrape_url',
     description:
       'Lade den Inhalt einer URL herunter und extrahiere den Text. ' +
       'Nutze dieses Tool wenn der Nutzer eine URL teilt und den Inhalt lesen oder analysieren möchte.',
-    schema: z.object({
-      url: z.string().url().describe('Die URL die geladen werden soll'),
-    }).describe('URL laden'),
+    schema: z
+      .object({
+        url: z.string().url().describe('Die URL die geladen werden soll'),
+      })
+      .describe('URL laden'),
     func: async (input: { url: string }) => {
       const { url } = input;
       log.info(`[ScrapeUrl] url="${url}"`);

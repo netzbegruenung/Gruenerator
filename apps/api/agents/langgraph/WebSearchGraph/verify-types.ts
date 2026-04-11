@@ -3,7 +3,6 @@
  * This file exists solely to verify that all types compile correctly
  */
 
-import type { AIWorkerPool } from '../../../workers/types.js';
 import type {
   CrawlMetadata,
   Citation,
@@ -16,6 +15,7 @@ import type {
   ValidationResult,
   WebSearchInput,
 } from './types.js';
+import type { AIWorkerPool } from '../../../workers/types.js';
 import type { Request } from 'express';
 
 // Type verification tests - these should all compile without errors

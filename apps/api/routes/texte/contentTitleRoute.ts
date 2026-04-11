@@ -1,6 +1,6 @@
-import { z } from 'zod';
 import { generateText } from 'ai';
 import express, { type Router, type Response } from 'express';
+import { z } from 'zod';
 
 import authMiddleware from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';

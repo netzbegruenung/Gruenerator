@@ -6,10 +6,10 @@
 
 import path from 'path';
 
+import { type VideoMetadata } from '../../routes/subtitler/types.js';
 import { createLogger } from '../../utils/logger.js';
 
 import * as hwaccel from './hwaccelUtils.js';
-import { type VideoMetadata } from '../../routes/subtitler/types.js';
 
 const log = createLogger('ffmpeg-export-utils');
 

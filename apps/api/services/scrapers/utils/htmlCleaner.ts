@@ -115,7 +115,7 @@ export function normalizeContentUrls($: cheerio.CheerioAPI, baseUrl: string): vo
       try {
         const absoluteUrl = new URL(href, baseUrl).toString();
         $(el).attr('href', absoluteUrl);
-      } catch (e) {
+      } catch {
         // Invalid URL, leave as is
       }
     }

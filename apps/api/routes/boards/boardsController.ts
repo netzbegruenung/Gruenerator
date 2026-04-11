@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import {
   BOARD_GENERATION_PROMPT,
   createBoardDocument,
@@ -9,7 +10,6 @@ import {
   parseBoardStructure,
   postProcessBoardStructure,
 } from '../../services/boards/BoardService.js';
-import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 
 const BOARDS_SUBTYPE = 'boards';
@@ -89,72 +89,83 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/generate', validateBody(generateBoardSchema), async (req: TypedRequest<{ description: string }>, res: Response) => {
-  try {
-    const { description } = req.body;
-    const userId = req.user?.id;
+router.post(
+  '/generate',
+  validateBody(generateBoardSchema),
+  async (req: TypedRequest<{ description: string }>, res: Response) => {
+    try {
+      const { description } = req.body;
+      const userId = req.user?.id;
 
-    if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
+      if (description.trim().length < 3) {
+        return res.status(400).json({ error: 'Description is required (min 3 characters)' });
+      }
+
+      const aiResult = await getAIWorkerPool(req).processRequest(
+        {
+          type: 'board_generation',
+          systemPrompt: BOARD_GENERATION_PROMPT,
+          messages: [{ role: 'user', content: description.trim() }],
+          options: { temperature: 0.7, max_tokens: 2000 },
+        },
+        req
+      );
+
+      if (!aiResult.success || !aiResult.content) {
+        const fallback = await createBoardDocument('Neues Board', userId);
+        return res.status(201).json({ board: fallback, generatedStructure: null });
+      }
+
+      const structure = parseBoardStructure(aiResult.content);
+      if (!structure) {
+        const fallback = await createBoardDocument('Neues Board', userId);
+        return res.status(201).json({ board: fallback, generatedStructure: null });
+      }
+
+      const board = await createBoardDocument(structure.title || 'Neues Board', userId);
+      const generatedStructure = postProcessBoardStructure(structure, userId);
+
+      return res.status(201).json({ board, generatedStructure });
+    } catch (error: unknown) {
+      console.error('[Boards] Error generating board:', error);
+      return res.status(500).json({
+        error: 'Failed to generate board',
+        details: error instanceof Error ? error.message : String(error),
+      });
     }
-
-    if (description.trim().length < 3) {
-      return res.status(400).json({ error: 'Description is required (min 3 characters)' });
-    }
-
-    const aiResult = await getAIWorkerPool(req).processRequest(
-      {
-        type: 'board_generation',
-        systemPrompt: BOARD_GENERATION_PROMPT,
-        messages: [{ role: 'user', content: description.trim() }],
-        options: { temperature: 0.7, max_tokens: 2000 },
-      },
-      req
-    );
-
-    if (!aiResult.success || !aiResult.content) {
-      const fallback = await createBoardDocument('Neues Board', userId);
-      return res.status(201).json({ board: fallback, generatedStructure: null });
-    }
-
-    const structure = parseBoardStructure(aiResult.content);
-    if (!structure) {
-      const fallback = await createBoardDocument('Neues Board', userId);
-      return res.status(201).json({ board: fallback, generatedStructure: null });
-    }
-
-    const board = await createBoardDocument(structure.title || 'Neues Board', userId);
-    const generatedStructure = postProcessBoardStructure(structure, userId);
-
-    return res.status(201).json({ board, generatedStructure });
-  } catch (error: unknown) {
-    console.error('[Boards] Error generating board:', error);
-    return res.status(500).json({
-      error: 'Failed to generate board',
-      details: error instanceof Error ? error.message : String(error),
-    });
   }
-});
+);
 
-router.post('/', validateBody(createBoardSchema), async (req: TypedRequest<{ title?: string; boardType?: 'kanban' | 'whiteboard' }>, res: Response) => {
-  try {
-    const { title = 'Neues Board', boardType } = req.body;
-    const userId = req.user?.id;
+router.post(
+  '/',
+  validateBody(createBoardSchema),
+  async (
+    req: TypedRequest<{ title?: string; boardType?: 'kanban' | 'whiteboard' }>,
+    res: Response
+  ) => {
+    try {
+      const { title = 'Neues Board', boardType } = req.body;
+      const userId = req.user?.id;
 
-    if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
+      const board = await createBoardDocument(title, userId, boardType);
+      return res.status(201).json(board);
+    } catch (error: unknown) {
+      console.error('[Boards] Error creating board:', error);
+      return res.status(500).json({
+        error: 'Failed to create board',
+        details: error instanceof Error ? error.message : String(error),
+      });
     }
-
-    const board = await createBoardDocument(title, userId, boardType);
-    return res.status(201).json(board);
-  } catch (error: unknown) {
-    console.error('[Boards] Error creating board:', error);
-    return res.status(500).json({
-      error: 'Failed to create board',
-      details: error instanceof Error ? error.message : String(error),
-    });
   }
-});
+);
 
 router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
   try {
@@ -234,69 +245,76 @@ router.get('/:id/state', async (req: Request<{ id: string }>, res: Response) => 
   }
 });
 
-router.put('/:id', validateBody(updateBoardSchema), async (req: TypedRequest<{ title?: string; is_archived?: boolean }, { id: string }>, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { title, is_archived } = req.body;
-    const userId = req.user?.id;
+router.put(
+  '/:id',
+  validateBody(updateBoardSchema),
+  async (
+    req: TypedRequest<{ title?: string; is_archived?: boolean }, { id: string }>,
+    res: Response
+  ) => {
+    try {
+      const { id } = req.params;
+      const { title, is_archived } = req.body;
+      const userId = req.user?.id;
 
-    if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
 
-    const checkResult = (await db.query(
-      'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
-      [id, BOARDS_SUBTYPE]
-    )) as BoardDocument[];
+      const checkResult = (await db.query(
+        'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
+        [id, BOARDS_SUBTYPE]
+      )) as BoardDocument[];
 
-    if (checkResult.length === 0) {
-      return res.status(404).json({ error: 'Board not found' });
-    }
+      if (checkResult.length === 0) {
+        return res.status(404).json({ error: 'Board not found' });
+      }
 
-    const board = checkResult[0];
-    const userPermission = board.permissions?.[userId];
-    const isOwner = board.created_by === userId;
-    const canEdit =
-      isOwner || (userPermission && ['owner', 'editor'].includes(userPermission.level));
+      const board = checkResult[0];
+      const userPermission = board.permissions?.[userId];
+      const isOwner = board.created_by === userId;
+      const canEdit =
+        isOwner || (userPermission && ['owner', 'editor'].includes(userPermission.level));
 
-    if (!canEdit) {
-      return res.status(403).json({ error: 'Insufficient permissions' });
-    }
+      if (!canEdit) {
+        return res.status(403).json({ error: 'Insufficient permissions' });
+      }
 
-    const updates: string[] = ['updated_at = CURRENT_TIMESTAMP'];
-    const values: unknown[] = [];
-    let paramIndex = 1;
+      const updates: string[] = ['updated_at = CURRENT_TIMESTAMP'];
+      const values: unknown[] = [];
+      let paramIndex = 1;
 
-    if (title !== undefined) {
-      updates.push(`title = $${paramIndex++}`);
-      values.push(title);
-    }
-    if (is_archived !== undefined) {
-      updates.push(
-        `content = jsonb_set(COALESCE(content, '{}')::jsonb, '{is_archived}', $${paramIndex++}::jsonb)`
-      );
-      values.push(JSON.stringify(!!is_archived));
-    }
+      if (title !== undefined) {
+        updates.push(`title = $${paramIndex++}`);
+        values.push(title);
+      }
+      if (is_archived !== undefined) {
+        updates.push(
+          `content = jsonb_set(COALESCE(content, '{}')::jsonb, '{is_archived}', $${paramIndex++}::jsonb)`
+        );
+        values.push(JSON.stringify(!!is_archived));
+      }
 
-    values.push(id);
+      values.push(id);
 
-    const result = (await db.query(
-      `UPDATE collaborative_documents
+      const result = (await db.query(
+        `UPDATE collaborative_documents
        SET ${updates.join(', ')}
        WHERE id = $${paramIndex}
        RETURNING *`,
-      values
-    )) as BoardDocument[];
+        values
+      )) as BoardDocument[];
 
-    return res.json(result[0]);
-  } catch (error: unknown) {
-    console.error('[Boards] Error updating board:', error);
-    return res.status(500).json({
-      error: 'Failed to update board',
-      details: error instanceof Error ? error.message : String(error),
-    });
+      return res.json(result[0]);
+    } catch (error: unknown) {
+      console.error('[Boards] Error updating board:', error);
+      return res.status(500).json({
+        error: 'Failed to update board',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
-});
+);
 
 router.delete('/:id', async (req: Request<{ id: string }>, res: Response) => {
   try {

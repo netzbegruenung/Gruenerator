@@ -154,7 +154,7 @@ router.post(
 
       // Get all messages and generate summary
       const messages = await getThreadMessages(threadId);
-      const summary = await generateCompactionSummary(threadId, messages);
+      await generateCompactionSummary(threadId, messages);
 
       // Get updated state
       const newState = await getCompactionState(threadId);

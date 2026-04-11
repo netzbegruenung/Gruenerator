@@ -57,6 +57,7 @@ import type {
   SearchContext,
   GetSearchContextParams,
 } from './types.js';
+import type { AIWorkerPool } from '../../workers/types.js';
 import type {
   EnrichedPersonSearchResult,
   ContentMention,
@@ -69,7 +70,6 @@ import type {
   ReferencesMap,
   ExpandedChunkResult,
 } from '../search/types.js';
-import type { AIWorkerPool } from '../../workers/types.js';
 
 const log = createLogger('NotebookQAService');
 const documentSearchService = new DocumentSearchService();
@@ -739,9 +739,9 @@ export class NotebookQAService {
     const sourceIdFilter = filters.source_id;
     if (!sourceIdFilter) return results;
 
-    const allowedSourceIds = (Array.isArray(sourceIdFilter)
-      ? sourceIdFilter
-      : [sourceIdFilter]) as string[];
+    const allowedSourceIds = (
+      Array.isArray(sourceIdFilter) ? sourceIdFilter : [sourceIdFilter]
+    ) as string[];
 
     const before = results.length;
     const filtered = results.filter((r) => !r.source_id || allowedSourceIds.includes(r.source_id));

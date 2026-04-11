@@ -1,11 +1,11 @@
-import { z } from 'zod';
 import express, { type Router, type Response } from 'express';
+import { z } from 'zod';
 
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
-import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { type AuthenticatedRequest } from '../../middleware/types.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import {
   MARKDOWN_FORMATTING_INSTRUCTIONS,
@@ -14,13 +14,7 @@ import {
 } from '../../utils/prompt/index.js';
 
 import type { UserProfile } from '../../services/user/types.js';
-import type {
-  ToolCall,
-  ToolResult,
-  SearchResult,
-  DocumentContext,
-  MessageContent,
-} from '../../types/routes.js';
+import type { ToolResult, SearchResult, DocumentContext } from '../../types/routes.js';
 import type { AIWorkerPool } from '../../types/workers.js';
 import type { Citation, SourceInfo } from '../../utils/prompt/types.js';
 import type { Message } from '../../workers/types.js';

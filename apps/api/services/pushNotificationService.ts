@@ -4,8 +4,9 @@
  */
 
 import { eq, and, isNotNull, isNull, gt, sql } from 'drizzle-orm';
-import { getDrizzleInstance } from '../database/services/DrizzleService.js';
+
 import { appRefreshTokens } from '../database/schema/index.js';
+import { getDrizzleInstance } from '../database/services/DrizzleService.js';
 import { type AppRefreshTokenRow } from '../database/types.js';
 import { createLogger } from '../utils/logger.js';
 

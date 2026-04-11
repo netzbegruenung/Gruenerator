@@ -15,8 +15,8 @@ import { smartChunkDocument } from '../../../../document-services/index.js';
 import { mistralEmbeddingService } from '../../../../mistral/index.js';
 import { DateExtractor } from '../extractors/DateExtractor.js';
 
-import type { ProcessResult, ExtractedContent } from '../types.js';
 import type { LandesverbandSource } from '../../../../../config/landesverbaendeConfig.js';
+import type { ProcessResult, ExtractedContent } from '../types.js';
 import type { QdrantClient } from '@qdrant/js-client-rest';
 
 /**

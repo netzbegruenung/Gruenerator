@@ -10,8 +10,9 @@
  * in-memory Map on one worker is invisible to other workers.
  */
 
-import client from './client.js';
 import { parseJSON } from '../parseJSON.js';
+
+import client from './client.js';
 
 interface BridgeCodeData {
   userId: string;

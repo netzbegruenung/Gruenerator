@@ -8,8 +8,8 @@ import fsPromises from 'fs/promises';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-import { createLogger } from '../../utils/logger.js';
 import { type VideoMetadata } from '../../routes/subtitler/types.js';
+import { createLogger } from '../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

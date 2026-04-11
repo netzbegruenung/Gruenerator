@@ -1,5 +1,9 @@
+import type {
+  AIWorkerPool,
+  AIRequestData as AIWorkerPayload,
+  AIWorkerResult,
+} from '../../../workers/types.js';
 import type { Request, Response } from 'express';
-import type { AIWorkerPool, AIRequestData as AIWorkerPayload, AIWorkerResult } from '../../../workers/types.js';
 
 export type { AIWorkerPool, AIWorkerPayload, AIWorkerResult };
 

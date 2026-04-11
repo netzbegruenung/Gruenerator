@@ -217,7 +217,7 @@ class AIWorkerPool {
   }
 
   shutdown(): Promise<PromiseSettledResult<number>[]> {
-    for (const [requestId, { reject }] of this.pendingRequests.entries()) {
+    for (const [_requestId, { reject }] of this.pendingRequests.entries()) {
       reject(new Error('Worker pool shutting down'));
     }
     this.pendingRequests.clear();

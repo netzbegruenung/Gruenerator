@@ -9,9 +9,10 @@ import os from 'os';
 import path from 'path';
 
 import { eq, and } from 'drizzle-orm';
-import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
+
 import { wolkeSyncStatus } from '../../database/schema/index.js';
+import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { type WolkeSyncStatusRow } from '../../database/types.js';
 import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
 import NextcloudApiClient from '../api-clients/nextcloudApiClient.js';
@@ -23,7 +24,7 @@ import {
 import { mistralEmbeddingService } from '../mistral/index.js';
 import { ocrService } from '../OcrService/index.js';
 
-import type { WolkeSyncStatus, NextcloudFile, FileProcessResult, SyncResult } from './types.js';
+import type { NextcloudFile, FileProcessResult, SyncResult } from './types.js';
 
 type DrizzleWolkeSyncRow = typeof wolkeSyncStatus.$inferSelect;
 
@@ -205,7 +206,7 @@ export class WolkeSyncService {
    */
   async listFolderContents(
     shareLink: { id: string; url: string; token?: string; share_link?: string },
-    folderPath: string = ''
+    _folderPath: string = ''
   ): Promise<NextcloudFile[]> {
     try {
       const client = await NextcloudApiClient.create(shareLink.share_link || shareLink.url);
@@ -241,7 +242,7 @@ export class WolkeSyncService {
     cleanup: () => Promise<void>;
   }> {
     try {
-      const client = await NextcloudApiClient.create(shareLink.share_link || shareLink.url);
+      await NextcloudApiClient.create(shareLink.share_link || shareLink.url);
       const tempDir = os.tmpdir();
       const tempFileName = `wolke_${Date.now()}_${file.name}`;
       const tempFilePath = path.join(tempDir, tempFileName);
@@ -257,7 +258,7 @@ export class WolkeSyncService {
         cleanup: async () => {
           try {
             await fs.unlink(tempFilePath);
-          } catch (error) {
+          } catch {
             console.warn(`Failed to cleanup temp file: ${tempFilePath}`);
           }
         },
@@ -553,7 +554,12 @@ export class WolkeSyncService {
 
       try {
         // Get share link
-        const shareLink = await this.getShareLink(userId, shareLinkId) as { id: string; url: string; token?: string; share_link?: string };
+        const shareLink = (await this.getShareLink(userId, shareLinkId)) as {
+          id: string;
+          url: string;
+          token?: string;
+          share_link?: string;
+        };
 
         // List folder contents
         const files = await this.listFolderContents(shareLink, folderPath);

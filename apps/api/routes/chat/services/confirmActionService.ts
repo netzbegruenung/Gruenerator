@@ -12,7 +12,6 @@ import { pendingActionStore } from './pendingActionStore.js';
 import type { SSEWriter } from './sseHelpers.js';
 import type {
   ChatGraphState,
-  GeneratedImageResult,
   PendingAction,
   ChartData,
   SearchIntent,

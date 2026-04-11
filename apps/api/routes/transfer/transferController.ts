@@ -2,9 +2,9 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
-import { z } from 'zod';
 import { Router, type Request, type Response } from 'express';
 import multer from 'multer';
+import { z } from 'zod';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
@@ -32,10 +32,6 @@ const upload = multer({
   limits: { fileSize: MAX_FILE_SIZE },
 });
 
-interface MulterRequest extends Request {
-  file?: Express.Multer.File;
-}
-
 const uploadBodySchema = z.object({
   shareLinkId: z.string().min(1),
   folderPath: z.string().optional(),
@@ -52,86 +48,83 @@ type UploadRequest = TypedRequest<UploadBody> & { file?: Express.Multer.File | u
  * Upload file to Wolke and create a transfer share link.
  * Uses disk storage + streaming to handle files up to 2GB.
  */
-router.post(
-  '/upload',
-  requireAuth,
-  upload.single('file'),
-  validateBody(uploadBodySchema),
-  (async (req: UploadRequest, res: Response): Promise<void> => {
-    const tempPath = req.file?.path;
+router.post('/upload', requireAuth, upload.single('file'), validateBody(uploadBodySchema), (async (
+  req: UploadRequest,
+  res: Response
+): Promise<void> => {
+  const tempPath = req.file?.path;
 
-    try {
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Nicht authentifiziert' });
-        return;
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Nicht authentifiziert' });
+      return;
+    }
+
+    if (!req.file) {
+      res.status(400).json({ error: 'Keine Datei hochgeladen' });
+      return;
+    }
+
+    const { shareLinkId, folderPath, password, expiresInDays, message } = req.body;
+
+    const { originalname, mimetype, size, path: filePath } = req.file;
+
+    log.info('Transfer upload started', {
+      userId,
+      filename: originalname,
+      size,
+      mimetype,
+    });
+
+    const result = await transferService.uploadAndCreateTransferStream(
+      userId,
+      filePath,
+      originalname,
+      mimetype,
+      size,
+      shareLinkId,
+      folderPath,
+      {
+        password: password || undefined,
+        expiresInDays: expiresInDays ? parseInt(expiresInDays, 10) : undefined,
+        message: message || undefined,
       }
+    );
 
-      if (!req.file) {
-        res.status(400).json({ error: 'Keine Datei hochgeladen' });
-        return;
-      }
+    res.json({
+      success: true,
+      shareToken: result.shareToken,
+      shareUrl: `/share/${result.shareToken}`,
+      id: result.id,
+    });
+  } catch (error) {
+    const err = error as Error;
+    log.error('Transfer upload failed', { error: err.message });
 
-      const { shareLinkId, folderPath, password, expiresInDays, message } = req.body;
-
-      const { originalname, mimetype, size, path: filePath } = req.file;
-
-      log.info('Transfer upload started', {
-        userId,
-        filename: originalname,
-        size,
-        mimetype,
+    if (err.message.includes('storage') || err.message.includes('507')) {
+      res.status(507).json({
+        error: 'Nicht genug Speicherplatz in deiner Wolke.',
       });
+      return;
+    }
 
-      const result = await transferService.uploadAndCreateTransferStream(
-        userId,
-        filePath,
-        originalname,
-        mimetype,
-        size,
-        shareLinkId,
-        folderPath,
-        {
-          password: password || undefined,
-          expiresInDays: expiresInDays ? parseInt(expiresInDays, 10) : undefined,
-          message: message || undefined,
-        }
-      );
+    if (err.message.includes('nicht gefunden') || err.message.includes('deaktiviert')) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
 
-      res.json({
-        success: true,
-        shareToken: result.shareToken,
-        shareUrl: `/share/${result.shareToken}`,
-        id: result.id,
-      });
-    } catch (error) {
-      const err = error as Error;
-      log.error('Transfer upload failed', { error: err.message });
-
-      if (err.message.includes('storage') || err.message.includes('507')) {
-        res.status(507).json({
-          error: 'Nicht genug Speicherplatz in deiner Wolke.',
-        });
-        return;
-      }
-
-      if (err.message.includes('nicht gefunden') || err.message.includes('deaktiviert')) {
-        res.status(400).json({ error: err.message });
-        return;
-      }
-
-      res.status(500).json({ error: 'Upload fehlgeschlagen. Bitte versuche es erneut.' });
-    } finally {
-      if (tempPath) {
-        const expectedDir = path.resolve(os.tmpdir(), 'gruenerator-transfer');
-        const resolvedTemp = path.resolve(tempPath);
-        if (resolvedTemp.startsWith(expectedDir + path.sep)) {
-          fs.unlink(tempPath, () => {});
-        }
+    res.status(500).json({ error: 'Upload fehlgeschlagen. Bitte versuche es erneut.' });
+  } finally {
+    if (tempPath) {
+      const expectedDir = path.resolve(os.tmpdir(), 'gruenerator-transfer');
+      const resolvedTemp = path.resolve(tempPath);
+      if (resolvedTemp.startsWith(expectedDir + path.sep)) {
+        fs.unlink(tempPath, () => {});
       }
     }
-  }) as (req: UploadRequest, res: Response) => Promise<void>
-);
+  }
+}) as (req: UploadRequest, res: Response) => Promise<void>);
 
 /**
  * GET /api/transfer/list
