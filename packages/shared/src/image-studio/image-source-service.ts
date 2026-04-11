@@ -24,7 +24,7 @@ export async function fetchStockImages(
       ? `/image-picker/stock-catalog?category=${category}`
       : '/image-picker/stock-catalog';
 
-  const response = await client.get(url);
+  const response = await client.get<FetchStockImagesResponse>(url);
 
   if (response.data.success) {
     return {
@@ -34,7 +34,7 @@ export async function fetchStockImages(
     };
   }
 
-  throw new Error(response.data.error || 'Failed to fetch stock images');
+  throw new Error(response.data.error ?? 'Failed to fetch stock images');
 }
 
 export async function searchUnsplashImages(
@@ -47,7 +47,7 @@ export async function searchUnsplashImages(
     return { results: [], total: 0, total_pages: 0 };
   }
 
-  const response = await client.get('/unsplash/search', {
+  const response = await client.get<UnsplashSearchResult>('/unsplash/search', {
     params: {
       query: query.trim(),
       page,

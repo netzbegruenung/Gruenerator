@@ -17,15 +17,12 @@ export default tseslint.config(
         projectService: {
           allowDefaultProject: [
             'eslint.config.mjs',
-            'apps/web/eslint.config.js',
             'apps/docs/eslint.config.js',
             'apps/desktop/eslint.config.mjs',
             'apps/sites/eslint.config.js',
-            'apps/gruen-o-mat/eslint.config.js',
             'apps/mobile/shims/isomorphic-webcrypto.js',
             'packages/eslint-config/base.js',
             'packages/eslint-config/react.js',
-            'packages/shared/eslint.config.js',
           ],
         },
       },

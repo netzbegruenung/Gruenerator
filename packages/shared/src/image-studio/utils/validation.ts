@@ -3,14 +3,28 @@
  * Platform-agnostic form validation for image-studio
  */
 
-import { getTypeConfig, getFieldConfig, getInputFields } from '../constants.js';
+import { getTypeConfig, getInputFields } from '../constants.js';
 
 import type {
   ImageStudioTemplateType,
   InputFieldConfig,
   ImageStudioFormData,
   FormFieldValue,
+  DreizeilenResponse,
+  QuoteResponse,
+  InfoResponse,
 } from '../types.js';
+
+/** Raw veranstaltung response — event fields may be at top level or wrapped in mainEvent */
+interface VeranstaltungRawResponse {
+  mainEvent?: { eventTitle?: string };
+  eventTitle?: string;
+}
+
+/** Typed canvas response from the API */
+interface CanvasApiResponse {
+  image?: string;
+}
 
 // ============================================================================
 // ERROR MESSAGES (German)
@@ -234,35 +248,41 @@ export function validateFormData(
  */
 export function validateTextResponse(
   type: ImageStudioTemplateType,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  response: any
+  response: unknown
 ): ImageStudioValidationResult {
-  if (!response) {
+  if (!response || typeof response !== 'object') {
     return { valid: false, error: ERROR_MESSAGES.UNEXPECTED_RESPONSE };
   }
 
   switch (type) {
-    case 'dreizeilen':
-      if (!response.mainSlogan || !response.alternatives) {
+    case 'dreizeilen': {
+      const r = response as Partial<DreizeilenResponse>;
+      if (!r.mainSlogan || !r.alternatives) {
         return { valid: false, error: ERROR_MESSAGES.UNEXPECTED_RESPONSE };
       }
       break;
+    }
 
     case 'zitat':
-    case 'zitat-pure':
-      if (!response.quote) {
+    case 'zitat-pure': {
+      const r = response as Partial<QuoteResponse>;
+      if (!r.quote) {
         return { valid: false, error: ERROR_MESSAGES.UNEXPECTED_RESPONSE };
       }
       break;
+    }
 
-    case 'info':
-      if (!response.header || !response.body) {
+    case 'info': {
+      const r = response as Partial<InfoResponse>;
+      if (!r.header || !r.body) {
         return { valid: false, error: ERROR_MESSAGES.UNEXPECTED_RESPONSE };
       }
       break;
+    }
 
     case 'veranstaltung': {
-      const mainEvent = response.mainEvent || response;
+      const r = response as VeranstaltungRawResponse;
+      const mainEvent = r.mainEvent ?? r;
       if (!mainEvent.eventTitle) {
         return { valid: false, error: ERROR_MESSAGES.UNEXPECTED_RESPONSE };
       }
@@ -280,9 +300,8 @@ export function validateTextResponse(
 /**
  * Validate canvas generation response
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function validateCanvasResponse(response: any): ImageStudioValidationResult {
-  if (!response || !response.image) {
+export function validateCanvasResponse(response: CanvasApiResponse): ImageStudioValidationResult {
+  if (!response.image) {
     return { valid: false, error: ERROR_MESSAGES.NO_IMAGE_DATA };
   }
   return { valid: true };
