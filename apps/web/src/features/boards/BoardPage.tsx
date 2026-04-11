@@ -49,7 +49,7 @@ function BoardContent() {
   const { data: board, isLoading } = useQuery<Board>({
     queryKey: ['boards', id],
     queryFn: async () => {
-      const res = await apiClient.get(`/boards/${id}`);
+      const res = await apiClient.get<Board>(`/boards/${id}`);
       return res.data;
     },
     enabled: !!id,

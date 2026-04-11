@@ -195,7 +195,10 @@ const DotGrid = memo(function DotGrid({ className, isProcessing = false }: DotGr
       // Path2D batching: buckets indexed by [colorIndex * (ALPHA_BUCKETS+1) + alphaBucket]
       // colorIndex: 0 = dotColor, 1 = primaryColor
       const bucketCount = 2 * (ALPHA_BUCKETS + 1);
-      const paths: (Path2D | null)[] = new Array(bucketCount).fill(null);
+      const paths: (Path2D | null)[] = Array.from<Path2D | null>(
+        { length: bucketCount },
+        () => null
+      );
 
       for (let row = 0; row < rows; row++) {
         const baseY = row * GRID_SIZE;

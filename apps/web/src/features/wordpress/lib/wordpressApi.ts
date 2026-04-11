@@ -1,5 +1,31 @@
 import apiClient from '@/components/utils/apiClient';
 
+// ── API response shapes ────────────────────────────────────────────────
+
+interface SitesResponse {
+  success: boolean;
+  message?: string;
+  sites?: WordPressSite[];
+}
+
+interface SiteResponse {
+  success: boolean;
+  message?: string;
+  site?: WordPressSite;
+}
+
+interface PostsResponse {
+  success: boolean;
+  message?: string;
+  posts?: WordPressPost[];
+}
+
+interface CategoriesResponse {
+  success: boolean;
+  message?: string;
+  categories?: WordPressCategory[];
+}
+
 // ── Types ─────────────────────────────────────────────────────────────
 
 export interface WordPressSite {
@@ -55,11 +81,11 @@ export interface WordPressPublishResult {
 // ── API Functions ─────────────────────────────────────────────────────
 
 export async function fetchWordPressSites(): Promise<WordPressSite[]> {
-  const response = await apiClient.get('/wordpress/sites');
+  const response = await apiClient.get<SitesResponse>('/wordpress/sites');
   if (response.data?.success) {
-    return response.data.sites || [];
+    return response.data.sites ?? [];
   }
-  throw new Error(response.data?.message || 'Fehler beim Laden der WordPress-Seiten');
+  throw new Error(response.data?.message ?? 'Fehler beim Laden der WordPress-Seiten');
 }
 
 export async function addWordPressSite(
@@ -68,7 +94,7 @@ export async function addWordPressSite(
   appPassword: string,
   label: string | null
 ): Promise<WordPressSite> {
-  const response = await apiClient.post('/wordpress/sites', {
+  const response = await apiClient.post<SiteResponse>('/wordpress/sites', {
     siteUrl: siteUrl.trim(),
     username: username.trim(),
     appPassword: appPassword.trim(),
@@ -77,13 +103,13 @@ export async function addWordPressSite(
   if (response.data?.success && response.data.site) {
     return response.data.site;
   }
-  throw new Error(response.data?.message || 'Fehler beim Hinzufügen der WordPress-Seite');
+  throw new Error(response.data?.message ?? 'Fehler beim Hinzufügen der WordPress-Seite');
 }
 
 export async function deleteWordPressSite(id: string): Promise<void> {
-  const response = await apiClient.delete(`/wordpress/sites/${id}`);
+  const response = await apiClient.delete<SiteResponse>(`/wordpress/sites/${id}`);
   if (!response.data?.success) {
-    throw new Error(response.data?.message || 'Fehler beim Löschen der WordPress-Seite');
+    throw new Error(response.data?.message ?? 'Fehler beim Löschen der WordPress-Seite');
   }
 }
 
@@ -92,11 +118,14 @@ export async function testWordPressConnection(
   username: string,
   appPassword: string
 ): Promise<WordPressConnectionTestResult> {
-  const response = await apiClient.post('/wordpress/test-connection', {
-    siteUrl: siteUrl.trim(),
-    username: username.trim(),
-    appPassword: appPassword.trim(),
-  });
+  const response = await apiClient.post<WordPressConnectionTestResult>(
+    '/wordpress/test-connection',
+    {
+      siteUrl: siteUrl.trim(),
+      username: username.trim(),
+      appPassword: appPassword.trim(),
+    }
+  );
   return response.data;
 }
 
@@ -106,7 +135,9 @@ export async function publishToWordPress(
   content: string,
   status: string
 ): Promise<WordPressPublishResult> {
-  const response = await apiClient.post('/wordpress/publish', {
+  const response = await apiClient.post<
+    WordPressPublishResult & { success?: boolean; message?: string }
+  >('/wordpress/publish', {
     siteId,
     title,
     content,
@@ -115,7 +146,7 @@ export async function publishToWordPress(
   if (response.data?.success) {
     return response.data;
   }
-  throw new Error(response.data?.message || 'Fehler beim Veröffentlichen');
+  throw new Error(response.data?.message ?? 'Fehler beim Veröffentlichen');
 }
 
 export async function fetchWordPressPosts(
@@ -130,17 +161,17 @@ export async function fetchWordPressPosts(
 
   const query = queryParams.toString();
   const url = `/wordpress/sites/${siteId}/posts${query ? `?${query}` : ''}`;
-  const response = await apiClient.get(url);
+  const response = await apiClient.get<PostsResponse>(url);
   if (response.data?.success) {
-    return response.data.posts || [];
+    return response.data.posts ?? [];
   }
-  throw new Error(response.data?.message || 'Fehler beim Laden der Beiträge');
+  throw new Error(response.data?.message ?? 'Fehler beim Laden der Beiträge');
 }
 
 export async function fetchWordPressCategories(siteId: string): Promise<WordPressCategory[]> {
-  const response = await apiClient.get(`/wordpress/sites/${siteId}/categories`);
+  const response = await apiClient.get<CategoriesResponse>(`/wordpress/sites/${siteId}/categories`);
   if (response.data?.success) {
-    return response.data.categories || [];
+    return response.data.categories ?? [];
   }
-  throw new Error(response.data?.message || 'Fehler beim Laden der Kategorien');
+  throw new Error(response.data?.message ?? 'Fehler beim Laden der Kategorien');
 }

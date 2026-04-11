@@ -404,7 +404,7 @@ export default function RolesSection() {
       if (wizInstructions.trim()) newRole.instructions = wizInstructions.trim();
 
       if (response.ok) {
-        const data = await response.json();
+        const data = (await response.json()) as { systemPrompt?: string };
         if (data.systemPrompt) newRole.systemPrompt = data.systemPrompt;
       }
 

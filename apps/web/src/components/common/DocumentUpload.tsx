@@ -90,9 +90,11 @@ const DocumentPreview = ({ document }: DocumentPreviewProps) => {
     setError(null);
 
     try {
-      const response = await apiClient.get(`/documents/${document.id}/content`);
+      const response = await apiClient.get<{ data: { ocr_text?: string } }>(
+        `/documents/${document.id}/content`
+      );
       const data = response.data;
-      setPreviewText(data.data.ocr_text || 'Kein Text extrahiert');
+      setPreviewText(data.data.ocr_text ?? 'Kein Text extrahiert');
       setShowPreview(true);
     } catch (err) {
       console.error('Error fetching document content:', err);

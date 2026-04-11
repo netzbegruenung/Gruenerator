@@ -2,6 +2,32 @@ import { useState, useCallback, useEffect } from 'react';
 
 import apiClient from '../components/utils/apiClient';
 
+// ── API response shapes ────────────────────────────────────────────────
+
+interface RecentValueItem {
+  field_value: string;
+}
+
+interface RecentValuesApiResponse {
+  success?: boolean;
+  data?: RecentValueItem[];
+}
+
+interface SaveRecentValueResponse {
+  success?: boolean;
+  data?: unknown;
+}
+
+interface DeleteRecentValueResponse {
+  success?: boolean;
+  deletedCount?: number;
+}
+
+interface CachedValues {
+  values: string[];
+  timestamp: number;
+}
+
 interface UseRecentValuesOptions {
   limit?: number;
   autoSave?: boolean;
@@ -42,12 +68,12 @@ export const useRecentValues = (
     try {
       const cachedData = localStorage.getItem(cacheKey);
       if (cachedData) {
-        const parsed = JSON.parse(cachedData);
+        const parsed = JSON.parse(cachedData) as CachedValues;
         const age = Date.now() - parsed.timestamp;
         if (age < cacheTimeout) {
           return {
-            values: (parsed.values || []) as string[],
-            timestamp: parsed.timestamp as number,
+            values: parsed.values ?? [],
+            timestamp: parsed.timestamp,
           };
         }
       }
@@ -80,12 +106,15 @@ export const useRecentValues = (
     setError(null);
 
     try {
-      const response = await apiClient.get(`/recent-values/${fieldType}?limit=${limit}`, {
-        skipAuthRedirect: true,
-      } as Record<string, unknown>);
+      const response = await apiClient.get<RecentValuesApiResponse>(
+        `/recent-values/${fieldType}?limit=${limit}`,
+        {
+          skipAuthRedirect: true,
+        } as Record<string, unknown>
+      );
 
       if (response.data?.success && response.data?.data) {
-        const values = response.data.data.map((item: { field_value: string }) => item.field_value);
+        const values = response.data.data.map((item) => item.field_value);
         setRecentValues(values);
 
         // Cache the results
@@ -103,11 +132,9 @@ export const useRecentValues = (
     } catch (err: unknown) {
       console.error('[useRecentValues] Error fetching recent values:', err);
       let errorMsg = 'Failed to fetch recent values';
-      if (err instanceof Error && 'response' in err) {
-        const response = (err as { response?: { data?: { error?: string } } }).response;
-        if (response?.data?.error) {
-          errorMsg = response.data.error;
-        }
+      if (err instanceof Error) {
+        const axiosErr = err as { response?: { data?: { error?: string } } };
+        errorMsg = axiosErr.response?.data?.error ?? err.message;
       }
       setError(errorMsg);
       // Don't clear existing values on error
@@ -133,7 +160,7 @@ export const useRecentValues = (
       }
 
       try {
-        const response = await apiClient.post(
+        const response = await apiClient.post<SaveRecentValueResponse>(
           '/recent-values',
           {
             fieldType,
@@ -185,9 +212,12 @@ export const useRecentValues = (
     if (!fieldType) return;
 
     try {
-      const response = await apiClient.delete(`/recent-values/${fieldType}`, {
-        skipAuthRedirect: true,
-      } as Record<string, unknown>);
+      const response = await apiClient.delete<DeleteRecentValueResponse>(
+        `/recent-values/${fieldType}`,
+        {
+          skipAuthRedirect: true,
+        } as Record<string, unknown>
+      );
 
       if (response.data?.success) {
         setRecentValues([]);
@@ -197,11 +227,9 @@ export const useRecentValues = (
     } catch (err: unknown) {
       console.error('[useRecentValues] Error clearing recent values:', err);
       let errorMsg = 'Failed to clear recent values';
-      if (err instanceof Error && 'response' in err) {
-        const response = (err as { response?: { data?: { error?: string } } }).response;
-        if (response?.data?.error) {
-          errorMsg = response.data.error;
-        }
+      if (err instanceof Error) {
+        const axiosErr = err as { response?: { data?: { error?: string } } };
+        errorMsg = axiosErr.response?.data?.error ?? err.message;
       }
       setError(errorMsg);
     }

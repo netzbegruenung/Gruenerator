@@ -185,13 +185,13 @@ export const CardDetailPanel = memo(function CardDetailPanel({
     setSelectedLabelIds((row.cells[FIELD_IDS.LABELS] ?? []) as string[]);
     try {
       const raw = row.cells[FIELD_IDS.LINKED_DOCS];
-      setLinkedDocs(typeof raw === 'string' ? JSON.parse(raw) : []);
+      setLinkedDocs(typeof raw === 'string' ? (JSON.parse(raw) as LinkedDoc[]) : []);
     } catch {
       setLinkedDocs([]);
     }
     try {
       const raw = row.cells[FIELD_IDS.ASSIGNEE] as string;
-      setAssignee(raw ? JSON.parse(raw) : null);
+      setAssignee(raw ? (JSON.parse(raw) as CardAssignee) : null);
     } catch {
       const raw = row.cells[FIELD_IDS.ASSIGNEE] as string;
       setAssignee(raw ? { id: '', name: raw, avatarRobotId: 1 } : null);

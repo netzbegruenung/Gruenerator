@@ -28,7 +28,7 @@ export function useProtokoll() {
     setState({ status: 'generating', result: '', error: null });
 
     try {
-      const response = await apiClient.post(
+      const response = await apiClient.post<{ content?: string; text?: string }>(
         '/voice/protokoll',
         { inputText, protokollTyp },
         { signal: controller.signal, timeout: 120000 }

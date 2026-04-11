@@ -59,9 +59,9 @@ export function EditorStep({ projectId }: EditorStepProps) {
   useEffect(() => {
     setLoading(true);
     apiClient
-      .get(`/subtitler/projects/${projectId}`)
+      .get<{ project?: SubtitlerProject }>(`/subtitler/projects/${projectId}`)
       .then((res) => {
-        const p = res.data?.project as SubtitlerProject | undefined;
+        const p = res.data?.project;
         if (!p) {
           setLoading(false);
           return;

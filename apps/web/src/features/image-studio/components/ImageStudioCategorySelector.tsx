@@ -17,7 +17,7 @@ const EXAMPLE_PROMPTS = [
   { label: 'Info', text: 'Info-Grafik über erneuerbare Energien' },
 ];
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
 const RECENT_GALLERY_OPTIONS = { limit: 5 } as const;
 

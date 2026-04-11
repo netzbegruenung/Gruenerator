@@ -248,8 +248,8 @@ const ImageDisplay = ({
           });
 
           // Handle Axios response wrapper - extract data
-          const result = imageResponse.data || imageResponse;
-          imageSessionId = result.sessionId;
+          const result = (imageResponse.data ?? imageResponse) as { sessionId?: string };
+          imageSessionId = result.sessionId ?? null;
           console.log('[ImageDisplay] Image stored in backend:', imageSessionId);
         } catch (imageUploadError) {
           console.warn('[ImageDisplay] Failed to store image in backend:', imageUploadError);
@@ -324,9 +324,13 @@ const ImageDisplay = ({
       const formData = new FormData();
       formData.append('image', blob, `imagine-sharepic.${extension}`);
 
-      const labelResponse = await apiClient.post('/imagine_label_canvas', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const labelResponse = await apiClient.post<{ image: string }>(
+        '/imagine_label_canvas',
+        formData,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        }
+      );
 
       const labeledImage = labelResponse?.data?.image;
       if (!labeledImage) {

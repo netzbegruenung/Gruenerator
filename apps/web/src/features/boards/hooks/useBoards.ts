@@ -11,7 +11,7 @@ export const useBoards = (options?: { enabled?: boolean }) => {
   const boardsQuery = useQuery<Board[]>({
     queryKey: BOARDS_QUERY_KEY,
     queryFn: async () => {
-      const response = await apiClient.get('/boards');
+      const response = await apiClient.get<Board[]>('/boards');
       return response.data;
     },
     enabled: options?.enabled,

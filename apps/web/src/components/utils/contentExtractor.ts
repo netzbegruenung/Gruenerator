@@ -63,9 +63,12 @@ export const convertHtmlToPlainText = async (html: string): Promise<string> => {
   // Convert markdown to HTML first if needed using backend service
   if (typeof processedHtml === 'string' && isMarkdownContent(processedHtml)) {
     try {
-      const response = await apiClient.post('/markdown/to-html', { content: processedHtml });
+      const response = await apiClient.post<{ success: boolean; html?: string }>(
+        '/markdown/to-html',
+        { content: processedHtml }
+      );
       if (response.data.success) {
-        processedHtml = response.data.html;
+        processedHtml = response.data.html ?? processedHtml;
       }
     } catch (error) {
       console.error('Error converting markdown to HTML:', error);

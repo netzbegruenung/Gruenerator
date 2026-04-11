@@ -23,9 +23,11 @@ function useCustomGenerator(slug: string | undefined) {
   return useQuery<GeneratorConfig>({
     queryKey: QUERY_KEYS.generator(slug),
     queryFn: async () => {
-      const response = await apiClient.get(`/custom_generator/${slug}`);
+      const response = await apiClient.get<{ generator?: GeneratorConfig } | GeneratorConfig>(
+        `/custom_generator/${slug}`
+      );
       const data = response.data;
-      return data.generator || data;
+      return (data as { generator?: GeneratorConfig }).generator ?? (data as GeneratorConfig);
     },
     enabled: !!slug && isAuthenticated,
     staleTime: 15 * 60 * 1000,

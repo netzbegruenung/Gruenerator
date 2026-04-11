@@ -330,7 +330,7 @@ const ExportDropdown = ({
       const baseFileName = extractFilenameFromContent(formattedContent, freshTitle);
       const filename = `${baseFileName}.docx`;
 
-      const response = await apiClient.post(
+      const response = await apiClient.post<Blob>(
         '/exports/docx',
         {
           content: formattedContent,

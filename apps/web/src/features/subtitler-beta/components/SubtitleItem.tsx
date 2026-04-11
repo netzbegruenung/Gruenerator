@@ -77,7 +77,7 @@ export function SubtitleItem({
   }, []);
 
   const handleSaveEdit = useCallback(
-    (e: React.MouseEvent) => {
+    (e: React.SyntheticEvent) => {
       e.stopPropagation();
       updateChunkText(chunk.id, editText);
       setIsEditing(false);
@@ -86,7 +86,7 @@ export function SubtitleItem({
   );
 
   const handleCancelEdit = useCallback(
-    (e: React.MouseEvent) => {
+    (e: React.SyntheticEvent) => {
       e.stopPropagation();
       setEditText(chunk.text); // Originaltext wiederherstellen
       setIsEditing(false);
@@ -98,12 +98,10 @@ export function SubtitleItem({
     (e: React.KeyboardEvent) => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        handleSaveEdit(e as any);
+        handleSaveEdit(e);
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        handleCancelEdit(e as any);
+        handleCancelEdit(e);
       }
       // Event-Bubbling verhindern, um Klick-Events nicht auszulösen
       e.stopPropagation();

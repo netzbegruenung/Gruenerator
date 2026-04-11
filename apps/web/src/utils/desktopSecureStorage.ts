@@ -10,7 +10,16 @@
  * - Linux: ~/.local/share/de.gruenerator.app/
  */
 
+import { type Store, type StoreOptions } from '@tauri-apps/plugin-store';
+
 import { isDesktopApp } from './platform';
+
+interface TauriStoreModule {
+  Store: {
+    load(path: string, options?: StoreOptions): Promise<Store>;
+    new (): Store;
+  };
+}
 
 const STORE_NAME = 'auth.json';
 const ACCESS_TOKEN_KEY = 'access_token';
@@ -35,15 +44,13 @@ interface AuthTokens {
   expiresAt: number | null;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let storeInstance: any = null;
+let storeInstance: Store | null = null;
 let storeLoadFailed = false;
 
 /**
  * Get or create the Tauri store instance
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getStore(): Promise<any> {
+async function getStore(): Promise<Store | null> {
   if (!isDesktopApp()) {
     return null;
   }
@@ -59,7 +66,9 @@ async function getStore(): Promise<any> {
 
   try {
     // Dynamic import with error handling for when module doesn't exist
-    const storeModule = await import('@tauri-apps/plugin-store').catch(() => null);
+    const storeModule = (await import('@tauri-apps/plugin-store').catch(
+      () => null
+    )) as TauriStoreModule | null;
     if (!storeModule || !storeModule.Store) {
       console.warn('[SecureStorage] Tauri store plugin not available');
       storeLoadFailed = true;
@@ -178,7 +187,7 @@ export async function getStoredUser(): Promise<StoredUser | null> {
   const userJson = localStorage.getItem('gruenerator_user');
   if (userJson) {
     try {
-      return JSON.parse(userJson);
+      return JSON.parse(userJson) as StoredUser;
     } catch {
       return null;
     }

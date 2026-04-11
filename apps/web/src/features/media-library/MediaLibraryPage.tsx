@@ -18,7 +18,7 @@ import { cn } from '../../utils/cn';
 
 import type { MediaItem, MediaType } from '@gruenerator/shared/media-library';
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+const baseURL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);

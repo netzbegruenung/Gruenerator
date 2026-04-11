@@ -93,7 +93,7 @@ export async function clearIllustrationCache(): Promise<boolean> {
     return new Promise<boolean>((resolve) => {
       const messageChannel = new MessageChannel();
 
-      messageChannel.port1.onmessage = (event) => {
+      messageChannel.port1.onmessage = (event: MessageEvent<{ success?: boolean }>) => {
         resolve(event.data.success === true);
       };
 
@@ -126,7 +126,9 @@ export async function getCacheSize(): Promise<ServiceWorkerStatus> {
     return new Promise<ServiceWorkerStatus>((resolve) => {
       const messageChannel = new MessageChannel();
 
-      messageChannel.port1.onmessage = (event) => {
+      messageChannel.port1.onmessage = (
+        event: MessageEvent<{ size?: number; cacheName?: string }>
+      ) => {
         resolve({
           registered: true,
           cacheSize: event.data.size,

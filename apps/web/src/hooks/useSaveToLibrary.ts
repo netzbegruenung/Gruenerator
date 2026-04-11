@@ -32,7 +32,7 @@ export const useSaveToLibrary = () => {
     setIsSessionExpired(false);
 
     try {
-      const response = await apiClient.post(
+      const response = await apiClient.post<Record<string, unknown>>(
         '/auth/save-to-library',
         {
           content: content.trim(),

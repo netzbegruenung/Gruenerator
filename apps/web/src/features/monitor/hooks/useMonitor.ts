@@ -63,7 +63,7 @@ export function useMonitorSnapshot(locale?: MonitorLocale) {
     queryKey: ['monitor', 'latest', locale],
     queryFn: async () => {
       const params = localeQuery(locale);
-      const { data } = await apiClient.get(`/monitor/latest${params}`);
+      const { data } = await apiClient.get<MonitorSnapshot>(`/monitor/latest${params}`);
       return data;
     },
     refetchInterval: 5 * 60 * 1000,
@@ -76,7 +76,7 @@ export function useMonitorHistory(days = 7) {
   return useQuery<HistoryEntry[]>({
     queryKey: ['monitor', 'history', days],
     queryFn: async () => {
-      const { data } = await apiClient.get(`/monitor/history?days=${days}`);
+      const { data } = await apiClient.get<HistoryEntry[]>(`/monitor/history?days=${days}`);
       return data;
     },
     staleTime: 10 * 60 * 1000,
@@ -89,7 +89,9 @@ export function useTopicArticles(topic: TopicCategory | null, locale?: MonitorLo
     queryKey: ['monitor', 'topic', topic, locale],
     queryFn: async () => {
       const params = localeQuery(locale);
-      const { data } = await apiClient.get(`/monitor/topic/${topic}${params}`);
+      const { data } = await apiClient.get<{ topic: string; articles: MonitorArticle[] }>(
+        `/monitor/topic/${topic}${params}`
+      );
       return data;
     },
     enabled: !!topic,
@@ -111,7 +113,7 @@ export function useMonitorSearch(query: string, locale?: MonitorLocale) {
     queryFn: async () => {
       const params = new URLSearchParams({ q: query });
       if (locale) params.set('locale', locale);
-      const { data } = await apiClient.get(`/monitor/search?${params}`);
+      const { data } = await apiClient.get<SearchResult>(`/monitor/search?${params}`);
       return data;
     },
     enabled: query.length >= 2,
@@ -131,7 +133,9 @@ export function useKeywordInsights(locale?: MonitorLocale) {
     queryKey: ['monitor', 'keyword-insights', locale],
     queryFn: async () => {
       const params = localeQuery(locale);
-      const { data } = await apiClient.get(`/monitor/keyword-insights${params}`);
+      const { data } = await apiClient.get<KeywordInsightsResult>(
+        `/monitor/keyword-insights${params}`
+      );
       return data;
     },
     staleTime: 30 * 60 * 1000,
@@ -151,7 +155,7 @@ export function useMonitorBriefing(locale?: MonitorLocale) {
     queryKey: ['monitor', 'briefing', locale],
     queryFn: async () => {
       const params = localeQuery(locale);
-      const { data } = await apiClient.get(`/monitor/briefing${params}`);
+      const { data } = await apiClient.get<MonitorBriefingResult>(`/monitor/briefing${params}`);
       return data;
     },
     staleTime: 30 * 60 * 1000,
@@ -174,7 +178,7 @@ export function useStimmung(locale?: MonitorLocale) {
     queryKey: ['monitor', 'stimmung', locale],
     queryFn: async () => {
       const params = localeQuery(locale);
-      const { data } = await apiClient.get(`/monitor/stimmung${params}`);
+      const { data } = await apiClient.get<StimmungResult>(`/monitor/stimmung${params}`);
       return data;
     },
     staleTime: 10 * 60 * 1000,
@@ -207,7 +211,7 @@ export function usePolls(parliament = 'deutschland') {
   return useQuery<PollData>({
     queryKey: ['monitor', 'polls', parliament],
     queryFn: async () => {
-      const { data } = await apiClient.get(`/monitor/polls?parliament=${parliament}`);
+      const { data } = await apiClient.get<PollData>(`/monitor/polls?parliament=${parliament}`);
       return data;
     },
     staleTime: 30 * 60 * 1000,
@@ -219,7 +223,7 @@ export function usePollParliaments() {
   return useQuery<PollParliament[]>({
     queryKey: ['monitor', 'polls', 'parliaments'],
     queryFn: async () => {
-      const { data } = await apiClient.get('/monitor/polls/parliaments');
+      const { data } = await apiClient.get<PollParliament[]>('/monitor/polls/parliaments');
       return data;
     },
     staleTime: 60 * 60 * 1000,
@@ -259,7 +263,7 @@ export function useWatcherEntities() {
   return useQuery<WatcherEntityInfo[]>({
     queryKey: ['monitor', 'entities'],
     queryFn: async () => {
-      const { data } = await apiClient.get('/monitor/entities');
+      const { data } = await apiClient.get<WatcherEntityInfo[]>('/monitor/entities');
       return data;
     },
     staleTime: 60 * 60 * 1000,
@@ -272,7 +276,7 @@ export function useEntityResults(entityId: string | null, locale?: MonitorLocale
     queryKey: ['monitor', 'entity', entityId, locale],
     queryFn: async () => {
       const params = localeQuery(locale);
-      const { data } = await apiClient.get(`/monitor/entities/${entityId}${params}`);
+      const { data } = await apiClient.get<EntityResult>(`/monitor/entities/${entityId}${params}`);
       return data;
     },
     enabled: !!entityId,
@@ -286,7 +290,9 @@ export function useEntitySummary(entityId: string | null, locale?: MonitorLocale
     queryKey: ['monitor', 'entity-summary', entityId, locale],
     queryFn: async () => {
       const params = localeQuery(locale);
-      const { data } = await apiClient.get(`/monitor/entities/${entityId}/summary${params}`);
+      const { data } = await apiClient.get<EntitySummaryResult>(
+        `/monitor/entities/${entityId}/summary${params}`
+      );
       return data;
     },
     enabled: !!entityId,
@@ -300,8 +306,10 @@ export function useBriefingRefresh(locale?: MonitorLocale) {
   return useMutation({
     mutationFn: async () => {
       const params = localeQuery(locale);
-      const { data } = await apiClient.post(`/monitor/briefing/refresh${params}`);
-      return data as MonitorBriefingResult;
+      const { data } = await apiClient.post<MonitorBriefingResult>(
+        `/monitor/briefing/refresh${params}`
+      );
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['monitor', 'briefing'] });
@@ -313,8 +321,12 @@ export function useMonitorRefresh() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      const { data } = await apiClient.post('/monitor/refresh');
-      return data as { success: boolean; totalArticles: number; activeTopics: number };
+      const { data } = await apiClient.post<{
+        success: boolean;
+        totalArticles: number;
+        activeTopics: number;
+      }>('/monitor/refresh');
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['monitor'] });
@@ -334,11 +346,14 @@ export function useTopicPosition(keyword?: string) {
   return useQuery<TopicPositionResult | null>({
     queryKey: ['monitor', 'position', keyword],
     queryFn: async () => {
-      const { data } = await apiClient.post('/research/search', {
-        query: keyword,
-        collectionIds: ['grundsatz-system', 'bundestagsfraktion-system'],
-        limit: 1,
-      });
+      const { data } = await apiClient.post<{ results?: TopicPositionResult[] }>(
+        '/research/search',
+        {
+          query: keyword,
+          collectionIds: ['grundsatz-system', 'bundestagsfraktion-system'],
+          limit: 1,
+        }
+      );
       return data.results?.[0] ?? null;
     },
     enabled: !!keyword,
@@ -355,11 +370,14 @@ export function useTopicDocuments(keyword?: string, locale: MonitorLocale = 'de'
   return useQuery<TopicPositionResult[]>({
     queryKey: ['monitor', 'topic-documents', keyword, locale],
     queryFn: async () => {
-      const { data } = await apiClient.post('/research/search', {
-        query: keyword,
-        collectionIds: TOPIC_DOCUMENT_COLLECTIONS[locale],
-        limit: 3,
-      });
+      const { data } = await apiClient.post<{ results?: TopicPositionResult[] }>(
+        '/research/search',
+        {
+          query: keyword,
+          collectionIds: TOPIC_DOCUMENT_COLLECTIONS[locale],
+          limit: 3,
+        }
+      );
       return data.results ?? [];
     },
     enabled: !!keyword,
@@ -394,7 +412,7 @@ export function useMeinungsbild() {
   return useQuery<MeinungsbildData>({
     queryKey: ['monitor', 'meinungsbild'],
     queryFn: async () => {
-      const { data } = await apiClient.get('/monitor/meinungsbild');
+      const { data } = await apiClient.get<MeinungsbildData>('/monitor/meinungsbild');
       return data;
     },
     staleTime: 60 * 60 * 1000,

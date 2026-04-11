@@ -142,7 +142,7 @@ export const bulkDeleteDocuments = async (documentIds: string[]): Promise<Proces
   try {
     console.log('[documentAndTextUtils] Bulk deleting documents:', documentIds);
 
-    const response = await apiClient.delete('/documents/bulk', {
+    const response = await apiClient.delete<BulkOperationResult>('/documents/bulk', {
       data: { ids: documentIds },
     });
 
@@ -165,7 +165,7 @@ export const bulkDeleteTexts = async (textIds: string[]): Promise<ProcessedBulkR
   try {
     console.log('[documentAndTextUtils] Bulk deleting texts:', textIds);
 
-    const response = await apiClient.delete('/saved-texts/bulk', {
+    const response = await apiClient.delete<BulkOperationResult>('/saved-texts/bulk', {
       data: { ids: textIds },
     });
 
@@ -188,7 +188,7 @@ export const bulkDeleteQA = async (qaIds: string[]): Promise<ProcessedBulkResult
   try {
     console.log('[documentAndTextUtils] Bulk deleting QA collections:', qaIds);
 
-    const response = await apiClient.delete('/qa-collections/bulk', {
+    const response = await apiClient.delete<BulkOperationResult>('/qa-collections/bulk', {
       data: { ids: qaIds },
     });
 

@@ -41,7 +41,7 @@ export const handleSubmit = async (
 ): Promise<void> => {
   setLoading(true);
   try {
-    const response = await axios.post(url, formData);
+    const response = await axios.post<string>(url, formData);
     setGeneratedText(response.data);
   } catch (error) {
     console.error('Error generating text:', error);

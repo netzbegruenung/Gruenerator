@@ -12,7 +12,9 @@ export interface Board {
 
 function parseContent(board: Board): { is_archived?: boolean; board_type?: BoardType } {
   if (!board.content) return {};
-  return typeof board.content === 'string' ? JSON.parse(board.content) : board.content;
+  return typeof board.content === 'string'
+    ? (JSON.parse(board.content) as { is_archived?: boolean; board_type?: BoardType })
+    : board.content;
 }
 
 export function getBoardType(board: Board): BoardType {

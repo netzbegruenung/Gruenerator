@@ -492,11 +492,14 @@ const DocumentOverview = ({
     setPreviewError(null);
 
     try {
-      const response = await apiClient.get(`/documents/${item.id}/content`);
+      interface DocContentResponse {
+        data: { ocr_text?: string; markdown_content?: string };
+      }
+      const response = await apiClient.get<DocContentResponse>(`/documents/${item.id}/content`);
       const data = response.data;
       const enhancedItem: DocumentItem = {
         ...item,
-        full_content: data.data.ocr_text || 'Kein Text extrahiert',
+        full_content: data.data.ocr_text ?? 'Kein Text extrahiert',
         markdown_content: data.data.markdown_content,
       };
 
@@ -519,9 +522,12 @@ const DocumentOverview = ({
     const existing = item.markdown_content || item.full_content || item.ocr_text;
     if (existing) return existing;
 
-    const response = await apiClient.get(`/documents/${item.id}/content`);
+    interface DocContentResponse {
+      data: { ocr_text?: string; markdown_content?: string };
+    }
+    const response = await apiClient.get<DocContentResponse>(`/documents/${item.id}/content`);
     const data = response.data;
-    return data.data.markdown_content || data.data.ocr_text || '';
+    return data.data.markdown_content ?? data.data.ocr_text ?? '';
   };
 
   const handleExportDOCX = async (item: DocumentItem) => {

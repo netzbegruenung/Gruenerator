@@ -659,7 +659,7 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
         throw new Error('Kein Canvas-Endpoint fur diesen Typ konfiguriert');
       }
 
-      const response = await apiClient.post(endpoint, formDataToSend, {
+      const response = await apiClient.post<{ image: string }>(endpoint, formDataToSend, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -695,7 +695,7 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
           }),
         };
 
-        const response = await apiClient.post(endpoint, requestData);
+        const response = await apiClient.post<{ image: { base64: string } }>(endpoint, requestData);
 
         if (!response.data?.image?.base64) {
           throw new Error('Keine Bilddaten empfangen');
@@ -738,17 +738,22 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
         formDataToSend.append('precision', isPrecision ? 'true' : 'false');
         formDataToSend.append('type', type);
 
-        const response = await apiClient.post(endpoint, formDataToSend, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
+        const response = await apiClient.post<{ image: string | { base64: string } }>(
+          endpoint,
+          formDataToSend,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+        );
 
         if (!response.data?.image) {
           throw new Error('Keine Bilddaten empfangen');
         }
 
-        return response.data.image.base64 || response.data.image;
+        const img = response.data.image;
+        return typeof img === 'string' ? img : img.base64;
       }
 
       throw new Error('Unbekannter KI-Typ');

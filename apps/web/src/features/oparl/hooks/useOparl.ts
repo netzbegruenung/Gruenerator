@@ -1,23 +1,17 @@
 import { useState, useCallback } from 'react';
 
 import { searchCity, getPapers } from '../services/oparlService';
+import {
+  type OparlCity,
+  type OparlPaper,
+  type OparlFaction,
+  type OparlBodyInfo,
+} from '../services/oparlService';
 
-interface CityResult {
-  city: string;
-  [key: string]: unknown;
-}
-
-interface Paper {
-  [key: string]: unknown;
-}
-
-interface Faction {
-  [key: string]: unknown;
-}
-
-interface BodyInfo {
-  [key: string]: unknown;
-}
+type CityResult = OparlCity;
+type Paper = OparlPaper;
+type Faction = OparlFaction;
+type BodyInfo = OparlBodyInfo;
 
 export const useOparl = () => {
   const [cityResults, setCityResults] = useState<CityResult[]>([]);

@@ -41,11 +41,10 @@ function GrueneApiTestPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiClient.get('/internal/gruene-api/test');
+      const res = await apiClient.get<TestResults>('/internal/gruene-api/test');
       setResults(res.data);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      setError(err.message || 'Failed to call test endpoint');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to call test endpoint');
     } finally {
       setLoading(false);
     }
@@ -116,12 +115,11 @@ function GrueneApiTestPage() {
                 const expanded = expandedKeys.has(key);
                 const itemCount =
                   result.data && typeof result.data === 'object'
-                    ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      ((result.data as any).data?.length ??
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      (result.data as any).items?.length ??
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      (result.data as any).count ??
+                    ? (((result.data as Record<string, unknown>).data as unknown[] | undefined)
+                        ?.length ??
+                      ((result.data as Record<string, unknown>).items as unknown[] | undefined)
+                        ?.length ??
+                      ((result.data as Record<string, unknown>).count as number | null) ??
                       null)
                     : null;
 

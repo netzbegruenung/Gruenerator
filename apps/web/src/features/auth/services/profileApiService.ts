@@ -228,14 +228,102 @@ interface ApiErrorWithResponse extends Error {
   response?: { status: number };
 }
 
+// === API RESPONSE SHAPES ===
+interface ProfileResponse {
+  user?: Profile;
+  profile?: Profile;
+}
+
+interface BundleResponse {
+  success: boolean;
+  message?: string;
+  profile: Profile;
+  anweisungen_wissen?: AnweisungenWissen | null;
+  notebook_collections?: NotebookCollection[] | null;
+  custom_generators?: CustomGenerator[] | null;
+  user_texts?: SavedText[] | null;
+  user_templates?: UserTemplate[] | null;
+  memories?: Memory[] | null;
+}
+
+interface ProfileMutationResponse {
+  success: boolean;
+  message?: string;
+  profile: Profile;
+}
+
+interface AnweisungenResponse {
+  presseabbinder?: string;
+  knowledge?: KnowledgeEntry[];
+}
+
+interface NotebookCollectionsResponse {
+  success: boolean;
+  message?: string;
+  collections?: NotebookCollection[];
+}
+
+interface NotebookCollectionMutationResponse {
+  success?: boolean;
+  message?: string;
+  collection: NotebookCollection;
+}
+
+interface NotebookCollectionUpdateResponse {
+  success: boolean;
+  message?: string;
+}
+
+interface CustomGeneratorsResponse {
+  generators?: CustomGenerator[];
+}
+
+interface CustomGeneratorMutationResponse {
+  generator: CustomGenerator;
+}
+
+interface GeneratorDocumentsResponse {
+  documents?: Document[];
+}
+
+interface SavedTextsResponse {
+  success: boolean;
+  message?: string;
+  data?: SavedText[];
+}
+
+interface SavedTextSingleResponse {
+  success: boolean;
+  message?: string;
+  data: SavedText;
+}
+
+interface UserTemplatesResponse {
+  success: boolean;
+  message?: string;
+  data?: UserTemplate[];
+}
+
+interface AvailableDocumentsResponse {
+  success: boolean;
+  message?: string;
+  data?: Document[];
+}
+
+interface MemoriesResponse {
+  success: boolean;
+  message?: string;
+  memories?: Memory[];
+}
+
 export const profileApiService = {
   // === PROFILE DATA ===
   async getProfile(): Promise<Profile> {
-    const response = await apiClient.get('/auth/profile', {
+    const response = await apiClient.get<ProfileResponse>('/auth/profile', {
       skipAuthRedirect: true,
     });
     const data = response.data;
-    const profile = data.user || data.profile || null;
+    const profile = data.user ?? data.profile ?? null;
 
     if (!profile) {
       throw new Error('Profil nicht gefunden');
@@ -277,30 +365,30 @@ export const profileApiService = {
       memories: String(includeMemories),
     });
 
-    const response = await apiClient.get(`/auth/profile/bundle?${params}`);
+    const response = await apiClient.get<BundleResponse>(`/auth/profile/bundle?${params}`);
     const data = response.data;
 
     if (!data.success) {
-      throw new Error(data.message || 'Fehler beim Laden der Profildaten');
+      throw new Error(data.message ?? 'Fehler beim Laden der Profildaten');
     }
 
     return {
       profile: data.profile,
-      anweisungenWissen: data.anweisungen_wissen || null,
-      notebookCollections: data.notebook_collections || null,
-      customGenerators: data.custom_generators || null,
-      userTexts: data.user_texts || null,
-      userTemplates: data.user_templates || null,
-      memories: data.memories || null,
+      anweisungenWissen: data.anweisungen_wissen ?? null,
+      notebookCollections: data.notebook_collections ?? null,
+      customGenerators: data.custom_generators ?? null,
+      userTexts: data.user_texts ?? null,
+      userTemplates: data.user_templates ?? null,
+      memories: data.memories ?? null,
     };
   },
 
   async updateProfile(profileData: ProfileUpdateData): Promise<Profile> {
-    const response = await apiClient.put('/auth/profile', profileData);
+    const response = await apiClient.put<ProfileMutationResponse>('/auth/profile', profileData);
     const result = response.data;
 
     if (!result.success) {
-      throw new Error(result.message || 'Profil-Update fehlgeschlagen');
+      throw new Error(result.message ?? 'Profil-Update fehlgeschlagen');
     }
 
     return result.profile;
@@ -308,13 +396,13 @@ export const profileApiService = {
 
   async updateAvatar(avatarRobotId: string | number): Promise<Profile> {
     try {
-      const response = await apiClient.patch('/auth/profile/avatar', {
+      const response = await apiClient.patch<ProfileMutationResponse>('/auth/profile/avatar', {
         avatar_robot_id: avatarRobotId,
       });
       const result = response.data;
 
       if (!result.success) {
-        throw new Error(result.message || 'Avatar-Update fehlgeschlagen');
+        throw new Error(result.message ?? 'Avatar-Update fehlgeschlagen');
       }
 
       if (!result.profile) {
@@ -330,17 +418,17 @@ export const profileApiService = {
 
   // === ANWEISUNGEN & WISSEN ===
   async getAnweisungenWissen(): Promise<AnweisungenWissen> {
-    const response = await apiClient.get('/auth/anweisungen-wissen');
+    const response = await apiClient.get<AnweisungenResponse>('/auth/anweisungen-wissen');
     const json = response.data;
 
     return {
-      presseabbinder: json.presseabbinder || '',
-      knowledge: json.knowledge || [],
+      presseabbinder: json.presseabbinder ?? '',
+      knowledge: json.knowledge ?? [],
     };
   },
 
   async saveAnweisungenWissen(data: AnweisungenSaveData): Promise<AnweisungenSaveResponse> {
-    const cleanedKnowledge = (data.knowledge || []).map((entry: KnowledgeEntry) => ({
+    const cleanedKnowledge = (data.knowledge ?? []).map((entry: KnowledgeEntry) => ({
       id: typeof entry.id === 'string' && entry.id.startsWith('new-') ? undefined : entry.id,
       title: entry.title,
       content: entry.content,
@@ -351,7 +439,10 @@ export const profileApiService = {
       knowledge: cleanedKnowledge,
     };
 
-    const response = await apiClient.put('/auth/anweisungen-wissen', payload);
+    const response = await apiClient.put<AnweisungenSaveResponse>(
+      '/auth/anweisungen-wissen',
+      payload
+    );
     return response.data;
   },
 
@@ -366,14 +457,14 @@ export const profileApiService = {
 
   // === Q&A COLLECTIONS ===
   async getNotebookCollections(): Promise<NotebookCollection[]> {
-    const response = await apiClient.get('/auth/notebook-collections');
+    const response = await apiClient.get<NotebookCollectionsResponse>('/auth/notebook-collections');
     const json = response.data;
 
     if (!json.success) {
-      throw new Error(json.message || 'Failed to fetch Q&A collections');
+      throw new Error(json.message ?? 'Failed to fetch Q&A collections');
     }
 
-    return json.collections || [];
+    return json.collections ?? [];
   },
 
   async createQACollection(collectionData: NotebookCollectionInput): Promise<NotebookCollection> {
@@ -390,13 +481,16 @@ export const profileApiService = {
         selectionMode === 'wolke' ? !!collectionData.remove_missing_on_sync : false,
     };
 
-    const response = await apiClient.post('/auth/notebook-collections', body);
+    const response = await apiClient.post<NotebookCollectionMutationResponse>(
+      '/auth/notebook-collections',
+      body
+    );
     const json = response.data;
 
     if (!json?.success) {
       const err = new Error(
-        json?.message || 'Failed to create Q&A collection'
-      ) as unknown as ApiErrorWithResponse;
+        json?.message ?? 'Failed to create Q&A collection'
+      ) as ApiErrorWithResponse;
       err.response = { status: 400 };
       throw err;
     }
@@ -421,13 +515,16 @@ export const profileApiService = {
         selectionMode === 'wolke' ? !!collectionData.remove_missing_on_sync : undefined,
     };
 
-    const response = await apiClient.put(`/auth/notebook-collections/${collectionId}`, body);
+    const response = await apiClient.put<NotebookCollectionUpdateResponse>(
+      `/auth/notebook-collections/${collectionId}`,
+      body
+    );
     const json = response.data;
 
     if (!json?.success) {
       const err = new Error(
-        json?.message || 'Failed to update Q&A collection'
-      ) as unknown as ApiErrorWithResponse;
+        json?.message ?? 'Failed to update Q&A collection'
+      ) as ApiErrorWithResponse;
       err.response = { status: 400 };
       throw err;
     }
@@ -438,13 +535,15 @@ export const profileApiService = {
   async syncQACollection(
     collectionId: string | number
   ): Promise<{ success: boolean; message?: string }> {
-    const response = await apiClient.post(`/auth/notebook-collections/${collectionId}/sync`);
+    const response = await apiClient.post<NotebookCollectionUpdateResponse>(
+      `/auth/notebook-collections/${collectionId}/sync`
+    );
     const json = response.data;
 
     if (!json?.success) {
       const err = new Error(
-        json?.message || 'Failed to sync Q&A collection'
-      ) as unknown as ApiErrorWithResponse;
+        json?.message ?? 'Failed to sync Q&A collection'
+      ) as ApiErrorWithResponse;
       err.response = { status: 400 };
       throw err;
     }
@@ -455,11 +554,13 @@ export const profileApiService = {
   async deleteQACollection(
     collectionId: string | number
   ): Promise<{ success: boolean; message?: string }> {
-    const response = await apiClient.delete(`/auth/notebook-collections/${collectionId}`);
+    const response = await apiClient.delete<NotebookCollectionUpdateResponse>(
+      `/auth/notebook-collections/${collectionId}`
+    );
     const json = response.data;
 
     if (!json.success) {
-      throw new Error(json.message || 'Failed to delete Q&A collection');
+      throw new Error(json.message ?? 'Failed to delete Q&A collection');
     }
 
     return json;
@@ -467,37 +568,47 @@ export const profileApiService = {
 
   // === CUSTOM GENERATORS ===
   async getCustomGenerators(): Promise<CustomGenerator[]> {
-    const response = await apiClient.get('/auth/custom_generator', {
+    const response = await apiClient.get<CustomGeneratorsResponse>('/auth/custom_generator', {
       skipAuthRedirect: true,
     });
-    return response.data?.generators || [];
+    return response.data?.generators ?? [];
   },
 
   async updateCustomGenerator(
     generatorId: string | number,
     updateData: CustomGeneratorData
   ): Promise<CustomGenerator> {
-    const response = await apiClient.put(`/auth/custom_generator/${generatorId}`, updateData);
+    const response = await apiClient.put<CustomGeneratorMutationResponse>(
+      `/auth/custom_generator/${generatorId}`,
+      updateData
+    );
     return response.data.generator;
   },
 
   async deleteCustomGenerator(generatorId: string | number): Promise<CustomGeneratorResponse> {
-    const response = await apiClient.delete(`/auth/custom_generator/${generatorId}`);
+    const response = await apiClient.delete<CustomGeneratorResponse>(
+      `/auth/custom_generator/${generatorId}`
+    );
     return response.data;
   },
 
   async getGeneratorDocuments(generatorId: string | number): Promise<Document[]> {
-    const response = await apiClient.get(`/auth/custom_generator/${generatorId}/documents`);
-    return response.data.documents || [];
+    const response = await apiClient.get<GeneratorDocumentsResponse>(
+      `/auth/custom_generator/${generatorId}/documents`
+    );
+    return response.data.documents ?? [];
   },
 
   async addDocumentsToGenerator(
     generatorId: string | number,
     documentIds: string[]
   ): Promise<CustomGeneratorResponse> {
-    const response = await apiClient.post(`/auth/custom_generator/${generatorId}/documents`, {
-      documentIds: documentIds,
-    });
+    const response = await apiClient.post<CustomGeneratorResponse>(
+      `/auth/custom_generator/${generatorId}/documents`,
+      {
+        documentIds: documentIds,
+      }
+    );
     return response.data;
   },
 
@@ -505,7 +616,7 @@ export const profileApiService = {
     generatorId: string | number,
     documentId: string | number
   ): Promise<CustomGeneratorResponse> {
-    const response = await apiClient.delete(
+    const response = await apiClient.delete<CustomGeneratorResponse>(
       `/auth/custom_generator/${generatorId}/documents/${documentId}`
     );
     return response.data;
@@ -514,63 +625,71 @@ export const profileApiService = {
   async createCustomGenerator(
     generatorData: CustomGeneratorData
   ): Promise<CustomGeneratorResponse> {
-    const response = await apiClient.post('/auth/custom_generator/create', generatorData);
+    const response = await apiClient.post<CustomGeneratorResponse>(
+      '/auth/custom_generator/create',
+      generatorData
+    );
     return response.data;
   },
 
   // === SAVED GENERATORS ===
   async getSavedGenerators(): Promise<CustomGenerator[]> {
-    const response = await apiClient.get('/auth/saved_generators');
-    return response.data?.generators || [];
+    const response = await apiClient.get<CustomGeneratorsResponse>('/auth/saved_generators');
+    return response.data?.generators ?? [];
   },
 
   async unsaveGenerator(generatorId: string | number): Promise<CustomGeneratorResponse> {
-    const response = await apiClient.delete(`/auth/saved_generators/${generatorId}`);
+    const response = await apiClient.delete<CustomGeneratorResponse>(
+      `/auth/saved_generators/${generatorId}`
+    );
     return response.data;
   },
 
   // === USER TEXTS ===
   async getUserTexts(): Promise<SavedText[]> {
-    const response = await apiClient.get('/auth/saved-texts');
+    const response = await apiClient.get<SavedTextsResponse>('/auth/saved-texts');
     const data = response.data;
 
     if (!data.success) {
-      throw new Error(data.message || 'Failed to fetch texts');
+      throw new Error(data.message ?? 'Failed to fetch texts');
     }
 
-    return data.data || [];
+    return data.data ?? [];
   },
 
   async getText(textId: string | number): Promise<SavedText> {
-    const response = await apiClient.get(`/auth/saved-texts/${textId}`);
+    const response = await apiClient.get<SavedTextSingleResponse>(`/auth/saved-texts/${textId}`);
     const data = response.data;
 
     if (!data.success) {
-      throw new Error(data.message || 'Failed to fetch text');
+      throw new Error(data.message ?? 'Failed to fetch text');
     }
 
     return data.data;
   },
 
   async updateTextTitle(textId: string | number, newTitle: string): Promise<SavedTextResponse> {
-    const response = await apiClient.post(`/auth/saved-texts/${textId}/metadata`, {
-      title: newTitle.trim(),
-    });
+    const response = await apiClient.post<SavedTextResponse>(
+      `/auth/saved-texts/${textId}/metadata`,
+      {
+        title: newTitle.trim(),
+      }
+    );
     const result = response.data;
 
     if (!result.success) {
-      throw new Error(result.message || 'Failed to update text title');
+      throw new Error(result.message ?? 'Failed to update text title');
     }
 
     return result;
   },
 
   async deleteText(textId: string | number): Promise<SavedTextResponse> {
-    const response = await apiClient.delete(`/auth/saved-texts/${textId}`);
+    const response = await apiClient.delete<SavedTextResponse>(`/auth/saved-texts/${textId}`);
     const result = response.data;
 
     if (!result.success) {
-      throw new Error(result.message || 'Failed to delete text');
+      throw new Error(result.message ?? 'Failed to delete text');
     }
 
     return result;
@@ -578,38 +697,43 @@ export const profileApiService = {
 
   // === USER TEMPLATES ===
   async getUserTemplates(): Promise<UserTemplate[]> {
-    const response = await apiClient.get('/auth/user-templates');
+    const response = await apiClient.get<UserTemplatesResponse>('/auth/user-templates');
     const data = response.data;
 
     if (!data.success) {
-      throw new Error(data.message || 'Failed to fetch templates');
+      throw new Error(data.message ?? 'Failed to fetch templates');
     }
 
-    return data.data || [];
+    return data.data ?? [];
   },
 
   async updateTemplateTitle(
     templateId: string | number,
     newTitle: string
   ): Promise<UserTemplateResponse> {
-    const response = await apiClient.post(`/auth/user-templates/${templateId}/metadata`, {
-      title: newTitle.trim(),
-    });
+    const response = await apiClient.post<UserTemplateResponse>(
+      `/auth/user-templates/${templateId}/metadata`,
+      {
+        title: newTitle.trim(),
+      }
+    );
     const result = response.data;
 
     if (!result.success) {
-      throw new Error(result.message || 'Failed to update template title');
+      throw new Error(result.message ?? 'Failed to update template title');
     }
 
     return result;
   },
 
   async deleteTemplate(templateId: string | number): Promise<UserTemplateResponse> {
-    const response = await apiClient.delete(`/auth/user-templates/${templateId}`);
+    const response = await apiClient.delete<UserTemplateResponse>(
+      `/auth/user-templates/${templateId}`
+    );
     const result = response.data;
 
     if (!result.success) {
-      throw new Error(result.message || 'Failed to delete template');
+      throw new Error(result.message ?? 'Failed to delete template');
     }
 
     return result;
@@ -619,13 +743,16 @@ export const profileApiService = {
     templateId: string | number,
     isPrivate: boolean
   ): Promise<UserTemplateResponse> {
-    const response = await apiClient.put(`/auth/user-templates/${templateId}`, {
-      is_private: isPrivate,
-    });
+    const response = await apiClient.put<UserTemplateResponse>(
+      `/auth/user-templates/${templateId}`,
+      {
+        is_private: isPrivate,
+      }
+    );
     const result = response.data;
 
     if (!result.success) {
-      throw new Error(result.message || 'Failed to update template visibility');
+      throw new Error(result.message ?? 'Failed to update template visibility');
     }
 
     return result;
@@ -635,11 +762,14 @@ export const profileApiService = {
     templateId: string | number,
     data: UserTemplateUpdateData
   ): Promise<UserTemplateResponse> {
-    const response = await apiClient.put(`/auth/user-templates/${templateId}`, data);
+    const response = await apiClient.put<UserTemplateResponse>(
+      `/auth/user-templates/${templateId}`,
+      data
+    );
     const result = response.data;
 
     if (!result.success) {
-      throw new Error(result.message || 'Failed to update template');
+      throw new Error(result.message ?? 'Failed to update template');
     }
 
     return result;
@@ -647,15 +777,15 @@ export const profileApiService = {
 
   // === AVAILABLE DOCUMENTS (for Q&A) ===
   async getAvailableDocuments(): Promise<Document[]> {
-    const response = await apiClient.get('/documents/user');
+    const response = await apiClient.get<AvailableDocumentsResponse>('/documents/user');
     const json = response.data;
 
     if (!json.success) {
-      throw new Error(json.message || 'Failed to fetch documents');
+      throw new Error(json.message ?? 'Failed to fetch documents');
     }
 
     // Filter only completed documents
-    const completedDocuments = (json.data || []).filter(
+    const completedDocuments = (json.data ?? []).filter(
       (doc: Document) => doc.status === 'completed'
     );
     return completedDocuments;
@@ -663,55 +793,55 @@ export const profileApiService = {
 
   // === MEMORY (MEM0RY) ===
   async getMemories(userId: string): Promise<Memory[]> {
-    const response = await apiClient.get(`/mem0/user/${userId}`);
+    const response = await apiClient.get<MemoriesResponse>(`/mem0/user/${userId}`);
     const result = response.data;
 
     if (!result.success) {
-      throw new Error(result.message || 'Failed to fetch memories');
+      throw new Error(result.message ?? 'Failed to fetch memories');
     }
 
-    return result.memories || [];
+    return result.memories ?? [];
   },
 
   async addMemory(text: string, topic: string = ''): Promise<MemoryResponse> {
-    const response = await apiClient.post('/mem0/add-text', { text, topic });
+    const response = await apiClient.post<MemoryResponse>('/mem0/add-text', { text, topic });
     const result = response.data;
 
     if (!result.success) {
-      throw new Error(result.message || 'Failed to add memory');
+      throw new Error(result.message ?? 'Failed to add memory');
     }
 
     return result;
   },
 
   async deleteMemory(memoryId: string | number): Promise<MemoryResponse> {
-    const response = await apiClient.delete(`/mem0/${memoryId}`);
+    const response = await apiClient.delete<MemoryResponse>(`/mem0/${memoryId}`);
     const result = response.data;
 
     if (!result.success) {
-      throw new Error(result.message || 'Failed to delete memory');
+      throw new Error(result.message ?? 'Failed to delete memory');
     }
 
     return result;
   },
 
   async deleteAllMemories(userId: string): Promise<MemoryResponse> {
-    const response = await apiClient.delete(`/mem0/user/${userId}/all`);
+    const response = await apiClient.delete<MemoryResponse>(`/mem0/user/${userId}/all`);
     const result = response.data;
 
     if (!result.success) {
-      throw new Error(result.message || 'Failed to delete all memories');
+      throw new Error(result.message ?? 'Failed to delete all memories');
     }
 
     return result;
   },
 
   async updateMemory(memoryId: string | number, content: string): Promise<MemoryResponse> {
-    const response = await apiClient.put(`/mem0/${memoryId}`, { content });
+    const response = await apiClient.put<MemoryResponse>(`/mem0/${memoryId}`, { content });
     const result = response.data;
 
     if (!result.success) {
-      throw new Error(result.message || 'Failed to update memory');
+      throw new Error(result.message ?? 'Failed to update memory');
     }
 
     return result;
@@ -722,18 +852,22 @@ export const profileApiService = {
     category?: MemoryCategory,
     limit?: number
   ): Promise<Memory[]> {
-    const response = await apiClient.post('/mem0/search', { query, category, limit });
+    const response = await apiClient.post<MemoriesResponse>('/mem0/search', {
+      query,
+      category,
+      limit,
+    });
     const result = response.data;
 
     if (!result.success) {
-      throw new Error(result.message || 'Failed to search memories');
+      throw new Error(result.message ?? 'Failed to search memories');
     }
 
-    return result.memories || [];
+    return result.memories ?? [];
   },
 
   async exportMemories(userId: string): Promise<Blob> {
-    const response = await apiClient.get(`/mem0/user/${userId}/export`, {
+    const response = await apiClient.get<Blob>(`/mem0/user/${userId}/export`, {
       responseType: 'blob',
     });
     return response.data;

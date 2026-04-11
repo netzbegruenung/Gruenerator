@@ -22,7 +22,10 @@ export default function MobileEditorPage() {
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       try {
-        const message = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        const message = (typeof event.data === 'string' ? JSON.parse(event.data) : event.data) as {
+          type?: string;
+          payload?: MobileEditorData;
+        };
 
         if (message.type === 'INIT_DATA') {
           const payload = message.payload as MobileEditorData;
