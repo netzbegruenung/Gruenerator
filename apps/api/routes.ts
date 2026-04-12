@@ -390,8 +390,7 @@ export async function setupRoutes(app: Application): Promise<void> {
     '/api/slider_claude',
     aiGenerationLimiter,
     async (req: Request, res: Response): Promise<void> => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      if (req.body.smartCount) {
+      if ((req.body as { smartCount?: unknown })?.smartCount) {
         await handleSliderSmartRequest(req as SharepicRequest, res);
       } else {
         await handleClaudeRequest(req as SharepicRequest, res, 'slider');
