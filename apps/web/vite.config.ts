@@ -72,6 +72,16 @@ export default defineConfig(({ command }) => ({
       '~': path.resolve(__dirname, './'),
       '@gruenerator/shared': path.resolve(__dirname, '../../packages/shared/src'),
       '@gruenerator/chat': path.resolve(__dirname, '../../packages/chat/src'),
+      // @gruenerator/contracts is imported transitively from within the
+      // @gruenerator/shared alias path (e.g. shared/api/contractsClient.ts
+      // imports notebookContract from @gruenerator/contracts). Vite's alias
+      // system doesn't cascade through workspace deps — any package aliased
+      // to src/ must have ALL its workspace-package imports explicitly
+      // aliased too, otherwise Rolldown's resolver can't find the source.
+      // This surfaced in CI as:
+      //   "Rolldown failed to resolve import '@gruenerator/contracts'
+      //    from packages/shared/src/api/contractsClient.ts"
+      '@gruenerator/contracts': path.resolve(__dirname, '../../packages/contracts/src'),
     },
     dedupe: ['d3-path'],
   },
