@@ -46,14 +46,17 @@ Drizzle ORM wraps the existing `pg.Pool` from PostgresService and infers types f
 - [x] `database/schema/media.ts` — user_sharepics, user_uploads, shared_media, shared_media_downloads
 - [x] `database/schema/chat.ts` — chat_threads, chat_messages, chat_thread_attachments
 
-**Infrastructure switch** [PARTIAL 2026-04-12]:
+**Infrastructure switch** [DONE 2026-04-12]:
 - [x] `database/types.ts` SHRUNK (3 types migrated to Drizzle InferSelectModel; 2 holdouts: YjsDocumentSnapshotRow, UserSiteRow — tables have no Drizzle schema yet)
-- [x] Switch Better Auth to `@better-auth/drizzle-adapter` [SHIPPED 2026-04-12, awaiting test verification]
-  - New `database/schema/auth.ts` with `ba_sessions`/`ba_accounts`/`ba_verification` Drizzle schemas
-  - `config/betterAuth.ts` swapped from raw `pg.Pool` to `drizzleAdapter(db, { provider: 'pg', schema })`
+- [x] **Better Auth on `@better-auth/drizzle-adapter`** [DONE 2026-04-12, verified end-to-end]
+  - New `database/schema/auth.ts` with `ba_sessions`/`ba_accounts`/`ba_verification` Drizzle schemas + `relations()` for join support
+  - `config/betterAuth.ts` swapped from raw `pg.Pool` to `drizzleAdapter(db, { provider: 'pg', schema, debugLogs: true })`
   - `routes/auth/authCore.ts` raw SQL `ba_accounts` query rewritten as typed Drizzle select
   - Dead `Ba*Row` Kysely-era stubs deleted from `database/types.ts`
-  - **Runtime risk**: untested. Verify with `pnpm --filter @gruenerator/api test:auth` + manual OAuth flow in dev before declaring final DONE.
+  - `apps/api/package.json` declares `@better-auth/drizzle-adapter` explicitly (it was a transitive dep that worked in dev but pruned by `pnpm install --prod`)
+  - **`account.accountLinking.trustedProviders`** configured for all 4 Keycloak providers — without this, Better Auth refuses to link OAuth identities when the OAuth profile lacks `email_verified`
+  - **`ba_accounts` UNIQUE constraint corrected** from `(user_id, provider_id)` → `(account_id, provider_id)` via `fix_ba_accounts_unique_constraint.sql` migration. The wrong constraint blocked re-linking when a user's Keycloak `sub` changes (e.g. realm migration). Better Auth's data model allows multiple historical OAuth identities per user per provider; the wrong constraint blocked the second one.
+  - **Verified end-to-end**: real Keycloak OAuth signin completes, session created, Drizzle adapter logs each query, auth tests pass, chat works on top of the new session.
 
 ### 2.2 Type AI SDK tool calls & third-party responses [DONE]
 - [x] `scrapeUrl.ts`, `editImage.ts`, `aiSearchAgent.ts` — proper types from upstream services
@@ -201,6 +204,31 @@ pnpm add @ts-rest/core                    # in packages/shared (via contracts de
 
 **Acceleration strategy:** ~75 Zod schemas from `validateBody` already exist. A codegen script can auto-generate ts-rest contracts from them — skips 60% of the manual effort.
 
+#### Mandatory checklist for new ts-rest contract routers (learned 2026-04-12)
+
+Three production incidents in this session — all caused by adding contract routers without these patterns. **Every new contract router MUST follow these rules** or it will silently break:
+
+1. **Use `.nullish()` not `.optional()` for optional body fields.** The frontend follows `feedback_no_undefined` and sends `null` for unset values. Plain `.optional()` only accepts `undefined` and 400s every request. At handler call sites that need `T | undefined` (because downstream functions don't accept null), normalize with `?? undefined`. Don't try to enforce null vs undefined in the wire format — the schema accepts both, the handler normalizes to one.
+
+2. **Use `logContractValidationError(log, scope)` from `apps/api/utils/contractValidationLogger.ts`.** Never paste `requestValidationErrorHandler: 'combined'` — it silently 400s with the validation error in the response body but never logs server-side. The shared helper logs `[scope] validation failed: METHOD URL — body=<issues>, query=<issues>, params=<issues>` so the next 400 is diagnosable from API logs alone, no browser DevTools required. Includes deduplication so only one log line fires per request even though Express runs every error middleware in sequence.
+
+3. **If the path is in `CUSTOM_BODY_PARSER_PATHS` (`apps/api/middleware/bodyParserConfig.ts`), register a body parser explicitly in `routes.ts` BEFORE the contract router mount.** Concrete example: `/api/chat-graph/stream` is in the skip list because the legacy controller installed its own 50mb parser at controller-mount time. The contract router intercepts the request BEFORE the legacy parser would run, sees `req.body === undefined`, and 400s. Fix:
+   ```ts
+   app.use('/api/chat-graph', express.json({ limit: '50mb' }));  // before mount
+   mountChatGraphContractRouter(app);
+   ```
+   Any path in `CUSTOM_BODY_PARSER_PATHS` AND served by a contract router needs both the global skip AND a per-path parser registration upstream. The two systems were coordinated implicitly via "the legacy router installs its own parser" — the contract router needs explicit coordination.
+
+4. **Apply `requireAuth` middleware to the path prefix BEFORE the contract router mount** if the contract handler reads `req.user`. ts-rest contract routers don't have built-in auth — without this, unauthenticated requests reach the handler with `req.user === undefined` and crash on `.id` access. Pattern:
+   ```ts
+   app.use('/api/chat-graph', requireAuth);
+   mountChatGraphContractRouter(app);
+   ```
+
+5. **Mount BEFORE the corresponding legacy router** so Express matches the contract router's routes first. Otherwise the legacy router intercepts all traffic and the contract router is dead code.
+
+6. **Verify `packages/contracts` exports compile to `dist/`** for production builds. The `Dockerfile` must build the contracts package and `sed`-rewrite its `package.json` exports from `./src/*.ts` → `./dist/*.js` (mirrors the existing pattern for `packages/shared` and `services/hocuspocus`). See Phase 6.1 for the long-term fix via `development` conditional exports.
+
 ### 4.2 Branded types for domain values [STARTED]
 - [x] `Brand<T, B>` utility + 9 ID types + `fromParam<T>` helper
 - [ ] Adopt in route handlers and service layer
@@ -209,7 +237,7 @@ pnpm add @ts-rest/core                    # in packages/shared (via contracts de
 ### 4.3 Runtime validation at system boundaries [DONE]
 - [x] Zod `validateBody` middleware for API request bodies (Phase 3.5)
 - [x] Zod schemas for external API responses — 7 of 8 clients (WordPress, Google, Microsoft, OParl, Atlassian, Keycloak, Bluesky); WebDAV/Nextcloud have no JSON responses
-- [x] Typed environment variables — `apps/api/config/env.ts` with Zod schema covering all 178 env vars, parsed at startup. **53 of 82 consumer files migrated** (16 → 53 in 2026-04-12 batch via 3 parallel agents: Stream 3A AI/LLM 15 files, Stream 3B infra 7 files, Stream 3C routes 15 files). 167 `process.env.X` references eliminated. **Zero new schema vars needed** — original 178-var catalogue covered everything. ~30 files remain as opportunistic follow-up.
+- [x] Typed environment variables — `apps/api/config/env.ts` with Zod schema covering all 178 env vars, parsed at startup. **55 of 82 consumer files migrated** (16 → 53 in 2026-04-12 batch via 3 parallel agents, +2 opportunistic during the auth-debugging session: `appLogin.ts`, `mobileTokenExchange.ts`). 171 `process.env.X` references eliminated. **Zero new schema vars needed** — original 178-var catalogue covered everything. ~27 files remain as opportunistic follow-up.
 
 ### 4.4 Global infrastructure typing [DONE]
 **Completed 2026-04-11.**
@@ -221,20 +249,22 @@ pnpm add @ts-rest/core                    # in packages/shared (via contracts de
 ## What's Next (pick up here)
 
 ### Priority 1: ts-rest incremental adoption (Phase 4.1) [EXPANDING]
-**Phase 4.1 expansion 2026-04-12.** 5 new contract groups wired up:
+**Phase 4.1 expansion + verification 2026-04-12.** All 7 mounted contract routers are now confirmed to actually receive and process traffic in production (post-`fix(docker)` commit they were registered, post-body-parser-fix they handle requests correctly, post-`.nullish()` schema fix they accept frontend payloads):
 
 | Contract | Endpoints | Status |
 |----------|-----------|--------|
-| recentValuesContract | 4 | Mounted (Apr 11) |
-| threadsContract | 7 | **Mounted** |
-| chatGraphContract | 2 | **Mounted** |
-| boardsContract | 3 | **Mounted** |
-| sharesContract | 6 | **Mounted** |
-| userProfileContract | 11 | **Mounted** |
-| exportsContract | 2 | **Mounted** (Apr 12) |
+| recentValuesContract | 4 | **Verified** (mounted Apr 11, no incidents) |
+| threadsContract | 7 | **Verified** (`requireAuth` middleware added Apr 12 to fix unauthenticated crash) |
+| chatGraphContract | 2 | **Verified** (4 fixes required: `.nullish()` schema, `requireAuth`, 50mb body parser, validation logger) |
+| boardsContract | 3 | **Verified** |
+| sharesContract | 6 | **Verified** |
+| userProfileContract | 11 | **Verified** |
+| exportsContract | 2 | **Verified** (mounted Apr 12) |
 | searchContract | 2 | Scaffolded but **NOT mounted** — pilot doesn't model SSE `?stream=true` mode the frontend depends on. Activate once streaming is added to the contract. |
 
 **Total**: **35 typed endpoints** served via ts-rest contracts (out of 126 candidates identified by codegen script).
+
+**All 8 routers (including the unmounted searchContract scaffold) use the shared `logContractValidationError` helper** so any future validation issue logs server-side with the exact failing field path. The era of "the contract returned 400 and we have no idea why" is over.
 
 **Frontend**: `useRecentValuesTyped` migrated in `SmartInput.tsx` + `RecentValuesDropdown.tsx`. Other typed hooks not yet created.
 
@@ -345,6 +375,8 @@ Dev runners (tsx, vitest) pass `--conditions=development` and resolve to source.
 4. **Frontend typing > backend lint.** The biggest safety win left isn't more backend lint fixes — it's typed API calls from the frontend (ts-rest). Focus there.
 5. **Ratchet, don't re-count.** CI thresholds that only go down prevent regression without manual audits. Add a cast-count CI script.
 6. **Scope honestly.** Phase 3 achieved 0 violations in api/services/packages, but web (1,224) and mobile (207) still have `warn` overrides. Don't mark "DONE" until the monorepo is clean.
+7. **Diagnostic infrastructure earns its keep when production breaks.** (Added 2026-04-12 after the chat outage.) Adding logs/visibility proactively feels like premature engineering — until a 400 hits production with no server-side trace and you spend 3 redeploys discovering what broke. The right time to add `logContractValidationError`, drizzle adapter `debugLogs`, or Better Auth's logger config is BEFORE the first time you need them. Cost: 5 lines per feature. Payoff: turns multi-iteration bug hunts into single-iteration grep-and-fix loops.
+8. **Coordinate implicit couplings explicitly.** (Added 2026-04-12 after the body parser outage.) The `CUSTOM_BODY_PARSER_PATHS` skip list and the chatGraph contract router were both correct in isolation but implicitly coordinated through "the legacy router happens to install its own parser." When one side moves (contract router intercepts traffic), the other side breaks invisibly. Anywhere two systems coordinate via "X happens to do Y," the coordination needs to be a comment, a checklist, or a runtime assertion — not tribal knowledge.
 
 ## Metrics (verified 2026-04-12)
 
@@ -362,14 +394,19 @@ Dev runners (tsx, vitest) pass `--conditions=development` and resolve to source.
 | `as unknown as X` casts | 241 | 84 api / 205 repo | ~same | ratchet down |
 | `exactOptionalPropertyTypes` | disabled | **enabled** | enabled | enabled |
 | Duplicate type definitions | ~20 | **0** | 0 | 0 |
-| Drizzle schema tables | 0 | ~20 | ~20 | all |
+| Drizzle schema tables | 0 | ~20 | **~23** (+ba_sessions, ba_accounts, ba_verification) | all |
 | Typecheck errors (all packages) | 3 | **0** | 0 | 0 |
 | `validateBody` routes | 0 | ~75 | ~75 | opportunistic |
-| ts-rest contracts | 0 | 4 (pilot) | **4 + mounted** | all (~75 target) |
+| ts-rest contracts | 0 | 4 (pilot) | **9 contracts / 7 mounted / 35+ endpoints** | all (~75 target) |
 | External API Zod schemas | 0 | 0 | **WordPress (5) + in-progress** | all 8 clients |
 | `parseJSON<T>()` adoption | — | 10 files | 10 files | all JSON.parse sites |
+| `process.env.X` direct uses (api) | ~315 | — | **~140** (171 eliminated, 27 files remain) | 0 |
+| Better Auth on Drizzle adapter | Kysely-era types only | — | **DONE, verified end-to-end** | done |
+| Contract router validation logger | — | — | **All 8 routers using shared helper** | mandatory for new |
 
 **🎉 Phase 3 complete**: All safety-critical ESLint rules (`no-unsafe-*`, `no-floating-promises`, `no-explicit-any`, `exactOptionalPropertyTypes`) are now at `error` level across the **entire monorepo**. The `warn` override era is over.
+
+**🎉 Phase 2.1 complete (2026-04-12)**: Better Auth runs on `@better-auth/drizzle-adapter` end-to-end. Verified by real Keycloak OAuth flow → session creation → chat working on top. The shipping chain took 16 commits across 5 layers (Drizzle schema → adapter swap → Docker contracts build → declared dep → trustedProviders + DB constraint fix → debug logging → contract router body parser + validation logger). Each layer was a different bug class; the diagnostic infrastructure built along the way (drizzle adapter `debugLogs`, Better Auth `logger.level: debug`, `logContractValidationError`) is now permanent value for any future auth/contract debugging.
 
 **Note on cast regression:** `as unknown as` grew from ~37 (Phase 2 end) to 84 (api) / 205 (repo) due to new features added without cast discipline. Ratchet CI script (`scripts/type-safety-ratchet.sh`) prevents further regression.
 
