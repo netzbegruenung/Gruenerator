@@ -34,7 +34,9 @@ const HelpDisplay = ({
 }: HelpDisplayProps): JSX.Element | null => {
   // Check if any generated text exists in the store
   const generatedTexts = useGeneratedTextStore((state) => state.generatedTexts);
-  const hasAnyGeneratedText = Object.values(generatedTexts).some((text) => text && text.length > 0);
+  const hasAnyGeneratedText = Object.values(generatedTexts).some(
+    (text) => text && (typeof text === 'string' ? text.length > 0 : true)
+  );
 
   const hasSeenFeature = React.useMemo(() => {
     if (!featureId || !isNewFeature) return false;

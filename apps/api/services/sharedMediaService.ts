@@ -1113,9 +1113,8 @@ class SharedMediaService {
       }
 
       // 3. Deep copy metadata (all canvas state)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const clonedMetadata = template.image_metadata
-        ? JSON.parse(JSON.stringify(template.image_metadata))
+      const clonedMetadata: Record<string, unknown> = template.image_metadata
+        ? (JSON.parse(JSON.stringify(template.image_metadata)) as Record<string, unknown>)
         : {};
 
       // 4. Create new share entry

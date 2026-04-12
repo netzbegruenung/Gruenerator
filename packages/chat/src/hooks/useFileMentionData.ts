@@ -50,17 +50,31 @@ export function useFileMentionData() {
         throw new Error(`HTTP ${response.status}`);
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const json = (await response.json()) as any;
-      const data = Array.isArray(json) ? json : json.collections || [];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const collections: NotebookCollectionItem[] = data.map((c: any) => ({
+      interface RawDocument {
+        id: string;
+        title?: string;
+        name?: string;
+        page_count?: number;
+        pageCount?: number;
+        source_type?: string;
+        sourceType?: string;
+      }
+      interface RawCollection {
+        id: string;
+        name: string;
+        description?: string | null;
+        document_count?: number;
+        documentCount?: number;
+        documents?: RawDocument[];
+      }
+      const json = (await response.json()) as RawCollection[] | { collections: RawCollection[] };
+      const data: RawCollection[] = Array.isArray(json) ? json : json.collections || [];
+      const collections: NotebookCollectionItem[] = data.map((c) => ({
         id: c.id,
         name: c.name,
         description: c.description || null,
         documentCount: c.document_count ?? c.documentCount ?? c.documents?.length ?? 0,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        documents: (c.documents || []).map((d: any) => ({
+        documents: (c.documents || []).map((d) => ({
           id: d.id,
           title: d.title || d.name || 'Unbekanntes Dokument',
           pageCount: d.page_count ?? d.pageCount,
@@ -104,28 +118,49 @@ export function useFileMentionData() {
         return;
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const json = (await response.json()) as any;
-      const rawDocs = json.data?.documents || [];
-      const rawTexts = json.data?.texts || [];
+      interface RawDocItem {
+        id: string;
+        title?: string;
+        filename?: string;
+        source_type?: string;
+        sourceType?: string;
+        created_at?: string;
+        createdAt?: string;
+        content_preview?: string;
+        contentPreview?: string;
+      }
+      interface RawTextItem {
+        id: string;
+        title?: string;
+        document_type?: string;
+        documentType?: string;
+        word_count?: number;
+        wordCount?: number;
+        created_at?: string;
+        createdAt?: string;
+      }
+      interface CombinedContentResponse {
+        data?: { documents?: RawDocItem[]; texts?: RawTextItem[] };
+      }
+      const json = (await response.json()) as CombinedContentResponse;
+      const rawDocs: RawDocItem[] = json.data?.documents || [];
+      const rawTexts: RawTextItem[] = json.data?.texts || [];
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const documents: UserDocumentItem[] = rawDocs.map((d: any) => ({
+      const documents: UserDocumentItem[] = rawDocs.map((d) => ({
         id: d.id,
         title: d.title || d.filename || 'Dokument',
         filename: d.filename,
         sourceType: d.source_type ?? d.sourceType,
-        createdAt: d.created_at ?? d.createdAt,
+        createdAt: d.created_at ?? d.createdAt ?? '',
         contentPreview: d.content_preview ?? d.contentPreview,
       }));
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const texts: UserTextItem[] = rawTexts.map((t: any) => ({
+      const texts: UserTextItem[] = rawTexts.map((t) => ({
         id: t.id,
         title: t.title || 'Unbenannter Text',
         documentType: t.document_type ?? t.documentType ?? 'text',
         wordCount: t.word_count ?? t.wordCount ?? 0,
-        createdAt: t.created_at ?? t.createdAt,
+        createdAt: t.created_at ?? t.createdAt ?? '',
       }));
 
       setState((prev) => ({

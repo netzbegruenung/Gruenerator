@@ -34,8 +34,10 @@ export function useBackendCanvasExport<TState, TActions>(
     setError(null);
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await exportFreeCanvas(config as unknown as any, state as unknown as any);
+      const result = await exportFreeCanvas(
+        config as Parameters<typeof exportFreeCanvas>[0],
+        state as Parameters<typeof exportFreeCanvas>[1]
+      );
 
       if (!result) {
         setError('Export failed: No image returned from API');

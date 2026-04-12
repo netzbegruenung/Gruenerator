@@ -4,25 +4,28 @@
  */
 
 import express, { type Response } from 'express';
+import { z } from 'zod';
 
 import { env } from '../../config/env.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import {
   urlCrawlerService,
   UrlValidator,
 } from '../../services/scrapers/implementations/UrlCrawler/index.js';
 import { createLogger } from '../../utils/logger.js';
 
-import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { CrawlResult } from '../../services/scrapers/implementations/UrlCrawler/types.js';
 
 const log = createLogger('crawlUrl');
 
 const router = express.Router();
 
-interface CrawlRequestBody {
-  url: string;
-  usePrivacyMode?: boolean;
-}
+const crawlRequestSchema = z.object({
+  url: z.string().url(),
+  usePrivacyMode: z.boolean().nullish(),
+});
+
+type CrawlRequestBody = z.infer<typeof crawlRequestSchema>;
 
 interface CrawledAttachment {
   type: 'crawled_url';
@@ -58,110 +61,114 @@ interface CrawlResponse {
  * POST /api/crawl-url
  * Crawls a URL and returns structured content for use as attachment
  */
-router.post('/', async (req: AuthenticatedRequest, res: Response<CrawlResponse>) => {
-  const startTime = Date.now();
+router.post(
+  '/',
+  validateBody(crawlRequestSchema),
+  async (req: TypedRequest<CrawlRequestBody>, res: Response<CrawlResponse>) => {
+    const startTime = Date.now();
 
-  try {
-    const { url, usePrivacyMode = false } = req.body as CrawlRequestBody;
-    const userId = req.user?.id || 'anonymous';
+    try {
+      const { url, usePrivacyMode = false } = req.body;
+      const userId = req.user?.id || 'anonymous';
 
-    if (!url || typeof url !== 'string') {
-      return res.status(400).json({
+      if (!url || typeof url !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: 'URL is required and must be a string',
+        });
+      }
+
+      log.debug(
+        `[crawl-url] User ${userId} requesting crawl for: ${url} (privacy: ${usePrivacyMode})`
+      );
+
+      const validation = await UrlValidator.validateUrl(url);
+      if (!validation.isValid) {
+        log.debug(`[crawl-url] URL validation failed: ${validation.error}`);
+        return res.status(400).json({
+          success: false,
+          ...(validation.error && { error: validation.error }),
+        });
+      }
+
+      log.debug(`[crawl-url] URL validation passed, starting crawl...`);
+
+      const crawlOptions = {
+        enhancedMetadata: true,
+        timeout: 15000,
+      };
+
+      const result: CrawlResult = await urlCrawlerService.crawlUrl(url, crawlOptions);
+
+      if (!result.success || !result.data) {
+        log.debug(`[crawl-url] Crawling failed: ${result.error}`);
+        return res.status(400).json({
+          success: false,
+          ...(result.error && { error: result.error }),
+        });
+      }
+
+      log.debug(
+        `[crawl-url] Crawl successful, ${result.data.wordCount} words extracted from ${result.data.title}`
+      );
+
+      const crawledAttachment: CrawledAttachment = {
+        type: 'crawled_url',
+        name: result.data.title || 'Crawled Content',
+        url: result.data.originalUrl,
+        displayUrl: new URL(result.data.originalUrl).hostname,
+        content: usePrivacyMode ? result.data.content : result.data.markdownContent,
+        size: result.data.content.length,
+        metadata: {
+          wordCount: result.data.wordCount,
+          characterCount: result.data.characterCount,
+          publicationDate: result.data.publicationDate,
+          canonical: result.data.canonical,
+          description: result.data.description,
+          contentSource: result.data.contentSource,
+          extractedAt: result.data.extractedAt,
+          processingTimeMs: Date.now() - startTime,
+          ...(result.data.previewImage && { previewImage: result.data.previewImage }),
+          ...(result.data.dimensions && { dimensions: result.data.dimensions }),
+          ...(result.data.categories && { categories: result.data.categories }),
+          ...(result.data.structuredData && { structuredData: result.data.structuredData }),
+        },
+      };
+
+      log.debug(
+        `[crawl-url] Successfully crawled ${url}: ${result.data.wordCount} words, ${Date.now() - startTime}ms`
+      );
+
+      return res.json({
+        success: true,
+        attachment: crawledAttachment,
+      });
+    } catch (error) {
+      const processingTime = Date.now() - startTime;
+      log.error(`[crawl-url] Error processing request (${processingTime}ms):`, error);
+
+      const err = error as Error;
+      let userError = 'Failed to process URL';
+
+      if (err.message.includes('timeout')) {
+        userError = 'Die Verarbeitung hat zu lange gedauert. Bitte versuchen Sie es erneut.';
+      } else if (err.message.includes('network') || err.message.includes('ENOTFOUND')) {
+        userError = 'Netzwerkfehler. Bitte überprüfen Sie die URL und Ihre Verbindung.';
+      } else if (err.message.includes('too large')) {
+        userError = 'Der Inhalt ist zu groß zum Verarbeiten.';
+      } else if (err.message.includes('Insufficient content')) {
+        userError = 'Keine ausreichenden Inhalte gefunden. Die Seite könnte JavaScript benötigen.';
+      } else if (err.message.includes('Unsupported content type')) {
+        userError = 'Nicht unterstützter Inhaltstyp. Nur HTML-Seiten werden unterstützt.';
+      }
+
+      return res.status(500).json({
         success: false,
-        error: 'URL is required and must be a string',
+        error: userError,
+        ...(env.NODE_ENV === 'development' && { details: err.message }),
       });
     }
-
-    log.debug(
-      `[crawl-url] User ${userId} requesting crawl for: ${url} (privacy: ${usePrivacyMode})`
-    );
-
-    const validation = await UrlValidator.validateUrl(url);
-    if (!validation.isValid) {
-      log.debug(`[crawl-url] URL validation failed: ${validation.error}`);
-      return res.status(400).json({
-        success: false,
-        ...(validation.error && { error: validation.error }),
-      });
-    }
-
-    log.debug(`[crawl-url] URL validation passed, starting crawl...`);
-
-    const crawlOptions = {
-      enhancedMetadata: true,
-      timeout: 15000,
-    };
-
-    const result: CrawlResult = await urlCrawlerService.crawlUrl(url, crawlOptions);
-
-    if (!result.success || !result.data) {
-      log.debug(`[crawl-url] Crawling failed: ${result.error}`);
-      return res.status(400).json({
-        success: false,
-        ...(result.error && { error: result.error }),
-      });
-    }
-
-    log.debug(
-      `[crawl-url] Crawl successful, ${result.data.wordCount} words extracted from ${result.data.title}`
-    );
-
-    const crawledAttachment: CrawledAttachment = {
-      type: 'crawled_url',
-      name: result.data.title || 'Crawled Content',
-      url: result.data.originalUrl,
-      displayUrl: new URL(result.data.originalUrl).hostname,
-      content: usePrivacyMode ? result.data.content : result.data.markdownContent,
-      size: result.data.content.length,
-      metadata: {
-        wordCount: result.data.wordCount,
-        characterCount: result.data.characterCount,
-        publicationDate: result.data.publicationDate,
-        canonical: result.data.canonical,
-        description: result.data.description,
-        contentSource: result.data.contentSource,
-        extractedAt: result.data.extractedAt,
-        processingTimeMs: Date.now() - startTime,
-        ...(result.data.previewImage && { previewImage: result.data.previewImage }),
-        ...(result.data.dimensions && { dimensions: result.data.dimensions }),
-        ...(result.data.categories && { categories: result.data.categories }),
-        ...(result.data.structuredData && { structuredData: result.data.structuredData }),
-      },
-    };
-
-    log.debug(
-      `[crawl-url] Successfully crawled ${url}: ${result.data.wordCount} words, ${Date.now() - startTime}ms`
-    );
-
-    return res.json({
-      success: true,
-      attachment: crawledAttachment,
-    });
-  } catch (error) {
-    const processingTime = Date.now() - startTime;
-    log.error(`[crawl-url] Error processing request (${processingTime}ms):`, error);
-
-    const err = error as Error;
-    let userError = 'Failed to process URL';
-
-    if (err.message.includes('timeout')) {
-      userError = 'Die Verarbeitung hat zu lange gedauert. Bitte versuchen Sie es erneut.';
-    } else if (err.message.includes('network') || err.message.includes('ENOTFOUND')) {
-      userError = 'Netzwerkfehler. Bitte überprüfen Sie die URL und Ihre Verbindung.';
-    } else if (err.message.includes('too large')) {
-      userError = 'Der Inhalt ist zu groß zum Verarbeiten.';
-    } else if (err.message.includes('Insufficient content')) {
-      userError = 'Keine ausreichenden Inhalte gefunden. Die Seite könnte JavaScript benötigen.';
-    } else if (err.message.includes('Unsupported content type')) {
-      userError = 'Nicht unterstützter Inhaltstyp. Nur HTML-Seiten werden unterstützt.';
-    }
-
-    return res.status(500).json({
-      success: false,
-      error: userError,
-      ...(env.NODE_ENV === 'development' && { details: err.message }),
-    });
   }
-});
+);
 
 export default router;

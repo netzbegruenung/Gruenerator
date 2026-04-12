@@ -1,4 +1,5 @@
 import imagePickerService from '../../../../services/image/ImageSelectionService.js';
+import { getAIWorkerPool } from '../../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../../utils/logger.js';
 
 import type { FlyerToSiteState } from '../types.js';
@@ -20,8 +21,7 @@ export async function selectImagesNode(
 
   try {
     const content = { ...state.websiteContent };
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const aiWorkerPool = state.req.app.locals.aiWorkerPool;
+    const aiWorkerPool = getAIWorkerPool(state.req);
 
     const pickImage = async (text: string): Promise<string> => {
       try {
