@@ -274,7 +274,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/claude_buergeranfragen', aiGenerationLimiter, buergeranfragenRouter);
   app.use('/api/claude_text_improver', aiGenerationLimiter, claudeTextImproverRoute);
   app.use('/api/chat', aiGenerationLimiter, grueneratorChatRoute);
-  // ts-rest contract routers — mount before legacy routers
+  // ts-rest contract routers — mount before legacy routers.
+  // Apply requireAuth on the path prefixes BEFORE the mount calls so
+  // unauthenticated requests get a 401 instead of crashing the handlers
+  // with `Cannot read properties of undefined (reading 'id')`.
+  app.use('/api/chat-service/threads', requireAuth);
+  app.use('/api/chat-graph', requireAuth);
   mountThreadsContractRouter(app);
   mountChatGraphContractRouter(app);
   app.use('/api/chat-service', authenticatedReadLimiter, chatServiceRouter);

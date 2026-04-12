@@ -141,6 +141,22 @@ export const auth = betterAuth({
       createdAt: 'created_at',
       updatedAt: 'updated_at',
     },
+    // Trust all four Keycloak providers for account linking. Without this,
+    // Better Auth's link-account.mjs:18-26 refuses to link an OAuth account
+    // to an existing user unless the provider is trusted OR the OAuth profile
+    // returns email_verified: true. Some Keycloak realms don't always return
+    // a verified email claim, which causes `account_not_linked` errors on
+    // sign-in. All four IdPs route through trusted Keycloak realms operated
+    // by netzbegruenung, so trusting them is safe.
+    accountLinking: {
+      enabled: true,
+      trustedProviders: [
+        'keycloak-netzbegruenung',
+        'keycloak-gruenes-netz',
+        'keycloak-gruene-at',
+        'keycloak-gruenerator',
+      ],
+    },
   },
 
   verification: {

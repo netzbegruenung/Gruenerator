@@ -1,4 +1,4 @@
-import { type InferSelectModel } from 'drizzle-orm';
+import { type InferSelectModel, relations } from 'drizzle-orm';
 import { index, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 
 import { profiles } from './core.js';
@@ -75,6 +75,30 @@ export const ba_verification = pgTable('ba_verification', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
+
+/**
+ * Drizzle relations for joins. Better Auth's `findOAuthUser` issues a query
+ * with `join: { user: true }` — when `experimental.joins` is enabled in
+ * Better Auth options, the Drizzle adapter uses `db.query.ba_accounts.findFirst({ with: { user: true } })`,
+ * which requires these `relations()` declarations to resolve the join target.
+ *
+ * The non-join fallback path (used when `experimental.joins` is off, the
+ * current default) does not require these, but having them defined is
+ * cheap and makes the schema self-documenting.
+ */
+export const ba_accountsRelations = relations(ba_accounts, ({ one }) => ({
+  user: one(profiles, {
+    fields: [ba_accounts.user_id],
+    references: [profiles.id],
+  }),
+}));
+
+export const ba_sessionsRelations = relations(ba_sessions, ({ one }) => ({
+  user: one(profiles, {
+    fields: [ba_sessions.user_id],
+    references: [profiles.id],
+  }),
+}));
 
 export type BaSessionRow = InferSelectModel<typeof ba_sessions>;
 export type BaAccountRow = InferSelectModel<typeof ba_accounts>;
