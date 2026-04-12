@@ -13,6 +13,7 @@ import { mountBoardsContractRouter } from './routes/boards/boardsContractRouter.
 import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRouter.js';
 import { mountThreadsContractRouter } from './routes/chat/threadsContractRouter.js';
 import etherpadRoute from './routes/etherpad/etherpadController.js';
+import { mountExportsContractRouter } from './routes/exports/exportsContractRouter.js';
 import exportDocumentsRouter from './routes/exports/index.js';
 import imagineCreateRoute from './routes/flux/imagineCreate.js';
 import imaginePureRoute from './routes/flux/imaginePure.js';
@@ -427,6 +428,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/users', requireAuth, publicReadLimiter, usersRouter);
   app.use('/api/voice', publicReadLimiter, voiceRouter);
   app.use('/api/voice/tts', requireAuth, standardMutationLimiter, ttsRouter);
+  // searchContractRouter exists but is intentionally NOT mounted yet — the
+  // pilot contract doesn't model the SSE `?stream=true` mode that the frontend
+  // depends on. Activate once streaming is added to the contract.
   app.use('/api/search', publicReadLimiter, searchRouter);
   app.use('/api/analyze', publicReadLimiter, searchRouter);
   app.use('/api/search-graph', requireAuth, standardMutationLimiter, searchGraphRouter);
@@ -445,6 +449,8 @@ export async function setupRoutes(app: Application): Promise<void> {
     next();
   });
   app.use('/api/releases', publicReadLimiter, releasesRouter);
+  // ts-rest contract router — mount before legacy exports router
+  mountExportsContractRouter(app);
   app.use('/api/exports', requireAuth, authenticatedReadLimiter, exportDocumentsRouter);
   app.use('/api/markdown', publicReadLimiter, markdownRouter);
   app.use('/api/database', publicReadLimiter, databaseTestRouter);
