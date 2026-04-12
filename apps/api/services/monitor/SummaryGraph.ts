@@ -188,8 +188,7 @@ function buildRiskContext(articles: MonitorArticle[]): string {
   // Emotion profile
   const emotionTotals: Record<string, number> = {};
   for (const a of articles) {
-    for (const [k, v] of Object.entries(a.emotionScores ?? {})) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    for (const [k, v] of Object.entries(a.emotionScores ?? {}) as [string, number | undefined][]) {
       emotionTotals[k] = (emotionTotals[k] ?? 0) + (v ?? 0);
     }
   }
