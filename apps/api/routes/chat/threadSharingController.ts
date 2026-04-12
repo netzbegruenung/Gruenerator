@@ -4,13 +4,14 @@ import { z } from 'zod';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
+import { fromParam, type ThreadId, type GroupId } from '../../utils/types/branded.js';
 
 const router = createAuthenticatedRouter();
 const db = getPostgresInstance();
 
 router.get('/:id/groups', async (req: Request<{ id: string }>, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = fromParam<ThreadId>(req.params.id);
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
@@ -48,7 +49,7 @@ router.post(
   validateBody(shareGroupSchema),
   async (req: TypedRequest<z.infer<typeof shareGroupSchema>, { id: string }>, res: Response) => {
     try {
-      const { id } = req.params;
+      const id = fromParam<ThreadId>(req.params.id);
       const userId = req.user?.id;
       const { group_id } = req.body;
       if (!userId) return res.status(401).json({ error: 'Unauthorized' });
@@ -96,7 +97,8 @@ router.delete(
   '/:id/groups/:groupId',
   async (req: Request<{ id: string; groupId: string }>, res: Response) => {
     try {
-      const { id, groupId } = req.params;
+      const id = fromParam<ThreadId>(req.params.id);
+      const groupId = fromParam<GroupId>(req.params.groupId);
       const userId = req.user?.id;
       if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
