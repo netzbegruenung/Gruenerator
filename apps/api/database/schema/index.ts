@@ -1,3 +1,4 @@
+export * from './auth.js';
 export * from './chat.js';
 export * from './core.js';
 export * from './documents.js';
