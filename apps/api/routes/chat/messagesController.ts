@@ -6,6 +6,7 @@
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { ThreadId, UserId } from '../../utils/types/branded.js';
 
 import { canAccessThread } from './services/threadAccessService.js';
 import { getUser } from './services/threadPersistenceService.js';
@@ -28,7 +29,7 @@ router.get('/', async (req, res) => {
 
     const postgres = getPostgresInstance();
 
-    if (!(await canAccessThread(threadId, user.id))) {
+    if (!(await canAccessThread(ThreadId(threadId), UserId(user.id)))) {
       return res.status(404).json({ error: 'Thread not found' });
     }
 

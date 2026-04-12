@@ -37,6 +37,7 @@ import { getCachedPersona } from '../../services/mem0/personaService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
+import { ThreadId, UserId } from '../../utils/types/branded.js';
 
 import { getContextWindow } from './agents/providers.js';
 import { getThreadAttachments } from './services/attachmentPersistenceService.js';
@@ -192,7 +193,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
 
       if (actualThreadId && lastUserMessage) {
         if (!isNewThread) {
-          if (!(await canAccessThread(actualThreadId, userId))) {
+          if (!(await canAccessThread(ThreadId(actualThreadId), UserId(userId)))) {
             sse.send('error', { error: 'Thread not found' });
             res.end();
             return { status: 200 as const, body: null };
