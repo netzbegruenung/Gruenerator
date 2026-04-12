@@ -40,6 +40,10 @@ COPY apps/api ./apps/api
 WORKDIR /app/packages/shared
 RUN pnpm exec tsc --project tsconfig.json
 
+# Compile contracts package (API imports @gruenerator/contracts at runtime)
+WORKDIR /app/packages/contracts
+RUN pnpm exec tsc --project tsconfig.json
+
 # Compile hocuspocus (API imports @gruenerator/hocuspocus at runtime)
 WORKDIR /app/services/hocuspocus
 RUN pnpm exec tsc --project tsconfig.build.json
@@ -111,6 +115,10 @@ RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/s
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/dist ./packages/shared/dist
 # Redirect shared package exports from ./src/*.ts to ./dist/*.js for Node.js
 RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' packages/shared/package.json
+
+# Copy compiled contracts package (resolves @gruenerator/contracts imports at runtime)
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/contracts/dist ./packages/contracts/dist
+RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' packages/contracts/package.json
 
 # Copy compiled hocuspocus package (resolves @gruenerator/hocuspocus imports at runtime)
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/dist ./services/hocuspocus/dist
