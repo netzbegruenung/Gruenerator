@@ -8,6 +8,7 @@ import sharp from 'sharp';
 
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { createLogger } from '../../../utils/logger.js';
+import { fromParam, type GroupId } from '../../../utils/types/branded.js';
 
 import { getPostgresAndCheckMembership } from './groupCore.js';
 
@@ -56,7 +57,7 @@ router.post(
   upload.single('avatar'),
   async (req: AuthRequest<{ groupId: string }>, res: Response) => {
     try {
-      const { groupId } = req.params;
+      const groupId = fromParam<GroupId>(req.params.groupId);
       const userId = req.user?.id;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Nicht authentifiziert' });
@@ -117,7 +118,7 @@ router.get(
   ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string }>, res: Response) => {
     try {
-      const { groupId } = req.params;
+      const groupId = fromParam<GroupId>(req.params.groupId);
 
       const { postgres } = await getPostgresAndCheckMembership(groupId, req.user?.id || '', false);
 
@@ -164,7 +165,7 @@ router.delete(
   ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string }>, res: Response) => {
     try {
-      const { groupId } = req.params;
+      const groupId = fromParam<GroupId>(req.params.groupId);
       const userId = req.user?.id;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Nicht authentifiziert' });

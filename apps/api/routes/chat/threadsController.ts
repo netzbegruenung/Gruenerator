@@ -11,6 +11,7 @@ import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { fromParam, type ThreadId } from '../../utils/types/branded.js';
 
 import {
   getUser,
@@ -276,7 +277,7 @@ router.get('/:threadId/settings', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { threadId } = req.params;
+    const threadId = fromParam<ThreadId>(req.params.threadId);
 
     const postgres = getPostgresInstance();
     const threads = await postgres.query(`SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1`, [
@@ -312,7 +313,7 @@ router.patch(
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const { threadId } = req.params;
+      const threadId = fromParam<ThreadId>(req.params.threadId);
       const { customSystemPrompt, customEnabledTools } = req.body;
 
       const updated = await updateThreadSettings(threadId, user.id, {
@@ -339,7 +340,7 @@ router.post('/:threadId/generate-title', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { threadId } = req.params;
+    const threadId = fromParam<ThreadId>(req.params.threadId);
     log.info(`[generate-title] Endpoint hit for threadId=${threadId}, userId=${user.id}`);
     const postgres = getPostgresInstance();
 
