@@ -11,6 +11,8 @@
 import { createMistral } from '@ai-sdk/mistral';
 import { createOpenAI } from '@ai-sdk/openai';
 
+import { env } from '../../config/env.js';
+
 import type { LanguageModel } from 'ai';
 
 // Provider name types
@@ -21,7 +23,7 @@ const PROVIDER_DEFAULTS = {
   mistral: 'mistral-large-2512',
   litellm: 'gpt-oss:120b',
   ionos: 'openai/gpt-oss-120b',
-  regolo: process.env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b',
+  regolo: env.REGOLO_DEFAULT_MODEL ?? 'qwen3.5-122b',
 } as const;
 
 /**
@@ -66,7 +68,7 @@ let regoloInstance: ReturnType<typeof createOpenAI> | null = null;
  */
 function getMistralProvider(): ReturnType<typeof createMistral> {
   if (!mistralInstance) {
-    const apiKey = process.env.MISTRAL_API_KEY;
+    const apiKey = env.MISTRAL_API_KEY;
     if (!apiKey) {
       throw new Error('MISTRAL_API_KEY environment variable is required');
     }
@@ -81,11 +83,11 @@ function getMistralProvider(): ReturnType<typeof createMistral> {
  */
 function getLiteLLMProvider(): ReturnType<typeof createOpenAI> {
   if (!litellmInstance) {
-    const baseURL = process.env.LITELLM_BASE_URL || LITELLM_DEFAULT_BASE_URL;
-    const apiKey = process.env.LITELLM_API_KEY;
+    const baseURL = env.LITELLM_BASE_URL ?? LITELLM_DEFAULT_BASE_URL;
+    const apiKey = env.LITELLM_API_KEY;
     litellmInstance = createOpenAI({
       baseURL: baseURL.endsWith('/v1') ? baseURL : `${baseURL}/v1`,
-      apiKey: apiKey || '',
+      apiKey: apiKey ?? '',
       name: 'litellm',
     });
   }
@@ -98,7 +100,7 @@ function getLiteLLMProvider(): ReturnType<typeof createOpenAI> {
  */
 function getIONOSProvider(): ReturnType<typeof createOpenAI> {
   if (!ionosInstance) {
-    const apiKey = process.env.IONOS_API_TOKEN;
+    const apiKey = env.IONOS_API_TOKEN;
     if (!apiKey) {
       throw new Error('IONOS_API_TOKEN environment variable is required');
     }
@@ -117,7 +119,7 @@ function getIONOSProvider(): ReturnType<typeof createOpenAI> {
  */
 function getRegoloProvider(): ReturnType<typeof createOpenAI> {
   if (!regoloInstance) {
-    const apiKey = process.env.REGOLO_API_KEY;
+    const apiKey = env.REGOLO_API_KEY;
     if (!apiKey) {
       throw new Error('REGOLO_API_KEY environment variable is required');
     }
@@ -152,13 +154,13 @@ function validateIONOSModel(modelId: string, defaultModel: string): string {
 export function isProviderConfigured(provider: ProviderName | string): boolean {
   switch (provider) {
     case 'mistral':
-      return !!process.env.MISTRAL_API_KEY;
+      return env.MISTRAL_API_KEY != null;
     case 'litellm':
-      return !!process.env.LITELLM_API_KEY;
+      return env.LITELLM_API_KEY != null;
     case 'ionos':
-      return !!process.env.IONOS_API_TOKEN;
+      return env.IONOS_API_TOKEN != null;
     case 'regolo':
-      return !!process.env.REGOLO_API_KEY;
+      return env.REGOLO_API_KEY != null;
     default:
       return false;
   }

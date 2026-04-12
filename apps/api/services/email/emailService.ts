@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 
 import { BRAND, PRIMARY_URL } from '../../config/domains.js';
+import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 
 import {
@@ -18,11 +19,11 @@ import type { Transporter } from 'nodemailer';
 
 const log = createLogger('email');
 
-const SMTP_HOST = process.env.BREVO_SMTP_HOST;
-const SMTP_PORT = parseInt(process.env.BREVO_SMTP_PORT || '587', 10);
-const SMTP_USER = process.env.BREVO_SMTP_USER;
-const SMTP_PASS = process.env.BREVO_SMTP_PASS;
-const FROM_ADDRESS = process.env.EMAIL_FROM || `${BRAND.name} <${BRAND.email}>`;
+const SMTP_HOST = env.BREVO_SMTP_HOST;
+const SMTP_PORT = env.BREVO_SMTP_PORT;
+const SMTP_USER = env.BREVO_SMTP_USER;
+const SMTP_PASS = env.BREVO_SMTP_PASS;
+const FROM_ADDRESS = env.EMAIL_FROM ?? `${BRAND.name} <${BRAND.email}>`;
 
 let transporter: Transporter | null = null;
 

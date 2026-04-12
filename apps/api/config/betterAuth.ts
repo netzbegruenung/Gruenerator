@@ -9,11 +9,12 @@ import { createLogger } from '../utils/logger.js';
 import { redisClient } from '../utils/redis/client.js';
 
 import { ALLOWED_DOMAINS } from './domains.js';
+import { env } from './env.js';
 
-const KC_BASE = process.env.KEYCLOAK_BASE_URL || 'https://user.netzbegruenung.de';
-const KC_REALM = process.env.KEYCLOAK_REALM || 'gruenerator';
-const KC_CLIENT_ID = process.env.KEYCLOAK_CLIENT_ID || 'Gruenerator';
-const KC_CLIENT_SECRET = process.env.KEYCLOAK_CLIENT_SECRET || '';
+const KC_BASE = env.KEYCLOAK_BASE_URL;
+const KC_REALM = env.KEYCLOAK_REALM;
+const KC_CLIENT_ID = env.KEYCLOAK_CLIENT_ID;
+const KC_CLIENT_SECRET = env.KEYCLOAK_CLIENT_SECRET ?? '';
 const DISCOVERY_URL = `${KC_BASE}/realms/${KC_REALM}/.well-known/openid-configuration`;
 
 function keycloakProvider(id: string, idpHint: string, locale: 'de-DE' | 'de-AT' = 'de-DE') {
@@ -42,7 +43,7 @@ const pool = new pg.Pool(pgConfig);
 
 export const auth = betterAuth({
   database: pool,
-  ...(process.env.BETTER_AUTH_URL && { baseURL: process.env.BETTER_AUTH_URL }),
+  ...(env.BETTER_AUTH_URL != null && { baseURL: env.BETTER_AUTH_URL }),
   basePath: '/api/auth/v2',
 
   user: {
@@ -179,7 +180,7 @@ export const auth = betterAuth({
   trustedOrigins: [
     'gruenerator://',
     ...ALLOWED_DOMAINS.map((d) => `https://${d}`),
-    ...(process.env.NODE_ENV === 'development'
+    ...(env.NODE_ENV === 'development'
       ? ['exp://', 'http://localhost:3000', 'http://localhost:5050']
       : []),
   ],
@@ -197,7 +198,7 @@ export const auth = betterAuth({
       const config: { enabled: boolean; domain?: string } = {
         enabled: true,
       };
-      if (process.env.NODE_ENV === 'production') {
+      if (env.NODE_ENV === 'production') {
         config.domain = '.gruenerator.eu';
       }
       return config;
