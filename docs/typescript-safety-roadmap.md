@@ -273,11 +273,15 @@ Three production incidents in this session — all caused by adding contract rou
 | transferContract | 2 | **Mounted** (Apr 12, Session N+1) — list + delete. Upload stays on legacy (multer multipart). |
 | unsplashContract | 2 | **Mounted** (Apr 12, Session N+1) — search + track-download. |
 | textGenerationContract | 3 | **Schemas only, no router mount** — antraege/generate-simple, claude_social/strategy, claude_social/production. Handlers write directly to `res` and manage their own response lifecycle, so ts-rest handler wrapping causes "headers already sent". Schemas still useful for frontend body typing. |
+| notificationsContract | 8 | **Mounted** (Apr 12, Session N+2) — list + unread-count + mark-read + delete + clear-all + notification preferences GET/PATCH. SSE `/stream` endpoint skipped, Session N+5 scope. |
+| adminVorlagenContract | 4 | **Mounted** (Apr 12, Session N+2) — admin template moderation (list, stats, approve, reject). Uses `requireAdmin` on top of `requireAuth`. |
 | searchContract | 2 | Scaffolded but **NOT mounted** — pilot doesn't model SSE `?stream=true` mode. Session N+5 scope. |
 
-**Total**: **92 typed endpoints** served via ts-rest contracts (out of 126 candidates identified by the original codegen script — ≈73% coverage; the remaining ~34 are multer/binary/SSE/async-202 routes that need dedicated design work).
+boardsContract was extended in Session N+2 to include `listBoards` (GET) + `deleteBoard` (DELETE) — now 5 endpoints, making the `useBoardsTyped` hook a structural superset of the legacy `useBoards`, which has been deleted.
 
-**All 20 routers use the shared `logContractValidationError` helper** so any future validation issue logs server-side with the exact failing field path. The era of "the contract returned 400 and we have no idea why" is over.
+**Total**: **106 typed endpoints** served via ts-rest contracts (≈84% of the 126 codegen-identified candidates).
+
+**All 22 routers use the shared `logContractValidationError` helper** so any future validation issue logs server-side with the exact failing field path.
 
 ### Mixed-auth contract pattern (new 2026-04-12)
 
@@ -610,12 +614,12 @@ Dev runners (tsx, vitest) pass `--conditions=development` and resolve to source.
 | `database/types.ts` raw row types | many | 2 holdouts | **0** (Phase 2.1 fully closed) | 0 |
 | Typecheck errors (all packages) | 3 | **0** | 0 | 0 |
 | `validateBody` routes | 0 | ~75 | ~75 | opportunistic |
-| ts-rest contracts | 0 | 4 (pilot) | **22 contracts / 20 mounted / 92 endpoints** | all (~126 target, ≈73% coverage) |
-| ts-rest frontend typed hooks | 0 | 1 (`useRecentValuesTyped`) | **3** (+`useBoardsTyped`, +`useNotebookTyped`; `exportStore.ts` internals typed) | all contract-consuming hooks |
+| ts-rest contracts | 0 | 4 (pilot) | **24 contracts / 22 mounted / 106 endpoints** | all (~126 target, ≈84% coverage) |
+| ts-rest frontend typed hooks | 0 | 1 (`useRecentValuesTyped`) | **6** (boards, notebook, notifications, adminVorlagen; wordpressApi + useTransfer internals rewritten; exportStore internals) | all contract-consuming hooks |
+| Frontend raw `apiClient.*` call sites | — | 94 | **~75** (↓19 this session, wordpress+transfer+notifications+adminVorlagen+useBoards) | 0 (boundary-only) |
 | `UserProfile` definition count | 3 (api/services + express.d.ts + contracts schema w/o named type) | — | **1** (canonical `z.infer` export from contracts, re-exported everywhere) | 1 |
 | `as unknown as X` casts | 241 | 84 api / 205 repo | **208** (ratchet baseline; Session N dropped 7, Session N+1 dropped 1 via Zod parse) | ratchet down |
-| Branded ID type adoption sites | 0 | 16 (notebook + documents) | **41** (+25 in chat + group routes) | opportunistic expansion |
-| ts-rest frontend typed hooks | 0 | 1 (`useRecentValuesTyped`) | **2** (+`useBoardsTyped`; `exportStore.ts` internals typed) | all contract-consuming hooks |
+| Branded ID type adoption sites | 0 | 16 (notebook + documents) | **44** (+25 chat/group, +3 threadAccessService) | opportunistic expansion |
 | External API Zod schemas | 0 | 0 | **WordPress (5) + in-progress** | all 8 clients |
 | `parseJSON<T>()` adoption | — | 10 files | 10 files | all JSON.parse sites |
 | `process.env.X` direct uses (api) | ~315 | — | **17** (298 eliminated; remainder is test mocks + env.ts self + telemetry write) | ~15 (floor) |
