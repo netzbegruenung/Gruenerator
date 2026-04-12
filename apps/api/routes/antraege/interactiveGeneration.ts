@@ -14,6 +14,7 @@ import {
   initiateInteractiveGenerator,
   continueInteractiveGenerator,
 } from '../../agents/langgraph/simpleInteractiveGenerator.js';
+import { env } from '../../config/env.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getExperimentalSession } from '../../services/chat/ChatMemoryService.js';
@@ -98,78 +99,83 @@ router.use((req: InteractiveRequest, res: Response, next: NextFunction) => {
  * @body {InitiateRequestBody}
  * @returns Session ID, questions, and conversation state
  */
-router.post('/initiate', requireAuth, validateBody(initiateSchema), async (req: TypedRequest<InitiateRequestBody>, res: Response) => {
-  const reqId = (req as InteractiveRequest)._reqId || 'UNKNOWN';
+router.post(
+  '/initiate',
+  requireAuth,
+  validateBody(initiateSchema),
+  async (req: TypedRequest<InitiateRequestBody>, res: Response) => {
+    const reqId = (req as InteractiveRequest)._reqId || 'UNKNOWN';
 
-  try {
-    const { inhalt, requestType, locale } = req.body;
+    try {
+      const { inhalt, requestType, locale } = req.body;
 
-    // Get user ID from session
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({
-        status: 'error',
-        message: 'Benutzer nicht authentifiziert',
+      // Get user ID from session
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({
+          status: 'error',
+          message: 'Benutzer nicht authentifiziert',
+        });
+      }
+
+      // Get AI worker pool
+      const aiWorkerPool = getAIWorkerPool(req);
+      if (!aiWorkerPool) {
+        log.error(`[interactive][${reqId}] AI worker pool not available`);
+        return res.status(503).json({
+          status: 'error',
+          message: 'AI-Dienst nicht verfügbar',
+        });
+      }
+
+      log.debug(
+        `[interactive][${reqId}][PID:${process.pid}] Initiating for user ${userId}: ${requestType}`
+      );
+
+      // Start interactive flow
+      const params: InitiateGeneratorParams = {
+        userId,
+        inhalt,
+        requestType,
+        generatorType: 'antrag',
+        locale: locale || req.user?.locale || 'de-DE',
+        aiWorkerPool,
+        req,
+      };
+
+      const result: InitiateGeneratorResult = await initiateInteractiveGenerator(params);
+
+      if (result.status === 'error') {
+        log.error(`[interactive][${reqId}] Initiate error:`, result.error);
+        return res.status(500).json({
+          status: 'error',
+          message: result.message || 'Fehler beim Starten der interaktiven Antragserstellung',
+          error: result.error,
+        });
+      }
+
+      log.debug(
+        `[interactive][${reqId}] Session created: ${result.sessionId}, ${result.questions?.length} questions`
+      );
+
+      return res.json({
+        status: 'success',
+        sessionId: result.sessionId,
+        conversationState: result.conversationState,
+        questions: result.questions,
+        questionRound: result.questionRound,
+        metadata: result.metadata,
       });
-    }
-
-    // Get AI worker pool
-    const aiWorkerPool = getAIWorkerPool(req);
-    if (!aiWorkerPool) {
-      log.error(`[interactive][${reqId}] AI worker pool not available`);
-      return res.status(503).json({
-        status: 'error',
-        message: 'AI-Dienst nicht verfügbar',
-      });
-    }
-
-    log.debug(
-      `[interactive][${reqId}][PID:${process.pid}] Initiating for user ${userId}: ${requestType}`
-    );
-
-    // Start interactive flow
-    const params: InitiateGeneratorParams = {
-      userId,
-      inhalt,
-      requestType,
-      generatorType: 'antrag',
-      locale: locale || req.user?.locale || 'de-DE',
-      aiWorkerPool,
-      req,
-    };
-
-    const result: InitiateGeneratorResult = await initiateInteractiveGenerator(params);
-
-    if (result.status === 'error') {
-      log.error(`[interactive][${reqId}] Initiate error:`, result.error);
+    } catch (error) {
+      log.error(`[interactive][${reqId}] Unexpected error in initiate:`, error);
       return res.status(500).json({
         status: 'error',
-        message: result.message || 'Fehler beim Starten der interaktiven Antragserstellung',
-        error: result.error,
+        message: 'Interner Serverfehler beim Starten der interaktiven Antragserstellung',
+        error: env.NODE_ENV === 'development' ? (error as Error).message : undefined,
       });
     }
-
-    log.debug(
-      `[interactive][${reqId}] Session created: ${result.sessionId}, ${result.questions?.length} questions`
-    );
-
-    return res.json({
-      status: 'success',
-      sessionId: result.sessionId,
-      conversationState: result.conversationState,
-      questions: result.questions,
-      questionRound: result.questionRound,
-      metadata: result.metadata,
-    });
-  } catch (error) {
-    log.error(`[interactive][${reqId}] Unexpected error in initiate:`, error);
-    return res.status(500).json({
-      status: 'error',
-      message: 'Interner Serverfehler beim Starten der interaktiven Antragserstellung',
-      error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined,
-    });
   }
-});
+);
 
 /**
  * POST /api/antraege/experimental/continue
@@ -179,82 +185,87 @@ router.post('/initiate', requireAuth, validateBody(initiateSchema), async (req: 
  * @body {ContinueRequestBody}
  * @returns Follow-up questions or final generated result
  */
-router.post('/continue', requireAuth, validateBody(continueSchema), async (req: TypedRequest<ContinueRequestBody>, res: Response) => {
-  const reqId = (req as InteractiveRequest)._reqId || 'UNKNOWN';
+router.post(
+  '/continue',
+  requireAuth,
+  validateBody(continueSchema),
+  async (req: TypedRequest<ContinueRequestBody>, res: Response) => {
+    const reqId = (req as InteractiveRequest)._reqId || 'UNKNOWN';
 
-  try {
-    const { sessionId, answers } = req.body;
+    try {
+      const { sessionId, answers } = req.body;
 
-    // Get user ID from session
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({
-        status: 'error',
-        message: 'Benutzer nicht authentifiziert',
-      });
-    }
-
-    // Get AI worker pool
-    const aiWorkerPool = getAIWorkerPool(req);
-    if (!aiWorkerPool) {
-      log.error(`[interactive][${reqId}] AI worker pool not available`);
-      return res.status(503).json({
-        status: 'error',
-        message: 'AI-Dienst nicht verfügbar',
-      });
-    }
-
-    log.debug(
-      `[interactive][${reqId}][PID:${process.pid}] Continuing session ${sessionId} for user ${userId}`
-    );
-    log.debug(`[interactive][${reqId}] Submitted answers:`, Object.keys(answers));
-
-    // Continue interactive flow
-    const params: ContinueGeneratorParams = {
-      userId,
-      sessionId,
-      answers,
-      aiWorkerPool,
-      req,
-    };
-
-    const result: ContinueGeneratorResult = await continueInteractiveGenerator(params);
-
-    if (result.status === 'error') {
-      log.error(`[interactive][${reqId}] Continue error:`, result.error);
-
-      // Check if it's a session not found error
-      if (result.error?.includes('not found') || result.error?.includes('expired')) {
-        return res.status(404).json({
+      // Get user ID from session
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({
           status: 'error',
-          message: 'Sitzung nicht gefunden oder abgelaufen',
-          code: 'SESSION_NOT_FOUND',
+          message: 'Benutzer nicht authentifiziert',
         });
       }
 
+      // Get AI worker pool
+      const aiWorkerPool = getAIWorkerPool(req);
+      if (!aiWorkerPool) {
+        log.error(`[interactive][${reqId}] AI worker pool not available`);
+        return res.status(503).json({
+          status: 'error',
+          message: 'AI-Dienst nicht verfügbar',
+        });
+      }
+
+      log.debug(
+        `[interactive][${reqId}][PID:${process.pid}] Continuing session ${sessionId} for user ${userId}`
+      );
+      log.debug(`[interactive][${reqId}] Submitted answers:`, Object.keys(answers));
+
+      // Continue interactive flow
+      const params: ContinueGeneratorParams = {
+        userId,
+        sessionId,
+        answers,
+        aiWorkerPool,
+        req,
+      };
+
+      const result: ContinueGeneratorResult = await continueInteractiveGenerator(params);
+
+      if (result.status === 'error') {
+        log.error(`[interactive][${reqId}] Continue error:`, result.error);
+
+        // Check if it's a session not found error
+        if (result.error?.includes('not found') || result.error?.includes('expired')) {
+          return res.status(404).json({
+            status: 'error',
+            message: 'Sitzung nicht gefunden oder abgelaufen',
+            code: 'SESSION_NOT_FOUND',
+          });
+        }
+
+        return res.status(500).json({
+          status: 'error',
+          message: result.message || 'Fehler beim Fortsetzen der interaktiven Antragserstellung',
+          error: result.error,
+        });
+      }
+
+      if (result.status === 'completed') {
+        log.debug(
+          `[interactive][${reqId}] Generation completed: ${result.finalResult?.length} chars`
+        );
+      }
+
+      return res.json(result);
+    } catch (error) {
+      log.error(`[interactive][${reqId}] Unexpected error in continue:`, error);
       return res.status(500).json({
         status: 'error',
-        message: result.message || 'Fehler beim Fortsetzen der interaktiven Antragserstellung',
-        error: result.error,
+        message: 'Interner Serverfehler beim Fortsetzen der interaktiven Antragserstellung',
+        error: env.NODE_ENV === 'development' ? (error as Error).message : undefined,
       });
     }
-
-    if (result.status === 'completed') {
-      log.debug(
-        `[interactive][${reqId}] Generation completed: ${result.finalResult?.length} chars`
-      );
-    }
-
-    return res.json(result);
-  } catch (error) {
-    log.error(`[interactive][${reqId}] Unexpected error in continue:`, error);
-    return res.status(500).json({
-      status: 'error',
-      message: 'Interner Serverfehler beim Fortsetzen der interaktiven Antragserstellung',
-      error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined,
-    });
   }
-});
+);
 
 /**
  * GET /api/antraege/experimental/status/:sessionId
@@ -333,7 +344,7 @@ router.get(
       return res.status(500).json({
         status: 'error',
         message: 'Interner Serverfehler beim Abrufen des Sitzungsstatus',
-        error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined,
+        error: env.NODE_ENV === 'development' ? (error as Error).message : undefined,
       });
     }
   }

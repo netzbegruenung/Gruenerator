@@ -19,6 +19,8 @@
  * }
  */
 
+import { env } from '../../config/env.js';
+
 import type {
   RedisClient,
   RateLimiterConfig,
@@ -101,7 +103,7 @@ class RateLimiter {
     userType: string = 'anonymous'
   ): Promise<RateLimitStatus> {
     // Development override: disable rate limits
-    if (process.env.NODE_ENV === 'development' && !this.config.development.enabled) {
+    if (env.NODE_ENV === 'development' && !this.config.development.enabled) {
       return { canGenerate: true, unlimited: true, development: true };
     }
 
@@ -131,9 +133,7 @@ class RateLimiter {
 
       // Apply development multiplier if configured
       const effectiveLimit =
-        process.env.NODE_ENV === 'development'
-          ? limit * (this.config.development.multiplier || 1)
-          : limit;
+        env.NODE_ENV === 'development' ? limit * (this.config.development.multiplier || 1) : limit;
 
       // Get current count from Redis
       const redisKey = this.buildRedisKey(resourceType, identifier, window);

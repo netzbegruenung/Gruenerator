@@ -4,13 +4,14 @@
  * Audio never leaves the infrastructure.
  */
 
+import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { TranscriptionResult, TranscriptionSegment } from './mistralVoiceService.js';
 
 const log = createLogger('selfHostedVoice');
 
-const VOXTRAL_BASE_URL = process.env.VOXTRAL_SELF_HOSTED_URL || 'http://voxtral:8000';
+const VOXTRAL_BASE_URL = env.VOXTRAL_SELF_HOSTED_URL || 'http://voxtral:8000';
 
 interface SelfHostedTranscriptionOptions {
   language?: string;

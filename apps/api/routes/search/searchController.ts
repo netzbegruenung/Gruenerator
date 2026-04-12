@@ -7,6 +7,7 @@
 import express, { type Response, type Router } from 'express';
 import { z } from 'zod';
 
+import { env } from '../../config/env.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
@@ -331,7 +332,7 @@ router.post(
           error: 'Websuche fehlgeschlagen',
           metadata: { timestamp: new Date().toISOString(), searchType: 'normal' },
         };
-        if (process.env.NODE_ENV === 'development' && searchResults.error != null) {
+        if (env.NODE_ENV === 'development' && searchResults.error != null) {
           errorResponse.details = searchResults.error;
         }
         return res.status(500).json(errorResponse);
@@ -384,7 +385,7 @@ router.post(
           timestamp: new Date().toISOString(),
           searchType: 'normal',
         },
-        ...(process.env.NODE_ENV === 'development' && { details: (error as Error).message }),
+        ...(env.NODE_ENV === 'development' && { details: (error as Error).message }),
       });
     }
   }
@@ -457,7 +458,7 @@ router.post(
             performance: { duration: Date.now() - startTime, aiCalls: 0, estimatedTokens: 0 },
           },
         };
-        if (process.env.NODE_ENV === 'development' && searchResults.error) {
+        if (env.NODE_ENV === 'development' && searchResults.error) {
           errorResponse.details = searchResults.error;
         }
         return res.status(500).json(errorResponse);
@@ -521,7 +522,7 @@ router.post(
           hasOfficialPosition: false,
           performance: { duration: processingTime, aiCalls: 0, estimatedTokens: 0 },
         },
-        ...(process.env.NODE_ENV === 'development' && { details: (error as Error).message }),
+        ...(env.NODE_ENV === 'development' && { details: (error as Error).message }),
       });
     }
   }
@@ -651,7 +652,7 @@ router.get('/status', async (_req: AuthenticatedRequest, res: Response<StatusRes
       service: 'LangGraph Web Search',
       error: 'Service status check failed',
       timestamp: new Date().toISOString(),
-      ...(process.env.NODE_ENV === 'development' && { details: (error as Error).message }),
+      ...(env.NODE_ENV === 'development' && { details: (error as Error).message }),
     });
   }
 });
@@ -663,7 +664,7 @@ router.get('/status', async (_req: AuthenticatedRequest, res: Response<StatusRes
 router.post(
   '/clear-cache',
   async (req: AuthenticatedRequest, res: Response<ClearCacheResponse>) => {
-    const isAdmin = req.user?.database_access || process.env.NODE_ENV === 'development';
+    const isAdmin = req.user?.database_access || env.NODE_ENV === 'development';
 
     if (!isAdmin) {
       return res.status(403).json({

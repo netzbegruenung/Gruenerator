@@ -7,6 +7,7 @@
 import express, { type Response, type Router } from 'express';
 import { z } from 'zod';
 
+import { env } from '../../config/env.js';
 import { rateLimiter } from '../../middleware/rateLimitMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { createLogger } from '../../utils/logger.js';
@@ -146,7 +147,7 @@ router.post('/reset/:resourceType', async (req: ReqWithUser, res: Response) => {
     const userType = rateLimiter.getUserType(requestWithUser);
     const identifier = rateLimiter.getIdentifier(requestWithUser, userType);
 
-    if (process.env.NODE_ENV === 'production' && userType === 'anonymous') {
+    if (env.NODE_ENV === 'production' && userType === 'anonymous') {
       return res.status(403).json({
         success: false,
         error: 'Anonymous users cannot reset counters in production',
@@ -178,7 +179,7 @@ router.post('/reset/:resourceType', async (req: ReqWithUser, res: Response) => {
   }
 });
 
-if (process.env.NODE_ENV === 'development') {
+if (env.NODE_ENV === 'development') {
   router.get('/config/:resourceType', (req: ReqWithUser, res: Response) => {
     const resourceType = getParam(req.params, 'resourceType');
     const requestWithUser = toRequestWithUser(req);

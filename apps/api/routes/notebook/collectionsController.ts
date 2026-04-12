@@ -10,6 +10,7 @@
 
 import express, { type Response } from 'express';
 
+import { env } from '../../config/env.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddleware from '../../middleware/authMiddleware.js';
@@ -620,7 +621,7 @@ router.post(
       }
 
       const result = await notebookHelper.createPublicAccess(collectionId, userId);
-      const publicUrl = `${process.env.BASE_URL}/notebook/public/${result.access_token}`;
+      const publicUrl = `${env.BASE_URL}/notebook/public/${result.access_token}`;
 
       return res.json({
         success: true,

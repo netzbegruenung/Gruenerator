@@ -8,6 +8,8 @@
 
 import { ChatMistralAI } from '@langchain/mistralai';
 
+import { env } from '../../../config/env.js';
+
 export { INTERMEDIATE_MODEL } from '../../../services/ai/providers.js';
 
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
@@ -47,7 +49,7 @@ export function getAgentLLM(config: AgentLLMConfig): ChatMistralAI {
     modelName = agentConfig.model;
   }
 
-  const apiKey = process.env.MISTRAL_API_KEY;
+  const apiKey = env.MISTRAL_API_KEY;
   if (!apiKey) {
     throw new Error('MISTRAL_API_KEY environment variable is not set');
   }

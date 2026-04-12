@@ -7,6 +7,8 @@
 
 import fs from 'fs';
 
+import { env } from '../../../config/env.js';
+
 import { getMigrationsPath } from './schema.js';
 
 import type { Pool } from 'pg';
@@ -145,7 +147,7 @@ export async function createDatabaseIfNotExists(config: {
   ssl?: boolean | { rejectUnauthorized: boolean };
   connectionString?: string;
 }): Promise<void> {
-  if (config.connectionString || process.env.POSTGRES_AUTO_CREATE_DB === 'false') {
+  if (config.connectionString || !env.POSTGRES_AUTO_CREATE_DB) {
     return;
   }
 

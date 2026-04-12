@@ -1,5 +1,6 @@
 import { generateText } from 'ai';
 
+import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import { getModel, type ProviderName } from '../ai/providers.js';
 
@@ -8,7 +9,7 @@ import type { ExtractionResult } from '../OcrService/types.js';
 const log = createLogger('VisionService');
 
 const DEFAULT_VISION_PROVIDER: ProviderName = 'regolo';
-const DEFAULT_VISION_MODEL = process.env.VISION_DEFAULT_MODEL || 'gemma4-31b';
+const DEFAULT_VISION_MODEL = env.VISION_DEFAULT_MODEL || 'gemma4-31b';
 
 export interface VisionOptions {
   provider?: ProviderName | undefined;

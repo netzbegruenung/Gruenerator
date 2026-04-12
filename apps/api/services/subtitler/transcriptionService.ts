@@ -8,6 +8,7 @@ import fs from 'fs/promises';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
+import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import { type AIWorkerPool } from '../../workers/types.js';
 
@@ -36,9 +37,9 @@ async function transcribeWithProvider(
   requestWordTimestamps: boolean = false,
   uploadId: string | null = null
 ): Promise<TranscriptionResult> {
-  const provider = process.env.TRANSCRIPTION_PROVIDER || 'regolo';
+  const provider = env.TRANSCRIPTION_PROVIDER || 'regolo';
 
-  if (provider === 'regolo' && process.env.REGOLO_API_KEY) {
+  if (provider === 'regolo' && env.REGOLO_API_KEY) {
     log.debug('Using Regolo (faster-whisper) for transcription');
     try {
       return await transcribeWithRegolo(audioPath, requestWordTimestamps, uploadId);
@@ -49,7 +50,7 @@ async function transcribeWithProvider(
     }
   }
 
-  if ((provider === 'voxtral' || provider === 'regolo') && process.env.MISTRAL_API_KEY) {
+  if ((provider === 'voxtral' || provider === 'regolo') && env.MISTRAL_API_KEY) {
     log.debug('Using Voxtral for transcription');
     try {
       return await transcribeWithVoxtral(audioPath, requestWordTimestamps, uploadId);

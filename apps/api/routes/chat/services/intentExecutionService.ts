@@ -16,6 +16,7 @@ import {
   summarizeNode,
   buildCitations,
 } from '../../../agents/langgraph/ChatGraph/index.js';
+import { env } from '../../../config/env.js';
 import {
   generateSharepicForChat,
   type ExpressRequest as SharepicExpressRequest,
@@ -442,7 +443,7 @@ export async function executeIntentPipeline(opts: {
     if (currentIntent === 'image') {
       const imageToolEnabled = forcedTool || enabledTools?.['image'] !== false;
       log.info(
-        `[ChatGraph] Image branch — imageToolEnabled=${imageToolEnabled}, userId=${classifiedState.agentConfig.userId}, BFL_KEY_SET=${!!process.env.BFL_API_KEY}`
+        `[ChatGraph] Image branch — imageToolEnabled=${imageToolEnabled}, userId=${classifiedState.agentConfig.userId}, BFL_KEY_SET=${!!env.BFL_API_KEY}`
       );
       if (imageToolEnabled) {
         sse.send('image_start', { message: PROGRESS_MESSAGES.imageStart });
@@ -606,16 +607,17 @@ export async function executeIntentPipeline(opts: {
         }
 
         const resultCount = finalState.searchResults?.length || 0;
-        const payloadResults = finalState.searchResults?.slice(0, 10).map((r) => {
-          const result: SearchResultPayload = {
-            source: r.source,
-            title: r.title,
-            content: r.content,
-          };
-          if (r.url != null) result.url = r.url;
-          if (r.relevance != null) result.relevance = r.relevance;
-          return result;
-        }) || [];
+        const payloadResults =
+          finalState.searchResults?.slice(0, 10).map((r) => {
+            const result: SearchResultPayload = {
+              source: r.source,
+              title: r.title,
+              content: r.content,
+            };
+            if (r.url != null) result.url = r.url;
+            if (r.relevance != null) result.relevance = r.relevance;
+            return result;
+          }) || [];
         sse.send('search_complete', {
           message: PROGRESS_MESSAGES.searchComplete(resultCount),
           resultCount,

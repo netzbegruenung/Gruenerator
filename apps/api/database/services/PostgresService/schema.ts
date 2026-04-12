@@ -6,6 +6,8 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import { env } from '../../../config/env.js';
+
 import type { SchemaCache, ColumnDefinition, AlterStatement } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -270,7 +272,7 @@ export function sanitizeBackupPath(backupPath: string): string {
   const normalizedPath = path.normalize(backupPath);
   const resolvedPath = path.resolve(normalizedPath);
 
-  const backupDir = process.env.BACKUP_DIR || path.join(__dirname, '../../../backups');
+  const backupDir = env.BACKUP_DIR ?? path.join(__dirname, '../../../backups');
   const allowedBackupDir = path.resolve(backupDir);
 
   if (!resolvedPath.startsWith(allowedBackupDir + path.sep) && resolvedPath !== allowedBackupDir) {
