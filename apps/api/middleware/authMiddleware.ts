@@ -7,6 +7,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 import { type Request, type Response, type NextFunction } from 'express';
 
 import { auth, type BetterAuthUser } from '../config/betterAuth.js';
+import { env } from '../config/env.js';
 import { BRAND } from '../utils/domainUtils.js';
 
 import { type AuthenticatedRequest } from './types.js';
@@ -63,7 +64,9 @@ function toBetterAuthUser(user: BetterAuthUser): Express.User {
     interactive_antrag_enabled: (u.interactive_antrag_enabled as boolean) ?? true,
     vorlagen: (u.vorlagen as boolean) ?? false,
     video_editor: (u.video_editor as boolean) ?? false,
-    ...(u.bundestag_api_enabled != null && { bundestag_api_enabled: u.bundestag_api_enabled as boolean }),
+    ...(u.bundestag_api_enabled != null && {
+      bundestag_api_enabled: u.bundestag_api_enabled as boolean,
+    }),
     ...(u.memory_enabled != null && { memory_enabled: u.memory_enabled as boolean }),
     ...(u.wordpress_enabled != null && { wordpress_enabled: u.wordpress_enabled as boolean }),
     created_at: user.createdAt,
@@ -73,12 +76,12 @@ function toBetterAuthUser(user: BetterAuthUser): Express.User {
 
 async function tryResolveUser(req: Request): Promise<Express.User | null> {
   if (
-    process.env.NODE_ENV === 'development' &&
-    process.env.ALLOW_DEV_AUTH_BYPASS === 'true' &&
-    process.env.DEV_AUTH_BYPASS_TOKEN
+    env.NODE_ENV === 'development' &&
+    env.ALLOW_DEV_AUTH_BYPASS &&
+    env.DEV_AUTH_BYPASS_TOKEN != null
   ) {
     const bypassToken = req.headers['x-dev-auth-bypass'] || req.query.dev_auth_token;
-    if (bypassToken && bypassToken === process.env.DEV_AUTH_BYPASS_TOKEN) {
+    if (bypassToken && bypassToken === env.DEV_AUTH_BYPASS_TOKEN) {
       return DEV_BYPASS_USER;
     }
   }
@@ -98,7 +101,7 @@ async function tryResolveUser(req: Request): Promise<Express.User | null> {
 }
 
 async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
-  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEV_AUTH_BYPASS === 'true') {
+  if (env.NODE_ENV === 'production' && env.ALLOW_DEV_AUTH_BYPASS) {
     console.error(
       '[CRITICAL SECURITY ALERT] Dev auth bypass is enabled in PRODUCTION environment!'
     );
@@ -111,7 +114,7 @@ async function requireAuth(req: Request, res: Response, next: NextFunction): Pro
 
   const user = await tryResolveUser(req);
   if (user) {
-    (req as AuthenticatedRequest).user = user;
+    req.user = user;
     return next();
   }
 
@@ -147,7 +150,7 @@ async function optionalAuth(req: Request, _res: Response, next: NextFunction): P
 
   const user = await tryResolveUser(req);
   if (user) {
-    (req as AuthenticatedRequest).user = user;
+    req.user = user;
   }
   return next();
 }

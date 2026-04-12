@@ -19,19 +19,15 @@ import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 
-import {
-  getUser,
-  getThreadSettings,
-  updateThreadSettings,
-} from './services/threadPersistenceService.js';
+import { getThreadSettings, updateThreadSettings } from './services/threadPersistenceService.js';
 
-import type { AuthenticatedRequest } from '../../middleware/types.js';
+import type { UserProfile } from '../../services/user/types.js';
 import type { Application, Request } from 'express';
 
 const log = createLogger('threadsContractRouter');
 
 function getUserId(req: Request): string {
-  return (req as unknown as AuthenticatedRequest).user!.id;
+  return (req.user as UserProfile).id;
 }
 
 const s = initServer();
