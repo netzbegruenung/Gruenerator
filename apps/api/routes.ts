@@ -3,6 +3,7 @@
  * Central routing setup for all API endpoints
  */
 
+import express from 'express';
 import rateLimit from 'express-rate-limit';
 
 import authMiddleware from './middleware/authMiddleware.js';
@@ -280,6 +281,13 @@ export async function setupRoutes(app: Application): Promise<void> {
   // with `Cannot read properties of undefined (reading 'id')`.
   app.use('/api/chat-service/threads', requireAuth);
   app.use('/api/chat-graph', requireAuth);
+  // /api/chat-graph/stream is in CUSTOM_BODY_PARSER_PATHS (bodyParserConfig.ts)
+  // so the global 10mb body parser is skipped. The legacy chatGraphController
+  // installs its own 50mb parser at controller mount, but ts-rest's contract
+  // router (mounted next) runs BEFORE the legacy router and would otherwise
+  // see req.body === undefined and 400. Install the same 50mb parser scoped
+  // to /api/chat-graph here so both routers receive a parsed body.
+  app.use('/api/chat-graph', express.json({ limit: '50mb' }));
   mountThreadsContractRouter(app);
   mountChatGraphContractRouter(app);
   app.use('/api/chat-service', authenticatedReadLimiter, chatServiceRouter);
