@@ -4,11 +4,9 @@ import { blockNoteXmlToHtml } from '@gruenerator/hocuspocus';
 import { Router, type Request, type Response } from 'express';
 import * as Y from 'yjs';
 
+import { type CollaborativeDocument } from '../../database/schema/collaborative.js';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
-import {
-  type CollaborativeDocumentRow,
-  type YjsDocumentSnapshotRow,
-} from '../../database/types.js';
+import { type YjsDocumentSnapshotRow } from '../../database/types.js';
 
 import { DOCS_SUBTYPES } from './constants.js';
 
@@ -70,7 +68,7 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
     }
 
     const result = await db.query<
-      Pick<CollaborativeDocumentRow, 'id' | 'title' | 'share_mode' | 'document_subtype'>
+      Pick<CollaborativeDocument, 'id' | 'title' | 'share_mode' | 'document_subtype'>
     >(
       `SELECT d.id, d.title, d.share_mode, d.document_subtype
        FROM collaborative_documents d

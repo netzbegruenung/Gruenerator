@@ -5,17 +5,8 @@
 
 import crypto from 'crypto';
 
+import type { DocumentQnARedisClient as RedisClient } from './DocumentQnAService.js';
 import type { Attachment, StoredDocument, ClearUserDataResult } from './types.js';
-
-type RedisClient = {
-  get: (key: string) => Promise<string | null>;
-  setEx: (key: string, ttl: number, value: string) => Promise<void>;
-  lPush: (key: string, ...values: string[]) => Promise<void>;
-  lTrim: (key: string, start: number, stop: number) => Promise<void>;
-  lRange: (key: string, start: number, stop: number) => Promise<string[]>;
-  del: (key: string | string[]) => Promise<number>;
-  keys: (pattern: string) => Promise<string[]>;
-};
 
 /**
  * Retrieve documents from Redis by IDs

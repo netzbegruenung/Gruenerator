@@ -38,7 +38,7 @@ const log = createLogger('IntentService');
 
 // Initialize DocumentQnA service
 const documentQnAService = new DocumentQnAService(
-  redisClient as unknown as DocumentQnARedisClient,
+  redisClient as DocumentQnARedisClient,
   mistralClient as DocumentQnAMistralClient
 );
 

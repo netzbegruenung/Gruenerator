@@ -69,21 +69,8 @@ export interface ProfileRow {
 
 // ---------------------------------------------------------------------------
 // SECTION 2B: MOBILE/DESKTOP APP AUTHENTICATION
+// (AppRefreshTokenRow removed — use InferSelectModel<typeof appRefreshTokens> from schema/system.ts)
 // ---------------------------------------------------------------------------
-
-export interface AppRefreshTokenRow {
-  id: string;
-  user_id: string;
-  token_hash: string;
-  device_name: string | null;
-  device_type: string;
-  issued_at: Date;
-  expires_at: Date;
-  last_used_at: Date | null;
-  revoked_at: Date | null;
-  push_token: string | null;
-  push_token_updated_at: Date | null;
-}
 
 // ---------------------------------------------------------------------------
 // SECTION 3: GROUPS & MEMBERSHIPS
@@ -230,23 +217,7 @@ export interface GrundsatzDocumentRow {
 // SECTION 5: COLLABORATIVE EDITING
 // ---------------------------------------------------------------------------
 
-export interface CollaborativeDocumentRow {
-  id: string;
-  title: string;
-  content: string | null;
-  created_by: string | null;
-  created_at: Date;
-  updated_at: Date;
-  last_edited_by: string | null;
-  is_public: boolean;
-  permissions: Record<string, unknown>;
-  folder_id: string | null;
-  is_deleted: boolean;
-  document_subtype: string;
-  share_permission: string;
-  share_mode: string;
-  last_edited_at: Date;
-}
+// CollaborativeDocumentRow removed — use CollaborativeDocument from schema/collaborative.ts
 
 export interface CollaborativeDocumentInitRow {
   document_id: string;
@@ -614,22 +585,7 @@ export interface DatabaseRow {
   version: number;
 }
 
-export interface WolkeSyncStatusRow {
-  id: string;
-  user_id: string | null;
-  share_link_id: string;
-  folder_path: string;
-  last_sync_at: Date | null;
-  files_processed: number;
-  files_failed: number;
-  auto_sync_enabled: boolean;
-  sync_status: string;
-  created_at: Date;
-  updated_at: Date;
-  context_type: string;
-  context_id: string | null;
-  synced_by_user_id: string | null;
-}
+// WolkeSyncStatusRow removed — use InferSelectModel<typeof wolkeSyncStatus> from schema/system.ts
 
 export interface RouteUsageStatRow {
   id: number;
@@ -901,7 +857,6 @@ export interface BaVerificationRow {
 
 export interface Database {
   profiles: ProfileRow;
-  app_refresh_tokens: AppRefreshTokenRow;
   groups: GroupRow;
   group_memberships: GroupMembershipRow;
   group_content_shares: GroupContentShareRow;
@@ -912,7 +867,6 @@ export interface Database {
   user_document_metadata: UserDocumentMetadataRow;
   user_knowledge: UserKnowledgeRow;
   grundsatz_documents: GrundsatzDocumentRow;
-  collaborative_documents: CollaborativeDocumentRow;
   collaborative_documents_init: CollaborativeDocumentInitRow;
   collaborative_document_folders: CollaborativeDocumentFolderRow;
   yjs_document_updates: YjsDocumentUpdateRow;
@@ -939,7 +893,6 @@ export interface Database {
   antraege: AntragRow;
   user_recent_values: UserRecentValueRow;
   database: DatabaseRow;
-  wolke_sync_status: WolkeSyncStatusRow;
   route_usage_stats: RouteUsageStatRow;
   generation_logs: GenerationLogRow;
   chat_threads: ChatThreadRow;

@@ -1,8 +1,8 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 
+import { type CollaborativeDocument } from '../../database/schema/collaborative.js';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
-import { type CollaborativeDocumentRow } from '../../database/types.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 
 import { DOCS_SUBTYPES, GRANTED_BY_SHARE_LINK } from './constants.js';
@@ -16,7 +16,7 @@ const shareModeSchema = z.object({
 });
 
 type ShareDocumentRow = Pick<
-  CollaborativeDocumentRow,
+  CollaborativeDocument,
   'id' | 'created_by' | 'permissions' | 'is_public'
 > & {
   share_permission?: string;
@@ -162,62 +162,72 @@ router.post('/:id/share/disable', async (req: Request<{ id: string }>, res: Resp
  * @desc    Update public share permission level
  * @access  Private (owner only)
  */
-router.put('/:id/share/permission', validateBody(permissionSchema), async (req: TypedRequest<{ permission: 'viewer' | 'editor' }, { id: string }>, res: Response) => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ error: 'User not authenticated' });
+router.put(
+  '/:id/share/permission',
+  validateBody(permissionSchema),
+  async (req: TypedRequest<{ permission: 'viewer' | 'editor' }, { id: string }>, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'User not authenticated' });
 
-    const { permission } = req.body;
+      const { permission } = req.body;
 
-    const doc = await getOwnedDocument(req.params.id, userId, res);
-    if (!doc) return;
+      const doc = await getOwnedDocument(req.params.id, userId, res);
+      if (!doc) return;
 
-    await db.query(
-      `UPDATE collaborative_documents
+      await db.query(
+        `UPDATE collaborative_documents
        SET share_permission = $1, updated_at = CURRENT_TIMESTAMP
        WHERE id = $2`,
-      [permission, req.params.id]
-    );
+        [permission, req.params.id]
+      );
 
-    return res.json({
-      is_public: doc.is_public,
-      share_permission: permission,
-      share_mode: doc.share_mode || 'private',
-    });
-  } catch (error: unknown) {
-    console.error('[Docs] Error updating share permission:', error);
-    return res.status(500).json({ error: 'Failed to update share permission' });
+      return res.json({
+        is_public: doc.is_public,
+        share_permission: permission,
+        share_mode: doc.share_mode || 'private',
+      });
+    } catch (error: unknown) {
+      console.error('[Docs] Error updating share permission:', error);
+      return res.status(500).json({ error: 'Failed to update share permission' });
+    }
   }
-});
+);
 
 /**
  * @route   PUT /api/docs/:id/share/mode
  * @desc    Set share mode (private, authenticated, public)
  * @access  Private (owner only)
  */
-router.put('/:id/share/mode', validateBody(shareModeSchema), async (req: TypedRequest<{ mode: 'private' | 'authenticated' | 'public' }, { id: string }>, res: Response) => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ error: 'User not authenticated' });
+router.put(
+  '/:id/share/mode',
+  validateBody(shareModeSchema),
+  async (
+    req: TypedRequest<{ mode: 'private' | 'authenticated' | 'public' }, { id: string }>,
+    res: Response
+  ) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'User not authenticated' });
 
-    const { mode } = req.body;
+      const { mode } = req.body;
 
-    const doc = await getOwnedDocument(req.params.id, userId, res);
-    if (!doc) return;
+      const doc = await getOwnedDocument(req.params.id, userId, res);
+      if (!doc) return;
 
-    const isPublic = mode === 'public';
+      const isPublic = mode === 'public';
 
-    if (mode === 'authenticated') {
-      await db.query(
-        `UPDATE collaborative_documents
+      if (mode === 'authenticated') {
+        await db.query(
+          `UPDATE collaborative_documents
          SET share_mode = $1, is_public = $2, updated_at = CURRENT_TIMESTAMP
          WHERE id = $3`,
-        [mode, isPublic, req.params.id]
-      );
-    } else {
-      // Revoke auto-granted permissions when leaving authenticated mode
-      await db.query(
-        `UPDATE collaborative_documents
+          [mode, isPublic, req.params.id]
+        );
+      } else {
+        // Revoke auto-granted permissions when leaving authenticated mode
+        await db.query(
+          `UPDATE collaborative_documents
          SET share_mode = $1,
              is_public = $2,
              permissions = (
@@ -227,19 +237,20 @@ router.put('/:id/share/mode', validateBody(shareModeSchema), async (req: TypedRe
              ),
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $3`,
-        [mode, isPublic, req.params.id, GRANTED_BY_SHARE_LINK]
-      );
-    }
+          [mode, isPublic, req.params.id, GRANTED_BY_SHARE_LINK]
+        );
+      }
 
-    return res.json({
-      is_public: isPublic,
-      share_permission: doc.share_permission || 'editor',
-      share_mode: mode,
-    });
-  } catch (error: unknown) {
-    console.error('[Docs] Error updating share mode:', error);
-    return res.status(500).json({ error: 'Failed to update share mode' });
+      return res.json({
+        is_public: isPublic,
+        share_permission: doc.share_permission || 'editor',
+        share_mode: mode,
+      });
+    } catch (error: unknown) {
+      console.error('[Docs] Error updating share mode:', error);
+      return res.status(500).json({ error: 'Failed to update share mode' });
+    }
   }
-});
+);
 
 export default router;
