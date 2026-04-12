@@ -29,7 +29,7 @@ import {
 import { createLogger } from '../../utils/logger.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
-import type { Express, Request } from 'express';
+import type { Application, Request } from 'express';
 
 const log = createLogger('recentValuesContract');
 
@@ -147,7 +147,7 @@ export const recentValuesContractRouter = s.router(recentValuesContract, {
  * Mount the ts-rest contract router onto an Express app instance.
  * Call this from routes.ts after importing this module.
  */
-export function mountRecentValuesContractRouter(app: Express): void {
+export function mountRecentValuesContractRouter(app: Application): void {
   createExpressEndpoints(recentValuesContract, recentValuesContractRouter, app, {
     requestValidationErrorHandler: 'combined',
   });

@@ -1,7 +1,7 @@
 import { type JSX, useCallback, useMemo } from 'react';
 import CreatableSelect from 'react-select/creatable';
 
-import { useRecentValues } from '../../../hooks/useRecentValues';
+import { useRecentValuesTyped } from '../../../hooks/useRecentValuesTyped';
 
 import FormFieldWrapper from './Input/FormFieldWrapper';
 
@@ -81,10 +81,7 @@ const RecentValuesDropdown = ({
 }: RecentValuesDropdownProps): JSX.Element => {
   // Fetch recent values using the custom hook
   const { recentValues, isLoading, saveRecentValue, clearRecentValues, hasRecentValue } =
-    useRecentValues(fieldType, {
-      limit: maxRecentValues,
-      autoSave,
-    });
+    useRecentValuesTyped(fieldType, { limit: maxRecentValues });
 
   // Convert recent values to options format
   const recentOptions = useMemo(() => {

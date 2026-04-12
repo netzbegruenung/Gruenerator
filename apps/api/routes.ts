@@ -72,6 +72,7 @@ import {
   leichteSpracheRouter as leichteSpracheRoute,
 } from './routes/texte/index.js';
 import { recentValuesRouter } from './routes/user/index.js';
+import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
 import voiceRouter from './routes/voice/voiceController.js';
 import recentActivityRouter from './routes/workplace/recentActivityController.js';
@@ -147,7 +148,9 @@ async function loadOptionalModules(): Promise<void> {
     if (process.env.YJS_ENABLED === 'true') {
       // Dynamic import - module may not exist
       // @ts-expect-error - Optional module, may not be present
-      const module = await import('./routes/internal/snapshottingController.js') as { default: typeof snapshottingRouter };
+      const module = (await import('./routes/internal/snapshottingController.js')) as {
+        default: typeof snapshottingRouter;
+      };
       snapshottingRouter = module.default;
       log.debug('Snapshotting controller loaded');
     }
@@ -244,6 +247,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Public read endpoints — soft limiter prevents scraping
   app.use('/api/documents', publicReadLimiter, documentsRouter);
   app.use('/api/crawl-url', requireAuth, standardMutationLimiter, crawlUrlRouter);
+  // ts-rest contract router for /api/recent-values (Phase 4.1 pilot)
+  // Mounted BEFORE the legacy router so ts-rest matches its own routes first;
+  // unmatched paths fall through to the Express fallback below.
+  mountRecentValuesContractRouter(app);
   app.use('/api/recent-values', publicReadLimiter, recentValuesRouter);
   app.use('/api/antraege', requireAuth, standardMutationLimiter, antraegeRouter);
   app.use('/api/scanner', publicReadLimiter, scannerRouter);
@@ -349,7 +356,11 @@ export async function setupRoutes(app: Application): Promise<void> {
           res.status(400).json({ success: false, error: 'Sharepic type is required' });
           return;
         }
-        const result = await generateSharepicForChat(req, type as string, requestBody as Parameters<typeof generateSharepicForChat>[2]);
+        const result = await generateSharepicForChat(
+          req,
+          type as string,
+          requestBody as Parameters<typeof generateSharepicForChat>[2]
+        );
         res.json({ success: true, ...result.content.sharepic, metadata: result.content.metadata });
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
