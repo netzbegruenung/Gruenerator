@@ -29,19 +29,23 @@ import {
 import { createLogger } from '../../utils/logger.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
-import type { Express } from 'express';
+import type { Express, Request } from 'express';
 
 const log = createLogger('recentValuesContract');
+
+function getUserId(req: Request): string {
+  return (req as unknown as AuthenticatedRequest).user!.id;
+}
 
 const s = initServer();
 
 export const recentValuesContractRouter = s.router(recentValuesContract, {
-  listFieldTypes: async ({ req }) => {
+  listFieldTypes: async (args) => {
     try {
-      const userId = (req as unknown as AuthenticatedRequest).user!.id;
+      const userId = getUserId(args.req);
       const fieldTypes = await getFieldTypesWithCounts(userId);
       return {
-        status: 200,
+        status: 200 as const,
         body: {
           success: true as const,
           data: fieldTypes,
@@ -51,25 +55,32 @@ export const recentValuesContractRouter = s.router(recentValuesContract, {
     } catch (error) {
       log.error('[RecentValues Contract] Error retrieving field types:', error);
       return {
-        status: 500,
+        status: 500 as const,
         body: { error: (error as Error).message || 'Failed to retrieve field types' },
       };
     }
   },
 
-  getByFieldType: async ({ params, query, req }) => {
+  getByFieldType: async (args) => {
     try {
-      const { fieldType } = params;
-      const userId = (req as unknown as AuthenticatedRequest).user!.id;
-      const limit = query.limit ? parseInt(query.limit, 10) : undefined;
+      const { fieldType } = args.params;
+      const userId = getUserId(args.req);
+      const limit = args.query.limit ? parseInt(args.query.limit, 10) : undefined;
 
       const values = await getRecentValues(userId, fieldType, limit);
+      const typedValues = values.map((v) => ({
+        field_value: v.field_value ?? '',
+        form_name: v.form_name ?? null,
+        ...(v.id != null && { id: v.id }),
+        ...(v.field_type != null && { field_type: v.field_type }),
+        ...(v.created_at != null && { created_at: v.created_at }),
+      }));
 
       return {
-        status: 200,
+        status: 200 as const,
         body: {
           success: true as const,
-          data: values,
+          data: typedValues,
           fieldType,
           count: values.length,
         },
@@ -77,21 +88,21 @@ export const recentValuesContractRouter = s.router(recentValuesContract, {
     } catch (error) {
       log.error('[RecentValues Contract] Error retrieving values:', error);
       return {
-        status: 500,
+        status: 500 as const,
         body: { error: (error as Error).message || 'Failed to retrieve recent values' },
       };
     }
   },
 
-  save: async ({ body, req }) => {
+  save: async (args) => {
     try {
-      const userId = (req as unknown as AuthenticatedRequest).user!.id;
-      const { fieldType, fieldValue, formName } = body;
+      const userId = getUserId(args.req);
+      const { fieldType, fieldValue, formName } = args.body;
 
       const result = await saveRecentValue(userId, fieldType, fieldValue, formName ?? null);
 
       return {
-        status: 201,
+        status: 201 as const,
         body: {
           success: true as const,
           data: result,
@@ -101,21 +112,21 @@ export const recentValuesContractRouter = s.router(recentValuesContract, {
     } catch (error) {
       log.error('[RecentValues Contract] Error saving value:', error);
       return {
-        status: 500,
+        status: 500 as const,
         body: { error: (error as Error).message || 'Failed to save recent value' },
       };
     }
   },
 
-  clearByFieldType: async ({ params, req }) => {
+  clearByFieldType: async (args) => {
     try {
-      const { fieldType } = params;
-      const userId = (req as unknown as AuthenticatedRequest).user!.id;
+      const { fieldType } = args.params;
+      const userId = getUserId(args.req);
 
       const deletedCount = await clearRecentValues(userId, fieldType);
 
       return {
-        status: 200,
+        status: 200 as const,
         body: {
           success: true as const,
           message: `Cleared ${deletedCount} recent values for ${fieldType}`,
@@ -125,7 +136,7 @@ export const recentValuesContractRouter = s.router(recentValuesContract, {
     } catch (error) {
       log.error('[RecentValues Contract] Error clearing values:', error);
       return {
-        status: 500,
+        status: 500 as const,
         body: { error: (error as Error).message || 'Failed to clear recent values' },
       };
     }
@@ -135,19 +146,9 @@ export const recentValuesContractRouter = s.router(recentValuesContract, {
 /**
  * Mount the ts-rest contract router onto an Express app instance.
  * Call this from routes.ts after importing this module.
- *
- * @example
- * // In routes.ts:
- * import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
- * mountRecentValuesContractRouter(app);
- *
- * // Then keep the legacy router as fallback (or remove it when migration is complete):
- * // app.use('/api/recent-values', requireAuth, legacyRecentValuesRouter);
  */
 export function mountRecentValuesContractRouter(app: Express): void {
   createExpressEndpoints(recentValuesContract, recentValuesContractRouter, app, {
-    // ts-rest will parse and validate request bodies against the Zod schemas
-    // in the contract. This replaces the manual validateBody() middleware.
     requestValidationErrorHandler: 'combined',
   });
 }
