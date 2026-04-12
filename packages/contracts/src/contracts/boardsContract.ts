@@ -14,6 +14,8 @@ import {
   generateBoardResponseSchema,
   createBoardResponseSchema,
   updateBoardResponseSchema,
+  listBoardsResponseSchema,
+  deleteBoardResponseSchema,
   boardErrorResponseSchema,
 } from '../schemas/boards.js';
 
@@ -21,6 +23,40 @@ const c = initContract();
 
 export const boardsContract = c.router(
   {
+    /**
+     * GET /api/boards
+     * List all boards accessible to the authenticated user.
+     */
+    listBoards: {
+      method: 'GET',
+      path: '/api/boards',
+      responses: {
+        200: listBoardsResponseSchema,
+        401: boardErrorResponseSchema,
+        500: boardErrorResponseSchema,
+      },
+      summary: 'List all accessible boards',
+    },
+
+    /**
+     * DELETE /api/boards/:id
+     * Soft-delete a board (owner only).
+     */
+    deleteBoard: {
+      method: 'DELETE',
+      path: '/api/boards/:id',
+      pathParams: z.object({ id: z.string() }),
+      body: z.object({}),
+      responses: {
+        200: deleteBoardResponseSchema,
+        401: boardErrorResponseSchema,
+        403: boardErrorResponseSchema,
+        404: boardErrorResponseSchema,
+        500: boardErrorResponseSchema,
+      },
+      summary: 'Delete a board',
+    },
+
     /**
      * POST /api/boards/generate
      * Generate a new board from a text description using AI.

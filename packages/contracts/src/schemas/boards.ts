@@ -58,3 +58,9 @@ export const generateBoardResponseSchema = z.object({
 export const createBoardResponseSchema = boardDocumentSchema;
 
 export const updateBoardResponseSchema = boardDocumentSchema;
+
+export const listBoardsResponseSchema = z.array(boardDocumentSchema);
+
+export const deleteBoardResponseSchema = z.object({
+  message: z.string(),
+});

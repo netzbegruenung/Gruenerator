@@ -58,6 +58,89 @@ const db = getPostgresInstance();
 const s = initServer();
 
 export const boardsContractRouter = s.router(boardsContract, {
+  listBoards: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+
+      const result = (await db.query(
+        `SELECT
+          cd.id, cd.title, cd.created_by, cd.last_edited_by,
+          cd.document_subtype, cd.permissions, cd.is_public, cd.is_deleted,
+          cd.created_at, cd.updated_at, cd.content,
+          p.display_name as creator_name
+         FROM collaborative_documents cd
+         LEFT JOIN profiles p ON cd.created_by = p.id
+         WHERE
+          cd.document_subtype = $1
+          AND cd.is_deleted = false
+          AND (
+            cd.created_by = $2
+            OR cd.permissions ? $3::text
+            OR cd.is_public = true
+            OR cd.id IN (
+              SELECT gcs.content_id::uuid
+              FROM group_content_shares gcs
+              INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2
+              WHERE gcs.content_type = 'collaborative_documents'
+            )
+          )
+         ORDER BY cd.updated_at DESC`,
+        [BOARDS_SUBTYPE, userId, userId]
+      )) as BoardDocument[];
+
+      return { status: 200 as const, body: result };
+    } catch (error) {
+      log.error('[Boards Contract] Error listing boards:', error);
+      return {
+        status: 500 as const,
+        body: {
+          error: 'Failed to list boards',
+          details: error instanceof Error ? error.message : String(error),
+        },
+      };
+    }
+  },
+
+  deleteBoard: async (args) => {
+    try {
+      const { id } = args.params;
+      const userId = getUserId(args.req);
+
+      const checkResult = (await db.query(
+        'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
+        [id, BOARDS_SUBTYPE]
+      )) as BoardDocument[];
+
+      if (checkResult.length === 0) {
+        return { status: 404 as const, body: { error: 'Board not found' } };
+      }
+
+      const board = checkResult[0];
+      const userPermission = board.permissions?.[userId];
+      const isOwner = board.created_by === userId || userPermission?.level === 'owner';
+
+      if (!isOwner) {
+        return { status: 403 as const, body: { error: 'Only owners can delete boards' } };
+      }
+
+      await db.query(
+        'UPDATE collaborative_documents SET is_deleted = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+        [id]
+      );
+
+      return { status: 200 as const, body: { message: 'Board deleted successfully' } };
+    } catch (error) {
+      log.error('[Boards Contract] Error deleting board:', error);
+      return {
+        status: 500 as const,
+        body: {
+          error: 'Failed to delete board',
+          details: error instanceof Error ? error.message : String(error),
+        },
+      };
+    }
+  },
+
   generateBoard: async (args) => {
     try {
       const { description } = args.body;
