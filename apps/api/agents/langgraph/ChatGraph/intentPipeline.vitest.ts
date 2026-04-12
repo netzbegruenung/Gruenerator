@@ -46,11 +46,13 @@ const ALL_INTENTS: SearchIntent[] = [
   'examples',
   'image',
   'image_edit',
+  'sharepic',
   'summary',
   'chart',
   'save_as_doc',
   'modify_doc',
   'modify_board',
+  'share_doc',
   'direct',
 ];
 
@@ -260,6 +262,7 @@ describe('every SearchIntent has a handler path', () => {
   const CONTROLLER_HANDLED_INTENTS: Record<SearchIntent, string> = {
     image: 'handled via image branch in controller',
     image_edit: 'handled via image_edit branch in controller',
+    sharepic: 'handled via sharepic branch in controller (image generation variant)',
     direct: 'falls through to response generation',
     research: 'handled via search branch (intent !== direct)',
     search: 'handled via search branch (intent !== direct)',

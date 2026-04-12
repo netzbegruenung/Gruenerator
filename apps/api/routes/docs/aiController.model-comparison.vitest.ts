@@ -298,7 +298,12 @@ async function runModelTest(modelConfig: ModelConfig, prompt: string): Promise<T
 
 // ─── Tests ───────────────────────────────────────────────────────
 
-describe('Model Comparison: BlockNote Docs AI tool-use compliance', () => {
+// Gated behind RUN_LLM_EVAL_TESTS=1 because these call real LLM APIs and are
+// non-deterministic. Run manually when evaluating new models or tool schemas:
+//   RUN_LLM_EVAL_TESTS=1 pnpm --filter @gruenerator/api exec vitest run routes/docs/aiController.model-comparison.vitest.ts
+const RUN_LLM_EVAL = process.env.RUN_LLM_EVAL_TESTS === '1';
+
+describe.skipIf(!RUN_LLM_EVAL)('Model Comparison: BlockNote Docs AI tool-use compliance', () => {
   const allResults: TestResult[] = [];
 
   for (const modelConfig of MODELS) {

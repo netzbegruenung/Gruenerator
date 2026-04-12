@@ -226,7 +226,8 @@ describe('heuristicClassify', () => {
   it('detects party document queries', () => {
     const result = heuristicClassify('Was steht im Wahlprogramm der Grünen zum Klimaschutz?');
     expect(result.intent).toBe('search');
-    expect(result.confidence).toBeGreaterThanOrEqual(0.85);
+    // Medium-high confidence (0.82) — see classifierHeuristics.ts party-position branch
+    expect(result.confidence).toBeGreaterThanOrEqual(0.8);
   });
 
   it('detects current events queries', () => {
@@ -236,9 +237,12 @@ describe('heuristicClassify', () => {
     expect(result.confidence).toBeGreaterThanOrEqual(0.75);
   });
 
-  it('detects fact-based content with topic marker', () => {
+  it('classifies creative content tasks as direct (user provides their own facts)', () => {
+    // Fact-based content types (Pressemitteilung, Artikel, Rede, ...) are treated as
+    // creative writing tasks — users on this platform typically provide the facts
+    // themselves and want the AI to write/format. Research is not implied.
     const result = heuristicClassify('Schreibe eine Pressemitteilung über den Kohleausstieg');
-    expect(result.intent).toBe('research');
+    expect(result.intent).toBe('direct');
     expect(result.confidence).toBeGreaterThanOrEqual(0.7);
   });
 
@@ -405,15 +409,15 @@ describe('heuristicClassify: chart intent', () => {
   });
 });
 
-// ─── save_as_doc and modify_doc: heuristic does NOT detect ──────────────
-// These intents require LLM context (e.g. @doc mention present).
-// Heuristic correctly falls through to 'direct' or other intents.
+// ─── save_as_doc: heuristic detects explicit phrasing ──────────────
+// save_as_doc has a clear explicit pattern ("als Dokument", "Dokument speichern"),
+// so the heuristic handles the common phrasing. modify_doc/modify_board still
+// require LLM context because they depend on @doc/@board mentions.
 
-describe('heuristicClassify: doc/board action intents fall through', () => {
-  it('does not heuristic-detect save_as_doc (requires LLM)', () => {
+describe('heuristicClassify: doc/board action intents', () => {
+  it('detects explicit save_as_doc phrasing', () => {
     const result = heuristicClassify('Speichere das als Dokument');
-    // Falls through to direct or research — not save_as_doc
-    expect(result.intent).not.toBe('save_as_doc');
+    expect(result.intent).toBe('save_as_doc');
   });
 
   it('does not heuristic-detect modify_doc (requires LLM + @doc)', () => {

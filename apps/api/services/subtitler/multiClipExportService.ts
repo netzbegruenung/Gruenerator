@@ -40,9 +40,11 @@ interface SubtitleSegment {
 
 interface SubtitleConfig {
   segments: SubtitleSegment[];
-  stylePreference?: string;
-  heightPreference?: string;
-  locale?: string;
+  // Optional fields explicit `| undefined` for exactOptionalPropertyTypes.
+  // Matches the parallel SubtitleConfig in segmentExportService.ts.
+  stylePreference?: string | undefined;
+  heightPreference?: string | undefined;
+  locale?: string | undefined;
 }
 
 interface ExportOptions {

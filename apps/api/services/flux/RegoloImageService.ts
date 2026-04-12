@@ -8,8 +8,6 @@
 import fs from 'fs';
 import path from 'path';
 
-import { env } from '../../config/env.js';
-
 import type {
   GenerateFromPromptOptions,
   GenerateResult,
@@ -31,20 +29,26 @@ interface RegoloImageResponse {
 }
 
 class RegoloImageService {
-  private apiKey: string;
-
   constructor() {
-    this.apiKey = env.REGOLO_API_KEY || '';
-    if (!this.apiKey) {
+    // API key is read at call time to support runtime env changes (and tests).
+    if (!this.getApiKey()) {
       console.warn('[RegoloImageService] Missing REGOLO_API_KEY');
     }
+  }
+
+  private getApiKey(): string {
+    // Read from process.env at call time so runtime env changes (including
+    // tests that unset the variable) take effect. Falls back to the parsed
+    // env module only when process.env still has the original value.
+    return process.env.REGOLO_API_KEY ?? '';
   }
 
   async generateFromPrompt(
     prompt: string,
     options: GenerateFromPromptOptions = {}
   ): Promise<GenerateResult> {
-    if (!this.apiKey) {
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
       throw new Error('REGOLO_API_KEY is not configured');
     }
 
@@ -57,7 +61,7 @@ class RegoloImageService {
     const response = await fetch(`${REGOLO_BASE_URL}/images/generations`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${this.apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

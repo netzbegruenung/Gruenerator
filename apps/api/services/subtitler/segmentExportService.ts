@@ -39,9 +39,9 @@ interface SubtitleSegment {
 
 interface SubtitleConfig {
   segments: SubtitleSegment[];
-  stylePreference?: string;
-  heightPreference?: string;
-  locale?: string;
+  stylePreference?: string | undefined;
+  heightPreference?: string | undefined;
+  locale?: string | undefined;
 }
 
 interface ExportOptions {

@@ -88,6 +88,8 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
       return res.status(400).json({ error: 'Tool definitions object is required' });
     }
 
+    log.info(`[DocsAI] Tool definitions received: ${Object.keys(toolDefinitions).join(', ')}`);
+
     const providerChain: AgentConfig['provider'][] = ['litellm', 'regolo', 'mistral'];
     const provider = providerChain.find((p) => isProviderConfigured(p));
 
@@ -108,6 +110,15 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
       toolDefinitions as Parameters<typeof toolDefinitionsToToolSet>[0]
     );
 
+    log.info(`[DocsAI] Streaming response with ${Object.keys(tools).length} tools`);
+
+    // Set SSE headers up-front. pipeUIMessageStreamToResponse also sets these,
+    // but setting them here ensures they are applied even if the pipe is mocked
+    // in tests and keeps behavior explicit for downstream proxies.
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
     const result = streamText({
       model,
       system: aiDocumentFormats.html.systemPrompt + '\n\n' + BLOCKNOTE_TOOL_STRICT_PROMPT,
@@ -122,8 +133,15 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
         );
         if (toolCalls?.length) {
           toolCalls.forEach((tc, i) => {
-            log.info(`[DocsAI]   Tool[${i}]: ${tc.toolName}, args: ${JSON.stringify(tc.input)}`);
+            const serializedArgs = JSON.stringify(tc.input);
+            log.info(
+              `[DocsAI]   Tool[${i}]: ${tc.toolName}, args size: ${serializedArgs.length}, args: ${serializedArgs}`
+            );
           });
+        } else {
+          log.warn(
+            `[DocsAI] NO tool calls in response (finishReason: ${finishReason}, text length: ${text?.length || 0})`
+          );
         }
         if (usage) {
           log.info(`[DocsAI] Tokens — input: ${usage.inputTokens}, output: ${usage.outputTokens}`);
