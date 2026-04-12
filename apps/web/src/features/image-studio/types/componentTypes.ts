@@ -2,6 +2,8 @@ import { type ComponentType, type ChangeEvent } from 'react';
 
 import { type TypeConfig } from '../utils/typeConfig/types';
 
+import { type FormDataUpdate } from './storeTypes';
+
 export interface StartOption {
   id: string;
   category: string | null;
@@ -34,8 +36,7 @@ export interface ImageStudioFormSectionProps {
   typeConfig: TypeConfig | null;
   formErrors: FormErrors;
   handleChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  updateFormData: (data: Record<string, any>) => void;
+  updateFormData: (data: FormDataUpdate) => void;
 }
 
 // Slogan alternative type for text generation results
