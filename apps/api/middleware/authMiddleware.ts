@@ -11,6 +11,7 @@ import { auth, type BetterAuthUser } from '../config/betterAuth.js';
 import { env } from '../config/env.js';
 import { BRAND } from '../utils/domainUtils.js';
 import { createLogger } from '../utils/logger.js';
+import { UserId, type UserId as UserIdBrand } from '../utils/types/branded.js';
 
 import { type AuthenticatedRequest } from './types.js';
 
@@ -161,5 +162,32 @@ async function optionalAuth(req: Request, _res: Response, next: NextFunction): P
   return next();
 }
 
-export { requireAuth, requireAdmin, optionalAuth };
-export default { requireAuth, requireAdmin, optionalAuth };
+/**
+ * Extract a branded {@link UserId} from an authenticated request.
+ *
+ * Use this at route-handler entry points to propagate a branded `UserId`
+ * through service signatures, which lets the type system catch mixups
+ * between `UserId`, `DocumentId`, `NotebookId`, etc. at compile time.
+ *
+ * Must be called *after* `requireAuth` has run — throws if `req.user` is
+ * unset. Opt-in: existing handlers that read `req.user.id` as a plain
+ * string continue to work; migrate call sites when touching the file.
+ *
+ * @example
+ * router.get('/api/foo/:docId', requireAuth, async (req, res) => {
+ *   const userId = getUserId(req);           // UserId (branded)
+ *   const docId = fromParam<DocumentId>(req.params.docId);
+ *   const doc = await documentService.get(docId, userId); // can't swap args
+ * });
+ */
+function getUserId(req: Request): UserIdBrand {
+  if (!req.user?.id) {
+    throw new Error(
+      'getUserId called on unauthenticated request — missing requireAuth middleware?'
+    );
+  }
+  return UserId(req.user.id);
+}
+
+export { requireAuth, requireAdmin, optionalAuth, getUserId };
+export default { requireAuth, requireAdmin, optionalAuth, getUserId };
