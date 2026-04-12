@@ -14,12 +14,15 @@ import { redisClient } from '../utils/redis/client.js';
 
 import { ALLOWED_DOMAINS } from './domains.js';
 import { env } from './env.js';
+import { mapKeycloakProfileToUser } from './mapKeycloakProfileToUser.js';
 
 const KC_BASE = env.KEYCLOAK_BASE_URL;
 const KC_REALM = env.KEYCLOAK_REALM;
 const KC_CLIENT_ID = env.KEYCLOAK_CLIENT_ID;
 const KC_CLIENT_SECRET = env.KEYCLOAK_CLIENT_SECRET ?? '';
 const DISCOVERY_URL = `${KC_BASE}/realms/${KC_REALM}/.well-known/openid-configuration`;
+
+const log = createLogger('BetterAuth');
 
 function keycloakProvider(id: string, idpHint: string, locale: 'de-DE' | 'de-AT' = 'de-DE') {
   return {
@@ -29,18 +32,10 @@ function keycloakProvider(id: string, idpHint: string, locale: 'de-DE' | 'de-AT'
     discoveryUrl: DISCOVERY_URL,
     scopes: ['openid', 'profile', 'email', 'offline_access'],
     authorizationUrlParams: { kc_idp_hint: idpHint },
-    mapProfileToUser: (profile: Record<string, unknown>) => ({
-      name: (profile.name as string) || (profile.preferred_username as string) || '',
-      email: profile.email as string,
-      emailVerified: (profile.email_verified as boolean) ?? false,
-      image: (profile.picture as string) || null,
-      locale,
-      authSource: `${idpHint}-login`,
-    }),
+    mapProfileToUser: (profile: Record<string, unknown>) =>
+      mapKeycloakProfileToUser(profile, idpHint, locale),
   };
 }
-
-const log = createLogger('BetterAuth');
 
 const pgConfig = loadConfig();
 const pool = new pg.Pool(pgConfig);
