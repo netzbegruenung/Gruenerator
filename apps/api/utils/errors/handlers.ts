@@ -3,6 +3,8 @@
  * Central error handling with logging and monitoring
  */
 
+import { env } from '../../config/env.js';
+
 import {
   type VectorBackendError,
   ValidationError,
@@ -138,7 +140,7 @@ export class ErrorHandler {
     // - New Relic
     // - Custom telemetry endpoints
 
-    if (process.env.NODE_ENV !== 'production') {
+    if (env.NODE_ENV !== 'production') {
       console.debug(`[${this.serviceName}] Would send to monitoring:`, {
         error: error.toLogEntry(),
         context: this.sanitizeContext(context),

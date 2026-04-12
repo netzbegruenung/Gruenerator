@@ -1,3 +1,4 @@
+import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import redisClient from '../../utils/redis/client.js';
 
@@ -53,7 +54,7 @@ async function fetchER(
   locale: MonitorLocale,
   includeSentiment = false
 ): Promise<CollectedMonitorItem[]> {
-  const apiKey = process.env.EVENT_REGISTRY_API_KEY;
+  const apiKey = env.EVENT_REGISTRY_API_KEY;
   if (!apiKey) {
     log.info('EVENT_REGISTRY_API_KEY not set, skipping');
     return [];
@@ -92,7 +93,9 @@ async function fetchER(
     const erArticles = data?.articles?.results ?? [];
 
     const items: CollectedMonitorItem[] = erArticles
-      .filter((a) => a.url && a.title && !BLOCKED_SOURCES.has((a.source?.title || '').toLowerCase()))
+      .filter(
+        (a) => a.url && a.title && !BLOCKED_SOURCES.has((a.source?.title || '').toLowerCase())
+      )
       .map((a) => ({
         url: a.url,
         title: a.title,
@@ -137,7 +140,14 @@ export async function fetchArticlesFromEventRegistry(
       sourceLocationUri: sourceLocation,
       categoryUri: 'news/Politics',
       ignoreSourceGroupUri: 'paywall/paywalled_sources',
-      ignoreSourceUri: ['pi-news.net', 'compact-online.de', 'jungefreiheit.de', 'auf1.tv', 'report24.news', 'reitschuster.de'],
+      ignoreSourceUri: [
+        'pi-news.net',
+        'compact-online.de',
+        'jungefreiheit.de',
+        'auf1.tv',
+        'report24.news',
+        'reitschuster.de',
+      ],
       isDuplicateFilter: 'skipDuplicates',
       forceMaxDataTimeWindow: 7,
       articlesCount: 100,
@@ -167,7 +177,14 @@ export async function fetchGrueneArticles(locale: MonitorLocale): Promise<Collec
       lang: 'deu',
       conceptUri: GRUENE_CONCEPTS[locale],
       ignoreSourceGroupUri: 'paywall/paywalled_sources',
-      ignoreSourceUri: ['pi-news.net', 'compact-online.de', 'jungefreiheit.de', 'auf1.tv', 'report24.news', 'reitschuster.de'],
+      ignoreSourceUri: [
+        'pi-news.net',
+        'compact-online.de',
+        'jungefreiheit.de',
+        'auf1.tv',
+        'report24.news',
+        'reitschuster.de',
+      ],
       isDuplicateFilter: 'skipDuplicates',
       forceMaxDataTimeWindow: 7,
       articlesCount: 50,
