@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { create } from 'zustand';
 
 import apiClient from '../../components/utils/apiClient';
@@ -43,20 +44,22 @@ export const useExportStore = create<ExportState>((set, get) => ({
   // DOCX library loading (frontend) is deprecated; DOCX is generated server-side now.
   loadDOCXLibrary: async (): Promise<null> => null,
 
-  // PDF Generation via backend
+  // PDF Generation via backend (typed contract)
   generatePDF: async (content: string, title: string) => {
     set({ isGenerating: true });
     try {
       const { extractFilenameFromContent } = await import('../../components/utils/titleExtractor');
       const filename = `${extractFilenameFromContent(content, title)}.pdf`;
-      const response = await apiClient.post<Blob>(
-        '/exports/pdf',
-        { content, title },
-        {
-          responseType: 'blob',
-        }
-      );
-      const blob = response.data;
+      const client = getContractsClient();
+      const result = await client.exports.generatePdf({
+        body: { content, title },
+      });
+      if (result.status !== 200) {
+        throw new Error(`PDF generation failed (HTTP ${result.status})`);
+      }
+      // binaryFileResponseSchema is z.unknown(); axios adapter returns Blob
+      // when the path is in BINARY_RESPONSE_PATHS in contractsClient.ts.
+      const blob = result.body as Blob;
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -73,20 +76,20 @@ export const useExportStore = create<ExportState>((set, get) => ({
     }
   },
 
-  // DOCX Generation via backend
+  // DOCX Generation via backend (typed contract)
   generateDOCX: async (content: string, title: string) => {
     set({ isGenerating: true });
     try {
       const { extractFilenameFromContent } = await import('../../components/utils/titleExtractor');
       const filename = `${extractFilenameFromContent(content, title)}.docx`;
-      const response = await apiClient.post<Blob>(
-        '/exports/docx',
-        { content, title },
-        {
-          responseType: 'blob',
-        }
-      );
-      const blob = response.data;
+      const client = getContractsClient();
+      const result = await client.exports.generateDocx({
+        body: { content, title },
+      });
+      if (result.status !== 200) {
+        throw new Error(`DOCX generation failed (HTTP ${result.status})`);
+      }
+      const blob = result.body as Blob;
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
