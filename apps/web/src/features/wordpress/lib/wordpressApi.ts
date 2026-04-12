@@ -1,3 +1,5 @@
+import { getContractsClient } from '@gruenerator/shared/api';
+
 import apiClient from '@/components/utils/apiClient';
 
 // ── API response shapes ────────────────────────────────────────────────
@@ -80,6 +82,7 @@ export interface WordPressPublishResult {
 
 // ── API Functions ─────────────────────────────────────────────────────
 
+// NOT in contract — stays on raw apiClient
 export async function fetchWordPressSites(): Promise<WordPressSite[]> {
   const response = await apiClient.get<SitesResponse>('/wordpress/sites');
   if (response.data?.success) {
@@ -94,18 +97,26 @@ export async function addWordPressSite(
   appPassword: string,
   label: string | null
 ): Promise<WordPressSite> {
-  const response = await apiClient.post<SiteResponse>('/wordpress/sites', {
-    siteUrl: siteUrl.trim(),
-    username: username.trim(),
-    appPassword: appPassword.trim(),
-    ...(label?.trim() && { label: label.trim() }),
+  const client = getContractsClient();
+  const result = await client.wordpress.connectSite({
+    body: {
+      siteUrl: siteUrl.trim(),
+      username: username.trim(),
+      appPassword: appPassword.trim(),
+      label: label?.trim() ?? null,
+    },
   });
-  if (response.data?.success && response.data.site) {
-    return response.data.site;
+  if (result.status !== 201) {
+    throw new Error(`Fehler beim Hinzufügen der WordPress-Seite (HTTP ${result.status})`);
   }
-  throw new Error(response.data?.message ?? 'Fehler beim Hinzufügen der WordPress-Seite');
+  const site = result.body.site as WordPressSite | undefined;
+  if (!site) {
+    throw new Error('Fehler beim Hinzufügen der WordPress-Seite');
+  }
+  return site;
 }
 
+// NOT in contract — stays on raw apiClient
 export async function deleteWordPressSite(id: string): Promise<void> {
   const response = await apiClient.delete<SiteResponse>(`/wordpress/sites/${id}`);
   if (!response.data?.success) {
@@ -118,15 +129,18 @@ export async function testWordPressConnection(
   username: string,
   appPassword: string
 ): Promise<WordPressConnectionTestResult> {
-  const response = await apiClient.post<WordPressConnectionTestResult>(
-    '/wordpress/test-connection',
-    {
+  const client = getContractsClient();
+  const result = await client.wordpress.testConnection({
+    body: {
       siteUrl: siteUrl.trim(),
       username: username.trim(),
       appPassword: appPassword.trim(),
-    }
-  );
-  return response.data;
+    },
+  });
+  if (result.status !== 200) {
+    throw new Error(`Fehler beim Testen der WordPress-Verbindung (HTTP ${result.status})`);
+  }
+  return result.body as WordPressConnectionTestResult;
 }
 
 export async function publishToWordPress(
@@ -135,20 +149,31 @@ export async function publishToWordPress(
   content: string,
   status: string
 ): Promise<WordPressPublishResult> {
-  const response = await apiClient.post<
-    WordPressPublishResult & { success?: boolean; message?: string }
-  >('/wordpress/publish', {
-    siteId,
-    title,
-    content,
-    status,
+  const client = getContractsClient();
+  const result = await client.wordpress.publishPost({
+    body: {
+      siteId,
+      title,
+      content,
+      // Contract schema: z.enum(['draft', 'publish', 'pending']).nullish()
+      // Caller is responsible for passing a valid value; cast required because
+      // the function signature accepts `string` for backward compatibility.
+      status: status as 'draft' | 'publish' | 'pending',
+    },
   });
-  if (response.data?.success) {
-    return response.data;
+  if (result.status !== 200) {
+    throw new Error(`Fehler beim Veröffentlichen (HTTP ${result.status})`);
   }
-  throw new Error(response.data?.message ?? 'Fehler beim Veröffentlichen');
+  return {
+    success: result.body.success,
+    postId: (result.body.postId as number | null) ?? null,
+    editUrl: result.body.editUrl ?? null,
+    viewUrl: result.body.viewUrl ?? null,
+    status: result.body.status ?? null,
+  };
 }
 
+// NOT in contract — stays on raw apiClient
 export async function fetchWordPressPosts(
   siteId: string,
   params?: { status?: string; search?: string; per_page?: number; page?: number }
@@ -168,6 +193,7 @@ export async function fetchWordPressPosts(
   throw new Error(response.data?.message ?? 'Fehler beim Laden der Beiträge');
 }
 
+// NOT in contract — stays on raw apiClient
 export async function fetchWordPressCategories(siteId: string): Promise<WordPressCategory[]> {
   const response = await apiClient.get<CategoriesResponse>(`/wordpress/sites/${siteId}/categories`);
   if (response.data?.success) {
