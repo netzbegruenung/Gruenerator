@@ -7,7 +7,6 @@
 
 import fs from 'fs';
 
-import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('regolo-transcription');
@@ -42,7 +41,10 @@ async function transcribeWithRegolo(
   requestWordTimestamps: boolean = false,
   _uploadId: string | null = null
 ): Promise<TranscriptionResult> {
-  const apiKey = env.REGOLO_API_KEY;
+  // Read from process.env at call time so runtime env changes (and tests that
+  // unset the variable) take effect — the parsed `env` module is cached at
+  // import time and would otherwise retain a stale value.
+  const apiKey = process.env.REGOLO_API_KEY;
   if (!apiKey) {
     throw new Error('REGOLO_API_KEY is not configured');
   }

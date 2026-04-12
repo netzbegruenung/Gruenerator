@@ -43,10 +43,16 @@ router.post(
         return res.status(401).json({ error: 'User not authenticated' });
       }
 
+      if (typeof content !== 'string' || content.length === 0) {
+        return res.status(400).json({ error: 'Content is required' });
+      }
+
       // Convert markdown to HTML if content looks like markdown (not HTML)
       const isLikelyMarkdown =
         !content.trim().startsWith('<') && /\*\*|^#{1,3}\s|^[-*+]\s/m.test(content);
-      const htmlContent = isLikelyMarkdown ? new MarkdownService().markdownToHtml(content) : content;
+      const htmlContent = isLikelyMarkdown
+        ? new MarkdownService().markdownToHtml(content)
+        : content;
 
       let sanitizedContent: string;
       try {
