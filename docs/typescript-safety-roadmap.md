@@ -126,16 +126,36 @@ Also fixed in this phase:
 - [x] `apps/api` `import-x/order`: 94 → **3** warnings (edge cases, rule at `warn`)
 - [x] `apps/mobile` `no-explicit-any`: 2 errors → **0**
 
-### 3.7 Remaining `warn`-level rules (TODO)
+### 3.7 Promote `no-floating-promises` to error [DONE]
+**Completed 2026-04-12.** 300 violations → **0**, rule promoted from `warn` to `error` in shared base config.
+
+| Rule | Before | After | Status |
+|------|--------|-------|--------|
+| `no-floating-promises` (web) | 230 | **0** | **error** |
+| `no-floating-promises` (mobile) | 70 | **0** | **error** |
+| `no-floating-promises` (api) | 0 | 0 | **error** |
+| **Total fixed** | **300** | **0** | |
+
+**Fix patterns** (mostly mechanical `void` prefix):
+- `void queryClient.invalidateQueries({...})` in TanStack mutation callbacks
+- `void navigate('/path')` / `void router.push('/path')` in event handlers
+- `void fetchData()` in `useEffect` / `useFocusEffect`
+- `void navigator.clipboard.writeText(...)` for DOM API promises
+- `void SplashScreen.preventAutoHideAsync()` at Expo module level
+- `void import('sonner').then(...)` for dynamic imports
+
+**Unexpected bonus**: 3 `switch-exhaustiveness-check` errors discovered while committing mobile changes (agent's `void` autofix exposed them) — fixed in same commit (`gallery.tsx` case `'all'`, `ProjectList.tsx` case `undefined`).
+
+### 3.8 Remaining `warn`-level rules (lower priority)
 
 | Rule | api | web | mobile | packages | Total | Safety impact |
 |------|-----|-----|--------|----------|-------|--------------|
-| `no-floating-promises` | 0 | 230 | 73 | 1 | **304** | **Critical** — crashes Node |
 | `no-unused-vars` | 0 | 224 | 52 | 8 | **284** | Low (hygiene) |
+| `switch-exhaustiveness-check` | 0 | 4 | 6 | 1 | **11** | Medium |
 | `no-case-declarations` | 0 | 7 | 0 | 8 | **15** | Medium |
 | `import-x/order` | 3 | 25 | 0 | 1 | **29** | None (style) |
 
-**Priority**: `no-floating-promises` is the single highest-ROI safety item remaining. Unhandled promise rejections crash Node.js processes in production.
+**Priority**: With `no-floating-promises` done, all critical safety rules are at `error`. Remaining items are hygiene/style — fix opportunistically when touching files.
 
 ## Phase 4: Advanced (Long-term)
 
@@ -197,26 +217,32 @@ Pilot complete. Next steps:
 - Add TanStack Query wrappers (`useQuery`/`useMutation`) around the typed client calls
 - Migrate remaining ~70 routes to contracts opportunistically when touching files
 
-### Priority 2: Branded types adoption (Phase 4.2)
-`Brand<T, B>` utility + 9 ID types already exist. Adopt in route handlers to prevent ID mixups.
+### Priority 2: External API response validation (Phase 4.3) [IN PROGRESS]
+**Started 2026-04-12.** Zod schemas for external API responses. Currently typed via `axios.get<T>()` (compile-time only) — Zod `.parse()` adds runtime validation at the boundary.
 
-### Priority 3: External API response validation (Phase 4.3)
-Zod schemas for WordPress, Qdrant, Nextcloud API responses. Currently typed via `axios.get<T>()` (compile-time only) — Zod adds runtime validation.
+**Batch 1 (in progress)**: WordPress + Nextcloud — high traffic + data-loss risk
+**Batch 2 (in progress)**: Google Drive + Microsoft Graph + OParl — auth-adjacent + municipal data
+**Not yet**: Atlassian, Bluesky, Keycloak, WebDAV
+
+Pattern: `const data = schema.parse(response.data)` replaces `axios.get<T>()`. Schemas go in `apps/api/services/api-clients/schemas/<service>.ts`.
+
+### Priority 3: Branded types adoption (Phase 4.2)
+`Brand<T, B>` utility + 9 ID types already exist. Adopt `fromParam<UserId>()` etc. in ~217 route handlers to prevent ID mixups. Low urgency unless ID-confusion bugs occur.
 
 ### Deferred (do opportunistically)
 - Remaining ~50 `validateBody` routes (0 violations, migrate when touching)
 - Remaining `PendingRequest` / `RedisClient` type unification (low impact)
 
-## Phase 5: Frontend + Mobile Safety (Future)
+## Phase 5: Frontend + Mobile Safety [DONE 2026-04-12]
 
-### 5.1 Fix web `no-unsafe-*` violations (~1,224 errors → 0)
-Currently at `warn` in `apps/web/eslint.config.js`. Fix violations then remove override.
+### 5.1 Fix web `no-unsafe-*` violations [DONE]
+**1,214 errors → 0.** Three Sonnet agents in parallel, organized by file heat (top 5 / 25 / long tail). See Phase 3.1 table for final metrics. Warn override removed from `apps/web/eslint.config.js`.
 
-### 5.2 Fix mobile `no-unsafe-*` violations (~207 errors → 0)
-Currently at `warn` in `apps/mobile/eslint.config.js`. Fix violations then remove override.
+### 5.2 Fix mobile `no-unsafe-*` violations [DONE]
+**180 errors → 0.** One Sonnet agent covering 26 files. Warn override removed from `apps/mobile/eslint.config.js`.
 
-### 5.3 Promote `no-floating-promises` to `error`
-304 violations across web (230), mobile (73), packages (1). Highest remaining safety value — unhandled rejections crash Node.
+### 5.3 Promote `no-floating-promises` to `error` [DONE]
+**300 violations → 0.** Three parallel agents (web big, web small, mobile). See Phase 3.7 for details.
 
 ## Acceleration Principles (2026-04-11)
 
@@ -227,29 +253,32 @@ Currently at `warn` in `apps/mobile/eslint.config.js`. Fix violations then remov
 5. **Ratchet, don't re-count.** CI thresholds that only go down prevent regression without manual audits. Add a cast-count CI script.
 6. **Scope honestly.** Phase 3 achieved 0 violations in api/services/packages, but web (1,224) and mobile (207) still have `warn` overrides. Don't mark "DONE" until the monorepo is clean.
 
-## Metrics (verified 2026-04-11)
+## Metrics (verified 2026-04-12)
 
-| Metric | Before | After Phase 3 (api) | Current (all packages) | Target |
-|--------|--------|---------------------|----------------------|--------|
-| `no-explicit-any` lint errors | ~200 (warn) | **0** (error) | **0** (api+services+packages) | 0 monorepo |
-| `eslint-disable no-explicit-any` | 0 | 22 (api) | **22** (api) / **70** (web+packages) | ~22 (library only) |
-| `as unknown as X` casts | 241 | 37 | **84** (api) / **205** (repo) | ratchet down |
+| Metric | Before | Apr-11 | Current (Apr-12) | Target |
+|--------|--------|--------|------------------|--------|
+| `no-explicit-any` lint errors | ~200 (warn) | **0** (error) | **0** | 0 |
 | `no-unsafe-*` violations (api) | 1,577 | **0** (error) | **0** | 0 |
-| `no-unsafe-*` violations (web) | — | — | **1,224** (warn override) | 0 |
-| `no-unsafe-*` violations (mobile) | — | — | **207** (warn override) | 0 |
-| `no-unsafe-*` violations (packages) | — | — | **0** (error) | 0 |
-| `no-floating-promises` | — | — | **304** (warn) | 0 (error) |
-| `no-unused-vars` (api) | ~120 | **0** | **0** | 0 |
-| `import-x/order` (api) | ~94 | **3** | **3** (edge cases) | 0 |
-| `exactOptionalPropertyTypes` | disabled | **enabled (0 errors)** | enabled | enabled |
+| `no-unsafe-*` violations (web) | — | 1,224 (warn) | **0** (error) | 0 |
+| `no-unsafe-*` violations (mobile) | — | 207 (warn) | **0** (error) | 0 |
+| `no-unsafe-*` violations (packages) | — | 0 (error) | **0** | 0 |
+| `no-floating-promises` (web) | — | 230 (warn) | **0** (error) | 0 |
+| `no-floating-promises` (mobile) | — | 70 (warn) | **0** (error) | 0 |
+| `no-floating-promises` (api) | — | 0 (warn) | **0** (error) | 0 |
+| `eslint-disable no-explicit-any` | 0 | 22 api / 70 repo | ~same | ~22 (library only) |
+| `as unknown as X` casts | 241 | 84 api / 205 repo | ~same | ratchet down |
+| `exactOptionalPropertyTypes` | disabled | **enabled** | enabled | enabled |
 | Duplicate type definitions | ~20 | **0** | 0 | 0 |
-| Drizzle schema tables | 0 | **~20** | ~20 | all |
-| Typecheck errors | 3 | **0** | 0 | 0 |
-| `validateBody` routes | 0 | **~75** | ~75 | opportunistic |
-| ts-rest contracts | 0 | 0 | **4** (pilot: threads, exports, recentValues, search) | all |
-| `parseJSON<T>()` adoption | — | **10 files** | 10 files | all JSON.parse sites |
+| Drizzle schema tables | 0 | ~20 | ~20 | all |
+| Typecheck errors (all packages) | 3 | **0** | 0 | 0 |
+| `validateBody` routes | 0 | ~75 | ~75 | opportunistic |
+| ts-rest contracts | 0 | 4 (pilot) | **4 + mounted** | all (~75 target) |
+| External API Zod schemas | 0 | 0 | **WordPress (5) + in-progress** | all 8 clients |
+| `parseJSON<T>()` adoption | — | 10 files | 10 files | all JSON.parse sites |
 
-**Note on cast regression:** `as unknown as` grew from ~37 (Phase 2 end) to 84 (api) / 205 (repo) due to new features added without cast discipline. Phase 4 should add a CI ratchet script to prevent further regression.
+**🎉 Phase 3 complete**: All safety-critical ESLint rules (`no-unsafe-*`, `no-floating-promises`, `no-explicit-any`, `exactOptionalPropertyTypes`) are now at `error` level across the **entire monorepo**. The `warn` override era is over.
+
+**Note on cast regression:** `as unknown as` grew from ~37 (Phase 2 end) to 84 (api) / 205 (repo) due to new features added without cast discipline. Ratchet CI script (`scripts/type-safety-ratchet.sh`) prevents further regression.
 
 ## Principles
 
