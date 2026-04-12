@@ -24,7 +24,6 @@ import {
 import {
   extractLocaleFromRequest,
   localizePlaceholders,
-  type RequestWithLocale,
 } from '../../services/localization/index.js';
 import {
   validateAndInjectCitations,
@@ -531,7 +530,7 @@ export async function streamDeepSearch(req: AuthenticatedRequest, res: Response)
     const referencesMap = buildReferencesMap(deduplicatedSources);
     const refsSummary = summarizeReferencesForPrompt(referencesMap);
 
-    const locale = extractLocaleFromRequest(state.req as unknown as RequestWithLocale);
+    const locale = extractLocaleFromRequest(state.req);
     const systemPromptBase = localizePlaceholders(buildDossierSystemPrompt(), locale);
     const filteredData = filterDataForAI(
       state.webResults,

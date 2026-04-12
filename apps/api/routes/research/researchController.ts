@@ -117,7 +117,6 @@ function highlightSnippet(text: string, query: string, limit: number = SNIPPET_M
 interface TaggedDocumentResult extends DocumentResult {
   collection_id: string;
   collection_name: string;
-  published_at?: string | null;
 }
 
 type SearchMode = 'hybrid' | 'vector' | 'text';
@@ -399,8 +398,7 @@ router.post('/search', async (req: Request, res: Response): Promise<void> => {
             ...doc,
             collection_id: collectionId,
             collection_name: config.name,
-            published_at:
-              ((doc as unknown as Record<string, unknown>).published_at as string) ?? null,
+            published_at: doc.published_at ?? null,
           }));
         } catch (error: unknown) {
           log.error(

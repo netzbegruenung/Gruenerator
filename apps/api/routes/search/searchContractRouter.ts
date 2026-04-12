@@ -28,14 +28,16 @@ import type {
   NormalSearchOutput,
   SearchOptions,
 } from '../../agents/langgraph/WebSearchGraph/types.js';
-import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { Application } from 'express';
 
 const log = createLogger('searchContract');
 
 const s = initServer();
 
-function getUserId(req: AuthenticatedRequest): string {
+// Explicit `| undefined` on optional fields is required by exactOptionalPropertyTypes.
+function getUserId(req: {
+  user?: { id?: string | undefined; keycloak_id?: string | undefined } | undefined;
+}): string {
   return req.user?.id || req.user?.keycloak_id || 'anonymous';
 }
 
@@ -108,7 +110,7 @@ export const searchContractRouter = s.router(searchContract, {
         };
       }
 
-      const userId = getUserId(req as unknown as AuthenticatedRequest);
+      const userId = getUserId(req);
       log.debug(
         `[Search Contract] Normal search: "${trimmedQuery}" (userId: ${userId}, summary: ${includeSummary})`
       );
