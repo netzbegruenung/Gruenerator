@@ -17,6 +17,10 @@ export {
   exportsContract,
   recentValuesContract,
   searchContract,
+  chatGraphContract,
+  boardsContract,
+  sharesContract,
+  userProfileContract,
 } from './contracts/index.js';
 
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
@@ -24,3 +28,7 @@ export * from './schemas/threads.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';
 export * from './schemas/search.js';
+export * from './schemas/chatGraph.js';
+export * from './schemas/boards.js';
+export * from './schemas/shares.js';
+export * from './schemas/userProfile.js';
