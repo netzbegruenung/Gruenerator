@@ -462,12 +462,7 @@ async function generateFinalResult({
   };
 
   // Apply document enrichment
-  // Note: enrichRequest returns EnrichedState which has a different document format,
-  // but we only use the knowledge array from it, so the cast is safe
-  const enrichedContext = (await enrichRequest(
-    enrichmentRequest,
-    {}
-  )) as unknown as EnrichedContext;
+  const enrichedContext = await enrichRequest(enrichmentRequest, {});
 
   // Build knowledge array
   const knowledgeItems: string[] = [];
@@ -488,21 +483,15 @@ async function generateFinalResult({
 
   console.log(`[SimpleInteractiveGenerator] Knowledge items: ${knowledgeItems.length}`);
 
-  // Prepare prompt context (cast locale to Locale type)
+  // Prepare prompt context
   const promptContext: PromptContext = {
     systemRole,
     request: { inhalt, requestType, locale: locale as Locale },
-    documents: (enrichedContext?.documents || []) as PromptContext['documents'],
     knowledge: knowledgeItems,
     locale: locale as Locale,
   };
 
-  // PromptContext is structurally compatible with PromptAssemblyState for the fields
-  // used by assemblePromptGraphAsync (systemRole, request, documents, knowledge, locale).
-  // The document type mismatch is intentional — both shapes are handled at runtime.
-  const assembledPrompt = (await assemblePromptGraphAsync(
-    promptContext as unknown as Parameters<typeof assemblePromptGraphAsync>[0]
-  )) as unknown as AssembledPromptResult;
+  const assembledPrompt = await assemblePromptGraphAsync(promptContext);
 
   // Generate final text (convert ClaudeMessage[] to simple format)
   const simpleMessages = assembledPrompt.messages.map((msg) => ({
@@ -529,7 +518,7 @@ async function generateFinalResult({
         temperature: config.options?.temperature || 0.3,
         ...(assembledPrompt.tools?.length &&
           assembledPrompt.tools.length > 0 && {
-            tools: assembledPrompt.tools as unknown as Tool[],
+            tools: assembledPrompt.tools,
           }),
       },
     } as AIRequestData,

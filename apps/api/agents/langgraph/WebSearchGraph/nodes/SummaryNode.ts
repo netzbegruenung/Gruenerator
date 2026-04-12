@@ -15,7 +15,7 @@ import type { WebSearchState } from '../types.js';
  */
 export async function summaryNode(state: WebSearchState): Promise<Partial<WebSearchState>> {
   if (state.mode !== 'normal') {
-    return { summary: undefined };
+    return {};
   }
 
   console.log('[WebSearchGraph] Generating intelligent summary with enriched results');

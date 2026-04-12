@@ -19,6 +19,7 @@ import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
+import { toIsoString } from '../../utils/toIsoString.js';
 
 import { getThreadSettings, updateThreadSettings } from './services/threadPersistenceService.js';
 
@@ -100,17 +101,17 @@ export const threadsContractRouter = s.router(threadsContract, {
         status: (row.status as string) || 'regular',
         threadType: (row.thread_type as string) || 'chat',
         notebookCollectionId: (row.notebook_collection_id as string) || null,
-        createdAt: row.created_at as Date,
-        updatedAt: row.updated_at as Date,
+        createdAt: row.created_at as Date | string,
+        updatedAt: row.updated_at as Date | string,
         user_id: row.user_id as string,
         agent_id: row.agent_id as string,
-        created_at: row.created_at as Date,
-        updated_at: row.updated_at as Date,
+        created_at: row.created_at as Date | string,
+        updated_at: row.updated_at as Date | string,
         lastMessage: row.last_msg_content
           ? {
               content: row.last_msg_content as string,
               role: row.last_msg_role as string,
-              created_at: row.last_msg_created_at as Date,
+              created_at: row.last_msg_created_at as Date | string,
             }
           : null,
       }));
@@ -124,22 +125,13 @@ export const threadsContractRouter = s.router(threadsContract, {
         status: t.status,
         threadType: t.threadType,
         notebookCollectionId: t.notebookCollectionId ?? null,
-        createdAt: (t.createdAt instanceof Date
-          ? t.createdAt
-          : new Date(t.createdAt as unknown as string)
-        ).toISOString(),
-        updatedAt: (t.updatedAt instanceof Date
-          ? t.updatedAt
-          : new Date(t.updatedAt as unknown as string)
-        ).toISOString(),
+        createdAt: toIsoString(t.createdAt),
+        updatedAt: toIsoString(t.updatedAt),
         lastMessage: t.lastMessage
           ? {
               content: t.lastMessage.content,
               role: t.lastMessage.role,
-              created_at: (t.lastMessage.created_at instanceof Date
-                ? t.lastMessage.created_at
-                : new Date(t.lastMessage.created_at as unknown as string)
-              ).toISOString(),
+              created_at: toIsoString(t.lastMessage.created_at),
             }
           : null,
       }));

@@ -60,7 +60,7 @@ type ProcessRequestBody = z.infer<typeof processRequestSchema>;
 
 const exportBodySchema = z.object({
   uploadId: z.string().optional(),
-  subtitles: z.union([z.array(z.unknown()), z.string()]).optional(),
+  subtitles: z.union([z.array(z.record(z.unknown())), z.string()]).optional(),
   subtitlePreference: z.string().optional(),
   stylePreference: z.string().optional(),
   heightPreference: z.string().optional(),
@@ -82,24 +82,22 @@ const subtitleConfigSchema = z.object({
   stylePreference: z.string().optional(),
   heightPreference: z.string().optional(),
   locale: z.string().optional(),
-  segments: z
-    .array(
-      z.object({
-        text: z.string(),
-        start: z.number(),
-        end: z.number(),
-        words: z
-          .array(
-            z.object({
-              word: z.string(),
-              start: z.number(),
-              end: z.number(),
-            })
-          )
-          .optional(),
-      })
-    )
-    .optional(),
+  segments: z.array(
+    z.object({
+      text: z.string(),
+      startTime: z.number(),
+      endTime: z.number(),
+      words: z
+        .array(
+          z.object({
+            word: z.string(),
+            start: z.number(),
+            end: z.number(),
+          })
+        )
+        .optional(),
+    })
+  ),
 });
 
 const exportSegmentsRequestSchema = z.object({
@@ -507,7 +505,7 @@ router.post(
       );
       let segments: { startTime: number; endTime: number; text: string }[];
       if (Array.isArray(subtitles)) {
-        segments = (subtitles as unknown as Array<Record<string, unknown>>)
+        segments = subtitles
           .map((s) => ({
             startTime: Number(s['start'] ?? s['startTime'] ?? 0),
             endTime: Number(s['end'] ?? s['endTime'] ?? 0),
@@ -657,12 +655,9 @@ router.post(
       const resolvedProjectId = projectId || uploadId;
       const result =
         includeSubtitles && subtitleConfig
-          ? await svc.exportWithSegmentsAndSubtitles(
-              videoPath,
-              segments,
-              subtitleConfig as unknown as Parameters<typeof svc.exportWithSegmentsAndSubtitles>[2],
-              { ...(resolvedProjectId != null && { projectId: resolvedProjectId }) }
-            )
+          ? await svc.exportWithSegmentsAndSubtitles(videoPath, segments, subtitleConfig, {
+              ...(resolvedProjectId != null && { projectId: resolvedProjectId }),
+            })
           : await svc.exportWithSegments(videoPath, segments, {
               ...(resolvedProjectId != null && { projectId: resolvedProjectId }),
             });
@@ -714,12 +709,8 @@ router.post(
                 originalVideoPath: videoPath,
                 uploadId,
                 originalFilename,
-                segments: result.segments as unknown as Parameters<
-                  typeof autoSaveProject
-                >[0]['segments'],
-                metadata: result.metadata as unknown as Parameters<
-                  typeof autoSaveProject
-                >[0]['metadata'],
+                segments: result.segments,
+                metadata: result.metadata,
                 stylePreference: 'shadow',
                 heightPreference: 'tief',
                 subtitlePreference: 'manual',

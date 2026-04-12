@@ -148,8 +148,12 @@ export interface SearchMetadata {
 }
 
 /**
- * Main search state for LangGraph
- * This matches the Annotation.Root structure in the original file
+ * Main search state for LangGraph.
+ * Fields mirror the Annotation.Root in WebSearchGraph.ts exactly:
+ * - required fields (no default reducer) are non-optional
+ * - all Annotation<T | null> fields are T | null (not undefined) so that
+ *   node signatures match typeof SearchState.State and no casts are needed
+ *   in addNode() calls.
  */
 export interface WebSearchState {
   // Input parameters
@@ -160,30 +164,30 @@ export interface WebSearchState {
   aiWorkerPool: AIWorkerPool;
   req: Request;
 
-  // Intermediate state
-  subqueries?: string[] | undefined;
-  webResults?: WebSearchBatch[] | undefined;
-  grundsatzResults?: GrundsatzResult | null | undefined;
-  aggregatedResults?: SearchResult[] | undefined;
-  categorizedSources?: CategorizedSources | undefined;
+  // Intermediate state — Annotation<T | null> → T | null
+  subqueries: string[] | null;
+  webResults: WebSearchBatch[] | null;
+  grundsatzResults: GrundsatzResult | null;
+  aggregatedResults: SearchResult[] | null;
+  categorizedSources: CategorizedSources;
 
-  // Citation support
-  referencesMap?: ReferencesMap | undefined;
-  citations?: Citation[] | undefined;
-  citationSources?: Source[] | undefined;
+  // Citation support — Annotation<T | null> → T | null
+  referencesMap: ReferencesMap | null;
+  citations: Citation[] | null;
+  citationSources: Source[] | null;
 
-  // Intelligent crawling support
-  crawlDecisions?: CrawlDecision[] | undefined;
-  enrichedResults?: EnrichedResult[] | undefined;
-  crawlMetadata?: CrawlMetadata | undefined;
+  // Intelligent crawling support — Annotation<T | null> → T | null
+  crawlDecisions: CrawlDecision[] | null;
+  enrichedResults: EnrichedResult[] | null;
+  crawlMetadata: CrawlMetadata;
 
-  // Output
-  finalResults?: SearchResult[] | undefined;
-  summary?: string | undefined;
-  dossier?: ResearchDossier | null | undefined;
+  // Output — Annotation<T | null> → T | null
+  finalResults: SearchResult[] | null;
+  summary: string | null;
+  dossier: ResearchDossier | null;
   metadata: SearchMetadata;
-  success?: boolean | undefined;
-  error?: string | undefined;
+  success: boolean | null;
+  error: string | null;
 }
 
 /**

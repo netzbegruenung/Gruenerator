@@ -308,7 +308,9 @@ async function generateEditImage(
 
   let imageAttachment: ImageAttachment | null = null;
   if (sharepicImageManager && requestId) {
-    imageAttachment = (await sharepicImageManager.retrieveAndConsume(requestId)) as ImageAttachment | null;
+    imageAttachment = (await sharepicImageManager.retrieveAndConsume(
+      requestId
+    )) as ImageAttachment | null;
   }
 
   if (!imageAttachment && requestBody.attachments) {
@@ -465,4 +467,4 @@ async function saveGeneratedImage(buffer: Buffer, mode: string): Promise<string>
 }
 
 export { generateImagineForChat };
-export type { GenerationResult, RequestBody, UsageStatus };
+export type { GenerationResult, RequestBody, ExpressRequest, UsageStatus };
