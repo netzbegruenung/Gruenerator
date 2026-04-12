@@ -78,7 +78,7 @@ class BridgedWebSocket {
       .then(() => {
         this.readyState = BridgedWebSocket.OPEN;
         this.emit('open', new Event('open'));
-        this.receiveLoop();
+        void this.receiveLoop();
       })
       .catch(() => {
         this.readyState = BridgedWebSocket.CLOSED;
@@ -132,14 +132,14 @@ class BridgedWebSocket {
     } else {
       return;
     }
-    this.bridge.wsSend(b64);
+    void this.bridge.wsSend(b64);
   }
 
   close(_code?: number, _reason?: string) {
     if (this.closed) return;
     this.closed = true;
     this.readyState = BridgedWebSocket.CLOSING;
-    this.bridge.wsClose().then(() => {
+    void this.bridge.wsClose().then(() => {
       this.readyState = BridgedWebSocket.CLOSED;
     });
   }
@@ -328,7 +328,7 @@ function EditorContent({
         const styles = ed.getActiveStyles();
         const cursor = ed.getTextCursorPosition();
         const selectedText = ed.getSelectedText();
-        onActiveStylesChangeRef.current!(
+        void onActiveStylesChangeRef.current!(
           JSON.stringify({
             hasSelection: selectedText.length > 0,
             ...styles,
@@ -400,26 +400,26 @@ function EditorContent({
 
   // Bridge chat messages to native — only re-fire when messages change, not callback identity
   useEffect(() => {
-    onChatMessagesChangeRef.current(JSON.stringify(messages));
+    void onChatMessagesChangeRef.current(JSON.stringify(messages));
   }, [messages]);
 
   // Bridge typing users to native
   useEffect(() => {
-    onTypingUsersChangeRef.current(JSON.stringify(typingUsers));
+    void onTypingUsersChangeRef.current(JSON.stringify(typingUsers));
   }, [typingUsers]);
 
   // Bridge local user ID to native
   useEffect(() => {
     const localUser = getLocalUser();
     if (localUser?.id) {
-      onLocalUserIdChangeRef.current(localUser.id);
+      void onLocalUserIdChangeRef.current(localUser.id);
     }
   }, [getLocalUser, isSynced]);
 
   // Report connection status back to native
   useEffect(() => {
     const status = !isConnected ? 'disconnected' : !isSynced ? 'syncing' : 'connected';
-    onConnectionStatusChangeRef.current(status);
+    void onConnectionStatusChangeRef.current(status);
   }, [isConnected, isSynced]);
 
   // Set theme attribute for CSS variables

@@ -36,7 +36,7 @@ export default function AuthCallback() {
         router.replace('/(auth)/login');
       }
     }
-    processCallback();
+    void processCallback();
   }, [code]);
 
   return (

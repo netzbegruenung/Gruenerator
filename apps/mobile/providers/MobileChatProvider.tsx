@@ -22,7 +22,7 @@ function ThreadSetup({ threadId }: { threadId?: string | null }) {
     if (threadId && threadId !== 'new') {
       useAgentStore.getState().setCurrentThread(threadId);
       const apiClient = getMobileChatApiClient();
-      loadCompactionState(threadId, apiClient);
+      void loadCompactionState(threadId, apiClient);
     } else {
       useAgentStore.getState().setCurrentThread(null);
     }

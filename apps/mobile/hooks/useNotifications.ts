@@ -32,8 +32,8 @@ export function useUnreadCount() {
   }, []);
 
   useEffect(() => {
-    fetch();
-    timerRef.current = setInterval(fetch, POLL_INTERVAL);
+    void fetch();
+    timerRef.current = setInterval(() => void fetch(), POLL_INTERVAL);
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
@@ -84,7 +84,7 @@ export function useNotifications() {
   }, [fetchPage, notifications.length, isLoadingMore, hasMore]);
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, [refresh]);
 
   const markAsRead = useCallback(async (id: string) => {

@@ -129,7 +129,7 @@ export function useSubtitleExport(saveChanges: () => Promise<boolean>) {
               const videoUri = await reelApi.downloadExportedVideo(exportToken);
               if (isMountedRef.current) {
                 setState({ status: 'complete', progress: 100, videoUri, error: null });
-                Notifications.scheduleNotificationAsync({
+                void Notifications.scheduleNotificationAsync({
                   content: {
                     title: 'Export fertig',
                     body: 'Dein Video wurde erfolgreich exportiert.',
@@ -166,8 +166,8 @@ export function useSubtitleExport(saveChanges: () => Promise<boolean>) {
         }
       };
 
-      pollFn();
-      pollingRef.current = setInterval(pollFn, 2000);
+      void pollFn();
+      pollingRef.current = setInterval(() => void pollFn(), 2000);
     } catch (err) {
       if (isMountedRef.current) {
         setState({

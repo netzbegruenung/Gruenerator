@@ -73,7 +73,7 @@ function InhalteSection() {
   const combinedContent = getCombinedContent();
 
   useEffect(() => {
-    fetchContent();
+    void fetchContent();
   }, [fetchContent]);
 
   const handleDelete = useCallback(

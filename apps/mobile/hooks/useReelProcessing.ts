@@ -176,10 +176,10 @@ export function useReelProcessing() {
         clearInterval(pollingRef.current);
       }
 
-      pollProgress(uploadId);
+      void pollProgress(uploadId);
 
       pollingRef.current = setInterval(() => {
-        pollProgress(uploadId);
+        void pollProgress(uploadId);
       }, 2000);
     },
     [pollProgress]
@@ -261,10 +261,10 @@ export function useReelProcessing() {
         clearInterval(pollingRef.current);
       }
 
-      pollManualResult(uploadId);
+      void pollManualResult(uploadId);
 
       pollingRef.current = setInterval(() => {
-        pollManualResult(uploadId);
+        void pollManualResult(uploadId);
       }, 2000);
     },
     [pollManualResult]

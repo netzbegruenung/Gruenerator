@@ -259,7 +259,7 @@ export function useSubtitleEditor({ player, timelineRef }: UseSubtitleEditorOpti
 
         useSubtitleEditorStore.getState().setProjectId(newProject.id);
 
-        useProjectsStore.getState().fetchProjects();
+        void useProjectsStore.getState().fetchProjects();
       } else {
         await updateProject(projectId, {
           subtitles: subtitlesText,

@@ -12,7 +12,7 @@ interface UnsplashAttributionProps {
 export function UnsplashAttribution({ attribution, compact = false }: UnsplashAttributionProps) {
   const handlePress = () => {
     if (attribution.profileUrl) {
-      Linking.openURL(attribution.profileUrl);
+      void Linking.openURL(attribution.profileUrl);
     }
   };
 

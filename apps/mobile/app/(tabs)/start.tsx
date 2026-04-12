@@ -136,7 +136,7 @@ export default function StartScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchBoards();
+      void fetchBoards();
     }, [fetchBoards])
   );
 

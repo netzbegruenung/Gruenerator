@@ -65,7 +65,7 @@ export function UnsplashSearchTab({ onImageSelected }: UnsplashSearchTabProps) {
   const debouncedSearch = useDebouncedCallback((...args: unknown[]) => {
     const query = args[0] as string;
     if (query.trim()) {
-      searchUnsplash(query);
+      void searchUnsplash(query);
     } else {
       clearSearch();
     }
@@ -102,7 +102,7 @@ export function UnsplashSearchTab({ onImageSelected }: UnsplashSearchTabProps) {
       return (
         <Pressable
           style={[styles.imageItem, isSelected && styles.imageItemSelected]}
-          onPress={() => handleImagePress(item)}
+          onPress={() => void handleImagePress(item)}
           disabled={loadingImage !== null}
         >
           <Image source={{ uri: item.url }} style={styles.thumbnail} contentFit="cover" />
