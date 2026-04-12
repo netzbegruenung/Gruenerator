@@ -31,6 +31,7 @@ import {
 } from './routes/internal/index.js';
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
 import { monitorRouter, monitorInternalRouter } from './routes/monitor/index.js';
+import { mountNotebookContractRouter } from './routes/notebook/notebookContractRouter.js';
 import notificationsRouter from './routes/notifications/index.js';
 import protokollRouter from './routes/protokoll/index.js';
 import { releasesRouter } from './routes/releases/index.js';
@@ -253,6 +254,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountUserProfileContractRouter(app);
   app.use('/api/auth', authenticatedReadLimiter, authRouter);
   app.use('/api/auth/notebook-collections', authenticatedReadLimiter, notebookCollectionsRouter);
+  // ts-rest contract router for notebook interaction — mounts BEFORE the
+  // legacy router so contract-modeled routes match first. Mixed auth: the
+  // contract checks req.user per-handler where needed (no requireAuth at
+  // the prefix, which would break the public/:token routes).
+  mountNotebookContractRouter(app);
   app.use('/api/auth/notebook', authenticatedReadLimiter, notebookInteractionRouter);
   // Public read endpoints — soft limiter prevents scraping
   app.use('/api/documents', publicReadLimiter, documentsRouter);
