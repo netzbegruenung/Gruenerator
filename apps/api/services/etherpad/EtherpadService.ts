@@ -7,6 +7,7 @@
 
 import axios, { type AxiosError } from 'axios';
 
+import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('etherpad');
@@ -116,7 +117,7 @@ export async function createPadWithText(options: CreatePadOptions): Promise<Crea
         validateStatus: (status) => status >= 200 && status < 400,
       });
 
-      if (process.env.NODE_ENV === 'development') {
+      if (env.NODE_ENV === 'development') {
         log.debug('ep_post_data response:', response.status);
       }
     } catch (err) {

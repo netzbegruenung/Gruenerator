@@ -18,6 +18,7 @@
 import { searchContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { env } from '../../config/env.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
@@ -145,7 +146,7 @@ export const searchContractRouter = s.router(searchContract, {
           error: 'Websuche fehlgeschlagen',
           metadata: { timestamp: new Date().toISOString(), searchType: 'normal' },
         };
-        if (process.env.NODE_ENV === 'development' && searchResults.error != null) {
+        if (env.NODE_ENV === 'development' && searchResults.error != null) {
           errorBody.details = searchResults.error;
         }
         return { status: 500 as const, body: errorBody };
@@ -248,7 +249,7 @@ export const searchContractRouter = s.router(searchContract, {
           searchType: 'normal',
         },
       };
-      if (process.env.NODE_ENV === 'development') {
+      if (env.NODE_ENV === 'development') {
         errorBody.details = (error as Error).message;
       }
       return { status: 500 as const, body: errorBody };
@@ -286,7 +287,7 @@ export const searchContractRouter = s.router(searchContract, {
         error: 'Service status check failed',
         timestamp: new Date().toISOString(),
       };
-      if (process.env.NODE_ENV === 'development') {
+      if (env.NODE_ENV === 'development') {
         body.details = (error as Error).message;
       }
       return { status: 503 as const, body };

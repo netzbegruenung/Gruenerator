@@ -4,6 +4,8 @@
  * instead of directly calling the DIP API
  */
 
+import { env } from '../../config/env.js';
+
 import type {
   PersonSearchParams,
   DrucksachenSearchParams,
@@ -11,8 +13,7 @@ import type {
   SearchResult,
 } from './types.js';
 
-const BUNDESTAG_MCP_URL =
-  process.env.BUNDESTAG_MCP_URL || 'https://bundestagapi.moritz-waechter.de';
+const BUNDESTAG_MCP_URL = env.BUNDESTAG_MCP_URL ?? 'https://bundestagapi.moritz-waechter.de';
 const REQUEST_TIMEOUT = 30000;
 
 /**
@@ -91,7 +92,7 @@ class BundestagMCPClient {
         throw new Error(`Bundestag MCP error: ${response.status}`);
       }
 
-      const result = await response.json() as MCPResponse;
+      const result = (await response.json()) as MCPResponse;
 
       if (result.error) {
         throw new Error(result.error.message || 'MCP tool call failed');

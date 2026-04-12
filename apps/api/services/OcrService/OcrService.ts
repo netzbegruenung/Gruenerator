@@ -7,6 +7,7 @@
 import { createRequire } from 'module';
 import path from 'path';
 
+import { env } from '../../config/env.js';
 import { vectorConfig } from '../../config/vectorConfig.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { getQdrantInstance } from '../../database/services/QdrantService.js';
@@ -190,11 +191,7 @@ export class OCRService {
   ): Promise<DocumentExtractionResult> {
     const startTime = Date.now();
     const fileExtension = path.extname(filePath).toLowerCase();
-    const configuredProvider = (
-      preferredProvider ||
-      process.env.OCR_PROVIDER ||
-      'mistral'
-    ).toLowerCase();
+    const configuredProvider = (preferredProvider || env.OCR_PROVIDER || 'mistral').toLowerCase();
     console.log(
       `[OCRService] Starting document text extraction (provider=${configuredProvider}): ${filePath} (${fileExtension})`
     );

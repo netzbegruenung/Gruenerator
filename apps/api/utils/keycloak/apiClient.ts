@@ -6,6 +6,7 @@
 import axios, { type AxiosInstance } from 'axios';
 import { z } from 'zod';
 
+import { env } from '../../config/env.js';
 import {
   keycloakTokenResponseSchema,
   keycloakUserSchema,
@@ -74,19 +75,19 @@ export class KeycloakApiClient {
   private axiosClient: AxiosInstance;
 
   constructor() {
-    this.baseUrl = process.env.KEYCLOAK_BASE_URL || 'https://auth.services.moritz-waechter.de';
-    this.realm = process.env.KEYCLOAK_REALM || 'Gruenerator';
+    this.baseUrl = env.KEYCLOAK_BASE_URL;
+    this.realm = env.KEYCLOAK_REALM;
 
     // Try client credentials first, fallback to admin username/password
-    const clientId = process.env.KEYCLOAK_CLIENT_ID;
-    const clientSecret = process.env.KEYCLOAK_CLIENT_SECRET;
-    const adminUsername = process.env.KEYCLOAK_ADMIN_USERNAME;
-    const adminPassword = process.env.KEYCLOAK_ADMIN_PASSWORD;
+    const clientId = env.KEYCLOAK_CLIENT_ID;
+    const clientSecret = env.KEYCLOAK_CLIENT_SECRET;
+    const adminUsername = env.KEYCLOAK_ADMIN_USERNAME;
+    const adminPassword = env.KEYCLOAK_ADMIN_PASSWORD;
     if (clientId != null) this.clientId = clientId;
     if (clientSecret != null) this.clientSecret = clientSecret;
     if (adminUsername != null) this.adminUsername = adminUsername;
     if (adminPassword != null) this.adminPassword = adminPassword;
-    this.adminClientId = process.env.KEYCLOAK_ADMIN_CLIENT_ID || 'admin-cli';
+    this.adminClientId = env.KEYCLOAK_ADMIN_CLIENT_ID ?? 'admin-cli';
 
     if (!this.clientId && !this.adminUsername) {
       console.warn(

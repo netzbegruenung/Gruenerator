@@ -7,6 +7,7 @@
 
 import fs from 'fs';
 
+import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('regolo-transcription');
@@ -41,7 +42,7 @@ async function transcribeWithRegolo(
   requestWordTimestamps: boolean = false,
   _uploadId: string | null = null
 ): Promise<TranscriptionResult> {
-  const apiKey = process.env.REGOLO_API_KEY;
+  const apiKey = env.REGOLO_API_KEY;
   if (!apiKey) {
     throw new Error('REGOLO_API_KEY is not configured');
   }
