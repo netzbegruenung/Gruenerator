@@ -260,11 +260,21 @@ Three production incidents in this session — all caused by adding contract rou
 | sharesContract | 6 | **Verified** |
 | userProfileContract | 11 | **Verified** |
 | exportsContract | 2 | **Verified** (mounted Apr 12) |
+| notebookContract | 5 | **Mounted** (Apr 12) — first mixed-auth contract (2 routes `req.user`, 3 public/token-gated) |
 | searchContract | 2 | Scaffolded but **NOT mounted** — pilot doesn't model SSE `?stream=true` mode the frontend depends on. Activate once streaming is added to the contract. |
 
-**Total**: **35 typed endpoints** served via ts-rest contracts (out of 126 candidates identified by codegen script).
+**Total**: **40 typed endpoints** served via ts-rest contracts (out of 126 candidates identified by codegen script).
 
-**All 8 routers (including the unmounted searchContract scaffold) use the shared `logContractValidationError` helper** so any future validation issue logs server-side with the exact failing field path. The era of "the contract returned 400 and we have no idea why" is over.
+**All 9 routers (including the unmounted searchContract scaffold) use the shared `logContractValidationError` helper** so any future validation issue logs server-side with the exact failing field path. The era of "the contract returned 400 and we have no idea why" is over.
+
+### Mixed-auth contract pattern (new 2026-04-12)
+
+The notebookContract introduced a pattern the checklist didn't previously cover: contracts where some routes need `req.user` and others don't. You cannot apply `requireAuth` middleware at the `/api/auth/notebook` prefix because it would break the public-token routes. Instead:
+
+1. **No prefix-level auth middleware.** Leave the path open for ts-rest.
+2. **Per-handler check via a local helper.** Define `requireAuthUser(req): { ok: true, userId } | { ok: false, response: {status: 401, body: {error}} }` at the top of the contract router. Auth'd handlers call it and early-return the 401 response on failure.
+3. **401 must be in the contract's `responses` map** for every auth'd route so ts-rest accepts the discriminated-union early return as a valid response variant.
+4. **QA/LLM response schemas avoid `.passthrough()`.** Services return strict interfaces (e.g. `QAResponse` with union-typed `metadata`) that don't have index signatures. `.passthrough()` adds `{ [k: string]: unknown }` to the inferred type and blocks assignment. Use plain `z.object({...})` and let Zod strip extras at serialize time; use `z.unknown()` (not `z.record(z.unknown())`) for fields whose concrete type is a strict union.
 
 **Frontend**: `useRecentValuesTyped` migrated in `SmartInput.tsx` + `RecentValuesDropdown.tsx`. `useBoardsTyped` added 2026-04-12 + `AIBoardCreator.tsx` migrated. `exportStore.ts` internals rewritten to use `client.exports.generatePdf/Docx` (consumers unchanged — pattern for migrating Zustand-wrapped axios calls without call-site churn). `useThreadsTyped` deferred: threads live in `packages/chat/` behind the `ChatApiClient` adapter; no `apps/web/src/` call site exists, so migration requires a chat-package adapter refactor.
 
@@ -401,7 +411,7 @@ Dev runners (tsx, vitest) pass `--conditions=development` and resolve to source.
 | `database/types.ts` raw row types | many | 2 holdouts | **0** (Phase 2.1 fully closed) | 0 |
 | Typecheck errors (all packages) | 3 | **0** | 0 | 0 |
 | `validateBody` routes | 0 | ~75 | ~75 | opportunistic |
-| ts-rest contracts | 0 | 4 (pilot) | **9 contracts / 7 mounted / 35+ endpoints** | all (~75 target) |
+| ts-rest contracts | 0 | 4 (pilot) | **10 contracts / 8 mounted / 40 endpoints** | all (~75 target) |
 | ts-rest frontend typed hooks | 0 | 1 (`useRecentValuesTyped`) | **2** (+`useBoardsTyped`; `exportStore.ts` internals typed) | all contract-consuming hooks |
 | External API Zod schemas | 0 | 0 | **WordPress (5) + in-progress** | all 8 clients |
 | `parseJSON<T>()` adoption | — | 10 files | 10 files | all JSON.parse sites |
