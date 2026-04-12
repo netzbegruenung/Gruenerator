@@ -261,11 +261,12 @@ Three production incidents in this session — all caused by adding contract rou
 | userProfileContract | 11 | **Verified** |
 | exportsContract | 2 | **Verified** (mounted Apr 12) |
 | notebookContract | 5 | **Mounted** (Apr 12) — first mixed-auth contract (2 routes `req.user`, 3 public/token-gated) |
+| notebookCollectionsContract | 10 | **Mounted** (Apr 12) — full CRUD surface (list/create/update/delete/share/sync/bulk/doc-remove/search). All uniformly `requireAuth`. Built in parallel with notebookContract in a single 4-stream session. |
 | searchContract | 2 | Scaffolded but **NOT mounted** — pilot doesn't model SSE `?stream=true` mode the frontend depends on. Activate once streaming is added to the contract. |
 
-**Total**: **40 typed endpoints** served via ts-rest contracts (out of 126 candidates identified by codegen script).
+**Total**: **50 typed endpoints** served via ts-rest contracts (out of 126 candidates identified by codegen script).
 
-**All 9 routers (including the unmounted searchContract scaffold) use the shared `logContractValidationError` helper** so any future validation issue logs server-side with the exact failing field path. The era of "the contract returned 400 and we have no idea why" is over.
+**All 10 routers (including the unmounted searchContract scaffold) use the shared `logContractValidationError` helper** so any future validation issue logs server-side with the exact failing field path. The era of "the contract returned 400 and we have no idea why" is over.
 
 ### Mixed-auth contract pattern (new 2026-04-12)
 
@@ -282,7 +283,7 @@ The notebookContract introduced a pattern the checklist didn't previously cover:
 
 **Binary response infrastructure**: `contractsClient.ts` gained `BINARY_RESPONSE_PATHS = Set<string>(['/api/exports/docx', '/api/exports/pdf'])`. The axiosFetcher passes `responseType: 'blob'` when path matches. Required because ts-rest has no way to declare response content-type in the contract — `binaryFileResponseSchema` is `z.unknown()`. Any new binary endpoint needs to be added to this set.
 
-**Known debt**: 23 `as unknown as AuthenticatedRequest` casts in contract routers. Will be eliminated by augmenting `Express.Request` with `user?: UserProfile` in `types/express.d.ts` (planned next session).
+**Resolved** (was: 23 `as unknown as AuthenticatedRequest` casts in contract routers) — eliminated on `refactor/typescript-safety` by augmenting `Express.Request` with `user?: UserProfile` in `types/express.d.ts`. Grep across `apps/api/` confirms 0 matches as of 2026-04-12.
 
 **Next**: use the codegen report to pick 5-10 more routes (search, exports, notebook, template) for the next batch.
 
@@ -311,6 +312,32 @@ The notebookContract introduced a pattern the checklist didn't previously cover:
 Zero runtime cost — branded IDs pass transparently to services accepting `string`. Prevents `UserId` vs `DocumentId` confusion at compile time.
 
 **Remaining**: auth routes, chat routes, group routes, share routes, template routes (~200 handlers). Low urgency — expand when touching files.
+
+### Priority 4: Auth boundary unification [DONE 2026-04-12]
+
+- [x] Export `export type UserProfile = z.infer<typeof userProfileSchema>` from `packages/contracts/src/schemas/userProfile.ts`
+- [x] `apps/api/services/user/types.ts` re-exports `UserProfile` from `@gruenerator/contracts` (back-compat for existing call sites)
+- [x] `apps/api/types/express.d.ts` — `Express.User extends UserProfile`; local 30-line `UserProfileShape` duplicate deleted
+- [x] `apps/api/middleware/authMiddleware.ts` — shape check now imports from the canonical source instead of re-declaring
+- [x] `apps/web/src/hooks/useAuth.ts` + `apps/web/src/stores/authStore.ts` — import `UserProfile` from `@gruenerator/contracts`, delete local `User` interface
+- [x] Added `auth_email: z.string().optional()` to `userProfileSchema` — it was referenced in frontend `canManageAccount()` but missing from all three prior interfaces (so it was silently typed as `any`)
+
+**Bonus bug catches during unification**: strict typecheck after removing the duplicate `User` interface in `authStore.ts` flushed out two bugs the old loose interfaces had hidden:
+1. `selectedMessageColor: data.user?.user_metadata?.chat_color || '#008939'` — `user_metadata` never existed on the real shape; code was always falling through to the default. Fixed to read canonical `data.user?.chat_color`.
+2. Optimistic-rollback path in `updateMessageColor` had the same bug — fixed identically.
+
+**Outcome**: One `UserProfile` type across contracts, backend, and frontend. Net −55 lines across 6 files. The drift risk is gone — any future field lands in one Zod schema and propagates to every consumer via type inference.
+
+### Priority 5: Cast regression ratchet [DONE 2026-04-12]
+
+**`scripts/type-safety-ratchet.sh`** now reads threshold from `.type-safety-baseline` (a single integer file). The script counts `as unknown as` occurrences across `apps/api`, `apps/web`, and `packages/**` (excluding test files and `dist/`), then exits 1 if the count exceeds the baseline. First run established **baseline = 209**.
+
+**7 casts eliminated by fixing root causes** (not suppressing):
+- `searchController.ts` / `searchContractRouter.ts` — 3 `getUserId(req as unknown as AuthenticatedRequest)` sites fixed by widening `getUserId`'s parameter to structural minimum with explicit `| undefined` (required under `exactOptionalPropertyTypes`)
+- `searchStreamController.ts` / `subtitler/socialController.ts` / `texte/website.ts` — 3 `extractLocaleFromRequest` casts fixed by tightening `RequestWithLocale` in `services/localization/types.ts` to list only the fields actually read, dropping the index signature `[key: string]: unknown` that was preventing assignment from strict types like `UserProfile`
+- `research/researchController.ts` — 1 `doc as unknown as Record<string, unknown>).published_at` fixed by adding `published_at?: string | null | undefined` to the canonical `DocumentResult` in `services/BaseSearchService/types.ts`
+
+**`exactOptionalPropertyTypes` gotcha** captured for future cast-fixing sessions: when widening helper types under this flag, optional fields MUST include `| undefined` explicitly. `{ x?: T }` and `{ x?: T | undefined }` are distinct types under the flag, and `Express.Request.user` (which is `User | undefined`) can only assign to the latter.
 
 ### Deferred (do opportunistically)
 - Remaining ~50 `validateBody` routes (0 violations, migrate when touching)
@@ -411,7 +438,11 @@ Dev runners (tsx, vitest) pass `--conditions=development` and resolve to source.
 | `database/types.ts` raw row types | many | 2 holdouts | **0** (Phase 2.1 fully closed) | 0 |
 | Typecheck errors (all packages) | 3 | **0** | 0 | 0 |
 | `validateBody` routes | 0 | ~75 | ~75 | opportunistic |
-| ts-rest contracts | 0 | 4 (pilot) | **10 contracts / 8 mounted / 40 endpoints** | all (~75 target) |
+| ts-rest contracts | 0 | 4 (pilot) | **11 contracts / 9 mounted / 50 endpoints** | all (~75 target) |
+| ts-rest frontend typed hooks | 0 | 1 (`useRecentValuesTyped`) | **3** (+`useBoardsTyped`, +`useNotebookTyped`; `exportStore.ts` internals typed) | all contract-consuming hooks |
+| `UserProfile` definition count | 3 (api/services + express.d.ts + contracts schema w/o named type) | — | **1** (canonical `z.infer` export from contracts, re-exported everywhere) | 1 |
+| `as unknown as X` casts | 241 | 84 api / 205 repo | **209** (ratcheted via `.type-safety-baseline`; 7 eliminated at source this session) | ratchet down |
+| Branded ID type adoption sites | 0 | 16 (notebook + documents) | **41** (+25 in chat + group routes) | opportunistic expansion |
 | ts-rest frontend typed hooks | 0 | 1 (`useRecentValuesTyped`) | **2** (+`useBoardsTyped`; `exportStore.ts` internals typed) | all contract-consuming hooks |
 | External API Zod schemas | 0 | 0 | **WordPress (5) + in-progress** | all 8 clients |
 | `parseJSON<T>()` adoption | — | 10 files | 10 files | all JSON.parse sites |
