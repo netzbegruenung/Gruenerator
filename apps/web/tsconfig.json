@@ -23,6 +23,6 @@
       "@gruenerator/docs/*": ["../../packages/docs/src/*"]
     }
   },
-  "include": ["src/**/*", "vite.config.ts"],
-  "exclude": ["node_modules", "build", "dist"]
+  "include": ["src/**/*", "vite.config.ts", "tests/**/*", "playwright.config.ts"],
+  "exclude": ["node_modules", "build", "dist", "test-results", "playwright-report"]
 }
