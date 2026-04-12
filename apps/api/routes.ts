@@ -8,6 +8,10 @@ import rateLimit from 'express-rate-limit';
 import authMiddleware from './middleware/authMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
 import authInitRouter from './routes/auth/initController.js';
+import { mountUserProfileContractRouter } from './routes/auth/userProfileContractRouter.js';
+import { mountBoardsContractRouter } from './routes/boards/boardsContractRouter.js';
+import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRouter.js';
+import { mountThreadsContractRouter } from './routes/chat/threadsContractRouter.js';
 import etherpadRoute from './routes/etherpad/etherpadController.js';
 import exportDocumentsRouter from './routes/exports/index.js';
 import imagineCreateRoute from './routes/flux/imagineCreate.js';
@@ -35,6 +39,7 @@ import {
   webSearchController as webSearchRouter,
 } from './routes/search/index.js';
 import searchGraphRouter from './routes/search/searchGraphController.js';
+import { mountShareContractRouter } from './routes/share/shareContractRouter.js';
 import shareRouter from './routes/share/shareController.js';
 import editSessionRouter from './routes/sharepic/editSession.js';
 import promptRoute from './routes/sharepic/promptRoute.js';
@@ -241,6 +246,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: visionRouter } = await import('./routes/vision/visionController.js');
 
   // Auth routes — authLimiter applied inside authCore.ts to login/callback only
+  // ts-rest contract router for /api/profile — mounts before legacy authRouter
+  // (ts-rest matches its own routes first; unmatched fall through)
+  mountUserProfileContractRouter(app);
   app.use('/api/auth', authenticatedReadLimiter, authRouter);
   app.use('/api/auth/notebook-collections', authenticatedReadLimiter, notebookCollectionsRouter);
   app.use('/api/auth/notebook', authenticatedReadLimiter, notebookInteractionRouter);
@@ -265,6 +273,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/claude_buergeranfragen', aiGenerationLimiter, buergeranfragenRouter);
   app.use('/api/claude_text_improver', aiGenerationLimiter, claudeTextImproverRoute);
   app.use('/api/chat', aiGenerationLimiter, grueneratorChatRoute);
+  // ts-rest contract routers — mount before legacy routers
+  mountThreadsContractRouter(app);
+  mountChatGraphContractRouter(app);
   app.use('/api/chat-service', authenticatedReadLimiter, chatServiceRouter);
   app.use('/api/chat-service/threads', authenticatedReadLimiter, threadSharingRouter);
   app.use('/api/chat-graph', aiGenerationLimiter, chatGraphRouter);
@@ -393,6 +404,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/subtitler', standardMutationLimiter, subtitlerSocialRouter);
   app.use('/api/subtitler/projects', requireAuth, standardMutationLimiter, subtitlerProjectRouter);
   app.use('/api/subtitler/share', publicReadLimiter, subtitlerShareRouter);
+  // ts-rest contract router — mount before legacy shareRouter
+  mountShareContractRouter(app);
   app.use('/api/share', publicReadLimiter, shareRouter);
   app.use('/api/transfer', standardMutationLimiter, transferRouter);
   app.use('/api/mem0', requireAuth, standardMutationLimiter, mem0Router);
@@ -407,6 +420,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/docs', requireAuth, authenticatedReadLimiter, docsRouter);
 
   app.use('/api/boards/public', publicReadLimiter, publicBoardRouter);
+  // ts-rest contract router — mount before legacy boardsRouter
+  mountBoardsContractRouter(app);
   app.use('/api/boards', requireAuth, authenticatedReadLimiter, boardsRouter);
   app.use('/api/board-comments', requireAuth, authenticatedReadLimiter, boardCommentsRouter);
   app.use('/api/users', requireAuth, publicReadLimiter, usersRouter);
