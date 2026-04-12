@@ -6,8 +6,8 @@ import * as Y from 'yjs';
 
 import { env } from '../../config/env.js';
 import { type CollaborativeDocument } from '../../database/schema/collaborative.js';
+import { type YjsDocumentSnapshotRow } from '../../database/schema/yjs.js';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
-import { type YjsDocumentSnapshotRow } from '../../database/types.js';
 
 import { DOCS_SUBTYPES } from './constants.js';
 
