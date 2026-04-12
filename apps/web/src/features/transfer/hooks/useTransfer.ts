@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import apiClient from '../../../components/utils/apiClient';
@@ -33,8 +34,12 @@ export function useTransferList() {
   return useQuery<TransferItem[]>({
     queryKey: ['transfers'],
     queryFn: async () => {
-      const { data } = await apiClient.get<{ transfers: TransferItem[] }>('/transfer/list');
-      return data.transfers;
+      const client = getContractsClient();
+      const result = await client.transfer.listTransfers({});
+      if (result.status !== 200) {
+        throw new Error(`Fehler beim Laden der Transfers (HTTP ${result.status})`);
+      }
+      return result.body.transfers as TransferItem[];
     },
     staleTime: 30_000,
   });
@@ -61,6 +66,8 @@ export function useUploadTransfer() {
         formData.append('message', message);
       }
 
+      // Intentionally kept on raw apiClient — multer multipart file upload
+      // is excluded from transferContract per the hard rule on file uploads.
       const { data } = await apiClient.post<UploadResult>('/transfer/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 120000,
@@ -79,7 +86,13 @@ export function useDeleteTransfer() {
 
   return useMutation<void, Error, string>({
     mutationFn: async (shareToken) => {
-      await apiClient.delete(`/transfer/${shareToken}`);
+      const client = getContractsClient();
+      const result = await client.transfer.deleteTransfer({
+        params: { token: shareToken },
+      });
+      if (result.status !== 200) {
+        throw new Error(`Fehler beim Löschen des Transfers (HTTP ${result.status})`);
+      }
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['transfers'] });

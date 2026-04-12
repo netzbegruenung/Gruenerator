@@ -1,6 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-import apiClient from '../../../components/utils/apiClient';
+import {
+  fetchAdminVorlagen,
+  fetchVorlagenStats,
+  approveVorlage,
+  rejectVorlage,
+} from '../../../hooks/useAdminVorlagenTyped';
 
 export interface AdminVorlage {
   id: string;
@@ -30,10 +35,7 @@ export interface VorlagenStats {
 export function useAdminVorlagen(status = 'pending_review') {
   return useQuery<AdminVorlage[]>({
     queryKey: ['admin-vorlagen', status],
-    queryFn: async () => {
-      const res = await apiClient.get(`/admin/vorlagen?status=${status}`);
-      return (res.data as { data: AdminVorlage[] }).data;
-    },
+    queryFn: () => fetchAdminVorlagen(status) as Promise<AdminVorlage[]>,
     staleTime: 30_000,
   });
 }
@@ -41,10 +43,7 @@ export function useAdminVorlagen(status = 'pending_review') {
 export function useVorlagenStats() {
   return useQuery<VorlagenStats>({
     queryKey: ['admin-vorlagen-stats'],
-    queryFn: async () => {
-      const res = await apiClient.get('/admin/vorlagen/stats');
-      return (res.data as { data: VorlagenStats }).data;
-    },
+    queryFn: () => fetchVorlagenStats() as Promise<VorlagenStats>,
     staleTime: 30_000,
   });
 }
@@ -52,7 +51,7 @@ export function useVorlagenStats() {
 export function useApproveVorlage() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => apiClient.post(`/admin/vorlagen/${id}/approve`),
+    mutationFn: (id: string) => approveVorlage(id),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['admin-vorlagen'] });
       void qc.invalidateQueries({ queryKey: ['admin-vorlagen-stats'] });
@@ -63,8 +62,7 @@ export function useApproveVorlage() {
 export function useRejectVorlage() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
-      apiClient.post(`/admin/vorlagen/${id}/reject`, { reason }),
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) => rejectVorlage(id, reason),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['admin-vorlagen'] });
       void qc.invalidateQueries({ queryKey: ['admin-vorlagen-stats'] });
