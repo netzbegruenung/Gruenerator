@@ -58,6 +58,7 @@ export interface PendingRequest {
   extractionPattern?: RegExp;
   originalContext: RequestContext;
   classifiedIntent?: ClassifiedIntent;
+  [key: string]: unknown;
 }
 
 export interface RequestContext {
@@ -582,9 +583,7 @@ export async function handleInformationRequest(
         classifiedIntent
       );
 
-      // Store pending request in memory — PendingRequest satisfies Omit<ChatPendingRequest, 'timestamp'>
-      // since it has type: string and additional fields that fit the index signature [key: string]: unknown
-      await chatMemory.setPendingRequest(userId, informationRequest.pendingRequest as unknown as { type: string; [key: string]: unknown });
+      await chatMemory.setPendingRequest(userId, informationRequest.pendingRequest);
 
       return {
         type: 'request',
