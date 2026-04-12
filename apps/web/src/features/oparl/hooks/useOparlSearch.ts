@@ -63,7 +63,7 @@ export const useOparlSearch = () => {
     (city: string) => {
       setSelectedCity(city);
       if (lastQuery) {
-        handleSearch(lastQuery, { city });
+        void handleSearch(lastQuery, { city });
       }
     },
     [lastQuery, handleSearch]
@@ -72,7 +72,7 @@ export const useOparlSearch = () => {
   const clearCityFilter = useCallback(() => {
     setSelectedCity(null);
     if (lastQuery) {
-      handleSearch(lastQuery, { city: null });
+      void handleSearch(lastQuery, { city: null });
     }
   }, [lastQuery, handleSearch]);
 

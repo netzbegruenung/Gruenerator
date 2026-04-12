@@ -29,7 +29,7 @@ export function AIBoardCreator() {
 
     generateBoard.mutate(trimmed, {
       onSuccess: (data) => {
-        navigate(`/boards/${data.board.id}`, {
+        void navigate(`/boards/${data.board.id}`, {
           state: { generatedStructure: data.generatedStructure ?? undefined },
         });
       },
@@ -43,7 +43,7 @@ export function AIBoardCreator() {
       { title, boardType },
       {
         onSuccess: (board) => {
-          navigate(`/boards/${board.id}`);
+          void navigate(`/boards/${board.id}`);
         },
       }
     );

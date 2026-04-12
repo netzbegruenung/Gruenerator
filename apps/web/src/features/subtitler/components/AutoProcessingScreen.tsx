@@ -125,7 +125,7 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
       }, interval);
     }
 
-    pollProgress().then(() => scheduleNextPoll());
+    void pollProgress().then(() => scheduleNextPoll());
 
     return () => {
       cancelled = true;

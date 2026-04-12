@@ -70,7 +70,7 @@ export function useNotificationPreferences() {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
   });
 

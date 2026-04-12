@@ -122,14 +122,14 @@ export const useRecentGalleryItems = (
 
   useEffect(() => {
     if (lastFetch === null) {
-      fetchRecentItems();
+      void fetchRecentItems();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const refresh = useCallback(() => {
     localStorage.removeItem(CACHE_KEY);
-    fetchRecentItems();
+    void fetchRecentItems();
   }, [fetchRecentItems]);
 
   return {

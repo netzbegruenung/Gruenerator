@@ -348,7 +348,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   const togglePlayPause = useCallback(() => {
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
-      videoRef.current.play();
+      void videoRef.current.play();
     } else {
       videoRef.current.pause();
     }

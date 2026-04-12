@@ -294,7 +294,7 @@ export const CardComments = memo(function CardComments({
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
+      void queryClient.invalidateQueries({ queryKey });
       setCommentText('');
       setReplyToId(null);
       setTrackedMentions([]);
@@ -306,7 +306,7 @@ export const CardComments = memo(function CardComments({
       await apiClient.delete(`/board-comments/${boardId}/comments/${commentId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
+      void queryClient.invalidateQueries({ queryKey });
     },
   });
 
@@ -331,7 +331,7 @@ export const CardComments = memo(function CardComments({
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
+      void queryClient.invalidateQueries({ queryKey });
     },
   });
 

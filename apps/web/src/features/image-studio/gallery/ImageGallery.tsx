@@ -146,7 +146,7 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
 
   const handleDownload = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
-    onDownload(image);
+    await onDownload(image);
   };
 
   const handleEdit = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -312,7 +312,7 @@ const ImageGallery = () => {
   const { cloneTemplate } = useTemplateClone();
 
   useEffect(() => {
-    fetchUserShares('image');
+    void fetchUserShares('image');
   }, [fetchUserShares]);
 
   const handleShare = useCallback((image: GalleryImage) => {
@@ -369,7 +369,7 @@ const ImageGallery = () => {
 
       const baseURL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
-      navigate(route, {
+      void navigate(route, {
         state: {
           galleryEditMode: true,
           shareToken: image.shareToken,
@@ -387,13 +387,13 @@ const ImageGallery = () => {
 
   const handleUseTemplate = useCallback(
     (shareToken: string) => {
-      cloneTemplate(shareToken);
+      void cloneTemplate(shareToken);
     },
     [cloneTemplate]
   );
 
   const handleNewImage = () => {
-    navigate('/studio');
+    void navigate('/studio');
   };
 
   const imageShares = shares.filter((s) => s.mediaType === 'image') as GalleryImage[];

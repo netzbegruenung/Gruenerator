@@ -69,7 +69,7 @@ export const useSlugAvailability = ({
       }
     };
 
-    checkSlug();
+    void checkSlug();
   }, [debouncedSlug, minLength]);
 
   return { isChecking, error };

@@ -218,7 +218,7 @@ function EditorContent() {
     if (!authError) return;
     const message = getAuthErrorMessage(authError);
     if (message) {
-      import('sonner').then(({ toast }) => toast.error(message));
+      void import('sonner').then(({ toast }) => toast.error(message));
     }
   }, [authError]);
 

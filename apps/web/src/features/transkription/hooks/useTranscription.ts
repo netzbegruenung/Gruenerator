@@ -159,7 +159,7 @@ function tusUpload(
     });
 
     signal.addEventListener('abort', () => {
-      upload.abort();
+      void upload.abort();
       reject(new DOMException('Upload aborted', 'AbortError'));
     });
 

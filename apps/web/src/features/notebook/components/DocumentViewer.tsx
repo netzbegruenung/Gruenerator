@@ -15,7 +15,7 @@ export function DocumentViewer({ documentId, documentTitle, onClose }: DocumentV
   const { content, isLoading, error, fetchContent, reset } = useDocumentContent();
 
   useEffect(() => {
-    fetchContent(documentId);
+    void fetchContent(documentId);
     return reset;
   }, [documentId, fetchContent, reset]);
 

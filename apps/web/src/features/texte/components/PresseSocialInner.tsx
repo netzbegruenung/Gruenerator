@@ -89,7 +89,7 @@ const PresseSocialInner: React.FC<PresseSocialInnerProps> = memo(({ def }) => {
         const generatedContent = result.social.content || '';
         if (generatedContent) {
           useAgentStore.getState().setPendingInitialAssistantMessage(generatedContent);
-          navigate('/chat');
+          void navigate('/chat');
           return;
         }
       }

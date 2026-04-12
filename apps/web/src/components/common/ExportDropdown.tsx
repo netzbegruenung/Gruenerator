@@ -401,7 +401,7 @@ const ExportDropdown = ({
 
       const { useAgentStore } = await import('@gruenerator/chat');
       useAgentStore.getState().setPendingMessage(reviewMessage);
-      navigate('/chat');
+      void navigate('/chat');
     } catch (err) {
       console.error('Failed to prepare chat review:', err);
     }

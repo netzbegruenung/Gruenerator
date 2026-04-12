@@ -116,7 +116,7 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
     },
     onSuccess: (newGroup) => {
       setCreating(false);
-      queryClient.invalidateQueries({ queryKey: groupsQueryKey });
+      void queryClient.invalidateQueries({ queryKey: groupsQueryKey });
       queryClient.removeQueries({ queryKey: ['groupDetails', newGroup.id] });
     },
     onError: () => {
@@ -138,7 +138,7 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
     onSuccess: () => {
       setDeleting(false);
       setDeletingGroupId(null);
-      queryClient.invalidateQueries({ queryKey: groupsQueryKey });
+      void queryClient.invalidateQueries({ queryKey: groupsQueryKey });
     },
     onError: () => {
       setDeleting(false);
@@ -169,8 +169,8 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
     },
     onSuccess: () => {
       setSaving(false);
-      queryClient.invalidateQueries({ queryKey: groupsQueryKey });
-      queryClient.invalidateQueries({ queryKey: ['groupDetails'] });
+      void queryClient.invalidateQueries({ queryKey: groupsQueryKey });
+      void queryClient.invalidateQueries({ queryKey: ['groupDetails'] });
     },
     onError: () => {
       setSaving(false);
@@ -192,8 +192,8 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
     },
     onSuccess: () => {
       setSaving(false);
-      queryClient.invalidateQueries({ queryKey: groupsQueryKey });
-      queryClient.invalidateQueries({ queryKey: ['groupDetails'] });
+      void queryClient.invalidateQueries({ queryKey: groupsQueryKey });
+      void queryClient.invalidateQueries({ queryKey: ['groupDetails'] });
     },
     onError: () => {
       setSaving(false);
@@ -214,7 +214,7 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
     },
     onSuccess: () => {
       setJoining(false);
-      queryClient.invalidateQueries({ queryKey: groupsQueryKey });
+      void queryClient.invalidateQueries({ queryKey: groupsQueryKey });
     },
     onError: () => {
       setJoining(false);
@@ -357,7 +357,7 @@ export const useUpdateMemberRole = (groupId: string) => {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['groupMembers', groupId] });
+      void queryClient.invalidateQueries({ queryKey: ['groupMembers', groupId] });
     },
   });
 
@@ -407,7 +407,7 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: groupContentQueryKey });
+      void queryClient.invalidateQueries({ queryKey: groupContentQueryKey });
     },
   });
 
@@ -481,8 +481,8 @@ export const useUpdateGroupSettings = (groupId: string | null) => {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['groupDetails'] });
-      queryClient.invalidateQueries({ queryKey: ['groupVorlagen', groupId] });
+      void queryClient.invalidateQueries({ queryKey: ['groupDetails'] });
+      void queryClient.invalidateQueries({ queryKey: ['groupVorlagen', groupId] });
     },
   });
 
@@ -515,8 +515,8 @@ export const useGroupAvatar = (groupId: string | null) => {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['groupDetails', groupId] });
-      queryClient.invalidateQueries({ queryKey: ['userGroups'] });
+      void queryClient.invalidateQueries({ queryKey: ['groupDetails', groupId] });
+      void queryClient.invalidateQueries({ queryKey: ['userGroups'] });
     },
   });
 
@@ -526,8 +526,8 @@ export const useGroupAvatar = (groupId: string | null) => {
       await apiClient.delete(`/auth/groups/${groupId}/avatar`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['groupDetails', groupId] });
-      queryClient.invalidateQueries({ queryKey: ['userGroups'] });
+      void queryClient.invalidateQueries({ queryKey: ['groupDetails', groupId] });
+      void queryClient.invalidateQueries({ queryKey: ['userGroups'] });
     },
   });
 
@@ -552,7 +552,7 @@ export const useGroupLinks = (groupId: string | null) => {
   const queryClient = useQueryClient();
 
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ['groupDetails', groupId] });
+    void queryClient.invalidateQueries({ queryKey: ['groupDetails', groupId] });
   };
 
   const addMutation = useMutation({

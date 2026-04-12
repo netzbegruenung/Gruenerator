@@ -92,7 +92,7 @@ export const useBetaFeatures = (_options: UseBetaFeaturesOptions = {}): UseBetaF
   useEffect(() => {
     if (!userId) return;
     if (!isHydrated || storeUserId !== userId) {
-      hydrate(userId);
+      void hydrate(userId);
     }
   }, [userId, isHydrated, storeUserId, hydrate]);
 

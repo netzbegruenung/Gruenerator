@@ -219,7 +219,7 @@ const useVoiceRecorder = (
   // Sende die Aufnahme automatisch zur Transkription, wenn die Aufnahme gestoppt wurde
   const processRecording = useCallback(() => {
     if (audioBlob && !isRecording && !isProcessing && !hasTranscriptionFailed) {
-      sendForTranscription();
+      void sendForTranscription();
     }
   }, [audioBlob, isRecording, isProcessing, sendForTranscription, hasTranscriptionFailed]);
 
@@ -229,7 +229,7 @@ const useVoiceRecorder = (
       setHasTranscriptionFailed(false);
       setRetryCount(0);
       setError(null);
-      sendForTranscription();
+      void sendForTranscription();
     }
   }, [audioBlob, sendForTranscription]);
 

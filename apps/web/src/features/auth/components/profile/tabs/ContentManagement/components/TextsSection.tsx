@@ -106,7 +106,7 @@ const TextsSection = memo(
       async (textIds: string[]): Promise<BulkDeleteResult> => {
         try {
           const result = (await documentAndTextUtils.bulkDeleteTexts(textIds)) as BulkDeleteResult;
-          textsQuery.refetch();
+          void textsQuery.refetch();
           if (result.message) {
             if (result.hasErrors) {
               onErrorMessage(result.message);

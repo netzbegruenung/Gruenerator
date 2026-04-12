@@ -403,7 +403,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
       return res.data as { id: string };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+      void queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
     },
   });
 
@@ -412,10 +412,10 @@ const RecentlyCreatedSection: React.FC = memo(() => {
       try {
         const res = await apiClient.post(`/auth/saved-texts/${textId}/convert-to-doc`);
         const { documentId } = res.data as { documentId: string };
-        navigate(`/docs/${documentId}`);
+        void navigate(`/docs/${documentId}`);
       } catch {
         // fallback to old editor
-        navigate(`/texte/texteditor?textId=${textId}`);
+        void navigate(`/texte/texteditor?textId=${textId}`);
       }
     },
     [navigate]
@@ -435,16 +435,16 @@ const RecentlyCreatedSection: React.FC = memo(() => {
       if (!window.confirm(messages[item.type])) return;
 
       if (item.type === 'board') {
-        deleteBoard.mutateAsync(item.id).then(() => {
-          queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+        void deleteBoard.mutateAsync(item.id).then(() => {
+          void queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
         });
         return;
       }
 
       if (item.deleteEndpoint) {
         const endpoint = item.deleteEndpoint.replace(/^\/api/, '');
-        apiClient.delete(endpoint).then(() => {
-          queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+        void apiClient.delete(endpoint).then(() => {
+          void queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
         });
       }
     },
@@ -452,7 +452,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
   );
 
   const handleShare = useCallback((item: RecentItem) => {
-    navigator.clipboard.writeText(`${window.location.origin}${item.href}`);
+    void navigator.clipboard.writeText(`${window.location.origin}${item.href}`);
   }, []);
 
   const handleCreateDoc = useCallback(() => {

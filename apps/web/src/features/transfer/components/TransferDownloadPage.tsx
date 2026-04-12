@@ -194,7 +194,7 @@ export default function TransferDownloadPage({ shareToken, shareData }: Transfer
                   setPasswordError('');
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleDownload();
+                  if (e.key === 'Enter') void handleDownload();
                 }}
                 className="text-sm"
               />

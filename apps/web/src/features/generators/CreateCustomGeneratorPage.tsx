@@ -628,7 +628,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = memo
               <form
                 onSubmit={(e: React.FormEvent) => {
                   e.preventDefault();
-                  handleNext();
+                  void handleNext();
                 }}
                 className="flex flex-col h-full"
               >
@@ -648,7 +648,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = memo
                       <SubmitButton
                         onClick={(e: React.MouseEvent) => {
                           e.preventDefault();
-                          handleNext();
+                          void handleNext();
                         }}
                         loading={isGeneratingWithAI}
                         text={nextButtonText}

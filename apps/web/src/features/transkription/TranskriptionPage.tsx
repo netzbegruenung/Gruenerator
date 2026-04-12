@@ -117,7 +117,7 @@ const TranskriptionPage = () => {
     if (!selectedFile) return;
     const text = await transcribe(selectedFile, options);
     if (text && selectedProtokollTyp) {
-      formatAsProtokoll(text, selectedProtokollTyp);
+      void formatAsProtokoll(text, selectedProtokollTyp);
     }
   }, [selectedFile, transcribe, options, selectedProtokollTyp, formatAsProtokoll]);
 
@@ -143,7 +143,7 @@ const TranskriptionPage = () => {
 
   const handleFormatProtokoll = useCallback(
     (typ: ProtokollTyp) => {
-      formatAsProtokoll(state.text, typ);
+      void formatAsProtokoll(state.text, typ);
     },
     [formatAsProtokoll, state.text]
   );

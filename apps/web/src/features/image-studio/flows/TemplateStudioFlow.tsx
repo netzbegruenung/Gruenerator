@@ -97,7 +97,7 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
         };
 
         image = await generateImage(state.type!, formData);
-        refetchImageLimit();
+        void refetchImageLimit();
       } else {
         const formData: Record<string, unknown> = {
           type: typeConfig?.legacyType || state.type,

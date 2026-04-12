@@ -292,7 +292,7 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
           const retryDelay = POLLING_CONFIG.RETRY_DELAY_BASE * Math.pow(2, newRetryCount - 1);
           setTimeout(() => {
             if (get().status === EXPORT_STATUS.EXPORTING) {
-              poll();
+              void poll();
             }
           }, retryDelay);
         } else {
@@ -315,7 +315,7 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
     };
 
     // Start initial poll immediately
-    poll();
+    void poll();
 
     // Set up recurring polling with adaptive interval
     const intervalId = setInterval(poll, getPollingInterval());

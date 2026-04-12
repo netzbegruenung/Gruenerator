@@ -222,7 +222,7 @@ const ImageStudioPageContent: React.FC = () => {
         // Clear URL param after loading
         const newParams = new URLSearchParams(searchParams);
         newParams.delete('editSession');
-        navigate(`${location.pathname}?${newParams.toString()}`.replace(/\?$/, ''), {
+        void navigate(`${location.pathname}?${newParams.toString()}`.replace(/\?$/, ''), {
           replace: true,
         });
       }
@@ -246,21 +246,21 @@ const ImageStudioPageContent: React.FC = () => {
   const handleBack = useCallback(() => {
     if (currentStep === FORM_STEPS.TYPE_SELECT) {
       setCategory(null, null);
-      navigate(isImagineRoute ? '/imagine' : '/studio');
+      void navigate(isImagineRoute ? '/imagine' : '/studio');
     } else if (currentStep === FORM_STEPS.IMAGE_UPLOAD) {
       if (isImagineRoute) {
-        navigate('/imagine');
+        void navigate('/imagine');
       } else {
-        navigate(`/studio/${category}${subcategory ? `/${subcategory}` : ''}`);
+        void navigate(`/studio/${category}${subcategory ? `/${subcategory}` : ''}`);
       }
       goBack();
     } else if (currentStep === FORM_STEPS.INPUT) {
       const prevStep = typeConfig?.steps?.[typeConfig.steps.indexOf(currentStep) - 1];
       if (prevStep === FORM_STEPS.TYPE_SELECT || !prevStep) {
         if (isImagineRoute) {
-          navigate('/imagine');
+          void navigate('/imagine');
         } else {
-          navigate(`/studio/${category}${subcategory ? `/${subcategory}` : ''}`);
+          void navigate(`/studio/${category}${subcategory ? `/${subcategory}` : ''}`);
         }
       }
       goBack();
@@ -387,7 +387,7 @@ const ImageStudioPageContent: React.FC = () => {
 
           const image = await generateImage(type || '', formData);
           setGeneratedImage(image);
-          refetchImageLimit();
+          void refetchImageLimit();
           goToNextStep();
           goToNextStep();
         }
@@ -429,7 +429,7 @@ const ImageStudioPageContent: React.FC = () => {
 
           const image = await generateImage(type || '', formData);
           setGeneratedImage(image);
-          refetchImageLimit();
+          void refetchImageLimit();
         } else {
           const formData = {
             type: typeConfig?.legacyType || type,

@@ -68,9 +68,9 @@ const LoginPage = ({
       onClose();
     } else {
       if (window.history.length > 1) {
-        navigate(-1);
+        void navigate(-1);
       } else {
-        navigate('/');
+        void navigate('/');
       }
     }
   }, [onClose, navigate]);

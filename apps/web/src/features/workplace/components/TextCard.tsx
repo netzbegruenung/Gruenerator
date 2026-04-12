@@ -55,7 +55,7 @@ const TextCard = React.memo(
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            navigate(`/texte/texteditor?textId=${text.id}`);
+            void navigate(`/texte/texteditor?textId=${text.id}`);
           }
         }}
       >

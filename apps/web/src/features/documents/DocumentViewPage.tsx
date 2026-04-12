@@ -57,7 +57,7 @@ const DocumentViewPage = () => {
   }, [documentId]);
 
   const handleGoBack = () => {
-    navigate(-1); // Go back to previous page
+    void navigate(-1); // Go back to previous page
   };
 
   if (loading) {

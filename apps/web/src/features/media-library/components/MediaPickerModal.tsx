@@ -31,7 +31,7 @@ const MediaPickerModal: React.FC = () => {
   useEffect(() => {
     if (isOpen) {
       setFilters({ type: mediaTypeFilter });
-      refetch();
+      void refetch();
     }
   }, [isOpen, mediaTypeFilter]);
 

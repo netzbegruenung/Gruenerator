@@ -77,7 +77,7 @@ export function useTusUpload() {
 
   const cancel = useCallback(() => {
     if (uploadRef.current) {
-      uploadRef.current.abort();
+      void uploadRef.current.abort();
       uploadRef.current = null;
     }
     setIsUploading(false);

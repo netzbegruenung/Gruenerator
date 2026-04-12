@@ -60,8 +60,8 @@ function BoardContent() {
       await apiClient.delete(`/boards/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['boards'] });
-      navigate('/desk');
+      void queryClient.invalidateQueries({ queryKey: ['boards'] });
+      void navigate('/desk');
     },
   });
 
@@ -70,8 +70,8 @@ function BoardContent() {
       await apiClient.put(`/boards/${id}`, { is_archived: isArchived });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['boards'] });
-      queryClient.invalidateQueries({ queryKey: ['boards', id] });
+      void queryClient.invalidateQueries({ queryKey: ['boards'] });
+      void queryClient.invalidateQueries({ queryKey: ['boards', id] });
     },
   });
 

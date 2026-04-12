@@ -66,7 +66,7 @@ const SharedVideoPage = () => {
         setCanNativeShare(false);
       }
     };
-    checkShareCapability();
+    void checkShareCapability();
   }, []);
 
   useEffect(() => {
@@ -99,7 +99,7 @@ const SharedVideoPage = () => {
       }
     };
 
-    fetchShareData();
+    void fetchShareData();
   }, [shareToken]);
 
   useEffect(() => {

@@ -76,7 +76,7 @@ export function useTemplateClone(): TemplateCloneResult {
         const route = routeMap[imageType] ?? '/studio/templates';
         const normalizedType = imageType.toLowerCase().replace('_', '-');
 
-        navigate(route, {
+        void navigate(route, {
           replace: true,
           state: {
             templateMode: true,

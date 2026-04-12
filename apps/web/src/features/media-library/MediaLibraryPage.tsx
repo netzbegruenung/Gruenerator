@@ -251,7 +251,7 @@ const MediaLibraryPage: React.FC = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      refetch();
+      void refetch();
     }
   }, [isAuthenticated]);
 
@@ -273,7 +273,7 @@ const MediaLibraryPage: React.FC = () => {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    handleFileUpload(e.dataTransfer.files);
+    void handleFileUpload(e.dataTransfer.files);
   };
 
   const handleDragOver = (e: React.DragEvent) => {

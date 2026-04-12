@@ -410,7 +410,7 @@ const SubtitlerPage = (): React.ReactElement => {
     if (step === 'auto-processing' && uploadInfo?.uploadId) {
       if (!autoProcessingStartedRef.current) {
         autoProcessingStartedRef.current = true;
-        handleStartAutoProcessing();
+        void handleStartAutoProcessing();
       }
     } else {
       autoProcessingStartedRef.current = false;
@@ -484,7 +484,7 @@ const SubtitlerPage = (): React.ReactElement => {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          currentUploadRef.current?.abort();
+                          void currentUploadRef.current?.abort();
                           currentUploadRef.current = null;
                           setIsUploading(false);
                           setUploadProgress(0);

@@ -59,7 +59,7 @@ const ImageSlider = ({
 
   // Auto-load when component mounts
   useEffect(() => {
-    handleLoadGallery();
+    void handleLoadGallery();
   }, [handleLoadGallery]);
 
   const galleryImages = images.map((img) => ({
