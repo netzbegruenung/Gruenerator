@@ -811,45 +811,8 @@ export interface BoardCommentReactionRow {
 }
 
 // ---------------------------------------------------------------------------
-// SECTION: BETTER AUTH TABLES
+// SECTION: BETTER AUTH TABLES — moved to `database/schema/auth.ts` (Drizzle)
 // ---------------------------------------------------------------------------
-
-export interface BaSessionRow {
-  id: string;
-  token: string;
-  user_id: string;
-  expires_at: Date;
-  ip_address: string | null;
-  user_agent: string | null;
-  push_token: string | null;
-  device_name: string | null;
-  device_type: string;
-  created_at: Date;
-  updated_at: Date;
-}
-
-export interface BaAccountRow {
-  id: string;
-  user_id: string;
-  account_id: string;
-  provider_id: string;
-  access_token: string | null;
-  refresh_token: string | null;
-  access_token_expires_at: Date | null;
-  scope: string | null;
-  id_token: string | null;
-  created_at: Date;
-  updated_at: Date;
-}
-
-export interface BaVerificationRow {
-  id: string;
-  identifier: string;
-  value: string;
-  expires_at: Date;
-  created_at: Date;
-  updated_at: Date;
-}
 
 // ---------------------------------------------------------------------------
 // DATABASE INTERFACE — maps table names to row types
@@ -908,7 +871,4 @@ export interface Database {
   presentation_slides: PresentationSlideRow;
   board_comments: BoardCommentRow;
   board_comment_reactions: BoardCommentReactionRow;
-  ba_sessions: BaSessionRow;
-  ba_accounts: BaAccountRow;
-  ba_verification: BaVerificationRow;
 }
