@@ -8,7 +8,10 @@
  * Generates AI-powered German titles using Mistral-small via aiWorkerPool.
  */
 
-import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { eq } from 'drizzle-orm';
+
+import { chatThreads } from '../../database/schema/chat.js';
+import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { INTERMEDIATE_MODEL } from '../../routes/chat/agents/providers.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -20,11 +23,11 @@ const log = createLogger('ThreadTitle');
  * Update a thread's title in the database.
  */
 export async function updateThreadTitleInDB(threadId: string, title: string): Promise<void> {
-  const postgres = getPostgresInstance();
-  await postgres.query(
-    `UPDATE chat_threads SET title = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-    [title, threadId]
-  );
+  const db = getDrizzleInstance();
+  await db
+    .update(chatThreads)
+    .set({ title, updated_at: new Date() })
+    .where(eq(chatThreads.id, threadId));
 }
 
 /**
