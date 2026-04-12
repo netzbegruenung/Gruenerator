@@ -21,12 +21,21 @@ import {
   exportsContract,
   recentValuesContract,
   searchContract,
+  boardsContract,
 } from '@gruenerator/contracts';
 import { initClient } from '@ts-rest/core';
 
 import { getGlobalApiClient } from './client.js';
 
 // ── Axios-backed fetch adapter ───────────────────────────────────────────────
+
+/**
+ * Paths whose 2xx response is binary (Blob) rather than JSON. ts-rest has no
+ * way to declare response content-type in the contract, so we maintain this
+ * set manually and pass responseType:'blob' to axios for matches. Without
+ * this, axios would try to JSON-parse the binary body and corrupt it.
+ */
+const BINARY_RESPONSE_PATHS = new Set<string>(['/api/exports/docx', '/api/exports/pdf']);
 
 /**
  * ts-rest requires a fetch-compatible function. We bridge to axios so that
@@ -45,6 +54,7 @@ async function axiosFetcher({
   body: unknown;
 }): Promise<{ status: number; body: unknown; headers: Headers }> {
   const axios = getGlobalApiClient();
+  const isBinary = BINARY_RESPONSE_PATHS.has(path);
 
   const response = await axios.request({
     url: path,
@@ -54,6 +64,7 @@ async function axiosFetcher({
     // Let axios resolve with the full response even on 4xx/5xx so ts-rest
     // can match the status to the contract's response map.
     validateStatus: () => true,
+    ...(isBinary && { responseType: 'blob' as const }),
   });
 
   // Convert axios headers (AxiosResponseHeaders) to native Headers
@@ -82,12 +93,14 @@ const _threadsClient = () => initClient(threadsContract, CLIENT_OPTS);
 const _exportsClient = () => initClient(exportsContract, CLIENT_OPTS);
 const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
 const _searchClient = () => initClient(searchContract, CLIENT_OPTS);
+const _boardsClient = () => initClient(boardsContract, CLIENT_OPTS);
 
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
   exports: ReturnType<typeof _exportsClient>;
   recentValues: ReturnType<typeof _recentValuesClient>;
   search: ReturnType<typeof _searchClient>;
+  boards: ReturnType<typeof _boardsClient>;
 }
 
 // ── Lazy singleton ────────────────────────────────────────────────────────────
@@ -111,6 +124,7 @@ export function getContractsClient(): ContractsClient {
     exports: _exportsClient(),
     recentValues: _recentValuesClient(),
     search: _searchClient(),
+    boards: _boardsClient(),
   };
 
   return _client;
