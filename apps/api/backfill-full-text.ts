@@ -16,6 +16,8 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
+import { env } from './config/env.js';
+
 // Collections that now write full_text on index but have existing data without it
 const TARGET_COLLECTIONS = [
   'bundestag_content',
@@ -39,16 +41,16 @@ interface BackfillStats {
 }
 
 function createQdrantClient(): QdrantClient {
-  const apiKey = process.env.QDRANT_API_KEY;
-  const qdrantUrl = process.env.QDRANT_URL;
+  const apiKey = env.QDRANT_API_KEY;
+  const qdrantUrl = env.QDRANT_URL;
 
   if (!apiKey || !qdrantUrl) {
     throw new Error('QDRANT_API_KEY and QDRANT_URL env vars required');
   }
 
   // Basic auth for reverse proxy (same as QdrantService.ts)
-  const basicAuthUsername = process.env.QDRANT_BASIC_AUTH_USERNAME;
-  const basicAuthPassword = process.env.QDRANT_BASIC_AUTH_PASSWORD;
+  const basicAuthUsername = env.QDRANT_BASIC_AUTH_USERNAME;
+  const basicAuthPassword = env.QDRANT_BASIC_AUTH_PASSWORD;
   const headers: Record<string, string> = {};
 
   if (basicAuthUsername && basicAuthPassword) {

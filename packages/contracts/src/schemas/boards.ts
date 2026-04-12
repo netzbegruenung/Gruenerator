@@ -27,6 +27,14 @@ export const boardErrorResponseSchema = z.object({
   details: z.string().optional(),
 });
 
+export const boardContentSchema = z.union([
+  z.string(),
+  z.object({
+    is_archived: z.boolean().optional(),
+    board_type: z.enum(['kanban', 'whiteboard']).optional(),
+  }),
+]);
+
 export const boardDocumentSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -39,6 +47,7 @@ export const boardDocumentSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   creator_name: z.string().optional(),
+  content: boardContentSchema.nullish(),
 });
 
 export const generateBoardResponseSchema = z.object({

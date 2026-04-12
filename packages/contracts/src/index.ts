@@ -21,6 +21,8 @@ export {
   boardsContract,
   sharesContract,
   userProfileContract,
+  notebookContract,
+  notebookCollectionsContract,
 } from './contracts/index.js';
 
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
@@ -32,3 +34,5 @@ export * from './schemas/chatGraph.js';
 export * from './schemas/boards.js';
 export * from './schemas/shares.js';
 export * from './schemas/userProfile.js';
+export * from './schemas/notebook.js';
+export * from './schemas/notebookCollections.js';

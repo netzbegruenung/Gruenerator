@@ -1,3 +1,4 @@
+import { type UserProfile } from '@gruenerator/contracts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -12,7 +13,7 @@ interface AuthOptions {
 
 interface AuthData {
   isAuthenticated: boolean;
-  user?: Record<string, unknown>;
+  user?: UserProfile;
 }
 
 interface PartialLogoutState {
@@ -366,6 +367,7 @@ export const useAuth = (options: AuthOptions = {}) => {
     queryKey: ['authStatus'],
     queryFn: async (): Promise<AuthData> => {
       if (import.meta.env.VITE_E2E_AUTH_BYPASS === 'true') {
+        const now = new Date().toISOString();
         return {
           isAuthenticated: true,
           user: {
@@ -383,14 +385,14 @@ export const useAuth = (options: AuthOptions = {}) => {
             notebook: true,
             sharepic: true,
             anweisungen: true,
-            canva: true,
             labor_enabled: true,
             sites_enabled: true,
             chat: true,
             interactive_antrag_enabled: true,
-            auto_save_on_export: true,
             vorlagen: true,
             video_editor: true,
+            created_at: now,
+            updated_at: now,
           },
         };
       }

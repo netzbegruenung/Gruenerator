@@ -243,17 +243,6 @@ export interface YjsDocumentUpdateRow {
   version: number;
 }
 
-export interface YjsDocumentSnapshotRow {
-  id: string;
-  document_id: string;
-  snapshot_data: Buffer;
-  version: number;
-  created_at: Date;
-  label: string | null;
-  is_auto_save: boolean;
-  created_by: string | null;
-}
-
 // ---------------------------------------------------------------------------
 // SECTION 6: NOTEBOOKS
 // ---------------------------------------------------------------------------
@@ -423,31 +412,6 @@ export interface UserUploadRow {
 // ---------------------------------------------------------------------------
 // SECTION 10: FEATURE TABLES
 // ---------------------------------------------------------------------------
-
-export interface UserSiteRow {
-  id: string;
-  user_id: string | null;
-  subdomain: string;
-  is_published: boolean;
-  site_title: string;
-  tagline: string | null;
-  bio: string | null;
-  contact_email: string | null;
-  contact_phone: string | null;
-  contact_website: string | null;
-  social_links: Record<string, unknown>;
-  theme: string;
-  accent_color: string;
-  profile_image: string | null;
-  background_image: string | null;
-  sections: Record<string, unknown>[];
-  created_at: Date;
-  updated_at: Date;
-  last_published: Date | null;
-  visit_count: number;
-  meta_description: string | null;
-  meta_keywords: string[] | null;
-}
 
 export interface SubtitlerProjectRow {
   id: string;
@@ -833,7 +797,6 @@ export interface Database {
   collaborative_documents_init: CollaborativeDocumentInitRow;
   collaborative_document_folders: CollaborativeDocumentFolderRow;
   yjs_document_updates: YjsDocumentUpdateRow;
-  yjs_document_snapshots: YjsDocumentSnapshotRow;
   notebook_collections: NotebookCollectionRow;
   notebook_collection_documents: NotebookCollectionDocumentRow;
   notebook_public_access: NotebookPublicAccessRow;
@@ -847,7 +810,6 @@ export interface Database {
   template_likes: TemplateLikeRow;
   user_sharepics: UserSharepicRow;
   user_uploads: UserUploadRow;
-  user_sites: UserSiteRow;
   subtitler_projects: SubtitlerProjectRow;
   subtitler_shared_videos: SubtitlerSharedVideoRow;
   subtitler_share_downloads: SubtitlerShareDownloadRow;

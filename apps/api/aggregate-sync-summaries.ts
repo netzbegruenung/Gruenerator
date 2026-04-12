@@ -10,6 +10,7 @@
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { env } from './config/env.js';
 import { sendContentSyncEmail } from './services/email/emailService.js';
 import { type SyncSummary } from './types/syncTypes.js';
 
@@ -67,16 +68,15 @@ async function main() {
     totalDuration: Math.max(...partials.map((p) => p.totalDuration)),
   };
 
-  const summaryPath =
-    process.env.SYNC_SUMMARY_PATH || path.join(process.cwd(), 'sync-summary.json');
+  const summaryPath = env.SYNC_SUMMARY_PATH ?? path.join(process.cwd(), 'sync-summary.json');
   writeFileSync(summaryPath, JSON.stringify(merged, null, 2));
   console.log(`Merged summary written to ${summaryPath}`);
 
-  const emailTo = process.env.CONTENT_SYNC_EMAIL;
+  const emailTo = env.CONTENT_SYNC_EMAIL;
   if (emailTo) {
-    const runId = process.env.GITHUB_RUN_ID;
-    const repo = process.env.GITHUB_REPOSITORY;
-    const server = process.env.GITHUB_SERVER_URL || 'https://github.com';
+    const runId = env.GITHUB_RUN_ID;
+    const repo = env.GITHUB_REPOSITORY;
+    const server = env.GITHUB_SERVER_URL ?? 'https://github.com';
     const runUrl = runId && repo ? `${server}/${repo}/actions/runs/${runId}` : undefined;
 
     try {
