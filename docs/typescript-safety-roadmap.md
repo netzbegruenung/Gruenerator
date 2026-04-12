@@ -209,25 +209,53 @@ pnpm add @ts-rest/core                    # in packages/shared (via contracts de
 
 ## What's Next (pick up here)
 
-### Priority 1: ts-rest incremental adoption (Phase 4.1) [PILOT DONE]
-Pilot complete. Next steps:
-- Run `pnpm install` to pull `@ts-rest/core` + `@ts-rest/express`
-- Mount `recentValuesContractRouter` in `routes.ts` and delete the legacy Express handler
-- Replace `useRecentValues` with `useRecentValuesTyped` in `SmartInput.tsx` / `RecentValuesDropdown.tsx`
-- Add TanStack Query wrappers (`useQuery`/`useMutation`) around the typed client calls
-- Migrate remaining ~70 routes to contracts opportunistically when touching files
+### Priority 1: ts-rest incremental adoption (Phase 4.1) [EXPANDING]
+**Phase 4.1 expansion 2026-04-12.** 5 new contract groups wired up:
 
-### Priority 2: External API response validation (Phase 4.3) [IN PROGRESS]
-**Started 2026-04-12.** Zod schemas for external API responses. Currently typed via `axios.get<T>()` (compile-time only) — Zod `.parse()` adds runtime validation at the boundary.
+| Contract | Endpoints | Status |
+|----------|-----------|--------|
+| recentValuesContract | 4 | Mounted (Apr 11) |
+| threadsContract | 7 | **Mounted** |
+| chatGraphContract | 2 | **Mounted** |
+| boardsContract | 3 | **Mounted** |
+| sharesContract | 6 | **Mounted** |
+| userProfileContract | 11 | **Mounted** |
+| exportsContract | 2 | Not yet mounted |
+| searchContract | 2 | Not yet mounted |
 
-**Batch 1 (in progress)**: WordPress + Nextcloud — high traffic + data-loss risk
-**Batch 2 (in progress)**: Google Drive + Microsoft Graph + OParl — auth-adjacent + municipal data
-**Not yet**: Atlassian, Bluesky, Keycloak, WebDAV
+**Total**: **33 typed endpoints** served via ts-rest contracts (out of 126 candidates identified by codegen script).
 
-Pattern: `const data = schema.parse(response.data)` replaces `axios.get<T>()`. Schemas go in `apps/api/services/api-clients/schemas/<service>.ts`.
+**Frontend**: `useRecentValuesTyped` migrated in `SmartInput.tsx` + `RecentValuesDropdown.tsx`. Other typed hooks not yet created.
 
-### Priority 3: Branded types adoption (Phase 4.2)
-`Brand<T, B>` utility + 9 ID types already exist. Adopt `fromParam<UserId>()` etc. in ~217 route handlers to prevent ID mixups. Low urgency unless ID-confusion bugs occur.
+**Known debt**: 23 `as unknown as AuthenticatedRequest` casts in contract routers. Will be eliminated by augmenting `Express.Request` with `user?: UserProfile` in `types/express.d.ts` (planned next session).
+
+**Next**: use the codegen report to pick 5-10 more routes (search, exports, notebook, template) for the next batch.
+
+### Priority 2: External API response validation (Phase 4.3) [MOSTLY DONE]
+**Completed 2026-04-12.** All JSON-returning external API clients now validate at the boundary with Zod.
+
+| Client | Schemas | Call sites | Status |
+|--------|---------|------------|--------|
+| WordPress | 5 | 8/8 | **Done** |
+| Google Drive | 5 | 5/7 (2 binary) | **Done** |
+| Microsoft Graph | 5 | 6/7 (1 binary) | **Done** |
+| OParl | 8 | 8/8 (z.union polymorphic) | **Done** |
+| Atlassian (Jira+Confluence) | 12 | 8/8 | **Done** |
+| Keycloak | 3 | 5/12 (7 write-only, no body) | **Done** |
+| Bluesky (AT Protocol) | 5 | 1/1 | **Done** |
+| Nextcloud / WebDAV | — | — | **Stub** (XML/binary only, no JSON) |
+
+**Total**: 43 Zod schemas, 41 call sites converted to runtime validation. Upstream API changes now fail loudly with `ZodError` at the boundary instead of silent `undefined` cascades.
+
+### Priority 3: Branded types adoption (Phase 4.2) [STARTED]
+**First adoption 2026-04-12.** `fromParam<T>()` helper now used in 5 route files:
+- `documents/manualController.ts`, `retrievalController.ts`, `qdrantController.ts` — `DocumentId` (6 adoptions)
+- `notebook/collectionsController.ts` — `NotebookId` + `DocumentId` (8 adoptions)
+- `notebook/interactionController.ts` — `NotebookId` (1 adoption)
+
+Zero runtime cost — branded IDs pass transparently to services accepting `string`. Prevents `UserId` vs `DocumentId` confusion at compile time.
+
+**Remaining**: auth routes, chat routes, group routes, share routes, template routes (~200 handlers). Low urgency — expand when touching files.
 
 ### Deferred (do opportunistically)
 - Remaining ~50 `validateBody` routes (0 violations, migrate when touching)
