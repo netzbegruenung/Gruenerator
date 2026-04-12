@@ -160,6 +160,87 @@ describe('userProfileSchema — SQL NULL coercion', () => {
   });
 });
 
+describe('userProfileSchema — missing email (prod login-loop regression)', () => {
+  // Production incident: Keycloak OIDC profiles that lack the `email`
+  // claim produce a Better Auth session user with `email: undefined`,
+  // which earlier failed `userProfileSchema.parse(...)` with
+  // `ZodError: email Required` and trapped users in a `/login → /desk`
+  // redirect loop. Fixed by relaxing `email` to `.optional()` at the
+  // schema level. These cases pin that behavior so the regression can
+  // never ship again.
+
+  it('accepts email: undefined when Better Auth omits the claim', () => {
+    const noEmailUser = {
+      id: 'user-keycloak-no-email',
+      name: 'Keycloak User Without Email',
+      emailVerified: false,
+      image: null,
+      createdAt: now,
+      updatedAt: now,
+      // email deliberately absent — mimics mapProfileToUser seeing
+      // `profile.email === undefined`
+      avatar_robot_id: 1,
+      beta_features: {},
+      user_defaults: {},
+      groups_enabled: false,
+      custom_generators: false,
+      database_access: false,
+      collab: false,
+      notebook: false,
+      sharepic: false,
+      anweisungen: false,
+      labor_enabled: false,
+      sites_enabled: true,
+      chat: false,
+      interactive_antrag_enabled: true,
+      vorlagen: false,
+      video_editor: false,
+    };
+
+    const parsed = userProfileSchema.parse(buildParseInput(noEmailUser));
+
+    expect(parsed.email).toBeUndefined();
+    expect(parsed.id).toBe('user-keycloak-no-email');
+    expect(parsed.display_name).toBe('Keycloak User Without Email');
+  });
+
+  it('accepts email: null via null-stripping (SQL NULL path)', () => {
+    // profiles.email is nullable, so Better Auth can return null after
+    // a Drizzle select. toBetterAuthUser strips nulls to undefined and
+    // the schema must accept that.
+    const nullEmailUser = {
+      id: 'user-null-email',
+      email: null,
+      name: 'User With Null Email',
+      emailVerified: false,
+      image: null,
+      createdAt: now,
+      updatedAt: now,
+      avatar_robot_id: 2,
+      beta_features: {},
+      user_defaults: {},
+      groups_enabled: false,
+      custom_generators: false,
+      database_access: false,
+      collab: false,
+      notebook: false,
+      sharepic: false,
+      anweisungen: false,
+      labor_enabled: false,
+      sites_enabled: true,
+      chat: false,
+      interactive_antrag_enabled: true,
+      vorlagen: false,
+      video_editor: false,
+    };
+
+    const parsed = userProfileSchema.parse(buildParseInput(nullEmailUser));
+
+    expect(parsed.email).toBeUndefined();
+    expect(parsed.avatar_robot_id).toBe(2);
+  });
+});
+
 describe('userProfileSchema — drift detection', () => {
   it('throws ZodError when a required field has the wrong type', () => {
     const drifted = {
@@ -180,14 +261,35 @@ describe('userProfileSchema — drift detection', () => {
     expect(caught?.issues[0]?.path).toEqual(['avatar_robot_id']);
   });
 
-  it('throws ZodError reporting all missing required fields at once', () => {
+  it('throws ZodError when the only truly-required field (id) is missing', () => {
+    // `id` is the single hard-required field that has no `.default()` and
+    // no `.optional()`. Email used to be required too but was relaxed to
+    // `.optional()` after the prod login-loop incident (see the
+    // "missing email" describe block above).
     const incomplete = {
-      // no id, no email — these are required and have no defaults
+      // no id
+      email: 'dana@example.com',
       name: 'Dana',
       emailVerified: true,
       image: null,
       createdAt: now,
       updatedAt: now,
+      avatar_robot_id: 1,
+      beta_features: {},
+      user_defaults: {},
+      groups_enabled: false,
+      custom_generators: false,
+      database_access: false,
+      collab: false,
+      notebook: false,
+      sharepic: false,
+      anweisungen: false,
+      labor_enabled: false,
+      sites_enabled: true,
+      chat: false,
+      interactive_antrag_enabled: true,
+      vorlagen: false,
+      video_editor: false,
     };
 
     let caught: z.ZodError | undefined;
@@ -200,6 +302,7 @@ describe('userProfileSchema — drift detection', () => {
     expect(caught).toBeInstanceOf(z.ZodError);
     const paths = caught!.issues.map((i) => i.path.join('.'));
     expect(paths).toContain('id');
-    expect(paths).toContain('email');
+    // email is optional now — MUST NOT be in the missing-field list
+    expect(paths).not.toContain('email');
   });
 });

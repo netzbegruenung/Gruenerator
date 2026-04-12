@@ -54,7 +54,15 @@ export const deleteAccountBodySchema = z.object({
 export const userProfileSchema = z.object({
   id: z.string(),
   keycloak_id: z.string().optional(),
-  email: z.string(),
+  // Soft-required: the app's mental model treats email as present (UI
+  // displays it, ProfileService uses it, invitations target it), but Better
+  // Auth's `session.user.email` can legitimately be undefined when a
+  // Keycloak OIDC profile lacks the email claim. Parsing would throw and
+  // break authentication entirely — see commit fixing the prod login loop.
+  // DO NOT tighten this back to `z.string()` without first hardening
+  // `mapProfileToUser` in config/betterAuth.ts to reject missing emails
+  // AND backfilling NULL rows in profiles.email.
+  email: z.string().optional(),
   // Set when email comes from an external IdP (e.g. Keycloak) — used by
   // the frontend to gate "change email" UI for SSO users.
   auth_email: z.string().optional(),
