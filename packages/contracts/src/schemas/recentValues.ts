@@ -7,12 +7,11 @@ import { z } from 'zod';
 // ── Shared sub-schemas ──────────────────────────────────────────────────────
 
 export const recentValueItemSchema = z.object({
-  id: z.string(),
-  field_type: z.string(),
+  id: z.string().optional(),
+  field_type: z.string().optional(),
   field_value: z.string(),
   form_name: z.string().nullable(),
-  // Date serialises to an ISO string over JSON
-  created_at: z.union([z.string(), z.date()]),
+  created_at: z.union([z.string(), z.date()]).optional(),
 });
 
 export const fieldTypeCountSchema = z.object({

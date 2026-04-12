@@ -16,6 +16,7 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc tsconfig.base.json .
 
 # Copy only package.json files first for dependency caching
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/docs/package.json ./packages/docs/
 COPY packages/collab/package.json ./packages/collab/
 COPY packages/ui/package.json ./packages/ui/
@@ -30,6 +31,7 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 
 # Copy source files (including web for CSS imports)
 COPY packages/shared ./packages/shared
+COPY packages/contracts ./packages/contracts
 COPY packages/docs ./packages/docs
 COPY packages/collab ./packages/collab
 COPY packages/ui ./packages/ui
@@ -74,6 +76,7 @@ COPY --chown=gruenerator:gruenerator pnpm-lock.yaml pnpm-workspace.yaml package.
 
 # Copy only package.json files for production install
 COPY --chown=gruenerator:gruenerator packages/shared/package.json ./packages/shared/
+COPY --chown=gruenerator:gruenerator packages/contracts/package.json ./packages/contracts/
 COPY --chown=gruenerator:gruenerator packages/docs/package.json ./packages/docs/
 COPY --chown=gruenerator:gruenerator packages/collab/package.json ./packages/collab/
 COPY --chown=gruenerator:gruenerator packages/ui/package.json ./packages/ui/

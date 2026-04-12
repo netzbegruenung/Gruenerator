@@ -16,5 +16,5 @@
     "noPropertyAccessFromIndexSignature": false
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/tiptap-editor/**/*", "src/api/contractsClient.ts"]
+  "exclude": ["node_modules", "dist", "src/tiptap-editor/**/*"]
 }

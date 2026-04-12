@@ -30,7 +30,7 @@ export const searchResultSchema = z.object({
   excerpt: z.string().optional(),
 });
 
-export const citationSchema = z.object({
+export const searchCitationSchema = z.object({
   index: z.number(),
   url: z.string(),
   title: z.string(),
@@ -56,7 +56,7 @@ export const searchResponseSchema = z.object({
       generated: z.boolean().optional(),
     })
     .optional(),
-  citations: z.array(citationSchema).optional(),
+  citations: z.array(searchCitationSchema).optional(),
   sources: z.array(sourceSchema).optional(),
   metadata: z
     .object({

@@ -30,7 +30,6 @@
     "scripts",
     "**/test-*.ts",
     "**/*.vitest.ts",
-    "services/comfyui",
-    "routes/user/recentValuesContractRouter.ts"
+    "services/comfyui"
   ]
 }
