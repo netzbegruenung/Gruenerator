@@ -100,7 +100,7 @@ export function SubtitleEditorScreen({
   const project = fullProject || initialProject;
 
   useEffect(() => {
-    secureStorage.getToken().then(setAuthToken);
+    void secureStorage.getToken().then(setAuthToken);
   }, []);
 
   useEffect(() => {
@@ -118,7 +118,7 @@ export function SubtitleEditorScreen({
       }
     };
 
-    loadFullProjectData();
+    void loadFullProjectData();
   }, [initialProject.id, initialProject.subtitles, isTempProject]);
 
   const needsFullProjectFetch = !isTempProject && !initialProject.subtitles && !fullProject;
@@ -186,7 +186,7 @@ export function SubtitleEditorScreen({
     useCallback(() => {
       return () => {
         if (hasUnsavedChanges) {
-          confirmDiscardChanges();
+          void confirmDiscardChanges();
         }
       };
     }, [hasUnsavedChanges, confirmDiscardChanges])
@@ -202,7 +202,7 @@ export function SubtitleEditorScreen({
   const exportHook = useSubtitleExport(saveChanges);
 
   const handleExport = useCallback(() => {
-    exportHook.startExport();
+    void exportHook.startExport();
   }, [exportHook.startExport]);
 
   const handleBackToEditor = useCallback(() => {
@@ -210,7 +210,7 @@ export function SubtitleEditorScreen({
   }, [exportHook.reset]);
 
   const handleGoHome = useCallback(() => {
-    router.replace('/(tabs)/start');
+    void router.replace('/(tabs)/start');
   }, [router]);
 
   const handleBack = useCallback(async () => {

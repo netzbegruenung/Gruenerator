@@ -99,7 +99,7 @@ export default function PushedContentScreen() {
       }
     }
 
-    downloadContent();
+    void downloadContent();
   }, [shareToken, isVideo]);
 
   const handleSaveToGallery = useCallback(async () => {

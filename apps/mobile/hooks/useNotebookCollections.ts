@@ -41,7 +41,7 @@ export function useNotebookCollections() {
   }, []);
 
   useEffect(() => {
-    fetchCollections();
+    void fetchCollections();
     return () => {
       pollTimers.current.forEach((timer) => clearInterval(timer));
       pollTimers.current.clear();

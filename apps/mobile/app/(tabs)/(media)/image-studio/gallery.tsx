@@ -57,13 +57,14 @@ export default function GalleryScreen() {
         return images.filter((share) => share.imageMetadata?.hasOriginalImage === true);
       case 'created':
         return images.filter((share) => share.imageMetadata?.hasOriginalImage === false);
+      case 'all':
       default:
         return images;
     }
   }, [shares, filter]);
 
   useEffect(() => {
-    fetchUserShares('image');
+    void fetchUserShares('image');
   }, [fetchUserShares]);
 
   const handleRefresh = useCallback(async () => {
@@ -121,7 +122,7 @@ export default function GalleryScreen() {
         <View style={styles.itemContainer}>
           <Pressable
             style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
-            onPress={() => handleShare(item)}
+            onPress={() => void handleShare(item)}
           >
             <Image source={{ uri: imageUrl }} style={styles.itemImage} resizeMode="cover" />
             <View style={styles.itemOverlay}>
@@ -159,6 +160,7 @@ export default function GalleryScreen() {
           title: 'Keine erstellten Bilder',
           text: 'Erstelle ein Bild mit KI oder Templates und es erscheint hier.',
         };
+      case 'all':
       default:
         return {
           title: 'Noch keine Sharepics',

@@ -47,7 +47,7 @@ export function ProjectList({
   const { isAuthenticated } = useAuthStore();
 
   useEffect(() => {
-    secureStorage.getToken().then(setAuthToken);
+    void secureStorage.getToken().then(setAuthToken);
   }, []);
   const {
     projects,
@@ -61,7 +61,7 @@ export function ProjectList({
 
   useEffect(() => {
     if (isAuthenticated && !initialFetchComplete) {
-      fetchProjects();
+      void fetchProjects();
     }
   }, [isAuthenticated, initialFetchComplete, fetchProjects]);
 
@@ -118,6 +118,9 @@ export function ProjectList({
               break;
             case 2:
               confirmDelete(project);
+              break;
+            case undefined:
+            default:
               break;
           }
         }
@@ -240,7 +243,7 @@ export function ProjectList({
           style={[styles.retryButton, { backgroundColor: colors.primary[600] }]}
           onPress={() => {
             clearError();
-            fetchProjects();
+            void fetchProjects();
           }}
         >
           <Text style={styles.retryButtonText}>Erneut versuchen</Text>

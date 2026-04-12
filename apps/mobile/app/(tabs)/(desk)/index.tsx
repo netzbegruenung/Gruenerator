@@ -101,13 +101,13 @@ export default function DeskDashboard() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchBoards();
+      void fetchBoards();
     }, [fetchBoards])
   );
 
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
-    fetchBoards(true);
+    void fetchBoards(true);
   }, [fetchBoards]);
 
   return (

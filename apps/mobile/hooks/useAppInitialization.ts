@@ -31,7 +31,7 @@ export function useAppInitialization() {
       }
     }
 
-    initialize();
+    void initialize();
   }, [loadPreferences]);
 
   // Handle notification taps → deep link navigation
@@ -40,7 +40,7 @@ export function useAppInitialization() {
       const data = response.notification.request.content.data as Record<string, unknown>;
       if (data?.action_url && typeof data.action_url === 'string') {
         try {
-          router.push(data.action_url as never);
+          void router.push(data.action_url as never);
         } catch {
           /* navigation may fail */
         }

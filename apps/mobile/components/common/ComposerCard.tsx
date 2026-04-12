@@ -11,7 +11,11 @@ interface ComposerCardProps {
   onSettings?: () => void;
 }
 
-export function ComposerCard({ placeholder = 'Nachricht eingeben...', onSend, onSettings }: ComposerCardProps) {
+export function ComposerCard({
+  placeholder = 'Nachricht eingeben...',
+  onSend,
+  onSettings,
+}: ComposerCardProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const [text, setText] = useState('');
@@ -25,7 +29,7 @@ export function ComposerCard({ placeholder = 'Nachricht eingeben...', onSend, on
   }, [text, onSend]);
 
   const handleVoice = useCallback(() => {
-    toggleSpeech((transcript) => {
+    void toggleSpeech((transcript) => {
       setText((prev) => appendTranscript(prev, transcript));
     });
   }, [toggleSpeech]);

@@ -72,7 +72,7 @@ export default function LoginScreen() {
       const result = await login(source);
 
       if (result.success) {
-        router.replace('/(tabs)');
+        void router.replace('/(tabs)');
       } else {
         setError(result.error || 'Anmeldung fehlgeschlagen');
       }
@@ -90,7 +90,7 @@ export default function LoginScreen() {
   };
 
   const handlePrivacyPress = () => {
-    Linking.openURL('https://gruenerator.eu/datenschutz');
+    void Linking.openURL('https://gruenerator.eu/datenschutz');
   };
 
   const renderLoginOption = (provider: LoginProvider) => {

@@ -93,10 +93,10 @@ export default function ReelScreen() {
 
       if (mode === 'auto') {
         setScreenMode('processing');
-        startProcessing(pendingVideoUri);
+        void startProcessing(pendingVideoUri);
       } else if (mode === 'subtitle') {
         setScreenMode('transcribing');
-        startManualProcessing(pendingVideoUri);
+        void startManualProcessing(pendingVideoUri);
       }
     },
     [pendingVideoUri, startProcessing, startManualProcessing]
@@ -127,7 +127,7 @@ export default function ReelScreen() {
             title: 'Neues Reel',
           });
 
-          useProjectsStore.getState().fetchProjects();
+          void useProjectsStore.getState().fetchProjects();
 
           setScreenMode('projects');
           router.push({
@@ -170,7 +170,7 @@ export default function ReelScreen() {
         }
       };
 
-      saveAndNavigate();
+      void saveAndNavigate();
     }
   }, [screenMode, status, transcribedSubtitles, uploadId, isSavingProject]);
 

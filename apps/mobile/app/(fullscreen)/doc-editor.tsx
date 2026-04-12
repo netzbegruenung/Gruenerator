@@ -69,7 +69,7 @@ export default function DocumentScreen() {
     }
 
     console.log('[DocScreen] Getting token...');
-    secureStorage.getToken().then((authToken) => {
+    void secureStorage.getToken().then((authToken) => {
       console.log('[DocScreen] Token:', authToken ? 'present' : 'null');
       if (!authToken) {
         setError('Nicht angemeldet');
@@ -99,7 +99,7 @@ export default function DocumentScreen() {
           })
           .catch(() => {});
       }
-      trackDocumentOpen(id);
+      void trackDocumentOpen(id);
     });
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 

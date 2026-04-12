@@ -55,7 +55,7 @@ export function DocumentBrowserSheet({
 
   useEffect(() => {
     if (visible) {
-      fetchAll();
+      void fetchAll();
       setLevel({ type: 'root' });
       setSearchQuery('');
       setSearchResults([]);

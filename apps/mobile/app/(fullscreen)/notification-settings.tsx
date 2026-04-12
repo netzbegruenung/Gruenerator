@@ -118,7 +118,7 @@ export default function NotificationSettingsScreen() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
         const client = getGlobalApiClient();
         const res = await client.get<{ preferences?: Record<string, ChannelPreferences> }>(

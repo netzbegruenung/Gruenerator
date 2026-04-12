@@ -32,7 +32,7 @@ export function useRecentThreads(limit = 5) {
 
   useFocusEffect(
     useCallback(() => {
-      fetchThreads();
+      void fetchThreads();
     }, [fetchThreads])
   );
 
