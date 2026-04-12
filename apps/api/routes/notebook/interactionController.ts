@@ -22,6 +22,7 @@ import { validateBody, type TypedRequest } from '../../middleware/validateBody.j
 import { notebookQAService } from '../../services/notebook/index.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
+import { fromParam, type NotebookId } from '../../utils/types/branded.js';
 
 import type { PublicAccessRecord } from './types.js';
 
@@ -219,7 +220,7 @@ router.post(
 
     try {
       const userId = req.user!.id;
-      const collectionId = req.params.id;
+      const collectionId = fromParam<NotebookId>(req.params.id);
       const { question, filters, fastMode } = req.body;
 
       if (!question.trim()) {
