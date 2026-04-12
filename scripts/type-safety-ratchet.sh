@@ -10,12 +10,10 @@
 set -euo pipefail
 
 # --- Thresholds (update these when counts decrease) ---
-# Last updated: 2026-04-12
-# ts-rest router wiring (Phase 4.1 expansion) added ~23 `as unknown as AuthenticatedRequest`
-# casts. These are concentrated in contract routers and will be removed when we augment
-# Express.Request with our custom auth fields (see roadmap "Known debt" section).
-MAX_CASTS_API=110
-MAX_CASTS_TOTAL=185
+# Last updated: 2026-04-12 (post-Stage-C: Express.Request augmentation eliminated
+# 13 AuthenticatedRequest casts, unify agent eliminated 2 more)
+MAX_CASTS_API=96
+MAX_CASTS_TOTAL=170
 MAX_SUPPRESSIONS_API=75
 MAX_SUPPRESSIONS_TOTAL=85
 
