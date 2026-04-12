@@ -7,7 +7,7 @@ export interface Board {
   creator_name?: string;
   created_at: string;
   updated_at: string;
-  content?: string | { is_archived?: boolean; board_type?: BoardType };
+  content?: string | { is_archived?: boolean; board_type?: BoardType } | null;
 }
 
 function parseContent(board: Board): { is_archived?: boolean; board_type?: BoardType } {

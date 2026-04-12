@@ -23,3 +23,5 @@ export { sharepicContract } from './sharepicContract.js';
 export { wordpressContract } from './wordpressContract.js';
 export { transferContract } from './transferContract.js';
 export { unsplashContract } from './unsplashContract.js';
+export { notificationsContract } from './notificationsContract.js';
+export { adminVorlagenContract } from './adminVorlagenContract.js';

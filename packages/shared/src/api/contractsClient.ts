@@ -23,6 +23,10 @@ import {
   searchContract,
   boardsContract,
   notebookContract,
+  wordpressContract,
+  transferContract,
+  notificationsContract,
+  adminVorlagenContract,
 } from '@gruenerator/contracts';
 import { initClient } from '@ts-rest/core';
 
@@ -96,6 +100,10 @@ const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
 const _searchClient = () => initClient(searchContract, CLIENT_OPTS);
 const _boardsClient = () => initClient(boardsContract, CLIENT_OPTS);
 const _notebookClient = () => initClient(notebookContract, CLIENT_OPTS);
+const _wordpressClient = () => initClient(wordpressContract, CLIENT_OPTS);
+const _transferClient = () => initClient(transferContract, CLIENT_OPTS);
+const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS);
+const _adminVorlagenClient = () => initClient(adminVorlagenContract, CLIENT_OPTS);
 
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
@@ -104,6 +112,10 @@ export interface ContractsClient {
   search: ReturnType<typeof _searchClient>;
   boards: ReturnType<typeof _boardsClient>;
   notebook: ReturnType<typeof _notebookClient>;
+  wordpress: ReturnType<typeof _wordpressClient>;
+  transfer: ReturnType<typeof _transferClient>;
+  notifications: ReturnType<typeof _notificationsClient>;
+  adminVorlagen: ReturnType<typeof _adminVorlagenClient>;
 }
 
 // ── Lazy singleton ────────────────────────────────────────────────────────────
@@ -129,6 +141,10 @@ export function getContractsClient(): ContractsClient {
     search: _searchClient(),
     boards: _boardsClient(),
     notebook: _notebookClient(),
+    wordpress: _wordpressClient(),
+    transfer: _transferClient(),
+    notifications: _notificationsClient(),
+    adminVorlagen: _adminVorlagenClient(),
   };
 
   return _client;

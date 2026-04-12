@@ -1,11 +1,19 @@
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { type ThreadId, type UserId } from '../../../utils/types/branded.js';
 
 /**
  * Check if a user can access a chat thread.
+ *
+ * Signature uses branded `ThreadId` and `UserId` so swapping the two
+ * arguments at a call site is a compile error — both are UUIDs at runtime
+ * and plain string parameters would hide the bug. Access is granted if
+ * the user is the owner, is listed in `permissions`, the thread is public,
+ * or a group the user is a member of has the thread shared to it.
+ *
  * Uses separate queries to avoid PostgreSQL type ambiguity
  * (chat_threads.user_id is varchar, group_memberships.user_id is uuid).
  */
-export async function canAccessThread(threadId: string, userId: string): Promise<boolean> {
+export async function canAccessThread(threadId: ThreadId, userId: UserId): Promise<boolean> {
   const db = getPostgresInstance();
 
   // Check owner, permissions, or public

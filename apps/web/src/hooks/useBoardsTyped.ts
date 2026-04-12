@@ -1,25 +1,39 @@
 /**
- * useBoardsTyped — typed replacement for useBoards mutations.
+ * useBoardsTyped — typed replacement for useBoards.
  *
- * GET /boards (list) and DELETE /boards/:id are NOT in boardsContract —
- * they remain axios-backed. This hook provides typed versions of the
- * 3 contract-modeled mutations: createBoard, updateBoard, generateBoard.
+ * Covers all endpoints in boardsContract:
+ *   GET  /api/boards          (list)
+ *   POST /api/boards/generate (generate)
+ *   POST /api/boards          (create)
+ *   PUT  /api/boards/:id      (update)
+ *   DELETE /api/boards/:id    (delete)
  *
- * The mutation return types are inferred directly from the Zod schemas in
- * @gruenerator/contracts. Since boardDocumentSchema is a structural superset
- * of the local Board interface, consumers can pass returned boards directly
- * to isBoardArchived / getBoardType without casts.
+ * The return shape is a structural superset of the legacy useBoards hook so
+ * all consumers can drop-in replace `useBoards` with `useBoardsTyped`.
  */
 
 import { getContractsClient } from '@gruenerator/shared/api';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { type BoardType } from '../features/boards/types';
+import { isBoardArchived, type BoardType } from '../features/boards/types';
 
 const BOARDS_QUERY_KEY = ['boards'];
 
-export const useBoardsTyped = () => {
+export const useBoardsTyped = (options?: { enabled?: boolean }) => {
   const queryClient = useQueryClient();
+
+  const boardsQuery = useQuery({
+    queryKey: BOARDS_QUERY_KEY,
+    queryFn: async () => {
+      const client = getContractsClient();
+      const result = await client.boards.listBoards();
+      if (result.status !== 200) {
+        throw new Error(`Failed to list boards (HTTP ${result.status})`);
+      }
+      return result.body;
+    },
+    enabled: options?.enabled,
+  });
 
   const createBoard = useMutation({
     mutationFn: async ({ title, boardType }: { title?: string; boardType?: BoardType }) => {
@@ -34,6 +48,22 @@ export const useBoardsTyped = () => {
         throw new Error(`Failed to create board (HTTP ${result.status})`);
       }
       return result.body;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: BOARDS_QUERY_KEY });
+    },
+  });
+
+  const deleteBoard = useMutation({
+    mutationFn: async (id: string) => {
+      const client = getContractsClient();
+      const result = await client.boards.deleteBoard({
+        params: { id },
+        body: {},
+      });
+      if (result.status !== 200) {
+        throw new Error(`Failed to delete board (HTTP ${result.status})`);
+      }
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: BOARDS_QUERY_KEY });
@@ -84,8 +114,21 @@ export const useBoardsTyped = () => {
     },
   });
 
+  const allBoards = boardsQuery.data ?? [];
+  const activeBoards = allBoards.filter((b) => !isBoardArchived(b));
+  const archivedBoards = allBoards.filter((b) => isBoardArchived(b));
+
   return {
+    // query state
+    boardsQuery,
+    boards: activeBoards,
+    archivedBoards,
+    allBoards,
+    isLoading: boardsQuery.isLoading,
+    error: boardsQuery.error,
+    // mutations
     createBoard,
+    deleteBoard,
     updateBoard,
     generateBoard,
   };
