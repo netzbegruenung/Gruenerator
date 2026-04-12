@@ -74,7 +74,7 @@ export const useProfile = (userId?: string) => {
     placeholderData: user
       ? {
           avatar_robot_id: user.avatar_robot_id,
-          display_name: user.display_name || user.name,
+          display_name: user.display_name,
           email: user.email,
         }
       : undefined,
