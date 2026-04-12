@@ -111,18 +111,13 @@ USER gruenerator
 RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/store \
     pnpm install --prod --frozen-lockfile --filter @gruenerator/api...
 
-# Copy compiled shared package (resolves @gruenerator/shared/* imports at runtime)
+# Copy compiled workspace packages. The package.json files already ship with
+# the correct runtime exports map (`"default": "./dist/*.js"`), so no rewrite
+# is needed — prod Node resolution falls through the `development` condition
+# (not active here) and hits `default`, which points at the compiled dist.
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/dist ./packages/shared/dist
-# Redirect shared package exports from ./src/*.ts to ./dist/*.js for Node.js
-RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' packages/shared/package.json
-
-# Copy compiled contracts package (resolves @gruenerator/contracts imports at runtime)
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/contracts/dist ./packages/contracts/dist
-RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' packages/contracts/package.json
-
-# Copy compiled hocuspocus package (resolves @gruenerator/hocuspocus imports at runtime)
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/dist ./services/hocuspocus/dist
-RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' services/hocuspocus/package.json
 
 # Copy compiled API with bundled assets
 COPY --from=builder --chown=gruenerator:gruenerator /app/apps/api/dist ./apps/api/dist
