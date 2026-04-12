@@ -17,9 +17,8 @@ export default [
     rules: {
       'react/react-in-jsx-scope': 'off',
       // no-unsafe-* rules: inherited from base config at 'error' level (180 violations fixed 2026-04-11)
-      // Remaining warn overrides for rules not yet fixed:
+      // no-floating-promises: inherited at 'error' level (70 violations fixed 2026-04-12)
       '@typescript-eslint/switch-exhaustiveness-check': 'warn',
-      '@typescript-eslint/no-floating-promises': 'warn',
     },
   },
   {
