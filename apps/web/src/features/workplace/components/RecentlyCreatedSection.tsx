@@ -38,9 +38,9 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import apiClient from '../../../components/utils/apiClient';
 import { getIcon } from '../../../config/icons';
+import { useBoardsTyped } from '../../../hooks/useBoardsTyped';
 import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
 import { formatRelativeDate } from '../../../utils/dateFormatter';
-import { useBoards } from '../../boards/hooks/useBoards';
 
 const DocsIcon = getIcon('navigation', 'docs');
 const BoardIcon = getIcon('navigation', 'boards');
@@ -395,7 +395,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
     })
     .slice(0, 10);
 
-  const { createBoard, deleteBoard } = useBoards({ enabled: true });
+  const { createBoard, deleteBoard } = useBoardsTyped({ enabled: true });
 
   const createEmptyDoc = useMutation({
     mutationFn: async () => {
