@@ -1,4 +1,5 @@
 import { drizzleAdapter } from '@better-auth/drizzle-adapter';
+import { type UserProfile } from '@gruenerator/contracts';
 import { betterAuth } from 'better-auth';
 import { bearer } from 'better-auth/plugins/bearer';
 import { genericOAuth } from 'better-auth/plugins/generic-oauth';
@@ -322,4 +323,11 @@ export const auth = betterAuth({
 
 export type BetterAuthType = typeof auth;
 export type BetterAuthSession = typeof auth.$Infer.Session;
+
+// Better Auth's `$Infer.Session.user` already includes every column declared
+// in `additionalFields` above — `avatar_robot_id`, `is_admin`, `first_name`,
+// all feature flags etc. are typed as `T | null | undefined` (null because
+// Better Auth stores unset optional columns as SQL NULL). We expose this
+// type directly; `authMiddleware.toBetterAuthUser()` coerces null → undefined
+// and Zod's `.default(...)` on the schema fills the final values.
 export type BetterAuthUser = typeof auth.$Infer.Session.user;

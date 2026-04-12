@@ -23,6 +23,17 @@ export {
   userProfileContract,
   notebookContract,
   notebookCollectionsContract,
+  docsContract,
+  documentsContract,
+  subtitlerContract,
+  voiceContract,
+  imagePickerContract,
+  videoContract,
+  textGenerationContract,
+  sharepicContract,
+  wordpressContract,
+  transferContract,
+  unsplashContract,
 } from './contracts/index.js';
 
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
@@ -36,3 +47,14 @@ export * from './schemas/shares.js';
 export * from './schemas/userProfile.js';
 export * from './schemas/notebook.js';
 export * from './schemas/notebookCollections.js';
+export * from './schemas/docs.js';
+export * from './schemas/documents.js';
+export * from './schemas/subtitler.js';
+export * from './schemas/voice.js';
+export * from './schemas/imagePicker.js';
+export * from './schemas/video.js';
+export * from './schemas/textGeneration.js';
+export * from './schemas/sharepic.js';
+export * from './schemas/wordpress.js';
+export * from './schemas/transfer.js';
+export * from './schemas/unsplash.js';

@@ -262,11 +262,22 @@ Three production incidents in this session — all caused by adding contract rou
 | exportsContract | 2 | **Verified** (mounted Apr 12) |
 | notebookContract | 5 | **Mounted** (Apr 12) — first mixed-auth contract (2 routes `req.user`, 3 public/token-gated) |
 | notebookCollectionsContract | 10 | **Mounted** (Apr 12) — full CRUD surface (list/create/update/delete/share/sync/bulk/doc-remove/search). All uniformly `requireAuth`. Built in parallel with notebookContract in a single 4-stream session. |
-| searchContract | 2 | Scaffolded but **NOT mounted** — pilot doesn't model SSE `?stream=true` mode the frontend depends on. Activate once streaming is added to the contract. |
+| docsContract | 5 | **Mounted** (Apr 12, Session N+1) — document metadata + permissions + share disable + group CRUD. |
+| documentsContract | 3 | **Mounted** (Apr 12, Session N+1) — full-text / stats / Wolke sync-status. |
+| subtitlerContract | 8 | **Mounted** (Apr 12, Session N+1) — project CRUD + cleanup + export-token. Binary download + async 202 export routes stay on legacy. |
+| voiceContract | 6 | **Mounted** (Apr 12, Session N+1) — transcribe URL + protokoll + identify-speakers + todo-list + formats. Multer + SSE routes stay on legacy. |
+| imagePickerContract | 7 | **Mounted** (Apr 12, Session N+1) — select, stats, catalog, validate, stock-catalog, download-track, clear-cache. |
+| videoContract | 3 | **Mounted** (Apr 12, Session N+1) — render POST/GET/DELETE. Status field narrowed to `z.enum` over codegen's `z.string()`. |
+| sharepicContract | 1 | **Mounted** (Apr 12, Session N+1) — campaign_canvas via exported `generateCampaignCanvas`. |
+| wordpressContract | 5 | **Mounted** (Apr 12, Session N+1) — site CRUD + test-connection + publish + post update. External WP REST responses use `z.unknown()` (Zod boundary validation is in services/wordpress/). |
+| transferContract | 2 | **Mounted** (Apr 12, Session N+1) — list + delete. Upload stays on legacy (multer multipart). |
+| unsplashContract | 2 | **Mounted** (Apr 12, Session N+1) — search + track-download. |
+| textGenerationContract | 3 | **Schemas only, no router mount** — antraege/generate-simple, claude_social/strategy, claude_social/production. Handlers write directly to `res` and manage their own response lifecycle, so ts-rest handler wrapping causes "headers already sent". Schemas still useful for frontend body typing. |
+| searchContract | 2 | Scaffolded but **NOT mounted** — pilot doesn't model SSE `?stream=true` mode. Session N+5 scope. |
 
-**Total**: **50 typed endpoints** served via ts-rest contracts (out of 126 candidates identified by codegen script).
+**Total**: **92 typed endpoints** served via ts-rest contracts (out of 126 candidates identified by the original codegen script — ≈73% coverage; the remaining ~34 are multer/binary/SSE/async-202 routes that need dedicated design work).
 
-**All 10 routers (including the unmounted searchContract scaffold) use the shared `logContractValidationError` helper** so any future validation issue logs server-side with the exact failing field path. The era of "the contract returned 400 and we have no idea why" is over.
+**All 20 routers use the shared `logContractValidationError` helper** so any future validation issue logs server-side with the exact failing field path. The era of "the contract returned 400 and we have no idea why" is over.
 
 ### Mixed-auth contract pattern (new 2026-04-12)
 
@@ -358,6 +369,27 @@ Zero runtime cost — branded IDs pass transparently to services accepting `stri
 | Mounted ts-rest contracts | **9 of 11** (searchContract unmounted, needs SSE model) | Streaming contract design |
 
 **Ranking heuristic: value-per-effort = (violations eliminated) / (edit count)**. Sessions are ordered so each one has the highest blast-radius/work ratio among remaining options.
+
+### Session N+1 — Bulk ts-rest contract generation [DONE 2026-04-12]
+
+**Outcome**: 11 new contracts / 42 new typed endpoints in one session via 3 parallel Sonnet streams + a codegen script extension (response-schema inference from `res.json(...)` walk). Total post-session: **22 contracts / 20 mounted / 92 endpoints / ≈73% of the 126-route target**.
+
+**Streams:**
+- **A (docs + documents)**: 8 endpoints across 2 contracts (`docsContract` + `documentsContract`). 2 files, 6 new.
+- **B (subtitler + voice + imagePicker + video)**: 24 endpoints across 4 contracts — *expanded beyond the codegen-flagged validateBody routes* to cover the full JSON surface of each file. 12 files, 12 new.
+- **C (sharepic + wordpress + transfer + unsplash + textGeneration)**: 10 mounted + 3 unmounted (textGeneration = schemas only; handlers manage their own response lifecycle and can't be wrapped). 14 files, 14 new.
+
+**Emergent Priority 4 cleanup** (side quest that landed in the same session): the `toBetterAuthUser` cast pile in `apps/api/middleware/authMiddleware.ts` was replaced with a single `userProfileSchema.parse(rawSession)` call. This required adding `.default(...)` to every feature-flag field in the canonical `userProfileSchema` so Zod can fill feature-flag values without inline fallbacks. Discovered 5 additional silent bugs in frontend components reading `user?.name` (never a valid field) or `user?.user_metadata?.firstName` (never a valid path) with `||` fallbacks.
+
+**Lessons captured**:
+1. **Codegen output is a starting point, not a ceiling.** Streams B and C both expanded beyond validateBody-flagged routes and contracted 18 additional endpoints (24 vs ~7 flagged for Stream B). Always read the whole file before writing.
+2. **Binary / multer / SSE / async-202 routes need dedicated design.** Skipping them and documenting why is the correct move — they're not missing coverage, they're out of scope for JSON request/response contracts.
+3. **`z.unknown()` for external API proxy responses is fine** when Zod validation already happens at the boundary in the service layer (Phase 4.3). The contract doesn't need to re-validate.
+4. **One stream's type-flow fix can resolve another stream's pre-existing error.** Monorepo typechecks are non-monotonic — Stream C's `routes.ts` mount additions unlocked an assignability that Stream A had seen as an error earlier.
+
+**Codegen script extension** (`scripts/generate-contracts-from-validate-body.ts`): added a full response-schema inference engine. Walks each handler body, finds every `res.json(...)` / `res.status(N).json(...)` call, and emits a Zod schema per status code. Balanced-delimiter parser handles nested `{}`, `[]`, `()`, and string literals without a TypeScript AST dependency. Still regex-based, still dependency-free, but now response-side instead of request-only.
+
+---
 
 ### Session N+1 — Bulk ts-rest contract generation (BIGGEST blast radius)
 
@@ -578,10 +610,10 @@ Dev runners (tsx, vitest) pass `--conditions=development` and resolve to source.
 | `database/types.ts` raw row types | many | 2 holdouts | **0** (Phase 2.1 fully closed) | 0 |
 | Typecheck errors (all packages) | 3 | **0** | 0 | 0 |
 | `validateBody` routes | 0 | ~75 | ~75 | opportunistic |
-| ts-rest contracts | 0 | 4 (pilot) | **11 contracts / 9 mounted / 50 endpoints** | all (~75 target) |
+| ts-rest contracts | 0 | 4 (pilot) | **22 contracts / 20 mounted / 92 endpoints** | all (~126 target, ≈73% coverage) |
 | ts-rest frontend typed hooks | 0 | 1 (`useRecentValuesTyped`) | **3** (+`useBoardsTyped`, +`useNotebookTyped`; `exportStore.ts` internals typed) | all contract-consuming hooks |
 | `UserProfile` definition count | 3 (api/services + express.d.ts + contracts schema w/o named type) | — | **1** (canonical `z.infer` export from contracts, re-exported everywhere) | 1 |
-| `as unknown as X` casts | 241 | 84 api / 205 repo | **209** (ratcheted via `.type-safety-baseline`; 7 eliminated at source this session) | ratchet down |
+| `as unknown as X` casts | 241 | 84 api / 205 repo | **208** (ratchet baseline; Session N dropped 7, Session N+1 dropped 1 via Zod parse) | ratchet down |
 | Branded ID type adoption sites | 0 | 16 (notebook + documents) | **41** (+25 in chat + group routes) | opportunistic expansion |
 | ts-rest frontend typed hooks | 0 | 1 (`useRecentValuesTyped`) | **2** (+`useBoardsTyped`; `exportStore.ts` internals typed) | all contract-consuming hooks |
 | External API Zod schemas | 0 | 0 | **WordPress (5) + in-progress** | all 8 clients |
