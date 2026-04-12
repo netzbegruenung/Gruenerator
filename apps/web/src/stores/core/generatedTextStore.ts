@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 
+import { type GeneratedContent } from '../../types/baseform';
+
 // Link configuration for vector documents
 interface LinkConfig {
   type: 'vectorDocument' | 'none';
@@ -8,24 +10,31 @@ interface LinkConfig {
   titleKey?: string;
 }
 
-// Content type that can be stored (string or structured content with sharepic data)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type StoredContent = string | Record<string, any>;
+// Re-export the canonical GeneratedContent union from types/baseform so the
+// store shape stays consistent with every consumer that reads generatedTexts
+// (e.g. ActionButtons, ExportDropdown). The canonical union models the
+// actual shapes the store holds: plain strings, { content, metadata }
+// envelopes, and sharepic structured payloads.
+//
+// Previously `type StoredContent = string | object` — which was too wide:
+// `object` is not assignable to concrete consumer shapes like
+// `GeneratedContentObject`, breaking callers that depended on the stricter
+// consumer type.
 
 // Store state interface
 interface GeneratedTextStoreState {
   // State - stores can contain strings or structured content (e.g., sharepic data)
-  generatedTexts: Record<string, StoredContent>;
+  generatedTexts: Record<string, GeneratedContent>;
   generatedTextMetadata: Record<string, unknown | null>;
   quillInstances: Record<string, unknown>;
   isLoading: boolean;
   isStreaming: boolean;
-  history: Record<string, StoredContent[]>;
+  history: Record<string, GeneratedContent[]>;
   historyIndex: Record<string, number>;
   maxHistorySize: number;
 
   // Getters
-  getGeneratedText: (componentName: string) => StoredContent;
+  getGeneratedText: (componentName: string) => GeneratedContent;
   getGeneratedTextMetadata: (componentName: string) => unknown | null;
   getLinkConfig: (componentName: string) => LinkConfig;
   getQuillInstance: (componentName: string) => unknown | null;
@@ -33,10 +42,14 @@ interface GeneratedTextStoreState {
   canRedo: (componentName: string) => boolean;
 
   // Setters - accepts string or structured content
-  setGeneratedText: (componentName: string, text: StoredContent, metadata?: unknown | null) => void;
+  setGeneratedText: (
+    componentName: string,
+    text: GeneratedContent,
+    metadata?: unknown | null
+  ) => void;
   setTextWithHistory: (
     componentName: string,
-    text: StoredContent,
+    text: GeneratedContent,
     metadata?: unknown | null
   ) => void;
   setGeneratedTextMetadata: (componentName: string, metadata: unknown) => void;

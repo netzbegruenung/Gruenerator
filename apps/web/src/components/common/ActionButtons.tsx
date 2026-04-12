@@ -20,16 +20,7 @@ import { copyFormattedContent } from '../utils/commonFunctions';
 
 import ExportDropdown from './ExportDropdown';
 
-import type { ContentMetadata } from '@/types/baseform';
-
-interface GeneratedContentObject {
-  content?: string;
-  social?: { content?: string };
-  sharepic?: Record<string, unknown>;
-  [key: string]: unknown;
-}
-
-type GeneratedContent = string | GeneratedContentObject;
+import type { ContentMetadata, GeneratedContent, GeneratedContentObject } from '@/types/baseform';
 
 interface ActionButtonsProps {
   isEditing?: boolean;

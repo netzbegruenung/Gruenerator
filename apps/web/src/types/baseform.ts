@@ -10,10 +10,23 @@ export type ErrorValue = string | Error | { message?: string } | null;
 // Content Types
 // =============================================================================
 
-export type GeneratedContent =
-  | string
-  | { content: string; metadata?: Record<string, unknown> }
-  | { sharepic?: unknown; social?: unknown; content?: string; metadata?: unknown };
+/**
+ * Structured content shape. Covers the plain content envelope, the
+ * sharepic-with-optional-social payload, and the text-with-metadata
+ * envelope that generators produce. Intentionally a loose structural
+ * type without an index signature so it accepts discriminated-union
+ * members (SharepicContent / TextContent / SocialContent / LinesContent
+ * from apps/web/src/stores/chatStore.ts) without requiring them to
+ * declare extra unknown keys.
+ */
+export interface GeneratedContentObject {
+  content?: string;
+  social?: { content?: string };
+  sharepic?: Record<string, unknown> | unknown;
+  metadata?: unknown;
+}
+
+export type GeneratedContent = string | GeneratedContentObject;
 
 export interface ContentMetadata {
   title?: string;
