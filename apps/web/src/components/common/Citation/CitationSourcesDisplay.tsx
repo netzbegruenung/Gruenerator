@@ -50,7 +50,7 @@ interface DocumentGroup {
   url: string | null;
   relevance: number | undefined;
   citations: Citation[];
-  additionalContent: string | unknown;
+  additionalContent: string;
   hasAdditionalContext: boolean;
 }
 
@@ -108,7 +108,7 @@ const CitationSourcesDisplay = ({
           url: docUrl,
           relevance: source.similarity_score,
           citations: [],
-          additionalContent: source.chunk_text,
+          additionalContent: (source.chunk_text as string | undefined) ?? '',
           hasAdditionalContext: false,
         });
       }
@@ -266,7 +266,7 @@ const CitationSourcesDisplay = ({
               <details className="[&_summary]:cursor-pointer [&_summary]:text-disabled [&_summary]:text-[0.9rem] [&_summary]:my-sm [&_summary]:mb-xs [&_summary:hover]:text-link">
                 <summary>Weitere Inhalte aus diesem Dokument</summary>
                 <p className="text-foreground leading-[1.4] text-[0.9rem] ml-md">
-                  {group.additionalContent as string}
+                  {group.additionalContent}
                 </p>
               </details>
             )}
