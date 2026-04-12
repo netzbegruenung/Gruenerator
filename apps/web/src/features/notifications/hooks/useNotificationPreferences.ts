@@ -1,6 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-import apiClient from '../../../components/utils/apiClient';
+import {
+  fetchNotificationPreferences,
+  updateNotificationPreferences,
+} from '../../../hooks/useNotificationsTyped';
 
 interface ChannelPreferences {
   email: boolean;
@@ -22,10 +25,7 @@ export function useNotificationPreferences() {
   const query = useQuery({
     queryKey: QUERY_KEY,
     queryFn: async () => {
-      const res = await apiClient.get<NotificationPreferencesResponse>(
-        '/auth/profile/notification-preferences'
-      );
-      return res.data;
+      return fetchNotificationPreferences() as Promise<NotificationPreferencesResponse>;
     },
     staleTime: 60_000,
   });
@@ -38,11 +38,10 @@ export function useNotificationPreferences() {
       category: string;
       channels: Partial<ChannelPreferences>;
     }) => {
-      const res = await apiClient.patch<NotificationPreferencesResponse>(
-        '/auth/profile/notification-preferences',
-        { category, channels }
-      );
-      return res.data;
+      return updateNotificationPreferences(
+        category,
+        channels
+      ) as Promise<NotificationPreferencesResponse>;
     },
     onMutate: async ({ category, channels }) => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEY });
