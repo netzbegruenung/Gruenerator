@@ -1,8 +1,11 @@
+import { drizzleAdapter } from '@better-auth/drizzle-adapter';
 import { betterAuth } from 'better-auth';
 import { bearer } from 'better-auth/plugins/bearer';
 import { genericOAuth } from 'better-auth/plugins/generic-oauth';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 
+import * as schema from '../database/schema/index.js';
 import { loadConfig } from '../database/services/PostgresService/config.js';
 import { mobileTokenExchange } from '../plugins/mobileTokenExchange.js';
 import { createLogger } from '../utils/logger.js';
@@ -40,9 +43,10 @@ const log = createLogger('BetterAuth');
 
 const pgConfig = loadConfig();
 const pool = new pg.Pool(pgConfig);
+const db = drizzle(pool, { schema });
 
 export const auth = betterAuth({
-  database: pool,
+  database: drizzleAdapter(db, { provider: 'pg', schema }),
   ...(env.BETTER_AUTH_URL != null && { baseURL: env.BETTER_AUTH_URL }),
   basePath: '/api/auth/v2',
 
