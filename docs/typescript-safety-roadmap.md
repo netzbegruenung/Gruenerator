@@ -437,29 +437,37 @@ Backend contracts are valueless without frontend consumers (Acceleration Princip
 - Don't introduce `undefined` — use `?? null` or conditional spread (`feedback_no_undefined`)
 - TanStack Query cache keys must stay stable across the migration (invalidating existing cached state = UX regression)
 
-### Session N+3 — Cast hotspot cluster elimination
+### Session N+3 — Cast hotspot cluster elimination [DONE 2026-04-13]
 
-**Goal**: Drop the ratchet baseline from **209 → ~150** (−59) by fixing the top 6 cast hotspots identified via grep.
+**Outcome**: Ratchet baseline dropped **208 → 179** (−29 casts). All 6 hotspot files at 0 casts. Zero workarounds used.
 
-**Priority targets** (grep-verified counts as of 2026-04-12):
+**Per-file result**:
 
-| File | Casts | Expected root cause |
-|---|---|---|
-| `agents/langgraph/WebSearchGraph/WebSearchGraph.ts` | 9 | One LangGraph node signature widening unlocks all 9 |
-| `routes/chat/grueneratorChat.ts` | 5 | Express middleware chain; likely one `Request` type fix |
-| `services/chat/IntentService.ts` | 4 | Service input type too narrow |
-| `routes/subtitler/processingController.ts` | 4 | Same pattern |
-| `agents/langgraph/simpleInteractiveGenerator.ts` | 4 | LangGraph node state type |
-| `routes/chat/threadsContractRouter.ts` | 3 | May be stale post-UserProfile unification — test first |
+| File | Before | After | Root cause fixed |
+|---|---|---|---|
+| `agents/langgraph/WebSearchGraph/WebSearchGraph.ts` | 9 | **0** | `WebSearchState` in types.ts used `T \| undefined` but LangGraph `Annotation.Root` uses `T \| null`. Aligned the state type to the Annotation definitions exactly. |
+| `routes/chat/grueneratorChat.ts` | 5 | **0** | Mix of: `ConversationService` importing canonical `AIWorkerPool`, exporting `ExpressRequest`/`RequestBody` types from `sharepicGenerationService`/`imagineGenerationService`, and an `isFullPendingRequest` type predicate replacing a blind cast. |
+| `services/chat/IntentService.ts` | 4 | **0** | Same export-the-type pattern — once `sharepicGenerationService` and `imagineGenerationService` exported their `ExpressRequest` + `RequestBody` types, the casts at call sites vanished. Also widened `RequestBody.attachments` to accept loose `{ type: string; [key: string]: unknown }` shapes the chat route passes. |
+| `routes/subtitler/processingController.ts` | 4 | **0** | **Two latent bugs caught.** Zod schema used `start`/`end` field names but `SubtitleConfig.segments` expected `startTime`/`endTime` — segment timestamps were silently dropped. `subtitles` array element type narrowed from `z.unknown()` to `z.record(z.unknown())`. |
+| `agents/langgraph/simpleInteractiveGenerator.ts` | 4 | **0** | `EnrichedState.knowledge` was typed `Array<{title, snippet, content?}>` but the implementation returned `string[]` — latent type lie fixed. `PromptContext` now extends `PromptAssemblyState` so the call sites don't need bridging casts. `ClaudeTool[] → Tool[]` cast was entirely redundant (structurally identical). |
+| `routes/chat/threadsContractRouter.ts` | 3 | **0** | pg driver returns `Date \| string` depending on type-parser config; 3 casts from `new Date(t.createdAt as unknown as string)` patterns collapsed into one `toIsoString(value: Date \| string): string` helper at `apps/api/utils/toIsoString.ts`. |
 
-**Parallel split**: 2 streams (langgraph cluster + chat/search cluster). Each stream picks its own ratchet target and writes the new baseline.
+**Bonus: 4 latent bugs flushed out** by the stricter boundary:
+1. `EnrichedState.knowledge` type mismatch (declared as object array, ran as string array)
+2. Subtitle segment field-name drift (`start`/`end` vs `startTime`/`endTime`)
+3. `subtitles` Zod schema too loose (`z.array(z.unknown())` instead of `z.array(z.record(z.unknown()))`)
+4. `ConversationService.processConversationRequest` had a narrow inline `aiWorkerPool` type with `processRequest(request: unknown)` — contravariant mismatch with canonical `AIWorkerPool`, silent until the cast fix surfaced it.
 
-**Target state**: ratchet baseline **209 → 150**. Each cluster fix becomes a durable lesson in the roadmap.
+**New shared helper**: `apps/api/utils/toIsoString.ts` — consolidates the `Date | string` column ambiguity into one place. Any future pg-driver date-column site reuses this helper instead of re-inventing the cast.
 
-**Pitfalls**:
-- `exactOptionalPropertyTypes` requires explicit `| undefined` on widened optional fields (Session N lesson)
-- Adding `[key: string]: unknown` index signatures to widen types BREAKS assignment from strict types like `UserProfile` (Session N lesson)
-- Never use `as X` or `// @ts-ignore` as a replacement — only root-cause fixes allowed
+**Cascade files updated**: 7 files outside the 6 targets (nodes, utilities, service wrappers) needed null-initialization or type-signature ripples from the Annotation type alignment.
+
+**Pitfalls captured** (already in the roadmap, confirmed once more):
+- `exactOptionalPropertyTypes` requires explicit `| undefined` on widened optional fields
+- Adding `[key: string]: unknown` index signatures to widen types BREAKS assignment from strict types like `UserProfile` — use explicit field lists instead
+- Never use `as X` or `// @ts-ignore` as a replacement for `as unknown as X` — only root-cause fixes count against the ratchet
+
+**Stream timing**: 2 parallel Sonnet streams (langgraph/subtitler vs chat), ~11 min and ~15 min respectively. Main-agent verification pass: ~3 min.
 
 ### Session N+4 — `eslint-disable` cleanup + opportunistic `validateBody` backfill
 
@@ -618,7 +626,7 @@ Dev runners (tsx, vitest) pass `--conditions=development` and resolve to source.
 | ts-rest frontend typed hooks | 0 | 1 (`useRecentValuesTyped`) | **6** (boards, notebook, notifications, adminVorlagen; wordpressApi + useTransfer internals rewritten; exportStore internals) | all contract-consuming hooks |
 | Frontend raw `apiClient.*` call sites | — | 94 | **~75** (↓19 this session, wordpress+transfer+notifications+adminVorlagen+useBoards) | 0 (boundary-only) |
 | `UserProfile` definition count | 3 (api/services + express.d.ts + contracts schema w/o named type) | — | **1** (canonical `z.infer` export from contracts, re-exported everywhere) | 1 |
-| `as unknown as X` casts | 241 | 84 api / 205 repo | **208** (ratchet baseline; Session N dropped 7, Session N+1 dropped 1 via Zod parse) | ratchet down |
+| `as unknown as X` casts | 241 | 84 api / 205 repo | **179** (ratchet baseline; N dropped 7, N+1 dropped 1 via Zod parse, N+3 dropped 29 across 6 hotspot files) | ratchet down |
 | Branded ID type adoption sites | 0 | 16 (notebook + documents) | **44** (+25 chat/group, +3 threadAccessService) | opportunistic expansion |
 | External API Zod schemas | 0 | 0 | **WordPress (5) + in-progress** | all 8 clients |
 | `parseJSON<T>()` adoption | — | 10 files | 10 files | all JSON.parse sites |
