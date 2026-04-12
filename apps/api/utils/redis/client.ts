@@ -6,11 +6,13 @@
 import * as dotenv from 'dotenv';
 import { createClient } from 'redis';
 
+import { env } from '../../config/env.js';
+
 import type { RedisClient } from './types.js';
 
 dotenv.config({ quiet: true });
 
-const redisUrl = process.env.REDIS_URL;
+const redisUrl = env.REDIS_URL;
 if (!redisUrl) {
   console.error('REDIS_URL ist nicht in der Umgebung konfiguriert!');
 }
@@ -46,7 +48,9 @@ if (redisUrl != null) {
 
 const client = createClient(createClientConfig) as RedisClient;
 
-client.on('error', (err: unknown) => console.error('Redis Client Fehler:', err instanceof Error ? err.message : String(err)));
+client.on('error', (err: unknown) =>
+  console.error('Redis Client Fehler:', err instanceof Error ? err.message : String(err))
+);
 client.on('connect', () => console.log('Erfolgreich mit Redis verbunden'));
 client.on('reconnecting', () => console.log('Verbinde neu mit Redis...'));
 client.on('end', () => console.warn('Redis connection closed'));
@@ -64,7 +68,10 @@ export function ensureConnected(): Promise<void> {
       .connect()
       .then(() => {})
       .catch((err: unknown) => {
-        console.error(`Redis connection failed (${maskedUrl}):`, err instanceof Error ? err.message : String(err));
+        console.error(
+          `Redis connection failed (${maskedUrl}):`,
+          err instanceof Error ? err.message : String(err)
+        );
         connectPromise = null;
         throw err;
       });

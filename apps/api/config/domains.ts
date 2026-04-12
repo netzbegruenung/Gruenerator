@@ -7,7 +7,9 @@
  * 3. Update Keycloak & nginx (external configs)
  */
 
-export const PRIMARY_DOMAIN = process.env.PRIMARY_DOMAIN || 'gruenerator.eu';
+import { env } from './env.js';
+
+export const PRIMARY_DOMAIN = env.PRIMARY_DOMAIN;
 export const PRIMARY_URL = `https://${PRIMARY_DOMAIN}`;
 
 export const ALLOWED_DOMAINS: string[] = [
@@ -70,10 +72,10 @@ export interface UrlConfig {
   callback: string;
 }
 
-const authBase = process.env.AUTH_BASE_URL || `${PRIMARY_URL}/api`;
+const authBase = env.AUTH_BASE_URL ?? `${PRIMARY_URL}/api`;
 
 export const URLS: UrlConfig = {
-  base: process.env.BASE_URL || PRIMARY_URL,
+  base: env.BASE_URL ?? PRIMARY_URL,
   authBase,
   callback: `${authBase}/auth/callback`,
 };
@@ -81,10 +83,7 @@ export const URLS: UrlConfig = {
 export function isAllowedDomain(domain: string | undefined): boolean {
   if (!domain) return false;
   const domainWithoutPort = domain.split(':')[0];
-  const allDomains = [
-    ...ALLOWED_DOMAINS,
-    ...(process.env.NODE_ENV !== 'production' ? DEV_DOMAINS : []),
-  ];
+  const allDomains = [...ALLOWED_DOMAINS, ...(env.NODE_ENV !== 'production' ? DEV_DOMAINS : [])];
   return allDomains.some(
     (allowed) => domainWithoutPort === allowed || domainWithoutPort.endsWith('.' + allowed)
   );
