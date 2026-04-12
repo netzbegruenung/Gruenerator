@@ -83,7 +83,7 @@ const loadPersistedNotebookChatState = (): { chats: Record<string, NotebookChat>
     const stored = localStorage.getItem(QA_CHAT_STORAGE_KEY);
     if (stored) {
       const { chats, timestamp, cacheVersion } = JSON.parse(stored) as {
-        chats?: Record<string, unknown>;
+        chats?: Record<string, NotebookChat>;
         timestamp?: number;
         cacheVersion?: string;
       };

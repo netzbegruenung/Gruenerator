@@ -158,7 +158,7 @@ const ImageStudioPageContent: React.FC = () => {
       if (!state?.galleryEditMode) return;
 
       const editData = {
-        shareToken: state.shareToken,
+        shareToken: state.shareToken ?? '',
         content: state.content,
         styling: state.styling,
         originalImageUrl: state.originalImageUrl,
@@ -181,7 +181,7 @@ const ImageStudioPageContent: React.FC = () => {
       if (!state?.templateMode) return;
 
       const editData = {
-        shareToken: state.shareToken,
+        shareToken: state.shareToken ?? '',
         content: {
           ...state.content,
           sharepicType: state.sharepicType ?? state.content?.sharepicType ?? urlType,

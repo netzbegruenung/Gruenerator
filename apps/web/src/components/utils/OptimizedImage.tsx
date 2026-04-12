@@ -1,6 +1,5 @@
-// @ts-expect-error — no type declarations available; module typed in vite-env.d.ts but CI tsconfig doesn't include it
+// @ts-expect-error — no type declarations available
 import { LazyLoadImage } from 'react-lazy-load-image-component';
-// @ts-expect-error — CSS import for blur effect
 import 'react-lazy-load-image-component/src/effects/blur.css';
 
 interface OptimizedImageProps {

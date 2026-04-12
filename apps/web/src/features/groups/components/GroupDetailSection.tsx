@@ -23,7 +23,7 @@ import { getNotebookById } from '../../notebook/config/notebooksConfig';
 import { useGroupPresence } from '../hooks/useGroupPresence';
 import { useGroups, useGroupAvatar, useGroupLinks, useGroupSharing } from '../hooks/useGroups';
 
-import GroupInfoSection, { type GroupData } from './GroupInfoSection';
+import GroupInfoSection, { type GroupData, type SharedItem } from './GroupInfoSection';
 
 interface GroupDetailSectionProps {
   groupId: string;
@@ -93,9 +93,8 @@ const GroupDetailSection = memo(
       useGroupSharing(groupId, { isActive: true });
 
     const sharedContent = useMemo(() => {
-      interface CollabDoc {
+      interface CollabDoc extends SharedItem {
         document_subtype?: string;
-        [key: string]: unknown;
       }
       interface SystemNotebook {
         id: string;
@@ -105,16 +104,16 @@ const GroupDetailSection = memo(
       return {
         collabDocs: allCollabDocs.filter((d) => d.document_subtype !== 'boards'),
         boards: allCollabDocs.filter((d) => d.document_subtype === 'boards'),
-        documents: groupContent?.documents ?? [],
-        generators: groupContent?.generators ?? [],
+        documents: (groupContent?.documents ?? []) as SharedItem[],
+        generators: (groupContent?.generators ?? []) as SharedItem[],
         notebooks: [
           ...((groupContent?.notebooks ?? []) as SystemNotebook[]),
           ...((groupContent?.system_notebooks ?? []) as SystemNotebook[]).map((nb) => {
             const config = getNotebookById(nb.id);
             return { ...nb, name: config?.title ?? nb.id };
           }),
-        ],
-        texts: groupContent?.texts ?? [],
+        ] as SharedItem[],
+        texts: (groupContent?.texts ?? []) as SharedItem[],
       };
     }, [groupContent]);
 

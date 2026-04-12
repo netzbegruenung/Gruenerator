@@ -102,7 +102,7 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
       if (response.data.success) {
         const suggestion = response.data;
         setAiSuggestion({ selectedImage: suggestion.selectedImage });
-        setRecommendedCategory(suggestion.selectedImage.category);
+        setRecommendedCategory(suggestion.selectedImage.category ?? null);
 
         const matchingImage = stockImages.find(
           (img) => img.filename === suggestion.selectedImage.filename
