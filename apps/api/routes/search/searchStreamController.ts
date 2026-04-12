@@ -92,7 +92,7 @@ interface SummaryPromptResult {
 }
 
 function buildSummaryPrompt(state: WebSearchState): SummaryPromptResult | null {
-  let resultsToUse: EnrichedResult[] | SearchResult[] | undefined = state.enrichedResults;
+  let resultsToUse: EnrichedResult[] | SearchResult[] | null | undefined = state.enrichedResults;
   if (!resultsToUse || resultsToUse.length === 0) {
     const firstWebSearch = state.webResults?.[0];
     resultsToUse = firstWebSearch?.results || [];
@@ -234,6 +234,22 @@ export async function streamNormalSearch(req: AuthenticatedRequest, res: Respons
       aiWorkerPool: req.app.locals.aiWorkerPool as AIWorkerPool,
       req,
       metadata: { startTime, searchMode: 'normal' },
+      subqueries: null,
+      webResults: null,
+      grundsatzResults: null,
+      aggregatedResults: null,
+      categorizedSources: {},
+      referencesMap: null,
+      citations: null,
+      citationSources: null,
+      crawlDecisions: null,
+      enrichedResults: null,
+      crawlMetadata: {},
+      finalResults: null,
+      summary: null,
+      dossier: null,
+      success: null,
+      error: null,
     };
 
     // Step 1: Planner
@@ -408,6 +424,22 @@ export async function streamDeepSearch(req: AuthenticatedRequest, res: Response)
       aiWorkerPool: req.app.locals.aiWorkerPool as AIWorkerPool,
       req,
       metadata: { startTime, searchMode: 'deep' },
+      subqueries: null,
+      webResults: null,
+      grundsatzResults: null,
+      aggregatedResults: null,
+      categorizedSources: {},
+      referencesMap: null,
+      citations: null,
+      citationSources: null,
+      crawlDecisions: null,
+      enrichedResults: null,
+      crawlMetadata: {},
+      finalResults: null,
+      summary: null,
+      dossier: null,
+      success: null,
+      error: null,
     };
 
     // Step 1: Planner (generates research questions + subqueries)

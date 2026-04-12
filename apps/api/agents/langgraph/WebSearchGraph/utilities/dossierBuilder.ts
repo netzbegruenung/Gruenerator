@@ -61,9 +61,9 @@ ANWEISUNG:
  */
 export function buildMethodologySection(
   grundsatzResults: GrundsatzResult | null | undefined,
-  researchQuestions: string[] | undefined,
-  aggregatedResults: SearchResult[] | undefined,
-  categorizedSources: CategorizedSources | undefined
+  researchQuestions: string[] | null | undefined,
+  aggregatedResults: SearchResult[] | null | undefined,
+  categorizedSources: CategorizedSources | null | undefined
 ): string {
   return `
 

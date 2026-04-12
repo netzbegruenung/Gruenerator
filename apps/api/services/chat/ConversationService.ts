@@ -12,6 +12,7 @@ import { localizePlaceholders } from '../localization/index.js';
 
 import * as chatMemory from './index.js';
 
+import type { AIWorkerPool } from '../../workers/types.js';
 import type { Locale } from '../localization/types.js';
 
 const log = createLogger('ConversationService');
@@ -94,12 +95,7 @@ export async function processConversationRequest(params: {
   locale?: Locale;
   subIntent?: string;
   messageHistory?: Array<{ role: string; content: string }>;
-  aiWorkerPool: {
-    processRequest: (
-      request: unknown,
-      req?: unknown
-    ) => Promise<{ success?: boolean; error?: string; content?: string }>;
-  };
+  aiWorkerPool: AIWorkerPool;
   req?: unknown;
 }): Promise<unknown> {
   const {

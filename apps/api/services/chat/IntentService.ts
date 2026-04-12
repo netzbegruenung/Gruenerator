@@ -23,7 +23,14 @@ import { generateSharepicForChat } from './sharepicGenerationService.js';
 
 import * as chatMemory from './index.js';
 
-import type { ExpressRequest as SharepicExpressRequest } from './sharepicGenerationService.js';
+import type {
+  ExpressRequest as ImagineExpressRequest,
+  RequestBody as ImagineRequestBody,
+} from './imagineGenerationService.js';
+import type {
+  ExpressRequest as SharepicExpressRequest,
+  RequestBody as SharepicRequestBody,
+} from './sharepicGenerationService.js';
 import type {
   DocumentQnARedisClient,
   DocumentQnAMistralClient,
@@ -270,9 +277,9 @@ async function processSharepicRequest(
       };
 
       const sharepicResponse = await generateSharepicForChat(
-        req as unknown as SharepicExpressRequest,
+        req as SharepicExpressRequest,
         sharepicType,
-        finalRequestBody as unknown as Parameters<typeof generateSharepicForChat>[2]
+        finalRequestBody as SharepicRequestBody
       );
       res.json(sharepicResponse);
       return;
@@ -343,9 +350,9 @@ async function processImagineRequest(
   try {
     const mode = (body.mode || 'pure') as 'pure' | 'sharepic' | 'edit';
     const imagineResponse = await generateImagineForChat(
-      req as unknown as Parameters<typeof generateImagineForChat>[0],
+      req as ImagineExpressRequest,
       mode,
-      body as unknown as Parameters<typeof generateImagineForChat>[2]
+      body as ImagineRequestBody
     );
     return res.json(imagineResponse);
   } catch (error) {
