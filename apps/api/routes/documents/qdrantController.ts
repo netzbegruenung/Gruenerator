@@ -18,6 +18,7 @@ import { validateBody, type TypedRequest } from '../../middleware/validateBody.j
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { fromParam, type DocumentId } from '../../utils/types/branded.js';
 
 import type { DocumentRequest, QdrantListQuery } from './types.js';
 
@@ -130,7 +131,7 @@ router.get(
   '/:documentId/full-text',
   async (req: DocumentRequest<{ documentId: string }>, res: Response): Promise<void> => {
     try {
-      const { documentId } = req.params;
+      const documentId = fromParam<DocumentId>(req.params.documentId);
       const userId = req.user?.id;
       if (!userId) {
         res.status(401).json({ error: 'Unauthorized' });
@@ -314,7 +315,7 @@ router.get(
   '/:documentId/chunk-context',
   async (req: DocumentRequest<{ documentId: string }>, res: Response): Promise<void> => {
     try {
-      const { documentId } = req.params;
+      const documentId = fromParam<DocumentId>(req.params.documentId);
       const { chunkIndex, window = '2', collection = 'user' } = req.query;
       const userId = req.user?.id;
       if (!userId) {

@@ -19,6 +19,7 @@ import { validateBody, type TypedRequest } from '../../middleware/validateBody.j
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { fromParam, type DocumentId } from '../../utils/types/branded.js';
 
 import { enrichDocumentWithPreview } from './helpers.js';
 
@@ -225,7 +226,7 @@ router.get(
   '/:id/content',
   async (req: DocumentRequest<{ id: string }>, res: Response): Promise<void> => {
     try {
-      const { id } = req.params;
+      const id = fromParam<DocumentId>(req.params.id);
       const userId = req.user?.id;
       if (!userId) {
         res.status(401).json({ error: 'Unauthorized' });
@@ -295,7 +296,7 @@ router.get(
   '/:id/chunks',
   async (req: DocumentRequest<{ id: string }>, res: Response): Promise<void> => {
     try {
-      const { id } = req.params;
+      const id = fromParam<DocumentId>(req.params.id);
       const userId = req.user?.id;
       if (!userId) {
         res.status(401).json({ error: 'Unauthorized' });
@@ -349,7 +350,7 @@ router.delete(
   '/:id',
   async (req: DocumentRequest<{ id: string }>, res: Response): Promise<void> => {
     try {
-      const { id } = req.params;
+      const id = fromParam<DocumentId>(req.params.id);
       const userId = req.user?.id;
       if (!userId) {
         res.status(401).json({ error: 'Unauthorized' });

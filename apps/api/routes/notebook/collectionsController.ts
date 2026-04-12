@@ -17,6 +17,7 @@ import { processUploadedDocument } from '../../services/document-services/Docume
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { fromParam, type DocumentId, type NotebookId } from '../../utils/types/branded.js';
 
 import type {
   CreateCollectionBody,
@@ -315,7 +316,7 @@ router.put(
   async (req: AuthenticatedRequest<{ id: string }>, res: Response) => {
     try {
       const userId = req.user!.id;
-      const collectionId = req.params.id;
+      const collectionId = fromParam<NotebookId>(req.params.id);
       const {
         name,
         description,
@@ -444,7 +445,7 @@ router.post(
   async (req: AuthenticatedRequest<{ id: string }>, res: Response) => {
     try {
       const userId = req.user!.id;
-      const collectionId = req.params.id;
+      const collectionId = fromParam<NotebookId>(req.params.id);
 
       const collection = await notebookHelper.getNotebookCollection(collectionId);
       if (!collection || collection.user_id !== userId) {
@@ -523,7 +524,7 @@ router.get(
   async (req: AuthenticatedRequest<{ id: string }>, res: Response) => {
     try {
       const userId = req.user!.id;
-      const collectionId = req.params.id;
+      const collectionId = fromParam<NotebookId>(req.params.id);
       const query = (req.query.q as string)?.trim();
 
       if (!query) {
@@ -581,7 +582,7 @@ router.delete(
   async (req: AuthenticatedRequest<{ id: string }>, res: Response) => {
     try {
       const userId = req.user!.id;
-      const collectionId = req.params.id;
+      const collectionId = fromParam<NotebookId>(req.params.id);
 
       const existingCollection = await notebookHelper.getNotebookCollection(collectionId);
       if (!existingCollection || existingCollection.user_id !== userId) {
@@ -611,7 +612,7 @@ router.post(
   async (req: AuthenticatedRequest<{ id: string }>, res: Response) => {
     try {
       const userId = req.user!.id;
-      const collectionId = req.params.id;
+      const collectionId = fromParam<NotebookId>(req.params.id);
 
       const collection = await notebookHelper.getNotebookCollection(collectionId);
       if (!collection || collection.user_id !== userId) {
@@ -644,7 +645,7 @@ router.delete(
   async (req: AuthenticatedRequest<{ id: string }>, res: Response) => {
     try {
       const userId = req.user!.id;
-      const collectionId = req.params.id;
+      const collectionId = fromParam<NotebookId>(req.params.id);
 
       const collection = await notebookHelper.getNotebookCollection(collectionId);
       if (!collection || collection.user_id !== userId) {
@@ -674,8 +675,8 @@ router.delete(
   async (req: AuthenticatedRequest<{ id: string; documentId: string }>, res: Response) => {
     try {
       const userId = req.user!.id;
-      const collectionId = req.params.id;
-      const { documentId } = req.params;
+      const collectionId = fromParam<NotebookId>(req.params.id);
+      const documentId = fromParam<DocumentId>(req.params.documentId);
 
       const collection = await notebookHelper.getNotebookCollection(collectionId);
       if (!collection || collection.user_id !== userId) {

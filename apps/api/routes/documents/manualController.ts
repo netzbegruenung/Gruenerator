@@ -21,6 +21,7 @@ import multer from 'multer';
 import { getDocumentProcessingService } from '../../services/document-services/DocumentProcessingService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { fromParam, type DocumentId } from '../../utils/types/branded.js';
 
 import type {
   DocumentRequest,
@@ -151,7 +152,8 @@ router.get(
         return;
       }
 
-      const document = await postgresDocumentService.getDocumentById(req.params.id, userId);
+      const id = fromParam<DocumentId>(req.params.id);
+      const document = await postgresDocumentService.getDocumentById(id, userId);
       if (!document) {
         res.status(404).json({ success: false, message: 'Document not found' });
         return;
