@@ -115,7 +115,7 @@ export function useNotebookChatBridge({
       if (!persistMessages) return;
 
       const t0 = performance.now();
-      const userName = (user?.user_metadata?.firstName as string) || user?.email || 'Sie';
+      const userName = user?.first_name || user?.display_name || user?.email || 'Sie';
       const answerText = metadata.answerText.replace(/\[cite:(\d+)\]/g, '[$1]');
 
       addMessage(collectionKey, {
