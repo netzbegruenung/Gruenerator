@@ -45,10 +45,35 @@ const pgConfig = loadConfig();
 const pool = new pg.Pool(pgConfig);
 const db = drizzle(pool, { schema });
 
+// One-shot config snapshot at module load — answers "what URL did the
+// container actually pick up?" without requiring a request to fire.
+log.info(
+  '[BetterAuth Config] baseURL=%s, basePath=/api/auth/v2, NODE_ENV=%s, allowedDomains=%d',
+  env.BETTER_AUTH_URL ?? 'NOT_SET (Better Auth will infer from request host)',
+  env.NODE_ENV,
+  ALLOWED_DOMAINS.length
+);
+
 export const auth = betterAuth({
-  database: drizzleAdapter(db, { provider: 'pg', schema }),
+  database: drizzleAdapter(db, { provider: 'pg', schema, debugLogs: true }),
   ...(env.BETTER_AUTH_URL != null && { baseURL: env.BETTER_AUTH_URL }),
   basePath: '/api/auth/v2',
+
+  // Pipe Better Auth's internal logs to stdout so we see every signin/
+  // signout/session decision and every adapter query the library makes.
+  // Set `level: 'info'` to reduce noise once auth is stable. Routes to
+  // `console.*` directly because Winston's variadic overloads don't
+  // accept dynamic spreads cleanly. The `unknown[]` cast narrows Better
+  // Auth's `any[]` callback signature to satisfy no-unsafe-argument.
+  logger: {
+    level: 'debug',
+    log: (level, message, ...rawArgs) => {
+      const args: unknown[] = rawArgs;
+      const sink =
+        level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
+      sink(`[BA:${level}]`, message, ...args);
+    },
+  },
 
   user: {
     modelName: 'profiles',
@@ -236,12 +261,24 @@ export const auth = betterAuth({
           log.info(`[Auth] User created: id=${user.id}, email=${user.email}`);
         },
       },
+      update: {
+        after: async (user) => {
+          log.info(`[Auth] User updated: id=${user.id}, email=${user.email}`);
+        },
+      },
     },
     session: {
       create: {
         before: async (session) => {
-          log.info(`[Auth] Creating session for user_id=${session.userId}`);
+          log.info(
+            `[Auth] Creating session for user_id=${session.userId}, expiresAt=${String(session.expiresAt)}`
+          );
           return { data: session };
+        },
+        after: async (session) => {
+          log.info(
+            `[Auth] Session created: id=${session.id}, user_id=${session.userId}, token_prefix=${session.token?.slice(0, 8) ?? 'NONE'}...`
+          );
         },
       },
     },
@@ -252,6 +289,18 @@ export const auth = betterAuth({
             `[Auth] Linking account: provider=${account.providerId}, accountId=${account.accountId}, userId=${account.userId}`
           );
           return { data: account };
+        },
+        after: async (account) => {
+          log.info(
+            `[Auth] Account linked: id=${account.id}, provider=${account.providerId}, accountId=${account.accountId}, userId=${account.userId}`
+          );
+        },
+      },
+      update: {
+        after: async (account) => {
+          log.info(
+            `[Auth] Account updated: id=${account.id}, provider=${account.providerId}, userId=${account.userId}`
+          );
         },
       },
     },

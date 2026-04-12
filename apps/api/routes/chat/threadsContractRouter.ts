@@ -27,7 +27,20 @@ import type { Application, Request } from 'express';
 const log = createLogger('threadsContractRouter');
 
 function getUserId(req: Request): string {
-  return (req.user as UserProfile).id;
+  const user = req.user as UserProfile | undefined;
+  if (!user?.id) {
+    // This should never happen — the requireAuth middleware in routes.ts is
+    // mounted ahead of this contract router and rejects unauthenticated
+    // requests with 401. If we ever see this log, something has bypassed it.
+    log.error(
+      '[threadsContract] getUserId called with undefined req.user — middleware bypassed? url=%s, has_cookie=%s, has_auth=%s',
+      req.originalUrl,
+      req.headers.cookie ? 'yes' : 'no',
+      req.headers.authorization ? 'yes' : 'no'
+    );
+    throw new Error('Authentication required (req.user undefined)');
+  }
+  return user.id;
 }
 
 const s = initServer();

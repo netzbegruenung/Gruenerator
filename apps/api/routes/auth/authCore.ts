@@ -168,18 +168,30 @@ router.post('/logout', async (req: AuthRequest, res: Response): Promise<void> =>
           and(eq(ba_accounts.user_id, req.user.id), like(ba_accounts.provider_id, 'keycloak-%'))
         )
         .limit(1);
+      log.info(
+        '[Auth Logout] ba_accounts lookup for user_id=%s: rows=%d, has_id_token=%s',
+        req.user.id,
+        rows.length,
+        rows[0]?.idToken != null ? 'yes' : 'no'
+      );
       if (rows[0]?.idToken) {
         keycloakBackgroundLogoutUrl = `${keycloakLogoutUrl}?id_token_hint=${rows[0].idToken}`;
       }
-    } catch {
-      // Account lookup may fail — proceed without SSO logout
+    } catch (err) {
+      // Account lookup may fail — proceed without SSO logout, but log the error
+      log.error(
+        '[Auth Logout] ba_accounts query threw for user_id=%s: %s',
+        req.user.id,
+        (err as Error).message
+      );
     }
   }
 
   try {
     await auth.api.signOut({ headers: fromNodeHeaders(req.headers) });
-  } catch {
-    // Sign-out may fail if no session
+  } catch (err) {
+    // Sign-out may fail if no session — log so we know it happened
+    log.warn('[Auth Logout] auth.api.signOut threw: %s', (err as Error).message);
   }
 
   res.json({
