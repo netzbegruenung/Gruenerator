@@ -21,17 +21,17 @@ import { getProfileService } from '../../services/user/ProfileService.js';
 import { KeycloakApiClient } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
-import type { AuthenticatedRequest } from '../../middleware/types.js';
+import type { UserProfile } from '../../services/user/types.js';
 import type { Application, Request } from 'express';
 
 const log = createLogger('userProfileContract');
 
 function getUserId(req: Request): string {
-  return (req as unknown as AuthenticatedRequest).user!.id;
+  return (req.user as UserProfile).id;
 }
 
-function getUser(req: Request): NonNullable<AuthenticatedRequest['user']> {
-  return (req as unknown as AuthenticatedRequest).user!;
+function getUser(req: Request): UserProfile {
+  return req.user as UserProfile;
 }
 
 const s = initServer();
@@ -101,12 +101,12 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       );
       const data = await profileService.updateProfile(user.id, updateData);
 
-      const authReq = args.req as unknown as AuthenticatedRequest;
-      if (authReq.user) {
-        const preservedBetaFeatures = authReq.user.beta_features;
-        Object.assign(authReq.user, data);
+      const sessionUser = args.req.user as UserProfile | undefined;
+      if (sessionUser) {
+        const preservedBetaFeatures = sessionUser.beta_features;
+        Object.assign(sessionUser, data);
         if (preservedBetaFeatures) {
-          authReq.user.beta_features = preservedBetaFeatures;
+          sessionUser.beta_features = preservedBetaFeatures;
         }
       }
 
@@ -139,9 +139,9 @@ export const userProfileContractRouter = s.router(userProfileContract, {
 
       const data = await profileService.updateAvatar(userId, avatar_robot_id);
 
-      const authReq = args.req as unknown as AuthenticatedRequest;
-      if (authReq.user) {
-        authReq.user.avatar_robot_id = avatar_robot_id;
+      const sessionUser = args.req.user as UserProfile | undefined;
+      if (sessionUser) {
+        sessionUser.avatar_robot_id = avatar_robot_id;
       }
 
       return {
@@ -236,10 +236,10 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         `[Beta Feature Change] User ${userId}: ${feature} ${enabled ? 'ENABLED' : 'DISABLED'}`
       );
 
-      const authReq = args.req as unknown as AuthenticatedRequest;
-      if (authReq.user) {
+      const sessionUser = args.req.user as UserProfile | undefined;
+      if (sessionUser) {
         profileService.updateUserSession(
-          authReq.user as unknown as {
+          sessionUser as unknown as {
             beta_features?: Record<string, boolean>;
             [key: string]: unknown;
           },

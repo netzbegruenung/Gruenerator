@@ -28,13 +28,13 @@ import {
 } from '../../services/chat/RecentValuesService.js';
 import { createLogger } from '../../utils/logger.js';
 
-import type { AuthenticatedRequest } from '../../middleware/types.js';
+import type { UserProfile } from '../../services/user/types.js';
 import type { Application, Request } from 'express';
 
 const log = createLogger('recentValuesContract');
 
 function getUserId(req: Request): string {
-  return (req as unknown as AuthenticatedRequest).user!.id;
+  return (req.user as UserProfile).id;
 }
 
 const s = initServer();

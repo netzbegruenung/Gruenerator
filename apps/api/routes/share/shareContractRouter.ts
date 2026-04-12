@@ -27,17 +27,17 @@ import { createLogger } from '../../utils/logger.js';
 import { parseJSON } from '../../utils/parseJSON.js';
 import { redisClient } from '../../utils/redis/index.js';
 
-import type { AuthenticatedRequest } from '../../middleware/types.js';
+import type { UserProfile } from '../../services/user/types.js';
 import type { Application, Request } from 'express';
 
 const log = createLogger('sharesContract');
 
 function getUserId(req: Request): string {
-  return (req as unknown as AuthenticatedRequest).user!.id;
+  return (req.user as UserProfile).id;
 }
 
 function getUserInfo(req: Request): { id: string; displayName: string } {
-  const user = (req as unknown as AuthenticatedRequest).user!;
+  const user = req.user as UserProfile;
   return {
     id: user.id,
     displayName: user.display_name || user.email || 'Anonymous',

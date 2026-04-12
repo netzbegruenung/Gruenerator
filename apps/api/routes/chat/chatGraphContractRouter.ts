@@ -74,15 +74,10 @@ import type {
   ChatGraphInput,
   ProcessedAttachment,
 } from '../../agents/langgraph/ChatGraph/types.js';
-import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { ModelMessage, UIMessage } from 'ai';
-import type { Application, Request } from 'express';
+import type { Application } from 'express';
 
 const log = createLogger('chatGraphContractRouter');
-
-function getUserId(req: Request): string {
-  return (req as unknown as AuthenticatedRequest).user!.id;
-}
 
 const s = initServer();
 
