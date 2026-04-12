@@ -5,6 +5,7 @@
 
 import express, { type Response } from 'express';
 
+import { env } from '../../config/env.js';
 import {
   urlCrawlerService,
   UrlValidator,
@@ -158,7 +159,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response<CrawlResponse>)
     return res.status(500).json({
       success: false,
       error: userError,
-      ...(process.env.NODE_ENV === 'development' && { details: err.message }),
+      ...(env.NODE_ENV === 'development' && { details: err.message }),
     });
   }
 });

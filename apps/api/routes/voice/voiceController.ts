@@ -15,6 +15,7 @@ import express, { type Request, type Response, type Router } from 'express';
 import multer, { type FileFilterCallback } from 'multer';
 import { z } from 'zod';
 
+import { env } from '../../config/env.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import {
   getFilePathFromUploadId,
@@ -263,7 +264,7 @@ async function transcribeWithRegoloWhisper(
   filename: string,
   options: TranscriptionOptions = {}
 ): Promise<TranscriptionResult> {
-  const apiKey = process.env.REGOLO_API_KEY;
+  const apiKey = env.REGOLO_API_KEY;
   if (!apiKey) throw new Error('REGOLO_API_KEY is not configured');
 
   const { language = 'de', timestamp_granularities } = options;
@@ -329,7 +330,7 @@ async function transcribeBuffer(
     };
   }
 
-  if (process.env.REGOLO_API_KEY) {
+  if (env.REGOLO_API_KEY) {
     try {
       return await transcribeWithRegoloWhisper(audioBuffer, filename, options);
     } catch (error) {
@@ -355,70 +356,71 @@ async function transcribeBuffer(
  * POST /api/voice/transcribe
  * Transcribe audio file — prefers Regolo Whisper, falls back to Voxtral
  */
-router.post('/transcribe', upload.single('audio') as express.RequestHandler, (async (
-  req: TranscribeRequest,
-  res: Response<TranscribeResponse>
-): Promise<void> => {
-  if (!req.file) {
-    res.status(400).json({
-      success: false,
-      error: 'Keine Audio-Datei erhalten',
-    });
-    return;
-  }
-
-  let audioBuffer = req.file.buffer;
-  let filename = req.file.originalname;
-
-  const options: TranscriptionOptions = {
-    language: req.query.language || req.body.language || 'de',
-    removeTimestamps: req.query.removeTimestamps === 'true' || req.body.removeTimestamps === true,
-    ...(req.query.timestamps === 'true' || req.body.timestamps === true
-      ? { timestamp_granularities: ['segment'] as const }
-      : {}),
-    diarize: req.query.diarize === 'true' || req.body.diarize === true,
-    ...(req.body.contextBias != null && { contextBias: req.body.contextBias }),
-  };
-
-  try {
-    if (isVideoFile(req.file.mimetype)) {
-      log.debug('[Voice] Video detected, extracting audio from:', filename);
-      const extracted = await extractAudioFromVideo(req.file.buffer, filename);
-      audioBuffer = extracted.buffer;
-      filename = extracted.filename;
-      log.debug(
-        '[Voice] Audio extracted:',
-        filename,
-        `(${(audioBuffer.length / 1024 / 1024).toFixed(1)} MB)`
-      );
+router.post(
+  '/transcribe',
+  upload.single('audio') as express.RequestHandler,
+  (async (req: TranscribeRequest, res: Response<TranscribeResponse>): Promise<void> => {
+    if (!req.file) {
+      res.status(400).json({
+        success: false,
+        error: 'Keine Audio-Datei erhalten',
+      });
+      return;
     }
 
-    log.debug('[Voice] Starting transcription for:', filename, 'Options:', options);
+    let audioBuffer = req.file.buffer;
+    let filename = req.file.originalname;
 
-    const result = await transcribeBuffer(audioBuffer, filename, options);
+    const options: TranscriptionOptions = {
+      language: req.query.language || req.body.language || 'de',
+      removeTimestamps: req.query.removeTimestamps === 'true' || req.body.removeTimestamps === true,
+      ...(req.query.timestamps === 'true' || req.body.timestamps === true
+        ? { timestamp_granularities: ['segment'] as const }
+        : {}),
+      diarize: req.query.diarize === 'true' || req.body.diarize === true,
+      ...(req.body.contextBias != null && { contextBias: req.body.contextBias }),
+    };
 
-    let speakerMap: Record<string, string> = {};
-    if (options.diarize && result.text.includes('[speaker_')) {
-      speakerMap = await identifySpeakers(result.text);
+    try {
+      if (isVideoFile(req.file.mimetype)) {
+        log.debug('[Voice] Video detected, extracting audio from:', filename);
+        const extracted = await extractAudioFromVideo(req.file.buffer, filename);
+        audioBuffer = extracted.buffer;
+        filename = extracted.filename;
+        log.debug(
+          '[Voice] Audio extracted:',
+          filename,
+          `(${(audioBuffer.length / 1024 / 1024).toFixed(1)} MB)`
+        );
+      }
+
+      log.debug('[Voice] Starting transcription for:', filename, 'Options:', options);
+
+      const result = await transcribeBuffer(audioBuffer, filename, options);
+
+      let speakerMap: Record<string, string> = {};
+      if (options.diarize && result.text.includes('[speaker_')) {
+        speakerMap = await identifySpeakers(result.text);
+      }
+
+      res.json({
+        success: true,
+        text: result.text,
+        ...(result.segments != null && { segments: result.segments }),
+        hasTimestamps: result.hasTimestamps,
+        speakerMap,
+        ...(options.language != null && { language: options.language }),
+      });
+    } catch (error) {
+      log.error('[Voice] Transcription error:', error);
+
+      res.status(500).json({
+        success: false,
+        error: 'Fehler bei der Transkription: ' + (error as Error).message,
+      });
     }
-
-    res.json({
-      success: true,
-      text: result.text,
-      ...(result.segments != null && { segments: result.segments }),
-      hasTimestamps: result.hasTimestamps,
-      speakerMap,
-      ...(options.language != null && { language: options.language }),
-    });
-  } catch (error) {
-    log.error('[Voice] Transcription error:', error);
-
-    res.status(500).json({
-      success: false,
-      error: 'Fehler bei der Transkription: ' + (error as Error).message,
-    });
-  }
-}) as express.RequestHandler);
+  }) as express.RequestHandler
+);
 
 /**
  * POST /api/voice/transcribe/stream
@@ -854,7 +856,7 @@ router.get('/formats', (_req: Request, res: Response<FormatsResponse>) => {
       supportedFormats: formats,
       maxFileSize: '500MB (video), 50MB (audio)',
       maxDuration: '~30 minutes for transcription, ~40 minutes for understanding',
-      provider: process.env.REGOLO_API_KEY
+      provider: env.REGOLO_API_KEY
         ? 'Regolo Whisper (Voxtral fallback, video converted via FFmpeg)'
         : 'Mistral Voxtral (video converted via FFmpeg)',
     });

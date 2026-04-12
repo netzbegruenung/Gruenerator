@@ -8,6 +8,8 @@
 import fs from 'fs';
 import path from 'path';
 
+import { env } from '../../config/env.js';
+
 import type {
   GenerateFromPromptOptions,
   GenerateResult,
@@ -32,7 +34,7 @@ class RegoloImageService {
   private apiKey: string;
 
   constructor() {
-    this.apiKey = process.env.REGOLO_API_KEY || '';
+    this.apiKey = env.REGOLO_API_KEY || '';
     if (!this.apiKey) {
       console.warn('[RegoloImageService] Missing REGOLO_API_KEY');
     }

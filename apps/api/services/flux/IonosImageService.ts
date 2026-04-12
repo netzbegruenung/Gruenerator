@@ -8,6 +8,8 @@
 import fs from 'fs';
 import path from 'path';
 
+import { env } from '../../config/env.js';
+
 import type {
   GenerateFromPromptOptions,
   GenerateResult,
@@ -32,7 +34,7 @@ class IonosImageService {
   private apiKey: string;
 
   constructor() {
-    this.apiKey = process.env.IONOS_API_TOKEN || '';
+    this.apiKey = env.IONOS_API_TOKEN || '';
     if (!this.apiKey) {
       console.warn('[IonosImageService] Missing IONOS_API_TOKEN');
     }
