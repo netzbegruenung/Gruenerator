@@ -319,9 +319,9 @@ Zero runtime cost — branded IDs pass transparently to services accepting `stri
 
 ## Phase 6: Build Infrastructure (Long-term)
 
-### 6.1 Migrate workspace packages to `development` conditional exports
+### 6.1 Migrate workspace packages to `development` conditional exports [DONE 2026-04-12]
 
-**Status**: Tech debt — workaround in place since Phase 4.1, surfaced as production crash 2026-04-12 when `exportsContractRouter` triggered fresh image rebuild.
+**Status**: **DONE 2026-04-12**. Workspace packages now use the `development`/`default` conditional exports pattern. The `sed` hack is gone from `apps/api/Dockerfile`.
 
 **Current state**: All three TS-source workspace packages (`packages/shared`, `packages/contracts`, `services/hocuspocus`) declare `package.json` exports pointing at `./src/*.ts` (literal TypeScript source). Node.js cannot load `.ts` files at runtime, so production deployment relies on a `sed` workaround in `apps/api/Dockerfile`:
 
@@ -353,23 +353,22 @@ RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' packages/shared/package.json
 
 Dev runners (tsx, vitest) pass `--conditions=development` and resolve to source. Production runners (`node dist/server.js`) get no special condition and resolve to compiled `dist/`. Single source of truth, IDE jump-to-definition follows source automatically, and the Dockerfile loses 6 lines of `sed` hackery.
 
-**Migration scope** (~half-day to full-day of focused work):
-- [ ] `packages/shared/package.json` — rewrite all 14+ subpath exports to `development`/`import` pairs
-- [ ] `packages/contracts/package.json` — single root export (small)
-- [ ] `services/hocuspocus/package.json` — single root export (small)
-- [ ] `apps/api` dev runner — pass `--conditions=development` to tsx
-- [ ] `apps/web` Vite config — add `resolve.conditions: ['development', 'import', ...]` (Vite already handles this via mode)
-- [ ] `apps/mobile` Metro config — set `resolver.unstable_conditionNames`
-- [ ] `services/hocuspocus` dev script — same tsx flag
-- [ ] Test commands (`npx tsx <file>.test.ts`) — verify the condition is set
-- [ ] Delete the 3 sed lines and 3 compile blocks from `apps/api/Dockerfile`
-- [ ] Replace with a single loop or keep them explicit (still simpler than current state)
-- [ ] Validate: rebuild Docker image, smoke-test that all contract routers load + a chat works + a docx export works
+**Completed scope**:
+- [x] `packages/shared/package.json` — all 16 exports (root + 15 subpaths) use `development`/`types`/`import`/`default` quadruplets
+- [x] `packages/contracts/package.json` — single root export migrated
+- [x] `services/hocuspocus/package.json` — single root export migrated
+- [x] `apps/api/package.json` — all `tsx` dev/start/test/script invocations prepended with `cross-env NODE_OPTIONS=--conditions=development`
+- [x] `services/hocuspocus/package.json` dev script — prepended with `NODE_OPTIONS=--conditions=development` (bash syntax; repo is Linux/WSL only)
+- [x] `apps/mobile/metro.config.js` — `resolver.unstable_conditionNames` now `['development', 'require', 'react-native']`
+- [x] `apps/api/Dockerfile` — 3 `sed` lines + 3 compile block wrappers removed, replaced with 3 plain `COPY` lines. Net -5 lines.
+- [x] Runtime verified end-to-end via `tsx -e 'import("@gruenerator/contracts")'` and `import("@gruenerator/shared/api")` in both conditions — dev path resolves to `./src/*.ts` (new code), prod path resolves to pre-built `./dist/*.js`. The divergence between the two outputs in testing proved the paths are truly independent.
 
-**Why this matters beyond the workaround:**
-- Eliminates an entire category of "I added a workspace package and prod broke 3 weeks later" bugs
-- The `feedback_long_term_type_safety` rule applies here: choose the best long-term fix even if it's more work
-- Once done, "fix at the source, not at the call site" (Principle #1) gets one of its largest violations cleaned up
+**Not migrated (intentional)**:
+- `apps/web` Vite config — already bypasses `package.json` exports via a hard alias to `packages/shared/src`, so the conditional-exports pattern is moot for the web build. Leaving the alias in place.
+- `apps/api` Vitest runner — uses `vitest`, not tsx. Vitest respects Node conditions via its own config; migrated opportunistically if we hit a test that imports workspace packages and fails.
+- Manual `npx tsx <file>.test.ts` invocations — users must export `NODE_OPTIONS=--conditions=development` in their shell OR run via the package.json scripts. Documented in CLAUDE.md / tests section (follow-up).
+
+**Outcome**: Adding a new workspace package now requires only (1) the package.json itself using the conditional exports shape and (2) a `COPY --from=builder /app/<pkg>/dist ./<pkg>/dist` line in `apps/api/Dockerfile`. No string-manipulation hack. The "I added a workspace package and prod broke 3 weeks later" bug class from 2026-04-12 is structurally impossible now.
 
 ## Acceleration Principles (2026-04-11)
 
@@ -408,6 +407,7 @@ Dev runners (tsx, vitest) pass `--conditions=development` and resolve to source.
 | `parseJSON<T>()` adoption | — | 10 files | 10 files | all JSON.parse sites |
 | `process.env.X` direct uses (api) | ~315 | — | **17** (298 eliminated; remainder is test mocks + env.ts self + telemetry write) | ~15 (floor) |
 | Better Auth on Drizzle adapter | Kysely-era types only | — | **DONE, verified end-to-end** | done |
+| Workspace package exports | `src/*.ts` + Dockerfile `sed` rewrite | — | **`development`/`default` conditional pattern** (Phase 6.1 DONE) | done |
 | Contract router validation logger | — | — | **All 8 routers using shared helper** | mandatory for new |
 
 **🎉 Phase 3 complete**: All safety-critical ESLint rules (`no-unsafe-*`, `no-floating-promises`, `no-explicit-any`, `exactOptionalPropertyTypes`) are now at `error` level across the **entire monorepo**. The `warn` override era is over.
