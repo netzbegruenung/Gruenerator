@@ -2,6 +2,7 @@ import type {
   ChatModelAdapter,
   ChatModelRunOptions,
   ChatModelRunResult,
+  CompleteAttachment,
 } from '@assistant-ui/react';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import type {
@@ -742,8 +743,8 @@ export function createGrueneratorModelAdapter(
         // Merge attachment content parts into formattedMessages so the backend
         // can also see them when inspecting the messages array directly.
         if (m.role === 'user' && 'attachments' in m) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          for (const att of (m as any).attachments) {
+          const attachments = (m as { attachments: readonly CompleteAttachment[] }).attachments;
+          for (const att of attachments) {
             for (const part of att.content) {
               if (part.type === 'text') {
                 parts.push({ type: 'text', text: part.text });
@@ -753,8 +754,8 @@ export function createGrueneratorModelAdapter(
                 parts.push({
                   type: 'file',
                   name: att.name ?? 'file',
-                  mimeType: part.mimeType ?? 'application/octet-stream',
-                  data: part.data ?? '',
+                  mimeType: (part as { mimeType?: string }).mimeType ?? 'application/octet-stream',
+                  data: (part as { data?: string }).data ?? '',
                 });
               }
             }
