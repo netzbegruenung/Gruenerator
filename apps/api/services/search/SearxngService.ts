@@ -5,6 +5,8 @@
 
 import crypto from 'crypto';
 
+import { env } from '../../config/env.js';
+
 import type {
   SearxngSearchOptions,
   SearchResult,
@@ -16,7 +18,7 @@ import type {
 } from './types.js';
 import type { AIWorkerPool } from '../../workers/types.js';
 
-const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+const LOG_LEVEL = env.LOG_LEVEL;
 const isDebug = LOG_LEVEL === 'debug';
 const isVerbose = ['debug', 'verbose'].includes(LOG_LEVEL);
 

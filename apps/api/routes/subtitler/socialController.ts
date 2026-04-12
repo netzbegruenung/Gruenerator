@@ -10,7 +10,6 @@ import { validateBody, type TypedRequest } from '../../middleware/validateBody.j
 import {
   extractLocaleFromRequest,
   localizePlaceholders,
-  type RequestWithLocale,
 } from '../../services/localization/index.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
@@ -31,7 +30,7 @@ router.post(
     try {
       const aiWorkerPool = getAIWorkerPool(req);
 
-      const locale = extractLocaleFromRequest(req as unknown as RequestWithLocale);
+      const locale = extractLocaleFromRequest(req);
       const systemPrompt = localizePlaceholders(
         'Du bist Social Media Manager für {{partyName}}. Erstelle einen Instagram Reel Beitragstext basierend auf den Untertiteln des Videos. Der Text soll die Kernbotschaft des Videos aufgreifen und in einen ansprechenden Social Media Post umwandeln.',
         locale

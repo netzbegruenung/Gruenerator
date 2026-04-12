@@ -10,3 +10,5 @@ export { chatGraphContract } from './chatGraphContract.js';
 export { boardsContract } from './boardsContract.js';
 export { sharesContract } from './sharesContract.js';
 export { userProfileContract } from './userProfileContract.js';
+export { notebookContract } from './notebookContract.js';
+export { notebookCollectionsContract } from './notebookCollectionsContract.js';

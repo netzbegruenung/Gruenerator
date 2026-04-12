@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { create } from 'zustand';
 
 import apiClient from '../../../components/utils/apiClient';
@@ -17,10 +18,6 @@ interface CollectionsResponse extends ApiBase {
 
 interface CollectionResponse extends ApiBase {
   collection?: NotebookCollection;
-}
-
-interface FiltersResponse extends ApiBase {
-  filters?: Record<string, FilterFieldConfig>;
 }
 
 export type { NotebookCollection };
@@ -476,20 +473,19 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
     }));
 
     try {
-      const response = await apiClient.get<FiltersResponse>(
-        `/auth/notebook/collections/${collectionId}/filters`
-      );
-      const data = response.data;
+      const client = getContractsClient();
+      const result = await client.notebook.getFilters({ params: { id: collectionId } });
 
-      if (data.filters) {
+      if (result.status === 200 && result.body.filters) {
+        const filters = result.body.filters as Record<string, FilterFieldConfig>;
         set((state) => ({
           filterValuesCache: {
             ...state.filterValuesCache,
-            [collectionId]: data.filters as Record<string, FilterFieldConfig>,
+            [collectionId]: filters,
           },
           loadingFilters: { ...state.loadingFilters, [collectionId]: false },
         }));
-        return data.filters;
+        return filters;
       }
     } catch (error) {
       console.error('[notebookStore] Error fetching filters:', collectionId, error);

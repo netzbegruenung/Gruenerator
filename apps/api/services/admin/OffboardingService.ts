@@ -4,6 +4,7 @@
  * Coordinates API client, retry manager, and user deletion/anonymization
  */
 
+import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { GrueneApiClient } from './GrueneApiClient.js';
@@ -21,10 +22,10 @@ const log = createLogger('OffboardingService');
 
 // Default configuration
 export const DEFAULT_CONFIG: GrueneApiConfig = {
-  GRUENE_API_BASEURL: process.env.GRUENE_API_BASEURL || 'https://app.gruene.de',
-  GRUENE_API_USERNAME: process.env.GRUENE_API_USERNAME,
-  GRUENE_API_PASSWORD: process.env.GRUENE_API_PASSWORD,
-  GRUENE_API_KEY: process.env.GRUENE_API_KEY,
+  GRUENE_API_BASEURL: env.GRUENE_API_BASEURL ?? 'https://app.gruene.de',
+  GRUENE_API_USERNAME: env.GRUENE_API_USERNAME,
+  GRUENE_API_PASSWORD: env.GRUENE_API_PASSWORD,
+  GRUENE_API_KEY: env.GRUENE_API_KEY,
   BATCH_SIZE: 200,
   REQUEST_LIMIT: 1000,
 };

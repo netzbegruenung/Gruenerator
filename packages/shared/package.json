@@ -3,77 +3,110 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
   "types": "./src/index.ts",
   "exports": {
     ".": {
-      "import": "./src/index.ts",
-      "require": "./src/index.ts",
-      "types": "./src/index.ts"
+      "development": "./src/index.ts",
+      "types": "./src/index.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./stores": {
-      "import": "./src/stores/index.ts",
-      "require": "./src/stores/index.ts"
+      "development": "./src/stores/index.ts",
+      "types": "./src/stores/index.ts",
+      "import": "./dist/stores/index.js",
+      "default": "./dist/stores/index.js"
     },
     "./api": {
-      "import": "./src/api/index.ts",
-      "require": "./src/api/index.ts"
+      "development": "./src/api/index.ts",
+      "types": "./src/api/index.ts",
+      "import": "./dist/api/index.js",
+      "default": "./dist/api/index.js"
     },
     "./hooks": {
-      "import": "./src/hooks/index.ts",
-      "require": "./src/hooks/index.ts"
+      "development": "./src/hooks/index.ts",
+      "types": "./src/hooks/index.ts",
+      "import": "./dist/hooks/index.js",
+      "default": "./dist/hooks/index.js"
     },
     "./utils": {
-      "import": "./src/utils/index.ts",
-      "require": "./src/utils/index.ts"
+      "development": "./src/utils/index.ts",
+      "types": "./src/utils/index.ts",
+      "import": "./dist/utils/index.js",
+      "default": "./dist/utils/index.js"
     },
     "./generators": {
-      "import": "./src/generators/index.ts",
-      "require": "./src/generators/index.ts"
+      "development": "./src/generators/index.ts",
+      "types": "./src/generators/index.ts",
+      "import": "./dist/generators/index.js",
+      "default": "./dist/generators/index.js"
     },
     "./search": {
-      "import": "./src/search/index.ts",
-      "require": "./src/search/index.ts"
+      "development": "./src/search/index.ts",
+      "types": "./src/search/index.ts",
+      "import": "./dist/search/index.js",
+      "default": "./dist/search/index.js"
     },
     "./search/vector": {
-      "import": "./src/search/vector/index.ts",
-      "require": "./src/search/vector/index.ts"
+      "development": "./src/search/vector/index.ts",
+      "types": "./src/search/vector/index.ts",
+      "import": "./dist/search/vector/index.js",
+      "default": "./dist/search/vector/index.js"
     },
     "./search/collections": {
-      "import": "./src/search/collections/index.ts",
-      "require": "./src/search/collections/index.ts"
+      "development": "./src/search/collections/index.ts",
+      "types": "./src/search/collections/index.ts",
+      "import": "./dist/search/collections/index.js",
+      "default": "./dist/search/collections/index.js"
     },
     "./search/filters": {
-      "import": "./src/search/filters/index.ts",
-      "require": "./src/search/filters/index.ts"
+      "development": "./src/search/filters/index.ts",
+      "types": "./src/search/filters/index.ts",
+      "import": "./dist/search/filters/index.js",
+      "default": "./dist/search/filters/index.js"
     },
     "./auth": {
-      "import": "./src/auth/index.ts",
-      "require": "./src/auth/index.ts"
+      "development": "./src/auth/index.ts",
+      "types": "./src/auth/index.ts",
+      "import": "./dist/auth/index.js",
+      "default": "./dist/auth/index.js"
     },
     "./avatar": {
-      "import": "./src/avatar/index.ts",
-      "require": "./src/avatar/index.ts"
+      "development": "./src/avatar/index.ts",
+      "types": "./src/avatar/index.ts",
+      "import": "./dist/avatar/index.js",
+      "default": "./dist/avatar/index.js"
     },
     "./sharepic": {
-      "import": "./src/sharepic/index.ts",
-      "require": "./src/sharepic/index.ts"
+      "development": "./src/sharepic/index.ts",
+      "types": "./src/sharepic/index.ts",
+      "import": "./dist/sharepic/index.js",
+      "default": "./dist/sharepic/index.js"
     },
     "./image-studio": {
-      "import": "./src/image-studio/index.ts",
-      "require": "./src/image-studio/index.ts"
+      "development": "./src/image-studio/index.ts",
+      "types": "./src/image-studio/index.ts",
+      "import": "./dist/image-studio/index.js",
+      "default": "./dist/image-studio/index.js"
     },
     "./subtitle-editor": {
-      "import": "./src/subtitle-editor/index.ts",
-      "require": "./src/subtitle-editor/index.ts"
+      "development": "./src/subtitle-editor/index.ts",
+      "types": "./src/subtitle-editor/index.ts",
+      "import": "./dist/subtitle-editor/index.js",
+      "default": "./dist/subtitle-editor/index.js"
     },
     "./media-library": {
-      "import": "./src/media-library/index.ts",
-      "require": "./src/media-library/index.ts"
+      "development": "./src/media-library/index.ts",
+      "types": "./src/media-library/index.ts",
+      "import": "./dist/media-library/index.js",
+      "default": "./dist/media-library/index.js"
     },
     "./components/EditorTopBar": {
-      "import": "./src/components/EditorTopBar/index.ts",
-      "require": "./src/components/EditorTopBar/index.ts"
+      "development": "./src/components/EditorTopBar/index.ts",
+      "types": "./src/components/EditorTopBar/index.ts",
+      "import": "./dist/components/EditorTopBar/index.js",
+      "default": "./dist/components/EditorTopBar/index.js"
     }
   },
   "scripts": {

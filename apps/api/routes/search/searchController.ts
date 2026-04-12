@@ -182,7 +182,12 @@ const router: Router = express.Router();
 // Helper Functions
 // ============================================================================
 
-function getUserId(req: AuthenticatedRequest): string {
+// Explicit `| undefined` on optional fields is required by exactOptionalPropertyTypes.
+// Without it, this signature cannot accept Express Request (where req.user is
+// typed as `User | undefined`) or TypedRequest variants.
+function getUserId(req: {
+  user?: { id?: string | undefined; keycloak_id?: string | undefined } | undefined;
+}): string {
   return req.user?.id || req.user?.keycloak_id || 'anonymous';
 }
 
@@ -269,7 +274,7 @@ router.post(
         categories = 'general',
       } = req.body;
 
-      const userId = getUserId(req as unknown as AuthenticatedRequest);
+      const userId = getUserId(req);
 
       // Streaming mode: delegate to SSE streaming controller
       if (req.query.stream === 'true') {
@@ -411,7 +416,7 @@ router.post(
         return streamDeepSearch(req, res as any);
       }
 
-      const userId = getUserId(req as unknown as AuthenticatedRequest);
+      const userId = getUserId(req);
       log.debug(`[Search] Deep research: "${query}" (userId: ${userId})`);
 
       const { runWebSearch } = await import('../../agents/langgraph/WebSearchGraph/index.js');

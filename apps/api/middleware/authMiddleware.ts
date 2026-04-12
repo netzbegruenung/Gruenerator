@@ -3,6 +3,7 @@
  * Uses Better Auth sessions (cookie or bearer token)
  */
 
+import { userProfileSchema, type UserProfile } from '@gruenerator/contracts';
 import { fromNodeHeaders } from 'better-auth/node';
 import { type Request, type Response, type NextFunction } from 'express';
 
@@ -40,41 +41,46 @@ const DEV_BYPASS_USER: Express.User = {
   updated_at: new Date(),
 };
 
-function toBetterAuthUser(user: BetterAuthUser): Express.User {
-  // Better Auth session user only has base fields — custom profile columns accessed via record cast
+function toBetterAuthUser(user: BetterAuthUser): UserProfile {
+  // Better Auth's inferred session user type only exposes base fields; custom
+  // profile columns (avatar_robot_id, beta_features, feature flags, ...) live
+  // on the same row but aren't in the generated type. We read them through an
+  // unknown-record cast at the single boundary, apply fallbacks for unset
+  // columns, then validate the whole shape with Zod. Any upstream schema drift
+  // now throws ZodError at login instead of producing silent `undefined`
+  // cascades at render time.
   const u = user as unknown as Record<string, unknown>;
-  return {
+  const raw = {
     id: user.id,
     email: user.email,
     display_name: user.name,
-    avatar_robot_id: (u.avatar_robot_id as number) ?? 1,
-    ...(u.chat_color != null && { chat_color: u.chat_color as string }),
-    beta_features: (u.beta_features as Record<string, boolean>) ?? {},
-    user_defaults: (u.user_defaults as Record<string, Record<string, unknown>>) ?? {},
-    ...(u.locale != null && { locale: u.locale as 'de-DE' | 'de-AT' }),
-    ...(u.keycloak_id != null && { keycloak_id: u.keycloak_id as string }),
-    ...(u.username != null && { username: u.username as string }),
-    groups_enabled: (u.groups_enabled as boolean) ?? false,
-    custom_generators: (u.custom_generators as boolean) ?? false,
-    database_access: (u.database_access as boolean) ?? false,
-    collab: (u.collab as boolean) ?? false,
-    notebook: (u.notebook as boolean) ?? false,
-    sharepic: (u.sharepic as boolean) ?? false,
-    anweisungen: (u.anweisungen as boolean) ?? false,
-    labor_enabled: (u.labor_enabled as boolean) ?? false,
-    sites_enabled: (u.sites_enabled as boolean) ?? true,
-    chat: (u.chat as boolean) ?? false,
-    interactive_antrag_enabled: (u.interactive_antrag_enabled as boolean) ?? true,
-    vorlagen: (u.vorlagen as boolean) ?? false,
-    video_editor: (u.video_editor as boolean) ?? false,
-    ...(u.bundestag_api_enabled != null && {
-      bundestag_api_enabled: u.bundestag_api_enabled as boolean,
-    }),
-    ...(u.memory_enabled != null && { memory_enabled: u.memory_enabled as boolean }),
-    ...(u.wordpress_enabled != null && { wordpress_enabled: u.wordpress_enabled as boolean }),
+    avatar_robot_id: u.avatar_robot_id ?? 1,
+    beta_features: u.beta_features ?? {},
+    user_defaults: u.user_defaults ?? {},
+    groups_enabled: u.groups_enabled ?? false,
+    custom_generators: u.custom_generators ?? false,
+    database_access: u.database_access ?? false,
+    collab: u.collab ?? false,
+    notebook: u.notebook ?? false,
+    sharepic: u.sharepic ?? false,
+    anweisungen: u.anweisungen ?? false,
+    labor_enabled: u.labor_enabled ?? false,
+    sites_enabled: u.sites_enabled ?? true,
+    chat: u.chat ?? false,
+    interactive_antrag_enabled: u.interactive_antrag_enabled ?? true,
+    vorlagen: u.vorlagen ?? false,
+    video_editor: u.video_editor ?? false,
     created_at: user.createdAt,
     updated_at: user.updatedAt,
+    ...(u.chat_color != null && { chat_color: u.chat_color }),
+    ...(u.locale != null && { locale: u.locale }),
+    ...(u.keycloak_id != null && { keycloak_id: u.keycloak_id }),
+    ...(u.username != null && { username: u.username }),
+    ...(u.bundestag_api_enabled != null && { bundestag_api_enabled: u.bundestag_api_enabled }),
+    ...(u.memory_enabled != null && { memory_enabled: u.memory_enabled }),
+    ...(u.wordpress_enabled != null && { wordpress_enabled: u.wordpress_enabled }),
   };
+  return userProfileSchema.parse(raw);
 }
 
 async function tryResolveUser(req: Request): Promise<Express.User | null> {

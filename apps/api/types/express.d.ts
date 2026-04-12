@@ -1,43 +1,13 @@
 import type { AIWorkerPool } from './workers';
 import type { SharepicImageManager } from '../services/image/types';
+import type { UserProfile } from '@gruenerator/contracts';
 import type { Request, Response, NextFunction } from 'express';
-
-interface UserProfileShape {
-  id: string;
-  keycloak_id?: string | undefined;
-  email: string;
-  username?: string | undefined;
-  display_name?: string | undefined;
-  avatar_robot_id: number;
-  chat_color?: string | undefined;
-  beta_features: Record<string, boolean>;
-  user_defaults: Record<string, Record<string, unknown>>;
-  locale?: 'de-DE' | 'de-AT' | undefined;
-  groups_enabled: boolean;
-  custom_generators: boolean;
-  database_access: boolean;
-  collab: boolean;
-  notebook: boolean;
-  sharepic: boolean;
-  anweisungen: boolean;
-  labor_enabled: boolean;
-  sites_enabled: boolean;
-  chat: boolean;
-  interactive_antrag_enabled: boolean;
-  vorlagen: boolean;
-  video_editor: boolean;
-  bundestag_api_enabled?: boolean | undefined;
-  memory_enabled?: boolean | undefined;
-  wordpress_enabled?: boolean | undefined;
-  created_at: Date | string;
-  updated_at: Date | string;
-  last_login?: Date | string | undefined;
-}
 
 declare global {
   namespace Express {
+    // Express.User is the canonical UserProfile from @gruenerator/contracts.
     // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-    interface User extends UserProfileShape {}
+    interface User extends UserProfile {}
 
     interface Request {
       user?: User | undefined;

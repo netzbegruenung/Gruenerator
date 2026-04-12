@@ -1,3 +1,4 @@
+import { type UserProfile } from '@gruenerator/contracts';
 import { create } from 'zustand';
 
 import apiClient, { setLoggingOutFlag } from '../components/utils/apiClient';
@@ -15,18 +16,9 @@ export interface UserMetadata {
   [key: string]: unknown;
 }
 
-export interface User {
-  id: string;
-  email?: string;
-  auth_email?: string;
-  name?: string;
-  display_name?: string;
-  avatar_robot_id?: string;
-  keycloak_id?: string | null;
-  locale?: SupportedLocale;
-  user_metadata?: UserMetadata;
-  [key: string]: unknown;
-}
+// User is the canonical UserProfile from @gruenerator/contracts — same Zod
+// schema the backend validates at the Better Auth boundary.
+export type User = UserProfile;
 
 export interface AuthStateData {
   user: User | null;
@@ -244,8 +236,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       isAuthenticated: data.isAuthenticated,
       isLoading: false,
       error: null,
-      // Extract color from user metadata if available
-      selectedMessageColor: data.user?.user_metadata?.chat_color || '#008939',
+      // Extract color from canonical UserProfile field. The legacy
+      // `user_metadata.chat_color` path never matched the real shape — it
+      // was reading undefined and falling through to the default. Now we
+      // read the actual `chat_color` field typed on the contract.
+      selectedMessageColor: data.user?.chat_color || '#008939',
       locale: userLocale,
     });
   },
@@ -359,7 +354,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     } catch (error: unknown) {
       // Revert optimistic update on failure
       const state = get();
-      const previousColor = state.user?.user_metadata?.chat_color || '#008939';
+      const previousColor = state.user?.chat_color || '#008939';
       set({ selectedMessageColor: previousColor });
       throw error;
     }

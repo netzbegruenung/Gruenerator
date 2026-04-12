@@ -4,6 +4,8 @@
  * Features: Crawlee (Cheerio + Playwright), native fetch, PDF support, markdown conversion
  */
 
+import { env } from '../../../../config/env.js';
+
 import { CrawleeCrawler } from './crawlers/CrawleeCrawler.js';
 import { FetchCrawler } from './crawlers/FetchCrawler.js';
 import { ContentExtractor } from './extractors/ContentExtractor.js';
@@ -19,7 +21,7 @@ export class UrlCrawler {
 
   constructor() {
     this.config = {
-      crawlerMode: (process.env.CRAWLER_MODE as 'crawlee' | 'fetch' | 'auto') || 'auto',
+      crawlerMode: (env.CRAWLER_MODE as 'crawlee' | 'fetch' | 'auto') ?? 'auto',
       maxConcurrency: 3,
       maxRetries: 1,
       timeout: 15000,

@@ -18,6 +18,7 @@
 import { searchContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { env } from '../../config/env.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
@@ -27,14 +28,16 @@ import type {
   NormalSearchOutput,
   SearchOptions,
 } from '../../agents/langgraph/WebSearchGraph/types.js';
-import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { Application } from 'express';
 
 const log = createLogger('searchContract');
 
 const s = initServer();
 
-function getUserId(req: AuthenticatedRequest): string {
+// Explicit `| undefined` on optional fields is required by exactOptionalPropertyTypes.
+function getUserId(req: {
+  user?: { id?: string | undefined; keycloak_id?: string | undefined } | undefined;
+}): string {
   return req.user?.id || req.user?.keycloak_id || 'anonymous';
 }
 
@@ -107,7 +110,7 @@ export const searchContractRouter = s.router(searchContract, {
         };
       }
 
-      const userId = getUserId(req as unknown as AuthenticatedRequest);
+      const userId = getUserId(req);
       log.debug(
         `[Search Contract] Normal search: "${trimmedQuery}" (userId: ${userId}, summary: ${includeSummary})`
       );
@@ -145,7 +148,7 @@ export const searchContractRouter = s.router(searchContract, {
           error: 'Websuche fehlgeschlagen',
           metadata: { timestamp: new Date().toISOString(), searchType: 'normal' },
         };
-        if (process.env.NODE_ENV === 'development' && searchResults.error != null) {
+        if (env.NODE_ENV === 'development' && searchResults.error != null) {
           errorBody.details = searchResults.error;
         }
         return { status: 500 as const, body: errorBody };
@@ -248,7 +251,7 @@ export const searchContractRouter = s.router(searchContract, {
           searchType: 'normal',
         },
       };
-      if (process.env.NODE_ENV === 'development') {
+      if (env.NODE_ENV === 'development') {
         errorBody.details = (error as Error).message;
       }
       return { status: 500 as const, body: errorBody };
@@ -286,7 +289,7 @@ export const searchContractRouter = s.router(searchContract, {
         error: 'Service status check failed',
         timestamp: new Date().toISOString(),
       };
-      if (process.env.NODE_ENV === 'development') {
+      if (env.NODE_ENV === 'development') {
         body.details = (error as Error).message;
       }
       return { status: 503 as const, body };

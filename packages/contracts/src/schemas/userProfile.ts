@@ -55,6 +55,9 @@ export const userProfileSchema = z.object({
   id: z.string(),
   keycloak_id: z.string().optional(),
   email: z.string(),
+  // Set when email comes from an external IdP (e.g. Keycloak) — used by
+  // the frontend to gate "change email" UI for SSO users.
+  auth_email: z.string().optional(),
   username: z.string().optional(),
   display_name: z.string().optional(),
   avatar_robot_id: z.number(),
@@ -89,6 +92,9 @@ export const userProfileSchema = z.object({
   // extra field added by the handler
   is_sso_user: z.boolean().optional(),
 });
+
+/** Canonical user profile type — single source of truth across backend + frontend. */
+export type UserProfile = z.infer<typeof userProfileSchema>;
 
 export const betaFeaturesSchema = z.record(z.boolean());
 

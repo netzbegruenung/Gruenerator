@@ -1,12 +1,13 @@
 import axios from 'axios';
 
+import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { KeywordEntry, NlpClassificationResult } from './types.js';
 
 const log = createLogger('NlpClient');
 
-const NLP_SERVICE_URL = process.env.NLP_SERVICE_URL || 'http://localhost:8000';
+const NLP_SERVICE_URL = env.NLP_SERVICE_URL ?? 'http://localhost:8000';
 const NLP_TIMEOUT_MS = 30_000;
 
 interface NlpBatchResponse {

@@ -3,6 +3,8 @@
  * Structured error classes with inheritance hierarchy
  */
 
+import { env } from '../../config/env.js';
+
 import type { ErrorCode, ErrorDetails, APIErrorResponse, ErrorLogEntry } from './types.js';
 
 /**
@@ -38,7 +40,7 @@ export class VectorBackendError extends Error {
       code: this.code,
       timestamp: this.timestamp,
       // Don't expose internal details in production
-      ...(process.env.NODE_ENV !== 'production' && { details: this.details }),
+      ...(env.NODE_ENV !== 'production' && { details: this.details }),
     };
   }
 

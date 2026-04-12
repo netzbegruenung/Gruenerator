@@ -21,17 +21,19 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+import { env } from '../config/env.js';
+
 // ============================================================================
 // Configuration
 // ============================================================================
 
-const QDRANT_URL = process.env.QDRANT_URL || 'http://localhost:6333';
-const QDRANT_API_KEY = process.env.QDRANT_API_KEY;
-const QDRANT_BASIC_AUTH_USERNAME = process.env.QDRANT_BASIC_AUTH_USERNAME;
-const QDRANT_BASIC_AUTH_PASSWORD = process.env.QDRANT_BASIC_AUTH_PASSWORD;
+const QDRANT_URL = env.QDRANT_URL ?? 'http://localhost:6333';
+const QDRANT_API_KEY = env.QDRANT_API_KEY;
+const QDRANT_BASIC_AUTH_USERNAME = env.QDRANT_BASIC_AUTH_USERNAME;
+const QDRANT_BASIC_AUTH_PASSWORD = env.QDRANT_BASIC_AUTH_PASSWORD;
 
 const LITELLM_URL = 'https://litellm.netzbegruenung.verdigado.net';
-const LITELLM_API_KEY = process.env.LITELLM_API_KEY;
+const LITELLM_API_KEY = env.LITELLM_API_KEY;
 
 const COLLECTIONS = {
   content: 'content_examples',
