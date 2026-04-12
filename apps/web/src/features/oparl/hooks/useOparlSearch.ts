@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 
 import { searchPapers, getIndexedCities } from '../services/oparlService';
 
-import type { OparlPaper, SearchResult, IndexedCitiesResult } from '../types';
+import type { OparlPaper } from '../types';
 
 export const useOparlSearch = () => {
   const [results, setResults] = useState<OparlPaper[]>([]);
@@ -32,8 +32,8 @@ export const useOparlSearch = () => {
           limit: options.limit || 10,
         });
 
-        setResults((result as SearchResult).results || []);
-        setTotalResults((result as SearchResult).total || 0);
+        setResults(result.results || []);
+        setTotalResults(result.total || 0);
       } catch (err: unknown) {
         console.error('[useOparlSearch] Search error:', err);
         const errorMessage = err instanceof Error ? err.message : 'Fehler bei der Suche';
@@ -51,7 +51,7 @@ export const useOparlSearch = () => {
     setIsLoadingCities(true);
     try {
       const result = await getIndexedCities();
-      setIndexedCities((result as IndexedCitiesResult).cities || []);
+      setIndexedCities(result.cities || []);
     } catch (err: unknown) {
       console.error('[useOparlSearch] Cities error:', err);
     } finally {

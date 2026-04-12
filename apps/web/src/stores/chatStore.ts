@@ -404,16 +404,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         : updater
     ) as ChatContent | string | null | undefined;
 
-    const nextRecord =
-      typeof nextContent === 'object' && nextContent !== null
-        ? (nextContent as Record<string, unknown>)
-        : {};
+    const nextTyped =
+      typeof nextContent === 'object' && nextContent !== null ? (nextContent as ChatContent) : null;
     const metadata = {
       agent: target.agent,
-      ...(typeof nextRecord.metadata === 'object' && nextRecord.metadata !== null
-        ? (nextRecord.metadata as Record<string, unknown>)
-        : {}),
-      ...(nextRecord.sharepicMeta ? { sharepicMeta: nextRecord.sharepicMeta } : {}),
+      ...(nextTyped?.metadata ?? {}),
+      ...(nextTyped?.sharepicMeta ? { sharepicMeta: nextTyped.sharepicMeta } : {}),
     };
 
     textStore.pushToHistory(componentId);

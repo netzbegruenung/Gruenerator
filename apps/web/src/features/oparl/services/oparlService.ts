@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+import type { OparlPaper } from '../types';
+
 const baseURL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
 const apiClient = axios.create({
@@ -14,10 +16,8 @@ export interface OparlCity {
   city: string;
   [key: string]: unknown;
 }
-export interface OparlPaper {
-  id: string;
-  [key: string]: unknown;
-}
+
+export type { OparlPaper };
 export interface OparlFaction {
   [key: string]: unknown;
 }
@@ -59,19 +59,28 @@ export const getPapers = async (city: string, limit: number = 50): Promise<GetPa
   return response.data;
 };
 
+export interface SearchResult {
+  results: OparlPaper[];
+  total: number;
+}
+
+export interface IndexedCitiesResult {
+  cities: string[];
+}
+
 export const searchPapers = async (
   query: string,
   options: { city?: string; limit?: number } = {}
-): Promise<OparlPaper[]> => {
+): Promise<SearchResult> => {
   const { city, limit = 10 } = options;
-  const response = await apiClient.get<OparlPaper[]>('/oparl/search', {
+  const response = await apiClient.get<SearchResult>('/oparl/search', {
     params: { q: query, city, limit },
   });
   return response.data;
 };
 
-export const getIndexedCities = async (): Promise<OparlCity[]> => {
-  const response = await apiClient.get<OparlCity[]>('/oparl/indexed-cities');
+export const getIndexedCities = async (): Promise<IndexedCitiesResult> => {
+  const response = await apiClient.get<IndexedCitiesResult>('/oparl/indexed-cities');
   return response.data;
 };
 
