@@ -18,6 +18,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 import { auth } from '../../config/betterAuth.js';
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
+import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { KeycloakApiClient } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -582,6 +583,6 @@ export const userProfileContractRouter = s.router(userProfileContract, {
  */
 export function mountUserProfileContractRouter(app: Application): void {
   createExpressEndpoints(userProfileContract, userProfileContractRouter, app, {
-    requestValidationErrorHandler: 'combined',
+    requestValidationErrorHandler: logContractValidationError(log, 'userProfileContract'),
   });
 }

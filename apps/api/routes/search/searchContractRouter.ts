@@ -18,6 +18,7 @@
 import { searchContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -300,6 +301,6 @@ export const searchContractRouter = s.router(searchContract, {
  */
 export function mountSearchContractRouter(app: Application): void {
   createExpressEndpoints(searchContract, searchContractRouter, app, {
-    requestValidationErrorHandler: 'combined',
+    requestValidationErrorHandler: logContractValidationError(log, 'searchContract'),
   });
 }

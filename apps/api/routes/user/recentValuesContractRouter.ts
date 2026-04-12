@@ -26,6 +26,7 @@ import {
   clearRecentValues,
   getFieldTypesWithCounts,
 } from '../../services/chat/RecentValuesService.js';
+import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { UserProfile } from '../../services/user/types.js';
@@ -149,6 +150,6 @@ export const recentValuesContractRouter = s.router(recentValuesContract, {
  */
 export function mountRecentValuesContractRouter(app: Application): void {
   createExpressEndpoints(recentValuesContract, recentValuesContractRouter, app, {
-    requestValidationErrorHandler: 'combined',
+    requestValidationErrorHandler: logContractValidationError(log, 'recentValuesContract'),
   });
 }
