@@ -47,7 +47,7 @@ Drizzle ORM wraps the existing `pg.Pool` from PostgresService and infers types f
 - [x] `database/schema/chat.ts` — chat_threads, chat_messages, chat_thread_attachments
 
 **Infrastructure switch** [DONE 2026-04-12]:
-- [x] `database/types.ts` SHRUNK (3 types migrated to Drizzle InferSelectModel; 2 holdouts: YjsDocumentSnapshotRow, UserSiteRow — tables have no Drizzle schema yet)
+- [x] `database/types.ts` fully migrated (last 2 holdouts — `YjsDocumentSnapshotRow` via `database/schema/yjs.ts`, `UserSiteRow` via `database/schema/sites.ts` — closed 2026-04-12). All row types now `InferSelectModel<...>` in schema files.
 - [x] **Better Auth on `@better-auth/drizzle-adapter`** [DONE 2026-04-12, verified end-to-end]
   - New `database/schema/auth.ts` with `ba_sessions`/`ba_accounts`/`ba_verification` Drizzle schemas + `relations()` for join support
   - `config/betterAuth.ts` swapped from raw `pg.Pool` to `drizzleAdapter(db, { provider: 'pg', schema, debugLogs: true })`
@@ -237,7 +237,7 @@ Three production incidents in this session — all caused by adding contract rou
 ### 4.3 Runtime validation at system boundaries [DONE]
 - [x] Zod `validateBody` middleware for API request bodies (Phase 3.5)
 - [x] Zod schemas for external API responses — 7 of 8 clients (WordPress, Google, Microsoft, OParl, Atlassian, Keycloak, Bluesky); WebDAV/Nextcloud have no JSON responses
-- [x] Typed environment variables — `apps/api/config/env.ts` with Zod schema covering all 178 env vars, parsed at startup. **55 of 82 consumer files migrated** (16 → 53 in 2026-04-12 batch via 3 parallel agents, +2 opportunistic during the auth-debugging session: `appLogin.ts`, `mobileTokenExchange.ts`). 171 `process.env.X` references eliminated. **Zero new schema vars needed** — original 178-var catalogue covered everything. ~27 files remain as opportunistic follow-up.
+- [x] Typed environment variables — `apps/api/config/env.ts` with Zod schema covering all 178 env vars, parsed at startup. **~87 of 82 consumer files migrated** (batch on 2026-04-12: +32 files via Sonnet sub-agent). `process.env.*` references in `apps/api/*.ts`: **49 → 17**. Remaining 17 are legitimate: 13 test/vitest files (need raw `process.env` for mock/delete/restore patterns), 1 write to `process.env.MEM0_TELEMETRY` (third-party telemetry suppression), `config/env.ts` itself, and disabled-code comments. **Zero new schema vars needed** across both migration batches. **Bonus catch**: two script files (`debug-lv-counts.ts`, `dedup-lv-vectors.ts`) had no `dotenv.config()` and were silently reading undefined when run standalone — the typed env boundary forced them to fail loudly, which is the correct behavior.
 
 ### 4.4 Global infrastructure typing [DONE]
 **Completed 2026-04-11.**
@@ -266,7 +266,11 @@ Three production incidents in this session — all caused by adding contract rou
 
 **All 8 routers (including the unmounted searchContract scaffold) use the shared `logContractValidationError` helper** so any future validation issue logs server-side with the exact failing field path. The era of "the contract returned 400 and we have no idea why" is over.
 
-**Frontend**: `useRecentValuesTyped` migrated in `SmartInput.tsx` + `RecentValuesDropdown.tsx`. Other typed hooks not yet created.
+**Frontend**: `useRecentValuesTyped` migrated in `SmartInput.tsx` + `RecentValuesDropdown.tsx`. `useBoardsTyped` added 2026-04-12 + `AIBoardCreator.tsx` migrated. `exportStore.ts` internals rewritten to use `client.exports.generatePdf/Docx` (consumers unchanged — pattern for migrating Zustand-wrapped axios calls without call-site churn). `useThreadsTyped` deferred: threads live in `packages/chat/` behind the `ChatApiClient` adapter; no `apps/web/src/` call site exists, so migration requires a chat-package adapter refactor.
+
+**Contract drift caught** (2026-04-12): `boardsContract`'s `boardDocumentSchema` was missing the `content` field the frontend reads. Fixed at the source by adding `boardContentSchema` to `packages/contracts/src/schemas/boards.ts` — not via cast at the hook boundary.
+
+**Binary response infrastructure**: `contractsClient.ts` gained `BINARY_RESPONSE_PATHS = Set<string>(['/api/exports/docx', '/api/exports/pdf'])`. The axiosFetcher passes `responseType: 'blob'` when path matches. Required because ts-rest has no way to declare response content-type in the contract — `binaryFileResponseSchema` is `z.unknown()`. Any new binary endpoint needs to be added to this set.
 
 **Known debt**: 23 `as unknown as AuthenticatedRequest` casts in contract routers. Will be eliminated by augmenting `Express.Request` with `user?: UserProfile` in `types/express.d.ts` (planned next session).
 
@@ -394,13 +398,15 @@ Dev runners (tsx, vitest) pass `--conditions=development` and resolve to source.
 | `as unknown as X` casts | 241 | 84 api / 205 repo | ~same | ratchet down |
 | `exactOptionalPropertyTypes` | disabled | **enabled** | enabled | enabled |
 | Duplicate type definitions | ~20 | **0** | 0 | 0 |
-| Drizzle schema tables | 0 | ~20 | **~23** (+ba_sessions, ba_accounts, ba_verification) | all |
+| Drizzle schema tables | 0 | ~20 | **~25** (+ba_*, +yjs_document_snapshots, +user_sites) | all |
+| `database/types.ts` raw row types | many | 2 holdouts | **0** (Phase 2.1 fully closed) | 0 |
 | Typecheck errors (all packages) | 3 | **0** | 0 | 0 |
 | `validateBody` routes | 0 | ~75 | ~75 | opportunistic |
 | ts-rest contracts | 0 | 4 (pilot) | **9 contracts / 7 mounted / 35+ endpoints** | all (~75 target) |
+| ts-rest frontend typed hooks | 0 | 1 (`useRecentValuesTyped`) | **2** (+`useBoardsTyped`; `exportStore.ts` internals typed) | all contract-consuming hooks |
 | External API Zod schemas | 0 | 0 | **WordPress (5) + in-progress** | all 8 clients |
 | `parseJSON<T>()` adoption | — | 10 files | 10 files | all JSON.parse sites |
-| `process.env.X` direct uses (api) | ~315 | — | **~140** (171 eliminated, 27 files remain) | 0 |
+| `process.env.X` direct uses (api) | ~315 | — | **17** (298 eliminated; remainder is test mocks + env.ts self + telemetry write) | ~15 (floor) |
 | Better Auth on Drizzle adapter | Kysely-era types only | — | **DONE, verified end-to-end** | done |
 | Contract router validation logger | — | — | **All 8 routers using shared helper** | mandatory for new |
 
