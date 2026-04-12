@@ -343,6 +343,146 @@ Zero runtime cost — branded IDs pass transparently to services accepting `stri
 - Remaining ~50 `validateBody` routes (0 violations, migrate when touching)
 - Remaining `PendingRequest` / `RedisClient` type unification (low impact)
 
+## Fast-forward plan to full type safety (5 sessions)
+
+**Definition of "full":** zero `as unknown as X` casts outside library boundaries, zero raw `process.env.*` in production code, zero untyped frontend API calls, every external boundary validated by Zod, and every safety-critical ESLint rule at `error`.
+
+**State audit (2026-04-12 post-session):**
+
+| Gap | Count | Lever |
+|---|---|---|
+| `as unknown as X` casts | **209** (ratchet baseline) | One helper-signature fix → N call sites |
+| `apiClient.*` raw calls in `apps/web/src` | **94 files** | Typed hooks consuming mounted contracts |
+| Backend routes w/o `validateBody` | ~76 of ~137 | Zod schemas double as validators AND contract inputs |
+| `eslint-disable no-unsafe` / `no-explicit-any` | **63 suppressions** | Cluster investigation + root-cause fix |
+| Mounted ts-rest contracts | **9 of 11** (searchContract unmounted, needs SSE model) | Streaming contract design |
+
+**Ranking heuristic: value-per-effort = (violations eliminated) / (edit count)**. Sessions are ordered so each one has the highest blast-radius/work ratio among remaining options.
+
+### Session N+1 — Bulk ts-rest contract generation (BIGGEST blast radius)
+
+**Goal**: +25 endpoints contract-covered in one session by extending the existing codegen script.
+
+**Acceleration lever**: `scripts/generate-contracts-from-validate-body.ts` already parses `validateBody(someSchema)` calls and emits contract stubs from the request bodies. Extend it to ALSO generate response schemas by walking handler bodies and finding `res.json(...)` / `res.status(N).json(...)` call sites, then emitting a discriminated-union response map. The 60% of the work that's currently manual (response schema authoring) becomes automated.
+
+**Target route families** (5 batches, each ~5-7 endpoints):
+- `apps/api/routes/documents/` — manual, retrieval, qdrant (already uses `DocumentId` branded type from Phase 4.2)
+- `apps/api/routes/template/` — user, admin, gallery (21 routes, split across 2 contracts)
+- `apps/api/routes/sharepic/` — prompt routes (3 casts here cleaned up as side effect)
+- `apps/api/routes/etherpad/` — small, straightforward
+- `apps/api/routes/media/` — shared media endpoints (file upload excluded)
+
+**Parallel split**: 1 main agent extends codegen script, 3 Sonnet streams each own 1-2 route families. Codegen must land BEFORE streams start so they can reuse.
+
+**Target state**: 11 → 16 contracts, 50 → ~75 typed endpoints (≈60% of the 126 candidates).
+
+**Pitfalls**:
+- Every new contract MUST use `.nullish()` not `.optional()` for request bodies (2026-04-12 rule)
+- Every new contract MUST use `logContractValidationError` (2026-04-12 rule)
+- Mixed-auth contracts need the per-handler `requireAuthUser` helper pattern (notebookContract rule)
+- `.passthrough()` is forbidden on response schemas mirroring strict service types (notebookContract rule)
+
+### Session N+2 — Frontend typed hook batch
+
+**Goal**: 12 typed frontend hooks (up from 3) + migrate ~40 `apiClient.*` call sites to contract clients.
+
+Backend contracts are valueless without frontend consumers (Acceleration Principle #4). This session turns the backend work from Session N+1 into real end-to-end safety.
+
+**Parallel split** (3 streams by feature area, zero file conflicts):
+
+- **Stream A — chat/threads**: migrate `apps/web/src/features/chat/hooks/`. All 7 thread endpoints are already typed in `threadsContract`; just need wrapper hooks (`useThreadsTyped`, `useThreadSettingsTyped`, `useGenerateTitleTyped`). Migrate 3-5 call sites in `apps/web/src/features/chat/` components.
+- **Stream B — documents + notebook collections**: wrap the new N+1 documents contract + migrate `apps/web/src/features/notebook/stores/notebookStore.ts` 10 remaining call sites (the ones touching `/auth/notebook-collections/*`).
+- **Stream C — boards + templates**: extend `useBoardsTyped` with the list + delete endpoints (currently legacy) — requires extending `boardsContract` first. Wrap the new N+1 template contracts.
+
+**Target state**: 3 → 12 typed hooks. `apiClient.*` raw usage: 94 → ~50 files.
+
+**Pitfalls**:
+- Each hook must preserve its legacy signature so downstream components don't need updates (exportStore pattern)
+- Don't introduce `undefined` — use `?? null` or conditional spread (`feedback_no_undefined`)
+- TanStack Query cache keys must stay stable across the migration (invalidating existing cached state = UX regression)
+
+### Session N+3 — Cast hotspot cluster elimination
+
+**Goal**: Drop the ratchet baseline from **209 → ~150** (−59) by fixing the top 6 cast hotspots identified via grep.
+
+**Priority targets** (grep-verified counts as of 2026-04-12):
+
+| File | Casts | Expected root cause |
+|---|---|---|
+| `agents/langgraph/WebSearchGraph/WebSearchGraph.ts` | 9 | One LangGraph node signature widening unlocks all 9 |
+| `routes/chat/grueneratorChat.ts` | 5 | Express middleware chain; likely one `Request` type fix |
+| `services/chat/IntentService.ts` | 4 | Service input type too narrow |
+| `routes/subtitler/processingController.ts` | 4 | Same pattern |
+| `agents/langgraph/simpleInteractiveGenerator.ts` | 4 | LangGraph node state type |
+| `routes/chat/threadsContractRouter.ts` | 3 | May be stale post-UserProfile unification — test first |
+
+**Parallel split**: 2 streams (langgraph cluster + chat/search cluster). Each stream picks its own ratchet target and writes the new baseline.
+
+**Target state**: ratchet baseline **209 → 150**. Each cluster fix becomes a durable lesson in the roadmap.
+
+**Pitfalls**:
+- `exactOptionalPropertyTypes` requires explicit `| undefined` on widened optional fields (Session N lesson)
+- Adding `[key: string]: unknown` index signatures to widen types BREAKS assignment from strict types like `UserProfile` (Session N lesson)
+- Never use `as X` or `// @ts-ignore` as a replacement — only root-cause fixes allowed
+
+### Session N+4 — `eslint-disable` cleanup + opportunistic `validateBody` backfill
+
+**Goal**: Peel 63 → ~22 eslint-disable suppressions (the library-boundary floor).
+
+**Approach**: Sonnet agent scans every `eslint-disable no-unsafe`/`no-explicit-any` suppression and categorizes:
+1. **Library boundary** (docx, pdfjs, LangGraph, Express 5 overloads) — keep, these are the permanent floor
+2. **Stale** — the original violation no longer exists; just delete the suppression
+3. **Fixable** — same cluster pattern (usually a helper/service type widening)
+
+Main agent approves each category in bulk; fixable ones get delegated back to the same agent.
+
+**Side quest**: during the scan, also identify 15-20 routes currently without `validateBody` that SHOULD have it (routes taking structured body). Add schemas opportunistically. This also prepares them for future ts-rest contract migration — "Codegen over handwriting" (Acceleration Principle #3).
+
+**Target state**: 63 → 22 suppressions. +15-20 `validateBody` routes.
+
+### Session N+5 — `searchContract` SSE streaming model + mount
+
+**Goal**: Design a ts-rest contract shape for streaming SSE responses and mount the dormant `searchContract`. The pattern established here becomes the template for chat streaming, notebook QA streaming, and future streaming features.
+
+**Design question**: ts-rest models JSON + binary responses but not SSE event streams natively. Two approaches:
+
+- **(a) Envelope-after-completion**: Contract declares the final cumulative response (e.g. `{ result: FinalSearchResult }`). Stream events are emitted as typed `data:` JSON objects that the frontend parses via a typed event handler utility (new in `packages/shared/src/api/sseClient.ts`). The contract only validates the final envelope.
+- **(b) Two endpoints**: `POST /api/search` (non-streaming, contract-modeled) and `POST /api/search/stream` (SSE, explicitly `responses: { 200: z.unknown() }` with a documented JSDoc `@event` union). Consumers use different hooks for the two modes.
+
+Recommend (b) for simplicity — it matches the project's existing "typed rest + untyped streaming" split, and the streaming path's type safety is enforced via an event-handler utility on the client side, not via the contract.
+
+**Deliverables**:
+- `packages/contracts/src/schemas/searchEvents.ts` — Zod union for SSE event types (`{ type: 'token', delta }`, `{ type: 'source', source }`, `{ type: 'final', result }`)
+- `packages/shared/src/api/sseClient.ts` — typed SSE parser: `streamSSE<T>(path, schema): AsyncIterable<T>`
+- `apps/api/routes/search/searchContractRouter.ts` — mounted; the contract router handles the non-streaming variant, and the legacy `searchStreamController` keeps serving `/api/search/stream`
+
+**Target state**: searchContract mounted; 11 → 12 contracts / 9 → 10 mounted / 50 → 52 endpoints. New pattern template available for all future streaming endpoints.
+
+### After Session N+5: what counts as "done"
+
+**Full type safety achieved when:**
+- ts-rest contracts cover ≥90% of `validateBody` routes (≥110 / ~120)
+- Cast ratchet baseline ≤100 (floor is ~50-80 for genuine library boundaries)
+- `eslint-disable no-unsafe` / `no-explicit-any` suppressions ≤25 (library floor)
+- Every `apiClient.*` raw call site replaced with contract client or typed hook
+- Every external API response validated by Zod at the boundary
+
+**Permanent floor** (work that CAN'T be eliminated without changing dependencies):
+- LangGraph node state casts (library's internal type model mismatches ts-rest envelope shape)
+- docx / pdfjs / Excalidraw library boundaries
+- Express 5 route handler overload mismatches with strict request types
+- Test file mocks (by design — tests should cast where they'd otherwise need a full service instance)
+
+### Parallelization heuristics (confirmed across 5 sessions)
+
+1. **3 parallel Sonnet streams per session is the sweet spot.** Above 3, coordination overhead costs more than it saves. Observed four times.
+2. **Main-agent fixup pass is mandatory after streams land** — budget 15 min per session. Usually fixing `exactOptionalPropertyTypes` gotchas, Zod schema shape issues, or inter-stream type drift.
+3. **Codegen over handwriting** — Principle #3, proven in Session N+1 plan.
+4. **Frontend hook batches ALWAYS follow backend contract batches.** Never interleave. Backend is the type source; hooks consume.
+5. **Ratchet every session** — `.type-safety-baseline` goes lower each session is the objective proof of progress.
+6. **Merge to `test-branch` per session** — not per commit — to keep the CI signal coherent. Use `git merge --no-ff` + conventional commit format (`chore: merge refactor/typescript-safety into test-branch`).
+7. **One file rule per sub-agent brief**: explicit `DO NOT TOUCH` lists prevent 90% of merge conflicts. Cheaper than recovering afterward.
+
 ## Phase 5: Frontend + Mobile Safety [DONE 2026-04-12]
 
 ### 5.1 Fix web `no-unsafe-*` violations [DONE]
