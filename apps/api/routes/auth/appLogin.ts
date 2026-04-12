@@ -31,6 +31,7 @@ import rateLimit from 'express-rate-limit';
 import { SignJWT } from 'jose';
 
 import { auth } from '../../config/betterAuth.js';
+import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import { parseJSON } from '../../utils/parseJSON.js';
 import redisClient from '../../utils/redis/client.js';
@@ -64,20 +65,17 @@ async function consumeAppLoginState(nonce: string): Promise<AppLoginState | null
 const log = createLogger('appLogin');
 const router = express.Router();
 
-const loginLimiter =
-  process.env.DISABLE_RATE_LIMITS === 'true'
-    ? (_req: AuthRequest, _res: Response, next: () => void) => next()
-    : rateLimit({
-        windowMs: 15 * 60 * 1000,
-        max: 30,
-        standardHeaders: true,
-        legacyHeaders: false,
-        message: { error: 'Too many login attempts, please try again later.' },
-      });
+const loginLimiter = env.DISABLE_RATE_LIMITS
+  ? (_req: AuthRequest, _res: Response, next: () => void) => next()
+  : rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 30,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'Too many login attempts, please try again later.' },
+    });
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.SESSION_SECRET || 'fallback-secret-please-change'
-);
+const JWT_SECRET = new TextEncoder().encode(env.SESSION_SECRET ?? 'fallback-secret-please-change');
 
 const SOURCE_TO_PROVIDER: Record<string, string> = {
   'gruenerator-login': 'keycloak-gruenerator',
@@ -127,6 +125,14 @@ router.get('/login', loginLimiter, async (req: AuthRequest, res: Response): Prom
 
     const callbackURL = redirectTo ? `/api/auth/app-callback?state=${stateNonce}` : '/desk';
 
+    log.info(
+      '[AppLogin] Initiating OAuth: source=%s, providerId=%s, callbackURL=%s, redirectTo=%s',
+      source,
+      providerId,
+      callbackURL,
+      redirectTo ?? 'none'
+    );
+
     const response = await auth.api.signInWithOAuth2({
       body: {
         providerId,
@@ -136,12 +142,21 @@ router.get('/login', loginLimiter, async (req: AuthRequest, res: Response): Prom
 
     const url = (response as { url?: string }).url;
     if (!url) {
-      log.error('[AppLogin] No URL returned from Better Auth signInWithOAuth2');
+      log.error(
+        '[AppLogin] No URL returned from Better Auth signInWithOAuth2 (provider=%s, callbackURL=%s)',
+        providerId,
+        callbackURL
+      );
       res.status(500).json({ error: 'Failed to initiate OAuth flow' });
       return;
     }
 
-    log.info('[AppLogin] Redirecting to OAuth provider', { source, providerId });
+    log.info(
+      '[AppLogin] OAuth provider URL: %s (source=%s, providerId=%s)',
+      url,
+      source,
+      providerId
+    );
     res.redirect(url);
   } catch (error) {
     log.error('[AppLogin] Error initiating OAuth:', error);

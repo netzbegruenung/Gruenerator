@@ -9,8 +9,11 @@ import { type Request, type Response, type NextFunction } from 'express';
 import { auth, type BetterAuthUser } from '../config/betterAuth.js';
 import { env } from '../config/env.js';
 import { BRAND } from '../utils/domainUtils.js';
+import { createLogger } from '../utils/logger.js';
 
 import { type AuthenticatedRequest } from './types.js';
+
+const log = createLogger('authMiddleware');
 
 const DEV_BYPASS_USER: Express.User = {
   id: '00000000-0000-4000-a000-000000000001',
@@ -91,10 +94,24 @@ async function tryResolveUser(req: Request): Promise<Express.User | null> {
       headers: fromNodeHeaders(req.headers),
     });
     if (session?.user) {
+      log.debug(
+        '[Auth] Session resolved: user_id=%s, email=%s, url=%s',
+        session.user.id,
+        session.user.email,
+        req.originalUrl
+      );
       return toBetterAuthUser(session.user);
     }
+    // No session was returned (no cookie / expired / no Bearer token).
+    // This is the common "user not logged in" path; log at debug to avoid noise.
+    log.debug(
+      '[Auth] No session for %s (cookie=%s, authorization=%s)',
+      req.originalUrl,
+      req.headers.cookie ? 'present' : 'absent',
+      req.headers.authorization ? 'present' : 'absent'
+    );
   } catch (err) {
-    console.warn('[Auth] Session check failed for %s: %s', req.originalUrl, (err as Error).message);
+    log.error('[Auth] Session check threw for %s: %s', req.originalUrl, (err as Error).message);
   }
 
   return null;

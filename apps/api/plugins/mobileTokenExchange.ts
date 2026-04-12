@@ -1,18 +1,22 @@
 import { createAuthEndpoint } from 'better-auth/api';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 
+import { env } from '../config/env.js';
+import { createLogger } from '../utils/logger.js';
+
 import type { BetterAuthPlugin } from 'better-auth';
+
+const log = createLogger('mobileTokenExchange');
 
 interface KeycloakPayload {
   email?: string;
   name?: string;
   preferred_username?: string;
   email_verified?: boolean;
+  sub?: string;
 }
 
-const KC_BASE = process.env.KEYCLOAK_BASE_URL || 'https://user.netzbegruenung.de';
-const KC_REALM = process.env.KEYCLOAK_REALM || 'gruenerator';
-const KC_ISSUER = `${KC_BASE}/realms/${KC_REALM}`;
+const KC_ISSUER = `${env.KEYCLOAK_BASE_URL}/realms/${env.KEYCLOAK_REALM}`;
 const JWKS = createRemoteJWKSet(new URL(`${KC_ISSUER}/protocol/openid-connect/certs`));
 
 const LOCALE_MAP: Record<string, 'de-DE' | 'de-AT'> = {
@@ -36,15 +40,33 @@ export const mobileTokenExchange = () => {
           };
 
           if (!idToken) {
+            log.warn('[TokenExchange] Request missing idToken');
             throw new Error('idToken is required');
           }
 
-          const { payload } = await jwtVerify<KeycloakPayload>(idToken, JWKS, {
-            issuer: KC_ISSUER,
-          });
+          let payload: KeycloakPayload;
+          try {
+            const verified = await jwtVerify<KeycloakPayload>(idToken, JWKS, {
+              issuer: KC_ISSUER,
+            });
+            payload = verified.payload;
+          } catch (err) {
+            log.error(
+              '[TokenExchange] JWT verification failed (issuer=%s, authSource=%s): %s',
+              KC_ISSUER,
+              authSource ?? 'unknown',
+              (err as Error).message
+            );
+            throw err;
+          }
 
           const email = payload.email;
           if (!email) {
+            log.warn(
+              '[TokenExchange] Token missing email claim (sub=%s, authSource=%s)',
+              payload.sub ?? 'none',
+              authSource ?? 'unknown'
+            );
             throw new Error('Token missing email claim');
           }
 
@@ -55,8 +77,19 @@ export const mobileTokenExchange = () => {
 
           let userData: { id: string; [key: string]: unknown };
           if (existing) {
+            log.info(
+              '[TokenExchange] Reusing existing user: email=%s, id=%s',
+              email,
+              existing.user.id
+            );
             userData = existing.user as typeof userData;
           } else {
+            log.info(
+              '[TokenExchange] Creating new user via mobile flow: email=%s, authSource=%s, keycloak_sub=%s',
+              email,
+              authSource ?? 'unknown',
+              payload.sub ?? 'none'
+            );
             const created = await ctx.context.internalAdapter.createUser({
               email,
               name,
@@ -69,6 +102,11 @@ export const mobileTokenExchange = () => {
           }
 
           const session = await ctx.context.internalAdapter.createSession(userData.id, false);
+          log.info(
+            '[TokenExchange] Session issued: user_id=%s, token_prefix=%s...',
+            userData.id,
+            session.token?.slice(0, 8) ?? 'NONE'
+          );
 
           return ctx.json({
             token: session.token,
