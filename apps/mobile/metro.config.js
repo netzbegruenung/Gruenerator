@@ -33,8 +33,12 @@ config.resolver.nodeModulesPaths = [
 // Critical for pnpm: follow symlinks
 config.resolver.unstable_enableSymlinks = true;
 
-// Specify export conditions for React Native
-config.resolver.unstable_conditionNames = ['require', 'react-native'];
+// Specify export conditions for React Native.
+// 'development' matches the `development` condition in workspace packages
+// (packages/shared, packages/contracts, services/hocuspocus) so Metro
+// resolves to ./src/*.ts rather than ./dist/*.js. Mobile always bundles
+// from source since Metro transforms TS directly.
+config.resolver.unstable_conditionNames = ['development', 'require', 'react-native'];
 
 // Custom resolver for various edge cases
 config.resolver.resolveRequest = (context, moduleName, platform) => {
