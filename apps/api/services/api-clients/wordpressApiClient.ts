@@ -1,46 +1,22 @@
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
+import { z } from 'zod';
 
 import { createLogger } from '../../utils/logger.js';
 import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 
+import {
+  wpSiteInfoSchema,
+  wpUserResponseSchema,
+  wpPostResponseSchema,
+  wpPostSchema,
+  wpCategorySchema,
+  type WPPost,
+  type WPCategory,
+} from './schemas/wordpress.js';
+
+export type { WPPost, WPCategory };
+
 const log = createLogger('wordpress-api');
-
-export interface WPPost {
-  id: number;
-  title: { rendered: string };
-  content: { rendered: string };
-  excerpt: { rendered: string };
-  status: string;
-  date: string;
-  link: string;
-  categories: number[];
-  tags: number[];
-}
-
-export interface WPCategory {
-  id: number;
-  name: string;
-  slug: string;
-  count: number;
-}
-
-interface WPSiteInfo {
-  name: string;
-  description: string;
-  namespaces: string[];
-}
-
-interface WPUserResponse {
-  username: string;
-  name: string;
-  capabilities: Record<string, boolean>;
-}
-
-interface WPPostResponse {
-  id: number;
-  link: string;
-  status: string;
-}
 
 interface WPErrorResponse {
   message?: string;
@@ -164,8 +140,8 @@ class WordPressApiClient {
     let siteName: string | null = null;
     let siteDescription: string | null = null;
     try {
-      const siteInfo = await this.client.get<WPSiteInfo>('/', { timeout: 10000 });
-      const data = siteInfo.data;
+      const siteInfoRaw = await this.client.get('/', { timeout: 10000 });
+      const data = wpSiteInfoSchema.parse(siteInfoRaw.data);
       if (!data.namespaces?.includes('wp/v2')) {
         return fail(
           'Diese Seite scheint keine WordPress REST-API zu haben. Ist es eine WordPress-Seite?',
@@ -192,11 +168,11 @@ class WordPressApiClient {
     let username: string | null = null;
     let displayName: string | null = null;
     try {
-      const response = await this.client.get<WPUserResponse>('/wp/v2/users/me', {
+      const userRaw = await this.client.get('/wp/v2/users/me', {
         params: { context: 'edit' },
       });
 
-      const user = response.data;
+      const user = wpUserResponseSchema.parse(userRaw.data);
       capabilities = Object.keys(user.capabilities || {}).filter((key) => user.capabilities[key]);
       username = user.username || null;
       displayName = user.name || null;
@@ -228,12 +204,12 @@ class WordPressApiClient {
 
     // Phase 4: Write probe — create and immediately delete a draft to verify actual write access
     try {
-      const probeResponse = await this.client.post<WPPostResponse>('/wp/v2/posts', {
+      const probeRaw = await this.client.post('/wp/v2/posts', {
         title: '[Grünerator Verbindungstest]',
         content: '',
         status: 'draft',
       });
-      const probeId = probeResponse.data?.id;
+      const probeId = wpPostResponseSchema.parse(probeRaw.data).id;
       if (probeId) {
         try {
           await this.client.delete(`/wp/v2/posts/${probeId}`, {
@@ -285,7 +261,7 @@ class WordPressApiClient {
     options: CreatePostOptions = {}
   ): Promise<PostResult> {
     try {
-      const response = await this.client.post<WPPostResponse>('/wp/v2/posts', {
+      const postRaw = await this.client.post('/wp/v2/posts', {
         title,
         content,
         status: options.status || 'draft',
@@ -294,7 +270,7 @@ class WordPressApiClient {
         tags: options.tags,
       });
 
-      const post = response.data;
+      const post = wpPostResponseSchema.parse(postRaw.data);
       return {
         id: post.id,
         editUrl: `${this.siteUrl}/wp-admin/post.php?post=${post.id}&action=edit`,
@@ -313,7 +289,7 @@ class WordPressApiClient {
     options: CreatePostOptions = {}
   ): Promise<PostResult> {
     try {
-      const response = await this.client.put<WPPostResponse>(`/wp/v2/posts/${postId}`, {
+      const putRaw = await this.client.put(`/wp/v2/posts/${postId}`, {
         title,
         content,
         status: options.status,
@@ -322,7 +298,7 @@ class WordPressApiClient {
         tags: options.tags,
       });
 
-      const post = response.data;
+      const post = wpPostResponseSchema.parse(putRaw.data);
       return {
         id: post.id,
         editUrl: `${this.siteUrl}/wp-admin/post.php?post=${post.id}&action=edit`,
@@ -336,13 +312,13 @@ class WordPressApiClient {
 
   async getPosts(params: GetPostsParams = {}): Promise<PostsListResult> {
     try {
-      const response = await this.client.get<WPPost[]>('/wp/v2/posts', { params });
+      const response = await this.client.get('/wp/v2/posts', { params });
 
       const totalPages = parseInt((response.headers['x-wp-totalpages'] as string) || '1', 10);
       const total = parseInt((response.headers['x-wp-total'] as string) || '0', 10);
 
       return {
-        posts: response.data,
+        posts: z.array(wpPostSchema).parse(response.data),
         totalPages,
         total,
       };
@@ -353,8 +329,8 @@ class WordPressApiClient {
 
   async getPost(postId: number): Promise<WPPost> {
     try {
-      const response = await this.client.get<WPPost>(`/wp/v2/posts/${postId}`);
-      return response.data;
+      const response = await this.client.get(`/wp/v2/posts/${postId}`);
+      return wpPostSchema.parse(response.data);
     } catch (error) {
       throw this.normalizeError(error);
     }
@@ -362,15 +338,18 @@ class WordPressApiClient {
 
   async getCategories(): Promise<WPCategory[]> {
     try {
-      const response = await this.client.get<WPCategory[]>('/wp/v2/categories', {
+      const response = await this.client.get('/wp/v2/categories', {
         params: { per_page: 100 },
       });
-      return response.data.map((cat) => ({
-        id: cat.id,
-        name: cat.name,
-        slug: cat.slug,
-        count: cat.count,
-      }));
+      return z
+        .array(wpCategorySchema)
+        .parse(response.data)
+        .map((cat) => ({
+          id: cat.id,
+          name: cat.name,
+          slug: cat.slug,
+          count: cat.count,
+        }));
     } catch (error) {
       throw this.normalizeError(error);
     }
