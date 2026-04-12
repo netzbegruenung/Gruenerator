@@ -141,7 +141,8 @@ interface RequestBody {
   subject?: string | undefined;
   preserveName?: boolean | undefined;
   name?: string | undefined;
-  attachments?: Attachment[] | undefined;
+  /** Caller may pass strongly-typed Attachment objects or looser chat-route bodies. */
+  attachments?: Attachment[] | Array<{ type: string; [key: string]: unknown }> | undefined;
   sharepicRequestId?: string | undefined;
   campaignId?: string | undefined;
   campaignTypeId?: string | undefined;
@@ -546,12 +547,16 @@ const generateZitatWithImageSharepic = async (
 
   if (sharepicImageManager && sharepicRequestId) {
     log.debug('[SharepicGeneration] Attempting to retrieve image from SharepicImageManager');
-    imageAttachment = (await sharepicImageManager.retrieveAndConsume(sharepicRequestId)) as ImageAttachment | null;
+    imageAttachment = (await sharepicImageManager.retrieveAndConsume(
+      sharepicRequestId
+    )) as ImageAttachment | null;
   }
 
   if (!imageAttachment) {
     log.debug('[SharepicGeneration] Falling back to legacy attachment method');
-    imageAttachment = getFirstImageAttachment(requestBody.attachments) as ImageAttachment | null;
+    imageAttachment = getFirstImageAttachment(
+      requestBody.attachments as Attachment[] | undefined
+    ) as ImageAttachment | null;
   }
 
   if (!imageAttachment) {
@@ -630,12 +635,16 @@ const generateDreizeilenWithImageSharepic = async (
 
   if (sharepicImageManager && sharepicRequestId) {
     log.debug('[SharepicGeneration] Attempting to retrieve image from SharepicImageManager');
-    imageAttachment = (await sharepicImageManager.retrieveAndConsume(sharepicRequestId)) as ImageAttachment | null;
+    imageAttachment = (await sharepicImageManager.retrieveAndConsume(
+      sharepicRequestId
+    )) as ImageAttachment | null;
   }
 
   if (!imageAttachment) {
     log.debug('[SharepicGeneration] Falling back to legacy attachment method');
-    imageAttachment = getFirstImageAttachment(requestBody.attachments) as ImageAttachment | null;
+    imageAttachment = getFirstImageAttachment(
+      requestBody.attachments as Attachment[] | undefined
+    ) as ImageAttachment | null;
   }
 
   if (!imageAttachment) {
