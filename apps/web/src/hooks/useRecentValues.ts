@@ -91,7 +91,7 @@ export const useRecentValues = (
   // Only fetch from server if cache was empty or expired (on mount only)
   useEffect(() => {
     if (lastFetch === null) {
-      fetchRecentValues();
+      void fetchRecentValues();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fieldType]);
@@ -240,7 +240,7 @@ export const useRecentValues = (
    */
   const refresh = useCallback(() => {
     localStorage.removeItem(cacheKey);
-    fetchRecentValues();
+    void fetchRecentValues();
   }, [fetchRecentValues, cacheKey]);
 
   /**

@@ -72,7 +72,7 @@ const SharedMediaPage = () => {
         setCanNativeShare(false);
       }
     };
-    checkShareCapability();
+    void checkShareCapability();
   }, []);
 
   useEffect(() => {
@@ -105,7 +105,7 @@ const SharedMediaPage = () => {
       }
     };
 
-    fetchShareData();
+    void fetchShareData();
   }, [shareToken]);
 
   useEffect(() => {

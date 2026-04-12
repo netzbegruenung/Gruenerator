@@ -181,7 +181,7 @@ const TextResultScreen: React.FC<TextResultScreenProps> = memo(
       const reviewMessage = `Bitte überprüfe den folgenden Text und gib mir konstruktives Feedback:\n\n${titleLine}---\n${currentExportable}\n---`;
       const { useAgentStore } = await import('@gruenerator/chat');
       useAgentStore.getState().setPendingMessage(reviewMessage);
-      navigate('/chat');
+      void navigate('/chat');
     }, [currentExportable, getFreshTitle, navigate]);
 
     const handleUndo = useCallback(() => undo(componentName), [undo, componentName]);

@@ -133,7 +133,7 @@ export default function VerifyFeature({
     if (onCancel) {
       onCancel();
     } else {
-      navigate('/');
+      void navigate('/');
     }
   };
 

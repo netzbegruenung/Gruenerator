@@ -45,7 +45,7 @@ function ChatThreadPortal() {
 
   const handleClick = () => {
     if (!location.pathname.startsWith('/chat')) {
-      navigate('/chat');
+      void navigate('/chat');
     }
   };
 
@@ -80,7 +80,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   const mentionablesActivated = useAgentStore((s) => s.mentionablesActivated);
   useEffect(() => {
     if (!mentionablesActivated || qaCollectionsLength > 0) return;
-    useNotebookStore.getState().fetchQACollections();
+    void useNotebookStore.getState().fetchQACollections();
   }, [mentionablesActivated, qaCollectionsLength]);
 
   useEffect(() => {
@@ -88,7 +88,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       const { mentions } = (e as CustomEvent<{ mentions: string[] }>).detail;
       if (mentions.length === 0) return;
       const names = mentions.map((m) => `@${m}`).join(', ');
-      import('sonner').then(({ toast }) =>
+      void import('sonner').then(({ toast }) =>
         toast.warning(`${names} konnte nicht aufgeloest werden`, {
           description: 'Nutze @docs um ein kollaboratives Dokument auszuwaehlen.',
         })
@@ -128,7 +128,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
 
   const handleExternalClick = useCallback(
     (path: string) => {
-      navigate(path);
+      void navigate(path);
     },
     [navigate]
   );
@@ -150,7 +150,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         const store = useImageStudioStore.getState();
         store.loadFromAIGeneration(data.canvasType, data.initialProps as Record<string, string>);
         store.setCurrentStep(FORM_STEPS.CANVAS_EDIT);
-        navigate(`/studio/vorlagen/${data.canvasType}`);
+        void navigate(`/studio/vorlagen/${data.canvasType}`);
       },
       onEditInDocs: async (content: string, title?: string, existingDocId?: string) => {
         if (existingDocId) {

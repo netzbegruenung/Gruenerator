@@ -48,7 +48,7 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
 
   useEffect(() => {
     if (stockImages.length === 0 && !isLoadingStockImages) {
-      fetchStockImages();
+      void fetchStockImages();
     }
   }, [stockImages.length, isLoadingStockImages, fetchStockImages]);
 
@@ -137,7 +137,7 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
   useEffect(() => {
     if (thema && stockImages.length > 0 && !hasAutoSuggested.current && !preloadedImageResult) {
       hasAutoSuggested.current = true;
-      handleAiSuggest();
+      void handleAiSuggest();
     }
   }, [thema, stockImages.length, handleAiSuggest, preloadedImageResult]);
 

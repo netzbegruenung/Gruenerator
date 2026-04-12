@@ -63,7 +63,7 @@ const ShareVideoModal: React.FC<ShareVideoModalProps> = ({ projectId, title, onC
   const handleCopyLink = () => {
     if (currentShare?.shareToken) {
       const url = getShareUrl(currentShare.shareToken);
-      navigator.clipboard.writeText(url);
+      void navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }

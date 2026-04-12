@@ -142,7 +142,7 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
         setCanNativeShare(false);
       }
     };
-    checkShareCapability();
+    void checkShareCapability();
   }, []);
 
   const handleDownload = () => {

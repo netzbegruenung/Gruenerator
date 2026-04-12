@@ -41,7 +41,7 @@ function BoardsListPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleShareLink = (boardId: string) => {
-    navigator.clipboard.writeText(`${window.location.origin}/boards/${boardId}`);
+    void navigator.clipboard.writeText(`${window.location.origin}/boards/${boardId}`);
     setCopiedId(boardId);
     setTimeout(() => setCopiedId(null), 2000);
   };
@@ -126,7 +126,7 @@ function BoardsListPage() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    navigate(`/boards/${board.id}`);
+                    void navigate(`/boards/${board.id}`);
                   }
                 }}
               >

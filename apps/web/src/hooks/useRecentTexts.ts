@@ -170,7 +170,7 @@ export function useRecentTexts(options: UseRecentTextsOptions): UseRecentTextsRe
    * Fetch on mount and when dependencies change
    */
   useEffect(() => {
-    fetchTexts();
+    void fetchTexts();
   }, [fetchTexts]);
 
   /**

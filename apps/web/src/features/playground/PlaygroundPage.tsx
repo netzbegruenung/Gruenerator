@@ -584,9 +584,9 @@ function PlaygroundPage() {
       const panel = panelsRef.current[idx];
       if (!panel.model) continue;
       if (hasImage && panel.model.vision) {
-        visionAnalyze(idx);
+        void visionAnalyze(idx);
       } else {
-        streamGenerate(idx);
+        void streamGenerate(idx);
       }
     }
   }, [streamGenerate, visionAnalyze]);

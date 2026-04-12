@@ -62,7 +62,7 @@ export function ShareBoardDialog({ boardId, open, onOpenChange }: ShareBoardDial
   const availableGroups = userGroups.filter((g) => !boardGroups.some((bg) => bg.group_id === g.id));
 
   const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(shareUrl);
+    void navigator.clipboard.writeText(shareUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, [shareUrl]);

@@ -58,7 +58,7 @@ const JoinGroupPage = () => {
       }
     };
 
-    verifyToken();
+    void verifyToken();
     return () => {
       isMounted = false;
     };

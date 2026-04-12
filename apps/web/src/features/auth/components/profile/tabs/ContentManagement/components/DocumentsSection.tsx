@@ -132,7 +132,7 @@ const DocumentsSection = memo(
       onSuccess: (data) => {
         if (data.converted > 0) {
           onSuccessMessage(`${data.converted} Texte zu Dokumenten migriert`);
-          handleCombinedFetch();
+          void handleCombinedFetch();
         } else {
           onSuccessMessage('Keine neuen Texte zum Migrieren');
         }
@@ -198,7 +198,7 @@ const DocumentsSection = memo(
     const handleDocumentsRemoteSearch = useCallback(
       (q: string, mode: string) => {
         const searchMode = mode as 'intelligent' | 'fulltext';
-        searchDocumentsApi(q, { limit: 10, mode: searchMode });
+        void searchDocumentsApi(q, { limit: 10, mode: searchMode });
       },
       [searchDocumentsApi]
     );
@@ -342,7 +342,7 @@ const DocumentsSection = memo(
         const result = (await documentAndTextUtils.bulkDeleteDocuments(
           documentIds
         )) as BulkDeleteResult;
-        fetchDocuments();
+        void fetchDocuments();
         if (result.message) {
           if (result.hasErrors) {
             onErrorMessage(result.message);
@@ -495,7 +495,7 @@ const DocumentsSection = memo(
 
     useEffect(() => {
       if (isActive) {
-        fetchCombinedRef.current?.();
+        void fetchCombinedRef.current?.();
       }
     }, [isActive]);
 

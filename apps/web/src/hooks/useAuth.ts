@@ -232,7 +232,7 @@ const useServerAvailability = (skipCheck = false) => {
     };
 
     // Immediate first check in development
-    checkServer();
+    void checkServer();
   }, [skipCheck]);
 
   return { isServerAvailable, isChecking };

@@ -215,7 +215,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
 
     // Navigate to type route to ensure clean state
     const route = subcategory ? `/studio/${category}/${subcategory}` : `/studio/${category}`;
-    navigate(route);
+    void navigate(route);
   }, [typeConfig, category, subcategory, updateFormData, setCurrentStep, navigate]);
 
   const uploadedImageUrl = useMemo(() => {
@@ -479,7 +479,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
         setCanNativeShare(false);
       }
     };
-    checkShareCapability();
+    void checkShareCapability();
   }, []);
 
   const handleSloganSwitch = useCallback(

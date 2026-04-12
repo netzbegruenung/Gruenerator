@@ -179,7 +179,7 @@ const AddTemplateModal = ({
 
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
-        fetchCanvaPreview(templateUrl, canvaValidation.title);
+        void fetchCanvaPreview(templateUrl, canvaValidation.title);
       }, 400);
     }
   }, [isValidTemplate, canvaValidation.designId, canvaValidation.title, templateUrl]);

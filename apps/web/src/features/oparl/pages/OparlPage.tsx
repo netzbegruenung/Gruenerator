@@ -49,13 +49,13 @@ const OparlPage = () => {
   } = useOparlSearch();
 
   useEffect(() => {
-    loadIndexedCities();
+    void loadIndexedCities();
   }, [loadIndexedCities]);
 
   const handleSearch = useCallback(
     (query?: string) => {
       if (query) {
-        search(query);
+        void search(query);
       }
     },
     [search]

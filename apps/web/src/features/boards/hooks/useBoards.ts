@@ -23,7 +23,7 @@ export const useBoards = (options?: { enabled?: boolean }) => {
       return response.data as Board;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: BOARDS_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: BOARDS_QUERY_KEY });
     },
   });
 
@@ -32,7 +32,7 @@ export const useBoards = (options?: { enabled?: boolean }) => {
       await apiClient.delete(`/boards/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: BOARDS_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: BOARDS_QUERY_KEY });
     },
   });
 
@@ -42,7 +42,7 @@ export const useBoards = (options?: { enabled?: boolean }) => {
       return response.data as Board;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: BOARDS_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: BOARDS_QUERY_KEY });
     },
   });
 
@@ -55,7 +55,7 @@ export const useBoards = (options?: { enabled?: boolean }) => {
       };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: BOARDS_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: BOARDS_QUERY_KEY });
     },
   });
 

@@ -20,7 +20,7 @@ const BoardsInner: React.FC = memo(() => {
 
     generateBoard.mutate(trimmed, {
       onSuccess: (data) => {
-        navigate(`/boards/${data.board.id}`, {
+        void navigate(`/boards/${data.board.id}`, {
           state: { generatedStructure: data.generatedStructure ?? undefined },
         });
       },

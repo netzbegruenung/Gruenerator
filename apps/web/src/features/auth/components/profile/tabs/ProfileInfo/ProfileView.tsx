@@ -104,7 +104,7 @@ const ProfileView = ({
   const { locale, updateLocale } = useAuthStore();
 
   const handleLocaleChange = (newLocale: SupportedLocale) => {
-    updateLocale(newLocale);
+    void updateLocale(newLocale);
   };
 
   const getPossessiveForm = (name: string | undefined): string => {

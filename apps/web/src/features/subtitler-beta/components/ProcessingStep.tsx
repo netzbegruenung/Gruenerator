@@ -142,7 +142,7 @@ export function ProcessingStep({ uploadId, onComplete }: ProcessingStepProps) {
       }, interval);
     }
 
-    pollProgress().then(() => scheduleNextPoll());
+    void pollProgress().then(() => scheduleNextPoll());
 
     return () => {
       cancelled = true;

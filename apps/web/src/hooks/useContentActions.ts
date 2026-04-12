@@ -86,7 +86,7 @@ export function useContentActions({ getContent, getTitle }: UseContentActionsOpt
         title,
       });
       if (res.data?.board?.id) {
-        navigate(`/boards/${res.data.board.id}`, {
+        void navigate(`/boards/${res.data.board.id}`, {
           state: { generatedStructure: res.data.generatedStructure },
         });
       }

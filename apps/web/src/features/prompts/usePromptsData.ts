@@ -66,7 +66,7 @@ export const usePromptMutations = () => {
       return response.data?.prompt;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customPrompts(user?.id) });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customPrompts(user?.id) });
     },
   });
 
@@ -80,7 +80,7 @@ export const usePromptMutations = () => {
       return response.data?.prompt;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customPrompts(user?.id) });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customPrompts(user?.id) });
     },
   });
 
@@ -89,7 +89,7 @@ export const usePromptMutations = () => {
       await apiClient.delete(`/auth/custom_prompts/${promptId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customPrompts(user?.id) });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customPrompts(user?.id) });
     },
   });
 
@@ -98,7 +98,7 @@ export const usePromptMutations = () => {
       await apiClient.delete(`/auth/saved_prompts/${promptId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.savedPrompts(user?.id) });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.savedPrompts(user?.id) });
     },
   });
 

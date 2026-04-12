@@ -312,7 +312,7 @@ export function useBriefingRefresh(locale?: MonitorLocale) {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['monitor', 'briefing'] });
+      void queryClient.invalidateQueries({ queryKey: ['monitor', 'briefing'] });
     },
   });
 }
@@ -329,7 +329,7 @@ export function useMonitorRefresh() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['monitor'] });
+      void queryClient.invalidateQueries({ queryKey: ['monitor'] });
     },
   });
 }

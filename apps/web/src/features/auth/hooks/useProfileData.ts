@@ -170,8 +170,8 @@ export const useAnweisungenWissen = ({ isActive, enabled = true }: TabHookOption
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey });
-      queryClient.refetchQueries({ queryKey, exact: true });
+      void queryClient.invalidateQueries({ queryKey });
+      void queryClient.refetchQueries({ queryKey, exact: true });
     },
   });
 
@@ -207,7 +207,7 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
   const createMutation = useMutation({
     mutationFn: profileApiService.createQACollection,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
     },
   });
 
@@ -220,21 +220,21 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
       collectionData: NotebookCollectionInput;
     }) => profileApiService.updateQACollection(collectionId, collectionData),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: profileApiService.deleteQACollection,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
     },
   });
 
   const syncMutation = useMutation({
     mutationFn: (collectionId: string | number) => profileApiService.syncQACollection(collectionId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
     },
   });
 
@@ -446,7 +446,7 @@ export const useGeneratorDocuments = (generatorId: string | undefined) => {
     mutationFn: (documentIds: string[]) =>
       profileApiService.addDocumentsToGenerator(generatorId!, documentIds),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.generatorDocuments(generatorId) });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.generatorDocuments(generatorId) });
     },
   });
 
@@ -454,7 +454,7 @@ export const useGeneratorDocuments = (generatorId: string | undefined) => {
     mutationFn: (documentId: string | number) =>
       profileApiService.removeDocumentFromGenerator(generatorId!, documentId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.generatorDocuments(generatorId) });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.generatorDocuments(generatorId) });
     },
   });
 
@@ -488,14 +488,14 @@ export const useUserTexts = ({ isActive, enabled = true }: TabHookOptions = {}) 
     mutationFn: ({ textId, newTitle }: { textId: string | number; newTitle: string }) =>
       profileApiService.updateTextTitle(textId, newTitle),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userTexts(user?.id) });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userTexts(user?.id) });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: profileApiService.deleteText,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userTexts(user?.id) });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userTexts(user?.id) });
     },
   });
 
@@ -530,14 +530,14 @@ export const useUserTemplates = ({ isActive, enabled = true }: TabHookOptions = 
     mutationFn: ({ templateId, newTitle }: { templateId: string | number; newTitle: string }) =>
       profileApiService.updateTemplateTitle(templateId, newTitle),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userTemplates(user?.id) });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userTemplates(user?.id) });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: profileApiService.deleteTemplate,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userTemplates(user?.id) });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userTemplates(user?.id) });
     },
   });
 
@@ -545,7 +545,7 @@ export const useUserTemplates = ({ isActive, enabled = true }: TabHookOptions = 
     mutationFn: ({ templateId, isPrivate }: { templateId: string | number; isPrivate: boolean }) =>
       profileApiService.updateTemplateVisibility(templateId, isPrivate),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userTemplates(user?.id) });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userTemplates(user?.id) });
     },
   });
 
@@ -558,7 +558,7 @@ export const useUserTemplates = ({ isActive, enabled = true }: TabHookOptions = 
       data: UserTemplateUpdateData;
     }) => profileApiService.updateTemplate(templateId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userTemplates(user?.id) });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userTemplates(user?.id) });
     },
   });
 
@@ -613,14 +613,14 @@ export const useMemories = ({ isActive, enabled = true }: TabHookOptions = {}) =
     mutationFn: ({ text, topic }: { text: string; topic: string }) =>
       profileApiService.addMemory(text, topic),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.memories(user?.id) });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.memories(user?.id) });
     },
   });
 
   const deleteMemoryMutation = useMutation({
     mutationFn: profileApiService.deleteMemory,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.memories(user?.id) });
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.memories(user?.id) });
     },
   });
 

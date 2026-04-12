@@ -216,7 +216,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
       }
     };
 
-    loadContent();
+    void loadContent();
   }, [isOpen]);
 
   const handleToggleItem = useCallback((categoryId: CategoryId, itemId: string | number) => {

@@ -54,8 +54,8 @@ export function useApproveVorlage() {
   return useMutation({
     mutationFn: (id: string) => apiClient.post(`/admin/vorlagen/${id}/approve`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-vorlagen'] });
-      qc.invalidateQueries({ queryKey: ['admin-vorlagen-stats'] });
+      void qc.invalidateQueries({ queryKey: ['admin-vorlagen'] });
+      void qc.invalidateQueries({ queryKey: ['admin-vorlagen-stats'] });
     },
   });
 }
@@ -66,8 +66,8 @@ export function useRejectVorlage() {
     mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
       apiClient.post(`/admin/vorlagen/${id}/reject`, { reason }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-vorlagen'] });
-      qc.invalidateQueries({ queryKey: ['admin-vorlagen-stats'] });
+      void qc.invalidateQueries({ queryKey: ['admin-vorlagen'] });
+      void qc.invalidateQueries({ queryKey: ['admin-vorlagen-stats'] });
     },
   });
 }

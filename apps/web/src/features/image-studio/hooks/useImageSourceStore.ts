@@ -80,7 +80,7 @@ export const useImageSourceStore = create<ImageSourceStore>((set, get) => ({
 
   setStockImageCategory: (category) => {
     set({ stockImageCategory: category });
-    get().fetchStockImages(category);
+    void get().fetchStockImages(category);
   },
 
   selectStockImage: async (image) => {

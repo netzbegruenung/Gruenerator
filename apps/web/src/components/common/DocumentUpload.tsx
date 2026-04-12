@@ -226,7 +226,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
     // Fetch documents on mount (only when showing the documents list)
     React.useEffect(() => {
       if (user && showDocumentsList) {
-        fetchDocuments();
+        void fetchDocuments();
       }
     }, [user, showDocumentsList, fetchDocuments]);
 
@@ -242,7 +242,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(
     // Auto-upload: trigger upload immediately when file is selected
     React.useEffect(() => {
       if (autoUpload && selectedFile && uploadTitle.trim() && !isUploading) {
-        handleUpload();
+        void handleUpload();
       }
       // Only react to file selection changes, not every render
       // eslint-disable-next-line react-hooks/exhaustive-deps

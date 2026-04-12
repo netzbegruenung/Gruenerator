@@ -130,7 +130,7 @@ const NotebookCard = memo(
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            navigate(notebook.path, { state: { freshConversation: true } });
+            void navigate(notebook.path, { state: { freshConversation: true } });
           }
         }}
       >
@@ -508,7 +508,7 @@ const RecherchePage = () => {
 
   const handleView = useCallback(
     (collectionId: string) => {
-      navigate(`/notebook/${collectionId}`, { state: { freshConversation: true } });
+      void navigate(`/notebook/${collectionId}`, { state: { freshConversation: true } });
     },
     [navigate]
   );
@@ -524,7 +524,7 @@ const RecherchePage = () => {
 
   const handleShare = useCallback((collectionId: string) => {
     const url = `${window.location.origin}/notebook/${collectionId}`;
-    navigator.clipboard.writeText(url);
+    void navigator.clipboard.writeText(url);
     setCopiedId(collectionId);
     setTimeout(() => setCopiedId(null), 2000);
   }, []);
@@ -544,7 +544,7 @@ const RecherchePage = () => {
             next.delete(collectionId);
             return next;
           });
-          queryClient.invalidateQueries({ queryKey: ['notebookCollections'] });
+          void queryClient.invalidateQueries({ queryKey: ['notebookCollections'] });
         })
         .catch(() => {
           pollingRef.current.delete(collectionId);

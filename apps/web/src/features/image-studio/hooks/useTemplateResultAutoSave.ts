@@ -99,7 +99,7 @@ export const useTemplateResultAutoSave = (): void => {
     if (!generatedImageSrc) return;
 
     const timer = setTimeout(() => {
-      performAutoSave(generatedImageSrc);
+      void performAutoSave(generatedImageSrc);
     }, 500);
 
     return () => clearTimeout(timer);

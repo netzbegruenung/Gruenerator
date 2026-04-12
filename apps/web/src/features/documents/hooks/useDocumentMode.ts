@@ -74,7 +74,7 @@ export const useDocumentMode = () => {
   // Initialize mode on mount
   useEffect(() => {
     if (!initialized) {
-      fetchCurrentMode();
+      void fetchCurrentMode();
     }
   }, [initialized, fetchCurrentMode]);
 

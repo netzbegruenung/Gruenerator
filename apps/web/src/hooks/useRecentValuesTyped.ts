@@ -67,7 +67,7 @@ export function useRecentValuesTyped(
   // Fetch on mount only when cache is cold
   useEffect(() => {
     if (lastFetch === null) {
-      fetchRecentValues();
+      void fetchRecentValues();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fieldType]);

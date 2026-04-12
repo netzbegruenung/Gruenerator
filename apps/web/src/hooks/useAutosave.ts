@@ -132,7 +132,7 @@ export const useAutosave = ({
 
     // Set new timeout for debounced save
     saveTimeoutRef.current = setTimeout(() => {
-      triggerSave();
+      void triggerSave();
     }, debounceMs);
   }, [enabled, debounceMs, triggerSave]);
 

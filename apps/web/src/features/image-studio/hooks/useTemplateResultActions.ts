@@ -9,7 +9,6 @@ import { getTypeConfig } from '../utils/typeConfig';
 
 import { useImageHelpers } from './useImageHelpers';
 
-
 interface GeneratedPosts {
   instagram?: string;
   [key: string]: string | undefined;
@@ -161,8 +160,8 @@ export const useTemplateResultActions = (): UseTemplateResultActionsReturn => {
         console.error('Copy failed:', err);
       }
     } else {
-      handleGenerateInstagramText();
-      handleGenerateAltText();
+      void handleGenerateInstagramText();
+      void handleGenerateAltText();
     }
   }, [
     hasGeneratedText,

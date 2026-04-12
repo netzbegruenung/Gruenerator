@@ -611,7 +611,7 @@ const DocumentOverview = ({
                 value={newTitle}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTitle(e.target.value)}
                 onKeyDown={(e: React.KeyboardEvent) => {
-                  if (e.key === 'Enter') handleTitleSave(item.id);
+                  if (e.key === 'Enter') void handleTitleSave(item.id);
                   if (e.key === 'Escape') handleTitleCancel();
                 }}
                 onClick={(e: React.MouseEvent) => e.stopPropagation()}
@@ -622,7 +622,7 @@ const DocumentOverview = ({
                   className="pabtn pabtn--primary pabtn--s"
                   onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
-                    handleTitleSave(item.id);
+                    void handleTitleSave(item.id);
                   }}
                 >
                   <span className="pabtn__label">✓</span>
@@ -654,7 +654,7 @@ const DocumentOverview = ({
                   } else if (e.detail === 1) {
                     // Single-click for preview
                     if (isDocument && item.status === 'completed') {
-                      handleEnhancedPreview(item);
+                      void handleEnhancedPreview(item);
                     } else {
                       handleViewItem(item);
                     }

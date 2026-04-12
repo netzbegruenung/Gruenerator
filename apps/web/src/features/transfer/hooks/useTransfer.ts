@@ -69,7 +69,7 @@ export function useUploadTransfer() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transfers'] });
+      void queryClient.invalidateQueries({ queryKey: ['transfers'] });
     },
   });
 }
@@ -82,7 +82,7 @@ export function useDeleteTransfer() {
       await apiClient.delete(`/transfer/${shareToken}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transfers'] });
+      void queryClient.invalidateQueries({ queryKey: ['transfers'] });
     },
   });
 }

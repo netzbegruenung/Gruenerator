@@ -66,13 +66,13 @@ const NotebooksSection: React.FC = memo(() => {
   const handleCancel = useCallback(() => setShowEditor(false), []);
 
   const handleShare = useCallback((id: string) => {
-    navigator.clipboard.writeText(`${window.location.origin}/notebook/${id}`);
+    void navigator.clipboard.writeText(`${window.location.origin}/notebook/${id}`);
   }, []);
 
   const handleDelete = useCallback(
     (id: string) => {
       if (window.confirm('Notebook wirklich löschen?')) {
-        deleteQACollection(id);
+        void deleteQACollection(id);
       }
     },
     [deleteQACollection]

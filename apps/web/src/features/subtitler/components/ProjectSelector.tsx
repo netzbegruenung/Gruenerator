@@ -358,7 +358,7 @@ const ProjectSelector = ({
 
   const handleCancelUpload = useCallback(() => {
     if (currentUpload) {
-      currentUpload.abort();
+      void currentUpload.abort();
       setCurrentUpload(null);
     }
     setIsUploading(false);
@@ -391,7 +391,7 @@ const ProjectSelector = ({
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (file) {
-        startTusUpload(file);
+        void startTusUpload(file);
       }
       e.target.value = '';
     },
