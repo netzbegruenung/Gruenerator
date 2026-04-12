@@ -3,7 +3,12 @@
  * Defines interfaces for interactive question generation and session management
  */
 
-import type { PromptAssemblyResult, Locale } from './promptAssembly.js';
+import type {
+  PromptAssemblyResult,
+  PromptAssemblyState,
+  Locale,
+  RequestObject,
+} from './promptAssembly.js';
 import type { AIWorkerPool } from '../../../workers/types.js';
 import type { Request } from 'express';
 
@@ -228,21 +233,12 @@ export interface EnrichedContext {
 }
 
 /**
- * Prompt context for assembly (compatible with PromptAssemblyState)
+ * Prompt context for assembly — structurally extends PromptAssemblyState so it can
+ * be passed directly to assemblePromptGraphAsync without casts.
  */
-export interface PromptContext {
+export interface PromptContext extends PromptAssemblyState {
   systemRole: string;
-  request: {
-    inhalt: string;
-    requestType: string;
-    locale: Locale;
-  };
-  documents: Array<{
-    title: string;
-    content: string;
-    source_url?: string | undefined;
-    metadata?: Record<string, unknown> | undefined;
-  }>;
+  request: RequestObject;
   knowledge: string[];
   locale: Locale;
 }
@@ -257,13 +253,17 @@ export type AssembledPromptResult = PromptAssemblyResult;
  */
 export interface GenerationResult {
   content: string;
-  metadata?: {
-    usage?: {
-      input_tokens?: number | undefined;
-      output_tokens?: number | undefined;
-      total_tokens?: number | undefined;
-    } | undefined;
-  } | undefined;
+  metadata?:
+    | {
+        usage?:
+          | {
+              input_tokens?: number | undefined;
+              output_tokens?: number | undefined;
+              total_tokens?: number | undefined;
+            }
+          | undefined;
+      }
+    | undefined;
 }
 
 /**
