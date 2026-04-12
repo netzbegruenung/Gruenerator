@@ -43,6 +43,29 @@ import { getGlobalApiClient } from './client.js';
 const BINARY_RESPONSE_PATHS = new Set<string>(['/api/exports/docx', '/api/exports/pdf']);
 
 /**
+ * Strip the leading `/api` from a contract path so it's relative to the
+ * axios client's `baseURL` (which on production is already `/api` — set
+ * via `VITE_API_BASE_URL`). In dev, `baseURL` is the Vite proxy origin
+ * and also serves `/api/*` via the proxy, so relative paths work there
+ * too.
+ *
+ * **Why contracts ship with `/api/...` absolute paths**: the contracts
+ * are authoritative documentation of the REST surface — external tools
+ * (curl, Postman, future non-axios clients, OpenAPI export) need the
+ * full path. Only this axios bridge has the baseURL convention to
+ * reconcile with, so this is the single place the prefix is stripped.
+ *
+ * Pre-2026-04-13 bug: the bridge didn't strip, so `baseURL + path`
+ * concatenated to `/api/api/...` and every typed hook 404'd in
+ * production. Dev happened to work because `baseURL` was `''`
+ * there (no VITE_API_BASE_URL set), which masked the issue through
+ * 4 sessions of contract migration.
+ */
+function stripApiPrefix(path: string): string {
+  return path.startsWith('/api/') ? path.slice(4) : path;
+}
+
+/**
  * ts-rest requires a fetch-compatible function. We bridge to axios so that
  * the existing interceptors (auth token injection, 401 redirect, retry) are
  * preserved transparently.
@@ -60,9 +83,13 @@ async function axiosFetcher({
 }): Promise<{ status: number; body: unknown; headers: Headers }> {
   const axios = getGlobalApiClient();
   const isBinary = BINARY_RESPONSE_PATHS.has(path);
+  // Strip `/api` because the axios client's baseURL already includes it.
+  // Keep the original `path` for the BINARY_RESPONSE_PATHS check above so
+  // the set keeps using the canonical contract paths.
+  const relativePath = stripApiPrefix(path);
 
   const response = await axios.request({
-    url: path,
+    url: relativePath,
     method,
     headers,
     data: body,
