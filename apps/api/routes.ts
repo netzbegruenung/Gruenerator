@@ -9,6 +9,7 @@ import rateLimit from 'express-rate-limit';
 import authMiddleware from './middleware/authMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
 import authInitRouter from './routes/auth/initController.js';
+import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminVorlagenContractRouter.js';
 import { mountUserProfileContractRouter } from './routes/auth/userProfileContractRouter.js';
 import { mountBoardsContractRouter } from './routes/boards/boardsContractRouter.js';
 import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRouter.js';
@@ -37,6 +38,7 @@ import { monitorRouter, monitorInternalRouter } from './routes/monitor/index.js'
 import { mountNotebookCollectionsContractRouter } from './routes/notebook/notebookCollectionsContractRouter.js';
 import { mountNotebookContractRouter } from './routes/notebook/notebookContractRouter.js';
 import notificationsRouter from './routes/notifications/index.js';
+import { mountNotificationsContractRouter } from './routes/notifications/notificationsContractRouter.js';
 import protokollRouter from './routes/protokoll/index.js';
 import { releasesRouter } from './routes/releases/index.js';
 import researchRouter from './routes/research/researchController.js';
@@ -263,6 +265,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // ts-rest contract router for /api/profile — mounts before legacy authRouter
   // (ts-rest matches its own routes first; unmatched fall through)
   mountUserProfileContractRouter(app);
+  // ts-rest contract router for admin Vorlagen — mounts BEFORE the legacy authRouter
+  // so contract-modeled routes match first; unmatched paths fall through.
+  // requireAuth is inherited from the /api/auth prefix on authRouter.
+  mountAdminVorlagenContractRouter(app);
   app.use('/api/auth', authenticatedReadLimiter, authRouter);
   // ts-rest contract router for notebook collections — mounts BEFORE the
   // legacy router so contract-modeled routes match first. requireAuth is
@@ -461,6 +467,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/email', requireAuth, standardMutationLimiter, emailRouter);
   app.use('/api/auth/init', publicReadLimiter, authInitRouter);
   app.use('/api/recent-activity', publicReadLimiter, recentActivityRouter);
+  // ts-rest contract router for notifications — mounts BEFORE the legacy router
+  // so contract-modeled routes match first; /stream SSE falls through to legacy.
+  // requireAuth applied at prefix; notification-preferences also handled here.
+  app.use('/api/notifications', requireAuth);
+  mountNotificationsContractRouter(app);
   app.use('/api/notifications', requireAuth, publicReadLimiter, notificationsRouter);
   app.use('/api/media', requireAuth, authenticatedReadLimiter, mediaRouter);
   app.use('/api/og/docs', publicReadLimiter, ogDocsRouter);
