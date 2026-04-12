@@ -28,12 +28,25 @@
 import pg from 'pg';
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { auth } from './betterAuth.js';
+
 // ── Incident 1: trustedProviders config ──────────────────────────────────
 //
 // We read `auth.options.account.accountLinking.trustedProviders` via an
 // `unknown` cast because Better Auth doesn't expose its configured options
 // through a typed public API. If the library ever starts exposing them
 // typed, this cast becomes a cleanup opportunity.
+//
+// `auth` is imported at module top-level so the Better Auth bootstrap (DB
+// pool, Redis client, Keycloak provider config) happens exactly once per
+// vitest worker. Per-test `await import()` would timeout under full-suite
+// CPU contention (~5s Better Auth init × parallel workers).
+
+const authOptions = (
+  auth as unknown as {
+    options?: { account?: { accountLinking?: { trustedProviders?: string[]; enabled?: boolean } } };
+  }
+).options;
 
 describe('regression 0fe25b8a — trustedProviders', () => {
   const EXPECTED_PROVIDERS = [
@@ -43,30 +56,13 @@ describe('regression 0fe25b8a — trustedProviders', () => {
     'keycloak-gruenerator',
   ];
 
-  it.each(EXPECTED_PROVIDERS)('accountLinking.trustedProviders includes %s', async (provider) => {
-    // Import inside the test so a broken Better Auth config fails the
-    // test with a clear message rather than crashing the whole file at
-    // module load time.
-    const { auth } = await import('./betterAuth.js');
-    const trusted =
-      (
-        auth as unknown as {
-          options?: { account?: { accountLinking?: { trustedProviders?: string[] } } };
-        }
-      ).options?.account?.accountLinking?.trustedProviders ?? [];
-
+  it.each(EXPECTED_PROVIDERS)('accountLinking.trustedProviders includes %s', (provider) => {
+    const trusted = authOptions?.account?.accountLinking?.trustedProviders ?? [];
     expect(trusted).toContain(provider);
   });
 
-  it('accountLinking is enabled', async () => {
-    const { auth } = await import('./betterAuth.js');
-    const enabled = (
-      auth as unknown as {
-        options?: { account?: { accountLinking?: { enabled?: boolean } } };
-      }
-    ).options?.account?.accountLinking?.enabled;
-
-    expect(enabled).toBe(true);
+  it('accountLinking is enabled', () => {
+    expect(authOptions?.account?.accountLinking?.enabled).toBe(true);
   });
 });
 
