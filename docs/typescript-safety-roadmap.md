@@ -283,6 +283,60 @@ Zero runtime cost — branded IDs pass transparently to services accepting `stri
 ### 5.3 Promote `no-floating-promises` to `error` [DONE]
 **300 violations → 0.** Three parallel agents (web big, web small, mobile). See Phase 3.7 for details.
 
+## Phase 6: Build Infrastructure (Long-term)
+
+### 6.1 Migrate workspace packages to `development` conditional exports
+
+**Status**: Tech debt — workaround in place since Phase 4.1, surfaced as production crash 2026-04-12 when `exportsContractRouter` triggered fresh image rebuild.
+
+**Current state**: All three TS-source workspace packages (`packages/shared`, `packages/contracts`, `services/hocuspocus`) declare `package.json` exports pointing at `./src/*.ts` (literal TypeScript source). Node.js cannot load `.ts` files at runtime, so production deployment relies on a `sed` workaround in `apps/api/Dockerfile`:
+
+```dockerfile
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' packages/shared/package.json
+# (repeated for contracts and hocuspocus)
+```
+
+**Why this is wrong long-term:**
+1. The on-disk `package.json` shape diverges from the runtime shape — IDEs, editors, and any tool that reads `package.json` see the dev shape and never know about the prod rewrite
+2. Every new workspace package needs a Dockerfile entry — easy to forget (which is exactly what happened with `contracts`: it was added to the codebase ~Apr 11 but never to the Dockerfile, breaking production silently until a rebuild was forced 2026-04-12)
+3. Three nearly-identical compile-and-sed blocks in the Dockerfile that should be one
+4. New developers reading `package.json` are misled about how production resolves the package
+
+**Proper solution**: Adopt the **`development` conditional export** pattern (used by tRPC, TanStack Query, ts-rest, and most modern monorepo libraries):
+
+```json
+{
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  }
+}
+```
+
+Dev runners (tsx, vitest) pass `--conditions=development` and resolve to source. Production runners (`node dist/server.js`) get no special condition and resolve to compiled `dist/`. Single source of truth, IDE jump-to-definition follows source automatically, and the Dockerfile loses 6 lines of `sed` hackery.
+
+**Migration scope** (~half-day to full-day of focused work):
+- [ ] `packages/shared/package.json` — rewrite all 14+ subpath exports to `development`/`import` pairs
+- [ ] `packages/contracts/package.json` — single root export (small)
+- [ ] `services/hocuspocus/package.json` — single root export (small)
+- [ ] `apps/api` dev runner — pass `--conditions=development` to tsx
+- [ ] `apps/web` Vite config — add `resolve.conditions: ['development', 'import', ...]` (Vite already handles this via mode)
+- [ ] `apps/mobile` Metro config — set `resolver.unstable_conditionNames`
+- [ ] `services/hocuspocus` dev script — same tsx flag
+- [ ] Test commands (`npx tsx <file>.test.ts`) — verify the condition is set
+- [ ] Delete the 3 sed lines and 3 compile blocks from `apps/api/Dockerfile`
+- [ ] Replace with a single loop or keep them explicit (still simpler than current state)
+- [ ] Validate: rebuild Docker image, smoke-test that all contract routers load + a chat works + a docx export works
+
+**Why this matters beyond the workaround:**
+- Eliminates an entire category of "I added a workspace package and prod broke 3 weeks later" bugs
+- The `feedback_long_term_type_safety` rule applies here: choose the best long-term fix even if it's more work
+- Once done, "fix at the source, not at the call site" (Principle #1) gets one of its largest violations cleaned up
+
 ## Acceleration Principles (2026-04-11)
 
 1. **Opportunistic migration > blanket rollout.** Remaining ~50 validateBody routes have 0 violations — migrate when touching files, not as a batch.
