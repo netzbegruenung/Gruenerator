@@ -10,8 +10,7 @@ import { v4 as uuid } from 'uuid';
 
 import type { FullCanvasConfig } from '../configs/types';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export interface PageState<TState = Record<string, any>> {
+export interface PageState<TState = Record<string, unknown>> {
   id: string;
   state: TState;
   order: number;
@@ -19,8 +18,7 @@ export interface PageState<TState = Record<string, any>> {
 
 export interface UseMultiPageCanvasOptions<TState, TActions> {
   config: FullCanvasConfig<TState, TActions>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  initialProps: Record<string, any>;
+  initialProps: Record<string, unknown>;
   maxPages?: number;
 }
 
@@ -45,8 +43,7 @@ export interface UseMultiPageCanvasReturn<TState> {
   pageCount: number;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function useMultiPageCanvas<TState extends Record<string, any>, TActions>({
+export function useMultiPageCanvas<TState extends Record<string, unknown>, TActions>({
   config,
   initialProps,
   maxPages = 10,

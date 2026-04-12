@@ -3,15 +3,15 @@ import path from 'path';
 
 import express, { type Response } from 'express';
 import multer from 'multer';
+import { z } from 'zod';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { ImageGenerationCounter } from '../../services/counters/index.js';
 import { FluxImageService } from '../../services/flux/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 import { addKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
-
-import type { AuthenticatedRequest } from '../../middleware/types.js';
 
 const log = createLogger('imageEditing');
 
@@ -25,14 +25,14 @@ const imageCounter = new ImageGenerationCounter(redisClient);
 
 type ImageEditType = 'green-edit' | 'ally-maker' | 'universal';
 
-interface PromptRequestBody {
-  text?: string;
-  instruction?: string;
-  precision?: boolean | string;
-  type?: ImageEditType;
-}
+const promptRequestSchema = z.object({
+  text: z.string().nullish(),
+  instruction: z.string().nullish(),
+  precision: z.union([z.boolean(), z.string()]).nullish(),
+  type: z.enum(['green-edit', 'ally-maker', 'universal']).nullish(),
+});
 
-type GenerateRequestBody = PromptRequestBody;
+type PromptRequestBody = z.infer<typeof promptRequestSchema>;
 
 interface PromptConstraints {
   preserve?: string[];
@@ -241,7 +241,8 @@ router.post(
   '/prompt',
   requireAuth,
   upload.single('image'),
-  async (req: AuthenticatedRequest, res: Response) => {
+  validateBody(promptRequestSchema),
+  async (req: TypedRequest<PromptRequestBody>, res: Response) => {
     try {
       const userId = req.user?.id;
 
@@ -263,9 +264,8 @@ router.post(
         });
       }
 
-      const body = req.body as PromptRequestBody;
-      const userText = body.text || body.instruction || '';
-      const isPrecision = body.precision === 'true' || body.precision === true;
+      const userText = req.body.text || req.body.instruction || '';
+      const isPrecision = req.body.precision === 'true' || req.body.precision === true;
       log.debug(
         `[Image Edit] Processing request with instruction: "${userText?.substring(0, 100)}..." (User: ${userId}, Usage: ${limitStatus.count + 1}/${limitStatus.limit}, Precision: ${isPrecision})`
       );
@@ -306,7 +306,7 @@ router.post(
       const stats = fs.statSync(filePath);
       const relativePath = path.join('uploads', 'flux', 'edits', today, filename);
 
-      const requestType: ImageEditType = (body.type as ImageEditType) || 'green-edit';
+      const requestType: ImageEditType = (req.body.type as ImageEditType) || 'green-edit';
       const prompt =
         requestType === 'ally-maker'
           ? buildAllyMakerPrompt(userText, isPrecision)
@@ -403,7 +403,8 @@ router.post(
   '/generate',
   requireAuth,
   upload.single('image'),
-  async (req: AuthenticatedRequest, res: Response) => {
+  validateBody(promptRequestSchema),
+  async (req: TypedRequest<PromptRequestBody>, res: Response) => {
     try {
       const userId = req.user?.id;
 
@@ -425,9 +426,8 @@ router.post(
         });
       }
 
-      const body = req.body as GenerateRequestBody;
-      const userText = body.text || body.instruction || '';
-      const isPrecision = body.precision === 'true' || body.precision === true;
+      const userText = req.body.text || req.body.instruction || '';
+      const isPrecision = req.body.precision === 'true' || req.body.precision === true;
       log.debug(
         `[Image Edit Generate] Processing request with instruction: "${userText?.substring(0, 100)}..." (User: ${userId}, Usage: ${limitStatus.count + 1}/${limitStatus.limit}, Precision: ${isPrecision})`
       );
@@ -457,7 +457,7 @@ router.post(
         fs.writeFileSync(inputPath, req.file.buffer);
       }
 
-      const requestType: ImageEditType = (body.type as ImageEditType) || 'green-edit';
+      const requestType: ImageEditType = (req.body.type as ImageEditType) || 'green-edit';
       const prompt =
         requestType === 'ally-maker'
           ? buildAllyMakerPrompt(userText, isPrecision)

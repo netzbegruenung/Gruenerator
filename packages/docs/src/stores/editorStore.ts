@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { BlockNoteEditor } from '@blocknote/core';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type EditorInstance = BlockNoteEditor | any;
+type EditorInstance = BlockNoteEditor<any, any, any>;
 
 interface EditorStore {
   editors: Record<string, EditorInstance | null>;

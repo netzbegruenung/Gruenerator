@@ -30,10 +30,9 @@ export async function runMigrations(pool: Pool): Promise<void> {
   try {
     await client.query('SET statement_timeout = 60000');
 
-    const lockResult = await client.query(
+    const lockResult = await client.query<{ acquired: boolean }>(
       `SELECT pg_try_advisory_lock(${MIGRATION_LOCK_ID}) AS acquired`
     );
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (!lockResult.rows[0].acquired) {
       console.log('[PostgresService] Migrations already running in another worker, skipping');
       return;

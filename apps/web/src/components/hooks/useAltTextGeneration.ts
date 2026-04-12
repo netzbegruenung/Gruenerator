@@ -11,8 +11,7 @@ const useAltTextGeneration = () => {
   const generateAltTextForImage = async (
     imageBase64: string,
     imageDescription: string | null = null,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    features: Record<string, any> = {}
+    features: Record<string, unknown> = {}
   ) => {
     console.log('[useAltTextGeneration] Starting alt text generation:', {
       hasImageBase64: !!imageBase64,

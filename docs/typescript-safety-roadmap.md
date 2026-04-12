@@ -354,9 +354,48 @@ Zero runtime cost — branded IDs pass transparently to services accepting `stri
 
 **`exactOptionalPropertyTypes` gotcha** captured for future cast-fixing sessions: when widening helper types under this flag, optional fields MUST include `| undefined` explicitly. `{ x?: T }` and `{ x?: T | undefined }` are distinct types under the flag, and `Express.Request.user` (which is `User | undefined`) can only assign to the latter.
 
+### Priority 6: Auth test coverage — vitest + Playwright E2E [DONE 2026-04-13]
+
+The Priority 4 unification gave the auth surface one canonical `UserProfile` type, but nothing was pinning the runtime behavior. Without tests, any future `toBetterAuthUser` refactor, schema drift, or middleware reorder could silently regress 401 contracts, the dev-bypass production guard, or the modal-overlay UX for protected routes. This session added 51 auth-specific tests across two layers.
+
+**Vitest (server-side, module mocked) — 4 files, 47 tests, 4.7s:**
+
+- **`apps/api/middleware/authBoundary.vitest.ts`** (13 tests) — `userProfileSchema.parse()` behavior: happy path with full Better Auth user, SQL NULL → schema defaults coercion (covers every feature flag + timestamps), schema drift throws `ZodError` at the boundary instead of silent `undefined`, missing required fields reported aggregately.
+- **`apps/api/middleware/authMiddleware.vitest.ts`** (20 tests) — `requireAuth` 401 on no session, JSON vs HTML branching, dev bypass valid/wrong/missing token, `ALLOW_DEV_AUTH_BYPASS=true` in production → 500 (the 2am-outage preventer), `optionalAuth` never 401s, `requireAdmin` falls through to `requireAuth`, `getUserId()` returns branded `UserId`, `@ts-expect-error` pins the branded-type contract. Uses `vi.mock` on `config/env.js` + `config/betterAuth.js` via a getter factory so `NODE_ENV` can flip per-test without process restarts.
+- **`apps/api/config/authRegressions.vitest.ts`** (6 tests) — institutional memory: `trustedProviders` contains all 4 Keycloak IdPs (regression guard for commit `0fe25b8a`), `ba_accounts` UNIQUE constraint is `(account_id, provider_id)` not `(user_id, provider_id)` (commit `e74c3176` — skipped gracefully when Postgres unreachable).
+- **`apps/api/routes/chat/services/threadAccessService.vitest.ts`** (8 tests) — `canAccessThread` six access paths: owner, explicit permissions, public, group share, denied, nonexistent. Plus a compile-time `@ts-expect-error` block that fails if the signature ever loosens from `(ThreadId, UserId)` back to `(string, string)`.
+
+**Playwright E2E (real browser, mocked Keycloak) — 4 files, 12 passing + 2 structural skips, 48.6s:**
+
+Config: chromium-only, `webServer` auto-start with `reuseExistingServer`, so running `pnpm dev:web` in a separate terminal avoids double-starts. `@playwright/test ^1.48.0` as devDep + `test:e2e` / `test:e2e:ui` / `test:e2e:headed` scripts in `apps/web/package.json`.
+
+- **`registration.spec.ts`** (3 tests) — `/register` renders with expected UI, clicking "Konto erstellen" initiates navigation to `/api/auth/login?prompt=register`, "Hier anmelden" cross-link navigates to `/login`. Framed accurately in the file header: *there is no separate registration flow; Keycloak auto-provisions on first login*, so the spec tests the UI shell, not a form submission.
+- **`auth.spec.ts`** (5 tests, all green with API up) — `GET /api/auth/profile` without session → 401 `{error, redirectUrl: '/auth/login'}`, same for `/api/chat-service/threads`, `/gruppen` unauthenticated → in-page login modal (not URL redirect — pins the actual UX which is different from a typical SPA), `/login` page renders, bypass-authenticated request returns typed `UserProfile`.
+- **`devBypass.spec.ts`** (4 tests green, 1 structural skip, 1 prod-guard skip) — valid bypass token attaches `DEV_BYPASS_USER` with all 13 feature flags typed as booleans (pins the entire canonical shape), wrong token → 401, missing header → 401, bypass-authenticated `/api/chat-service/threads` succeeds (round-trip through real middleware).
+- **`fixtures/mockKeycloak.ts`** — Level 1 (redirect-only) implementation for `/protocol/openid-connect/auth` + `/.well-known/openid-configuration`; Level 2 (full OAuth chain with RS256-signed JWT + mocked JWKS) stubbed with a documented implementation plan.
+- **`fixtures/pageHelpers.ts`** — `isApiReachable()` (probes `/api/auth/v2/get-session`, always 200 when API up), `isDevBypassHonored()` (probes `/api/auth/profile` with the bypass header and checks for actual 200 — catches `ALLOW_DEV_AUTH_BYPASS=false` misconfigs that env-var-only checks miss), `preSeedCookieConsent()` (uses `addInitScript` so the DSGVO banner never intercepts clicks behind it).
+
+**Key design decisions:**
+
+1. **Probe-based skip logic, not env-var-based.** `test.skip(!bypassHonored, ...)` uses the runtime probe result instead of `process.env.DEV_AUTH_BYPASS_TOKEN` alone. The token being *known* to the test process says nothing about whether the backend is actually honoring it; a misconfigured `ALLOW_DEV_AUTH_BYPASS=false` on the backend would produce 7 misleading failures under the env-var check but cleanly skips under the probe.
+2. **Vitest over `npx tsx`.** The project's memory notes had `Tests run with npx tsx <file>.test.ts` documented as the convention — stale. The real test runner is vitest (`pnpm --filter @gruenerator/api test`, include pattern `**/*.vitest.ts`). First attempt used plain tsx + `dotenv/config` imports which triggered a ~30s cold start per file because loading `config/betterAuth.ts` boots the entire app module graph. Vitest amortizes that across a worker and isolates mocks between files. Memory notes updated in `MEMORY.md` and `project_workspace_exports_pattern.md` so the next session uses vitest from the start.
+3. **`VITE_E2E_AUTH_BYPASS` is NOT set in `.env`.** Setting the frontend flag globally would break the 7 tests that need the unauthenticated UI state, because Vite bakes `import.meta.env.*` at build time. Only `ALLOW_DEV_AUTH_BYPASS=true` stays on in the backend env — each test explicitly sends the `x-dev-auth-bypass` header when it wants the bypass, and the rest see real auth state.
+4. **Structurally unfixable skips are documented, not hidden.** The "frontend flag" test and the "production guard" test require a second Vite dev server and a `NODE_ENV=production` backend respectively; both are staging-only scenarios the vitest layer already covers at unit scope.
+
+**Bonus production fix during this session**: `apps/web/node_modules/vite/` was a broken pnpm layout shell — an empty directory with a nested `esbuild` inside and no `package.json`. When `@tailwindcss/vite` imported `vite`, Node's resolver found the shell first (closer in the scope chain), bailed on the missing `package.json`, fell back to legacy `index.js` resolution, and crashed. Fix: `rm -rf apps/web/node_modules/vite/`. Regenerable via `pnpm install` and unblocks `pnpm dev:web` for the whole team, not just Playwright.
+
+**Combined session totals:**
+
+| Suite | Files | Passing | Skipped | Failing | Runtime |
+|---|---|---|---|---|---|
+| Vitest (api) | 47 | 778 | 22 (LLM eval gated) | 0 | 15.7s |
+| Playwright (web E2E) | 4 | 12 | 2 (structural) | 0 | 48.6s |
+| **Total** | **51** | **790** | **24** | **0** | **64.3s** |
+
 ### Deferred (do opportunistically)
 - Remaining ~50 `validateBody` routes (0 violations, migrate when touching)
 - Remaining `PendingRequest` / `RedisClient` type unification (low impact)
+- **Level 2 Keycloak OAuth mock** — full JWT-signing flow via `jose`, mocked JWKS, test-only `KEYCLOAK_BASE_URL` wiring so Better Auth discovery resolves through the mock. Documented as a stub in `fixtures/mockKeycloak.ts`. Promote when a bug Level 1 (redirect-only) can't catch appears.
 
 ## Fast-forward plan to full type safety (5 sessions)
 

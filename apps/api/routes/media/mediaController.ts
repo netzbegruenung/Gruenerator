@@ -1,6 +1,8 @@
 import express, { type Request, type Response, type Router } from 'express';
 import multer, { type FileFilterCallback } from 'multer';
+import { z } from 'zod';
 
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getSharedMediaService } from '../../services/sharedMediaService.js';
 
 import type { AllowedMimeType, SharedMediaRow } from '../../types/media.js';
@@ -19,16 +21,19 @@ interface MediaSearchQuery {
   limit?: string;
 }
 
-interface MediaUploadBody {
-  title?: string;
-  altText?: string;
-  uploadSource?: 'upload' | 'ai_generated' | 'stock' | 'camera';
-}
+const mediaUploadSchema = z.object({
+  title: z.string().nullish(),
+  altText: z.string().nullish(),
+  uploadSource: z.enum(['upload', 'ai_generated', 'stock', 'camera']).nullish(),
+});
 
-interface MediaUpdateBody {
-  title?: string;
-  altText?: string;
-}
+const mediaUpdateSchema = z.object({
+  title: z.string().nullish(),
+  altText: z.string().nullish(),
+});
+
+type MediaUploadBody = z.infer<typeof mediaUploadSchema>;
+type MediaUpdateBody = z.infer<typeof mediaUpdateSchema>;
 
 const router: Router = express.Router();
 
@@ -214,7 +219,8 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response): Promise<
 router.post(
   '/upload',
   upload.single('file'),
-  async (req: Request, res: Response): Promise<void> => {
+  validateBody(mediaUploadSchema),
+  async (req: TypedRequest<MediaUploadBody>, res: Response): Promise<void> => {
     try {
       const userId = req.user?.id;
       if (!userId) {
@@ -227,8 +233,7 @@ router.post(
         return;
       }
 
-      const body = req.body as MediaUploadBody;
-      const { title, altText, uploadSource } = body;
+      const { title, altText, uploadSource } = req.body;
 
       const mediaService = getSharedMediaService();
       const result = await mediaService.uploadMediaFile(userId, {
@@ -261,47 +266,50 @@ router.post(
  * PUT /api/media/:id
  * Update media metadata (title, alt text)
  */
-router.put('/:id', async (req: Request<{ id: string }>, res: Response): Promise<void> => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
+router.put(
+  '/:id',
+  validateBody(mediaUpdateSchema),
+  async (req: TypedRequest<MediaUpdateBody, { id: string }>, res: Response): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const { id } = req.params;
+      const { title, altText } = req.body;
+
+      if (title === undefined && altText === undefined) {
+        res.status(400).json({ error: 'No fields to update' });
+        return;
+      }
+
+      const mediaService = getSharedMediaService();
+      const result = await mediaService.updateMediaMetadata(userId, id, {
+        title: title ?? undefined,
+        altText: altText ?? undefined,
+      });
+
+      res.json({
+        success: true,
+        data: {
+          id: result.id,
+          shareToken: result.share_token,
+          title: result.title,
+          altText: result.alt_text,
+        },
+      });
+    } catch (error) {
+      console.error('[MediaController] PUT /media/:id error:', error);
+      if ((error as Error).message.includes('not found')) {
+        res.status(404).json({ error: 'Media not found' });
+        return;
+      }
+      res.status(500).json({ error: 'Failed to update media' });
     }
-
-    const { id } = req.params;
-    const body = req.body as MediaUpdateBody;
-    const { title, altText } = body;
-
-    if (title === undefined && altText === undefined) {
-      res.status(400).json({ error: 'No fields to update' });
-      return;
-    }
-
-    const mediaService = getSharedMediaService();
-    const result = await mediaService.updateMediaMetadata(userId, id, {
-      title,
-      altText,
-    });
-
-    res.json({
-      success: true,
-      data: {
-        id: result.id,
-        shareToken: result.share_token,
-        title: result.title,
-        altText: result.alt_text,
-      },
-    });
-  } catch (error) {
-    console.error('[MediaController] PUT /media/:id error:', error);
-    if ((error as Error).message.includes('not found')) {
-      res.status(404).json({ error: 'Media not found' });
-      return;
-    }
-    res.status(500).json({ error: 'Failed to update media' });
   }
-});
+);
 
 /**
  * DELETE /api/media/:id

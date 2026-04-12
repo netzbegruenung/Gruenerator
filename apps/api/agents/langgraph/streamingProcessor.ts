@@ -507,8 +507,7 @@ export async function processGraphRequestStreaming(
     void logGeneration({
       userId: authReq.user?.id || null,
       generationType: routeType,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-      platform: req.body?.platforms?.[0] || null,
+      platform: (req.body as { platforms?: string[] } | undefined)?.platforms?.[0] ?? null,
       tokensUsed: null,
       success: false,
     });
