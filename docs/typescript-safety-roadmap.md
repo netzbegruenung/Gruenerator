@@ -48,7 +48,12 @@ Drizzle ORM wraps the existing `pg.Pool` from PostgresService and infers types f
 
 **Infrastructure switch** [PARTIAL 2026-04-12]:
 - [x] `database/types.ts` SHRUNK (3 types migrated to Drizzle InferSelectModel; 2 holdouts: YjsDocumentSnapshotRow, UserSiteRow — tables have no Drizzle schema yet)
-- [ ] Switch Better Auth from Kysely adapter to `@better-auth/drizzle-adapter` — **DEFERRED** (runtime auth risk, needs manual auth-flow testing in non-prod environment)
+- [x] Switch Better Auth to `@better-auth/drizzle-adapter` [SHIPPED 2026-04-12, awaiting test verification]
+  - New `database/schema/auth.ts` with `ba_sessions`/`ba_accounts`/`ba_verification` Drizzle schemas
+  - `config/betterAuth.ts` swapped from raw `pg.Pool` to `drizzleAdapter(db, { provider: 'pg', schema })`
+  - `routes/auth/authCore.ts` raw SQL `ba_accounts` query rewritten as typed Drizzle select
+  - Dead `Ba*Row` Kysely-era stubs deleted from `database/types.ts`
+  - **Runtime risk**: untested. Verify with `pnpm --filter @gruenerator/api test:auth` + manual OAuth flow in dev before declaring final DONE.
 
 ### 2.2 Type AI SDK tool calls & third-party responses [DONE]
 - [x] `scrapeUrl.ts`, `editImage.ts`, `aiSearchAgent.ts` — proper types from upstream services
@@ -204,7 +209,7 @@ pnpm add @ts-rest/core                    # in packages/shared (via contracts de
 ### 4.3 Runtime validation at system boundaries [DONE]
 - [x] Zod `validateBody` middleware for API request bodies (Phase 3.5)
 - [x] Zod schemas for external API responses — 7 of 8 clients (WordPress, Google, Microsoft, OParl, Atlassian, Keycloak, Bluesky); WebDAV/Nextcloud have no JSON responses
-- [x] Typed environment variables — `apps/api/config/env.ts` with Zod schema covering all 178 env vars, parsed at startup. 16 consumer files migrated, 66 remaining as opportunistic follow-up.
+- [x] Typed environment variables — `apps/api/config/env.ts` with Zod schema covering all 178 env vars, parsed at startup. **53 of 82 consumer files migrated** (16 → 53 in 2026-04-12 batch via 3 parallel agents: Stream 3A AI/LLM 15 files, Stream 3B infra 7 files, Stream 3C routes 15 files). 167 `process.env.X` references eliminated. **Zero new schema vars needed** — original 178-var catalogue covered everything. ~30 files remain as opportunistic follow-up.
 
 ### 4.4 Global infrastructure typing [DONE]
 **Completed 2026-04-11.**
@@ -226,10 +231,10 @@ pnpm add @ts-rest/core                    # in packages/shared (via contracts de
 | boardsContract | 3 | **Mounted** |
 | sharesContract | 6 | **Mounted** |
 | userProfileContract | 11 | **Mounted** |
-| exportsContract | 2 | Not yet mounted |
-| searchContract | 2 | Not yet mounted |
+| exportsContract | 2 | **Mounted** (Apr 12) |
+| searchContract | 2 | Scaffolded but **NOT mounted** — pilot doesn't model SSE `?stream=true` mode the frontend depends on. Activate once streaming is added to the contract. |
 
-**Total**: **33 typed endpoints** served via ts-rest contracts (out of 126 candidates identified by codegen script).
+**Total**: **35 typed endpoints** served via ts-rest contracts (out of 126 candidates identified by codegen script).
 
 **Frontend**: `useRecentValuesTyped` migrated in `SmartInput.tsx` + `RecentValuesDropdown.tsx`. Other typed hooks not yet created.
 
