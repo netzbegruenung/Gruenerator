@@ -38,12 +38,17 @@ Drizzle ORM wraps the existing `pg.Pool` from PostgresService and infers types f
 
 **15 services migrated** with type-safe mappers (`toUserProfile()`, `toWolkeSyncStatusRow()`, `toRecentValue()`, `toDeviceRow()`).
 
-**Remaining schema files (for future expansion):**
-- [ ] `database/schema/documents.ts`, `collaborative.ts`, `notebooks.ts`, `templates.ts`, `media.ts`, `chat.ts`
+**Remaining schema files** [DONE 2026-04-12]:
+- [x] `database/schema/documents.ts` — 24 columns
+- [x] `database/schema/notebooks.ts` — 4 tables (collections, documents, public_access, usage_logs)
+- [x] `database/schema/collaborative.ts` — 3 tables
+- [x] `database/schema/templates.ts` — user_templates, template_likes
+- [x] `database/schema/media.ts` — user_sharepics, user_uploads, shared_media, shared_media_downloads
+- [x] `database/schema/chat.ts` — chat_threads, chat_messages, chat_thread_attachments
 
-**Infrastructure switch (defer):**
-- [ ] Remove `database/types.ts` — all types inferred from Drizzle via `InferSelectModel`
-- [ ] Switch Better Auth from Kysely adapter to `@better-auth/drizzle-adapter`
+**Infrastructure switch** [PARTIAL 2026-04-12]:
+- [x] `database/types.ts` SHRUNK (3 types migrated to Drizzle InferSelectModel; 2 holdouts: YjsDocumentSnapshotRow, UserSiteRow — tables have no Drizzle schema yet)
+- [ ] Switch Better Auth from Kysely adapter to `@better-auth/drizzle-adapter` — **DEFERRED** (runtime auth risk, needs manual auth-flow testing in non-prod environment)
 
 ### 2.2 Type AI SDK tool calls & third-party responses [DONE]
 - [x] `scrapeUrl.ts`, `editImage.ts`, `aiSearchAgent.ts` — proper types from upstream services
@@ -97,8 +102,9 @@ Fixed by:
 - [x] `VideoMetadata`: 10 definitions → 1 canonical in `routes/subtitler/types.ts`
 - [x] `AIWorkerPool`: 5 definitions → 1 canonical in `workers/types.ts`
 - [x] `QdrantFilter`: 2 definitions → 1 canonical in `QdrantService/types.ts`
-- [ ] Unify `PendingRequest` type (two definitions) — deferred, low impact
-- [ ] Unify `RedisClient` / `DocumentQnARedisClient` types — deferred
+- [x] Unify `PendingRequest` — added `[key: string]: unknown` to agent type so it satisfies storage envelope structurally (no cast needed). 3 definitions in different domains kept (worker pool / storage envelope / agent request).
+- [x] Unify `RedisClient` / `DocumentQnARedisClient` — removed local duplicate in redisOperations.ts; widened DocumentQnARedisClient method return types to `Promise<unknown>` so RedisClientType assigns without casts. Net: 2 more `as unknown as` casts removed.
+- [x] **Express.Request.user** unified with UserProfile via `(req.user as UserProfile)` pattern in 5 ts-rest contract routers. Net: 13 `as unknown as AuthenticatedRequest` casts eliminated.
 
 ### 3.5 Zod request validation middleware [DONE]
 **Completed 2026-04-11.** Applied to ~75 route files.
@@ -195,10 +201,10 @@ pnpm add @ts-rest/core                    # in packages/shared (via contracts de
 - [ ] Adopt in route handlers and service layer
 - **Deferred** — prevents ID mixups but lower priority than end-to-end typing
 
-### 4.3 Runtime validation at system boundaries [STARTED]
+### 4.3 Runtime validation at system boundaries [DONE]
 - [x] Zod `validateBody` middleware for API request bodies (Phase 3.5)
-- [ ] Zod schemas for external API responses (WordPress, Qdrant, etc.)
-- [ ] Typed environment variables with `t3-env` or similar
+- [x] Zod schemas for external API responses — 7 of 8 clients (WordPress, Google, Microsoft, OParl, Atlassian, Keycloak, Bluesky); WebDAV/Nextcloud have no JSON responses
+- [x] Typed environment variables — `apps/api/config/env.ts` with Zod schema covering all 178 env vars, parsed at startup. 16 consumer files migrated, 66 remaining as opportunistic follow-up.
 
 ### 4.4 Global infrastructure typing [DONE]
 **Completed 2026-04-11.**
