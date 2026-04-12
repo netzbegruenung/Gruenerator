@@ -71,7 +71,7 @@ const ImageStudioCategorySelector: React.FC = () => {
   const [generationError, setGenerationError] = useState<string | null>(null);
 
   const firstName = useMemo(() => {
-    const displayName = user?.display_name || user?.name || '';
+    const displayName = user?.display_name || '';
     return displayName.split(' ')[0] || '';
   }, [user]);
 

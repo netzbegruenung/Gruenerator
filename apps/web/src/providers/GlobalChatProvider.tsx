@@ -65,7 +65,7 @@ interface GlobalChatProviderProps {
 
 export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   const userId = useAuthStore((s) => s.user?.id);
-  const userName = useAuthStore((s) => s.user?.display_name || s.user?.name);
+  const userName = useAuthStore((s) => s.user?.display_name);
   const navigate = useNavigate();
   const location = useLocation();
   const qaCollectionsLength = useNotebookStore((s) => s.qaCollections.length);

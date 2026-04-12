@@ -42,45 +42,28 @@ const DEV_BYPASS_USER: Express.User = {
 };
 
 function toBetterAuthUser(user: BetterAuthUser): UserProfile {
-  // Better Auth's inferred session user type only exposes base fields; custom
-  // profile columns (avatar_robot_id, beta_features, feature flags, ...) live
-  // on the same row but aren't in the generated type. We read them through an
-  // unknown-record cast at the single boundary, apply fallbacks for unset
-  // columns, then validate the whole shape with Zod. Any upstream schema drift
-  // now throws ZodError at login instead of producing silent `undefined`
-  // cascades at render time.
-  const u = user as unknown as Record<string, unknown>;
-  const raw = {
-    id: user.id,
-    email: user.email,
+  // Better Auth's `$Infer.Session.user` already includes every `additionalFields`
+  // column from config/betterAuth.ts — no cast needed to read custom columns.
+  // Two storage quirks to smooth over before Zod parsing:
+  //  1. Better Auth stores unset optional columns as SQL NULL, but Zod's
+  //     `.default()` only triggers on `undefined`. We coerce `null → undefined`
+  //     so the schema's defaults (mirroring additionalFields.defaultValue)
+  //     kick in.
+  //  2. Better Auth's base fields are named `name` / `createdAt` / `updatedAt`
+  //     while our canonical schema uses `display_name` / `created_at` /
+  //     `updated_at`. We rename at the boundary.
+  // Any residual type mismatch (e.g. Better Auth returning a string where we
+  // expect a number) throws ZodError at login instead of cascading as
+  // undefined through the render tree.
+  const nullStripped = Object.fromEntries(
+    Object.entries(user).map(([k, v]) => [k, v === null ? undefined : v])
+  );
+  return userProfileSchema.parse({
+    ...nullStripped,
     display_name: user.name,
-    avatar_robot_id: u.avatar_robot_id ?? 1,
-    beta_features: u.beta_features ?? {},
-    user_defaults: u.user_defaults ?? {},
-    groups_enabled: u.groups_enabled ?? false,
-    custom_generators: u.custom_generators ?? false,
-    database_access: u.database_access ?? false,
-    collab: u.collab ?? false,
-    notebook: u.notebook ?? false,
-    sharepic: u.sharepic ?? false,
-    anweisungen: u.anweisungen ?? false,
-    labor_enabled: u.labor_enabled ?? false,
-    sites_enabled: u.sites_enabled ?? true,
-    chat: u.chat ?? false,
-    interactive_antrag_enabled: u.interactive_antrag_enabled ?? true,
-    vorlagen: u.vorlagen ?? false,
-    video_editor: u.video_editor ?? false,
     created_at: user.createdAt,
     updated_at: user.updatedAt,
-    ...(u.chat_color != null && { chat_color: u.chat_color }),
-    ...(u.locale != null && { locale: u.locale }),
-    ...(u.keycloak_id != null && { keycloak_id: u.keycloak_id }),
-    ...(u.username != null && { username: u.username }),
-    ...(u.bundestag_api_enabled != null && { bundestag_api_enabled: u.bundestag_api_enabled }),
-    ...(u.memory_enabled != null && { memory_enabled: u.memory_enabled }),
-    ...(u.wordpress_enabled != null && { wordpress_enabled: u.wordpress_enabled }),
-  };
-  return userProfileSchema.parse(raw);
+  });
 }
 
 async function tryResolveUser(req: Request): Promise<Express.User | null> {
