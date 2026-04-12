@@ -29,11 +29,7 @@ export interface EnrichedState {
     source_url?: string | undefined;
     metadata?: Record<string, unknown> | undefined;
   }>;
-  knowledge?: Array<{
-    title: string;
-    snippet: string;
-    content?: string | undefined;
-  }>;
+  knowledge?: string[] | undefined;
   [key: string]: unknown;
 }
 

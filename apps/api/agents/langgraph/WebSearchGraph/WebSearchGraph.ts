@@ -4,6 +4,7 @@
  */
 
 import { StateGraph, Annotation } from '@langchain/langgraph';
+import { type Request } from 'express';
 
 import { type AIWorkerPool } from '../../../workers/types.js';
 
@@ -124,54 +125,14 @@ type WebSearchGraphState = typeof SearchState.State;
 
 const createWebSearchGraph = () => {
   const graph = new StateGraph(SearchState)
-    .addNode(
-      'planner',
-      plannerNode as unknown as (
-        state: WebSearchGraphState
-      ) => Promise<Partial<WebSearchGraphState>>
-    )
-    .addNode(
-      'searxng',
-      searxngNode as unknown as (
-        state: WebSearchGraphState
-      ) => Promise<Partial<WebSearchGraphState>>
-    )
-    .addNode(
-      'intelligentCrawler',
-      intelligentCrawlerNode as unknown as (
-        state: WebSearchGraphState
-      ) => Promise<Partial<WebSearchGraphState>>
-    )
-    .addNode(
-      'contentEnricher',
-      contentEnricherNode as unknown as (
-        state: WebSearchGraphState
-      ) => Promise<Partial<WebSearchGraphState>>
-    )
-    .addNode(
-      'grundsatz',
-      grundsatzNode as unknown as (
-        state: WebSearchGraphState
-      ) => Promise<Partial<WebSearchGraphState>>
-    )
-    .addNode(
-      'aggregator',
-      aggregatorNode as unknown as (
-        state: WebSearchGraphState
-      ) => Promise<Partial<WebSearchGraphState>>
-    )
-    .addNode(
-      'summarizer',
-      summaryNode as unknown as (
-        state: WebSearchGraphState
-      ) => Promise<Partial<WebSearchGraphState>>
-    )
-    .addNode(
-      'writer',
-      dossierNode as unknown as (
-        state: WebSearchGraphState
-      ) => Promise<Partial<WebSearchGraphState>>
-    )
+    .addNode('planner', plannerNode)
+    .addNode('searxng', searxngNode)
+    .addNode('intelligentCrawler', intelligentCrawlerNode)
+    .addNode('contentEnricher', contentEnricherNode)
+    .addNode('grundsatz', grundsatzNode)
+    .addNode('aggregator', aggregatorNode)
+    .addNode('summarizer', summaryNode)
+    .addNode('writer', dossierNode)
     .addEdge('__start__', 'planner')
     .addEdge('planner', 'searxng');
 
@@ -229,7 +190,7 @@ export async function runWebSearch(input: WebSearchInput): Promise<WebSearchOutp
   console.log(`[WebSearchGraph] Starting ${mode} search for: "${query}"`);
 
   try {
-    const initialState = {
+    const initialState: typeof SearchState.State = {
       query,
       mode,
       user_id,
@@ -240,9 +201,25 @@ export async function runWebSearch(input: WebSearchInput): Promise<WebSearchOutp
         startTime: Date.now(),
         searchMode: mode,
       } as SearchMetadata,
+      subqueries: null,
+      webResults: null,
+      grundsatzResults: null,
+      aggregatedResults: null,
+      categorizedSources: {},
+      referencesMap: null,
+      citations: null,
+      citationSources: null,
+      crawlDecisions: null,
+      enrichedResults: null,
+      crawlMetadata: {},
+      finalResults: null,
+      summary: null,
+      dossier: null,
+      success: null,
+      error: null,
     };
 
-    const result = await webSearchGraph.invoke(initialState as unknown as typeof SearchState.State);
+    const result = await webSearchGraph.invoke(initialState);
 
     // Format final output based on mode
     if (mode === 'normal') {

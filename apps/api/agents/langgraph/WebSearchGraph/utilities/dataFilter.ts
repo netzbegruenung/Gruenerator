@@ -37,8 +37,8 @@ export interface FilteredData {
  * Filter data for AI processing to reduce token usage
  */
 export function filterDataForAI(
-  webResults: WebSearchBatch[] | undefined,
-  aggregatedResults: SearchResult[] | undefined,
+  webResults: WebSearchBatch[] | null | undefined,
+  aggregatedResults: SearchResult[] | null | undefined,
   grundsatzResults: GrundsatzResult | null | undefined
 ): FilteredData {
   // Simplified filtering logic

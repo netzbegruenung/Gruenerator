@@ -19,9 +19,10 @@ const PROJECTS_DIR = path.join(__dirname, '../../uploads/subtitler-projects');
 
 interface SubtitleSegment {
   text: string;
-  start: number;
-  end: number;
-  [key: string]: unknown;
+  start?: number | undefined;
+  end?: number | undefined;
+  startTime?: number | undefined;
+  endTime?: number | undefined;
 }
 
 interface FileStats {
