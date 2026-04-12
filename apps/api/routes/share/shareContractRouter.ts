@@ -23,6 +23,7 @@
 import { sharesContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { parseJSON } from '../../utils/parseJSON.js';
 import { redisClient } from '../../utils/redis/index.js';
@@ -671,6 +672,6 @@ export const shareContractRouter = s.router(sharesContract, {
  */
 export function mountShareContractRouter(app: Application): void {
   createExpressEndpoints(sharesContract, shareContractRouter, app, {
-    requestValidationErrorHandler: 'combined',
+    requestValidationErrorHandler: logContractValidationError(log, 'sharesContract'),
   });
 }

@@ -34,6 +34,7 @@ import {
   formatMemoriesByCategory,
 } from '../../services/mem0/index.js';
 import { getCachedPersona } from '../../services/mem0/personaService.js';
+import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -86,6 +87,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
     const { req, res } = args;
     const sse = createSSEStream(res);
     const requestId = `req_${Date.now()}`;
+    log.info('[chatGraphContract] stream handler entered, request_id=%s', requestId);
 
     try {
       const {
@@ -171,7 +173,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       const lastUserMessage = validMessages.filter((m) => m.role === 'user').pop();
 
       // === Create thread if needed ===
-      let actualThreadId = threadId;
+      // Normalize null → undefined: contract schema uses .nullish() to accept
+      // both, but downstream code is typed for string | undefined.
+      let actualThreadId: string | undefined = threadId ?? undefined;
       let isNewThread = false;
 
       if (!actualThreadId && lastUserMessage) {
@@ -292,7 +296,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         boardIds: rawBoardIds?.length ? rawBoardIds : undefined,
         docMentionIds: rawDocMentionIds?.length ? rawDocMentionIds : undefined,
         userLocale: user.locale ?? 'de-DE',
-        customSystemPrompt: rawCustomSystemPrompt,
+        customSystemPrompt: rawCustomSystemPrompt ?? undefined,
         userInstructions,
         contextWindowTokens,
       });
@@ -560,7 +564,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           defaultModel: finalState.agentConfig.defaultModel,
         }),
       };
-      const { model: aiModel } = resolveModel(agentConfigForResolve, modelId, {
+      const { model: aiModel } = resolveModel(agentConfigForResolve, modelId ?? undefined, {
         hasImages: imageAttachments.length > 0,
       });
 
@@ -703,6 +707,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
     const { req } = args;
     const sse = createSSEStream(args.res);
     const _requestId = `resume_${Date.now()}`;
+    log.info('[chatGraphContract] resume handler entered, request_id=%s', _requestId);
 
     try {
       const { threadId, resume: userAnswer } = args.body;
@@ -891,6 +896,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
  */
 export function mountChatGraphContractRouter(app: Application): void {
   createExpressEndpoints(chatGraphContract, chatGraphContractRouter, app, {
-    requestValidationErrorHandler: 'combined',
+    requestValidationErrorHandler: logContractValidationError(log, 'chatGraphContract'),
   });
 }

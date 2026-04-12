@@ -24,6 +24,7 @@ import {
   parseBoardStructure,
   postProcessBoardStructure,
 } from '../../services/boards/BoardService.js';
+import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -204,6 +205,6 @@ export const boardsContractRouter = s.router(boardsContract, {
  */
 export function mountBoardsContractRouter(app: Application): void {
   createExpressEndpoints(boardsContract, boardsContractRouter, app, {
-    requestValidationErrorHandler: 'combined',
+    requestValidationErrorHandler: logContractValidationError(log, 'boardsContract'),
   });
 }

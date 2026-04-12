@@ -10,25 +10,32 @@
 import { z } from 'zod';
 
 // ── Request bodies ──────────────────────────────────────────────────────────
+//
+// All optional fields use `.nullish()` (= `.optional().nullable()`) so they
+// accept both `undefined` and `null`. The frontend follows the project's
+// `feedback_no_undefined` convention and sends `null` for unset values, so
+// plain `.optional()` (which only accepts `undefined`) would 400 every
+// request. Handler code uses `?? undefined` at call sites that need
+// `T | undefined` (it's only ~3 fields, so a transform helper is overkill).
 
 export const chatStreamBodySchema = z.object({
   messages: z.array(z.unknown()),
-  agentId: z.string().optional(),
-  threadId: z.string().optional(),
-  enabledTools: z.record(z.boolean()).optional(),
-  modelId: z.string().optional(),
-  attachments: z.array(z.unknown()).optional(),
-  notebookIds: z.array(z.string()).optional(),
-  forcedTools: z.array(z.string()).optional(),
-  documentIds: z.array(z.string()).optional(),
-  textIds: z.array(z.string()).optional(),
-  documentChatIds: z.array(z.string()).optional(),
-  documentChatMode: z.boolean().optional(),
-  defaultNotebookId: z.string().optional(),
-  boardIds: z.array(z.string()).optional(),
-  docMentionIds: z.array(z.string()).optional(),
-  customSystemPrompt: z.string().optional(),
-  roleName: z.string().optional(),
+  agentId: z.string().nullish(),
+  threadId: z.string().nullish(),
+  enabledTools: z.record(z.boolean()).nullish(),
+  modelId: z.string().nullish(),
+  attachments: z.array(z.unknown()).nullish(),
+  notebookIds: z.array(z.string()).nullish(),
+  forcedTools: z.array(z.string()).nullish(),
+  documentIds: z.array(z.string()).nullish(),
+  textIds: z.array(z.string()).nullish(),
+  documentChatIds: z.array(z.string()).nullish(),
+  documentChatMode: z.boolean().nullish(),
+  defaultNotebookId: z.string().nullish(),
+  boardIds: z.array(z.string()).nullish(),
+  docMentionIds: z.array(z.string()).nullish(),
+  customSystemPrompt: z.string().nullish(),
+  roleName: z.string().nullish(),
 });
 
 export const chatResumeBodySchema = z.object({

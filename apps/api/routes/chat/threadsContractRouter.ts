@@ -16,6 +16,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
+import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -417,6 +418,6 @@ export const threadsContractRouter = s.router(threadsContract, {
  */
 export function mountThreadsContractRouter(app: Application): void {
   createExpressEndpoints(threadsContract, threadsContractRouter, app, {
-    requestValidationErrorHandler: 'combined',
+    requestValidationErrorHandler: logContractValidationError(log, 'threadsContract'),
   });
 }

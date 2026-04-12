@@ -21,6 +21,7 @@ import { Readable } from 'stream';
 import { exportsContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { generateDocxBuffer, sanitizeDocxFilename } from './docxController.js';
@@ -100,6 +101,6 @@ export const exportsContractRouter = s.router(exportsContract, {
  */
 export function mountExportsContractRouter(app: Application): void {
   createExpressEndpoints(exportsContract, exportsContractRouter, app, {
-    requestValidationErrorHandler: 'combined',
+    requestValidationErrorHandler: logContractValidationError(log, 'exportsContract'),
   });
 }
