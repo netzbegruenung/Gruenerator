@@ -263,7 +263,9 @@ export async function setupRoutes(app: Application): Promise<void> {
 
   // Auth routes — authLimiter applied inside authCore.ts to login/callback only
   // ts-rest contract router for /api/profile — mounts before legacy authRouter
-  // (ts-rest matches its own routes first; unmatched fall through)
+  // (ts-rest matches its own routes first; unmatched fall through). `requireAuth`
+  // is applied at the prefix because all profile routes require authentication.
+  app.use('/api/profile', requireAuth);
   mountUserProfileContractRouter(app);
   // ts-rest contract router for admin Vorlagen — mounts BEFORE the legacy authRouter
   // so contract-modeled routes match first; unmatched paths fall through.
@@ -292,7 +294,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/crawl-url', requireAuth, standardMutationLimiter, crawlUrlRouter);
   // ts-rest contract router for /api/recent-values (Phase 4.1 pilot)
   // Mounted BEFORE the legacy router so ts-rest matches its own routes first;
-  // unmatched paths fall through to the Express fallback below.
+  // unmatched paths fall through to the Express fallback below. `requireAuth`
+  // is applied at the prefix because all routes return user-specific data.
+  app.use('/api/recent-values', requireAuth);
   mountRecentValuesContractRouter(app);
   app.use('/api/recent-values', publicReadLimiter, recentValuesRouter);
   app.use('/api/antraege', requireAuth, standardMutationLimiter, antraegeRouter);
@@ -478,14 +482,22 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/docs/public', publicReadLimiter, publicDocRouter);
   // ts-rest contract router for /api/docs — mounts BEFORE the legacy docsRouter
   // so ts-rest matches its own routes first; unmatched paths fall through.
-  // requireAuth is applied at the prefix because all 5 contract routes require auth.
+  // `requireAuth` is applied at the prefix so the contract router inherits
+  // protection. The /api/og/docs, /api/docs/resolve, and /api/docs/public
+  // routers above are registered first, so public docs requests match and
+  // terminate before this middleware runs.
+  app.use('/api/docs', requireAuth);
   mountDocsContractRouter(app);
-  app.use('/api/docs', requireAuth, authenticatedReadLimiter, docsRouter);
+  app.use('/api/docs', authenticatedReadLimiter, docsRouter);
 
   app.use('/api/boards/public', publicReadLimiter, publicBoardRouter);
-  // ts-rest contract router — mount before legacy boardsRouter
+  // ts-rest contract router — mount before legacy boardsRouter.
+  // `requireAuth` is applied at the prefix so the contract router inherits
+  // protection. The /api/boards/public router above is registered first, so
+  // public board requests match and terminate before this middleware runs.
+  app.use('/api/boards', requireAuth);
   mountBoardsContractRouter(app);
-  app.use('/api/boards', requireAuth, authenticatedReadLimiter, boardsRouter);
+  app.use('/api/boards', authenticatedReadLimiter, boardsRouter);
   app.use('/api/board-comments', requireAuth, authenticatedReadLimiter, boardCommentsRouter);
   app.use('/api/users', requireAuth, publicReadLimiter, usersRouter);
   // ts-rest contract router — mount before legacy voiceController router
