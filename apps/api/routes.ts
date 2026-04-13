@@ -269,7 +269,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountUserProfileContractRouter(app);
   // ts-rest contract router for admin Vorlagen — mounts BEFORE the legacy authRouter
   // so contract-modeled routes match first; unmatched paths fall through.
-  // requireAuth is inherited from the /api/auth prefix on authRouter.
+  // `requireAuth` is applied at the prefix here because the contract router
+  // does not inherit middleware from the later `app.use('/api/auth', ...)`
+  // mount (Express middleware ordering), and every admin-vorlagen route
+  // requires both authentication and an is_admin check (the latter is
+  // enforced per-handler via `checkIsAdmin` inside the contract).
+  app.use('/api/auth/admin/vorlagen', requireAuth);
   mountAdminVorlagenContractRouter(app);
   app.use('/api/auth', authenticatedReadLimiter, authRouter);
   // ts-rest contract router for notebook collections — mounts BEFORE the

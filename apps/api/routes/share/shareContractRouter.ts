@@ -33,12 +33,27 @@ import type { Application, Request } from 'express';
 
 const log = createLogger('sharesContract');
 
-function getUserId(req: Request): string {
-  return (req.user as UserProfile).id;
+/**
+ * 401 response for unauthenticated requests to auth-required contract handlers.
+ *
+ * Background: this router can't use prefix-level `requireAuth` because the
+ * legacy `/api/share` router (mounted at routes.ts:459 with `publicReadLimiter`)
+ * serves public read endpoints (preview/download/thumbnail) that must remain
+ * reachable without a session. The per-handler guards below protect the six
+ * write endpoints modeled by this contract.
+ */
+const UNAUTHORIZED = {
+  status: 401 as const,
+  body: { success: false as const, error: 'Authentication required' },
+};
+
+function getUserId(req: Request): string | undefined {
+  return (req.user as UserProfile | undefined)?.id;
 }
 
-function getUserInfo(req: Request): { id: string; displayName: string } {
-  const user = req.user as UserProfile;
+function getUserInfo(req: Request): { id: string; displayName: string } | undefined {
+  const user = req.user as UserProfile | undefined;
+  if (!user) return undefined;
   return {
     id: user.id,
     displayName: user.display_name || user.email || 'Anonymous',
@@ -236,6 +251,7 @@ export const shareContractRouter = s.router(sharesContract, {
   createImageShare: async (args) => {
     try {
       const userId = getUserId(args.req);
+      if (!userId) return UNAUTHORIZED;
       const { imageData, title, imageType, metadata, originalImage, status } = args.body;
 
       const service = await getSharedMediaService();
@@ -277,6 +293,7 @@ export const shareContractRouter = s.router(sharesContract, {
   createVideoShare: async (args) => {
     try {
       const userId = getUserId(args.req);
+      if (!userId) return UNAUTHORIZED;
       const { exportToken, title, projectId } = args.body;
 
       const exportDataString = (await redisClient.get(`export:${exportToken}`)) as string | null;
@@ -343,6 +360,7 @@ export const shareContractRouter = s.router(sharesContract, {
   createVideoFromProject: async (args) => {
     try {
       const userId = getUserId(args.req);
+      if (!userId) return UNAUTHORIZED;
       const { projectId, title } = args.body;
 
       const projService = await getProjectService();
@@ -502,6 +520,7 @@ export const shareContractRouter = s.router(sharesContract, {
     try {
       const { shareToken } = args.params;
       const userId = getUserId(args.req);
+      if (!userId) return UNAUTHORIZED;
       const { imageBase64, title, metadata, originalImage } = args.body;
 
       const service = await getSharedMediaService();
@@ -571,7 +590,9 @@ export const shareContractRouter = s.router(sharesContract, {
   saveAsTemplate: async (args) => {
     try {
       const { shareToken } = args.params;
-      const { id: userId, displayName: userName } = getUserInfo(args.req);
+      const userInfo = getUserInfo(args.req);
+      if (!userInfo) return UNAUTHORIZED;
+      const { id: userId, displayName: userName } = userInfo;
       const { title, visibility = 'private' } = args.body;
 
       const service = await getSharedMediaService();
@@ -619,6 +640,7 @@ export const shareContractRouter = s.router(sharesContract, {
   pushToPhone: async (args) => {
     try {
       const userId = getUserId(args.req);
+      if (!userId) return UNAUTHORIZED;
       const { shareToken } = args.body;
 
       const service = await getSharedMediaService();
