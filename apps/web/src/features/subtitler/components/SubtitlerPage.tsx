@@ -574,10 +574,15 @@ const SubtitlerPage = (): React.ReactElement => {
                     loadedProject?.title || (autoSavedProjectId ? 'Auto-Video' : undefined)
                   }
                   videoUrl={
-                    uploadInfo?.uploadId
-                      ? `${baseURL}/subtitler/auto-download/${uploadInfo.uploadId}`
-                      : exportToken
-                        ? `${baseURL}/subtitler/export-download/${exportToken}`
+                    // exportToken wins over auto-download — once the user
+                    // has edited subtitles and run an export, that export
+                    // contains their edits. The auto-download path serves
+                    // the pre-edit transcription and is only correct for
+                    // users who skipped the editor entirely.
+                    exportToken
+                      ? `${baseURL}/subtitler/export-download/${exportToken}`
+                      : uploadInfo?.uploadId
+                        ? `${baseURL}/subtitler/auto-download/${uploadInfo.uploadId}`
                         : undefined
                   }
                 />
