@@ -508,38 +508,67 @@ Backend contracts are valueless without frontend consumers (Acceleration Princip
 
 **Stream timing**: 2 parallel Sonnet streams (langgraph/subtitler vs chat), ~11 min and ~15 min respectively. Main-agent verification pass: ~3 min.
 
-### Session N+4 — `eslint-disable` cleanup + opportunistic `validateBody` backfill
+### Session N+3 — Cast hotspot cluster elimination [DONE 2026-04-13]
 
-**Goal**: Peel 63 → ~22 eslint-disable suppressions (the library-boundary floor).
+**Outcome**: Ratchet baseline dropped **208 → 179 → 178** over 3 sessions. All 6 original hotspot files at 0 casts. 2 parallel Sonnet streams (langgraph + chat), +1 main-agent fixup pass for `exactOptionalPropertyTypes` gotchas from the initial stream outputs.
 
-**Approach**: Sonnet agent scans every `eslint-disable no-unsafe`/`no-explicit-any` suppression and categorizes:
-1. **Library boundary** (docx, pdfjs, LangGraph, Express 5 overloads) — keep, these are the permanent floor
-2. **Stale** — the original violation no longer exists; just delete the suppression
-3. **Fixable** — same cluster pattern (usually a helper/service type widening)
+**Plus bonus: 19-error web baseline eliminated.** Session N+3 added a fourth stream to peel off the stable "19 pre-existing unrelated errors" that had been reported by every session for 5 sessions. Stream D fixed all 19 at source with 0 new casts. First time `apps/web` typechecks fully clean.
 
-Main agent approves each category in bulk; fixable ones get delegated back to the same agent.
+See per-file table and bonus bug catches in the cast-ratchet section above.
 
-**Side quest**: during the scan, also identify 15-20 routes currently without `validateBody` that SHOULD have it (routes taking structured body). Add schemas opportunistically. This also prepares them for future ts-rest contract migration — "Codegen over handwriting" (Acceleration Principle #3).
+### Session N+4 — `eslint-disable` cleanup + `validateBody` backfill [DONE 2026-04-13]
 
-**Target state**: 63 → 22 suppressions. +15-20 `validateBody` routes.
+**Outcome**:
+- eslint-disable count: **63 → 41** (−22). All 22 fixed at source, zero stale, 41 remaining are genuine library boundaries.
+- Per-location: api **40 → 21** (library floor), web **7 → 0** (fully clean), packages **16 → 16** (already at floor).
+- `validateBody` routes: **61 → 74** (+13). New schemas in flux, research, crawl, markdown, media, nextcloud. All use `.nullish()` for optional fields.
+- Ratchet: **179 → 178** (−1 via pg query typing fix).
+- Extra bug caught: `StoredContent = string | object` in generatedTextStore was too wide; canonicalized `GeneratedContent` in `types/baseform.ts` to unify the 2 duplicate declarations.
 
-### Session N+5 — `searchContract` SSE streaming model + mount
+**3 parallel Sonnet streams by location** (api / web / packages), + main-agent fixup pass for `TypedRequest<T> & AuthenticatedRequest` intersection bugs in the validateBody backfill (the intersection makes `body: any` again — always use plain `TypedRequest<T>`, never intersect).
+
+**2 lessons captured for future sessions:**
+1. `& AuthenticatedRequest` intersection is worse than no type info — Express `body: any` absorbs typed body. Use plain `TypedRequest<T>`; `req.user` is already augmented onto `Express.Request`.
+2. `.nullish()` + destructuring defaults don't compose. `const { variant = 'default' } = req.body` only fires for `undefined`, not `null`. If the schema accepts `null`, normalize with `?? 'default'` after extraction.
+
+### Session N+5 — `searchContract` SSE streaming model + mount [IN PROGRESS 2026-04-13]
 
 **Goal**: Design a ts-rest contract shape for streaming SSE responses and mount the dormant `searchContract`. The pattern established here becomes the template for chat streaming, notebook QA streaming, and future streaming features.
 
-**Design question**: ts-rest models JSON + binary responses but not SSE event streams natively. Two approaches:
+**Design decision: option (b) — two endpoints** (non-streaming `POST /api/search` already exists; new `POST /api/search/stream` with `responses: { 200: z.unknown() }` and a separate event-union schema that consumers parse via a typed client helper). Rejected option (a) "envelope-after-completion" because it hides the stream's intermediate frames from the type system.
 
-- **(a) Envelope-after-completion**: Contract declares the final cumulative response (e.g. `{ result: FinalSearchResult }`). Stream events are emitted as typed `data:` JSON objects that the frontend parses via a typed event handler utility (new in `packages/shared/src/api/sseClient.ts`). The contract only validates the final envelope.
-- **(b) Two endpoints**: `POST /api/search` (non-streaming, contract-modeled) and `POST /api/search/stream` (SSE, explicitly `responses: { 200: z.unknown() }` with a documented JSDoc `@event` union). Consumers use different hooks for the two modes.
+**Deliverables (landed in working tree, not yet committed):**
+- [x] `packages/contracts/src/schemas/search.ts` — 4-variant discriminated union `searchStreamEventSchema` (`progress` / `text_delta` / `done` / `error`). Each variant is a Zod object with a `z.literal('name')` tag. Matches the actual events emitted by `searchStreamController.ts` after reading every `sse.sendRaw(...)` call site.
+- [x] `packages/contracts/src/contracts/searchContract.ts` — new `stream` route with `responses: { 200: z.unknown() }` + JSDoc `@event searchStreamEventSchema` pointing at the union. Explicit warning in the doc block: "Never call this via `client.search.stream(...)` — use `streamSSE(path, searchStreamEventSchema)` from `@gruenerator/shared/api` instead."
+- [x] `packages/shared/src/api/sseClient.ts` — `streamSSE<TSchema>(path, schema, options): AsyncIterable<z.infer<TSchema>>` — uses `fetch()` + `TextDecoder` reader loop (not browser `EventSource` — `EventSource` is GET-only and auto-reconnects aggressively, neither of which suits POST-with-body one-shot streaming). Parses each `data:` frame against the Zod schema, skips invalid frames with a console.warn.
+- [x] **Path reconciliation**: `stripApiPrefix` helper lives in both `contractsClient.ts` and `sseClient.ts` — both need to reconcile the `/api/...` canonical contract path with the axios `baseURL` convention. Same fix as commit `2971063a` (the beta.gruenerator.eu 404 bug) applied to the streaming path.
+- [x] `apps/api/routes/search/searchContractRouter.ts` — `stream` handler delegates to the existing `streamNormalSearch` export from `searchStreamController.ts`. The handler takes over `res` and writes the SSE event stream directly; returns `{ status: 200, body: null }` to ts-rest after the stream closes.
 
-Recommend (b) for simplicity — it matches the project's existing "typed rest + untyped streaming" split, and the streaming path's type safety is enforced via an event-handler utility on the client side, not via the contract.
+**Remaining work before merge:**
+- [ ] Fix the `req as unknown as Parameters<typeof streamNormalSearch>[0]` cast in the `stream` handler — currently regressing the ratchet 178 → 179. Options: (1) widen `streamNormalSearch`'s `req` parameter from `AuthenticatedRequest` to a structural shape, (2) export a `StreamNormalSearchRequest` type alias from the controller, (3) use `as` instead of `as unknown as` if the types are genuinely compatible after middleware.
+- [ ] Mount `mountSearchContractRouter(app)` in `apps/api/routes.ts` BEFORE the legacy `/api/search` mount.
+- [ ] Apply `express.json()` body parser for `/api/search/stream` in the `routes.ts` CUSTOM_BODY_PARSER_PATHS section — the body MUST parse before ts-rest intercepts, same rule as the chatGraph 50mb parser from Phase 4.1 (see mandatory checklist).
+- [ ] Verify `apps/web` typecheck clean — the searchContract widening may cascade to the 6 consumers.
+- [ ] Write a `useSearchStreamTyped` hook in `apps/web/src/hooks/` as a proof-of-consumer for the `streamSSE` helper + Session N+6 template.
+- [ ] Verify `searchStreamController`'s existing emitters match the `searchStreamEventSchema` shape at runtime (schema is based on reading the source, but a missing `stage` value in the enum would cause silent frame-skipping on the client).
 
-**Deliverables**:
-- `packages/contracts/src/schemas/searchEvents.ts` — Zod union for SSE event types (`{ type: 'token', delta }`, `{ type: 'source', source }`, `{ type: 'final', result }`)
-- `packages/shared/src/api/sseClient.ts` — typed SSE parser: `streamSSE<T>(path, schema): AsyncIterable<T>`
-- `apps/api/routes/search/searchContractRouter.ts` — mounted; the contract router handles the non-streaming variant, and the legacy `searchStreamController` keeps serving `/api/search/stream`
+**Target state on completion**: **24 contracts / 22 mounted → 25 contracts / 23 mounted / 108 endpoints**. Ratchet stays at 178 after the cast fix. First production-quality SSE streaming contract in the codebase, unblocks future streaming-heavy features (voice transcription, chat graph, notebook QA).
 
-**Target state**: searchContract mounted; 11 → 12 contracts / 9 → 10 mounted / 50 → 52 endpoints. New pattern template available for all future streaming endpoints.
+**Template established for future streaming contracts** (chat graph, notebook QA, voice transcribe-upload):
+1. Export a `z.discriminatedUnion('event', [...])` schema from the contracts package
+2. Declare the route with `responses: { 200: z.unknown() }` + JSDoc `@event` pointing at the union
+3. Consume via `streamSSE(path, unionSchema)` on the frontend
+4. Backend router handler delegates to the legacy streaming controller — don't try to write SSE frames from inside a ts-rest handler
+
+### Auth cleanup (parallel to N+4/N+5, 2026-04-13)
+
+Beyond the Phase 4 sessions, this day landed several auth-related hardening commits driven by production incidents:
+
+- **`25f8bac8` / `ef92956c`** — close ts-rest contract router auth bypasses. Several routers were missing per-handler `req.user` checks OR prefix-level `requireAuth` middleware. Every mount point audited; every handler that reads `req.user` now either has prefix-level auth OR a per-handler guard.
+- **`7f955e55` / `6f70d0a9`** — Keycloak profile mapper hardening + email field at Better Auth boundary. Surfaces a session-rotation loop bug where a single NULL email row in `profiles` broke Better Auth's ~5-min cookie revalidation.
+- **`c4a33a99`** — tighten `UserProfile.email` back to `string | undefined` after a brief `.nullable().optional()` widening. Documents the invariant that `authMiddleware.toBetterAuthUser` is the SOLE null-strip boundary for `userProfileSchema`. Any new parse site of the schema must null-strip first or it will trip on NULL DB rows. Captures the design rule as a JSDoc invariant on the function.
+
+**Long-term rule captured**: when a schema's underlying column is nullable, the canonical TypeScript type should model the POST-null-strip shape (one `T | undefined`), not the untrusted input shape (three `T | null | undefined`). The null-strip happens at a single boundary (authMiddleware); every downstream consumer sees one answer. Option C (`.nullable().optional()`) was rejected because it doubled the test surface and forced per-call-site `?? undefined` coercions.
 
 ### After Session N+5: what counts as "done"
 
@@ -660,19 +689,23 @@ Dev runners (tsx, vitest) pass `--conditions=development` and resolve to source.
 | Drizzle schema tables | 0 | ~20 | **~25** (+ba_*, +yjs_document_snapshots, +user_sites) | all |
 | `database/types.ts` raw row types | many | 2 holdouts | **0** (Phase 2.1 fully closed) | 0 |
 | Typecheck errors (all packages) | 3 | **0** | 0 | 0 |
-| `validateBody` routes | 0 | ~75 | ~75 | opportunistic |
-| ts-rest contracts | 0 | 4 (pilot) | **24 contracts / 22 mounted / 106 endpoints** | all (~126 target, ≈84% coverage) |
+| `validateBody` routes | 0 | ~75 | **74** (+13 in N+4 flux/research/crawl/markdown/media/nextcloud) | opportunistic |
+| ts-rest contracts | 0 | 4 (pilot) | **24 contracts / 22 mounted / 106 endpoints** (N+5 in progress: +1 contract, +2 endpoints pending) | all (~126 target, ≈84% coverage) |
 | ts-rest frontend typed hooks | 0 | 1 (`useRecentValuesTyped`) | **6** (boards, notebook, notifications, adminVorlagen; wordpressApi + useTransfer internals rewritten; exportStore internals) | all contract-consuming hooks |
-| Frontend raw `apiClient.*` call sites | — | 94 | **~75** (↓19 this session, wordpress+transfer+notifications+adminVorlagen+useBoards) | 0 (boundary-only) |
-| `UserProfile` definition count | 3 (api/services + express.d.ts + contracts schema w/o named type) | — | **1** (canonical `z.infer` export from contracts, re-exported everywhere) | 1 |
-| `as unknown as X` casts | 241 | 84 api / 205 repo | **179** (ratchet baseline; N dropped 7, N+1 dropped 1 via Zod parse, N+3 dropped 29 across 6 hotspot files) | ratchet down |
+| Frontend raw `apiClient.*` call sites | — | 94 | **~75** (↓19 in N+2) | 0 (boundary-only) |
+| `UserProfile` definition count | 3 (api/services + express.d.ts + contracts schema w/o named type) | — | **1** (canonical `z.infer` export from contracts; `.email` re-tightened to `string \| undefined` via null-strip invariant in authMiddleware) | 1 |
+| `eslint-disable no-unsafe` / `no-explicit-any` | 63 (40 api / 7 web / 16 packages) | — | **41** (21 api / 0 web / 20 packages — all library boundary) | ≤25 (library floor) |
+| `as unknown as X` casts | 241 | 84 api / 205 repo | **178** (ratchet baseline; N dropped 7, N+1 dropped 1, N+3 dropped 29 hotspots, N+4 dropped 1 via pg query typing) | ratchet down |
 | Branded ID type adoption sites | 0 | 16 (notebook + documents) | **44** (+25 chat/group, +3 threadAccessService) | opportunistic expansion |
+| `apps/web` typecheck errors | — | 19 baseline (through 5 sessions) | **0** (Session N+3 Stream D fixed all 19 at source) | 0 |
 | External API Zod schemas | 0 | 0 | **WordPress (5) + in-progress** | all 8 clients |
 | `parseJSON<T>()` adoption | — | 10 files | 10 files | all JSON.parse sites |
 | `process.env.X` direct uses (api) | ~315 | — | **17** (298 eliminated; remainder is test mocks + env.ts self + telemetry write) | ~15 (floor) |
 | Better Auth on Drizzle adapter | Kysely-era types only | — | **DONE, verified end-to-end** | done |
 | Workspace package exports | `src/*.ts` + Dockerfile `sed` rewrite | — | **`development`/`default` conditional pattern** (Phase 6.1 DONE) | done |
-| Contract router validation logger | — | — | **All 8 routers using shared helper** | mandatory for new |
+| Contract router validation logger | — | — | **All 22 mounted routers use the shared helper** | mandatory for new |
+| SSE streaming contract pattern | no template | — | **Template in progress** (Session N+5: `searchStreamEventSchema` + `streamSSE` helper) | template for all streaming |
+| `/api` prefix bug in typed client | latent since N | — | **FIXED** (commit `2971063a`, `stripApiPrefix` in axios + sse bridges) | fixed |
 
 **🎉 Phase 3 complete**: All safety-critical ESLint rules (`no-unsafe-*`, `no-floating-promises`, `no-explicit-any`, `exactOptionalPropertyTypes`) are now at `error` level across the **entire monorepo**. The `warn` override era is over.
 
