@@ -124,6 +124,38 @@ async function tryResolveUser(req: Request): Promise<Express.User | null> {
   return null;
 }
 
+// Per-route debounce for the [Auth] 401 log line. When a tab is left open
+// after logout, background pollers (notifications, presence, etc.) flood
+// the api with requests that all 401, producing dozens of identical log
+// lines per minute per route. We emit at most one log per route per minute
+// while still returning 401 for every request.
+//
+// Memory bound: in practice ~50-200 distinct routes ever reach this code,
+// so the Map stays under ~20KB. Entries are pruned lazily on each log call
+// to prevent unbounded growth in pathological cases.
+const LOG_401_DEBOUNCE_MS = 60_000;
+const last401LogAt = new Map<string, number>();
+
+function maybeLog401Once(method: string, originalUrl: string): void {
+  // Strip query string so `?foo=1` and `?foo=2` debounce together.
+  const path = originalUrl.split('?')[0] ?? originalUrl;
+  const key = `${method} ${path}`;
+  const now = Date.now();
+  const last = last401LogAt.get(key) ?? 0;
+  if (now - last < LOG_401_DEBOUNCE_MS) return;
+
+  last401LogAt.set(key, now);
+  console.warn('[Auth] 401 %s %s', method, path);
+
+  // Lazy prune: drop entries older than 2× the debounce window so the Map
+  // can't grow unbounded if a long-running process sees a wide variety of
+  // 401-ing routes over time.
+  const cutoff = now - LOG_401_DEBOUNCE_MS * 2;
+  for (const [k, t] of last401LogAt) {
+    if (t < cutoff) last401LogAt.delete(k);
+  }
+}
+
 async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   if (env.NODE_ENV === 'production' && env.ALLOW_DEV_AUTH_BYPASS) {
     console.error(
@@ -147,7 +179,7 @@ async function requireAuth(req: Request, res: Response, next: NextFunction): Pro
     req.headers.accept === 'application/json' ||
     req.originalUrl.startsWith('/api/')
   ) {
-    console.warn('[Auth] 401 — %s %s (no valid session)', req.method, req.originalUrl);
+    maybeLog401Once(req.method, req.originalUrl);
     res.status(401).json({
       error: 'Authentication required',
       redirectUrl: '/auth/login',
