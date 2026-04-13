@@ -56,9 +56,9 @@ export const useBoardSharing = (boardId: string) => {
   });
 
   const userGroups = useQuery<UserGroup[]>({
-    queryKey: ['docs', 'user-groups'],
+    queryKey: ['docs', 'groups', 'me'],
     queryFn: async () => {
-      const res = await apiClient.get<UserGroup[]>('/docs/user-groups');
+      const res = await apiClient.get<UserGroup[]>('/docs/groups/me');
       return res.data;
     },
   });
